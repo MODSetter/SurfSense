@@ -26,8 +26,8 @@ export function setupAutoUpdater(): void {
   });
 
   autoUpdater.on('error', (err) => {
-    console.error('Auto-updater error:', err);
+    console.log('Auto-updater: update check skipped —', err.message?.split('\n')[0]);
   });
 
-  autoUpdater.checkForUpdates();
+  autoUpdater.checkForUpdates().catch(() => {});
 }

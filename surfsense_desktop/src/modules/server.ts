@@ -39,7 +39,7 @@ export async function startNextServer(): Promise<void> {
   const serverScript = path.join(standalonePath, 'server.js');
 
   process.env.PORT = String(serverPort);
-  process.env.HOSTNAME = 'localhost';
+  process.env.HOSTNAME = '0.0.0.0';
   process.env.NODE_ENV = 'production';
   process.chdir(standalonePath);
 
