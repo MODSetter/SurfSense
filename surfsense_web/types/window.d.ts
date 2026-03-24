@@ -9,7 +9,6 @@ interface ElectronAPI {
 	};
 	openExternal: (url: string) => void;
 	getAppVersion: () => Promise<string>;
-	getClipboardContent: () => Promise<string>;
 	onDeepLink: (callback: (url: string) => void) => () => void;
 }
 

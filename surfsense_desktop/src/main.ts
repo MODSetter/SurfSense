@@ -5,9 +5,7 @@ import { createMainWindow } from './modules/window';
 import { setupDeepLinks, handlePendingDeepLink } from './modules/deep-links';
 import { setupAutoUpdater } from './modules/auto-updater';
 import { setupMenu } from './modules/menu';
-import { setupTray } from './modules/tray';
 import { registerIpcHandlers } from './ipc/handlers';
-import { registerClipboardHandlers } from './modules/clipboard';
 
 registerGlobalErrorHandlers();
 
@@ -16,7 +14,6 @@ if (!setupDeepLinks()) {
 }
 
 registerIpcHandlers();
-registerClipboardHandlers();
 
 // App lifecycle
 app.whenReady().then(async () => {
@@ -29,7 +26,6 @@ app.whenReady().then(async () => {
     return;
   }
   createMainWindow();
-  setupTray();
   setupAutoUpdater();
 
   handlePendingDeepLink();
