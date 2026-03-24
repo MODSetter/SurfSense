@@ -6,7 +6,7 @@ import { Component, type ReactNode, useState } from "react";
 import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Spinner } from "@/components/ui/spinner";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { cn } from "@/lib/utils";
 
 /**
@@ -145,14 +145,14 @@ export class ImageErrorBoundary extends Component<
 	render() {
 		if (this.state.hasError) {
 			return (
-				<Card className="w-full max-w-md overflow-hidden">
-					<div className="aspect-square bg-muted flex items-center justify-center">
-						<div className="flex flex-col items-center gap-2 text-muted-foreground">
-							<ImageIcon className="size-8" />
-							<p className="text-sm">Failed to load image</p>
-						</div>
+			<Card className="w-full max-w-md overflow-hidden rounded-2xl border-0 shadow-none select-none">
+				<div className="aspect-square bg-muted flex items-center justify-center">
+					<div className="flex flex-col items-center gap-2 text-muted-foreground">
+						<ImageIcon className="size-8" />
+						<p className="text-sm">Failed to load image</p>
 					</div>
-				</Card>
+				</div>
+			</Card>
 			);
 		}
 
@@ -165,7 +165,7 @@ export class ImageErrorBoundary extends Component<
  */
 export function ImageSkeleton({ maxWidth = "512px" }: { maxWidth?: string }) {
 	return (
-		<Card className="w-full overflow-hidden animate-pulse" style={{ maxWidth }}>
+		<Card className="w-full overflow-hidden rounded-2xl border-0 shadow-none select-none animate-pulse" style={{ maxWidth }}>
 			<div className="aspect-square bg-muted flex items-center justify-center">
 				<ImageIcon className="size-12 text-muted-foreground/30" />
 			</div>
@@ -176,14 +176,11 @@ export function ImageSkeleton({ maxWidth = "512px" }: { maxWidth?: string }) {
 /**
  * Image Loading State
  */
-export function ImageLoading({ title = "Loading image..." }: { title?: string }) {
+export function ImageLoading({ title = "Loading", maxWidth = "512px" }: { title?: string; maxWidth?: string }) {
 	return (
-		<Card className="w-full max-w-md overflow-hidden">
+		<Card className="w-full overflow-hidden rounded-2xl border-0 shadow-none select-none" style={{ maxWidth }}>
 			<div className="aspect-square bg-muted flex items-center justify-center">
-				<div className="flex flex-col items-center gap-3">
-					<Spinner size="lg" className="text-muted-foreground" />
-					<p className="text-muted-foreground text-sm">{title}</p>
-				</div>
+				<TextShimmerLoader text={title} size="md" />
 			</div>
 		</Card>
 	);
@@ -214,8 +211,8 @@ export function Image({
 	const [isHovered, setIsHovered] = useState(false);
 	const [imageError, setImageError] = useState(false);
 	const [imageLoaded, setImageLoaded] = useState(false);
-	const displayDomain = domain || source?.label;
 	const isGenerated = domain === "ai-generated";
+	const displayDomain = isGenerated ? "AI Generated" : (domain || source?.label);
 	const isAutoRatio = !ratio || ratio === "auto";
 
 	const handleClick = () => {
@@ -227,7 +224,7 @@ export function Image({
 
 	if (imageError) {
 		return (
-			<Card id={id} className={cn("w-full overflow-hidden", className)} style={{ maxWidth }}>
+			<Card id={id} className={cn("w-full overflow-hidden rounded-2xl border-0 shadow-none select-none", className)} style={{ maxWidth }}>
 				<div className="aspect-square bg-muted flex items-center justify-center">
 					<div className="flex flex-col items-center gap-2 text-muted-foreground">
 						<ImageIcon className="size-8" />
@@ -242,8 +239,7 @@ export function Image({
 		<Card
 			id={id}
 			className={cn(
-				"group w-full overflow-hidden cursor-pointer transition-shadow duration-200 hover:shadow-lg",
-				isGenerated && "ring-1 ring-primary/10",
+				"group w-full overflow-hidden rounded-2xl border-0 shadow-none select-none cursor-pointer transition-shadow duration-200 hover:shadow-lg",
 				className
 			)}
 			style={{ maxWidth }}
@@ -263,20 +259,24 @@ export function Image({
 				{isAutoRatio ? (
 					/* Auto ratio: image renders at natural dimensions, no cropping */
 					<>
-						{!imageLoaded && (
-							<div className="aspect-square flex items-center justify-center">
-								<Spinner size="lg" className="text-muted-foreground" />
-							</div>
-						)}
-						{/* eslint-disable-next-line @next/next/no-img-element */}
-						<img
+					{!imageLoaded && (
+						<div className="aspect-square flex items-center justify-center">
+							<TextShimmerLoader text="Loading" size="md" />
+						</div>
+					)}
+						<NextImage
 							src={src}
 							alt={alt}
+							width={0}
+							height={0}
+							sizes="100vw"
+							loading="eager"
 							className={cn(
 								"w-full h-auto transition-transform duration-300",
 								isHovered && "scale-[1.02]",
 								!imageLoaded && "hidden"
 							)}
+							unoptimized
 							onLoad={() => setImageLoaded(true)}
 							onError={() => setImageError(true)}
 						/>
@@ -316,11 +316,9 @@ export function Image({
 						{description && (
 							<p className="text-white/80 text-xs line-clamp-2 mb-1.5">{description}</p>
 						)}
-						{displayDomain && (
+						{displayDomain && !isGenerated && (
 							<div className="flex items-center gap-1.5">
-								{isGenerated ? (
-									<SparklesIcon className="size-3.5 text-white/70" />
-								) : source?.iconUrl ? (
+								{source?.iconUrl ? (
 									<NextImage
 										src={source.iconUrl}
 										alt={source.label}
