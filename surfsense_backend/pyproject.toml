@@ -47,7 +47,7 @@ dependencies = [
     "firecrawl-py>=4.9.0",
     "boto3>=1.35.0",
     "langchain-community>=0.3.31",
-    "litellm==1.80.10",
+    "litellm>=1.80.10",
     "langchain-litellm>=0.3.5",
     "fake-useragent>=2.2.0",
     "trafilatura>=2.0.0",
