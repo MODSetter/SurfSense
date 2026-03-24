@@ -2,27 +2,30 @@ import { EnumConnectorName } from "@/contracts/enums/connector";
 
 // OAuth Connectors (Quick Connect)
 export const OAUTH_CONNECTORS = [
-	// {
-	// 	id: "google-drive-connector",
-	// 	title: "Google Drive",
-	// 	description: "Search your Drive files",
-	// 	connectorType: EnumConnectorName.GOOGLE_DRIVE_CONNECTOR,
-	// 	authEndpoint: "/api/v1/auth/google/drive/connector/add/",
-	// },
-	// {
-	// 	id: "google-gmail-connector",
-	// 	title: "Gmail",
-	// 	description: "Search through your emails",
-	// 	connectorType: EnumConnectorName.GOOGLE_GMAIL_CONNECTOR,
-	// 	authEndpoint: "/api/v1/auth/google/gmail/connector/add/",
-	// },
-	// {
-	// 	id: "google-calendar-connector",
-	// 	title: "Google Calendar",
-	// 	description: "Search through your events",
-	// 	connectorType: EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR,
-	// 	authEndpoint: "/api/v1/auth/google/calendar/connector/add/",
-	// },
+	{
+		id: "google-drive-connector",
+		title: "Google Drive",
+		description: "Search your Drive files",
+		connectorType: EnumConnectorName.GOOGLE_DRIVE_CONNECTOR,
+		authEndpoint: "/api/v1/auth/google/drive/connector/add/",
+		selfHostedOnly: true,
+	},
+	{
+		id: "google-gmail-connector",
+		title: "Gmail",
+		description: "Search through your emails",
+		connectorType: EnumConnectorName.GOOGLE_GMAIL_CONNECTOR,
+		authEndpoint: "/api/v1/auth/google/gmail/connector/add/",
+		selfHostedOnly: true,
+	},
+	{
+		id: "google-calendar-connector",
+		title: "Google Calendar",
+		description: "Search through your events",
+		connectorType: EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR,
+		authEndpoint: "/api/v1/auth/google/calendar/connector/add/",
+		selfHostedOnly: true,
+	},
 	{
 		id: "airtable-connector",
 		title: "Airtable",
@@ -135,12 +138,6 @@ export const OTHER_CONNECTORS = [
 		title: "Tavily AI",
 		description: "Search with Tavily",
 		connectorType: EnumConnectorName.TAVILY_API,
-	},
-	{
-		id: "searxng",
-		title: "SearxNG",
-		description: "Search with SearxNG",
-		connectorType: EnumConnectorName.SEARXNG_API,
 	},
 	{
 		id: "linkup-api",

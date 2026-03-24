@@ -9,11 +9,9 @@ import re
 from datetime import UTC, datetime
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import delete as sa_delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-
-from sqlalchemy import delete as sa_delete
 from sqlalchemy.orm.attributes import set_committed_value
 
 from app.config import config
@@ -38,6 +36,7 @@ async def _safe_set_docs_chunks(
 
     set_committed_value(document, "chunks", chunks)
     session.add_all(chunks)
+
 
 # Path to docs relative to project root
 DOCS_DIR = (

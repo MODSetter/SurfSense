@@ -64,7 +64,6 @@ def create_delete_linear_issue_tool(
             - If status is "not_found", inform the user conversationally using the exact message
               provided. Do NOT treat this as an error. Simply relay the message and ask the user
               to verify the issue title or identifier, or check if it has been indexed.
-
         Examples:
             - "Delete the 'Fix login bug' Linear issue"
             - "Archive ENG-42"
@@ -91,6 +90,14 @@ def create_delete_linear_issue_tool(
 
             if "error" in context:
                 error_msg = context["error"]
+                if context.get("auth_expired"):
+                    logger.warning(f"Auth expired for delete context: {error_msg}")
+                    return {
+                        "status": "auth_error",
+                        "message": error_msg,
+                        "connector_id": context.get("connector_id"),
+                        "connector_type": "linear",
+                    }
                 if "not found" in error_msg.lower():
                     logger.warning(f"Issue not found: {error_msg}")
                     return {"status": "not_found", "message": error_msg}

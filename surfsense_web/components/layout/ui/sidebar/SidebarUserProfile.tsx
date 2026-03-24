@@ -122,7 +122,7 @@ function UserAvatar({
 				alt="User avatar"
 				width={32}
 				height={32}
-				className="h-8 w-8 shrink-0 rounded-lg object-cover"
+				className="h-8 w-8 shrink-0 rounded-lg object-cover select-none"
 				referrerPolicy="no-referrer"
 				unoptimized
 			/>

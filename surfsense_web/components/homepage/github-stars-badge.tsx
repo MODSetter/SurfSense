@@ -272,16 +272,16 @@ function NavbarGitHubStars({
 			target="_blank"
 			rel="noopener noreferrer"
 			className={cn(
-				"group flex items-center gap-1.5 rounded-full px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors",
+				"group flex items-center gap-1 rounded-lg px-2 py-1 hover:bg-gray-100 dark:hover:bg-neutral-800/50 transition-colors",
 				className
 			)}
 		>
-			<IconBrandGithub className="h-5 w-5 text-neutral-600 dark:text-neutral-300 shrink-0" />
+			<IconBrandGithub className="h-5 w-5 text-neutral-700 dark:text-neutral-300 shrink-0" />
 			<AnimatedStarCount
 				value={isLoading ? 10000 : stars}
 				itemSize={ITEM_SIZE}
 				isRolling={isLoading}
-				className="text-sm font-semibold tabular-nums text-neutral-600 dark:text-neutral-400 group-hover:text-neutral-800 dark:group-hover:text-neutral-200 transition-colors"
+				className="text-sm font-semibold tabular-nums text-neutral-700 dark:text-neutral-300 group-hover:text-neutral-900 dark:group-hover:text-neutral-100 transition-colors"
 			/>
 		</a>
 	);

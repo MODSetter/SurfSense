@@ -24,6 +24,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
 import { setTargetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
 import { convertRenderedToDisplay } from "@/components/chat-comments/comment-item/comment-item";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/animated-tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,7 +44,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import {
@@ -140,8 +140,7 @@ interface TabDataSource {
 	markAllAsRead: () => Promise<boolean>;
 }
 
-interface InboxSidebarProps {
-	open: boolean;
+export interface InboxSidebarContentProps {
 	onOpenChange: (open: boolean) => void;
 	comments: TabDataSource;
 	status: TabDataSource;
@@ -149,14 +148,17 @@ interface InboxSidebarProps {
 	onCloseMobileSidebar?: () => void;
 }
 
-export function InboxSidebar({
-	open,
+interface InboxSidebarProps extends InboxSidebarContentProps {
+	open: boolean;
+}
+
+export function InboxSidebarContent({
 	onOpenChange,
 	comments,
 	status,
 	totalUnreadCount,
 	onCloseMobileSidebar,
-}: InboxSidebarProps) {
+}: InboxSidebarContentProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
 	const params = useParams();
@@ -199,7 +201,7 @@ export function InboxSidebar({
 				},
 			}),
 		staleTime: 30 * 1000,
-		enabled: isSearchMode && open,
+		enabled: isSearchMode,
 	});
 
 	useEffect(() => {
@@ -207,23 +209,13 @@ export function InboxSidebar({
 	}, []);
 
 	useEffect(() => {
-		const handleEscape = (e: KeyboardEvent) => {
-			if (e.key === "Escape" && open) {
-				onOpenChange(false);
-			}
-		};
-		document.addEventListener("keydown", handleEscape);
-		return () => document.removeEventListener("keydown", handleEscape);
-	}, [open, onOpenChange]);
-
-	useEffect(() => {
-		if (!open || !isMobile) return;
+		if (!isMobile) return;
 		const originalOverflow = document.body.style.overflow;
 		document.body.style.overflow = "hidden";
 		return () => {
 			document.body.style.overflow = originalOverflow;
 		};
-	}, [open, isMobile]);
+	}, [isMobile]);
 
 	useEffect(() => {
 		if (activeTab !== "status") {
@@ -239,7 +231,7 @@ export function InboxSidebar({
 		queryKey: cacheKeys.notifications.sourceTypes(searchSpaceId),
 		queryFn: () => notificationsApiService.getSourceTypes(searchSpaceId ?? undefined),
 		staleTime: 60 * 1000,
-		enabled: open && activeTab === "status",
+		enabled: activeTab === "status",
 	});
 
 	const statusSourceOptions = useMemo(() => {
@@ -327,7 +319,7 @@ export function InboxSidebar({
 
 	// Infinite scroll — uses active tab's pagination
 	useEffect(() => {
-		if (!activeSource.hasMore || activeSource.loadingMore || !open || isSearchMode) return;
+		if (!activeSource.hasMore || activeSource.loadingMore || isSearchMode) return;
 
 		const observer = new IntersectionObserver(
 			(entries) => {
@@ -347,7 +339,7 @@ export function InboxSidebar({
 		}
 
 		return () => observer.disconnect();
-	}, [activeSource.hasMore, activeSource.loadingMore, activeSource.loadMore, open, isSearchMode]);
+	}, [activeSource.hasMore, activeSource.loadingMore, activeSource.loadMore, isSearchMode]);
 
 	const handleItemClick = useCallback(
 		async (item: InboxItem) => {
@@ -522,7 +514,7 @@ export function InboxSidebar({
 
 	const isLoading = isSearchMode ? isSearchLoading : activeSource.loading;
 
-	const inboxContent = (
+	return (
 		<>
 			<div className="shrink-0 p-4 pb-2 space-y-3">
 				<div className="flex items-center justify-between">
@@ -546,7 +538,7 @@ export function InboxSidebar({
 								<Button
 									variant="ghost"
 									size="icon"
-									className="h-8 w-8 rounded-full"
+									className="h-7 w-7 rounded-full"
 									onClick={() => setFilterDrawerOpen(true)}
 								>
 									<ListFilter className="h-4 w-4 text-muted-foreground" />
@@ -694,7 +686,7 @@ export function InboxSidebar({
 								<Tooltip>
 									<TooltipTrigger asChild>
 										<DropdownMenuTrigger asChild>
-											<Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+											<Button variant="ghost" size="icon" className="h-7 w-7 rounded-full">
 												<ListFilter className="h-4 w-4 text-muted-foreground" />
 												<span className="sr-only">{t("filter") || "Filter"}</span>
 											</Button>
@@ -790,7 +782,7 @@ export function InboxSidebar({
 							<Button
 								variant="ghost"
 								size="icon"
-								className="h-8 w-8 rounded-full"
+								className="h-7 w-7 rounded-full"
 								onClick={handleMarkAllAsRead}
 								disabled={totalUnreadCount === 0}
 							>
@@ -803,7 +795,7 @@ export function InboxSidebar({
 									<Button
 										variant="ghost"
 										size="icon"
-										className="h-8 w-8 rounded-full"
+										className="h-7 w-7 rounded-full"
 										onClick={handleMarkAllAsRead}
 										disabled={totalUnreadCount === 0}
 									>
@@ -851,14 +843,11 @@ export function InboxSidebar({
 						setActiveFilter("all");
 					}
 				}}
-				className="shrink-0 mx-4"
+				className="shrink-0 mx-4 mt-2"
 			>
-				<TabsList className="w-full h-auto p-0 bg-transparent rounded-none border-b">
-					<TabsTrigger
-						value="comments"
-						className="flex-1 rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-					>
-						<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
+				<TabsList stretch showBottomBorder size="sm">
+					<TabsTrigger value="comments">
+						<span className="inline-flex items-center gap-1.5">
 							<MessageSquare className="h-4 w-4" />
 							<span>{t("comments") || "Comments"}</span>
 							<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
@@ -866,11 +855,8 @@ export function InboxSidebar({
 							</span>
 						</span>
 					</TabsTrigger>
-					<TabsTrigger
-						value="status"
-						className="flex-1 rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-					>
-						<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
+					<TabsTrigger value="status">
+						<span className="inline-flex items-center gap-1.5">
 							<History className="h-4 w-4" />
 							<span>{t("status") || "Status"}</span>
 							<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
@@ -885,9 +871,9 @@ export function InboxSidebar({
 				{isLoading ? (
 					<div className="space-y-2">
 						{activeTab === "comments"
-							? [85, 60, 90, 70, 50, 75].map((titleWidth, i) => (
+							? [85, 60, 90, 70, 50, 75].map((titleWidth) => (
 									<div
-										key={`skeleton-comment-${i}`}
+										key={`skeleton-comment-${titleWidth}`}
 										className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
 									>
 										<Skeleton className="h-8 w-8 rounded-full shrink-0" />
@@ -898,9 +884,9 @@ export function InboxSidebar({
 										<Skeleton className="h-3 w-6 shrink-0 rounded" />
 									</div>
 								))
-							: [75, 90, 55, 80, 65, 85].map((titleWidth, i) => (
+							: [75, 90, 55, 80, 65, 85].map((titleWidth) => (
 									<div
-										key={`skeleton-status-${i}`}
+										key={`skeleton-status-${titleWidth}`}
 										className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
 									>
 										<Skeleton className="h-8 w-8 rounded-full shrink-0" />
@@ -1003,9 +989,9 @@ export function InboxSidebar({
 						)}
 						{activeSource.loadingMore &&
 							(activeTab === "comments"
-								? [80, 60, 90].map((titleWidth, i) => (
+								? [80, 60, 90].map((titleWidth) => (
 										<div
-											key={`loading-more-comment-${i}`}
+											key={`loading-more-comment-${titleWidth}`}
 											className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
 										>
 											<Skeleton className="h-8 w-8 rounded-full shrink-0" />
@@ -1016,9 +1002,9 @@ export function InboxSidebar({
 											<Skeleton className="h-3 w-6 shrink-0 rounded" />
 										</div>
 									))
-								: [70, 85, 55].map((titleWidth, i) => (
+								: [70, 85, 55].map((titleWidth) => (
 										<div
-											key={`loading-more-status-${i}`}
+											key={`loading-more-status-${titleWidth}`}
 											className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
 										>
 											<Skeleton className="h-8 w-8 rounded-full shrink-0" />
@@ -1057,10 +1043,27 @@ export function InboxSidebar({
 			</div>
 		</>
 	);
+}
+
+export function InboxSidebar({
+	open,
+	onOpenChange,
+	comments,
+	status,
+	totalUnreadCount,
+	onCloseMobileSidebar,
+}: InboxSidebarProps) {
+	const t = useTranslations("sidebar");
 
 	return (
 		<SidebarSlideOutPanel open={open} onOpenChange={onOpenChange} ariaLabel={t("inbox") || "Inbox"}>
-			{inboxContent}
+			<InboxSidebarContent
+				onOpenChange={onOpenChange}
+				comments={comments}
+				status={status}
+				totalUnreadCount={totalUnreadCount}
+				onCloseMobileSidebar={onCloseMobileSidebar}
+			/>
 		</SidebarSlideOutPanel>
 	);
 }

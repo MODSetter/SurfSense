@@ -30,18 +30,42 @@ import {
 	// extractWriteTodosFromContent,
 } from "@/atoms/chat/plan-state.atom";
 import { closeReportPanelAtom } from "@/atoms/chat/report-panel.atom";
+import { closeEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { Thread } from "@/components/assistant-ui/thread";
+import { MobileEditorPanel } from "@/components/editor-panel/editor-panel";
+import { MobileHitlEditPanel } from "@/components/hitl-edit-panel/hitl-edit-panel";
 import { MobileReportPanel } from "@/components/report-panel/report-panel";
+import {
+	CreateConfluencePageToolUI,
+	DeleteConfluencePageToolUI,
+	UpdateConfluencePageToolUI,
+} from "@/components/tool-ui/confluence";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
 import {
+	CreateGmailDraftToolUI,
+	SendGmailEmailToolUI,
+	TrashGmailEmailToolUI,
+	UpdateGmailDraftToolUI,
+} from "@/components/tool-ui/gmail";
+import {
+	CreateCalendarEventToolUI,
+	DeleteCalendarEventToolUI,
+	UpdateCalendarEventToolUI,
+} from "@/components/tool-ui/google-calendar";
+import {
 	CreateGoogleDriveFileToolUI,
 	DeleteGoogleDriveFileToolUI,
 } from "@/components/tool-ui/google-drive";
+import {
+	CreateJiraIssueToolUI,
+	DeleteJiraIssueToolUI,
+	UpdateJiraIssueToolUI,
+} from "@/components/tool-ui/jira";
 import {
 	CreateLinearIssueToolUI,
 	DeleteLinearIssueToolUI,
@@ -56,9 +80,10 @@ import {
 import { SandboxExecuteToolUI } from "@/components/tool-ui/sandbox-execute";
 import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
 import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-memory";
+import { GenerateVideoPresentationToolUI } from "@/components/tool-ui/video-presentation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
-import { useMessagesElectric } from "@/hooks/use-messages-electric";
+import { useMessagesSync } from "@/hooks/use-messages-sync";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 // import { WriteTodosToolUI } from "@/components/tool-ui/write-todos";
 import { getBearerToken } from "@/lib/auth-utils";
@@ -92,6 +117,25 @@ import {
 	trackChatMessageSent,
 	trackChatResponseReceived,
 } from "@/lib/posthog/events";
+
+/**
+ * After a tool produces output, mark any previously-decided interrupt tool
+ * calls as completed so the ApprovalCard can transition from shimmer to done.
+ */
+function markInterruptsCompleted(contentParts: Array<{ type: string; result?: unknown }>): void {
+	for (const part of contentParts) {
+		if (
+			part.type === "tool-call" &&
+			typeof part.result === "object" &&
+			part.result !== null &&
+			(part.result as Record<string, unknown>).__interrupt__ === true &&
+			(part.result as Record<string, unknown>).__decided__ &&
+			!(part.result as Record<string, unknown>).__completed__
+		) {
+			part.result = { ...(part.result as Record<string, unknown>), __completed__: true };
+		}
+	}
+}
 
 /**
  * Extract thinking steps from message content
@@ -146,6 +190,7 @@ function extractMentionedDocuments(content: unknown): MentionedDocumentInfo[] {
 const TOOLS_WITH_UI = new Set([
 	"generate_podcast",
 	"generate_report",
+	"generate_video_presentation",
 	"link_preview",
 	"display_image",
 	"delete_notion_page",
@@ -157,6 +202,19 @@ const TOOLS_WITH_UI = new Set([
 	"delete_linear_issue",
 	"create_google_drive_file",
 	"delete_google_drive_file",
+	"create_calendar_event",
+	"update_calendar_event",
+	"delete_calendar_event",
+	"create_gmail_draft",
+	"update_gmail_draft",
+	"send_gmail_email",
+	"trash_gmail_email",
+	"create_jira_issue",
+	"update_jira_issue",
+	"delete_jira_issue",
+	"create_confluence_page",
+	"update_confluence_page",
+	"delete_confluence_page",
 	"execute",
 	// "write_todos", // Disabled for now
 ]);
@@ -195,17 +253,18 @@ export default function NewChatPage() {
 	const setTargetCommentId = useSetAtom(setTargetCommentIdAtom);
 	const clearTargetCommentId = useSetAtom(clearTargetCommentIdAtom);
 	const closeReportPanel = useSetAtom(closeReportPanelAtom);
+	const closeEditorPanel = useSetAtom(closeEditorPanelAtom);
 
 	// Get current user for author info in shared chats
 	const { data: currentUser } = useAtomValue(currentUserAtom);
 
-	// Live collaboration: sync session state and messages via Electric SQL
+	// Live collaboration: sync session state and messages via Zero
 	useChatSessionStateSync(threadId);
 	const { data: membersData } = useAtomValue(membersAtom);
 
-	const handleElectricMessagesUpdate = useCallback(
+	const handleSyncedMessagesUpdate = useCallback(
 		(
-			electricMessages: {
+			syncedMessages: {
 				id: number;
 				thread_id: number;
 				role: string;
@@ -219,11 +278,11 @@ export default function NewChatPage() {
 			}
 
 			setMessages((prev) => {
-				if (electricMessages.length < prev.length) {
+				if (syncedMessages.length < prev.length) {
 					return prev;
 				}
 
-				return electricMessages.map((msg) => {
+				return syncedMessages.map((msg) => {
 					const member = msg.author_id
 						? membersData?.find((m) => m.user_id === msg.author_id)
 						: null;
@@ -250,7 +309,7 @@ export default function NewChatPage() {
 		[isRunning, membersData]
 	);
 
-	useMessagesElectric(threadId, handleElectricMessagesUpdate);
+	useMessagesSync(threadId, handleSyncedMessagesUpdate);
 
 	// Extract search_space_id from URL params
 	const searchSpaceId = useMemo(() => {
@@ -286,6 +345,7 @@ export default function NewChatPage() {
 		setMessageDocumentsMap({});
 		clearPlanOwnerRegistry();
 		closeReportPanel();
+		closeEditorPanel();
 
 		try {
 			if (urlChatId > 0) {
@@ -351,6 +411,7 @@ export default function NewChatPage() {
 		setMentionedDocuments,
 		setSidebarDocuments,
 		closeReportPanel,
+		closeEditorPanel,
 	]);
 
 	// Initialize on mount
@@ -705,6 +766,7 @@ export default function NewChatPage() {
 						case "tool-output-available": {
 							// Update the tool call with its result
 							updateToolCall(contentPartsState, parsed.toolCallId, { result: parsed.output });
+							markInterruptsCompleted(contentParts);
 							// Handle podcast-specific logic
 							if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
 								// Check if this is a podcast tool by looking at the content part
@@ -1083,6 +1145,7 @@ export default function NewChatPage() {
 							updateToolCall(contentPartsState, parsed.toolCallId, {
 								result: parsed.output,
 							});
+							markInterruptsCompleted(contentParts);
 							setMessages((prev) =>
 								prev.map((m) =>
 									m.id === assistantMsgId
@@ -1434,6 +1497,7 @@ export default function NewChatPage() {
 
 						case "tool-output-available":
 							updateToolCall(contentPartsState, parsed.toolCallId, { result: parsed.output });
+							markInterruptsCompleted(contentParts);
 							if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
 								const idx = toolCallIndices.get(parsed.toolCallId);
 								if (idx !== undefined) {
@@ -1596,7 +1660,7 @@ export default function NewChatPage() {
 	// Show loading state only when loading an existing thread
 	if (isInitializing) {
 		return (
-			<div className="flex h-[calc(100dvh-64px)] flex-col bg-background px-4">
+			<div className="flex h-[calc(100dvh-64px)] flex-col bg-main-panel px-4">
 				<div className="mx-auto w-full max-w-[44rem] flex flex-1 flex-col gap-6 py-8">
 					{/* User message */}
 					<div className="flex justify-end">
@@ -1624,7 +1688,7 @@ export default function NewChatPage() {
 				</div>
 
 				{/* Input bar */}
-				<div className="sticky bottom-0 pb-6 bg-background">
+				<div className="sticky bottom-0 pb-6 bg-main-panel">
 					<div className="mx-auto w-full max-w-[44rem]">
 						<Skeleton className="h-24 w-full rounded-2xl" />
 					</div>
@@ -1657,6 +1721,7 @@ export default function NewChatPage() {
 		<AssistantRuntimeProvider runtime={runtime}>
 			<GeneratePodcastToolUI />
 			<GenerateReportToolUI />
+			<GenerateVideoPresentationToolUI />
 			<LinkPreviewToolUI />
 			<DisplayImageToolUI />
 			<ScrapeWebpageToolUI />
@@ -1670,6 +1735,19 @@ export default function NewChatPage() {
 			<DeleteLinearIssueToolUI />
 			<CreateGoogleDriveFileToolUI />
 			<DeleteGoogleDriveFileToolUI />
+			<CreateCalendarEventToolUI />
+			<UpdateCalendarEventToolUI />
+			<DeleteCalendarEventToolUI />
+			<CreateGmailDraftToolUI />
+			<UpdateGmailDraftToolUI />
+			<SendGmailEmailToolUI />
+			<TrashGmailEmailToolUI />
+			<CreateJiraIssueToolUI />
+			<UpdateJiraIssueToolUI />
+			<DeleteJiraIssueToolUI />
+			<CreateConfluencePageToolUI />
+			<UpdateConfluencePageToolUI />
+			<DeleteConfluencePageToolUI />
 			<SandboxExecuteToolUI />
 			{/* <WriteTodosToolUI /> Disabled for now */}
 			<div key={searchSpaceId} className="flex h-[calc(100dvh-64px)] overflow-hidden">
@@ -1677,6 +1755,8 @@ export default function NewChatPage() {
 					<Thread messageThinkingSteps={messageThinkingSteps} />
 				</div>
 				<MobileReportPanel />
+				<MobileEditorPanel />
+				<MobileHitlEditPanel />
 			</div>
 		</AssistantRuntimeProvider>
 	);

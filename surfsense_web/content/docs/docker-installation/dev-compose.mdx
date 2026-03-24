@@ -24,7 +24,7 @@ The following `.env` variables are **only used by the dev compose file** (they h
 | `REDIS_PORT` | Exposed Redis port (internal-only in prod) | `6379` |
 | `NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE` | Frontend build arg for auth type | `LOCAL` |
 | `NEXT_PUBLIC_ETL_SERVICE` | Frontend build arg for ETL service | `DOCLING` |
+| `NEXT_PUBLIC_ZERO_CACHE_URL` | Frontend build arg for Zero-cache URL | `http://localhost:4848` |
 | `NEXT_PUBLIC_DEPLOYMENT_MODE` | Frontend build arg for deployment mode | `self-hosted` |
-| `NEXT_PUBLIC_ELECTRIC_AUTH_MODE` | Frontend build arg for Electric auth | `insecure` |
 
 In the production compose file, the `NEXT_PUBLIC_*` frontend variables are automatically derived from `AUTH_TYPE`, `ETL_SERVICE`, and the port settings. In the dev compose file, they are passed as build args since the frontend is built from source.

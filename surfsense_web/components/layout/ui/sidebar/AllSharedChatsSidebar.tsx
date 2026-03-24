@@ -16,8 +16,9 @@ import {
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/animated-tabs";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -31,13 +32,11 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
-	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useLongPress } from "@/hooks/use-long-press";
@@ -51,19 +50,21 @@ import {
 import { cn } from "@/lib/utils";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 
-interface AllSharedChatsSidebarProps {
-	open: boolean;
+export interface AllSharedChatsSidebarContentProps {
 	onOpenChange: (open: boolean) => void;
 	searchSpaceId: string;
 	onCloseMobileSidebar?: () => void;
 }
 
-export function AllSharedChatsSidebar({
-	open,
+interface AllSharedChatsSidebarProps extends AllSharedChatsSidebarContentProps {
+	open: boolean;
+}
+
+export function AllSharedChatsSidebarContent({
 	onOpenChange,
 	searchSpaceId,
 	onCloseMobileSidebar,
-}: AllSharedChatsSidebarProps) {
+}: AllSharedChatsSidebarContentProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
 	const params = useParams();
@@ -97,16 +98,6 @@ export function AllSharedChatsSidebar({
 
 	const isSearchMode = !!debouncedSearchQuery.trim();
 
-	useEffect(() => {
-		const handleEscape = (e: KeyboardEvent) => {
-			if (e.key === "Escape" && open) {
-				onOpenChange(false);
-			}
-		};
-		document.addEventListener("keydown", handleEscape);
-		return () => document.removeEventListener("keydown", handleEscape);
-	}, [open, onOpenChange]);
-
 	const {
 		data: threadsData,
 		error: threadsError,
@@ -114,7 +105,7 @@ export function AllSharedChatsSidebar({
 	} = useQuery({
 		queryKey: ["all-threads", searchSpaceId],
 		queryFn: () => fetchThreads(Number(searchSpaceId)),
-		enabled: !!searchSpaceId && open && !isSearchMode,
+		enabled: !!searchSpaceId && !isSearchMode,
 	});
 
 	const {
@@ -124,7 +115,7 @@ export function AllSharedChatsSidebar({
 	} = useQuery({
 		queryKey: ["search-threads", searchSpaceId, debouncedSearchQuery],
 		queryFn: () => searchThreads(Number(searchSpaceId), debouncedSearchQuery.trim()),
-		enabled: !!searchSpaceId && open && isSearchMode,
+		enabled: !!searchSpaceId && isSearchMode,
 	});
 
 	// Filter to only shared chats (SEARCH_SPACE visibility)
@@ -251,11 +242,7 @@ export function AllSharedChatsSidebar({
 	const archivedCount = archivedChats.length;
 
 	return (
-		<SidebarSlideOutPanel
-			open={open}
-			onOpenChange={onOpenChange}
-			ariaLabel={t("shared_chats") || "Shared Chats"}
-		>
+		<>
 			<div className="shrink-0 p-4 pb-2 space-y-3">
 				<div className="flex items-center gap-2">
 					{isMobile && (
@@ -300,14 +287,11 @@ export function AllSharedChatsSidebar({
 				<Tabs
 					value={showArchived ? "archived" : "active"}
 					onValueChange={(value) => setShowArchived(value === "archived")}
-					className="shrink-0 mx-4"
+					className="shrink-0 mx-4 mt-2"
 				>
-					<TabsList className="w-full h-auto p-0 bg-transparent rounded-none border-b">
-						<TabsTrigger
-							value="active"
-							className="flex-1 rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-						>
-							<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
+					<TabsList stretch showBottomBorder size="sm">
+						<TabsTrigger value="active">
+							<span className="inline-flex items-center gap-1.5">
 								<MessageCircleMore className="h-4 w-4" />
 								<span>Active</span>
 								<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
@@ -315,11 +299,8 @@ export function AllSharedChatsSidebar({
 								</span>
 							</span>
 						</TabsTrigger>
-						<TabsTrigger
-							value="archived"
-							className="flex-1 rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-						>
-							<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
+						<TabsTrigger value="archived">
+							<span className="inline-flex items-center gap-1.5">
 								<ArchiveIcon className="h-4 w-4" />
 								<span>Archived</span>
 								<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
@@ -334,8 +315,11 @@ export function AllSharedChatsSidebar({
 			<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
 				{isLoading ? (
 					<div className="space-y-1">
-						{[75, 90, 55, 80, 65, 85].map((titleWidth, i) => (
-							<div key={`skeleton-${i}`} className="flex items-center gap-2 rounded-md px-2 py-1.5">
+						{[75, 90, 55, 80, 65, 85].map((titleWidth) => (
+							<div
+								key={`skeleton-${titleWidth}`}
+								className="flex items-center gap-2 rounded-md px-2 py-1.5"
+							>
 								<Skeleton className="h-4 w-4 shrink-0 rounded" />
 								<Skeleton className="h-4 rounded" style={{ width: `${titleWidth}%` }} />
 							</div>
@@ -380,7 +364,6 @@ export function AllSharedChatsSidebar({
 											disabled={isBusy}
 											className="flex items-center gap-2 flex-1 min-w-0 text-left overflow-hidden"
 										>
-											<MessageCircleMore className="h-4 w-4 shrink-0 text-muted-foreground" />
 											<span className="truncate">{thread.title || "New Chat"}</span>
 										</button>
 									) : (
@@ -392,7 +375,6 @@ export function AllSharedChatsSidebar({
 													disabled={isBusy}
 													className="flex items-center gap-2 flex-1 min-w-0 text-left overflow-hidden"
 												>
-													<MessageCircleMore className="h-4 w-4 shrink-0 text-muted-foreground" />
 													<span className="truncate">{thread.title || "New Chat"}</span>
 												</button>
 											</TooltipTrigger>
@@ -455,7 +437,6 @@ export function AllSharedChatsSidebar({
 													</>
 												)}
 											</DropdownMenuItem>
-											<DropdownMenuSeparator />
 											<DropdownMenuItem onClick={() => handleDeleteThread(thread.id)}>
 												<Trash2 className="mr-2 h-4 w-4" />
 												<span>{t("delete") || "Delete"}</span>
@@ -537,6 +518,29 @@ export function AllSharedChatsSidebar({
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
+		</>
+	);
+}
+
+export function AllSharedChatsSidebar({
+	open,
+	onOpenChange,
+	searchSpaceId,
+	onCloseMobileSidebar,
+}: AllSharedChatsSidebarProps) {
+	const t = useTranslations("sidebar");
+
+	return (
+		<SidebarSlideOutPanel
+			open={open}
+			onOpenChange={onOpenChange}
+			ariaLabel={t("shared_chats") || "Shared Chats"}
+		>
+			<AllSharedChatsSidebarContent
+				onOpenChange={onOpenChange}
+				searchSpaceId={searchSpaceId}
+				onCloseMobileSidebar={onCloseMobileSidebar}
+			/>
 		</SidebarSlideOutPanel>
 	);
 }

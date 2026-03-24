@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import { logout } from "@/lib/auth-utils";
-import { cleanupElectric } from "@/lib/electric/client";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
 
 export function UserDropdown({
@@ -38,14 +37,6 @@ export function UserDropdown({
 			// Track logout event and reset PostHog identity
 			trackLogout();
 			resetUser();
-
-			// Best-effort cleanup of Electric SQL / PGlite
-			// Even if this fails, login-time cleanup will handle it
-			try {
-				await cleanupElectric();
-			} catch (err) {
-				console.warn("[Logout] Electric cleanup failed (will be handled on next login):", err);
-			}
 
 			// Revoke refresh token on server and clear all tokens from localStorage
 			await logout();

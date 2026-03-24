@@ -47,7 +47,6 @@ def create_delete_google_drive_file_tool(
               to verify the file name or check if it has been indexed.
             - If status is "insufficient_permissions", the connector lacks the required OAuth scope.
               Inform the user they need to re-authenticate and do NOT retry this tool.
-
         Examples:
             - "Delete the 'Meeting Notes' file from Google Drive"
             - "Trash the 'Old Budget' spreadsheet"
@@ -75,6 +74,18 @@ def create_delete_google_drive_file_tool(
                     return {"status": "not_found", "message": error_msg}
                 logger.error(f"Failed to fetch trash context: {error_msg}")
                 return {"status": "error", "message": error_msg}
+
+            account = context.get("account", {})
+            if account.get("auth_expired"):
+                logger.warning(
+                    "Google Drive account %s has expired authentication",
+                    account.get("id"),
+                )
+                return {
+                    "status": "auth_error",
+                    "message": "The Google Drive account for this file needs re-authentication. Please re-authenticate in your connector settings.",
+                    "connector_type": "google_drive",
+                }
 
             file = context["file"]
             file_id = file["file_id"]
@@ -151,13 +162,17 @@ def create_delete_google_drive_file_tool(
 
             from app.db import SearchSourceConnector, SearchSourceConnectorType
 
+            _drive_types = [
+                SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR,
+                SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+            ]
+
             result = await db_session.execute(
                 select(SearchSourceConnector).filter(
                     SearchSourceConnector.id == final_connector_id,
                     SearchSourceConnector.search_space_id == search_space_id,
                     SearchSourceConnector.user_id == user_id,
-                    SearchSourceConnector.connector_type
-                    == SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR,
+                    SearchSourceConnector.connector_type.in_(_drive_types),
                 )
             )
             connector = result.scalars().first()
@@ -170,7 +185,23 @@ def create_delete_google_drive_file_tool(
             logger.info(
                 f"Deleting Google Drive file: file_id='{final_file_id}', connector={final_connector_id}"
             )
-            client = GoogleDriveClient(session=db_session, connector_id=connector.id)
+
+            pre_built_creds = None
+            if (
+                connector.connector_type
+                == SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR
+            ):
+                from app.utils.google_credentials import build_composio_credentials
+
+                cca_id = connector.config.get("composio_connected_account_id")
+                if cca_id:
+                    pre_built_creds = build_composio_credentials(cca_id)
+
+            client = GoogleDriveClient(
+                session=db_session,
+                connector_id=connector.id,
+                credentials=pre_built_creds,
+            )
             try:
                 await client.trash_file(file_id=final_file_id)
             except HttpError as http_err:
@@ -178,10 +209,26 @@ def create_delete_google_drive_file_tool(
                     logger.warning(
                         f"Insufficient permissions for connector {connector.id}: {http_err}"
                     )
+                    try:
+                        from sqlalchemy.orm.attributes import flag_modified
+
+                        if not connector.config.get("auth_expired"):
+                            connector.config = {
+                                **connector.config,
+                                "auth_expired": True,
+                            }
+                            flag_modified(connector, "config")
+                            await db_session.commit()
+                    except Exception:
+                        logger.warning(
+                            "Failed to persist auth_expired for connector %s",
+                            connector.id,
+                            exc_info=True,
+                        )
                     return {
                         "status": "insufficient_permissions",
                         "connector_id": connector.id,
-                        "message": "This Google Drive account needs additional permissions. Please re-authenticate.",
+                        "message": "This Google Drive account needs additional permissions. Please re-authenticate in connector settings.",
                     }
                 raise
 

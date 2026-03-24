@@ -105,4 +105,5 @@ export {
 	SaveMemoryResultSchema,
 	SaveMemoryToolUI,
 } from "./user-memory";
+export { GenerateVideoPresentationToolUI } from "./video-presentation";
 export { type WriteTodosData, WriteTodosSchema, WriteTodosToolUI } from "./write-todos";

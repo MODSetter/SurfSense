@@ -520,7 +520,7 @@ async def index_luma_events(
                 documents_failed += 1
                 continue
 
-        # CRITICAL: Always update timestamp (even if 0 documents indexed) so Electric SQL syncs
+        # CRITICAL: Always update timestamp (even if 0 documents indexed) so Zero syncs
         # This ensures the UI shows "Last indexed" instead of "Never indexed"
         await update_connector_last_indexed(session, connector, update_last_indexed)
 

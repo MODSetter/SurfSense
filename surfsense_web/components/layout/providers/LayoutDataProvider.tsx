@@ -14,7 +14,17 @@ import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
 import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import {
+	morePagesDialogAtom,
+	searchSpaceSettingsDialogAtom,
+	teamDialogAtom,
+	userSettingsDialogAtom,
+} from "@/atoms/settings/settings-dialog.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
+import { MorePagesDialog } from "@/components/settings/more-pages-dialog";
+import { SearchSpaceSettingsDialog } from "@/components/settings/search-space-settings-dialog";
+import { TeamDialog } from "@/components/settings/team-dialog";
+import { UserSettingsDialog } from "@/components/settings/user-settings-dialog";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -35,7 +45,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { isPageLimitExceededMetadata } from "@/contracts/types/inbox.types";
+import { Spinner } from "@/components/ui/spinner";
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { useDocumentsProcessing } from "@/hooks/use-documents-processing";
 import { useInbox } from "@/hooks/use-inbox";
@@ -44,7 +54,6 @@ import { notificationsApiService } from "@/lib/apis/notifications-api.service";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { logout } from "@/lib/auth-utils";
 import { deleteThread, fetchThreads, updateThread } from "@/lib/chat/thread-persistence";
-import { cleanupElectric } from "@/lib/electric/client";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import type { ChatItem, NavItem, SearchSpace } from "../types/layout.types";
@@ -118,12 +127,12 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		enabled: !!searchSpaceId,
 	});
 
-	// Separate sidebar states for shared and private chats
-	const [isAllSharedChatsSidebarOpen, setIsAllSharedChatsSidebarOpen] = useState(false);
-	const [isAllPrivateChatsSidebarOpen, setIsAllPrivateChatsSidebarOpen] = useState(false);
+	// Unified slide-out panel state (only one can be open at a time)
+	type SlideoutPanel = "inbox" | "shared" | "private" | "announcements" | null;
+	const [activeSlideoutPanel, setActiveSlideoutPanel] = useState<SlideoutPanel>(null);
 
-	// Inbox sidebar state
-	const [isInboxSidebarOpen, setIsInboxSidebarOpen] = useState(false);
+	const isInboxSidebarOpen = activeSlideoutPanel === "inbox";
+	const isAnnouncementsSidebarOpen = activeSlideoutPanel === "announcements";
 
 	// Documents sidebar state (shared atom so Composer can toggle it)
 	const [isDocumentsSidebarOpen, setIsDocumentsSidebarOpen] = useAtom(documentsSidebarOpenAtom);
@@ -142,14 +151,9 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		}
 	}, [setIsDocumentsSidebarOpen]);
 
-	// Announcements sidebar state
-	const [isAnnouncementsSidebarOpen, setIsAnnouncementsSidebarOpen] = useState(false);
-
 	// Search space dialog state
 	const [isCreateSearchSpaceDialogOpen, setIsCreateSearchSpaceDialogOpen] = useState(false);
 
-	// Per-tab inbox hooks — each has independent API loading, pagination,
-	// and Electric live queries. The Electric sync shape is shared (client-level cache).
 	const userId = user?.id ? String(user.id) : null;
 	const numericSpaceId = Number(searchSpaceId) || null;
 
@@ -193,6 +197,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const seenPageLimitNotifications = useRef<Set<number>>(new Set());
 	const isInitialLoad = useRef(true);
 
+	const setMorePagesOpen = useSetAtom(morePagesDialogAtom);
+
 	// Effect to show toast for new page_limit_exceeded notifications
 	useEffect(() => {
 		if (statusInbox.loading) return;
@@ -216,21 +222,17 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		for (const notification of newNotifications) {
 			seenPageLimitNotifications.current.add(notification.id);
 
-			const actionUrl = isPageLimitExceededMetadata(notification.metadata)
-				? notification.metadata.action_url
-				: `/dashboard/${searchSpaceId}/more-pages`;
-
 			toast.error(notification.title, {
 				description: notification.message,
 				duration: 8000,
 				icon: <AlertTriangle className="h-5 w-5 text-amber-500" />,
 				action: {
 					label: "View Plans",
-					onClick: () => router.push(actionUrl),
+					onClick: () => setMorePagesOpen(true),
 				},
 			});
 		}
-	}, [statusInbox.inboxItems, statusInbox.loading, searchSpaceId, router]);
+	}, [statusInbox.inboxItems, statusInbox.loading, searchSpaceId, setMorePagesOpen]);
 
 	// Delete dialogs state
 	const [showDeleteChatDialog, setShowDeleteChatDialog] = useState(false);
@@ -263,12 +265,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	}, [pendingNewChat, params?.chat_id, router, searchSpaceId, resetCurrentThread]);
 
 	// Reset transient slide-out panels when switching search spaces.
-	// Some browsers can retain overlay/backdrop state across route transitions.
 	useEffect(() => {
-		setIsInboxSidebarOpen(false);
-		setIsAllSharedChatsSidebarOpen(false);
-		setIsAllPrivateChatsSidebarOpen(false);
-		setIsAnnouncementsSidebarOpen(false);
+		setActiveSlideoutPanel(null);
 	}, [searchSpaceId]);
 
 	const searchSpaces: SearchSpace[] = useMemo(() => {
@@ -390,15 +388,19 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		setIsCreateSearchSpaceDialogOpen(true);
 	}, []);
 
+	const setUserSettingsDialog = useSetAtom(userSettingsDialogAtom);
+	const setSearchSpaceSettingsDialog = useSetAtom(searchSpaceSettingsDialogAtom);
+	const setTeamDialogOpen = useSetAtom(teamDialogAtom);
+
 	const handleUserSettings = useCallback(() => {
-		router.push(`/dashboard/${searchSpaceId}/user-settings?tab=profile`);
-	}, [router, searchSpaceId]);
+		setUserSettingsDialog({ open: true, initialTab: "profile" });
+	}, [setUserSettingsDialog]);
 
 	const handleSearchSpaceSettings = useCallback(
-		(space: SearchSpace) => {
-			router.push(`/dashboard/${space.id}/settings?tab=general`);
+		(_space: SearchSpace) => {
+			setSearchSpaceSettingsDialog({ open: true, initialTab: "general" });
 		},
-		[router]
+		[setSearchSpaceSettingsDialog]
 	);
 
 	const handleSearchSpaceDeleteClick = useCallback((space: SearchSpace) => {
@@ -474,14 +476,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const handleNavItemClick = useCallback(
 		(item: NavItem) => {
 			if (item.url === "#inbox") {
-				setIsInboxSidebarOpen((prev) => {
-					if (!prev) {
-						setIsAllSharedChatsSidebarOpen(false);
-						setIsAllPrivateChatsSidebarOpen(false);
-						setIsAnnouncementsSidebarOpen(false);
-					}
-					return !prev;
-				});
+				setActiveSlideoutPanel((prev) => (prev === "inbox" ? null : "inbox"));
 				return;
 			}
 			if (item.url === "#documents") {
@@ -489,20 +484,14 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 					if (!isDocumentsSidebarOpen) {
 						setIsDocumentsSidebarOpen(true);
 						setIsRightPanelCollapsed(false);
-						setIsInboxSidebarOpen(false);
-						setIsAllSharedChatsSidebarOpen(false);
-						setIsAllPrivateChatsSidebarOpen(false);
-						setIsAnnouncementsSidebarOpen(false);
+						setActiveSlideoutPanel(null);
 					} else {
 						setIsRightPanelCollapsed((prev) => !prev);
 					}
 				} else {
 					setIsDocumentsSidebarOpen((prev) => {
 						if (!prev) {
-							setIsInboxSidebarOpen(false);
-							setIsAllSharedChatsSidebarOpen(false);
-							setIsAllPrivateChatsSidebarOpen(false);
-							setIsAnnouncementsSidebarOpen(false);
+							setActiveSlideoutPanel(null);
 						}
 						return !prev;
 					});
@@ -510,14 +499,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				return;
 			}
 			if (item.url === "#announcements") {
-				setIsAnnouncementsSidebarOpen((prev) => {
-					if (!prev) {
-						setIsInboxSidebarOpen(false);
-						setIsAllSharedChatsSidebarOpen(false);
-						setIsAllPrivateChatsSidebarOpen(false);
-					}
-					return !prev;
-				});
+				setActiveSlideoutPanel((prev) => (prev === "announcements" ? null : "announcements"));
 				return;
 			}
 			router.push(item.url);
@@ -582,25 +564,17 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	);
 
 	const handleSettings = useCallback(() => {
-		router.push(`/dashboard/${searchSpaceId}/settings?tab=general`);
-	}, [router, searchSpaceId]);
+		setSearchSpaceSettingsDialog({ open: true, initialTab: "general" });
+	}, [setSearchSpaceSettingsDialog]);
 
 	const handleManageMembers = useCallback(() => {
-		router.push(`/dashboard/${searchSpaceId}/team`);
-	}, [router, searchSpaceId]);
+		setTeamDialogOpen(true);
+	}, [setTeamDialogOpen]);
 
 	const handleLogout = useCallback(async () => {
 		try {
 			trackLogout();
 			resetUser();
-
-			// Best-effort cleanup of Electric SQL / PGlite
-			// Even if this fails, login-time cleanup will handle it
-			try {
-				await cleanupElectric();
-			} catch (err) {
-				console.warn("[Logout] Electric cleanup failed (will be handled on next login):", err);
-			}
 
 			// Revoke refresh token on server and clear all tokens from localStorage
 			await logout();
@@ -616,17 +590,11 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	}, [router]);
 
 	const handleViewAllSharedChats = useCallback(() => {
-		setIsAllSharedChatsSidebarOpen(true);
-		setIsAllPrivateChatsSidebarOpen(false);
-		setIsInboxSidebarOpen(false);
-		setIsAnnouncementsSidebarOpen(false);
+		setActiveSlideoutPanel((prev) => (prev === "shared" ? null : "shared"));
 	}, []);
 
 	const handleViewAllPrivateChats = useCallback(() => {
-		setIsAllPrivateChatsSidebarOpen(true);
-		setIsAllSharedChatsSidebarOpen(false);
-		setIsInboxSidebarOpen(false);
-		setIsAnnouncementsSidebarOpen(false);
+		setActiveSlideoutPanel((prev) => (prev === "private" ? null : "private"));
 	}, []);
 
 	// Delete handlers
@@ -732,9 +700,10 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				setTheme={setTheme}
 				isChatPage={isChatPage}
 				isLoadingChats={isLoadingThreads}
+				activeSlideoutPanel={activeSlideoutPanel}
+				onSlideoutPanelChange={setActiveSlideoutPanel}
 				inbox={{
 					isOpen: isInboxSidebarOpen,
-					onOpenChange: setIsInboxSidebarOpen,
 					totalUnreadCount,
 					comments: {
 						items: commentsInbox.inboxItems,
@@ -757,18 +726,10 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						markAllAsRead: statusInbox.markAllAsRead,
 					},
 				}}
-				announcementsPanel={{
-					open: isAnnouncementsSidebarOpen,
-					onOpenChange: setIsAnnouncementsSidebarOpen,
-				}}
 				allSharedChatsPanel={{
-					open: isAllSharedChatsSidebarOpen,
-					onOpenChange: setIsAllSharedChatsSidebarOpen,
 					searchSpaceId,
 				}}
 				allPrivateChatsPanel={{
-					open: isAllPrivateChatsSidebarOpen,
-					onOpenChange: setIsAllPrivateChatsSidebarOpen,
 					searchSpaceId,
 				}}
 				documentsPanel={{
@@ -801,14 +762,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 							disabled={isDeletingChat}
 							className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
 						>
-							{isDeletingChat ? (
-								<>
-									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-									{t("deleting")}
-								</>
-							) : (
-								tCommon("delete")
-							)}
+							{isDeletingChat ? <Spinner size="sm" /> : tCommon("delete")}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
@@ -934,6 +888,12 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				open={isCreateSearchSpaceDialogOpen}
 				onOpenChange={setIsCreateSearchSpaceDialogOpen}
 			/>
+
+			{/* Settings Dialogs */}
+			<SearchSpaceSettingsDialog searchSpaceId={Number(searchSpaceId)} />
+			<UserSettingsDialog />
+			<TeamDialog searchSpaceId={Number(searchSpaceId)} />
+			<MorePagesDialog />
 		</>
 	);
 }

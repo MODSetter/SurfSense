@@ -613,6 +613,41 @@ async def _stream_agent_events(
                     status="completed",
                     items=completed_items,
                 )
+            elif tool_name == "generate_video_presentation":
+                vp_status = (
+                    tool_output.get("status", "unknown")
+                    if isinstance(tool_output, dict)
+                    else "unknown"
+                )
+                vp_title = (
+                    tool_output.get("title", "Presentation")
+                    if isinstance(tool_output, dict)
+                    else "Presentation"
+                )
+                if vp_status in ("pending", "generating"):
+                    completed_items = [
+                        f"Title: {vp_title}",
+                        "Presentation generation started",
+                        "Processing in background...",
+                    ]
+                elif vp_status == "failed":
+                    error_msg = (
+                        tool_output.get("error", "Unknown error")
+                        if isinstance(tool_output, dict)
+                        else "Unknown error"
+                    )
+                    completed_items = [
+                        f"Title: {vp_title}",
+                        f"Error: {error_msg[:50]}",
+                    ]
+                else:
+                    completed_items = last_active_step_items
+                yield streaming_service.format_thinking_step(
+                    step_id=original_step_id,
+                    title="Generating video presentation",
+                    status="completed",
+                    items=completed_items,
+                )
             elif tool_name == "generate_report":
                 report_status = (
                     tool_output.get("status", "unknown")
@@ -756,6 +791,34 @@ async def _stream_agent_events(
                         f"Podcast generation failed: {error_msg}",
                         "error",
                     )
+            elif tool_name == "generate_video_presentation":
+                yield streaming_service.format_tool_output_available(
+                    tool_call_id,
+                    tool_output
+                    if isinstance(tool_output, dict)
+                    else {"result": tool_output},
+                )
+                if (
+                    isinstance(tool_output, dict)
+                    and tool_output.get("status") == "pending"
+                ):
+                    yield streaming_service.format_terminal_info(
+                        f"Video presentation queued: {tool_output.get('title', 'Presentation')}",
+                        "success",
+                    )
+                elif (
+                    isinstance(tool_output, dict)
+                    and tool_output.get("status") == "failed"
+                ):
+                    error_msg = (
+                        tool_output.get("error", "Unknown error")
+                        if isinstance(tool_output, dict)
+                        else "Unknown error"
+                    )
+                    yield streaming_service.format_terminal_info(
+                        f"Presentation generation failed: {error_msg}",
+                        "error",
+                    )
             elif tool_name == "link_preview":
                 yield streaming_service.format_tool_output_available(
                     tool_call_id,
@@ -873,6 +936,19 @@ async def _stream_agent_events(
                 "delete_linear_issue",
                 "create_google_drive_file",
                 "delete_google_drive_file",
+                "create_gmail_draft",
+                "update_gmail_draft",
+                "send_gmail_email",
+                "trash_gmail_email",
+                "create_calendar_event",
+                "update_calendar_event",
+                "delete_calendar_event",
+                "create_jira_issue",
+                "update_jira_issue",
+                "delete_jira_issue",
+                "create_confluence_page",
+                "update_confluence_page",
+                "delete_confluence_page",
             ):
                 yield streaming_service.format_tool_output_available(
                     tool_call_id,

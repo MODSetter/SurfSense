@@ -61,7 +61,7 @@ export function ChatListItem({
 				onClick={handleClick}
 				{...(isMobile ? longPressHandlers : {})}
 				className={cn(
-					"flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-sm text-left transition-colors",
+					"flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-sm text-left",
 					"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
 					"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
 					isActive && "bg-accent text-accent-foreground"

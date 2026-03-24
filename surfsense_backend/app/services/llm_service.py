@@ -278,7 +278,7 @@ async def get_search_space_llm_instance(
                     "ALIBABA_QWEN": "openai",
                     "MOONSHOT": "openai",
                     "ZHIPU": "openai",
-                "MINIMAX": "openai",
+                    "MINIMAX": "openai",
                 }
                 provider_prefix = provider_map.get(
                     global_config["provider"], global_config["provider"].lower()

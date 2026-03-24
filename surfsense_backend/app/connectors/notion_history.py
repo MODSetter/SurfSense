@@ -1,12 +1,12 @@
 import asyncio
 import contextlib
 import logging
-import re
 from collections.abc import Awaitable, Callable
 from typing import Any, TypeVar
 
 from notion_client import AsyncClient
 from notion_client.errors import APIResponseError
+from notion_markdown import to_notion
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -834,106 +834,8 @@ class NotionHistoryConnector:
             return None
 
     def _markdown_to_blocks(self, markdown: str) -> list[dict[str, Any]]:
-        """
-        Convert markdown content to Notion blocks.
-
-        This is a simple converter that handles basic markdown.
-        For more complex markdown, consider using a proper markdown parser.
-
-        Args:
-            markdown: Markdown content
-
-        Returns:
-            List of Notion block objects
-        """
-        blocks = []
-        lines = markdown.split("\n")
-
-        for line in lines:
-            line = line.strip()
-
-            if not line:
-                continue
-
-            # Heading 1
-            if line.startswith("# "):
-                blocks.append(
-                    {
-                        "object": "block",
-                        "type": "heading_1",
-                        "heading_1": {
-                            "rich_text": [
-                                {"type": "text", "text": {"content": line[2:]}}
-                            ]
-                        },
-                    }
-                )
-            # Heading 2
-            elif line.startswith("## "):
-                blocks.append(
-                    {
-                        "object": "block",
-                        "type": "heading_2",
-                        "heading_2": {
-                            "rich_text": [
-                                {"type": "text", "text": {"content": line[3:]}}
-                            ]
-                        },
-                    }
-                )
-            # Heading 3
-            elif line.startswith("### "):
-                blocks.append(
-                    {
-                        "object": "block",
-                        "type": "heading_3",
-                        "heading_3": {
-                            "rich_text": [
-                                {"type": "text", "text": {"content": line[4:]}}
-                            ]
-                        },
-                    }
-                )
-            # Bullet list
-            elif line.startswith("- ") or line.startswith("* "):
-                blocks.append(
-                    {
-                        "object": "block",
-                        "type": "bulleted_list_item",
-                        "bulleted_list_item": {
-                            "rich_text": [
-                                {"type": "text", "text": {"content": line[2:]}}
-                            ]
-                        },
-                    }
-                )
-            # Numbered list
-            elif match := re.match(r"^(\d+)\.\s+(.*)$", line):
-                content = match.group(2)  # Extract text after "number. "
-                blocks.append(
-                    {
-                        "object": "block",
-                        "type": "numbered_list_item",
-                        "numbered_list_item": {
-                            "rich_text": [
-                                {"type": "text", "text": {"content": content}}
-                            ]
-                        },
-                    }
-                )
-            # Regular paragraph
-            else:
-                blocks.append(
-                    {
-                        "object": "block",
-                        "type": "paragraph",
-                        "paragraph": {
-                            "rich_text": [{"type": "text", "text": {"content": line}}]
-                        },
-                    }
-                )
-
-        return blocks
+        """Convert markdown content to Notion blocks using notion-markdown."""
+        return to_notion(markdown)
 
     async def create_page(
         self, title: str, content: str, parent_page_id: str | None = None

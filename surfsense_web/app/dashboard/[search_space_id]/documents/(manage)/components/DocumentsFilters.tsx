@@ -76,17 +76,17 @@ export function DocumentsFilters({
 							)}
 						</Button>
 					</PopoverTrigger>
-					<PopoverContent className="w-64 !p-0 overflow-hidden" align="end">
+					<PopoverContent className="w-56 md:w-52 !p-0 overflow-hidden" align="end">
 						<div>
 							{/* Search input */}
-							<div className="p-2 border-b border-border dark:border-neutral-700">
+							<div className="p-2">
 								<div className="relative">
 									<Search className="absolute left-0.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 									<Input
 										placeholder="Search types"
 										value={typeSearchQuery}
 										onChange={(e) => setTypeSearchQuery(e.target.value)}
-										className="h-6 pl-6 text-sm bg-transparent border-0 shadow-none focus-visible:ring-0"
+										className="h-6 pl-6 text-sm bg-transparent border-0 shadow-none"
 									/>
 								</div>
 							</div>
@@ -172,7 +172,7 @@ export function DocumentsFilters({
 					<Input
 						id={`${id}-input`}
 						ref={inputRef}
-						className="peer h-9 w-full pl-9 pr-9 text-sm bg-sidebar border-border/60 focus-visible:ring-1 focus-visible:ring-ring/30 select-none focus:select-text"
+						className="peer h-9 w-full pl-9 pr-9 text-sm bg-sidebar border-border/60 select-none focus:select-text"
 						value={searchValue}
 						onChange={(e) => onSearch(e.target.value)}
 						placeholder="Search docs"
@@ -196,6 +196,7 @@ export function DocumentsFilters({
 
 				{/* Upload Button */}
 				<Button
+					data-joyride="upload-button"
 					onClick={openUploadDialog}
 					variant="outline"
 					size="sm"

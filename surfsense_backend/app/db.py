@@ -63,6 +63,16 @@ class DocumentType(StrEnum):
     COMPOSIO_GOOGLE_CALENDAR_CONNECTOR = "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR"
 
 
+# Native Google document types → their legacy Composio equivalents.
+# Old documents may still carry the Composio type until they are re-indexed;
+# search, browse, and indexing must transparently handle both.
+NATIVE_TO_LEGACY_DOCTYPE: dict[str, str] = {
+    "GOOGLE_DRIVE_FILE": "COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
+    "GOOGLE_GMAIL_CONNECTOR": "COMPOSIO_GMAIL_CONNECTOR",
+    "GOOGLE_CALENDAR_CONNECTOR": "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
+}
+
+
 class SearchSourceConnectorType(StrEnum):
     SERPER_API = "SERPER_API"  # NOT IMPLEMENTED YET : DON'T REMEMBER WHY : MOST PROBABLY BECAUSE WE NEED TO CRAWL THE RESULTS RETURNED BY IT
     TAVILY_API = "TAVILY_API"
@@ -97,6 +107,13 @@ class SearchSourceConnectorType(StrEnum):
 
 
 class PodcastStatus(StrEnum):
+    PENDING = "pending"
+    GENERATING = "generating"
+    READY = "ready"
+    FAILED = "failed"
+
+
+class VideoPresentationStatus(StrEnum):
     PENDING = "pending"
     GENERATING = "generating"
     READY = "ready"
@@ -337,6 +354,12 @@ class Permission(StrEnum):
     PODCASTS_UPDATE = "podcasts:update"
     PODCASTS_DELETE = "podcasts:delete"
 
+    # Video Presentations
+    VIDEO_PRESENTATIONS_CREATE = "video_presentations:create"
+    VIDEO_PRESENTATIONS_READ = "video_presentations:read"
+    VIDEO_PRESENTATIONS_UPDATE = "video_presentations:update"
+    VIDEO_PRESENTATIONS_DELETE = "video_presentations:delete"
+
     # Image Generations
     IMAGE_GENERATIONS_CREATE = "image_generations:create"
     IMAGE_GENERATIONS_READ = "image_generations:read"
@@ -403,6 +426,10 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.PODCASTS_CREATE.value,
         Permission.PODCASTS_READ.value,
         Permission.PODCASTS_UPDATE.value,
+        # Video Presentations (no delete)
+        Permission.VIDEO_PRESENTATIONS_CREATE.value,
+        Permission.VIDEO_PRESENTATIONS_READ.value,
+        Permission.VIDEO_PRESENTATIONS_UPDATE.value,
         # Image Generations (create and read, no delete)
         Permission.IMAGE_GENERATIONS_CREATE.value,
         Permission.IMAGE_GENERATIONS_READ.value,
@@ -435,6 +462,8 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.LLM_CONFIGS_READ.value,
         # Podcasts (read only)
         Permission.PODCASTS_READ.value,
+        # Video Presentations (read only)
+        Permission.VIDEO_PRESENTATIONS_READ.value,
         # Image Generations (read only)
         Permission.IMAGE_GENERATIONS_READ.value,
         # Connectors (read only)
@@ -693,7 +722,7 @@ class ChatComment(BaseModel, TimestampMixin):
         nullable=False,
         index=True,
     )
-    # Denormalized thread_id for efficient Electric SQL subscriptions (one per thread)
+    # Denormalized thread_id for efficient Zero subscriptions (one per thread)
     thread_id = Column(
         Integer,
         ForeignKey("new_chat_threads.id", ondelete="CASCADE"),
@@ -763,7 +792,7 @@ class ChatCommentMention(BaseModel, TimestampMixin):
 class ChatSessionState(BaseModel):
     """
     Tracks real-time session state for shared chat collaboration.
-    One record per thread, synced via Electric SQL.
+    One record per thread, synced via Zero.
     """
 
     __tablename__ = "chat_session_state"
@@ -1044,6 +1073,46 @@ class Podcast(BaseModel, TimestampMixin):
     thread = relationship("NewChatThread")
 
 
+class VideoPresentation(BaseModel, TimestampMixin):
+    """Video presentation model for storing AI-generated video presentations.
+
+    The slides JSONB stores per-slide data including Remotion component code,
+    audio file paths, and durations. The frontend compiles the code and renders
+    the video using Remotion Player.
+    """
+
+    __tablename__ = "video_presentations"
+
+    title = Column(String(500), nullable=False)
+    slides = Column(JSONB, nullable=True)
+    scene_codes = Column(JSONB, nullable=True)
+    status = Column(
+        SQLAlchemyEnum(
+            VideoPresentationStatus,
+            name="video_presentation_status",
+            create_type=False,
+            values_callable=lambda x: [e.value for e in x],
+        ),
+        nullable=False,
+        default=VideoPresentationStatus.READY,
+        server_default="ready",
+        index=True,
+    )
+
+    search_space_id = Column(
+        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    )
+    search_space = relationship("SearchSpace", back_populates="video_presentations")
+
+    thread_id = Column(
+        Integer,
+        ForeignKey("new_chat_threads.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    thread = relationship("NewChatThread")
+
+
 class Report(BaseModel, TimestampMixin):
     """Report model for storing generated Markdown reports."""
 
@@ -1226,6 +1295,12 @@ class SearchSpace(BaseModel, TimestampMixin):
         "Podcast",
         back_populates="search_space",
         order_by="Podcast.id.desc()",
+        cascade="all, delete-orphan",
+    )
+    video_presentations = relationship(
+        "VideoPresentation",
+        back_populates="search_space",
+        order_by="VideoPresentation.id.desc()",
         cascade="all, delete-orphan",
     )
     reports = relationship(

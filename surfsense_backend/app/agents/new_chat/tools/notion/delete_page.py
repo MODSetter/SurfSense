@@ -95,8 +95,19 @@ def create_delete_notion_page_tool(
                         "message": error_msg,
                     }
 
+            account = context.get("account", {})
+            if account.get("auth_expired"):
+                logger.warning(
+                    "Notion account %s has expired authentication",
+                    account.get("id"),
+                )
+                return {
+                    "status": "auth_error",
+                    "message": "The Notion account for this page needs re-authentication. Please re-authenticate in your connector settings.",
+                }
+
             page_id = context.get("page_id")
-            connector_id_from_context = context.get("account", {}).get("id")
+            connector_id_from_context = account.get("id")
             document_id = context.get("document_id")
 
             logger.info(
@@ -262,6 +273,18 @@ def create_delete_notion_page_tool(
                 raise
 
             logger.error(f"Error deleting Notion page: {e}", exc_info=True)
+            error_str = str(e).lower()
+            if isinstance(e, NotionAPIError) and (
+                "401" in error_str or "unauthorized" in error_str
+            ):
+                return {
+                    "status": "auth_error",
+                    "message": str(e),
+                    "connector_id": connector_id_from_context
+                    if "connector_id_from_context" in dir()
+                    else None,
+                    "connector_type": "notion",
+                }
             if isinstance(e, ValueError | NotionAPIError):
                 message = str(e)
             else:

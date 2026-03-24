@@ -27,11 +27,18 @@ SurfSense é um agente de pesquisa de IA altamente personalizável, conectado a 
 
 
 
-# Vídeo 
+# Demo
 
 https://github.com/user-attachments/assets/cc0c84d3-1f2f-4f7a-b519-2ecce22310b1
 
-## Exemplo de Podcast
+## Exemplo de Agente de Vídeo
+
+
+https://github.com/user-attachments/assets/cc977e6d-8292-4ffe-abb8-3b0560ef5562
+
+
+
+## Exemplo de Agente de Podcast
 
 https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
@@ -46,20 +53,25 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 2. Conecte seus conectores e sincronize. Ative a sincronização periódica para manter os conectores atualizados.
 
-<p align="center"><img src="https://github.com/user-attachments/assets/59da61d7-da05-4576-b7c0-dbc09f5985e8" alt="Conectores" /></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/0740f351-23fa-4909-9880-70aa1dcc1df7" alt="Conectores" /></p>
 
 3. Enquanto os dados dos conectores são indexados, faça upload de documentos.
 
-<p align="center"><img src="https://github.com/user-attachments/assets/d1e8b2e2-9eac-41d8-bdc0-f0cdc405d128" alt="Upload de Documentos" /></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/daf3dbae-ef86-4e86-82ea-fcbcad988761" alt="Upload de Documentos" /></p>
 
 4. Quando tudo estiver indexado, pergunte o que quiser (Casos de uso):
 
+   - Geração de vídeos
+
+   <p align="center"><img src="https://github.com/user-attachments/assets/af85c0f3-6cfd-4757-9706-07fd5e32c857" alt="Geração de Vídeos" /></p>
+   
    - Busca básica e citações
 
    <p align="center"><img src="https://github.com/user-attachments/assets/81e797a1-e01a-4003-8e60-0a0b3a9789df" alt="Busca e Citação" /></p>
 
    - QNA com menção de documentos
 
+   <p align="center"><img src="https://github.com/user-attachments/assets/65c3bf06-1d46-4dd5-b169-4d934c9b6798" alt="QNA com Menção de Documentos" /></p>
    <p align="center"><img src="https://github.com/user-attachments/assets/be958295-0a8c-4707-998c-9fe1f1c007be" alt="QNA com Menção de Documentos" /></p>
 
    - Geração de relatórios e exportações (PDF, DOCX, HTML, LaTeX, EPUB, ODT, texto simples)
@@ -133,6 +145,8 @@ Para Docker Compose, instalação manual e outras opções de implantação, con
 | Suporte Universal de LLM | 100+ LLMs, 6000+ modelos de embeddings, todos os principais rerankers via OpenAI spec e LiteLLM |
 | Privacidade em Primeiro Lugar | Suporte completo a LLM local (vLLM, Ollama) seus dados ficam com você |
 | Colaboração em Equipe | RBAC com papéis de Proprietário / Admin / Editor / Visualizador, chat em tempo real e threads de comentários |
+| Geração de Vídeos | Gera vídeos com narração e visuais |
+| Geração de Apresentações | Cria apresentações editáveis baseadas em slides |
 | Geração de Podcasts | Podcast de 3 min em menos de 20 segundos; múltiplos provedores TTS (OpenAI, Azure, Kokoro) |
 | Extensão de Navegador | Extensão multi-navegador para salvar qualquer página web, incluindo páginas protegidas por autenticação |
 | 25+ Conectores | Mecanismos de busca, Google Drive, Slack, Teams, Jira, Notion, GitHub, Discord e [mais](#fontes-externas) |

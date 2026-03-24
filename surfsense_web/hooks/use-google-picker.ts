@@ -126,6 +126,10 @@ export function useGooglePicker({ connectorId, onPicked }: UseGooglePickerOption
 				builder.setDeveloperKey(picker_api_key);
 			}
 
+			if (window.innerWidth < 640) {
+				builder.setSize(window.innerWidth - 32, window.innerHeight * 0.75);
+			}
+
 			const picker = builder
 				.setCallback((data: google.picker.ResponseObject) => {
 					const action = data[google.picker.Response.ACTION];

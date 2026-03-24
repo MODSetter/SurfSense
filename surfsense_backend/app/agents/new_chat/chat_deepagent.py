@@ -21,6 +21,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.new_chat.context import SurfSenseContextSchema
 from app.agents.new_chat.llm_config import AgentConfig
+from app.agents.new_chat.middleware.dedup_tool_calls import (
+    DedupHITLToolCallsMiddleware,
+)
 from app.agents.new_chat.system_prompt import (
     build_configurable_system_prompt,
     build_surfsense_system_prompt,
@@ -37,13 +40,15 @@ _perf_log = get_perf_logger()
 # =============================================================================
 
 # Maps SearchSourceConnectorType enum values to the searchable document/connector types
-# used by the knowledge_base tool. Some connectors map to different document types.
+# used by the knowledge_base and web_search tools.
+# Live search connectors (TAVILY_API, LINKUP_API, BAIDU_SEARCH_API) are routed to
+# the web_search tool; all others go to search_knowledge_base.
 _CONNECTOR_TYPE_TO_SEARCHABLE: dict[str, str] = {
-    # Direct mappings (connector type == searchable type)
+    # Live search connectors (handled by web_search tool)
     "TAVILY_API": "TAVILY_API",
-    "SEARXNG_API": "SEARXNG_API",
     "LINKUP_API": "LINKUP_API",
     "BAIDU_SEARCH_API": "BAIDU_SEARCH_API",
+    # Local/indexed connectors (handled by search_knowledge_base tool)
     "SLACK_CONNECTOR": "SLACK_CONNECTOR",
     "TEAMS_CONNECTOR": "TEAMS_CONNECTOR",
     "NOTION_CONNECTOR": "NOTION_CONNECTOR",
@@ -63,10 +68,11 @@ _CONNECTOR_TYPE_TO_SEARCHABLE: dict[str, str] = {
     "BOOKSTACK_CONNECTOR": "BOOKSTACK_CONNECTOR",
     "CIRCLEBACK_CONNECTOR": "CIRCLEBACK",  # Connector type differs from document type
     "OBSIDIAN_CONNECTOR": "OBSIDIAN_CONNECTOR",
-    # Composio connectors
-    "COMPOSIO_GOOGLE_DRIVE_CONNECTOR": "COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
-    "COMPOSIO_GMAIL_CONNECTOR": "COMPOSIO_GMAIL_CONNECTOR",
-    "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR": "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
+    # Composio connectors (unified to native document types).
+    # Reverse of NATIVE_TO_LEGACY_DOCTYPE in app.db.
+    "COMPOSIO_GOOGLE_DRIVE_CONNECTOR": "GOOGLE_DRIVE_FILE",
+    "COMPOSIO_GMAIL_CONNECTOR": "GOOGLE_GMAIL_CONNECTOR",
+    "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR": "GOOGLE_CALENDAR_CONNECTOR",
 }
 
 # Document types that don't come from SearchSourceConnector but should always be searchable
@@ -233,6 +239,7 @@ async def create_surfsense_deep_agent(
         available_document_types = await connector_service.get_available_document_types(
             search_space_id
         )
+
     except Exception as e:
         logging.warning(f"Failed to discover available connectors/document types: {e}")
     _perf_log.info(
@@ -289,6 +296,69 @@ async def create_surfsense_deep_agent(
         ]
         modified_disabled_tools.extend(linear_tools)
 
+    # Disable Google Drive action tools if no Google Drive connector is configured
+    has_google_drive_connector = (
+        available_connectors is not None and "GOOGLE_DRIVE_FILE" in available_connectors
+    )
+    if not has_google_drive_connector:
+        google_drive_tools = [
+            "create_google_drive_file",
+            "delete_google_drive_file",
+        ]
+        modified_disabled_tools.extend(google_drive_tools)
+
+    # Disable Google Calendar action tools if no Google Calendar connector is configured
+    has_google_calendar_connector = (
+        available_connectors is not None
+        and "GOOGLE_CALENDAR_CONNECTOR" in available_connectors
+    )
+    if not has_google_calendar_connector:
+        calendar_tools = [
+            "create_calendar_event",
+            "update_calendar_event",
+            "delete_calendar_event",
+        ]
+        modified_disabled_tools.extend(calendar_tools)
+
+    # Disable Gmail action tools if no Gmail connector is configured
+    has_gmail_connector = (
+        available_connectors is not None
+        and "GOOGLE_GMAIL_CONNECTOR" in available_connectors
+    )
+    if not has_gmail_connector:
+        gmail_tools = [
+            "create_gmail_draft",
+            "update_gmail_draft",
+            "send_gmail_email",
+            "trash_gmail_email",
+        ]
+        modified_disabled_tools.extend(gmail_tools)
+
+    # Disable Jira action tools if no Jira connector is configured
+    has_jira_connector = (
+        available_connectors is not None and "JIRA_CONNECTOR" in available_connectors
+    )
+    if not has_jira_connector:
+        jira_tools = [
+            "create_jira_issue",
+            "update_jira_issue",
+            "delete_jira_issue",
+        ]
+        modified_disabled_tools.extend(jira_tools)
+
+    # Disable Confluence action tools if no Confluence connector is configured
+    has_confluence_connector = (
+        available_connectors is not None
+        and "CONFLUENCE_CONNECTOR" in available_connectors
+    )
+    if not has_confluence_connector:
+        confluence_tools = [
+            "create_confluence_page",
+            "update_confluence_page",
+            "delete_confluence_page",
+        ]
+        modified_disabled_tools.extend(confluence_tools)
+
     # Build tools using the async registry (includes MCP tools)
     _t0 = time.perf_counter()
     tools = await build_tools_async(
@@ -342,6 +412,7 @@ async def create_surfsense_deep_agent(
         system_prompt=system_prompt,
         context_schema=SurfSenseContextSchema,
         checkpointer=checkpointer,
+        middleware=[DedupHITLToolCallsMiddleware()],
         **deep_agent_kwargs,
     )
     _perf_log.info(

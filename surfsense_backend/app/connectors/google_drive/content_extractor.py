@@ -26,6 +26,7 @@ async def download_and_process_file(
     task_logger: TaskLoggingService,
     log_entry: Log,
     connector_id: int | None = None,
+    enable_summary: bool = True,
 ) -> tuple[Any, str | None, dict[str, Any] | None]:
     """
     Download Google Drive file and process using Surfsense file processors.
@@ -95,6 +96,7 @@ async def download_and_process_file(
             },
         }
         # Include connector_id for de-indexing support
+        connector_info["enable_summary"] = enable_summary
         if connector_id is not None:
             connector_info["connector_id"] = connector_id
 

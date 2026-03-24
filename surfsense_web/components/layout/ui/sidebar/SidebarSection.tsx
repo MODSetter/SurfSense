@@ -10,6 +10,7 @@ interface SidebarSectionProps {
 	defaultOpen?: boolean;
 	children: React.ReactNode;
 	action?: React.ReactNode;
+	alwaysShowAction?: boolean;
 	persistentAction?: React.ReactNode;
 	className?: string;
 	fillHeight?: boolean;
@@ -20,6 +21,7 @@ export function SidebarSection({
 	defaultOpen = true,
 	children,
 	action,
+	alwaysShowAction = false,
 	persistentAction,
 	className,
 	fillHeight = false,
@@ -37,27 +39,32 @@ export function SidebarSection({
 				className
 			)}
 		>
-			<div className="flex items-center group/section shrink-0">
-				<CollapsibleTrigger className="flex flex-1 items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors min-w-0">
+			<div className="flex items-center group/section shrink-0 px-2 py-1.5">
+				<CollapsibleTrigger className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors min-w-0">
+					<span className="truncate">{title}</span>
 					<ChevronRight
 						className={cn(
 							"h-3.5 w-3.5 shrink-0 transition-transform duration-200",
 							isOpen && "rotate-90"
 						)}
 					/>
-					<span className="uppercase tracking-wider truncate">{title}</span>
 				</CollapsibleTrigger>
 
-				{/* Action button - visible on hover (always visible on mobile) */}
 				{action && (
-					<div className="shrink-0 opacity-100 md:opacity-0 md:group-hover/section:opacity-100 transition-opacity pr-1 flex items-center">
+					<div
+						className={cn(
+							"transition-opacity ml-1.5 flex items-center",
+							alwaysShowAction
+								? "opacity-100"
+								: "opacity-100 md:opacity-0 md:group-hover/section:opacity-100"
+						)}
+					>
 						{action}
 					</div>
 				)}
 
-				{/* Persistent action - always visible */}
 				{persistentAction && (
-					<div className="shrink-0 pr-1 flex items-center">{persistentAction}</div>
+					<div className="shrink-0 ml-auto flex items-center">{persistentAction}</div>
 				)}
 			</div>
 

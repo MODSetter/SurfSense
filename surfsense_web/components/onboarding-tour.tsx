@@ -23,15 +23,15 @@ interface TourStep {
 const TOUR_STEPS: TourStep[] = [
 	{
 		target: '[data-joyride="connector-icon"]',
-		title: "Connect your data sources",
-		content: "Connect and sync data from Gmail, Drive, Slack, Notion, Jira, Confluence, and more.",
+		title: "Manage your tools",
+		content: "Enable or disable AI tools and configure capabilities.",
 		placement: "bottom",
 	},
 	{
-		target: '[data-joyride="documents-sidebar"]',
-		title: "Manage your documents",
-		content: "Access and manage all your uploaded documents.",
-		placement: "right",
+		target: '[data-joyride="upload-button"]',
+		title: "Upload documents",
+		content: "Upload files to your search space.",
+		placement: "left",
 	},
 	{
 		target: '[data-joyride="inbox-sidebar"]',
@@ -100,7 +100,7 @@ function Spotlight({
 }) {
 	const rect = targetEl.getBoundingClientRect();
 	const padding = 6;
-	const shadowColor = isDarkMode ? "#172554" : "#3b82f6";
+	const shadowColor = isDarkMode ? "#3f3f46" : "#3b82f6";
 
 	// Check if this is the connector icon step - verify both the selector matches AND the element matches
 	// This prevents the shape from changing before targetEl updates
@@ -187,7 +187,7 @@ function TourTooltip({
 		}
 	}, [stepIndex]);
 
-	const bgColor = isDarkMode ? "#18181b" : "#ffffff";
+	const bgColor = isDarkMode ? "#27272a" : "#ffffff";
 	const textColor = isDarkMode ? "#ffffff" : "#18181b";
 	const mutedTextColor = isDarkMode ? "#a1a1aa" : "#71717a";
 
@@ -195,15 +195,24 @@ function TourTooltip({
 	const getPointerStyles = (): React.CSSProperties => {
 		const lineLength = 16;
 		const dotSize = 6;
-		// Check if this is the documents step (stepIndex === 1) or inbox step (stepIndex === 2)
-		const isDocumentsStep = stepIndex === 1;
+		const isUploadStep = stepIndex === 1;
 		const isInboxStep = stepIndex === 2;
 
 		if (position.pointerPosition === "left") {
 			return {
 				position: "absolute",
 				left: -lineLength - dotSize,
-				top: isDocumentsStep || isInboxStep ? "calc(50% - 8px)" : "50%",
+				top: isInboxStep ? "calc(50% - 8px)" : "50%",
+				transform: "translateY(-50%)",
+				display: "flex",
+				alignItems: "center",
+			};
+		}
+		if (position.pointerPosition === "right") {
+			return {
+				position: "absolute",
+				right: -lineLength - dotSize,
+				top: isUploadStep ? "calc(50% - 12px)" : "50%",
 				transform: "translateY(-50%)",
 				display: "flex",
 				alignItems: "center",
@@ -224,7 +233,7 @@ function TourTooltip({
 	};
 
 	const renderPointer = () => {
-		const lineColor = isDarkMode ? "#18181B" : "#ffffff";
+		const lineColor = isDarkMode ? "#27272a" : "#ffffff";
 
 		if (position.pointerPosition === "left") {
 			return (
@@ -241,6 +250,27 @@ function TourTooltip({
 						style={{
 							width: 16,
 							height: 2,
+							backgroundColor: lineColor,
+						}}
+					/>
+				</div>
+			);
+		}
+		if (position.pointerPosition === "right") {
+			return (
+				<div style={getPointerStyles()}>
+					<div
+						style={{
+							width: 16,
+							height: 2,
+							backgroundColor: lineColor,
+						}}
+					/>
+					<div
+						style={{
+							width: 6,
+							height: 6,
+							borderRadius: "50%",
 							backgroundColor: lineColor,
 						}}
 					/>

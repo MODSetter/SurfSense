@@ -442,7 +442,7 @@ async def index_confluence_pages(
                 documents_failed += 1
                 continue  # Skip this page and continue with others
 
-        # CRITICAL: Always update timestamp (even if 0 documents indexed) so Electric SQL syncs
+        # CRITICAL: Always update timestamp (even if 0 documents indexed) so Zero syncs
         # This ensures the UI shows "Last indexed" instead of "Never indexed"
         await update_connector_last_indexed(session, connector, update_last_indexed)
 

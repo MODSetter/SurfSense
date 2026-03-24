@@ -358,7 +358,6 @@ export function DocumentsSidebar({
 					onLoadMore={onLoadMore}
 					mentionedDocIds={mentionedDocIds}
 					onToggleChatMention={handleToggleChatMention}
-					onEditNavigate={() => onOpenChange(false)}
 					isSearchMode={isSearchMode || activeTypes.length > 0}
 				/>
 			</div>

@@ -1,6 +1,5 @@
 import { format } from "date-fns";
 import { useAtom, useAtomValue } from "jotai";
-import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
@@ -37,14 +36,25 @@ import {
 import {
 	dateRangeSchema,
 	frequencyMinutesSchema,
-	parseConnectorPopupQueryParams,
 	parseOAuthAuthResponse,
 	validateIndexingConfigState,
 } from "../constants/connector-popup.schemas";
 
+const OAUTH_RESULT_COOKIE = "connector_oauth_result";
+
+function readOAuthResultCookie(): string | null {
+	const match = document.cookie
+		.split("; ")
+		.find((row) => row.startsWith(`${OAUTH_RESULT_COOKIE}=`));
+	return match ? decodeURIComponent(match.split("=").slice(1).join("=")) : null;
+}
+
+function clearOAuthResultCookie(): void {
+	// biome-ignore lint: only standard way to expire a cookie
+	document.cookie = `${OAUTH_RESULT_COOKIE}=; path=/; max-age=0`;
+}
+
 export const useConnectorDialog = () => {
-	const router = useRouter();
-	const searchParams = useSearchParams();
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const { data: allConnectors, refetch: refetchAllConnectors } = useAtomValue(connectorsAtom);
 	const { mutateAsync: indexConnector } = useAtomValue(indexConnectorMutationAtom);
@@ -101,6 +111,9 @@ export const useConnectorDialog = () => {
 
 	// Track if we came from MCP list view when entering edit mode
 	const [cameFromMCPList, setCameFromMCPList] = useState(false);
+
+	// Track if we came from MCP list view when entering connect mode
+	const [connectCameFromMCPList, setConnectCameFromMCPList] = useState(false);
 
 	// Helper function to get frequency label
 	const getFrequencyLabel = useCallback((minutes: string): string => {
@@ -181,352 +194,139 @@ export const useConnectorDialog = () => {
 		[searchSpaceId, indexConnector, updateConnector, refetchAllConnectors]
 	);
 
-	// When the dialog is opened externally (via setConnectorDialogOpen atom from
-	// thread.tsx / DocumentsSidebar.tsx), the URL is not updated. Sync it here
-	// so that other handlers that read window.location.href see modal=connectors.
-	const activeTabRef = useRef(activeTab);
-	activeTabRef.current = activeTab;
-	useEffect(() => {
-		if (isOpen) {
-			const url = new URL(window.location.href);
-			const modalParam = url.searchParams.get("modal");
-			const tabParam = url.searchParams.get("tab");
-			if (modalParam !== "connectors" || (tabParam !== "all" && tabParam !== "active")) {
-				url.searchParams.set("modal", "connectors");
-				url.searchParams.set("tab", activeTabRef.current);
-				window.history.replaceState({ modal: true }, "", url.toString());
-			}
-		}
-	}, [isOpen]);
+	// YouTube view state
+	const [isYouTubeView, setIsYouTubeView] = useState(false);
 
-	// Synchronize state with URL query params
+	// Track whether the current indexing config came from an OAuth redirect
+	const [isFromOAuth, setIsFromOAuth] = useState(false);
+
+	// Consume OAuth result from cookie (set by /connectors/callback route handler)
 	useEffect(() => {
+		const raw = readOAuthResultCookie();
+		if (!raw || !searchSpaceId) return;
+		clearOAuthResultCookie();
+
+		let result: {
+			success: string | null;
+			error: string | null;
+			connector: string | null;
+			connectorId: string | null;
+		};
 		try {
-			const params = parseConnectorPopupQueryParams(searchParams);
+			result = JSON.parse(raw);
+		} catch {
+			return;
+		}
 
-			if (params.modal === "connectors") {
-				setIsOpen(true);
+		if (result.error) {
+			const oauthConnector = result.connector
+				? OAUTH_CONNECTORS.find((c) => c.id === result.connector)
+				: null;
+			const name = oauthConnector?.title || "connector";
 
-				if (params.tab === "active" || params.tab === "all") {
-					setActiveTab(params.tab);
-				}
-
-				// Clear indexing config if view is not "configure" anymore
-				if (params.view !== "configure" && indexingConfig) {
-					setIndexingConfig(null);
-				}
-
-				// Clear editing connector if view is not "edit" anymore
-				if (params.view !== "edit" && editingConnector) {
-					setEditingConnector(null);
-					setConnectorName(null);
-				}
-
-				// Clear connecting connector type if view is not "connect" anymore
-				if (params.view !== "connect" && connectingConnectorType) {
-					setConnectingConnectorType(null);
-				}
-
-				// Clear viewing accounts type if view is not "accounts" anymore
-				if (params.view !== "accounts" && viewingAccountsType) {
-					setViewingAccountsType(null);
-				}
-
-				// Clear MCP list view if view is not "mcp-list" anymore
-				if (params.view !== "mcp-list" && viewingMCPList) {
-					setViewingMCPList(false);
-				}
-
-				// Handle MCP list view
-				if (params.view === "mcp-list" && !viewingMCPList) {
-					setViewingMCPList(true);
-				}
-
-				// Handle connect view
-				if (params.view === "connect" && params.connectorType && !connectingConnectorType) {
-					setConnectingConnectorType(params.connectorType);
-				}
-
-				// Handle accounts view
-				if (params.view === "accounts" && params.connectorType) {
-					// Update state if not set, or if connectorType has changed
-					const needsUpdate =
-						!viewingAccountsType || viewingAccountsType.connectorType !== params.connectorType;
-
-					if (needsUpdate) {
-						// Check both OAUTH_CONNECTORS and COMPOSIO_CONNECTORS
-						const oauthConnector =
-							OAUTH_CONNECTORS.find((c) => c.connectorType === params.connectorType) ||
-							COMPOSIO_CONNECTORS.find((c) => c.connectorType === params.connectorType);
-						if (oauthConnector) {
-							setViewingAccountsType({
-								connectorType: oauthConnector.connectorType,
-								connectorTitle: oauthConnector.title,
-							});
-						}
-					}
-				}
-
-				// Handle YouTube view
-				if (params.view === "youtube") {
-					// YouTube view is active - no additional state needed
-				}
-
-				// Handle configure view (for page refresh support)
-				if (params.view === "configure" && params.connector && !indexingConfig && allConnectors) {
-					// Check both OAUTH_CONNECTORS and COMPOSIO_CONNECTORS
-					const oauthConnector =
-						OAUTH_CONNECTORS.find((c) => c.id === params.connector) ||
-						COMPOSIO_CONNECTORS.find((c) => c.id === params.connector);
-					if (oauthConnector) {
-						let existingConnector: SearchSourceConnector | undefined;
-						if (params.connectorId) {
-							const connectorId = parseInt(params.connectorId, 10);
-							existingConnector = allConnectors.find(
-								(c: SearchSourceConnector) => c.id === connectorId
-							);
-						} else {
-							existingConnector = allConnectors.find(
-								(c: SearchSourceConnector) => c.connector_type === oauthConnector.connectorType
-							);
-						}
-						if (existingConnector) {
-							const connectorValidation = searchSourceConnector.safeParse(existingConnector);
-							if (connectorValidation.success) {
-								const config = validateIndexingConfigState({
-									connectorType: oauthConnector.connectorType,
-									connectorId: existingConnector.id,
-									connectorTitle: oauthConnector.title,
-								});
-								setIndexingConfig(config);
-								setIndexingConnector(existingConnector);
-								setIndexingConnectorConfig(existingConnector.config);
-							}
-						}
-					}
-				}
-
-				// Handle edit view
-				if (params.view === "edit" && params.connectorId && allConnectors && !editingConnector) {
-					const connectorId = parseInt(params.connectorId, 10);
-					const connector = allConnectors.find((c: SearchSourceConnector) => c.id === connectorId);
-					if (connector) {
-						const connectorValidation = searchSourceConnector.safeParse(connector);
-						if (connectorValidation.success) {
-							setEditingConnector(connector);
-							setConnectorConfig(connector.config);
-							setConnectorName(connector.name);
-							// Load existing periodic sync settings (disabled for non-indexable connectors)
-							setPeriodicEnabled(
-								!connector.is_indexable ? false : connector.periodic_indexing_enabled
-							);
-							setFrequencyMinutes(connector.indexing_frequency_minutes?.toString() || "1440");
-							setEnableSummary(connector.enable_summary ?? false);
-							// Reset dates - user can set new ones for re-indexing
-							setStartDate(undefined);
-							setEndDate(undefined);
-						}
-					}
-				}
+			if (result.error === "duplicate_account") {
+				toast.error(`This ${name} account is already connected`, {
+					description: "Please use a different account or manage the existing connection.",
+				});
 			} else {
-				// Do NOT call setIsOpen(false) here. Closing the dialog is handled
-				// explicitly by handleOpenChange and the individual action handlers.
-				// Relying on URL params to close the dialog caused a race condition
-				// where Next.js router updates from tab switches briefly produced
-				// stale searchParams without the "modal" key, closing the popup.
-
-				// Still clean up sub-view state when the modal param is gone
-				// (e.g. after browser back navigation or explicit handler URL cleanup).
-				if (indexingConfig) {
-					setIndexingConfig(null);
-					setIndexingConnector(null);
-					setIndexingConnectorConfig(null);
-					setStartDate(undefined);
-					setEndDate(undefined);
-					setPeriodicEnabled(false);
-					setFrequencyMinutes("1440");
-					setEnableSummary(false);
-					setIsScrolled(false);
-					setSearchQuery("");
-				}
-				if (editingConnector) {
-					setEditingConnector(null);
-					setConnectorName(null);
-					setConnectorConfig(null);
-					setStartDate(undefined);
-					setEndDate(undefined);
-					setPeriodicEnabled(false);
-					setFrequencyMinutes("1440");
-					setEnableSummary(false);
-					setIsScrolled(false);
-					setSearchQuery("");
-				}
-				if (connectingConnectorType) {
-					setConnectingConnectorType(null);
-				}
-				if (viewingAccountsType) {
-					setViewingAccountsType(null);
-				}
-			}
-		} catch (error) {
-			// Invalid query params - log but don't crash
-			console.warn("Invalid connector popup query params:", error);
-		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [
-		searchParams,
-		allConnectors,
-		editingConnector,
-		indexingConfig,
-		connectingConnectorType,
-		viewingAccountsType,
-		viewingMCPList,
-		setIsOpen,
-	]);
-
-	// Detect OAuth success / Failure and transition to config view
-	useEffect(() => {
-		try {
-			const params = parseConnectorPopupQueryParams(searchParams);
-
-			// Handle OAuth errors (e.g., duplicate account)
-			if (params.error && params.modal === "connectors") {
-				const oauthConnector = params.connector
-					? OAUTH_CONNECTORS.find((c) => c.id === params.connector)
-					: null;
-				const connectorName = oauthConnector?.title || "connector";
-
-				if (params.error === "duplicate_account") {
-					toast.error(`This ${connectorName} account is already connected`, {
-						description: "Please use a different account or manage the existing connection.",
-					});
-				} else {
-					toast.error(`Failed to connect ${connectorName}`, {
-						description: params.error.replace(/_/g, " "),
-					});
-				}
-
-				// Clean up error params from URL
-				const url = new URL(window.location.href);
-				url.searchParams.delete("error");
-				url.searchParams.delete("connector");
-				window.history.replaceState({}, "", url.toString());
-
-				// Open the popup to show the connectors
-				setIsOpen(true);
-				return;
-			}
-
-			if (params.success === "true" && searchSpaceId && params.modal === "connectors") {
-				// For auto-index connectors: close modal and show loading toast before refetch
-				const earlyConnector = params.connector
-					? OAUTH_CONNECTORS.find((c) => c.id === params.connector) ||
-						COMPOSIO_CONNECTORS.find((c) => c.id === params.connector)
-					: null;
-
-				if (earlyConnector && AUTO_INDEX_CONNECTOR_TYPES.has(earlyConnector.connectorType)) {
-					toast.loading(`Setting up ${earlyConnector.title}...`, { id: "auto-index" });
-					setIsOpen(false);
-					const url = new URL(window.location.href);
-					url.searchParams.delete("success");
-					url.searchParams.delete("connector");
-					url.searchParams.delete("connectorId");
-					url.searchParams.delete("view");
-					url.searchParams.delete("modal");
-					url.searchParams.delete("tab");
-					router.replace(url.pathname + url.search, { scroll: false });
-				}
-
-				refetchAllConnectors().then(async (result) => {
-					if (!result.data) {
-						toast.dismiss("auto-index");
-						return;
-					}
-
-					let newConnector: SearchSourceConnector | undefined;
-					let oauthConnector:
-						| (typeof OAUTH_CONNECTORS)[number]
-						| (typeof COMPOSIO_CONNECTORS)[number]
-						| undefined;
-
-					// First, try to find connector by connectorId if provided
-					if (params.connectorId) {
-						const connectorId = parseInt(params.connectorId, 10);
-						newConnector = result.data.find((c: SearchSourceConnector) => c.id === connectorId);
-
-						// If we found the connector, find the matching OAuth/Composio connector by type
-						if (newConnector) {
-							const connectorType = newConnector.connector_type;
-							oauthConnector =
-								OAUTH_CONNECTORS.find((c) => c.connectorType === connectorType) ||
-								COMPOSIO_CONNECTORS.find((c) => c.connectorType === connectorType);
-						}
-					}
-
-					// If we don't have a connector yet, try to find by connector param
-					if (!newConnector && params.connector) {
-						oauthConnector =
-							OAUTH_CONNECTORS.find((c) => c.id === params.connector) ||
-							COMPOSIO_CONNECTORS.find((c) => c.id === params.connector);
-
-						if (oauthConnector) {
-							const oauthConnectorType = oauthConnector.connectorType;
-							newConnector = result.data.find(
-								(c: SearchSourceConnector) => c.connector_type === oauthConnectorType
-							);
-						}
-					}
-
-					if (newConnector && oauthConnector) {
-						const connectorValidation = searchSourceConnector.safeParse(newConnector);
-						if (connectorValidation.success) {
-							trackConnectorConnected(
-								Number(searchSpaceId),
-								oauthConnector.connectorType,
-								newConnector.id
-							);
-
-							if (
-								newConnector.is_indexable &&
-								AUTO_INDEX_CONNECTOR_TYPES.has(oauthConnector.connectorType)
-							) {
-								await handleAutoIndex(
-									newConnector,
-									oauthConnector.title,
-									oauthConnector.connectorType
-								);
-							} else {
-								toast.dismiss("auto-index");
-								const config = validateIndexingConfigState({
-									connectorType: oauthConnector.connectorType,
-									connectorId: newConnector.id,
-									connectorTitle: oauthConnector.title,
-								});
-								setIndexingConfig(config);
-								setIndexingConnector(newConnector);
-								setIndexingConnectorConfig(newConnector.config);
-								setIsOpen(true);
-								const url = new URL(window.location.href);
-								url.searchParams.delete("success");
-								url.searchParams.set("connectorId", newConnector.id.toString());
-								url.searchParams.set("view", "configure");
-								window.history.replaceState({}, "", url.toString());
-							}
-						} else {
-							console.warn("Invalid connector data after OAuth:", connectorValidation.error);
-							toast.dismiss("auto-index");
-							toast.error("Failed to validate connector data");
-						}
-					} else {
-						toast.dismiss("auto-index");
-					}
+				toast.error(`Failed to connect ${name}`, {
+					description: result.error.replace(/_/g, " "),
 				});
 			}
-		} catch (error) {
-			// Invalid query params - log but don't crash
-			console.warn("Invalid connector popup query params in OAuth success handler:", error);
+
+			setIsOpen(true);
+			return;
 		}
-	}, [searchParams, searchSpaceId, refetchAllConnectors, setIsOpen, handleAutoIndex, router]);
+
+		if (result.success === "true") {
+			const earlyConnector = result.connector
+				? OAUTH_CONNECTORS.find((c) => c.id === result.connector) ||
+					COMPOSIO_CONNECTORS.find((c) => c.id === result.connector)
+				: null;
+
+			if (earlyConnector && AUTO_INDEX_CONNECTOR_TYPES.has(earlyConnector.connectorType)) {
+				toast.loading(`Setting up ${earlyConnector.title}...`, { id: "auto-index" });
+				setIsOpen(false);
+			}
+
+			refetchAllConnectors().then(async (fetchResult) => {
+				if (!fetchResult.data) {
+					toast.dismiss("auto-index");
+					return;
+				}
+
+				let newConnector: SearchSourceConnector | undefined;
+				let oauthConnector:
+					| (typeof OAUTH_CONNECTORS)[number]
+					| (typeof COMPOSIO_CONNECTORS)[number]
+					| undefined;
+
+				if (result.connectorId) {
+					const connectorId = parseInt(result.connectorId, 10);
+					newConnector = fetchResult.data.find((c: SearchSourceConnector) => c.id === connectorId);
+					if (newConnector) {
+						const connectorType = newConnector.connector_type;
+						oauthConnector =
+							OAUTH_CONNECTORS.find((c) => c.connectorType === connectorType) ||
+							COMPOSIO_CONNECTORS.find((c) => c.connectorType === connectorType);
+					}
+				}
+
+				if (!newConnector && result.connector) {
+					oauthConnector =
+						OAUTH_CONNECTORS.find((c) => c.id === result.connector) ||
+						COMPOSIO_CONNECTORS.find((c) => c.id === result.connector);
+					if (oauthConnector) {
+						const oauthType = oauthConnector.connectorType;
+						newConnector = fetchResult.data.find(
+							(c: SearchSourceConnector) => c.connector_type === oauthType
+						);
+					}
+				}
+
+				if (newConnector && oauthConnector) {
+					const connectorValidation = searchSourceConnector.safeParse(newConnector);
+					if (connectorValidation.success) {
+						trackConnectorConnected(
+							Number(searchSpaceId),
+							oauthConnector.connectorType,
+							newConnector.id
+						);
+
+						if (
+							newConnector.is_indexable &&
+							AUTO_INDEX_CONNECTOR_TYPES.has(oauthConnector.connectorType)
+						) {
+							await handleAutoIndex(
+								newConnector,
+								oauthConnector.title,
+								oauthConnector.connectorType
+							);
+						} else {
+							toast.dismiss("auto-index");
+							const config = validateIndexingConfigState({
+								connectorType: oauthConnector.connectorType,
+								connectorId: newConnector.id,
+								connectorTitle: oauthConnector.title,
+							});
+							setIndexingConfig(config);
+							setIndexingConnector(newConnector);
+							setIndexingConnectorConfig(newConnector.config);
+							setIsFromOAuth(true);
+							setIsOpen(true);
+						}
+					} else {
+						console.warn("Invalid connector data after OAuth:", connectorValidation.error);
+						toast.dismiss("auto-index");
+						toast.error("Failed to validate connector data");
+					}
+				} else {
+					toast.dismiss("auto-index");
+				}
+			});
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [searchSpaceId, handleAutoIndex, refetchAllConnectors, setIsOpen]);
 
 	// Handle OAuth connection
 	const handleConnectOAuth = useCallback(
@@ -572,12 +372,7 @@ export const useConnectorDialog = () => {
 	// Handle creating YouTube crawler (not a connector, shows view in popup)
 	const handleCreateYouTubeCrawler = useCallback(() => {
 		if (!searchSpaceId) return;
-
-		// Update URL to show YouTube view
-		const url = new URL(window.location.href);
-		url.searchParams.set("modal", "connectors");
-		url.searchParams.set("view", "youtube");
-		window.history.pushState({ modal: true }, "", url.toString());
+		setIsYouTubeView(true);
 	}, [searchSpaceId]);
 
 	// Handle creating webcrawler connector
@@ -629,10 +424,6 @@ export const useConnectorDialog = () => {
 						setIndexingConnector(connector);
 						setIndexingConnectorConfig(connector.config || {});
 						setIsOpen(true);
-						const url = new URL(window.location.href);
-						url.searchParams.set("modal", "connectors");
-						url.searchParams.set("view", "configure");
-						window.history.pushState({ modal: true }, "", url.toString());
 					}
 				}
 			}
@@ -648,16 +439,7 @@ export const useConnectorDialog = () => {
 	const handleConnectNonOAuth = useCallback(
 		(connectorType: string) => {
 			if (!searchSpaceId) return;
-
-			// Set connecting state
 			setConnectingConnectorType(connectorType);
-
-			// Update URL to show connect view
-			const url = new URL(window.location.href);
-			url.searchParams.set("modal", "connectors");
-			url.searchParams.set("view", "connect");
-			url.searchParams.set("connectorType", connectorType);
-			window.history.pushState({ modal: true }, "", url.toString());
 		},
 		[searchSpaceId]
 	);
@@ -810,26 +592,16 @@ export const useConnectorDialog = () => {
 										: `${connectorTitle} connected and syncing started!`;
 								toast.success(successMessage);
 
-								// Close dialog and clean up URL
 								setIsOpen(false);
-								const url = new URL(window.location.href);
-								url.searchParams.delete("modal");
-								url.searchParams.delete("tab");
-								url.searchParams.delete("view");
-								url.searchParams.delete("connectorType");
-								router.replace(url.pathname + url.search, { scroll: false });
 
-								// Clear indexing config state since we're not showing the view
 								setIndexingConfig(null);
 								setIndexingConnector(null);
 								setIndexingConnectorConfig(null);
 
-								// Invalidate queries to refresh data
 								queryClient.invalidateQueries({
 									queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
 								});
 
-								// Refresh connectors list
 								await refetchAllConnectors();
 							} else {
 								// Non-indexable connector
@@ -856,15 +628,6 @@ export const useConnectorDialog = () => {
 										description: "Configure the webhook URL in your Circleback settings.",
 									});
 
-									// Transition to edit view
-									const url = new URL(window.location.href);
-									url.searchParams.set("modal", "connectors");
-									url.searchParams.set("view", "edit");
-									url.searchParams.set("connectorId", connector.id.toString());
-									url.searchParams.delete("connectorType");
-									router.replace(url.pathname + url.search, { scroll: false });
-
-									// Refresh connectors list
 									await refetchAllConnectors();
 								} else {
 									// Other non-indexable connectors - just show success message and close
@@ -874,19 +637,10 @@ export const useConnectorDialog = () => {
 											: `${connectorTitle} connected successfully!`;
 									toast.success(successMessage);
 
-									// Refresh connectors list before closing modal
 									await refetchAllConnectors();
 
-									// Close dialog and clean up URL
 									setIsOpen(false);
-									const url = new URL(window.location.href);
-									url.searchParams.delete("modal");
-									url.searchParams.delete("tab");
-									url.searchParams.delete("view");
-									url.searchParams.delete("connectorType");
-									router.replace(url.pathname + url.search, { scroll: false });
 
-									// Clear indexing config state
 									setIndexingConfig(null);
 									setIndexingConnector(null);
 									setIndexingConnectorConfig(null);
@@ -911,96 +665,64 @@ export const useConnectorDialog = () => {
 			refetchAllConnectors,
 			updateConnector,
 			indexConnector,
-			router,
 			setIsOpen,
 		]
 	);
 
 	// Handle going back from connect view
 	const handleBackFromConnect = useCallback(() => {
-		const url = new URL(window.location.href);
-		url.searchParams.set("modal", "connectors");
-
-		// If we're connecting an MCP and came from list view, go back to list
-		if (connectingConnectorType === "MCP_CONNECTOR" && viewingMCPList) {
-			url.searchParams.set("view", "mcp-list");
-		} else {
-			url.searchParams.set("tab", "all");
-			url.searchParams.delete("view");
+		if (connectCameFromMCPList) {
+			setViewingMCPList(true);
+			setConnectCameFromMCPList(false);
 		}
-
-		url.searchParams.delete("connectorType");
-		router.replace(url.pathname + url.search, { scroll: false });
-	}, [router, connectingConnectorType, viewingMCPList]);
+		setConnectingConnectorType(null);
+	}, [connectCameFromMCPList]);
 
 	// Handle going back from YouTube view
 	const handleBackFromYouTube = useCallback(() => {
-		const url = new URL(window.location.href);
-		url.searchParams.set("modal", "connectors");
-		url.searchParams.set("tab", "all");
-		url.searchParams.delete("view");
-		router.replace(url.pathname + url.search, { scroll: false });
-	}, [router]);
+		setIsYouTubeView(false);
+	}, []);
 
 	// Handle viewing accounts list for OAuth connector type
 	const handleViewAccountsList = useCallback(
 		(connectorType: string, _connectorTitle?: string) => {
 			if (!searchSpaceId) return;
 
-			// Update URL to show accounts view, preserving current tab
-			// The useEffect will handle setting viewingAccountsType based on URL params
-			const url = new URL(window.location.href);
-			url.searchParams.set("modal", "connectors");
-			url.searchParams.set("view", "accounts");
-			url.searchParams.set("connectorType", connectorType);
-			// Keep the current tab in URL so we can go back to it
-			router.replace(url.pathname + url.search, { scroll: false });
+			const oauthConnector =
+				OAUTH_CONNECTORS.find((c) => c.connectorType === connectorType) ||
+				COMPOSIO_CONNECTORS.find((c) => c.connectorType === connectorType);
+			if (oauthConnector) {
+				setViewingAccountsType({
+					connectorType: oauthConnector.connectorType,
+					connectorTitle: oauthConnector.title,
+				});
+			}
 		},
-		[searchSpaceId, router]
+		[searchSpaceId]
 	);
 
 	// Handle going back from accounts list view
 	const handleBackFromAccountsList = useCallback(() => {
 		setViewingAccountsType(null);
-		const url = new URL(window.location.href);
-		url.searchParams.set("modal", "connectors");
-		// Keep the current tab (don't change it) - just remove view-specific params
-		url.searchParams.delete("view");
-		url.searchParams.delete("connectorType");
-		router.replace(url.pathname + url.search, { scroll: false });
-	}, [router]);
+	}, []);
 
 	// Handle viewing MCP list
 	const handleViewMCPList = useCallback(() => {
 		if (!searchSpaceId) return;
-
 		setViewingMCPList(true);
-
-		// Update URL to show MCP list view
-		const url = new URL(window.location.href);
-		url.searchParams.set("modal", "connectors");
-		url.searchParams.set("view", "mcp-list");
-		router.replace(url.pathname + url.search, { scroll: false });
-	}, [searchSpaceId, router]);
+	}, [searchSpaceId]);
 
 	// Handle going back from MCP list view
 	const handleBackFromMCPList = useCallback(() => {
 		setViewingMCPList(false);
-		const url = new URL(window.location.href);
-		url.searchParams.set("modal", "connectors");
-		url.searchParams.delete("view");
-		router.replace(url.pathname + url.search, { scroll: false });
-	}, [router]);
+	}, []);
 
 	// Handle adding new MCP from list view
 	const handleAddNewMCPFromList = useCallback(() => {
+		setConnectCameFromMCPList(true);
+		setViewingMCPList(false);
 		setConnectingConnectorType("MCP_CONNECTOR");
-		const url = new URL(window.location.href);
-		url.searchParams.set("modal", "connectors");
-		url.searchParams.set("view", "connect");
-		url.searchParams.set("connectorType", "MCP_CONNECTOR");
-		router.replace(url.pathname + url.search, { scroll: false });
-	}, [router]);
+	}, []);
 
 	// Handle starting indexing
 	const handleStartIndexing = useCallback(
@@ -1143,15 +865,8 @@ export const useConnectorDialog = () => {
 
 				toast.success(`${indexingConfig.connectorTitle} indexing started`);
 
-				// Close dialog and clean up URL
 				setIsOpen(false);
-				const url = new URL(window.location.href);
-				url.searchParams.delete("modal");
-				url.searchParams.delete("tab");
-				url.searchParams.delete("success");
-				url.searchParams.delete("connector");
-				url.searchParams.delete("view");
-				router.replace(url.pathname + url.search, { scroll: false });
+				setIsFromOAuth(false);
 
 				refreshConnectors();
 				queryClient.invalidateQueries({
@@ -1174,7 +889,6 @@ export const useConnectorDialog = () => {
 			periodicEnabled,
 			frequencyMinutes,
 			enableSummary,
-			router,
 			indexingConnectorConfig,
 			setIsOpen,
 		]
@@ -1182,16 +896,9 @@ export const useConnectorDialog = () => {
 
 	// Handle skipping indexing
 	const handleSkipIndexing = useCallback(() => {
-		// Close dialog and clean up URL
 		setIsOpen(false);
-		const url = new URL(window.location.href);
-		url.searchParams.delete("modal");
-		url.searchParams.delete("tab");
-		url.searchParams.delete("success");
-		url.searchParams.delete("connector");
-		url.searchParams.delete("view");
-		router.replace(url.pathname + url.search, { scroll: false });
-	}, [router, setIsOpen]);
+		setIsFromOAuth(false);
+	}, [setIsOpen]);
 
 	// Handle starting edit mode
 	const handleStartEdit = useCallback(
@@ -1213,20 +920,21 @@ export const useConnectorDialog = () => {
 				return;
 			}
 
-			// Track if we came from accounts list view
-			// If viewingAccountsType matches this connector type, preserve it
+			// Track if we came from accounts list view so handleBackFromEdit can restore it
 			if (viewingAccountsType && viewingAccountsType.connectorType === connector.connector_type) {
 				setCameFromAccountsList(viewingAccountsType);
 			} else {
 				setCameFromAccountsList(null);
 			}
+			setViewingAccountsType(null);
 
-			// Track if we came from MCP list view
+			// Track if we came from MCP list view so handleBackFromEdit can restore it
 			if (viewingMCPList && connector.connector_type === "MCP_CONNECTOR") {
 				setCameFromMCPList(true);
 			} else {
 				setCameFromMCPList(false);
 			}
+			setViewingMCPList(false);
 
 			// Track index with date range opened event
 			if (connector.is_indexable) {
@@ -1239,20 +947,11 @@ export const useConnectorDialog = () => {
 
 			setEditingConnector(connector);
 			setConnectorName(connector.name);
-			// Load existing periodic sync settings (disabled for non-indexable connectors)
 			setPeriodicEnabled(!connector.is_indexable ? false : connector.periodic_indexing_enabled);
 			setFrequencyMinutes(connector.indexing_frequency_minutes?.toString() || "1440");
 			setEnableSummary(connector.enable_summary ?? false);
-			// Reset dates - user can set new ones for re-indexing
 			setStartDate(undefined);
 			setEndDate(undefined);
-
-			// Update URL
-			const url = new URL(window.location.href);
-			url.searchParams.set("modal", "connectors");
-			url.searchParams.set("view", "edit");
-			url.searchParams.set("connectorId", connector.id.toString());
-			window.history.pushState({ modal: true }, "", url.toString());
 		},
 		[searchSpaceId, viewingAccountsType, viewingMCPList, handleViewMCPList, activeTab]
 	);
@@ -1433,14 +1132,7 @@ export const useConnectorDialog = () => {
 						: indexingDescription,
 				});
 
-				// Close dialog and clean up URL
 				setIsOpen(false);
-				const url = new URL(window.location.href);
-				url.searchParams.delete("modal");
-				url.searchParams.delete("tab");
-				url.searchParams.delete("view");
-				url.searchParams.delete("connectorId");
-				router.replace(url.pathname + url.search, { scroll: false });
 
 				refreshConnectors();
 				queryClient.invalidateQueries({
@@ -1465,7 +1157,6 @@ export const useConnectorDialog = () => {
 			frequencyMinutes,
 			enableSummary,
 			getFrequencyLabel,
-			router,
 			connectorConfig,
 			connectorName,
 			setIsOpen,
@@ -1496,23 +1187,17 @@ export const useConnectorDialog = () => {
 						: `${editingConnector.name} disconnected successfully`
 				);
 
-				// Update URL - for MCP from list view, go back to list; otherwise close modal
-				const url = new URL(window.location.href);
 				if (editingConnector.connector_type === "MCP_CONNECTOR" && cameFromMCPList) {
-					// Go back to MCP list view only if we came from there
 					setViewingMCPList(true);
-					url.searchParams.set("modal", "connectors");
-					url.searchParams.set("view", "mcp-list");
-					url.searchParams.delete("connectorId");
+					setEditingConnector(null);
+					setConnectorName(null);
+					setConnectorConfig(null);
 				} else {
-					// Close dialog for all other cases
+					setEditingConnector(null);
+					setConnectorName(null);
+					setConnectorConfig(null);
 					setIsOpen(false);
-					url.searchParams.delete("modal");
-					url.searchParams.delete("tab");
-					url.searchParams.delete("view");
-					url.searchParams.delete("connectorId");
 				}
-				router.replace(url.pathname + url.search, { scroll: false });
 
 				refreshConnectors();
 				queryClient.invalidateQueries({
@@ -1525,7 +1210,7 @@ export const useConnectorDialog = () => {
 				setIsDisconnecting(false);
 			}
 		},
-		[editingConnector, searchSpaceId, deleteConnector, router, cameFromMCPList, setIsOpen]
+		[editingConnector, searchSpaceId, deleteConnector, cameFromMCPList, setIsOpen]
 	);
 
 	// Handle quick index (index with selected date range, or backend defaults if none selected)
@@ -1569,7 +1254,7 @@ export const useConnectorDialog = () => {
 					queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
 				});
 				// Note: Don't call stopIndexing here - let useIndexingConnectors hook
-				// detect when last_indexed_at changes via Electric SQL
+				// detect when last_indexed_at changes via real-time sync
 			} catch (error) {
 				console.error("Error indexing connector content:", error);
 				toast.error(error instanceof Error ? error.message : "Failed to start indexing");
@@ -1584,66 +1269,35 @@ export const useConnectorDialog = () => {
 
 	// Handle going back from edit view
 	const handleBackFromEdit = useCallback(() => {
-		// If editing an MCP connector and came from MCP list, go back to MCP list view
 		if (editingConnector?.connector_type === "MCP_CONNECTOR" && cameFromMCPList) {
 			setViewingMCPList(true);
 			setCameFromMCPList(false);
-			const url = new URL(window.location.href);
-			url.searchParams.set("modal", "connectors");
-			url.searchParams.set("view", "mcp-list");
-			url.searchParams.delete("connectorId");
-			router.replace(url.pathname + url.search, { scroll: false });
 			setEditingConnector(null);
 			setConnectorName(null);
 			setConnectorConfig(null);
 			return;
 		}
 
-		// If we came from accounts list view, go back there
 		if (cameFromAccountsList && editingConnector) {
-			// Restore accounts list view
 			setViewingAccountsType(cameFromAccountsList);
 			setCameFromAccountsList(null);
-			const url = new URL(window.location.href);
-			url.searchParams.set("modal", "connectors");
-			url.searchParams.set("view", "accounts");
-			url.searchParams.set("connectorType", cameFromAccountsList.connectorType);
-			url.searchParams.delete("connectorId");
-			router.replace(url.pathname + url.search, { scroll: false });
-		} else {
-			// Otherwise, go back to main connector popup (preserve the tab the user was on)
-			const url = new URL(window.location.href);
-			url.searchParams.set("modal", "connectors");
-			url.searchParams.set("tab", activeTab); // Use current tab instead of always "all"
-			url.searchParams.delete("view");
-			url.searchParams.delete("connectorId");
-			router.replace(url.pathname + url.search, { scroll: false });
 		}
+
 		setEditingConnector(null);
 		setConnectorName(null);
 		setConnectorConfig(null);
-	}, [router, cameFromAccountsList, editingConnector, cameFromMCPList, activeTab]);
+	}, [cameFromAccountsList, editingConnector, cameFromMCPList]);
 
 	// Handle dialog open/close
 	const handleOpenChange = useCallback(
 		(open: boolean) => {
 			setIsOpen(open);
 
-			if (open) {
-				const url = new URL(window.location.href);
-				url.searchParams.set("modal", "connectors");
-				url.searchParams.set("tab", activeTab);
-				window.history.pushState({ modal: true }, "", url.toString());
-			} else {
-				const url = new URL(window.location.href);
-				url.searchParams.delete("modal");
-				url.searchParams.delete("tab");
-				url.searchParams.delete("success");
-				url.searchParams.delete("connector");
-				url.searchParams.delete("view");
-				window.history.pushState({ modal: false }, "", url.toString());
+			if (!open) {
 				setIsScrolled(false);
 				setSearchQuery("");
+				setIsYouTubeView(false);
+				setIsFromOAuth(false);
 				if (!isStartingIndexing && !isSaving && !isDisconnecting && !isCreatingConnector) {
 					setIndexingConfig(null);
 					setIndexingConnector(null);
@@ -1653,7 +1307,10 @@ export const useConnectorDialog = () => {
 					setConnectorConfig(null);
 					setConnectingConnectorType(null);
 					setViewingAccountsType(null);
+					setViewingMCPList(false);
 					setCameFromAccountsList(null);
+					setCameFromMCPList(false);
+					setConnectCameFromMCPList(false);
 					setStartDate(undefined);
 					setEndDate(undefined);
 					setPeriodicEnabled(false);
@@ -1662,14 +1319,9 @@ export const useConnectorDialog = () => {
 				}
 			}
 		},
-		[activeTab, isStartingIndexing, isDisconnecting, isSaving, isCreatingConnector, setIsOpen]
+		[isStartingIndexing, isDisconnecting, isSaving, isCreatingConnector, setIsOpen]
 	);
 
-	// Handle tab change — only update React state.
-	// Avoid window.history.replaceState here: Next.js intercepts it, triggers a
-	// searchParams update/transition, and the resulting concurrent re-render can
-	// cause Radix Dialog's DismissableLayer to detect a transient focus-outside
-	// event, which fires onOpenChange(false) and closes the dialog.
 	const handleTabChange = useCallback((value: string) => {
 		setActiveTab(value);
 	}, []);
@@ -1704,6 +1356,8 @@ export const useConnectorDialog = () => {
 		allConnectors,
 		viewingAccountsType,
 		viewingMCPList,
+		isYouTubeView,
+		isFromOAuth,
 
 		// Setters
 		setSearchQuery,
