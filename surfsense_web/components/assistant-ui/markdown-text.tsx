@@ -20,6 +20,7 @@ import remarkMath from "remark-math";
 import "katex/dist/katex.min.css";
 import { InlineCitation, UrlCitation } from "@/components/assistant-ui/inline-citation";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
 function stripThemeBackgrounds(
@@ -370,43 +371,40 @@ const defaultComponents = memoizeMarkdownComponents({
 		<hr className={cn("aui-md-hr my-5 border-b", className)} {...props} />
 	),
 	table: ({ className, ...props }) => (
-		<div className="aui-md-table-wrapper my-5 w-full overflow-x-auto">
-			<table
-				className={cn("aui-md-table w-full min-w-max border-separate border-spacing-0", className)}
-				{...props}
-			/>
+		<div className="aui-md-table-wrapper my-5 overflow-hidden rounded-2xl border">
+			<Table className={cn("aui-md-table", className)} {...props} />
 		</div>
 	),
+	thead: ({ className, ...props }) => (
+		<TableHeader className={cn("aui-md-thead", className)} {...props} />
+	),
+	tbody: ({ className, ...props }) => (
+		<TableBody className={cn("aui-md-tbody", className)} {...props} />
+	),
 	th: ({ className, children, ...props }) => (
-		<th
+		<TableHead
 			className={cn(
-				"aui-md-th bg-muted px-4 py-2 text-left font-bold first:rounded-tl-lg last:rounded-tr-lg [[align=center]]:text-center [[align=right]]:text-right",
+				"aui-md-th bg-muted/50 whitespace-normal [[align=center]]:text-center [[align=right]]:text-right",
 				className
 			)}
 			{...props}
 		>
 			{processChildrenWithCitations(children)}
-		</th>
+		</TableHead>
 	),
 	td: ({ className, children, ...props }) => (
-		<td
+		<TableCell
 			className={cn(
-				"aui-md-td border-b border-l px-4 py-2 text-left last:border-r [[align=center]]:text-center [[align=right]]:text-right",
+				"aui-md-td whitespace-normal [[align=center]]:text-center [[align=right]]:text-right",
 				className
 			)}
 			{...props}
 		>
 			{processChildrenWithCitations(children)}
-		</td>
+		</TableCell>
 	),
 	tr: ({ className, ...props }) => (
-		<tr
-			className={cn(
-				"aui-md-tr m-0 border-b p-0 first:border-t [&:last-child>td:first-child]:rounded-bl-lg [&:last-child>td:last-child]:rounded-br-lg",
-				className
-			)}
-			{...props}
-		/>
+		<TableRow className={cn("aui-md-tr", className)} {...props} />
 	),
 	sup: ({ className, ...props }) => (
 		<sup className={cn("aui-md-sup [&>a]:text-xs [&>a]:no-underline", className)} {...props} />
