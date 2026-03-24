@@ -25,8 +25,8 @@ function createQuickAskWindow(x: number, y: number): BrowserWindow {
     height: 550,
     x,
     y,
+    type: 'panel',
     resizable: true,
-    titleBarStyle: 'hiddenInset',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
