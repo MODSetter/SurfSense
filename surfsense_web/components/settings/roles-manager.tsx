@@ -510,93 +510,87 @@ function RolesContent({
 			<div className="space-y-3">
 				{roles.map((role) => (
 					<div key={role.id}>
-						<RolePermissionsDialog permissions={role.permissions} roleName={role.name}>
-							<button
-								type="button"
-								className="w-full text-left relative flex items-center gap-4 rounded-lg border border-border/60 p-4 transition-colors hover:bg-muted/30 cursor-pointer"
-							>
-								<div className="flex-1 min-w-0">
-									<div className="flex items-center gap-2">
-										<span className="font-medium text-sm">{role.name}</span>
-										{role.is_system_role && (
-											<span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
-												System
-											</span>
-										)}
-										{role.is_default && (
-											<span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
-												Default
-											</span>
+						<div className="w-full text-left relative flex items-center gap-4 rounded-lg border border-border/60 p-4 transition-colors hover:bg-muted/30">
+							<div className="flex-1 min-w-0">
+								<RolePermissionsDialog permissions={role.permissions} roleName={role.name}>
+									<button type="button" className="w-full text-left cursor-pointer">
+										<div className="flex items-center gap-2">
+											<span className="font-medium text-sm">{role.name}</span>
+											{role.is_system_role && (
+												<span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+													System
+												</span>
+											)}
+											{role.is_default && (
+												<span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+													Default
+												</span>
+											)}
+										</div>
+										{role.description && (
+											<p className="text-xs text-muted-foreground mt-0.5 truncate">
+												{role.description}
+											</p>
 										)}
 									</div>
-									{role.description && (
-										<p className="text-xs text-muted-foreground mt-0.5 truncate">
-											{role.description}
-										</p>
-									)}
-								</div>
+								</RolePermissionsDialog>
+							</div>
 
-								<div className="shrink-0">
-									<PermissionsBadge permissions={role.permissions} />
-								</div>
+							<div className="shrink-0">
+								<PermissionsBadge permissions={role.permissions} />
+							</div>
 
-								{!role.is_system_role && (
-									<div
-										className="shrink-0"
-										role="none"
-										onClick={(e) => e.stopPropagation()}
-										onKeyDown={(e) => e.stopPropagation()}
-									>
-										<DropdownMenu>
-											<DropdownMenuTrigger asChild>
-												<Button variant="ghost" size="icon" className="h-8 w-8">
-													<MoreHorizontal className="h-4 w-4" />
-												</Button>
-											</DropdownMenuTrigger>
-											<DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
-												{canUpdate && (
-													<DropdownMenuItem onClick={() => setEditingRoleId(role.id)}>
-														<Edit2 className="h-4 w-4 mr-2" />
-														Edit Role
-													</DropdownMenuItem>
-												)}
-												{canDelete && (
-													<>
-														<DropdownMenuSeparator />
-														<AlertDialog>
-															<AlertDialogTrigger asChild>
-																<DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-																	<Trash2 className="h-4 w-4 mr-2" />
-																	Delete Role
-																</DropdownMenuItem>
-															</AlertDialogTrigger>
-															<AlertDialogContent>
-																<AlertDialogHeader>
-																	<AlertDialogTitle>Delete role?</AlertDialogTitle>
-																	<AlertDialogDescription>
-																		This will permanently delete the &quot;{role.name}&quot; role.
-																		Members with this role will lose their permissions.
-																	</AlertDialogDescription>
-																</AlertDialogHeader>
-																<AlertDialogFooter>
-																	<AlertDialogCancel>Cancel</AlertDialogCancel>
-																	<AlertDialogAction
-																		onClick={() => onDeleteRole(role.id)}
-																		className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-																	>
-																		Delete
-																	</AlertDialogAction>
-																</AlertDialogFooter>
-															</AlertDialogContent>
-														</AlertDialog>
-													</>
-												)}
-											</DropdownMenuContent>
-										</DropdownMenu>
-									</div>
-								)}
-							</button>
-						</RolePermissionsDialog>
+							{!role.is_system_role && (
+								<div className="shrink-0" role="none">
+									<DropdownMenu>
+										<DropdownMenuTrigger asChild>
+											<Button variant="ghost" size="icon" className="h-8 w-8">
+												<MoreHorizontal className="h-4 w-4" />
+											</Button>
+										</DropdownMenuTrigger>
+										<DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
+											{canUpdate && (
+												<DropdownMenuItem onClick={() => setEditingRoleId(role.id)}>
+													<Edit2 className="h-4 w-4 mr-2" />
+													Edit Role
+												</DropdownMenuItem>
+											)}
+											{canDelete && (
+												<>
+													<DropdownMenuSeparator />
+													<AlertDialog>
+														<AlertDialogTrigger asChild>
+															<DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+																<Trash2 className="h-4 w-4 mr-2" />
+																Delete Role
+															</DropdownMenuItem>
+														</AlertDialogTrigger>
+														<AlertDialogContent>
+															<AlertDialogHeader>
+																<AlertDialogTitle>Delete role?</AlertDialogTitle>
+																<AlertDialogDescription>
+																	This will permanently delete the &quot;{role.name}&quot; role.
+																	Members with this role will lose their permissions.
+																</AlertDialogDescription>
+															</AlertDialogHeader>
+															<AlertDialogFooter>
+																<AlertDialogCancel>Cancel</AlertDialogCancel>
+																<AlertDialogAction
+																	onClick={() => onDeleteRole(role.id)}
+																	className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+																>
+																	Delete
+																</AlertDialogAction>
+															</AlertDialogFooter>
+														</AlertDialogContent>
+													</AlertDialog>
+												</>
+											)}
+										</DropdownMenuContent>
+									</DropdownMenu>
+								</div>
+							)}
+						</div>
 					</div>
 				))}
 			</div>
