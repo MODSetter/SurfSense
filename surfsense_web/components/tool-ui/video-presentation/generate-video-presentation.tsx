@@ -18,6 +18,7 @@ import {
 	buildSlideWithWatermark,
 	type CompiledSlide,
 } from "./combined-player";
+import { getVideoDownloadErrorToast, getPptxExportErrorToast } from "./errors";
 
 const GenerateVideoPresentationArgsSchema = z.object({
 	source_content: z.string(),
@@ -67,6 +68,7 @@ const VideoPresentationStatusResponseSchema = z.object({
 type GenerateVideoPresentationArgs = z.infer<typeof GenerateVideoPresentationArgsSchema>;
 type GenerateVideoPresentationResult = z.infer<typeof GenerateVideoPresentationResultSchema>;
 type VideoPresentationStatusResponse = z.infer<typeof VideoPresentationStatusResponseSchema>;
+
 
 function parseStatusResponse(data: unknown): VideoPresentationStatusResponse | null {
 	const result = VideoPresentationStatusResponseSchema.safeParse(data);
@@ -321,9 +323,8 @@ function VideoPresentationPlayer({
 			URL.revokeObjectURL(url);
 		} catch (err) {
 			if ((err as Error).name !== "AbortError") {
-				toast.error("Download Failed", {
-					description: err instanceof Error ? err.message : "Failed to render video",
-				});
+				const { title, description } = getVideoDownloadErrorToast(err);
+				toast.error(title, { description });
 			}
 		} finally {
 			setIsRendering(false);
@@ -396,9 +397,8 @@ function VideoPresentationPlayer({
 			for (const r of roots) r.unmount();
 			document.body.removeChild(offscreen);
 		} catch (err) {
-			toast.error("PPTX Export Failed", {
-				description: err instanceof Error ? err.message : "Failed to export PPTX",
-			});
+			const { title, description } = getPptxExportErrorToast(err);
+			toast.error(title, { description });
 		} finally {
 			setIsPptxExporting(false);
 			setPptxProgress(null);
