@@ -17,7 +17,6 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { CommentPanelContainer } from "@/components/chat-comments/comment-panel-container/comment-panel-container";
 import { CommentSheet } from "@/components/chat-comments/comment-sheet/comment-sheet";
 import { CreateConfluencePageToolUI, DeleteConfluencePageToolUI, UpdateConfluencePageToolUI } from "@/components/tool-ui/confluence";
-import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
 import { GenerateImageToolUI } from "@/components/tool-ui/generate-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
@@ -56,7 +55,7 @@ const AssistantMessageInner: FC = () => {
 								generate_report: GenerateReportToolUI,
 								generate_podcast: GeneratePodcastToolUI,
 								generate_video_presentation: GenerateVideoPresentationToolUI,
-								display_image: DisplayImageToolUI,
+								display_image: () => null,
 								generate_image: GenerateImageToolUI,
 								save_memory: SaveMemoryToolUI,
 								recall_memory: RecallMemoryToolUI,

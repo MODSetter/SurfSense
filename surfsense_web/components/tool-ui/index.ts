@@ -8,13 +8,6 @@
 
 export { Audio } from "./audio";
 export {
-	type DisplayImageArgs,
-	DisplayImageArgsSchema,
-	type DisplayImageResult,
-	DisplayImageResultSchema,
-	DisplayImageToolUI,
-} from "./display-image";
-export {
 	type GenerateImageArgs,
 	GenerateImageArgsSchema,
 	type GenerateImageResult,

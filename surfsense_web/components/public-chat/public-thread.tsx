@@ -12,7 +12,6 @@ import { type FC, type ReactNode, useState } from "react";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
 import { GenerateImageToolUI } from "@/components/tool-ui/generate-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
@@ -149,7 +148,7 @@ const PublicAssistantMessage: FC = () => {
 								generate_podcast: GeneratePodcastToolUI,
 								generate_report: GenerateReportToolUI,
 								generate_video_presentation: GenerateVideoPresentationToolUI,
-								display_image: DisplayImageToolUI,
+								display_image: () => null,
 								generate_image: GenerateImageToolUI,
 								link_preview: () => null,
 								multi_link_preview: () => null,
