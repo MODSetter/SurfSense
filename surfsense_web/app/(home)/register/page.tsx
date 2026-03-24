@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { type ExternalToast, toast } from "sonner";
 import { registerMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
 import { Logo } from "@/components/Logo";
 import { Spinner } from "@/components/ui/spinner";
@@ -131,7 +131,7 @@ export default function RegisterPage() {
 			setError({ title: errorDetails.title, message: errorDetails.description });
 
 			// Show error toast with conditional retry action
-			const toastOptions: any = {
+			const toastOptions: ExternalToast = {
 				description: errorDetails.description,
 				duration: 6000,
 			};
@@ -289,15 +289,13 @@ export default function RegisterPage() {
 						<button
 							type="submit"
 							disabled={isRegistering}
-							className="w-full rounded-md bg-blue-600 px-4 py-1.5 md:py-2 text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all text-sm md:text-base flex items-center justify-center gap-2"
+							className="relative w-full rounded-md bg-blue-600 px-4 py-1.5 md:py-2 text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all text-sm md:text-base flex items-center justify-center gap-2"
 						>
-							{isRegistering ? (
-								<>
+							<span className={isRegistering ? "invisible" : ""}>{t("register")}</span>
+							{isRegistering && (
+								<span className="absolute inset-0 flex items-center justify-center gap-2">
 									<Spinner size="sm" className="text-white" />
-									<span>{t("creating_account_btn")}</span>
-								</>
-							) : (
-								t("register")
+								</span>
 							)}
 						</button>
 					</form>

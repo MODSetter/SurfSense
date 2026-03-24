@@ -35,15 +35,37 @@ import { membersAtom } from "@/atoms/members/members-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { Thread } from "@/components/assistant-ui/thread";
 import { MobileEditorPanel } from "@/components/editor-panel/editor-panel";
+import { MobileHitlEditPanel } from "@/components/hitl-edit-panel/hitl-edit-panel";
 import { MobileReportPanel } from "@/components/report-panel/report-panel";
+import {
+	CreateConfluencePageToolUI,
+	DeleteConfluencePageToolUI,
+	UpdateConfluencePageToolUI,
+} from "@/components/tool-ui/confluence";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
 import {
+	CreateGmailDraftToolUI,
+	SendGmailEmailToolUI,
+	TrashGmailEmailToolUI,
+	UpdateGmailDraftToolUI,
+} from "@/components/tool-ui/gmail";
+import {
+	CreateCalendarEventToolUI,
+	DeleteCalendarEventToolUI,
+	UpdateCalendarEventToolUI,
+} from "@/components/tool-ui/google-calendar";
+import {
 	CreateGoogleDriveFileToolUI,
 	DeleteGoogleDriveFileToolUI,
 } from "@/components/tool-ui/google-drive";
+import {
+	CreateJiraIssueToolUI,
+	DeleteJiraIssueToolUI,
+	UpdateJiraIssueToolUI,
+} from "@/components/tool-ui/jira";
 import {
 	CreateLinearIssueToolUI,
 	DeleteLinearIssueToolUI,
@@ -95,6 +117,25 @@ import {
 	trackChatMessageSent,
 	trackChatResponseReceived,
 } from "@/lib/posthog/events";
+
+/**
+ * After a tool produces output, mark any previously-decided interrupt tool
+ * calls as completed so the ApprovalCard can transition from shimmer to done.
+ */
+function markInterruptsCompleted(contentParts: Array<{ type: string; result?: unknown }>): void {
+	for (const part of contentParts) {
+		if (
+			part.type === "tool-call" &&
+			typeof part.result === "object" &&
+			part.result !== null &&
+			(part.result as Record<string, unknown>).__interrupt__ === true &&
+			(part.result as Record<string, unknown>).__decided__ &&
+			!(part.result as Record<string, unknown>).__completed__
+		) {
+			part.result = { ...(part.result as Record<string, unknown>), __completed__: true };
+		}
+	}
+}
 
 /**
  * Extract thinking steps from message content
@@ -161,6 +202,19 @@ const TOOLS_WITH_UI = new Set([
 	"delete_linear_issue",
 	"create_google_drive_file",
 	"delete_google_drive_file",
+	"create_calendar_event",
+	"update_calendar_event",
+	"delete_calendar_event",
+	"create_gmail_draft",
+	"update_gmail_draft",
+	"send_gmail_email",
+	"trash_gmail_email",
+	"create_jira_issue",
+	"update_jira_issue",
+	"delete_jira_issue",
+	"create_confluence_page",
+	"update_confluence_page",
+	"delete_confluence_page",
 	"execute",
 	// "write_todos", // Disabled for now
 ]);
@@ -712,6 +766,7 @@ export default function NewChatPage() {
 						case "tool-output-available": {
 							// Update the tool call with its result
 							updateToolCall(contentPartsState, parsed.toolCallId, { result: parsed.output });
+							markInterruptsCompleted(contentParts);
 							// Handle podcast-specific logic
 							if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
 								// Check if this is a podcast tool by looking at the content part
@@ -1090,6 +1145,7 @@ export default function NewChatPage() {
 							updateToolCall(contentPartsState, parsed.toolCallId, {
 								result: parsed.output,
 							});
+							markInterruptsCompleted(contentParts);
 							setMessages((prev) =>
 								prev.map((m) =>
 									m.id === assistantMsgId
@@ -1441,6 +1497,7 @@ export default function NewChatPage() {
 
 						case "tool-output-available":
 							updateToolCall(contentPartsState, parsed.toolCallId, { result: parsed.output });
+							markInterruptsCompleted(contentParts);
 							if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
 								const idx = toolCallIndices.get(parsed.toolCallId);
 								if (idx !== undefined) {
@@ -1678,6 +1735,19 @@ export default function NewChatPage() {
 			<DeleteLinearIssueToolUI />
 			<CreateGoogleDriveFileToolUI />
 			<DeleteGoogleDriveFileToolUI />
+			<CreateCalendarEventToolUI />
+			<UpdateCalendarEventToolUI />
+			<DeleteCalendarEventToolUI />
+			<CreateGmailDraftToolUI />
+			<UpdateGmailDraftToolUI />
+			<SendGmailEmailToolUI />
+			<TrashGmailEmailToolUI />
+			<CreateJiraIssueToolUI />
+			<UpdateJiraIssueToolUI />
+			<DeleteJiraIssueToolUI />
+			<CreateConfluencePageToolUI />
+			<UpdateConfluencePageToolUI />
+			<DeleteConfluencePageToolUI />
 			<SandboxExecuteToolUI />
 			{/* <WriteTodosToolUI /> Disabled for now */}
 			<div key={searchSpaceId} className="flex h-[calc(100dvh-64px)] overflow-hidden">
@@ -1686,6 +1756,7 @@ export default function NewChatPage() {
 				</div>
 				<MobileReportPanel />
 				<MobileEditorPanel />
+				<MobileHitlEditPanel />
 			</div>
 		</AssistantRuntimeProvider>
 	);

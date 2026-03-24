@@ -25,6 +25,10 @@ from app.utils.document_converters import (
     generate_document_summary,
     generate_unique_identifier_hash,
 )
+from app.utils.google_credentials import (
+    COMPOSIO_GOOGLE_CONNECTOR_TYPES,
+    build_composio_credentials,
+)
 
 from .base import (
     check_document_by_unique_identifier,
@@ -36,6 +40,11 @@ from .base import (
     safe_set_chunks,
     update_connector_last_indexed,
 )
+
+ACCEPTED_CALENDAR_CONNECTOR_TYPES = {
+    SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
+    SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
+}
 
 # Type hint for heartbeat callback
 HeartbeatCallbackType = Callable[[int], Awaitable[None]]
@@ -53,7 +62,7 @@ async def index_google_calendar_events(
     end_date: str | None = None,
     update_last_indexed: bool = True,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
-) -> tuple[int, str | None]:
+) -> tuple[int, int, str | None]:
     """
     Index Google Calendar events.
 
@@ -69,7 +78,7 @@ async def index_google_calendar_events(
         on_heartbeat_callback: Optional callback to update notification during long-running indexing.
 
     Returns:
-        Tuple containing (number of documents indexed, error message or None)
+        Tuple containing (number of documents indexed, number of documents skipped, error message or None)
     """
     task_logger = TaskLoggingService(session, search_space_id)
 
@@ -87,10 +96,12 @@ async def index_google_calendar_events(
     )
 
     try:
-        # Get the connector from the database
-        connector = await get_connector_by_id(
-            session, connector_id, SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR
-        )
+        # Accept both native and Composio Calendar connectors
+        connector = None
+        for ct in ACCEPTED_CALENDAR_CONNECTOR_TYPES:
+            connector = await get_connector_by_id(session, connector_id, ct)
+            if connector:
+                break
 
         if not connector:
             await task_logger.log_task_failure(
@@ -99,71 +110,80 @@ async def index_google_calendar_events(
                 "Connector not found",
                 {"error_type": "ConnectorNotFound"},
             )
-            return 0, f"Connector with ID {connector_id} not found"
+            return 0, 0, f"Connector with ID {connector_id} not found"
 
-        # Get the Google Calendar credentials from the connector config
-        config_data = connector.config
-
-        # Decrypt sensitive credentials if encrypted (for backward compatibility)
-        from app.config import config
-        from app.utils.oauth_security import TokenEncryption
-
-        token_encrypted = config_data.get("_token_encrypted", False)
-        if token_encrypted and config.SECRET_KEY:
-            try:
-                token_encryption = TokenEncryption(config.SECRET_KEY)
-
-                # Decrypt sensitive fields
-                if config_data.get("token"):
-                    config_data["token"] = token_encryption.decrypt_token(
-                        config_data["token"]
-                    )
-                if config_data.get("refresh_token"):
-                    config_data["refresh_token"] = token_encryption.decrypt_token(
-                        config_data["refresh_token"]
-                    )
-                if config_data.get("client_secret"):
-                    config_data["client_secret"] = token_encryption.decrypt_token(
-                        config_data["client_secret"]
-                    )
-
-                logger.info(
-                    f"Decrypted Google Calendar credentials for connector {connector_id}"
-                )
-            except Exception as e:
+        # Build credentials based on connector type
+        if connector.connector_type in COMPOSIO_GOOGLE_CONNECTOR_TYPES:
+            connected_account_id = connector.config.get("composio_connected_account_id")
+            if not connected_account_id:
                 await task_logger.log_task_failure(
                     log_entry,
-                    f"Failed to decrypt Google Calendar credentials for connector {connector_id}: {e!s}",
-                    "Credential decryption failed",
-                    {"error_type": "CredentialDecryptionError"},
+                    f"Composio connected_account_id not found for connector {connector_id}",
+                    "Missing Composio account",
+                    {"error_type": "MissingComposioAccount"},
                 )
-                return 0, f"Failed to decrypt Google Calendar credentials: {e!s}"
+                return 0, 0, "Composio connected_account_id not found"
+            credentials = build_composio_credentials(connected_account_id)
+        else:
+            config_data = connector.config
 
-        exp = config_data.get("expiry", "").replace("Z", "")
-        credentials = Credentials(
-            token=config_data.get("token"),
-            refresh_token=config_data.get("refresh_token"),
-            token_uri=config_data.get("token_uri"),
-            client_id=config_data.get("client_id"),
-            client_secret=config_data.get("client_secret"),
-            scopes=config_data.get("scopes"),
-            expiry=datetime.fromisoformat(exp) if exp else None,
-        )
+            from app.config import config
+            from app.utils.oauth_security import TokenEncryption
 
-        if (
-            not credentials.client_id
-            or not credentials.client_secret
-            or not credentials.refresh_token
-        ):
-            await task_logger.log_task_failure(
-                log_entry,
-                f"Google Calendar credentials not found in connector config for connector {connector_id}",
-                "Missing Google Calendar credentials",
-                {"error_type": "MissingCredentials"},
+            token_encrypted = config_data.get("_token_encrypted", False)
+            if token_encrypted and config.SECRET_KEY:
+                try:
+                    token_encryption = TokenEncryption(config.SECRET_KEY)
+                    if config_data.get("token"):
+                        config_data["token"] = token_encryption.decrypt_token(
+                            config_data["token"]
+                        )
+                    if config_data.get("refresh_token"):
+                        config_data["refresh_token"] = token_encryption.decrypt_token(
+                            config_data["refresh_token"]
+                        )
+                    if config_data.get("client_secret"):
+                        config_data["client_secret"] = token_encryption.decrypt_token(
+                            config_data["client_secret"]
+                        )
+                    logger.info(
+                        f"Decrypted Google Calendar credentials for connector {connector_id}"
+                    )
+                except Exception as e:
+                    await task_logger.log_task_failure(
+                        log_entry,
+                        f"Failed to decrypt Google Calendar credentials for connector {connector_id}: {e!s}",
+                        "Credential decryption failed",
+                        {"error_type": "CredentialDecryptionError"},
+                    )
+                    return 0, 0, f"Failed to decrypt Google Calendar credentials: {e!s}"
+
+            exp = config_data.get("expiry", "")
+            if exp:
+                exp = exp.replace("Z", "")
+            credentials = Credentials(
+                token=config_data.get("token"),
+                refresh_token=config_data.get("refresh_token"),
+                token_uri=config_data.get("token_uri"),
+                client_id=config_data.get("client_id"),
+                client_secret=config_data.get("client_secret"),
+                scopes=config_data.get("scopes", []),
+                expiry=datetime.fromisoformat(exp) if exp else None,
             )
-            return 0, "Google Calendar credentials not found in connector config"
 
-        # Initialize Google Calendar client
+            if (
+                not credentials.client_id
+                or not credentials.client_secret
+                or not credentials.refresh_token
+            ):
+                await task_logger.log_task_failure(
+                    log_entry,
+                    f"Google Calendar credentials not found in connector config for connector {connector_id}",
+                    "Missing Google Calendar credentials",
+                    {"error_type": "MissingCredentials"},
+                )
+                return 0, 0, "Google Calendar credentials not found in connector config"
+
         await task_logger.log_task_progress(
             log_entry,
             f"Initializing Google Calendar client for connector {connector_id}",
@@ -281,7 +301,7 @@ async def index_google_calendar_events(
                         f"No Google Calendar events found in date range {start_date_str} to {end_date_str}",
                         {"events_found": 0},
                     )
-                    return 0, None
+                    return 0, 0, None
                 else:
                     logger.error(f"Failed to get Google Calendar events: {error}")
                     # Check if this is an authentication error that requires re-authentication
@@ -301,13 +321,13 @@ async def index_google_calendar_events(
                         error,
                         {"error_type": error_type},
                     )
-                    return 0, error_message
+                    return 0, 0, error_message
 
             logger.info(f"Retrieved {len(events)} events from Google Calendar API")
 
         except Exception as e:
             logger.error(f"Error fetching Google Calendar events: {e!s}", exc_info=True)
-            return 0, f"Error fetching Google Calendar events: {e!s}"
+            return 0, 0, f"Error fetching Google Calendar events: {e!s}"
 
         documents_indexed = 0
         documents_skipped = 0
@@ -362,6 +382,31 @@ async def index_google_calendar_events(
                 existing_document = await check_document_by_unique_identifier(
                     session, unique_identifier_hash
                 )
+
+                # Fallback: legacy Composio hash
+                if not existing_document:
+                    legacy_hash = generate_unique_identifier_hash(
+                        DocumentType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
+                        event_id,
+                        search_space_id,
+                    )
+                    existing_document = await check_document_by_unique_identifier(
+                        session, legacy_hash
+                    )
+                    if existing_document:
+                        existing_document.unique_identifier_hash = (
+                            unique_identifier_hash
+                        )
+                        if (
+                            existing_document.document_type
+                            == DocumentType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR
+                        ):
+                            existing_document.document_type = (
+                                DocumentType.GOOGLE_CALENDAR_CONNECTOR
+                            )
+                        logger.info(
+                            f"Migrated legacy Composio Calendar document: {event_id}"
+                        )
 
                 if existing_document:
                     # Document exists - check if content has changed
@@ -609,7 +654,7 @@ async def index_google_calendar_events(
             f"{documents_skipped} skipped, {documents_failed} failed "
             f"({duplicate_content_count} duplicate content)"
         )
-        return total_processed, warning_message
+        return total_processed, documents_skipped, warning_message
 
     except SQLAlchemyError as db_error:
         await session.rollback()
@@ -620,7 +665,7 @@ async def index_google_calendar_events(
             {"error_type": "SQLAlchemyError"},
         )
         logger.error(f"Database error: {db_error!s}", exc_info=True)
-        return 0, f"Database error: {db_error!s}"
+        return 0, 0, f"Database error: {db_error!s}"
     except Exception as e:
         await session.rollback()
         await task_logger.log_task_failure(
@@ -630,4 +675,4 @@ async def index_google_calendar_events(
             {"error_type": type(e).__name__},
         )
         logger.error(f"Failed to index Google Calendar events: {e!s}", exc_info=True)
-        return 0, f"Failed to index Google Calendar events: {e!s}"
+        return 0, 0, f"Failed to index Google Calendar events: {e!s}"

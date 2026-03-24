@@ -49,9 +49,9 @@ const VARIANT_CLASSES = {
 } as const;
 
 const ACTIVE_INDICATOR_CLASSES = {
-	default: "h-[4px] bg-primary dark:bg-primary",
+	default: "h-[2px] bg-primary dark:bg-primary",
 	pills: "hidden",
-	underlined: "h-[4px] bg-primary dark:bg-primary",
+	underlined: "h-[2px] bg-primary dark:bg-primary",
 } as const;
 
 const HOVER_INDICATOR_CLASSES = {

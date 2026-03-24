@@ -11,6 +11,7 @@ from sqlalchemy.future import select
 from tavily import TavilyClient
 
 from app.db import (
+    NATIVE_TO_LEGACY_DOCTYPE,
     Chunk,
     Document,
     SearchSourceConnector,
@@ -219,7 +220,7 @@ class ConnectorService:
         self,
         query_text: str,
         search_space_id: int,
-        document_type: str,
+        document_type: str | list[str],
         top_k: int = 20,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -241,7 +242,8 @@ class ConnectorService:
         Args:
             query_text: The search query text
             search_space_id: The search space ID to search within
-            document_type: Document type to filter (e.g., "FILE", "CRAWLED_URL")
+            document_type: Document type(s) to filter (e.g., "FILE", "CRAWLED_URL",
+                           or a list for multi-type queries)
             top_k: Number of results to return
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
@@ -253,6 +255,16 @@ class ConnectorService:
 
         perf = get_perf_logger()
         t0 = time.perf_counter()
+
+        # Expand native Google types to include legacy Composio equivalents
+        # so old documents remain searchable until re-indexed.
+        if isinstance(document_type, str) and document_type in NATIVE_TO_LEGACY_DOCTYPE:
+            resolved_type: str | list[str] = [
+                document_type,
+                NATIVE_TO_LEGACY_DOCTYPE[document_type],
+            ]
+        else:
+            resolved_type = document_type
 
         # RRF constant
         k = 60
@@ -276,7 +288,7 @@ class ConnectorService:
             "query_text": query_text,
             "top_k": retriever_top_k,
             "search_space_id": search_space_id,
-            "document_type": document_type,
+            "document_type": resolved_type,
             "start_date": start_date,
             "end_date": end_date,
             "query_embedding": query_embedding,
@@ -2745,299 +2757,6 @@ class ConnectorService:
         }
 
         return result_object, obsidian_docs
-
-    # =========================================================================
-    # Composio Connector Search Methods
-    # =========================================================================
-
-    async def search_composio_google_drive(
-        self,
-        user_query: str,
-        search_space_id: int,
-        top_k: int = 20,
-        start_date: datetime | None = None,
-        end_date: datetime | None = None,
-    ) -> tuple:
-        """
-        Search for Composio Google Drive files and return both the source information
-        and langchain documents.
-
-        Uses combined chunk-level and document-level hybrid search with RRF fusion.
-
-        Args:
-            user_query: The user's query
-            search_space_id: The search space ID to search in
-            top_k: Maximum number of results to return
-            start_date: Optional start date for filtering documents by updated_at
-            end_date: Optional end date for filtering documents by updated_at
-
-        Returns:
-            tuple: (sources_info, langchain_documents)
-        """
-        composio_drive_docs = await self._combined_rrf_search(
-            query_text=user_query,
-            search_space_id=search_space_id,
-            document_type="COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
-            top_k=top_k,
-            start_date=start_date,
-            end_date=end_date,
-        )
-
-        # Early return if no results
-        if not composio_drive_docs:
-            return {
-                "id": 54,
-                "name": "Google Drive (Composio)",
-                "type": "COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
-                "sources": [],
-            }, []
-
-        def _title_fn(doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
-            return (
-                doc_info.get("title")
-                or metadata.get("title")
-                or metadata.get("file_name")
-                or "Untitled Document"
-            )
-
-        def _url_fn(_doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
-            return metadata.get("url") or metadata.get("web_view_link") or ""
-
-        def _description_fn(
-            chunk: dict[str, Any], _doc_info: dict[str, Any], metadata: dict[str, Any]
-        ) -> str:
-            description = self._chunk_preview(chunk.get("content", ""), limit=200)
-            info_parts = []
-            mime_type = metadata.get("mime_type")
-            modified_time = metadata.get("modified_time")
-            if mime_type:
-                info_parts.append(f"Type: {mime_type}")
-            if modified_time:
-                info_parts.append(f"Modified: {modified_time}")
-            if info_parts:
-                description = (description + " | " + " | ".join(info_parts)).strip(" |")
-            return description
-
-        def _extra_fields_fn(
-            _chunk: dict[str, Any], _doc_info: dict[str, Any], metadata: dict[str, Any]
-        ) -> dict[str, Any]:
-            return {
-                "mime_type": metadata.get("mime_type", ""),
-                "file_id": metadata.get("file_id", ""),
-                "modified_time": metadata.get("modified_time", ""),
-            }
-
-        sources_list = self._build_chunk_sources_from_documents(
-            composio_drive_docs,
-            title_fn=_title_fn,
-            url_fn=_url_fn,
-            description_fn=_description_fn,
-            extra_fields_fn=_extra_fields_fn,
-        )
-
-        # Create result object
-        result_object = {
-            "id": 54,
-            "name": "Google Drive (Composio)",
-            "type": "COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
-            "sources": sources_list,
-        }
-
-        return result_object, composio_drive_docs
-
-    async def search_composio_gmail(
-        self,
-        user_query: str,
-        search_space_id: int,
-        top_k: int = 20,
-        start_date: datetime | None = None,
-        end_date: datetime | None = None,
-    ) -> tuple:
-        """
-        Search for Composio Gmail messages and return both the source information
-        and langchain documents.
-
-        Uses combined chunk-level and document-level hybrid search with RRF fusion.
-
-        Args:
-            user_query: The user's query
-            search_space_id: The search space ID to search in
-            top_k: Maximum number of results to return
-            start_date: Optional start date for filtering documents by updated_at
-            end_date: Optional end date for filtering documents by updated_at
-
-        Returns:
-            tuple: (sources_info, langchain_documents)
-        """
-        composio_gmail_docs = await self._combined_rrf_search(
-            query_text=user_query,
-            search_space_id=search_space_id,
-            document_type="COMPOSIO_GMAIL_CONNECTOR",
-            top_k=top_k,
-            start_date=start_date,
-            end_date=end_date,
-        )
-
-        # Early return if no results
-        if not composio_gmail_docs:
-            return {
-                "id": 55,
-                "name": "Gmail (Composio)",
-                "type": "COMPOSIO_GMAIL_CONNECTOR",
-                "sources": [],
-            }, []
-
-        def _title_fn(doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
-            return (
-                doc_info.get("title")
-                or metadata.get("subject")
-                or metadata.get("title")
-                or "Untitled Email"
-            )
-
-        def _url_fn(_doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
-            return metadata.get("url") or ""
-
-        def _description_fn(
-            chunk: dict[str, Any], _doc_info: dict[str, Any], metadata: dict[str, Any]
-        ) -> str:
-            description = self._chunk_preview(chunk.get("content", ""), limit=200)
-            info_parts = []
-            sender = metadata.get("from") or metadata.get("sender")
-            date = metadata.get("date") or metadata.get("received_at")
-            if sender:
-                info_parts.append(f"From: {sender}")
-            if date:
-                info_parts.append(f"Date: {date}")
-            if info_parts:
-                description = (description + " | " + " | ".join(info_parts)).strip(" |")
-            return description
-
-        def _extra_fields_fn(
-            _chunk: dict[str, Any], _doc_info: dict[str, Any], metadata: dict[str, Any]
-        ) -> dict[str, Any]:
-            return {
-                "message_id": metadata.get("message_id", ""),
-                "thread_id": metadata.get("thread_id", ""),
-                "from": metadata.get("from", ""),
-                "to": metadata.get("to", ""),
-                "date": metadata.get("date", ""),
-            }
-
-        sources_list = self._build_chunk_sources_from_documents(
-            composio_gmail_docs,
-            title_fn=_title_fn,
-            url_fn=_url_fn,
-            description_fn=_description_fn,
-            extra_fields_fn=_extra_fields_fn,
-        )
-
-        # Create result object
-        result_object = {
-            "id": 55,
-            "name": "Gmail (Composio)",
-            "type": "COMPOSIO_GMAIL_CONNECTOR",
-            "sources": sources_list,
-        }
-
-        return result_object, composio_gmail_docs
-
-    async def search_composio_google_calendar(
-        self,
-        user_query: str,
-        search_space_id: int,
-        top_k: int = 20,
-        start_date: datetime | None = None,
-        end_date: datetime | None = None,
-    ) -> tuple:
-        """
-        Search for Composio Google Calendar events and return both the source information
-        and langchain documents.
-
-        Uses combined chunk-level and document-level hybrid search with RRF fusion.
-
-        Args:
-            user_query: The user's query
-            search_space_id: The search space ID to search in
-            top_k: Maximum number of results to return
-            start_date: Optional start date for filtering documents by updated_at
-            end_date: Optional end date for filtering documents by updated_at
-
-        Returns:
-            tuple: (sources_info, langchain_documents)
-        """
-        composio_calendar_docs = await self._combined_rrf_search(
-            query_text=user_query,
-            search_space_id=search_space_id,
-            document_type="COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
-            top_k=top_k,
-            start_date=start_date,
-            end_date=end_date,
-        )
-
-        # Early return if no results
-        if not composio_calendar_docs:
-            return {
-                "id": 56,
-                "name": "Google Calendar (Composio)",
-                "type": "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
-                "sources": [],
-            }, []
-
-        def _title_fn(doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
-            return (
-                doc_info.get("title")
-                or metadata.get("summary")
-                or metadata.get("title")
-                or "Untitled Event"
-            )
-
-        def _url_fn(_doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
-            return metadata.get("url") or metadata.get("html_link") or ""
-
-        def _description_fn(
-            chunk: dict[str, Any], _doc_info: dict[str, Any], metadata: dict[str, Any]
-        ) -> str:
-            description = self._chunk_preview(chunk.get("content", ""), limit=200)
-            info_parts = []
-            start_time = metadata.get("start_time") or metadata.get("start")
-            end_time = metadata.get("end_time") or metadata.get("end")
-            if start_time:
-                info_parts.append(f"Start: {start_time}")
-            if end_time:
-                info_parts.append(f"End: {end_time}")
-            if info_parts:
-                description = (description + " | " + " | ".join(info_parts)).strip(" |")
-            return description
-
-        def _extra_fields_fn(
-            _chunk: dict[str, Any], _doc_info: dict[str, Any], metadata: dict[str, Any]
-        ) -> dict[str, Any]:
-            return {
-                "event_id": metadata.get("event_id", ""),
-                "calendar_id": metadata.get("calendar_id", ""),
-                "start_time": metadata.get("start_time", ""),
-                "end_time": metadata.get("end_time", ""),
-                "location": metadata.get("location", ""),
-            }
-
-        sources_list = self._build_chunk_sources_from_documents(
-            composio_calendar_docs,
-            title_fn=_title_fn,
-            url_fn=_url_fn,
-            description_fn=_description_fn,
-            extra_fields_fn=_extra_fields_fn,
-        )
-
-        # Create result object
-        result_object = {
-            "id": 56,
-            "name": "Google Calendar (Composio)",
-            "type": "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
-            "sources": sources_list,
-        }
-
-        return result_object, composio_calendar_docs
 
     # =========================================================================
     # Utility Methods for Connector Discovery

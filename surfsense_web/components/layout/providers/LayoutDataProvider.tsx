@@ -127,12 +127,12 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		enabled: !!searchSpaceId,
 	});
 
-	// Separate sidebar states for shared and private chats
-	const [isAllSharedChatsSidebarOpen, setIsAllSharedChatsSidebarOpen] = useState(false);
-	const [isAllPrivateChatsSidebarOpen, setIsAllPrivateChatsSidebarOpen] = useState(false);
+	// Unified slide-out panel state (only one can be open at a time)
+	type SlideoutPanel = "inbox" | "shared" | "private" | "announcements" | null;
+	const [activeSlideoutPanel, setActiveSlideoutPanel] = useState<SlideoutPanel>(null);
 
-	// Inbox sidebar state
-	const [isInboxSidebarOpen, setIsInboxSidebarOpen] = useState(false);
+	const isInboxSidebarOpen = activeSlideoutPanel === "inbox";
+	const isAnnouncementsSidebarOpen = activeSlideoutPanel === "announcements";
 
 	// Documents sidebar state (shared atom so Composer can toggle it)
 	const [isDocumentsSidebarOpen, setIsDocumentsSidebarOpen] = useAtom(documentsSidebarOpenAtom);
@@ -150,9 +150,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			}
 		}
 	}, [setIsDocumentsSidebarOpen]);
-
-	// Announcements sidebar state
-	const [isAnnouncementsSidebarOpen, setIsAnnouncementsSidebarOpen] = useState(false);
 
 	// Search space dialog state
 	const [isCreateSearchSpaceDialogOpen, setIsCreateSearchSpaceDialogOpen] = useState(false);
@@ -268,12 +265,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	}, [pendingNewChat, params?.chat_id, router, searchSpaceId, resetCurrentThread]);
 
 	// Reset transient slide-out panels when switching search spaces.
-	// Some browsers can retain overlay/backdrop state across route transitions.
 	useEffect(() => {
-		setIsInboxSidebarOpen(false);
-		setIsAllSharedChatsSidebarOpen(false);
-		setIsAllPrivateChatsSidebarOpen(false);
-		setIsAnnouncementsSidebarOpen(false);
+		setActiveSlideoutPanel(null);
 	}, [searchSpaceId]);
 
 	const searchSpaces: SearchSpace[] = useMemo(() => {
@@ -483,14 +476,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const handleNavItemClick = useCallback(
 		(item: NavItem) => {
 			if (item.url === "#inbox") {
-				setIsInboxSidebarOpen((prev) => {
-					if (!prev) {
-						setIsAllSharedChatsSidebarOpen(false);
-						setIsAllPrivateChatsSidebarOpen(false);
-						setIsAnnouncementsSidebarOpen(false);
-					}
-					return !prev;
-				});
+				setActiveSlideoutPanel((prev) => (prev === "inbox" ? null : "inbox"));
 				return;
 			}
 			if (item.url === "#documents") {
@@ -498,20 +484,14 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 					if (!isDocumentsSidebarOpen) {
 						setIsDocumentsSidebarOpen(true);
 						setIsRightPanelCollapsed(false);
-						setIsInboxSidebarOpen(false);
-						setIsAllSharedChatsSidebarOpen(false);
-						setIsAllPrivateChatsSidebarOpen(false);
-						setIsAnnouncementsSidebarOpen(false);
+						setActiveSlideoutPanel(null);
 					} else {
 						setIsRightPanelCollapsed((prev) => !prev);
 					}
 				} else {
 					setIsDocumentsSidebarOpen((prev) => {
 						if (!prev) {
-							setIsInboxSidebarOpen(false);
-							setIsAllSharedChatsSidebarOpen(false);
-							setIsAllPrivateChatsSidebarOpen(false);
-							setIsAnnouncementsSidebarOpen(false);
+							setActiveSlideoutPanel(null);
 						}
 						return !prev;
 					});
@@ -519,14 +499,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				return;
 			}
 			if (item.url === "#announcements") {
-				setIsAnnouncementsSidebarOpen((prev) => {
-					if (!prev) {
-						setIsInboxSidebarOpen(false);
-						setIsAllSharedChatsSidebarOpen(false);
-						setIsAllPrivateChatsSidebarOpen(false);
-					}
-					return !prev;
-				});
+				setActiveSlideoutPanel((prev) => (prev === "announcements" ? null : "announcements"));
 				return;
 			}
 			router.push(item.url);
@@ -617,25 +590,11 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	}, [router]);
 
 	const handleViewAllSharedChats = useCallback(() => {
-		setIsAllSharedChatsSidebarOpen((prev) => {
-			if (!prev) {
-				setIsAllPrivateChatsSidebarOpen(false);
-				setIsInboxSidebarOpen(false);
-				setIsAnnouncementsSidebarOpen(false);
-			}
-			return !prev;
-		});
+		setActiveSlideoutPanel((prev) => (prev === "shared" ? null : "shared"));
 	}, []);
 
 	const handleViewAllPrivateChats = useCallback(() => {
-		setIsAllPrivateChatsSidebarOpen((prev) => {
-			if (!prev) {
-				setIsAllSharedChatsSidebarOpen(false);
-				setIsInboxSidebarOpen(false);
-				setIsAnnouncementsSidebarOpen(false);
-			}
-			return !prev;
-		});
+		setActiveSlideoutPanel((prev) => (prev === "private" ? null : "private"));
 	}, []);
 
 	// Delete handlers
@@ -741,9 +700,10 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				setTheme={setTheme}
 				isChatPage={isChatPage}
 				isLoadingChats={isLoadingThreads}
+				activeSlideoutPanel={activeSlideoutPanel}
+				onSlideoutPanelChange={setActiveSlideoutPanel}
 				inbox={{
 					isOpen: isInboxSidebarOpen,
-					onOpenChange: setIsInboxSidebarOpen,
 					totalUnreadCount,
 					comments: {
 						items: commentsInbox.inboxItems,
@@ -766,18 +726,10 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						markAllAsRead: statusInbox.markAllAsRead,
 					},
 				}}
-				announcementsPanel={{
-					open: isAnnouncementsSidebarOpen,
-					onOpenChange: setIsAnnouncementsSidebarOpen,
-				}}
 				allSharedChatsPanel={{
-					open: isAllSharedChatsSidebarOpen,
-					onOpenChange: setIsAllSharedChatsSidebarOpen,
 					searchSpaceId,
 				}}
 				allPrivateChatsPanel={{
-					open: isAllPrivateChatsSidebarOpen,
-					onOpenChange: setIsAllPrivateChatsSidebarOpen,
 					searchSpaceId,
 				}}
 				documentsPanel={{
@@ -810,14 +762,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 							disabled={isDeletingChat}
 							className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
 						>
-							{isDeletingChat ? (
-								<>
-									<Spinner size="sm" />
-									{t("deleting")}
-								</>
-							) : (
-								tCommon("delete")
-							)}
+							{isDeletingChat ? <Spinner size="sm" /> : tCommon("delete")}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>

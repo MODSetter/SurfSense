@@ -498,7 +498,7 @@ export function DocumentsTableShell({
 										checked={allMentionedOnPage || (someMentionedOnPage && "indeterminate")}
 										onCheckedChange={(v) => toggleAll(!!v)}
 										aria-label={hasChatMode ? "Toggle all for chat" : "Select all"}
-										className="border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+										className="shrink-0"
 									/>
 								</div>
 							</TableHead>
@@ -644,6 +644,16 @@ export function DocumentsTableShell({
 															return <StatusIndicator status={doc.status} />;
 														}
 														if (state === "failed") {
+															if (isMentioned) {
+																return (
+																	<Checkbox
+																		checked={isMentioned}
+																		onCheckedChange={() => handleRowToggle()}
+																		aria-label="Remove from chat"
+																		className="shrink-0"
+																	/>
+																);
+															}
 															return (
 																<>
 																	<span className="group-hover:hidden">
@@ -653,8 +663,8 @@ export function DocumentsTableShell({
 																		<Checkbox
 																			checked={isMentioned}
 																			onCheckedChange={() => handleRowToggle()}
-																			aria-label={isMentioned ? "Remove from chat" : "Add to chat"}
-																			className="border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+																			aria-label="Add to chat"
+																			className="shrink-0"
 																		/>
 																	</span>
 																</>
@@ -665,7 +675,7 @@ export function DocumentsTableShell({
 																checked={isMentioned}
 																onCheckedChange={() => handleRowToggle()}
 																aria-label={isMentioned ? "Remove from chat" : "Add to chat"}
-																className="border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+																className="shrink-0"
 															/>
 														);
 													})()}
@@ -878,7 +888,7 @@ export function DocumentsTableShell({
 													checked={isMentioned}
 													onCheckedChange={() => handleCardClick()}
 													aria-label={isMentioned ? "Remove from chat" : "Add to chat"}
-													className="border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+													className="shrink-0"
 												/>
 											) : (
 												<StatusIndicator status={doc.status} />
@@ -986,7 +996,7 @@ export function DocumentsTableShell({
 							disabled={isDeleting}
 							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
-							{isDeleting ? "Deleting" : "Delete"}
+							{isDeleting ? <Spinner size="sm" /> : "Delete"}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
@@ -1104,7 +1114,7 @@ export function DocumentsTableShell({
 							disabled={isBulkDeleting}
 							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
-							{isBulkDeleting ? "Deleting..." : "Delete"}
+							{isBulkDeleting ? <Spinner size="sm" /> : "Delete"}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>

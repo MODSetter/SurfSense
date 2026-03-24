@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/animated-tabs";
 import { Button } from "@/components/ui/button";
@@ -50,19 +50,21 @@ import {
 import { cn } from "@/lib/utils";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 
-interface AllSharedChatsSidebarProps {
-	open: boolean;
+export interface AllSharedChatsSidebarContentProps {
 	onOpenChange: (open: boolean) => void;
 	searchSpaceId: string;
 	onCloseMobileSidebar?: () => void;
 }
 
-export function AllSharedChatsSidebar({
-	open,
+interface AllSharedChatsSidebarProps extends AllSharedChatsSidebarContentProps {
+	open: boolean;
+}
+
+export function AllSharedChatsSidebarContent({
 	onOpenChange,
 	searchSpaceId,
 	onCloseMobileSidebar,
-}: AllSharedChatsSidebarProps) {
+}: AllSharedChatsSidebarContentProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
 	const params = useParams();
@@ -96,16 +98,6 @@ export function AllSharedChatsSidebar({
 
 	const isSearchMode = !!debouncedSearchQuery.trim();
 
-	useEffect(() => {
-		const handleEscape = (e: KeyboardEvent) => {
-			if (e.key === "Escape" && open) {
-				onOpenChange(false);
-			}
-		};
-		document.addEventListener("keydown", handleEscape);
-		return () => document.removeEventListener("keydown", handleEscape);
-	}, [open, onOpenChange]);
-
 	const {
 		data: threadsData,
 		error: threadsError,
@@ -113,7 +105,7 @@ export function AllSharedChatsSidebar({
 	} = useQuery({
 		queryKey: ["all-threads", searchSpaceId],
 		queryFn: () => fetchThreads(Number(searchSpaceId)),
-		enabled: !!searchSpaceId && open && !isSearchMode,
+		enabled: !!searchSpaceId && !isSearchMode,
 	});
 
 	const {
@@ -123,7 +115,7 @@ export function AllSharedChatsSidebar({
 	} = useQuery({
 		queryKey: ["search-threads", searchSpaceId, debouncedSearchQuery],
 		queryFn: () => searchThreads(Number(searchSpaceId), debouncedSearchQuery.trim()),
-		enabled: !!searchSpaceId && open && isSearchMode,
+		enabled: !!searchSpaceId && isSearchMode,
 	});
 
 	// Filter to only shared chats (SEARCH_SPACE visibility)
@@ -250,11 +242,7 @@ export function AllSharedChatsSidebar({
 	const archivedCount = archivedChats.length;
 
 	return (
-		<SidebarSlideOutPanel
-			open={open}
-			onOpenChange={onOpenChange}
-			ariaLabel={t("shared_chats") || "Shared Chats"}
-		>
+		<>
 			<div className="shrink-0 p-4 pb-2 space-y-3">
 				<div className="flex items-center gap-2">
 					{isMobile && (
@@ -530,6 +518,29 @@ export function AllSharedChatsSidebar({
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
+		</>
+	);
+}
+
+export function AllSharedChatsSidebar({
+	open,
+	onOpenChange,
+	searchSpaceId,
+	onCloseMobileSidebar,
+}: AllSharedChatsSidebarProps) {
+	const t = useTranslations("sidebar");
+
+	return (
+		<SidebarSlideOutPanel
+			open={open}
+			onOpenChange={onOpenChange}
+			ariaLabel={t("shared_chats") || "Shared Chats"}
+		>
+			<AllSharedChatsSidebarContent
+				onOpenChange={onOpenChange}
+				searchSpaceId={searchSpaceId}
+				onCloseMobileSidebar={onCloseMobileSidebar}
+			/>
 		</SidebarSlideOutPanel>
 	);
 }
