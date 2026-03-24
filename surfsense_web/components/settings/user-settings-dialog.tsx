@@ -3,9 +3,9 @@
 import { useAtom } from "jotai";
 import { KeyRound, User } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { userSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
 import { ApiKeyContent } from "@/app/dashboard/[search_space_id]/user-settings/components/ApiKeyContent";
 import { ProfileContent } from "@/app/dashboard/[search_space_id]/user-settings/components/ProfileContent";
+import { userSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
 import { SettingsDialog } from "@/components/settings/settings-dialog";
 
 export function UserSettingsDialog() {

@@ -1,4 +1,4 @@
-import { table, string, number, json } from "@rocicorp/zero";
+import { json, number, string, table } from "@rocicorp/zero";
 
 export const newChatMessageTable = table("new_chat_messages")
 	.columns({

@@ -1,10 +1,10 @@
 "use client";
 
+import { useQuery } from "@rocicorp/zero/react";
 import { useSetAtom } from "jotai";
 import { useEffect } from "react";
 import { chatSessionStateAtom } from "@/atoms/chat/chat-session-state.atom";
 import { queries } from "@/zero/queries";
-import { useQuery } from "@rocicorp/zero/react";
 
 /**
  * Syncs chat session state for a thread via Zero.

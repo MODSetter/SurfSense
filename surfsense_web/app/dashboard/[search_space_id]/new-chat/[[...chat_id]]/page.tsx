@@ -40,7 +40,6 @@ import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
-import { GenerateVideoPresentationToolUI } from "@/components/tool-ui/video-presentation";
 import {
 	CreateGoogleDriveFileToolUI,
 	DeleteGoogleDriveFileToolUI,
@@ -59,6 +58,7 @@ import {
 import { SandboxExecuteToolUI } from "@/components/tool-ui/sandbox-execute";
 import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
 import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-memory";
+import { GenerateVideoPresentationToolUI } from "@/components/tool-ui/video-presentation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
 import { useMessagesSync } from "@/hooks/use-messages-sync";

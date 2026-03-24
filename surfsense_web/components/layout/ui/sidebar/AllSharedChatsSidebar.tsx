@@ -18,6 +18,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/animated-tabs";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -36,7 +37,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/animated-tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useLongPress } from "@/hooks/use-long-press";

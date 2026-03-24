@@ -164,8 +164,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 			refreshConnectors: refreshConnectorsSync,
 		} = useConnectorsSync(searchSpaceId);
 
-		const useSyncData =
-			connectorsFromSync.length > 0 || (connectorsLoading && !connectorsError);
+		const useSyncData = connectorsFromSync.length > 0 || (connectorsLoading && !connectorsError);
 		const connectors = useSyncData ? connectorsFromSync : allConnectors || [];
 
 		const refreshConnectors = async () => {

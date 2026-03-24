@@ -19,8 +19,7 @@ const carouselItems = [
 	},
 	{
 		title: "Video Generation",
-		description:
-			"Create short videos with AI-generated visuals and narration from your sources.",
+		description: "Create short videos with AI-generated visuals and narration from your sources.",
 		src: "/homepage/hero_tutorial/video_gen_surf.mp4",
 	},
 	{
@@ -176,9 +175,7 @@ function HeroCarousel() {
 
 		const id = setTimeout(() => {
 			directionRef.current = "forward";
-			setActiveIndex((prev) =>
-				prev >= carouselItems.length - 1 ? 0 : prev + 1
-			);
+			setActiveIndex((prev) => (prev >= carouselItems.length - 1 ? 0 : prev + 1));
 		}, AUTOPLAY_MS);
 
 		return () => clearTimeout(id);

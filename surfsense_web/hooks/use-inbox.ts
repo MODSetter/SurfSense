@@ -1,10 +1,10 @@
 "use client";
 
+import { useQuery } from "@rocicorp/zero/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { InboxItem, NotificationCategory } from "@/contracts/types/inbox.types";
 import { notificationsApiService } from "@/lib/apis/notifications-api.service";
 import { queries } from "@/zero/queries";
-import { useQuery } from "@rocicorp/zero/react";
 
 export type {
 	InboxItem,
@@ -118,9 +118,7 @@ export function useInbox(
 	}, [userId, searchSpaceId, category, prefetchedUnread, prefetchedUnreadReady]);
 
 	// EFFECT 2: Zero real-time sync for notification updates
-	const [zeroNotifications] = useQuery(
-		queries.notifications.byUser({ userId: userId ?? "" })
-	);
+	const [zeroNotifications] = useQuery(queries.notifications.byUser({ userId: userId ?? "" }));
 
 	useEffect(() => {
 		if (!userId || !searchSpaceId || !zeroNotifications || !initialLoadDoneRef.current) return;
@@ -134,9 +132,7 @@ export function useInbox(
 			return true;
 		});
 
-		const recentItems = validItems.filter(
-			(item) => new Date(item.createdAt) > cutoff
-		);
+		const recentItems = validItems.filter((item) => new Date(item.createdAt) > cutoff);
 
 		const liveIds = new Set(recentItems.map((d) => d.id));
 
@@ -145,18 +141,21 @@ export function useInbox(
 
 			const newItems: InboxItem[] = recentItems
 				.filter((d) => !prevIds.has(d.id))
-				.map((item) => ({
-					id: item.id,
-					user_id: item.userId,
-					search_space_id: item.searchSpaceId ?? undefined,
-					type: item.type,
-					title: item.title,
-					message: item.message,
-					read: item.read,
-					metadata: item.metadata as unknown as Record<string, unknown>,
-					created_at: new Date(item.createdAt).toISOString(),
-					updated_at: item.updatedAt ? new Date(item.updatedAt).toISOString() : null,
-				} as InboxItem));
+				.map(
+					(item) =>
+						({
+							id: item.id,
+							user_id: item.userId,
+							search_space_id: item.searchSpaceId ?? undefined,
+							type: item.type,
+							title: item.title,
+							message: item.message,
+							read: item.read,
+							metadata: item.metadata as unknown as Record<string, unknown>,
+							created_at: new Date(item.createdAt).toISOString(),
+							updated_at: item.updatedAt ? new Date(item.updatedAt).toISOString() : null,
+						}) as InboxItem
+				);
 
 			let updated = prev.map((existing) => {
 				const liveItem = recentItems.find((v) => v.id === existing.id);
@@ -187,10 +186,7 @@ export function useInbox(
 		// Calibrate older-unread offset on first Zero data
 		if (olderUnreadOffsetRef.current === null) {
 			const recentUnreadCount = recentItems.filter((item) => !item.read).length;
-			olderUnreadOffsetRef.current = Math.max(
-				0,
-				apiUnreadTotalRef.current - recentUnreadCount
-			);
+			olderUnreadOffsetRef.current = Math.max(0, apiUnreadTotalRef.current - recentUnreadCount);
 		}
 
 		if (olderUnreadOffsetRef.current !== null) {

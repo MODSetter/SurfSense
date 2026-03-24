@@ -4,9 +4,9 @@ import { RootProvider } from "fumadocs-ui/provider/next";
 import { Roboto } from "next/font/google";
 import { AnnouncementToastProvider } from "@/components/announcements/AnnouncementToastProvider";
 import { GlobalLoadingProvider } from "@/components/providers/GlobalLoadingProvider";
-import { ZeroProvider } from "@/components/providers/ZeroProvider";
 import { I18nProvider } from "@/components/providers/I18nProvider";
 import { PostHogProvider } from "@/components/providers/PostHogProvider";
+import { ZeroProvider } from "@/components/providers/ZeroProvider";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { LocaleProvider } from "@/contexts/LocaleContext";
@@ -140,11 +140,11 @@ export default function RootLayout({
 								defaultTheme="system"
 							>
 								<RootProvider>
-								<ReactQueryClientProvider>
-									<ZeroProvider>
-										<GlobalLoadingProvider>{children}</GlobalLoadingProvider>
-									</ZeroProvider>
-								</ReactQueryClientProvider>
+									<ReactQueryClientProvider>
+										<ZeroProvider>
+											<GlobalLoadingProvider>{children}</GlobalLoadingProvider>
+										</ZeroProvider>
+									</ReactQueryClientProvider>
 									<Toaster />
 									<AnnouncementToastProvider />
 								</RootProvider>

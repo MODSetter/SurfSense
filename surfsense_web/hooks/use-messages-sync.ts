@@ -1,9 +1,9 @@
 "use client";
 
+import { useQuery } from "@rocicorp/zero/react";
 import { useEffect, useRef } from "react";
 import type { RawMessage } from "@/contracts/types/chat-messages.types";
 import { queries } from "@/zero/queries";
-import { useQuery } from "@rocicorp/zero/react";
 
 /**
  * Syncs chat messages for a thread via Zero.

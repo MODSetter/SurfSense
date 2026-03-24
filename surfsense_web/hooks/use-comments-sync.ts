@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery } from "@rocicorp/zero/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef } from "react";
@@ -9,7 +10,6 @@ import type { Author, Comment, CommentReply } from "@/contracts/types/chat-comme
 import type { Membership } from "@/contracts/types/members.types";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queries } from "@/zero/queries";
-import { useQuery } from "@rocicorp/zero/react";
 
 interface RawCommentRow {
 	id: number;

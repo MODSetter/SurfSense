@@ -1,9 +1,9 @@
 "use client";
 
+import { useQuery } from "@rocicorp/zero/react";
 import { useMemo } from "react";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { queries } from "@/zero/queries";
-import { useQuery } from "@rocicorp/zero/react";
 
 /**
  * Syncs connectors for a search space via Zero.

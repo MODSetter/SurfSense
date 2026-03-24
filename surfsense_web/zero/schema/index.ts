@@ -1,4 +1,4 @@
-import { createSchema, createBuilder, relationships } from "@rocicorp/zero";
+import { createBuilder, createSchema, relationships } from "@rocicorp/zero";
 import { chatCommentTable, chatSessionStateTable, newChatMessageTable } from "./chat";
 import { documentTable, searchSourceConnectorTable } from "./documents";
 import { notificationTable } from "./inbox";

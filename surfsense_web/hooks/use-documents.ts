@@ -1,10 +1,10 @@
 "use client";
 
+import { useQuery } from "@rocicorp/zero/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DocumentSortBy, DocumentTypeEnum, SortOrder } from "@/contracts/types/document.types";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { queries } from "@/zero/queries";
-import { useQuery } from "@rocicorp/zero/react";
 
 export interface DocumentStatusType {
 	state: "ready" | "pending" | "processing" | "failed";
@@ -254,7 +254,9 @@ export function useDocuments(
 							...existing,
 							title: liveItem.title,
 							document_type: liveItem.documentType,
-							status: (liveItem.status as unknown as DocumentStatusType) ?? { state: "ready" as const },
+							status: (liveItem.status as unknown as DocumentStatusType) ?? {
+								state: "ready" as const,
+							},
 						};
 					}
 				}

@@ -1,8 +1,8 @@
 "use client";
 
+import { useQuery } from "@rocicorp/zero/react";
 import { useEffect, useRef, useState } from "react";
 import { queries } from "@/zero/queries";
-import { useQuery } from "@rocicorp/zero/react";
 
 export type DocumentsProcessingStatus = "idle" | "processing" | "success" | "error";
 
@@ -20,9 +20,7 @@ export function useDocumentsProcessing(searchSpaceId: number | null): DocumentsP
 	const wasProcessingRef = useRef(false);
 	const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-	const [documents] = useQuery(
-		queries.documents.bySpace({ searchSpaceId: searchSpaceId ?? -1 })
-	);
+	const [documents] = useQuery(queries.documents.bySpace({ searchSpaceId: searchSpaceId ?? -1 }));
 
 	useEffect(() => {
 		if (!searchSpaceId || !documents) return;
