@@ -5,6 +5,7 @@ import { createMainWindow } from './modules/window';
 import { setupDeepLinks, handlePendingDeepLink } from './modules/deep-links';
 import { setupAutoUpdater } from './modules/auto-updater';
 import { setupMenu } from './modules/menu';
+import { registerQuickAsk, unregisterQuickAsk } from './modules/quick-ask';
 import { registerIpcHandlers } from './ipc/handlers';
 
 registerGlobalErrorHandlers();
@@ -26,6 +27,7 @@ app.whenReady().then(async () => {
     return;
   }
   createMainWindow();
+  registerQuickAsk();
   setupAutoUpdater();
 
   handlePendingDeepLink();
@@ -44,5 +46,5 @@ app.on('window-all-closed', () => {
 });
 
 app.on('will-quit', () => {
-  // Server runs in-process — no child process to kill
+  unregisterQuickAsk();
 });
