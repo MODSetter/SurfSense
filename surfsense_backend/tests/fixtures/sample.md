@@ -10,7 +10,7 @@ document upload pipeline. It includes various markdown formatting elements.
 - Document upload and processing
 - Automatic chunking of content
 - Embedding generation for semantic search
-- Real-time status tracking via ElectricSQL
+- Real-time status tracking via Zero
 
 ## Technical Architecture
 

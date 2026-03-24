@@ -1,13 +1,37 @@
 "use client";
 import { AnimatePresence, motion } from "motion/react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import Balancer from "react-wrap-balancer";
-import { HeroCarousel } from "@/components/ui/hero-carousel";
 import { AUTH_TYPE, BACKEND_URL } from "@/lib/env-config";
 import { trackLoginAttempt } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
+
+const HeroCarousel = dynamic(
+	() => import("@/components/ui/hero-carousel").then((m) => ({ default: m.HeroCarousel })),
+	{
+		ssr: false,
+		loading: () => (
+			<div className="w-full py-4 sm:py-8">
+				<div className="mx-auto w-full max-w-[900px]">
+					<div className="overflow-hidden rounded-2xl border border-neutral-200/60 bg-white shadow-xl sm:rounded-3xl dark:border-neutral-700/60 dark:bg-neutral-900">
+						<div className="flex items-center gap-3 border-b border-neutral-200/60 px-4 py-3 sm:px-6 sm:py-4 dark:border-neutral-700/60">
+							<div className="min-w-0 flex-1">
+								<div className="h-5 w-32 animate-pulse rounded bg-neutral-200 dark:bg-neutral-700" />
+								<div className="mt-2 h-4 w-64 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800" />
+							</div>
+						</div>
+						<div className="bg-neutral-50 p-2 sm:p-3 dark:bg-neutral-950">
+							<div className="aspect-video w-full animate-pulse rounded-lg bg-neutral-100 sm:rounded-xl dark:bg-neutral-800" />
+						</div>
+					</div>
+				</div>
+			</div>
+		),
+	}
+);
 
 // Official Google "G" logo with brand colors
 const GoogleLogo = ({ className }: { className?: string }) => (

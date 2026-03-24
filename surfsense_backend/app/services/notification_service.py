@@ -1,4 +1,4 @@
-"""Service for creating and managing notifications with Electric SQL sync."""
+"""Service for creating and managing notifications with Zero sync."""
 
 import logging
 from datetime import UTC, datetime
@@ -1045,7 +1045,7 @@ class PageLimitNotificationHandler(BaseNotificationHandler):
 
 
 class NotificationService:
-    """Service for creating and managing notifications that sync via Electric SQL."""
+    """Service for creating and managing notifications that sync via Zero."""
 
     # Handler instances
     connector_indexing = ConnectorIndexingNotificationHandler()
@@ -1065,7 +1065,7 @@ class NotificationService:
         notification_metadata: dict[str, Any] | None = None,
     ) -> Notification:
         """
-        Create a notification - Electric SQL will automatically sync it to frontend.
+        Create a notification - Zero will automatically sync it to frontend.
 
         Args:
             session: Database session

@@ -30,21 +30,25 @@ def upgrade() -> None:
         "ix_notifications_user_read_type_created",
         "notifications",
         ["user_id", "read", "type", "created_at"],
+        if_not_exists=True,
     )
     op.create_index(
         "ix_notifications_user_space_created",
         "notifications",
         ["user_id", "search_space_id", "created_at"],
+        if_not_exists=True,
     )
     op.create_index(
         "ix_notifications_type",
         "notifications",
         ["type"],
+        if_not_exists=True,
     )
     op.create_index(
         "ix_notifications_search_space_id",
         "notifications",
         ["search_space_id"],
+        if_not_exists=True,
     )
 
 

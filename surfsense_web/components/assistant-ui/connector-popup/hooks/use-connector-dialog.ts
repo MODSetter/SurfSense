@@ -1254,7 +1254,7 @@ export const useConnectorDialog = () => {
 					queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
 				});
 				// Note: Don't call stopIndexing here - let useIndexingConnectors hook
-				// detect when last_indexed_at changes via Electric SQL
+				// detect when last_indexed_at changes via real-time sync
 			} catch (error) {
 				console.error("Error indexing connector content:", error);
 				toast.error(error instanceof Error ? error.message : "Failed to start indexing");
