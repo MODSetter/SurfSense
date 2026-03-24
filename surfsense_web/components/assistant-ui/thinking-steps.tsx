@@ -126,8 +126,8 @@ export const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?:
 
 											{step.items && step.items.length > 0 && (
 												<div className="mt-1 space-y-0.5">
-												{step.items.map((item) => (
-													<ChainOfThoughtItem key={`${step.id}-${item}`} className="text-xs">
+													{step.items.map((item) => (
+														<ChainOfThoughtItem key={`${step.id}-${item}`} className="text-xs">
 															{item}
 														</ChainOfThoughtItem>
 													))}
@@ -169,4 +169,3 @@ export const ThinkingStepsDataUI = makeAssistantDataUI({
 	name: "thinking-steps",
 	render: ThinkingStepsDataRenderer,
 });
-

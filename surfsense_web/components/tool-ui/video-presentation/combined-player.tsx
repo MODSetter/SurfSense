@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useMemo } from "react";
-import { Player } from "@remotion/player";
-import { Sequence, AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate } from "remotion";
 import { Audio } from "@remotion/media";
+import { Player } from "@remotion/player";
+import type React from "react";
+import { useMemo } from "react";
+import { AbsoluteFill, interpolate, Sequence, useCurrentFrame, useVideoConfig } from "remotion";
 import { FPS } from "@/lib/remotion/constants";
 
 export interface CompiledSlide {
@@ -64,9 +65,7 @@ function Watermark() {
 	);
 }
 
-export function buildSlideWithWatermark(
-	SlideComponent: React.ComponentType,
-): React.FC {
+export function buildSlideWithWatermark(SlideComponent: React.ComponentType): React.FC {
 	const Wrapped: React.FC = () => (
 		<AbsoluteFill>
 			<SlideComponent />
@@ -115,7 +114,7 @@ export function CombinedPlayer({ slides }: CombinedPlayerProps) {
 
 	const totalFrames = useMemo(
 		() => slides.reduce((sum, s) => sum + s.durationInFrames, 0),
-		[slides],
+		[slides]
 	);
 
 	return (

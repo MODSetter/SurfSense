@@ -8,23 +8,30 @@ import {
 	useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
 import { CheckIcon, CopyIcon, ExternalLinkIcon } from "lucide-react";
-import { type FC, memo, type ReactNode, useState } from "react";
 import { useTheme } from "next-themes";
+import type { CSSProperties } from "react";
+import { type FC, memo, type ReactNode, useState } from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { materialDark, materialLight } from "react-syntax-highlighter/dist/esm/styles/prism";
-import type { CSSProperties } from "react";
-import { ImagePreview, ImageRoot, ImageZoom } from "@/components/assistant-ui/image";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
+import { ImagePreview, ImageRoot, ImageZoom } from "@/components/assistant-ui/image";
 import "katex/dist/katex.min.css";
 import { InlineCitation, UrlCitation } from "@/components/assistant-ui/inline-citation";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
 function stripThemeBackgrounds(
-	theme: Record<string, CSSProperties>,
+	theme: Record<string, CSSProperties>
 ): Record<string, CSSProperties> {
 	const cleaned: Record<string, CSSProperties> = {};
 	for (const key of Object.keys(theme)) {
@@ -261,9 +268,7 @@ function MarkdownImage({ src, alt }: { src?: string; alt?: string }) {
 					{alt && alt !== "Image" && (
 						<p className="text-sm font-semibold text-foreground line-clamp-2">{alt}</p>
 					)}
-					{domain && (
-						<p className="text-xs text-muted-foreground mt-0.5 truncate">{domain}</p>
-					)}
+					{domain && <p className="text-xs text-muted-foreground mt-0.5 truncate">{domain}</p>}
 				</div>
 				<a
 					href={src}
@@ -403,9 +408,7 @@ const defaultComponents = memoizeMarkdownComponents({
 			{processChildrenWithCitations(children)}
 		</TableCell>
 	),
-	tr: ({ className, ...props }) => (
-		<TableRow className={cn("aui-md-tr", className)} {...props} />
-	),
+	tr: ({ className, ...props }) => <TableRow className={cn("aui-md-tr", className)} {...props} />,
 	sup: ({ className, ...props }) => (
 		<sup className={cn("aui-md-sup [&>a]:text-xs [&>a]:no-underline", className)} {...props} />
 	),
@@ -448,6 +451,8 @@ const defaultComponents = memoizeMarkdownComponents({
 			{processChildrenWithCitations(children)}
 		</em>
 	),
-	img: ({ src, alt }) => <MarkdownImage src={typeof src === "string" ? src : undefined} alt={alt} />,
+	img: ({ src, alt }) => (
+		<MarkdownImage src={typeof src === "string" ? src : undefined} alt={alt} />
+	),
 	CodeHeader: () => null,
 });

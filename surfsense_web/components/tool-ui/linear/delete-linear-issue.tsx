@@ -360,7 +360,12 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 	);
 }
 
-export const DeleteLinearIssueToolUI = ({ result }: ToolCallMessagePartProps<{ issue_ref: string; delete_from_kb?: boolean }, DeleteLinearIssueResult>) => {
+export const DeleteLinearIssueToolUI = ({
+	result,
+}: ToolCallMessagePartProps<
+	{ issue_ref: string; delete_from_kb?: boolean },
+	DeleteLinearIssueResult
+>) => {
 	if (!result) return null;
 
 	if (isInterruptResult(result)) {

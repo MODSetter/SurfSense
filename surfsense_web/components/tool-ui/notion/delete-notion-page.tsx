@@ -372,7 +372,12 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 	);
 }
 
-export const DeleteNotionPageToolUI = ({ result }: ToolCallMessagePartProps<{ page_title: string; delete_from_kb?: boolean }, DeleteNotionPageResult>) => {
+export const DeleteNotionPageToolUI = ({
+	result,
+}: ToolCallMessagePartProps<
+	{ page_title: string; delete_from_kb?: boolean },
+	DeleteNotionPageResult
+>) => {
 	if (!result) return null;
 
 	if (isInterruptResult(result)) {

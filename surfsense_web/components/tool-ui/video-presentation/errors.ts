@@ -1,7 +1,11 @@
 export function getVideoDownloadErrorToast(err: unknown): { title: string; description: string } {
 	const msg = err instanceof Error ? err.message.toLowerCase() : "";
 
-	if (msg.includes("webcodecs") || msg.includes("canrendermediaonweb") || msg.includes("not support")) {
+	if (
+		msg.includes("webcodecs") ||
+		msg.includes("canrendermediaonweb") ||
+		msg.includes("not support")
+	) {
 		return {
 			title: "Browser Not Supported",
 			description: "Video rendering requires Chrome, Edge, or Firefox 130+.",
@@ -24,7 +28,11 @@ export function getVideoDownloadErrorToast(err: unknown): { title: string; descr
 export function getPptxExportErrorToast(err: unknown): { title: string; description: string } {
 	const msg = err instanceof Error ? err.message.toLowerCase() : "";
 
-	if (msg.includes("dynamically imported") || msg.includes("failed to fetch") || msg.includes("network")) {
+	if (
+		msg.includes("dynamically imported") ||
+		msg.includes("failed to fetch") ||
+		msg.includes("network")
+	) {
 		return {
 			title: "Export Unavailable",
 			description: "Could not load the export module. Check your network and try again.",

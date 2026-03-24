@@ -101,13 +101,13 @@ export const Thread: FC = () => {
 
 const ThreadContent: FC = () => {
 	return (
-        <ThreadPrimitive.Root
+		<ThreadPrimitive.Root
 			className="aui-root aui-thread-root @container flex h-full min-h-0 flex-col bg-main-panel"
 			style={{
 				["--thread-max-width" as string]: "44rem",
 			}}
 		>
-            <ThreadPrimitive.Viewport
+			<ThreadPrimitive.Viewport
 				turnAnchor="top"
 				className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 pt-4"
 			>
@@ -135,8 +135,8 @@ const ThreadContent: FC = () => {
 					</AuiIf>
 				</ThreadPrimitive.ViewportFooter>
 			</ThreadPrimitive.Viewport>
-        </ThreadPrimitive.Root>
-    );
+		</ThreadPrimitive.Root>
+	);
 };
 
 const ThreadScrollToBottom: FC = () => {
@@ -678,8 +678,8 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const isSendDisabled = isComposerEmpty || !hasModelConfigured || isBlockedByOtherUser;
 
 	return (
-        <div className="aui-composer-action-wrapper relative mx-3 mb-2 flex items-center justify-between">
-            <div className="flex items-center gap-1">
+		<div className="aui-composer-action-wrapper relative mx-3 mb-2 flex items-center justify-between">
+			<div className="flex items-center gap-1">
 				{!isDesktop ? (
 					<>
 						<DropdownMenu>
@@ -983,13 +983,13 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 					</button>
 				)}
 			</div>
-            {!hasModelConfigured && (
+			{!hasModelConfigured && (
 				<div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 text-xs">
 					<AlertCircle className="size-3" />
 					<span>Select a model</span>
 				</div>
 			)}
-            <div className="flex items-center gap-2">
+			<div className="flex items-center gap-2">
 				<AuiIf condition={({ thread }) => !thread.isRunning}>
 					<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
 						<TooltipIconButton
@@ -1032,8 +1032,8 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 					</ComposerPrimitive.Cancel>
 				</AuiIf>
 			</div>
-        </div>
-    );
+		</div>
+	);
 };
 
 /** Convert snake_case tool names to human-readable labels */

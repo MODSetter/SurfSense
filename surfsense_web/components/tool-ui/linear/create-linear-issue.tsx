@@ -605,7 +605,10 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 	);
 }
 
-export const CreateLinearIssueToolUI = ({ args, result }: ToolCallMessagePartProps<{ title: string; description?: string }, CreateLinearIssueResult>) => {
+export const CreateLinearIssueToolUI = ({
+	args,
+	result,
+}: ToolCallMessagePartProps<{ title: string; description?: string }, CreateLinearIssueResult>) => {
 	if (!result) return null;
 
 	if (isInterruptResult(result)) {

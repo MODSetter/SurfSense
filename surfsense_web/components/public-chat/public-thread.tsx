@@ -170,12 +170,12 @@ const PublicAssistantMessage: FC = () => {
 
 const PublicAssistantActionBar: FC = () => {
 	return (
-        <ActionBarPrimitive.Root
+		<ActionBarPrimitive.Root
 			autohide="not-last"
 			autohideFloat="single-branch"
 			className="aui-assistant-action-bar-root -ml-1 flex gap-1 text-muted-foreground data-floating:absolute data-floating:rounded-md data-floating:border data-floating:bg-background data-floating:p-1 data-floating:shadow-sm"
 		>
-            <ActionBarPrimitive.Copy asChild>
+			<ActionBarPrimitive.Copy asChild>
 				<TooltipIconButton tooltip="Copy">
 					<AuiIf condition={({ message }) => message.isCopied}>
 						<CheckIcon />
@@ -185,6 +185,6 @@ const PublicAssistantActionBar: FC = () => {
 					</AuiIf>
 				</TooltipIconButton>
 			</ActionBarPrimitive.Copy>
-        </ActionBarPrimitive.Root>
-    );
+		</ActionBarPrimitive.Root>
+	);
 };

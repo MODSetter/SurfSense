@@ -395,7 +395,10 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 	);
 }
 
-export const UpdateNotionPageToolUI = ({ args, result }: ToolCallMessagePartProps<{ page_title: string; content: string }, UpdateNotionPageResult>) => {
+export const UpdateNotionPageToolUI = ({
+	args,
+	result,
+}: ToolCallMessagePartProps<{ page_title: string; content: string }, UpdateNotionPageResult>) => {
 	if (!result) return null;
 
 	if (isInterruptResult(result)) {

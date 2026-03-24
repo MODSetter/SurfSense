@@ -536,7 +536,10 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 	);
 }
 
-export const CreateJiraIssueToolUI = ({ args, result }: ToolCallMessagePartProps<
+export const CreateJiraIssueToolUI = ({
+	args,
+	result,
+}: ToolCallMessagePartProps<
 	{
 		project_key: string;
 		summary: string;
@@ -546,35 +549,35 @@ export const CreateJiraIssueToolUI = ({ args, result }: ToolCallMessagePartProps
 	},
 	CreateJiraIssueResult
 >) => {
-		if (!result) return null;
+	if (!result) return null;
 
-		if (isInterruptResult(result)) {
-			return (
-				<ApprovalCard
-					args={args}
-					interruptData={result}
-					onDecision={(decision) => {
-						window.dispatchEvent(
-							new CustomEvent("hitl-decision", { detail: { decisions: [decision] } })
-						);
-					}}
-				/>
-			);
-		}
+	if (isInterruptResult(result)) {
+		return (
+			<ApprovalCard
+				args={args}
+				interruptData={result}
+				onDecision={(decision) => {
+					window.dispatchEvent(
+						new CustomEvent("hitl-decision", { detail: { decisions: [decision] } })
+					);
+				}}
+			/>
+		);
+	}
 
-		if (
-			typeof result === "object" &&
-			result !== null &&
-			"status" in result &&
-			(result as { status: string }).status === "rejected"
-		) {
-			return null;
-		}
+	if (
+		typeof result === "object" &&
+		result !== null &&
+		"status" in result &&
+		(result as { status: string }).status === "rejected"
+	) {
+		return null;
+	}
 
-		if (isInsufficientPermissionsResult(result))
-			return <InsufficientPermissionsCard result={result} />;
-		if (isAuthErrorResult(result)) return <AuthErrorCard result={result} />;
-		if (isErrorResult(result)) return <ErrorCard result={result} />;
+	if (isInsufficientPermissionsResult(result))
+		return <InsufficientPermissionsCard result={result} />;
+	if (isAuthErrorResult(result)) return <AuthErrorCard result={result} />;
+	if (isErrorResult(result)) return <ErrorCard result={result} />;
 
-		return <SuccessCard result={result as SuccessResult} />;
+	return <SuccessCard result={result as SuccessResult} />;
 };

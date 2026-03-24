@@ -457,39 +457,42 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 	);
 }
 
-export const CreateConfluencePageToolUI = ({ args, result }: ToolCallMessagePartProps<
+export const CreateConfluencePageToolUI = ({
+	args,
+	result,
+}: ToolCallMessagePartProps<
 	{ title: string; content?: string; space_id?: string },
 	CreateConfluencePageResult
 >) => {
-		if (!result) return null;
+	if (!result) return null;
 
-		if (isInterruptResult(result)) {
-			return (
-				<ApprovalCard
-					args={args}
-					interruptData={result}
-					onDecision={(decision) => {
-						window.dispatchEvent(
-							new CustomEvent("hitl-decision", { detail: { decisions: [decision] } })
-						);
-					}}
-				/>
-			);
-		}
+	if (isInterruptResult(result)) {
+		return (
+			<ApprovalCard
+				args={args}
+				interruptData={result}
+				onDecision={(decision) => {
+					window.dispatchEvent(
+						new CustomEvent("hitl-decision", { detail: { decisions: [decision] } })
+					);
+				}}
+			/>
+		);
+	}
 
-		if (
-			typeof result === "object" &&
-			result !== null &&
-			"status" in result &&
-			(result as { status: string }).status === "rejected"
-		) {
-			return null;
-		}
+	if (
+		typeof result === "object" &&
+		result !== null &&
+		"status" in result &&
+		(result as { status: string }).status === "rejected"
+	) {
+		return null;
+	}
 
-		if (isAuthErrorResult(result)) return <AuthErrorCard result={result} />;
-		if (isInsufficientPermissionsResult(result))
-			return <InsufficientPermissionsCard result={result} />;
-		if (isErrorResult(result)) return <ErrorCard result={result} />;
+	if (isAuthErrorResult(result)) return <AuthErrorCard result={result} />;
+	if (isInsufficientPermissionsResult(result))
+		return <InsufficientPermissionsCard result={result} />;
+	if (isErrorResult(result)) return <ErrorCard result={result} />;
 
-		return <SuccessCard result={result as SuccessResult} />;
+	return <SuccessCard result={result as SuccessResult} />;
 };

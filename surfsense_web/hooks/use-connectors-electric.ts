@@ -74,7 +74,8 @@ export function useConnectorsElectric(searchSpaceId: number | string | null) {
 
 		async function startSync() {
 			try {
-				if (IS_DEV) console.log("[useConnectorsElectric] Starting sync for search space:", searchSpaceId);
+				if (IS_DEV)
+					console.log("[useConnectorsElectric] Starting sync for search space:", searchSpaceId);
 
 				const handle = await electricClient.syncShape({
 					table: "search_source_connectors",
@@ -82,9 +83,10 @@ export function useConnectorsElectric(searchSpaceId: number | string | null) {
 					primaryKey: ["id"],
 				});
 
-				if (IS_DEV) console.log("[useConnectorsElectric] Sync started:", {
-					isUpToDate: handle.isUpToDate,
-				});
+				if (IS_DEV)
+					console.log("[useConnectorsElectric] Sync started:", {
+						isUpToDate: handle.isUpToDate,
+					});
 
 				// Wait for initial sync with timeout
 				if (!handle.isUpToDate && handle.initialSyncPromise) {

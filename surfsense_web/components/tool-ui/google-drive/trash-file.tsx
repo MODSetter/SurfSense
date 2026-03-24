@@ -410,7 +410,12 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 	);
 }
 
-export const DeleteGoogleDriveFileToolUI = ({ result }: ToolCallMessagePartProps<{ file_name: string; delete_from_kb?: boolean }, DeleteGoogleDriveFileResult>) => {
+export const DeleteGoogleDriveFileToolUI = ({
+	result,
+}: ToolCallMessagePartProps<
+	{ file_name: string; delete_from_kb?: boolean },
+	DeleteGoogleDriveFileResult
+>) => {
 	if (!result) return null;
 
 	if (isInterruptResult(result)) {

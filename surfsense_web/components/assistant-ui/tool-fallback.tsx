@@ -1,13 +1,11 @@
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon, XCircleIcon } from "lucide-react";
 import { useState } from "react";
-import { cn } from "@/lib/utils";
 import { getToolIcon } from "@/contracts/enums/toolIcons";
+import { cn } from "@/lib/utils";
 
 function formatToolName(name: string): string {
-	return name
-		.replace(/_/g, " ")
-		.replace(/\b\w/g, (c) => c.toUpperCase());
+	return name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 export const ToolFallback: ToolCallMessagePartComponent = ({
@@ -42,7 +40,7 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
 			className={cn(
 				"my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none",
 				isCancelled && "opacity-60",
-				isError && "border-destructive/20 bg-destructive/5",
+				isError && "border-destructive/20 bg-destructive/5"
 			)}
 		>
 			<button
@@ -53,11 +51,7 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
 				<div
 					className={cn(
 						"flex size-8 shrink-0 items-center justify-center rounded-lg",
-						isError
-							? "bg-destructive/10"
-							: isCancelled
-								? "bg-muted"
-								: "bg-primary/10",
+						isError ? "bg-destructive/10" : isCancelled ? "bg-muted" : "bg-primary/10"
 					)}
 				>
 					{isError ? (
@@ -79,7 +73,7 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
 								? "text-destructive"
 								: isCancelled
 									? "text-muted-foreground line-through"
-									: "text-foreground",
+									: "text-foreground"
 						)}
 					>
 						{isRunning
@@ -90,9 +84,7 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
 									? `Failed: ${displayName}`
 									: displayName}
 					</p>
-					{isRunning && (
-						<p className="text-xs text-muted-foreground mt-0.5">Running...</p>
-					)}
+					{isRunning && <p className="text-xs text-muted-foreground mt-0.5">Running...</p>}
 					{cancelledReason && (
 						<p className="text-xs text-muted-foreground mt-0.5 truncate">{cancelledReason}</p>
 					)}

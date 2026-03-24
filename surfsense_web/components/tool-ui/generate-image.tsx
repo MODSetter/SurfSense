@@ -84,7 +84,11 @@ function ParsedImage({ result }: { result: unknown }) {
  * Tool UI for generate_image — renders the generated image directly
  * from the tool result directly.
  */
-export const GenerateImageToolUI = ({ args, result, status }: ToolCallMessagePartProps<GenerateImageArgs, GenerateImageResult>) => {
+export const GenerateImageToolUI = ({
+	args,
+	result,
+	status,
+}: ToolCallMessagePartProps<GenerateImageArgs, GenerateImageResult>) => {
 	const prompt = args.prompt || "Generating image...";
 
 	if (status.type === "running" || status.type === "requires-action") {

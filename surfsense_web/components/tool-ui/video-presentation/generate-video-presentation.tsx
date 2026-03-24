@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { Dot, Download, Loader2, Presentation, X } from "lucide-react";
 import { useParams, usePathname } from "next/navigation";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
@@ -13,12 +13,12 @@ import { authenticatedFetch } from "@/lib/auth-utils";
 import { compileCheck, compileToComponent } from "@/lib/remotion/compile-check";
 import { FPS } from "@/lib/remotion/constants";
 import {
-	CombinedPlayer,
 	buildCompositionComponent,
 	buildSlideWithWatermark,
+	CombinedPlayer,
 	type CompiledSlide,
 } from "./combined-player";
-import { getVideoDownloadErrorToast, getPptxExportErrorToast } from "./errors";
+import { getPptxExportErrorToast, getVideoDownloadErrorToast } from "./errors";
 
 const GenerateVideoPresentationArgsSchema = z.object({
 	source_content: z.string(),
@@ -50,7 +50,7 @@ const VideoPresentationStatusResponseSchema = z.object({
 				audio_url: z.string().nullish(),
 				duration_seconds: z.number().nullish(),
 				duration_in_frames: z.number().nullish(),
-			}),
+			})
 		)
 		.nullish(),
 	scene_codes: z
@@ -59,7 +59,7 @@ const VideoPresentationStatusResponseSchema = z.object({
 				slide_number: z.number(),
 				code: z.string(),
 				title: z.string().nullish(),
-			}),
+			})
 		)
 		.nullish(),
 	slide_count: z.number().nullish(),
@@ -68,7 +68,6 @@ const VideoPresentationStatusResponseSchema = z.object({
 type GenerateVideoPresentationArgs = z.infer<typeof GenerateVideoPresentationArgsSchema>;
 type GenerateVideoPresentationResult = z.infer<typeof GenerateVideoPresentationResultSchema>;
 type VideoPresentationStatusResponse = z.infer<typeof VideoPresentationStatusResponseSchema>;
-
 
 function parseStatusResponse(data: unknown): VideoPresentationStatusResponse | null {
 	const result = VideoPresentationStatusResponseSchema.safeParse(data);
@@ -166,9 +165,7 @@ function VideoPresentationPlayer({
 				const durationInFrames = slide.duration_in_frames ?? 300;
 				const check = compileCheck(scene.code);
 				if (!check.success) {
-					console.warn(
-						`Slide ${slide.slide_number} failed to compile: ${check.error}`,
-					);
+					console.warn(`Slide ${slide.slide_number} failed to compile: ${check.error}`);
 					continue;
 				}
 
@@ -179,9 +176,7 @@ function VideoPresentationPlayer({
 					title: scene.title ?? slide.title,
 					code: scene.code,
 					durationInFrames,
-					audioUrl: slide.audio_url
-						? `${backendUrl}${slide.audio_url}`
-						: undefined,
+					audioUrl: slide.audio_url ? `${backendUrl}${slide.audio_url}` : undefined,
 				});
 			}
 
@@ -198,17 +193,13 @@ function VideoPresentationPlayer({
 					try {
 						let blob: Blob;
 						if (shareToken) {
-							blob = await baseApiService.getBlob(
-								new URL(slide.audioUrl).pathname,
-							);
+							blob = await baseApiService.getBlob(new URL(slide.audioUrl).pathname);
 						} else {
 							const resp = await authenticatedFetch(slide.audioUrl, {
 								method: "GET",
 							});
 							if (!resp.ok) {
-								console.warn(
-									`Audio fetch ${resp.status} for slide "${slide.title}"`,
-								);
+								console.warn(`Audio fetch ${resp.status} for slide "${slide.title}"`);
 								return { ...slide, audioUrl: undefined };
 							}
 							blob = await resp.blob();
@@ -220,7 +211,7 @@ function VideoPresentationPlayer({
 						console.warn(`Failed to fetch audio for "${slide.title}":`, err);
 						return { ...slide, audioUrl: undefined };
 					}
-				}),
+				})
 			);
 
 			setCompiledSlides(withBlobs);
@@ -244,7 +235,7 @@ function VideoPresentationPlayer({
 
 	const totalDuration = useMemo(
 		() => compiledSlides.reduce((sum, s) => sum + s.durationInFrames / FPS, 0),
-		[compiledSlides],
+		[compiledSlides]
 	);
 
 	const handleDownload = async () => {
@@ -258,9 +249,7 @@ function VideoPresentationPlayer({
 		abortControllerRef.current = controller;
 
 		try {
-			const { canRenderMediaOnWeb, renderMediaOnWeb } = await import(
-				"@remotion/web-renderer"
-			);
+			const { canRenderMediaOnWeb, renderMediaOnWeb } = await import("@remotion/web-renderer");
 
 			const formats = [
 				{ container: "mp4" as const, videoCodec: "h264" as const, ext: "mp4" },
@@ -285,7 +274,7 @@ function VideoPresentationPlayer({
 
 			if (!chosen) {
 				throw new Error(
-					"Your browser does not support video rendering (WebCodecs). Please use Chrome, Edge, or Firefox 130+.",
+					"Your browser does not support video rendering (WebCodecs). Please use Chrome, Edge, or Firefox 130+."
 				);
 			}
 
@@ -379,7 +368,7 @@ function VideoPresentationPlayer({
 							durationInFrames: slide.durationInFrames,
 							fps: FPS,
 							style: { width: 1920, height: 1080 },
-						}),
+						})
 					);
 				});
 
@@ -419,7 +408,8 @@ function VideoPresentationPlayer({
 			<div className="px-5 pt-5 pb-4">
 				<p className="text-sm font-semibold text-foreground line-clamp-2">{title}</p>
 				<p className="text-xs text-muted-foreground mt-0.5 flex items-center">
-					{compiledSlides.length} slides <Dot className="size-4" /> {totalDuration.toFixed(1)}s <Dot className="size-4" /> {FPS}fps
+					{compiledSlides.length} slides <Dot className="size-4" /> {totalDuration.toFixed(1)}s{" "}
+					<Dot className="size-4" /> {FPS}fps
 				</p>
 			</div>
 
@@ -440,9 +430,7 @@ function VideoPresentationPlayer({
 							<Loader2 className="size-3.5 animate-spin text-muted-foreground" />
 							<span className="text-xs font-medium text-muted-foreground">
 								Rendering {renderFormat ?? ""}{" "}
-								{renderProgress !== null
-									? `${Math.round(renderProgress * 100)}%`
-									: "..."}
+								{renderProgress !== null ? `${Math.round(renderProgress * 100)}%` : "..."}
 							</span>
 							<div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
 								<div
@@ -493,7 +481,6 @@ function VideoPresentationPlayer({
 					</>
 				)}
 			</div>
-
 		</div>
 	);
 }
@@ -564,85 +551,85 @@ function StatusPoller({
 	return <ErrorState title={title} error="Unexpected state" />;
 }
 
-export const GenerateVideoPresentationToolUI = ({ args, result, status }: ToolCallMessagePartProps<
-	GenerateVideoPresentationArgs,
-	GenerateVideoPresentationResult
->) => {
-		const params = useParams();
-		const pathname = usePathname();
-		const isPublicRoute = pathname?.startsWith("/public/");
-		const shareToken =
-			isPublicRoute && typeof params?.token === "string" ? params.token : null;
+export const GenerateVideoPresentationToolUI = ({
+	args,
+	result,
+	status,
+}: ToolCallMessagePartProps<GenerateVideoPresentationArgs, GenerateVideoPresentationResult>) => {
+	const params = useParams();
+	const pathname = usePathname();
+	const isPublicRoute = pathname?.startsWith("/public/");
+	const shareToken = isPublicRoute && typeof params?.token === "string" ? params.token : null;
 
-		const title = args.video_title || "SurfSense Presentation";
+	const title = args.video_title || "SurfSense Presentation";
 
-		if (status.type === "running" || status.type === "requires-action") {
-			return <GeneratingState title={title} />;
-		}
+	if (status.type === "running" || status.type === "requires-action") {
+		return <GeneratingState title={title} />;
+	}
 
-		if (status.type === "incomplete") {
-			if (status.reason === "cancelled") {
-				return (
-					<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
-						<div className="px-5 pt-5 pb-4">
-							<p className="text-sm font-semibold text-muted-foreground">Presentation Cancelled</p>
-							<p className="text-xs text-muted-foreground mt-0.5">
-								Presentation generation was cancelled
-							</p>
-						</div>
-					</div>
-				);
-			}
-			if (status.reason === "error") {
-				return (
-					<ErrorState
-						title={title}
-						error={typeof status.error === "string" ? status.error : "An error occurred"}
-					/>
-				);
-			}
-		}
-
-		if (!result) {
-			return <GeneratingState title={title} />;
-		}
-
-		if (result.status === "failed") {
-			return <ErrorState title={title} error={result.error || "Generation failed"} />;
-		}
-
-		if (result.status === "generating") {
+	if (status.type === "incomplete") {
+		if (status.reason === "cancelled") {
 			return (
 				<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 					<div className="px-5 pt-5 pb-4">
-						<p className="text-sm font-semibold text-foreground">Presentation already in progress</p>
+						<p className="text-sm font-semibold text-muted-foreground">Presentation Cancelled</p>
 						<p className="text-xs text-muted-foreground mt-0.5">
-							Please wait for the current presentation to complete.
+							Presentation generation was cancelled
 						</p>
 					</div>
 				</div>
 			);
 		}
-
-		if (result.status === "pending" && result.video_presentation_id) {
+		if (status.reason === "error") {
 			return (
-				<StatusPoller
-					presentationId={result.video_presentation_id}
-					title={result.title || title}
-					shareToken={shareToken}
+				<ErrorState
+					title={title}
+					error={typeof status.error === "string" ? status.error : "An error occurred"}
 				/>
 			);
 		}
+	}
 
-		if (result.status === "ready" && result.video_presentation_id) {
-			return (
-				<VideoPresentationPlayer
-					presentationId={result.video_presentation_id}
-					title={result.title || title}
-					shareToken={shareToken}
-				/>
-			);
-		}
+	if (!result) {
+		return <GeneratingState title={title} />;
+	}
 
-		return <ErrorState title={title} error="Missing presentation ID" />;
+	if (result.status === "failed") {
+		return <ErrorState title={title} error={result.error || "Generation failed"} />;
+	}
+
+	if (result.status === "generating") {
+		return (
+			<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+				<div className="px-5 pt-5 pb-4">
+					<p className="text-sm font-semibold text-foreground">Presentation already in progress</p>
+					<p className="text-xs text-muted-foreground mt-0.5">
+						Please wait for the current presentation to complete.
+					</p>
+				</div>
+			</div>
+		);
+	}
+
+	if (result.status === "pending" && result.video_presentation_id) {
+		return (
+			<StatusPoller
+				presentationId={result.video_presentation_id}
+				title={result.title || title}
+				shareToken={shareToken}
+			/>
+		);
+	}
+
+	if (result.status === "ready" && result.video_presentation_id) {
+		return (
+			<VideoPresentationPlayer
+				presentationId={result.video_presentation_id}
+				title={result.title || title}
+				shareToken={shareToken}
+			/>
+		);
+	}
+
+	return <ErrorState title={title} error="Missing presentation ID" />;
 };

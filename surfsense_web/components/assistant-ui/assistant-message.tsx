@@ -16,19 +16,47 @@ import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { CommentPanelContainer } from "@/components/chat-comments/comment-panel-container/comment-panel-container";
 import { CommentSheet } from "@/components/chat-comments/comment-sheet/comment-sheet";
-import { CreateConfluencePageToolUI, DeleteConfluencePageToolUI, UpdateConfluencePageToolUI } from "@/components/tool-ui/confluence";
+import {
+	CreateConfluencePageToolUI,
+	DeleteConfluencePageToolUI,
+	UpdateConfluencePageToolUI,
+} from "@/components/tool-ui/confluence";
 import { GenerateImageToolUI } from "@/components/tool-ui/generate-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
-import { GenerateVideoPresentationToolUI } from "@/components/tool-ui/video-presentation";
-import { CreateGmailDraftToolUI, SendGmailEmailToolUI, TrashGmailEmailToolUI, UpdateGmailDraftToolUI } from "@/components/tool-ui/gmail";
-import { CreateCalendarEventToolUI, DeleteCalendarEventToolUI, UpdateCalendarEventToolUI } from "@/components/tool-ui/google-calendar";
-import { CreateGoogleDriveFileToolUI, DeleteGoogleDriveFileToolUI } from "@/components/tool-ui/google-drive";
-import { CreateJiraIssueToolUI, DeleteJiraIssueToolUI, UpdateJiraIssueToolUI } from "@/components/tool-ui/jira";
-import { CreateLinearIssueToolUI, DeleteLinearIssueToolUI, UpdateLinearIssueToolUI } from "@/components/tool-ui/linear";
-import { CreateNotionPageToolUI, DeleteNotionPageToolUI, UpdateNotionPageToolUI } from "@/components/tool-ui/notion";
+import {
+	CreateGmailDraftToolUI,
+	SendGmailEmailToolUI,
+	TrashGmailEmailToolUI,
+	UpdateGmailDraftToolUI,
+} from "@/components/tool-ui/gmail";
+import {
+	CreateCalendarEventToolUI,
+	DeleteCalendarEventToolUI,
+	UpdateCalendarEventToolUI,
+} from "@/components/tool-ui/google-calendar";
+import {
+	CreateGoogleDriveFileToolUI,
+	DeleteGoogleDriveFileToolUI,
+} from "@/components/tool-ui/google-drive";
+import {
+	CreateJiraIssueToolUI,
+	DeleteJiraIssueToolUI,
+	UpdateJiraIssueToolUI,
+} from "@/components/tool-ui/jira";
+import {
+	CreateLinearIssueToolUI,
+	DeleteLinearIssueToolUI,
+	UpdateLinearIssueToolUI,
+} from "@/components/tool-ui/linear";
+import {
+	CreateNotionPageToolUI,
+	DeleteNotionPageToolUI,
+	UpdateNotionPageToolUI,
+} from "@/components/tool-ui/notion";
 import { SandboxExecuteToolUI } from "@/components/tool-ui/sandbox-execute";
 import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-memory";
+import { GenerateVideoPresentationToolUI } from "@/components/tool-ui/video-presentation";
 import { useComments } from "@/hooks/use-comments";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
@@ -246,13 +274,13 @@ const AssistantActionBar: FC = () => {
 	const isLast = useAuiState((s) => s.message.isLast);
 
 	return (
-        <ActionBarPrimitive.Root
+		<ActionBarPrimitive.Root
 			hideWhenRunning
 			autohide="not-last"
 			autohideFloat="single-branch"
 			className="aui-assistant-action-bar-root -ml-1 col-start-3 row-start-2 flex gap-1 text-muted-foreground md:data-floating:absolute md:data-floating:rounded-md md:data-floating:p-1 [&>button]:opacity-100 md:[&>button]:opacity-[var(--aui-button-opacity,1)]"
 		>
-            <ActionBarPrimitive.Copy asChild>
+			<ActionBarPrimitive.Copy asChild>
 				<TooltipIconButton tooltip="Copy">
 					<AuiIf condition={({ message }) => message.isCopied}>
 						<CheckIcon />
@@ -262,19 +290,19 @@ const AssistantActionBar: FC = () => {
 					</AuiIf>
 				</TooltipIconButton>
 			</ActionBarPrimitive.Copy>
-            <ActionBarPrimitive.ExportMarkdown asChild>
+			<ActionBarPrimitive.ExportMarkdown asChild>
 				<TooltipIconButton tooltip="Download">
 					<DownloadIcon />
 				</TooltipIconButton>
 			</ActionBarPrimitive.ExportMarkdown>
-            {/* Only allow regenerating the last assistant message */}
-            {isLast && (
+			{/* Only allow regenerating the last assistant message */}
+			{isLast && (
 				<ActionBarPrimitive.Reload asChild>
 					<TooltipIconButton tooltip="Refresh">
 						<RefreshCwIcon />
 					</TooltipIconButton>
 				</ActionBarPrimitive.Reload>
 			)}
-        </ActionBarPrimitive.Root>
-    );
+		</ActionBarPrimitive.Root>
+	);
 };

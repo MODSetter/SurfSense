@@ -492,7 +492,13 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 	);
 }
 
-export const CreateGoogleDriveFileToolUI = ({ args, result }: ToolCallMessagePartProps<{ name: string; file_type: string; content?: string }, CreateGoogleDriveFileResult>) => {
+export const CreateGoogleDriveFileToolUI = ({
+	args,
+	result,
+}: ToolCallMessagePartProps<
+	{ name: string; file_type: string; content?: string },
+	CreateGoogleDriveFileResult
+>) => {
 	if (!result) return null;
 
 	if (isInterruptResult(result)) {

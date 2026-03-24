@@ -493,7 +493,10 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 	);
 }
 
-export const UpdateConfluencePageToolUI = ({ args, result }: ToolCallMessagePartProps<
+export const UpdateConfluencePageToolUI = ({
+	args,
+	result,
+}: ToolCallMessagePartProps<
 	{
 		page_title_or_id: string;
 		new_title?: string;
@@ -501,36 +504,36 @@ export const UpdateConfluencePageToolUI = ({ args, result }: ToolCallMessagePart
 	},
 	UpdateConfluencePageResult
 >) => {
-		if (!result) return null;
+	if (!result) return null;
 
-		if (isInterruptResult(result)) {
-			return (
-				<ApprovalCard
-					args={args}
-					interruptData={result}
-					onDecision={(decision) => {
-						window.dispatchEvent(
-							new CustomEvent("hitl-decision", { detail: { decisions: [decision] } })
-						);
-					}}
-				/>
-			);
-		}
+	if (isInterruptResult(result)) {
+		return (
+			<ApprovalCard
+				args={args}
+				interruptData={result}
+				onDecision={(decision) => {
+					window.dispatchEvent(
+						new CustomEvent("hitl-decision", { detail: { decisions: [decision] } })
+					);
+				}}
+			/>
+		);
+	}
 
-		if (
-			typeof result === "object" &&
-			result !== null &&
-			"status" in result &&
-			(result as { status: string }).status === "rejected"
-		) {
-			return null;
-		}
+	if (
+		typeof result === "object" &&
+		result !== null &&
+		"status" in result &&
+		(result as { status: string }).status === "rejected"
+	) {
+		return null;
+	}
 
-		if (isNotFoundResult(result)) return <NotFoundCard result={result} />;
-		if (isAuthErrorResult(result)) return <AuthErrorCard result={result} />;
-		if (isInsufficientPermissionsResult(result))
-			return <InsufficientPermissionsCard result={result} />;
-		if (isErrorResult(result)) return <ErrorCard result={result} />;
+	if (isNotFoundResult(result)) return <NotFoundCard result={result} />;
+	if (isAuthErrorResult(result)) return <AuthErrorCard result={result} />;
+	if (isInsufficientPermissionsResult(result))
+		return <InsufficientPermissionsCard result={result} />;
+	if (isErrorResult(result)) return <ErrorCard result={result} />;
 
-		return <SuccessCard result={result as SuccessResult} />;
+	return <SuccessCard result={result as SuccessResult} />;
 };

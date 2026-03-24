@@ -739,15 +739,21 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 	);
 }
 
-export const UpdateLinearIssueToolUI = ({ args, result }: ToolCallMessagePartProps<{
-	issue_ref: string;
-	new_title?: string;
-	new_description?: string;
-	new_state_name?: string;
-	new_assignee_email?: string;
-	new_priority?: number;
-	new_label_names?: string[];
-}, UpdateLinearIssueResult>) => {
+export const UpdateLinearIssueToolUI = ({
+	args,
+	result,
+}: ToolCallMessagePartProps<
+	{
+		issue_ref: string;
+		new_title?: string;
+		new_description?: string;
+		new_state_name?: string;
+		new_assignee_email?: string;
+		new_priority?: number;
+		new_label_names?: string[];
+	},
+	UpdateLinearIssueResult
+>) => {
 	if (!result) return null;
 
 	if (isInterruptResult(result)) {
