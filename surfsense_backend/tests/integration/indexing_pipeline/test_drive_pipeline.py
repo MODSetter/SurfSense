@@ -108,3 +108,62 @@ async def test_drive_legacy_doc_migrated(
         DocumentType.GOOGLE_DRIVE_FILE.value, file_id, space_id
     )
     assert row.unique_identifier_hash == native_hash
+
+
+async def test_should_skip_file_does_not_skip_failed_document(
+    db_session, db_search_space, db_user,
+):
+    """A FAILED document with unchanged md5 must NOT be skipped — it needs reprocessing."""
+    import importlib
+    import sys
+    import types
+
+    pkg = "app.tasks.connector_indexers"
+    stub = pkg not in sys.modules
+    if stub:
+        mod = types.ModuleType(pkg)
+        mod.__path__ = ["app/tasks/connector_indexers"]
+        mod.__package__ = pkg
+        sys.modules[pkg] = mod
+
+    try:
+        gdm = importlib.import_module(
+            "app.tasks.connector_indexers.google_drive_indexer"
+        )
+        _should_skip_file = gdm._should_skip_file
+    finally:
+        if stub:
+            sys.modules.pop(pkg, None)
+
+    space_id = db_search_space.id
+    file_id = "file-failed-drive"
+    md5 = "abc123deadbeef"
+
+    doc_hash = compute_identifier_hash(
+        DocumentType.GOOGLE_DRIVE_FILE.value, file_id, space_id
+    )
+    failed_doc = Document(
+        title="Failed File.pdf",
+        document_type=DocumentType.GOOGLE_DRIVE_FILE,
+        content="LLM rate limit exceeded",
+        content_hash=f"ch-{doc_hash[:12]}",
+        unique_identifier_hash=doc_hash,
+        source_markdown="## Real content",
+        search_space_id=space_id,
+        created_by_id=str(db_user.id),
+        embedding=[0.1] * _EMBEDDING_DIM,
+        status=DocumentStatus.failed("LLM rate limit exceeded"),
+        document_metadata={
+            "google_drive_file_id": file_id,
+            "google_drive_file_name": "Failed File.pdf",
+            "md5_checksum": md5,
+        },
+    )
+    db_session.add(failed_doc)
+    await db_session.flush()
+
+    incoming_file = {"id": file_id, "name": "Failed File.pdf", "mimeType": "application/pdf", "md5Checksum": md5}
+
+    should_skip, _msg = await _should_skip_file(db_session, incoming_file, space_id)
+
+    assert not should_skip, "FAILED documents must not be skipped even when content is unchanged"
