@@ -48,14 +48,17 @@ export function Spotlight({
 	useEffect(() => {
 		if (!parentElement) return;
 
+		const handleEnter = () => setIsHovered(true);
+		const handleLeave = () => setIsHovered(false);
+
 		parentElement.addEventListener("mousemove", handleMouseMove);
-		parentElement.addEventListener("mouseenter", () => setIsHovered(true));
-		parentElement.addEventListener("mouseleave", () => setIsHovered(false));
+		parentElement.addEventListener("mouseenter", handleEnter);
+		parentElement.addEventListener("mouseleave", handleLeave);
 
 		return () => {
 			parentElement.removeEventListener("mousemove", handleMouseMove);
-			parentElement.removeEventListener("mouseenter", () => setIsHovered(true));
-			parentElement.removeEventListener("mouseleave", () => setIsHovered(false));
+			parentElement.removeEventListener("mouseenter", handleEnter);
+			parentElement.removeEventListener("mouseleave", handleLeave);
 		};
 	}, [parentElement, handleMouseMove]);
 
