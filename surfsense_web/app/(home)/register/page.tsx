@@ -43,9 +43,12 @@ export default function RegisterPage() {
 		}
 	}, [router]);
 
-	const handleSubmit = async (e: React.FormEvent) => {
+	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
+		submitForm();
+	};
 
+	const submitForm = async () => {
 		// Form validation
 		if (password !== confirmPassword) {
 			setError({ title: t("password_mismatch"), message: t("passwords_no_match_desc") });
@@ -140,7 +143,7 @@ export default function RegisterPage() {
 			if (shouldRetry(errorCode)) {
 				toastOptions.action = {
 					label: tCommon("retry"),
-					onClick: () => handleSubmit(e),
+					onClick: () => submitForm(),
 				};
 			}
 
