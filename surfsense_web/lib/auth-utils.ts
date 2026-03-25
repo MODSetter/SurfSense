@@ -70,7 +70,24 @@ export function getAndClearRedirectPath(): string | null {
 	if (redirectPath) {
 		localStorage.removeItem(REDIRECT_PATH_KEY);
 	}
+	if (redirectPath && !isValidRedirectPath(redirectPath)) {
+		return null;
+	}
 	return redirectPath;
+}
+
+/**
+ * Validates that a redirect path is a safe, relative URL on the same origin.
+ * Rejects absolute URLs, protocol-relative URLs, and scheme injections.
+ */
+function isValidRedirectPath(path: string): boolean {
+	if (!path.startsWith("/") || path.startsWith("//")) return false;
+	try {
+		const url = new URL(path, window.location.origin);
+		return url.origin === window.location.origin;
+	} catch {
+		return false;
+	}
 }
 
 /**
