@@ -8,6 +8,7 @@ import {
 	useAssistantState,
 } from "@assistant-ui/react";
 import { CheckIcon, CopyIcon } from "lucide-react";
+import Image from "next/image";
 import { type FC, type ReactNode, useState } from "react";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
@@ -75,9 +76,11 @@ const UserAvatar: FC<AuthorMetadata & { hasError: boolean; onError: () => void }
 
 	if (avatarUrl && !hasError) {
 		return (
-			<img
+			<Image
 				src={avatarUrl}
 				alt={displayName || "User"}
+				width={32}
+				height={32}
 				className="size-8 rounded-full object-cover"
 				referrerPolicy="no-referrer"
 				onError={onError}

@@ -1,6 +1,7 @@
 import { ActionBarPrimitive, MessagePrimitive, useAssistantState } from "@assistant-ui/react";
 import { useAtomValue } from "jotai";
 import { FileText, Pen } from "lucide-react";
+import Image from "next/image";
 import { type FC, useState } from "react";
 import { messageDocumentsMapAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
@@ -24,9 +25,11 @@ const UserAvatar: FC<AuthorMetadata> = ({ displayName, avatarUrl }) => {
 
 	if (avatarUrl && !hasError) {
 		return (
-			<img
+			<Image
 				src={avatarUrl}
 				alt={displayName || "User"}
+				width={32}
+				height={32}
 				className="size-8 rounded-full object-cover"
 				referrerPolicy="no-referrer"
 				onError={() => setHasError(true)}
