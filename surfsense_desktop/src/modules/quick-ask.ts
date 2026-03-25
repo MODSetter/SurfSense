@@ -13,6 +13,15 @@ function hideQuickAsk(): void {
   }
 }
 
+function clampToScreen(x: number, y: number, w: number, h: number): { x: number; y: number } {
+  const display = screen.getDisplayNearestPoint({ x, y });
+  const { x: dx, y: dy, width: dw, height: dh } = display.workArea;
+  return {
+    x: Math.max(dx, Math.min(x, dx + dw - w)),
+    y: Math.max(dy, Math.min(y, dy + dh - h)),
+  };
+}
+
 function createQuickAskWindow(x: number, y: number): BrowserWindow {
   if (quickAskWindow && !quickAskWindow.isDestroyed()) {
     quickAskWindow.setPosition(x, y);
@@ -29,6 +38,7 @@ function createQuickAskWindow(x: number, y: number): BrowserWindow {
     type: 'panel',
     resizable: true,
     fullscreenable: false,
+    maximizable: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -43,6 +53,10 @@ function createQuickAskWindow(x: number, y: number): BrowserWindow {
 
   quickAskWindow.once('ready-to-show', () => {
     quickAskWindow?.show();
+  });
+
+  quickAskWindow.webContents.on('before-input-event', (_event, input) => {
+    if (input.key === 'Escape') hideQuickAsk();
   });
 
   quickAskWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -72,7 +86,8 @@ export function registerQuickAsk(): void {
 
     pendingText = text;
     const cursor = screen.getCursorScreenPoint();
-    createQuickAskWindow(cursor.x, cursor.y);
+    const pos = clampToScreen(cursor.x, cursor.y, 450, 550);
+    createQuickAskWindow(pos.x, pos.y);
   });
 
   if (!ok) {
