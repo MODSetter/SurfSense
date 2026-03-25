@@ -1,4 +1,4 @@
-import { BrowserWindow, clipboard, globalShortcut, ipcMain, screen } from 'electron';
+import { BrowserWindow, clipboard, globalShortcut, ipcMain, screen, shell } from 'electron';
 import path from 'path';
 import { IPC_CHANNELS } from '../ipc/channels';
 import { getServerPort } from './server';
@@ -28,6 +28,7 @@ function createQuickAskWindow(x: number, y: number): BrowserWindow {
     y,
     type: 'panel',
     resizable: true,
+    fullscreenable: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -44,7 +45,13 @@ function createQuickAskWindow(x: number, y: number): BrowserWindow {
     quickAskWindow?.show();
   });
 
-  quickAskWindow.on('blur', hideQuickAsk);
+  quickAskWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('http://localhost')) {
+      return { action: 'allow' };
+    }
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
 
   quickAskWindow.on('closed', () => {
     quickAskWindow = null;
