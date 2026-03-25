@@ -63,7 +63,7 @@ export function DocumentTypeChip({ type, className }: { type: string; className?
 		checkTruncation();
 		window.addEventListener("resize", checkTruncation);
 		return () => window.removeEventListener("resize", checkTruncation);
-	}, []);
+	}, [type]);
 
 	const chip = (
 		<span
