@@ -34,7 +34,7 @@ function showAnnouncementToast(announcement: Announcement) {
 					label: announcement.link.label,
 					onClick: () => {
 						if (announcement.link?.url.startsWith("http")) {
-							window.open(announcement.link.url, "_blank");
+							window.open(announcement.link.url, "_blank", "noopener,noreferrer");
 						} else if (announcement.link?.url) {
 							window.location.href = announcement.link.url;
 						}
