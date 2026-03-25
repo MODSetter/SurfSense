@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { loginMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
 import { Spinner } from "@/components/ui/spinner";
 import { getAuthErrorDetails, isNetworkError } from "@/lib/auth-errors";
@@ -25,14 +25,9 @@ export function LocalLoginForm() {
 		title: null,
 		message: null,
 	});
-	const [authType, setAuthType] = useState<string | null>(null);
+	const authType = AUTH_TYPE;
 	const router = useRouter();
 	const [{ mutateAsync: login, isPending: isLoggingIn }] = useAtom(loginMutationAtom);
-
-	useEffect(() => {
-		// Get the auth type from centralized config
-		setAuthType(AUTH_TYPE);
-	}, []);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
