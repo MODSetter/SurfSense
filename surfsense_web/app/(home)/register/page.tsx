@@ -43,8 +43,7 @@ export default function RegisterPage() {
 		}
 	}, [router]);
 
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault();
+	const submitForm = async () => {
 
 		// Form validation
 		if (password !== confirmPassword) {
@@ -140,12 +139,17 @@ export default function RegisterPage() {
 			if (shouldRetry(errorCode)) {
 				toastOptions.action = {
 					label: tCommon("retry"),
-					onClick: () => handleSubmit(e),
+					onClick: () => submitForm(),
 				};
 			}
 
 			toast.error(errorDetails.title, toastOptions);
 		}
+	};
+
+	const handleSubmit = (e: React.FormEvent) => {
+		e.preventDefault();
+		submitForm();
 	};
 
 	return (
