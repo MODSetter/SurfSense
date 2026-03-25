@@ -277,21 +277,24 @@ const CollisionMechanism = ({
 	}, [cycleCollisionDetected, parentRef]);
 
 	useEffect(() => {
-		if (collision.detected && collision.coordinates) {
-			setTimeout(() => {
-				setCollision({ detected: false, coordinates: null });
-				setCycleCollisionDetected(false);
-				// Set beam opacity to 0
-				if (beamRef.current) {
-					beamRef.current.style.opacity = "1";
-				}
-			}, 2000);
+		if (!collision.detected || !collision.coordinates) return;
 
-			// Reset the beam animation after a delay
-			setTimeout(() => {
-				setBeamKey((prevKey) => prevKey + 1);
-			}, 2000);
-		}
+		const timer1 = setTimeout(() => {
+			setCollision({ detected: false, coordinates: null });
+			setCycleCollisionDetected(false);
+			if (beamRef.current) {
+				beamRef.current.style.opacity = "1";
+			}
+		}, 2000);
+
+		const timer2 = setTimeout(() => {
+			setBeamKey((prevKey) => prevKey + 1);
+		}, 2000);
+
+		return () => {
+			clearTimeout(timer1);
+			clearTimeout(timer2);
+		};
 	}, [collision]);
 
 	return (
