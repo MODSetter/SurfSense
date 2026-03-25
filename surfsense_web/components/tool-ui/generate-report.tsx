@@ -1,6 +1,6 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { Dot } from "lucide-react";
 import { useParams, usePathname } from "next/navigation";
@@ -273,64 +273,62 @@ function ReportCard({
  * Generate Report Tool UI — renders custom UI inline in chat
  * when the generate_report tool is called by the agent.
  */
-export const GenerateReportToolUI = makeAssistantToolUI<GenerateReportArgs, GenerateReportResult>({
-	toolName: "generate_report",
-	render: function GenerateReportUI({ args, result, status }) {
-		const params = useParams();
-		const pathname = usePathname();
-		const isPublicRoute = pathname?.startsWith("/public/");
-		const shareToken = isPublicRoute && typeof params?.token === "string" ? params.token : null;
+export const GenerateReportToolUI = ({
+	args,
+	result,
+	status,
+}: ToolCallMessagePartProps<GenerateReportArgs, GenerateReportResult>) => {
+	const params = useParams();
+	const pathname = usePathname();
+	const isPublicRoute = pathname?.startsWith("/public/");
+	const shareToken = isPublicRoute && typeof params?.token === "string" ? params.token : null;
 
-		const topic = args.topic || "Report";
+	const topic = args.topic || "Report";
 
-		const sawRunningRef = useRef(false);
-		if (status.type === "running" || status.type === "requires-action") {
-			sawRunningRef.current = true;
+	const sawRunningRef = useRef(false);
+	if (status.type === "running" || status.type === "requires-action") {
+		sawRunningRef.current = true;
+	}
+
+	if (status.type === "running" || status.type === "requires-action") {
+		return <ReportGeneratingState topic={topic} />;
+	}
+
+	if (status.type === "incomplete") {
+		if (status.reason === "cancelled") {
+			return <ReportCancelledState />;
 		}
-
-		if (status.type === "running" || status.type === "requires-action") {
-			return <ReportGeneratingState topic={topic} />;
-		}
-
-		if (status.type === "incomplete") {
-			if (status.reason === "cancelled") {
-				return <ReportCancelledState />;
-			}
-			if (status.reason === "error") {
-				return (
-					<ReportErrorState
-						title={topic}
-						error={typeof status.error === "string" ? status.error : "An error occurred"}
-					/>
-				);
-			}
-		}
-
-		if (!result) {
-			return <ReportGeneratingState topic={topic} />;
-		}
-
-		if (result.status === "failed") {
+		if (status.reason === "error") {
 			return (
 				<ReportErrorState
-					title={result.title || topic}
-					error={result.error || "Generation failed"}
+					title={topic}
+					error={typeof status.error === "string" ? status.error : "An error occurred"}
 				/>
 			);
 		}
+	}
 
-		if (result.status === "ready" && result.report_id) {
-			return (
-				<ReportCard
-					reportId={result.report_id}
-					title={result.title || topic}
-					wordCount={result.word_count ?? undefined}
-					shareToken={shareToken}
-					autoOpen={sawRunningRef.current}
-				/>
-			);
-		}
+	if (!result) {
+		return <ReportGeneratingState topic={topic} />;
+	}
 
-		return <ReportErrorState title={topic} error="Missing report ID" />;
-	},
-});
+	if (result.status === "failed") {
+		return (
+			<ReportErrorState title={result.title || topic} error={result.error || "Generation failed"} />
+		);
+	}
+
+	if (result.status === "ready" && result.report_id) {
+		return (
+			<ReportCard
+				reportId={result.report_id}
+				title={result.title || topic}
+				wordCount={result.word_count ?? undefined}
+				shareToken={shareToken}
+				autoOpen={sawRunningRef.current}
+			/>
+		);
+	}
+
+	return <ReportErrorState title={topic} error="Missing report ID" />;
+};

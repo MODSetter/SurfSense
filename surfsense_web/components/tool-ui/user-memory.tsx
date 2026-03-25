@@ -1,6 +1,6 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { BrainIcon, CheckIcon, Loader2Icon, SearchIcon, XIcon } from "lucide-react";
 import { z } from "zod";
 
@@ -80,191 +80,193 @@ function CategoryBadge({ category }: { category: string }) {
 // Save Memory Tool UI
 // ============================================================================
 
-export const SaveMemoryToolUI = makeAssistantToolUI<SaveMemoryArgs, SaveMemoryResult>({
-	toolName: "save_memory",
-	render: function SaveMemoryUI({ args, result, status }) {
-		const isRunning = status.type === "running" || status.type === "requires-action";
-		const isComplete = status.type === "complete";
-		const isError = result?.status === "error";
+export const SaveMemoryToolUI = ({
+	args,
+	result,
+	status,
+}: ToolCallMessagePartProps<SaveMemoryArgs, SaveMemoryResult>) => {
+	const isRunning = status.type === "running" || status.type === "requires-action";
+	const isComplete = status.type === "complete";
+	const isError = result?.status === "error";
 
-		// Parse args safely
-		const parsedArgs = SaveMemoryArgsSchema.safeParse(args);
-		const content = parsedArgs.success ? parsedArgs.data.content : "";
-		const category = parsedArgs.success ? parsedArgs.data.category : "fact";
+	// Parse args safely
+	const parsedArgs = SaveMemoryArgsSchema.safeParse(args);
+	const content = parsedArgs.success ? parsedArgs.data.content : "";
+	const category = parsedArgs.success ? parsedArgs.data.category : "fact";
 
-		// Loading state
-		if (isRunning) {
-			return (
-				<div className="my-3 flex items-center gap-3 rounded-lg border bg-card/60 px-4 py-3">
-					<div className="flex size-8 items-center justify-center rounded-full bg-primary/10">
-						<Loader2Icon className="size-4 animate-spin text-primary" />
-					</div>
-					<div className="flex-1">
-						<span className="text-sm text-muted-foreground">Saving to memory...</span>
-					</div>
+	// Loading state
+	if (isRunning) {
+		return (
+			<div className="my-3 flex items-center gap-3 rounded-lg border bg-card/60 px-4 py-3">
+				<div className="flex size-8 items-center justify-center rounded-full bg-primary/10">
+					<Loader2Icon className="size-4 animate-spin text-primary" />
 				</div>
-			);
-		}
-
-		// Error state
-		if (isError) {
-			return (
-				<div className="my-3 flex items-center gap-3 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3">
-					<div className="flex size-8 items-center justify-center rounded-full bg-destructive/10">
-						<XIcon className="size-4 text-destructive" />
-					</div>
-					<div className="flex-1">
-						<span className="text-sm text-destructive">Failed to save memory</span>
-						{result?.error && <p className="mt-1 text-xs text-destructive/70">{result.error}</p>}
-					</div>
+				<div className="flex-1">
+					<span className="text-sm text-muted-foreground">Saving to memory...</span>
 				</div>
-			);
-		}
+			</div>
+		);
+	}
 
-		// Success state
-		if (isComplete && result?.status === "saved") {
-			return (
-				<div className="my-3 flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
-					<div className="flex size-8 items-center justify-center rounded-full bg-primary/10">
-						<BrainIcon className="size-4 text-primary" />
-					</div>
-					<div className="flex-1 min-w-0">
-						<div className="flex items-center gap-2">
-							<CheckIcon className="size-3 text-green-500 shrink-0" />
-							<span className="text-sm font-medium text-foreground">Memory saved</span>
-							<CategoryBadge category={category} />
-						</div>
-						<p className="mt-1 truncate text-sm text-muted-foreground">{content}</p>
-					</div>
+	// Error state
+	if (isError) {
+		return (
+			<div className="my-3 flex items-center gap-3 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3">
+				<div className="flex size-8 items-center justify-center rounded-full bg-destructive/10">
+					<XIcon className="size-4 text-destructive" />
 				</div>
-			);
-		}
-
-		// Default/incomplete state - show what's being saved
-		if (content) {
-			return (
-				<div className="my-3 flex items-center gap-3 rounded-lg border bg-card/60 px-4 py-3">
-					<div className="flex size-8 items-center justify-center rounded-full bg-muted">
-						<BrainIcon className="size-4 text-muted-foreground" />
-					</div>
-					<div className="flex-1 min-w-0">
-						<div className="flex items-center gap-2">
-							<span className="text-sm text-muted-foreground">Saving memory</span>
-							<CategoryBadge category={category} />
-						</div>
-						<p className="mt-1 truncate text-sm text-muted-foreground">{content}</p>
-					</div>
+				<div className="flex-1">
+					<span className="text-sm text-destructive">Failed to save memory</span>
+					{result?.error && <p className="mt-1 text-xs text-destructive/70">{result.error}</p>}
 				</div>
-			);
-		}
+			</div>
+		);
+	}
 
-		return null;
-	},
-});
+	// Success state
+	if (isComplete && result?.status === "saved") {
+		return (
+			<div className="my-3 flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+				<div className="flex size-8 items-center justify-center rounded-full bg-primary/10">
+					<BrainIcon className="size-4 text-primary" />
+				</div>
+				<div className="flex-1 min-w-0">
+					<div className="flex items-center gap-2">
+						<CheckIcon className="size-3 text-green-500 shrink-0" />
+						<span className="text-sm font-medium text-foreground">Memory saved</span>
+						<CategoryBadge category={category} />
+					</div>
+					<p className="mt-1 truncate text-sm text-muted-foreground">{content}</p>
+				</div>
+			</div>
+		);
+	}
+
+	// Default/incomplete state - show what's being saved
+	if (content) {
+		return (
+			<div className="my-3 flex items-center gap-3 rounded-lg border bg-card/60 px-4 py-3">
+				<div className="flex size-8 items-center justify-center rounded-full bg-muted">
+					<BrainIcon className="size-4 text-muted-foreground" />
+				</div>
+				<div className="flex-1 min-w-0">
+					<div className="flex items-center gap-2">
+						<span className="text-sm text-muted-foreground">Saving memory</span>
+						<CategoryBadge category={category} />
+					</div>
+					<p className="mt-1 truncate text-sm text-muted-foreground">{content}</p>
+				</div>
+			</div>
+		);
+	}
+
+	return null;
+};
 
 // ============================================================================
 // Recall Memory Tool UI
 // ============================================================================
 
-export const RecallMemoryToolUI = makeAssistantToolUI<RecallMemoryArgs, RecallMemoryResult>({
-	toolName: "recall_memory",
-	render: function RecallMemoryUI({ args, result, status }) {
-		const isRunning = status.type === "running" || status.type === "requires-action";
-		const isComplete = status.type === "complete";
-		const isError = result?.status === "error";
+export const RecallMemoryToolUI = ({
+	args,
+	result,
+	status,
+}: ToolCallMessagePartProps<RecallMemoryArgs, RecallMemoryResult>) => {
+	const isRunning = status.type === "running" || status.type === "requires-action";
+	const isComplete = status.type === "complete";
+	const isError = result?.status === "error";
 
-		// Parse args safely
-		const parsedArgs = RecallMemoryArgsSchema.safeParse(args);
-		const query = parsedArgs.success ? parsedArgs.data.query : null;
+	// Parse args safely
+	const parsedArgs = RecallMemoryArgsSchema.safeParse(args);
+	const query = parsedArgs.success ? parsedArgs.data.query : null;
 
-		// Loading state
-		if (isRunning) {
-			return (
-				<div className="my-3 flex items-center gap-3 rounded-lg border bg-card/60 px-4 py-3">
-					<div className="flex size-8 items-center justify-center rounded-full bg-primary/10">
-						<Loader2Icon className="size-4 animate-spin text-primary" />
-					</div>
-					<div className="flex-1">
-						<span className="text-sm text-muted-foreground">
-							{query ? `Searching memories for "${query}"...` : "Recalling memories..."}
-						</span>
-					</div>
+	// Loading state
+	if (isRunning) {
+		return (
+			<div className="my-3 flex items-center gap-3 rounded-lg border bg-card/60 px-4 py-3">
+				<div className="flex size-8 items-center justify-center rounded-full bg-primary/10">
+					<Loader2Icon className="size-4 animate-spin text-primary" />
 				</div>
-			);
-		}
-
-		// Error state
-		if (isError) {
-			return (
-				<div className="my-3 flex items-center gap-3 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3">
-					<div className="flex size-8 items-center justify-center rounded-full bg-destructive/10">
-						<XIcon className="size-4 text-destructive" />
-					</div>
-					<div className="flex-1">
-						<span className="text-sm text-destructive">Failed to recall memories</span>
-						{result?.error && <p className="mt-1 text-xs text-destructive/70">{result.error}</p>}
-					</div>
+				<div className="flex-1">
+					<span className="text-sm text-muted-foreground">
+						{query ? `Searching memories for "${query}"...` : "Recalling memories..."}
+					</span>
 				</div>
-			);
-		}
+			</div>
+		);
+	}
 
-		// Success state with memories
-		if (isComplete && result?.status === "success") {
-			const memories = result.memories || [];
-			const count = result.count || 0;
-
-			if (count === 0) {
-				return (
-					<div className="my-3 flex items-center gap-3 rounded-lg border bg-card/60 px-4 py-3">
-						<div className="flex size-8 items-center justify-center rounded-full bg-muted">
-							<SearchIcon className="size-4 text-muted-foreground" />
-						</div>
-						<span className="text-sm text-muted-foreground">No memories found</span>
-					</div>
-				);
-			}
-
-			return (
-				<div className="my-3 rounded-lg border bg-card/60 px-4 py-3">
-					<div className="flex items-center gap-2 mb-2">
-						<BrainIcon className="size-4 text-primary" />
-						<span className="text-sm font-medium text-foreground">
-							Recalled {count} {count === 1 ? "memory" : "memories"}
-						</span>
-					</div>
-					<div className="space-y-2">
-						{memories.slice(0, 5).map((memory: MemoryItem) => (
-							<div
-								key={memory.id}
-								className="flex items-start gap-2 rounded-md bg-muted/50 px-3 py-2"
-							>
-								<CategoryBadge category={memory.category} />
-								<span className="text-sm text-muted-foreground flex-1">{memory.memory_text}</span>
-							</div>
-						))}
-						{memories.length > 5 && (
-							<p className="text-xs text-muted-foreground">...and {memories.length - 5} more</p>
-						)}
-					</div>
+	// Error state
+	if (isError) {
+		return (
+			<div className="my-3 flex items-center gap-3 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3">
+				<div className="flex size-8 items-center justify-center rounded-full bg-destructive/10">
+					<XIcon className="size-4 text-destructive" />
 				</div>
-			);
-		}
+				<div className="flex-1">
+					<span className="text-sm text-destructive">Failed to recall memories</span>
+					{result?.error && <p className="mt-1 text-xs text-destructive/70">{result.error}</p>}
+				</div>
+			</div>
+		);
+	}
 
-		// Default/incomplete state
-		if (query) {
+	// Success state with memories
+	if (isComplete && result?.status === "success") {
+		const memories = result.memories || [];
+		const count = result.count || 0;
+
+		if (count === 0) {
 			return (
 				<div className="my-3 flex items-center gap-3 rounded-lg border bg-card/60 px-4 py-3">
 					<div className="flex size-8 items-center justify-center rounded-full bg-muted">
 						<SearchIcon className="size-4 text-muted-foreground" />
 					</div>
-					<span className="text-sm text-muted-foreground">Searching memories for "{query}"</span>
+					<span className="text-sm text-muted-foreground">No memories found</span>
 				</div>
 			);
 		}
 
-		return null;
-	},
-});
+		return (
+			<div className="my-3 rounded-lg border bg-card/60 px-4 py-3">
+				<div className="flex items-center gap-2 mb-2">
+					<BrainIcon className="size-4 text-primary" />
+					<span className="text-sm font-medium text-foreground">
+						Recalled {count} {count === 1 ? "memory" : "memories"}
+					</span>
+				</div>
+				<div className="space-y-2">
+					{memories.slice(0, 5).map((memory: MemoryItem) => (
+						<div
+							key={memory.id}
+							className="flex items-start gap-2 rounded-md bg-muted/50 px-3 py-2"
+						>
+							<CategoryBadge category={memory.category} />
+							<span className="text-sm text-muted-foreground flex-1">{memory.memory_text}</span>
+						</div>
+					))}
+					{memories.length > 5 && (
+						<p className="text-xs text-muted-foreground">...and {memories.length - 5} more</p>
+					)}
+				</div>
+			</div>
+		);
+	}
+
+	// Default/incomplete state
+	if (query) {
+		return (
+			<div className="my-3 flex items-center gap-3 rounded-lg border bg-card/60 px-4 py-3">
+				<div className="flex size-8 items-center justify-center rounded-full bg-muted">
+					<SearchIcon className="size-4 text-muted-foreground" />
+				</div>
+				<span className="text-sm text-muted-foreground">Searching memories for "{query}"</span>
+			</div>
+		);
+	}
+
+	return null;
+};
 
 // ============================================================================
 // Exports

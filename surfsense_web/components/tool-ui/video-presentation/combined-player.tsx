@@ -118,7 +118,7 @@ export function CombinedPlayer({ slides }: CombinedPlayerProps) {
 	);
 
 	return (
-		<div className="overflow-hidden rounded-xl border shadow-2xl shadow-purple-500/5">
+		<div className="overflow-hidden rounded-xl">
 			<Player
 				component={CompositionWithScenes}
 				durationInFrames={totalFrames}

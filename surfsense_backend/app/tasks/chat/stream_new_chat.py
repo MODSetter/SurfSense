@@ -335,38 +335,19 @@ async def _stream_agent_events(
                     status="in_progress",
                     items=last_active_step_items,
                 )
-            elif tool_name == "link_preview":
-                url = (
-                    tool_input.get("url", "")
+            elif tool_name == "generate_image":
+                prompt = (
+                    tool_input.get("prompt", "")
                     if isinstance(tool_input, dict)
                     else str(tool_input)
                 )
-                last_active_step_title = "Fetching link preview"
+                last_active_step_title = "Generating image"
                 last_active_step_items = [
-                    f"URL: {url[:80]}{'...' if len(url) > 80 else ''}"
+                    f"Prompt: {prompt[:80]}{'...' if len(prompt) > 80 else ''}"
                 ]
                 yield streaming_service.format_thinking_step(
                     step_id=tool_step_id,
-                    title="Fetching link preview",
-                    status="in_progress",
-                    items=last_active_step_items,
-                )
-            elif tool_name == "display_image":
-                src = (
-                    tool_input.get("src", "")
-                    if isinstance(tool_input, dict)
-                    else str(tool_input)
-                )
-                title = (
-                    tool_input.get("title", "") if isinstance(tool_input, dict) else ""
-                )
-                last_active_step_title = "Analyzing the image"
-                last_active_step_items = [
-                    f"Analyzing: {title[:50] if title else src[:50]}{'...' if len(title or src) > 50 else ''}"
-                ]
-                yield streaming_service.format_thinking_step(
-                    step_id=tool_step_id,
-                    title="Analyzing the image",
+                    title="Generating image",
                     status="in_progress",
                     items=last_active_step_items,
                 )
@@ -507,44 +488,22 @@ async def _stream_agent_events(
                     status="completed",
                     items=completed_items,
                 )
-            elif tool_name == "link_preview":
-                if isinstance(tool_output, dict):
-                    title = tool_output.get("title", "Link")
-                    domain = tool_output.get("domain", "")
-                    has_error = "error" in tool_output
-                    if has_error:
-                        completed_items = [
-                            *last_active_step_items,
-                            f"Error: {tool_output.get('error', 'Failed to fetch')}",
-                        ]
-                    else:
-                        completed_items = [
-                            *last_active_step_items,
-                            f"Title: {title[:60]}{'...' if len(title) > 60 else ''}",
-                            f"Domain: {domain}" if domain else "Preview loaded",
-                        ]
-                else:
-                    completed_items = [*last_active_step_items, "Preview loaded"]
-                yield streaming_service.format_thinking_step(
-                    step_id=original_step_id,
-                    title="Fetching link preview",
-                    status="completed",
-                    items=completed_items,
-                )
-            elif tool_name == "display_image":
-                if isinstance(tool_output, dict):
-                    title = tool_output.get("title", "")
-                    alt = tool_output.get("alt", "Image")
-                    display_name = title or alt
+            elif tool_name == "generate_image":
+                if isinstance(tool_output, dict) and not tool_output.get("error"):
                     completed_items = [
                         *last_active_step_items,
-                        f"Analyzed: {display_name[:50]}{'...' if len(display_name) > 50 else ''}",
+                        "Image generated successfully",
                     ]
                 else:
-                    completed_items = [*last_active_step_items, "Image analyzed"]
+                    error_msg = (
+                        tool_output.get("error", "Generation failed")
+                        if isinstance(tool_output, dict)
+                        else "Generation failed"
+                    )
+                    completed_items = [*last_active_step_items, f"Error: {error_msg}"]
                 yield streaming_service.format_thinking_step(
                     step_id=original_step_id,
-                    title="Analyzing the image",
+                    title="Generating image",
                     status="completed",
                     items=completed_items,
                 )
@@ -819,30 +778,7 @@ async def _stream_agent_events(
                         f"Presentation generation failed: {error_msg}",
                         "error",
                     )
-            elif tool_name == "link_preview":
-                yield streaming_service.format_tool_output_available(
-                    tool_call_id,
-                    tool_output
-                    if isinstance(tool_output, dict)
-                    else {"result": tool_output},
-                )
-                if isinstance(tool_output, dict) and "error" not in tool_output:
-                    title = tool_output.get("title", "Link")
-                    yield streaming_service.format_terminal_info(
-                        f"Link preview loaded: {title[:50]}{'...' if len(title) > 50 else ''}",
-                        "success",
-                    )
-                else:
-                    error_msg = (
-                        tool_output.get("error", "Failed to fetch")
-                        if isinstance(tool_output, dict)
-                        else "Failed to fetch"
-                    )
-                    yield streaming_service.format_terminal_info(
-                        f"Link preview failed: {error_msg}",
-                        "error",
-                    )
-            elif tool_name == "display_image":
+            elif tool_name == "generate_image":
                 yield streaming_service.format_tool_output_available(
                     tool_call_id,
                     tool_output
@@ -850,11 +786,16 @@ async def _stream_agent_events(
                     else {"result": tool_output},
                 )
                 if isinstance(tool_output, dict):
-                    title = tool_output.get("title") or tool_output.get("alt", "Image")
-                    yield streaming_service.format_terminal_info(
-                        f"Image analyzed: {title[:40]}{'...' if len(title) > 40 else ''}",
-                        "success",
-                    )
+                    if tool_output.get("error"):
+                        yield streaming_service.format_terminal_info(
+                            f"Image generation failed: {tool_output['error'][:60]}",
+                            "error",
+                        )
+                    else:
+                        yield streaming_service.format_terminal_info(
+                            "Image generated successfully",
+                            "success",
+                        )
             elif tool_name == "scrape_webpage":
                 if isinstance(tool_output, dict):
                     display_output = {

@@ -1,27 +1,18 @@
 import {
-	ActionBarPrimitive,
-	AssistantIf,
-	BranchPickerPrimitive,
+	AuiIf,
 	ComposerPrimitive,
-	ErrorPrimitive,
 	MessagePrimitive,
 	ThreadPrimitive,
-	useAssistantState,
-	useComposerRuntime,
+	useAui,
+	useAuiState,
 } from "@assistant-ui/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
 	AlertCircle,
 	ArrowDownIcon,
 	ArrowUpIcon,
-	CheckIcon,
-	ChevronLeftIcon,
-	ChevronRightIcon,
-	CopyIcon,
-	DownloadIcon,
 	Globe,
 	Plus,
-	RefreshCwIcon,
 	Settings2,
 	SquareIcon,
 	Unplug,
@@ -32,7 +23,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
-import { type FC, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
 	agentToolsAtom,
@@ -63,12 +54,6 @@ import {
 	InlineMentionEditor,
 	type InlineMentionEditorRef,
 } from "@/components/assistant-ui/inline-mention-editor";
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import {
-	ThinkingStepsContext,
-	ThinkingStepsDisplay,
-} from "@/components/assistant-ui/thinking-steps";
-import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { UserMessage } from "@/components/assistant-ui/user-message";
 import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/components/layout/ui/sidebar/SidebarSlideOutPanel";
@@ -76,7 +61,6 @@ import {
 	DocumentMentionPicker,
 	type DocumentMentionPickerRef,
 } from "@/components/new-chat/document-mention-picker";
-import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
@@ -111,16 +95,8 @@ const CYCLING_PLACEHOLDERS = [
 	"Check if this week's Slack messages reference any GitHub issues",
 ];
 
-interface ThreadProps {
-	messageThinkingSteps?: Map<string, ThinkingStep[]>;
-}
-
-export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map() }) => {
-	return (
-		<ThinkingStepsContext.Provider value={messageThinkingSteps}>
-			<ThreadContent />
-		</ThinkingStepsContext.Provider>
-	);
+export const Thread: FC = () => {
+	return <ThreadContent />;
 };
 
 const ThreadContent: FC = () => {
@@ -135,9 +111,9 @@ const ThreadContent: FC = () => {
 				turnAnchor="top"
 				className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 pt-4"
 			>
-				<AssistantIf condition={({ thread }) => thread.isEmpty}>
+				<AuiIf condition={({ thread }) => thread.isEmpty}>
 					<ThreadWelcome />
-				</AssistantIf>
+				</AuiIf>
 
 				<ThreadPrimitive.Messages
 					components={{
@@ -152,11 +128,11 @@ const ThreadContent: FC = () => {
 					style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
 				>
 					<ThreadScrollToBottom />
-					<AssistantIf condition={({ thread }) => !thread.isEmpty}>
+					<AuiIf condition={({ thread }) => !thread.isEmpty}>
 						<div className="fade-in slide-in-from-bottom-4 animate-in duration-500 ease-out fill-mode-both">
 							<Composer />
 						</div>
-					</AssistantIf>
+					</AuiIf>
 				</ThreadPrimitive.ViewportFooter>
 			</ThreadPrimitive.Viewport>
 		</ThreadPrimitive.Root>
@@ -327,7 +303,7 @@ const Composer: FC = () => {
 	const editorContainerRef = useRef<HTMLDivElement>(null);
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
 	const { search_space_id, chat_id } = useParams();
-	const composerRuntime = useComposerRuntime();
+	const aui = useAui();
 	const hasAutoFocusedRef = useRef(false);
 
 	const [quickAskText, setQuickAskText] = useState<string | undefined>();
@@ -337,8 +313,8 @@ const Composer: FC = () => {
 		});
 	}, []);
 
-	const isThreadEmpty = useAssistantState(({ thread }) => thread.isEmpty);
-	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
+	const isThreadEmpty = useAuiState(({ thread }) => thread.isEmpty);
+	const isThreadRunning = useAuiState(({ thread }) => thread.isRunning);
 
 	// Cycling placeholder state - only cycles in new chats
 	const [placeholderIndex, setPlaceholderIndex] = useState(0);
@@ -385,7 +361,7 @@ const Composer: FC = () => {
 	// hooks never fire their own network requests (eliminates N+1 API calls).
 	// Return a primitive string from the selector so useSyncExternalStore can
 	// compare snapshots by value and avoid infinite re-render loops.
-	const assistantIdsKey = useAssistantState(({ thread }) =>
+	const assistantIdsKey = useAuiState(({ thread }) =>
 		thread.messages
 			.filter((m) => m.role === "assistant" && m.id?.startsWith("msg-"))
 			.map((m) => m.id?.replace("msg-", ""))
@@ -421,9 +397,9 @@ const Composer: FC = () => {
 	// Sync editor text with assistant-ui composer runtime
 	const handleEditorChange = useCallback(
 		(text: string) => {
-			composerRuntime.setText(text);
+			aui.composer().setText(text);
 		},
-		[composerRuntime]
+		[aui]
 	);
 
 	// Open document picker when @ mention is triggered
@@ -476,7 +452,7 @@ const Composer: FC = () => {
 			return;
 		}
 		if (!showDocumentPopover) {
-			composerRuntime.send();
+			aui.composer().send();
 			editorRef.current?.clear();
 			setMentionedDocuments([]);
 			setSidebarDocs([]);
@@ -485,7 +461,7 @@ const Composer: FC = () => {
 		showDocumentPopover,
 		isThreadRunning,
 		isBlockedByOtherUser,
-		composerRuntime,
+		aui,
 		setMentionedDocuments,
 		setSidebarDocs,
 	]);
@@ -599,7 +575,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 		const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
 		setToolsScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
 	}, []);
-	const isComposerTextEmpty = useAssistantState(({ composer }) => {
+	const isComposerTextEmpty = useAuiState(({ composer }) => {
 		const text = composer.text?.trim() || "";
 		return text.length === 0;
 	});
@@ -1015,16 +991,14 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 					</button>
 				)}
 			</div>
-
 			{!hasModelConfigured && (
 				<div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 text-xs">
 					<AlertCircle className="size-3" />
 					<span>Select a model</span>
 				</div>
 			)}
-
 			<div className="flex items-center gap-2">
-				<AssistantIf condition={({ thread }) => !thread.isRunning}>
+				<AuiIf condition={({ thread }) => !thread.isRunning}>
 					<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
 						<TooltipIconButton
 							tooltip={
@@ -1050,9 +1024,9 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							<ArrowUpIcon className="aui-composer-send-icon size-4" />
 						</TooltipIconButton>
 					</ComposerPrimitive.Send>
-				</AssistantIf>
+				</AuiIf>
 
-				<AssistantIf condition={({ thread }) => thread.isRunning}>
+				<AuiIf condition={({ thread }) => thread.isRunning}>
 					<ComposerPrimitive.Cancel asChild>
 						<Button
 							type="button"
@@ -1064,7 +1038,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							<SquareIcon className="aui-composer-cancel-icon size-3 fill-current" />
 						</Button>
 					</ComposerPrimitive.Cancel>
-				</AssistantIf>
+				</AuiIf>
 			</div>
 		</div>
 	);
@@ -1088,17 +1062,11 @@ interface ToolGroup {
 const TOOL_GROUPS: ToolGroup[] = [
 	{
 		label: "Research",
-		tools: ["search_knowledge_base", "search_surfsense_docs", "scrape_webpage", "link_preview"],
+		tools: ["search_knowledge_base", "search_surfsense_docs", "scrape_webpage"],
 	},
 	{
 		label: "Generate",
-		tools: [
-			"generate_podcast",
-			"generate_video_presentation",
-			"generate_report",
-			"generate_image",
-			"display_image",
-		],
+		tools: ["generate_podcast", "generate_video_presentation", "generate_report", "generate_image"],
 	},
 	{
 		label: "Memory",
@@ -1148,97 +1116,6 @@ const TOOL_GROUPS: ToolGroup[] = [
 	},
 ];
 
-const MessageError: FC = () => {
-	return (
-		<MessagePrimitive.Error>
-			<ErrorPrimitive.Root className="aui-message-error-root mt-2 rounded-md border border-destructive bg-destructive/10 p-3 text-destructive text-sm dark:bg-destructive/5 dark:text-red-200">
-				<ErrorPrimitive.Message className="aui-message-error-message line-clamp-2" />
-			</ErrorPrimitive.Root>
-		</MessagePrimitive.Error>
-	);
-};
-
-/**
- * Custom component to render thinking steps from Context
- */
-const ThinkingStepsPart: FC = () => {
-	const thinkingStepsMap = useContext(ThinkingStepsContext);
-
-	// Get the current message ID to look up thinking steps
-	const messageId = useAssistantState(({ message }) => message?.id);
-	const thinkingSteps = thinkingStepsMap.get(messageId) || [];
-
-	// Check if this specific message is currently streaming
-	// A message is streaming if: thread is running AND this is the last assistant message
-	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
-	const isLastMessage = useAssistantState(({ message }) => message?.isLast ?? false);
-	const isMessageStreaming = isThreadRunning && isLastMessage;
-
-	if (thinkingSteps.length === 0) return null;
-
-	return (
-		<div className="mb-3">
-			<ThinkingStepsDisplay steps={thinkingSteps} isThreadRunning={isMessageStreaming} />
-		</div>
-	);
-};
-
-const AssistantMessageInner: FC = () => {
-	return (
-		<>
-			{/* Render thinking steps from message content - this ensures proper scroll tracking */}
-			<ThinkingStepsPart />
-
-			<div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
-				<MessagePrimitive.Parts
-					components={{
-						Text: MarkdownText,
-						tools: { Fallback: ToolFallback },
-					}}
-				/>
-				<MessageError />
-			</div>
-
-			<div className="aui-assistant-message-footer mt-1 mb-5 ml-2 flex">
-				<BranchPicker />
-				<AssistantActionBar />
-			</div>
-		</>
-	);
-};
-
-const AssistantActionBar: FC = () => {
-	return (
-		<ActionBarPrimitive.Root
-			hideWhenRunning
-			autohide="not-last"
-			autohideFloat="single-branch"
-			className="aui-assistant-action-bar-root -ml-1 col-start-3 row-start-2 flex gap-1 text-muted-foreground data-floating:absolute data-floating:rounded-md data-floating:border data-floating:bg-background data-floating:p-1 data-floating:shadow-sm"
-		>
-			<ActionBarPrimitive.Copy asChild>
-				<TooltipIconButton tooltip="Copy">
-					<AssistantIf condition={({ message }) => message.isCopied}>
-						<CheckIcon />
-					</AssistantIf>
-					<AssistantIf condition={({ message }) => !message.isCopied}>
-						<CopyIcon />
-					</AssistantIf>
-				</TooltipIconButton>
-			</ActionBarPrimitive.Copy>
-			<ActionBarPrimitive.ExportMarkdown asChild>
-				<TooltipIconButton tooltip="Export as Markdown">
-					<DownloadIcon />
-				</TooltipIconButton>
-			</ActionBarPrimitive.ExportMarkdown>
-			<ActionBarPrimitive.Reload asChild>
-				<TooltipIconButton tooltip="Refresh">
-					<RefreshCwIcon />
-				</TooltipIconButton>
-			</ActionBarPrimitive.Reload>
-		</ActionBarPrimitive.Root>
-	);
-};
-
 const EditComposer: FC = () => {
 	return (
 		<MessagePrimitive.Root className="aui-edit-composer-wrapper mx-auto flex w-full max-w-(--thread-max-width) flex-col px-2 py-3">
@@ -1259,32 +1136,5 @@ const EditComposer: FC = () => {
 				</div>
 			</ComposerPrimitive.Root>
 		</MessagePrimitive.Root>
-	);
-};
-
-const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({ className, ...rest }) => {
-	return (
-		<BranchPickerPrimitive.Root
-			hideWhenSingleBranch
-			className={cn(
-				"aui-branch-picker-root -ml-2 mr-2 inline-flex items-center text-muted-foreground text-xs",
-				className
-			)}
-			{...rest}
-		>
-			<BranchPickerPrimitive.Previous asChild>
-				<TooltipIconButton tooltip="Previous">
-					<ChevronLeftIcon />
-				</TooltipIconButton>
-			</BranchPickerPrimitive.Previous>
-			<span className="aui-branch-picker-state font-medium">
-				<BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
-			</span>
-			<BranchPickerPrimitive.Next asChild>
-				<TooltipIconButton tooltip="Next">
-					<ChevronRightIcon />
-				</TooltipIconButton>
-			</BranchPickerPrimitive.Next>
-		</BranchPickerPrimitive.Root>
 	);
 };

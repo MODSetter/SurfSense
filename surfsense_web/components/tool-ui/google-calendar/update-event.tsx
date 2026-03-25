@@ -1,6 +1,6 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { useSetAtom } from "jotai";
 import {
 	ArrowRightIcon,
@@ -653,7 +653,10 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 	);
 }
 
-export const UpdateCalendarEventToolUI = makeAssistantToolUI<
+export const UpdateCalendarEventToolUI = ({
+	args,
+	result,
+}: ToolCallMessagePartProps<
 	{
 		event_ref: string;
 		new_summary?: string;
@@ -664,40 +667,37 @@ export const UpdateCalendarEventToolUI = makeAssistantToolUI<
 		new_attendees?: string[];
 	},
 	UpdateCalendarEventResult
->({
-	toolName: "update_calendar_event",
-	render: function UpdateCalendarEventUI({ args, result }) {
-		if (!result) return null;
+>) => {
+	if (!result) return null;
 
-		if (isInterruptResult(result)) {
-			return (
-				<ApprovalCard
-					args={args}
-					interruptData={result}
-					onDecision={(decision) => {
-						window.dispatchEvent(
-							new CustomEvent("hitl-decision", { detail: { decisions: [decision] } })
-						);
-					}}
-				/>
-			);
-		}
+	if (isInterruptResult(result)) {
+		return (
+			<ApprovalCard
+				args={args}
+				interruptData={result}
+				onDecision={(decision) => {
+					window.dispatchEvent(
+						new CustomEvent("hitl-decision", { detail: { decisions: [decision] } })
+					);
+				}}
+			/>
+		);
+	}
 
-		if (
-			typeof result === "object" &&
-			result !== null &&
-			"status" in result &&
-			(result as { status: string }).status === "rejected"
-		) {
-			return null;
-		}
+	if (
+		typeof result === "object" &&
+		result !== null &&
+		"status" in result &&
+		(result as { status: string }).status === "rejected"
+	) {
+		return null;
+	}
 
-		if (isNotFoundResult(result)) return <NotFoundCard result={result} />;
-		if (isAuthErrorResult(result)) return <AuthErrorCard result={result} />;
-		if (isInsufficientPermissionsResult(result))
-			return <InsufficientPermissionsCard result={result} />;
-		if (isErrorResult(result)) return <ErrorCard result={result} />;
+	if (isNotFoundResult(result)) return <NotFoundCard result={result} />;
+	if (isAuthErrorResult(result)) return <AuthErrorCard result={result} />;
+	if (isInsufficientPermissionsResult(result))
+		return <InsufficientPermissionsCard result={result} />;
+	if (isErrorResult(result)) return <ErrorCard result={result} />;
 
-		return <SuccessCard result={result as SuccessResult} />;
-	},
-});
+	return <SuccessCard result={result as SuccessResult} />;
+};

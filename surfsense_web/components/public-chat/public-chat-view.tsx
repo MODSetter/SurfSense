@@ -1,14 +1,9 @@
 "use client";
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { ThinkingStepsDataUI } from "@/components/assistant-ui/thinking-steps";
 import { Navbar } from "@/components/homepage/navbar";
 import { ReportPanel } from "@/components/report-panel/report-panel";
-import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
-import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
-import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
-import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
-import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
-import { GenerateVideoPresentationToolUI } from "@/components/tool-ui/video-presentation";
 import { Spinner } from "@/components/ui/spinner";
 import { usePublicChat } from "@/hooks/use-public-chat";
 import { usePublicChatRuntime } from "@/hooks/use-public-chat-runtime";
@@ -45,14 +40,7 @@ export function PublicChatView({ shareToken }: PublicChatViewProps) {
 		<main className="min-h-screen bg-main-panel text-foreground overflow-x-hidden">
 			<Navbar scrolledBgClassName={navbarScrolledBg} />
 			<AssistantRuntimeProvider runtime={runtime}>
-				{/* Tool UIs for rendering tool results */}
-				<GeneratePodcastToolUI />
-				<GenerateReportToolUI />
-				<GenerateVideoPresentationToolUI />
-				<LinkPreviewToolUI />
-				<DisplayImageToolUI />
-				<ScrapeWebpageToolUI />
-
+				<ThinkingStepsDataUI />
 				<div className="flex h-screen pt-16 overflow-hidden">
 					<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 						<PublicThread footer={<PublicChatFooter shareToken={shareToken} />} />

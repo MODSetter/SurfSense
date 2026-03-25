@@ -38,13 +38,10 @@ from app.db import (
 from app.utils.rbac import check_permission
 
 UI_TOOLS = {
-    "display_image",
-    "link_preview",
+    "generate_image",
     "generate_podcast",
     "generate_report",
     "generate_video_presentation",
-    "scrape_webpage",
-    "multi_link_preview",
 }
 
 
