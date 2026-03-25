@@ -33,7 +33,7 @@ export function createMainWindow(): BrowserWindow {
     mainWindow?.show();
   });
 
-  mainWindow.loadURL(`http://localhost:${getServerPort()}/login`);
+  mainWindow.loadURL(`http://localhost:${getServerPort()}/dashboard`);
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('http://localhost')) {

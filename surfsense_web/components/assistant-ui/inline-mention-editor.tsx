@@ -119,9 +119,16 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 
 		useEffect(() => {
 			if (!initialText || !editorRef.current) return;
-			editorRef.current.textContent = initialText;
+			editorRef.current.textContent = initialText + "\n";
 			setIsEmpty(false);
 			onChange?.(initialText, Array.from(mentionedDocs.values()));
+			editorRef.current.focus();
+			const sel = window.getSelection();
+			const range = document.createRange();
+			range.selectNodeContents(editorRef.current);
+			range.collapse(false);
+			sel?.removeAllRanges();
+			sel?.addRange(range);
 		}, [initialText]); // eslint-disable-line react-hooks/exhaustive-deps
 
 		// Focus at the end of the editor
