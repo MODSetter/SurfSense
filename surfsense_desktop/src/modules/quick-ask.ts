@@ -35,7 +35,9 @@ function createQuickAskWindow(x: number, y: number): BrowserWindow {
     height: 550,
     x,
     y,
-    type: 'panel',
+    ...(process.platform === 'darwin'
+      ? { type: 'panel' as const }
+      : { type: 'toolbar' as const, alwaysOnTop: true }),
     resizable: true,
     fullscreenable: false,
     maximizable: false,
