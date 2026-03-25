@@ -1,6 +1,6 @@
 import { ActionBarPrimitive, AuiIf, MessagePrimitive, useAuiState } from "@assistant-ui/react";
 import { useAtomValue } from "jotai";
-import { FileText, Pen } from "lucide-react";
+import { CheckIcon, CopyIcon, FileText, Pen } from "lucide-react";
 import Image from "next/image";
 import { type FC, useState } from "react";
 import { messageDocumentsMapAtom } from "@/atoms/chat/mentioned-documents.atom";
