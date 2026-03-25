@@ -62,10 +62,17 @@ export function registerQuickAsk(): void {
     const text = clipboard.readText().trim();
     if (!text) return;
 
+    const isExisting = quickAskWindow && !quickAskWindow.isDestroyed();
     const cursor = screen.getCursorScreenPoint();
     const win = createQuickAskWindow(cursor.x, cursor.y);
 
-    win.webContents.send(IPC_CHANNELS.QUICK_ASK_TEXT, text);
+    if (isExisting) {
+      win.webContents.send(IPC_CHANNELS.QUICK_ASK_TEXT, text);
+    } else {
+      win.webContents.once('did-finish-load', () => {
+        win.webContents.send(IPC_CHANNELS.QUICK_ASK_TEXT, text);
+      });
+    }
   });
 
   if (!ok) {
