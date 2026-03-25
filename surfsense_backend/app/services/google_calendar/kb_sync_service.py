@@ -209,8 +209,8 @@ class GoogleCalendarKBSyncService:
             )
 
             calendar_id = (document.document_metadata or {}).get(
-                "calendar_id", "primary"
-            )
+                "calendar_id"
+            ) or "primary"
             live_event = await loop.run_in_executor(
                 None,
                 lambda: (

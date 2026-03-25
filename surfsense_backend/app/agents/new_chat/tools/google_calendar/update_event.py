@@ -14,6 +14,20 @@ from app.services.google_calendar import GoogleCalendarToolMetadataService
 logger = logging.getLogger(__name__)
 
 
+def _is_date_only(value: str) -> bool:
+    """Return True when *value* looks like a bare date (YYYY-MM-DD) with no time component."""
+    return len(value) <= 10 and "T" not in value
+
+
+def _build_time_body(value: str, context: dict[str, Any] | Any) -> dict[str, str]:
+    """Build a Google Calendar start/end body using ``date`` for all-day
+    events and ``dateTime`` for timed events."""
+    if _is_date_only(value):
+        return {"date": value}
+    tz = context.get("timezone", "UTC") if isinstance(context, dict) else "UTC"
+    return {"dateTime": value, "timeZone": tz}
+
+
 def create_update_calendar_event_tool(
     db_session: AsyncSession | None = None,
     search_space_id: int | None = None,
@@ -255,25 +269,13 @@ def create_update_calendar_event_tool(
             if final_new_summary is not None:
                 update_body["summary"] = final_new_summary
             if final_new_start_datetime is not None:
-                tz = (
-                    context.get("timezone", "UTC")
-                    if isinstance(context, dict)
-                    else "UTC"
+                update_body["start"] = _build_time_body(
+                    final_new_start_datetime, context
                 )
-                update_body["start"] = {
-                    "dateTime": final_new_start_datetime,
-                    "timeZone": tz,
-                }
             if final_new_end_datetime is not None:
-                tz = (
-                    context.get("timezone", "UTC")
-                    if isinstance(context, dict)
-                    else "UTC"
+                update_body["end"] = _build_time_body(
+                    final_new_end_datetime, context
                 )
-                update_body["end"] = {
-                    "dateTime": final_new_end_datetime,
-                    "timeZone": tz,
-                }
             if final_new_description is not None:
                 update_body["description"] = final_new_description
             if final_new_location is not None:

@@ -185,7 +185,7 @@ function DateTimePickerField({
 				type="time"
 				value={time}
 				onChange={handleTimeChange}
-				className="w-[120px] text-sm shrink-0 pl-1.5 [&::-webkit-calendar-picker-indicator]:order-first [&::-webkit-calendar-picker-indicator]:mr-1"
+				className="w-[120px] text-sm shrink-0 appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
 			/>
 		</div>
 	);
