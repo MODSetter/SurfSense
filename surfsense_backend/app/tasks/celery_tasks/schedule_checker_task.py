@@ -54,6 +54,7 @@ async def _check_and_trigger_schedules():
             # Import all indexing tasks
             from app.tasks.celery_tasks.connector_tasks import (
                 index_airtable_records_task,
+                index_bookstack_pages_task,
                 index_clickup_tasks_task,
                 index_confluence_pages_task,
                 index_crawled_urls_task,
@@ -67,6 +68,7 @@ async def _check_and_trigger_schedules():
                 index_linear_issues_task,
                 index_luma_events_task,
                 index_notion_pages_task,
+                index_obsidian_vault_task,
                 index_slack_messages_task,
             )
 
@@ -86,6 +88,8 @@ async def _check_and_trigger_schedules():
                 SearchSourceConnectorType.LUMA_CONNECTOR: index_luma_events_task,
                 SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR: index_elasticsearch_documents_task,
                 SearchSourceConnectorType.WEBCRAWLER_CONNECTOR: index_crawled_urls_task,
+                SearchSourceConnectorType.BOOKSTACK_CONNECTOR: index_bookstack_pages_task,
+                SearchSourceConnectorType.OBSIDIAN_CONNECTOR: index_obsidian_vault_task,
                 SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR: index_google_drive_files_task,
                 # Composio connector types (unified with native Google tasks)
                 SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR: index_google_drive_files_task,
