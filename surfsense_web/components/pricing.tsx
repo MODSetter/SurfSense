@@ -101,9 +101,9 @@ export function Pricing({
 					plans.length === 2 ? "md:grid-cols-2 max-w-5xl mx-auto" : "md:grid-cols-3"
 				)}
 			>
-				{plans.map((plan, index) => (
+				{plans.map((plan) => (
 					<motion.div
-						key={index}
+						key={plan.name}
 						initial={{ y: 50, opacity: 1 }}
 						whileInView={
 							isDesktop
@@ -193,8 +193,8 @@ export function Pricing({
 							</p>
 
 							<ul className="mt-5 gap-2 flex flex-col">
-								{plan.features.map((feature, idx) => (
-									<li key={idx} className="flex items-start gap-2">
+								{plan.features.map((feature) => (
+									<li key={feature} className="flex items-start gap-2">
 										<Check className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
 										<span className="text-left">{feature}</span>
 									</li>
