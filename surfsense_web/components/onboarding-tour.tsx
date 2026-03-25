@@ -466,8 +466,15 @@ export function OnboardingTour() {
 	}, []);
 
 	// Find and track target element with retry logic
+	const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const updateTarget = useCallback(() => {
 		if (!currentStep) return;
+
+		// Clear any pending retry timer
+		if (retryTimerRef.current !== null) {
+			clearTimeout(retryTimerRef.current);
+			retryTimerRef.current = null;
+		}
 
 		const el = document.querySelector(currentStep.target);
 		if (el) {
@@ -477,7 +484,8 @@ export function OnboardingTour() {
 			retryCountRef.current = 0;
 		} else if (retryCountRef.current < maxRetries) {
 			retryCountRef.current++;
-			setTimeout(() => {
+			retryTimerRef.current = setTimeout(() => {
+				retryTimerRef.current = null;
 				const retryEl = document.querySelector(currentStep.target);
 				if (retryEl) {
 					setTargetEl(retryEl);
@@ -556,7 +564,10 @@ export function OnboardingTour() {
 		}
 
 		// User is new and hasn't seen tour - wait for DOM elements and start tour
+		let cancelled = false;
 		const checkAndStartTour = () => {
+			if (cancelled) return;
+
 			// Check if all required elements exist
 			const connectorEl = document.querySelector(TOUR_STEPS[0].target);
 			const documentsEl = document.querySelector(TOUR_STEPS[1].target);
@@ -578,7 +589,10 @@ export function OnboardingTour() {
 
 		// Start checking after initial delay
 		const timer = setTimeout(checkAndStartTour, 500);
-		return () => clearTimeout(timer);
+		return () => {
+			cancelled = true;
+			clearTimeout(timer);
+		};
 	}, [mounted, user?.id, searchSpaceId, pathname, threadsData, documentTypeCounts, connectors]);
 
 	// Update position on resize/scroll
