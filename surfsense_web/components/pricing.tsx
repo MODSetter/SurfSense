@@ -101,7 +101,7 @@ export function Pricing({
 					plans.length === 2 ? "md:grid-cols-2 max-w-5xl mx-auto" : "md:grid-cols-3"
 				)}
 			>
-				{plans.map((plan) => (
+				{plans.map((plan, index) => (
 					<motion.div
 						key={plan.name}
 						initial={{ y: 50, opacity: 1 }}
