@@ -3,6 +3,7 @@ import pytest
 from app.db import DocumentType
 from app.indexing_pipeline.document_hashing import (
     compute_content_hash,
+    compute_identifier_hash,
     compute_unique_identifier_hash,
 )
 
@@ -61,3 +62,23 @@ def test_different_content_produces_different_content_hash(make_connector_docume
     doc_a = make_connector_document(source_markdown="Original content")
     doc_b = make_connector_document(source_markdown="Updated content")
     assert compute_content_hash(doc_a) != compute_content_hash(doc_b)
+
+
+def test_compute_identifier_hash_matches_connector_doc_hash(make_connector_document):
+    """Raw-args hash equals ConnectorDocument hash for equivalent inputs."""
+    doc = make_connector_document(
+        document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
+        unique_id="msg-123",
+        search_space_id=5,
+    )
+    raw_hash = compute_identifier_hash("GOOGLE_GMAIL_CONNECTOR", "msg-123", 5)
+    assert raw_hash == compute_unique_identifier_hash(doc)
+
+
+def test_compute_identifier_hash_differs_for_different_inputs():
+    """Different arguments produce different hashes."""
+    h1 = compute_identifier_hash("GOOGLE_DRIVE_FILE", "file-1", 1)
+    h2 = compute_identifier_hash("GOOGLE_DRIVE_FILE", "file-2", 1)
+    h3 = compute_identifier_hash("GOOGLE_DRIVE_FILE", "file-1", 2)
+    h4 = compute_identifier_hash("COMPOSIO_GOOGLE_DRIVE_CONNECTOR", "file-1", 1)
+    assert len({h1, h2, h3, h4}) == 4

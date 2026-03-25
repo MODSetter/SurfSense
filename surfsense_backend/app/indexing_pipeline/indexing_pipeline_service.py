@@ -6,12 +6,13 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import Chunk, Document, DocumentStatus
+from app.db import NATIVE_TO_LEGACY_DOCTYPE, Chunk, Document, DocumentStatus
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.document_chunker import chunk_text
 from app.indexing_pipeline.document_embedder import embed_texts
 from app.indexing_pipeline.document_hashing import (
     compute_content_hash,
+    compute_identifier_hash,
     compute_unique_identifier_hash,
 )
 from app.indexing_pipeline.document_persistence import (
@@ -53,6 +54,62 @@ class IndexingPipelineService:
 
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
+
+    async def migrate_legacy_docs(
+        self, connector_docs: list[ConnectorDocument]
+    ) -> None:
+        """Migrate legacy Composio documents to their native Google type.
+
+        For each ConnectorDocument whose document_type has a Composio equivalent
+        in NATIVE_TO_LEGACY_DOCTYPE, look up the old document by legacy hash and
+        update its unique_identifier_hash and document_type so that
+        prepare_for_indexing() can find it under the native hash.
+        """
+        for doc in connector_docs:
+            legacy_type = NATIVE_TO_LEGACY_DOCTYPE.get(doc.document_type.value)
+            if not legacy_type:
+                continue
+
+            legacy_hash = compute_identifier_hash(
+                legacy_type, doc.unique_id, doc.search_space_id
+            )
+            result = await self.session.execute(
+                select(Document).filter(
+                    Document.unique_identifier_hash == legacy_hash
+                )
+            )
+            existing = result.scalars().first()
+            if existing is None:
+                continue
+
+            native_hash = compute_identifier_hash(
+                doc.document_type.value, doc.unique_id, doc.search_space_id
+            )
+            existing.unique_identifier_hash = native_hash
+            existing.document_type = doc.document_type
+
+        await self.session.commit()
+
+    async def index_batch(
+        self, connector_docs: list[ConnectorDocument], llm
+    ) -> list[Document]:
+        """Convenience method: prepare_for_indexing then index each document.
+
+        Indexers that need heartbeat callbacks or custom per-document logic
+        should call prepare_for_indexing() + index() directly instead.
+        """
+        doc_map = {
+            compute_unique_identifier_hash(cd): cd for cd in connector_docs
+        }
+        documents = await self.prepare_for_indexing(connector_docs)
+        results: list[Document] = []
+        for document in documents:
+            connector_doc = doc_map.get(document.unique_identifier_hash)
+            if connector_doc is None:
+                continue
+            result = await self.index(document, connector_doc, llm)
+            results.append(result)
+        return results
 
     async def prepare_for_indexing(
         self, connector_docs: list[ConnectorDocument]
