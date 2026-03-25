@@ -119,7 +119,9 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 
 		useEffect(() => {
 			if (!initialText || !editorRef.current) return;
-			editorRef.current.textContent = initialText + "\n";
+			editorRef.current.innerText = initialText;
+			editorRef.current.appendChild(document.createElement("br"));
+			editorRef.current.appendChild(document.createElement("br"));
 			setIsEmpty(false);
 			onChange?.(initialText, Array.from(mentionedDocs.values()));
 			editorRef.current.focus();

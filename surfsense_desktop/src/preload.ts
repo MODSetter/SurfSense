@@ -17,11 +17,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.removeListener(IPC_CHANNELS.DEEP_LINK, listener);
     };
   },
-  onQuickAskText: (callback: (text: string) => void) => {
-    const listener = (_event: unknown, text: string) => callback(text);
-    ipcRenderer.on(IPC_CHANNELS.QUICK_ASK_TEXT, listener);
-    return () => {
-      ipcRenderer.removeListener(IPC_CHANNELS.QUICK_ASK_TEXT, listener);
-    };
-  },
+  getQuickAskText: () => ipcRenderer.invoke(IPC_CHANNELS.QUICK_ASK_TEXT),
 });

@@ -332,7 +332,7 @@ const Composer: FC = () => {
 
 	const [quickAskText, setQuickAskText] = useState<string | undefined>();
 	useEffect(() => {
-		return window.electronAPI?.onQuickAskText((text) => {
+		window.electronAPI?.getQuickAskText().then((text) => {
 			if (text) setQuickAskText(text);
 		});
 	}, []);

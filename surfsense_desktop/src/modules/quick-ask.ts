@@ -1,10 +1,11 @@
-import { BrowserWindow, clipboard, globalShortcut, screen } from 'electron';
+import { BrowserWindow, clipboard, globalShortcut, ipcMain, screen } from 'electron';
 import path from 'path';
 import { IPC_CHANNELS } from '../ipc/channels';
 import { getServerPort } from './server';
 
 const SHORTCUT = 'CommandOrControl+Option+S';
 let quickAskWindow: BrowserWindow | null = null;
+let pendingText = '';
 
 function hideQuickAsk(): void {
   if (quickAskWindow && !quickAskWindow.isDestroyed()) {
@@ -62,22 +63,20 @@ export function registerQuickAsk(): void {
     const text = clipboard.readText().trim();
     if (!text) return;
 
-    const isExisting = quickAskWindow && !quickAskWindow.isDestroyed();
+    pendingText = text;
     const cursor = screen.getCursorScreenPoint();
-    const win = createQuickAskWindow(cursor.x, cursor.y);
-
-    if (isExisting) {
-      win.webContents.send(IPC_CHANNELS.QUICK_ASK_TEXT, text);
-    } else {
-      win.webContents.once('did-finish-load', () => {
-        win.webContents.send(IPC_CHANNELS.QUICK_ASK_TEXT, text);
-      });
-    }
+    createQuickAskWindow(cursor.x, cursor.y);
   });
 
   if (!ok) {
     console.log(`Quick-ask: failed to register ${SHORTCUT}`);
   }
+
+  ipcMain.handle(IPC_CHANNELS.QUICK_ASK_TEXT, () => {
+    const text = pendingText;
+    pendingText = '';
+    return text;
+  });
 }
 
 export function unregisterQuickAsk(): void {
