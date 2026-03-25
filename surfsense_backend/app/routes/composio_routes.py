@@ -208,7 +208,7 @@ async def composio_callback(
 
             if space_id:
                 return RedirectResponse(
-                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=composio_oauth_denied"
+                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=composio_oauth_denied"
                 )
             else:
                 return RedirectResponse(
@@ -263,6 +263,15 @@ async def composio_callback(
             logger.info(
                 f"Successfully got connected_account_id: {final_connected_account_id}"
             )
+            # Wait for Composio to finish exchanging the auth code for tokens.
+            try:
+                service.wait_for_connection(final_connected_account_id, timeout=30.0)
+            except Exception:
+                logger.warning(
+                    f"wait_for_connection timed out for {final_connected_account_id}, "
+                    "proceeding anyway",
+                    exc_info=True,
+                )
 
         # Build entity_id for Composio API calls (same format as used in initiate)
         entity_id = f"surfsense_{user_id}"
@@ -370,7 +379,7 @@ async def composio_callback(
                 toolkit_id, "composio-connector"
             )
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector={frontend_connector_id}&connectorId={existing_connector.id}&view=configure"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?success=true&connector={frontend_connector_id}&connectorId={existing_connector.id}"
             )
 
         # This is a NEW account - create a new connector
@@ -399,7 +408,7 @@ async def composio_callback(
                 toolkit_id, "composio-connector"
             )
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector={frontend_connector_id}&connectorId={db_connector.id}&view=configure"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?success=true&connector={frontend_connector_id}&connectorId={db_connector.id}"
             )
 
         except IntegrityError as e:
@@ -425,6 +434,211 @@ async def composio_callback(
         ) from e
 
 
+COMPOSIO_CONNECTOR_TYPES = {
+    SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+    SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
+    SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
+}
+
+
+@router.get("/auth/composio/connector/reauth")
+async def reauth_composio_connector(
+    space_id: int,
+    connector_id: int,
+    return_url: str | None = None,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Initiate Composio re-authentication for an expired connected account.
+
+    Uses Composio's refresh API so the same connected_account_id stays valid
+    after the user completes the OAuth flow again.
+
+    Query params:
+        space_id: Search space ID the connector belongs to
+        connector_id: ID of the existing Composio connector to re-authenticate
+        return_url: Optional frontend path to redirect to after completion
+    """
+    if not ComposioService.is_enabled():
+        raise HTTPException(
+            status_code=503, detail="Composio integration is not enabled."
+        )
+
+    if not config.SECRET_KEY:
+        raise HTTPException(
+            status_code=500, detail="SECRET_KEY not configured for OAuth security."
+        )
+
+    try:
+        result = await session.execute(
+            select(SearchSourceConnector).filter(
+                SearchSourceConnector.id == connector_id,
+                SearchSourceConnector.user_id == user.id,
+                SearchSourceConnector.search_space_id == space_id,
+                SearchSourceConnector.connector_type.in_(COMPOSIO_CONNECTOR_TYPES),
+            )
+        )
+        connector = result.scalars().first()
+        if not connector:
+            raise HTTPException(
+                status_code=404,
+                detail="Composio connector not found or access denied",
+            )
+
+        connected_account_id = connector.config.get("composio_connected_account_id")
+        if not connected_account_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Composio connected account ID not found. Please reconnect the connector.",
+            )
+
+        # Build callback URL with secure state
+        state_manager = get_state_manager()
+        state_encoded = state_manager.generate_secure_state(
+            space_id,
+            user.id,
+            toolkit_id=connector.config.get("toolkit_id", ""),
+            connector_id=connector_id,
+            return_url=return_url,
+        )
+
+        callback_base = config.COMPOSIO_REDIRECT_URI
+        if not callback_base:
+            backend_url = config.BACKEND_URL or "http://localhost:8000"
+            callback_base = (
+                f"{backend_url}/api/v1/auth/composio/connector/reauth/callback"
+            )
+        else:
+            # Replace the normal callback path with the reauth one
+            callback_base = callback_base.replace(
+                "/auth/composio/connector/callback",
+                "/auth/composio/connector/reauth/callback",
+            )
+
+        callback_url = f"{callback_base}?state={state_encoded}"
+
+        service = ComposioService()
+        refresh_result = service.refresh_connected_account(
+            connected_account_id=connected_account_id,
+            redirect_url=callback_url,
+        )
+
+        if refresh_result["redirect_url"] is None:
+            # Token refreshed server-side; clear auth_expired immediately
+            if connector.config.get("auth_expired"):
+                connector.config = {**connector.config, "auth_expired": False}
+                flag_modified(connector, "config")
+                await session.commit()
+            logger.info(
+                f"Composio account {connected_account_id} refreshed server-side (no redirect needed)"
+            )
+            return {
+                "success": True,
+                "message": "Authentication refreshed successfully.",
+            }
+
+        logger.info(f"Initiating Composio re-auth for connector {connector_id}")
+        return {"auth_url": refresh_result["redirect_url"]}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to initiate Composio re-auth: {e!s}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to initiate Composio re-auth: {e!s}"
+        ) from e
+
+
+@router.get("/auth/composio/connector/reauth/callback")
+async def composio_reauth_callback(
+    request: Request,
+    state: str | None = None,
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Handle Composio re-authentication callback.
+
+    Clears the auth_expired flag and redirects the user back to the frontend.
+    The connected_account_id has not changed — Composio refreshed it in place.
+    """
+    try:
+        if not state:
+            raise HTTPException(status_code=400, detail="Missing state parameter")
+
+        state_manager = get_state_manager()
+        try:
+            data = state_manager.validate_state(state)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=400, detail=f"Invalid state parameter: {e!s}"
+            ) from e
+
+        user_id = UUID(data["user_id"])
+        space_id = data["space_id"]
+        reauth_connector_id = data.get("connector_id")
+        return_url = data.get("return_url")
+
+        if not reauth_connector_id:
+            raise HTTPException(status_code=400, detail="Missing connector_id in state")
+
+        result = await session.execute(
+            select(SearchSourceConnector).filter(
+                SearchSourceConnector.id == reauth_connector_id,
+                SearchSourceConnector.user_id == user_id,
+                SearchSourceConnector.search_space_id == space_id,
+            )
+        )
+        connector = result.scalars().first()
+        if not connector:
+            raise HTTPException(
+                status_code=404,
+                detail="Connector not found or access denied during re-auth callback",
+            )
+
+        # Wait for Composio to finish processing new tokens before proceeding.
+        # Without this, get_access_token() may return stale credentials.
+        connected_account_id = connector.config.get("composio_connected_account_id")
+        if connected_account_id:
+            try:
+                service = ComposioService()
+                service.wait_for_connection(connected_account_id, timeout=30.0)
+            except Exception:
+                logger.warning(
+                    f"wait_for_connection timed out for connector {reauth_connector_id}, "
+                    "proceeding anyway — tokens may not be ready yet",
+                    exc_info=True,
+                )
+
+        # Clear auth_expired flag
+        connector.config = {**connector.config, "auth_expired": False}
+        flag_modified(connector, "config")
+        await session.commit()
+        await session.refresh(connector)
+
+        logger.info(f"Composio re-auth completed for connector {reauth_connector_id}")
+
+        if return_url and return_url.startswith("/"):
+            return RedirectResponse(url=f"{config.NEXT_FRONTEND_URL}{return_url}")
+
+        frontend_connector_id = TOOLKIT_TO_FRONTEND_CONNECTOR_ID.get(
+            connector.config.get("toolkit_id", ""), "composio-connector"
+        )
+        return RedirectResponse(
+            url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?success=true&connector={frontend_connector_id}&connectorId={reauth_connector_id}"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in Composio reauth callback: {e!s}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to complete Composio re-auth: {e!s}"
+        ) from e
+
+
 @router.get("/connectors/{connector_id}/composio-drive/folders")
 async def list_composio_drive_folders(
     connector_id: int,
@@ -433,31 +647,23 @@ async def list_composio_drive_folders(
     user: User = Depends(current_active_user),
 ):
     """
-    List folders AND files in user's Google Drive via Composio with hierarchical support.
+    List folders AND files in user's Google Drive via Composio.
 
-    This is called at index time from the manage connector page to display
-    the complete file system (folders and files). Only folders are selectable.
-
-    Args:
-        connector_id: ID of the Composio Google Drive connector
-        parent_id: Optional parent folder ID to list contents (None for root)
-
-    Returns:
-        JSON with list of items: {
-            "items": [
-                {"id": str, "name": str, "mimeType": str, "isFolder": bool, ...},
-                ...
-            ]
-        }
+    Uses the same GoogleDriveClient / list_folder_contents path as the native
+    connector, with Composio-sourced credentials.  This means auth errors
+    propagate identically (Google returns 401 → exception → auth_expired flag).
     """
+    from app.connectors.google_drive import GoogleDriveClient, list_folder_contents
+    from app.utils.google_credentials import build_composio_credentials
+
     if not ComposioService.is_enabled():
         raise HTTPException(
             status_code=503,
             detail="Composio integration is not enabled.",
         )
 
+    connector = None
     try:
-        # Get connector and verify ownership
         result = await session.execute(
             select(SearchSourceConnector).filter(
                 SearchSourceConnector.id == connector_id,
@@ -474,7 +680,6 @@ async def list_composio_drive_folders(
                 detail="Composio Google Drive connector not found or access denied",
             )
 
-        # Get Composio connected account ID from config
         composio_connected_account_id = connector.config.get(
             "composio_connected_account_id"
         )
@@ -484,63 +689,43 @@ async def list_composio_drive_folders(
                 detail="Composio connected account not found. Please reconnect the connector.",
             )
 
-        # Initialize Composio service and fetch files
-        service = ComposioService()
-        entity_id = f"surfsense_{user.id}"
+        credentials = build_composio_credentials(composio_connected_account_id)
+        drive_client = GoogleDriveClient(session, connector_id, credentials=credentials)
 
-        # Fetch files/folders from Composio Google Drive
-        files, _next_token, error = await service.get_drive_files(
-            connected_account_id=composio_connected_account_id,
-            entity_id=entity_id,
-            folder_id=parent_id,
-            page_size=100,
-        )
+        items, error = await list_folder_contents(drive_client, parent_id=parent_id)
 
         if error:
-            logger.error(f"Failed to list Composio Drive files: {error}")
+            error_lower = error.lower()
+            if (
+                "401" in error
+                or "invalid_grant" in error_lower
+                or "token has been expired or revoked" in error_lower
+                or "invalid credentials" in error_lower
+                or "authentication failed" in error_lower
+            ):
+                try:
+                    if connector and not connector.config.get("auth_expired"):
+                        connector.config = {**connector.config, "auth_expired": True}
+                        flag_modified(connector, "config")
+                        await session.commit()
+                        logger.info(
+                            f"Marked Composio connector {connector_id} as auth_expired"
+                        )
+                except Exception:
+                    logger.warning(
+                        f"Failed to persist auth_expired for connector {connector_id}",
+                        exc_info=True,
+                    )
+                raise HTTPException(
+                    status_code=400,
+                    detail="Google Drive authentication expired. Please re-authenticate.",
+                )
             raise HTTPException(
                 status_code=500, detail=f"Failed to list folder contents: {error}"
             )
 
-        # Transform files to match the expected format with isFolder field
-        items = []
-        for file_info in files:
-            file_id = file_info.get("id", "") or file_info.get("fileId", "")
-            file_name = (
-                file_info.get("name", "") or file_info.get("fileName", "") or "Untitled"
-            )
-            mime_type = file_info.get("mimeType", "") or file_info.get("mime_type", "")
-
-            if not file_id:
-                continue
-
-            is_folder = mime_type == "application/vnd.google-apps.folder"
-
-            items.append(
-                {
-                    "id": file_id,
-                    "name": file_name,
-                    "mimeType": mime_type,
-                    "isFolder": is_folder,
-                    "parents": file_info.get("parents", []),
-                    "size": file_info.get("size"),
-                    "iconLink": file_info.get("iconLink"),
-                }
-            )
-
-        # Sort: folders first, then files, both alphabetically
-        folders = sorted(
-            [item for item in items if item["isFolder"]],
-            key=lambda x: x["name"].lower(),
-        )
-        files_list = sorted(
-            [item for item in items if not item["isFolder"]],
-            key=lambda x: x["name"].lower(),
-        )
-        items = folders + files_list
-
-        folder_count = len(folders)
-        file_count = len(files_list)
+        folder_count = sum(1 for item in items if item.get("isFolder", False))
+        file_count = len(items) - folder_count
 
         logger.info(
             f"Listed {len(items)} total items ({folder_count} folders, {file_count} files) for Composio connector {connector_id}"
@@ -553,6 +738,31 @@ async def list_composio_drive_folders(
         raise
     except Exception as e:
         logger.error(f"Error listing Composio Drive contents: {e!s}", exc_info=True)
+        error_lower = str(e).lower()
+        if (
+            "invalid_grant" in error_lower
+            or "token has been expired or revoked" in error_lower
+            or "invalid credentials" in error_lower
+            or "authentication failed" in error_lower
+            or "401" in str(e)
+        ):
+            try:
+                if connector and not connector.config.get("auth_expired"):
+                    connector.config = {**connector.config, "auth_expired": True}
+                    flag_modified(connector, "config")
+                    await session.commit()
+                    logger.info(
+                        f"Marked Composio connector {connector_id} as auth_expired"
+                    )
+            except Exception:
+                logger.warning(
+                    f"Failed to persist auth_expired for connector {connector_id}",
+                    exc_info=True,
+                )
+            raise HTTPException(
+                status_code=400,
+                detail="Google Drive authentication expired. Please re-authenticate.",
+            ) from e
         raise HTTPException(
             status_code=500, detail=f"Failed to list Drive contents: {e!s}"
         ) from e

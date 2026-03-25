@@ -33,37 +33,15 @@ import { closeReportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { closeEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
+import { ThinkingStepsDataUI } from "@/components/assistant-ui/thinking-steps";
 import { Thread } from "@/components/assistant-ui/thread";
 import { MobileEditorPanel } from "@/components/editor-panel/editor-panel";
+import { MobileHitlEditPanel } from "@/components/hitl-edit-panel/hitl-edit-panel";
 import { MobileReportPanel } from "@/components/report-panel/report-panel";
-import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
-import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
-import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
-import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
-import { GenerateVideoPresentationToolUI } from "@/components/tool-ui/video-presentation";
-import {
-	CreateGoogleDriveFileToolUI,
-	DeleteGoogleDriveFileToolUI,
-} from "@/components/tool-ui/google-drive";
-import {
-	CreateLinearIssueToolUI,
-	DeleteLinearIssueToolUI,
-	UpdateLinearIssueToolUI,
-} from "@/components/tool-ui/linear";
-import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
-import {
-	CreateNotionPageToolUI,
-	DeleteNotionPageToolUI,
-	UpdateNotionPageToolUI,
-} from "@/components/tool-ui/notion";
-import { SandboxExecuteToolUI } from "@/components/tool-ui/sandbox-execute";
-import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
-import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-memory";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
-import { useMessagesElectric } from "@/hooks/use-messages-electric";
+import { useMessagesSync } from "@/hooks/use-messages-sync";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
-// import { WriteTodosToolUI } from "@/components/tool-ui/write-todos";
 import { getBearerToken } from "@/lib/auth-utils";
 import { convertToThreadMessage } from "@/lib/chat/message-utils";
 import {
@@ -79,6 +57,7 @@ import {
 	type ContentPartsState,
 	readSSEStream,
 	type ThinkingStepData,
+	updateThinkingSteps,
 	updateToolCall,
 } from "@/lib/chat/streaming-state";
 import {
@@ -97,20 +76,22 @@ import {
 } from "@/lib/posthog/events";
 
 /**
- * Extract thinking steps from message content
+ * After a tool produces output, mark any previously-decided interrupt tool
+ * calls as completed so the ApprovalCard can transition from shimmer to done.
  */
-function extractThinkingSteps(content: unknown): ThinkingStep[] {
-	if (!Array.isArray(content)) return [];
-
-	const thinkingPart = content.find(
-		(part: unknown) =>
-			typeof part === "object" &&
-			part !== null &&
-			"type" in part &&
-			(part as { type: string }).type === "thinking-steps"
-	) as { type: "thinking-steps"; steps: ThinkingStep[] } | undefined;
-
-	return thinkingPart?.steps || [];
+function markInterruptsCompleted(contentParts: Array<{ type: string; result?: unknown }>): void {
+	for (const part of contentParts) {
+		if (
+			part.type === "tool-call" &&
+			typeof part.result === "object" &&
+			part.result !== null &&
+			(part.result as Record<string, unknown>).__interrupt__ === true &&
+			(part.result as Record<string, unknown>).__decided__ &&
+			!(part.result as Record<string, unknown>).__completed__
+		) {
+			part.result = { ...(part.result as Record<string, unknown>), __completed__: true };
+		}
+	}
 }
 
 /**
@@ -150,10 +131,9 @@ const TOOLS_WITH_UI = new Set([
 	"generate_podcast",
 	"generate_report",
 	"generate_video_presentation",
-	"link_preview",
 	"display_image",
+	"generate_image",
 	"delete_notion_page",
-	"scrape_webpage",
 	"create_notion_page",
 	"update_notion_page",
 	"create_linear_issue",
@@ -161,6 +141,19 @@ const TOOLS_WITH_UI = new Set([
 	"delete_linear_issue",
 	"create_google_drive_file",
 	"delete_google_drive_file",
+	"create_calendar_event",
+	"update_calendar_event",
+	"delete_calendar_event",
+	"create_gmail_draft",
+	"update_gmail_draft",
+	"send_gmail_email",
+	"trash_gmail_email",
+	"create_jira_issue",
+	"update_jira_issue",
+	"delete_jira_issue",
+	"create_confluence_page",
+	"update_confluence_page",
+	"delete_confluence_page",
 	"execute",
 	// "write_todos", // Disabled for now
 ]);
@@ -173,11 +166,6 @@ export default function NewChatPage() {
 	const [currentThread, setCurrentThread] = useState<ThreadRecord | null>(null);
 	const [messages, setMessages] = useState<ThreadMessageLike[]>([]);
 	const [isRunning, setIsRunning] = useState(false);
-	// Store thinking steps per message ID - kept separate from content to avoid
-	// "unsupported part type" errors from assistant-ui
-	const [messageThinkingSteps, setMessageThinkingSteps] = useState<Map<string, ThinkingStep[]>>(
-		new Map()
-	);
 	const abortControllerRef = useRef<AbortController | null>(null);
 	const [pendingInterrupt, setPendingInterrupt] = useState<{
 		threadId: number;
@@ -204,13 +192,13 @@ export default function NewChatPage() {
 	// Get current user for author info in shared chats
 	const { data: currentUser } = useAtomValue(currentUserAtom);
 
-	// Live collaboration: sync session state and messages via Electric SQL
+	// Live collaboration: sync session state and messages via Zero
 	useChatSessionStateSync(threadId);
 	const { data: membersData } = useAtomValue(membersAtom);
 
-	const handleElectricMessagesUpdate = useCallback(
+	const handleSyncedMessagesUpdate = useCallback(
 		(
-			electricMessages: {
+			syncedMessages: {
 				id: number;
 				thread_id: number;
 				role: string;
@@ -224,11 +212,11 @@ export default function NewChatPage() {
 			}
 
 			setMessages((prev) => {
-				if (electricMessages.length < prev.length) {
+				if (syncedMessages.length < prev.length) {
 					return prev;
 				}
 
-				return electricMessages.map((msg) => {
+				return syncedMessages.map((msg) => {
 					const member = msg.author_id
 						? membersData?.find((m) => m.user_id === msg.author_id)
 						: null;
@@ -255,7 +243,7 @@ export default function NewChatPage() {
 		[isRunning, membersData]
 	);
 
-	useMessagesElectric(threadId, handleElectricMessagesUpdate);
+	useMessagesSync(threadId, handleSyncedMessagesUpdate);
 
 	// Extract search_space_id from URL params
 	const searchSpaceId = useMemo(() => {
@@ -278,6 +266,7 @@ export default function NewChatPage() {
 
 	// Initialize thread and load messages
 	// For new chats (no urlChatId), we use lazy creation - thread is created on first message
+	// biome-ignore lint/correctness/useExhaustiveDependencies: searchSpaceId triggers re-init when switching spaces with the same urlChatId
 	const initializeThread = useCallback(async () => {
 		setIsInitializing(true);
 
@@ -285,7 +274,6 @@ export default function NewChatPage() {
 		setMessages([]);
 		setThreadId(null);
 		setCurrentThread(null);
-		setMessageThinkingSteps(new Map());
 		setMentionedDocuments([]);
 		setSidebarDocuments([]);
 		setMessageDocumentsMap({});
@@ -310,27 +298,14 @@ export default function NewChatPage() {
 					const loadedMessages = messagesResponse.messages.map(convertToThreadMessage);
 					setMessages(loadedMessages);
 
-					// Extract and restore thinking steps from persisted messages
-					const restoredThinkingSteps = new Map<string, ThinkingStep[]>();
-					// Extract and restore mentioned documents from persisted messages
 					const restoredDocsMap: Record<string, MentionedDocumentInfo[]> = {};
-
 					for (const msg of messagesResponse.messages) {
-						if (msg.role === "assistant") {
-							const steps = extractThinkingSteps(msg.content);
-							if (steps.length > 0) {
-								restoredThinkingSteps.set(`msg-${msg.id}`, steps);
-							}
-						}
 						if (msg.role === "user") {
 							const docs = extractMentionedDocuments(msg.content);
 							if (docs.length > 0) {
 								restoredDocsMap[`msg-${msg.id}`] = docs;
 							}
 						}
-					}
-					if (restoredThinkingSteps.size > 0) {
-						setMessageThinkingSteps(restoredThinkingSteps);
 					}
 					if (Object.keys(restoredDocsMap).length > 0) {
 						setMessageDocumentsMap(restoredDocsMap);
@@ -712,6 +687,7 @@ export default function NewChatPage() {
 						case "tool-output-available": {
 							// Update the tool call with its result
 							updateToolCall(contentPartsState, parsed.toolCallId, { result: parsed.output });
+							markInterruptsCompleted(contentParts);
 							// Handle podcast-specific logic
 							if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
 								// Check if this is a podcast tool by looking at the content part
@@ -734,18 +710,17 @@ export default function NewChatPage() {
 						}
 
 						case "data-thinking-step": {
-							// Handle thinking step events for chain-of-thought display
 							const stepData = parsed.data as ThinkingStepData;
 							if (stepData?.id) {
 								currentThinkingSteps.set(stepData.id, stepData);
-								// Update thinking steps state for rendering
-								// The ThinkingStepsScrollHandler in Thread component
-								// will handle auto-scrolling when this state changes
-								setMessageThinkingSteps((prev) => {
-									const newMap = new Map(prev);
-									newMap.set(assistantMsgId, Array.from(currentThinkingSteps.values()));
-									return newMap;
-								});
+								updateThinkingSteps(contentPartsState, currentThinkingSteps);
+								setMessages((prev) =>
+									prev.map((m) =>
+										m.id === assistantMsgId
+											? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+											: m
+									)
+								);
 							}
 							break;
 						}
@@ -810,13 +785,8 @@ export default function NewChatPage() {
 					}
 				}
 
-				// Persist assistant message (with thinking steps for restoration on refresh)
 				// Skip persistence for interrupted messages -- handleResume will persist the final version
-				const finalContent = buildContentForPersistence(
-					contentPartsState,
-					TOOLS_WITH_UI,
-					currentThinkingSteps
-				);
+				const finalContent = buildContentForPersistence(contentPartsState, TOOLS_WITH_UI);
 				if (contentParts.length > 0 && !wasInterrupted) {
 					try {
 						const savedMessage = await appendMessage(currentThreadId, {
@@ -836,18 +806,6 @@ export default function NewChatPage() {
 								? { ...prev, assistantMsgId: newMsgId }
 								: prev
 						);
-
-						// Also update thinking steps map with new ID
-						setMessageThinkingSteps((prev) => {
-							const steps = prev.get(assistantMsgId);
-							if (steps) {
-								const newMap = new Map(prev);
-								newMap.delete(assistantMsgId);
-								newMap.set(newMsgId, steps);
-								return newMap;
-							}
-							return prev;
-						});
 					} catch (err) {
 						console.error("Failed to persist assistant message:", err);
 					}
@@ -864,11 +822,7 @@ export default function NewChatPage() {
 							(part.type === "tool-call" && TOOLS_WITH_UI.has(part.toolName))
 					);
 					if (hasContent && currentThreadId) {
-						const partialContent = buildContentForPersistence(
-							contentPartsState,
-							TOOLS_WITH_UI,
-							currentThinkingSteps
-						);
+						const partialContent = buildContentForPersistence(contentPartsState, TOOLS_WITH_UI);
 						try {
 							const savedMessage = await appendMessage(currentThreadId, {
 								role: "assistant",
@@ -915,7 +869,6 @@ export default function NewChatPage() {
 			} finally {
 				setIsRunning(false);
 				abortControllerRef.current = null;
-				// Note: We no longer clear thinking steps - they persist with the message
 			}
 		},
 		[
@@ -958,9 +911,7 @@ export default function NewChatPage() {
 			const controller = new AbortController();
 			abortControllerRef.current = controller;
 
-			const currentThinkingSteps = new Map<string, ThinkingStepData>(
-				(messageThinkingSteps.get(assistantMsgId) ?? []).map((s) => [s.id, s])
-			);
+			const currentThinkingSteps = new Map<string, ThinkingStepData>();
 
 			const contentPartsState: ContentPartsState = {
 				contentParts: [],
@@ -987,6 +938,15 @@ export default function NewChatPage() {
 								result: p.result as unknown,
 							});
 							contentPartsState.currentTextPartIndex = -1;
+						} else if (p.type === "data-thinking-steps") {
+							const stepsData = p.data as { steps: ThinkingStepData[] } | undefined;
+							contentParts.push({
+								type: "data-thinking-steps",
+								data: { steps: stepsData?.steps ?? [] },
+							});
+							for (const step of stepsData?.steps ?? []) {
+								currentThinkingSteps.set(step.id, step);
+							}
 						}
 					}
 				}
@@ -1090,6 +1050,7 @@ export default function NewChatPage() {
 							updateToolCall(contentPartsState, parsed.toolCallId, {
 								result: parsed.output,
 							});
+							markInterruptsCompleted(contentParts);
 							setMessages((prev) =>
 								prev.map((m) =>
 									m.id === assistantMsgId
@@ -1103,11 +1064,14 @@ export default function NewChatPage() {
 							const stepData = parsed.data as ThinkingStepData;
 							if (stepData?.id) {
 								currentThinkingSteps.set(stepData.id, stepData);
-								setMessageThinkingSteps((prev) => {
-									const newMap = new Map(prev);
-									newMap.set(assistantMsgId, Array.from(currentThinkingSteps.values()));
-									return newMap;
-								});
+								updateThinkingSteps(contentPartsState, currentThinkingSteps);
+								setMessages((prev) =>
+									prev.map((m) =>
+										m.id === assistantMsgId
+											? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+											: m
+									)
+								);
 							}
 							break;
 						}
@@ -1161,11 +1125,7 @@ export default function NewChatPage() {
 					}
 				}
 
-				const finalContent = buildContentForPersistence(
-					contentPartsState,
-					TOOLS_WITH_UI,
-					currentThinkingSteps
-				);
+				const finalContent = buildContentForPersistence(contentPartsState, TOOLS_WITH_UI);
 				if (contentParts.length > 0) {
 					try {
 						const savedMessage = await appendMessage(resumeThreadId, {
@@ -1176,16 +1136,6 @@ export default function NewChatPage() {
 						setMessages((prev) =>
 							prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m))
 						);
-						setMessageThinkingSteps((prev) => {
-							const steps = prev.get(assistantMsgId);
-							if (steps) {
-								const newMap = new Map(prev);
-								newMap.delete(assistantMsgId);
-								newMap.set(newMsgId, steps);
-								return newMap;
-							}
-							return prev;
-						});
 					} catch (err) {
 						console.error("Failed to persist resumed assistant message:", err);
 					}
@@ -1201,7 +1151,7 @@ export default function NewChatPage() {
 				abortControllerRef.current = null;
 			}
 		},
-		[pendingInterrupt, messages, searchSpaceId, messageThinkingSteps]
+		[pendingInterrupt, messages, searchSpaceId]
 	);
 
 	useEffect(() => {
@@ -1320,20 +1270,6 @@ export default function NewChatPage() {
 				return prev;
 			});
 
-			// Clear thinking steps for the removed messages
-			setMessageThinkingSteps((prev) => {
-				const newMap = new Map(prev);
-				// Remove thinking steps for the last two messages
-				const lastTwoIds = messages
-					.slice(-2)
-					.map((m) => m.id)
-					.filter((id): id is string => !!id);
-				for (const id of lastTwoIds) {
-					newMap.delete(id);
-				}
-				return newMap;
-			});
-
 			// Start streaming
 			setIsRunning(true);
 			const controller = new AbortController();
@@ -1441,6 +1377,7 @@ export default function NewChatPage() {
 
 						case "tool-output-available":
 							updateToolCall(contentPartsState, parsed.toolCallId, { result: parsed.output });
+							markInterruptsCompleted(contentParts);
 							if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
 								const idx = toolCallIndices.get(parsed.toolCallId);
 								if (idx !== undefined) {
@@ -1463,11 +1400,14 @@ export default function NewChatPage() {
 							const stepData = parsed.data as ThinkingStepData;
 							if (stepData?.id) {
 								currentThinkingSteps.set(stepData.id, stepData);
-								setMessageThinkingSteps((prev) => {
-									const newMap = new Map(prev);
-									newMap.set(assistantMsgId, Array.from(currentThinkingSteps.values()));
-									return newMap;
-								});
+								updateThinkingSteps(contentPartsState, currentThinkingSteps);
+								setMessages((prev) =>
+									prev.map((m) =>
+										m.id === assistantMsgId
+											? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+											: m
+									)
+								);
 							}
 							break;
 						}
@@ -1478,11 +1418,7 @@ export default function NewChatPage() {
 				}
 
 				// Persist messages after streaming completes
-				const finalContent = buildContentForPersistence(
-					contentPartsState,
-					TOOLS_WITH_UI,
-					currentThinkingSteps
-				);
+				const finalContent = buildContentForPersistence(contentPartsState, TOOLS_WITH_UI);
 				if (contentParts.length > 0) {
 					try {
 						// Persist user message (for both edit and reload modes, since backend deleted it)
@@ -1513,18 +1449,6 @@ export default function NewChatPage() {
 							prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m))
 						);
 
-						setMessageThinkingSteps((prev) => {
-							const steps = prev.get(assistantMsgId);
-							if (steps) {
-								const newMap = new Map(prev);
-								newMap.delete(assistantMsgId);
-								newMap.set(newMsgId, steps);
-								return newMap;
-							}
-							return prev;
-						});
-
-						// Track successful response
 						trackChatResponseReceived(searchSpaceId, threadId);
 					} catch (err) {
 						console.error("Failed to persist regenerated message:", err);
@@ -1557,7 +1481,7 @@ export default function NewChatPage() {
 				abortControllerRef.current = null;
 			}
 		},
-		[threadId, searchSpaceId, messages, setMessageThinkingSteps, disabledTools]
+		[threadId, searchSpaceId, messages, disabledTools]
 	);
 
 	// Handle editing a message - truncates history and regenerates with new query
@@ -1662,30 +1586,14 @@ export default function NewChatPage() {
 
 	return (
 		<AssistantRuntimeProvider runtime={runtime}>
-			<GeneratePodcastToolUI />
-			<GenerateReportToolUI />
-			<GenerateVideoPresentationToolUI />
-			<LinkPreviewToolUI />
-			<DisplayImageToolUI />
-			<ScrapeWebpageToolUI />
-			<SaveMemoryToolUI />
-			<RecallMemoryToolUI />
-			<CreateNotionPageToolUI />
-			<UpdateNotionPageToolUI />
-			<DeleteNotionPageToolUI />
-			<CreateLinearIssueToolUI />
-			<UpdateLinearIssueToolUI />
-			<DeleteLinearIssueToolUI />
-			<CreateGoogleDriveFileToolUI />
-			<DeleteGoogleDriveFileToolUI />
-			<SandboxExecuteToolUI />
-			{/* <WriteTodosToolUI /> Disabled for now */}
+			<ThinkingStepsDataUI />
 			<div key={searchSpaceId} className="flex h-[calc(100dvh-64px)] overflow-hidden">
 				<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-					<Thread messageThinkingSteps={messageThinkingSteps} />
+					<Thread />
 				</div>
 				<MobileReportPanel />
 				<MobileEditorPanel />
+				<MobileHitlEditPanel />
 			</div>
 		</AssistantRuntimeProvider>
 	);

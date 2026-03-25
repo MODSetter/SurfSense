@@ -252,7 +252,7 @@ async def index_notion_pages(
                 {"pages_found": 0},
             )
             logger.info("No Notion pages found to index")
-            # CRITICAL: Update timestamp even when no pages found so Electric SQL syncs
+            # CRITICAL: Update timestamp even when no pages found so Zero syncs
             await update_connector_last_indexed(session, connector, update_last_indexed)
             await session.commit()
             await notion_client.close()
@@ -506,7 +506,7 @@ async def index_notion_pages(
                 documents_failed += 1
                 continue
 
-        # CRITICAL: Always update timestamp (even if 0 documents indexed) so Electric SQL syncs
+        # CRITICAL: Always update timestamp (even if 0 documents indexed) so Zero syncs
         await update_connector_last_indexed(session, connector, update_last_indexed)
 
         total_processed = documents_indexed

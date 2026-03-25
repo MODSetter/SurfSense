@@ -46,6 +46,8 @@ SCOPES = [
     "read:space:confluence",
     "read:page:confluence",
     "read:comment:confluence",
+    "write:page:confluence",  # Required for creating/updating pages
+    "delete:page:confluence",  # Required for deleting pages
     "offline_access",  # Required for refresh tokens
 ]
 
@@ -170,7 +172,7 @@ async def confluence_callback(
             # Redirect to frontend with error parameter
             if space_id:
                 return RedirectResponse(
-                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=confluence_oauth_denied"
+                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=confluence_oauth_denied"
                 )
             else:
                 return RedirectResponse(
@@ -196,6 +198,8 @@ async def confluence_callback(
 
         user_id = UUID(data["user_id"])
         space_id = data["space_id"]
+        reauth_connector_id = data.get("connector_id")
+        reauth_return_url = data.get("return_url")
 
         # Validate redirect URI (security: ensure it matches configured value)
         if not config.CONFLUENCE_REDIRECT_URI:
@@ -292,6 +296,46 @@ async def confluence_callback(
             "_token_encrypted": True,
         }
 
+        # Handle re-authentication: update existing connector instead of creating new one
+        if reauth_connector_id:
+            from sqlalchemy.future import select as sa_select
+            from sqlalchemy.orm.attributes import flag_modified
+
+            result = await session.execute(
+                sa_select(SearchSourceConnector).filter(
+                    SearchSourceConnector.id == reauth_connector_id,
+                    SearchSourceConnector.user_id == user_id,
+                    SearchSourceConnector.search_space_id == space_id,
+                    SearchSourceConnector.connector_type
+                    == SearchSourceConnectorType.CONFLUENCE_CONNECTOR,
+                )
+            )
+            db_connector = result.scalars().first()
+            if not db_connector:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Connector not found or access denied during re-auth",
+                )
+
+            db_connector.config = {
+                **connector_config,
+                "auth_expired": False,
+            }
+            flag_modified(db_connector, "config")
+            await session.commit()
+            await session.refresh(db_connector)
+
+            logger.info(
+                f"Re-authenticated Confluence connector {db_connector.id} for user {user_id}"
+            )
+            if reauth_return_url and reauth_return_url.startswith("/"):
+                return RedirectResponse(
+                    url=f"{config.NEXT_FRONTEND_URL}{reauth_return_url}?reauth=success&connector=confluence-connector"
+                )
+            return RedirectResponse(
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?reauth=success&connector=confluence-connector"
+            )
+
         # Extract unique identifier from connector credentials
         connector_identifier = extract_identifier_from_credentials(
             SearchSourceConnectorType.CONFLUENCE_CONNECTOR, connector_config
@@ -310,7 +354,7 @@ async def confluence_callback(
                 f"Duplicate Confluence connector detected for user {user_id} with instance {connector_identifier}"
             )
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=duplicate_account&connector=confluence-connector"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=duplicate_account&connector=confluence-connector"
             )
 
         # Generate a unique, user-friendly connector name
@@ -341,7 +385,7 @@ async def confluence_callback(
 
             # Redirect to the frontend with success params
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=confluence-connector&connectorId={new_connector.id}"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?success=true&connector=confluence-connector&connectorId={new_connector.id}"
             )
 
         except ValidationError as e:
@@ -369,6 +413,73 @@ async def confluence_callback(
         logger.error(f"Failed to complete Confluence OAuth: {e!s}", exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"Failed to complete Confluence OAuth: {e!s}"
+        ) from e
+
+
+@router.get("/auth/confluence/connector/reauth")
+async def reauth_confluence(
+    space_id: int,
+    connector_id: int,
+    return_url: str | None = None,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Initiate Confluence re-authentication to upgrade OAuth scopes."""
+    try:
+        from sqlalchemy.future import select
+
+        result = await session.execute(
+            select(SearchSourceConnector).filter(
+                SearchSourceConnector.id == connector_id,
+                SearchSourceConnector.user_id == user.id,
+                SearchSourceConnector.search_space_id == space_id,
+                SearchSourceConnector.connector_type
+                == SearchSourceConnectorType.CONFLUENCE_CONNECTOR,
+            )
+        )
+        connector = result.scalars().first()
+        if not connector:
+            raise HTTPException(
+                status_code=404,
+                detail="Confluence connector not found or access denied",
+            )
+
+        if not config.SECRET_KEY:
+            raise HTTPException(
+                status_code=500, detail="SECRET_KEY not configured for OAuth security."
+            )
+
+        state_manager = get_state_manager()
+        extra: dict = {"connector_id": connector_id}
+        if return_url and return_url.startswith("/"):
+            extra["return_url"] = return_url
+        state_encoded = state_manager.generate_secure_state(space_id, user.id, **extra)
+
+        from urllib.parse import urlencode
+
+        auth_params = {
+            "audience": "api.atlassian.com",
+            "client_id": config.ATLASSIAN_CLIENT_ID,
+            "scope": " ".join(SCOPES),
+            "redirect_uri": config.CONFLUENCE_REDIRECT_URI,
+            "state": state_encoded,
+            "response_type": "code",
+            "prompt": "consent",
+        }
+
+        auth_url = f"{AUTHORIZATION_URL}?{urlencode(auth_params)}"
+
+        logger.info(
+            f"Initiating Confluence re-auth for user {user.id}, connector {connector_id}"
+        )
+        return {"auth_url": auth_url}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to initiate Confluence re-auth: {e!s}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to initiate Confluence re-auth: {e!s}"
         ) from e
 
 

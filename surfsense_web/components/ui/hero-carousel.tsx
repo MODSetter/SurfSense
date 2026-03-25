@@ -19,8 +19,7 @@ const carouselItems = [
 	},
 	{
 		title: "Video Generation",
-		description:
-			"Create short videos with AI-generated visuals and narration from your sources.",
+		description: "Create short videos with AI-generated visuals and narration from your sources.",
 		src: "/homepage/hero_tutorial/video_gen_surf.mp4",
 	},
 	{

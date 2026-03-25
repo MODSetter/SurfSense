@@ -213,7 +213,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 		},
 		// How-to documentation
 		{
-			url: "https://www.surfsense.com/docs/how-to/electric-sql",
+			url: "https://www.surfsense.com/docs/how-to/zero-sync",
 			lastModified,
 			changeFrequency: "daily",
 			priority: 0.8,

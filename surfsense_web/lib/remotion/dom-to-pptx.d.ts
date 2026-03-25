@@ -13,6 +13,6 @@ declare module "dom-to-pptx" {
 
 	export function exportToPptx(
 		elementOrSelector: string | HTMLElement | Array<string | HTMLElement>,
-		options?: ExportOptions,
+		options?: ExportOptions
 	): Promise<Blob>;
 }

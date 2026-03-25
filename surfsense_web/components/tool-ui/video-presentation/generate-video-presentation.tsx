@@ -1,28 +1,24 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { makeAssistantToolUI } from "@assistant-ui/react";
-import {
-	AlertCircleIcon,
-	Download,
-	Film,
-	Loader2,
-	Presentation,
-	X,
-} from "lucide-react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
+import { Dot, Download, Loader2, Presentation, X } from "lucide-react";
 import { useParams, usePathname } from "next/navigation";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { z } from "zod";
-import { Spinner } from "@/components/ui/spinner";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
+import { Button } from "@/components/ui/button";
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import { compileCheck, compileToComponent } from "@/lib/remotion/compile-check";
 import { FPS } from "@/lib/remotion/constants";
 import {
-	CombinedPlayer,
 	buildCompositionComponent,
 	buildSlideWithWatermark,
+	CombinedPlayer,
 	type CompiledSlide,
 } from "./combined-player";
+import { getPptxExportErrorToast, getVideoDownloadErrorToast } from "./errors";
 
 const GenerateVideoPresentationArgsSchema = z.object({
 	source_content: z.string(),
@@ -54,7 +50,7 @@ const VideoPresentationStatusResponseSchema = z.object({
 				audio_url: z.string().nullish(),
 				duration_seconds: z.number().nullish(),
 				duration_in_frames: z.number().nullish(),
-			}),
+			})
 		)
 		.nullish(),
 	scene_codes: z
@@ -63,7 +59,7 @@ const VideoPresentationStatusResponseSchema = z.object({
 				slide_number: z.number(),
 				code: z.string(),
 				title: z.string().nullish(),
-			}),
+			})
 		)
 		.nullish(),
 	slide_count: z.number().nullish(),
@@ -84,30 +80,10 @@ function parseStatusResponse(data: unknown): VideoPresentationStatusResponse | n
 
 function GeneratingState({ title }: { title: string }) {
 	return (
-		<div className="my-4 overflow-hidden rounded-xl border border-primary/20 bg-linear-to-br from-primary/5 to-primary/10 p-4 sm:p-6">
-			<div className="flex items-center gap-3 sm:gap-4">
-				<div className="relative shrink-0">
-					<div className="flex size-12 sm:size-16 items-center justify-center rounded-full bg-primary/20">
-						<Film className="size-6 sm:size-8 text-primary" />
-					</div>
-					<div className="absolute inset-1 animate-ping rounded-full bg-primary/20" />
-				</div>
-				<div className="flex-1 min-w-0">
-					<h3 className="font-semibold text-foreground text-sm sm:text-lg leading-tight">
-						{title}
-					</h3>
-					<div className="mt-1.5 sm:mt-2 flex items-center gap-1.5 sm:gap-2 text-muted-foreground">
-						<Spinner size="sm" className="size-3 sm:size-4" />
-						<span className="text-xs sm:text-sm">
-							Generating video presentation. This may take a few minutes.
-						</span>
-					</div>
-					<div className="mt-2 sm:mt-3">
-						<div className="h-1 sm:h-1.5 w-full overflow-hidden rounded-full bg-primary/10">
-							<div className="h-full w-1/3 animate-pulse rounded-full bg-primary" />
-						</div>
-					</div>
-				</div>
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-foreground line-clamp-2">{title}</p>
+				<TextShimmerLoader text="Generating video presentation" size="sm" />
 			</div>
 		</div>
 	);
@@ -115,20 +91,14 @@ function GeneratingState({ title }: { title: string }) {
 
 function ErrorState({ title, error }: { title: string; error: string }) {
 	return (
-		<div className="my-4 overflow-hidden rounded-xl border border-destructive/20 bg-destructive/5 p-4 sm:p-6">
-			<div className="flex items-center gap-3 sm:gap-4">
-				<div className="flex size-12 sm:size-16 shrink-0 items-center justify-center rounded-full bg-destructive/10">
-					<AlertCircleIcon className="size-6 sm:size-8 text-destructive" />
-				</div>
-				<div className="flex-1 min-w-0">
-					<h3 className="font-semibold text-foreground text-sm sm:text-base leading-tight">
-						{title}
-					</h3>
-					<p className="mt-1 text-destructive text-xs sm:text-sm">
-						Failed to generate video presentation
-					</p>
-					<p className="mt-1.5 sm:mt-2 text-muted-foreground text-xs sm:text-sm">{error}</p>
-				</div>
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-destructive">Video Generation Failed</p>
+			</div>
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 py-4">
+				<p className="text-sm font-medium text-foreground line-clamp-2">{title}</p>
+				<p className="text-sm text-muted-foreground mt-1">{error}</p>
 			</div>
 		</div>
 	);
@@ -136,20 +106,10 @@ function ErrorState({ title, error }: { title: string; error: string }) {
 
 function CompilationLoadingState({ title }: { title: string }) {
 	return (
-		<div className="my-4 overflow-hidden rounded-xl border bg-muted/30 p-4 sm:p-6">
-			<div className="flex items-center gap-3 sm:gap-4">
-				<div className="flex size-12 sm:size-16 shrink-0 items-center justify-center rounded-full bg-primary/10">
-					<Film className="size-6 sm:size-8 text-primary/50" />
-				</div>
-				<div className="flex-1 min-w-0">
-					<h3 className="font-semibold text-foreground text-sm sm:text-base leading-tight">
-						{title}
-					</h3>
-					<div className="mt-1.5 sm:mt-2 flex items-center gap-1.5 sm:gap-2 text-muted-foreground">
-						<Spinner size="sm" className="size-3 sm:size-4" />
-						<span className="text-xs sm:text-sm">Compiling scenes...</span>
-					</div>
-				</div>
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-foreground line-clamp-2">{title}</p>
+				<TextShimmerLoader text="Compiling scenes" size="sm" />
 			</div>
 		</div>
 	);
@@ -170,7 +130,6 @@ function VideoPresentationPlayer({
 
 	const [isRendering, setIsRendering] = useState(false);
 	const [renderProgress, setRenderProgress] = useState<number | null>(null);
-	const [renderError, setRenderError] = useState<string | null>(null);
 	const [renderFormat, setRenderFormat] = useState<string | null>(null);
 	const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -206,9 +165,7 @@ function VideoPresentationPlayer({
 				const durationInFrames = slide.duration_in_frames ?? 300;
 				const check = compileCheck(scene.code);
 				if (!check.success) {
-					console.warn(
-						`Slide ${slide.slide_number} failed to compile: ${check.error}`,
-					);
+					console.warn(`Slide ${slide.slide_number} failed to compile: ${check.error}`);
 					continue;
 				}
 
@@ -219,9 +176,7 @@ function VideoPresentationPlayer({
 					title: scene.title ?? slide.title,
 					code: scene.code,
 					durationInFrames,
-					audioUrl: slide.audio_url
-						? `${backendUrl}${slide.audio_url}`
-						: undefined,
+					audioUrl: slide.audio_url ? `${backendUrl}${slide.audio_url}` : undefined,
 				});
 			}
 
@@ -238,17 +193,13 @@ function VideoPresentationPlayer({
 					try {
 						let blob: Blob;
 						if (shareToken) {
-							blob = await baseApiService.getBlob(
-								new URL(slide.audioUrl).pathname,
-							);
+							blob = await baseApiService.getBlob(new URL(slide.audioUrl).pathname);
 						} else {
 							const resp = await authenticatedFetch(slide.audioUrl, {
 								method: "GET",
 							});
 							if (!resp.ok) {
-								console.warn(
-									`Audio fetch ${resp.status} for slide "${slide.title}"`,
-								);
+								console.warn(`Audio fetch ${resp.status} for slide "${slide.title}"`);
 								return { ...slide, audioUrl: undefined };
 							}
 							blob = await resp.blob();
@@ -260,7 +211,7 @@ function VideoPresentationPlayer({
 						console.warn(`Failed to fetch audio for "${slide.title}":`, err);
 						return { ...slide, audioUrl: undefined };
 					}
-				}),
+				})
 			);
 
 			setCompiledSlides(withBlobs);
@@ -284,7 +235,7 @@ function VideoPresentationPlayer({
 
 	const totalDuration = useMemo(
 		() => compiledSlides.reduce((sum, s) => sum + s.durationInFrames / FPS, 0),
-		[compiledSlides],
+		[compiledSlides]
 	);
 
 	const handleDownload = async () => {
@@ -292,16 +243,13 @@ function VideoPresentationPlayer({
 
 		setIsRendering(true);
 		setRenderProgress(0);
-		setRenderError(null);
 		setRenderFormat(null);
 
 		const controller = new AbortController();
 		abortControllerRef.current = controller;
 
 		try {
-			const { canRenderMediaOnWeb, renderMediaOnWeb } = await import(
-				"@remotion/web-renderer"
-			);
+			const { canRenderMediaOnWeb, renderMediaOnWeb } = await import("@remotion/web-renderer");
 
 			const formats = [
 				{ container: "mp4" as const, videoCodec: "h264" as const, ext: "mp4" },
@@ -326,7 +274,7 @@ function VideoPresentationPlayer({
 
 			if (!chosen) {
 				throw new Error(
-					"Your browser does not support video rendering (WebCodecs). Please use Chrome, Edge, or Firefox 130+.",
+					"Your browser does not support video rendering (WebCodecs). Please use Chrome, Edge, or Firefox 130+."
 				);
 			}
 
@@ -363,10 +311,9 @@ function VideoPresentationPlayer({
 			document.body.removeChild(a);
 			URL.revokeObjectURL(url);
 		} catch (err) {
-			if ((err as Error).name === "AbortError") {
-				// User cancelled
-			} else {
-				setRenderError(err instanceof Error ? err.message : "Failed to render video");
+			if ((err as Error).name !== "AbortError") {
+				const { title, description } = getVideoDownloadErrorToast(err);
+				toast.error(title, { description });
 			}
 		} finally {
 			setIsRendering(false);
@@ -384,7 +331,6 @@ function VideoPresentationPlayer({
 
 		setIsPptxExporting(true);
 		setPptxProgress("Preparing...");
-		setRenderError(null);
 
 		try {
 			const { exportToPptx } = await import("dom-to-pptx");
@@ -422,7 +368,7 @@ function VideoPresentationPlayer({
 							durationInFrames: slide.durationInFrames,
 							fps: FPS,
 							style: { width: 1920, height: 1080 },
-						}),
+						})
 					);
 				});
 
@@ -437,10 +383,11 @@ function VideoPresentationPlayer({
 				fileName: "presentation.pptx",
 			});
 
-			roots.forEach((r) => r.unmount());
+			for (const r of roots) r.unmount();
 			document.body.removeChild(offscreen);
 		} catch (err) {
-			setRenderError(err instanceof Error ? err.message : "Failed to export PPTX");
+			const { title, description } = getPptxExportErrorToast(err);
+			toast.error(title, { description });
 		} finally {
 			setIsPptxExporting(false);
 			setPptxProgress(null);
@@ -456,97 +403,84 @@ function VideoPresentationPlayer({
 	}
 
 	return (
-		<div className="my-4 space-y-3">
-			{/* Title bar with actions */}
-			<div className="flex items-center justify-between flex-wrap gap-2">
-				<div className="flex items-center gap-3 min-w-0">
-					<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-						<Film className="size-4 text-primary" />
-					</div>
-					<div className="min-w-0">
-						<h3 className="text-sm font-semibold text-foreground truncate">{title}</h3>
-						<p className="text-xs text-muted-foreground">
-							{compiledSlides.length} slides &middot; {totalDuration.toFixed(1)}s &middot;{" "}
-							{FPS}fps
-						</p>
-					</div>
-				</div>
-
-				<div className="flex items-center gap-2">
-					{isRendering ? (
-						<>
-							<div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-1.5">
-								<Loader2 className="size-3.5 animate-spin text-primary" />
-								<span className="text-xs font-medium">
-									Rendering {renderFormat ?? ""}{" "}
-									{renderProgress !== null
-										? `${Math.round(renderProgress * 100)}%`
-										: "..."}
-								</span>
-								<div className="h-1.5 w-20 overflow-hidden rounded-full bg-secondary">
-									<div
-										className="h-full rounded-full bg-primary transition-all duration-300"
-										style={{ width: `${(renderProgress ?? 0) * 100}%` }}
-									/>
-								</div>
-							</div>
-							<button
-								onClick={handleCancelRender}
-								className="rounded-lg border p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-								title="Cancel render"
-								type="button"
-							>
-								<X className="size-3.5" />
-							</button>
-						</>
-					) : (
-						<>
-							<button
-								onClick={handleDownload}
-								className="inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
-								type="button"
-							>
-								<Download className="size-3.5" />
-								Download MP4
-							</button>
-							<button
-								onClick={handleDownloadPPTX}
-								disabled={isPptxExporting}
-								className="inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed"
-								type="button"
-							>
-								{isPptxExporting ? (
-									<>
-										<Loader2 className="size-3.5 animate-spin" />
-										{pptxProgress ?? "Exporting..."}
-									</>
-								) : (
-									<>
-										<Presentation className="size-3.5" />
-										Download PPTX
-									</>
-								)}
-							</button>
-						</>
-					)}
-				</div>
+		<div className="my-4 max-w-2xl overflow-hidden rounded-2xl border bg-muted/30 select-none">
+			{/* Header */}
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-foreground line-clamp-2">{title}</p>
+				<p className="text-xs text-muted-foreground mt-0.5 flex items-center">
+					{compiledSlides.length} slides <Dot className="size-4" /> {totalDuration.toFixed(1)}s{" "}
+					<Dot className="size-4" /> {FPS}fps
+				</p>
 			</div>
 
-			{/* Render error */}
-			{renderError && (
-				<div className="flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-3">
-					<AlertCircleIcon className="mt-0.5 size-4 shrink-0 text-destructive" />
-					<div>
-						<p className="text-sm font-medium text-destructive">Download Failed</p>
-						<p className="mt-1 text-xs text-destructive/70 whitespace-pre-wrap">
-							{renderError}
-						</p>
-					</div>
-				</div>
-			)}
+			<div className="mx-5 h-px bg-border/50" />
 
-			{/* Combined Remotion Player */}
-			<CombinedPlayer slides={compiledSlides} />
+			{/* Remotion Player */}
+			<div className="px-5 pt-3">
+				<CombinedPlayer slides={compiledSlides} />
+			</div>
+
+			<div className="mx-5 mt-3 h-px bg-border/50" />
+
+			{/* Action buttons */}
+			<div className="px-5 py-3 flex items-center gap-2 flex-wrap">
+				{isRendering ? (
+					<>
+						<div className="flex items-center gap-2">
+							<Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+							<span className="text-xs font-medium text-muted-foreground">
+								Rendering {renderFormat ?? ""}{" "}
+								{renderProgress !== null ? `${Math.round(renderProgress * 100)}%` : "..."}
+							</span>
+							<div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
+								<div
+									className="h-full rounded-full bg-muted-foreground/60 transition-all duration-300"
+									style={{ width: `${(renderProgress ?? 0) * 100}%` }}
+								/>
+							</div>
+						</div>
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={handleCancelRender}
+							className="size-7 text-muted-foreground"
+						>
+							<X className="size-3.5" />
+						</Button>
+					</>
+				) : (
+					<>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={handleDownload}
+							className="gap-1.5 h-7 px-2.5 text-xs text-muted-foreground"
+						>
+							<Download className="size-3.5" />
+							Download MP4
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={handleDownloadPPTX}
+							disabled={isPptxExporting}
+							className="gap-1.5 h-7 px-2.5 text-xs text-muted-foreground"
+						>
+							{isPptxExporting ? (
+								<>
+									<Loader2 className="size-3.5 animate-spin" />
+									{pptxProgress ?? "Exporting..."}
+								</>
+							) : (
+								<>
+									<Presentation className="size-3.5" />
+									Download PPTX
+								</>
+							)}
+						</Button>
+					</>
+				)}
+			</div>
 		</div>
 	);
 }
@@ -617,93 +551,85 @@ function StatusPoller({
 	return <ErrorState title={title} error="Unexpected state" />;
 }
 
-export const GenerateVideoPresentationToolUI = makeAssistantToolUI<
-	GenerateVideoPresentationArgs,
-	GenerateVideoPresentationResult
->({
-	toolName: "generate_video_presentation",
-	render: function GenerateVideoPresentationUI({ args, result, status }) {
-		const params = useParams();
-		const pathname = usePathname();
-		const isPublicRoute = pathname?.startsWith("/public/");
-		const shareToken =
-			isPublicRoute && typeof params?.token === "string" ? params.token : null;
+export const GenerateVideoPresentationToolUI = ({
+	args,
+	result,
+	status,
+}: ToolCallMessagePartProps<GenerateVideoPresentationArgs, GenerateVideoPresentationResult>) => {
+	const params = useParams();
+	const pathname = usePathname();
+	const isPublicRoute = pathname?.startsWith("/public/");
+	const shareToken = isPublicRoute && typeof params?.token === "string" ? params.token : null;
 
-		const title = args.video_title || "SurfSense Presentation";
+	const title = args.video_title || "SurfSense Presentation";
 
-		if (status.type === "running" || status.type === "requires-action") {
-			return <GeneratingState title={title} />;
-		}
+	if (status.type === "running" || status.type === "requires-action") {
+		return <GeneratingState title={title} />;
+	}
 
-		if (status.type === "incomplete") {
-			if (status.reason === "cancelled") {
-				return (
-					<div className="my-4 rounded-xl border border-muted p-3 sm:p-4 text-muted-foreground">
-						<p className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
-							<Film className="size-3.5 sm:size-4" />
-							<span className="line-through">Presentation generation cancelled</span>
-						</p>
-					</div>
-				);
-			}
-			if (status.reason === "error") {
-				return (
-					<ErrorState
-						title={title}
-						error={typeof status.error === "string" ? status.error : "An error occurred"}
-					/>
-				);
-			}
-		}
-
-		if (!result) {
-			return <GeneratingState title={title} />;
-		}
-
-		if (result.status === "failed") {
-			return <ErrorState title={title} error={result.error || "Generation failed"} />;
-		}
-
-		if (result.status === "generating") {
+	if (status.type === "incomplete") {
+		if (status.reason === "cancelled") {
 			return (
-				<div className="my-4 overflow-hidden rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 sm:p-4">
-					<div className="flex items-center gap-2.5 sm:gap-3">
-						<div className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full bg-amber-500/20">
-							<Film className="size-4 sm:size-5 text-amber-500" />
-						</div>
-						<div className="min-w-0">
-							<p className="text-amber-600 dark:text-amber-400 text-xs sm:text-sm font-medium">
-								Presentation already in progress
-							</p>
-							<p className="text-muted-foreground text-[10px] sm:text-xs mt-0.5">
-								Please wait for the current presentation to complete.
-							</p>
-						</div>
+				<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+					<div className="px-5 pt-5 pb-4">
+						<p className="text-sm font-semibold text-muted-foreground">Presentation Cancelled</p>
+						<p className="text-xs text-muted-foreground mt-0.5">
+							Presentation generation was cancelled
+						</p>
 					</div>
 				</div>
 			);
 		}
-
-		if (result.status === "pending" && result.video_presentation_id) {
+		if (status.reason === "error") {
 			return (
-				<StatusPoller
-					presentationId={result.video_presentation_id}
-					title={result.title || title}
-					shareToken={shareToken}
+				<ErrorState
+					title={title}
+					error={typeof status.error === "string" ? status.error : "An error occurred"}
 				/>
 			);
 		}
+	}
 
-		if (result.status === "ready" && result.video_presentation_id) {
-			return (
-				<VideoPresentationPlayer
-					presentationId={result.video_presentation_id}
-					title={result.title || title}
-					shareToken={shareToken}
-				/>
-			);
-		}
+	if (!result) {
+		return <GeneratingState title={title} />;
+	}
 
-		return <ErrorState title={title} error="Missing presentation ID" />;
-	},
-});
+	if (result.status === "failed") {
+		return <ErrorState title={title} error={result.error || "Generation failed"} />;
+	}
+
+	if (result.status === "generating") {
+		return (
+			<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+				<div className="px-5 pt-5 pb-4">
+					<p className="text-sm font-semibold text-foreground">Presentation already in progress</p>
+					<p className="text-xs text-muted-foreground mt-0.5">
+						Please wait for the current presentation to complete.
+					</p>
+				</div>
+			</div>
+		);
+	}
+
+	if (result.status === "pending" && result.video_presentation_id) {
+		return (
+			<StatusPoller
+				presentationId={result.video_presentation_id}
+				title={result.title || title}
+				shareToken={shareToken}
+			/>
+		);
+	}
+
+	if (result.status === "ready" && result.video_presentation_id) {
+		return (
+			<VideoPresentationPlayer
+				presentationId={result.video_presentation_id}
+				title={result.title || title}
+				shareToken={shareToken}
+			/>
+		);
+	}
+
+	return <ErrorState title={title} error="Missing presentation ID" />;
+};

@@ -10,8 +10,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from google_auth_oauthlib.flow import Flow
 from pydantic import ValidationError
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.config import config
 from app.connectors.google_gmail_connector import fetch_google_user_email
@@ -32,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
+SCOPES = ["https://www.googleapis.com/auth/calendar.events"]
 REDIRECT_URI = config.GOOGLE_CALENDAR_REDIRECT_URI
 
 # Initialize security utilities
@@ -111,6 +113,66 @@ async def connect_calendar(space_id: int, user: User = Depends(current_active_us
         ) from e
 
 
+@router.get("/auth/google/calendar/connector/reauth")
+async def reauth_calendar(
+    space_id: int,
+    connector_id: int,
+    return_url: str | None = None,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Initiate Google Calendar re-authentication for an existing connector."""
+    try:
+        result = await session.execute(
+            select(SearchSourceConnector).filter(
+                SearchSourceConnector.id == connector_id,
+                SearchSourceConnector.user_id == user.id,
+                SearchSourceConnector.search_space_id == space_id,
+                SearchSourceConnector.connector_type
+                == SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
+            )
+        )
+        connector = result.scalars().first()
+        if not connector:
+            raise HTTPException(
+                status_code=404,
+                detail="Google Calendar connector not found or access denied",
+            )
+
+        if not config.SECRET_KEY:
+            raise HTTPException(
+                status_code=500, detail="SECRET_KEY not configured for OAuth security."
+            )
+
+        flow = get_google_flow()
+
+        state_manager = get_state_manager()
+        extra: dict = {"connector_id": connector_id}
+        if return_url and return_url.startswith("/"):
+            extra["return_url"] = return_url
+        state_encoded = state_manager.generate_secure_state(space_id, user.id, **extra)
+
+        auth_url, _ = flow.authorization_url(
+            access_type="offline",
+            prompt="consent",
+            include_granted_scopes="true",
+            state=state_encoded,
+        )
+
+        logger.info(
+            f"Initiating Google Calendar re-auth for user {user.id}, connector {connector_id}"
+        )
+        return {"auth_url": auth_url}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to initiate Calendar re-auth: {e!s}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to initiate Calendar re-auth: {e!s}"
+        ) from e
+
+
 @router.get("/auth/google/calendar/connector/callback")
 async def calendar_callback(
     request: Request,
@@ -137,7 +199,7 @@ async def calendar_callback(
             # Redirect to frontend with error parameter
             if space_id:
                 return RedirectResponse(
-                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=google_calendar_oauth_denied"
+                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=google_calendar_oauth_denied"
                 )
             else:
                 return RedirectResponse(
@@ -197,6 +259,42 @@ async def calendar_callback(
         # Mark that credentials are encrypted for backward compatibility
         creds_dict["_token_encrypted"] = True
 
+        reauth_connector_id = data.get("connector_id")
+        reauth_return_url = data.get("return_url")
+
+        if reauth_connector_id:
+            result = await session.execute(
+                select(SearchSourceConnector).filter(
+                    SearchSourceConnector.id == reauth_connector_id,
+                    SearchSourceConnector.user_id == user_id,
+                    SearchSourceConnector.search_space_id == space_id,
+                    SearchSourceConnector.connector_type
+                    == SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
+                )
+            )
+            db_connector = result.scalars().first()
+            if not db_connector:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Connector not found or access denied during re-auth",
+                )
+
+            db_connector.config = {**creds_dict}
+            flag_modified(db_connector, "config")
+            await session.commit()
+            await session.refresh(db_connector)
+
+            logger.info(
+                f"Re-authenticated Calendar connector {db_connector.id} for user {user_id}"
+            )
+            if reauth_return_url and reauth_return_url.startswith("/"):
+                return RedirectResponse(
+                    url=f"{config.NEXT_FRONTEND_URL}{reauth_return_url}"
+                )
+            return RedirectResponse(
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?success=true&connector=google-calendar-connector&connectorId={db_connector.id}"
+            )
+
         # Check for duplicate connector (same account already connected)
         is_duplicate = await check_duplicate_connector(
             session,
@@ -210,7 +308,7 @@ async def calendar_callback(
                 f"Duplicate Google Calendar connector detected for user {user_id} with email {user_email}"
             )
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=duplicate_account&connector=google-calendar-connector"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=duplicate_account&connector=google-calendar-connector"
             )
 
         try:
@@ -236,7 +334,7 @@ async def calendar_callback(
             # Redirect to the frontend with success params for indexing config
             # Using query params to auto-open the popup with config view on new-chat page
             return RedirectResponse(
-                f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=google-calendar-connector&connectorId={db_connector.id}"
+                f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?success=true&connector=google-calendar-connector&connectorId={db_connector.id}"
             )
         except ValidationError as e:
             await session.rollback()

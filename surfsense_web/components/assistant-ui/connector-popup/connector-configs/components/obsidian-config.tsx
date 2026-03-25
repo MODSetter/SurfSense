@@ -1,6 +1,5 @@
 "use client";
 
-import { FolderOpen } from "lucide-react";
 import type { FC } from "react";
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
@@ -127,7 +126,6 @@ export const ObsidianConfig: FC<ObsidianConfigProps> = ({
 			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">
 				<div className="space-y-1 sm:space-y-2">
 					<h3 className="font-medium text-sm sm:text-base flex items-center gap-2">
-						<FolderOpen className="h-4 w-4 text-purple-500" />
 						Vault Configuration
 					</h3>
 				</div>

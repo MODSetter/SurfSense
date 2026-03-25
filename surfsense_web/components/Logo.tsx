@@ -14,7 +14,7 @@ export const Logo = ({
 	const image = (
 		<Image
 			src="/icon-128.svg"
-			className={cn("dark:invert", className)}
+			className={cn("select-none dark:invert", className)}
 			alt="logo"
 			width={128}
 			height={128}
@@ -25,5 +25,9 @@ export const Logo = ({
 		return image;
 	}
 
-	return <Link href="/">{image}</Link>;
+	return (
+		<Link href="/" className="select-none">
+			{image}
+		</Link>
+	);
 };

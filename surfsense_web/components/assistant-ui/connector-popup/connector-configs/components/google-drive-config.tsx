@@ -1,14 +1,11 @@
 "use client";
 
 import {
-	ChevronDown,
-	ChevronRight,
 	File,
 	FileSpreadsheet,
 	FileText,
 	FolderClosed,
 	Image,
-	Loader2,
 	Presentation,
 	X,
 } from "lucide-react";
@@ -23,6 +20,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { type PickerResult, useGooglePicker } from "@/hooks/use-google-picker";
 import type { ConnectorConfigProps } from "../index";
@@ -52,14 +50,14 @@ function getFileIconFromName(fileName: string, className: string = "size-3.5 shr
 		lowerName.endsWith(".csv") ||
 		lowerName.includes("spreadsheet")
 	) {
-		return <FileSpreadsheet className={`${className} text-green-500`} />;
+		return <FileSpreadsheet className={`${className} text-muted-foreground`} />;
 	}
 	if (
 		lowerName.endsWith(".pptx") ||
 		lowerName.endsWith(".ppt") ||
 		lowerName.includes("presentation")
 	) {
-		return <Presentation className={`${className} text-orange-500`} />;
+		return <Presentation className={`${className} text-muted-foreground`} />;
 	}
 	if (
 		lowerName.endsWith(".docx") ||
@@ -69,7 +67,7 @@ function getFileIconFromName(fileName: string, className: string = "size-3.5 shr
 		lowerName.includes("word") ||
 		lowerName.includes("text")
 	) {
-		return <FileText className={`${className} text-gray-500`} />;
+		return <FileText className={`${className} text-muted-foreground`} />;
 	}
 	if (
 		lowerName.endsWith(".png") ||
@@ -79,9 +77,9 @@ function getFileIconFromName(fileName: string, className: string = "size-3.5 shr
 		lowerName.endsWith(".webp") ||
 		lowerName.endsWith(".svg")
 	) {
-		return <Image className={`${className} text-purple-500`} />;
+		return <Image className={`${className} text-muted-foreground`} />;
 	}
-	return <File className={`${className} text-gray-500`} />;
+	return <File className={`${className} text-muted-foreground`} />;
 }
 
 export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigChange }) => {
@@ -141,6 +139,10 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 		onPicked: handlePicked,
 	});
 
+	const isAuthExpired =
+		connector.config?.auth_expired === true ||
+		(!!pickerError && pickerError.toLowerCase().includes("authentication expired"));
+
 	const handleIndexingOptionChange = (key: keyof IndexingOptions, value: number | boolean) => {
 		const newOptions = { ...indexingOptions, [key]: value };
 		setIndexingOptions(newOptions);
@@ -195,7 +197,7 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 									className="text-xs sm:text-sm text-muted-foreground truncate flex items-center gap-1.5"
 									title={folder.name}
 								>
-									<FolderClosed className="size-3.5 shrink-0 text-gray-500" />
+									<FolderClosed className="size-3.5 shrink-0 text-muted-foreground" />
 									<span className="flex-1 truncate">{folder.name}</span>
 									<button
 										type="button"
@@ -233,14 +235,21 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 					type="button"
 					variant="outline"
 					onClick={openPicker}
-					disabled={pickerLoading}
+					disabled={pickerLoading || isAuthExpired}
 					className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-white/10 text-xs sm:text-sm h-8 sm:h-9"
 				>
-					{pickerLoading && <Loader2 className="size-3.5 mr-1.5 animate-spin" />}
+					{pickerLoading && <Spinner size="xs" className="mr-1.5" />}
 					{totalSelected > 0 ? "Change Selection" : "Select from Google Drive"}
 				</Button>
 
-				{pickerError && <p className="text-xs text-destructive">{pickerError}</p>}
+				{pickerError && !isAuthExpired && <p className="text-xs text-destructive">{pickerError}</p>}
+
+				{isAuthExpired && (
+					<p className="text-xs text-amber-600 dark:text-amber-500">
+						Your Google Drive authentication has expired. Please re-authenticate using the button
+						below.
+					</p>
+				)}
 			</div>
 
 			{/* Indexing Options */}

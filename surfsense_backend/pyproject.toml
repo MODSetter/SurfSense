@@ -72,6 +72,7 @@ dependencies = [
     "daytona>=0.146.0",
     "langchain-daytona>=0.0.2",
     "pypandoc>=1.16.2",
+    "notion-markdown>=0.7.0",
 ]
 
 [dependency-groups]

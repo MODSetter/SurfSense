@@ -1,36 +1,29 @@
 import {
-	ActionBarPrimitive,
-	AssistantIf,
-	BranchPickerPrimitive,
+	AuiIf,
 	ComposerPrimitive,
-	ErrorPrimitive,
 	MessagePrimitive,
 	ThreadPrimitive,
-	useAssistantState,
-	useComposerRuntime,
+	useAui,
+	useAuiState,
 } from "@assistant-ui/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
 	AlertCircle,
 	ArrowDownIcon,
 	ArrowUpIcon,
-	CheckIcon,
-	ChevronLeftIcon,
-	ChevronRightIcon,
-	CopyIcon,
-	DownloadIcon,
 	Globe,
 	Plus,
-	RefreshCwIcon,
 	Settings2,
 	SquareIcon,
 	Unplug,
 	Upload,
+	Wrench,
 	X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import Image from "next/image";
 import { useParams } from "next/navigation";
-import { type FC, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
 	agentToolsAtom,
@@ -61,12 +54,6 @@ import {
 	InlineMentionEditor,
 	type InlineMentionEditorRef,
 } from "@/components/assistant-ui/inline-mention-editor";
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import {
-	ThinkingStepsContext,
-	ThinkingStepsDisplay,
-} from "@/components/assistant-ui/thinking-steps";
-import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { UserMessage } from "@/components/assistant-ui/user-message";
 import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/components/layout/ui/sidebar/SidebarSlideOutPanel";
@@ -74,7 +61,6 @@ import {
 	DocumentMentionPicker,
 	type DocumentMentionPickerRef,
 } from "@/components/new-chat/document-mention-picker";
-import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
@@ -88,33 +74,29 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { getToolIcon } from "@/contracts/enums/toolIcons";
+import {
+	CONNECTOR_ICON_TO_TYPES,
+	CONNECTOR_TOOL_ICON_PATHS,
+	getToolIcon,
+} from "@/contracts/enums/toolIcons";
 import type { Document } from "@/contracts/types/document.types";
 import { useBatchCommentsPreload } from "@/hooks/use-comments";
-import { useCommentsElectric } from "@/hooks/use-comments-electric";
+import { useCommentsSync } from "@/hooks/use-comments-sync";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 
 /** Placeholder texts that cycle in new chats when input is empty */
 const CYCLING_PLACEHOLDERS = [
-	"Ask SurfSense anything or @mention docs.",
-	"Generate a podcast from my vacation ideas in Notion.",
-	"Sum up last week's meeting notes from Drive in a bulleted list.",
-	"Give me a brief overview of the most urgent tickets in Jira and Linear.",
+	"Ask SurfSense anything or @mention docs",
+	"Generate a podcast from my vacation ideas in Notion",
+	"Sum up last week's meeting notes from Drive in a bulleted list",
+	"Give me a brief overview of the most urgent tickets in Jira and Linear",
 	"Briefly, what are today's top ten important emails and calendar events?",
-	"Check if this week's Slack messages reference any GitHub issues.",
+	"Check if this week's Slack messages reference any GitHub issues",
 ];
 
-interface ThreadProps {
-	messageThinkingSteps?: Map<string, ThinkingStep[]>;
-}
-
-export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map() }) => {
-	return (
-		<ThinkingStepsContext.Provider value={messageThinkingSteps}>
-			<ThreadContent />
-		</ThinkingStepsContext.Provider>
-	);
+export const Thread: FC = () => {
+	return <ThreadContent />;
 };
 
 const ThreadContent: FC = () => {
@@ -129,9 +111,9 @@ const ThreadContent: FC = () => {
 				turnAnchor="top"
 				className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 pt-4"
 			>
-				<AssistantIf condition={({ thread }) => thread.isEmpty}>
+				<AuiIf condition={({ thread }) => thread.isEmpty}>
 					<ThreadWelcome />
-				</AssistantIf>
+				</AuiIf>
 
 				<ThreadPrimitive.Messages
 					components={{
@@ -146,11 +128,11 @@ const ThreadContent: FC = () => {
 					style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
 				>
 					<ThreadScrollToBottom />
-					<AssistantIf condition={({ thread }) => !thread.isEmpty}>
+					<AuiIf condition={({ thread }) => !thread.isEmpty}>
 						<div className="fade-in slide-in-from-bottom-4 animate-in duration-500 ease-out fill-mode-both">
 							<Composer />
 						</div>
-					</AssistantIf>
+					</AuiIf>
 				</ThreadPrimitive.ViewportFooter>
 			</ThreadPrimitive.Viewport>
 		</ThreadPrimitive.Root>
@@ -256,7 +238,7 @@ const BANNER_CONNECTORS = [
 
 const BANNER_DISMISSED_KEY = "surfsense-connect-tools-banner-dismissed";
 
-const ConnectToolsBanner: FC = () => {
+const ConnectToolsBanner: FC<{ isThreadEmpty: boolean }> = ({ isThreadEmpty }) => {
 	const { data: connectors } = useAtomValue(connectorsAtom);
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 	const [dismissed, setDismissed] = useState(() => {
@@ -266,7 +248,7 @@ const ConnectToolsBanner: FC = () => {
 
 	const hasConnectors = (connectors?.length ?? 0) > 0;
 
-	if (dismissed || hasConnectors) return null;
+	if (dismissed || hasConnectors || !isThreadEmpty) return null;
 
 	const handleDismiss = (e: React.MouseEvent) => {
 		e.stopPropagation();
@@ -321,11 +303,11 @@ const Composer: FC = () => {
 	const editorContainerRef = useRef<HTMLDivElement>(null);
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
 	const { search_space_id, chat_id } = useParams();
-	const composerRuntime = useComposerRuntime();
+	const aui = useAui();
 	const hasAutoFocusedRef = useRef(false);
 
-	const isThreadEmpty = useAssistantState(({ thread }) => thread.isEmpty);
-	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
+	const isThreadEmpty = useAuiState(({ thread }) => thread.isEmpty);
+	const isThreadRunning = useAuiState(({ thread }) => thread.isRunning);
 
 	// Cycling placeholder state - only cycles in new chats
 	const [placeholderIndex, setPlaceholderIndex] = useState(0);
@@ -365,14 +347,14 @@ const Composer: FC = () => {
 	const respondingToUserId = sessionState?.respondingToUserId ?? null;
 	const isBlockedByOtherUser = isAiResponding && respondingToUserId !== currentUser?.id;
 
-	// Sync comments for the entire thread via Electric SQL (one subscription per thread)
-	useCommentsElectric(threadId);
+	// Sync comments for the entire thread via Zero (one subscription per thread)
+	useCommentsSync(threadId);
 
 	// Batch-prefetch comments for all assistant messages so individual useComments
 	// hooks never fire their own network requests (eliminates N+1 API calls).
 	// Return a primitive string from the selector so useSyncExternalStore can
 	// compare snapshots by value and avoid infinite re-render loops.
-	const assistantIdsKey = useAssistantState(({ thread }) =>
+	const assistantIdsKey = useAuiState(({ thread }) =>
 		thread.messages
 			.filter((m) => m.role === "assistant" && m.id?.startsWith("msg-"))
 			.map((m) => m.id?.replace("msg-", ""))
@@ -408,9 +390,9 @@ const Composer: FC = () => {
 	// Sync editor text with assistant-ui composer runtime
 	const handleEditorChange = useCallback(
 		(text: string) => {
-			composerRuntime.setText(text);
+			aui.composer().setText(text);
 		},
-		[composerRuntime]
+		[aui]
 	);
 
 	// Open document picker when @ mention is triggered
@@ -463,7 +445,7 @@ const Composer: FC = () => {
 			return;
 		}
 		if (!showDocumentPopover) {
-			composerRuntime.send();
+			aui.composer().send();
 			editorRef.current?.clear();
 			setMentionedDocuments([]);
 			setSidebarDocs([]);
@@ -472,7 +454,7 @@ const Composer: FC = () => {
 		showDocumentPopover,
 		isThreadRunning,
 		isBlockedByOtherUser,
-		composerRuntime,
+		aui,
 		setMentionedDocuments,
 		setSidebarDocs,
 	]);
@@ -560,7 +542,7 @@ const Composer: FC = () => {
 					)}
 				<ComposerAction isBlockedByOtherUser={isBlockedByOtherUser} />
 				<ConnectorIndicator showTrigger={false} />
-				<ConnectToolsBanner />
+				<ConnectToolsBanner isThreadEmpty={isThreadEmpty} />
 			</div>
 		</ComposerPrimitive.Root>
 	);
@@ -585,7 +567,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 		const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
 		setToolsScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
 	}, []);
-	const isComposerTextEmpty = useAssistantState(({ composer }) => {
+	const isComposerTextEmpty = useAuiState(({ composer }) => {
 		const text = composer.text?.trim() || "";
 		return text.length === 0;
 	});
@@ -598,7 +580,26 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const { data: agentTools } = useAtomValue(agentToolsAtom);
 	const disabledTools = useAtomValue(disabledToolsAtom);
 	const toggleTool = useSetAtom(toggleToolAtom);
+	const setDisabledTools = useSetAtom(disabledToolsAtom);
 	const hydrateDisabled = useSetAtom(hydrateDisabledToolsAtom);
+
+	const { data: connectors } = useAtomValue(connectorsAtom);
+	const connectedTypes = useMemo(
+		() => new Set<string>((connectors ?? []).map((c) => c.connector_type)),
+		[connectors]
+	);
+
+	const toggleToolGroup = useCallback(
+		(toolNames: string[]) => {
+			const allDisabled = toolNames.every((name) => disabledTools.includes(name));
+			if (allDisabled) {
+				setDisabledTools((prev) => prev.filter((t) => !toolNames.includes(t)));
+			} else {
+				setDisabledTools((prev) => [...new Set([...prev, ...toolNames])]);
+			}
+		},
+		[disabledTools, setDisabledTools]
+	);
 
 	const hasWebSearchTool = agentTools?.some((t) => t.name === "web_search") ?? false;
 	const isWebSearchEnabled = hasWebSearchTool && !disabledTools.includes("web_search");
@@ -606,21 +607,22 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 		() => agentTools?.filter((t) => t.name !== "web_search"),
 		[agentTools]
 	);
-	const filteredEnabledCount = useMemo(() => {
-		if (!filteredTools) return 0;
-		return (
-			filteredTools.length -
-			disabledTools.filter((d) => filteredTools.some((t) => t.name === d)).length
-		);
-	}, [filteredTools, disabledTools]);
-
 	const groupedTools = useMemo(() => {
 		if (!filteredTools) return [];
 		const toolsByName = new Map(filteredTools.map((t) => [t.name, t]));
-		const result: { label: string; tools: typeof filteredTools }[] = [];
+		const result: { label: string; tools: typeof filteredTools; connectorIcon?: string }[] = [];
 		const placed = new Set<string>();
 
 		for (const group of TOOL_GROUPS) {
+			if (group.connectorIcon) {
+				const requiredTypes = CONNECTOR_ICON_TO_TYPES[group.connectorIcon];
+				const isConnected = requiredTypes?.some((t) => connectedTypes.has(t));
+				if (!isConnected) {
+					for (const name of group.tools) placed.add(name);
+					continue;
+				}
+			}
+
 			const matched = group.tools.flatMap((name) => {
 				const tool = toolsByName.get(name);
 				if (!tool) return [];
@@ -628,7 +630,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 				return [tool];
 			});
 			if (matched.length > 0) {
-				result.push({ label: group.label, tools: matched });
+				result.push({ label: group.label, tools: matched, connectorIcon: group.connectorIcon });
 			}
 		}
 
@@ -638,7 +640,25 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 		}
 
 		return result;
-	}, [filteredTools]);
+	}, [filteredTools, connectedTypes]);
+
+	const { visibleTotal, visibleEnabled } = useMemo(() => {
+		let total = 0;
+		let enabled = 0;
+		for (const group of groupedTools) {
+			if (group.connectorIcon) {
+				total += 1;
+				const allDisabled = group.tools.every((t) => disabledTools.includes(t.name));
+				if (!allDisabled) enabled += 1;
+			} else {
+				for (const tool of group.tools) {
+					total += 1;
+					if (!disabledTools.includes(tool.name)) enabled += 1;
+				}
+			}
+		}
+		return { visibleTotal: total, visibleEnabled: enabled };
+	}, [groupedTools, disabledTools]);
 
 	useEffect(() => {
 		hydrateDisabled();
@@ -691,37 +711,81 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 								<div className="flex items-center justify-between px-4 py-2">
 									<DrawerTitle className="text-sm font-medium">Agent Tools</DrawerTitle>
 									<span className="text-xs text-muted-foreground">
-										{filteredEnabledCount}/{filteredTools?.length ?? 0} enabled
+										{visibleEnabled}/{visibleTotal} enabled
 									</span>
 								</div>
 								<div className="overflow-y-auto pb-6" onScroll={handleToolsScroll}>
-									{groupedTools.map((group) => (
-										<div key={group.label}>
-											<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground/80 font-medium select-none">
-												{group.label}
+									{groupedTools
+										.filter((g) => !g.connectorIcon)
+										.map((group) => (
+											<div key={group.label}>
+												<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground/80 font-medium select-none">
+													{group.label}
+												</div>
+												{group.tools.map((tool) => {
+													const isDisabled = disabledTools.includes(tool.name);
+													const ToolIcon = getToolIcon(tool.name);
+													return (
+														<div
+															key={tool.name}
+															className="flex w-full items-center gap-3 px-4 py-2 hover:bg-muted-foreground/10 transition-colors"
+														>
+															<ToolIcon className="size-4 shrink-0 text-muted-foreground" />
+															<span className="flex-1 min-w-0 text-sm font-medium truncate">
+																{formatToolName(tool.name)}
+															</span>
+															<Switch
+																checked={!isDisabled}
+																onCheckedChange={() => toggleTool(tool.name)}
+																className="shrink-0"
+															/>
+														</div>
+													);
+												})}
 											</div>
-											{group.tools.map((tool) => {
-												const isDisabled = disabledTools.includes(tool.name);
-												const ToolIcon = getToolIcon(tool.name);
-												return (
-													<div
-														key={tool.name}
-														className="flex w-full items-center gap-3 px-4 py-2 hover:bg-muted-foreground/10 transition-colors"
-													>
-														<ToolIcon className="size-4 shrink-0 text-muted-foreground" />
-														<span className="flex-1 min-w-0 text-sm font-medium truncate">
-															{formatToolName(tool.name)}
-														</span>
-														<Switch
-															checked={!isDisabled}
-															onCheckedChange={() => toggleTool(tool.name)}
-															className="shrink-0"
-														/>
-													</div>
-												);
-											})}
+										))}
+									{groupedTools.some((g) => g.connectorIcon) && (
+										<div>
+											<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground/80 font-medium select-none">
+												Connector Actions
+											</div>
+											{groupedTools
+												.filter((g) => g.connectorIcon)
+												.map((group) => {
+													const iconKey = group.connectorIcon ?? "";
+													const iconInfo = CONNECTOR_TOOL_ICON_PATHS[iconKey];
+													const toolNames = group.tools.map((t) => t.name);
+													const allDisabled = toolNames.every((n) => disabledTools.includes(n));
+													return (
+														<div
+															key={group.label}
+															className="flex w-full items-center gap-3 px-4 py-2 hover:bg-muted-foreground/10 transition-colors"
+														>
+															{iconInfo ? (
+																<Image
+																	src={iconInfo.src}
+																	alt={iconInfo.alt}
+																	width={18}
+																	height={18}
+																	className="size-[18px] shrink-0 select-none pointer-events-none"
+																	draggable={false}
+																/>
+															) : (
+																<Wrench className="size-4 shrink-0 text-muted-foreground" />
+															)}
+															<span className="flex-1 min-w-0 text-sm font-medium truncate">
+																{group.label}
+															</span>
+															<Switch
+																checked={!allDisabled}
+																onCheckedChange={() => toggleToolGroup(toolNames)}
+																className="shrink-0"
+															/>
+														</div>
+													);
+												})}
 										</div>
-									))}
+									)}
 									{!filteredTools?.length && (
 										<div className="px-4 py-6 text-center text-sm text-muted-foreground">
 											Loading tools...
@@ -766,7 +830,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							<div className="flex items-center justify-between px-2.5 py-2 sm:px-3 sm:py-2.5 border-b">
 								<span className="text-xs sm:text-sm font-medium">Agent Tools</span>
 								<span className="text-[10px] sm:text-xs text-muted-foreground">
-									{filteredEnabledCount}/{filteredTools?.length ?? 0} enabled
+									{visibleEnabled}/{visibleTotal} enabled
 								</span>
 							</div>
 							<div
@@ -777,38 +841,89 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									WebkitMaskImage: `linear-gradient(to bottom, ${toolsScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${toolsScrollPos === "bottom" ? "black" : "transparent"})`,
 								}}
 							>
-								{groupedTools.map((group) => (
-									<div key={group.label}>
-										<div className="px-2.5 sm:px-3 pt-2 pb-0.5 text-[10px] sm:text-xs text-muted-foreground/80 font-normal select-none">
-											{group.label}
+								{groupedTools
+									.filter((g) => !g.connectorIcon)
+									.map((group) => (
+										<div key={group.label}>
+											<div className="px-2.5 sm:px-3 pt-2 pb-0.5 text-[10px] sm:text-xs text-muted-foreground/80 font-normal select-none">
+												{group.label}
+											</div>
+											{group.tools.map((tool) => {
+												const isDisabled = disabledTools.includes(tool.name);
+												const ToolIcon = getToolIcon(tool.name);
+												const row = (
+													<div className="flex w-full items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-1 sm:py-1.5 hover:bg-muted-foreground/10 transition-colors">
+														<ToolIcon className="size-3.5 sm:size-4 shrink-0 text-muted-foreground" />
+														<span className="flex-1 min-w-0 text-xs sm:text-sm font-medium truncate">
+															{formatToolName(tool.name)}
+														</span>
+														<Switch
+															checked={!isDisabled}
+															onCheckedChange={() => toggleTool(tool.name)}
+															className="shrink-0 scale-[0.6] sm:scale-75"
+														/>
+													</div>
+												);
+												return (
+													<Tooltip key={tool.name}>
+														<TooltipTrigger asChild>{row}</TooltipTrigger>
+														<TooltipContent side="right" className="max-w-64 text-xs">
+															{tool.description}
+														</TooltipContent>
+													</Tooltip>
+												);
+											})}
 										</div>
-										{group.tools.map((tool) => {
-											const isDisabled = disabledTools.includes(tool.name);
-											const ToolIcon = getToolIcon(tool.name);
-											const row = (
-												<div className="flex w-full items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-1 sm:py-1.5 hover:bg-muted-foreground/10 transition-colors">
-													<ToolIcon className="size-3.5 sm:size-4 shrink-0 text-muted-foreground" />
-													<span className="flex-1 min-w-0 text-xs sm:text-sm font-medium truncate">
-														{formatToolName(tool.name)}
-													</span>
-													<Switch
-														checked={!isDisabled}
-														onCheckedChange={() => toggleTool(tool.name)}
-														className="shrink-0 scale-[0.6] sm:scale-75"
-													/>
-												</div>
-											);
-											return (
-												<Tooltip key={tool.name}>
-													<TooltipTrigger asChild>{row}</TooltipTrigger>
-													<TooltipContent side="right" className="max-w-64 text-xs">
-														{tool.description}
-													</TooltipContent>
-												</Tooltip>
-											);
-										})}
+									))}
+								{groupedTools.some((g) => g.connectorIcon) && (
+									<div>
+										<div className="px-2.5 sm:px-3 pt-2 pb-0.5 text-[10px] sm:text-xs text-muted-foreground/80 font-normal select-none">
+											Connector Actions
+										</div>
+										{groupedTools
+											.filter((g) => g.connectorIcon)
+											.map((group) => {
+												const iconKey = group.connectorIcon ?? "";
+												const iconInfo = CONNECTOR_TOOL_ICON_PATHS[iconKey];
+												const toolNames = group.tools.map((t) => t.name);
+												const allDisabled = toolNames.every((n) => disabledTools.includes(n));
+												const groupDef = TOOL_GROUPS.find((g) => g.label === group.label);
+												const row = (
+													<div className="flex w-full items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-1 sm:py-1.5 hover:bg-muted-foreground/10 transition-colors">
+														{iconInfo ? (
+															<Image
+																src={iconInfo.src}
+																alt={iconInfo.alt}
+																width={16}
+																height={16}
+																className="size-3.5 sm:size-4 shrink-0 select-none pointer-events-none"
+																draggable={false}
+															/>
+														) : (
+															<Wrench className="size-3.5 sm:size-4 shrink-0 text-muted-foreground" />
+														)}
+														<span className="flex-1 min-w-0 text-xs sm:text-sm font-medium truncate">
+															{group.label}
+														</span>
+														<Switch
+															checked={!allDisabled}
+															onCheckedChange={() => toggleToolGroup(toolNames)}
+															className="shrink-0 scale-[0.6] sm:scale-75"
+														/>
+													</div>
+												);
+												return (
+													<Tooltip key={group.label}>
+														<TooltipTrigger asChild>{row}</TooltipTrigger>
+														<TooltipContent side="right" className="max-w-72 text-xs">
+															{groupDef?.tooltip ??
+																group.tools.map((t) => t.description).join(" · ")}
+														</TooltipContent>
+													</Tooltip>
+												);
+											})}
 									</div>
-								))}
+								)}
 								{!filteredTools?.length && (
 									<div className="px-3 py-4 text-center text-xs text-muted-foreground">
 										Loading tools...
@@ -868,16 +983,14 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 					</button>
 				)}
 			</div>
-
 			{!hasModelConfigured && (
 				<div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 text-xs">
 					<AlertCircle className="size-3" />
 					<span>Select a model</span>
 				</div>
 			)}
-
 			<div className="flex items-center gap-2">
-				<AssistantIf condition={({ thread }) => !thread.isRunning}>
+				<AuiIf condition={({ thread }) => !thread.isRunning}>
 					<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
 						<TooltipIconButton
 							tooltip={
@@ -903,9 +1016,9 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							<ArrowUpIcon className="aui-composer-send-icon size-4" />
 						</TooltipIconButton>
 					</ComposerPrimitive.Send>
-				</AssistantIf>
+				</AuiIf>
 
-				<AssistantIf condition={({ thread }) => thread.isRunning}>
+				<AuiIf condition={({ thread }) => thread.isRunning}>
 					<ComposerPrimitive.Cancel asChild>
 						<Button
 							type="button"
@@ -917,7 +1030,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							<SquareIcon className="aui-composer-cancel-icon size-3 fill-current" />
 						</Button>
 					</ComposerPrimitive.Cancel>
-				</AssistantIf>
+				</AuiIf>
 			</div>
 		</div>
 	);
@@ -931,111 +1044,69 @@ function formatToolName(name: string): string {
 		.join(" ");
 }
 
-const TOOL_GROUPS: { label: string; tools: string[] }[] = [
+interface ToolGroup {
+	label: string;
+	tools: string[];
+	connectorIcon?: string;
+	tooltip?: string;
+}
+
+const TOOL_GROUPS: ToolGroup[] = [
 	{
 		label: "Research",
-		tools: ["search_knowledge_base", "search_surfsense_docs", "scrape_webpage", "link_preview"],
+		tools: ["search_knowledge_base", "search_surfsense_docs", "scrape_webpage"],
 	},
 	{
 		label: "Generate",
-		tools: ["generate_podcast", "generate_video_presentation", "generate_report", "generate_image", "display_image"],
+		tools: ["generate_podcast", "generate_video_presentation", "generate_report", "generate_image"],
 	},
 	{
 		label: "Memory",
 		tools: ["save_memory", "recall_memory"],
 	},
+	{
+		label: "Gmail",
+		tools: ["create_gmail_draft", "update_gmail_draft", "send_gmail_email", "trash_gmail_email"],
+		connectorIcon: "gmail",
+		tooltip: "Create drafts, update drafts, send emails, and trash emails in Gmail.",
+	},
+	{
+		label: "Google Calendar",
+		tools: ["create_calendar_event", "update_calendar_event", "delete_calendar_event"],
+		connectorIcon: "google_calendar",
+		tooltip: "Create, update, and delete events in Google Calendar.",
+	},
+	{
+		label: "Google Drive",
+		tools: ["create_google_drive_file", "delete_google_drive_file"],
+		connectorIcon: "google_drive",
+		tooltip: "Create and delete files in Google Drive.",
+	},
+	{
+		label: "Notion",
+		tools: ["create_notion_page", "update_notion_page", "delete_notion_page"],
+		connectorIcon: "notion",
+		tooltip: "Create, update, and delete pages in Notion.",
+	},
+	{
+		label: "Linear",
+		tools: ["create_linear_issue", "update_linear_issue", "delete_linear_issue"],
+		connectorIcon: "linear",
+		tooltip: "Create, update, and delete issues in Linear.",
+	},
+	{
+		label: "Jira",
+		tools: ["create_jira_issue", "update_jira_issue", "delete_jira_issue"],
+		connectorIcon: "jira",
+		tooltip: "Create, update, and delete issues in Jira.",
+	},
+	{
+		label: "Confluence",
+		tools: ["create_confluence_page", "update_confluence_page", "delete_confluence_page"],
+		connectorIcon: "confluence",
+		tooltip: "Create, update, and delete pages in Confluence.",
+	},
 ];
-
-const MessageError: FC = () => {
-	return (
-		<MessagePrimitive.Error>
-			<ErrorPrimitive.Root className="aui-message-error-root mt-2 rounded-md border border-destructive bg-destructive/10 p-3 text-destructive text-sm dark:bg-destructive/5 dark:text-red-200">
-				<ErrorPrimitive.Message className="aui-message-error-message line-clamp-2" />
-			</ErrorPrimitive.Root>
-		</MessagePrimitive.Error>
-	);
-};
-
-/**
- * Custom component to render thinking steps from Context
- */
-const ThinkingStepsPart: FC = () => {
-	const thinkingStepsMap = useContext(ThinkingStepsContext);
-
-	// Get the current message ID to look up thinking steps
-	const messageId = useAssistantState(({ message }) => message?.id);
-	const thinkingSteps = thinkingStepsMap.get(messageId) || [];
-
-	// Check if this specific message is currently streaming
-	// A message is streaming if: thread is running AND this is the last assistant message
-	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
-	const isLastMessage = useAssistantState(({ message }) => message?.isLast ?? false);
-	const isMessageStreaming = isThreadRunning && isLastMessage;
-
-	if (thinkingSteps.length === 0) return null;
-
-	return (
-		<div className="mb-3">
-			<ThinkingStepsDisplay steps={thinkingSteps} isThreadRunning={isMessageStreaming} />
-		</div>
-	);
-};
-
-const AssistantMessageInner: FC = () => {
-	return (
-		<>
-			{/* Render thinking steps from message content - this ensures proper scroll tracking */}
-			<ThinkingStepsPart />
-
-			<div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
-				<MessagePrimitive.Parts
-					components={{
-						Text: MarkdownText,
-						tools: { Fallback: ToolFallback },
-					}}
-				/>
-				<MessageError />
-			</div>
-
-			<div className="aui-assistant-message-footer mt-1 mb-5 ml-2 flex">
-				<BranchPicker />
-				<AssistantActionBar />
-			</div>
-		</>
-	);
-};
-
-const AssistantActionBar: FC = () => {
-	return (
-		<ActionBarPrimitive.Root
-			hideWhenRunning
-			autohide="not-last"
-			autohideFloat="single-branch"
-			className="aui-assistant-action-bar-root -ml-1 col-start-3 row-start-2 flex gap-1 text-muted-foreground data-floating:absolute data-floating:rounded-md data-floating:border data-floating:bg-background data-floating:p-1 data-floating:shadow-sm"
-		>
-			<ActionBarPrimitive.Copy asChild>
-				<TooltipIconButton tooltip="Copy">
-					<AssistantIf condition={({ message }) => message.isCopied}>
-						<CheckIcon />
-					</AssistantIf>
-					<AssistantIf condition={({ message }) => !message.isCopied}>
-						<CopyIcon />
-					</AssistantIf>
-				</TooltipIconButton>
-			</ActionBarPrimitive.Copy>
-			<ActionBarPrimitive.ExportMarkdown asChild>
-				<TooltipIconButton tooltip="Export as Markdown">
-					<DownloadIcon />
-				</TooltipIconButton>
-			</ActionBarPrimitive.ExportMarkdown>
-			<ActionBarPrimitive.Reload asChild>
-				<TooltipIconButton tooltip="Refresh">
-					<RefreshCwIcon />
-				</TooltipIconButton>
-			</ActionBarPrimitive.Reload>
-		</ActionBarPrimitive.Root>
-	);
-};
 
 const EditComposer: FC = () => {
 	return (
@@ -1057,32 +1128,5 @@ const EditComposer: FC = () => {
 				</div>
 			</ComposerPrimitive.Root>
 		</MessagePrimitive.Root>
-	);
-};
-
-const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({ className, ...rest }) => {
-	return (
-		<BranchPickerPrimitive.Root
-			hideWhenSingleBranch
-			className={cn(
-				"aui-branch-picker-root -ml-2 mr-2 inline-flex items-center text-muted-foreground text-xs",
-				className
-			)}
-			{...rest}
-		>
-			<BranchPickerPrimitive.Previous asChild>
-				<TooltipIconButton tooltip="Previous">
-					<ChevronLeftIcon />
-				</TooltipIconButton>
-			</BranchPickerPrimitive.Previous>
-			<span className="aui-branch-picker-state font-medium">
-				<BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
-			</span>
-			<BranchPickerPrimitive.Next asChild>
-				<TooltipIconButton tooltip="Next">
-					<ChevronRightIcon />
-				</TooltipIconButton>
-			</BranchPickerPrimitive.Next>
-		</BranchPickerPrimitive.Root>
 	);
 };

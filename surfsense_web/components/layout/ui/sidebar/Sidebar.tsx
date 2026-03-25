@@ -3,15 +3,14 @@
 import { PenSquare } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { SIDEBAR_MIN_WIDTH } from "../../hooks/useSidebarResize";
 import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
 import { ChatListItem } from "./ChatListItem";
 import { NavSection } from "./NavSection";
 import { PageUsageDisplay } from "./PageUsageDisplay";
+import { SidebarButton } from "./SidebarButton";
 import { SidebarCollapseButton } from "./SidebarCollapseButton";
 import { SidebarHeader } from "./SidebarHeader";
 import { SidebarSection } from "./SidebarSection";
@@ -132,23 +131,13 @@ export function Sidebar({
 			)}
 
 			{/* New chat button */}
-			<div className="p-2">
-				{isCollapsed ? (
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button variant="outline" size="icon" className="w-full h-10" onClick={onNewChat}>
-								<PenSquare className="h-4 w-4" />
-								<span className="sr-only">{t("new_chat")}</span>
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent side="right">{t("new_chat")}</TooltipContent>
-					</Tooltip>
-				) : (
-					<Button variant="outline" className="w-full justify-start gap-2" onClick={onNewChat}>
-						<PenSquare className="h-4 w-4" />
-						{t("new_chat")}
-					</Button>
-				)}
+			<div className={cn("flex flex-col gap-0.5 py-2", isCollapsed && "items-center")}>
+				<SidebarButton
+					icon={PenSquare}
+					label={t("new_chat")}
+					onClick={onNewChat}
+					isCollapsed={isCollapsed}
+				/>
 			</div>
 
 			{/* Chat sections - fills available space */}
@@ -168,7 +157,7 @@ export function Sidebar({
 								<button
 									type="button"
 									onClick={onViewAllSharedChats}
-									className="text-[10px] text-muted-foreground/70 hover:text-muted-foreground transition-colors whitespace-nowrap cursor-pointer bg-transparent border-none p-0 focus:outline-none"
+									className="text-xs font-medium text-muted-foreground/60 hover:text-muted-foreground transition-colors whitespace-nowrap cursor-pointer bg-transparent border-none p-0 focus:outline-none"
 								>
 									{!disableTooltips && isSharedChatsPanelOpen ? t("hide") : t("show_all")}
 								</button>
@@ -224,7 +213,7 @@ export function Sidebar({
 								<button
 									type="button"
 									onClick={onViewAllPrivateChats}
-									className="text-[10px] text-muted-foreground/70 hover:text-muted-foreground transition-colors whitespace-nowrap cursor-pointer bg-transparent border-none p-0 focus:outline-none"
+									className="text-xs font-medium text-muted-foreground/60 hover:text-muted-foreground transition-colors whitespace-nowrap cursor-pointer bg-transparent border-none p-0 focus:outline-none"
 								>
 									{!disableTooltips && isPrivateChatsPanelOpen ? t("hide") : t("show_all")}
 								</button>

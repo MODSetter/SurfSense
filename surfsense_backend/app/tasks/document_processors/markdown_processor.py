@@ -158,6 +158,28 @@ async def _handle_existing_document_update(
         logging.info(f"Document for markdown file {filename} unchanged. Skipping.")
         return True, existing_document
     else:
+        # Content has changed — guard against content_hash collision (same
+        # content already lives in a different document).
+        collision_doc = await check_duplicate_document(session, content_hash)
+        if collision_doc and collision_doc.id != existing_document.id:
+            logging.warning(
+                "Content-hash collision for markdown %s: identical content "
+                "exists in document #%s (%s). Skipping re-processing.",
+                filename,
+                collision_doc.id,
+                collision_doc.document_type,
+            )
+            if DocumentStatus.is_state(
+                existing_document.status, DocumentStatus.PENDING
+            ) or DocumentStatus.is_state(
+                existing_document.status, DocumentStatus.PROCESSING
+            ):
+                await session.delete(existing_document)
+                await session.commit()
+                return True, None
+
+            return True, existing_document
+
         logging.info(
             f"Content changed for markdown file {filename}. Updating document."
         )
@@ -312,6 +334,12 @@ async def add_received_markdown_file_document(
         return document
     except SQLAlchemyError as db_error:
         await session.rollback()
+        if "ix_documents_content_hash" in str(db_error):
+            logging.warning(
+                "content_hash collision during commit for %s (markdown). Skipping.",
+                file_name,
+            )
+            return None
         await task_logger.log_task_failure(
             log_entry,
             f"Database error processing markdown file: {file_name}",

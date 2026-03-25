@@ -45,11 +45,31 @@ from langchain_core.tools import BaseTool
 
 from app.db import ChatVisibility
 
-from .display_image import create_display_image_tool
+from .confluence import (
+    create_create_confluence_page_tool,
+    create_delete_confluence_page_tool,
+    create_update_confluence_page_tool,
+)
 from .generate_image import create_generate_image_tool
+from .gmail import (
+    create_create_gmail_draft_tool,
+    create_send_gmail_email_tool,
+    create_trash_gmail_email_tool,
+    create_update_gmail_draft_tool,
+)
+from .google_calendar import (
+    create_create_calendar_event_tool,
+    create_delete_calendar_event_tool,
+    create_update_calendar_event_tool,
+)
 from .google_drive import (
     create_create_google_drive_file_tool,
     create_delete_google_drive_file_tool,
+)
+from .jira import (
+    create_create_jira_issue_tool,
+    create_delete_jira_issue_tool,
+    create_update_jira_issue_tool,
 )
 from .knowledge_base import create_search_knowledge_base_tool
 from .linear import (
@@ -57,7 +77,6 @@ from .linear import (
     create_delete_linear_issue_tool,
     create_update_linear_issue_tool,
 )
-from .link_preview import create_link_preview_tool
 from .mcp_tool import load_mcp_tools
 from .notion import (
     create_create_notion_page_tool,
@@ -166,20 +185,6 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         # are optional — when missing, source_strategy="kb_search" degrades
         # gracefully to "provided"
     ),
-    # Link preview tool - fetches Open Graph metadata for URLs
-    ToolDefinition(
-        name="link_preview",
-        description="Fetch metadata for a URL to display a rich preview card",
-        factory=lambda deps: create_link_preview_tool(),
-        requires=[],
-    ),
-    # Display image tool - shows images in the chat
-    ToolDefinition(
-        name="display_image",
-        description="Display an image in the chat with metadata",
-        factory=lambda deps: create_display_image_tool(),
-        requires=[],
-    ),
     # Generate image tool - creates images using AI models (DALL-E, GPT Image, etc.)
     ToolDefinition(
         name="generate_image",
@@ -257,7 +262,8 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         requires=["user_id", "search_space_id", "db_session", "thread_visibility"],
     ),
     # =========================================================================
-    # LINEAR TOOLS - create, update, delete issues (WIP - hidden from UI)
+    # LINEAR TOOLS - create, update, delete issues
+    # Auto-disabled when no Linear connector is configured (see chat_deepagent.py)
     # =========================================================================
     ToolDefinition(
         name="create_linear_issue",
@@ -268,8 +274,6 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
-        enabled_by_default=False,
-        hidden=True,
     ),
     ToolDefinition(
         name="update_linear_issue",
@@ -280,8 +284,6 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
-        enabled_by_default=False,
-        hidden=True,
     ),
     ToolDefinition(
         name="delete_linear_issue",
@@ -292,11 +294,10 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
-        enabled_by_default=False,
-        hidden=True,
     ),
     # =========================================================================
-    # NOTION TOOLS - create, update, delete pages (WIP - hidden from UI)
+    # NOTION TOOLS - create, update, delete pages
+    # Auto-disabled when no Notion connector is configured (see chat_deepagent.py)
     # =========================================================================
     ToolDefinition(
         name="create_notion_page",
@@ -307,8 +308,6 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
-        enabled_by_default=False,
-        hidden=True,
     ),
     ToolDefinition(
         name="update_notion_page",
@@ -319,8 +318,6 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
-        enabled_by_default=False,
-        hidden=True,
     ),
     ToolDefinition(
         name="delete_notion_page",
@@ -331,11 +328,10 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
-        enabled_by_default=False,
-        hidden=True,
     ),
     # =========================================================================
-    # GOOGLE DRIVE TOOLS - create files, delete files (WIP - hidden from UI)
+    # GOOGLE DRIVE TOOLS - create files, delete files
+    # Auto-disabled when no Google Drive connector is configured (see chat_deepagent.py)
     # =========================================================================
     ToolDefinition(
         name="create_google_drive_file",
@@ -346,8 +342,6 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
-        enabled_by_default=False,
-        hidden=True,
     ),
     ToolDefinition(
         name="delete_google_drive_file",
@@ -358,8 +352,152 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
-        enabled_by_default=False,
-        hidden=True,
+    ),
+    # =========================================================================
+    # GOOGLE CALENDAR TOOLS - create, update, delete events
+    # Auto-disabled when no Google Calendar connector is configured
+    # =========================================================================
+    ToolDefinition(
+        name="create_calendar_event",
+        description="Create a new event on Google Calendar",
+        factory=lambda deps: create_create_calendar_event_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    ToolDefinition(
+        name="update_calendar_event",
+        description="Update an existing indexed Google Calendar event",
+        factory=lambda deps: create_update_calendar_event_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    ToolDefinition(
+        name="delete_calendar_event",
+        description="Delete an existing indexed Google Calendar event",
+        factory=lambda deps: create_delete_calendar_event_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    # =========================================================================
+    # GMAIL TOOLS - create drafts, update drafts, send emails, trash emails
+    # Auto-disabled when no Gmail connector is configured
+    # =========================================================================
+    ToolDefinition(
+        name="create_gmail_draft",
+        description="Create a draft email in Gmail",
+        factory=lambda deps: create_create_gmail_draft_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    ToolDefinition(
+        name="send_gmail_email",
+        description="Send an email via Gmail",
+        factory=lambda deps: create_send_gmail_email_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    ToolDefinition(
+        name="trash_gmail_email",
+        description="Move an indexed email to trash in Gmail",
+        factory=lambda deps: create_trash_gmail_email_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    ToolDefinition(
+        name="update_gmail_draft",
+        description="Update an existing Gmail draft",
+        factory=lambda deps: create_update_gmail_draft_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    # =========================================================================
+    # JIRA TOOLS - create, update, delete issues
+    # Auto-disabled when no Jira connector is configured (see chat_deepagent.py)
+    # =========================================================================
+    ToolDefinition(
+        name="create_jira_issue",
+        description="Create a new issue in the user's Jira project",
+        factory=lambda deps: create_create_jira_issue_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    ToolDefinition(
+        name="update_jira_issue",
+        description="Update an existing indexed Jira issue",
+        factory=lambda deps: create_update_jira_issue_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    ToolDefinition(
+        name="delete_jira_issue",
+        description="Delete an existing indexed Jira issue",
+        factory=lambda deps: create_delete_jira_issue_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    # =========================================================================
+    # CONFLUENCE TOOLS - create, update, delete pages
+    # Auto-disabled when no Confluence connector is configured (see chat_deepagent.py)
+    # =========================================================================
+    ToolDefinition(
+        name="create_confluence_page",
+        description="Create a new page in the user's Confluence space",
+        factory=lambda deps: create_create_confluence_page_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    ToolDefinition(
+        name="update_confluence_page",
+        description="Update an existing indexed Confluence page",
+        factory=lambda deps: create_update_confluence_page_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    ToolDefinition(
+        name="delete_confluence_page",
+        description="Delete an existing indexed Confluence page",
+        factory=lambda deps: create_delete_confluence_page_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
     ),
 ]
 
@@ -413,7 +551,7 @@ def build_tools(
         tools = build_tools(deps)
 
         # Use only specific tools
-        tools = build_tools(deps, enabled_tools=["search_knowledge_base", "link_preview"])
+        tools = build_tools(deps, enabled_tools=["search_knowledge_base"])
 
         # Use defaults but disable podcast
         tools = build_tools(deps, disabled_tools=["generate_podcast"])

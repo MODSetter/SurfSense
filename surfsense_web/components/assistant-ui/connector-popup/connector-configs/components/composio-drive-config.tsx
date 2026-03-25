@@ -12,7 +12,7 @@ import {
 	X,
 } from "lucide-react";
 import type { FC } from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ComposioDriveFolderTree } from "@/components/connectors/composio-drive-folder-tree";
 import { Label } from "@/components/ui/label";
 import {
@@ -23,13 +23,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import type { SearchSourceConnector } from "@/contracts/types/connector.types";
-
-interface ComposioDriveConfigProps {
-	connector: SearchSourceConnector;
-	onConfigChange?: (config: Record<string, unknown>) => void;
-	onNameChange?: (name: string) => void;
-}
+import type { ConnectorConfigProps } from "../index";
 
 interface SelectedFolder {
 	id: string;
@@ -56,14 +50,14 @@ function getFileIconFromName(fileName: string, className: string = "size-3.5 shr
 		lowerName.endsWith(".csv") ||
 		lowerName.includes("spreadsheet")
 	) {
-		return <FileSpreadsheet className={`${className} text-green-500`} />;
+		return <FileSpreadsheet className={`${className} text-muted-foreground`} />;
 	}
 	if (
 		lowerName.endsWith(".pptx") ||
 		lowerName.endsWith(".ppt") ||
 		lowerName.includes("presentation")
 	) {
-		return <Presentation className={`${className} text-orange-500`} />;
+		return <Presentation className={`${className} text-muted-foreground`} />;
 	}
 	if (
 		lowerName.endsWith(".docx") ||
@@ -73,7 +67,7 @@ function getFileIconFromName(fileName: string, className: string = "size-3.5 shr
 		lowerName.includes("word") ||
 		lowerName.includes("text")
 	) {
-		return <FileText className={`${className} text-gray-500`} />;
+		return <FileText className={`${className} text-muted-foreground`} />;
 	}
 	if (
 		lowerName.endsWith(".png") ||
@@ -83,15 +77,12 @@ function getFileIconFromName(fileName: string, className: string = "size-3.5 shr
 		lowerName.endsWith(".webp") ||
 		lowerName.endsWith(".svg")
 	) {
-		return <Image className={`${className} text-purple-500`} />;
+		return <Image className={`${className} text-muted-foreground`} />;
 	}
-	return <File className={`${className} text-gray-500`} />;
+	return <File className={`${className} text-muted-foreground`} />;
 }
 
-export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({
-	connector,
-	onConfigChange,
-}) => {
+export const ComposioDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigChange }) => {
 	const isIndexable = connector.config?.is_indexable as boolean;
 
 	const existingFolders =
@@ -103,6 +94,13 @@ export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({
 	const [selectedFolders, setSelectedFolders] = useState<SelectedFolder[]>(existingFolders);
 	const [selectedFiles, setSelectedFiles] = useState<SelectedFolder[]>(existingFiles);
 	const [indexingOptions, setIndexingOptions] = useState<IndexingOptions>(existingIndexingOptions);
+	const [authError, setAuthError] = useState(false);
+
+	const isAuthExpired = connector.config?.auth_expired === true || authError;
+
+	const handleAuthError = useCallback(() => {
+		setAuthError(true);
+	}, []);
 
 	const [isEditMode] = useState(() => existingFolders.length > 0 || existingFiles.length > 0);
 	const [isFolderTreeOpen, setIsFolderTreeOpen] = useState(!isEditMode);
@@ -201,7 +199,7 @@ export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({
 									className="text-xs sm:text-sm text-muted-foreground truncate flex items-center gap-1.5"
 									title={folder.name}
 								>
-									<FolderClosed className="size-3.5 shrink-0 text-gray-500" />
+									<FolderClosed className="size-3.5 shrink-0 text-muted-foreground" />
 									<span className="flex-1 truncate">{folder.name}</span>
 									<button
 										type="button"
@@ -235,6 +233,13 @@ export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({
 					</div>
 				)}
 
+				{isAuthExpired && (
+					<p className="text-xs text-amber-600 dark:text-amber-500">
+						Your Google Drive authentication has expired. Please re-authenticate using the button
+						below.
+					</p>
+				)}
+
 				{isEditMode ? (
 					<div className="space-y-2">
 						<button
@@ -242,12 +247,12 @@ export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({
 							onClick={() => setIsFolderTreeOpen(!isFolderTreeOpen)}
 							className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
 						>
+							Change Selection
 							{isFolderTreeOpen ? (
 								<ChevronDown className="size-4" />
 							) : (
 								<ChevronRight className="size-4" />
 							)}
-							Change Selection
 						</button>
 						{isFolderTreeOpen && (
 							<ComposioDriveFolderTree
@@ -256,6 +261,7 @@ export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({
 								onSelectFolders={handleSelectFolders}
 								selectedFiles={selectedFiles}
 								onSelectFiles={handleSelectFiles}
+								onAuthError={handleAuthError}
 							/>
 						)}
 					</div>
@@ -266,6 +272,7 @@ export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({
 						onSelectFolders={handleSelectFolders}
 						selectedFiles={selectedFiles}
 						onSelectFiles={handleSelectFiles}
+						onAuthError={handleAuthError}
 					/>
 				)}
 			</div>

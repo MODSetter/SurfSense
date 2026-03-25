@@ -2,8 +2,8 @@
 
 import { useAtomValue, useSetAtom } from "jotai";
 import { AlertTriangle, Cable, Settings } from "lucide-react";
-import { useSearchParams } from "next/navigation";
-import { type FC, forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
 import {
@@ -20,7 +20,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
-import { useConnectorsElectric } from "@/hooks/use-connectors-electric";
+import { useConnectorsSync } from "@/hooks/use-connectors-sync";
 import { PICKER_CLOSE_EVENT, PICKER_OPEN_EVENT } from "@/hooks/use-google-picker";
 import { cn } from "@/lib/utils";
 import { ConnectorDialogHeader } from "./connector-popup/components/connector-dialog-header";
@@ -49,9 +49,8 @@ interface ConnectorIndicatorProps {
 export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, ConnectorIndicatorProps>(
 	({ showTrigger = true }, ref) => {
 		const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
-		const searchParams = useSearchParams();
 		const setSearchSpaceSettingsDialog = useSetAtom(searchSpaceSettingsDialogAtom);
-		const { data: currentUser } = useAtomValue(currentUserAtom);
+		useAtomValue(currentUserAtom);
 		const { data: preferences = {}, isFetching: preferencesLoading } =
 			useAtomValue(llmPreferencesAtom);
 		const { data: globalConfigs = [], isFetching: globalConfigsLoading } =
@@ -85,9 +84,6 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 			[statusInboxItems]
 		);
 
-		// Check if YouTube view is active
-		const isYouTubeView = searchParams.get("view") === "youtube";
-
 		// Use the custom hook for dialog state management
 		const {
 			isOpen,
@@ -112,6 +108,8 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 			allConnectors,
 			viewingAccountsType,
 			viewingMCPList,
+			isYouTubeView,
+			isFromOAuth,
 			setSearchQuery,
 			setStartDate,
 			setEndDate,
@@ -157,33 +155,23 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 			};
 		}, []);
 
-		// Fetch connectors using Electric SQL + PGlite for real-time updates
-		// This provides instant updates when connectors change, without polling
 		const {
-			connectors: connectorsFromElectric = [],
+			connectors: connectorsFromSync = [],
 			loading: connectorsLoading,
 			error: connectorsError,
-			refreshConnectors: refreshConnectorsElectric,
-		} = useConnectorsElectric(searchSpaceId);
+			refreshConnectors: refreshConnectorsSync,
+		} = useConnectorsSync(searchSpaceId);
 
-		// Fallback to API if Electric is not available or fails
-		// Use Electric data if: 1) we have data, or 2) still loading without error
-		// Use API data if: Electric failed (has error) or finished loading with no data
-		const useElectricData =
-			connectorsFromElectric.length > 0 || (connectorsLoading && !connectorsError);
-		const connectors = useElectricData ? connectorsFromElectric : allConnectors || [];
+		const useSyncData = connectorsFromSync.length > 0 || (connectorsLoading && !connectorsError);
+		const connectors = useSyncData ? connectorsFromSync : allConnectors || [];
 
-		// Manual refresh function that works with both Electric and API
 		const refreshConnectors = async () => {
-			if (useElectricData) {
-				await refreshConnectorsElectric();
-			} else {
-				// Fallback: use allConnectors from useConnectorDialog (which uses connectorsAtom)
-				// The connectorsAtom will handle refetching if needed
+			if (useSyncData) {
+				await refreshConnectorsSync();
 			}
 		};
 
-		// Track indexing state locally - clears automatically when Electric SQL detects last_indexed_at changed
+		// Track indexing state locally - clears automatically when last_indexed_at changes via real-time sync
 		// Also clears when failed notifications are detected
 		const { indexingConnectorIds, startIndexing, stopIndexing } = useIndexingConnectors(
 			connectors as SearchSourceConnector[],
@@ -204,7 +192,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 		const activeConnectorsCount = connectors.length;
 
 		// Check which connectors are already connected
-		// Using Electric SQL + PGlite for real-time connector updates
+		// Real-time connector updates via Zero sync
 		const connectedTypes = new Set<string>(
 			(connectors || []).map((c: SearchSourceConnector) => c.connector_type)
 		);
@@ -216,14 +204,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 		if (!searchSpaceId) return null;
 
 		return (
-			<Dialog
-				open={isOpen}
-				onOpenChange={(open) => {
-					if (!open && pickerOpen) return;
-					handleOpenChange(open);
-				}}
-				modal={!pickerOpen}
-			>
+			<Dialog open={isOpen} modal={false} onOpenChange={handleOpenChange}>
 				{showTrigger && (
 					<TooltipIconButton
 						data-joyride="connector-icon"
@@ -259,9 +240,27 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 					</TooltipIconButton>
 				)}
 
+				{isOpen &&
+					createPortal(
+						<div
+							className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+							aria-hidden="true"
+							onClick={() => {
+								if (!pickerOpen) handleOpenChange(false);
+							}}
+						/>,
+						document.body
+					)}
+
 				<DialogContent
 					onFocusOutside={(e) => e.preventDefault()}
-					className="max-w-3xl w-[95vw] sm:w-full h-[75vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border ring-0 dark:ring-0 bg-muted dark:bg-muted text-foreground focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 [&>button]:right-4 sm:[&>button]:right-12 [&>button]:top-6 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button_svg]:size-5 select-none"
+					onInteractOutside={(e) => {
+						if (pickerOpen) e.preventDefault();
+					}}
+					onPointerDownOutside={(e) => {
+						if (pickerOpen) e.preventDefault();
+					}}
+					className="max-w-3xl w-[95vw] sm:w-full h-[75vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border ring-0 dark:ring-0 bg-muted dark:bg-muted text-foreground [&>button]:right-4 sm:[&>button]:right-12 [&>button]:top-6 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button_svg]:size-5 select-none"
 				>
 					<DialogTitle className="sr-only">Manage Connectors</DialogTitle>
 					{/* YouTube Crawler View - shown when adding YouTube videos */}
@@ -282,7 +281,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 						<ConnectorAccountsListView
 							connectorType={viewingAccountsType.connectorType}
 							connectorTitle={viewingAccountsType.connectorTitle}
-							connectors={(connectors || []) as SearchSourceConnector[]} // Using Electric SQL + PGlite for real-time connector updates (all connector types)
+							connectors={(connectors || []) as SearchSourceConnector[]}
 							indexingConnectorIds={indexingConnectorIds}
 							onBack={handleBackFromAccountsList}
 							onManage={handleStartEdit}
@@ -314,7 +313,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 								...editingConnector,
 								config: connectorConfig || editingConnector.config,
 								name: editingConnector.name,
-								// Sync last_indexed_at with live data from Electric SQL for real-time updates
+								// Sync last_indexed_at with live data from real-time sync
 								last_indexed_at:
 									(connectors as SearchSourceConnector[]).find((c) => c.id === editingConnector.id)
 										?.last_indexed_at ?? editingConnector.last_indexed_at,
@@ -339,20 +338,27 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 							}}
 							onDisconnect={() => handleDisconnectConnector(() => refreshConnectors())}
 							onBack={handleBackFromEdit}
-							onQuickIndex={
-								editingConnector.connector_type !== "GOOGLE_DRIVE_CONNECTOR"
-									? () => {
-											startIndexing(editingConnector.id);
-											handleQuickIndexConnector(
-												editingConnector.id,
-												editingConnector.connector_type,
-												stopIndexing,
-												startDate,
-												endDate
-											);
-										}
-									: undefined
-							}
+							onQuickIndex={(() => {
+								const cfg = connectorConfig || editingConnector.config;
+								const isDrive =
+									editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ||
+									editingConnector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR";
+								const hasDriveItems = isDrive
+									? ((cfg?.selected_folders as unknown[]) ?? []).length > 0 ||
+										((cfg?.selected_files as unknown[]) ?? []).length > 0
+									: true;
+								if (!hasDriveItems) return undefined;
+								return () => {
+									startIndexing(editingConnector.id);
+									handleQuickIndexConnector(
+										editingConnector.id,
+										editingConnector.connector_type,
+										stopIndexing,
+										startDate,
+										endDate
+									);
+								};
+							})()}
 							onConfigChange={setConnectorConfig}
 							onNameChange={setConnectorName}
 						/>
@@ -373,6 +379,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 							frequencyMinutes={frequencyMinutes}
 							enableSummary={enableSummary}
 							isStartingIndexing={isStartingIndexing}
+							isFromOAuth={isFromOAuth}
 							onStartDateChange={setStartDate}
 							onEndDateChange={setEndDate}
 							onPeriodicEnabledChange={setPeriodicEnabled}

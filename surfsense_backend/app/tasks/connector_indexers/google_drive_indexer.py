@@ -31,6 +31,15 @@ from app.tasks.connector_indexers.base import (
     update_connector_last_indexed,
 )
 from app.utils.document_converters import generate_unique_identifier_hash
+from app.utils.google_credentials import (
+    COMPOSIO_GOOGLE_CONNECTOR_TYPES,
+    build_composio_credentials,
+)
+
+ACCEPTED_DRIVE_CONNECTOR_TYPES = {
+    SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR,
+    SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+}
 
 # Type hint for heartbeat callback
 HeartbeatCallbackType = Callable[[int], Awaitable[None]]
@@ -53,7 +62,7 @@ async def index_google_drive_files(
     max_files: int = 500,
     include_subfolders: bool = False,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
-) -> tuple[int, str | None]:
+) -> tuple[int, int, str | None]:
     """
     Index Google Drive files for a specific connector.
 
@@ -71,7 +80,7 @@ async def index_google_drive_files(
         on_heartbeat_callback: Optional callback to update notification during long-running indexing.
 
     Returns:
-        Tuple of (number_of_indexed_files, error_message)
+        Tuple of (number_of_indexed_files, number_of_skipped_files, error_message)
     """
     task_logger = TaskLoggingService(session, search_space_id)
 
@@ -89,16 +98,19 @@ async def index_google_drive_files(
     )
 
     try:
-        connector = await get_connector_by_id(
-            session, connector_id, SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR
-        )
+        # Accept both native and Composio Drive connectors
+        connector = None
+        for ct in ACCEPTED_DRIVE_CONNECTOR_TYPES:
+            connector = await get_connector_by_id(session, connector_id, ct)
+            if connector:
+                break
 
         if not connector:
             error_msg = f"Google Drive connector with ID {connector_id} not found"
             await task_logger.log_task_failure(
-                log_entry, error_msg, {"error_type": "ConnectorNotFound"}
+                log_entry, error_msg, None, {"error_type": "ConnectorNotFound"}
             )
-            return 0, error_msg
+            return 0, 0, error_msg
 
         await task_logger.log_task_progress(
             log_entry,
@@ -106,34 +118,51 @@ async def index_google_drive_files(
             {"stage": "client_initialization"},
         )
 
-        # Check if credentials are encrypted (only when explicitly marked)
-        token_encrypted = connector.config.get("_token_encrypted", False)
-        if token_encrypted:
-            # Credentials are explicitly marked as encrypted, will be decrypted during client initialization
-            if not config.SECRET_KEY:
+        # Build credentials based on connector type
+        pre_built_credentials = None
+        if connector.connector_type in COMPOSIO_GOOGLE_CONNECTOR_TYPES:
+            connected_account_id = connector.config.get("composio_connected_account_id")
+            if not connected_account_id:
+                error_msg = f"Composio connected_account_id not found for connector {connector_id}"
                 await task_logger.log_task_failure(
                     log_entry,
-                    f"SECRET_KEY not configured but credentials are marked as encrypted for connector {connector_id}",
-                    "Missing SECRET_KEY for token decryption",
-                    {"error_type": "MissingSecretKey"},
+                    error_msg,
+                    "Missing Composio account",
+                    {"error_type": "MissingComposioAccount"},
                 )
-                return (
-                    0,
-                    "SECRET_KEY not configured but credentials are marked as encrypted",
+                return 0, 0, error_msg
+            pre_built_credentials = build_composio_credentials(connected_account_id)
+        else:
+            token_encrypted = connector.config.get("_token_encrypted", False)
+            if token_encrypted:
+                if not config.SECRET_KEY:
+                    await task_logger.log_task_failure(
+                        log_entry,
+                        f"SECRET_KEY not configured but credentials are marked as encrypted for connector {connector_id}",
+                        "Missing SECRET_KEY for token decryption",
+                        {"error_type": "MissingSecretKey"},
+                    )
+                    return (
+                        0,
+                        0,
+                        "SECRET_KEY not configured but credentials are marked as encrypted",
+                    )
+                logger.info(
+                    f"Google Drive credentials are encrypted for connector {connector_id}, will decrypt during client initialization"
                 )
-            logger.info(
-                f"Google Drive credentials are encrypted for connector {connector_id}, will decrypt during client initialization"
-            )
-        # If _token_encrypted is False or not set, treat credentials as plaintext
 
-        drive_client = GoogleDriveClient(session, connector_id)
+        connector_enable_summary = getattr(connector, "enable_summary", True)
+
+        drive_client = GoogleDriveClient(
+            session, connector_id, credentials=pre_built_credentials
+        )
 
         if not folder_id:
             error_msg = "folder_id is required for Google Drive indexing"
             await task_logger.log_task_failure(
                 log_entry, error_msg, {"error_type": "MissingParameter"}
             )
-            return 0, error_msg
+            return 0, 0, error_msg
 
         target_folder_id = folder_id
         target_folder_name = folder_name or "Selected Folder"
@@ -164,7 +193,33 @@ async def index_google_drive_files(
                 max_files=max_files,
                 include_subfolders=include_subfolders,
                 on_heartbeat_callback=on_heartbeat_callback,
+                enable_summary=connector_enable_summary,
             )
+            documents_indexed, documents_skipped = result
+
+            # Reconciliation: full scan re-indexes documents that were manually
+            # deleted from SurfSense but still exist in Google Drive.
+            # Already-indexed files are skipped via md5/modifiedTime checks,
+            # so the overhead is just one API listing call + fast DB lookups.
+            logger.info("Running reconciliation scan after delta sync")
+            reconcile_result = await _index_full_scan(
+                drive_client=drive_client,
+                session=session,
+                connector=connector,
+                connector_id=connector_id,
+                search_space_id=search_space_id,
+                user_id=user_id,
+                folder_id=target_folder_id,
+                folder_name=target_folder_name,
+                task_logger=task_logger,
+                log_entry=log_entry,
+                max_files=max_files,
+                include_subfolders=include_subfolders,
+                on_heartbeat_callback=on_heartbeat_callback,
+                enable_summary=connector_enable_summary,
+            )
+            documents_indexed += reconcile_result[0]
+            documents_skipped += reconcile_result[1]
         else:
             logger.info(f"Using full scan for connector {connector_id}")
             result = await _index_full_scan(
@@ -181,9 +236,9 @@ async def index_google_drive_files(
                 max_files=max_files,
                 include_subfolders=include_subfolders,
                 on_heartbeat_callback=on_heartbeat_callback,
+                enable_summary=connector_enable_summary,
             )
-
-        documents_indexed, documents_skipped = result
+            documents_indexed, documents_skipped = result
 
         if documents_indexed > 0 or can_use_delta_sync:
             new_token, token_error = await get_start_page_token(drive_client)
@@ -217,7 +272,7 @@ async def index_google_drive_files(
         logger.info(
             f"Google Drive indexing completed: {documents_indexed} files indexed, {documents_skipped} skipped"
         )
-        return documents_indexed, None
+        return documents_indexed, documents_skipped, None
 
     except SQLAlchemyError as db_error:
         await session.rollback()
@@ -228,7 +283,7 @@ async def index_google_drive_files(
             {"error_type": "SQLAlchemyError"},
         )
         logger.error(f"Database error: {db_error!s}", exc_info=True)
-        return 0, f"Database error: {db_error!s}"
+        return 0, 0, f"Database error: {db_error!s}"
     except Exception as e:
         await session.rollback()
         await task_logger.log_task_failure(
@@ -238,7 +293,7 @@ async def index_google_drive_files(
             {"error_type": type(e).__name__},
         )
         logger.error(f"Failed to index Google Drive files: {e!s}", exc_info=True)
-        return 0, f"Failed to index Google Drive files: {e!s}"
+        return 0, 0, f"Failed to index Google Drive files: {e!s}"
 
 
 async def index_google_drive_single_file(
@@ -278,14 +333,17 @@ async def index_google_drive_single_file(
     )
 
     try:
-        connector = await get_connector_by_id(
-            session, connector_id, SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR
-        )
+        # Accept both native and Composio Drive connectors
+        connector = None
+        for ct in ACCEPTED_DRIVE_CONNECTOR_TYPES:
+            connector = await get_connector_by_id(session, connector_id, ct)
+            if connector:
+                break
 
         if not connector:
             error_msg = f"Google Drive connector with ID {connector_id} not found"
             await task_logger.log_task_failure(
-                log_entry, error_msg, {"error_type": "ConnectorNotFound"}
+                log_entry, error_msg, None, {"error_type": "ConnectorNotFound"}
             )
             return 0, error_msg
 
@@ -295,27 +353,42 @@ async def index_google_drive_single_file(
             {"stage": "client_initialization"},
         )
 
-        # Check if credentials are encrypted (only when explicitly marked)
-        token_encrypted = connector.config.get("_token_encrypted", False)
-        if token_encrypted:
-            # Credentials are explicitly marked as encrypted, will be decrypted during client initialization
-            if not config.SECRET_KEY:
+        pre_built_credentials = None
+        if connector.connector_type in COMPOSIO_GOOGLE_CONNECTOR_TYPES:
+            connected_account_id = connector.config.get("composio_connected_account_id")
+            if not connected_account_id:
+                error_msg = f"Composio connected_account_id not found for connector {connector_id}"
                 await task_logger.log_task_failure(
                     log_entry,
-                    f"SECRET_KEY not configured but credentials are marked as encrypted for connector {connector_id}",
-                    "Missing SECRET_KEY for token decryption",
-                    {"error_type": "MissingSecretKey"},
+                    error_msg,
+                    "Missing Composio account",
+                    {"error_type": "MissingComposioAccount"},
                 )
-                return (
-                    0,
-                    "SECRET_KEY not configured but credentials are marked as encrypted",
+                return 0, error_msg
+            pre_built_credentials = build_composio_credentials(connected_account_id)
+        else:
+            token_encrypted = connector.config.get("_token_encrypted", False)
+            if token_encrypted:
+                if not config.SECRET_KEY:
+                    await task_logger.log_task_failure(
+                        log_entry,
+                        f"SECRET_KEY not configured but credentials are marked as encrypted for connector {connector_id}",
+                        "Missing SECRET_KEY for token decryption",
+                        {"error_type": "MissingSecretKey"},
+                    )
+                    return (
+                        0,
+                        "SECRET_KEY not configured but credentials are marked as encrypted",
+                    )
+                logger.info(
+                    f"Google Drive credentials are encrypted for connector {connector_id}, will decrypt during client initialization"
                 )
-            logger.info(
-                f"Google Drive credentials are encrypted for connector {connector_id}, will decrypt during client initialization"
-            )
-        # If _token_encrypted is False or not set, treat credentials as plaintext
 
-        drive_client = GoogleDriveClient(session, connector_id)
+        connector_enable_summary = getattr(connector, "enable_summary", True)
+
+        drive_client = GoogleDriveClient(
+            session, connector_id, credentials=pre_built_credentials
+        )
 
         # Fetch the file metadata
         file, error = await get_file_by_id(drive_client, file_id)
@@ -362,6 +435,7 @@ async def index_google_drive_single_file(
             task_logger=task_logger,
             log_entry=log_entry,
             pending_document=pending_doc,
+            enable_summary=connector_enable_summary,
         )
 
         await session.commit()
@@ -433,6 +507,7 @@ async def _index_full_scan(
     max_files: int,
     include_subfolders: bool = False,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
+    enable_summary: bool = True,
 ) -> tuple[int, int]:
     """Perform full scan indexing of a folder.
 
@@ -467,6 +542,7 @@ async def _index_full_scan(
 
     # Queue of folders to process: (folder_id, folder_name)
     folders_to_process = [(folder_id, folder_name)]
+    first_listing_error: str | None = None
 
     logger.info("Phase 1: Collecting files and creating pending documents")
 
@@ -486,6 +562,8 @@ async def _index_full_scan(
 
             if error:
                 logger.error(f"Error listing files in {current_folder_name}: {error}")
+                if first_listing_error is None:
+                    first_listing_error = error
                 break
 
             if not files:
@@ -531,6 +609,19 @@ async def _index_full_scan(
             if not page_token:
                 break
 
+    if not files_to_process and first_listing_error:
+        error_lower = first_listing_error.lower()
+        if (
+            "401" in first_listing_error
+            or "invalid credentials" in error_lower
+            or "authError" in first_listing_error
+        ):
+            raise Exception(
+                f"Google Drive authentication failed. Please re-authenticate. "
+                f"(Error: {first_listing_error})"
+            )
+        raise Exception(f"Failed to list Google Drive files: {first_listing_error}")
+
     # Commit all pending documents - they all appear in UI now
     if new_documents_created:
         logger.info(
@@ -562,6 +653,7 @@ async def _index_full_scan(
             task_logger=task_logger,
             log_entry=log_entry,
             pending_document=pending_doc,
+            enable_summary=enable_summary,
         )
 
         documents_indexed += indexed
@@ -592,6 +684,7 @@ async def _index_with_delta_sync(
     max_files: int,
     include_subfolders: bool = False,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
+    enable_summary: bool = True,
 ) -> tuple[int, int]:
     """Perform delta sync indexing using change tracking.
 
@@ -614,7 +707,17 @@ async def _index_with_delta_sync(
 
     if error:
         logger.error(f"Error fetching changes: {error}")
-        return 0, 0
+        error_lower = error.lower()
+        if (
+            "401" in error
+            or "invalid credentials" in error_lower
+            or "authError" in error
+        ):
+            raise Exception(
+                f"Google Drive authentication failed. Please re-authenticate. "
+                f"(Error: {error})"
+            )
+        raise Exception(f"Failed to fetch Google Drive changes: {error}")
 
     if not changes:
         logger.info("No changes detected since last sync")
@@ -703,6 +806,7 @@ async def _index_with_delta_sync(
             task_logger=task_logger,
             log_entry=log_entry,
             pending_document=pending_doc,
+            enable_summary=enable_summary,
         )
 
         documents_indexed += indexed
@@ -763,10 +867,25 @@ async def _create_pending_document_for_file(
         DocumentType.GOOGLE_DRIVE_FILE, file_id, search_space_id
     )
 
-    # Check if document exists
+    # Check if document exists (primary hash first, then legacy Composio hash)
     existing_document = await check_document_by_unique_identifier(
         session, unique_identifier_hash
     )
+    if not existing_document:
+        legacy_hash = generate_unique_identifier_hash(
+            DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR, file_id, search_space_id
+        )
+        existing_document = await check_document_by_unique_identifier(
+            session, legacy_hash
+        )
+        if existing_document:
+            existing_document.unique_identifier_hash = unique_identifier_hash
+            if (
+                existing_document.document_type
+                == DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR
+            ):
+                existing_document.document_type = DocumentType.GOOGLE_DRIVE_FILE
+            logger.info(f"Migrated legacy Composio document to native type: {file_id}")
 
     if existing_document:
         # Check if this is a rename-only update (content unchanged)
@@ -862,12 +981,26 @@ async def _check_rename_only_update(
     )
     existing_document = await check_document_by_unique_identifier(session, primary_hash)
 
-    # If not found by primary hash, try searching by metadata (for legacy documents)
+    # Fallback: legacy Composio hash
+    if not existing_document:
+        legacy_hash = generate_unique_identifier_hash(
+            DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR, file_id, search_space_id
+        )
+        existing_document = await check_document_by_unique_identifier(
+            session, legacy_hash
+        )
+
+    # Fallback: metadata search (covers old filename-based hashes)
     if not existing_document:
         result = await session.execute(
             select(Document).where(
                 Document.search_space_id == search_space_id,
-                Document.document_type == DocumentType.GOOGLE_DRIVE_FILE,
+                Document.document_type.in_(
+                    [
+                        DocumentType.GOOGLE_DRIVE_FILE,
+                        DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+                    ]
+                ),
                 cast(Document.document_metadata["google_drive_file_id"], String)
                 == file_id,
             )
@@ -875,6 +1008,17 @@ async def _check_rename_only_update(
         existing_document = result.scalar_one_or_none()
         if existing_document:
             logger.debug(f"Found legacy document by metadata for file_id: {file_id}")
+
+    # Migrate legacy Composio document to native type
+    if existing_document:
+        if existing_document.unique_identifier_hash != primary_hash:
+            existing_document.unique_identifier_hash = primary_hash
+        if (
+            existing_document.document_type
+            == DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR
+        ):
+            existing_document.document_type = DocumentType.GOOGLE_DRIVE_FILE
+            logger.info(f"Migrated legacy Composio Drive document: {file_id}")
 
     if not existing_document:
         # New file, needs full processing
@@ -957,6 +1101,7 @@ async def _process_single_file(
     task_logger: TaskLoggingService,
     log_entry: any,
     pending_document: Document | None = None,
+    enable_summary: bool = True,
 ) -> tuple[int, int, int]:
     """
     Process a single file by downloading and using Surfsense's file processor.
@@ -1020,6 +1165,7 @@ async def _process_single_file(
             task_logger=task_logger,
             log_entry=log_entry,
             connector_id=connector_id,
+            enable_summary=enable_summary,
         )
 
         if error:
@@ -1088,12 +1234,26 @@ async def _remove_document(session: AsyncSession, file_id: str, search_space_id:
         session, unique_identifier_hash
     )
 
-    # If not found, search by metadata (for legacy documents with filename-based hash)
+    # Fallback: legacy Composio hash
+    if not existing_document:
+        legacy_hash = generate_unique_identifier_hash(
+            DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR, file_id, search_space_id
+        )
+        existing_document = await check_document_by_unique_identifier(
+            session, legacy_hash
+        )
+
+    # Fallback: metadata search (covers old filename-based hashes, both native and Composio)
     if not existing_document:
         result = await session.execute(
             select(Document).where(
                 Document.search_space_id == search_space_id,
-                Document.document_type == DocumentType.GOOGLE_DRIVE_FILE,
+                Document.document_type.in_(
+                    [
+                        DocumentType.GOOGLE_DRIVE_FILE,
+                        DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+                    ]
+                ),
                 cast(Document.document_metadata["google_drive_file_id"], String)
                 == file_id,
             )

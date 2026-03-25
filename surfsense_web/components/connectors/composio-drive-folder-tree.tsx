@@ -12,7 +12,7 @@ import {
 	Image,
 	Presentation,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
@@ -48,23 +48,24 @@ interface ComposioDriveFolderTreeProps {
 	onSelectFolders: (folders: SelectedFolder[]) => void;
 	selectedFiles?: SelectedFolder[];
 	onSelectFiles?: (files: SelectedFolder[]) => void;
+	onAuthError?: (message: string) => void;
 }
 
 // Helper to get appropriate icon for file type
 function getFileIcon(mimeType: string, className: string = "h-4 w-4") {
 	if (mimeType.includes("spreadsheet") || mimeType.includes("excel")) {
-		return <FileSpreadsheet className={`${className} text-green-500`} />;
+		return <FileSpreadsheet className={`${className} text-muted-foreground`} />;
 	}
 	if (mimeType.includes("presentation") || mimeType.includes("powerpoint")) {
-		return <Presentation className={`${className} text-orange-500`} />;
+		return <Presentation className={`${className} text-muted-foreground`} />;
 	}
 	if (mimeType.includes("document") || mimeType.includes("word") || mimeType.includes("text")) {
-		return <FileText className={`${className} text-gray-500`} />;
+		return <FileText className={`${className} text-muted-foreground`} />;
 	}
 	if (mimeType.includes("image")) {
-		return <Image className={`${className} text-purple-500`} />;
+		return <Image className={`${className} text-muted-foreground`} />;
 	}
-	return <File className={`${className} text-gray-500`} />;
+	return <File className={`${className} text-muted-foreground`} />;
 }
 
 export function ComposioDriveFolderTree({
@@ -73,12 +74,29 @@ export function ComposioDriveFolderTree({
 	onSelectFolders,
 	selectedFiles = [],
 	onSelectFiles = () => {},
+	onAuthError,
 }: ComposioDriveFolderTreeProps) {
 	const [itemStates, setItemStates] = useState<Map<string, ItemTreeNode>>(new Map());
 
-	const { data: rootData, isLoading: isLoadingRoot } = useComposioDriveFolders({
+	const {
+		data: rootData,
+		isLoading: isLoadingRoot,
+		error: rootError,
+	} = useComposioDriveFolders({
 		connectorId,
 	});
+
+	useEffect(() => {
+		if (rootError && onAuthError) {
+			const msg = rootError instanceof Error ? rootError.message : String(rootError);
+			if (
+				msg.toLowerCase().includes("authentication expired") ||
+				msg.toLowerCase().includes("re-authenticate")
+			) {
+				onAuthError(msg);
+			}
+		}
+	}, [rootError, onAuthError]);
 
 	const rootItems = rootData?.items || [];
 
@@ -280,9 +298,9 @@ export function ComposioDriveFolderTree({
 					<div className="shrink-0">
 						{isFolder ? (
 							isExpanded ? (
-								<FolderOpen className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
+								<FolderOpen className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
 							) : (
-								<FolderClosed className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
+								<FolderClosed className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
 							)
 						) : (
 							getFileIcon(item.mimeType, "h-3 w-3 sm:h-4 sm:w-4")
@@ -331,7 +349,7 @@ export function ComposioDriveFolderTree({
 								onCheckedChange={() => toggleFolderSelection("root", "My Drive")}
 								className="shrink-0 h-3.5 w-3.5 sm:h-4 sm:w-4 border-slate-400/20 dark:border-white/20"
 							/>
-							<HardDrive className="h-3 w-3 sm:h-4 sm:w-4 text-primary shrink-0" />
+							<HardDrive className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
 							<button
 								type="button"
 								className="font-semibold truncate text-xs sm:text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
@@ -352,7 +370,17 @@ export function ComposioDriveFolderTree({
 						{!isLoadingRoot && rootItems.map((item) => renderItem(item, 0))}
 					</div>
 
-					{!isLoadingRoot && rootItems.length === 0 && (
+					{!isLoadingRoot && rootError && (
+						<div className="text-center text-xs sm:text-sm text-amber-600 dark:text-amber-500 py-4 sm:py-8">
+							{(rootError instanceof Error ? rootError.message : String(rootError)).includes(
+								"authentication expired"
+							)
+								? "Google Drive authentication has expired. Please re-authenticate above."
+								: "Failed to load Google Drive contents."}
+						</div>
+					)}
+
+					{!isLoadingRoot && !rootError && rootItems.length === 0 && (
 						<div className="text-center text-xs sm:text-sm text-muted-foreground py-4 sm:py-8">
 							No files or folders found in your Google Drive
 						</div>

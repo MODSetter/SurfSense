@@ -280,7 +280,7 @@ export function LLMConfigForm({
 													!field.value && "text-muted-foreground"
 												)}
 											>
-												{field.value || "Select or type model name"}
+												{field.value || "Select a model"}
 												<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
 											</Button>
 										</FormControl>
@@ -291,7 +291,7 @@ export function LLMConfigForm({
 									>
 										<Command shouldFilter={false} className="bg-transparent">
 											<CommandInput
-												placeholder={selectedProvider?.example || "Type model name..."}
+												placeholder={selectedProvider?.example || "Search model name"}
 												value={field.value}
 												onValueChange={field.onChange}
 											/>
