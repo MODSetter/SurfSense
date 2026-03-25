@@ -1,7 +1,6 @@
 "use client";
 
 import { ChevronsUpDown, Settings, UserPen } from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,9 +28,6 @@ export function SidebarHeader({
 	className,
 }: SidebarHeaderProps) {
 	const t = useTranslations("sidebar");
-	const router = useRouter();
-	const params = useParams();
-	const searchSpaceId = params.search_space_id as string;
 
 	return (
 		<div className={cn("flex min-w-0 flex-1 items-center", className)}>
