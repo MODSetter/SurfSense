@@ -346,6 +346,8 @@ class IndexingPipelineService:
         bounded by a semaphore to avoid overwhelming APIs/DB.
         """
         logger = logging.getLogger(__name__)
+        perf = get_perf_logger()
+        t_total = time.perf_counter()
 
         doc_map = {
             compute_unique_identifier_hash(cd): cd for cd in connector_docs
@@ -422,7 +424,17 @@ class IndexingPipelineService:
                         return exc
 
         tasks = [_index_one(doc) for doc in documents]
+        t_parallel = time.perf_counter()
         outcomes = await asyncio.gather(*tasks, return_exceptions=True)
+        perf.info(
+            "[indexing] index_batch_parallel gather docs=%d concurrency=%d "
+            "indexed=%d failed=%d in %.3fs",
+            len(documents),
+            max_concurrency,
+            indexed_count,
+            failed_count,
+            time.perf_counter() - t_parallel,
+        )
 
         for outcome in outcomes:
             if isinstance(outcome, Document):
@@ -430,4 +442,13 @@ class IndexingPipelineService:
             elif isinstance(outcome, Exception):
                 pass
 
+        perf.info(
+            "[indexing] index_batch_parallel TOTAL input=%d prepared=%d "
+            "indexed=%d failed=%d in %.3fs",
+            len(connector_docs),
+            len(documents),
+            indexed_count,
+            failed_count,
+            time.perf_counter() - t_total,
+        )
         return results, indexed_count, failed_count
