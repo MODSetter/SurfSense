@@ -1,5 +1,6 @@
 """Google Drive API client."""
 
+import asyncio
 import io
 from typing import Any
 
@@ -35,6 +36,7 @@ class GoogleDriveClient:
         self.connector_id = connector_id
         self._credentials = credentials
         self.service = None
+        self._service_lock = asyncio.Lock()
 
     async def get_service(self):
         """
@@ -49,17 +51,21 @@ class GoogleDriveClient:
         if self.service:
             return self.service
 
-        try:
-            if self._credentials:
-                credentials = self._credentials
-            else:
-                credentials = await get_valid_credentials(
-                    self.session, self.connector_id
-                )
-            self.service = build("drive", "v3", credentials=credentials)
-            return self.service
-        except Exception as e:
-            raise Exception(f"Failed to create Google Drive service: {e!s}") from e
+        async with self._service_lock:
+            if self.service:
+                return self.service
+
+            try:
+                if self._credentials:
+                    credentials = self._credentials
+                else:
+                    credentials = await get_valid_credentials(
+                        self.session, self.connector_id
+                    )
+                self.service = build("drive", "v3", credentials=credentials)
+                return self.service
+            except Exception as e:
+                raise Exception(f"Failed to create Google Drive service: {e!s}") from e
 
     async def list_files(
         self,
