@@ -1,5 +1,3 @@
-"use client";
-
 import { Link2Off } from "lucide-react";
 
 interface PublicChatSnapshotsEmptyStateProps {
