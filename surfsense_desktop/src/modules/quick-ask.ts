@@ -118,6 +118,23 @@ export function registerQuickAsk(): void {
     pendingText = '';
     return text;
   });
+
+  ipcMain.handle(IPC_CHANNELS.REPLACE_TEXT, async (_event, text: string) => {
+    if (process.platform !== 'darwin' || !sourceApp) return;
+
+    clipboard.writeText(text);
+    hideQuickAsk();
+
+    try {
+      execSync(`osascript -e 'tell application "${sourceApp}" to activate'`);
+      await new Promise((r) => setTimeout(r, 100));
+      execSync('osascript -e \'tell application "System Events" to keystroke "v" using command down\'');
+      await new Promise((r) => setTimeout(r, 100));
+      clipboard.writeText(savedClipboard);
+    } catch {
+      clipboard.writeText(savedClipboard);
+    }
+  });
 }
 
 export function unregisterQuickAsk(): void {
