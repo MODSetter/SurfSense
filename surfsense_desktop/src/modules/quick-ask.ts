@@ -1,4 +1,5 @@
 import { BrowserWindow, clipboard, globalShortcut, ipcMain, screen, shell } from 'electron';
+import { execSync } from 'child_process';
 import path from 'path';
 import { IPC_CHANNELS } from '../ipc/channels';
 import { getServerPort } from './server';
@@ -6,6 +7,18 @@ import { getServerPort } from './server';
 const SHORTCUT = 'CommandOrControl+Option+S';
 let quickAskWindow: BrowserWindow | null = null;
 let pendingText = '';
+let sourceApp = '';
+
+function getFrontmostApp(): string {
+  if (process.platform !== 'darwin') return '';
+  try {
+    return execSync(
+      'osascript -e \'tell application "System Events" to get name of first application process whose frontmost is true\''
+    ).toString().trim();
+  } catch {
+    return '';
+  }
+}
 
 function hideQuickAsk(): void {
   if (quickAskWindow && !quickAskWindow.isDestroyed()) {
@@ -82,6 +95,8 @@ export function registerQuickAsk(): void {
       hideQuickAsk();
       return;
     }
+
+    sourceApp = getFrontmostApp();
 
     const text = clipboard.readText().trim();
     if (!text) return;
