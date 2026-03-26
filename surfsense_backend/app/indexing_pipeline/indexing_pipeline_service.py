@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 import time
 from datetime import UTC, datetime
@@ -257,13 +258,14 @@ class IndexingPipelineService:
             )
 
             t_step = time.perf_counter()
-            chunk_texts = chunk_text(
+            chunk_texts = await asyncio.to_thread(
+                chunk_text,
                 connector_doc.source_markdown,
                 use_code_chunker=connector_doc.should_use_code_chunker,
             )
 
             texts_to_embed = [content, *chunk_texts]
-            embeddings = embed_texts(texts_to_embed)
+            embeddings = await asyncio.to_thread(embed_texts, texts_to_embed)
             summary_embedding, *chunk_embeddings = embeddings
 
             chunks = [
