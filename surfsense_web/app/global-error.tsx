@@ -7,11 +7,6 @@ import posthog from "posthog-js";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
-export const metadata = {
-  title: "SurfSense - Error",
-  description: "SurfSense Error Page",
-};
-
 export default function GlobalError({
   error,
   reset,
