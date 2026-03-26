@@ -1,6 +1,8 @@
 import asyncio
 import contextlib
+import logging
 import time
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 
 from sqlalchemy import delete, select
@@ -327,3 +329,105 @@ class IndexingPipelineService:
             await self.session.refresh(document)
 
         return document
+
+    async def index_batch_parallel(
+        self,
+        connector_docs: list[ConnectorDocument],
+        get_llm: Callable[[AsyncSession], Awaitable],
+        *,
+        max_concurrency: int = 4,
+        on_heartbeat: Callable[[int], Awaitable[None]] | None = None,
+        heartbeat_interval: float = 30.0,
+    ) -> tuple[list[Document], int, int]:
+        """Index documents in parallel with bounded concurrency.
+
+        Phase 1 (serial): prepare_for_indexing using self.session.
+        Phase 2 (parallel): index each document in an isolated session,
+        bounded by a semaphore to avoid overwhelming APIs/DB.
+        """
+        logger = logging.getLogger(__name__)
+
+        doc_map = {
+            compute_unique_identifier_hash(cd): cd for cd in connector_docs
+        }
+        documents = await self.prepare_for_indexing(connector_docs)
+
+        if not documents:
+            return [], 0, 0
+
+        from app.tasks.celery_tasks import get_celery_session_maker
+
+        sem = asyncio.Semaphore(max_concurrency)
+        lock = asyncio.Lock()
+        indexed_count = 0
+        failed_count = 0
+        results: list[Document] = []
+        last_heartbeat = time.time()
+
+        async def _index_one(document: Document) -> Document | Exception:
+            nonlocal indexed_count, failed_count, last_heartbeat
+
+            connector_doc = doc_map.get(document.unique_identifier_hash)
+            if connector_doc is None:
+                logger.warning(
+                    "No matching ConnectorDocument for document %s, skipping",
+                    document.id,
+                )
+                async with lock:
+                    failed_count += 1
+                return document
+
+            async with sem:
+                session_maker = get_celery_session_maker()
+                async with session_maker() as isolated_session:
+                    try:
+                        refetched = await isolated_session.get(
+                            Document, document.id
+                        )
+                        if refetched is None:
+                            async with lock:
+                                failed_count += 1
+                            return document
+
+                        llm = await get_llm(isolated_session)
+                        iso_pipeline = IndexingPipelineService(isolated_session)
+                        result = await iso_pipeline.index(
+                            refetched, connector_doc, llm
+                        )
+
+                        async with lock:
+                            if DocumentStatus.is_state(
+                                result.status, DocumentStatus.READY
+                            ):
+                                indexed_count += 1
+                            else:
+                                failed_count += 1
+
+                            if on_heartbeat:
+                                now = time.time()
+                                if now - last_heartbeat >= heartbeat_interval:
+                                    await on_heartbeat(indexed_count)
+                                    last_heartbeat = now
+
+                        return result
+                    except Exception as exc:
+                        logger.error(
+                            "Parallel index failed for doc %s: %s",
+                            document.id,
+                            exc,
+                            exc_info=True,
+                        )
+                        async with lock:
+                            failed_count += 1
+                        return exc
+
+        tasks = [_index_one(doc) for doc in documents]
+        outcomes = await asyncio.gather(*tasks, return_exceptions=True)
+
+        for outcome in outcomes:
+            if isinstance(outcome, Document):
+                results.append(outcome)
+            elif isinstance(outcome, Exception):
+                pass
+
+        return results, indexed_count, failed_count

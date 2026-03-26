@@ -5,8 +5,6 @@ Uses the shared IndexingPipelineService for document deduplication,
 summarization, chunking, and embedding.
 """
 
-import logging
-import time
 from collections.abc import Awaitable, Callable
 from datetime import datetime
 
@@ -17,10 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.connectors.google_gmail_connector import GoogleGmailConnector
 from app.db import DocumentType, SearchSourceConnectorType
 from app.indexing_pipeline.connector_document import ConnectorDocument
-from app.indexing_pipeline.document_hashing import (
-    compute_content_hash,
-    compute_unique_identifier_hash,
-)
+from app.indexing_pipeline.document_hashing import compute_content_hash
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
@@ -336,53 +331,21 @@ async def index_google_gmail_messages(
                 documents_skipped += 1
                 continue
 
-        # ── Pipeline: migrate legacy docs + prepare + index ───────────
+        # ── Pipeline: migrate legacy docs + parallel index ─────────────
         pipeline = IndexingPipelineService(session)
 
         await pipeline.migrate_legacy_docs(connector_docs)
 
-        documents = await pipeline.prepare_for_indexing(connector_docs)
+        async def _get_llm(s):
+            return await get_user_long_context_llm(s, user_id, search_space_id)
 
-        doc_map = {
-            compute_unique_identifier_hash(cd): cd for cd in connector_docs
-        }
-
-        documents_indexed = 0
-        documents_failed = 0
-        last_heartbeat_time = time.time()
-
-        for document in documents:
-            if on_heartbeat_callback:
-                current_time = time.time()
-                if current_time - last_heartbeat_time >= HEARTBEAT_INTERVAL_SECONDS:
-                    await on_heartbeat_callback(documents_indexed)
-                    last_heartbeat_time = current_time
-
-            connector_doc = doc_map.get(document.unique_identifier_hash)
-            if connector_doc is None:
-                logger.warning(
-                    f"No matching ConnectorDocument for document {document.id}, skipping"
-                )
-                documents_failed += 1
-                continue
-
-            try:
-                user_llm = await get_user_long_context_llm(
-                    session, user_id, search_space_id
-                )
-                await pipeline.index(document, connector_doc, user_llm)
-                documents_indexed += 1
-
-                if documents_indexed % 10 == 0:
-                    logger.info(
-                        f"Committing batch: {documents_indexed} Gmail messages processed so far"
-                    )
-                    await session.commit()
-
-            except Exception as e:
-                logger.error(f"Error processing Gmail message: {e!s}", exc_info=True)
-                documents_failed += 1
-                continue
+        _, documents_indexed, documents_failed = await pipeline.index_batch_parallel(
+            connector_docs,
+            _get_llm,
+            max_concurrency=3,
+            on_heartbeat=on_heartbeat_callback,
+            heartbeat_interval=HEARTBEAT_INTERVAL_SECONDS,
+        )
 
         # ── Finalize ──────────────────────────────────────────────────
         await update_connector_last_indexed(session, connector, update_last_indexed)
