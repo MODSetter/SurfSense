@@ -11,6 +11,7 @@ interface ElectronAPI {
 	getAppVersion: () => Promise<string>;
 	onDeepLink: (callback: (url: string) => void) => () => void;
 	getQuickAskText: () => Promise<string>;
+	replaceText: (text: string) => Promise<void>;
 }
 
 declare global {
