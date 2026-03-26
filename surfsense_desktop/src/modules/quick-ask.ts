@@ -21,10 +21,11 @@ function getFrontmostApp(): string {
   }
 }
 
-function hideQuickAsk(): void {
+function destroyQuickAsk(): void {
   if (quickAskWindow && !quickAskWindow.isDestroyed()) {
-    quickAskWindow.hide();
+    quickAskWindow.close();
   }
+  quickAskWindow = null;
 }
 
 function clampToScreen(x: number, y: number, w: number, h: number): { x: number; y: number } {
@@ -37,12 +38,7 @@ function clampToScreen(x: number, y: number, w: number, h: number): { x: number;
 }
 
 function createQuickAskWindow(x: number, y: number): BrowserWindow {
-  if (quickAskWindow && !quickAskWindow.isDestroyed()) {
-    quickAskWindow.setPosition(x, y);
-    quickAskWindow.show();
-    quickAskWindow.focus();
-    return quickAskWindow;
-  }
+  destroyQuickAsk();
 
   quickAskWindow = new BrowserWindow({
     width: 450,
@@ -72,7 +68,7 @@ function createQuickAskWindow(x: number, y: number): BrowserWindow {
   });
 
   quickAskWindow.webContents.on('before-input-event', (_event, input) => {
-    if (input.key === 'Escape') hideQuickAsk();
+    if (input.key === 'Escape') destroyQuickAsk();
   });
 
   quickAskWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -92,8 +88,8 @@ function createQuickAskWindow(x: number, y: number): BrowserWindow {
 
 export function registerQuickAsk(): void {
   const ok = globalShortcut.register(SHORTCUT, () => {
-    if (quickAskWindow && !quickAskWindow.isDestroyed() && quickAskWindow.isVisible()) {
-      hideQuickAsk();
+    if (quickAskWindow && !quickAskWindow.isDestroyed()) {
+      destroyQuickAsk();
       return;
     }
 
@@ -125,11 +121,10 @@ export function registerQuickAsk(): void {
     if (!systemPreferences.isTrustedAccessibilityClient(true)) return;
 
     clipboard.writeText(text);
-    hideQuickAsk();
+    destroyQuickAsk();
 
     try {
-      execSync(`osascript -e 'tell application "${sourceApp}" to activate'`);
-      await new Promise((r) => setTimeout(r, 100));
+      await new Promise((r) => setTimeout(r, 50));
       execSync('osascript -e \'tell application "System Events" to keystroke "v" using command down\'');
       await new Promise((r) => setTimeout(r, 100));
       clipboard.writeText(savedClipboard);
