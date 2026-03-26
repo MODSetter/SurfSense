@@ -1,15 +1,10 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { useParams, useRouter } from "next/navigation";
-import { useEffect } from "react";
-
-export default function SearchSpaceDashboardPage() {
-	const router = useRouter();
-	const { search_space_id } = useParams();
-
-	useEffect(() => {
-		router.push(`/dashboard/${search_space_id}/new-chat`);
-	}, [router, search_space_id]);
-
-	return <></>;
+export default async function SearchSpaceDashboardPage({
+  params,
+}: {
+  params: Promise<{ search_space_id: string }>;
+}) {
+  const { search_space_id } = await params;
+  redirect(`/dashboard/${search_space_id}/new-chat`);
 }
