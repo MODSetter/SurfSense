@@ -8,6 +8,7 @@ const SHORTCUT = 'CommandOrControl+Option+S';
 let quickAskWindow: BrowserWindow | null = null;
 let pendingText = '';
 let sourceApp = '';
+let savedClipboard = '';
 
 function getFrontmostApp(): string {
   if (process.platform !== 'darwin') return '';
@@ -97,8 +98,9 @@ export function registerQuickAsk(): void {
     }
 
     sourceApp = getFrontmostApp();
+    savedClipboard = clipboard.readText();
 
-    const text = clipboard.readText().trim();
+    const text = savedClipboard.trim();
     if (!text) return;
 
     pendingText = text;
