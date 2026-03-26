@@ -74,6 +74,7 @@ import {
 	trackChatMessageSent,
 	trackChatResponseReceived,
 } from "@/lib/posthog/events";
+import Loading from "../loading";
 
 /**
  * After a tool produces output, mark any previously-decided interrupt tool
@@ -1527,40 +1528,7 @@ export default function NewChatPage() {
 	// Show loading state only when loading an existing thread
 	if (isInitializing) {
 		return (
-			<div className="flex h-[calc(100dvh-64px)] flex-col bg-main-panel px-4">
-				<div className="mx-auto w-full max-w-[44rem] flex flex-1 flex-col gap-6 py-8">
-					{/* User message */}
-					<div className="flex justify-end">
-						<Skeleton className="h-12 w-56 rounded-2xl" />
-					</div>
-
-					{/* Assistant message */}
-					<div className="flex flex-col gap-2">
-						<Skeleton className="h-4 w-full" />
-						<Skeleton className="h-4 w-[85%]" />
-						<Skeleton className="h-4 w-[70%]" />
-					</div>
-
-					{/* User message */}
-					<div className="flex justify-end">
-						<Skeleton className="h-12 w-40 rounded-2xl" />
-					</div>
-
-					{/* Assistant message */}
-					<div className="flex flex-col gap-2">
-						<Skeleton className="h-4 w-full" />
-						<Skeleton className="h-4 w-[90%]" />
-						<Skeleton className="h-4 w-[60%]" />
-					</div>
-				</div>
-
-				{/* Input bar */}
-				<div className="sticky bottom-0 pb-6 bg-main-panel">
-					<div className="mx-auto w-full max-w-[44rem]">
-						<Skeleton className="h-24 w-full rounded-2xl" />
-					</div>
-				</div>
-			</div>
+			<Loading />
 		);
 	}
 
