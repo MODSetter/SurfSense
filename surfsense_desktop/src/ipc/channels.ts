@@ -3,4 +3,5 @@ export const IPC_CHANNELS = {
   GET_APP_VERSION: 'get-app-version',
   DEEP_LINK: 'deep-link',
   QUICK_ASK_TEXT: 'quick-ask-text',
+  REPLACE_TEXT: 'replace-text',
 } as const;
