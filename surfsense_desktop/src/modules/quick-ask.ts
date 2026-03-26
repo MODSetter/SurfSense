@@ -1,4 +1,4 @@
-import { BrowserWindow, clipboard, globalShortcut, ipcMain, screen, shell } from 'electron';
+import { BrowserWindow, clipboard, globalShortcut, ipcMain, screen, shell, systemPreferences } from 'electron';
 import { execSync } from 'child_process';
 import path from 'path';
 import { IPC_CHANNELS } from '../ipc/channels';
@@ -121,6 +121,8 @@ export function registerQuickAsk(): void {
 
   ipcMain.handle(IPC_CHANNELS.REPLACE_TEXT, async (_event, text: string) => {
     if (process.platform !== 'darwin' || !sourceApp) return;
+
+    if (!systemPreferences.isTrustedAccessibilityClient(true)) return;
 
     clipboard.writeText(text);
     hideQuickAsk();
