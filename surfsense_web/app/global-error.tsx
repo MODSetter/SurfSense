@@ -1,8 +1,6 @@
 "use client";
 
 import "./globals.css";
-
-import NextError from "next/error";
 import posthog from "posthog-js";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
