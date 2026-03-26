@@ -18,4 +18,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
     };
   },
   getQuickAskText: () => ipcRenderer.invoke(IPC_CHANNELS.QUICK_ASK_TEXT),
+  replaceText: (text: string) => ipcRenderer.invoke(IPC_CHANNELS.REPLACE_TEXT, text),
 });
