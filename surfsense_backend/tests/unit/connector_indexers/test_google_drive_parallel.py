@@ -8,6 +8,7 @@ import pytest
 from app.tasks.connector_indexers.google_drive_indexer import (
     _download_files_parallel,
     _index_full_scan,
+    _index_selected_files,
     _index_with_delta_sync,
 )
 
@@ -464,3 +465,124 @@ async def test_delta_sync_removals_serial_rest_parallel(monkeypatch):
 
     assert indexed == 2
     assert skipped == 0
+
+
+# ---------------------------------------------------------------------------
+# _index_selected_files -- parallel indexing of user-selected files
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def selected_files_mocks(mock_drive_client, monkeypatch):
+    """Wire up mocks for _index_selected_files tests."""
+    import app.tasks.connector_indexers.google_drive_indexer as _mod
+
+    mock_session = AsyncMock()
+
+    get_file_results: dict[str, tuple[dict | None, str | None]] = {}
+
+    async def _fake_get_file(client, file_id):
+        return get_file_results.get(file_id, (None, f"Not configured: {file_id}"))
+
+    monkeypatch.setattr(_mod, "get_file_by_id", _fake_get_file)
+
+    skip_results: dict[str, tuple[bool, str | None]] = {}
+
+    async def _fake_skip(session, file, search_space_id):
+        return skip_results.get(file["id"], (False, None))
+
+    monkeypatch.setattr(_mod, "_should_skip_file", _fake_skip)
+
+    download_and_index_mock = AsyncMock(return_value=(0, 0))
+    monkeypatch.setattr(_mod, "_download_and_index", download_and_index_mock)
+
+    return {
+        "drive_client": mock_drive_client,
+        "session": mock_session,
+        "get_file_results": get_file_results,
+        "skip_results": skip_results,
+        "download_and_index_mock": download_and_index_mock,
+    }
+
+
+async def _run_selected(mocks, file_ids):
+    return await _index_selected_files(
+        mocks["drive_client"],
+        mocks["session"],
+        file_ids,
+        connector_id=_CONNECTOR_ID,
+        search_space_id=_SEARCH_SPACE_ID,
+        user_id=_USER_ID,
+        enable_summary=True,
+    )
+
+
+async def test_selected_files_single_file_indexed(selected_files_mocks):
+    """Tracer bullet: one file fetched, not skipped, indexed via parallel pipeline."""
+    selected_files_mocks["get_file_results"]["f1"] = (
+        _make_file_dict("f1", "report.pdf"),
+        None,
+    )
+    selected_files_mocks["download_and_index_mock"].return_value = (1, 0)
+
+    indexed, skipped, errors = await _run_selected(
+        selected_files_mocks, [("f1", "report.pdf")],
+    )
+
+    assert indexed == 1
+    assert skipped == 0
+    assert errors == []
+    selected_files_mocks["download_and_index_mock"].assert_called_once()
+
+
+async def test_selected_files_fetch_failure_isolation(selected_files_mocks):
+    """get_file_by_id failing for one file collects an error; others still indexed."""
+    selected_files_mocks["get_file_results"]["f1"] = (
+        _make_file_dict("f1", "first.txt"), None,
+    )
+    selected_files_mocks["get_file_results"]["f2"] = (None, "HTTP 404")
+    selected_files_mocks["get_file_results"]["f3"] = (
+        _make_file_dict("f3", "third.txt"), None,
+    )
+    selected_files_mocks["download_and_index_mock"].return_value = (2, 0)
+
+    indexed, skipped, errors = await _run_selected(
+        selected_files_mocks,
+        [("f1", "first.txt"), ("f2", "mid.txt"), ("f3", "third.txt")],
+    )
+
+    assert indexed == 2
+    assert skipped == 0
+    assert len(errors) == 1
+    assert "mid.txt" in errors[0]
+    assert "HTTP 404" in errors[0]
+
+
+async def test_selected_files_skip_rename_counting(selected_files_mocks):
+    """Unchanged files are skipped, renames counted as indexed,
+    and only new files are sent to _download_and_index."""
+    for fid, fname in [("s1", "unchanged.txt"), ("r1", "renamed.txt"),
+                       ("n1", "new1.txt"), ("n2", "new2.txt")]:
+        selected_files_mocks["get_file_results"][fid] = (
+            _make_file_dict(fid, fname), None,
+        )
+
+    selected_files_mocks["skip_results"]["s1"] = (True, "unchanged")
+    selected_files_mocks["skip_results"]["r1"] = (True, "File renamed: 'old' \u2192 'renamed.txt'")
+
+    selected_files_mocks["download_and_index_mock"].return_value = (2, 0)
+
+    indexed, skipped, errors = await _run_selected(
+        selected_files_mocks,
+        [("s1", "unchanged.txt"), ("r1", "renamed.txt"),
+         ("n1", "new1.txt"), ("n2", "new2.txt")],
+    )
+
+    assert indexed == 3   # 1 renamed + 2 batch
+    assert skipped == 1   # 1 unchanged
+    assert errors == []
+
+    mock = selected_files_mocks["download_and_index_mock"]
+    mock.assert_called_once()
+    call_files = mock.call_args[1].get("files") if "files" in (mock.call_args[1] or {}) else mock.call_args[0][2]
+    assert len(call_files) == 2
+    assert {f["id"] for f in call_files} == {"n1", "n2"}
