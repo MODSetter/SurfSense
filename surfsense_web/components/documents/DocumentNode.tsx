@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, MoreHorizontal, Move, Pencil, Trash2 } from "lucide-react";
+import { Eye, MoreHorizontal, Move, PenLine, Trash2 } from "lucide-react";
 import React, { useCallback } from "react";
 import { useDrag } from "react-dnd";
 import { getDocumentTypeIcon } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
@@ -146,7 +146,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 							</DropdownMenuItem>
 							{isEditable && (
 								<DropdownMenuItem onClick={() => onEdit(doc)}>
-									<Pencil className="mr-2 h-4 w-4" />
+									<PenLine className="mr-2 h-4 w-4" />
 									Edit
 								</DropdownMenuItem>
 							)}
@@ -175,7 +175,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 					</ContextMenuItem>
 					{isEditable && (
 						<ContextMenuItem onClick={() => onEdit(doc)}>
-							<Pencil className="mr-2 h-4 w-4" />
+							<PenLine className="mr-2 h-4 w-4" />
 							Edit
 						</ContextMenuItem>
 					)}

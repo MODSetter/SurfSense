@@ -8,7 +8,7 @@ import {
 	FolderPlus,
 	MoreHorizontal,
 	Move,
-	Pencil,
+	PenLine,
 	Trash2,
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -18,14 +18,12 @@ import {
 	ContextMenu,
 	ContextMenuContent,
 	ContextMenuItem,
-	ContextMenuSeparator,
 	ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
-	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -265,7 +263,8 @@ export const FolderNode = React.memo(function FolderNode({
 							onBlur={handleRenameSubmit}
 							onKeyDown={handleRenameKeyDown}
 							onClick={(e) => e.stopPropagation()}
-							className="flex-1 min-w-0 rounded border border-primary bg-background px-1 py-0.5 text-sm outline-none"
+							placeholder="Enter folder name"
+							className="flex-1 min-w-0 bg-transparent px-1 py-0.5 text-sm outline-none caret-primary placeholder:text-muted-foreground/50"
 						/>
 					) : (
 						<span className="flex-1 min-w-0 truncate">{folder.name}</span>
@@ -305,7 +304,7 @@ export const FolderNode = React.memo(function FolderNode({
 										startRename();
 									}}
 								>
-									<Pencil className="mr-2 h-4 w-4" />
+									<PenLine className="mr-2 h-4 w-4" />
 									Rename
 								</DropdownMenuItem>
 								<DropdownMenuItem
@@ -340,7 +339,7 @@ export const FolderNode = React.memo(function FolderNode({
 						New subfolder
 					</ContextMenuItem>
 					<ContextMenuItem onClick={() => startRename()}>
-						<Pencil className="mr-2 h-4 w-4" />
+						<PenLine className="mr-2 h-4 w-4" />
 						Rename
 					</ContextMenuItem>
 					<ContextMenuItem onClick={() => onMove(folder)}>

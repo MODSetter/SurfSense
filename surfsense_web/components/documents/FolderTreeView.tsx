@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtom } from "jotai";
-import { TreePine } from "lucide-react";
+import { CirclePlus } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -195,7 +195,7 @@ export function FolderTreeView({
 	if (treeNodes.length === 0 && folders.length === 0 && documents.length === 0) {
 		return (
 			<div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 py-12 text-muted-foreground">
-				<TreePine className="h-10 w-10" />
+				<CirclePlus className="h-10 w-10 rotate-45" />
 				<p className="text-sm">No documents yet</p>
 			</div>
 		);
@@ -204,7 +204,7 @@ export function FolderTreeView({
 	if (treeNodes.length === 0 && activeTypes.length > 0) {
 		return (
 			<div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 py-12 text-muted-foreground">
-				<TreePine className="h-10 w-10" />
+				<CirclePlus className="h-10 w-10 rotate-45" />
 				<p className="text-sm">No matching documents</p>
 			</div>
 		);
