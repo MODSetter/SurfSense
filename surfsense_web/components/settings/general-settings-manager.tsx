@@ -27,6 +27,7 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 	const {
 		data: searchSpace,
 		isLoading: loading,
+		isError,
 		refetch: fetchSearchSpace,
 	} = useQuery({
 		queryKey: cacheKeys.searchSpaces.detail(searchSpaceId.toString()),
@@ -100,6 +101,17 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 						<Skeleton className="h-10 md:h-12 w-full" />
 					</CardContent>
 				</Card>
+			</div>
+		);
+	}
+
+	if (isError) {
+		return (
+			<div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+				<p className="text-sm text-destructive">Failed to load settings.</p>
+				<Button variant="outline" size="sm" onClick={() => fetchSearchSpace()}>
+					Retry
+				</Button>
 			</div>
 		);
 	}
