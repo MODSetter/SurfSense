@@ -182,7 +182,7 @@ function HeroCarousel() {
 		}, AUTOPLAY_MS);
 
 		return () => clearTimeout(id);
-	}, [activeIndex, shouldAutoPlay]);
+	}, [shouldAutoPlay]);
 
 	useEffect(() => {
 		const handler = () => setIsTabVisible(!document.hidden);
@@ -190,21 +190,26 @@ function HeroCarousel() {
 		return () => document.removeEventListener("visibilitychange", handler);
 	}, []);
 
-	const goTo = useCallback(
-		(newIndex: number) => {
-			directionRef.current = newIndex >= activeIndex ? "forward" : "backward";
-			setActiveIndex(newIndex);
-		},
-		[activeIndex]
-	);
+	const goTo = useCallback((newIndex: number) => {
+		setActiveIndex((prev) => {
+			directionRef.current = newIndex >= prev ? "forward" : "backward";
+			return newIndex;
+		});
+	}, []);
 
 	const goToPrev = useCallback(() => {
-		goTo(activeIndex <= 0 ? carouselItems.length - 1 : activeIndex - 1);
-	}, [activeIndex, goTo]);
+		setActiveIndex((prev) => {
+			directionRef.current = "backward";
+			return prev <= 0 ? carouselItems.length - 1 : prev - 1;
+		});
+	}, []);
 
 	const goToNext = useCallback(() => {
-		goTo(activeIndex >= carouselItems.length - 1 ? 0 : activeIndex + 1);
-	}, [activeIndex, goTo]);
+		setActiveIndex((prev) => {
+			directionRef.current = "forward";
+			return prev >= carouselItems.length - 1 ? 0 : prev + 1;
+		});
+	}, []);
 
 	const item = carouselItems[activeIndex];
 	const isForward = directionRef.current === "forward";
