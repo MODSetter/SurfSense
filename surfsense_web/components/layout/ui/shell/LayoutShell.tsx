@@ -1,7 +1,9 @@
 "use client";
 
+import { useAtomValue } from "jotai";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useMemo, useState } from "react";
+import { activeTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { InboxItem } from "@/hooks/use-inbox";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -23,6 +25,8 @@ import {
 	Sidebar,
 } from "../sidebar";
 import { SidebarSlideOutPanel } from "../sidebar/SidebarSlideOutPanel";
+import { DocumentTabContent } from "../tabs/DocumentTabContent";
+import { TabBar } from "../tabs/TabBar";
 
 // Per-tab data source
 interface TabDataSource {
@@ -97,6 +101,44 @@ interface LayoutShellProps {
 		isDocked?: boolean;
 		onDockedChange?: (docked: boolean) => void;
 	};
+	onTabSwitch?: (tab: Tab) => void;
+}
+
+function MainContentPanel({
+	isChatPage,
+	onTabSwitch,
+	onNewChat,
+	children,
+}: {
+	isChatPage: boolean;
+	onTabSwitch?: (tab: Tab) => void;
+	onNewChat?: () => void;
+	children: React.ReactNode;
+}) {
+	const activeTab = useAtomValue(activeTabAtom);
+	const isDocumentTab = activeTab?.type === "document";
+
+	return (
+		<div className="relative flex flex-1 flex-col rounded-xl border bg-main-panel overflow-hidden min-w-0">
+			<TabBar onTabSwitch={onTabSwitch} onNewChat={onNewChat} />
+			<Header />
+
+			{isDocumentTab && activeTab.documentId && activeTab.searchSpaceId ? (
+				<div className="flex-1 overflow-hidden">
+					<DocumentTabContent
+						key={activeTab.documentId}
+						documentId={activeTab.documentId}
+						searchSpaceId={activeTab.searchSpaceId}
+						title={activeTab.title}
+					/>
+				</div>
+			) : (
+				<div className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
+					{children}
+				</div>
+			)}
+		</div>
+	);
 }
 
 export function LayoutShell({
@@ -138,6 +180,7 @@ export function LayoutShell({
 	allSharedChatsPanel,
 	allPrivateChatsPanel,
 	documentsPanel,
+	onTabSwitch,
 }: LayoutShellProps) {
 	const isMobile = useIsMobile();
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -454,14 +497,14 @@ export function LayoutShell({
 						/>
 					)}
 
-					{/* Main content panel */}
-					<div className="relative flex flex-1 flex-col rounded-xl border bg-main-panel overflow-hidden min-w-0">
-						<Header />
-
-						<div className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
-							{children}
-						</div>
-					</div>
+				{/* Main content panel */}
+				<MainContentPanel
+					isChatPage={isChatPage}
+					onTabSwitch={onTabSwitch}
+					onNewChat={onNewChat}
+				>
+					{children}
+				</MainContentPanel>
 
 					{/* Right panel — tabbed Sources/Report (desktop only) */}
 					{documentsPanel && (

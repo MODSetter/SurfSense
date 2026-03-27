@@ -32,6 +32,7 @@ import {
 import { closeReportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { closeEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
+import { updateChatTabTitleAtom } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { ThinkingStepsDataUI } from "@/components/assistant-ui/thinking-steps";
 import { Thread } from "@/components/assistant-ui/thread";
@@ -189,6 +190,7 @@ export default function NewChatPage() {
 	const clearTargetCommentId = useSetAtom(clearTargetCommentIdAtom);
 	const closeReportPanel = useSetAtom(closeReportPanelAtom);
 	const closeEditorPanel = useSetAtom(closeEditorPanelAtom);
+	const updateChatTabTitle = useSetAtom(updateChatTabTitleAtom);
 
 	// Get current user for author info in shared chats
 	const { data: currentUser } = useAtomValue(currentUserAtom);
@@ -727,12 +729,10 @@ export default function NewChatPage() {
 						}
 
 						case "data-thread-title-update": {
-							// Handle thread title update from LLM-generated title
 							const titleData = parsed.data as { threadId: number; title: string };
 							if (titleData?.title && titleData?.threadId === currentThreadId) {
-								// Update current thread state with new title
 								setCurrentThread((prev) => (prev ? { ...prev, title: titleData.title } : prev));
-								// Invalidate thread list to refresh sidebar
+								updateChatTabTitle({ chatId: currentThreadId, title: titleData.title });
 								queryClient.invalidateQueries({
 									queryKey: ["threads", String(searchSpaceId)],
 								});

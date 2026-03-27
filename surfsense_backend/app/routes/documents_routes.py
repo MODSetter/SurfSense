@@ -320,6 +320,7 @@ async def read_documents(
     page_size: int = 50,
     search_space_id: int | None = None,
     document_types: str | None = None,
+    folder_id: int | str | None = None,
     sort_by: str = "created_at",
     sort_order: str = "desc",
     session: AsyncSession = Depends(get_async_session),
@@ -391,6 +392,17 @@ async def read_documents(
                 query = query.filter(Document.document_type.in_(type_list))
                 count_query = count_query.filter(Document.document_type.in_(type_list))
 
+        # Filter by folder_id: "root" or "null" => root level (folder_id IS NULL),
+        # integer => specific folder, omitted => all documents
+        if folder_id is not None:
+            if str(folder_id).lower() in ("root", "null"):
+                query = query.filter(Document.folder_id.is_(None))
+                count_query = count_query.filter(Document.folder_id.is_(None))
+            else:
+                fid = int(folder_id)
+                query = query.filter(Document.folder_id == fid)
+                count_query = count_query.filter(Document.folder_id == fid)
+
         total_result = await session.execute(count_query)
         total = total_result.scalar() or 0
 
@@ -451,6 +463,7 @@ async def read_documents(
                     created_at=doc.created_at,
                     updated_at=doc.updated_at,
                     search_space_id=doc.search_space_id,
+                    folder_id=doc.folder_id,
                     created_by_id=doc.created_by_id,
                     created_by_name=created_by_name,
                     created_by_email=created_by_email,
@@ -608,6 +621,7 @@ async def search_documents(
                     created_at=doc.created_at,
                     updated_at=doc.updated_at,
                     search_space_id=doc.search_space_id,
+                    folder_id=doc.folder_id,
                     created_by_id=doc.created_by_id,
                     created_by_name=created_by_name,
                     created_by_email=created_by_email,
@@ -978,6 +992,7 @@ async def read_document(
             created_at=document.created_at,
             updated_at=document.updated_at,
             search_space_id=document.search_space_id,
+            folder_id=document.folder_id,
         )
     except HTTPException:
         raise
@@ -1036,6 +1051,7 @@ async def update_document(
             created_at=db_document.created_at,
             updated_at=db_document.updated_at,
             search_space_id=db_document.search_space_id,
+            folder_id=db_document.folder_id,
         )
     except HTTPException:
         raise
