@@ -4,6 +4,7 @@ import {
 	type AppendMessage,
 	AssistantRuntimeProvider,
 	type ThreadMessageLike,
+	useAui,
 	useExternalStoreRuntime,
 } from "@assistant-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -157,6 +158,27 @@ const TOOLS_WITH_UI = new Set([
 	"execute",
 	// "write_todos", // Disabled for now
 ]);
+
+function QuickAskAutoSubmit() {
+	const searchParams = useSearchParams();
+	const aui = useAui();
+	const submittedRef = useRef(false);
+
+	useEffect(() => {
+		if (!window.electronAPI || submittedRef.current) return;
+
+		const prompt = searchParams.get("quickAskPrompt");
+		if (!prompt) return;
+
+		submittedRef.current = true;
+		setTimeout(() => {
+			aui.composer().setText(prompt);
+			aui.composer().send();
+		}, 500);
+	}, [searchParams, aui]);
+
+	return null;
+}
 
 export default function NewChatPage() {
 	const params = useParams();
@@ -1587,6 +1609,7 @@ export default function NewChatPage() {
 	return (
 		<AssistantRuntimeProvider runtime={runtime}>
 			<ThinkingStepsDataUI />
+			<QuickAskAutoSubmit />
 			<div key={searchSpaceId} className="flex h-[calc(100dvh-64px)] overflow-hidden">
 				<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 					<Thread />
