@@ -1722,6 +1722,35 @@ class SearchSpaceInvite(BaseModel, TimestampMixin):
     )
 
 
+class QuickAskActionMode(StrEnum):
+    TRANSFORM = "transform"
+    EXPLORE = "explore"
+
+
+class QuickAskAction(BaseModel, TimestampMixin):
+    __tablename__ = "quick_ask_actions"
+
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    search_space_id = Column(
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    name = Column(String(200), nullable=False)
+    prompt = Column(Text, nullable=False)
+    mode = Column(SQLAlchemyEnum(QuickAskActionMode), nullable=False)
+    icon = Column(String(50), nullable=True)
+
+    user = relationship("User")
+    search_space = relationship("SearchSpace")
+
+
 if config.AUTH_TYPE == "GOOGLE":
 
     class OAuthAccount(SQLAlchemyBaseOAuthAccountTableUUID, Base):
