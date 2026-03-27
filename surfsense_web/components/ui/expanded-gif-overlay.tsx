@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 function isVideoSrc(src: string) {
@@ -17,6 +17,12 @@ function ExpandedMediaOverlay({
 	alt: string;
 	onClose: () => void;
 }) {
+	const overlayRef = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		overlayRef.current?.focus();
+	}, []);
+
 	useEffect(() => {
 		const handleKey = (e: KeyboardEvent) => {
 			if (e.key === "Escape") onClose();
@@ -52,6 +58,11 @@ function ExpandedMediaOverlay({
 
 	return createPortal(
 		<motion.div
+			role="dialog"
+			aria-modal="true"
+			aria-label="Expanded media view"
+			tabIndex={-1}
+			ref={overlayRef}
 			initial={{ opacity: 0 }}
 			animate={{ opacity: 1 }}
 			exit={{ opacity: 0 }}
