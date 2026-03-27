@@ -50,7 +50,7 @@ function createQuickAskWindow(x: number, y: number): BrowserWindow {
     skipTaskbar: true,
   });
 
-  quickAskWindow.loadURL(`http://localhost:${getServerPort()}/quick-ask`);
+  quickAskWindow.loadURL(`http://localhost:${getServerPort()}/dashboard/quick-ask`);
 
   quickAskWindow.once('ready-to-show', () => {
     quickAskWindow?.show();
