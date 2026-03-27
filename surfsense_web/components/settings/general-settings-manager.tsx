@@ -123,6 +123,7 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 						</Label>
 						<Input
 							id="search-space-name"
+							maxLength={100}
 							placeholder={t("general_name_placeholder")}
 							value={name}
 							onChange={(e) => setName(e.target.value)}

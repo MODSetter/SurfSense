@@ -232,6 +232,7 @@ export default function RegisterPage() {
 								type="email"
 								required
 								placeholder="you@example.com"
+								maxLength={254}
 								value={email}
 								onChange={(e) => setEmail(e.target.value)}
 								className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:bg-gray-800 dark:text-white transition-all ${
@@ -255,6 +256,7 @@ export default function RegisterPage() {
 								type="password"
 								required
 								placeholder="Enter your password"
+								minLength={8}
 								value={password}
 								onChange={(e) => setPassword(e.target.value)}
 								className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:bg-gray-800 dark:text-white transition-all ${
@@ -278,6 +280,7 @@ export default function RegisterPage() {
 								type="password"
 								required
 								placeholder="Confirm your password"
+								minLength={8}
 								value={confirmPassword}
 								onChange={(e) => setConfirmPassword(e.target.value)}
 								className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:bg-gray-800 dark:text-white transition-all ${
