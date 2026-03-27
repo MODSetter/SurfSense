@@ -8,6 +8,7 @@ import {
 } from "@assistant-ui/react";
 import { useAtomValue } from "jotai";
 import { CheckIcon, ClipboardPaste, CopyIcon, DownloadIcon, MessageSquare, RefreshCwIcon } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import type { FC } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { commentsEnabledAtom, targetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
@@ -274,7 +275,12 @@ export const AssistantMessage: FC = () => {
 const AssistantActionBar: FC = () => {
 	const isLast = useAuiState((s) => s.message.isLast);
 	const aui = useAui();
-	const canReplace = isLast && typeof window !== "undefined" && !!window.electronAPI?.replaceText;
+	const searchParams = useSearchParams();
+	const isTransform =
+		isLast &&
+		typeof window !== "undefined" &&
+		!!window.electronAPI?.replaceText &&
+		searchParams.get("quickAskMode") === "transform";
 
 	return (
 		<ActionBarPrimitive.Root
@@ -298,23 +304,25 @@ const AssistantActionBar: FC = () => {
 					<DownloadIcon />
 				</TooltipIconButton>
 			</ActionBarPrimitive.ExportMarkdown>
-			{canReplace && (
-				<TooltipIconButton
-					tooltip="Paste back"
-					onClick={() => {
-						const text = aui.message().getCopyText();
-						window.electronAPI?.replaceText(text);
-					}}
-				>
-					<ClipboardPaste />
-				</TooltipIconButton>
-			)}
 			{isLast && (
 				<ActionBarPrimitive.Reload asChild>
 					<TooltipIconButton tooltip="Refresh">
 						<RefreshCwIcon />
 					</TooltipIconButton>
 				</ActionBarPrimitive.Reload>
+			)}
+			{isTransform && (
+				<button
+					type="button"
+					onClick={() => {
+						const text = aui.message().getCopyText();
+						window.electronAPI?.replaceText(text);
+					}}
+					className="ml-1 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+				>
+					<ClipboardPaste className="size-3.5" />
+					Paste back
+				</button>
 			)}
 		</ActionBarPrimitive.Root>
 	);
