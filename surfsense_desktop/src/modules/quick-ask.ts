@@ -99,9 +99,7 @@ export function registerQuickAsk(): void {
   }
 
   ipcMain.handle(IPC_CHANNELS.QUICK_ASK_TEXT, () => {
-    const text = pendingText;
-    pendingText = '';
-    return text;
+    return pendingText;
   });
 
   ipcMain.handle(IPC_CHANNELS.REPLACE_TEXT, async (_event, text: string) => {
