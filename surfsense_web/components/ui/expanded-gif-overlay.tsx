@@ -70,8 +70,8 @@ function ExpandedMediaOverlay({
 			className="fixed inset-0 z-100 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm sm:p-8"
 			onClick={onClose}
 			onKeyDown={(e) => {
-      		if (e.key === 'Escape') onClose();
-    		}}
+				if (e.key === "Escape") onClose();
+			}}
 		>
 			{mediaElement}
 		</motion.div>,
