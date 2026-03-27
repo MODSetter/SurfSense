@@ -124,10 +124,18 @@ export function FolderPickerDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-sm">
-				<DialogHeader>
-					<DialogTitle>{title}</DialogTitle>
-					{description && <DialogDescription>{description}</DialogDescription>}
+			<DialogContent className="select-none max-w-[90vw] sm:max-w-sm p-4 sm:p-5 data-[state=open]:animate-none data-[state=closed]:animate-none">
+				<DialogHeader className="space-y-2 pb-2">
+					<div className="flex items-center gap-2 sm:gap-3">
+						<div className="flex-1 min-w-0">
+							<DialogTitle className="text-base sm:text-lg">{title}</DialogTitle>
+							{description && (
+								<DialogDescription className="text-xs sm:text-sm mt-0.5">
+									{description}
+								</DialogDescription>
+							)}
+						</div>
+					</div>
 				</DialogHeader>
 
 				<div className="max-h-[300px] overflow-y-auto rounded-md border p-1">
@@ -147,11 +155,17 @@ export function FolderPickerDialog({
 					{renderPickerLevel(null, 1)}
 				</div>
 
-				<DialogFooter>
-					<Button variant="outline" onClick={() => onOpenChange(false)}>
+				<DialogFooter className="flex-row justify-end gap-2 pt-2 sm:pt-3">
+					<Button
+						variant="secondary"
+						onClick={() => onOpenChange(false)}
+						className="h-8 sm:h-9 text-xs sm:text-sm"
+					>
 						Cancel
 					</Button>
-					<Button onClick={handleConfirm}>Move here</Button>
+					<Button onClick={handleConfirm} className="h-8 sm:h-9 text-xs sm:text-sm">
+						Move here
+					</Button>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>

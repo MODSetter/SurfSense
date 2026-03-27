@@ -84,7 +84,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 					role="button"
 					tabIndex={0}
 					className={cn(
-						"group flex h-8 items-center gap-1.5 rounded-md px-1 text-sm hover:bg-accent/50 cursor-pointer select-none",
+						"group flex h-8 items-center gap-2.5 rounded-md px-1 text-sm hover:bg-accent/50 cursor-pointer select-none",
 						isMentioned && "bg-accent/30",
 						isDragging && "opacity-40"
 					)}
@@ -137,7 +137,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 								<MoreHorizontal className="h-3.5 w-3.5" />
 							</Button>
 						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" className="w-44">
+						<DropdownMenuContent align="end" className="w-40">
 							<DropdownMenuItem onClick={() => onPreview(doc)}>
 								<Eye className="mr-2 h-4 w-4" />
 								Open
@@ -166,7 +166,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 				</div>
 			</ContextMenuTrigger>
 
-			<ContextMenuContent className="w-44">
+			<ContextMenuContent className="w-40">
 				<ContextMenuItem onClick={() => onPreview(doc)}>
 					<Eye className="mr-2 h-4 w-4" />
 					Open

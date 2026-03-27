@@ -617,7 +617,7 @@ export function DocumentsSidebar({
 				open={folderPickerOpen}
 				onOpenChange={setFolderPickerOpen}
 				folders={treeFolders}
-				title={folderPickerTarget?.type === "folder" ? "Move folder to..." : "Move document to..."}
+				title={folderPickerTarget?.type === "folder" ? "Move folder to" : "Move document to"}
 				description="Select a destination folder, or choose Root to move to the top level."
 				disabledFolderIds={folderPickerTarget?.disabledIds}
 				onSelect={handleFolderPickerSelect}
