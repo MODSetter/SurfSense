@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertCircle, Clock, Eye, MoreHorizontal, Move, PenLine, Trash2 } from "lucide-react";
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { useDrag } from "react-dnd";
 import { getDocumentTypeIcon } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
 import { Button } from "@/components/ui/button";
@@ -78,6 +78,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 	);
 
 	const isProcessing = statusState === "pending" || statusState === "processing";
+	const [dropdownOpen, setDropdownOpen] = useState(false);
 	const rowRef = useRef<HTMLButtonElement>(null);
 
 	const attachRef = useCallback(
@@ -95,9 +96,9 @@ export const DocumentNode = React.memo(function DocumentNode({
 					type="button"
 					ref={attachRef}
 					className={cn(
-						"group flex h-8 w-full items-center gap-2.5 rounded-md px-1 text-sm hover:bg-accent/50 cursor-pointer select-none text-left",
-						isMentioned && "bg-accent/30",
-						isDragging && "opacity-40"
+					"group flex h-8 w-full items-center gap-2.5 rounded-md px-1 text-sm hover:bg-accent/50 cursor-pointer select-none text-left",
+					isMentioned && "bg-accent/30",
+					isDragging && "opacity-40"
 					)}
 					style={{ paddingLeft: `${depth * 16 + 4}px` }}
 					onClick={handleCheckChange}
@@ -160,14 +161,17 @@ export const DocumentNode = React.memo(function DocumentNode({
 						)}
 					</span>
 
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="hidden sm:inline-flex h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-								onClick={(e) => e.stopPropagation()}
-							>
+				<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+					<DropdownMenuTrigger asChild>
+						<Button
+							variant="ghost"
+							size="icon"
+							className={cn(
+								"hidden sm:inline-flex h-6 w-6 shrink-0 transition-opacity hover:bg-transparent",
+								dropdownOpen ? "opacity-100 bg-accent hover:bg-accent" : "opacity-0 group-hover:opacity-100"
+							)}
+							onClick={(e) => e.stopPropagation()}
+						>
 								<MoreHorizontal className="h-3.5 w-3.5" />
 							</Button>
 						</DropdownMenuTrigger>

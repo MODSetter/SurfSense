@@ -79,14 +79,21 @@ export function ChatListItem({
 						: "bg-gradient-to-l from-sidebar from-60% to-transparent group-hover/item:from-accent",
 					isMobile
 						? "opacity-0"
-						: isActive
+						: isActive || dropdownOpen
 							? "opacity-100"
 							: "opacity-0 group-hover/item:opacity-100"
 				)}
 			>
 				<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
 					<DropdownMenuTrigger asChild>
-						<Button variant="ghost" size="icon" className="pointer-events-auto h-6 w-6">
+						<Button
+							variant="ghost"
+							size="icon"
+							className={cn(
+								"pointer-events-auto h-6 w-6 hover:bg-transparent",
+								dropdownOpen && "bg-accent hover:bg-accent"
+							)}
+						>
 							<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
 							<span className="sr-only">{t("more_options")}</span>
 						</Button>

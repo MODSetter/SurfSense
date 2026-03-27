@@ -396,10 +396,13 @@ export function AllPrivateChatsSidebarContent({
 												variant="ghost"
 												size="icon"
 												className={cn(
-													"h-6 w-6 shrink-0",
+													"h-6 w-6 shrink-0 hover:bg-transparent",
 													isMobile
 														? "opacity-0 pointer-events-none absolute"
-														: "md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100",
+														: openDropdownId === thread.id
+															? "opacity-100"
+															: "md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100",
+													openDropdownId === thread.id && "bg-accent hover:bg-accent",
 													"transition-opacity"
 												)}
 												disabled={isBusy}
