@@ -473,14 +473,14 @@ export function DocumentsTableShell({
 	}, [deletableSelectedIds, bulkDeleteDocuments, deleteDocument]);
 
 	const bulkDeleteBar = hasDeletableSelection ? (
-		<div className="flex items-center justify-center py-1.5 border-b border-border/50 bg-destructive/5 shrink-0 animate-in fade-in slide-in-from-top-1 duration-150">
+		<div className="absolute inset-x-0 top-0 z-10 flex items-center justify-center py-1 pointer-events-none animate-in fade-in duration-150">
 			<button
 				type="button"
 				onClick={() => setBulkDeleteConfirmOpen(true)}
-				className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-destructive text-destructive-foreground shadow-sm text-xs font-medium hover:bg-destructive/90 transition-colors"
+				className="pointer-events-auto flex items-center gap-1.5 px-3 py-1 rounded-md bg-destructive text-destructive-foreground shadow-lg text-xs font-medium hover:bg-destructive/90 transition-colors"
 			>
 				<Trash2 size={12} />
-				Delete ({deletableSelectedIds.length} selected)
+				Delete {deletableSelectedIds.length} {deletableSelectedIds.length === 1 ? "item" : "items"}
 			</button>
 		</div>
 	) : null;
@@ -526,7 +526,6 @@ export function DocumentsTableShell({
 						</TableRow>
 					</TableHeader>
 				</Table>
-				{bulkDeleteBar}
 				{loading ? (
 					<div className="flex-1 overflow-auto">
 						<Table className="table-fixed w-full">
@@ -594,7 +593,8 @@ export function DocumentsTableShell({
 						)}
 					</div>
 				) : (
-					<div ref={desktopScrollRef} className="flex-1 overflow-auto">
+					<div ref={desktopScrollRef} className="flex-1 overflow-auto relative">
+						{bulkDeleteBar}
 						<Table className="table-fixed w-full">
 							<TableBody>
 								{sorted.map((doc) => {
@@ -788,9 +788,6 @@ export function DocumentsTableShell({
 				)}
 			</div>
 
-			{/* Mobile bulk delete bar */}
-			<div className="md:hidden">{bulkDeleteBar}</div>
-
 			{/* Mobile Card View */}
 			{loading ? (
 				<div className="md:hidden divide-y divide-border/50 flex-1 overflow-auto">
@@ -846,8 +843,9 @@ export function DocumentsTableShell({
 			) : (
 				<div
 					ref={mobileScrollRef}
-					className="md:hidden divide-y divide-border/50 flex-1 overflow-auto"
+					className="md:hidden divide-y divide-border/50 flex-1 overflow-auto relative"
 				>
+					{bulkDeleteBar}
 					{sorted.map((doc) => {
 						const isMentioned = mentionedDocIds?.has(doc.id) ?? false;
 						const statusState = doc.status?.state ?? "ready";

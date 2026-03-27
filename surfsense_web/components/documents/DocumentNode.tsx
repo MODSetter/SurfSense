@@ -1,25 +1,32 @@
 "use client";
 
-import { Eye, MoreHorizontal, Move, Pencil, Trash2 } from "lucide-react";
-import React, { useCallback } from "react";
+import { AlertCircle, Clock, Download, Eye, MoreHorizontal, Move, PenLine, Trash2 } from "lucide-react";
+import React, { useCallback, useRef, useState } from "react";
 import { useDrag } from "react-dnd";
 import { getDocumentTypeIcon } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
+import { ExportContextItems, ExportDropdownItems } from "@/components/shared/ExportMenuItems";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
 	ContextMenu,
 	ContextMenuContent,
 	ContextMenuItem,
-	ContextMenuSeparator,
+	ContextMenuSub,
+	ContextMenuSubContent,
+	ContextMenuSubTrigger,
 	ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
-	DropdownMenuSeparator,
+	DropdownMenuSub,
+	DropdownMenuSubContent,
+	DropdownMenuSubTrigger,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Spinner } from "@/components/ui/spinner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { cn } from "@/lib/utils";
 import { DND_TYPES } from "./FolderNode";
@@ -41,6 +48,9 @@ interface DocumentNodeProps {
 	onEdit: (doc: DocumentNodeDoc) => void;
 	onDelete: (doc: DocumentNodeDoc) => void;
 	onMove: (doc: DocumentNodeDoc) => void;
+	onExport?: (doc: DocumentNodeDoc, format: string) => void;
+	contextMenuOpen?: boolean;
+	onContextMenuOpenChange?: (open: boolean) => void;
 }
 
 export const DocumentNode = React.memo(function DocumentNode({
@@ -52,6 +62,9 @@ export const DocumentNode = React.memo(function DocumentNode({
 	onEdit,
 	onDelete,
 	onMove,
+	onExport,
+	contextMenuOpen,
+	onContextMenuOpenChange,
 }: DocumentNodeProps) {
 	const statusState = doc.status?.state ?? "ready";
 	const isSelectable = statusState !== "pending" && statusState !== "processing";
@@ -74,48 +87,90 @@ export const DocumentNode = React.memo(function DocumentNode({
 	);
 
 	const isProcessing = statusState === "pending" || statusState === "processing";
+	const [dropdownOpen, setDropdownOpen] = useState(false);
+	const [exporting, setExporting] = useState<string | null>(null);
+	const rowRef = useRef<HTMLButtonElement>(null);
+
+	const handleExport = useCallback(
+		(format: string) => {
+			if (!onExport) return;
+			setExporting(format);
+			onExport(doc, format);
+			setTimeout(() => setExporting(null), 2000);
+		},
+		[doc, onExport]
+	);
+
+	const attachRef = useCallback(
+		(node: HTMLButtonElement | null) => {
+			(rowRef as React.MutableRefObject<HTMLButtonElement | null>).current = node;
+			drag(node);
+		},
+		[drag]
+	);
 
 	return (
-		<ContextMenu>
+		<ContextMenu onOpenChange={onContextMenuOpenChange}>
 			<ContextMenuTrigger asChild>
-				{/* biome-ignore lint/a11y/useSemanticElements: div required for drag ref */}
-				<div
-					ref={drag}
-					role="button"
-					tabIndex={0}
+				<button
+					type="button"
+					ref={attachRef}
 					className={cn(
-						"group flex h-8 items-center gap-1.5 rounded-md px-1 text-sm hover:bg-accent/50 cursor-pointer select-none",
-						isMentioned && "bg-accent/30",
-						isDragging && "opacity-40"
+					"group flex h-8 w-full items-center gap-2.5 rounded-md px-1 text-sm hover:bg-accent/50 cursor-pointer select-none text-left",
+					isMentioned && "bg-accent/30",
+					isDragging && "opacity-40"
 					)}
 					style={{ paddingLeft: `${depth * 16 + 4}px` }}
 					onClick={handleCheckChange}
-					onKeyDown={(e) => {
-						if (e.key === "Enter" || e.key === " ") {
-							e.preventDefault();
-							handleCheckChange();
-						}
-					}}
 				>
-					{isSelectable ? (
+				{(() => {
+					if (statusState === "pending") {
+						return (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
+										<Clock className="h-3.5 w-3.5 text-muted-foreground/60" />
+									</span>
+								</TooltipTrigger>
+								<TooltipContent side="top">Pending - waiting to be synced</TooltipContent>
+							</Tooltip>
+						);
+					}
+					if (statusState === "processing") {
+						return (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
+										<Spinner size="xs" className="text-primary" />
+									</span>
+								</TooltipTrigger>
+								<TooltipContent side="top">Syncing</TooltipContent>
+							</Tooltip>
+						);
+					}
+					if (statusState === "failed") {
+						return (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
+										<AlertCircle className="h-3.5 w-3.5 text-destructive" />
+									</span>
+								</TooltipTrigger>
+								<TooltipContent side="top" className="max-w-xs">
+									{doc.status?.reason || "Processing failed"}
+								</TooltipContent>
+							</Tooltip>
+						);
+					}
+					return (
 						<Checkbox
 							checked={isMentioned}
 							onCheckedChange={handleCheckChange}
 							onClick={(e) => e.stopPropagation()}
 							className="h-3.5 w-3.5 shrink-0"
 						/>
-					) : (
-						<span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
-							<span
-								className={cn(
-									"h-2 w-2 rounded-full",
-									statusState === "processing" && "animate-pulse bg-amber-500",
-									statusState === "pending" && "bg-muted-foreground/40",
-									statusState === "failed" && "bg-destructive"
-								)}
-							/>
-						</span>
-					)}
+					);
+				})()}
 
 					<span className="flex-1 min-w-0 truncate">{doc.title}</span>
 
@@ -126,25 +181,28 @@ export const DocumentNode = React.memo(function DocumentNode({
 						)}
 					</span>
 
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-								onClick={(e) => e.stopPropagation()}
-							>
+				<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+					<DropdownMenuTrigger asChild>
+						<Button
+							variant="ghost"
+							size="icon"
+							className={cn(
+								"hidden sm:inline-flex h-6 w-6 shrink-0 hover:bg-transparent",
+								dropdownOpen ? "opacity-100 bg-accent hover:bg-accent" : "opacity-0 group-hover:opacity-100"
+							)}
+							onClick={(e) => e.stopPropagation()}
+						>
 								<MoreHorizontal className="h-3.5 w-3.5" />
 							</Button>
 						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" className="w-44">
+						<DropdownMenuContent align="end" className="w-40">
 							<DropdownMenuItem onClick={() => onPreview(doc)}>
 								<Eye className="mr-2 h-4 w-4" />
 								Open
 							</DropdownMenuItem>
 							{isEditable && (
 								<DropdownMenuItem onClick={() => onEdit(doc)}>
-									<Pencil className="mr-2 h-4 w-4" />
+									<PenLine className="mr-2 h-4 w-4" />
 									Edit
 								</DropdownMenuItem>
 							)}
@@ -152,7 +210,17 @@ export const DocumentNode = React.memo(function DocumentNode({
 								<Move className="mr-2 h-4 w-4" />
 								Move to...
 							</DropdownMenuItem>
-							<DropdownMenuSeparator />
+							{onExport && (
+								<DropdownMenuSub>
+									<DropdownMenuSubTrigger>
+										<Download className="mr-2 h-4 w-4" />
+										Export
+									</DropdownMenuSubTrigger>
+									<DropdownMenuSubContent className="min-w-[180px]">
+										<ExportDropdownItems onExport={handleExport} exporting={exporting} />
+									</DropdownMenuSubContent>
+								</DropdownMenuSub>
+							)}
 							<DropdownMenuItem
 								className="text-destructive focus:text-destructive"
 								disabled={isProcessing}
@@ -163,34 +231,46 @@ export const DocumentNode = React.memo(function DocumentNode({
 							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
-				</div>
+				</button>
 			</ContextMenuTrigger>
 
-			<ContextMenuContent className="w-44">
-				<ContextMenuItem onClick={() => onPreview(doc)}>
-					<Eye className="mr-2 h-4 w-4" />
-					Open
-				</ContextMenuItem>
-				{isEditable && (
-					<ContextMenuItem onClick={() => onEdit(doc)}>
-						<Pencil className="mr-2 h-4 w-4" />
-						Edit
+			{contextMenuOpen && (
+				<ContextMenuContent className="w-40">
+					<ContextMenuItem onClick={() => onPreview(doc)}>
+						<Eye className="mr-2 h-4 w-4" />
+						Open
 					</ContextMenuItem>
-				)}
-				<ContextMenuItem onClick={() => onMove(doc)}>
-					<Move className="mr-2 h-4 w-4" />
-					Move to...
-				</ContextMenuItem>
-				<ContextMenuSeparator />
-				<ContextMenuItem
-					className="text-destructive focus:text-destructive"
-					disabled={isProcessing}
-					onClick={() => onDelete(doc)}
-				>
-					<Trash2 className="mr-2 h-4 w-4" />
-					Delete
-				</ContextMenuItem>
-			</ContextMenuContent>
+					{isEditable && (
+						<ContextMenuItem onClick={() => onEdit(doc)}>
+							<PenLine className="mr-2 h-4 w-4" />
+							Edit
+						</ContextMenuItem>
+					)}
+					<ContextMenuItem onClick={() => onMove(doc)}>
+						<Move className="mr-2 h-4 w-4" />
+						Move to...
+					</ContextMenuItem>
+					{onExport && (
+						<ContextMenuSub>
+							<ContextMenuSubTrigger>
+								<Download className="mr-2 h-4 w-4" />
+								Export
+							</ContextMenuSubTrigger>
+							<ContextMenuSubContent className="min-w-[180px]">
+								<ExportContextItems onExport={handleExport} exporting={exporting} />
+							</ContextMenuSubContent>
+						</ContextMenuSub>
+					)}
+					<ContextMenuItem
+						className="text-destructive focus:text-destructive"
+						disabled={isProcessing}
+						onClick={() => onDelete(doc)}
+					>
+						<Trash2 className="mr-2 h-4 w-4" />
+						Delete
+					</ContextMenuItem>
+				</ContextMenuContent>
+			)}
 		</ContextMenu>
 	);
 });

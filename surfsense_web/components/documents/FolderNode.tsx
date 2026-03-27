@@ -8,7 +8,7 @@ import {
 	FolderPlus,
 	MoreHorizontal,
 	Move,
-	Pencil,
+	PenLine,
 	Trash2,
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -18,14 +18,12 @@ import {
 	ContextMenu,
 	ContextMenuContent,
 	ContextMenuItem,
-	ContextMenuSeparator,
 	ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
-	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -66,6 +64,8 @@ interface FolderNodeProps {
 	onReorderFolder?: (folderId: number, beforePos: string | null, afterPos: string | null) => void;
 	siblingPositions?: { before: string | null; after: string | null };
 	disabledDropIds?: Set<number>;
+	contextMenuOpen?: boolean;
+	onContextMenuOpenChange?: (open: boolean) => void;
 }
 
 function getDropZone(
@@ -99,6 +99,8 @@ export const FolderNode = React.memo(function FolderNode({
 	onReorderFolder,
 	siblingPositions,
 	disabledDropIds,
+	contextMenuOpen,
+	onContextMenuOpenChange,
 }: FolderNodeProps) {
 	const [renameValue, setRenameValue] = useState(folder.name);
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -213,7 +215,7 @@ export const FolderNode = React.memo(function FolderNode({
 	const FolderIcon = isExpanded ? FolderOpen : Folder;
 
 	return (
-		<ContextMenu>
+		<ContextMenu onOpenChange={onContextMenuOpenChange}>
 			<ContextMenuTrigger asChild disabled={isRenaming}>
 				{/* biome-ignore lint/a11y/useSemanticElements: div required for drag/drop refs */}
 				<div
@@ -261,7 +263,8 @@ export const FolderNode = React.memo(function FolderNode({
 							onBlur={handleRenameSubmit}
 							onKeyDown={handleRenameKeyDown}
 							onClick={(e) => e.stopPropagation()}
-							className="flex-1 min-w-0 rounded border border-primary bg-background px-1 py-0.5 text-sm outline-none"
+							placeholder="Enter folder name"
+							className="flex-1 min-w-0 bg-transparent px-1 py-0.5 text-sm outline-none caret-primary placeholder:text-muted-foreground/50"
 						/>
 					) : (
 						<span className="flex-1 min-w-0 truncate">{folder.name}</span>
@@ -279,13 +282,13 @@ export const FolderNode = React.memo(function FolderNode({
 								<Button
 									variant="ghost"
 									size="icon"
-									className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+									className="hidden sm:inline-flex h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
 									onClick={(e) => e.stopPropagation()}
 								>
 									<MoreHorizontal className="h-3.5 w-3.5" />
 								</Button>
 							</DropdownMenuTrigger>
-							<DropdownMenuContent align="end" className="w-48">
+							<DropdownMenuContent align="end" className="w-40">
 								<DropdownMenuItem
 									onClick={(e) => {
 										e.stopPropagation();
@@ -301,7 +304,7 @@ export const FolderNode = React.memo(function FolderNode({
 										startRename();
 									}}
 								>
-									<Pencil className="mr-2 h-4 w-4" />
+									<PenLine className="mr-2 h-4 w-4" />
 									Rename
 								</DropdownMenuItem>
 								<DropdownMenuItem
@@ -313,7 +316,6 @@ export const FolderNode = React.memo(function FolderNode({
 									<Move className="mr-2 h-4 w-4" />
 									Move to...
 								</DropdownMenuItem>
-								<DropdownMenuSeparator />
 								<DropdownMenuItem
 									className="text-destructive focus:text-destructive"
 									onClick={(e) => {
@@ -330,21 +332,20 @@ export const FolderNode = React.memo(function FolderNode({
 				</div>
 			</ContextMenuTrigger>
 
-			{!isRenaming && (
-				<ContextMenuContent className="w-48">
+			{!isRenaming && contextMenuOpen && (
+				<ContextMenuContent className="w-40">
 					<ContextMenuItem onClick={() => onCreateSubfolder(folder.id)}>
 						<FolderPlus className="mr-2 h-4 w-4" />
 						New subfolder
 					</ContextMenuItem>
 					<ContextMenuItem onClick={() => startRename()}>
-						<Pencil className="mr-2 h-4 w-4" />
+						<PenLine className="mr-2 h-4 w-4" />
 						Rename
 					</ContextMenuItem>
 					<ContextMenuItem onClick={() => onMove(folder)}>
 						<Move className="mr-2 h-4 w-4" />
 						Move to...
 					</ContextMenuItem>
-					<ContextMenuSeparator />
 					<ContextMenuItem
 						className="text-destructive focus:text-destructive"
 						onClick={() => onDelete(folder)}

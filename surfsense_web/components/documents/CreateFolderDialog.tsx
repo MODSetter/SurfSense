@@ -1,6 +1,5 @@
 "use client";
 
-import { FolderPlus } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,22 +51,25 @@ export function CreateFolderDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-sm">
-				<DialogHeader>
-					<DialogTitle className="flex items-center gap-2">
-						<FolderPlus className="size-5 text-muted-foreground" />
-						{isSubfolder ? "New subfolder" : "New folder"}
-					</DialogTitle>
-					<DialogDescription>
-						{isSubfolder
-							? `Create a new folder inside "${parentFolderName}".`
-							: "Create a new folder at the root level."}
-					</DialogDescription>
+			<DialogContent className="select-none max-w-[90vw] sm:max-w-sm p-4 sm:p-5 data-[state=open]:animate-none data-[state=closed]:animate-none">
+				<DialogHeader className="space-y-2 pb-2">
+					<div className="flex items-center gap-2 sm:gap-3">
+						<div className="flex-1 min-w-0">
+							<DialogTitle className="text-base sm:text-lg">
+								{isSubfolder ? "New subfolder" : "New folder"}
+							</DialogTitle>
+							<DialogDescription className="text-xs sm:text-sm mt-0.5">
+								{isSubfolder
+									? `Create a new folder inside "${parentFolderName}".`
+									: "Create a new folder at the root level."}
+							</DialogDescription>
+						</div>
+					</div>
 				</DialogHeader>
 
-				<form onSubmit={handleSubmit} className="flex flex-col gap-4">
+				<form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:gap-4">
 					<div className="flex flex-col gap-2">
-						<Label htmlFor="folder-name">Folder name</Label>
+						<Label htmlFor="folder-name" className="text-sm">Folder name</Label>
 						<Input
 							ref={inputRef}
 							id="folder-name"
@@ -76,14 +78,24 @@ export function CreateFolderDialog({
 							onChange={(e) => setName(e.target.value)}
 							maxLength={255}
 							autoComplete="off"
+							className="text-sm h-9 sm:h-10"
 						/>
 					</div>
 
-					<DialogFooter>
-						<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+					<DialogFooter className="flex-row justify-end gap-2 pt-2 sm:pt-3">
+						<Button
+							type="button"
+							variant="secondary"
+							onClick={() => onOpenChange(false)}
+							className="h-8 sm:h-9 text-xs sm:text-sm"
+						>
 							Cancel
 						</Button>
-						<Button type="submit" disabled={!name.trim()}>
+						<Button
+							type="submit"
+							disabled={!name.trim()}
+							className="h-8 sm:h-9 text-xs sm:text-sm"
+						>
 							Create
 						</Button>
 					</DialogFooter>
