@@ -268,9 +268,14 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	}, [pendingNewChat, params?.chat_id, router, searchSpaceId, resetCurrentThread]);
 
 	// Reset transient slide-out panels and tabs when switching search spaces.
+	// Use a ref to skip the initial mount — only reset when the space actually changes.
+	const prevSearchSpaceIdRef = useRef(searchSpaceId);
 	useEffect(() => {
-		setActiveSlideoutPanel(null);
-		resetTabs();
+		if (prevSearchSpaceIdRef.current !== searchSpaceId) {
+			prevSearchSpaceIdRef.current = searchSpaceId;
+			setActiveSlideoutPanel(null);
+			resetTabs();
+		}
 	}, [searchSpaceId, resetTabs]);
 
 	const searchSpaces: SearchSpace[] = useMemo(() => {
