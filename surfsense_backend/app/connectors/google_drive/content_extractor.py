@@ -60,8 +60,9 @@ async def download_and_extract_content(
 
     temp_file_path = None
     try:
-        # Download / export
         if is_google_workspace_file(mime_type):
+            # Workspace files (Docs/Sheets/Slides) use export -- returns bytes
+            # in one shot. These are typically small (a few MB as PDF/text).
             export_mime = get_export_mime_type(mime_type)
             if not export_mime:
                 return None, drive_metadata, f"Cannot export Google Workspace type: {mime_type}"
@@ -69,17 +70,21 @@ async def download_and_extract_content(
             if error:
                 return None, drive_metadata, error
             extension = ".pdf" if export_mime == "application/pdf" else ".txt"
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as tmp:
+                tmp.write(content_bytes)
+                temp_file_path = tmp.name
         else:
-            content_bytes, error = await client.download_file(file_id)
+            # Binary files -- stream directly to disk in chunks to avoid
+            # loading the entire file into memory.
+            extension = Path(file_name).suffix or ".bin"
+            with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as tmp:
+                temp_file_path = tmp.name
+
+            error = await client.download_file_to_disk(file_id, temp_file_path)
             if error:
                 return None, drive_metadata, error
-            extension = Path(file_name).suffix or ".bin"
 
-        with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as tmp:
-            tmp.write(content_bytes)
-            temp_file_path = tmp.name
-
-        # Parse to markdown
         markdown = await _parse_file_to_markdown(temp_file_path, file_name)
         return markdown, drive_metadata, None
 

@@ -172,6 +172,31 @@ class GoogleDriveClient:
         except Exception as e:
             return None, f"Error downloading file: {e!s}"
 
+    async def download_file_to_disk(
+        self, file_id: str, dest_path: str, chunksize: int = 5 * 1024 * 1024,
+    ) -> str | None:
+        """Stream file directly to disk in chunks, avoiding full in-memory buffering.
+
+        Returns error message on failure, None on success.
+        """
+        try:
+            service = await self.get_service()
+            request = service.files().get_media(fileId=file_id)
+            from googleapiclient.http import MediaIoBaseDownload
+
+            with open(dest_path, "wb") as fh:
+                downloader = MediaIoBaseDownload(fh, request, chunksize=chunksize)
+                done = False
+                while not done:
+                    _, done = downloader.next_chunk()
+
+            return None
+
+        except HttpError as e:
+            return f"HTTP error downloading file: {e.resp.status}"
+        except Exception as e:
+            return f"Error downloading file: {e!s}"
+
     async def export_google_file(
         self, file_id: str, mime_type: str
     ) -> tuple[bytes | None, str | None]:
