@@ -605,12 +605,13 @@ async def test_client_download_file_runs_in_thread_parallel():
     BLOCK_SECONDS = 0.2
     NUM_CALLS = 3
 
-    def _blocking_download(service, file_id):
+    def _blocking_download(service, file_id, credentials):
         time.sleep(BLOCK_SECONDS)
         return b"fake-content", None
 
     client = GoogleDriveClient.__new__(GoogleDriveClient)
     client.service = MagicMock()
+    client._resolved_credentials = MagicMock()
     client._service_lock = asyncio.Lock()
 
     with patch.object(
@@ -640,12 +641,13 @@ async def test_client_export_google_file_runs_in_thread_parallel():
     BLOCK_SECONDS = 0.2
     NUM_CALLS = 3
 
-    def _blocking_export(service, file_id, mime_type):
+    def _blocking_export(service, file_id, mime_type, credentials):
         time.sleep(BLOCK_SECONDS)
         return b"exported", None
 
     client = GoogleDriveClient.__new__(GoogleDriveClient)
     client.service = MagicMock()
+    client._resolved_credentials = MagicMock()
     client._service_lock = asyncio.Lock()
 
     with patch.object(

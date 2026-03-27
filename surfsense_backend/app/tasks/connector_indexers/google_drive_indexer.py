@@ -199,7 +199,7 @@ async def _download_files_parallel(
     search_space_id: int,
     user_id: str,
     enable_summary: bool,
-    max_concurrency: int = 5,
+    max_concurrency: int = 3,
     on_heartbeat: HeartbeatCallbackType | None = None,
 ) -> tuple[list[ConnectorDocument], int]:
     """Download and ETL files in parallel, returning ConnectorDocuments.
@@ -219,6 +219,9 @@ async def _download_files_parallel(
                 drive_client, file
             )
             if error or not markdown:
+                file_name = file.get("name", "Unknown")
+                reason = error or "empty content"
+                logger.warning(f"Download/ETL failed for {file_name}: {reason}")
                 return None
             doc = _build_connector_doc(
                 file,

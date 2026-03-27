@@ -4,6 +4,8 @@ import asyncio
 import logging
 import os
 import tempfile
+import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -119,7 +121,10 @@ async def _parse_file_to_markdown(file_path: str, filename: str) -> str:
         )
         if stt_service_type == "local":
             from app.services.stt_service import stt_service
+            t0 = time.monotonic()
+            logger.info(f"[local-stt] START file={filename} thread={threading.current_thread().name}")
             result = await asyncio.to_thread(stt_service.transcribe_file, file_path)
+            logger.info(f"[local-stt] END file={filename} elapsed={time.monotonic() - t0:.2f}s")
             text = result.get("text", "")
         else:
             with open(file_path, "rb") as audio_file:
@@ -171,7 +176,10 @@ async def _parse_file_to_markdown(file_path: str, filename: str) -> str:
         from docling.document_converter import DocumentConverter
 
         converter = DocumentConverter()
+        t0 = time.monotonic()
+        logger.info(f"[docling] START file={filename} thread={threading.current_thread().name}")
         result = await asyncio.to_thread(converter.convert, file_path)
+        logger.info(f"[docling] END file={filename} elapsed={time.monotonic() - t0:.2f}s")
         return result.document.export_to_markdown()
 
     raise RuntimeError(f"Unknown ETL_SERVICE: {app_config.ETL_SERVICE}")
