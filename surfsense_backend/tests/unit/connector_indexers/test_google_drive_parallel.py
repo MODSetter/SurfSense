@@ -1,7 +1,8 @@
 """Tests for parallel download + indexing in the Google Drive indexer."""
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
+import time
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -586,3 +587,83 @@ async def test_selected_files_skip_rename_counting(selected_files_mocks):
     call_files = mock.call_args[1].get("files") if "files" in (mock.call_args[1] or {}) else mock.call_args[0][2]
     assert len(call_files) == 2
     assert {f["id"] for f in call_files} == {"n1", "n2"}
+
+
+# ---------------------------------------------------------------------------
+# asyncio.to_thread verification — prove blocking calls run in parallel
+# ---------------------------------------------------------------------------
+
+async def test_client_download_file_runs_in_thread_parallel():
+    """Calling download_file concurrently via asyncio.gather should overlap
+    blocking work on separate threads, proving to_thread is effective.
+
+    Strategy: patch _sync_download_file with a blocking time.sleep(0.2).
+    Launch 3 concurrent calls. Serial would take >=0.6s; parallel < 0.4s.
+    """
+    from app.connectors.google_drive.client import GoogleDriveClient
+
+    BLOCK_SECONDS = 0.2
+    NUM_CALLS = 3
+
+    def _blocking_download(service, file_id):
+        time.sleep(BLOCK_SECONDS)
+        return b"fake-content", None
+
+    client = GoogleDriveClient.__new__(GoogleDriveClient)
+    client.service = MagicMock()
+    client._service_lock = asyncio.Lock()
+
+    with patch.object(
+        GoogleDriveClient, "_sync_download_file", staticmethod(_blocking_download),
+    ):
+        start = time.monotonic()
+        results = await asyncio.gather(
+            *(client.download_file(f"file-{i}") for i in range(NUM_CALLS))
+        )
+        elapsed = time.monotonic() - start
+
+    for content, error in results:
+        assert content == b"fake-content"
+        assert error is None
+
+    serial_minimum = BLOCK_SECONDS * NUM_CALLS
+    assert elapsed < serial_minimum, (
+        f"Elapsed {elapsed:.2f}s >= serial minimum {serial_minimum:.2f}s — "
+        f"downloads are not running in parallel"
+    )
+
+
+async def test_client_export_google_file_runs_in_thread_parallel():
+    """Same strategy for export_google_file — verify to_thread parallelism."""
+    from app.connectors.google_drive.client import GoogleDriveClient
+
+    BLOCK_SECONDS = 0.2
+    NUM_CALLS = 3
+
+    def _blocking_export(service, file_id, mime_type):
+        time.sleep(BLOCK_SECONDS)
+        return b"exported", None
+
+    client = GoogleDriveClient.__new__(GoogleDriveClient)
+    client.service = MagicMock()
+    client._service_lock = asyncio.Lock()
+
+    with patch.object(
+        GoogleDriveClient, "_sync_export_google_file", staticmethod(_blocking_export),
+    ):
+        start = time.monotonic()
+        results = await asyncio.gather(
+            *(client.export_google_file(f"file-{i}", "application/pdf")
+              for i in range(NUM_CALLS))
+        )
+        elapsed = time.monotonic() - start
+
+    for content, error in results:
+        assert content == b"exported"
+        assert error is None
+
+    serial_minimum = BLOCK_SECONDS * NUM_CALLS
+    assert elapsed < serial_minimum, (
+        f"Elapsed {elapsed:.2f}s >= serial minimum {serial_minimum:.2f}s — "
+        f"exports are not running in parallel"
+    )

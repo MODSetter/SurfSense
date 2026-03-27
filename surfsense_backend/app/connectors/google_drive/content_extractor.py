@@ -1,5 +1,6 @@
 """Content extraction for Google Drive files."""
 
+import asyncio
 import logging
 import os
 import tempfile
@@ -118,7 +119,7 @@ async def _parse_file_to_markdown(file_path: str, filename: str) -> str:
         )
         if stt_service_type == "local":
             from app.services.stt_service import stt_service
-            result = stt_service.transcribe_file(file_path)
+            result = await asyncio.to_thread(stt_service.transcribe_file, file_path)
             text = result.get("text", "")
         else:
             with open(file_path, "rb") as audio_file:
@@ -170,7 +171,7 @@ async def _parse_file_to_markdown(file_path: str, filename: str) -> str:
         from docling.document_converter import DocumentConverter
 
         converter = DocumentConverter()
-        result = converter.convert(file_path)
+        result = await asyncio.to_thread(converter.convert, file_path)
         return result.document.export_to_markdown()
 
     raise RuntimeError(f"Unknown ETL_SERVICE: {app_config.ETL_SERVICE}")
