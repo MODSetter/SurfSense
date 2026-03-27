@@ -134,10 +134,10 @@ export const DocumentNode = React.memo(function DocumentNode({
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end" className="w-44">
-							<DropdownMenuItem onClick={() => onPreview(doc)}>
-								<Eye className="mr-2 h-4 w-4" />
-								Preview
-							</DropdownMenuItem>
+						<DropdownMenuItem onClick={() => onPreview(doc)}>
+							<Eye className="mr-2 h-4 w-4" />
+							Open
+						</DropdownMenuItem>
 							{isEditable && (
 								<DropdownMenuItem onClick={() => onEdit(doc)}>
 									<Pencil className="mr-2 h-4 w-4" />
@@ -163,10 +163,10 @@ export const DocumentNode = React.memo(function DocumentNode({
 			</ContextMenuTrigger>
 
 			<ContextMenuContent className="w-44">
-				<ContextMenuItem onClick={() => onPreview(doc)}>
-					<Eye className="mr-2 h-4 w-4" />
-					Preview
-				</ContextMenuItem>
+			<ContextMenuItem onClick={() => onPreview(doc)}>
+				<Eye className="mr-2 h-4 w-4" />
+				Open
+			</ContextMenuItem>
 				{isEditable && (
 					<ContextMenuItem onClick={() => onEdit(doc)}>
 						<Pencil className="mr-2 h-4 w-4" />
