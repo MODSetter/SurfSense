@@ -1,12 +1,12 @@
 import {
 	type BulkDocumentMoveRequest,
+	bulkDocumentMoveRequest,
 	type DocumentMoveRequest,
+	documentMoveRequest,
 	type FolderCreateRequest,
 	type FolderMoveRequest,
 	type FolderReorderRequest,
 	type FolderUpdateRequest,
-	bulkDocumentMoveRequest,
-	documentMoveRequest,
 	folder,
 	folderBreadcrumbResponse,
 	folderCreateRequest,
@@ -23,7 +23,9 @@ class FoldersApiService {
 	createFolder = async (request: FolderCreateRequest) => {
 		const parsed = folderCreateRequest.safeParse(request);
 		if (!parsed.success) {
-			throw new ValidationError(`Invalid request: ${parsed.error.issues.map((i) => i.message).join(", ")}`);
+			throw new ValidationError(
+				`Invalid request: ${parsed.error.issues.map((i) => i.message).join(", ")}`
+			);
 		}
 		return baseApiService.post("/api/v1/folders", folder, { body: parsed.data });
 	};
@@ -31,7 +33,7 @@ class FoldersApiService {
 	listFolders = async (searchSpaceId: number) => {
 		return baseApiService.get(
 			`/api/v1/folders?search_space_id=${searchSpaceId}`,
-			folderListResponse,
+			folderListResponse
 		);
 	};
 
@@ -40,16 +42,15 @@ class FoldersApiService {
 	};
 
 	getFolderBreadcrumb = async (folderId: number) => {
-		return baseApiService.get(
-			`/api/v1/folders/${folderId}/breadcrumb`,
-			folderBreadcrumbResponse,
-		);
+		return baseApiService.get(`/api/v1/folders/${folderId}/breadcrumb`, folderBreadcrumbResponse);
 	};
 
 	updateFolder = async (folderId: number, request: FolderUpdateRequest) => {
 		const parsed = folderUpdateRequest.safeParse(request);
 		if (!parsed.success) {
-			throw new ValidationError(`Invalid request: ${parsed.error.issues.map((i) => i.message).join(", ")}`);
+			throw new ValidationError(
+				`Invalid request: ${parsed.error.issues.map((i) => i.message).join(", ")}`
+			);
 		}
 		return baseApiService.put(`/api/v1/folders/${folderId}`, folder, {
 			body: parsed.data,
@@ -59,7 +60,9 @@ class FoldersApiService {
 	moveFolder = async (folderId: number, request: FolderMoveRequest) => {
 		const parsed = folderMoveRequest.safeParse(request);
 		if (!parsed.success) {
-			throw new ValidationError(`Invalid request: ${parsed.error.issues.map((i) => i.message).join(", ")}`);
+			throw new ValidationError(
+				`Invalid request: ${parsed.error.issues.map((i) => i.message).join(", ")}`
+			);
 		}
 		return baseApiService.put(`/api/v1/folders/${folderId}/move`, folder, {
 			body: parsed.data,
@@ -69,7 +72,9 @@ class FoldersApiService {
 	reorderFolder = async (folderId: number, request: FolderReorderRequest) => {
 		const parsed = folderReorderRequest.safeParse(request);
 		if (!parsed.success) {
-			throw new ValidationError(`Invalid request: ${parsed.error.issues.map((i) => i.message).join(", ")}`);
+			throw new ValidationError(
+				`Invalid request: ${parsed.error.issues.map((i) => i.message).join(", ")}`
+			);
 		}
 		return baseApiService.put(`/api/v1/folders/${folderId}/reorder`, folder, {
 			body: parsed.data,
@@ -77,16 +82,15 @@ class FoldersApiService {
 	};
 
 	deleteFolder = async (folderId: number) => {
-		return baseApiService.delete(
-			`/api/v1/folders/${folderId}`,
-			folderDeleteResponse,
-		);
+		return baseApiService.delete(`/api/v1/folders/${folderId}`, folderDeleteResponse);
 	};
 
 	moveDocument = async (documentId: number, request: DocumentMoveRequest) => {
 		const parsed = documentMoveRequest.safeParse(request);
 		if (!parsed.success) {
-			throw new ValidationError(`Invalid request: ${parsed.error.issues.map((i) => i.message).join(", ")}`);
+			throw new ValidationError(
+				`Invalid request: ${parsed.error.issues.map((i) => i.message).join(", ")}`
+			);
 		}
 		return baseApiService.put(`/api/v1/documents/${documentId}/move`, undefined, {
 			body: parsed.data,
@@ -96,7 +100,9 @@ class FoldersApiService {
 	bulkMoveDocuments = async (request: BulkDocumentMoveRequest) => {
 		const parsed = bulkDocumentMoveRequest.safeParse(request);
 		if (!parsed.success) {
-			throw new ValidationError(`Invalid request: ${parsed.error.issues.map((i) => i.message).join(", ")}`);
+			throw new ValidationError(
+				`Invalid request: ${parsed.error.issues.map((i) => i.message).join(", ")}`
+			);
 		}
 		return baseApiService.put("/api/v1/documents/bulk-move", undefined, {
 			body: parsed.data,

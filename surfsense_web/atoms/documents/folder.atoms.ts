@@ -9,7 +9,7 @@ import { atomWithStorage } from "jotai/utils";
  */
 export const expandedFolderIdsAtom = atomWithStorage<Record<number, number[]>>(
 	"surfsense:expandedFolderIds",
-	{},
+	{}
 );
 
 /**

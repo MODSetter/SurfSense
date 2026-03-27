@@ -14,8 +14,6 @@ import {
 	getLogSummaryResponse,
 	getLogsRequest,
 	getLogsResponse,
-	type Log,
-	log,
 	type UpdateLogRequest,
 	updateLogRequest,
 	updateLogResponse,

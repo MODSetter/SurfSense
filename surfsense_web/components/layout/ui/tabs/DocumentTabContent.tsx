@@ -176,9 +176,7 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 			<div className="flex flex-col h-full overflow-hidden">
 				<div className="flex items-center justify-between px-6 py-3 border-b shrink-0">
 					<div className="flex-1 min-w-0">
-						<h1 className="text-base font-semibold truncate">
-							{doc.title || title || "Untitled"}
-						</h1>
+						<h1 className="text-base font-semibold truncate">{doc.title || title || "Untitled"}</h1>
 						{editedMarkdown !== null && (
 							<p className="text-xs text-muted-foreground">Unsaved changes</p>
 						)}
@@ -221,7 +219,12 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 					{doc.title || title || "Untitled"}
 				</h1>
 				{doc.document_type === "NOTE" && (
-					<Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="gap-1.5">
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={() => setIsEditing(true)}
+						className="gap-1.5"
+					>
 						<Pencil className="size-3.5" />
 						Edit
 					</Button>

@@ -215,7 +215,7 @@ export const createAnimation = (
       `,
 		};
 	}
-	if (variant === "circle" && start == "center") {
+	if (variant === "circle" && start === "center") {
 		return {
 			name: `${variant}-${start}${blur ? "-blur" : ""}`,
 			css: `

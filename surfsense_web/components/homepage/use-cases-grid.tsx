@@ -63,9 +63,18 @@ function UseCaseCard({
 				transition={{ duration: 0.5, ease: "easeOut" }}
 				className={`group overflow-hidden rounded-2xl border border-neutral-200/60 bg-white shadow-sm transition-shadow duration-300 hover:shadow-xl dark:border-neutral-700/60 dark:bg-neutral-900 ${className ?? ""}`}
 			>
+				{/* biome-ignore lint/a11y/useSemanticElements: div wraps img, button would break layout */}
 				<div
+					role="button"
+					tabIndex={0}
 					className="cursor-pointer overflow-hidden bg-neutral-50 p-2 dark:bg-neutral-950"
 					onClick={open}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
+							open();
+						}
+					}}
 				>
 					<img
 						src={src}

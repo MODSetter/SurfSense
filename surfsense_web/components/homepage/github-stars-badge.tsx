@@ -3,8 +3,8 @@
 import { IconBrandGithub } from "@tabler/icons-react";
 import { motion, useMotionValue, useSpring } from "motion/react";
 import * as React from "react";
-import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Per-digit scrolling wheel

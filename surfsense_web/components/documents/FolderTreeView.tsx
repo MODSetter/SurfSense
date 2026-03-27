@@ -8,7 +8,7 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import { renamingFolderIdAtom } from "@/atoms/documents/folder.atoms";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { DocumentNode, type DocumentNodeDoc } from "./DocumentNode";
-import { FolderNode, type FolderDisplay } from "./FolderNode";
+import { type FolderDisplay, FolderNode } from "./FolderNode";
 
 interface FolderTreeViewProps {
 	folders: FolderDisplay[];
@@ -16,7 +16,10 @@ interface FolderTreeViewProps {
 	expandedIds: Set<number>;
 	onToggleExpand: (folderId: number) => void;
 	mentionedDocIds: Set<number>;
-	onToggleChatMention: (doc: { id: number; title: string; document_type: string }, isMentioned: boolean) => void;
+	onToggleChatMention: (
+		doc: { id: number; title: string; document_type: string },
+		isMentioned: boolean
+	) => void;
 	onRenameFolder: (folder: FolderDisplay, newName: string) => void;
 	onDeleteFolder: (folder: FolderDisplay) => void;
 	onMoveFolder: (folder: FolderDisplay) => void;
@@ -26,7 +29,11 @@ interface FolderTreeViewProps {
 	onDeleteDocument: (doc: DocumentNodeDoc) => void;
 	onMoveDocument: (doc: DocumentNodeDoc) => void;
 	activeTypes: DocumentTypeEnum[];
-	onDropIntoFolder?: (itemType: "folder" | "document", itemId: number, targetFolderId: number | null) => void;
+	onDropIntoFolder?: (
+		itemType: "folder" | "document",
+		itemId: number,
+		targetFolderId: number | null
+	) => void;
 	onReorderFolder?: (folderId: number, beforePos: string | null, afterPos: string | null) => void;
 }
 
@@ -34,7 +41,8 @@ function groupBy<T>(items: T[], keyFn: (item: T) => string | number): Record<str
 	const result: Record<string | number, T[]> = {};
 	for (const item of items) {
 		const key = keyFn(item);
-		(result[key] ??= []).push(item);
+		if (!result[key]) result[key] = [];
+		result[key].push(item);
 	}
 	return result;
 }
@@ -58,15 +66,9 @@ export function FolderTreeView({
 	onDropIntoFolder,
 	onReorderFolder,
 }: FolderTreeViewProps) {
-	const foldersByParent = useMemo(
-		() => groupBy(folders, (f) => f.parentId ?? "root"),
-		[folders],
-	);
+	const foldersByParent = useMemo(() => groupBy(folders, (f) => f.parentId ?? "root"), [folders]);
 
-	const docsByFolder = useMemo(
-		() => groupBy(documents, (d) => d.folderId ?? "root"),
-		[documents],
-	);
+	const docsByFolder = useMemo(() => groupBy(documents, (d) => d.folderId ?? "root"), [documents]);
 
 	const folderChildCounts = useMemo(() => {
 		const counts: Record<number, number> = {};
@@ -82,12 +84,9 @@ export function FolderTreeView({
 	const [renamingFolderId, setRenamingFolderId] = useAtom(renamingFolderIdAtom);
 	const handleStartRename = useCallback(
 		(folderId: number) => setRenamingFolderId(folderId),
-		[setRenamingFolderId],
+		[setRenamingFolderId]
 	);
-	const handleCancelRename = useCallback(
-		() => setRenamingFolderId(null),
-		[setRenamingFolderId],
-	);
+	const handleCancelRename = useCallback(() => setRenamingFolderId(null), [setRenamingFolderId]);
 
 	const hasDescendantMatch = useMemo(() => {
 		if (activeTypes.length === 0) return null;
@@ -96,7 +95,7 @@ export function FolderTreeView({
 		function check(folderId: number): boolean {
 			if (match[folderId] !== undefined) return match[folderId];
 			const childDocs = (docsByFolder[folderId] ?? []).some((d) =>
-				activeTypes.includes(d.document_type as DocumentTypeEnum),
+				activeTypes.includes(d.document_type as DocumentTypeEnum)
 			);
 			if (childDocs) {
 				match[folderId] = true;
@@ -127,10 +126,9 @@ export function FolderTreeView({
 		const visibleFolders = hasDescendantMatch
 			? childFolders.filter((f) => hasDescendantMatch[f.id])
 			: childFolders;
-		const childDocs = (docsByFolder[key] ?? [])
-			.filter(
-				(d) => activeTypes.length === 0 || activeTypes.includes(d.document_type as DocumentTypeEnum),
-			);
+		const childDocs = (docsByFolder[key] ?? []).filter(
+			(d) => activeTypes.length === 0 || activeTypes.includes(d.document_type as DocumentTypeEnum)
+		);
 
 		const nodes: React.ReactNode[] = [];
 
@@ -159,7 +157,7 @@ export function FolderTreeView({
 					onDropIntoFolder={onDropIntoFolder}
 					onReorderFolder={onReorderFolder}
 					siblingPositions={siblingPositions}
-				/>,
+				/>
 			);
 
 			if (expandedIds.has(f.id)) {
@@ -179,7 +177,7 @@ export function FolderTreeView({
 					onEdit={onEditDocument}
 					onDelete={onDeleteDocument}
 					onMove={onMoveDocument}
-				/>,
+				/>
 			);
 		}
 
@@ -208,9 +206,7 @@ export function FolderTreeView({
 
 	return (
 		<DndProvider backend={HTML5Backend}>
-			<div className="flex-1 min-h-0 overflow-y-auto px-2 py-1">
-				{treeNodes}
-			</div>
+			<div className="flex-1 min-h-0 overflow-y-auto px-2 py-1">{treeNodes}</div>
 		</DndProvider>
 	);
 }
