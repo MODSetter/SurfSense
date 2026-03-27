@@ -7,7 +7,7 @@ import { useTheme } from "next-themes";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
-import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
+import { useZeroDocumentTypeCounts } from "@/hooks/use-zero-document-type-counts";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -451,8 +451,8 @@ export function OnboardingTour() {
 		enabled: !!searchSpaceId,
 	});
 
-	// Get document type counts
-	const { data: documentTypeCounts } = useAtomValue(documentTypeCountsAtom);
+	// Real-time document type counts via Zero
+	const documentTypeCounts = useZeroDocumentTypeCounts(searchSpaceId);
 
 	// Get connectors
 	const { data: connectors = [] } = useAtomValue(connectorsAtom);
