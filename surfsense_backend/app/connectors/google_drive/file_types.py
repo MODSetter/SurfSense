@@ -7,7 +7,7 @@ GOOGLE_FOLDER = "application/vnd.google-apps.folder"
 GOOGLE_SHORTCUT = "application/vnd.google-apps.shortcut"
 
 EXPORT_FORMATS = {
-    GOOGLE_DOC: "application/pdf",
+    GOOGLE_DOC: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     GOOGLE_SHEET: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     GOOGLE_SLIDE: "application/pdf",
 }
