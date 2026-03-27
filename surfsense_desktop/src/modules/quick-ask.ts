@@ -1,7 +1,7 @@
 import { BrowserWindow, clipboard, globalShortcut, ipcMain, screen, shell } from 'electron';
 import path from 'path';
 import { IPC_CHANNELS } from '../ipc/channels';
-import { checkAccessibilityPermission, getFrontmostApp, simulatePaste } from './keyboard';
+import { checkAccessibilityPermission, getFrontmostApp, simulatePaste } from './platform';
 import { getServerPort } from './server';
 
 const SHORTCUT = 'CommandOrControl+Option+S';
