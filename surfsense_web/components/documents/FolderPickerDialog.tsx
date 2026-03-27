@@ -47,7 +47,8 @@ export function FolderPickerDialog({
 		const map: Record<string, FolderDisplay[]> = {};
 		for (const f of folders) {
 			const key = f.parentId ?? "root";
-			(map[key] ??= []).push(f);
+			if (!map[key]) map[key] = [];
+			map[key].push(f);
 		}
 		return map;
 	}, [folders]);
@@ -88,7 +89,7 @@ export function FolderPickerDialog({
 						"flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition-colors",
 						isSelected && "bg-accent text-accent-foreground",
 						!isSelected && !isDisabled && "hover:bg-accent/50",
-						isDisabled && "cursor-not-allowed opacity-40",
+						isDisabled && "cursor-not-allowed opacity-40"
 					)}
 					style={{ paddingLeft: `${depth * 16 + 8}px` }}
 					onClick={() => {
@@ -96,7 +97,8 @@ export function FolderPickerDialog({
 					}}
 				>
 					{hasChildren ? (
-						<span
+						<button
+							type="button"
 							className="flex h-4 w-4 shrink-0 items-center justify-center"
 							onClick={(e) => {
 								e.stopPropagation();
@@ -108,7 +110,7 @@ export function FolderPickerDialog({
 							) : (
 								<ChevronRight className="h-3.5 w-3.5" />
 							)}
-						</span>
+						</button>
 					) : (
 						<span className="h-4 w-4 shrink-0" />
 					)}
@@ -134,7 +136,7 @@ export function FolderPickerDialog({
 						className={cn(
 							"flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition-colors",
 							selectedId === null && "bg-accent text-accent-foreground",
-							selectedId !== null && "hover:bg-accent/50",
+							selectedId !== null && "hover:bg-accent/50"
 						)}
 						onClick={() => setSelectedId(null)}
 					>

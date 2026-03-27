@@ -2,13 +2,13 @@
 
 import { useAtomValue, useSetAtom } from "jotai";
 import { FileText, MessageSquare, Plus, X } from "lucide-react";
-import { useCallback, useRef, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
 	activeTabIdAtom,
 	closeTabAtom,
 	switchTabAtom,
-	tabsAtom,
 	type Tab,
+	tabsAtom,
 } from "@/atoms/tabs/tabs.atom";
 import { cn } from "@/lib/utils";
 
@@ -58,16 +58,8 @@ export function TabBar({ onTabSwitch, onNewChat, className }: TabBarProps) {
 	if (tabs.length <= 1) return null;
 
 	return (
-		<div
-			className={cn(
-				"flex items-center shrink-0 border-b bg-main-panel",
-				className
-			)}
-		>
-			<div
-				ref={scrollRef}
-				className="flex items-center flex-1 overflow-x-auto scrollbar-none"
-			>
+		<div className={cn("flex items-center shrink-0 border-b bg-main-panel", className)}>
+			<div ref={scrollRef} className="flex items-center flex-1 overflow-x-auto scrollbar-none">
 				{tabs.map((tab) => {
 					const isActive = tab.id === activeTabId;
 					const Icon = tab.type === "document" ? FileText : MessageSquare;
@@ -85,11 +77,10 @@ export function TabBar({ onTabSwitch, onNewChat, className }: TabBarProps) {
 									: "bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
 							)}
 						>
-							{isActive && (
-								<span className="absolute bottom-0 left-0 right-0 h-[2px] bg-primary" />
-							)}
+							{isActive && <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-primary" />}
 							<Icon className="size-3.5 shrink-0" />
 							<span className="truncate">{tab.title}</span>
+							{/* biome-ignore lint/a11y/useSemanticElements: cannot nest button inside button */}
 							<span
 								role="button"
 								tabIndex={0}

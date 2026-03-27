@@ -58,13 +58,20 @@ interface FolderNodeProps {
 	onDelete: (folder: FolderDisplay) => void;
 	onMove: (folder: FolderDisplay) => void;
 	onCreateSubfolder: (parentId: number) => void;
-	onDropIntoFolder?: (itemType: "folder" | "document", itemId: number, targetFolderId: number) => void;
+	onDropIntoFolder?: (
+		itemType: "folder" | "document",
+		itemId: number,
+		targetFolderId: number
+	) => void;
 	onReorderFolder?: (folderId: number, beforePos: string | null, afterPos: string | null) => void;
 	siblingPositions?: { before: string | null; after: string | null };
 	disabledDropIds?: Set<number>;
 }
 
-function getDropZone(monitor: { getClientOffset: () => { y: number } | null }, element: HTMLElement): DropZone {
+function getDropZone(
+	monitor: { getClientOffset: () => { y: number } | null },
+	element: HTMLElement
+): DropZone {
 	const offset = monitor.getClientOffset();
 	if (!offset) return "middle";
 	const rect = element.getBoundingClientRect();
@@ -104,7 +111,7 @@ export const FolderNode = React.memo(function FolderNode({
 			item: { id: folder.id, position: folder.position, parentId: folder.parentId },
 			collect: (monitor) => ({ isDragging: monitor.isDragging() }),
 		}),
-		[folder.id, folder.position, folder.parentId],
+		[folder.id, folder.position, folder.parentId]
 	);
 
 	const [{ isOver, canDrop }, drop] = useDrop(
@@ -147,7 +154,14 @@ export const FolderNode = React.memo(function FolderNode({
 				canDrop: monitor.canDrop(),
 			}),
 		}),
-		[folder.id, folder.position, disabledDropIds, onDropIntoFolder, onReorderFolder, siblingPositions],
+		[
+			folder.id,
+			folder.position,
+			disabledDropIds,
+			onDropIntoFolder,
+			onReorderFolder,
+			siblingPositions,
+		]
 	);
 
 	useEffect(() => {
@@ -159,7 +173,7 @@ export const FolderNode = React.memo(function FolderNode({
 			rowRef.current = node;
 			drag(drop(node));
 		},
-		[drag, drop],
+		[drag, drop]
 	);
 
 	useEffect(() => {
@@ -188,7 +202,7 @@ export const FolderNode = React.memo(function FolderNode({
 				onCancelRename();
 			}
 		},
-		[handleRenameSubmit, folder.name, onCancelRename],
+		[handleRenameSubmit, folder.name, onCancelRename]
 	);
 
 	const startRename = useCallback(() => {
@@ -201,8 +215,11 @@ export const FolderNode = React.memo(function FolderNode({
 	return (
 		<ContextMenu>
 			<ContextMenuTrigger asChild disabled={isRenaming}>
+				{/* biome-ignore lint/a11y/useSemanticElements: div required for drag/drop refs */}
 				<div
 					ref={attachRef}
+					role="button"
+					tabIndex={0}
 					className={cn(
 						"group relative flex h-8 items-center gap-1 rounded-md px-1 text-sm hover:bg-accent/50 cursor-pointer select-none",
 						isExpanded && "font-medium",
@@ -210,10 +227,16 @@ export const FolderNode = React.memo(function FolderNode({
 						isOver && canDrop && dropZone === "middle" && "bg-accent ring-1 ring-primary/40",
 						isOver && canDrop && dropZone === "top" && "border-t-2 border-primary",
 						isOver && canDrop && dropZone === "bottom" && "border-b-2 border-primary",
-						isOver && !canDrop && "cursor-not-allowed",
+						isOver && !canDrop && "cursor-not-allowed"
 					)}
 					style={{ paddingLeft: `${depth * 16 + 4}px` }}
 					onClick={() => onToggleExpand(folder.id)}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
+							onToggleExpand(folder.id);
+						}
+					}}
 					onDoubleClick={(e) => {
 						e.stopPropagation();
 						startRename();
@@ -322,7 +345,10 @@ export const FolderNode = React.memo(function FolderNode({
 						Move to...
 					</ContextMenuItem>
 					<ContextMenuSeparator />
-					<ContextMenuItem className="text-destructive focus:text-destructive" onClick={() => onDelete(folder)}>
+					<ContextMenuItem
+						className="text-destructive focus:text-destructive"
+						onClick={() => onDelete(folder)}
+					>
 						<Trash2 className="mr-2 h-4 w-4" />
 						Delete
 					</ContextMenuItem>

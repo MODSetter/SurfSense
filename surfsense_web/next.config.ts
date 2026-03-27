@@ -1,7 +1,7 @@
+import path from "node:path";
 import { createMDX } from "fumadocs-mdx/next";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
-import path from "path";
 
 // Create the next-intl plugin
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
@@ -37,7 +37,9 @@ const nextConfig: NextConfig = {
 	// Configure webpack (SVGR)
 	webpack: (config) => {
 		// SVGR: import *.svg as React components
-		const fileLoaderRule = config.module.rules.find((rule: any) => rule.test?.test?.(".svg"));
+		const fileLoaderRule = config.module.rules.find(
+			(rule: { test?: { test?: (s: string) => boolean } }) => rule.test?.test?.(".svg")
+		);
 		config.module.rules.push(
 			// Re-apply the existing file loader for *.svg?url imports
 			{

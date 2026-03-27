@@ -1,14 +1,9 @@
 "use client";
 
-import {
-	Eye,
-	MoreHorizontal,
-	Move,
-	Pencil,
-	Trash2,
-} from "lucide-react";
-import React, { useCallback, useRef } from "react";
+import { Eye, MoreHorizontal, Move, Pencil, Trash2 } from "lucide-react";
+import React, { useCallback } from "react";
 import { useDrag } from "react-dnd";
+import { getDocumentTypeIcon } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -25,7 +20,6 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getDocumentTypeIcon } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { cn } from "@/lib/utils";
 import { DND_TYPES } from "./FolderNode";
@@ -62,9 +56,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 	const statusState = doc.status?.state ?? "ready";
 	const isSelectable = statusState !== "pending" && statusState !== "processing";
 	const isEditable =
-		doc.document_type === "NOTE" &&
-		statusState !== "pending" &&
-		statusState !== "processing";
+		doc.document_type === "NOTE" && statusState !== "pending" && statusState !== "processing";
 
 	const handleCheckChange = useCallback(() => {
 		if (isSelectable) {
@@ -78,7 +70,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 			item: { id: doc.id },
 			collect: (monitor) => ({ isDragging: monitor.isDragging() }),
 		}),
-		[doc.id],
+		[doc.id]
 	);
 
 	const isProcessing = statusState === "pending" || statusState === "processing";
@@ -86,15 +78,24 @@ export const DocumentNode = React.memo(function DocumentNode({
 	return (
 		<ContextMenu>
 			<ContextMenuTrigger asChild>
+				{/* biome-ignore lint/a11y/useSemanticElements: div required for drag ref */}
 				<div
 					ref={drag}
+					role="button"
+					tabIndex={0}
 					className={cn(
 						"group flex h-8 items-center gap-1.5 rounded-md px-1 text-sm hover:bg-accent/50 cursor-pointer select-none",
 						isMentioned && "bg-accent/30",
-						isDragging && "opacity-40",
+						isDragging && "opacity-40"
 					)}
 					style={{ paddingLeft: `${depth * 16 + 4}px` }}
 					onClick={handleCheckChange}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
+							handleCheckChange();
+						}
+					}}
 				>
 					{isSelectable ? (
 						<Checkbox
@@ -110,7 +111,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 									"h-2 w-2 rounded-full",
 									statusState === "processing" && "animate-pulse bg-amber-500",
 									statusState === "pending" && "bg-muted-foreground/40",
-									statusState === "failed" && "bg-destructive",
+									statusState === "failed" && "bg-destructive"
 								)}
 							/>
 						</span>
@@ -119,7 +120,10 @@ export const DocumentNode = React.memo(function DocumentNode({
 					<span className="flex-1 min-w-0 truncate">{doc.title}</span>
 
 					<span className="shrink-0">
-						{getDocumentTypeIcon(doc.document_type as DocumentTypeEnum, "h-3.5 w-3.5 text-muted-foreground")}
+						{getDocumentTypeIcon(
+							doc.document_type as DocumentTypeEnum,
+							"h-3.5 w-3.5 text-muted-foreground"
+						)}
 					</span>
 
 					<DropdownMenu>
@@ -134,10 +138,10 @@ export const DocumentNode = React.memo(function DocumentNode({
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end" className="w-44">
-						<DropdownMenuItem onClick={() => onPreview(doc)}>
-							<Eye className="mr-2 h-4 w-4" />
-							Open
-						</DropdownMenuItem>
+							<DropdownMenuItem onClick={() => onPreview(doc)}>
+								<Eye className="mr-2 h-4 w-4" />
+								Open
+							</DropdownMenuItem>
 							{isEditable && (
 								<DropdownMenuItem onClick={() => onEdit(doc)}>
 									<Pencil className="mr-2 h-4 w-4" />
@@ -163,10 +167,10 @@ export const DocumentNode = React.memo(function DocumentNode({
 			</ContextMenuTrigger>
 
 			<ContextMenuContent className="w-44">
-			<ContextMenuItem onClick={() => onPreview(doc)}>
-				<Eye className="mr-2 h-4 w-4" />
-				Open
-			</ContextMenuItem>
+				<ContextMenuItem onClick={() => onPreview(doc)}>
+					<Eye className="mr-2 h-4 w-4" />
+					Open
+				</ContextMenuItem>
 				{isEditable && (
 					<ContextMenuItem onClick={() => onEdit(doc)}>
 						<Pencil className="mr-2 h-4 w-4" />

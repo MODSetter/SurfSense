@@ -1527,9 +1527,7 @@ export default function NewChatPage() {
 
 	// Show loading state only when loading an existing thread
 	if (isInitializing) {
-		return (
-			<Loading />
-		);
+		return <Loading />;
 	}
 
 	// Show error state only if we tried to load an existing thread but failed

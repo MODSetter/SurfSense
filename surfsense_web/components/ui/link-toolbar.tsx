@@ -160,22 +160,21 @@ function LinkOpenButton() {
 	const editor = useEditorRef();
 	const selection = useEditorSelection();
 
-	const attributes = React.useMemo(
-		() => {
-			const entry = editor.api.node<TLinkElement>({
-				match: { type: editor.getType(KEYS.link) },
-			});
-			if (!entry) {
-				return {};
-			}
-			const [element] = entry;
-			return getLinkAttributes(editor, element);
-		},
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-		[editor, selection]
-	);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: selection triggers recalculation of link attributes
+	const attributes = React.useMemo(() => {
+		const entry = editor.api.node<TLinkElement>({
+			match: { type: editor.getType(KEYS.link) },
+		});
+		if (!entry) {
+			return {};
+		}
+		const [element] = entry;
+		return getLinkAttributes(editor, element);
+	}, [editor, selection]);
 
 	return (
+		// biome-ignore lint/a11y/noStaticElementInteractions: <a> with spread attributes has dynamic href
+		// biome-ignore lint/a11y/useAriaPropsSupportedByRole: aria-label needed for icon-only link
 		<a
 			{...attributes}
 			className={buttonVariants({
@@ -183,6 +182,9 @@ function LinkOpenButton() {
 				variant: "ghost",
 			})}
 			onMouseOver={(e) => {
+				e.stopPropagation();
+			}}
+			onFocus={(e) => {
 				e.stopPropagation();
 			}}
 			aria-label="Open link in a new tab"

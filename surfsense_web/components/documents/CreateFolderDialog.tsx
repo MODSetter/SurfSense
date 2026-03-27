@@ -45,7 +45,7 @@ export function CreateFolderDialog({
 			onConfirm(trimmed);
 			onOpenChange(false);
 		},
-		[name, onConfirm, onOpenChange],
+		[name, onConfirm, onOpenChange]
 	);
 
 	const isSubfolder = !!parentFolderName;

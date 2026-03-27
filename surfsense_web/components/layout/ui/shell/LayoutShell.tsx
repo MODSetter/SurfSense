@@ -497,14 +497,10 @@ export function LayoutShell({
 						/>
 					)}
 
-				{/* Main content panel */}
-				<MainContentPanel
-					isChatPage={isChatPage}
-					onTabSwitch={onTabSwitch}
-					onNewChat={onNewChat}
-				>
-					{children}
-				</MainContentPanel>
+					{/* Main content panel */}
+					<MainContentPanel isChatPage={isChatPage} onTabSwitch={onTabSwitch} onNewChat={onNewChat}>
+						{children}
+					</MainContentPanel>
 
 					{/* Right panel — tabbed Sources/Report (desktop only) */}
 					{documentsPanel && (

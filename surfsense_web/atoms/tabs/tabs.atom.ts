@@ -41,7 +41,7 @@ export const tabsStateAtom = atomWithStorage<TabsState>(
 	"surfsense:tabs",
 	initialState,
 	sessionStorageAdapter,
-	{ getOnInit: true },
+	{ getOnInit: true }
 );
 
 export const tabsAtom = atom((get) => get(tabsStateAtom).tabs);
@@ -69,11 +69,7 @@ export const syncChatTabAtom = atom(
 	(
 		get,
 		set,
-		{
-			chatId,
-			title,
-			chatUrl,
-		}: { chatId: number | null; title?: string; chatUrl?: string }
+		{ chatId, title, chatUrl }: { chatId: number | null; title?: string; chatUrl?: string }
 	) => {
 		const state = get(tabsStateAtom);
 		const tabId = makeChatTabId(chatId);
@@ -84,9 +80,7 @@ export const syncChatTabAtom = atom(
 				...state,
 				activeTabId: tabId,
 				tabs: state.tabs.map((t) =>
-					t.id === tabId
-						? { ...t, title: title || t.title, chatUrl: chatUrl || t.chatUrl }
-						: t
+					t.id === tabId ? { ...t, title: title || t.title, chatUrl: chatUrl || t.chatUrl } : t
 				),
 			});
 			return;
@@ -161,9 +155,7 @@ export const openDocumentTabAtom = atom(
 			set(tabsStateAtom, {
 				...state,
 				activeTabId: tabId,
-				tabs: state.tabs.map((t) =>
-					t.id === tabId ? { ...t, title: title || t.title } : t
-				),
+				tabs: state.tabs.map((t) => (t.id === tabId ? { ...t, title: title || t.title } : t)),
 			});
 			return;
 		}

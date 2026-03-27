@@ -14,13 +14,13 @@ import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
 import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
-import { resetTabsAtom, syncChatTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
 import {
 	morePagesDialogAtom,
 	searchSpaceSettingsDialogAtom,
 	teamDialogAtom,
 	userSettingsDialogAtom,
 } from "@/atoms/settings/settings-dialog.atoms";
+import { resetTabsAtom, syncChatTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { MorePagesDialog } from "@/components/settings/more-pages-dialog";
 import { SearchSpaceSettingsDialog } from "@/components/settings/search-space-settings-dialog";

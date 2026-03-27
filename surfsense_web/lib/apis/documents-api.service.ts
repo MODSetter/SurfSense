@@ -139,7 +139,7 @@ class DocumentsApiService {
 
 		for (const batch of batches) {
 			const formData = new FormData();
-			batch.forEach((file) => formData.append("files", file));
+			for (const file of batch) formData.append("files", file);
 			formData.append("search_space_id", String(search_space_id));
 			formData.append("should_summarize", String(should_summarize));
 
