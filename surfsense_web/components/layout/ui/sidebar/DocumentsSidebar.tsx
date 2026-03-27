@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { EXPORT_FILE_EXTENSIONS } from "@/components/shared/ExportMenuItems";
 import { DocumentsFilters } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentsFilters";
 import {
 	DocumentsTableShell,
@@ -33,6 +34,7 @@ import { useDocumentSearch } from "@/hooks/use-document-search";
 import { useDocuments } from "@/hooks/use-documents";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
+import { authenticatedFetch } from "@/lib/auth-utils";
 import { queries } from "@/zero/queries/index";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 
@@ -233,6 +235,43 @@ export function DocumentsSidebar({
 		setFolderPickerTarget({ type: "document", id: doc.id });
 		setFolderPickerOpen(true);
 	}, []);
+
+	const handleExportDocument = useCallback(
+		async (doc: DocumentNodeDoc, format: string) => {
+			const safeTitle =
+				doc.title
+					.replace(/[^a-zA-Z0-9 _-]/g, "_")
+					.trim()
+					.slice(0, 80) || "document";
+			const ext = EXPORT_FILE_EXTENSIONS[format] ?? format;
+
+			try {
+				const response = await authenticatedFetch(
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${doc.id}/export?format=${format}`,
+					{ method: "GET" }
+				);
+
+				if (!response.ok) {
+					const errorData = await response.json().catch(() => ({ detail: "Export failed" }));
+					throw new Error(errorData.detail || "Export failed");
+				}
+
+				const blob = await response.blob();
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement("a");
+				a.href = url;
+				a.download = `${safeTitle}.${ext}`;
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a);
+				URL.revokeObjectURL(url);
+			} catch (err) {
+				console.error(`Export ${format} failed:`, err);
+				toast.error(err instanceof Error ? err.message : `Export failed`);
+			}
+		},
+		[searchSpaceId]
+	);
 
 	const handleFolderPickerSelect = useCallback(
 		async (targetFolderId: number | null) => {
@@ -606,6 +645,7 @@ export function DocumentsSidebar({
 						}}
 						onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
 						onMoveDocument={handleMoveDocument}
+						onExportDocument={handleExportDocument}
 						activeTypes={activeTypes}
 						onDropIntoFolder={handleDropIntoFolder}
 						onReorderFolder={handleReorderFolder}

@@ -1,21 +1,28 @@
 "use client";
 
-import { AlertCircle, Clock, Eye, MoreHorizontal, Move, PenLine, Trash2 } from "lucide-react";
+import { AlertCircle, Clock, Download, Eye, MoreHorizontal, Move, PenLine, Trash2 } from "lucide-react";
 import React, { useCallback, useRef, useState } from "react";
 import { useDrag } from "react-dnd";
 import { getDocumentTypeIcon } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
+import { ExportContextItems, ExportDropdownItems } from "@/components/shared/ExportMenuItems";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
 	ContextMenu,
 	ContextMenuContent,
 	ContextMenuItem,
+	ContextMenuSub,
+	ContextMenuSubContent,
+	ContextMenuSubTrigger,
 	ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
+	DropdownMenuSub,
+	DropdownMenuSubContent,
+	DropdownMenuSubTrigger,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
@@ -41,6 +48,7 @@ interface DocumentNodeProps {
 	onEdit: (doc: DocumentNodeDoc) => void;
 	onDelete: (doc: DocumentNodeDoc) => void;
 	onMove: (doc: DocumentNodeDoc) => void;
+	onExport?: (doc: DocumentNodeDoc, format: string) => void;
 	contextMenuOpen?: boolean;
 	onContextMenuOpenChange?: (open: boolean) => void;
 }
@@ -54,6 +62,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 	onEdit,
 	onDelete,
 	onMove,
+	onExport,
 	contextMenuOpen,
 	onContextMenuOpenChange,
 }: DocumentNodeProps) {
@@ -79,7 +88,18 @@ export const DocumentNode = React.memo(function DocumentNode({
 
 	const isProcessing = statusState === "pending" || statusState === "processing";
 	const [dropdownOpen, setDropdownOpen] = useState(false);
+	const [exporting, setExporting] = useState<string | null>(null);
 	const rowRef = useRef<HTMLButtonElement>(null);
+
+	const handleExport = useCallback(
+		(format: string) => {
+			if (!onExport) return;
+			setExporting(format);
+			onExport(doc, format);
+			setTimeout(() => setExporting(null), 2000);
+		},
+		[doc, onExport]
+	);
 
 	const attachRef = useCallback(
 		(node: HTMLButtonElement | null) => {
@@ -167,7 +187,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 							variant="ghost"
 							size="icon"
 							className={cn(
-								"hidden sm:inline-flex h-6 w-6 shrink-0 transition-opacity hover:bg-transparent",
+								"hidden sm:inline-flex h-6 w-6 shrink-0 hover:bg-transparent",
 								dropdownOpen ? "opacity-100 bg-accent hover:bg-accent" : "opacity-0 group-hover:opacity-100"
 							)}
 							onClick={(e) => e.stopPropagation()}
@@ -190,6 +210,17 @@ export const DocumentNode = React.memo(function DocumentNode({
 								<Move className="mr-2 h-4 w-4" />
 								Move to...
 							</DropdownMenuItem>
+							{onExport && (
+								<DropdownMenuSub>
+									<DropdownMenuSubTrigger>
+										<Download className="mr-2 h-4 w-4" />
+										Export
+									</DropdownMenuSubTrigger>
+									<DropdownMenuSubContent className="min-w-[180px]">
+										<ExportDropdownItems onExport={handleExport} exporting={exporting} />
+									</DropdownMenuSubContent>
+								</DropdownMenuSub>
+							)}
 							<DropdownMenuItem
 								className="text-destructive focus:text-destructive"
 								disabled={isProcessing}
@@ -219,6 +250,17 @@ export const DocumentNode = React.memo(function DocumentNode({
 						<Move className="mr-2 h-4 w-4" />
 						Move to...
 					</ContextMenuItem>
+					{onExport && (
+						<ContextMenuSub>
+							<ContextMenuSubTrigger>
+								<Download className="mr-2 h-4 w-4" />
+								Export
+							</ContextMenuSubTrigger>
+							<ContextMenuSubContent className="min-w-[180px]">
+								<ExportContextItems onExport={handleExport} exporting={exporting} />
+							</ContextMenuSubContent>
+						</ContextMenuSub>
+					)}
 					<ContextMenuItem
 						className="text-destructive focus:text-destructive"
 						disabled={isProcessing}
