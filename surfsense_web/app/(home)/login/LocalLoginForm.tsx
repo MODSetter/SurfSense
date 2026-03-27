@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { loginMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
 import { Spinner } from "@/components/ui/spinner";
 import { getAuthErrorDetails, isNetworkError } from "@/lib/auth-errors";
@@ -25,14 +25,9 @@ export function LocalLoginForm() {
 		title: null,
 		message: null,
 	});
-	const [authType, setAuthType] = useState<string | null>(null);
+	const authType = AUTH_TYPE;
 	const router = useRouter();
 	const [{ mutateAsync: login, isPending: isLoggingIn }] = useAtom(loginMutationAtom);
-
-	useEffect(() => {
-		// Get the auth type from centralized config
-		setAuthType(AUTH_TYPE);
-	}, []);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -165,6 +160,7 @@ export function LocalLoginForm() {
 						id="email"
 						type="email"
 						required
+						placeholder="you@example.com"
 						value={username}
 						onChange={(e) => setUsername(e.target.value)}
 						className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:bg-gray-800 dark:text-white transition-all ${
@@ -188,6 +184,7 @@ export function LocalLoginForm() {
 							id="password"
 							type={showPassword ? "text" : "password"}
 							required
+							placeholder="Enter your password"
 							value={password}
 							onChange={(e) => setPassword(e.target.value)}
 							className={`mt-1 block w-full rounded-md border pr-10 px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:bg-gray-800 dark:text-white transition-all ${

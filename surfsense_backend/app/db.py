@@ -914,6 +914,43 @@ class SharedMemory(BaseModel, TimestampMixin):
     created_by = relationship("User")
 
 
+class Folder(BaseModel, TimestampMixin):
+    __tablename__ = "folders"
+
+    name = Column(String(255), nullable=False, index=True)
+    position = Column(String(50), nullable=False, index=True)
+    parent_id = Column(
+        Integer,
+        ForeignKey("folders.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    search_space_id = Column(
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    created_by_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        index=True,
+    )
+
+    parent = relationship("Folder", remote_side="Folder.id", backref="children")
+    search_space = relationship("SearchSpace", back_populates="folders")
+    created_by = relationship("User", back_populates="folders")
+    documents = relationship("Document", back_populates="folder", passive_deletes=True)
+
+
 class Document(BaseModel, TimestampMixin):
     __tablename__ = "documents"
 
@@ -947,6 +984,13 @@ class Document(BaseModel, TimestampMixin):
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
     )
 
+    folder_id = Column(
+        Integer,
+        ForeignKey("folders.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     # Track who created/uploaded this document
     created_by_id = Column(
         UUID(as_uuid=True),
@@ -976,6 +1020,7 @@ class Document(BaseModel, TimestampMixin):
 
     # Relationships
     search_space = relationship("SearchSpace", back_populates="documents")
+    folder = relationship("Folder", back_populates="documents")
     created_by = relationship("User", back_populates="documents")
     connector = relationship("SearchSourceConnector", back_populates="documents")
     chunks = relationship(
@@ -1279,6 +1324,12 @@ class SearchSpace(BaseModel, TimestampMixin):
     )
     user = relationship("User", back_populates="search_spaces")
 
+    folders = relationship(
+        "Folder",
+        back_populates="search_space",
+        order_by="Folder.position",
+        cascade="all, delete-orphan",
+    )
     documents = relationship(
         "Document",
         back_populates="search_space",
@@ -1765,6 +1816,13 @@ if config.AUTH_TYPE == "GOOGLE":
             passive_deletes=True,
         )
 
+        # Folders created by this user
+        folders = relationship(
+            "Folder",
+            back_populates="created_by",
+            passive_deletes=True,
+        )
+
         # Image generations created by this user
         image_generations = relationship(
             "ImageGeneration",
@@ -1863,6 +1921,13 @@ else:
         # Documents created/uploaded by this user
         documents = relationship(
             "Document",
+            back_populates="created_by",
+            passive_deletes=True,
+        )
+
+        # Folders created by this user
+        folders = relationship(
+            "Folder",
             back_populates="created_by",
             passive_deletes=True,
         )

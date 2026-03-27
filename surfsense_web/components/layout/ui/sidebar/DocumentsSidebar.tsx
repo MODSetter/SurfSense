@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery } from "@rocicorp/zero/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { ChevronLeft, ChevronRight, Unplug } from "lucide-react";
 import { useParams } from "next/navigation";
@@ -15,6 +16,13 @@ import { sidebarSelectedDocumentsAtom } from "@/atoms/chat/mentioned-documents.a
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
+import { expandedFolderIdsAtom } from "@/atoms/documents/folder.atoms";
+import { openDocumentTabAtom } from "@/atoms/tabs/tabs.atom";
+import { CreateFolderDialog } from "@/components/documents/CreateFolderDialog";
+import type { DocumentNodeDoc } from "@/components/documents/DocumentNode";
+import type { FolderDisplay } from "@/components/documents/FolderNode";
+import { FolderPickerDialog } from "@/components/documents/FolderPickerDialog";
+import { FolderTreeView } from "@/components/documents/FolderTreeView";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -24,6 +32,8 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useDocumentSearch } from "@/hooks/use-document-search";
 import { useDocuments } from "@/hooks/use-documents";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { foldersApiService } from "@/lib/apis/folders-api.service";
+import { queries } from "@/zero/queries/index";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 
 const SHOWCASE_CONNECTORS = [
@@ -63,6 +73,7 @@ export function DocumentsSidebar({
 	const isMobile = !useMediaQuery("(min-width: 640px)");
 	const searchSpaceId = Number(params.search_space_id);
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
+	const openDocumentTab = useSetAtom(openDocumentTabAtom);
 	const { data: connectors } = useAtomValue(connectorsAtom);
 	const connectorCount = connectors?.length ?? 0;
 
@@ -75,6 +86,211 @@ export function DocumentsSidebar({
 
 	const [sidebarDocs, setSidebarDocs] = useAtom(sidebarSelectedDocumentsAtom);
 	const mentionedDocIds = useMemo(() => new Set(sidebarDocs.map((d) => d.id)), [sidebarDocs]);
+
+	// Folder state
+	const [expandedFolderMap, setExpandedFolderMap] = useAtom(expandedFolderIdsAtom);
+	const expandedIds = useMemo(
+		() => new Set(expandedFolderMap[searchSpaceId] ?? []),
+		[expandedFolderMap, searchSpaceId]
+	);
+	const toggleFolderExpand = useCallback(
+		(folderId: number) => {
+			setExpandedFolderMap((prev) => {
+				const current = new Set(prev[searchSpaceId] ?? []);
+				if (current.has(folderId)) current.delete(folderId);
+				else current.add(folderId);
+				return { ...prev, [searchSpaceId]: [...current] };
+			});
+		},
+		[searchSpaceId, setExpandedFolderMap]
+	);
+
+	// Zero queries for tree data
+	const [zeroFolders] = useQuery(queries.folders.bySpace({ searchSpaceId }));
+	const [zeroAllDocs] = useQuery(queries.documents.bySpace({ searchSpaceId }));
+
+	const treeFolders: FolderDisplay[] = useMemo(
+		() =>
+			(zeroFolders ?? []).map((f) => ({
+				id: f.id,
+				name: f.name,
+				position: f.position,
+				parentId: f.parentId ?? null,
+				searchSpaceId: f.searchSpaceId,
+			})),
+		[zeroFolders]
+	);
+
+	const treeDocuments: DocumentNodeDoc[] = useMemo(
+		() =>
+			(zeroAllDocs ?? [])
+				.filter((d) => d.title && d.title.trim() !== "")
+				.map((d) => ({
+					id: d.id,
+					title: d.title,
+					document_type: d.documentType,
+					folderId: (d as { folderId?: number | null }).folderId ?? null,
+					status: d.status as { state: string; reason?: string | null } | undefined,
+				})),
+		[zeroAllDocs]
+	);
+
+	const foldersByParent = useMemo(() => {
+		const map: Record<string, FolderDisplay[]> = {};
+		for (const f of treeFolders) {
+			const key = String(f.parentId ?? "root");
+			if (!map[key]) map[key] = [];
+			map[key].push(f);
+		}
+		return map;
+	}, [treeFolders]);
+
+	// Folder actions
+	const [folderPickerOpen, setFolderPickerOpen] = useState(false);
+	const [folderPickerTarget, setFolderPickerTarget] = useState<{
+		type: "folder" | "document";
+		id: number;
+		disabledIds?: Set<number>;
+	} | null>(null);
+
+	// Create-folder dialog state
+	const [createFolderOpen, setCreateFolderOpen] = useState(false);
+	const [createFolderParentId, setCreateFolderParentId] = useState<number | null>(null);
+
+	const createFolderParentName = useMemo(() => {
+		if (createFolderParentId === null) return null;
+		return treeFolders.find((f) => f.id === createFolderParentId)?.name ?? null;
+	}, [createFolderParentId, treeFolders]);
+
+	const handleCreateFolder = useCallback((parentId: number | null) => {
+		setCreateFolderParentId(parentId);
+		setCreateFolderOpen(true);
+	}, []);
+
+	const handleCreateFolderConfirm = useCallback(
+		async (name: string) => {
+			try {
+				await foldersApiService.createFolder({
+					name,
+					parent_id: createFolderParentId,
+					search_space_id: searchSpaceId,
+				});
+				toast.success("Folder created");
+				if (createFolderParentId !== null) {
+					setExpandedFolderMap((prev) => {
+						const current = new Set(prev[searchSpaceId] ?? []);
+						current.add(createFolderParentId);
+						return { ...prev, [searchSpaceId]: [...current] };
+					});
+				}
+			} catch (e: unknown) {
+				toast.error((e as Error)?.message || "Failed to create folder");
+			}
+		},
+		[createFolderParentId, searchSpaceId, setExpandedFolderMap]
+	);
+
+	const handleRenameFolder = useCallback(async (folder: FolderDisplay, newName: string) => {
+		try {
+			await foldersApiService.updateFolder(folder.id, { name: newName });
+			toast.success("Folder renamed");
+		} catch (e: unknown) {
+			toast.error((e as Error)?.message || "Failed to rename folder");
+		}
+	}, []);
+
+	const handleDeleteFolder = useCallback(async (folder: FolderDisplay) => {
+		if (!confirm(`Delete folder "${folder.name}" and all its contents?`)) return;
+		try {
+			await foldersApiService.deleteFolder(folder.id);
+			toast.success("Folder deleted");
+		} catch (e: unknown) {
+			toast.error((e as Error)?.message || "Failed to delete folder");
+		}
+	}, []);
+
+	const handleMoveFolder = useCallback(
+		(folder: FolderDisplay) => {
+			const subtreeIds = new Set<number>();
+			function collectSubtree(id: number) {
+				subtreeIds.add(id);
+				for (const child of foldersByParent[String(id)] ?? []) {
+					collectSubtree(child.id);
+				}
+			}
+			collectSubtree(folder.id);
+			setFolderPickerTarget({
+				type: "folder",
+				id: folder.id,
+				disabledIds: subtreeIds,
+			});
+			setFolderPickerOpen(true);
+		},
+		[foldersByParent]
+	);
+
+	const handleMoveDocument = useCallback((doc: DocumentNodeDoc) => {
+		setFolderPickerTarget({ type: "document", id: doc.id });
+		setFolderPickerOpen(true);
+	}, []);
+
+	const handleFolderPickerSelect = useCallback(
+		async (targetFolderId: number | null) => {
+			if (!folderPickerTarget) return;
+			try {
+				if (folderPickerTarget.type === "folder") {
+					await foldersApiService.moveFolder(folderPickerTarget.id, {
+						new_parent_id: targetFolderId,
+					});
+					toast.success("Folder moved");
+				} else {
+					await foldersApiService.moveDocument(folderPickerTarget.id, {
+						folder_id: targetFolderId,
+					});
+					toast.success("Document moved");
+				}
+			} catch (e: unknown) {
+				toast.error((e as Error)?.message || "Failed to move item");
+			}
+			setFolderPickerTarget(null);
+		},
+		[folderPickerTarget]
+	);
+
+	const handleDropIntoFolder = useCallback(
+		async (itemType: "folder" | "document", itemId: number, targetFolderId: number | null) => {
+			try {
+				if (itemType === "folder") {
+					await foldersApiService.moveFolder(itemId, {
+						new_parent_id: targetFolderId,
+					});
+					toast.success("Folder moved");
+				} else {
+					await foldersApiService.moveDocument(itemId, {
+						folder_id: targetFolderId,
+					});
+					toast.success("Document moved");
+				}
+			} catch (e: unknown) {
+				toast.error((e as Error)?.message || "Failed to move item");
+			}
+		},
+		[]
+	);
+
+	const handleReorderFolder = useCallback(
+		async (folderId: number, beforePos: string | null, afterPos: string | null) => {
+			try {
+				await foldersApiService.reorderFolder(folderId, {
+					before_position: beforePos,
+					after_position: afterPos,
+				});
+			} catch (e: unknown) {
+				toast.error((e as Error)?.message || "Failed to reorder folder");
+			}
+		},
+		[]
+	);
 
 	const handleToggleChatMention = useCallback(
 		(doc: { id: number; title: string; document_type: string }, isMentioned: boolean) => {
@@ -123,14 +339,14 @@ export function DocumentsSidebar({
 	const loadingMore = isSearchMode ? searchLoadingMore : realtimeLoadingMore;
 	const onLoadMore = isSearchMode ? searchLoadMore : realtimeLoadMore;
 
-	const onToggleType = (type: DocumentTypeEnum, checked: boolean) => {
+	const onToggleType = useCallback((type: DocumentTypeEnum, checked: boolean) => {
 		setActiveTypes((prev) => {
 			if (checked) {
 				return prev.includes(type) ? prev : [...prev, type];
 			}
 			return prev.filter((t) => t !== type);
 		});
-	};
+	}, []);
 
 	const handleDeleteDocument = useCallback(
 		async (id: number): Promise<boolean> => {
@@ -340,27 +556,79 @@ export function DocumentsSidebar({
 						searchValue={search}
 						onToggleType={onToggleType}
 						activeTypes={activeTypes}
+						onCreateFolder={() => handleCreateFolder(null)}
 					/>
 				</div>
 
-				<DocumentsTableShell
-					documents={displayDocs}
-					loading={!!loading}
-					error={!!error}
-					sortKey={sortKey}
-					sortDesc={sortDesc}
-					onSortChange={handleSortChange}
-					deleteDocument={handleDeleteDocument}
-					bulkDeleteDocuments={handleBulkDeleteDocuments}
-					searchSpaceId={String(searchSpaceId)}
-					hasMore={hasMore}
-					loadingMore={loadingMore}
-					onLoadMore={onLoadMore}
-					mentionedDocIds={mentionedDocIds}
-					onToggleChatMention={handleToggleChatMention}
-					isSearchMode={isSearchMode || activeTypes.length > 0}
-				/>
+				{isSearchMode ? (
+					<DocumentsTableShell
+						documents={displayDocs}
+						loading={!!loading}
+						error={!!error}
+						sortKey={sortKey}
+						sortDesc={sortDesc}
+						onSortChange={handleSortChange}
+						deleteDocument={handleDeleteDocument}
+						bulkDeleteDocuments={handleBulkDeleteDocuments}
+						searchSpaceId={String(searchSpaceId)}
+						hasMore={hasMore}
+						loadingMore={loadingMore}
+						onLoadMore={onLoadMore}
+						mentionedDocIds={mentionedDocIds}
+						onToggleChatMention={handleToggleChatMention}
+						isSearchMode={isSearchMode || activeTypes.length > 0}
+					/>
+				) : (
+					<FolderTreeView
+						folders={treeFolders}
+						documents={treeDocuments}
+						expandedIds={expandedIds}
+						onToggleExpand={toggleFolderExpand}
+						mentionedDocIds={mentionedDocIds}
+						onToggleChatMention={handleToggleChatMention}
+						onRenameFolder={handleRenameFolder}
+						onDeleteFolder={handleDeleteFolder}
+						onMoveFolder={handleMoveFolder}
+						onCreateFolder={handleCreateFolder}
+						onPreviewDocument={(doc) => {
+							openDocumentTab({
+								documentId: doc.id,
+								searchSpaceId,
+								title: doc.title,
+							});
+						}}
+						onEditDocument={(doc) => {
+							openDocumentTab({
+								documentId: doc.id,
+								searchSpaceId,
+								title: doc.title,
+							});
+						}}
+						onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
+						onMoveDocument={handleMoveDocument}
+						activeTypes={activeTypes}
+						onDropIntoFolder={handleDropIntoFolder}
+						onReorderFolder={handleReorderFolder}
+					/>
+				)}
 			</div>
+
+			<FolderPickerDialog
+				open={folderPickerOpen}
+				onOpenChange={setFolderPickerOpen}
+				folders={treeFolders}
+				title={folderPickerTarget?.type === "folder" ? "Move folder to..." : "Move document to..."}
+				description="Select a destination folder, or choose Root to move to the top level."
+				disabledFolderIds={folderPickerTarget?.disabledIds}
+				onSelect={handleFolderPickerSelect}
+			/>
+
+			<CreateFolderDialog
+				open={createFolderOpen}
+				onOpenChange={setCreateFolderOpen}
+				parentFolderName={createFolderParentName}
+				onConfirm={handleCreateFolderConfirm}
+			/>
 		</>
 	);
 

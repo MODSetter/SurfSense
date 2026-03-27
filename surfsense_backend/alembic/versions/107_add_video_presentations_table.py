@@ -37,7 +37,9 @@ def upgrade() -> None:
 
     conn = op.get_bind()
     result = conn.execute(
-        sa.text("SELECT 1 FROM information_schema.tables WHERE table_name = 'video_presentations'")
+        sa.text(
+            "SELECT 1 FROM information_schema.tables WHERE table_name = 'video_presentations'"
+        )
     )
     if not result.fetchone():
         op.create_table(

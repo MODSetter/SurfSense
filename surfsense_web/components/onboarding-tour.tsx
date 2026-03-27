@@ -436,6 +436,7 @@ export function OnboardingTour() {
 	const { resolvedTheme } = useTheme();
 	const pathname = usePathname();
 	const retryCountRef = useRef(0);
+	const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const maxRetries = 10;
 	// Track previous user ID to detect user changes
 	const previousUserIdRef = useRef<string | null>(null);
@@ -477,7 +478,7 @@ export function OnboardingTour() {
 			retryCountRef.current = 0;
 		} else if (retryCountRef.current < maxRetries) {
 			retryCountRef.current++;
-			setTimeout(() => {
+			retryTimerRef.current = setTimeout(() => {
 				const retryEl = document.querySelector(currentStep.target);
 				if (retryEl) {
 					setTargetEl(retryEl);
@@ -487,6 +488,10 @@ export function OnboardingTour() {
 				}
 			}, 200);
 		}
+
+		return () => {
+			if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+		};
 	}, [currentStep]);
 
 	// Check if tour should run: localStorage + data validation with user ID tracking
@@ -556,7 +561,11 @@ export function OnboardingTour() {
 		}
 
 		// User is new and hasn't seen tour - wait for DOM elements and start tour
+		let cancelled = false;
+
 		const checkAndStartTour = () => {
+			if (cancelled) return;
+
 			// Check if all required elements exist
 			const connectorEl = document.querySelector(TOUR_STEPS[0].target);
 			const documentsEl = document.querySelector(TOUR_STEPS[1].target);
@@ -578,7 +587,10 @@ export function OnboardingTour() {
 
 		// Start checking after initial delay
 		const timer = setTimeout(checkAndStartTour, 500);
-		return () => clearTimeout(timer);
+		return () => {
+			cancelled = true;
+			clearTimeout(timer);
+		};
 	}, [mounted, user?.id, searchSpaceId, pathname, threadsData, documentTypeCounts, connectors]);
 
 	// Update position on resize/scroll

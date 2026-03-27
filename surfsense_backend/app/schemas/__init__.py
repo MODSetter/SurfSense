@@ -22,6 +22,16 @@ from .documents import (
     ExtensionDocumentMetadata,
     PaginatedResponse,
 )
+from .folders import (
+    BulkDocumentMove,
+    DocumentMove,
+    FolderBreadcrumb,
+    FolderCreate,
+    FolderMove,
+    FolderRead,
+    FolderReorder,
+    FolderUpdate,
+)
 from .google_drive import DriveItem, GoogleDriveIndexingOptions, GoogleDriveIndexRequest
 from .image_generation import (
     GlobalImageGenConfigRead,
@@ -109,6 +119,8 @@ from .video_presentations import (
 )
 
 __all__ = [
+    # Folder schemas
+    "BulkDocumentMove",
     # Chat schemas (assistant-ui integration)
     "ChatMessage",
     # Chunk schemas
@@ -119,6 +131,7 @@ __all__ = [
     "DefaultSystemInstructionsResponse",
     # Document schemas
     "DocumentBase",
+    "DocumentMove",
     "DocumentRead",
     "DocumentStatusBatchResponse",
     "DocumentStatusItemRead",
@@ -132,6 +145,12 @@ __all__ = [
     "DriveItem",
     "ExtensionDocumentContent",
     "ExtensionDocumentMetadata",
+    "FolderBreadcrumb",
+    "FolderCreate",
+    "FolderMove",
+    "FolderRead",
+    "FolderReorder",
+    "FolderUpdate",
     "GlobalImageGenConfigRead",
     "GlobalNewLLMConfigRead",
     "GoogleDriveIndexRequest",

@@ -59,6 +59,7 @@ class DocumentRead(BaseModel):
     created_at: datetime
     updated_at: datetime | None
     search_space_id: int
+    folder_id: int | None = None
     created_by_id: UUID | None = None  # User who created/uploaded this document
     created_by_name: str | None = None
     created_by_email: str | None = None
@@ -89,6 +90,7 @@ class DocumentTitleRead(BaseModel):
     id: int
     title: str
     document_type: DocumentType
+    folder_id: int | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

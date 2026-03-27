@@ -35,7 +35,14 @@ const HeroCarousel = dynamic(
 
 // Official Google "G" logo with brand colors
 const GoogleLogo = ({ className }: { className?: string }) => (
-	<svg className={className} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+	<svg
+		className={className}
+		viewBox="0 0 24 24"
+		xmlns="http://www.w3.org/2000/svg"
+		role="img"
+		aria-label="Google logo"
+	>
+		<title>Google logo</title>
 		<path
 			d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
 			fill="#4285F4"
@@ -277,21 +284,24 @@ const CollisionMechanism = ({
 	}, [cycleCollisionDetected, parentRef]);
 
 	useEffect(() => {
-		if (collision.detected && collision.coordinates) {
-			setTimeout(() => {
-				setCollision({ detected: false, coordinates: null });
-				setCycleCollisionDetected(false);
-				// Set beam opacity to 0
-				if (beamRef.current) {
-					beamRef.current.style.opacity = "1";
-				}
-			}, 2000);
+		if (!collision.detected || !collision.coordinates) return;
 
-			// Reset the beam animation after a delay
-			setTimeout(() => {
-				setBeamKey((prevKey) => prevKey + 1);
-			}, 2000);
-		}
+		const timer1 = setTimeout(() => {
+			setCollision({ detected: false, coordinates: null });
+			setCycleCollisionDetected(false);
+			if (beamRef.current) {
+				beamRef.current.style.opacity = "1";
+			}
+		}, 2000);
+
+		const timer2 = setTimeout(() => {
+			setBeamKey((prevKey) => prevKey + 1);
+		}, 2000);
+
+		return () => {
+			clearTimeout(timer1);
+			clearTimeout(timer2);
+		};
 	}, [collision]);
 
 	return (

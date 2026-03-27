@@ -1,4 +1,5 @@
 const { contextBridge, ipcRenderer } = require('electron');
+const { IPC_CHANNELS } = require('./ipc/channels');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   versions: {
@@ -7,13 +8,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     chrome: process.versions.chrome,
     platform: process.platform,
   },
-  openExternal: (url: string) => ipcRenderer.send('open-external', url),
-  getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+  openExternal: (url: string) => ipcRenderer.send(IPC_CHANNELS.OPEN_EXTERNAL, url),
+  getAppVersion: () => ipcRenderer.invoke(IPC_CHANNELS.GET_APP_VERSION),
   onDeepLink: (callback: (url: string) => void) => {
     const listener = (_event: unknown, url: string) => callback(url);
-    ipcRenderer.on('deep-link', listener);
+    ipcRenderer.on(IPC_CHANNELS.DEEP_LINK, listener);
     return () => {
-      ipcRenderer.removeListener('deep-link', listener);
+      ipcRenderer.removeListener(IPC_CHANNELS.DEEP_LINK, listener);
     };
   },
+  getQuickAskText: () => ipcRenderer.invoke(IPC_CHANNELS.QUICK_ASK_TEXT),
 });

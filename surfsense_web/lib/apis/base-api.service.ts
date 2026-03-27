@@ -16,7 +16,7 @@ export type RequestOptions = {
 	headers?: Record<string, string>;
 	contentType?: "application/json" | "application/x-www-form-urlencoded";
 	signal?: AbortSignal;
-	body?: any;
+	body?: unknown;
 	responseType?: ResponseType;
 	_isRetry?: boolean; // Internal flag to prevent infinite retry loops
 	// Add more options as needed

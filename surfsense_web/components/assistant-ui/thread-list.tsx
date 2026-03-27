@@ -225,17 +225,13 @@ function ThreadListItemComponent({
 	onDelete,
 }: ThreadListItemComponentProps) {
 	return (
-		<div
+		<button
+			type="button"
 			className={cn(
-				"group flex items-center gap-2 rounded-lg px-3 py-2 transition-colors cursor-pointer",
+				"group flex w-full items-center gap-2 rounded-lg px-3 py-2 transition-colors cursor-pointer text-left",
 				isActive ? "bg-accent text-accent-foreground" : "hover:bg-muted/50"
 			)}
 			onClick={onClick}
-			onKeyDown={(e) => {
-				if (e.key === "Enter" || e.key === " ") onClick();
-			}}
-			role="button"
-			tabIndex={0}
 		>
 			<MessageSquareIcon className="size-4 shrink-0 text-muted-foreground" />
 			<div className="flex-1 min-w-0">
@@ -274,7 +270,7 @@ function ThreadListItemComponent({
 					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>
-		</div>
+		</button>
 	);
 }
 

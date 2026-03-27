@@ -30,7 +30,7 @@ const UserAvatar: FC<AuthorMetadata> = ({ displayName, avatarUrl }) => {
 				alt={displayName || "User"}
 				width={32}
 				height={32}
-				className="size-8 rounded-full object-cover select-none"
+				className="size-8 rounded-full object-cover"
 				referrerPolicy="no-referrer"
 				onError={() => setHasError(true)}
 				unoptimized

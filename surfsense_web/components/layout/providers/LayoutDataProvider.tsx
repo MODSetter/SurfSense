@@ -20,6 +20,7 @@ import {
 	teamDialogAtom,
 	userSettingsDialogAtom,
 } from "@/atoms/settings/settings-dialog.atoms";
+import { resetTabsAtom, syncChatTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { MorePagesDialog } from "@/components/settings/more-pages-dialog";
 import { SearchSpaceSettingsDialog } from "@/components/settings/search-space-settings-dialog";
@@ -100,6 +101,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const { mutateAsync: deleteSearchSpace } = useAtomValue(deleteSearchSpaceMutationAtom);
 	const currentThreadState = useAtomValue(currentThreadAtom);
 	const resetCurrentThread = useSetAtom(resetCurrentThreadAtom);
+	const syncChatTab = useSetAtom(syncChatTabAtom);
+	const resetTabs = useSetAtom(resetTabsAtom);
 
 	// State for handling new chat navigation when router is out of sync
 	const [pendingNewChat, setPendingNewChat] = useState(false);
@@ -264,10 +267,16 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		}
 	}, [pendingNewChat, params?.chat_id, router, searchSpaceId, resetCurrentThread]);
 
-	// Reset transient slide-out panels when switching search spaces.
+	// Reset transient slide-out panels and tabs when switching search spaces.
+	// Use a ref to skip the initial mount — only reset when the space actually changes.
+	const prevSearchSpaceIdRef = useRef(searchSpaceId);
 	useEffect(() => {
-		setActiveSlideoutPanel(null);
-	}, [searchSpaceId]);
+		if (prevSearchSpaceIdRef.current !== searchSpaceId) {
+			prevSearchSpaceIdRef.current = searchSpaceId;
+			setActiveSlideoutPanel(null);
+			resetTabs();
+		}
+	}, [searchSpaceId, resetTabs]);
 
 	const searchSpaces: SearchSpace[] = useMemo(() => {
 		if (!searchSpacesData || !Array.isArray(searchSpacesData)) return [];
@@ -306,6 +315,20 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		isLeavingSearchSpace,
 		router,
 	]);
+
+	// Sync current chat route with tab state
+	useEffect(() => {
+		const chatId = currentChatId ?? null;
+		const chatUrl = chatId
+			? `/dashboard/${searchSpaceId}/new-chat/${chatId}`
+			: `/dashboard/${searchSpaceId}/new-chat`;
+		const thread = threadsData?.threads?.find((t) => t.id === chatId);
+		syncChatTab({
+			chatId,
+			title: thread?.title || (chatId ? `Chat ${chatId}` : "New Chat"),
+			chatUrl,
+		});
+	}, [currentChatId, searchSpaceId, threadsData?.threads, syncChatTab]);
 
 	// Transform and split chats into private and shared based on visibility
 	const { myChats, sharedChats } = useMemo(() => {
@@ -472,6 +495,17 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			setSearchSpaceToLeave(null);
 		}
 	}, [searchSpaceToLeave, refetchSearchSpaces, searchSpaceId, router, t]);
+
+	const handleTabSwitch = useCallback(
+		(tab: Tab) => {
+			if (tab.type === "chat") {
+				const url = tab.chatUrl || `/dashboard/${searchSpaceId}/new-chat`;
+				router.push(url);
+			}
+			// Document tabs are handled in-place by LayoutShell — no navigation needed
+		},
+		[router, searchSpaceId]
+	);
 
 	const handleNavItemClick = useCallback(
 		(item: NavItem) => {
@@ -738,6 +772,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 					isDocked: isDocumentsDocked,
 					onDockedChange: setIsDocumentsDocked,
 				}}
+				onTabSwitch={handleTabSwitch}
 			>
 				<Fragment key={chatResetKey}>{children}</Fragment>
 			</LayoutShell>

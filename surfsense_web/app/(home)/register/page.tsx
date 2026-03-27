@@ -43,9 +43,12 @@ export default function RegisterPage() {
 		}
 	}, [router]);
 
-	const handleSubmit = async (e: React.FormEvent) => {
+	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
+		submitForm();
+	};
 
+	const submitForm = async () => {
 		// Form validation
 		if (password !== confirmPassword) {
 			setError({ title: t("password_mismatch"), message: t("passwords_no_match_desc") });
@@ -140,7 +143,7 @@ export default function RegisterPage() {
 			if (shouldRetry(errorCode)) {
 				toastOptions.action = {
 					label: tCommon("retry"),
-					onClick: () => handleSubmit(e),
+					onClick: () => submitForm(),
 				};
 			}
 
@@ -231,6 +234,7 @@ export default function RegisterPage() {
 								id="email"
 								type="email"
 								required
+								placeholder="you@example.com"
 								value={email}
 								onChange={(e) => setEmail(e.target.value)}
 								className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:bg-gray-800 dark:text-white transition-all ${
@@ -253,6 +257,7 @@ export default function RegisterPage() {
 								id="password"
 								type="password"
 								required
+								placeholder="Enter your password"
 								value={password}
 								onChange={(e) => setPassword(e.target.value)}
 								className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:bg-gray-800 dark:text-white transition-all ${
@@ -275,6 +280,7 @@ export default function RegisterPage() {
 								id="confirmPassword"
 								type="password"
 								required
+								placeholder="Confirm your password"
 								value={confirmPassword}
 								onChange={(e) => setConfirmPassword(e.target.value)}
 								className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:bg-gray-800 dark:text-white transition-all ${
