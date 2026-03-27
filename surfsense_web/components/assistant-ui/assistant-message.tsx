@@ -8,7 +8,6 @@ import {
 } from "@assistant-ui/react";
 import { useAtomValue } from "jotai";
 import { CheckIcon, ClipboardPaste, CopyIcon, DownloadIcon, MessageSquare, RefreshCwIcon } from "lucide-react";
-import { useSearchParams } from "next/navigation";
 import type { FC } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { commentsEnabledAtom, targetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
@@ -275,12 +274,11 @@ export const AssistantMessage: FC = () => {
 const AssistantActionBar: FC = () => {
 	const isLast = useAuiState((s) => s.message.isLast);
 	const aui = useAui();
-	const searchParams = useSearchParams();
 	const isTransform =
 		isLast &&
 		typeof window !== "undefined" &&
 		!!window.electronAPI?.replaceText &&
-		searchParams.get("quickAskMode") === "transform";
+		sessionStorage.getItem("quickAskMode") === "transform";
 
 	return (
 		<ActionBarPrimitive.Root

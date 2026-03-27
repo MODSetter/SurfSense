@@ -35,8 +35,9 @@ export default function QuickAskPage() {
 	}, []);
 
 	const navigateToChat = (prompt: string, mode: string) => {
+		sessionStorage.setItem("quickAskMode", mode);
 		const encoded = encodeURIComponent(prompt);
-		window.location.href = `/dashboard?quickAskPrompt=${encoded}&quickAskMode=${mode}`;
+		window.location.href = `/dashboard?quickAskPrompt=${encoded}`;
 	};
 
 	const handleAction = (actionId: string) => {
