@@ -1,7 +1,7 @@
-import { BrowserWindow, clipboard, globalShortcut, ipcMain, screen, shell, systemPreferences } from 'electron';
-import { execSync } from 'child_process';
+import { BrowserWindow, clipboard, globalShortcut, ipcMain, screen, shell } from 'electron';
 import path from 'path';
 import { IPC_CHANNELS } from '../ipc/channels';
+import { checkAccessibilityPermission, getFrontmostApp, simulatePaste } from './keyboard';
 import { getServerPort } from './server';
 
 const SHORTCUT = 'CommandOrControl+Option+S';
@@ -9,17 +9,6 @@ let quickAskWindow: BrowserWindow | null = null;
 let pendingText = '';
 let sourceApp = '';
 let savedClipboard = '';
-
-function getFrontmostApp(): string {
-  if (process.platform !== 'darwin') return '';
-  try {
-    return execSync(
-      'osascript -e \'tell application "System Events" to get name of first application process whose frontmost is true\''
-    ).toString().trim();
-  } catch {
-    return '';
-  }
-}
 
 function destroyQuickAsk(): void {
   if (quickAskWindow && !quickAskWindow.isDestroyed()) {
@@ -116,16 +105,16 @@ export function registerQuickAsk(): void {
   });
 
   ipcMain.handle(IPC_CHANNELS.REPLACE_TEXT, async (_event, text: string) => {
-    if (process.platform !== 'darwin' || !sourceApp) return;
+    if (!sourceApp) return;
 
-    if (!systemPreferences.isTrustedAccessibilityClient(true)) return;
+    if (!checkAccessibilityPermission()) return;
 
     clipboard.writeText(text);
     destroyQuickAsk();
 
     try {
       await new Promise((r) => setTimeout(r, 50));
-      execSync('osascript -e \'tell application "System Events" to keystroke "v" using command down\'');
+      simulatePaste();
       await new Promise((r) => setTimeout(r, 100));
       clipboard.writeText(savedClipboard);
     } catch {
