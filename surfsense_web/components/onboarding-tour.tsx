@@ -160,6 +160,8 @@ function TourTooltip({
 	onPrev,
 	onSkip,
 	isDarkMode,
+	shouldAnimate,
+	onAnimationEnd,
 }: {
 	step: TourStep;
 	stepIndex: number;
@@ -170,22 +172,11 @@ function TourTooltip({
 	onPrev: () => void;
 	onSkip: () => void;
 	isDarkMode: boolean;
+	shouldAnimate: boolean;
+	onAnimationEnd: () => void;
 }) {
-	const [contentKey, setContentKey] = useState(stepIndex);
-	const [shouldAnimate, setShouldAnimate] = useState(false);
-	const prevStepIndexRef = useRef(stepIndex);
 	const isLastStep = stepIndex === totalSteps - 1;
 	const isFirstStep = stepIndex === 0;
-
-	// Update content key when step changes to trigger animation
-	// Only animate if stepIndex actually changes (not on initial mount)
-	useEffect(() => {
-		if (prevStepIndexRef.current !== stepIndex) {
-			setShouldAnimate(true);
-			setContentKey(stepIndex);
-			prevStepIndexRef.current = stepIndex;
-		}
-	}, [stepIndex]);
 
 	const bgColor = isDarkMode ? "#27272a" : "#ffffff";
 	const textColor = isDarkMode ? "#ffffff" : "#18181b";
@@ -358,11 +349,11 @@ function TourTooltip({
 			>
 				{/* Content */}
 				<div
-					key={contentKey}
+					key={stepIndex}
 					style={{
 						animation: shouldAnimate ? "fadeInSlide 0.3s ease-out" : "none",
 					}}
-					onAnimationEnd={() => setShouldAnimate(false)}
+					onAnimationEnd={onAnimationEnd}
 				>
 					<h3 id="tour-title" className="text-sm font-semibold mb-1.5" style={{ color: textColor }}>
 						{step.title}
@@ -427,6 +418,7 @@ export function OnboardingTour() {
 	const isMobile = useIsMobile();
 	const [isActive, setIsActive] = useState(false);
 	const [stepIndex, setStepIndex] = useState(0);
+	const [shouldAnimate, setShouldAnimate] = useState(false);
 	const [targetEl, setTargetEl] = useState<Element | null>(null);
 	const [spotlightTargetEl, setSpotlightTargetEl] = useState<Element | null>(null);
 	const [spotlightStepTarget, setSpotlightStepTarget] = useState<string | null>(null);
@@ -664,6 +656,7 @@ export function OnboardingTour() {
 	const handleNext = useCallback(() => {
 		if (stepIndex < TOUR_STEPS.length - 1) {
 			retryCountRef.current = 0;
+			setShouldAnimate(true);
 			setStepIndex(stepIndex + 1);
 		} else {
 			// Tour completed - save to localStorage
@@ -678,6 +671,7 @@ export function OnboardingTour() {
 	const handlePrev = useCallback(() => {
 		if (stepIndex > 0) {
 			retryCountRef.current = 0;
+			setShouldAnimate(true);
 			setStepIndex(stepIndex - 1);
 		}
 	}, [stepIndex]);
@@ -772,6 +766,8 @@ export function OnboardingTour() {
 							onPrev={handlePrev}
 							onSkip={handleSkip}
 							isDarkMode={isDarkMode}
+							shouldAnimate={shouldAnimate}
+							onAnimationEnd={() => setShouldAnimate(false)}
 						/>
 					</>
 				)}
