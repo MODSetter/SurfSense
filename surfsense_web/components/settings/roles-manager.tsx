@@ -890,6 +890,7 @@ function CreateRoleDialog({
 								<Label htmlFor="role-name">Role Name *</Label>
 								<Input
 									id="role-name"
+									maxLength={100}
 									placeholder="e.g., Content Manager"
 									value={name}
 									onChange={(e) => setName(e.target.value)}
@@ -899,6 +900,7 @@ function CreateRoleDialog({
 								<Label htmlFor="role-description">Description</Label>
 								<Input
 									id="role-description"
+									maxLength={500}
 									placeholder="Brief description of this role"
 									value={description}
 									onChange={(e) => setDescription(e.target.value)}
