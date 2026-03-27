@@ -306,13 +306,6 @@ const Composer: FC = () => {
 	const aui = useAui();
 	const hasAutoFocusedRef = useRef(false);
 
-	const [quickAskText, setQuickAskText] = useState<string | undefined>();
-	useEffect(() => {
-		window.electronAPI?.getQuickAskText().then((text) => {
-			if (text) setQuickAskText(text);
-		});
-	}, []);
-
 	const isThreadEmpty = useAuiState(({ thread }) => thread.isEmpty);
 	const isThreadRunning = useAuiState(({ thread }) => thread.isRunning);
 
@@ -519,7 +512,6 @@ const Composer: FC = () => {
 						onDocumentRemove={handleDocumentRemove}
 						onSubmit={handleSubmit}
 						onKeyDown={handleKeyDown}
-						initialText={quickAskText}
 						className="min-h-[24px]"
 					/>
 				</div>

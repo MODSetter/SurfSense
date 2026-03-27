@@ -12,18 +12,8 @@ import {
 	PenLine,
 	Search,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
-import {
-	Command,
-	CommandEmpty,
-	CommandGroup,
-	CommandInput,
-	CommandItem,
-	CommandList,
-	CommandSeparator,
-} from "@/components/ui/command";
 import { DEFAULT_ACTIONS } from "./actions";
 
 const ICONS: Record<string, React.ReactNode> = {
@@ -38,8 +28,7 @@ const ICONS: Record<string, React.ReactNode> = {
 };
 
 export default function QuickAskPage() {
-	const router = useRouter();
-	const { data: searchSpaces = [] } = useAtomValue(searchSpacesAtom);
+	const { data: searchSpaces = [], isLoading } = useAtomValue(searchSpacesAtom);
 	const [clipboardText, setClipboardText] = useState("");
 
 	useEffect(() => {
@@ -49,77 +38,89 @@ export default function QuickAskPage() {
 	}, []);
 
 	const navigateToChat = (prompt: string, mode: string) => {
-		if (!searchSpaces.length) return;
+		if (!searchSpaces.length || !clipboardText) return;
 		const spaceId = searchSpaces[0].id;
 		const encoded = encodeURIComponent(prompt);
-		router.push(`/dashboard/${spaceId}/new-chat?quickAskPrompt=${encoded}&quickAskMode=${mode}`);
+		window.location.href = `/dashboard/${spaceId}/new-chat?quickAskPrompt=${encoded}&quickAskMode=${mode}`;
 	};
 
 	const handleAction = (actionId: string) => {
 		const action = DEFAULT_ACTIONS.find((a) => a.id === actionId);
-		if (!action || !clipboardText) return;
-
+		if (!action) return;
 		const prompt = action.prompt.replace("{selection}", clipboardText);
 		navigateToChat(prompt, action.mode);
-	};
-
-	const handleAskAnything = () => {
-		if (!clipboardText) return;
-		navigateToChat(clipboardText, "explore");
 	};
 
 	const transformActions = DEFAULT_ACTIONS.filter((a) => a.group === "transform");
 	const exploreActions = DEFAULT_ACTIONS.filter((a) => a.group === "explore");
 	const knowledgeActions = DEFAULT_ACTIONS.filter((a) => a.group === "knowledge");
 
+	const ready = !isLoading && clipboardText;
+
 	return (
-		<div className="flex h-screen items-start justify-center bg-background pt-2">
-			<Command className="max-w-md border shadow-lg rounded-lg">
-				<CommandInput placeholder="Search actions..." />
-				<CommandList>
-					<CommandEmpty>No actions found.</CommandEmpty>
-
-					<CommandGroup heading="Transform">
+		<div className="flex h-screen flex-col bg-background">
+			<div className="flex-1 overflow-y-auto">
+				{!ready && (
+					<div className="p-4 text-center text-sm text-muted-foreground">Loading...</div>
+				)}
+				{ready && (
+					<div className="py-1">
+						<div className="px-3 py-1.5 text-xs font-medium text-muted-foreground">Transform</div>
 						{transformActions.map((action) => (
-							<CommandItem key={action.id} onSelect={() => handleAction(action.id)}>
+							<button
+								key={action.id}
+								type="button"
+								onClick={() => handleAction(action.id)}
+								className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent rounded-sm cursor-pointer"
+							>
 								{ICONS[action.icon]}
-								<span>{action.name}</span>
-							</CommandItem>
+								{action.name}
+							</button>
 						))}
-					</CommandGroup>
 
-					<CommandSeparator />
+						<div className="my-1 h-px bg-border" />
 
-					<CommandGroup heading="Explore">
+						<div className="px-3 py-1.5 text-xs font-medium text-muted-foreground">Explore</div>
 						{exploreActions.map((action) => (
-							<CommandItem key={action.id} onSelect={() => handleAction(action.id)}>
+							<button
+								key={action.id}
+								type="button"
+								onClick={() => handleAction(action.id)}
+								className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent rounded-sm cursor-pointer"
+							>
 								{ICONS[action.icon]}
-								<span>{action.name}</span>
-							</CommandItem>
+								{action.name}
+							</button>
 						))}
-					</CommandGroup>
 
-					<CommandSeparator />
+						<div className="my-1 h-px bg-border" />
 
-					<CommandGroup heading="Knowledge">
+						<div className="px-3 py-1.5 text-xs font-medium text-muted-foreground">Knowledge</div>
 						{knowledgeActions.map((action) => (
-							<CommandItem key={action.id} onSelect={() => handleAction(action.id)}>
+							<button
+								key={action.id}
+								type="button"
+								onClick={() => handleAction(action.id)}
+								className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent rounded-sm cursor-pointer"
+							>
 								{ICONS[action.icon]}
-								<span>{action.name}</span>
-							</CommandItem>
+								{action.name}
+							</button>
 						))}
-					</CommandGroup>
 
-					<CommandSeparator />
+						<div className="my-1 h-px bg-border" />
 
-					<CommandGroup>
-						<CommandItem onSelect={handleAskAnything}>
+						<button
+							type="button"
+							onClick={() => navigateToChat(clipboardText, "explore")}
+							className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent rounded-sm cursor-pointer"
+						>
 							<MessageSquare className="size-4" />
-							<span>Ask anything...</span>
-						</CommandItem>
-					</CommandGroup>
-				</CommandList>
-			</Command>
+							Ask anything...
+						</button>
+					</div>
+				)}
+			</div>
 		</div>
 	);
 }
