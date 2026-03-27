@@ -2,7 +2,7 @@
 
 import { useAtom } from "jotai";
 import { TreePine } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { renamingFolderIdAtom } from "@/atoms/documents/folder.atoms";
@@ -79,6 +79,8 @@ export function FolderTreeView({
 		}
 		return counts;
 	}, [folders, foldersByParent, docsByFolder]);
+
+	const [openContextMenuId, setOpenContextMenuId] = useState<string | null>(null);
 
 	// Single subscription for rename state — derived boolean passed to each FolderNode
 	const [renamingFolderId, setRenamingFolderId] = useAtom(renamingFolderIdAtom);
@@ -157,6 +159,8 @@ export function FolderTreeView({
 					onDropIntoFolder={onDropIntoFolder}
 					onReorderFolder={onReorderFolder}
 					siblingPositions={siblingPositions}
+					contextMenuOpen={openContextMenuId === `folder-${f.id}`}
+					onContextMenuOpenChange={(open) => setOpenContextMenuId(open ? `folder-${f.id}` : null)}
 				/>
 			);
 
@@ -177,6 +181,8 @@ export function FolderTreeView({
 					onEdit={onEditDocument}
 					onDelete={onDeleteDocument}
 					onMove={onMoveDocument}
+					contextMenuOpen={openContextMenuId === `doc-${d.id}`}
+					onContextMenuOpenChange={(open) => setOpenContextMenuId(open ? `doc-${d.id}` : null)}
 				/>
 			);
 		}

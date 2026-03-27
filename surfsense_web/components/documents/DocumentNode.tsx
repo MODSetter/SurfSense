@@ -10,14 +10,12 @@ import {
 	ContextMenu,
 	ContextMenuContent,
 	ContextMenuItem,
-	ContextMenuSeparator,
 	ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
-	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
@@ -41,6 +39,8 @@ interface DocumentNodeProps {
 	onEdit: (doc: DocumentNodeDoc) => void;
 	onDelete: (doc: DocumentNodeDoc) => void;
 	onMove: (doc: DocumentNodeDoc) => void;
+	contextMenuOpen?: boolean;
+	onContextMenuOpenChange?: (open: boolean) => void;
 }
 
 export const DocumentNode = React.memo(function DocumentNode({
@@ -52,6 +52,8 @@ export const DocumentNode = React.memo(function DocumentNode({
 	onEdit,
 	onDelete,
 	onMove,
+	contextMenuOpen,
+	onContextMenuOpenChange,
 }: DocumentNodeProps) {
 	const statusState = doc.status?.state ?? "ready";
 	const isSelectable = statusState !== "pending" && statusState !== "processing";
@@ -76,7 +78,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 	const isProcessing = statusState === "pending" || statusState === "processing";
 
 	return (
-		<ContextMenu>
+		<ContextMenu onOpenChange={onContextMenuOpenChange}>
 			<ContextMenuTrigger asChild>
 				{/* biome-ignore lint/a11y/useSemanticElements: div required for drag ref */}
 				<div
@@ -131,7 +133,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 							<Button
 								variant="ghost"
 								size="icon"
-								className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+								className="hidden sm:inline-flex h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
 								onClick={(e) => e.stopPropagation()}
 							>
 								<MoreHorizontal className="h-3.5 w-3.5" />
@@ -152,7 +154,6 @@ export const DocumentNode = React.memo(function DocumentNode({
 								<Move className="mr-2 h-4 w-4" />
 								Move to...
 							</DropdownMenuItem>
-							<DropdownMenuSeparator />
 							<DropdownMenuItem
 								className="text-destructive focus:text-destructive"
 								disabled={isProcessing}
@@ -166,31 +167,32 @@ export const DocumentNode = React.memo(function DocumentNode({
 				</div>
 			</ContextMenuTrigger>
 
-			<ContextMenuContent className="w-40">
-				<ContextMenuItem onClick={() => onPreview(doc)}>
-					<Eye className="mr-2 h-4 w-4" />
-					Open
-				</ContextMenuItem>
-				{isEditable && (
-					<ContextMenuItem onClick={() => onEdit(doc)}>
-						<Pencil className="mr-2 h-4 w-4" />
-						Edit
+			{contextMenuOpen && (
+				<ContextMenuContent className="w-40">
+					<ContextMenuItem onClick={() => onPreview(doc)}>
+						<Eye className="mr-2 h-4 w-4" />
+						Open
 					</ContextMenuItem>
-				)}
-				<ContextMenuItem onClick={() => onMove(doc)}>
-					<Move className="mr-2 h-4 w-4" />
-					Move to...
-				</ContextMenuItem>
-				<ContextMenuSeparator />
-				<ContextMenuItem
-					className="text-destructive focus:text-destructive"
-					disabled={isProcessing}
-					onClick={() => onDelete(doc)}
-				>
-					<Trash2 className="mr-2 h-4 w-4" />
-					Delete
-				</ContextMenuItem>
-			</ContextMenuContent>
+					{isEditable && (
+						<ContextMenuItem onClick={() => onEdit(doc)}>
+							<Pencil className="mr-2 h-4 w-4" />
+							Edit
+						</ContextMenuItem>
+					)}
+					<ContextMenuItem onClick={() => onMove(doc)}>
+						<Move className="mr-2 h-4 w-4" />
+						Move to...
+					</ContextMenuItem>
+					<ContextMenuItem
+						className="text-destructive focus:text-destructive"
+						disabled={isProcessing}
+						onClick={() => onDelete(doc)}
+					>
+						<Trash2 className="mr-2 h-4 w-4" />
+						Delete
+					</ContextMenuItem>
+				</ContextMenuContent>
+			)}
 		</ContextMenu>
 	);
 });

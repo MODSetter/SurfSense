@@ -66,6 +66,8 @@ interface FolderNodeProps {
 	onReorderFolder?: (folderId: number, beforePos: string | null, afterPos: string | null) => void;
 	siblingPositions?: { before: string | null; after: string | null };
 	disabledDropIds?: Set<number>;
+	contextMenuOpen?: boolean;
+	onContextMenuOpenChange?: (open: boolean) => void;
 }
 
 function getDropZone(
@@ -99,6 +101,8 @@ export const FolderNode = React.memo(function FolderNode({
 	onReorderFolder,
 	siblingPositions,
 	disabledDropIds,
+	contextMenuOpen,
+	onContextMenuOpenChange,
 }: FolderNodeProps) {
 	const [renameValue, setRenameValue] = useState(folder.name);
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -213,7 +217,7 @@ export const FolderNode = React.memo(function FolderNode({
 	const FolderIcon = isExpanded ? FolderOpen : Folder;
 
 	return (
-		<ContextMenu>
+		<ContextMenu onOpenChange={onContextMenuOpenChange}>
 			<ContextMenuTrigger asChild disabled={isRenaming}>
 				{/* biome-ignore lint/a11y/useSemanticElements: div required for drag/drop refs */}
 				<div
@@ -279,7 +283,7 @@ export const FolderNode = React.memo(function FolderNode({
 								<Button
 									variant="ghost"
 									size="icon"
-									className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+									className="hidden sm:inline-flex h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
 									onClick={(e) => e.stopPropagation()}
 								>
 									<MoreHorizontal className="h-3.5 w-3.5" />
@@ -313,7 +317,6 @@ export const FolderNode = React.memo(function FolderNode({
 									<Move className="mr-2 h-4 w-4" />
 									Move to...
 								</DropdownMenuItem>
-								<DropdownMenuSeparator />
 								<DropdownMenuItem
 									className="text-destructive focus:text-destructive"
 									onClick={(e) => {
@@ -330,7 +333,7 @@ export const FolderNode = React.memo(function FolderNode({
 				</div>
 			</ContextMenuTrigger>
 
-			{!isRenaming && (
+			{!isRenaming && contextMenuOpen && (
 				<ContextMenuContent className="w-40">
 					<ContextMenuItem onClick={() => onCreateSubfolder(folder.id)}>
 						<FolderPlus className="mr-2 h-4 w-4" />
@@ -344,7 +347,6 @@ export const FolderNode = React.memo(function FolderNode({
 						<Move className="mr-2 h-4 w-4" />
 						Move to...
 					</ContextMenuItem>
-					<ContextMenuSeparator />
 					<ContextMenuItem
 						className="text-destructive focus:text-destructive"
 						onClick={() => onDelete(folder)}
