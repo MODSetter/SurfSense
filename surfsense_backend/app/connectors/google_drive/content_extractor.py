@@ -14,8 +14,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import Log
 from app.services.task_logging_service import TaskLoggingService
 
-from app.utils.office_parsers import EXCEL_EXTENSIONS
-
 from .client import GoogleDriveClient
 from .file_types import (
     get_export_mime_type,
@@ -149,11 +147,6 @@ async def _parse_file_to_markdown(file_path: str, filename: str) -> str:
         if not text:
             raise ValueError("Transcription returned empty text")
         return f"# Transcription of {filename}\n\n{text}"
-
-    if lower.endswith(EXCEL_EXTENSIONS):
-        from app.utils.office_parsers import parse_excel_to_markdown
-
-        return await parse_excel_to_markdown(file_path, filename)
 
     # Document files -- use configured ETL service
     from app.config import config as app_config

@@ -73,7 +73,6 @@ dependencies = [
     "langchain-daytona>=0.0.2",
     "pypandoc>=1.16.2",
     "notion-markdown>=0.7.0",
-    "openpyxl>=3.1.5",
 ]
 
 [dependency-groups]
