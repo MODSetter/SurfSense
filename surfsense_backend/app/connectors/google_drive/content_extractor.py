@@ -14,8 +14,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import Log
 from app.services.task_logging_service import TaskLoggingService
 
+from app.utils.office_parsers import EXCEL_EXTENSIONS
+
 from .client import GoogleDriveClient
-from .file_types import get_export_mime_type, is_google_workspace_file, should_skip_file
+from .file_types import (
+    get_export_mime_type,
+    get_extension_from_mime,
+    is_google_workspace_file,
+    should_skip_file,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -58,29 +65,30 @@ async def download_and_extract_content(
     if "md5Checksum" in file:
         drive_metadata["md5_checksum"] = file["md5Checksum"]
     if is_google_workspace_file(mime_type):
-        drive_metadata["exported_as"] = "pdf"
+        export_ext = get_extension_from_mime(get_export_mime_type(mime_type) or "")
+        drive_metadata["exported_as"] = export_ext.lstrip(".") if export_ext else "pdf"
         drive_metadata["original_workspace_type"] = mime_type.split(".")[-1]
 
     temp_file_path = None
     try:
         if is_google_workspace_file(mime_type):
-            # Workspace files (Docs/Sheets/Slides) use export -- returns bytes
-            # in one shot. These are typically small (a few MB as PDF/text).
             export_mime = get_export_mime_type(mime_type)
             if not export_mime:
                 return None, drive_metadata, f"Cannot export Google Workspace type: {mime_type}"
             content_bytes, error = await client.export_google_file(file_id, export_mime)
             if error:
                 return None, drive_metadata, error
-            extension = ".pdf" if export_mime == "application/pdf" else ".txt"
+            extension = get_extension_from_mime(export_mime) or ".pdf"
 
             with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as tmp:
                 tmp.write(content_bytes)
                 temp_file_path = tmp.name
         else:
-            # Binary files -- stream directly to disk in chunks to avoid
-            # loading the entire file into memory.
-            extension = Path(file_name).suffix or ".bin"
+            extension = (
+                Path(file_name).suffix
+                or get_extension_from_mime(mime_type)
+                or ".bin"
+            )
             with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as tmp:
                 temp_file_path = tmp.name
 
@@ -141,6 +149,11 @@ async def _parse_file_to_markdown(file_path: str, filename: str) -> str:
         if not text:
             raise ValueError("Transcription returned empty text")
         return f"# Transcription of {filename}\n\n{text}"
+
+    if lower.endswith(EXCEL_EXTENSIONS):
+        from app.utils.office_parsers import parse_excel_to_markdown
+
+        return await parse_excel_to_markdown(file_path, filename)
 
     # Document files -- use configured ETL service
     from app.config import config as app_config
@@ -236,14 +249,17 @@ async def download_and_process_file(
             if error:
                 return None, error
 
-            extension = ".pdf" if export_mime == "application/pdf" else ".txt"
+            extension = get_extension_from_mime(export_mime) or ".pdf"
         else:
             content_bytes, error = await client.download_file(file_id)
             if error:
                 return None, error
 
-            # Preserve original file extension
-            extension = Path(file_name).suffix or ".bin"
+            extension = (
+                Path(file_name).suffix
+                or get_extension_from_mime(mime_type)
+                or ".bin"
+            )
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as tmp_file:
             tmp_file.write(content_bytes)
@@ -281,7 +297,12 @@ async def download_and_process_file(
             connector_info["metadata"]["md5_checksum"] = file["md5Checksum"]
 
         if is_google_workspace_file(mime_type):
-            connector_info["metadata"]["exported_as"] = "pdf"
+            export_ext = get_extension_from_mime(
+                get_export_mime_type(mime_type) or ""
+            )
+            connector_info["metadata"]["exported_as"] = (
+                export_ext.lstrip(".") if export_ext else "pdf"
+            )
             connector_info["metadata"]["original_workspace_type"] = mime_type.split(
                 "."
             )[-1]

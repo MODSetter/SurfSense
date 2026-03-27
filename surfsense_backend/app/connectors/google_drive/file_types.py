@@ -8,9 +8,32 @@ GOOGLE_SHORTCUT = "application/vnd.google-apps.shortcut"
 
 EXPORT_FORMATS = {
     GOOGLE_DOC: "application/pdf",
-    GOOGLE_SHEET: "application/pdf",
+    GOOGLE_SHEET: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     GOOGLE_SLIDE: "application/pdf",
 }
+
+MIME_TO_EXTENSION: dict[str, str] = {
+    "application/pdf": ".pdf",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
+    "application/vnd.ms-excel": ".xls",
+    "application/msword": ".doc",
+    "application/vnd.ms-powerpoint": ".ppt",
+    "text/plain": ".txt",
+    "text/csv": ".csv",
+    "text/html": ".html",
+    "text/markdown": ".md",
+    "application/json": ".json",
+    "application/xml": ".xml",
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+}
+
+
+def get_extension_from_mime(mime_type: str) -> str | None:
+    """Return a file extension (with leading dot) for a MIME type, or None."""
+    return MIME_TO_EXTENSION.get(mime_type)
 
 
 def is_google_workspace_file(mime_type: str) -> bool:

@@ -1134,6 +1134,59 @@ async def process_file_in_background(
                 )
                 return None
 
+        elif filename.lower().endswith((".xlsx",)):
+            from app.utils.office_parsers import parse_excel_to_markdown
+
+            if notification:
+                await (
+                    NotificationService.document_processing.notify_processing_progress(
+                        session,
+                        notification,
+                        stage="parsing",
+                        stage_message="Parsing spreadsheet",
+                    )
+                )
+
+            await task_logger.log_task_progress(
+                log_entry,
+                f"Processing Excel file natively: {filename}",
+                {"file_type": "excel", "processing_stage": "native_parse"},
+            )
+
+            excel_markdown = await parse_excel_to_markdown(file_path, filename)
+
+            try:
+                os.unlink(file_path)
+            except Exception as e:
+                print("Error deleting temp file", e)
+
+            result = await add_received_markdown_file_document(
+                session, filename, excel_markdown, search_space_id, user_id, connector
+            )
+
+            if connector:
+                await _update_document_from_connector(result, connector, session)
+
+            if result:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"Successfully parsed and processed Excel file: {filename}",
+                    {
+                        "document_id": result.id,
+                        "content_hash": result.content_hash,
+                        "file_type": "excel",
+                        "etl_service": "NATIVE_EXCEL",
+                    },
+                )
+                return result
+            else:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"Excel file already exists (duplicate): {filename}",
+                    {"duplicate_detected": True, "file_type": "excel"},
+                )
+                return None
+
         else:
             # Import page limit service
             from app.services.page_limit_service import (
@@ -1794,6 +1847,31 @@ async def process_file_in_background_with_document(
 
             etl_service = "AUDIO_TRANSCRIPTION"
             # Clean up temp file
+            with contextlib.suppress(Exception):
+                os.unlink(file_path)
+
+        elif filename.lower().endswith((".xlsx",)):
+            from app.utils.office_parsers import parse_excel_to_markdown
+
+            if notification:
+                await (
+                    NotificationService.document_processing.notify_processing_progress(
+                        session,
+                        notification,
+                        stage="parsing",
+                        stage_message="Parsing spreadsheet",
+                    )
+                )
+
+            await task_logger.log_task_progress(
+                log_entry,
+                f"Processing Excel file natively: {filename}",
+                {"file_type": "excel", "processing_stage": "native_parse"},
+            )
+
+            markdown_content = await parse_excel_to_markdown(file_path, filename)
+            etl_service = "NATIVE_EXCEL"
+
             with contextlib.suppress(Exception):
                 os.unlink(file_path)
 
