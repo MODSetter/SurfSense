@@ -9,7 +9,7 @@ import {
 import { useAtomValue } from "jotai";
 import { CheckIcon, ClipboardPaste, CopyIcon, DownloadIcon, MessageSquare, RefreshCwIcon } from "lucide-react";
 import type { FC } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { commentsEnabledAtom, targetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
@@ -274,11 +274,16 @@ export const AssistantMessage: FC = () => {
 const AssistantActionBar: FC = () => {
 	const isLast = useAuiState((s) => s.message.isLast);
 	const aui = useAui();
-	const isTransform =
-		isLast &&
-		typeof window !== "undefined" &&
-		!!window.electronAPI?.replaceText &&
-		sessionStorage.getItem("quickAskMode") === "transform";
+	const [quickAskMode, setQuickAskMode] = useState("");
+
+	useEffect(() => {
+		if (!isLast || !window.electronAPI?.getQuickAskMode) return;
+		window.electronAPI.getQuickAskMode().then((mode) => {
+			if (mode) setQuickAskMode(mode);
+		});
+	}, [isLast]);
+
+	const isTransform = isLast && !!window.electronAPI?.replaceText && quickAskMode === "transform";
 
 	return (
 		<ActionBarPrimitive.Root

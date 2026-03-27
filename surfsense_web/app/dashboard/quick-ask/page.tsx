@@ -35,16 +35,16 @@ export default function QuickAskPage() {
 		});
 	}, []);
 
-	const navigateToChat = (prompt: string, mode: string) => {
-		sessionStorage.setItem("quickAskMode", mode);
+	const navigateToChat = async (prompt: string, mode: string) => {
+		await window.electronAPI?.setQuickAskMode(mode);
 		sessionStorage.setItem("quickAskAutoSubmit", "true");
 		const encoded = encodeURIComponent(prompt);
 		window.location.href = `/dashboard?quickAskPrompt=${encoded}`;
 	};
 
-	const navigateWithInitialText = () => {
+	const navigateWithInitialText = async () => {
 		if (!clipboardText) return;
-		sessionStorage.setItem("quickAskMode", "explore");
+		await window.electronAPI?.setQuickAskMode("explore");
 		sessionStorage.setItem("quickAskAutoSubmit", "false");
 		sessionStorage.setItem("quickAskInitialText", clipboardText);
 		window.location.href = `/dashboard?quickAskPrompt=${encodeURIComponent(clipboardText)}`;

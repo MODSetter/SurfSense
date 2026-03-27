@@ -7,6 +7,7 @@ import { getServerPort } from './server';
 const SHORTCUT = 'CommandOrControl+Option+S';
 let quickAskWindow: BrowserWindow | null = null;
 let pendingText = '';
+let pendingMode = '';
 let sourceApp = '';
 let savedClipboard = '';
 
@@ -15,6 +16,7 @@ function destroyQuickAsk(): void {
     quickAskWindow.close();
   }
   quickAskWindow = null;
+  pendingMode = '';
 }
 
 function clampToScreen(x: number, y: number, w: number, h: number): { x: number; y: number } {
@@ -100,6 +102,14 @@ export function registerQuickAsk(): void {
 
   ipcMain.handle(IPC_CHANNELS.QUICK_ASK_TEXT, () => {
     return pendingText;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.SET_QUICK_ASK_MODE, (_event, mode: string) => {
+    pendingMode = mode;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.GET_QUICK_ASK_MODE, () => {
+    return pendingMode;
   });
 
   ipcMain.handle(IPC_CHANNELS.REPLACE_TEXT, async (_event, text: string) => {
