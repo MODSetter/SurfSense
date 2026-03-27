@@ -1,7 +1,7 @@
 "use client";
 
-import { Eye, MoreHorizontal, Move, PenLine, Trash2 } from "lucide-react";
-import React, { useCallback } from "react";
+import { AlertCircle, Clock, Eye, MoreHorizontal, Move, PenLine, Trash2 } from "lucide-react";
+import React, { useCallback, useRef } from "react";
 import { useDrag } from "react-dnd";
 import { getDocumentTypeIcon } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,8 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Spinner } from "@/components/ui/spinner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { cn } from "@/lib/utils";
 import { DND_TYPES } from "./FolderNode";
@@ -76,48 +78,78 @@ export const DocumentNode = React.memo(function DocumentNode({
 	);
 
 	const isProcessing = statusState === "pending" || statusState === "processing";
+	const rowRef = useRef<HTMLButtonElement>(null);
+
+	const attachRef = useCallback(
+		(node: HTMLButtonElement | null) => {
+			(rowRef as React.MutableRefObject<HTMLButtonElement | null>).current = node;
+			drag(node);
+		},
+		[drag]
+	);
 
 	return (
 		<ContextMenu onOpenChange={onContextMenuOpenChange}>
 			<ContextMenuTrigger asChild>
-				{/* biome-ignore lint/a11y/useSemanticElements: div required for drag ref */}
-				<div
-					ref={drag}
-					role="button"
-					tabIndex={0}
+				<button
+					type="button"
+					ref={attachRef}
 					className={cn(
-						"group flex h-8 items-center gap-2.5 rounded-md px-1 text-sm hover:bg-accent/50 cursor-pointer select-none",
+						"group flex h-8 w-full items-center gap-2.5 rounded-md px-1 text-sm hover:bg-accent/50 cursor-pointer select-none text-left",
 						isMentioned && "bg-accent/30",
 						isDragging && "opacity-40"
 					)}
 					style={{ paddingLeft: `${depth * 16 + 4}px` }}
 					onClick={handleCheckChange}
-					onKeyDown={(e) => {
-						if (e.key === "Enter" || e.key === " ") {
-							e.preventDefault();
-							handleCheckChange();
-						}
-					}}
 				>
-					{isSelectable ? (
+				{(() => {
+					if (statusState === "pending") {
+						return (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
+										<Clock className="h-3.5 w-3.5 text-muted-foreground/60" />
+									</span>
+								</TooltipTrigger>
+								<TooltipContent side="top">Pending - waiting to be synced</TooltipContent>
+							</Tooltip>
+						);
+					}
+					if (statusState === "processing") {
+						return (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
+										<Spinner size="xs" className="text-primary" />
+									</span>
+								</TooltipTrigger>
+								<TooltipContent side="top">Syncing</TooltipContent>
+							</Tooltip>
+						);
+					}
+					if (statusState === "failed") {
+						return (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
+										<AlertCircle className="h-3.5 w-3.5 text-destructive" />
+									</span>
+								</TooltipTrigger>
+								<TooltipContent side="top" className="max-w-xs">
+									{doc.status?.reason || "Processing failed"}
+								</TooltipContent>
+							</Tooltip>
+						);
+					}
+					return (
 						<Checkbox
 							checked={isMentioned}
 							onCheckedChange={handleCheckChange}
 							onClick={(e) => e.stopPropagation()}
 							className="h-3.5 w-3.5 shrink-0"
 						/>
-					) : (
-						<span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
-							<span
-								className={cn(
-									"h-2 w-2 rounded-full",
-									statusState === "processing" && "animate-pulse bg-amber-500",
-									statusState === "pending" && "bg-muted-foreground/40",
-									statusState === "failed" && "bg-destructive"
-								)}
-							/>
-						</span>
-					)}
+					);
+				})()}
 
 					<span className="flex-1 min-w-0 truncate">{doc.title}</span>
 
@@ -164,7 +196,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
-				</div>
+				</button>
 			</ContextMenuTrigger>
 
 			{contextMenuOpen && (
