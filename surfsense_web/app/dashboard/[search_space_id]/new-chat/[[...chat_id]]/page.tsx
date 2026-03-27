@@ -162,19 +162,26 @@ const TOOLS_WITH_UI = new Set([
 function QuickAskAutoSubmit() {
 	const searchParams = useSearchParams();
 	const aui = useAui();
-	const submittedRef = useRef(false);
+	const handledRef = useRef(false);
 
 	useEffect(() => {
-		if (!window.electronAPI || submittedRef.current) return;
+		if (!window.electronAPI || handledRef.current) return;
 
 		const prompt = searchParams.get("quickAskPrompt");
-		if (!prompt) return;
+		const initialText = searchParams.get("quickAskInitialText");
 
-		submittedRef.current = true;
-		setTimeout(() => {
-			aui.composer().setText(prompt);
-			aui.composer().send();
-		}, 500);
+		if (prompt) {
+			handledRef.current = true;
+			setTimeout(() => {
+				aui.composer().setText(prompt);
+				aui.composer().send();
+			}, 500);
+		} else if (initialText) {
+			handledRef.current = true;
+			setTimeout(() => {
+				aui.composer().setText(initialText);
+			}, 500);
+		}
 	}, [searchParams, aui]);
 
 	return null;

@@ -11,7 +11,7 @@ import {
 	PenLine,
 	Search,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DEFAULT_ACTIONS } from "./actions";
 
 const ICONS: Record<string, React.ReactNode> = {
@@ -27,6 +27,7 @@ const ICONS: Record<string, React.ReactNode> = {
 
 export default function QuickAskPage() {
 	const [clipboardText, setClipboardText] = useState("");
+	const [searchQuery, setSearchQuery] = useState("");
 
 	useEffect(() => {
 		window.electronAPI?.getQuickAskText().then((text) => {
@@ -40,80 +41,109 @@ export default function QuickAskPage() {
 		window.location.href = `/dashboard?quickAskPrompt=${encoded}`;
 	};
 
+	const navigateWithInitialText = () => {
+		if (!clipboardText) return;
+		sessionStorage.setItem("quickAskMode", "explore");
+		const encoded = encodeURIComponent(clipboardText);
+		window.location.href = `/dashboard?quickAskInitialText=${encoded}`;
+	};
+
 	const handleAction = (actionId: string) => {
 		const action = DEFAULT_ACTIONS.find((a) => a.id === actionId);
-		if (!action) return;
+		if (!action || !clipboardText) return;
 		const prompt = action.prompt.replace("{selection}", clipboardText);
 		navigateToChat(prompt, action.mode);
 	};
 
 	const transformActions = DEFAULT_ACTIONS.filter((a) => a.group === "transform");
 	const exploreActions = DEFAULT_ACTIONS.filter((a) => a.group === "explore");
-	const knowledgeActions = DEFAULT_ACTIONS.filter((a) => a.group === "knowledge");
+
+	const filteredTransform = useMemo(
+		() => transformActions.filter((a) => a.name.toLowerCase().includes(searchQuery.toLowerCase())),
+		[searchQuery]
+	);
+	const filteredExplore = useMemo(
+		() => exploreActions.filter((a) => a.name.toLowerCase().includes(searchQuery.toLowerCase())),
+		[searchQuery]
+	);
+
+	if (!clipboardText) {
+		return (
+			<div className="flex h-screen items-center justify-center bg-background">
+				<div className="text-sm text-muted-foreground">Loading...</div>
+			</div>
+		);
+	}
 
 	return (
 		<div className="flex h-screen flex-col bg-background">
-			<div className="flex-1 overflow-y-auto">
-				{!clipboardText && (
-					<div className="p-4 text-center text-sm text-muted-foreground">Loading...</div>
+			<div className="border-b px-3 py-2">
+				<div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-1.5">
+					<Search className="size-3.5 text-muted-foreground" />
+					<input
+						type="text"
+						placeholder="Search actions..."
+						value={searchQuery}
+						onChange={(e) => setSearchQuery(e.target.value)}
+						className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+					/>
+				</div>
+			</div>
+
+			<div className="flex-1 overflow-y-auto px-3 py-2">
+				{filteredTransform.length > 0 && (
+					<>
+						<div className="mb-2 text-xs font-medium text-muted-foreground">Transform</div>
+						<div className="mb-3 grid grid-cols-2 gap-1.5">
+							{filteredTransform.map((action) => (
+								<button
+									key={action.id}
+									type="button"
+									onClick={() => handleAction(action.id)}
+									className="flex items-center gap-2 rounded-md border px-3 py-2.5 text-sm transition-colors hover:bg-accent hover:border-accent-foreground/20 cursor-pointer"
+								>
+									<span className="text-muted-foreground">{ICONS[action.icon]}</span>
+									{action.name}
+								</button>
+							))}
+						</div>
+					</>
 				)}
-				{clipboardText && (
-					<div className="py-1">
-						<div className="px-3 py-1.5 text-xs font-medium text-muted-foreground">Transform</div>
-						{transformActions.map((action) => (
-							<button
-								key={action.id}
-								type="button"
-								onClick={() => handleAction(action.id)}
-								className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent rounded-sm cursor-pointer"
-							>
-								{ICONS[action.icon]}
-								{action.name}
-							</button>
-						))}
 
-						<div className="my-1 h-px bg-border" />
-
-						<div className="px-3 py-1.5 text-xs font-medium text-muted-foreground">Explore</div>
-						{exploreActions.map((action) => (
-							<button
-								key={action.id}
-								type="button"
-								onClick={() => handleAction(action.id)}
-								className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent rounded-sm cursor-pointer"
-							>
-								{ICONS[action.icon]}
-								{action.name}
-							</button>
-						))}
-
-						<div className="my-1 h-px bg-border" />
-
-						<div className="px-3 py-1.5 text-xs font-medium text-muted-foreground">Knowledge</div>
-						{knowledgeActions.map((action) => (
-							<button
-								key={action.id}
-								type="button"
-								onClick={() => handleAction(action.id)}
-								className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent rounded-sm cursor-pointer"
-							>
-								{ICONS[action.icon]}
-								{action.name}
-							</button>
-						))}
-
-						<div className="my-1 h-px bg-border" />
-
-						<button
-							type="button"
-							onClick={() => navigateToChat(clipboardText, "explore")}
-							className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent rounded-sm cursor-pointer"
-						>
-							<MessageSquare className="size-4" />
-							Ask anything...
-						</button>
-					</div>
+				{filteredExplore.length > 0 && (
+					<>
+						<div className="mb-2 text-xs font-medium text-muted-foreground">Explore</div>
+						<div className="mb-3 grid grid-cols-2 gap-1.5">
+							{filteredExplore.map((action) => (
+								<button
+									key={action.id}
+									type="button"
+									onClick={() => handleAction(action.id)}
+									className="flex items-center gap-2 rounded-md border px-3 py-2.5 text-sm transition-colors hover:bg-accent hover:border-accent-foreground/20 cursor-pointer"
+								>
+									<span className="text-muted-foreground">{ICONS[action.icon]}</span>
+									{action.name}
+								</button>
+							))}
+						</div>
+					</>
 				)}
+
+				<div className="mb-2 text-xs font-medium text-muted-foreground">My Actions</div>
+				<div className="mb-3 rounded-md border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">
+					Custom actions coming soon
+				</div>
+			</div>
+
+			<div className="border-t px-3 py-2">
+				<button
+					type="button"
+					onClick={navigateWithInitialText}
+					className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 cursor-pointer"
+				>
+					<MessageSquare className="size-4" />
+					Ask SurfSense...
+				</button>
 			</div>
 		</div>
 	);
