@@ -37,6 +37,7 @@ export default function QuickAskPage() {
 
 	const navigateToChat = (prompt: string, mode: string) => {
 		sessionStorage.setItem("quickAskMode", mode);
+		sessionStorage.setItem("quickAskAutoSubmit", "true");
 		const encoded = encodeURIComponent(prompt);
 		window.location.href = `/dashboard?quickAskPrompt=${encoded}`;
 	};
@@ -44,8 +45,9 @@ export default function QuickAskPage() {
 	const navigateWithInitialText = () => {
 		if (!clipboardText) return;
 		sessionStorage.setItem("quickAskMode", "explore");
-		const encoded = encodeURIComponent(clipboardText);
-		window.location.href = `/dashboard?quickAskInitialText=${encoded}`;
+		sessionStorage.setItem("quickAskAutoSubmit", "false");
+		sessionStorage.setItem("quickAskInitialText", clipboardText);
+		window.location.href = `/dashboard?quickAskPrompt=${encodeURIComponent(clipboardText)}`;
 	};
 
 	const handleAction = (actionId: string) => {

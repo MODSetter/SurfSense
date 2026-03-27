@@ -166,22 +166,16 @@ function QuickAskAutoSubmit() {
 
 	useEffect(() => {
 		if (!window.electronAPI || handledRef.current) return;
+		if (sessionStorage.getItem("quickAskAutoSubmit") === "false") return;
 
 		const prompt = searchParams.get("quickAskPrompt");
-		const initialText = searchParams.get("quickAskInitialText");
+		if (!prompt) return;
 
-		if (prompt) {
-			handledRef.current = true;
-			setTimeout(() => {
-				aui.composer().setText(prompt);
-				aui.composer().send();
-			}, 500);
-		} else if (initialText) {
-			handledRef.current = true;
-			setTimeout(() => {
-				aui.composer().setText(initialText);
-			}, 500);
-		}
+		handledRef.current = true;
+		setTimeout(() => {
+			aui.composer().setText(prompt);
+			aui.composer().send();
+		}, 500);
 	}, [searchParams, aui]);
 
 	return null;
