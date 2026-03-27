@@ -1,4 +1,5 @@
 import { atom } from "jotai";
+import { atomWithStorage, createJSONStorage } from "jotai/utils";
 
 export type TabType = "chat" | "document";
 
@@ -32,7 +33,16 @@ const initialState: TabsState = {
 	activeTabId: "chat-new",
 };
 
-export const tabsStateAtom = atom<TabsState>(initialState);
+const sessionStorageAdapter = createJSONStorage<TabsState>(
+	() => (typeof window !== "undefined" ? sessionStorage : undefined) as Storage
+);
+
+export const tabsStateAtom = atomWithStorage<TabsState>(
+	"surfsense:tabs",
+	initialState,
+	sessionStorageAdapter,
+	{ getOnInit: true },
+);
 
 export const tabsAtom = atom((get) => get(tabsStateAtom).tabs);
 export const activeTabIdAtom = atom((get) => get(tabsStateAtom).activeTabId);
