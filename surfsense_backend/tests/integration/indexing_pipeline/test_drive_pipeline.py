@@ -110,10 +110,10 @@ async def test_drive_legacy_doc_migrated(
     assert row.unique_identifier_hash == native_hash
 
 
-async def test_should_skip_file_does_not_skip_failed_document(
+async def test_should_skip_file_skips_failed_document(
     db_session, db_search_space, db_user,
 ):
-    """A FAILED document with unchanged md5 must NOT be skipped — it needs reprocessing."""
+    """A FAILED document with unchanged md5 must be skipped — user can manually retry via Quick Index."""
     import importlib
     import sys
     import types
@@ -164,6 +164,7 @@ async def test_should_skip_file_does_not_skip_failed_document(
 
     incoming_file = {"id": file_id, "name": "Failed File.pdf", "mimeType": "application/pdf", "md5Checksum": md5}
 
-    should_skip, _msg = await _should_skip_file(db_session, incoming_file, space_id)
+    should_skip, msg = await _should_skip_file(db_session, incoming_file, space_id)
 
-    assert not should_skip, "FAILED documents must not be skipped even when content is unchanged"
+    assert should_skip, "FAILED documents must be skipped during automatic sync"
+    assert "failed" in msg.lower()

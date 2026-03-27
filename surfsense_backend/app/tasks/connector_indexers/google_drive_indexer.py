@@ -150,7 +150,7 @@ async def _should_skip_file(
         return True, f"File renamed: '{old_name}' → '{file_name}'"
 
     if not DocumentStatus.is_state(existing.status, DocumentStatus.READY):
-        return False, None
+        return True, "skipped (previously failed)"
     return True, "unchanged"
 
 
