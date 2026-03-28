@@ -10,6 +10,8 @@ import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { DocumentNode, type DocumentNodeDoc } from "./DocumentNode";
 import { type FolderDisplay, FolderNode } from "./FolderNode";
 
+export type FolderSelectionState = "all" | "some" | "none";
+
 interface FolderTreeViewProps {
 	folders: FolderDisplay[];
 	documents: DocumentNodeDoc[];
@@ -20,6 +22,7 @@ interface FolderTreeViewProps {
 		doc: { id: number; title: string; document_type: string },
 		isMentioned: boolean
 	) => void;
+	onToggleFolderSelect: (folderId: number, selectAll: boolean) => void;
 	onRenameFolder: (folder: FolderDisplay, newName: string) => void;
 	onDeleteFolder: (folder: FolderDisplay) => void;
 	onMoveFolder: (folder: FolderDisplay) => void;
@@ -55,6 +58,7 @@ export function FolderTreeView({
 	onToggleExpand,
 	mentionedDocIds,
 	onToggleChatMention,
+	onToggleFolderSelect,
 	onRenameFolder,
 	onDeleteFolder,
 	onMoveFolder,
@@ -122,6 +126,36 @@ export function FolderTreeView({
 		return match;
 	}, [folders, docsByFolder, foldersByParent, activeTypes]);
 
+	const folderSelectionStates = useMemo(() => {
+		const states: Record<number, FolderSelectionState> = {};
+		const isSelectable = (d: DocumentNodeDoc) =>
+			d.status?.state !== "pending" && d.status?.state !== "processing";
+
+		function compute(folderId: number): { selected: number; total: number } {
+			const directDocs = (docsByFolder[folderId] ?? []).filter(isSelectable);
+			let selected = directDocs.filter((d) => mentionedDocIds.has(d.id)).length;
+			let total = directDocs.length;
+
+			for (const child of foldersByParent[folderId] ?? []) {
+				const sub = compute(child.id);
+				selected += sub.selected;
+				total += sub.total;
+			}
+
+			if (total === 0) states[folderId] = "none";
+			else if (selected === total) states[folderId] = "all";
+			else if (selected > 0) states[folderId] = "some";
+			else states[folderId] = "none";
+
+			return { selected, total };
+		}
+
+		for (const f of folders) {
+			if (states[f.id] === undefined) compute(f.id);
+		}
+		return states;
+	}, [folders, docsByFolder, foldersByParent, mentionedDocIds]);
+
 	function renderLevel(parentId: number | null, depth: number): React.ReactNode[] {
 		const key = parentId ?? "root";
 		const childFolders = (foldersByParent[key] ?? [])
@@ -151,6 +185,8 @@ export function FolderTreeView({
 					isExpanded={expandedIds.has(f.id)}
 					isRenaming={renamingFolderId === f.id}
 					childCount={folderChildCounts[f.id] ?? 0}
+					selectionState={folderSelectionStates[f.id] ?? "none"}
+					onToggleSelect={onToggleFolderSelect}
 					onToggleExpand={onToggleExpand}
 					onRename={onRenameFolder}
 					onStartRename={handleStartRename}

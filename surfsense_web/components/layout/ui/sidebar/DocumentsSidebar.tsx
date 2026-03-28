@@ -348,6 +348,43 @@ export function DocumentsSidebar({
 		[setSidebarDocs]
 	);
 
+	const handleToggleFolderSelect = useCallback(
+		(folderId: number, selectAll: boolean) => {
+			function collectSubtreeDocs(parentId: number): DocumentNodeDoc[] {
+				const directDocs = (treeDocuments ?? []).filter(
+					(d) =>
+						d.folderId === parentId &&
+						d.status?.state !== "pending" &&
+						d.status?.state !== "processing",
+				);
+				const childFolders = foldersByParent[String(parentId)] ?? [];
+				const descendantDocs = childFolders.flatMap((cf) => collectSubtreeDocs(cf.id));
+				return [...directDocs, ...descendantDocs];
+			}
+
+			const subtreeDocs = collectSubtreeDocs(folderId);
+			if (subtreeDocs.length === 0) return;
+
+			if (selectAll) {
+				setSidebarDocs((prev) => {
+					const existingIds = new Set(prev.map((d) => d.id));
+					const newDocs = subtreeDocs
+						.filter((d) => !existingIds.has(d.id))
+						.map((d) => ({
+							id: d.id,
+							title: d.title,
+							document_type: d.document_type as DocumentTypeEnum,
+						}));
+					return newDocs.length > 0 ? [...prev, ...newDocs] : prev;
+				});
+			} else {
+				const idsToRemove = new Set(subtreeDocs.map((d) => d.id));
+				setSidebarDocs((prev) => prev.filter((d) => !idsToRemove.has(d.id)));
+			}
+		},
+		[treeDocuments, foldersByParent, setSidebarDocs],
+	);
+
 	const isSearchMode = !!debouncedSearch.trim();
 
 	const {
@@ -625,6 +662,7 @@ export function DocumentsSidebar({
 						onToggleExpand={toggleFolderExpand}
 						mentionedDocIds={mentionedDocIds}
 						onToggleChatMention={handleToggleChatMention}
+						onToggleFolderSelect={handleToggleFolderSelect}
 						onRenameFolder={handleRenameFolder}
 						onDeleteFolder={handleDeleteFolder}
 						onMoveFolder={handleMoveFolder}
