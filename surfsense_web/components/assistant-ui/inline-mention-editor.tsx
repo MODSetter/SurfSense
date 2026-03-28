@@ -40,6 +40,8 @@ interface InlineMentionEditorProps {
 	placeholder?: string;
 	onMentionTrigger?: (query: string) => void;
 	onMentionClose?: () => void;
+	onActionTrigger?: (query: string) => void;
+	onActionClose?: () => void;
 	onSubmit?: () => void;
 	onChange?: (text: string, docs: MentionedDocument[]) => void;
 	onDocumentRemove?: (docId: number, docType?: string) => void;
@@ -90,6 +92,8 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			placeholder = "Type @ to mention documents...",
 			onMentionTrigger,
 			onMentionClose,
+			onActionTrigger,
+			onActionClose,
 			onSubmit,
 			onChange,
 			onDocumentRemove,
@@ -520,6 +524,39 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				}
 			}
 
+			// Check for / actions (same pattern as @)
+			let shouldTriggerAction = false;
+			let actionQuery = "";
+
+			if (!shouldTriggerMention && selection && selection.rangeCount > 0) {
+				const range = selection.getRangeAt(0);
+				const textNode = range.startContainer;
+
+				if (textNode.nodeType === Node.TEXT_NODE) {
+					const textContent = textNode.textContent || "";
+					const cursorPos = range.startOffset;
+
+					let slashIndex = -1;
+					for (let i = cursorPos - 1; i >= 0; i--) {
+						if (textContent[i] === "/") {
+							slashIndex = i;
+							break;
+						}
+						if (textContent[i] === " " || textContent[i] === "\n") {
+							break;
+						}
+					}
+
+					if (slashIndex !== -1 && (slashIndex === 0 || textContent[slashIndex - 1] === " " || textContent[slashIndex - 1] === "\n")) {
+						const query = textContent.slice(slashIndex + 1, cursorPos);
+						if (!query.startsWith(" ")) {
+							shouldTriggerAction = true;
+							actionQuery = query;
+						}
+					}
+				}
+			}
+
 			// If no @ found before cursor, check if text contains @ at all
 			// If text is empty or doesn't contain @, close the mention
 			if (!shouldTriggerMention) {
@@ -533,9 +570,15 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				onMentionTrigger?.(mentionQuery);
 			}
 
+			if (!shouldTriggerAction) {
+				onActionClose?.();
+			} else {
+				onActionTrigger?.(actionQuery);
+			}
+
 			// Notify parent of change
 			onChange?.(text, Array.from(mentionedDocs.values()));
-		}, [getText, mentionedDocs, onChange, onMentionTrigger, onMentionClose]);
+		}, [getText, mentionedDocs, onChange, onMentionTrigger, onMentionClose, onActionTrigger, onActionClose]);
 
 		// Handle keydown
 		const handleKeyDown = useCallback(
