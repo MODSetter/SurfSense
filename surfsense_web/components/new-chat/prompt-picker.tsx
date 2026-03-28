@@ -21,17 +21,17 @@ import {
 	useState,
 } from "react";
 
-import type { QuickAskActionRead } from "@/contracts/types/quick-ask-actions.types";
-import { quickAskActionsApiService } from "@/lib/apis/quick-ask-actions-api.service";
+import type { PromptRead } from "@/contracts/types/prompts.types";
+import { promptsApiService } from "@/lib/apis/prompts-api.service";
 import { cn } from "@/lib/utils";
 
-export interface ActionPickerRef {
+export interface PromptPickerRef {
 	selectHighlighted: () => void;
 	moveUp: () => void;
 	moveDown: () => void;
 }
 
-interface ActionPickerProps {
+interface PromptPickerProps {
 	onSelect: (action: { name: string; prompt: string; mode: "transform" | "explore" }) => void;
 	onDone: () => void;
 	externalSearch?: string;
@@ -61,27 +61,27 @@ const DEFAULT_ACTIONS: { name: string; prompt: string; mode: "transform" | "expl
 	{ name: "Look up on the web", prompt: "Search the web for information about:\n\n{selection}", mode: "explore", icon: "globe" },
 ];
 
-export const ActionPicker = forwardRef<ActionPickerRef, ActionPickerProps>(
-	function ActionPicker({ onSelect, onDone, externalSearch = "", containerStyle }, ref) {
+export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(
+	function PromptPicker({ onSelect, onDone, externalSearch = "", containerStyle }, ref) {
 		const [highlightedIndex, setHighlightedIndex] = useState(0);
-		const [customActions, setCustomActions] = useState<QuickAskActionRead[]>([]);
+		const [customPrompts, setCustomPrompts] = useState<PromptRead[]>([]);
 		const scrollContainerRef = useRef<HTMLDivElement>(null);
 		const shouldScrollRef = useRef(false);
 		const itemRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
 
 		useEffect(() => {
-			quickAskActionsApiService.list().then(setCustomActions).catch(() => {});
+			promptsApiService.list().then(setCustomPrompts).catch(() => {});
 		}, []);
 
 		const allActions = useMemo(() => {
-			const customs = customActions.map((a) => ({
+			const customs = customPrompts.map((a) => ({
 				name: a.name,
 				prompt: a.prompt,
 				mode: a.mode as "transform" | "explore",
 				icon: a.icon || "zap",
 			}));
 			return [...DEFAULT_ACTIONS, ...customs];
-		}, [customActions]);
+		}, [customPrompts]);
 
 		const filtered = useMemo(() => {
 			if (!externalSearch) return allActions;

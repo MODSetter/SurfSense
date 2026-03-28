@@ -3,7 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 
-class QuickAskActionCreate(BaseModel):
+class PromptCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     prompt: str = Field(..., min_length=1)
     mode: str = Field(..., pattern="^(transform|explore)$")
@@ -11,14 +11,14 @@ class QuickAskActionCreate(BaseModel):
     search_space_id: int | None = None
 
 
-class QuickAskActionUpdate(BaseModel):
+class PromptUpdate(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=200)
     prompt: str | None = Field(None, min_length=1)
     mode: str | None = Field(None, pattern="^(transform|explore)$")
     icon: str | None = Field(None, max_length=50)
 
 
-class QuickAskActionRead(BaseModel):
+class PromptRead(BaseModel):
     id: int
     name: str
     prompt: str

@@ -57,7 +57,7 @@ import {
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { UserMessage } from "@/components/assistant-ui/user-message";
 import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/components/layout/ui/sidebar/SidebarSlideOutPanel";
-import { ActionPicker, type ActionPickerRef } from "@/components/new-chat/action-picker";
+import { PromptPicker, type PromptPickerRef } from "@/components/new-chat/prompt-picker";
 import {
 	DocumentMentionPicker,
 	type DocumentMentionPickerRef,
@@ -299,13 +299,13 @@ const Composer: FC = () => {
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
 	const setSidebarDocs = useSetAtom(sidebarSelectedDocumentsAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
-	const [showActionPicker, setShowActionPicker] = useState(false);
+	const [showPromptPicker, setShowPromptPicker] = useState(false);
 	const [mentionQuery, setMentionQuery] = useState("");
 	const [actionQuery, setActionQuery] = useState("");
 	const editorRef = useRef<InlineMentionEditorRef>(null);
 	const editorContainerRef = useRef<HTMLDivElement>(null);
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
-	const actionPickerRef = useRef<ActionPickerRef>(null);
+	const promptPickerRef = useRef<PromptPickerRef>(null);
 	const { search_space_id, chat_id } = useParams();
 	const aui = useAui();
 	const hasAutoFocusedRef = useRef(false);
@@ -427,24 +427,24 @@ const Composer: FC = () => {
 
 	// Open action picker when / is triggered
 	const handleActionTrigger = useCallback((query: string) => {
-		setShowActionPicker(true);
+		setShowPromptPicker(true);
 		setActionQuery(query);
 	}, []);
 
 	// Close action picker and reset query
 	const handleActionClose = useCallback(() => {
-		if (showActionPicker) {
-			setShowActionPicker(false);
+		if (showPromptPicker) {
+			setShowPromptPicker(false);
 			setActionQuery("");
 		}
-	}, [showActionPicker]);
+	}, [showPromptPicker]);
 
 	// Pending action prompt stored when user picks an action
 	const pendingActionRef = useRef<{ name: string; prompt: string; mode: "transform" | "explore" } | null>(null);
 
 	const handleActionSelect = useCallback(
 		(action: { name: string; prompt: string; mode: "transform" | "explore" }) => {
-			setShowActionPicker(false);
+			setShowPromptPicker(false);
 			setActionQuery("");
 			pendingActionRef.current = action;
 			editorRef.current?.insertActionChip(action.name);
@@ -459,25 +459,25 @@ const Composer: FC = () => {
 	// Keyboard navigation for document/action picker (arrow keys, Enter, Escape)
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
-			if (showActionPicker) {
+			if (showPromptPicker) {
 				if (e.key === "ArrowDown") {
 					e.preventDefault();
-					actionPickerRef.current?.moveDown();
+					promptPickerRef.current?.moveDown();
 					return;
 				}
 				if (e.key === "ArrowUp") {
 					e.preventDefault();
-					actionPickerRef.current?.moveUp();
+					promptPickerRef.current?.moveUp();
 					return;
 				}
 				if (e.key === "Enter") {
 					e.preventDefault();
-					actionPickerRef.current?.selectHighlighted();
+					promptPickerRef.current?.selectHighlighted();
 					return;
 				}
 				if (e.key === "Escape") {
 					e.preventDefault();
-					setShowActionPicker(false);
+					setShowPromptPicker(false);
 					setActionQuery("");
 					return;
 				}
@@ -506,7 +506,7 @@ const Composer: FC = () => {
 				}
 			}
 		},
-		[showDocumentPopover, showActionPicker]
+		[showDocumentPopover, showPromptPicker]
 	);
 
 	// Submit message (blocked during streaming, document picker open, or AI responding to another user)
@@ -514,7 +514,7 @@ const Composer: FC = () => {
 		if (isThreadRunning || isBlockedByOtherUser) {
 			return;
 		}
-		if (!showDocumentPopover && !showActionPicker) {
+		if (!showDocumentPopover && !showPromptPicker) {
 			if (pendingActionRef.current) {
 				const userText = editorRef.current?.getText() ?? "";
 				const finalPrompt = pendingActionRef.current.prompt.replace("{selection}", userText);
@@ -528,7 +528,7 @@ const Composer: FC = () => {
 		}
 	}, [
 		showDocumentPopover,
-		showActionPicker,
+		showPromptPicker,
 		isThreadRunning,
 		isBlockedByOtherUser,
 		aui,
@@ -621,14 +621,14 @@ const Composer: FC = () => {
 						/>,
 						document.body
 					)}
-				{showActionPicker &&
+				{showPromptPicker &&
 					typeof document !== "undefined" &&
 					createPortal(
-						<ActionPicker
-							ref={actionPickerRef}
+						<PromptPicker
+							ref={promptPickerRef}
 							onSelect={handleActionSelect}
 							onDone={() => {
-								setShowActionPicker(false);
+								setShowPromptPicker(false);
 								setActionQuery("");
 							}}
 							externalSearch={actionQuery}

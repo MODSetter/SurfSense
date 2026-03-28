@@ -1722,13 +1722,13 @@ class SearchSpaceInvite(BaseModel, TimestampMixin):
     )
 
 
-class QuickAskActionMode(StrEnum):
+class PromptMode(StrEnum):
     TRANSFORM = "transform"
     EXPLORE = "explore"
 
 
-class QuickAskAction(BaseModel, TimestampMixin):
-    __tablename__ = "quick_ask_actions"
+class Prompt(BaseModel, TimestampMixin):
+    __tablename__ = "prompts"
 
     user_id = Column(
         UUID(as_uuid=True),
@@ -1744,7 +1744,7 @@ class QuickAskAction(BaseModel, TimestampMixin):
     )
     name = Column(String(200), nullable=False)
     prompt = Column(Text, nullable=False)
-    mode = Column(SQLAlchemyEnum(QuickAskActionMode), nullable=False)
+    mode = Column(SQLAlchemyEnum(PromptMode), nullable=False)
     icon = Column(String(50), nullable=True)
 
     user = relationship("User")
