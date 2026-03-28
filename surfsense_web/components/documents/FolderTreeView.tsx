@@ -197,9 +197,9 @@ export function FolderTreeView({
 
 	if (treeNodes.length === 0 && folders.length === 0 && documents.length === 0) {
 		return (
-			<div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 py-12 text-muted-foreground">
-				<CirclePlus className="h-10 w-10 rotate-45" />
-				<p className="text-sm">No documents yet</p>
+			<div className="flex flex-1 flex-col items-center justify-center gap-1 px-4 py-12 text-muted-foreground">
+				<p className="text-sm font-medium">No documents found</p>
+				<p className="text-xs text-muted-foreground/70">Use the upload button or connect a source above</p>
 			</div>
 		);
 	}
