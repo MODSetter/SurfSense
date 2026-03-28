@@ -7,19 +7,17 @@ import {
 	unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
 	useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
-import { CheckIcon, CopyIcon, ExternalLinkIcon } from "lucide-react";
+import { ExternalLinkIcon } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
-import type { CSSProperties } from "react";
-import { type FC, memo, type ReactNode, useState } from "react";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { materialDark, materialLight } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { memo, type ReactNode } from "react";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { ImagePreview, ImageRoot, ImageZoom } from "@/components/assistant-ui/image";
 import "katex/dist/katex.min.css";
 import { InlineCitation, UrlCitation } from "@/components/assistant-ui/inline-citation";
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
 	TableBody,
@@ -30,22 +28,32 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-function stripThemeBackgrounds(
-	theme: Record<string, CSSProperties>
-): Record<string, CSSProperties> {
-	const cleaned: Record<string, CSSProperties> = {};
-	for (const key of Object.keys(theme)) {
-		const { background, backgroundColor, ...rest } = theme[key] as CSSProperties & {
-			background?: string;
-			backgroundColor?: string;
-		};
-		cleaned[key] = rest;
-	}
-	return cleaned;
+function MarkdownCodeBlockSkeleton() {
+	return (
+		<div
+			className="mt-4 overflow-hidden rounded-2xl border"
+			style={{ background: "var(--syntax-bg)" }}
+		>
+			<div className="flex items-center justify-between gap-4 border-b px-4 py-2">
+				<Skeleton className="h-3 w-16" />
+				<Skeleton className="h-8 w-8 rounded-md" />
+			</div>
+			<div className="space-y-2 p-4">
+				<Skeleton className="h-4 w-11/12" />
+				<Skeleton className="h-4 w-10/12" />
+				<Skeleton className="h-4 w-8/12" />
+				<Skeleton className="h-4 w-9/12" />
+			</div>
+		</div>
+	);
 }
 
-const cleanMaterialDark = stripThemeBackgrounds(materialDark);
-const cleanMaterialLight = stripThemeBackgrounds(materialLight);
+const LazyMarkdownCodeBlock = dynamic(
+	() => import("./markdown-code-block").then((mod) => mod.MarkdownCodeBlock),
+	{
+		loading: () => <MarkdownCodeBlockSkeleton />,
+	}
+);
 
 // Storage for URL citations replaced during preprocess to avoid GFM autolink interference.
 // Populated in preprocessMarkdown, consumed in parseTextWithCitations.
@@ -177,39 +185,6 @@ const MarkdownTextImpl = () => {
 };
 
 export const MarkdownText = memo(MarkdownTextImpl);
-
-const InlineCodeHeader: FC<{ language: string; code: string }> = ({ language, code }) => {
-	const { isCopied, copyToClipboard } = useCopyToClipboard();
-	const onCopy = () => {
-		if (!code || isCopied) return;
-		copyToClipboard(code);
-	};
-
-	return (
-		<div className="flex items-center justify-between gap-4 px-4 py-2 font-semibold text-muted-foreground text-sm">
-			<span className="lowercase text-xs">{language}</span>
-			<TooltipIconButton tooltip="Copy" onClick={onCopy}>
-				{!isCopied && <CopyIcon />}
-				{isCopied && <CheckIcon />}
-			</TooltipIconButton>
-		</div>
-	);
-};
-
-const useCopyToClipboard = ({ copiedDuration = 3000 }: { copiedDuration?: number } = {}) => {
-	const [isCopied, setIsCopied] = useState<boolean>(false);
-
-	const copyToClipboard = (value: string) => {
-		if (!value) return;
-
-		navigator.clipboard.writeText(value).then(() => {
-			setIsCopied(true);
-			setTimeout(() => setIsCopied(false), copiedDuration);
-		});
-	};
-
-	return { isCopied, copyToClipboard };
-};
 
 /**
  * Helper to process children and replace citation patterns with components
@@ -426,19 +401,13 @@ const defaultComponents = memoizeMarkdownComponents({
 		}
 		const language = /language-(\w+)/.exec(className || "")?.[1] ?? "text";
 		const codeString = String(children).replace(/\n$/, "");
-		const syntaxStyle = resolvedTheme === "dark" ? cleanMaterialDark : cleanMaterialLight;
 		return (
-			<div className="mt-4 overflow-hidden rounded-2xl" style={{ background: "var(--syntax-bg)" }}>
-				<InlineCodeHeader language={language} code={codeString} />
-				<SyntaxHighlighter
-					style={syntaxStyle}
-					language={language}
-					PreTag="div"
-					customStyle={{ margin: 0, background: "transparent" }}
-				>
-					{codeString}
-				</SyntaxHighlighter>
-			</div>
+			<LazyMarkdownCodeBlock
+				className={className}
+				language={language}
+				codeText={codeString}
+				isDarkMode={resolvedTheme === "dark"}
+			/>
 		);
 	},
 	strong: ({ className, children, ...props }) => (
