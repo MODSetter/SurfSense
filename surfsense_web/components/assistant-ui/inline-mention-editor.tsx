@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
 import {
 	createElement,
 	forwardRef,
@@ -34,6 +34,8 @@ export interface InlineMentionEditorRef {
 		statusLabel: string | null,
 		statusKind?: "pending" | "processing" | "ready" | "failed"
 	) => void;
+	insertActionChip: (name: string) => void;
+	getSelectedAction: () => string | null;
 }
 
 interface InlineMentionEditorProps {
@@ -42,6 +44,7 @@ interface InlineMentionEditorProps {
 	onMentionClose?: () => void;
 	onActionTrigger?: (query: string) => void;
 	onActionClose?: () => void;
+	onActionRemove?: () => void;
 	onSubmit?: () => void;
 	onChange?: (text: string, docs: MentionedDocument[]) => void;
 	onDocumentRemove?: (docId: number, docType?: string) => void;
@@ -54,6 +57,7 @@ interface InlineMentionEditorProps {
 
 // Unique data attribute to identify chip elements
 const CHIP_DATA_ATTR = "data-mention-chip";
+const ACTION_CHIP_ATTR = "data-action-chip";
 const CHIP_ID_ATTR = "data-mention-id";
 const CHIP_DOCTYPE_ATTR = "data-mention-doctype";
 const CHIP_STATUS_ATTR = "data-mention-status";
@@ -94,6 +98,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			onMentionClose,
 			onActionTrigger,
 			onActionClose,
+			onActionRemove,
 			onSubmit,
 			onChange,
 			onDocumentRemove,
@@ -168,6 +173,11 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 
 				if (node.nodeType === Node.ELEMENT_NODE) {
 					const element = node as Element;
+
+					// Action chips are invisible in the text output
+					if (element.hasAttribute(ACTION_CHIP_ATTR)) {
+						return "";
+					}
 
 					// Preserve mention chips as inline @title tokens.
 					if (element.hasAttribute(CHIP_DATA_ATTR)) {
@@ -281,6 +291,115 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			},
 			[focusAtEnd, onDocumentRemove]
 		);
+
+		const createActionChipElement = useCallback(
+			(name: string): HTMLSpanElement => {
+				const chip = document.createElement("span");
+				chip.setAttribute(ACTION_CHIP_ATTR, name);
+				chip.contentEditable = "false";
+				chip.className =
+					"inline-flex items-center gap-1 mx-0.5 px-1.5 py-0.5 rounded-md bg-accent border text-xs font-medium text-foreground select-none cursor-default";
+				chip.style.userSelect = "none";
+				chip.style.verticalAlign = "baseline";
+
+				const iconSpan = document.createElement("span");
+				iconSpan.className = "flex items-center text-muted-foreground";
+				iconSpan.innerHTML = ReactDOMServer.renderToString(
+					createElement(Sparkles, { className: "h-3 w-3" })
+				);
+
+				const titleSpan = document.createElement("span");
+				titleSpan.textContent = name;
+
+				const removeBtn = document.createElement("button");
+				removeBtn.type = "button";
+				removeBtn.className =
+					"ml-0.5 flex items-center text-muted-foreground hover:text-foreground transition-colors";
+				removeBtn.innerHTML = ReactDOMServer.renderToString(
+					createElement(X, { className: "h-3 w-3", strokeWidth: 2.5 })
+				);
+				removeBtn.onclick = (e) => {
+					e.preventDefault();
+					e.stopPropagation();
+					chip.remove();
+					onActionRemove?.();
+					focusAtEnd();
+				};
+
+				chip.appendChild(iconSpan);
+				chip.appendChild(titleSpan);
+				chip.appendChild(removeBtn);
+
+				return chip;
+			},
+			[focusAtEnd, onActionRemove]
+		);
+
+		const insertActionChip = useCallback(
+			(name: string) => {
+				if (!editorRef.current) return;
+
+				// Remove any existing action chip
+				const existing = editorRef.current.querySelector(`[${ACTION_CHIP_ATTR}]`);
+				if (existing) existing.remove();
+
+				// Find and remove the /query text before cursor
+				const selection = window.getSelection();
+				if (selection && selection.rangeCount > 0) {
+					const range = selection.getRangeAt(0);
+					const textNode = range.startContainer;
+
+					if (textNode.nodeType === Node.TEXT_NODE) {
+						const text = textNode.textContent || "";
+						const cursorPos = range.startOffset;
+
+						let slashIndex = -1;
+						for (let i = cursorPos - 1; i >= 0; i--) {
+							if (text[i] === "/") {
+								slashIndex = i;
+								break;
+							}
+						}
+
+						if (slashIndex !== -1) {
+							const beforeSlash = text.slice(0, slashIndex);
+							const afterCursor = text.slice(cursorPos);
+							const chip = createActionChipElement(name);
+							const parent = textNode.parentNode;
+
+							if (parent) {
+								const beforeNode = document.createTextNode(beforeSlash);
+								const afterNode = document.createTextNode(` ${afterCursor}`);
+								parent.insertBefore(beforeNode, textNode);
+								parent.insertBefore(chip, textNode);
+								parent.insertBefore(afterNode, textNode);
+								parent.removeChild(textNode);
+
+								const newRange = document.createRange();
+								newRange.setStart(afterNode, 1);
+								newRange.collapse(true);
+								selection.removeAllRanges();
+								selection.addRange(newRange);
+							}
+							return;
+						}
+					}
+				}
+
+				// Fallback: insert at beginning
+				const chip = createActionChipElement(name);
+				editorRef.current.insertBefore(chip, editorRef.current.firstChild);
+				editorRef.current.insertBefore(document.createTextNode(" "), chip.nextSibling);
+				focusAtEnd();
+			},
+			[createActionChipElement, focusAtEnd]
+		);
+
+		const getSelectedAction = useCallback((): string | null => {
+			if (!editorRef.current) return null;
+			const chip = editorRef.current.querySelector(`[${ACTION_CHIP_ATTR}]`);
+			return chip?.getAttribute(ACTION_CHIP_ATTR) ?? null;
+		}, []);
 
 		// Insert a document chip at the current cursor position
 		const insertDocumentChip = useCallback(
@@ -477,6 +596,8 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			insertDocumentChip,
 			removeDocumentChip,
 			setDocumentChipStatus,
+			insertActionChip,
+			getSelectedAction,
 		}));
 
 		// Handle input changes

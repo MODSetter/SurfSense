@@ -439,28 +439,22 @@ const Composer: FC = () => {
 		}
 	}, [showActionPicker]);
 
-	// Handle action selection: prepend prompt template and auto-submit
+	// Pending action prompt stored when user picks an action
+	const pendingActionRef = useRef<{ name: string; prompt: string; mode: "transform" | "explore" } | null>(null);
+
 	const handleActionSelect = useCallback(
 		(action: { name: string; prompt: string; mode: "transform" | "explore" }) => {
 			setShowActionPicker(false);
 			setActionQuery("");
-
-			if (editorRef.current) {
-				const text = editorRef.current.getText();
-				// Remove the /query from the text
-				const slashIndex = text.lastIndexOf("/");
-				const userText = slashIndex !== -1 ? text.substring(0, slashIndex).trim() : text;
-				const finalPrompt = action.prompt.replace("{selection}", userText);
-
-				aui.composer().setText(finalPrompt);
-				aui.composer().send();
-				editorRef.current.clear();
-				setMentionedDocuments([]);
-				setSidebarDocs([]);
-			}
+			pendingActionRef.current = action;
+			editorRef.current?.insertActionChip(action.name);
 		},
-		[aui, setMentionedDocuments, setSidebarDocs]
+		[]
 	);
+
+	const handleActionRemove = useCallback(() => {
+		pendingActionRef.current = null;
+	}, []);
 
 	// Keyboard navigation for document/action picker (arrow keys, Enter, Escape)
 	const handleKeyDown = useCallback(
@@ -520,7 +514,13 @@ const Composer: FC = () => {
 		if (isThreadRunning || isBlockedByOtherUser) {
 			return;
 		}
-		if (!showDocumentPopover) {
+		if (!showDocumentPopover && !showActionPicker) {
+			if (pendingActionRef.current) {
+				const userText = editorRef.current?.getText() ?? "";
+				const finalPrompt = pendingActionRef.current.prompt.replace("{selection}", userText);
+				aui.composer().setText(finalPrompt);
+				pendingActionRef.current = null;
+			}
 			aui.composer().send();
 			editorRef.current?.clear();
 			setMentionedDocuments([]);
@@ -528,6 +528,7 @@ const Composer: FC = () => {
 		}
 	}, [
 		showDocumentPopover,
+		showActionPicker,
 		isThreadRunning,
 		isBlockedByOtherUser,
 		aui,
@@ -586,6 +587,7 @@ const Composer: FC = () => {
 						onMentionClose={handleMentionClose}
 						onActionTrigger={handleActionTrigger}
 						onActionClose={handleActionClose}
+						onActionRemove={handleActionRemove}
 						onChange={handleEditorChange}
 						onDocumentRemove={handleDocumentRemove}
 						onSubmit={handleSubmit}
@@ -633,7 +635,7 @@ const Composer: FC = () => {
 							containerStyle={{
 								position: "fixed",
 								bottom: editorContainerRef.current
-									? `${window.innerHeight - editorContainerRef.current.getBoundingClientRect().top + 8}px`
+									? `${window.innerHeight - editorContainerRef.current.getBoundingClientRect().top + 12}px`
 									: "200px",
 								left: editorContainerRef.current
 									? `${editorContainerRef.current.getBoundingClientRect().left}px`
