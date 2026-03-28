@@ -10,7 +10,9 @@ import {
 	PenLine,
 	Search,
 	Zap,
+	Plus,
 } from "lucide-react";
+import { useSetAtom } from "jotai";
 import {
 	forwardRef,
 	useCallback,
@@ -21,6 +23,7 @@ import {
 	useState,
 } from "react";
 
+import { userSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
 import type { PromptRead } from "@/contracts/types/prompts.types";
 import { promptsApiService } from "@/lib/apis/prompts-api.service";
 import { cn } from "@/lib/utils";
@@ -63,6 +66,7 @@ const DEFAULT_ACTIONS: { name: string; prompt: string; mode: "transform" | "expl
 
 export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(
 	function PromptPicker({ onSelect, onDone, externalSearch = "", containerStyle }, ref) {
+		const setUserSettingsDialog = useSetAtom(userSettingsDialogAtom);
 		const [highlightedIndex, setHighlightedIndex] = useState(0);
 		const [customPrompts, setCustomPrompts] = useState<PromptRead[]>([]);
 		const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -147,13 +151,16 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(
 
 		if (filtered.length === 0) return null;
 
+		const defaultFiltered = filtered.filter((_, i) => i < DEFAULT_ACTIONS.length);
+		const customFiltered = filtered.filter((_, i) => i >= DEFAULT_ACTIONS.length);
+
 		return (
 			<div
 				className="w-64 rounded-lg border bg-popover shadow-lg overflow-hidden"
 				style={containerStyle}
 			>
 				<div ref={scrollContainerRef} className="max-h-48 overflow-y-auto py-1">
-					{filtered.map((action, index) => (
+					{defaultFiltered.map((action, index) => (
 						<button
 							key={action.name}
 							ref={(el) => {
@@ -172,6 +179,46 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(
 							<span className="truncate">{action.name}</span>
 						</button>
 					))}
+
+					{customFiltered.length > 0 && (
+						<div className="my-1 h-px bg-border mx-2" />
+					)}
+
+					{customFiltered.map((action, i) => {
+						const index = defaultFiltered.length + i;
+						return (
+							<button
+								key={action.name}
+								ref={(el) => {
+									if (el) itemRefs.current.set(index, el);
+									else itemRefs.current.delete(index);
+								}}
+								type="button"
+								onClick={() => handleSelect(index)}
+								onMouseEnter={() => setHighlightedIndex(index)}
+								className={cn(
+									"flex w-full items-center gap-2 px-3 py-1.5 text-sm cursor-pointer",
+									index === highlightedIndex ? "bg-accent" : "hover:bg-accent/50"
+								)}
+							>
+								<span className="text-muted-foreground"><Zap className="size-3.5" /></span>
+								<span className="truncate">{action.name}</span>
+							</button>
+						);
+					})}
+
+					<div className="my-1 h-px bg-border mx-2" />
+					<button
+						type="button"
+						onClick={() => {
+							onDone();
+							setUserSettingsDialog({ open: true, initialTab: "prompts" });
+						}}
+						className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 cursor-pointer"
+					>
+						<Plus className="size-3.5" />
+						<span>Create prompt</span>
+					</button>
 				</div>
 			</div>
 		);
