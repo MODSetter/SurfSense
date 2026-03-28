@@ -695,6 +695,10 @@ export function OnboardingTour() {
 		setIsActive(false);
 	}, [user?.id]);
 
+	const handleAnimationEnd = useCallback(() => {
+		setShouldAnimate(false);
+	}, []);
+
 	// Handle escape key
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
@@ -767,7 +771,7 @@ export function OnboardingTour() {
 							onSkip={handleSkip}
 							isDarkMode={isDarkMode}
 							shouldAnimate={shouldAnimate}
-							onAnimationEnd={() => setShouldAnimate(false)}
+							onAnimationEnd={handleAnimationEnd}
 						/>
 					</>
 				)}
