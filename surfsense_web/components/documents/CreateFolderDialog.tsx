@@ -82,7 +82,7 @@ export function CreateFolderDialog({
 						/>
 					</div>
 
-					<DialogFooter className="flex-row justify-end gap-2 pt-2 sm:pt-3">
+					<DialogFooter className="flex-row justify-end pt-2 sm:pt-3">
 						<Button
 							type="button"
 							variant="secondary"

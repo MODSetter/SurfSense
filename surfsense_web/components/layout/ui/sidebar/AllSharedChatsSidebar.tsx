@@ -496,7 +496,7 @@ export function AllSharedChatsSidebarContent({
 							}
 						}}
 					/>
-					<DialogFooter className="flex gap-2 sm:justify-end">
+					<DialogFooter className="flex sm:justify-end">
 						<Button
 							variant="secondary"
 							onClick={() => setShowRenameDialog(false)}
