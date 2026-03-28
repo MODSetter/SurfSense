@@ -21,6 +21,8 @@ import {
 	useState,
 } from "react";
 
+import type { QuickAskActionRead } from "@/contracts/types/quick-ask-actions.types";
+import { quickAskActionsApiService } from "@/lib/apis/quick-ask-actions-api.service";
 import { cn } from "@/lib/utils";
 
 export interface ActionPickerRef {
@@ -62,11 +64,24 @@ const DEFAULT_ACTIONS: { name: string; prompt: string; mode: "transform" | "expl
 export const ActionPicker = forwardRef<ActionPickerRef, ActionPickerProps>(
 	function ActionPicker({ onSelect, onDone, externalSearch = "", containerStyle }, ref) {
 		const [highlightedIndex, setHighlightedIndex] = useState(0);
+		const [customActions, setCustomActions] = useState<QuickAskActionRead[]>([]);
 		const scrollContainerRef = useRef<HTMLDivElement>(null);
 		const shouldScrollRef = useRef(false);
 		const itemRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
 
-		const allActions = DEFAULT_ACTIONS;
+		useEffect(() => {
+			quickAskActionsApiService.list().then(setCustomActions).catch(() => {});
+		}, []);
+
+		const allActions = useMemo(() => {
+			const customs = customActions.map((a) => ({
+				name: a.name,
+				prompt: a.prompt,
+				mode: a.mode as "transform" | "explore",
+				icon: a.icon || "zap",
+			}));
+			return [...DEFAULT_ACTIONS, ...customs];
+		}, [customActions]);
 
 		const filtered = useMemo(() => {
 			if (!externalSearch) return allActions;
