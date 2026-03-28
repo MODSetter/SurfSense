@@ -13,7 +13,7 @@ import {
 	Save,
 	Shuffle,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import {
 	globalImageGenConfigsAtom,
@@ -118,18 +118,11 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		image_generation_config_id: preferences.image_generation_config_id ?? "",
 	});
 
-	const [hasChanges, setHasChanges] = useState(false);
+	const hasChanges =
+		assignments.agent_llm_id !== (preferences.agent_llm_id ?? "") ||
+		assignments.document_summary_llm_id !== (preferences.document_summary_llm_id ?? "") ||
+		assignments.image_generation_config_id !== (preferences.image_generation_config_id ?? "");
 	const [isSaving, setIsSaving] = useState(false);
-
-	useEffect(() => {
-		const newAssignments = {
-			agent_llm_id: preferences.agent_llm_id ?? "",
-			document_summary_llm_id: preferences.document_summary_llm_id ?? "",
-			image_generation_config_id: preferences.image_generation_config_id ?? "",
-		};
-		setAssignments(newAssignments);
-		setHasChanges(false);
-	}, [preferences]);
 
 	const handleRoleAssignment = (prefKey: string, configId: string) => {
 		const newAssignments = {
@@ -138,20 +131,6 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		};
 
 		setAssignments(newAssignments);
-
-		const currentPrefs = {
-			agent_llm_id: preferences.agent_llm_id ?? "",
-			document_summary_llm_id: preferences.document_summary_llm_id ?? "",
-			image_generation_config_id: preferences.image_generation_config_id ?? "",
-		};
-
-		const hasChangesNow = Object.keys(newAssignments).some(
-			(key) =>
-				newAssignments[key as keyof typeof newAssignments] !==
-				currentPrefs[key as keyof typeof currentPrefs]
-		);
-
-		setHasChanges(hasChangesNow);
 	};
 
 	const handleSave = async () => {
@@ -171,7 +150,6 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 			data: numericAssignments,
 		});
 
-		setHasChanges(false);
 		toast.success("Role assignments saved successfully!");
 
 		setIsSaving(false);
@@ -183,7 +161,6 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 			document_summary_llm_id: preferences.document_summary_llm_id ?? "",
 			image_generation_config_id: preferences.image_generation_config_id ?? "",
 		});
-		setHasChanges(false);
 	};
 
 	const isAssignmentComplete =
