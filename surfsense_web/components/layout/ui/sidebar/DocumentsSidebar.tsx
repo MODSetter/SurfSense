@@ -18,6 +18,7 @@ import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dial
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { expandedFolderIdsAtom } from "@/atoms/documents/folder.atoms";
+import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { openDocumentTabAtom } from "@/atoms/tabs/tabs.atom";
 import { CreateFolderDialog } from "@/components/documents/CreateFolderDialog";
 import type { DocumentNodeDoc } from "@/components/documents/DocumentNode";
@@ -75,6 +76,7 @@ export function DocumentsSidebar({
 	const isMobile = !useMediaQuery("(min-width: 640px)");
 	const searchSpaceId = Number(params.search_space_id);
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
+	const setRightPanelCollapsed = useSetAtom(rightPanelCollapsedAtom);
 	const openDocumentTab = useSetAtom(openDocumentTabAtom);
 	const { data: connectors } = useAtomValue(connectorsAtom);
 	const connectorCount = connectors?.length ?? 0;
@@ -459,12 +461,16 @@ export function DocumentsSidebar({
 	useEffect(() => {
 		const handleEscape = (e: KeyboardEvent) => {
 			if (e.key === "Escape" && open) {
-				onOpenChange(false);
+				if (isMobile) {
+					onOpenChange(false);
+				} else {
+					setRightPanelCollapsed(true);
+				}
 			}
 		};
 		document.addEventListener("keydown", handleEscape);
 		return () => document.removeEventListener("keydown", handleEscape);
-	}, [open, onOpenChange]);
+	}, [open, onOpenChange, isMobile, setRightPanelCollapsed]);
 
 	const documentsContent = (
 		<>
