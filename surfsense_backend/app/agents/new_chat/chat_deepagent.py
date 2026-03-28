@@ -305,6 +305,12 @@ async def create_surfsense_deep_agent(
         ]
         modified_disabled_tools.extend(google_drive_tools)
 
+    has_onedrive_connector = (
+        available_connectors is not None and "ONEDRIVE_FILE" in available_connectors
+    )
+    if not has_onedrive_connector:
+        modified_disabled_tools.extend(["create_onedrive_file", "delete_onedrive_file"])
+
     # Disable Google Calendar action tools if no Google Calendar connector is configured
     has_google_calendar_connector = (
         available_connectors is not None
