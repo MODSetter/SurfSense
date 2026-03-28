@@ -24,6 +24,10 @@ async def list_folder_contents(
 
         for item in items:
             item["isFolder"] = is_folder(item)
+            if item["isFolder"]:
+                item.setdefault("mimeType", "application/vnd.ms-folder")
+            else:
+                item.setdefault("mimeType", item.get("file", {}).get("mimeType", "application/octet-stream"))
 
         items.sort(key=lambda x: (not x["isFolder"], x.get("name", "").lower()))
 

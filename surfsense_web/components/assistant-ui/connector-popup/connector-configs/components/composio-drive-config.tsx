@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import type { FC } from "react";
 import { useCallback, useEffect, useState } from "react";
-import { ComposioDriveFolderTree } from "@/components/connectors/composio-drive-folder-tree";
+import { DriveFolderTree, type SelectedFolder } from "@/components/connectors/drive-folder-tree";
 import { Label } from "@/components/ui/label";
 import {
 	Select,
@@ -23,12 +23,8 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { connectorsApiService } from "@/lib/apis/connectors-api.service";
 import type { ConnectorConfigProps } from "../index";
-
-interface SelectedFolder {
-	id: string;
-	name: string;
-}
 
 interface IndexingOptions {
 	max_files_per_folder: number;
@@ -101,6 +97,16 @@ export const ComposioDriveConfig: FC<ConnectorConfigProps> = ({ connector, onCon
 	const handleAuthError = useCallback(() => {
 		setAuthError(true);
 	}, []);
+
+	const fetchItems = useCallback(
+		async (parentId?: string) => {
+			return connectorsApiService.listComposioDriveFolders({
+				connector_id: connector.id,
+				parent_id: parentId,
+			});
+		},
+		[connector.id]
+	);
 
 	const [isEditMode] = useState(() => existingFolders.length > 0 || existingFiles.length > 0);
 	const [isFolderTreeOpen, setIsFolderTreeOpen] = useState(!isEditMode);
@@ -255,24 +261,28 @@ export const ComposioDriveConfig: FC<ConnectorConfigProps> = ({ connector, onCon
 							)}
 						</button>
 						{isFolderTreeOpen && (
-							<ComposioDriveFolderTree
-								connectorId={connector.id}
+							<DriveFolderTree
+								fetchItems={fetchItems}
 								selectedFolders={selectedFolders}
 								onSelectFolders={handleSelectFolders}
 								selectedFiles={selectedFiles}
 								onSelectFiles={handleSelectFiles}
 								onAuthError={handleAuthError}
+								rootLabel="My Drive"
+								providerName="Google Drive"
 							/>
 						)}
 					</div>
 				) : (
-					<ComposioDriveFolderTree
-						connectorId={connector.id}
+					<DriveFolderTree
+						fetchItems={fetchItems}
 						selectedFolders={selectedFolders}
 						onSelectFolders={handleSelectFolders}
 						selectedFiles={selectedFiles}
 						onSelectFiles={handleSelectFiles}
 						onAuthError={handleAuthError}
+						rootLabel="My Drive"
+						providerName="Google Drive"
 					/>
 				)}
 			</div>

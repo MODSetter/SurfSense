@@ -1,6 +1,8 @@
 "use client";
 
 import {
+	ChevronDown,
+	ChevronRight,
 	File,
 	FileSpreadsheet,
 	FileText,
@@ -11,7 +13,7 @@ import {
 } from "lucide-react";
 import type { FC } from "react";
 import { useCallback, useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { DriveFolderTree, type SelectedFolder } from "@/components/connectors/drive-folder-tree";
 import { Label } from "@/components/ui/label";
 import {
 	Select,
@@ -20,16 +22,9 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
-import { type OneDrivePickerResult, useOneDrivePicker } from "@/hooks/use-onedrive-picker";
+import { connectorsApiService } from "@/lib/apis/connectors-api.service";
 import type { ConnectorConfigProps } from "../index";
-
-interface SelectedItem {
-	id: string;
-	name: string;
-	driveId?: string;
-}
 
 interface IndexingOptions {
 	max_files_per_folder: number;
@@ -43,7 +38,7 @@ const DEFAULT_INDEXING_OPTIONS: IndexingOptions = {
 	include_subfolders: true,
 };
 
-function getFileIconFromName(fileName: string, className = "size-3.5 shrink-0") {
+function getFileIconFromName(fileName: string, className: string = "size-3.5 shrink-0") {
 	const lowerName = fileName.toLowerCase();
 	if (lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls") || lowerName.endsWith(".csv")) {
 		return <FileSpreadsheet className={`${className} text-muted-foreground`} />;
@@ -61,18 +56,39 @@ function getFileIconFromName(fileName: string, className = "size-3.5 shrink-0") 
 }
 
 export const OneDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigChange }) => {
-	const existingFolders = (connector.config?.selected_folders as SelectedItem[] | undefined) || [];
-	const existingFiles = (connector.config?.selected_files as SelectedItem[] | undefined) || [];
+	const existingFolders =
+		(connector.config?.selected_folders as SelectedFolder[] | undefined) || [];
+	const existingFiles = (connector.config?.selected_files as SelectedFolder[] | undefined) || [];
 	const existingIndexingOptions =
 		(connector.config?.indexing_options as IndexingOptions | undefined) || DEFAULT_INDEXING_OPTIONS;
 
-	const [selectedFolders, setSelectedFolders] = useState<SelectedItem[]>(existingFolders);
-	const [selectedFiles, setSelectedFiles] = useState<SelectedItem[]>(existingFiles);
+	const [selectedFolders, setSelectedFolders] = useState<SelectedFolder[]>(existingFolders);
+	const [selectedFiles, setSelectedFiles] = useState<SelectedFolder[]>(existingFiles);
 	const [indexingOptions, setIndexingOptions] = useState<IndexingOptions>(existingIndexingOptions);
+	const [authError, setAuthError] = useState(false);
+
+	const isAuthExpired = connector.config?.auth_expired === true || authError;
+
+	const handleAuthError = useCallback(() => {
+		setAuthError(true);
+	}, []);
+
+	const fetchItems = useCallback(
+		async (parentId?: string) => {
+			return connectorsApiService.listOneDriveFolders({
+				connector_id: connector.id,
+				parent_id: parentId,
+			});
+		},
+		[connector.id]
+	);
+
+	const [isEditMode] = useState(() => existingFolders.length > 0 || existingFiles.length > 0);
+	const [isFolderTreeOpen, setIsFolderTreeOpen] = useState(!isEditMode);
 
 	useEffect(() => {
-		const folders = (connector.config?.selected_folders as SelectedItem[] | undefined) || [];
-		const files = (connector.config?.selected_files as SelectedItem[] | undefined) || [];
+		const folders = (connector.config?.selected_folders as SelectedFolder[] | undefined) || [];
+		const files = (connector.config?.selected_files as SelectedFolder[] | undefined) || [];
 		const options =
 			(connector.config?.indexing_options as IndexingOptions | undefined) ||
 			DEFAULT_INDEXING_OPTIONS;
@@ -82,9 +98,9 @@ export const OneDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCh
 	}, [connector.config]);
 
 	const updateConfig = (
-		folders: SelectedItem[],
-		files: SelectedItem[],
-		options: IndexingOptions,
+		folders: SelectedFolder[],
+		files: SelectedFolder[],
+		options: IndexingOptions
 	) => {
 		if (onConfigChange) {
 			onConfigChange({
@@ -96,30 +112,15 @@ export const OneDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCh
 		}
 	};
 
-	const handlePicked = useCallback(
-		(result: OneDrivePickerResult) => {
-			const folders = result.folders.map((f) => ({ id: f.id, name: f.name, driveId: f.driveId }));
-			const files = result.files.map((f) => ({ id: f.id, name: f.name, driveId: f.driveId }));
-			setSelectedFolders(folders);
-			setSelectedFiles(files);
-			updateConfig(folders, files, indexingOptions);
-		},
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-		[indexingOptions, connector.config],
-	);
+	const handleSelectFolders = (folders: SelectedFolder[]) => {
+		setSelectedFolders(folders);
+		updateConfig(folders, selectedFiles, indexingOptions);
+	};
 
-	const {
-		openPicker,
-		loading: pickerLoading,
-		error: pickerError,
-	} = useOneDrivePicker({
-		connectorId: connector.id,
-		onPicked: handlePicked,
-	});
-
-	const isAuthExpired =
-		connector.config?.auth_expired === true ||
-		(!!pickerError && pickerError.toLowerCase().includes("authentication expired"));
+	const handleSelectFiles = (files: SelectedFolder[]) => {
+		setSelectedFiles(files);
+		updateConfig(selectedFolders, files, indexingOptions);
+	};
 
 	const handleIndexingOptionChange = (key: keyof IndexingOptions, value: number | boolean) => {
 		const newOptions = { ...indexingOptions, [key]: value };
@@ -128,13 +129,13 @@ export const OneDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCh
 	};
 
 	const handleRemoveFolder = (folderId: string) => {
-		const newFolders = selectedFolders.filter((f) => f.id !== folderId);
+		const newFolders = selectedFolders.filter((folder) => folder.id !== folderId);
 		setSelectedFolders(newFolders);
 		updateConfig(newFolders, selectedFiles, indexingOptions);
 	};
 
 	const handleRemoveFile = (fileId: string) => {
-		const newFiles = selectedFiles.filter((f) => f.id !== fileId);
+		const newFiles = selectedFiles.filter((file) => file.id !== fileId);
 		setSelectedFiles(newFiles);
 		updateConfig(selectedFolders, newFiles, indexingOptions);
 	};
@@ -142,13 +143,13 @@ export const OneDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCh
 	const totalSelected = selectedFolders.length + selectedFiles.length;
 
 	return (
-		<div className="space-y-4">
+		<div className="space-y-6">
 			{/* Folder & File Selection */}
 			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">
 				<div className="space-y-1 sm:space-y-2">
 					<h3 className="font-medium text-sm sm:text-base">Folder & File Selection</h3>
 					<p className="text-xs sm:text-sm text-muted-foreground">
-						Select specific folders and/or individual files to index.
+						Select specific folders and/or individual files to index from your OneDrive.
 					</p>
 				</div>
 
@@ -159,7 +160,7 @@ export const OneDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCh
 								const parts: string[] = [];
 								if (selectedFolders.length > 0) {
 									parts.push(
-										`${selectedFolders.length} folder${selectedFolders.length > 1 ? "s" : ""}`,
+										`${selectedFolders.length} folder${selectedFolders.length > 1 ? "s" : ""}`
 									);
 								}
 								if (selectedFiles.length > 0) {
@@ -209,22 +210,51 @@ export const OneDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCh
 					</div>
 				)}
 
-				<Button
-					type="button"
-					variant="outline"
-					onClick={openPicker}
-					disabled={pickerLoading || isAuthExpired}
-					className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-white/10 text-xs sm:text-sm h-8 sm:h-9"
-				>
-					{pickerLoading && <Spinner size="xs" className="mr-1.5" />}
-					{totalSelected > 0 ? "Change Selection" : "Select from OneDrive"}
-				</Button>
-
 				{isAuthExpired && (
 					<p className="text-xs text-amber-600 dark:text-amber-500">
 						Your OneDrive authentication has expired. Please re-authenticate using the button
 						below.
 					</p>
+				)}
+
+				{isEditMode ? (
+					<div className="space-y-2">
+						<button
+							type="button"
+							onClick={() => setIsFolderTreeOpen(!isFolderTreeOpen)}
+							className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
+						>
+							Change Selection
+							{isFolderTreeOpen ? (
+								<ChevronDown className="size-4" />
+							) : (
+								<ChevronRight className="size-4" />
+							)}
+						</button>
+						{isFolderTreeOpen && (
+							<DriveFolderTree
+								fetchItems={fetchItems}
+								selectedFolders={selectedFolders}
+								onSelectFolders={handleSelectFolders}
+								selectedFiles={selectedFiles}
+								onSelectFiles={handleSelectFiles}
+								onAuthError={handleAuthError}
+								rootLabel="OneDrive"
+								providerName="OneDrive"
+							/>
+						)}
+					</div>
+				) : (
+					<DriveFolderTree
+						fetchItems={fetchItems}
+						selectedFolders={selectedFolders}
+						onSelectFolders={handleSelectFolders}
+						selectedFiles={selectedFiles}
+						onSelectFiles={handleSelectFiles}
+						onAuthError={handleAuthError}
+						rootLabel="OneDrive"
+						providerName="OneDrive"
+					/>
 				)}
 			</div>
 
@@ -237,6 +267,7 @@ export const OneDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCh
 					</p>
 				</div>
 
+				{/* Max files per folder */}
 				<div className="space-y-2">
 					<div className="flex items-center justify-between">
 						<div className="space-y-0.5">
@@ -260,16 +291,27 @@ export const OneDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCh
 								<SelectValue placeholder="Select limit" />
 							</SelectTrigger>
 							<SelectContent className="z-[100]">
-								<SelectItem value="50">50 files</SelectItem>
-								<SelectItem value="100">100 files</SelectItem>
-								<SelectItem value="250">250 files</SelectItem>
-								<SelectItem value="500">500 files</SelectItem>
-								<SelectItem value="1000">1000 files</SelectItem>
+								<SelectItem value="50" className="text-xs sm:text-sm">
+									50 files
+								</SelectItem>
+								<SelectItem value="100" className="text-xs sm:text-sm">
+									100 files
+								</SelectItem>
+								<SelectItem value="250" className="text-xs sm:text-sm">
+									250 files
+								</SelectItem>
+								<SelectItem value="500" className="text-xs sm:text-sm">
+									500 files
+								</SelectItem>
+								<SelectItem value="1000" className="text-xs sm:text-sm">
+									1000 files
+								</SelectItem>
 							</SelectContent>
 						</Select>
 					</div>
 				</div>
 
+				{/* Incremental sync toggle */}
 				<div className="flex items-center justify-between pt-2 border-t border-slate-400/20">
 					<div className="space-y-0.5">
 						<Label htmlFor="od-incremental-sync" className="text-sm font-medium">
@@ -286,6 +328,7 @@ export const OneDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCh
 					/>
 				</div>
 
+				{/* Include subfolders toggle */}
 				<div className="flex items-center justify-between pt-2 border-t border-slate-400/20">
 					<div className="space-y-0.5">
 						<Label htmlFor="od-include-subfolders" className="text-sm font-medium">

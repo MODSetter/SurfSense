@@ -22,10 +22,6 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { useConnectorsSync } from "@/hooks/use-connectors-sync";
 import { PICKER_CLOSE_EVENT, PICKER_OPEN_EVENT } from "@/hooks/use-google-picker";
-import {
-	ONEDRIVE_PICKER_CLOSE_EVENT,
-	ONEDRIVE_PICKER_OPEN_EVENT,
-} from "@/hooks/use-onedrive-picker";
 import { cn } from "@/lib/utils";
 import { ConnectorDialogHeader } from "./connector-popup/components/connector-dialog-header";
 import { ConnectorConnectView } from "./connector-popup/connector-configs/views/connector-connect-view";
@@ -153,13 +149,9 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 			const onClose = () => setPickerOpen(false);
 			window.addEventListener(PICKER_OPEN_EVENT, onOpen);
 			window.addEventListener(PICKER_CLOSE_EVENT, onClose);
-			window.addEventListener(ONEDRIVE_PICKER_OPEN_EVENT, onOpen);
-			window.addEventListener(ONEDRIVE_PICKER_CLOSE_EVENT, onClose);
 			return () => {
 				window.removeEventListener(PICKER_OPEN_EVENT, onOpen);
 				window.removeEventListener(PICKER_CLOSE_EVENT, onClose);
-				window.removeEventListener(ONEDRIVE_PICKER_OPEN_EVENT, onOpen);
-				window.removeEventListener(ONEDRIVE_PICKER_CLOSE_EVENT, onClose);
 			};
 		}, []);
 

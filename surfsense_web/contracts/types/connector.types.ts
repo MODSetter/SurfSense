@@ -54,7 +54,7 @@ export const searchSourceConnector = z.object({
 export const googleDriveItem = z.object({
 	id: z.string(),
 	name: z.string(),
-	mimeType: z.string(),
+	mimeType: z.string().optional().default("application/octet-stream"),
 	isFolder: z.boolean(),
 	parents: z.array(z.string()).optional(),
 	size: z.coerce.number().optional(),
