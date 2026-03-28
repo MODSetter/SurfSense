@@ -1,7 +1,6 @@
 import {
 	BookOpen,
 	Brain,
-	Database,
 	FileText,
 	Film,
 	Globe,
@@ -13,7 +12,6 @@ import {
 } from "lucide-react";
 
 const TOOL_ICONS: Record<string, LucideIcon> = {
-	search_knowledge_base: Database,
 	generate_podcast: Podcast,
 	generate_video_presentation: Film,
 	generate_report: FileText,

@@ -157,7 +157,9 @@ class GoogleDriveClient:
 
     @staticmethod
     def _sync_download_file(
-        service, file_id: str, credentials: Credentials,
+        service,
+        file_id: str,
+        credentials: Credentials,
     ) -> tuple[bytes | None, str | None]:
         """Blocking download — runs on a worker thread via ``to_thread``."""
         thread = threading.current_thread().name
@@ -180,7 +182,9 @@ class GoogleDriveClient:
         except Exception as e:
             return None, f"Error downloading file: {e!s}"
         finally:
-            logger.info(f"[download] END file={file_id} thread={thread} elapsed={time.monotonic() - t0:.2f}s")
+            logger.info(
+                f"[download] END file={file_id} thread={thread} elapsed={time.monotonic() - t0:.2f}s"
+            )
 
     async def download_file(self, file_id: str) -> tuple[bytes | None, str | None]:
         """
@@ -194,12 +198,18 @@ class GoogleDriveClient:
         """
         service = await self.get_service()
         return await asyncio.to_thread(
-            self._sync_download_file, service, file_id, self._resolved_credentials,
+            self._sync_download_file,
+            service,
+            file_id,
+            self._resolved_credentials,
         )
 
     @staticmethod
     def _sync_download_file_to_disk(
-        service, file_id: str, dest_path: str, chunksize: int,
+        service,
+        file_id: str,
+        dest_path: str,
+        chunksize: int,
         credentials: Credentials,
     ) -> str | None:
         """Blocking download-to-disk — runs on a worker thread via ``to_thread``."""
@@ -223,10 +233,15 @@ class GoogleDriveClient:
         except Exception as e:
             return f"Error downloading file: {e!s}"
         finally:
-            logger.info(f"[download-to-disk] END file={file_id} thread={thread} elapsed={time.monotonic() - t0:.2f}s")
+            logger.info(
+                f"[download-to-disk] END file={file_id} thread={thread} elapsed={time.monotonic() - t0:.2f}s"
+            )
 
     async def download_file_to_disk(
-        self, file_id: str, dest_path: str, chunksize: int = 5 * 1024 * 1024,
+        self,
+        file_id: str,
+        dest_path: str,
+        chunksize: int = 5 * 1024 * 1024,
     ) -> str | None:
         """Stream file directly to disk in chunks, avoiding full in-memory buffering.
 
@@ -235,12 +250,19 @@ class GoogleDriveClient:
         service = await self.get_service()
         return await asyncio.to_thread(
             self._sync_download_file_to_disk,
-            service, file_id, dest_path, chunksize, self._resolved_credentials,
+            service,
+            file_id,
+            dest_path,
+            chunksize,
+            self._resolved_credentials,
         )
 
     @staticmethod
     def _sync_export_google_file(
-        service, file_id: str, mime_type: str, credentials: Credentials,
+        service,
+        file_id: str,
+        mime_type: str,
+        credentials: Credentials,
     ) -> tuple[bytes | None, str | None]:
         """Blocking export — runs on a worker thread via ``to_thread``."""
         thread = threading.current_thread().name
@@ -261,7 +283,9 @@ class GoogleDriveClient:
         except Exception as e:
             return None, f"Error exporting file: {e!s}"
         finally:
-            logger.info(f"[export] END file={file_id} thread={thread} elapsed={time.monotonic() - t0:.2f}s")
+            logger.info(
+                f"[export] END file={file_id} thread={thread} elapsed={time.monotonic() - t0:.2f}s"
+            )
 
     async def export_google_file(
         self, file_id: str, mime_type: str
@@ -278,7 +302,10 @@ class GoogleDriveClient:
         """
         service = await self.get_service()
         return await asyncio.to_thread(
-            self._sync_export_google_file, service, file_id, mime_type,
+            self._sync_export_google_file,
+            service,
+            file_id,
+            mime_type,
             self._resolved_credentials,
         )
 

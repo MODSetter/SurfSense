@@ -7,10 +7,10 @@ import { useTheme } from "next-themes";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
-import { useZeroDocumentTypeCounts } from "@/hooks/use-zero-document-type-counts";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useZeroDocumentTypeCounts } from "@/hooks/use-zero-document-type-counts";
 import { fetchThreads } from "@/lib/chat/thread-persistence";
 
 interface TourStep {

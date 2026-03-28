@@ -287,13 +287,9 @@ function ApprovalCard({
 						? pendingEdits.end_datetime
 						: null,
 				new_location:
-					pendingEdits.location !== (event?.location ?? "")
-						? pendingEdits.location || null
-						: null,
+					pendingEdits.location !== (event?.location ?? "") ? pendingEdits.location || null : null,
 				new_attendees:
-					attendeesArr && attendeesArr.join(",") !== origAttendees.join(",")
-						? attendeesArr
-						: null,
+					attendeesArr && attendeesArr.join(",") !== origAttendees.join(",") ? attendeesArr : null,
 			};
 		}
 		return {

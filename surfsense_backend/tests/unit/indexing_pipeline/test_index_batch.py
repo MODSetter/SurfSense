@@ -19,9 +19,7 @@ def pipeline(mock_session):
     return IndexingPipelineService(mock_session)
 
 
-async def test_calls_prepare_then_index_per_document(
-    pipeline, make_connector_document
-):
+async def test_calls_prepare_then_index_per_document(pipeline, make_connector_document):
     """index_batch calls prepare_for_indexing, then index() for each returned doc."""
     doc1 = make_connector_document(
         document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,

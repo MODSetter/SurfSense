@@ -14,7 +14,9 @@ _EMBEDDING_DIM = app_config.embedding_model_instance.dimension
 pytestmark = pytest.mark.integration
 
 
-def _drive_doc(*, unique_id: str, search_space_id: int, connector_id: int, user_id: str) -> ConnectorDocument:
+def _drive_doc(
+    *, unique_id: str, search_space_id: int, connector_id: int, user_id: str
+) -> ConnectorDocument:
     return ConnectorDocument(
         title=f"File {unique_id}.pdf",
         source_markdown=f"## Document Content\n\nText from file {unique_id}",
@@ -33,7 +35,9 @@ def _drive_doc(*, unique_id: str, search_space_id: int, connector_id: int, user_
     )
 
 
-@pytest.mark.usefixtures("patched_summarize", "patched_embed_texts", "patched_chunk_text")
+@pytest.mark.usefixtures(
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
+)
 async def test_drive_pipeline_creates_ready_document(
     db_session, db_search_space, db_connector, db_user, mocker
 ):
@@ -62,7 +66,9 @@ async def test_drive_pipeline_creates_ready_document(
     assert DocumentStatus.is_state(row.status, DocumentStatus.READY)
 
 
-@pytest.mark.usefixtures("patched_summarize", "patched_embed_texts", "patched_chunk_text")
+@pytest.mark.usefixtures(
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
+)
 async def test_drive_legacy_doc_migrated(
     db_session, db_search_space, db_connector, db_user, mocker
 ):
@@ -100,7 +106,9 @@ async def test_drive_legacy_doc_migrated(
     service = IndexingPipelineService(session=db_session)
     await service.migrate_legacy_docs([connector_doc])
 
-    result = await db_session.execute(select(Document).filter(Document.id == original_id))
+    result = await db_session.execute(
+        select(Document).filter(Document.id == original_id)
+    )
     row = result.scalars().first()
 
     assert row.document_type == DocumentType.GOOGLE_DRIVE_FILE
@@ -111,7 +119,9 @@ async def test_drive_legacy_doc_migrated(
 
 
 async def test_should_skip_file_skips_failed_document(
-    db_session, db_search_space, db_user,
+    db_session,
+    db_search_space,
+    db_user,
 ):
     """A FAILED document with unchanged md5 must be skipped — user can manually retry via Quick Index."""
     import importlib
@@ -162,7 +172,12 @@ async def test_should_skip_file_skips_failed_document(
     db_session.add(failed_doc)
     await db_session.flush()
 
-    incoming_file = {"id": file_id, "name": "Failed File.pdf", "mimeType": "application/pdf", "md5Checksum": md5}
+    incoming_file = {
+        "id": file_id,
+        "name": "Failed File.pdf",
+        "mimeType": "application/pdf",
+        "md5Checksum": md5,
+    }
 
     should_skip, msg = await _should_skip_file(db_session, incoming_file, space_id)
 

@@ -137,9 +137,7 @@ async def _filter_changes_by_folder(
             continue
 
         parents = file.get("parents", [])
-        if folder_id in parents:
-            filtered.append(change)
-        elif await _is_descendant_of(client, parents, folder_id):
+        if folder_id in parents or await _is_descendant_of(client, parents, folder_id):
             filtered.append(change)
 
     return filtered

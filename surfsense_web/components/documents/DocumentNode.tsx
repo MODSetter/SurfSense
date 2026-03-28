@@ -1,6 +1,15 @@
 "use client";
 
-import { AlertCircle, Clock, Download, Eye, MoreHorizontal, Move, PenLine, Trash2 } from "lucide-react";
+import {
+	AlertCircle,
+	Clock,
+	Download,
+	Eye,
+	MoreHorizontal,
+	Move,
+	PenLine,
+	Trash2,
+} from "lucide-react";
 import React, { useCallback, useRef, useState } from "react";
 import { useDrag } from "react-dnd";
 import { getDocumentTypeIcon } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
@@ -89,7 +98,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 	const isProcessing = statusState === "pending" || statusState === "processing";
 	const [dropdownOpen, setDropdownOpen] = useState(false);
 	const [exporting, setExporting] = useState<string | null>(null);
-	const rowRef = useRef<HTMLButtonElement>(null);
+	const rowRef = useRef<HTMLDivElement>(null);
 
 	const handleExport = useCallback(
 		(format: string) => {
@@ -102,8 +111,8 @@ export const DocumentNode = React.memo(function DocumentNode({
 	);
 
 	const attachRef = useCallback(
-		(node: HTMLButtonElement | null) => {
-			(rowRef as React.MutableRefObject<HTMLButtonElement | null>).current = node;
+		(node: HTMLDivElement | null) => {
+			(rowRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
 			drag(node);
 		},
 		[drag]
@@ -112,65 +121,73 @@ export const DocumentNode = React.memo(function DocumentNode({
 	return (
 		<ContextMenu onOpenChange={onContextMenuOpenChange}>
 			<ContextMenuTrigger asChild>
-				<button
-					type="button"
+				{/* biome-ignore lint/a11y/useSemanticElements: contains nested interactive children (Checkbox) that render as <button>, making a semantic <button> wrapper invalid */}
+				<div
+					role="button"
+					tabIndex={0}
 					ref={attachRef}
 					className={cn(
-					"group flex h-8 w-full items-center gap-2.5 rounded-md px-1 text-sm hover:bg-accent/50 cursor-pointer select-none text-left",
-					isMentioned && "bg-accent/30",
-					isDragging && "opacity-40"
+						"group flex h-8 w-full items-center gap-2.5 rounded-md px-1 text-sm hover:bg-accent/50 cursor-pointer select-none text-left",
+						isMentioned && "bg-accent/30",
+						isDragging && "opacity-40"
 					)}
 					style={{ paddingLeft: `${depth * 16 + 4}px` }}
 					onClick={handleCheckChange}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
+							handleCheckChange();
+						}
+					}}
 				>
-				{(() => {
-					if (statusState === "pending") {
+					{(() => {
+						if (statusState === "pending") {
+							return (
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
+											<Clock className="h-3.5 w-3.5 text-muted-foreground/60" />
+										</span>
+									</TooltipTrigger>
+									<TooltipContent side="top">Pending - waiting to be synced</TooltipContent>
+								</Tooltip>
+							);
+						}
+						if (statusState === "processing") {
+							return (
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
+											<Spinner size="xs" className="text-primary" />
+										</span>
+									</TooltipTrigger>
+									<TooltipContent side="top">Syncing</TooltipContent>
+								</Tooltip>
+							);
+						}
+						if (statusState === "failed") {
+							return (
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
+											<AlertCircle className="h-3.5 w-3.5 text-destructive" />
+										</span>
+									</TooltipTrigger>
+									<TooltipContent side="top" className="max-w-xs">
+										{doc.status?.reason || "Processing failed"}
+									</TooltipContent>
+								</Tooltip>
+							);
+						}
 						return (
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
-										<Clock className="h-3.5 w-3.5 text-muted-foreground/60" />
-									</span>
-								</TooltipTrigger>
-								<TooltipContent side="top">Pending - waiting to be synced</TooltipContent>
-							</Tooltip>
+							<Checkbox
+								checked={isMentioned}
+								onCheckedChange={handleCheckChange}
+								onClick={(e) => e.stopPropagation()}
+								className="h-3.5 w-3.5 shrink-0"
+							/>
 						);
-					}
-					if (statusState === "processing") {
-						return (
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
-										<Spinner size="xs" className="text-primary" />
-									</span>
-								</TooltipTrigger>
-								<TooltipContent side="top">Syncing</TooltipContent>
-							</Tooltip>
-						);
-					}
-					if (statusState === "failed") {
-						return (
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
-										<AlertCircle className="h-3.5 w-3.5 text-destructive" />
-									</span>
-								</TooltipTrigger>
-								<TooltipContent side="top" className="max-w-xs">
-									{doc.status?.reason || "Processing failed"}
-								</TooltipContent>
-							</Tooltip>
-						);
-					}
-					return (
-						<Checkbox
-							checked={isMentioned}
-							onCheckedChange={handleCheckChange}
-							onClick={(e) => e.stopPropagation()}
-							className="h-3.5 w-3.5 shrink-0"
-						/>
-					);
-				})()}
+					})()}
 
 					<span className="flex-1 min-w-0 truncate">{doc.title}</span>
 
@@ -181,17 +198,19 @@ export const DocumentNode = React.memo(function DocumentNode({
 						)}
 					</span>
 
-				<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-					<DropdownMenuTrigger asChild>
-						<Button
-							variant="ghost"
-							size="icon"
-							className={cn(
-								"hidden sm:inline-flex h-6 w-6 shrink-0 hover:bg-transparent",
-								dropdownOpen ? "opacity-100 bg-accent hover:bg-accent" : "opacity-0 group-hover:opacity-100"
-							)}
-							onClick={(e) => e.stopPropagation()}
-						>
+					<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+						<DropdownMenuTrigger asChild>
+							<Button
+								variant="ghost"
+								size="icon"
+								className={cn(
+									"hidden sm:inline-flex h-6 w-6 shrink-0 hover:bg-transparent",
+									dropdownOpen
+										? "opacity-100 bg-accent hover:bg-accent"
+										: "opacity-0 group-hover:opacity-100"
+								)}
+								onClick={(e) => e.stopPropagation()}
+							>
 								<MoreHorizontal className="h-3.5 w-3.5" />
 							</Button>
 						</DropdownMenuTrigger>
@@ -231,7 +250,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
-				</button>
+				</div>
 			</ContextMenuTrigger>
 
 			{contextMenuOpen && (

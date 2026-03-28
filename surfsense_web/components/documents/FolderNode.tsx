@@ -14,6 +14,7 @@ import {
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useDrag, useDrop } from "react-dnd";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
 	ContextMenu,
 	ContextMenuContent,
@@ -27,6 +28,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import type { FolderSelectionState } from "./FolderTreeView";
 
 export const DND_TYPES = {
 	FOLDER: "FOLDER",
@@ -49,6 +51,8 @@ interface FolderNodeProps {
 	isExpanded: boolean;
 	isRenaming: boolean;
 	childCount: number;
+	selectionState: FolderSelectionState;
+	onToggleSelect: (folderId: number, selectAll: boolean) => void;
 	onToggleExpand: (folderId: number) => void;
 	onRename: (folder: FolderDisplay, newName: string) => void;
 	onStartRename: (folderId: number) => void;
@@ -88,6 +92,8 @@ export const FolderNode = React.memo(function FolderNode({
 	isExpanded,
 	isRenaming,
 	childCount,
+	selectionState,
+	onToggleSelect,
 	onToggleExpand,
 	onRename,
 	onStartRename,
@@ -212,6 +218,10 @@ export const FolderNode = React.memo(function FolderNode({
 		onStartRename(folder.id);
 	}, [folder, onStartRename]);
 
+	const handleCheckChange = useCallback(() => {
+		onToggleSelect(folder.id, selectionState !== "all");
+	}, [folder.id, selectionState, onToggleSelect]);
+
 	const FolderIcon = isExpanded ? FolderOpen : Folder;
 
 	return (
@@ -251,6 +261,15 @@ export const FolderNode = React.memo(function FolderNode({
 							<ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
 						)}
 					</span>
+
+					<Checkbox
+						checked={
+							selectionState === "all" ? true : selectionState === "some" ? "indeterminate" : false
+						}
+						onCheckedChange={handleCheckChange}
+						onClick={(e) => e.stopPropagation()}
+						className="h-3.5 w-3.5 shrink-0"
+					/>
 
 					<FolderIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
 

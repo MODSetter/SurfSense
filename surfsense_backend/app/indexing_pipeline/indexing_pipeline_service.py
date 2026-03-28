@@ -1,15 +1,23 @@
 import asyncio
 import contextlib
+import hashlib
 import logging
 import time
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import NATIVE_TO_LEGACY_DOCTYPE, Chunk, Document, DocumentStatus
+from app.db import (
+    NATIVE_TO_LEGACY_DOCTYPE,
+    Chunk,
+    Document,
+    DocumentStatus,
+    DocumentType,
+)
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.document_chunker import chunk_text
 from app.indexing_pipeline.document_embedder import embed_texts
@@ -52,11 +60,113 @@ from app.indexing_pipeline.pipeline_logger import (
 from app.utils.perf import get_perf_logger
 
 
+@dataclass
+class PlaceholderInfo:
+    """Minimal info to create a placeholder document row for instant UI feedback.
+
+    These are created immediately when items are discovered (before content
+    extraction) so users see them in the UI via Zero sync right away.
+    """
+
+    title: str
+    document_type: DocumentType
+    unique_id: str
+    search_space_id: int
+    connector_id: int | None
+    created_by_id: str
+    metadata: dict = field(default_factory=dict)
+
+
 class IndexingPipelineService:
     """Single pipeline for indexing connector documents. All connectors use this service."""
 
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
+
+    async def create_placeholder_documents(
+        self, placeholders: list[PlaceholderInfo]
+    ) -> int:
+        """Create placeholder document rows with pending status for instant UI feedback.
+
+        These rows appear immediately in the UI via Zero sync. They are later
+        updated by prepare_for_indexing() when actual content is available.
+
+        Returns the number of placeholders successfully created.
+        Failures are logged but never block the main indexing flow.
+
+        NOTE: This method commits on ``self.session`` so the rows become
+        visible to Zero sync immediately.  Any pending ORM mutations on the
+        session are committed together, which is consistent with how other
+        mid-flow commits work in the indexing codebase (e.g. rename-only
+        updates in ``_should_skip_file``, ``migrate_legacy_docs``).
+        """
+        if not placeholders:
+            return 0
+
+        _logger = logging.getLogger(__name__)
+
+        uid_hashes: dict[str, PlaceholderInfo] = {}
+        for p in placeholders:
+            try:
+                uid_hash = compute_identifier_hash(
+                    p.document_type.value, p.unique_id, p.search_space_id
+                )
+                uid_hashes.setdefault(uid_hash, p)
+            except Exception:
+                _logger.debug(
+                    "Skipping placeholder hash for %s", p.unique_id, exc_info=True
+                )
+
+        if not uid_hashes:
+            return 0
+
+        result = await self.session.execute(
+            select(Document.unique_identifier_hash).where(
+                Document.unique_identifier_hash.in_(list(uid_hashes.keys()))
+            )
+        )
+        existing_hashes: set[str] = set(result.scalars().all())
+
+        created = 0
+        for uid_hash, p in uid_hashes.items():
+            if uid_hash in existing_hashes:
+                continue
+            try:
+                content_hash = hashlib.sha256(
+                    f"placeholder:{uid_hash}".encode()
+                ).hexdigest()
+
+                document = Document(
+                    title=p.title,
+                    document_type=p.document_type,
+                    content="Pending...",
+                    content_hash=content_hash,
+                    unique_identifier_hash=uid_hash,
+                    document_metadata=p.metadata or {},
+                    search_space_id=p.search_space_id,
+                    connector_id=p.connector_id,
+                    created_by_id=p.created_by_id,
+                    updated_at=datetime.now(UTC),
+                    status=DocumentStatus.pending(),
+                )
+                self.session.add(document)
+                created += 1
+            except Exception:
+                _logger.debug("Skipping placeholder for %s", p.unique_id, exc_info=True)
+
+        if created > 0:
+            try:
+                await self.session.commit()
+                _logger.info(
+                    "Created %d placeholder document(s) for instant UI feedback",
+                    created,
+                )
+            except IntegrityError:
+                await self.session.rollback()
+                _logger.debug("Placeholder commit failed (race condition), continuing")
+                created = 0
+
+        return created
 
     async def migrate_legacy_docs(
         self, connector_docs: list[ConnectorDocument]
@@ -77,9 +187,7 @@ class IndexingPipelineService:
                 legacy_type, doc.unique_id, doc.search_space_id
             )
             result = await self.session.execute(
-                select(Document).filter(
-                    Document.unique_identifier_hash == legacy_hash
-                )
+                select(Document).filter(Document.unique_identifier_hash == legacy_hash)
             )
             existing = result.scalars().first()
             if existing is None:
@@ -101,9 +209,7 @@ class IndexingPipelineService:
         Indexers that need heartbeat callbacks or custom per-document logic
         should call prepare_for_indexing() + index() directly instead.
         """
-        doc_map = {
-            compute_unique_identifier_hash(cd): cd for cd in connector_docs
-        }
+        doc_map = {compute_unique_identifier_hash(cd): cd for cd in connector_docs}
         documents = await self.prepare_for_indexing(connector_docs)
         results: list[Document] = []
         for document in documents:
@@ -164,6 +270,21 @@ class IndexingPipelineService:
                             existing.updated_at = datetime.now(UTC)
                             documents.append(existing)
                             log_document_requeued(ctx)
+                        continue
+
+                    dup_check = await self.session.execute(
+                        select(Document.id).filter(
+                            Document.content_hash == content_hash,
+                            Document.id != existing.id,
+                        )
+                    )
+                    if dup_check.scalars().first() is not None:
+                        if not DocumentStatus.is_state(
+                            existing.status, DocumentStatus.READY
+                        ):
+                            existing.status = DocumentStatus.failed(
+                                "Duplicate content — already indexed by another document"
+                            )
                         continue
 
                     existing.title = connector_doc.title
@@ -349,9 +470,7 @@ class IndexingPipelineService:
         perf = get_perf_logger()
         t_total = time.perf_counter()
 
-        doc_map = {
-            compute_unique_identifier_hash(cd): cd for cd in connector_docs
-        }
+        doc_map = {compute_unique_identifier_hash(cd): cd for cd in connector_docs}
         documents = await self.prepare_for_indexing(connector_docs)
 
         if not documents:
@@ -383,9 +502,7 @@ class IndexingPipelineService:
                 session_maker = get_celery_session_maker()
                 async with session_maker() as isolated_session:
                     try:
-                        refetched = await isolated_session.get(
-                            Document, document.id
-                        )
+                        refetched = await isolated_session.get(Document, document.id)
                         if refetched is None:
                             async with lock:
                                 failed_count += 1
@@ -393,9 +510,7 @@ class IndexingPipelineService:
 
                         llm = await get_llm(isolated_session)
                         iso_pipeline = IndexingPipelineService(isolated_session)
-                        result = await iso_pipeline.index(
-                            refetched, connector_doc, llm
-                        )
+                        result = await iso_pipeline.index(refetched, connector_doc, llm)
 
                         async with lock:
                             if DocumentStatus.is_state(

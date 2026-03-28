@@ -4,6 +4,13 @@ SurfSense deep agent implementation.
 This module provides the factory function for creating SurfSense deep agents
 with configurable tools via the tools registry and configurable prompts
 via NewLLMConfig.
+
+We use ``create_agent`` (from langchain) rather than ``create_deep_agent``
+(from deepagents) so that the middleware stack is fully under our control.
+This lets us swap in ``SurfSenseFilesystemMiddleware`` — a customisable
+subclass of the default ``FilesystemMiddleware`` — while preserving every
+other behaviour that ``create_deep_agent`` provides (todo-list, subagents,
+summarisation, prompt-caching, etc.).
 """
 
 import asyncio
@@ -12,8 +19,15 @@ import time
 from collections.abc import Sequence
 from typing import Any
 
-from deepagents import create_deep_agent
-from deepagents.backends.protocol import SandboxBackendProtocol
+from deepagents import SubAgent, SubAgentMiddleware, __version__ as deepagents_version
+from deepagents.backends import StateBackend
+from deepagents.graph import BASE_AGENT_PROMPT
+from deepagents.middleware.patch_tool_calls import PatchToolCallsMiddleware
+from deepagents.middleware.subagents import GENERAL_PURPOSE_SUBAGENT
+from deepagents.middleware.summarization import create_summarization_middleware
+from langchain.agents import create_agent
+from langchain.agents.middleware import TodoListMiddleware
+from langchain_anthropic.middleware import AnthropicPromptCachingMiddleware
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 from langgraph.types import Checkpointer
@@ -21,8 +35,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.new_chat.context import SurfSenseContextSchema
 from app.agents.new_chat.llm_config import AgentConfig
-from app.agents.new_chat.middleware.dedup_tool_calls import (
+from app.agents.new_chat.middleware import (
     DedupHITLToolCallsMiddleware,
+    KnowledgeBaseSearchMiddleware,
+    SurfSenseFilesystemMiddleware,
 )
 from app.agents.new_chat.system_prompt import (
     build_configurable_system_prompt,
@@ -40,15 +56,15 @@ _perf_log = get_perf_logger()
 # =============================================================================
 
 # Maps SearchSourceConnectorType enum values to the searchable document/connector types
-# used by the knowledge_base and web_search tools.
+# used by pre-search middleware and web_search.
 # Live search connectors (TAVILY_API, LINKUP_API, BAIDU_SEARCH_API) are routed to
-# the web_search tool; all others go to search_knowledge_base.
+# the web_search tool; all others are considered local/indexed data.
 _CONNECTOR_TYPE_TO_SEARCHABLE: dict[str, str] = {
     # Live search connectors (handled by web_search tool)
     "TAVILY_API": "TAVILY_API",
     "LINKUP_API": "LINKUP_API",
     "BAIDU_SEARCH_API": "BAIDU_SEARCH_API",
-    # Local/indexed connectors (handled by search_knowledge_base tool)
+    # Local/indexed connectors (handled by KB pre-search middleware)
     "SLACK_CONNECTOR": "SLACK_CONNECTOR",
     "TEAMS_CONNECTOR": "TEAMS_CONNECTOR",
     "NOTION_CONNECTOR": "NOTION_CONNECTOR",
@@ -141,13 +157,11 @@ async def create_surfsense_deep_agent(
     additional_tools: Sequence[BaseTool] | None = None,
     firecrawl_api_key: str | None = None,
     thread_visibility: ChatVisibility | None = None,
-    sandbox_backend: SandboxBackendProtocol | None = None,
 ):
     """
     Create a SurfSense deep agent with configurable tools and prompts.
 
     The agent comes with built-in tools that can be configured:
-    - search_knowledge_base: Search the user's personal knowledge base
     - generate_podcast: Generate audio podcasts from content
     - generate_image: Generate images from text descriptions using AI models
     - scrape_webpage: Extract content from webpages
@@ -179,9 +193,6 @@ async def create_surfsense_deep_agent(
                          These are always added regardless of enabled/disabled settings.
         firecrawl_api_key: Optional Firecrawl API key for premium web scraping.
                           Falls back to Chromium/Trafilatura if not provided.
-        sandbox_backend: Optional sandbox backend (e.g. DaytonaSandbox) for
-                        secure code execution. When provided, the agent gets an
-                        isolated ``execute`` tool for running shell commands.
 
     Returns:
         CompiledStateGraph: The configured deep agent
@@ -205,7 +216,7 @@ async def create_surfsense_deep_agent(
         # Create agent with only specific tools
         agent = create_surfsense_deep_agent(
             llm, search_space_id, db_session, ...,
-            enabled_tools=["search_knowledge_base", "scrape_webpage"]
+            enabled_tools=["scrape_webpage"]
         )
 
         # Create agent without podcast generation
@@ -357,6 +368,10 @@ async def create_surfsense_deep_agent(
         ]
         modified_disabled_tools.extend(confluence_tools)
 
+    # Remove direct KB search tool; we now pre-seed a scoped filesystem via middleware.
+    if "search_knowledge_base" not in modified_disabled_tools:
+        modified_disabled_tools.append("search_knowledge_base")
+
     # Build tools using the async registry (includes MCP tools)
     _t0 = time.perf_counter()
     tools = await build_tools_async(
@@ -373,7 +388,6 @@ async def create_surfsense_deep_agent(
 
     # Build system prompt based on agent_config, scoped to the tools actually enabled
     _t0 = time.perf_counter()
-    _sandbox_enabled = sandbox_backend is not None
     _enabled_tool_names = {t.name for t in tools}
     _user_disabled_tool_names = set(disabled_tools) if disabled_tools else set()
     if agent_config is not None:
@@ -382,14 +396,12 @@ async def create_surfsense_deep_agent(
             use_default_system_instructions=agent_config.use_default_system_instructions,
             citations_enabled=agent_config.citations_enabled,
             thread_visibility=thread_visibility,
-            sandbox_enabled=_sandbox_enabled,
             enabled_tool_names=_enabled_tool_names,
             disabled_tool_names=_user_disabled_tool_names,
         )
     else:
         system_prompt = build_surfsense_system_prompt(
             thread_visibility=thread_visibility,
-            sandbox_enabled=_sandbox_enabled,
             enabled_tool_names=_enabled_tool_names,
             disabled_tool_names=_user_disabled_tool_names,
         )
@@ -397,24 +409,69 @@ async def create_surfsense_deep_agent(
         "[create_agent] System prompt built in %.3fs", time.perf_counter() - _t0
     )
 
-    # Build optional kwargs for the deep agent
-    deep_agent_kwargs: dict[str, Any] = {}
-    if sandbox_backend is not None:
-        deep_agent_kwargs["backend"] = sandbox_backend
+    # -- Build the middleware stack (mirrors create_deep_agent internals) ------
+    # General-purpose subagent middleware
+    gp_middleware = [
+        TodoListMiddleware(),
+        SurfSenseFilesystemMiddleware(
+            search_space_id=search_space_id,
+            created_by_id=user_id,
+        ),
+        create_summarization_middleware(llm, StateBackend),
+        PatchToolCallsMiddleware(),
+        AnthropicPromptCachingMiddleware(unsupported_model_behavior="ignore"),
+    ]
+
+    general_purpose_spec: SubAgent = {  # type: ignore[typeddict-unknown-key]
+        **GENERAL_PURPOSE_SUBAGENT,
+        "model": llm,
+        "tools": tools,
+        "middleware": gp_middleware,
+    }
+
+    # Main agent middleware
+    deepagent_middleware = [
+        TodoListMiddleware(),
+        KnowledgeBaseSearchMiddleware(
+            search_space_id=search_space_id,
+            available_connectors=available_connectors,
+            available_document_types=available_document_types,
+        ),
+        SurfSenseFilesystemMiddleware(
+            search_space_id=search_space_id,
+            created_by_id=user_id,
+        ),
+        SubAgentMiddleware(backend=StateBackend, subagents=[general_purpose_spec]),
+        create_summarization_middleware(llm, StateBackend),
+        PatchToolCallsMiddleware(),
+        DedupHITLToolCallsMiddleware(),
+        AnthropicPromptCachingMiddleware(unsupported_model_behavior="ignore"),
+    ]
+
+    # Combine system_prompt with BASE_AGENT_PROMPT (same as create_deep_agent)
+    final_system_prompt = system_prompt + "\n\n" + BASE_AGENT_PROMPT
 
     _t0 = time.perf_counter()
     agent = await asyncio.to_thread(
-        create_deep_agent,
-        model=llm,
+        create_agent,
+        llm,
+        system_prompt=final_system_prompt,
         tools=tools,
-        system_prompt=system_prompt,
+        middleware=deepagent_middleware,
         context_schema=SurfSenseContextSchema,
         checkpointer=checkpointer,
-        middleware=[DedupHITLToolCallsMiddleware()],
-        **deep_agent_kwargs,
+    )
+    agent = agent.with_config(
+        {
+            "recursion_limit": 10_000,
+            "metadata": {
+                "ls_integration": "deepagents",
+                "versions": {"deepagents": deepagents_version},
+            },
+        }
     )
     _perf_log.info(
-        "[create_agent] Graph compiled (create_deep_agent) in %.3fs",
+        "[create_agent] Graph compiled (create_agent) in %.3fs",
         time.perf_counter() - _t0,
     )
 

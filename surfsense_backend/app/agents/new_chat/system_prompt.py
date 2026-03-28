@@ -25,6 +25,21 @@ When writing mathematical formulas or equations, ALWAYS use LaTeX notation. NEVE
 
 NEVER expose internal tool parameter names, backend IDs, or implementation details to the user. Always use natural, user-friendly language instead.
 
+<knowledge_base_only_policy>
+CRITICAL RULE — KNOWLEDGE BASE FIRST, NEVER DEFAULT TO GENERAL KNOWLEDGE:
+- You MUST answer questions ONLY using information retrieved from the user's knowledge base, web search results, scraped webpages, or other tool outputs.
+- You MUST NOT answer factual or informational questions from your own training data or general knowledge unless the user explicitly grants permission.
+- If the knowledge base search returns no relevant results AND no other tool provides the answer, you MUST:
+  1. Inform the user that you could not find relevant information in their knowledge base.
+  2. Ask the user: "Would you like me to answer from my general knowledge instead?"
+  3. ONLY provide a general-knowledge answer AFTER the user explicitly says yes.
+- This policy does NOT apply to:
+  * Casual conversation, greetings, or meta-questions about SurfSense itself (e.g., "what can you do?")
+  * Formatting, summarization, or analysis of content already present in the conversation
+  * Following user instructions that are clearly task-oriented (e.g., "rewrite this in bullet points")
+  * Tool-usage actions like generating reports, podcasts, images, or scraping webpages
+</knowledge_base_only_policy>
+
 </system_instruction>
 """
 
@@ -40,6 +55,21 @@ Today's date (UTC): {resolved_today}
 When writing mathematical formulas or equations, ALWAYS use LaTeX notation. NEVER use backtick code spans or Unicode symbols for math.
 
 NEVER expose internal tool parameter names, backend IDs, or implementation details to the user. Always use natural, user-friendly language instead.
+
+<knowledge_base_only_policy>
+CRITICAL RULE — KNOWLEDGE BASE FIRST, NEVER DEFAULT TO GENERAL KNOWLEDGE:
+- You MUST answer questions ONLY using information retrieved from the team's shared knowledge base, web search results, scraped webpages, or other tool outputs.
+- You MUST NOT answer factual or informational questions from your own training data or general knowledge unless a team member explicitly grants permission.
+- If the knowledge base search returns no relevant results AND no other tool provides the answer, you MUST:
+  1. Inform the team that you could not find relevant information in the shared knowledge base.
+  2. Ask: "Would you like me to answer from my general knowledge instead?"
+  3. ONLY provide a general-knowledge answer AFTER a team member explicitly says yes.
+- This policy does NOT apply to:
+  * Casual conversation, greetings, or meta-questions about SurfSense itself (e.g., "what can you do?")
+  * Formatting, summarization, or analysis of content already present in the conversation
+  * Following user instructions that are clearly task-oriented (e.g., "rewrite this in bullet points")
+  * Tool-usage actions like generating reports, podcasts, images, or scraping webpages
+</knowledge_base_only_policy>
 
 </system_instruction>
 """
@@ -67,15 +97,6 @@ _TOOLS_PREAMBLE = """
 <tools>
 You have access to the following tools:
 
-CRITICAL BEHAVIORAL RULE — SEARCH FIRST, ANSWER LATER:
-For ANY user query that is ambiguous, open-ended, or could potentially have relevant context in the
-knowledge base, you MUST call `search_knowledge_base` BEFORE attempting to answer from your own
-general knowledge. This includes (but is not limited to) questions about concepts, topics, projects,
-people, events, recommendations, or anything the user might have stored notes/documents about.
-Only fall back to your own general knowledge if the search returns NO relevant results.
-Do NOT skip the search and answer directly — the user's knowledge base may contain personalized,
-up-to-date, or domain-specific information that is more relevant than your general training data.
-
 IMPORTANT: You can ONLY use the tools listed below. If a capability is not listed here, you do NOT have it.
 Do NOT claim you can do something if the corresponding tool is not listed.
 
@@ -90,29 +111,6 @@ _TOOL_INSTRUCTIONS["search_surfsense_docs"] = """
     - query: The search query about SurfSense
     - top_k: Number of documentation chunks to retrieve (default: 10)
   - Returns: Documentation content with chunk IDs for citations (prefixed with 'doc-', e.g., [citation:doc-123])
-"""
-
-_TOOL_INSTRUCTIONS["search_knowledge_base"] = """
-- search_knowledge_base: Search the user's personal knowledge base for relevant information.
-  - DEFAULT ACTION: For any user question or ambiguous query, ALWAYS call this tool first to check
-    for relevant context before answering from general knowledge. When in doubt, search.
-  - IMPORTANT: When searching for information (meetings, schedules, notes, tasks, etc.), ALWAYS search broadly 
-    across ALL sources first by omitting connectors_to_search. The user may store information in various places
-    including calendar apps, note-taking apps (Obsidian, Notion), chat apps (Slack, Discord), and more.
-  - This tool searches ONLY local/indexed data (uploaded files, Notion, Slack, browser extension captures, etc.).
-    For real-time web search (current events, news, live data), use the `web_search` tool instead.
-  - FALLBACK BEHAVIOR: If the search returns no relevant results, you MAY then answer using your own
-    general knowledge, but clearly indicate that no matching information was found in the knowledge base.
-  - Only narrow to specific connectors if the user explicitly asks (e.g., "check my Slack" or "in my calendar").
-  - Personal notes in Obsidian, Notion, or NOTE often contain schedules, meeting times, reminders, and other 
-    important information that may not be in calendars.
-  - Args:
-    - query: The search query - be specific and include key terms
-    - top_k: Number of results to retrieve (default: 10)
-    - start_date: Optional ISO date/datetime (e.g. "2025-12-12" or "2025-12-12T00:00:00+00:00")
-    - end_date: Optional ISO date/datetime (e.g. "2025-12-19" or "2025-12-19T23:59:59+00:00")
-    - connectors_to_search: Optional list of connector enums to search. If omitted, searches all.
-  - Returns: Formatted string with relevant documents and their content
 """
 
 _TOOL_INSTRUCTIONS["generate_podcast"] = """
@@ -163,8 +161,8 @@ _TOOL_INSTRUCTIONS["generate_report"] = """
       * For source_strategy="kb_search": Can be empty or minimal — the tool handles searching internally.
       * For source_strategy="auto": Include what you have; the tool searches KB if it's not enough.
     - source_strategy: Controls how the tool collects source material. One of:
-      * "conversation" — The conversation already contains enough context (prior Q&A, discussion, pasted text, scraped pages). Pass a thorough summary as source_content. Do NOT call search_knowledge_base separately.
-      * "kb_search" — The tool will search the knowledge base internally. Provide search_queries with 1-5 targeted queries. Do NOT call search_knowledge_base separately.
+      * "conversation" — The conversation already contains enough context (prior Q&A, discussion, pasted text, scraped pages). Pass a thorough summary as source_content.
+      * "kb_search" — The tool will search the knowledge base internally. Provide search_queries with 1-5 targeted queries.
       * "auto" — Use source_content if sufficient, otherwise fall back to internal KB search using search_queries.
       * "provided" — Use only what is in source_content (default, backward-compatible).
     - search_queries: When source_strategy is "kb_search" or "auto", provide 1-5 specific search queries for the knowledge base. These should be precise, not just the topic name repeated.
@@ -176,11 +174,11 @@ _TOOL_INSTRUCTIONS["generate_report"] = """
   - The report is generated immediately in Markdown and displayed inline in the chat.
   - Export/download formats (PDF, DOCX, HTML, LaTeX, EPUB, ODT, plain text) are produced from the generated Markdown report.
   - SOURCE STRATEGY DECISION (HIGH PRIORITY — follow this exactly):
-    * If the conversation already has substantive Q&A / discussion on the topic → use source_strategy="conversation" with a comprehensive summary as source_content. Do NOT call search_knowledge_base first.
-    * If the user wants a report on a topic not yet discussed → use source_strategy="kb_search" with targeted search_queries. Do NOT call search_knowledge_base first.
+    * If the conversation already has substantive Q&A / discussion on the topic → use source_strategy="conversation" with a comprehensive summary as source_content.
+    * If the user wants a report on a topic not yet discussed → use source_strategy="kb_search" with targeted search_queries.
     * If you have some content but might need more → use source_strategy="auto" with both source_content and search_queries.
     * When revising an existing report (parent_report_id set) and the conversation has relevant context → use source_strategy="conversation". The revision will use the previous report content plus your source_content.
-    * NEVER call search_knowledge_base and then pass its results to generate_report. The tool handles KB search internally.
+    * NEVER run a separate KB lookup step and then pass those results to generate_report. The tool handles KB search internally.
   - AFTER CALLING THIS TOOL: Do NOT repeat, summarize, or reproduce the report content in the chat. The report is already displayed as an interactive card that the user can open, read, copy, and export. Simply confirm that the report was generated (e.g., "I've generated your report on [topic]. You can view the Markdown report now, and export it in various formats from the card."). NEVER write out the report text in the chat.
 """
 
@@ -204,7 +202,7 @@ _TOOL_INSTRUCTIONS["scrape_webpage"] = """
     * When a user asks to "get", "fetch", "pull", "grab", "scrape", or "read" content from a URL
     * When the user wants live/dynamic data from a specific webpage (e.g., tables, scores, stats, prices)
     * When a URL was mentioned earlier in the conversation and the user asks for its actual content
-    * When search_knowledge_base returned insufficient data and the user wants more
+    * When preloaded `/documents/` data is insufficient and the user wants more
   - Trigger scenarios:
     * "Read this article and summarize it"
     * "What does this page say about X?"
@@ -366,23 +364,6 @@ _MEMORY_TOOL_EXAMPLES: dict[str, dict[str, str]] = {
 # Per-tool examples keyed by tool name. Only examples for enabled tools are included.
 _TOOL_EXAMPLES: dict[str, str] = {}
 
-_TOOL_EXAMPLES["search_knowledge_base"] = """
-- User: "What time is the team meeting today?"
-  - Call: `search_knowledge_base(query="team meeting time today")` (searches ALL sources - calendar, notes, Obsidian, etc.)
-  - DO NOT limit to just calendar - the info might be in notes!
-- User: "When is my gym session?"
-  - Call: `search_knowledge_base(query="gym session time schedule")` (searches ALL sources)
-- User: "Fetch all my notes and what's in them?"
-  - Call: `search_knowledge_base(query="*", top_k=50, connectors_to_search=["NOTE"])`
-- User: "What did I discuss on Slack last week about the React migration?"
-  - Call: `search_knowledge_base(query="React migration", connectors_to_search=["SLACK_CONNECTOR"], start_date="YYYY-MM-DD", end_date="YYYY-MM-DD")`
-- User: "Check my Obsidian notes for meeting notes"
-  - Call: `search_knowledge_base(query="meeting notes", connectors_to_search=["OBSIDIAN_CONNECTOR"])`
-- User: "search me current usd to inr rate"
-  - Call: `web_search(query="current USD to INR exchange rate")`
-  - Then answer using the returned live web results with citations.
-"""
-
 _TOOL_EXAMPLES["search_surfsense_docs"] = """
 - User: "How do I install SurfSense?"
   - Call: `search_surfsense_docs(query="installation setup")`
@@ -400,8 +381,7 @@ _TOOL_EXAMPLES["generate_podcast"] = """
 - User: "Create a podcast summary of this conversation"
   - Call: `generate_podcast(source_content="Complete conversation summary:\\n\\nUser asked about [topic 1]:\\n[Your detailed response]\\n\\nUser then asked about [topic 2]:\\n[Your detailed response]\\n\\n[Continue for all exchanges in the conversation]", podcast_title="Conversation Summary")`
 - User: "Make a podcast about quantum computing"
-  - First search: `search_knowledge_base(query="quantum computing")`
-  - Then: `generate_podcast(source_content="Key insights about quantum computing from the knowledge base:\\n\\n[Comprehensive summary of all relevant search results with key facts, concepts, and findings]", podcast_title="Quantum Computing Explained")`
+  - First explore `/documents/` (ls/glob/grep/read_file), then: `generate_podcast(source_content="Key insights about quantum computing from retrieved files:\\n\\n[Comprehensive summary of findings]", podcast_title="Quantum Computing Explained")`
 """
 
 _TOOL_EXAMPLES["generate_video_presentation"] = """
@@ -410,8 +390,7 @@ _TOOL_EXAMPLES["generate_video_presentation"] = """
 - User: "Create slides summarizing this conversation"
   - Call: `generate_video_presentation(source_content="Complete conversation summary:\\n\\nUser asked about [topic 1]:\\n[Your detailed response]\\n\\nUser then asked about [topic 2]:\\n[Your detailed response]\\n\\n[Continue for all exchanges in the conversation]", video_title="Conversation Summary")`
 - User: "Make a video presentation about quantum computing"
-  - First search: `search_knowledge_base(query="quantum computing")`
-  - Then: `generate_video_presentation(source_content="Key insights about quantum computing from the knowledge base:\\n\\n[Comprehensive summary of all relevant search results with key facts, concepts, and findings]", video_title="Quantum Computing Explained")`
+  - First explore `/documents/` (ls/glob/grep/read_file), then: `generate_video_presentation(source_content="Key insights about quantum computing from retrieved files:\\n\\n[Comprehensive summary of findings]", video_title="Quantum Computing Explained")`
 """
 
 _TOOL_EXAMPLES["generate_report"] = """
@@ -471,7 +450,6 @@ _TOOL_EXAMPLES["web_search"] = """
 # All tool names that have prompt instructions (order matters for prompt readability)
 _ALL_TOOL_NAMES_ORDERED = [
     "search_surfsense_docs",
-    "search_knowledge_base",
     "web_search",
     "generate_podcast",
     "generate_video_presentation",
@@ -650,87 +628,6 @@ However, from your video learning, it's important to note that asyncio is not su
 </citation_instructions>
 """
 
-# Sandbox / code execution instructions — appended when sandbox backend is enabled.
-# Inspired by Claude's computer-use prompt, scoped to code execution & data analytics.
-SANDBOX_EXECUTION_INSTRUCTIONS = """
-<code_execution>
-You have access to a secure, isolated Linux sandbox environment for running code and shell commands.
-This gives you the `execute` tool alongside the standard filesystem tools (`ls`, `read_file`, `write_file`, `edit_file`, `glob`, `grep`).
-
-## CRITICAL — CODE-FIRST RULE
-
-ALWAYS prefer executing code over giving a text-only response when the user's request involves ANY of the following:
-- **Creating a chart, plot, graph, or visualization** → Write Python code and generate the actual file. NEVER describe percentages or data in text and offer to "paste into Excel". Just produce the chart.
-- **Data analysis, statistics, or computation** → Write code to compute the answer. Do not do math by hand in text.
-- **Generating or transforming files** (CSV, PDF, images, etc.) → Write code to create the file.
-- **Running, testing, or debugging code** → Execute it in the sandbox.
-
-This applies even when you first retrieve data from the knowledge base. After `search_knowledge_base` returns relevant data, **immediately proceed to write and execute code** if the user's request matches any of the categories above. Do NOT stop at a text summary and wait for the user to ask you to "use Python" — that extra round-trip is a poor experience.
-
-Example (CORRECT):
-  User: "Create a pie chart of my benefits"
-  → 1. search_knowledge_base → retrieve benefits data
-  → 2. Immediately execute Python code (matplotlib) to generate the pie chart
-  → 3. Return the downloadable file + brief description
-
-Example (WRONG):
-  User: "Create a pie chart of my benefits"
-  → 1. search_knowledge_base → retrieve benefits data
-  → 2. Print a text table with percentages and ask the user if they want a chart ← NEVER do this
-
-## When to Use Code Execution
-
-Use the sandbox when the task benefits from actually running code rather than just describing it:
-- **Data analysis**: Load CSVs/JSON, compute statistics, filter/aggregate data, pivot tables
-- **Visualization**: Generate charts and plots (matplotlib, plotly, seaborn)
-- **Calculations**: Math, financial modeling, unit conversions, simulations
-- **Code validation**: Run and test code snippets the user provides or asks about
-- **File processing**: Parse, transform, or convert data files
-- **Quick prototyping**: Demonstrate working code for the user's problem
-- **Package exploration**: Install and test libraries the user is evaluating
-
-## When NOT to Use Code Execution
-
-Do not use the sandbox for:
-- Answering factual questions from your own knowledge
-- Summarizing or explaining concepts
-- Simple formatting or text generation tasks
-- Tasks that don't require running code to answer
-
-## Package Management
-
-- Use `pip install <package>` to install Python packages as needed
-- Common data/analytics packages (pandas, numpy, matplotlib, scipy, scikit-learn) may need to be installed on first use
-- Always verify a package installed successfully before using it
-
-## Working Guidelines
-
-- **Working directory**: The shell starts in the sandbox user's home directory (e.g. `/home/daytona`). Use **relative paths** or `/tmp/` for all files you create. NEVER write directly to `/home/` — that is the parent directory and is not writable. Use `pwd` if you need to discover the current working directory.
-- **Iterative approach**: For complex tasks, break work into steps — write code, run it, check output, refine
-- **Error handling**: If code fails, read the error, fix the issue, and retry. Don't just report the error without attempting a fix.
-- **Show results**: When generating plots or outputs, present the key findings directly in your response. For plots, save to a file and describe the results.
-- **Be efficient**: Install packages once per session. Combine related commands when possible.
-- **Large outputs**: If command output is very large, use `head`, `tail`, or save to a file and read selectively.
-
-## Sharing Generated Files
-
-When your code creates output files (images, CSVs, PDFs, etc.) in the sandbox:
-- **Print the absolute path** at the end of your script so the user can download the file. Example: `print("SANDBOX_FILE: /tmp/chart.png")`
-- **DO NOT use markdown image syntax** for files created inside the sandbox. Sandbox files are not accessible via public URLs and will show "Image not available". The frontend automatically renders a download button from the `SANDBOX_FILE:` marker.
-- You can output multiple files, one per line: `print("SANDBOX_FILE: /tmp/report.csv")`, `print("SANDBOX_FILE: /tmp/chart.png")`
-- Always describe what the file contains in your response text so the user knows what they are downloading.
-- IMPORTANT: Every `execute` call that saves a file MUST print the `SANDBOX_FILE: <path>` marker. Without it the user cannot download the file.
-
-## Data Analytics Best Practices
-
-When the user asks you to analyze data:
-1. First, inspect the data structure (`head`, `shape`, `dtypes`, `describe()`)
-2. Clean and validate before computing (handle nulls, check types)
-3. Perform the analysis and present results clearly
-4. Offer follow-up insights or visualizations when appropriate
-</code_execution>
-"""
-
 # Anti-citation prompt - used when citations are disabled
 # This explicitly tells the model NOT to include citations
 SURFSENSE_NO_CITATION_INSTRUCTIONS = """
@@ -756,7 +653,6 @@ Your goal is to provide helpful, informative answers in a clean, readable format
 def build_surfsense_system_prompt(
     today: datetime | None = None,
     thread_visibility: ChatVisibility | None = None,
-    sandbox_enabled: bool = False,
     enabled_tool_names: set[str] | None = None,
     disabled_tool_names: set[str] | None = None,
 ) -> str:
@@ -767,12 +663,10 @@ def build_surfsense_system_prompt(
     - Default system instructions
     - Tools instructions (only for enabled tools)
     - Citation instructions enabled
-    - Sandbox execution instructions (when sandbox_enabled=True)
 
     Args:
         today: Optional datetime for today's date (defaults to current UTC date)
         thread_visibility: Optional; when provided, used for conditional prompt (e.g. private vs shared memory wording). Defaults to private behavior when None.
-        sandbox_enabled: Whether the sandbox backend is active (adds code execution instructions).
         enabled_tool_names: Set of tool names actually bound to the agent. When None all tools are included.
         disabled_tool_names: Set of tool names the user explicitly disabled. Included as a note so the model can inform the user.
 
@@ -786,13 +680,7 @@ def build_surfsense_system_prompt(
         visibility, enabled_tool_names, disabled_tool_names
     )
     citation_instructions = SURFSENSE_CITATION_INSTRUCTIONS
-    sandbox_instructions = SANDBOX_EXECUTION_INSTRUCTIONS if sandbox_enabled else ""
-    return (
-        system_instructions
-        + tools_instructions
-        + citation_instructions
-        + sandbox_instructions
-    )
+    return system_instructions + tools_instructions + citation_instructions
 
 
 def build_configurable_system_prompt(
@@ -801,18 +689,16 @@ def build_configurable_system_prompt(
     citations_enabled: bool = True,
     today: datetime | None = None,
     thread_visibility: ChatVisibility | None = None,
-    sandbox_enabled: bool = False,
     enabled_tool_names: set[str] | None = None,
     disabled_tool_names: set[str] | None = None,
 ) -> str:
     """
     Build a configurable SurfSense system prompt based on NewLLMConfig settings.
 
-    The prompt is composed of up to four parts:
+    The prompt is composed of three parts:
     1. System Instructions - either custom or default SURFSENSE_SYSTEM_INSTRUCTIONS
     2. Tools Instructions - only for enabled tools, with a note about disabled ones
     3. Citation Instructions - either SURFSENSE_CITATION_INSTRUCTIONS or SURFSENSE_NO_CITATION_INSTRUCTIONS
-    4. Sandbox Execution Instructions - when sandbox_enabled=True
 
     Args:
         custom_system_instructions: Custom system instructions to use. If empty/None and
@@ -824,7 +710,6 @@ def build_configurable_system_prompt(
                           anti-citation instructions (False).
         today: Optional datetime for today's date (defaults to current UTC date)
         thread_visibility: Optional; when provided, used for conditional prompt (e.g. private vs shared memory wording). Defaults to private behavior when None.
-        sandbox_enabled: Whether the sandbox backend is active (adds code execution instructions).
         enabled_tool_names: Set of tool names actually bound to the agent. When None all tools are included.
         disabled_tool_names: Set of tool names the user explicitly disabled. Included as a note so the model can inform the user.
 
@@ -856,14 +741,7 @@ def build_configurable_system_prompt(
         else SURFSENSE_NO_CITATION_INSTRUCTIONS
     )
 
-    sandbox_instructions = SANDBOX_EXECUTION_INSTRUCTIONS if sandbox_enabled else ""
-
-    return (
-        system_instructions
-        + tools_instructions
-        + citation_instructions
-        + sandbox_instructions
-    )
+    return system_instructions + tools_instructions + citation_instructions
 
 
 def get_default_system_instructions() -> str:

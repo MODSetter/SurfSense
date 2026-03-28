@@ -1,5 +1,5 @@
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -57,7 +57,9 @@ async def test_index_calls_embed_and_chunk_via_to_thread(
         "app.indexing_pipeline.indexing_pipeline_service.chunk_text",
         mock_chunk,
     )
-    mock_embed = MagicMock(side_effect=lambda texts: [[0.1] * _EMBEDDING_DIM for _ in texts])
+    mock_embed = MagicMock(
+        side_effect=lambda texts: [[0.1] * _EMBEDDING_DIM for _ in texts]
+    )
     mock_embed.__name__ = "embed_texts"
     monkeypatch.setattr(
         "app.indexing_pipeline.indexing_pipeline_service.embed_texts",
