@@ -944,6 +944,8 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 				{hasWebSearchTool && (
 					<button
 						type="button"
+						aria-label={isWebSearchEnabled ? "Disable web search" : "Enable web search"}
+						aria-pressed={isWebSearchEnabled}
 						onClick={() => toggleTool("web_search")}
 						className={cn(
 							"rounded-full transition-all flex items-center gap-1 px-2 py-1 border h-8 select-none",
