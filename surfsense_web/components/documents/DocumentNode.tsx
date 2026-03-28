@@ -203,7 +203,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 								<MoreHorizontal className="h-3.5 w-3.5" />
 							</Button>
 						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" className="w-40">
+						<DropdownMenuContent align="end" className="w-40" onClick={(e) => e.stopPropagation()}>
 							<DropdownMenuItem onClick={() => onPreview(doc)}>
 								<Eye className="mr-2 h-4 w-4" />
 								Open
@@ -243,7 +243,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 			</ContextMenuTrigger>
 
 			{contextMenuOpen && (
-				<ContextMenuContent className="w-40">
+				<ContextMenuContent className="w-40" onClick={(e) => e.stopPropagation()}>
 					<ContextMenuItem onClick={() => onPreview(doc)}>
 						<Eye className="mr-2 h-4 w-4" />
 						Open

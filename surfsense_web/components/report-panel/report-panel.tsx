@@ -455,7 +455,7 @@ function MobileReportDrawer() {
 			shouldScaleBackground={false}
 		>
 			<DrawerContent
-				className="h-[95vh] max-h-[95vh] z-80 bg-sidebar overflow-hidden"
+				className="h-[90vh] max-h-[90vh] z-80 bg-sidebar overflow-hidden"
 				overlayClassName="z-80"
 			>
 				<DrawerHandle />
