@@ -1,4 +1,7 @@
 import logging
+import os
+import tempfile
+from pathlib import Path
 from typing import Any
 
 from langchain_core.tools import tool
@@ -11,6 +14,34 @@ from app.db import SearchSourceConnector, SearchSourceConnectorType
 
 logger = logging.getLogger(__name__)
 
+DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+
+def _ensure_docx_extension(name: str) -> str:
+    """Strip any existing extension and append .docx."""
+    stem = Path(name).stem
+    return f"{stem}.docx"
+
+
+def _markdown_to_docx(markdown_text: str) -> bytes:
+    """Convert a markdown string to DOCX bytes using pypandoc."""
+    import pypandoc
+
+    fd, tmp_path = tempfile.mkstemp(suffix=".docx")
+    os.close(fd)
+    try:
+        pypandoc.convert_text(
+            markdown_text,
+            "docx",
+            format="gfm",
+            extra_args=["--standalone"],
+            outputfile=tmp_path,
+        )
+        with open(tmp_path, "rb") as f:
+            return f.read()
+    finally:
+        os.unlink(tmp_path)
+
 
 def create_create_onedrive_file_tool(
     db_session: AsyncSession | None = None,
@@ -22,14 +53,17 @@ def create_create_onedrive_file_tool(
         name: str,
         content: str | None = None,
     ) -> dict[str, Any]:
-        """Create a new file in Microsoft OneDrive.
+        """Create a new Word document (.docx) in Microsoft OneDrive.
 
         Use this tool when the user explicitly asks to create a new document
         in OneDrive. The user MUST specify a topic before you call this tool.
 
+        The file is always saved as a .docx Word document. Provide content as
+        markdown and it will be automatically converted to a formatted Word file.
+
         Args:
-            name: The file name (with extension, e.g. "notes.txt" or "report.docx").
-            content: Optional initial content as plain text or markdown.
+            name: The document title (without extension). Extension will be set to .docx automatically.
+            content: Optional initial content as markdown. Will be converted to a formatted Word document.
 
         Returns:
             Dictionary with status, file_id, name, web_url, and message.
@@ -125,6 +159,8 @@ def create_create_onedrive_file_tool(
             if not final_name or not final_name.strip():
                 return {"status": "error", "message": "File name cannot be empty."}
 
+            final_name = _ensure_docx_extension(final_name)
+
             if final_connector_id is not None:
                 result = await db_session.execute(
                     select(SearchSourceConnector).filter(
@@ -141,11 +177,14 @@ def create_create_onedrive_file_tool(
             if not connector:
                 return {"status": "error", "message": "Selected OneDrive connector is invalid."}
 
+            docx_bytes = _markdown_to_docx(final_content or "")
+
             client = OneDriveClient(session=db_session, connector_id=connector.id)
             created = await client.create_file(
                 name=final_name,
                 parent_id=final_parent_folder_id,
-                content=final_content,
+                content=docx_bytes,
+                mime_type=DOCX_MIME,
             )
 
             logger.info(f"OneDrive file created: id={created.get('id')}, name={created.get('name')}")

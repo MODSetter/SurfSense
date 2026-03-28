@@ -224,12 +224,15 @@ class OneDriveClient:
         self,
         name: str,
         parent_id: str | None = None,
-        content: str | None = None,
+        content: str | bytes | None = None,
         mime_type: str | None = None,
     ) -> dict[str, Any]:
         """Create (upload) a file in OneDrive."""
         folder_path = f"/me/drive/items/{parent_id or 'root'}"
-        body = (content or "").encode("utf-8")
+        if isinstance(content, bytes):
+            body = content
+        else:
+            body = (content or "").encode("utf-8")
         resp = await self._request(
             "PUT",
             f"{folder_path}:/{name}:/content",

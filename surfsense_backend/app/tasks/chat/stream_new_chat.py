@@ -877,6 +877,8 @@ async def _stream_agent_events(
                 "delete_linear_issue",
                 "create_google_drive_file",
                 "delete_google_drive_file",
+                "create_onedrive_file",
+                "delete_onedrive_file",
                 "create_gmail_draft",
                 "update_gmail_draft",
                 "send_gmail_email",
