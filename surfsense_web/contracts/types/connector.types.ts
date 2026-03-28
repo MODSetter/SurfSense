@@ -9,6 +9,7 @@ export const searchSourceConnectorTypeEnum = z.enum([
 	"BAIDU_SEARCH_API",
 	"SLACK_CONNECTOR",
 	"TEAMS_CONNECTOR",
+	"ONEDRIVE_CONNECTOR",
 	"NOTION_CONNECTOR",
 	"GITHUB_CONNECTOR",
 	"LINEAR_CONNECTOR",

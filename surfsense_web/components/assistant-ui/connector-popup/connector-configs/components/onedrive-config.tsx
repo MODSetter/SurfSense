@@ -1,12 +1,10 @@
 "use client";
 
 import {
-	ChevronRight,
 	File,
 	FileSpreadsheet,
 	FileText,
 	FolderClosed,
-	FolderOpen,
 	Image,
 	Presentation,
 	X,
@@ -14,7 +12,6 @@ import {
 import type { FC } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
 	Select,
@@ -25,29 +22,19 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
-import { authenticatedFetch } from "@/lib/auth-utils";
+import { type OneDrivePickerResult, useOneDrivePicker } from "@/hooks/use-onedrive-picker";
 import type { ConnectorConfigProps } from "../index";
 
 interface SelectedItem {
 	id: string;
 	name: string;
+	driveId?: string;
 }
 
 interface IndexingOptions {
 	max_files_per_folder: number;
 	incremental_sync: boolean;
 	include_subfolders: boolean;
-}
-
-interface OneDriveItem {
-	id: string;
-	name: string;
-	isFolder: boolean;
-	size?: number;
-	lastModifiedDateTime?: string;
-	file?: { mimeType: string };
-	folder?: { childCount: number };
-	webUrl?: string;
 }
 
 const DEFAULT_INDEXING_OPTIONS: IndexingOptions = {
@@ -83,115 +70,62 @@ export const OneDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCh
 	const [selectedFiles, setSelectedFiles] = useState<SelectedItem[]>(existingFiles);
 	const [indexingOptions, setIndexingOptions] = useState<IndexingOptions>(existingIndexingOptions);
 
-	const [browserOpen, setBrowserOpen] = useState(false);
-	const [browseItems, setBrowseItems] = useState<OneDriveItem[]>([]);
-	const [browseLoading, setBrowseLoading] = useState(false);
-	const [browseError, setBrowseError] = useState<string | null>(null);
-	const [breadcrumbs, setBreadcrumbs] = useState<{ id: string; name: string }[]>([
-		{ id: "root", name: "My files" },
-	]);
-
 	useEffect(() => {
 		const folders = (connector.config?.selected_folders as SelectedItem[] | undefined) || [];
 		const files = (connector.config?.selected_files as SelectedItem[] | undefined) || [];
 		const options =
-			(connector.config?.indexing_options as IndexingOptions | undefined) || DEFAULT_INDEXING_OPTIONS;
+			(connector.config?.indexing_options as IndexingOptions | undefined) ||
+			DEFAULT_INDEXING_OPTIONS;
 		setSelectedFolders(folders);
 		setSelectedFiles(files);
 		setIndexingOptions(options);
 	}, [connector.config]);
 
-	const updateConfig = useCallback(
-		(folders: SelectedItem[], files: SelectedItem[], options: IndexingOptions) => {
-			if (onConfigChange) {
-				onConfigChange({
-					...connector.config,
-					selected_folders: folders,
-					selected_files: files,
-					indexing_options: options,
-				});
-			}
+	const updateConfig = (
+		folders: SelectedItem[],
+		files: SelectedItem[],
+		options: IndexingOptions,
+	) => {
+		if (onConfigChange) {
+			onConfigChange({
+				...connector.config,
+				selected_folders: folders,
+				selected_files: files,
+				indexing_options: options,
+			});
+		}
+	};
+
+	const handlePicked = useCallback(
+		(result: OneDrivePickerResult) => {
+			const folders = result.folders.map((f) => ({ id: f.id, name: f.name, driveId: f.driveId }));
+			const files = result.files.map((f) => ({ id: f.id, name: f.name, driveId: f.driveId }));
+			setSelectedFolders(folders);
+			setSelectedFiles(files);
+			updateConfig(folders, files, indexingOptions);
 		},
-		[onConfigChange, connector.config],
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[indexingOptions, connector.config],
 	);
 
-	const fetchFolderContents = useCallback(
-		async (parentId: string) => {
-			setBrowseLoading(true);
-			setBrowseError(null);
-			try {
-				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
-				const url = `${backendUrl}/api/v1/connectors/${connector.id}/onedrive/folders?parent_id=${encodeURIComponent(parentId)}`;
-				const response = await authenticatedFetch(url);
-				if (!response.ok) {
-					const data = await response.json().catch(() => ({}));
-					throw new Error(data.detail || `Failed to load folder contents (${response.status})`);
-				}
-				const data = await response.json();
-				setBrowseItems(data.items || []);
-			} catch (err: unknown) {
-				const message = err instanceof Error ? err.message : "Failed to load folder contents";
-				setBrowseError(message);
-			} finally {
-				setBrowseLoading(false);
-			}
-		},
-		[connector.id],
-	);
+	const {
+		openPicker,
+		loading: pickerLoading,
+		error: pickerError,
+	} = useOneDrivePicker({
+		connectorId: connector.id,
+		onPicked: handlePicked,
+	});
 
-	const handleOpenBrowser = useCallback(() => {
-		setBrowserOpen(true);
-		setBreadcrumbs([{ id: "root", name: "My files" }]);
-		fetchFolderContents("root");
-	}, [fetchFolderContents]);
+	const isAuthExpired =
+		connector.config?.auth_expired === true ||
+		(!!pickerError && pickerError.toLowerCase().includes("authentication expired"));
 
-	const handleNavigateFolder = useCallback(
-		(folderId: string, folderName: string) => {
-			setBreadcrumbs((prev) => [...prev, { id: folderId, name: folderName }]);
-			fetchFolderContents(folderId);
-		},
-		[fetchFolderContents],
-	);
-
-	const handleBreadcrumbClick = useCallback(
-		(index: number) => {
-			const newBreadcrumbs = breadcrumbs.slice(0, index + 1);
-			setBreadcrumbs(newBreadcrumbs);
-			fetchFolderContents(newBreadcrumbs[newBreadcrumbs.length - 1].id);
-		},
-		[breadcrumbs, fetchFolderContents],
-	);
-
-	const isItemSelected = useCallback(
-		(item: OneDriveItem) => {
-			if (item.isFolder) {
-				return selectedFolders.some((f) => f.id === item.id);
-			}
-			return selectedFiles.some((f) => f.id === item.id);
-		},
-		[selectedFolders, selectedFiles],
-	);
-
-	const handleToggleItem = useCallback(
-		(item: OneDriveItem) => {
-			if (item.isFolder) {
-				const exists = selectedFolders.some((f) => f.id === item.id);
-				const newFolders = exists
-					? selectedFolders.filter((f) => f.id !== item.id)
-					: [...selectedFolders, { id: item.id, name: item.name }];
-				setSelectedFolders(newFolders);
-				updateConfig(newFolders, selectedFiles, indexingOptions);
-			} else {
-				const exists = selectedFiles.some((f) => f.id === item.id);
-				const newFiles = exists
-					? selectedFiles.filter((f) => f.id !== item.id)
-					: [...selectedFiles, { id: item.id, name: item.name }];
-				setSelectedFiles(newFiles);
-				updateConfig(selectedFolders, newFiles, indexingOptions);
-			}
-		},
-		[selectedFolders, selectedFiles, indexingOptions, updateConfig],
-	);
+	const handleIndexingOptionChange = (key: keyof IndexingOptions, value: number | boolean) => {
+		const newOptions = { ...indexingOptions, [key]: value };
+		setIndexingOptions(newOptions);
+		updateConfig(selectedFolders, selectedFiles, newOptions);
+	};
 
 	const handleRemoveFolder = (folderId: string) => {
 		const newFolders = selectedFolders.filter((f) => f.id !== folderId);
@@ -205,13 +139,6 @@ export const OneDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCh
 		updateConfig(selectedFolders, newFiles, indexingOptions);
 	};
 
-	const handleIndexingOptionChange = (key: keyof IndexingOptions, value: number | boolean) => {
-		const newOptions = { ...indexingOptions, [key]: value };
-		setIndexingOptions(newOptions);
-		updateConfig(selectedFolders, selectedFiles, newOptions);
-	};
-
-	const isAuthExpired = connector.config?.auth_expired === true;
 	const totalSelected = selectedFolders.length + selectedFiles.length;
 
 	return (
@@ -221,20 +148,31 @@ export const OneDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCh
 				<div className="space-y-1 sm:space-y-2">
 					<h3 className="font-medium text-sm sm:text-base">Folder & File Selection</h3>
 					<p className="text-xs sm:text-sm text-muted-foreground">
-						Browse and select specific folders and/or files to index from your OneDrive.
+						Select specific folders and/or individual files to index.
 					</p>
 				</div>
 
 				{totalSelected > 0 && (
 					<div className="p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm space-y-1 sm:space-y-2">
 						<p className="font-medium">
-							Selected {totalSelected} item{totalSelected > 1 ? "s" : ""}
+							Selected {totalSelected} item{totalSelected > 1 ? "s" : ""}: {(() => {
+								const parts: string[] = [];
+								if (selectedFolders.length > 0) {
+									parts.push(
+										`${selectedFolders.length} folder${selectedFolders.length > 1 ? "s" : ""}`,
+									);
+								}
+								if (selectedFiles.length > 0) {
+									parts.push(`${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""}`);
+								}
+								return parts.length > 0 ? `(${parts.join(", ")})` : "";
+							})()}
 						</p>
 						<div className="max-h-20 sm:max-h-24 overflow-y-auto space-y-1">
 							{selectedFolders.map((folder) => (
 								<div
 									key={folder.id}
-									className="text-xs text-muted-foreground truncate flex items-center gap-1.5"
+									className="text-xs sm:text-sm text-muted-foreground truncate flex items-center gap-1.5"
 									title={folder.name}
 								>
 									<FolderClosed className="size-3.5 shrink-0 text-muted-foreground" />
@@ -243,6 +181,7 @@ export const OneDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCh
 										type="button"
 										onClick={() => handleRemoveFolder(folder.id)}
 										className="shrink-0 p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
+										aria-label={`Remove ${folder.name}`}
 									>
 										<X className="size-3.5" />
 									</button>
@@ -251,7 +190,7 @@ export const OneDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCh
 							{selectedFiles.map((file) => (
 								<div
 									key={file.id}
-									className="text-xs text-muted-foreground truncate flex items-center gap-1.5"
+									className="text-xs sm:text-sm text-muted-foreground truncate flex items-center gap-1.5"
 									title={file.name}
 								>
 									{getFileIconFromName(file.name)}
@@ -260,6 +199,7 @@ export const OneDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCh
 										type="button"
 										onClick={() => handleRemoveFile(file.id)}
 										className="shrink-0 p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
+										aria-label={`Remove ${file.name}`}
 									>
 										<X className="size-3.5" />
 									</button>
@@ -269,96 +209,23 @@ export const OneDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCh
 					</div>
 				)}
 
-				{!browserOpen ? (
-					<Button
-						type="button"
-						variant="outline"
-						onClick={handleOpenBrowser}
-						disabled={isAuthExpired}
-						className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-white/10 text-xs sm:text-sm h-8 sm:h-9"
-					>
-						{totalSelected > 0 ? "Change Selection" : "Browse OneDrive"}
-					</Button>
-				) : (
-					<div className="rounded-lg border border-border bg-background">
-						{/* Breadcrumbs */}
-						<div className="flex items-center gap-1 px-3 py-2 border-b border-border text-xs overflow-x-auto">
-							{breadcrumbs.map((crumb, index) => (
-								<span key={crumb.id} className="flex items-center gap-1 shrink-0">
-									{index > 0 && <ChevronRight className="size-3 text-muted-foreground" />}
-									<button
-										type="button"
-										onClick={() => handleBreadcrumbClick(index)}
-										className={`hover:underline ${
-											index === breadcrumbs.length - 1
-												? "font-medium text-foreground"
-												: "text-muted-foreground"
-										}`}
-									>
-										{crumb.name}
-									</button>
-								</span>
-							))}
-						</div>
+				<Button
+					type="button"
+					variant="outline"
+					onClick={openPicker}
+					disabled={pickerLoading || isAuthExpired}
+					className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-white/10 text-xs sm:text-sm h-8 sm:h-9"
+				>
+					{pickerLoading && <Spinner size="xs" className="mr-1.5" />}
+					{totalSelected > 0 ? "Change Selection" : "Select from OneDrive"}
+				</Button>
 
-						{/* File list */}
-						<div className="max-h-48 overflow-y-auto">
-							{browseLoading ? (
-								<div className="flex items-center justify-center p-6">
-									<Spinner size="sm" />
-								</div>
-							) : browseError ? (
-								<div className="p-3 text-xs text-destructive">{browseError}</div>
-							) : browseItems.length === 0 ? (
-								<div className="p-3 text-xs text-muted-foreground">This folder is empty</div>
-							) : (
-								browseItems.map((item) => (
-									<div
-										key={item.id}
-										className="flex items-center gap-2 px-3 py-1.5 hover:bg-muted/50 text-xs"
-									>
-										<Checkbox
-											checked={isItemSelected(item)}
-											onCheckedChange={() => handleToggleItem(item)}
-											className="size-3.5"
-										/>
-										{item.isFolder ? (
-											<button
-												type="button"
-												className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
-												onClick={() => handleNavigateFolder(item.id, item.name)}
-											>
-												<FolderOpen className="size-3.5 shrink-0 text-muted-foreground" />
-												<span className="truncate">{item.name}</span>
-											</button>
-										) : (
-											<div className="flex items-center gap-1.5 flex-1 min-w-0">
-												{getFileIconFromName(item.name)}
-												<span className="truncate">{item.name}</span>
-											</div>
-										)}
-									</div>
-								))
-							)}
-						</div>
-
-						<div className="px-3 py-2 border-t border-border flex justify-end">
-							<Button
-								type="button"
-								variant="ghost"
-								size="sm"
-								onClick={() => setBrowserOpen(false)}
-								className="text-xs h-7"
-							>
-								Done
-							</Button>
-						</div>
-					</div>
-				)}
+				{pickerError && !isAuthExpired && <p className="text-xs text-destructive">{pickerError}</p>}
 
 				{isAuthExpired && (
 					<p className="text-xs text-amber-600 dark:text-amber-500">
-						Your OneDrive authentication has expired. Please re-authenticate using the button below.
+						Your OneDrive authentication has expired. Please re-authenticate using the button
+						below.
 					</p>
 				)}
 			</div>

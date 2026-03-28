@@ -5,7 +5,8 @@ Endpoints:
 - GET /auth/onedrive/connector/add     - Initiate OAuth
 - GET /auth/onedrive/connector/callback - Handle OAuth callback
 - GET /auth/onedrive/connector/reauth   - Re-authenticate existing connector
-- GET /connectors/{connector_id}/onedrive/folders - List folder contents
+- GET /connectors/{connector_id}/onedrive/folders      - List folder contents (legacy custom browser)
+- GET /connectors/{connector_id}/onedrive/picker-token - Get SharePoint token for File Picker v8
 """
 
 import logging
@@ -393,6 +394,121 @@ async def list_onedrive_folders(
                 pass
             raise HTTPException(status_code=400, detail="OneDrive authentication expired. Please re-authenticate.") from e
         raise HTTPException(status_code=500, detail=f"Failed to list OneDrive contents: {e!s}") from e
+
+
+@router.get("/connectors/{connector_id}/onedrive/picker-token")
+async def get_onedrive_picker_token(
+    connector_id: int,
+    resource: str | None = None,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Get an access token scoped for the OneDrive File Picker v8.
+
+    The picker requires SharePoint-audience tokens, not Graph tokens.
+    If *resource* is omitted the user's OneDrive root URL is resolved via
+    Graph and used as the resource.
+    """
+    try:
+        result = await session.execute(
+            select(SearchSourceConnector).filter(
+                SearchSourceConnector.id == connector_id,
+                SearchSourceConnector.user_id == user.id,
+                SearchSourceConnector.connector_type == SearchSourceConnectorType.ONEDRIVE_CONNECTOR,
+            )
+        )
+        connector = result.scalars().first()
+        if not connector:
+            raise HTTPException(status_code=404, detail="OneDrive connector not found or access denied")
+
+        token_encryption = get_token_encryption()
+        is_encrypted = connector.config.get("_token_encrypted", False)
+
+        # Resolve the SharePoint base URL when the caller doesn't provide one
+        if not resource:
+            access_token = connector.config.get("access_token")
+            if is_encrypted and access_token:
+                access_token = token_encryption.decrypt_token(access_token)
+
+            # Refresh the Graph token if it has expired
+            expires_at_str = connector.config.get("expires_at")
+            if expires_at_str:
+                from dateutil.parser import parse as parse_date
+                if datetime.now(UTC) >= parse_date(expires_at_str):
+                    connector = await refresh_onedrive_token(session, connector)
+                    access_token = connector.config.get("access_token")
+                    if connector.config.get("_token_encrypted") and access_token:
+                        access_token = token_encryption.decrypt_token(access_token)
+
+            async with httpx.AsyncClient() as client:
+                drive_resp = await client.get(
+                    "https://graph.microsoft.com/v1.0/me/drive/root",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    timeout=30.0,
+                )
+            if drive_resp.status_code != 200:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to resolve OneDrive base URL from Graph API",
+                )
+            from urllib.parse import urlparse
+            web_url = drive_resp.json().get("webUrl", "")
+            parsed = urlparse(web_url)
+            resource = f"{parsed.scheme}://{parsed.hostname}"
+
+        # Exchange the refresh token for a SharePoint-audience token
+        refresh_token = connector.config.get("refresh_token")
+        if is_encrypted and refresh_token:
+            refresh_token = token_encryption.decrypt_token(refresh_token)
+        if not refresh_token:
+            raise HTTPException(status_code=400, detail="No refresh token available")
+
+        token_data = {
+            "client_id": config.MICROSOFT_CLIENT_ID,
+            "client_secret": config.MICROSOFT_CLIENT_SECRET,
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+            "scope": f"{resource}/.default",
+        }
+        async with httpx.AsyncClient() as client:
+            token_response = await client.post(
+                TOKEN_URL,
+                data=token_data,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                timeout=30.0,
+            )
+
+        if token_response.status_code != 200:
+            error_detail = "Failed to acquire picker token"
+            try:
+                error_json = token_response.json()
+                error_detail = error_json.get("error_description", error_detail)
+            except Exception:
+                pass
+            logger.error("Picker token exchange failed for connector %s: %s", connector_id, error_detail)
+            raise HTTPException(status_code=400, detail=error_detail)
+
+        token_json = token_response.json()
+
+        # Persist new refresh token when Microsoft rotates it
+        new_refresh = token_json.get("refresh_token")
+        if new_refresh:
+            cfg = dict(connector.config)
+            cfg["refresh_token"] = token_encryption.encrypt_token(new_refresh)
+            connector.config = cfg
+            flag_modified(connector, "config")
+            await session.commit()
+
+        return {
+            "access_token": token_json["access_token"],
+            "base_url": resource,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error getting OneDrive picker token: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get picker token: {e!s}") from e
 
 
 async def refresh_onedrive_token(
