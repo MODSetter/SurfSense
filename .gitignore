@@ -5,4 +5,4 @@ node_modules/
 .ruff_cache/
 .venv
 .pnpm-store
-.DS_Store
+.DS_Storepackage-lock.json
