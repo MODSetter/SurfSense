@@ -89,7 +89,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 	const isProcessing = statusState === "pending" || statusState === "processing";
 	const [dropdownOpen, setDropdownOpen] = useState(false);
 	const [exporting, setExporting] = useState<string | null>(null);
-	const rowRef = useRef<HTMLButtonElement>(null);
+	const rowRef = useRef<HTMLDivElement>(null);
 
 	const handleExport = useCallback(
 		(format: string) => {
@@ -102,8 +102,8 @@ export const DocumentNode = React.memo(function DocumentNode({
 	);
 
 	const attachRef = useCallback(
-		(node: HTMLButtonElement | null) => {
-			(rowRef as React.MutableRefObject<HTMLButtonElement | null>).current = node;
+		(node: HTMLDivElement | null) => {
+			(rowRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
 			drag(node);
 		},
 		[drag]
@@ -112,8 +112,10 @@ export const DocumentNode = React.memo(function DocumentNode({
 	return (
 		<ContextMenu onOpenChange={onContextMenuOpenChange}>
 			<ContextMenuTrigger asChild>
-				<button
-					type="button"
+				{/* biome-ignore lint/a11y/useSemanticElements: can't use <button> — contains nested interactive elements (Checkbox, DropdownMenuTrigger) */}
+				<div
+					role="button"
+					tabIndex={0}
 					ref={attachRef}
 					className={cn(
 					"group flex h-8 w-full items-center gap-2.5 rounded-md px-1 text-sm hover:bg-accent/50 cursor-pointer select-none text-left",
@@ -122,6 +124,12 @@ export const DocumentNode = React.memo(function DocumentNode({
 					)}
 					style={{ paddingLeft: `${depth * 16 + 4}px` }}
 					onClick={handleCheckChange}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
+							handleCheckChange();
+						}
+					}}
 				>
 				{(() => {
 					if (statusState === "pending") {
@@ -231,7 +239,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
-				</button>
+				</div>
 			</ContextMenuTrigger>
 
 			{contextMenuOpen && (
