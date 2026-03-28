@@ -41,6 +41,7 @@ def mock_drive_client():
 @pytest.fixture
 def patch_extract(monkeypatch):
     """Provide a helper to set the download_and_extract_content mock."""
+
     def _patch(side_effect=None, return_value=None):
         mock = AsyncMock(side_effect=side_effect, return_value=return_value)
         monkeypatch.setattr(
@@ -48,11 +49,13 @@ def patch_extract(monkeypatch):
             mock,
         )
         return mock
+
     return _patch
 
 
 async def test_single_file_returns_one_connector_document(
-    mock_drive_client, patch_extract,
+    mock_drive_client,
+    patch_extract,
 ):
     """Tracer bullet: downloading one file produces one ConnectorDocument."""
     patch_extract(return_value=_mock_extract_ok("f1", "test.txt"))
@@ -73,7 +76,8 @@ async def test_single_file_returns_one_connector_document(
 
 
 async def test_multiple_files_all_produce_documents(
-    mock_drive_client, patch_extract,
+    mock_drive_client,
+    patch_extract,
 ):
     """All files are downloaded and converted to ConnectorDocuments."""
     files = [_make_file_dict(f"f{i}", f"file{i}.txt") for i in range(3)]
@@ -96,7 +100,8 @@ async def test_multiple_files_all_produce_documents(
 
 
 async def test_one_download_exception_does_not_block_others(
-    mock_drive_client, patch_extract,
+    mock_drive_client,
+    patch_extract,
 ):
     """A RuntimeError in one download still lets the other files succeed."""
     files = [_make_file_dict(f"f{i}", f"file{i}.txt") for i in range(3)]
@@ -123,7 +128,8 @@ async def test_one_download_exception_does_not_block_others(
 
 
 async def test_etl_error_counts_as_download_failure(
-    mock_drive_client, patch_extract,
+    mock_drive_client,
+    patch_extract,
 ):
     """download_and_extract_content returning an error is counted as failed."""
     files = [_make_file_dict("f0", "good.txt"), _make_file_dict("f1", "bad.txt")]
@@ -148,7 +154,8 @@ async def test_etl_error_counts_as_download_failure(
 
 
 async def test_concurrency_bounded_by_semaphore(
-    mock_drive_client, monkeypatch,
+    mock_drive_client,
+    monkeypatch,
 ):
     """Peak concurrent downloads never exceeds max_concurrency."""
     lock = asyncio.Lock()
@@ -189,7 +196,8 @@ async def test_concurrency_bounded_by_semaphore(
 
 
 async def test_heartbeat_fires_during_parallel_downloads(
-    mock_drive_client, monkeypatch,
+    mock_drive_client,
+    monkeypatch,
 ):
     """on_heartbeat is called at least once when downloads take time."""
     import app.tasks.connector_indexers.google_drive_indexer as _mod
@@ -231,8 +239,13 @@ async def test_heartbeat_fires_during_parallel_downloads(
 # Slice 6, 6b, 6c -- _index_full_scan three-phase pipeline
 # ---------------------------------------------------------------------------
 
+
 def _folder_dict(file_id: str, name: str) -> dict:
-    return {"id": file_id, "name": name, "mimeType": "application/vnd.google-apps.folder"}
+    return {
+        "id": file_id,
+        "name": name,
+        "mimeType": "application/vnd.google-apps.folder",
+    }
 
 
 @pytest.fixture
@@ -259,12 +272,17 @@ def full_scan_mocks(mock_drive_client, monkeypatch):
     batch_mock = AsyncMock(return_value=([], 0, 0))
     pipeline_mock = MagicMock()
     pipeline_mock.index_batch_parallel = batch_mock
+    pipeline_mock.create_placeholder_documents = AsyncMock(return_value=0)
     monkeypatch.setattr(
-        _mod, "IndexingPipelineService", MagicMock(return_value=pipeline_mock),
+        _mod,
+        "IndexingPipelineService",
+        MagicMock(return_value=pipeline_mock),
     )
 
     monkeypatch.setattr(
-        _mod, "get_user_long_context_llm", AsyncMock(return_value=MagicMock()),
+        _mod,
+        "get_user_long_context_llm",
+        AsyncMock(return_value=MagicMock()),
     )
 
     return {
@@ -312,12 +330,16 @@ async def test_full_scan_three_phase_counts(full_scan_mocks, monkeypatch):
     ]
 
     monkeypatch.setattr(
-        _mod, "get_files_in_folder",
+        _mod,
+        "get_files_in_folder",
         AsyncMock(return_value=(page_files, None, None)),
     )
 
     full_scan_mocks["skip_results"]["skip1"] = (True, "unchanged")
-    full_scan_mocks["skip_results"]["rename1"] = (True, "File renamed: 'old' → 'renamed.txt'")
+    full_scan_mocks["skip_results"]["rename1"] = (
+        True,
+        "File renamed: 'old' → 'renamed.txt'",
+    )
 
     mock_docs = [MagicMock(), MagicMock()]
     full_scan_mocks["download_mock"].return_value = (mock_docs, 0)
@@ -341,7 +363,8 @@ async def test_full_scan_respects_max_files(full_scan_mocks, monkeypatch):
     page_files = [_make_file_dict(f"f{i}", f"file{i}.txt") for i in range(10)]
 
     monkeypatch.setattr(
-        _mod, "get_files_in_folder",
+        _mod,
+        "get_files_in_folder",
         AsyncMock(return_value=(page_files, None, None)),
     )
 
@@ -355,14 +378,16 @@ async def test_full_scan_respects_max_files(full_scan_mocks, monkeypatch):
 
 
 async def test_full_scan_uses_max_concurrency_3_for_indexing(
-    full_scan_mocks, monkeypatch,
+    full_scan_mocks,
+    monkeypatch,
 ):
     """index_batch_parallel is called with max_concurrency=3."""
     import app.tasks.connector_indexers.google_drive_indexer as _mod
 
     page_files = [_make_file_dict("f1", "file1.txt")]
     monkeypatch.setattr(
-        _mod, "get_files_in_folder",
+        _mod,
+        "get_files_in_folder",
         AsyncMock(return_value=(page_files, None, None)),
     )
 
@@ -382,6 +407,7 @@ async def test_full_scan_uses_max_concurrency_3_for_indexing(
 # Slice 7 -- _index_with_delta_sync three-phase pipeline
 # ---------------------------------------------------------------------------
 
+
 async def test_delta_sync_removals_serial_rest_parallel(monkeypatch):
     """Removed/trashed changes call _remove_document; the rest go through
     _download_files_parallel and index_batch_parallel."""
@@ -396,7 +422,8 @@ async def test_delta_sync_removals_serial_rest_parallel(monkeypatch):
     ]
 
     monkeypatch.setattr(
-        _mod, "fetch_all_changes",
+        _mod,
+        "fetch_all_changes",
         AsyncMock(return_value=(changes, "new-token", None)),
     )
 
@@ -408,7 +435,8 @@ async def test_delta_sync_removals_serial_rest_parallel(monkeypatch):
         "mod2": "modified",
     }
     monkeypatch.setattr(
-        _mod, "categorize_change",
+        _mod,
+        "categorize_change",
         lambda change: change_types[change["fileId"]],
     )
 
@@ -420,7 +448,8 @@ async def test_delta_sync_removals_serial_rest_parallel(monkeypatch):
     monkeypatch.setattr(_mod, "_remove_document", _fake_remove)
 
     monkeypatch.setattr(
-        _mod, "_should_skip_file",
+        _mod,
+        "_should_skip_file",
         AsyncMock(return_value=(False, None)),
     )
 
@@ -431,11 +460,16 @@ async def test_delta_sync_removals_serial_rest_parallel(monkeypatch):
     batch_mock = AsyncMock(return_value=([], 2, 0))
     pipeline_mock = MagicMock()
     pipeline_mock.index_batch_parallel = batch_mock
+    pipeline_mock.create_placeholder_documents = AsyncMock(return_value=0)
     monkeypatch.setattr(
-        _mod, "IndexingPipelineService", MagicMock(return_value=pipeline_mock),
+        _mod,
+        "IndexingPipelineService",
+        MagicMock(return_value=pipeline_mock),
     )
     monkeypatch.setattr(
-        _mod, "get_user_long_context_llm", AsyncMock(return_value=MagicMock()),
+        _mod,
+        "get_user_long_context_llm",
+        AsyncMock(return_value=MagicMock()),
     )
 
     mock_session = AsyncMock()
@@ -472,6 +506,7 @@ async def test_delta_sync_removals_serial_rest_parallel(monkeypatch):
 # _index_selected_files -- parallel indexing of user-selected files
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def selected_files_mocks(mock_drive_client, monkeypatch):
     """Wire up mocks for _index_selected_files tests."""
@@ -495,6 +530,14 @@ def selected_files_mocks(mock_drive_client, monkeypatch):
 
     download_and_index_mock = AsyncMock(return_value=(0, 0))
     monkeypatch.setattr(_mod, "_download_and_index", download_and_index_mock)
+
+    pipeline_mock = MagicMock()
+    pipeline_mock.create_placeholder_documents = AsyncMock(return_value=0)
+    monkeypatch.setattr(
+        _mod,
+        "IndexingPipelineService",
+        MagicMock(return_value=pipeline_mock),
+    )
 
     return {
         "drive_client": mock_drive_client,
@@ -526,7 +569,8 @@ async def test_selected_files_single_file_indexed(selected_files_mocks):
     selected_files_mocks["download_and_index_mock"].return_value = (1, 0)
 
     indexed, skipped, errors = await _run_selected(
-        selected_files_mocks, [("f1", "report.pdf")],
+        selected_files_mocks,
+        [("f1", "report.pdf")],
     )
 
     assert indexed == 1
@@ -538,11 +582,13 @@ async def test_selected_files_single_file_indexed(selected_files_mocks):
 async def test_selected_files_fetch_failure_isolation(selected_files_mocks):
     """get_file_by_id failing for one file collects an error; others still indexed."""
     selected_files_mocks["get_file_results"]["f1"] = (
-        _make_file_dict("f1", "first.txt"), None,
+        _make_file_dict("f1", "first.txt"),
+        None,
     )
     selected_files_mocks["get_file_results"]["f2"] = (None, "HTTP 404")
     selected_files_mocks["get_file_results"]["f3"] = (
-        _make_file_dict("f3", "third.txt"), None,
+        _make_file_dict("f3", "third.txt"),
+        None,
     )
     selected_files_mocks["download_and_index_mock"].return_value = (2, 0)
 
@@ -561,30 +607,46 @@ async def test_selected_files_fetch_failure_isolation(selected_files_mocks):
 async def test_selected_files_skip_rename_counting(selected_files_mocks):
     """Unchanged files are skipped, renames counted as indexed,
     and only new files are sent to _download_and_index."""
-    for fid, fname in [("s1", "unchanged.txt"), ("r1", "renamed.txt"),
-                       ("n1", "new1.txt"), ("n2", "new2.txt")]:
+    for fid, fname in [
+        ("s1", "unchanged.txt"),
+        ("r1", "renamed.txt"),
+        ("n1", "new1.txt"),
+        ("n2", "new2.txt"),
+    ]:
         selected_files_mocks["get_file_results"][fid] = (
-            _make_file_dict(fid, fname), None,
+            _make_file_dict(fid, fname),
+            None,
         )
 
     selected_files_mocks["skip_results"]["s1"] = (True, "unchanged")
-    selected_files_mocks["skip_results"]["r1"] = (True, "File renamed: 'old' \u2192 'renamed.txt'")
+    selected_files_mocks["skip_results"]["r1"] = (
+        True,
+        "File renamed: 'old' \u2192 'renamed.txt'",
+    )
 
     selected_files_mocks["download_and_index_mock"].return_value = (2, 0)
 
     indexed, skipped, errors = await _run_selected(
         selected_files_mocks,
-        [("s1", "unchanged.txt"), ("r1", "renamed.txt"),
-         ("n1", "new1.txt"), ("n2", "new2.txt")],
+        [
+            ("s1", "unchanged.txt"),
+            ("r1", "renamed.txt"),
+            ("n1", "new1.txt"),
+            ("n2", "new2.txt"),
+        ],
     )
 
-    assert indexed == 3   # 1 renamed + 2 batch
-    assert skipped == 1   # 1 unchanged
+    assert indexed == 3  # 1 renamed + 2 batch
+    assert skipped == 1  # 1 unchanged
     assert errors == []
 
     mock = selected_files_mocks["download_and_index_mock"]
     mock.assert_called_once()
-    call_files = mock.call_args[1].get("files") if "files" in (mock.call_args[1] or {}) else mock.call_args[0][2]
+    call_files = (
+        mock.call_args[1].get("files")
+        if "files" in (mock.call_args[1] or {})
+        else mock.call_args[0][2]
+    )
     assert len(call_files) == 2
     assert {f["id"] for f in call_files} == {"n1", "n2"}
 
@@ -592,6 +654,7 @@ async def test_selected_files_skip_rename_counting(selected_files_mocks):
 # ---------------------------------------------------------------------------
 # asyncio.to_thread verification — prove blocking calls run in parallel
 # ---------------------------------------------------------------------------
+
 
 async def test_client_download_file_runs_in_thread_parallel():
     """Calling download_file concurrently via asyncio.gather should overlap
@@ -602,11 +665,11 @@ async def test_client_download_file_runs_in_thread_parallel():
     """
     from app.connectors.google_drive.client import GoogleDriveClient
 
-    BLOCK_SECONDS = 0.2
-    NUM_CALLS = 3
+    block_seconds = 0.2
+    num_calls = 3
 
     def _blocking_download(service, file_id, credentials):
-        time.sleep(BLOCK_SECONDS)
+        time.sleep(block_seconds)
         return b"fake-content", None
 
     client = GoogleDriveClient.__new__(GoogleDriveClient)
@@ -615,11 +678,13 @@ async def test_client_download_file_runs_in_thread_parallel():
     client._service_lock = asyncio.Lock()
 
     with patch.object(
-        GoogleDriveClient, "_sync_download_file", staticmethod(_blocking_download),
+        GoogleDriveClient,
+        "_sync_download_file",
+        staticmethod(_blocking_download),
     ):
         start = time.monotonic()
         results = await asyncio.gather(
-            *(client.download_file(f"file-{i}") for i in range(NUM_CALLS))
+            *(client.download_file(f"file-{i}") for i in range(num_calls))
         )
         elapsed = time.monotonic() - start
 
@@ -627,7 +692,7 @@ async def test_client_download_file_runs_in_thread_parallel():
         assert content == b"fake-content"
         assert error is None
 
-    serial_minimum = BLOCK_SECONDS * NUM_CALLS
+    serial_minimum = block_seconds * num_calls
     assert elapsed < serial_minimum, (
         f"Elapsed {elapsed:.2f}s >= serial minimum {serial_minimum:.2f}s — "
         f"downloads are not running in parallel"
@@ -638,11 +703,11 @@ async def test_client_export_google_file_runs_in_thread_parallel():
     """Same strategy for export_google_file — verify to_thread parallelism."""
     from app.connectors.google_drive.client import GoogleDriveClient
 
-    BLOCK_SECONDS = 0.2
-    NUM_CALLS = 3
+    block_seconds = 0.2
+    num_calls = 3
 
     def _blocking_export(service, file_id, mime_type, credentials):
-        time.sleep(BLOCK_SECONDS)
+        time.sleep(block_seconds)
         return b"exported", None
 
     client = GoogleDriveClient.__new__(GoogleDriveClient)
@@ -651,12 +716,16 @@ async def test_client_export_google_file_runs_in_thread_parallel():
     client._service_lock = asyncio.Lock()
 
     with patch.object(
-        GoogleDriveClient, "_sync_export_google_file", staticmethod(_blocking_export),
+        GoogleDriveClient,
+        "_sync_export_google_file",
+        staticmethod(_blocking_export),
     ):
         start = time.monotonic()
         results = await asyncio.gather(
-            *(client.export_google_file(f"file-{i}", "application/pdf")
-              for i in range(NUM_CALLS))
+            *(
+                client.export_google_file(f"file-{i}", "application/pdf")
+                for i in range(num_calls)
+            )
         )
         elapsed = time.monotonic() - start
 
@@ -664,7 +733,7 @@ async def test_client_export_google_file_runs_in_thread_parallel():
         assert content == b"exported"
         assert error is None
 
-    serial_minimum = BLOCK_SECONDS * NUM_CALLS
+    serial_minimum = block_seconds * num_calls
     assert elapsed < serial_minimum, (
         f"Elapsed {elapsed:.2f}s >= serial minimum {serial_minimum:.2f}s — "
         f"exports are not running in parallel"

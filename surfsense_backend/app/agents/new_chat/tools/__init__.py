@@ -5,7 +5,6 @@ This module contains all the tools available to the SurfSense agent.
 To add a new tool, see the documentation in registry.py.
 
 Available tools:
-- search_knowledge_base: Search the user's personal knowledge base
 - search_surfsense_docs: Search Surfsense documentation for usage help
 - generate_podcast: Generate audio podcasts from content
 - generate_video_presentation: Generate video presentations with slides and narration
@@ -20,7 +19,6 @@ Available tools:
 from .generate_image import create_generate_image_tool
 from .knowledge_base import (
     CONNECTOR_DESCRIPTIONS,
-    create_search_knowledge_base_tool,
     format_documents_for_context,
     search_knowledge_base_async,
 )
@@ -52,7 +50,6 @@ __all__ = [
     "create_recall_memory_tool",
     "create_save_memory_tool",
     "create_scrape_webpage_tool",
-    "create_search_knowledge_base_tool",
     "create_search_surfsense_docs_tool",
     "format_documents_for_context",
     "get_all_tool_names",

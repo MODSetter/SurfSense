@@ -2,41 +2,49 @@
 
 import { useQuery } from "@rocicorp/zero/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { ChevronLeft, ChevronRight, Unplug } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2, Unplug } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { EXPORT_FILE_EXTENSIONS } from "@/components/shared/ExportMenuItems";
 import { DocumentsFilters } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentsFilters";
-import {
-	DocumentsTableShell,
-	type SortKey,
-} from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentsTableShell";
 import { sidebarSelectedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { expandedFolderIdsAtom } from "@/atoms/documents/folder.atoms";
+import { agentCreatedDocumentsAtom } from "@/atoms/documents/ui.atoms";
 import { openDocumentTabAtom } from "@/atoms/tabs/tabs.atom";
 import { CreateFolderDialog } from "@/components/documents/CreateFolderDialog";
 import type { DocumentNodeDoc } from "@/components/documents/DocumentNode";
 import type { FolderDisplay } from "@/components/documents/FolderNode";
 import { FolderPickerDialog } from "@/components/documents/FolderPickerDialog";
 import { FolderTreeView } from "@/components/documents/FolderTreeView";
+import { EXPORT_FILE_EXTENSIONS } from "@/components/shared/ExportMenuItems";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { useDocumentSearch } from "@/hooks/use-document-search";
-import { useDocuments } from "@/hooks/use-documents";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import { queries } from "@/zero/queries/index";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
+
+const NON_DELETABLE_DOCUMENT_TYPES: readonly string[] = ["SURFSENSE_DOCS"];
 
 const SHOWCASE_CONNECTORS = [
 	{ type: "GOOGLE_DRIVE_CONNECTOR", label: "Google Drive" },
@@ -82,8 +90,6 @@ export function DocumentsSidebar({
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebouncedValue(search, 250);
 	const [activeTypes, setActiveTypes] = useState<DocumentTypeEnum[]>([]);
-	const [sortKey, setSortKey] = useState<SortKey>("created_at");
-	const [sortDesc, setSortDesc] = useState(true);
 	const { mutateAsync: deleteDocumentMutation } = useAtomValue(deleteDocumentMutationAtom);
 
 	const [sidebarDocs, setSidebarDocs] = useAtom(sidebarSelectedDocumentsAtom);
@@ -110,6 +116,7 @@ export function DocumentsSidebar({
 	// Zero queries for tree data
 	const [zeroFolders] = useQuery(queries.folders.bySpace({ searchSpaceId }));
 	const [zeroAllDocs] = useQuery(queries.documents.bySpace({ searchSpaceId }));
+	const [agentCreatedDocs, setAgentCreatedDocs] = useAtom(agentCreatedDocumentsAtom);
 
 	const treeFolders: FolderDisplay[] = useMemo(
 		() =>
@@ -123,19 +130,41 @@ export function DocumentsSidebar({
 		[zeroFolders]
 	);
 
-	const treeDocuments: DocumentNodeDoc[] = useMemo(
-		() =>
-			(zeroAllDocs ?? [])
-				.filter((d) => d.title && d.title.trim() !== "")
-				.map((d) => ({
-					id: d.id,
-					title: d.title,
-					document_type: d.documentType,
-					folderId: (d as { folderId?: number | null }).folderId ?? null,
-					status: d.status as { state: string; reason?: string | null } | undefined,
-				})),
-		[zeroAllDocs]
-	);
+	const treeDocuments: DocumentNodeDoc[] = useMemo(() => {
+		const zeroDocs = (zeroAllDocs ?? [])
+			.filter((d) => d.title && d.title.trim() !== "")
+			.map((d) => ({
+				id: d.id,
+				title: d.title,
+				document_type: d.documentType,
+				folderId: (d as { folderId?: number | null }).folderId ?? null,
+				status: d.status as { state: string; reason?: string | null } | undefined,
+			}));
+
+		const zeroIds = new Set(zeroDocs.map((d) => d.id));
+
+		const pendingAgentDocs = agentCreatedDocs
+			.filter((d) => d.searchSpaceId === searchSpaceId && !zeroIds.has(d.id))
+			.map((d) => ({
+				id: d.id,
+				title: d.title,
+				document_type: d.documentType,
+				folderId: d.folderId ?? null,
+				status: { state: "ready" } as { state: string; reason?: string | null },
+			}));
+
+		return [...pendingAgentDocs, ...zeroDocs];
+	}, [zeroAllDocs, agentCreatedDocs, searchSpaceId]);
+
+	// Prune agent-created docs once Zero has caught up
+	useEffect(() => {
+		if (!zeroAllDocs?.length || !agentCreatedDocs.length) return;
+		const zeroIds = new Set(zeroAllDocs.map((d) => d.id));
+		const remaining = agentCreatedDocs.filter((d) => !zeroIds.has(d.id));
+		if (remaining.length < agentCreatedDocs.length) {
+			setAgentCreatedDocs(remaining);
+		}
+	}, [zeroAllDocs, agentCreatedDocs, setAgentCreatedDocs]);
 
 	const foldersByParent = useMemo(() => {
 		const map: Record<string, FolderDisplay[]> = {};
@@ -355,7 +384,7 @@ export function DocumentsSidebar({
 					(d) =>
 						d.folderId === parentId &&
 						d.status?.state !== "pending" &&
-						d.status?.state !== "processing",
+						d.status?.state !== "processing"
 				);
 				const childFolders = foldersByParent[String(parentId)] ?? [];
 				const descendantDocs = childFolders.flatMap((cf) => collectSubtreeDocs(cf.id));
@@ -382,38 +411,72 @@ export function DocumentsSidebar({
 				setSidebarDocs((prev) => prev.filter((d) => !idsToRemove.has(d.id)));
 			}
 		},
-		[treeDocuments, foldersByParent, setSidebarDocs],
+		[treeDocuments, foldersByParent, setSidebarDocs]
 	);
 
-	const isSearchMode = !!debouncedSearch.trim();
+	const searchFilteredDocuments = useMemo(() => {
+		const query = debouncedSearch.trim().toLowerCase();
+		if (!query) return treeDocuments;
+		return treeDocuments.filter((d) => d.title.toLowerCase().includes(query));
+	}, [treeDocuments, debouncedSearch]);
 
-	const {
-		documents: realtimeDocuments,
-		typeCounts: realtimeTypeCounts,
-		loading: realtimeLoading,
-		loadingMore: realtimeLoadingMore,
-		hasMore: realtimeHasMore,
-		loadMore: realtimeLoadMore,
-		removeItems: realtimeRemoveItems,
-		error: realtimeError,
-	} = useDocuments(searchSpaceId, activeTypes, sortKey, sortDesc ? "desc" : "asc");
+	const typeCounts = useMemo(() => {
+		const counts: Partial<Record<string, number>> = {};
+		for (const d of treeDocuments) {
+			counts[d.document_type] = (counts[d.document_type] || 0) + 1;
+		}
+		return counts;
+	}, [treeDocuments]);
 
-	const {
-		documents: searchDocuments,
-		loading: searchLoading,
-		loadingMore: searchLoadingMore,
-		hasMore: searchHasMore,
-		loadMore: searchLoadMore,
-		error: searchError,
-		removeItems: searchRemoveItems,
-	} = useDocumentSearch(searchSpaceId, debouncedSearch, activeTypes, isSearchMode && open);
+	const deletableSelectedIds = useMemo(() => {
+		const treeDocMap = new Map(treeDocuments.map((d) => [d.id, d]));
+		return sidebarDocs
+			.filter((doc) => {
+				const fullDoc = treeDocMap.get(doc.id);
+				if (!fullDoc) return false;
+				const state = fullDoc.status?.state ?? "ready";
+				return (
+					state !== "pending" &&
+					state !== "processing" &&
+					!NON_DELETABLE_DOCUMENT_TYPES.includes(doc.document_type)
+				);
+			})
+			.map((doc) => doc.id);
+	}, [sidebarDocs, treeDocuments]);
 
-	const displayDocs = isSearchMode ? searchDocuments : realtimeDocuments;
-	const loading = isSearchMode ? searchLoading : realtimeLoading;
-	const error = isSearchMode ? searchError : !!realtimeError;
-	const hasMore = isSearchMode ? searchHasMore : realtimeHasMore;
-	const loadingMore = isSearchMode ? searchLoadingMore : realtimeLoadingMore;
-	const onLoadMore = isSearchMode ? searchLoadMore : realtimeLoadMore;
+	const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
+	const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+	const handleBulkDeleteSelected = useCallback(async () => {
+		if (deletableSelectedIds.length === 0) return;
+		setIsBulkDeleting(true);
+		try {
+			const results = await Promise.allSettled(
+				deletableSelectedIds.map(async (id) => {
+					await deleteDocumentMutation({ id });
+					return id;
+				})
+			);
+			const successIds = results
+				.filter((r): r is PromiseFulfilledResult<number> => r.status === "fulfilled")
+				.map((r) => r.value);
+			const failed = results.length - successIds.length;
+			if (successIds.length > 0) {
+				setSidebarDocs((prev) => {
+					const idSet = new Set(successIds);
+					return prev.filter((d) => !idSet.has(d.id));
+				});
+				toast.success(`Deleted ${successIds.length} document${successIds.length !== 1 ? "s" : ""}`);
+			}
+			if (failed > 0) {
+				toast.error(`Failed to delete ${failed} document${failed !== 1 ? "s" : ""}`);
+			}
+		} catch {
+			toast.error("Failed to delete documents");
+		}
+		setIsBulkDeleting(false);
+		setBulkDeleteConfirmOpen(false);
+	}, [deletableSelectedIds, deleteDocumentMutation, setSidebarDocs]);
 
 	const onToggleType = useCallback((type: DocumentTypeEnum, checked: boolean) => {
 		setActiveTypes((prev) => {
@@ -430,68 +493,14 @@ export function DocumentsSidebar({
 				await deleteDocumentMutation({ id });
 				toast.success(t("delete_success") || "Document deleted");
 				setSidebarDocs((prev) => prev.filter((d) => d.id !== id));
-				realtimeRemoveItems([id]);
-				if (isSearchMode) {
-					searchRemoveItems([id]);
-				}
 				return true;
 			} catch (e) {
 				console.error("Error deleting document:", e);
 				return false;
 			}
 		},
-		[
-			deleteDocumentMutation,
-			isSearchMode,
-			t,
-			searchRemoveItems,
-			realtimeRemoveItems,
-			setSidebarDocs,
-		]
+		[deleteDocumentMutation, t, setSidebarDocs]
 	);
-
-	const handleBulkDeleteDocuments = useCallback(
-		async (ids: number[]): Promise<{ success: number; failed: number }> => {
-			const successIds: number[] = [];
-			const results = await Promise.allSettled(
-				ids.map(async (id) => {
-					await deleteDocumentMutation({ id });
-					successIds.push(id);
-				})
-			);
-			if (successIds.length > 0) {
-				setSidebarDocs((prev) => prev.filter((d) => !successIds.includes(d.id)));
-				realtimeRemoveItems(successIds);
-				if (isSearchMode) {
-					searchRemoveItems(successIds);
-				}
-			}
-			const success = results.filter((r) => r.status === "fulfilled").length;
-			const failed = results.filter((r) => r.status === "rejected").length;
-			return { success, failed };
-		},
-		[deleteDocumentMutation, isSearchMode, searchRemoveItems, realtimeRemoveItems, setSidebarDocs]
-	);
-
-	const sortKeyRef = useRef(sortKey);
-	const sortDescRef = useRef(sortDesc);
-	sortKeyRef.current = sortKey;
-	sortDescRef.current = sortDesc;
-
-	const handleSortChange = useCallback((key: SortKey) => {
-		const currentKey = sortKeyRef.current;
-		const currentDesc = sortDescRef.current;
-
-		if (currentKey === key && currentDesc) {
-			setSortKey("created_at");
-			setSortDesc(true);
-		} else if (currentKey === key) {
-			setSortDesc(true);
-		} else {
-			setSortKey(key);
-			setSortDesc(false);
-		}
-	}, []);
 
 	useEffect(() => {
 		const handleEscape = (e: KeyboardEvent) => {
@@ -627,7 +636,7 @@ export function DocumentsSidebar({
 			<div className="flex-1 min-h-0 overflow-x-hidden pt-0 flex flex-col">
 				<div className="px-4 pb-2">
 					<DocumentsFilters
-						typeCounts={realtimeTypeCounts}
+						typeCounts={typeCounts}
 						onSearch={setSearch}
 						searchValue={search}
 						onToggleType={onToggleType}
@@ -636,59 +645,54 @@ export function DocumentsSidebar({
 					/>
 				</div>
 
-				{isSearchMode ? (
-					<DocumentsTableShell
-						documents={displayDocs}
-						loading={!!loading}
-						error={!!error}
-						sortKey={sortKey}
-						sortDesc={sortDesc}
-						onSortChange={handleSortChange}
-						deleteDocument={handleDeleteDocument}
-						bulkDeleteDocuments={handleBulkDeleteDocuments}
-						searchSpaceId={String(searchSpaceId)}
-						hasMore={hasMore}
-						loadingMore={loadingMore}
-						onLoadMore={onLoadMore}
-						mentionedDocIds={mentionedDocIds}
-						onToggleChatMention={handleToggleChatMention}
-						isSearchMode={isSearchMode || activeTypes.length > 0}
-					/>
-				) : (
-					<FolderTreeView
-						folders={treeFolders}
-						documents={treeDocuments}
-						expandedIds={expandedIds}
-						onToggleExpand={toggleFolderExpand}
-						mentionedDocIds={mentionedDocIds}
-						onToggleChatMention={handleToggleChatMention}
-						onToggleFolderSelect={handleToggleFolderSelect}
-						onRenameFolder={handleRenameFolder}
-						onDeleteFolder={handleDeleteFolder}
-						onMoveFolder={handleMoveFolder}
-						onCreateFolder={handleCreateFolder}
-						onPreviewDocument={(doc) => {
-							openDocumentTab({
-								documentId: doc.id,
-								searchSpaceId,
-								title: doc.title,
-							});
-						}}
-						onEditDocument={(doc) => {
-							openDocumentTab({
-								documentId: doc.id,
-								searchSpaceId,
-								title: doc.title,
-							});
-						}}
-						onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
-						onMoveDocument={handleMoveDocument}
-						onExportDocument={handleExportDocument}
-						activeTypes={activeTypes}
-						onDropIntoFolder={handleDropIntoFolder}
-						onReorderFolder={handleReorderFolder}
-					/>
+				{deletableSelectedIds.length > 0 && (
+					<div className="shrink-0 flex items-center justify-center px-4 py-1.5 animate-in fade-in duration-150">
+						<button
+							type="button"
+							onClick={() => setBulkDeleteConfirmOpen(true)}
+							className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-destructive text-destructive-foreground shadow-sm text-xs font-medium hover:bg-destructive/90 transition-colors"
+						>
+							<Trash2 size={12} />
+							Delete {deletableSelectedIds.length}{" "}
+							{deletableSelectedIds.length === 1 ? "item" : "items"}
+						</button>
+					</div>
 				)}
+
+				<FolderTreeView
+					folders={treeFolders}
+					documents={searchFilteredDocuments}
+					expandedIds={expandedIds}
+					onToggleExpand={toggleFolderExpand}
+					mentionedDocIds={mentionedDocIds}
+					onToggleChatMention={handleToggleChatMention}
+					onToggleFolderSelect={handleToggleFolderSelect}
+					onRenameFolder={handleRenameFolder}
+					onDeleteFolder={handleDeleteFolder}
+					onMoveFolder={handleMoveFolder}
+					onCreateFolder={handleCreateFolder}
+					searchQuery={debouncedSearch.trim() || undefined}
+					onPreviewDocument={(doc) => {
+						openDocumentTab({
+							documentId: doc.id,
+							searchSpaceId,
+							title: doc.title,
+						});
+					}}
+					onEditDocument={(doc) => {
+						openDocumentTab({
+							documentId: doc.id,
+							searchSpaceId,
+							title: doc.title,
+						});
+					}}
+					onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
+					onMoveDocument={handleMoveDocument}
+					onExportDocument={handleExportDocument}
+					activeTypes={activeTypes}
+					onDropIntoFolder={handleDropIntoFolder}
+					onReorderFolder={handleReorderFolder}
+				/>
 			</div>
 
 			<FolderPickerDialog
@@ -707,6 +711,40 @@ export function DocumentsSidebar({
 				parentFolderName={createFolderParentName}
 				onConfirm={handleCreateFolderConfirm}
 			/>
+
+			<AlertDialog
+				open={bulkDeleteConfirmOpen}
+				onOpenChange={(open) => !open && !isBulkDeleting && setBulkDeleteConfirmOpen(false)}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>
+							Delete {deletableSelectedIds.length} document
+							{deletableSelectedIds.length !== 1 ? "s" : ""}?
+						</AlertDialogTitle>
+						<AlertDialogDescription>
+							This action cannot be undone.{" "}
+							{deletableSelectedIds.length === 1
+								? "This document"
+								: `These ${deletableSelectedIds.length} documents`}{" "}
+							will be permanently deleted from your search space.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={isBulkDeleting}>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={(e) => {
+								e.preventDefault();
+								handleBulkDeleteSelected();
+							}}
+							disabled={isBulkDeleting}
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+						>
+							{isBulkDeleting ? <Spinner size="sm" /> : "Delete"}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</>
 	);
 

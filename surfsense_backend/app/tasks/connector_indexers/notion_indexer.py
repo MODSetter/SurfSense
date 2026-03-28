@@ -15,7 +15,10 @@ from app.connectors.notion_history import NotionHistoryConnector
 from app.db import DocumentType, SearchSourceConnectorType
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.document_hashing import compute_content_hash
-from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
+from app.indexing_pipeline.indexing_pipeline_service import (
+    IndexingPipelineService,
+    PlaceholderInfo,
+)
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.notion_utils import process_blocks
@@ -245,12 +248,31 @@ async def index_notion_pages(
                 {"pages_found": 0},
             )
             logger.info("No Notion pages found to index")
-            await update_connector_last_indexed(
-                session, connector, update_last_indexed
-            )
+            await update_connector_last_indexed(session, connector, update_last_indexed)
             await session.commit()
             await notion_client.close()
             return 0, 0, None
+
+        # ── Create placeholders for instant UI feedback ───────────────
+        pipeline = IndexingPipelineService(session)
+        placeholders = [
+            PlaceholderInfo(
+                title=page.get("title", f"Untitled page ({page.get('page_id', '')})"),
+                document_type=DocumentType.NOTION_CONNECTOR,
+                unique_id=page.get("page_id", ""),
+                search_space_id=search_space_id,
+                connector_id=connector_id,
+                created_by_id=user_id,
+                metadata={
+                    "page_id": page.get("page_id", ""),
+                    "connector_id": connector_id,
+                    "connector_type": "Notion",
+                },
+            )
+            for page in pages
+            if page.get("page_id")
+        ]
+        await pipeline.create_placeholder_documents(placeholders)
 
         # ── Build ConnectorDocuments ──────────────────────────────────
         connector_docs: list[ConnectorDocument] = []
@@ -282,9 +304,7 @@ async def index_notion_pages(
                 markdown_content += process_blocks(page_content)
 
                 if not markdown_content.strip():
-                    logger.warning(
-                        f"Skipping page with empty markdown: {page_title}"
-                    )
+                    logger.warning(f"Skipping page with empty markdown: {page_title}")
                     documents_skipped += 1
                     continue
 
@@ -322,8 +342,6 @@ async def index_notion_pages(
                 continue
 
         # ── Pipeline: migrate legacy docs + parallel index ────────────
-        pipeline = IndexingPipelineService(session)
-
         await pipeline.migrate_legacy_docs(connector_docs)
 
         async def _get_llm(s):

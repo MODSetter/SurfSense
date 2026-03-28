@@ -421,7 +421,9 @@ const defaultComponents = memoizeMarkdownComponents({
 				<code
 					className={cn("aui-md-inline-code rounded border bg-muted font-semibold", className)}
 					{...props}
-				/>
+				>
+					{children}
+				</code>
 			);
 		}
 		const language = /language-(\w+)/.exec(className || "")?.[1] ?? "text";

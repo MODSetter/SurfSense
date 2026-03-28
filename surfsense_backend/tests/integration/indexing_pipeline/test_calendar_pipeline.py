@@ -14,7 +14,9 @@ _EMBEDDING_DIM = app_config.embedding_model_instance.dimension
 pytestmark = pytest.mark.integration
 
 
-def _cal_doc(*, unique_id: str, search_space_id: int, connector_id: int, user_id: str) -> ConnectorDocument:
+def _cal_doc(
+    *, unique_id: str, search_space_id: int, connector_id: int, user_id: str
+) -> ConnectorDocument:
     return ConnectorDocument(
         title=f"Event {unique_id}",
         source_markdown=f"## Calendar Event\n\nDetails for {unique_id}",
@@ -34,7 +36,9 @@ def _cal_doc(*, unique_id: str, search_space_id: int, connector_id: int, user_id
     )
 
 
-@pytest.mark.usefixtures("patched_summarize", "patched_embed_texts", "patched_chunk_text")
+@pytest.mark.usefixtures(
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
+)
 async def test_calendar_pipeline_creates_ready_document(
     db_session, db_search_space, db_connector, db_user, mocker
 ):
@@ -63,7 +67,9 @@ async def test_calendar_pipeline_creates_ready_document(
     assert DocumentStatus.is_state(row.status, DocumentStatus.READY)
 
 
-@pytest.mark.usefixtures("patched_summarize", "patched_embed_texts", "patched_chunk_text")
+@pytest.mark.usefixtures(
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
+)
 async def test_calendar_legacy_doc_migrated(
     db_session, db_search_space, db_connector, db_user, mocker
 ):
@@ -101,7 +107,9 @@ async def test_calendar_legacy_doc_migrated(
     service = IndexingPipelineService(session=db_session)
     await service.migrate_legacy_docs([connector_doc])
 
-    result = await db_session.execute(select(Document).filter(Document.id == original_id))
+    result = await db_session.execute(
+        select(Document).filter(Document.id == original_id)
+    )
     row = result.scalars().first()
 
     assert row.document_type == DocumentType.GOOGLE_CALENDAR_CONNECTOR

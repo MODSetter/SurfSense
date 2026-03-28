@@ -14,7 +14,10 @@ from app.connectors.linear_connector import LinearConnector
 from app.db import DocumentType, SearchSourceConnectorType
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.document_hashing import compute_content_hash
-from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
+from app.indexing_pipeline.indexing_pipeline_service import (
+    IndexingPipelineService,
+    PlaceholderInfo,
+)
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 
@@ -199,9 +202,7 @@ async def index_linear_issues(
             logger.info(f"Retrieved {len(issues)} issues from Linear API")
 
         except Exception as e:
-            logger.error(
-                f"Exception when calling Linear API: {e!s}", exc_info=True
-            )
+            logger.error(f"Exception when calling Linear API: {e!s}", exc_info=True)
             return 0, 0, f"Failed to get Linear issues: {e!s}"
 
         if not issues:
@@ -212,6 +213,28 @@ async def index_linear_issues(
                 )
                 await session.commit()
             return 0, 0, None
+
+        # ── Create placeholders for instant UI feedback ───────────────
+        pipeline = IndexingPipelineService(session)
+        placeholders = [
+            PlaceholderInfo(
+                title=f"{issue.get('identifier', '')}: {issue.get('title', '')}",
+                document_type=DocumentType.LINEAR_CONNECTOR,
+                unique_id=issue.get("id", ""),
+                search_space_id=search_space_id,
+                connector_id=connector_id,
+                created_by_id=user_id,
+                metadata={
+                    "issue_id": issue.get("id", ""),
+                    "issue_identifier": issue.get("identifier", ""),
+                    "connector_id": connector_id,
+                    "connector_type": "Linear",
+                },
+            )
+            for issue in issues
+            if issue.get("id") and issue.get("title")
+        ]
+        await pipeline.create_placeholder_documents(placeholders)
 
         # ── Build ConnectorDocuments ──────────────────────────────────
         connector_docs: list[ConnectorDocument] = []
@@ -238,9 +261,7 @@ async def index_linear_issues(
                     continue
 
                 formatted_issue = linear_client.format_issue(issue)
-                issue_content = linear_client.format_issue_to_markdown(
-                    formatted_issue
-                )
+                issue_content = linear_client.format_issue_to_markdown(formatted_issue)
 
                 if not issue_content:
                     logger.warning(
@@ -284,8 +305,6 @@ async def index_linear_issues(
                 continue
 
         # ── Pipeline: migrate legacy docs + parallel index ────────────
-        pipeline = IndexingPipelineService(session)
-
         await pipeline.migrate_legacy_docs(connector_docs)
 
         async def _get_llm(s):
@@ -302,9 +321,7 @@ async def index_linear_issues(
         # ── Finalize ──────────────────────────────────────────────────
         await update_connector_last_indexed(session, connector, update_last_indexed)
 
-        logger.info(
-            f"Final commit: Total {documents_indexed} Linear issues processed"
-        )
+        logger.info(f"Final commit: Total {documents_indexed} Linear issues processed")
         try:
             await session.commit()
             logger.info(

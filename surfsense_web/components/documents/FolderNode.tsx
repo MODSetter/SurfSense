@@ -15,7 +15,6 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useDrag, useDrop } from "react-dnd";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import type { FolderSelectionState } from "./FolderTreeView";
 import {
 	ContextMenu,
 	ContextMenuContent,
@@ -29,6 +28,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import type { FolderSelectionState } from "./FolderTreeView";
 
 export const DND_TYPES = {
 	FOLDER: "FOLDER",
@@ -263,7 +263,9 @@ export const FolderNode = React.memo(function FolderNode({
 					</span>
 
 					<Checkbox
-						checked={selectionState === "all" ? true : selectionState === "some" ? "indeterminate" : false}
+						checked={
+							selectionState === "all" ? true : selectionState === "some" ? "indeterminate" : false
+						}
 						onCheckedChange={handleCheckChange}
 						onClick={(e) => e.stopPropagation()}
 						className="h-3.5 w-3.5 shrink-0"

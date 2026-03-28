@@ -8,7 +8,6 @@ from app.db import Document, DocumentStatus, DocumentType
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.document_hashing import (
     compute_identifier_hash,
-    compute_unique_identifier_hash,
 )
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
 
@@ -17,7 +16,9 @@ _EMBEDDING_DIM = app_config.embedding_model_instance.dimension
 pytestmark = pytest.mark.integration
 
 
-def _gmail_doc(*, unique_id: str, search_space_id: int, connector_id: int, user_id: str) -> ConnectorDocument:
+def _gmail_doc(
+    *, unique_id: str, search_space_id: int, connector_id: int, user_id: str
+) -> ConnectorDocument:
     """Build a Gmail-style ConnectorDocument like the real indexer does."""
     return ConnectorDocument(
         title=f"Subject for {unique_id}",
@@ -37,7 +38,9 @@ def _gmail_doc(*, unique_id: str, search_space_id: int, connector_id: int, user_
     )
 
 
-@pytest.mark.usefixtures("patched_summarize", "patched_embed_texts", "patched_chunk_text")
+@pytest.mark.usefixtures(
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
+)
 async def test_gmail_pipeline_creates_ready_document(
     db_session, db_search_space, db_connector, db_user, mocker
 ):
@@ -67,7 +70,9 @@ async def test_gmail_pipeline_creates_ready_document(
     assert row.source_markdown == doc.source_markdown
 
 
-@pytest.mark.usefixtures("patched_summarize", "patched_embed_texts", "patched_chunk_text")
+@pytest.mark.usefixtures(
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
+)
 async def test_gmail_legacy_doc_migrated_then_reused(
     db_session, db_search_space, db_connector, db_user, mocker
 ):

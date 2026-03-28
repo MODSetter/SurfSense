@@ -13,9 +13,7 @@ export function useZeroDocumentTypeCounts(
 ): Record<string, number> | undefined {
 	const numericId = searchSpaceId != null ? Number(searchSpaceId) : null;
 
-	const [zeroDocuments] = useQuery(
-		queries.documents.bySpace({ searchSpaceId: numericId ?? -1 })
-	);
+	const [zeroDocuments] = useQuery(queries.documents.bySpace({ searchSpaceId: numericId ?? -1 }));
 
 	return useMemo(() => {
 		if (!zeroDocuments || numericId == null) return undefined;

@@ -7,7 +7,6 @@ import asyncio
 import io
 import logging
 import os
-import re
 import tempfile
 from datetime import UTC, datetime
 from typing import Any
@@ -22,9 +21,9 @@ from sqlalchemy.orm import selectinload
 
 from app.db import Document, DocumentType, Permission, User, get_async_session
 from app.routes.reports_routes import (
-    ExportFormat,
     _FILE_EXTENSIONS,
     _MEDIA_TYPES,
+    ExportFormat,
     _normalize_latex_delimiters,
     _strip_wrapping_code_fences,
 )
@@ -238,9 +237,7 @@ async def save_document(
     }
 
 
-@router.get(
-    "/search-spaces/{search_space_id}/documents/{document_id}/export"
-)
+@router.get("/search-spaces/{search_space_id}/documents/{document_id}/export")
 async def export_document(
     search_space_id: int,
     document_id: int,
@@ -284,9 +281,7 @@ async def export_document(
             markdown_content = "\n\n".join(chunk.content for chunk in chunks)
 
     if not markdown_content or not markdown_content.strip():
-        raise HTTPException(
-            status_code=400, detail="Document has no content to export"
-        )
+        raise HTTPException(status_code=400, detail="Document has no content to export")
 
     markdown_content = _strip_wrapping_code_fences(markdown_content)
     markdown_content = _normalize_latex_delimiters(markdown_content)
@@ -308,8 +303,10 @@ async def export_document(
                 extra_args=[
                     "--standalone",
                     f"--template={typst_template}",
-                    "-V", "mainfont:Libertinus Serif",
-                    "-V", "codefont:DejaVu Sans Mono",
+                    "-V",
+                    "mainfont:Libertinus Serif",
+                    "-V",
+                    "codefont:DejaVu Sans Mono",
                     *meta_args,
                 ],
             )
@@ -318,7 +315,11 @@ async def export_document(
         if format == ExportFormat.DOCX:
             return _pandoc_to_tempfile(
                 format.value,
-                ["--standalone", f"--reference-doc={get_reference_docx_path()}", *meta_args],
+                [
+                    "--standalone",
+                    f"--reference-doc={get_reference_docx_path()}",
+                    *meta_args,
+                ],
             )
 
         if format == ExportFormat.HTML:
@@ -327,7 +328,8 @@ async def export_document(
                 "html5",
                 format=input_fmt,
                 extra_args=[
-                    "--standalone", "--embed-resources",
+                    "--standalone",
+                    "--embed-resources",
                     f"--css={get_html_css_path()}",
                     "--syntax-highlighting=pygments",
                     *meta_args,
@@ -343,13 +345,17 @@ async def export_document(
 
         if format == ExportFormat.LATEX:
             tex_str: str = pypandoc.convert_text(
-                markdown_content, "latex", format=input_fmt,
+                markdown_content,
+                "latex",
+                format=input_fmt,
                 extra_args=["--standalone", *meta_args],
             )
             return tex_str.encode("utf-8")
 
         plain_str: str = pypandoc.convert_text(
-            markdown_content, "plain", format=input_fmt,
+            markdown_content,
+            "plain",
+            format=input_fmt,
             extra_args=["--wrap=auto", "--columns=80"],
         )
         return plain_str.encode("utf-8")
@@ -359,8 +365,11 @@ async def export_document(
         os.close(fd)
         try:
             pypandoc.convert_text(
-                markdown_content, output_format, format=input_fmt,
-                extra_args=extra_args, outputfile=tmp_path,
+                markdown_content,
+                output_format,
+                format=input_fmt,
+                extra_args=extra_args,
+                outputfile=tmp_path,
             )
             with open(tmp_path, "rb") as f:
                 return f.read()
@@ -375,8 +384,7 @@ async def export_document(
         raise HTTPException(status_code=500, detail=f"Export failed: {e!s}") from e
 
     safe_title = (
-        "".join(c if c.isalnum() or c in " -_" else "_" for c in doc_title)
-        .strip()[:80]
+        "".join(c if c.isalnum() or c in " -_" else "_" for c in doc_title).strip()[:80]
         or "document"
     )
     ext = _FILE_EXTENSIONS[format]

@@ -10,7 +10,10 @@ from app.connectors.confluence_history import ConfluenceHistoryConnector
 from app.db import DocumentType, SearchSourceConnectorType
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.document_hashing import compute_content_hash
-from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
+from app.indexing_pipeline.indexing_pipeline_service import (
+    IndexingPipelineService,
+    PlaceholderInfo,
+)
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 
@@ -194,6 +197,27 @@ async def index_confluence_pages(
                     await confluence_client.close()
             return 0, 0, None
 
+        # ── Create placeholders for instant UI feedback ───────────────
+        pipeline = IndexingPipelineService(session)
+        placeholders = [
+            PlaceholderInfo(
+                title=page.get("title", ""),
+                document_type=DocumentType.CONFLUENCE_CONNECTOR,
+                unique_id=page.get("id", ""),
+                search_space_id=search_space_id,
+                connector_id=connector_id,
+                created_by_id=user_id,
+                metadata={
+                    "page_id": page.get("id", ""),
+                    "connector_id": connector_id,
+                    "connector_type": "Confluence",
+                },
+            )
+            for page in pages
+            if page.get("id") and page.get("title")
+        ]
+        await pipeline.create_placeholder_documents(placeholders)
+
         documents_skipped = 0
         duplicate_content_count = 0
         connector_docs: list[ConnectorDocument] = []
@@ -202,7 +226,7 @@ async def index_confluence_pages(
             try:
                 page_id = page.get("id")
                 page_title = page.get("title", "")
-                space_id = page.get("spaceId", "")
+                page.get("spaceId", "")
 
                 if not page_id or not page_title:
                     logger.warning(
@@ -265,11 +289,12 @@ async def index_confluence_pages(
                 connector_docs.append(doc)
 
             except Exception as e:
-                logger.error(f"Error building ConnectorDocument for page: {e!s}", exc_info=True)
+                logger.error(
+                    f"Error building ConnectorDocument for page: {e!s}", exc_info=True
+                )
                 documents_skipped += 1
                 continue
 
-        pipeline = IndexingPipelineService(session)
         await pipeline.migrate_legacy_docs(connector_docs)
 
         async def _get_llm(s: AsyncSession):

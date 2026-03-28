@@ -107,28 +107,40 @@ def notion_mocks(monkeypatch):
 
     mock_connector = _mock_connector()
     monkeypatch.setattr(
-        _mod, "get_connector_by_id", AsyncMock(return_value=mock_connector),
+        _mod,
+        "get_connector_by_id",
+        AsyncMock(return_value=mock_connector),
     )
 
     notion_client = _mock_notion_client(pages=[_make_page()])
     monkeypatch.setattr(
-        _mod, "NotionHistoryConnector", MagicMock(return_value=notion_client),
+        _mod,
+        "NotionHistoryConnector",
+        MagicMock(return_value=notion_client),
     )
 
     monkeypatch.setattr(
-        _mod, "check_duplicate_document_by_hash", AsyncMock(return_value=None),
+        _mod,
+        "check_duplicate_document_by_hash",
+        AsyncMock(return_value=None),
     )
 
     monkeypatch.setattr(
-        _mod, "update_connector_last_indexed", AsyncMock(),
+        _mod,
+        "update_connector_last_indexed",
+        AsyncMock(),
     )
 
     monkeypatch.setattr(
-        _mod, "calculate_date_range", MagicMock(return_value=("2025-01-01", "2025-12-31")),
+        _mod,
+        "calculate_date_range",
+        MagicMock(return_value=("2025-01-01", "2025-12-31")),
     )
 
     monkeypatch.setattr(
-        _mod, "process_blocks", MagicMock(return_value="Converted markdown content"),
+        _mod,
+        "process_blocks",
+        MagicMock(return_value="Converted markdown content"),
     )
 
     mock_task_logger = MagicMock()
@@ -137,15 +149,20 @@ def notion_mocks(monkeypatch):
     mock_task_logger.log_task_success = AsyncMock()
     mock_task_logger.log_task_failure = AsyncMock()
     monkeypatch.setattr(
-        _mod, "TaskLoggingService", MagicMock(return_value=mock_task_logger),
+        _mod,
+        "TaskLoggingService",
+        MagicMock(return_value=mock_task_logger),
     )
 
     batch_mock = AsyncMock(return_value=([], 1, 0))
     pipeline_mock = MagicMock()
     pipeline_mock.index_batch_parallel = batch_mock
     pipeline_mock.migrate_legacy_docs = AsyncMock()
+    pipeline_mock.create_placeholder_documents = AsyncMock(return_value=0)
     monkeypatch.setattr(
-        _mod, "IndexingPipelineService", MagicMock(return_value=pipeline_mock),
+        _mod,
+        "IndexingPipelineService",
+        MagicMock(return_value=pipeline_mock),
     )
 
     return {
@@ -216,7 +233,10 @@ async def test_pages_with_missing_id_are_skipped(notion_mocks, monkeypatch):
     """Pages without page_id are skipped and not passed to the pipeline."""
     pages = [
         _make_page(page_id="valid-1"),
-        {"title": "No ID page", "content": [{"type": "paragraph", "content": "text", "children": []}]},
+        {
+            "title": "No ID page",
+            "content": [{"type": "paragraph", "content": "text", "children": []}],
+        },
     ]
     notion_mocks["notion_client"].get_all_pages.return_value = pages
 

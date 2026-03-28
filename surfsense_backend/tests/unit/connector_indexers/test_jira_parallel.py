@@ -145,22 +145,32 @@ def jira_mocks(monkeypatch):
 
     mock_connector = _mock_connector()
     monkeypatch.setattr(
-        _mod, "get_connector_by_id", AsyncMock(return_value=mock_connector),
+        _mod,
+        "get_connector_by_id",
+        AsyncMock(return_value=mock_connector),
     )
 
     jira_client = _mock_jira_client(issues=[_make_issue()])
     monkeypatch.setattr(
-        _mod, "JiraHistoryConnector", MagicMock(return_value=jira_client),
+        _mod,
+        "JiraHistoryConnector",
+        MagicMock(return_value=jira_client),
     )
 
     monkeypatch.setattr(
-        _mod, "check_duplicate_document_by_hash", AsyncMock(return_value=None),
+        _mod,
+        "check_duplicate_document_by_hash",
+        AsyncMock(return_value=None),
     )
     monkeypatch.setattr(
-        _mod, "update_connector_last_indexed", AsyncMock(),
+        _mod,
+        "update_connector_last_indexed",
+        AsyncMock(),
     )
     monkeypatch.setattr(
-        _mod, "calculate_date_range", MagicMock(return_value=("2025-01-01", "2025-12-31")),
+        _mod,
+        "calculate_date_range",
+        MagicMock(return_value=("2025-01-01", "2025-12-31")),
     )
 
     mock_task_logger = MagicMock()
@@ -169,15 +179,20 @@ def jira_mocks(monkeypatch):
     mock_task_logger.log_task_success = AsyncMock()
     mock_task_logger.log_task_failure = AsyncMock()
     monkeypatch.setattr(
-        _mod, "TaskLoggingService", MagicMock(return_value=mock_task_logger),
+        _mod,
+        "TaskLoggingService",
+        MagicMock(return_value=mock_task_logger),
     )
 
     batch_mock = AsyncMock(return_value=([], 1, 0))
     pipeline_mock = MagicMock()
     pipeline_mock.index_batch_parallel = batch_mock
     pipeline_mock.migrate_legacy_docs = AsyncMock()
+    pipeline_mock.create_placeholder_documents = AsyncMock(return_value=0)
     monkeypatch.setattr(
-        _mod, "IndexingPipelineService", MagicMock(return_value=pipeline_mock),
+        _mod,
+        "IndexingPipelineService",
+        MagicMock(return_value=pipeline_mock),
     )
 
     return {

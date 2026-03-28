@@ -29,7 +29,10 @@ from app.connectors.google_drive.file_types import should_skip_file as skip_mime
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.document_hashing import compute_identifier_hash
-from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
+from app.indexing_pipeline.indexing_pipeline_service import (
+    IndexingPipelineService,
+    PlaceholderInfo,
+)
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.connector_indexers.base import (
@@ -56,6 +59,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 async def _should_skip_file(
     session: AsyncSession,
@@ -97,11 +101,14 @@ async def _should_skip_file(
         result = await session.execute(
             select(Document).where(
                 Document.search_space_id == search_space_id,
-                Document.document_type.in_([
-                    DocumentType.GOOGLE_DRIVE_FILE,
-                    DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
-                ]),
-                cast(Document.document_metadata["google_drive_file_id"], String) == file_id,
+                Document.document_type.in_(
+                    [
+                        DocumentType.GOOGLE_DRIVE_FILE,
+                        DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+                    ]
+                ),
+                cast(Document.document_metadata["google_drive_file_id"], String)
+                == file_id,
             )
         )
         existing = result.scalar_one_or_none()
@@ -191,6 +198,50 @@ def _build_connector_doc(
     )
 
 
+async def _create_drive_placeholders(
+    session: AsyncSession,
+    files: list[dict],
+    *,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+) -> None:
+    """Create placeholder document rows for discovered Drive files.
+
+    Called immediately after file discovery (Phase 1) so documents appear
+    in the UI via Zero sync before the slow download/ETL phase begins.
+    """
+    if not files:
+        return
+
+    placeholders = []
+    for file in files:
+        file_id = file.get("id")
+        file_name = file.get("name", "Unknown")
+        if not file_id:
+            continue
+        placeholders.append(
+            PlaceholderInfo(
+                title=file_name,
+                document_type=DocumentType.GOOGLE_DRIVE_FILE,
+                unique_id=file_id,
+                search_space_id=search_space_id,
+                connector_id=connector_id,
+                created_by_id=user_id,
+                metadata={
+                    "google_drive_file_id": file_id,
+                    "FILE_NAME": file_name,
+                    "connector_id": connector_id,
+                    "connector_type": "Google Drive",
+                },
+            )
+        )
+
+    if placeholders:
+        pipeline = IndexingPipelineService(session)
+        await pipeline.create_placeholder_documents(placeholders)
+
+
 async def _download_files_parallel(
     drive_client: GoogleDriveClient,
     files: list[dict],
@@ -246,9 +297,7 @@ async def _download_files_parallel(
 
     failed = 0
     for outcome in outcomes:
-        if isinstance(outcome, Exception):
-            failed += 1
-        elif outcome is None:
+        if isinstance(outcome, Exception) or outcome is None:
             failed += 1
         else:
             results.append(outcome)
@@ -300,14 +349,18 @@ async def _process_single_file(
         if not documents:
             return 0, 1, 0
 
-        from app.indexing_pipeline.document_hashing import compute_unique_identifier_hash
+        from app.indexing_pipeline.document_hashing import (
+            compute_unique_identifier_hash,
+        )
 
         doc_map = {compute_unique_identifier_hash(doc): doc}
         for document in documents:
             connector_doc = doc_map.get(document.unique_identifier_hash)
             if not connector_doc:
                 continue
-            user_llm = await get_user_long_context_llm(session, user_id, search_space_id)
+            user_llm = await get_user_long_context_llm(
+                session, user_id, search_space_id
+            )
             await pipeline.index(document, connector_doc, user_llm)
 
         logger.info(f"Successfully indexed Google Drive file: {file_name}")
@@ -335,11 +388,14 @@ async def _remove_document(session: AsyncSession, file_id: str, search_space_id:
         result = await session.execute(
             select(Document).where(
                 Document.search_space_id == search_space_id,
-                Document.document_type.in_([
-                    DocumentType.GOOGLE_DRIVE_FILE,
-                    DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
-                ]),
-                cast(Document.document_metadata["google_drive_file_id"], String) == file_id,
+                Document.document_type.in_(
+                    [
+                        DocumentType.GOOGLE_DRIVE_FILE,
+                        DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+                    ]
+                ),
+                cast(Document.document_metadata["google_drive_file_id"], String)
+                == file_id,
             )
         )
         existing = result.scalar_one_or_none()
@@ -383,7 +439,9 @@ async def _download_and_index(
             return await get_user_long_context_llm(s, user_id, search_space_id)
 
         _, batch_indexed, batch_failed = await pipeline.index_batch_parallel(
-            connector_docs, _get_llm, max_concurrency=3,
+            connector_docs,
+            _get_llm,
+            max_concurrency=3,
             on_heartbeat=on_heartbeat,
         )
 
@@ -430,10 +488,22 @@ async def _index_selected_files(
 
         files_to_download.append(file)
 
-    batch_indexed, failed = await _download_and_index(
-        drive_client, session, files_to_download,
-        connector_id=connector_id, search_space_id=search_space_id,
-        user_id=user_id, enable_summary=enable_summary,
+    await _create_drive_placeholders(
+        session,
+        files_to_download,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+    )
+
+    batch_indexed, _failed = await _download_and_index(
+        drive_client,
+        session,
+        files_to_download,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        enable_summary=enable_summary,
         on_heartbeat=on_heartbeat,
     )
 
@@ -443,6 +513,7 @@ async def _index_selected_files(
 # ---------------------------------------------------------------------------
 # Scan strategies
 # ---------------------------------------------------------------------------
+
 
 async def _index_full_scan(
     drive_client: GoogleDriveClient,
@@ -464,7 +535,11 @@ async def _index_full_scan(
     await task_logger.log_task_progress(
         log_entry,
         f"Starting full scan of folder: {folder_name} (include_subfolders={include_subfolders})",
-        {"stage": "full_scan", "folder_id": folder_id, "include_subfolders": include_subfolders},
+        {
+            "stage": "full_scan",
+            "folder_id": folder_id,
+            "include_subfolders": include_subfolders,
+        },
     )
 
     # ------------------------------------------------------------------
@@ -483,7 +558,10 @@ async def _index_full_scan(
 
         while files_processed < max_files:
             files, next_token, error = await get_files_in_folder(
-                drive_client, cur_id, include_subfolders=True, page_token=page_token,
+                drive_client,
+                cur_id,
+                include_subfolders=True,
+                page_token=page_token,
             )
             if error:
                 logger.error(f"Error listing files in {cur_name}: {error}")
@@ -500,7 +578,9 @@ async def _index_full_scan(
                 mime = file.get("mimeType", "")
                 if mime == "application/vnd.google-apps.folder":
                     if include_subfolders:
-                        folders_to_process.append((file["id"], file.get("name", "Unknown")))
+                        folders_to_process.append(
+                            (file["id"], file.get("name", "Unknown"))
+                        )
                     continue
 
                 files_processed += 1
@@ -521,24 +601,45 @@ async def _index_full_scan(
 
     if not files_processed and first_error:
         err_lower = first_error.lower()
-        if "401" in first_error or "invalid credentials" in err_lower or "authError" in first_error:
+        if (
+            "401" in first_error
+            or "invalid credentials" in err_lower
+            or "authError" in first_error
+        ):
             raise Exception(
                 f"Google Drive authentication failed. Please re-authenticate. (Error: {first_error})"
             )
         raise Exception(f"Failed to list Google Drive files: {first_error}")
 
     # ------------------------------------------------------------------
+    # Phase 1.5: create placeholders for instant UI feedback
+    # ------------------------------------------------------------------
+    await _create_drive_placeholders(
+        session,
+        files_to_download,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+    )
+
+    # ------------------------------------------------------------------
     # Phase 2+3 (parallel): download, ETL, index
     # ------------------------------------------------------------------
     batch_indexed, failed = await _download_and_index(
-        drive_client, session, files_to_download,
-        connector_id=connector_id, search_space_id=search_space_id,
-        user_id=user_id, enable_summary=enable_summary,
+        drive_client,
+        session,
+        files_to_download,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        enable_summary=enable_summary,
         on_heartbeat=on_heartbeat_callback,
     )
 
     indexed = renamed_count + batch_indexed
-    logger.info(f"Full scan complete: {indexed} indexed, {skipped} skipped, {failed} failed")
+    logger.info(
+        f"Full scan complete: {indexed} indexed, {skipped} skipped, {failed} failed"
+    )
     return indexed, skipped
 
 
@@ -565,7 +666,9 @@ async def _index_with_delta_sync(
         {"stage": "delta_sync", "start_token": start_page_token},
     )
 
-    changes, _final_token, error = await fetch_all_changes(drive_client, start_page_token, folder_id)
+    changes, _final_token, error = await fetch_all_changes(
+        drive_client, start_page_token, folder_id
+    )
     if error:
         err_lower = error.lower()
         if "401" in error or "invalid credentials" in err_lower or "authError" in error:
@@ -615,23 +718,41 @@ async def _index_with_delta_sync(
         files_to_download.append(file)
 
     # ------------------------------------------------------------------
+    # Phase 1.5: create placeholders for instant UI feedback
+    # ------------------------------------------------------------------
+    await _create_drive_placeholders(
+        session,
+        files_to_download,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+    )
+
+    # ------------------------------------------------------------------
     # Phase 2+3 (parallel): download, ETL, index
     # ------------------------------------------------------------------
     batch_indexed, failed = await _download_and_index(
-        drive_client, session, files_to_download,
-        connector_id=connector_id, search_space_id=search_space_id,
-        user_id=user_id, enable_summary=enable_summary,
+        drive_client,
+        session,
+        files_to_download,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        enable_summary=enable_summary,
         on_heartbeat=on_heartbeat_callback,
     )
 
     indexed = renamed_count + batch_indexed
-    logger.info(f"Delta sync complete: {indexed} indexed, {skipped} skipped, {failed} failed")
+    logger.info(
+        f"Delta sync complete: {indexed} indexed, {skipped} skipped, {failed} failed"
+    )
     return indexed, skipped
 
 
 # ---------------------------------------------------------------------------
 # Public entry points
 # ---------------------------------------------------------------------------
+
 
 async def index_google_drive_files(
     session: AsyncSession,
@@ -653,8 +774,11 @@ async def index_google_drive_files(
         source="connector_indexing_task",
         message=f"Starting Google Drive indexing for connector {connector_id}",
         metadata={
-            "connector_id": connector_id, "user_id": str(user_id),
-            "folder_id": folder_id, "use_delta_sync": use_delta_sync, "max_files": max_files,
+            "connector_id": connector_id,
+            "user_id": str(user_id),
+            "folder_id": folder_id,
+            "use_delta_sync": use_delta_sync,
+            "max_files": max_files,
         },
     )
 
@@ -666,11 +790,14 @@ async def index_google_drive_files(
                 break
         if not connector:
             error_msg = f"Google Drive connector with ID {connector_id} not found"
-            await task_logger.log_task_failure(log_entry, error_msg, None, {"error_type": "ConnectorNotFound"})
+            await task_logger.log_task_failure(
+                log_entry, error_msg, None, {"error_type": "ConnectorNotFound"}
+            )
             return 0, 0, error_msg
 
         await task_logger.log_task_progress(
-            log_entry, f"Initializing Google Drive client for connector {connector_id}",
+            log_entry,
+            f"Initializing Google Drive client for connector {connector_id}",
             {"stage": "client_initialization"},
         )
 
@@ -679,24 +806,39 @@ async def index_google_drive_files(
             connected_account_id = connector.config.get("composio_connected_account_id")
             if not connected_account_id:
                 error_msg = f"Composio connected_account_id not found for connector {connector_id}"
-                await task_logger.log_task_failure(log_entry, error_msg, "Missing Composio account", {"error_type": "MissingComposioAccount"})
+                await task_logger.log_task_failure(
+                    log_entry,
+                    error_msg,
+                    "Missing Composio account",
+                    {"error_type": "MissingComposioAccount"},
+                )
                 return 0, 0, error_msg
             pre_built_credentials = build_composio_credentials(connected_account_id)
         else:
             token_encrypted = connector.config.get("_token_encrypted", False)
             if token_encrypted and not config.SECRET_KEY:
                 await task_logger.log_task_failure(
-                    log_entry, "SECRET_KEY not configured but credentials are encrypted",
-                    "Missing SECRET_KEY", {"error_type": "MissingSecretKey"},
+                    log_entry,
+                    "SECRET_KEY not configured but credentials are encrypted",
+                    "Missing SECRET_KEY",
+                    {"error_type": "MissingSecretKey"},
                 )
-                return 0, 0, "SECRET_KEY not configured but credentials are marked as encrypted"
+                return (
+                    0,
+                    0,
+                    "SECRET_KEY not configured but credentials are marked as encrypted",
+                )
 
         connector_enable_summary = getattr(connector, "enable_summary", True)
-        drive_client = GoogleDriveClient(session, connector_id, credentials=pre_built_credentials)
+        drive_client = GoogleDriveClient(
+            session, connector_id, credentials=pre_built_credentials
+        )
 
         if not folder_id:
             error_msg = "folder_id is required for Google Drive indexing"
-            await task_logger.log_task_failure(log_entry, error_msg, {"error_type": "MissingParameter"})
+            await task_logger.log_task_failure(
+                log_entry, error_msg, {"error_type": "MissingParameter"}
+            )
             return 0, 0, error_msg
 
         target_folder_id = folder_id
@@ -704,29 +846,64 @@ async def index_google_drive_files(
 
         folder_tokens = connector.config.get("folder_tokens", {})
         start_page_token = folder_tokens.get(target_folder_id)
-        can_use_delta = use_delta_sync and start_page_token and connector.last_indexed_at
+        can_use_delta = (
+            use_delta_sync and start_page_token and connector.last_indexed_at
+        )
 
         if can_use_delta:
             logger.info(f"Using delta sync for connector {connector_id}")
             documents_indexed, documents_skipped = await _index_with_delta_sync(
-                drive_client, session, connector, connector_id, search_space_id, user_id,
-                target_folder_id, start_page_token, task_logger, log_entry, max_files,
-                include_subfolders, on_heartbeat_callback, connector_enable_summary,
+                drive_client,
+                session,
+                connector,
+                connector_id,
+                search_space_id,
+                user_id,
+                target_folder_id,
+                start_page_token,
+                task_logger,
+                log_entry,
+                max_files,
+                include_subfolders,
+                on_heartbeat_callback,
+                connector_enable_summary,
             )
             logger.info("Running reconciliation scan after delta sync")
             ri, rs = await _index_full_scan(
-                drive_client, session, connector, connector_id, search_space_id, user_id,
-                target_folder_id, target_folder_name, task_logger, log_entry, max_files,
-                include_subfolders, on_heartbeat_callback, connector_enable_summary,
+                drive_client,
+                session,
+                connector,
+                connector_id,
+                search_space_id,
+                user_id,
+                target_folder_id,
+                target_folder_name,
+                task_logger,
+                log_entry,
+                max_files,
+                include_subfolders,
+                on_heartbeat_callback,
+                connector_enable_summary,
             )
             documents_indexed += ri
             documents_skipped += rs
         else:
             logger.info(f"Using full scan for connector {connector_id}")
             documents_indexed, documents_skipped = await _index_full_scan(
-                drive_client, session, connector, connector_id, search_space_id, user_id,
-                target_folder_id, target_folder_name, task_logger, log_entry, max_files,
-                include_subfolders, on_heartbeat_callback, connector_enable_summary,
+                drive_client,
+                session,
+                connector,
+                connector_id,
+                search_space_id,
+                user_id,
+                target_folder_id,
+                target_folder_name,
+                task_logger,
+                log_entry,
+                max_files,
+                include_subfolders,
+                on_heartbeat_callback,
+                connector_enable_summary,
             )
 
         if documents_indexed > 0 or can_use_delta:
@@ -745,26 +922,34 @@ async def index_google_drive_files(
             log_entry,
             f"Successfully completed Google Drive indexing for connector {connector_id}",
             {
-                "files_processed": documents_indexed, "files_skipped": documents_skipped,
-                "sync_type": "delta" if can_use_delta else "full", "folder": target_folder_name,
+                "files_processed": documents_indexed,
+                "files_skipped": documents_skipped,
+                "sync_type": "delta" if can_use_delta else "full",
+                "folder": target_folder_name,
             },
         )
-        logger.info(f"Google Drive indexing completed: {documents_indexed} indexed, {documents_skipped} skipped")
+        logger.info(
+            f"Google Drive indexing completed: {documents_indexed} indexed, {documents_skipped} skipped"
+        )
         return documents_indexed, documents_skipped, None
 
     except SQLAlchemyError as db_error:
         await session.rollback()
         await task_logger.log_task_failure(
-            log_entry, f"Database error during Google Drive indexing for connector {connector_id}",
-            str(db_error), {"error_type": "SQLAlchemyError"},
+            log_entry,
+            f"Database error during Google Drive indexing for connector {connector_id}",
+            str(db_error),
+            {"error_type": "SQLAlchemyError"},
         )
         logger.error(f"Database error: {db_error!s}", exc_info=True)
         return 0, 0, f"Database error: {db_error!s}"
     except Exception as e:
         await session.rollback()
         await task_logger.log_task_failure(
-            log_entry, f"Failed to index Google Drive files for connector {connector_id}",
-            str(e), {"error_type": type(e).__name__},
+            log_entry,
+            f"Failed to index Google Drive files for connector {connector_id}",
+            str(e),
+            {"error_type": type(e).__name__},
         )
         logger.error(f"Failed to index Google Drive files: {e!s}", exc_info=True)
         return 0, 0, f"Failed to index Google Drive files: {e!s}"
@@ -784,7 +969,12 @@ async def index_google_drive_single_file(
         task_name="google_drive_single_file_indexing",
         source="connector_indexing_task",
         message=f"Starting Google Drive single file indexing for file {file_id}",
-        metadata={"connector_id": connector_id, "user_id": str(user_id), "file_id": file_id, "file_name": file_name},
+        metadata={
+            "connector_id": connector_id,
+            "user_id": str(user_id),
+            "file_id": file_id,
+            "file_name": file_name,
+        },
     )
 
     try:
@@ -795,7 +985,9 @@ async def index_google_drive_single_file(
                 break
         if not connector:
             error_msg = f"Google Drive connector with ID {connector_id} not found"
-            await task_logger.log_task_failure(log_entry, error_msg, None, {"error_type": "ConnectorNotFound"})
+            await task_logger.log_task_failure(
+                log_entry, error_msg, None, {"error_type": "ConnectorNotFound"}
+            )
             return 0, error_msg
 
         pre_built_credentials = None
@@ -803,43 +995,65 @@ async def index_google_drive_single_file(
             connected_account_id = connector.config.get("composio_connected_account_id")
             if not connected_account_id:
                 error_msg = f"Composio connected_account_id not found for connector {connector_id}"
-                await task_logger.log_task_failure(log_entry, error_msg, "Missing Composio account", {"error_type": "MissingComposioAccount"})
+                await task_logger.log_task_failure(
+                    log_entry,
+                    error_msg,
+                    "Missing Composio account",
+                    {"error_type": "MissingComposioAccount"},
+                )
                 return 0, error_msg
             pre_built_credentials = build_composio_credentials(connected_account_id)
         else:
             token_encrypted = connector.config.get("_token_encrypted", False)
             if token_encrypted and not config.SECRET_KEY:
                 await task_logger.log_task_failure(
-                    log_entry, "SECRET_KEY not configured but credentials are encrypted",
-                    "Missing SECRET_KEY", {"error_type": "MissingSecretKey"},
+                    log_entry,
+                    "SECRET_KEY not configured but credentials are encrypted",
+                    "Missing SECRET_KEY",
+                    {"error_type": "MissingSecretKey"},
                 )
-                return 0, "SECRET_KEY not configured but credentials are marked as encrypted"
+                return (
+                    0,
+                    "SECRET_KEY not configured but credentials are marked as encrypted",
+                )
 
         connector_enable_summary = getattr(connector, "enable_summary", True)
-        drive_client = GoogleDriveClient(session, connector_id, credentials=pre_built_credentials)
+        drive_client = GoogleDriveClient(
+            session, connector_id, credentials=pre_built_credentials
+        )
 
         file, error = await get_file_by_id(drive_client, file_id)
         if error or not file:
             error_msg = f"Failed to fetch file {file_id}: {error or 'File not found'}"
-            await task_logger.log_task_failure(log_entry, error_msg, {"error_type": "FileNotFound"})
+            await task_logger.log_task_failure(
+                log_entry, error_msg, {"error_type": "FileNotFound"}
+            )
             return 0, error_msg
 
         display_name = file_name or file.get("name", "Unknown")
 
         indexed, _skipped, failed = await _process_single_file(
-            drive_client, session, file,
-            connector_id, search_space_id, user_id, connector_enable_summary,
+            drive_client,
+            session,
+            file,
+            connector_id,
+            search_space_id,
+            user_id,
+            connector_enable_summary,
         )
         await session.commit()
 
         if failed > 0:
             error_msg = f"Failed to index file {display_name}"
-            await task_logger.log_task_failure(log_entry, error_msg, {"file_name": display_name, "file_id": file_id})
+            await task_logger.log_task_failure(
+                log_entry, error_msg, {"file_name": display_name, "file_id": file_id}
+            )
             return 0, error_msg
 
         if indexed > 0:
             await task_logger.log_task_success(
-                log_entry, f"Successfully indexed file {display_name}",
+                log_entry,
+                f"Successfully indexed file {display_name}",
                 {"file_name": display_name, "file_id": file_id},
             )
             return 1, None
@@ -848,12 +1062,22 @@ async def index_google_drive_single_file(
 
     except SQLAlchemyError as db_error:
         await session.rollback()
-        await task_logger.log_task_failure(log_entry, "Database error during file indexing", str(db_error), {"error_type": "SQLAlchemyError"})
+        await task_logger.log_task_failure(
+            log_entry,
+            "Database error during file indexing",
+            str(db_error),
+            {"error_type": "SQLAlchemyError"},
+        )
         logger.error(f"Database error: {db_error!s}", exc_info=True)
         return 0, f"Database error: {db_error!s}"
     except Exception as e:
         await session.rollback()
-        await task_logger.log_task_failure(log_entry, "Failed to index Google Drive file", str(e), {"error_type": type(e).__name__})
+        await task_logger.log_task_failure(
+            log_entry,
+            "Failed to index Google Drive file",
+            str(e),
+            {"error_type": type(e).__name__},
+        )
         logger.error(f"Failed to index Google Drive file: {e!s}", exc_info=True)
         return 0, f"Failed to index Google Drive file: {e!s}"
 
@@ -878,7 +1102,11 @@ async def index_google_drive_selected_files(
         task_name="google_drive_selected_files_indexing",
         source="connector_indexing_task",
         message=f"Starting Google Drive batch file indexing for {len(files)} files",
-        metadata={"connector_id": connector_id, "user_id": str(user_id), "file_count": len(files)},
+        metadata={
+            "connector_id": connector_id,
+            "user_id": str(user_id),
+            "file_count": len(files),
+        },
     )
 
     try:
@@ -889,7 +1117,9 @@ async def index_google_drive_selected_files(
                 break
         if not connector:
             error_msg = f"Google Drive connector with ID {connector_id} not found"
-            await task_logger.log_task_failure(log_entry, error_msg, None, {"error_type": "ConnectorNotFound"})
+            await task_logger.log_task_failure(
+                log_entry, error_msg, None, {"error_type": "ConnectorNotFound"}
+            )
             return 0, 0, [error_msg]
 
         pre_built_credentials = None
@@ -897,25 +1127,41 @@ async def index_google_drive_selected_files(
             connected_account_id = connector.config.get("composio_connected_account_id")
             if not connected_account_id:
                 error_msg = f"Composio connected_account_id not found for connector {connector_id}"
-                await task_logger.log_task_failure(log_entry, error_msg, "Missing Composio account", {"error_type": "MissingComposioAccount"})
+                await task_logger.log_task_failure(
+                    log_entry,
+                    error_msg,
+                    "Missing Composio account",
+                    {"error_type": "MissingComposioAccount"},
+                )
                 return 0, 0, [error_msg]
             pre_built_credentials = build_composio_credentials(connected_account_id)
         else:
             token_encrypted = connector.config.get("_token_encrypted", False)
             if token_encrypted and not config.SECRET_KEY:
-                error_msg = "SECRET_KEY not configured but credentials are marked as encrypted"
+                error_msg = (
+                    "SECRET_KEY not configured but credentials are marked as encrypted"
+                )
                 await task_logger.log_task_failure(
-                    log_entry, error_msg, "Missing SECRET_KEY", {"error_type": "MissingSecretKey"},
+                    log_entry,
+                    error_msg,
+                    "Missing SECRET_KEY",
+                    {"error_type": "MissingSecretKey"},
                 )
                 return 0, 0, [error_msg]
 
         connector_enable_summary = getattr(connector, "enable_summary", True)
-        drive_client = GoogleDriveClient(session, connector_id, credentials=pre_built_credentials)
+        drive_client = GoogleDriveClient(
+            session, connector_id, credentials=pre_built_credentials
+        )
 
         indexed, skipped, errors = await _index_selected_files(
-            drive_client, session, files,
-            connector_id=connector_id, search_space_id=search_space_id,
-            user_id=user_id, enable_summary=connector_enable_summary,
+            drive_client,
+            session,
+            files,
+            connector_id=connector_id,
+            search_space_id=search_space_id,
+            user_id=user_id,
+            enable_summary=connector_enable_summary,
             on_heartbeat=on_heartbeat_callback,
         )
 
@@ -935,18 +1181,24 @@ async def index_google_drive_selected_files(
                 {"indexed": indexed, "skipped": skipped},
             )
 
-        logger.info(f"Selected files indexing: {indexed} indexed, {skipped} skipped, {len(errors)} errors")
+        logger.info(
+            f"Selected files indexing: {indexed} indexed, {skipped} skipped, {len(errors)} errors"
+        )
         return indexed, skipped, errors
 
     except SQLAlchemyError as db_error:
         await session.rollback()
         error_msg = f"Database error: {db_error!s}"
-        await task_logger.log_task_failure(log_entry, error_msg, str(db_error), {"error_type": "SQLAlchemyError"})
+        await task_logger.log_task_failure(
+            log_entry, error_msg, str(db_error), {"error_type": "SQLAlchemyError"}
+        )
         logger.error(error_msg, exc_info=True)
         return 0, 0, [error_msg]
     except Exception as e:
         await session.rollback()
         error_msg = f"Failed to index Google Drive files: {e!s}"
-        await task_logger.log_task_failure(log_entry, error_msg, str(e), {"error_type": type(e).__name__})
+        await task_logger.log_task_failure(
+            log_entry, error_msg, str(e), {"error_type": type(e).__name__}
+        )
         logger.error(error_msg, exc_info=True)
         return 0, 0, [error_msg]

@@ -109,7 +109,7 @@ const ThreadContent: FC = () => {
 		>
 			<ThreadPrimitive.Viewport
 				turnAnchor="top"
-				className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 pt-4"
+				className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-scroll px-4 pt-4"
 			>
 				<AuiIf condition={({ thread }) => thread.isEmpty}>
 					<ThreadWelcome />
@@ -1062,7 +1062,7 @@ interface ToolGroup {
 const TOOL_GROUPS: ToolGroup[] = [
 	{
 		label: "Research",
-		tools: ["search_knowledge_base", "search_surfsense_docs", "scrape_webpage"],
+		tools: ["search_surfsense_docs", "scrape_webpage"],
 	},
 	{
 		label: "Generate",
