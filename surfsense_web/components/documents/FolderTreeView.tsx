@@ -1,8 +1,8 @@
 "use client";
 
 import { useAtom } from "jotai";
-import { TreePine } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { CirclePlus } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { renamingFolderIdAtom } from "@/atoms/documents/folder.atoms";
@@ -28,6 +28,7 @@ interface FolderTreeViewProps {
 	onEditDocument: (doc: DocumentNodeDoc) => void;
 	onDeleteDocument: (doc: DocumentNodeDoc) => void;
 	onMoveDocument: (doc: DocumentNodeDoc) => void;
+	onExportDocument?: (doc: DocumentNodeDoc, format: string) => void;
 	activeTypes: DocumentTypeEnum[];
 	onDropIntoFolder?: (
 		itemType: "folder" | "document",
@@ -62,6 +63,7 @@ export function FolderTreeView({
 	onEditDocument,
 	onDeleteDocument,
 	onMoveDocument,
+	onExportDocument,
 	activeTypes,
 	onDropIntoFolder,
 	onReorderFolder,
@@ -79,6 +81,8 @@ export function FolderTreeView({
 		}
 		return counts;
 	}, [folders, foldersByParent, docsByFolder]);
+
+	const [openContextMenuId, setOpenContextMenuId] = useState<string | null>(null);
 
 	// Single subscription for rename state — derived boolean passed to each FolderNode
 	const [renamingFolderId, setRenamingFolderId] = useAtom(renamingFolderIdAtom);
@@ -157,6 +161,8 @@ export function FolderTreeView({
 					onDropIntoFolder={onDropIntoFolder}
 					onReorderFolder={onReorderFolder}
 					siblingPositions={siblingPositions}
+					contextMenuOpen={openContextMenuId === `folder-${f.id}`}
+					onContextMenuOpenChange={(open) => setOpenContextMenuId(open ? `folder-${f.id}` : null)}
 				/>
 			);
 
@@ -177,6 +183,9 @@ export function FolderTreeView({
 					onEdit={onEditDocument}
 					onDelete={onDeleteDocument}
 					onMove={onMoveDocument}
+					onExport={onExportDocument}
+					contextMenuOpen={openContextMenuId === `doc-${d.id}`}
+					onContextMenuOpenChange={(open) => setOpenContextMenuId(open ? `doc-${d.id}` : null)}
 				/>
 			);
 		}
@@ -189,7 +198,7 @@ export function FolderTreeView({
 	if (treeNodes.length === 0 && folders.length === 0 && documents.length === 0) {
 		return (
 			<div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 py-12 text-muted-foreground">
-				<TreePine className="h-10 w-10" />
+				<CirclePlus className="h-10 w-10 rotate-45" />
 				<p className="text-sm">No documents yet</p>
 			</div>
 		);
@@ -198,7 +207,7 @@ export function FolderTreeView({
 	if (treeNodes.length === 0 && activeTypes.length > 0) {
 		return (
 			<div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 py-12 text-muted-foreground">
-				<TreePine className="h-10 w-10" />
+				<CirclePlus className="h-10 w-10 rotate-45" />
 				<p className="text-sm">No matching documents</p>
 			</div>
 		);

@@ -29,9 +29,6 @@ export const createDocumentMutationAtom = atomWithMutation((get) => {
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.documents.globalQueryParams(documentsQueryParams),
 			});
-			queryClient.invalidateQueries({
-				queryKey: cacheKeys.documents.typeCounts(searchSpaceId ?? undefined),
-			});
 		},
 	};
 });
@@ -75,9 +72,6 @@ export const updateDocumentMutationAtom = atomWithMutation((get) => {
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.documents.document(String(request.id)),
 			});
-			queryClient.invalidateQueries({
-				queryKey: cacheKeys.documents.typeCounts(searchSpaceId ?? undefined),
-			});
 		},
 	};
 });
@@ -108,9 +102,6 @@ export const deleteDocumentMutationAtom = atomWithMutation((get) => {
 			);
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.documents.document(String(request.id)),
-			});
-			queryClient.invalidateQueries({
-				queryKey: cacheKeys.documents.typeCounts(searchSpaceId ?? undefined),
 			});
 		},
 	};

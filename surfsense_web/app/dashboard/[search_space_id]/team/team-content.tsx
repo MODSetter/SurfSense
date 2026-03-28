@@ -595,6 +595,7 @@ function CreateInviteDialog({
 			});
 		} catch (error) {
 			console.error("Failed to create invite:", error);
+			toast.error("Failed to create invite. Please try again.");
 		} finally {
 			setCreating(false);
 		}
