@@ -43,6 +43,7 @@ from .search_spaces_routes import router as search_spaces_router
 from .slack_add_connector_route import router as slack_add_connector_router
 from .surfsense_docs_routes import router as surfsense_docs_router
 from .teams_add_connector_route import router as teams_add_connector_router
+from .onedrive_add_connector_route import router as onedrive_add_connector_router
 from .video_presentations_routes import router as video_presentations_router
 from .youtube_routes import router as youtube_router
 
@@ -73,6 +74,7 @@ router.include_router(luma_add_connector_router)
 router.include_router(notion_add_connector_router)
 router.include_router(slack_add_connector_router)
 router.include_router(teams_add_connector_router)
+router.include_router(onedrive_add_connector_router)
 router.include_router(discord_add_connector_router)
 router.include_router(jira_add_connector_router)
 router.include_router(confluence_add_connector_router)

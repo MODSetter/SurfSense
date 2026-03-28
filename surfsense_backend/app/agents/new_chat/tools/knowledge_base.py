@@ -360,6 +360,7 @@ _INTERNAL_METADATA_KEYS: frozenset[str] = frozenset(
         "event_id",
         "calendar_id",
         "google_drive_file_id",
+        "onedrive_file_id",
         "page_id",
         "issue_id",
         "connector_id",
