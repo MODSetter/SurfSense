@@ -310,16 +310,17 @@ const Composer: FC = () => {
 	const aui = useAui();
 	const hasAutoFocusedRef = useRef(false);
 
-	const [quickAskInitialText, setQuickAskInitialText] = useState<string | undefined>();
+	const [clipboardInitialText, setClipboardInitialText] = useState<string | undefined>();
+	const clipboardLoadedRef = useRef(false);
 	useEffect(() => {
-		if (!window.electronAPI) return;
-		if (sessionStorage.getItem("quickAskAutoSubmit") === "false") {
-			const text = sessionStorage.getItem("quickAskInitialText");
+		if (!window.electronAPI || clipboardLoadedRef.current) return;
+		clipboardLoadedRef.current = true;
+		window.electronAPI.getQuickAskText().then((text) => {
 			if (text) {
-				setQuickAskInitialText(text);
-				sessionStorage.removeItem("quickAskInitialText");
+				setClipboardInitialText(text);
+				setShowPromptPicker(true);
 			}
-		}
+		});
 	}, []);
 
 	const isThreadEmpty = useAuiState(({ thread }) => thread.isEmpty);
@@ -446,10 +447,21 @@ const Composer: FC = () => {
 		(action: { name: string; prompt: string; mode: "transform" | "explore" }) => {
 			setShowPromptPicker(false);
 			setActionQuery("");
-			pendingActionRef.current = action;
-			editorRef.current?.insertActionChip(action.name);
+
+			if (clipboardInitialText) {
+				const finalPrompt = action.prompt.replace("{selection}", clipboardInitialText);
+				window.electronAPI?.setQuickAskMode(action.mode);
+				aui.composer().setText(finalPrompt);
+				aui.composer().send();
+				editorRef.current?.clear();
+				setMentionedDocuments([]);
+				setSidebarDocs([]);
+			} else {
+				pendingActionRef.current = action;
+				editorRef.current?.insertActionChip(action.name);
+			}
 		},
-		[]
+		[clipboardInitialText, aui, setMentionedDocuments, setSidebarDocs]
 	);
 
 	const handleActionRemove = useCallback(() => {
@@ -592,7 +604,7 @@ const Composer: FC = () => {
 						onDocumentRemove={handleDocumentRemove}
 						onSubmit={handleSubmit}
 						onKeyDown={handleKeyDown}
-						initialText={quickAskInitialText}
+						initialText={clipboardInitialText}
 						className="min-h-[24px]"
 					/>
 				</div>
