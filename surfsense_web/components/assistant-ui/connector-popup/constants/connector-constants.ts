@@ -62,6 +62,13 @@ export const OAUTH_CONNECTORS = [
 		authEndpoint: "/api/v1/auth/teams/connector/add/",
 	},
 	{
+		id: "onedrive-connector",
+		title: "OneDrive",
+		description: "Search your OneDrive files",
+		connectorType: EnumConnectorName.ONEDRIVE_CONNECTOR,
+		authEndpoint: "/api/v1/auth/onedrive/connector/add/",
+	},
+	{
 		id: "discord-connector",
 		title: "Discord",
 		description: "Search Discord messages",

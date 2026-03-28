@@ -132,11 +132,30 @@ export function buildContentForPersistence(
 	return parts.length > 0 ? parts : [{ type: "text", text: "" }];
 }
 
+export type SSEEvent =
+	| { type: "text-delta"; delta: string }
+	| { type: "tool-input-start"; toolCallId: string; toolName: string }
+	| {
+			type: "tool-input-available";
+			toolCallId: string;
+			toolName: string;
+			input: Record<string, unknown>;
+	  }
+	| {
+			type: "tool-output-available";
+			toolCallId: string;
+			output: Record<string, unknown>;
+	  }
+	| { type: "data-thinking-step"; data: ThinkingStepData }
+	| { type: "data-thread-title-update"; data: { threadId: number; title: string } }
+	| { type: "data-interrupt-request"; data: Record<string, unknown> }
+	| { type: "error"; errorText: string };
+
 /**
  * Async generator that reads an SSE stream and yields parsed JSON objects.
  * Handles buffering, event splitting, and skips malformed JSON / [DONE] lines.
  */
-export async function* readSSEStream(response: Response): AsyncGenerator<unknown> {
+export async function* readSSEStream(response: Response): AsyncGenerator<SSEEvent> {
 	if (!response.body) {
 		throw new Error("No response body");
 	}

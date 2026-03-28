@@ -21,6 +21,7 @@ import { MCPConfig } from "./components/mcp-config";
 import { ObsidianConfig } from "./components/obsidian-config";
 import { SlackConfig } from "./components/slack-config";
 import { TavilyApiConfig } from "./components/tavily-api-config";
+import { OneDriveConfig } from "./components/onedrive-config";
 import { TeamsConfig } from "./components/teams-config";
 import { WebcrawlerConfig } from "./components/webcrawler-config";
 
@@ -58,6 +59,8 @@ export function getConnectorConfigComponent(
 			return DiscordConfig;
 		case "TEAMS_CONNECTOR":
 			return TeamsConfig;
+		case "ONEDRIVE_CONNECTOR":
+			return OneDriveConfig;
 		case "CONFLUENCE_CONNECTOR":
 			return ConfluenceConfig;
 		case "BOOKSTACK_CONNECTOR":
