@@ -70,15 +70,15 @@ After registration, you will be taken to the app's **Overview** page. Here you w
 
 | Permission | Type | Description | Admin Consent |
 |------------|------|-------------|---------------|
-| `Files.Read` | Delegated | Read user files | No |
-| `Files.ReadWrite` | Delegated | Read and write user files | No |
+| `Files.Read.All` | Delegated | Read all files the user can access | No |
+| `Files.ReadWrite.All` | Delegated | Read and write all files the user can access | No |
 | `offline_access` | Delegated | Maintain access to data you have given it access to | No |
 | `User.Read` | Delegated | Sign in and read user profile | No |
 
 6. Click **"Add permissions"**
 
-<Callout type="info">
-  The `Files.ReadWrite` permission is required for HITL (Human-in-the-Loop) tools like creating and trashing files. If you only need read access for indexing, `Files.Read` is sufficient, but HITL tools will not work.
+<Callout type="warn">
+  All four permissions listed above are required. The connector will not authenticate successfully if any are missing.
 </Callout>
 
 ---
