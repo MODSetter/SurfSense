@@ -88,7 +88,7 @@ async def connect_teams(space_id: int, user: User = Depends(current_active_user)
         if not space_id:
             raise HTTPException(status_code=400, detail="space_id is required")
 
-        if not config.TEAMS_CLIENT_ID:
+        if not config.MICROSOFT_CLIENT_ID:
             raise HTTPException(
                 status_code=500, detail="Microsoft Teams OAuth not configured."
             )
@@ -106,7 +106,7 @@ async def connect_teams(space_id: int, user: User = Depends(current_active_user)
         from urllib.parse import urlencode
 
         auth_params = {
-            "client_id": config.TEAMS_CLIENT_ID,
+            "client_id": config.MICROSOFT_CLIENT_ID,
             "response_type": "code",
             "redirect_uri": config.TEAMS_REDIRECT_URI,
             "response_mode": "query",
@@ -181,8 +181,8 @@ async def teams_callback(
 
         # Exchange authorization code for access token
         token_data = {
-            "client_id": config.TEAMS_CLIENT_ID,
-            "client_secret": config.TEAMS_CLIENT_SECRET,
+            "client_id": config.MICROSOFT_CLIENT_ID,
+            "client_secret": config.MICROSOFT_CLIENT_SECRET,
             "code": code,
             "redirect_uri": config.TEAMS_REDIRECT_URI,
             "grant_type": "authorization_code",
@@ -403,8 +403,8 @@ async def refresh_teams_token(
 
     # Microsoft uses oauth2/v2.0/token for token refresh
     refresh_data = {
-        "client_id": config.TEAMS_CLIENT_ID,
-        "client_secret": config.TEAMS_CLIENT_SECRET,
+        "client_id": config.MICROSOFT_CLIENT_ID,
+        "client_secret": config.MICROSOFT_CLIENT_SECRET,
         "grant_type": "refresh_token",
         "refresh_token": refresh_token,
         "scope": " ".join(SCOPES),

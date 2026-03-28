@@ -78,7 +78,7 @@ async def connect_onedrive(space_id: int, user: User = Depends(current_active_us
     try:
         if not space_id:
             raise HTTPException(status_code=400, detail="space_id is required")
-        if not config.ONEDRIVE_CLIENT_ID:
+        if not config.MICROSOFT_CLIENT_ID:
             raise HTTPException(status_code=500, detail="Microsoft OneDrive OAuth not configured.")
         if not config.SECRET_KEY:
             raise HTTPException(status_code=500, detail="SECRET_KEY not configured for OAuth security.")
@@ -87,7 +87,7 @@ async def connect_onedrive(space_id: int, user: User = Depends(current_active_us
         state_encoded = state_manager.generate_secure_state(space_id, user.id)
 
         auth_params = {
-            "client_id": config.ONEDRIVE_CLIENT_ID,
+            "client_id": config.MICROSOFT_CLIENT_ID,
             "response_type": "code",
             "redirect_uri": config.ONEDRIVE_REDIRECT_URI,
             "response_mode": "query",
@@ -138,7 +138,7 @@ async def reauth_onedrive(
         state_encoded = state_manager.generate_secure_state(space_id, user.id, **extra)
 
         auth_params = {
-            "client_id": config.ONEDRIVE_CLIENT_ID,
+            "client_id": config.MICROSOFT_CLIENT_ID,
             "response_type": "code",
             "redirect_uri": config.ONEDRIVE_REDIRECT_URI,
             "response_mode": "query",
@@ -200,8 +200,8 @@ async def onedrive_callback(
         reauth_return_url = data.get("return_url")
 
         token_data = {
-            "client_id": config.ONEDRIVE_CLIENT_ID,
-            "client_secret": config.ONEDRIVE_CLIENT_SECRET,
+            "client_id": config.MICROSOFT_CLIENT_ID,
+            "client_secret": config.MICROSOFT_CLIENT_SECRET,
             "code": code,
             "redirect_uri": config.ONEDRIVE_REDIRECT_URI,
             "grant_type": "authorization_code",
@@ -416,8 +416,8 @@ async def refresh_onedrive_token(
         raise HTTPException(status_code=400, detail=f"No refresh token available for connector {connector.id}")
 
     refresh_data = {
-        "client_id": config.ONEDRIVE_CLIENT_ID,
-        "client_secret": config.ONEDRIVE_CLIENT_SECRET,
+        "client_id": config.MICROSOFT_CLIENT_ID,
+        "client_secret": config.MICROSOFT_CLIENT_SECRET,
         "grant_type": "refresh_token",
         "refresh_token": refresh_token,
         "scope": " ".join(SCOPES),

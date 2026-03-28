@@ -98,8 +98,8 @@ class OneDriveClient:
 
     async def _refresh_token(self, refresh_token: str) -> dict:
         data = {
-            "client_id": config.ONEDRIVE_CLIENT_ID,
-            "client_secret": config.ONEDRIVE_CLIENT_SECRET,
+            "client_id": config.MICROSOFT_CLIENT_ID,
+            "client_secret": config.MICROSOFT_CLIENT_SECRET,
             "grant_type": "refresh_token",
             "refresh_token": refresh_token,
             "scope": "offline_access User.Read Files.Read.All Files.ReadWrite.All",
