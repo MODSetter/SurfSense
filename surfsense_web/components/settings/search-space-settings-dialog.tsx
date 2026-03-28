@@ -43,7 +43,7 @@ export function SearchSpaceSettingsDialog({ searchSpaceId }: SearchSpaceSettings
 	const content: Record<string, React.ReactNode> = {
 		general: <GeneralSettingsManager searchSpaceId={searchSpaceId} />,
 		models: <ModelConfigManager searchSpaceId={searchSpaceId} />,
-		roles: <LLMRoleManager searchSpaceId={searchSpaceId} />,
+		roles: <LLMRoleManager key={searchSpaceId} searchSpaceId={searchSpaceId} />,
 		"image-models": <ImageModelManager searchSpaceId={searchSpaceId} />,
 		"team-roles": <RolesManager searchSpaceId={searchSpaceId} />,
 		prompts: <PromptConfigManager searchSpaceId={searchSpaceId} />,
