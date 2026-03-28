@@ -57,6 +57,7 @@ import {
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { UserMessage } from "@/components/assistant-ui/user-message";
 import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/components/layout/ui/sidebar/SidebarSlideOutPanel";
+import { ActionPicker, type ActionPickerRef } from "@/components/new-chat/action-picker";
 import {
 	DocumentMentionPicker,
 	type DocumentMentionPickerRef,
@@ -298,10 +299,13 @@ const Composer: FC = () => {
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
 	const setSidebarDocs = useSetAtom(sidebarSelectedDocumentsAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
+	const [showActionPicker, setShowActionPicker] = useState(false);
 	const [mentionQuery, setMentionQuery] = useState("");
+	const [actionQuery, setActionQuery] = useState("");
 	const editorRef = useRef<InlineMentionEditorRef>(null);
 	const editorContainerRef = useRef<HTMLDivElement>(null);
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
+	const actionPickerRef = useRef<ActionPickerRef>(null);
 	const { search_space_id, chat_id } = useParams();
 	const aui = useAui();
 	const hasAutoFocusedRef = useRef(false);
@@ -421,9 +425,69 @@ const Composer: FC = () => {
 		}
 	}, [showDocumentPopover]);
 
-	// Keyboard navigation for document picker (arrow keys, Enter, Escape)
+	// Open action picker when / is triggered
+	const handleActionTrigger = useCallback((query: string) => {
+		setShowActionPicker(true);
+		setActionQuery(query);
+	}, []);
+
+	// Close action picker and reset query
+	const handleActionClose = useCallback(() => {
+		if (showActionPicker) {
+			setShowActionPicker(false);
+			setActionQuery("");
+		}
+	}, [showActionPicker]);
+
+	// Handle action selection: prepend prompt template and auto-submit
+	const handleActionSelect = useCallback(
+		(action: { name: string; prompt: string; mode: "transform" | "explore" }) => {
+			setShowActionPicker(false);
+			setActionQuery("");
+
+			if (editorRef.current) {
+				const text = editorRef.current.getText();
+				// Remove the /query from the text
+				const slashIndex = text.lastIndexOf("/");
+				const userText = slashIndex !== -1 ? text.substring(0, slashIndex).trim() : text;
+				const finalPrompt = action.prompt.replace("{selection}", userText);
+
+				aui.composer().setText(finalPrompt);
+				aui.composer().send();
+				editorRef.current.clear();
+				setMentionedDocuments([]);
+				setSidebarDocs([]);
+			}
+		},
+		[aui, setMentionedDocuments, setSidebarDocs]
+	);
+
+	// Keyboard navigation for document/action picker (arrow keys, Enter, Escape)
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
+			if (showActionPicker) {
+				if (e.key === "ArrowDown") {
+					e.preventDefault();
+					actionPickerRef.current?.moveDown();
+					return;
+				}
+				if (e.key === "ArrowUp") {
+					e.preventDefault();
+					actionPickerRef.current?.moveUp();
+					return;
+				}
+				if (e.key === "Enter") {
+					e.preventDefault();
+					actionPickerRef.current?.selectHighlighted();
+					return;
+				}
+				if (e.key === "Escape") {
+					e.preventDefault();
+					setShowActionPicker(false);
+					setActionQuery("");
+					return;
+				}
+			}
 			if (showDocumentPopover) {
 				if (e.key === "ArrowDown") {
 					e.preventDefault();
@@ -448,7 +512,7 @@ const Composer: FC = () => {
 				}
 			}
 		},
-		[showDocumentPopover]
+		[showDocumentPopover, showActionPicker]
 	);
 
 	// Submit message (blocked during streaming, document picker open, or AI responding to another user)
@@ -520,6 +584,8 @@ const Composer: FC = () => {
 						placeholder={currentPlaceholder}
 						onMentionTrigger={handleMentionTrigger}
 						onMentionClose={handleMentionClose}
+						onActionTrigger={handleActionTrigger}
+						onActionClose={handleActionClose}
 						onChange={handleEditorChange}
 						onDocumentRemove={handleDocumentRemove}
 						onSubmit={handleSubmit}
@@ -549,6 +615,30 @@ const Composer: FC = () => {
 								left: editorContainerRef.current
 									? `${editorContainerRef.current.getBoundingClientRect().left}px`
 									: "50%",
+							}}
+						/>,
+						document.body
+					)}
+				{showActionPicker &&
+					typeof document !== "undefined" &&
+					createPortal(
+						<ActionPicker
+							ref={actionPickerRef}
+							onSelect={handleActionSelect}
+							onDone={() => {
+								setShowActionPicker(false);
+								setActionQuery("");
+							}}
+							externalSearch={actionQuery}
+							containerStyle={{
+								position: "fixed",
+								bottom: editorContainerRef.current
+									? `${window.innerHeight - editorContainerRef.current.getBoundingClientRect().top + 8}px`
+									: "200px",
+								left: editorContainerRef.current
+									? `${editorContainerRef.current.getBoundingClientRect().left}px`
+									: "50%",
+								zIndex: 50,
 							}}
 						/>,
 						document.body
