@@ -220,8 +220,6 @@ export const OneDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCh
 					{totalSelected > 0 ? "Change Selection" : "Select from OneDrive"}
 				</Button>
 
-				{pickerError && !isAuthExpired && <p className="text-xs text-destructive">{pickerError}</p>}
-
 				{isAuthExpired && (
 					<p className="text-xs text-amber-600 dark:text-amber-500">
 						Your OneDrive authentication has expired. Please re-authenticate using the button

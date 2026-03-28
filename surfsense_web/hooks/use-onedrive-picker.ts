@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { authenticatedFetch } from "@/lib/auth-utils";
 
 export interface OneDrivePickerItem {
@@ -241,6 +242,7 @@ export function useOneDrivePicker({ connectorId, onPicked }: UseOneDrivePickerOp
 			openingRef.current = false;
 			const msg = err instanceof Error ? err.message : "Failed to open OneDrive Picker";
 			setError(msg);
+			toast.error("OneDrive Picker failed", { description: msg });
 			console.error("OneDrive Picker error:", err);
 			window.dispatchEvent(new Event(ONEDRIVE_PICKER_CLOSE_EVENT));
 		} finally {
