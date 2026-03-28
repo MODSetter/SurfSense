@@ -35,6 +35,7 @@ interface InterruptResult {
 	}>;
 	context?: {
 		accounts?: OneDriveAccount[];
+		parent_folders?: Record<number, Array<{ folder_id: string; name: string }>>;
 		error?: string;
 	};
 }
@@ -107,6 +108,7 @@ function ApprovalCard({
 
 	const accounts = interruptData.context?.accounts ?? [];
 	const validAccounts = accounts.filter((a) => !a.auth_expired);
+	const expiredAccounts = accounts.filter((a) => a.auth_expired);
 
 	const defaultAccountId = useMemo(() => {
 		if (validAccounts.length === 1) return String(validAccounts[0].id);
@@ -114,6 +116,18 @@ function ApprovalCard({
 	}, [validAccounts]);
 
 	const [selectedAccountId, setSelectedAccountId] = useState<string>(defaultAccountId);
+	const [parentFolderId, setParentFolderId] = useState<string>("__root__");
+
+	const parentFolders = interruptData.context?.parent_folders ?? {};
+	const availableParentFolders = useMemo(() => {
+		if (!selectedAccountId) return [];
+		return parentFolders[Number(selectedAccountId)] ?? [];
+	}, [selectedAccountId, parentFolders]);
+
+	const handleAccountChange = useCallback((value: string) => {
+		setSelectedAccountId(value);
+		setParentFolderId("__root__");
+	}, []);
 
 	const isNameValid = useMemo(() => {
 		const name = pendingEdits?.name ?? args.name;
@@ -138,10 +152,23 @@ function ApprovalCard({
 					...args,
 					...(pendingEdits && { name: pendingEdits.name, content: pendingEdits.content }),
 					connector_id: selectedAccountId ? Number(selectedAccountId) : null,
+					parent_folder_id: parentFolderId === "__root__" ? null : parentFolderId,
 				},
 			},
 		});
-	}, [phase, isPanelOpen, canApprove, allowedDecisions, pendingEdits, setProcessing, onDecision, interruptData, args, selectedAccountId]);
+	}, [
+		phase,
+		setProcessing,
+		isPanelOpen,
+		canApprove,
+		allowedDecisions,
+		onDecision,
+		interruptData,
+		args,
+		selectedAccountId,
+		parentFolderId,
+		pendingEdits,
+	]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -153,56 +180,134 @@ function ApprovalCard({
 
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-all duration-300">
+			{/* Header */}
 			<div className="flex items-start justify-between px-5 pt-5 pb-4 select-none">
 				<div>
 					<p className="text-sm font-semibold text-foreground">
-						{phase === "rejected" ? "OneDrive File Rejected" : phase === "processing" || phase === "complete" ? "OneDrive File Approved" : "Create OneDrive File"}
+						{phase === "rejected"
+							? "Word Document Rejected"
+							: phase === "processing" || phase === "complete"
+								? "Word Document Approved"
+								: "Create Word Document"}
 					</p>
 					{phase === "processing" ? (
-						<TextShimmerLoader text={pendingEdits ? "Creating file with your changes" : "Creating file"} size="sm" />
+						<TextShimmerLoader
+							text={pendingEdits ? "Creating file with your changes" : "Creating file"}
+							size="sm"
+						/>
 					) : phase === "complete" ? (
-						<p className="text-xs text-muted-foreground mt-0.5">{pendingEdits ? "File created with your changes" : "File created"}</p>
+						<p className="text-xs text-muted-foreground mt-0.5">
+							{pendingEdits ? "File created with your changes" : "File created"}
+						</p>
 					) : phase === "rejected" ? (
 						<p className="text-xs text-muted-foreground mt-0.5">File creation was cancelled</p>
 					) : (
-						<p className="text-xs text-muted-foreground mt-0.5">Requires your approval to proceed</p>
+						<p className="text-xs text-muted-foreground mt-0.5">
+							Requires your approval to proceed
+						</p>
 					)}
 				</div>
 				{phase === "pending" && canEdit && (
-					<Button size="sm" variant="ghost" className="rounded-lg text-muted-foreground -mt-1 -mr-2" onClick={() => {
-						setIsPanelOpen(true);
-						openHitlEditPanel({
-							title: pendingEdits?.name ?? args.name ?? "",
-							content: pendingEdits?.content ?? args.content ?? "",
-							toolName: "OneDrive File",
-							onSave: (newName, newContent) => { setIsPanelOpen(false); setPendingEdits({ name: newName, content: newContent }); },
-							onClose: () => setIsPanelOpen(false),
-						});
-					}}>
-						<Pen className="size-3.5" /> Edit
+					<Button
+						size="sm"
+						variant="ghost"
+						className="rounded-lg text-muted-foreground -mt-1 -mr-2"
+						onClick={() => {
+							setIsPanelOpen(true);
+							openHitlEditPanel({
+								title: pendingEdits?.name ?? args.name ?? "",
+								content: pendingEdits?.content ?? args.content ?? "",
+								toolName: "Word Document",
+								onSave: (newName, newContent) => {
+									setIsPanelOpen(false);
+									setPendingEdits({ name: newName, content: newContent });
+								},
+								onClose: () => setIsPanelOpen(false),
+							});
+						}}
+					>
+						<Pen className="size-3.5" />
+						Edit
 					</Button>
 				)}
 			</div>
 
+			{/* Context section — pickers in pending */}
 			{phase === "pending" && interruptData.context && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 space-y-4 select-none">
 						{interruptData.context.error ? (
 							<p className="text-sm text-destructive">{interruptData.context.error}</p>
-						) : accounts.length > 0 ? (
-							<div className="space-y-2">
-								<p className="text-xs font-medium text-muted-foreground">OneDrive Account <span className="text-destructive">*</span></p>
-								<Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
-									<SelectTrigger className="w-full"><SelectValue placeholder="Select an account" /></SelectTrigger>
-									<SelectContent>
-										{validAccounts.map((account) => (
-											<SelectItem key={account.id} value={String(account.id)}>{account.name}</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
-						) : null}
+						) : (
+							<>
+								{accounts.length > 0 && (
+									<div className="space-y-2">
+										<p className="text-xs font-medium text-muted-foreground">
+											OneDrive Account <span className="text-destructive">*</span>
+										</p>
+										<Select value={selectedAccountId} onValueChange={handleAccountChange}>
+											<SelectTrigger className="w-full">
+												<SelectValue placeholder="Select an account" />
+											</SelectTrigger>
+											<SelectContent>
+												{validAccounts.map((account) => (
+													<SelectItem key={account.id} value={String(account.id)}>
+														{account.name}
+													</SelectItem>
+												))}
+												{expiredAccounts.map((a) => (
+													<div
+														key={a.id}
+														className="relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 px-2 text-sm select-none opacity-50 pointer-events-none"
+													>
+														{a.name} (expired, retry after re-auth)
+													</div>
+												))}
+											</SelectContent>
+										</Select>
+									</div>
+								)}
+
+								<div className="space-y-2">
+									<p className="text-xs font-medium text-muted-foreground">
+										File Type
+									</p>
+									<Select value="docx" disabled>
+										<SelectTrigger className="w-full">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="docx">Word Document (.docx)</SelectItem>
+										</SelectContent>
+									</Select>
+								</div>
+
+								{selectedAccountId && (
+									<div className="space-y-2">
+										<p className="text-xs font-medium text-muted-foreground">Parent Folder</p>
+										<Select value={parentFolderId} onValueChange={setParentFolderId}>
+											<SelectTrigger className="w-full">
+												<SelectValue placeholder="OneDrive Root" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="__root__">OneDrive Root</SelectItem>
+												{availableParentFolders.map((folder) => (
+													<SelectItem key={folder.folder_id} value={folder.folder_id}>
+														{folder.name}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+										{availableParentFolders.length === 0 && (
+											<p className="text-xs text-muted-foreground">
+												No folders found. File will be created at OneDrive root.
+											</p>
+										)}
+									</div>
+								)}
+							</>
+						)}
 					</div>
 				</>
 			)}

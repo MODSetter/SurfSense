@@ -109,7 +109,32 @@ def create_create_onedrive_file_tool(
                     "connector_type": "onedrive",
                 }
 
-            context = {"accounts": accounts}
+            parent_folders: dict[int, list[dict[str, str]]] = {}
+            for acc in accounts:
+                cid = acc["id"]
+                if acc.get("auth_expired"):
+                    parent_folders[cid] = []
+                    continue
+                try:
+                    client = OneDriveClient(session=db_session, connector_id=cid)
+                    items, err = await client.list_children("root")
+                    if err:
+                        logger.warning("Failed to list folders for connector %s: %s", cid, err)
+                        parent_folders[cid] = []
+                    else:
+                        parent_folders[cid] = [
+                            {"folder_id": item["id"], "name": item["name"]}
+                            for item in items
+                            if item.get("folder") is not None and item.get("id") and item.get("name")
+                        ]
+                except Exception:
+                    logger.warning("Error fetching folders for connector %s", cid, exc_info=True)
+                    parent_folders[cid] = []
+
+            context: dict[str, Any] = {
+                "accounts": accounts,
+                "parent_folders": parent_folders,
+            }
 
             approval = interrupt(
                 {
