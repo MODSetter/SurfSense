@@ -7,6 +7,7 @@ export const documentTypeEnum = z.enum([
 	"FILE",
 	"SLACK_CONNECTOR",
 	"TEAMS_CONNECTOR",
+	"ONEDRIVE_FILE",
 	"NOTION_CONNECTOR",
 	"YOUTUBE_VIDEO",
 	"GITHUB_CONNECTOR",
