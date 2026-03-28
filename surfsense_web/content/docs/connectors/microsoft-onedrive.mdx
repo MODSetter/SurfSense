@@ -1,14 +1,14 @@
 ---
-title: Microsoft Teams
-description: Connect your Microsoft Teams to SurfSense
+title: Microsoft OneDrive
+description: Connect your Microsoft OneDrive to SurfSense
 ---
 
-# Microsoft Teams OAuth Integration Setup Guide
+# Microsoft OneDrive OAuth Integration Setup Guide
 
-This guide walks you through setting up a Microsoft Teams OAuth integration for SurfSense using Azure App Registration.
+This guide walks you through setting up a Microsoft OneDrive OAuth integration for SurfSense using Azure App Registration.
 
 <Callout type="info">
-  Microsoft Teams and [Microsoft OneDrive](/docs/connectors/microsoft-onedrive) share the same Azure App Registration. If you have already created an app for OneDrive, you can reuse the same Client ID and Client Secret. Just make sure both redirect URIs are added (see Step 3).
+  Microsoft OneDrive and [Microsoft Teams](/docs/connectors/microsoft-teams) share the same Azure App Registration. If you have already created an app for Teams, you can reuse the same Client ID and Client Secret. Just make sure both redirect URIs are added (see Step 3).
 </Callout>
 
 ## Step 1: Access Azure App Registrations
@@ -17,13 +17,9 @@ This guide walks you through setting up a Microsoft Teams OAuth integration for 
 2. In the search bar, type **"app reg"**
 3. Select **"App registrations"** from the Services results
 
-![Azure Portal Search](/docs/connectors/microsoft-teams/azure-search-app-reg.png)
-
 ## Step 2: Create New Registration
 
 1. On the **App registrations** page, click **"+ New registration"**
-
-![App Registrations Page](/docs/connectors/microsoft-teams/azure-app-registrations.png)
 
 ## Step 3: Register the Application
 
@@ -33,18 +29,16 @@ Fill in the application details:
 |-------|-------|
 | **Name** | `SurfSense` |
 | **Supported account types** | Select **"Accounts in any organizational directory (Any Microsoft Entra ID tenant - Multitenant) and personal Microsoft accounts"** |
-| **Redirect URI** | Platform: `Web`, URI: `http://localhost:8000/api/v1/auth/teams/connector/callback` |
+| **Redirect URI** | Platform: `Web`, URI: `http://localhost:8000/api/v1/auth/onedrive/connector/callback` |
 
 Click **"Register"**
 
-After registration, add the OneDrive redirect URI as well:
+After registration, add the Teams redirect URI as well (if you plan to use the Teams connector):
 
 1. Go to **Authentication** in the left sidebar
 2. Under **Platform configurations** > **Web** > **Redirect URIs**, click **Add URI**
-3. Add: `http://localhost:8000/api/v1/auth/onedrive/connector/callback`
+3. Add: `http://localhost:8000/api/v1/auth/teams/connector/callback`
 4. Click **Save**
-
-![Register Application Form](/docs/connectors/microsoft-teams/azure-register-app.png)
 
 ## Step 4: Get Application (Client) ID
 
@@ -53,8 +47,6 @@ After registration, you will be taken to the app's **Overview** page. Here you w
 1. Copy the **Application (client) ID** - this is your Client ID
 2. Note the **Directory (tenant) ID** if needed
 
-![Application Overview](/docs/connectors/microsoft-teams/azure-app-overview.png)
-
 ## Step 5: Create Client Secret
 
 1. In the left sidebar under **Manage**, click **"Certificates & secrets"**
@@ -62,12 +54,7 @@ After registration, you will be taken to the app's **Overview** page. Here you w
 3. Click **"+ New client secret"**
 4. Enter a description (e.g., `SurfSense`) and select an expiration period
 5. Click **"Add"**
-
-![Certificates & Secrets - Empty](/docs/connectors/microsoft-teams/azure-certificates-empty.png)
-
 6. **Important**: Copy the secret **Value** immediately. It will not be shown again!
-
-![Certificates & Secrets - Created](/docs/connectors/microsoft-teams/azure-certificates-created.png)
 
 <Callout type="warn">
   Never share your client secret publicly or include it in code repositories.
@@ -83,34 +70,31 @@ After registration, you will be taken to the app's **Overview** page. Here you w
 
 | Permission | Type | Description | Admin Consent |
 |------------|------|-------------|---------------|
-| `Channel.ReadBasic.All` | Delegated | Read the names and descriptions of channels | No |
-| `ChannelMessage.Read.All` | Delegated | Read user channel messages | Yes |
+| `Files.Read` | Delegated | Read user files | No |
+| `Files.ReadWrite` | Delegated | Read and write user files | No |
 | `offline_access` | Delegated | Maintain access to data you have given it access to | No |
-| `Team.ReadBasic.All` | Delegated | Read the names and descriptions of teams | No |
 | `User.Read` | Delegated | Sign in and read user profile | No |
 
 6. Click **"Add permissions"**
 
-<Callout type="warn">
-  The `ChannelMessage.Read.All` permission requires admin consent. An admin will need to click **"Grant admin consent for [Directory]"** for full functionality.
+<Callout type="info">
+  The `Files.ReadWrite` permission is required for HITL (Human-in-the-Loop) tools like creating and trashing files. If you only need read access for indexing, `Files.Read` is sufficient, but HITL tools will not work.
 </Callout>
-
-![API Permissions](/docs/connectors/microsoft-teams/azure-api-permissions.png)
 
 ---
 
-## Running SurfSense with Microsoft Teams Connector
+## Running SurfSense with Microsoft OneDrive Connector
 
 Add the Microsoft OAuth credentials to your `.env` file (created during [Docker installation](/docs/docker-installation/docker-compose)):
 
 ```bash
 MICROSOFT_CLIENT_ID=your_microsoft_client_id
 MICROSOFT_CLIENT_SECRET=your_microsoft_client_secret
-TEAMS_REDIRECT_URI=http://localhost:8000/api/v1/auth/teams/connector/callback
+ONEDRIVE_REDIRECT_URI=http://localhost:8000/api/v1/auth/onedrive/connector/callback
 ```
 
 <Callout type="info">
-  The `MICROSOFT_CLIENT_ID` and `MICROSOFT_CLIENT_SECRET` are shared between the Teams and OneDrive connectors. You only need to set them once.
+  The `MICROSOFT_CLIENT_ID` and `MICROSOFT_CLIENT_SECRET` are shared between the OneDrive and Teams connectors. You only need to set them once.
 </Callout>
 
 Then restart the services:
