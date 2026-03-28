@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
-import { useAuth } from "@/context/AuthContext";
+import { authenticatedFetch } from "@/lib/auth-utils";
 import type { ConnectorConfigProps } from "../index";
 
 interface SelectedItem {
@@ -74,7 +74,6 @@ function getFileIconFromName(fileName: string, className = "size-3.5 shrink-0") 
 }
 
 export const OneDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigChange }) => {
-	const { authenticatedFetch } = useAuth();
 	const existingFolders = (connector.config?.selected_folders as SelectedItem[] | undefined) || [];
 	const existingFiles = (connector.config?.selected_files as SelectedItem[] | undefined) || [];
 	const existingIndexingOptions =
@@ -137,7 +136,7 @@ export const OneDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCh
 				setBrowseLoading(false);
 			}
 		},
-		[connector.id, authenticatedFetch],
+		[connector.id],
 	);
 
 	const handleOpenBrowser = useCallback(() => {
