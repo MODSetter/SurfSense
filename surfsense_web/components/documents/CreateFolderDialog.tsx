@@ -69,7 +69,9 @@ export function CreateFolderDialog({
 
 				<form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:gap-4">
 					<div className="flex flex-col gap-2">
-						<Label htmlFor="folder-name" className="text-sm">Folder name</Label>
+						<Label htmlFor="folder-name" className="text-sm">
+							Folder name
+						</Label>
 						<Input
 							ref={inputRef}
 							id="folder-name"
@@ -91,11 +93,7 @@ export function CreateFolderDialog({
 						>
 							Cancel
 						</Button>
-						<Button
-							type="submit"
-							disabled={!name.trim()}
-							className="h-8 sm:h-9 text-xs sm:text-sm"
-						>
+						<Button type="submit" disabled={!name.trim()} className="h-8 sm:h-9 text-xs sm:text-sm">
 							Create
 						</Button>
 					</DialogFooter>

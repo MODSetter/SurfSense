@@ -16,7 +16,10 @@ from app.connectors.google_calendar_connector import GoogleCalendarConnector
 from app.db import DocumentType, SearchSourceConnectorType
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.document_hashing import compute_content_hash
-from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
+from app.indexing_pipeline.indexing_pipeline_service import (
+    IndexingPipelineService,
+    PlaceholderInfo,
+)
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.google_credentials import (
@@ -73,9 +76,7 @@ def _build_connector_doc(
         "connector_type": "Google Calendar",
     }
 
-    fallback_summary = (
-        f"Google Calendar Event: {event_summary}\n\n{event_markdown}"
-    )
+    fallback_summary = f"Google Calendar Event: {event_summary}\n\n{event_markdown}"
 
     return ConnectorDocument(
         title=event_summary,
@@ -344,6 +345,27 @@ async def index_google_calendar_events(
             logger.error(f"Error fetching Google Calendar events: {e!s}", exc_info=True)
             return 0, 0, f"Error fetching Google Calendar events: {e!s}"
 
+        # ── Create placeholders for instant UI feedback ───────────────
+        pipeline = IndexingPipelineService(session)
+        placeholders = [
+            PlaceholderInfo(
+                title=event.get("summary", "No Title"),
+                document_type=DocumentType.GOOGLE_CALENDAR_CONNECTOR,
+                unique_id=event.get("id", ""),
+                search_space_id=search_space_id,
+                connector_id=connector_id,
+                created_by_id=user_id,
+                metadata={
+                    "event_id": event.get("id", ""),
+                    "connector_id": connector_id,
+                    "connector_type": "Google Calendar",
+                },
+            )
+            for event in events
+            if event.get("id")
+        ]
+        await pipeline.create_placeholder_documents(placeholders)
+
         # ── Build ConnectorDocuments ──────────────────────────────────
         connector_docs: list[ConnectorDocument] = []
         documents_skipped = 0
@@ -391,13 +413,13 @@ async def index_google_calendar_events(
                 connector_docs.append(doc)
 
             except Exception as e:
-                logger.error(f"Error building ConnectorDocument for event: {e!s}", exc_info=True)
+                logger.error(
+                    f"Error building ConnectorDocument for event: {e!s}", exc_info=True
+                )
                 documents_skipped += 1
                 continue
 
         # ── Pipeline: migrate legacy docs + parallel index ─────────────
-        pipeline = IndexingPipelineService(session)
-
         await pipeline.migrate_legacy_docs(connector_docs)
 
         async def _get_llm(s):

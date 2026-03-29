@@ -71,7 +71,6 @@ from .jira import (
     create_delete_jira_issue_tool,
     create_update_jira_issue_tool,
 )
-from .knowledge_base import create_search_knowledge_base_tool
 from .linear import (
     create_create_linear_issue_tool,
     create_delete_linear_issue_tool,
@@ -132,23 +131,6 @@ class ToolDefinition:
 # Registry of all built-in tools
 # Contributors: Add your new tools here!
 BUILTIN_TOOLS: list[ToolDefinition] = [
-    # Core tool - searches the user's knowledge base
-    # Now supports dynamic connector/document type discovery
-    ToolDefinition(
-        name="search_knowledge_base",
-        description="Search the user's personal knowledge base for relevant information",
-        factory=lambda deps: create_search_knowledge_base_tool(
-            search_space_id=deps["search_space_id"],
-            db_session=deps["db_session"],
-            connector_service=deps["connector_service"],
-            # Optional: dynamically discovered connectors/document types
-            available_connectors=deps.get("available_connectors"),
-            available_document_types=deps.get("available_document_types"),
-            max_input_tokens=deps.get("max_input_tokens"),
-        ),
-        requires=["search_space_id", "db_session", "connector_service"],
-        # Note: available_connectors and available_document_types are optional
-    ),
     # Podcast generation tool
     ToolDefinition(
         name="generate_podcast",
@@ -172,8 +154,8 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         requires=["search_space_id", "db_session", "thread_id"],
     ),
     # Report generation tool (inline, short-lived sessions for DB ops)
-    # Supports internal KB search via source_strategy so the agent doesn't
-    # need to call search_knowledge_base separately before generating.
+    # Supports internal KB search via source_strategy so the agent does not
+    # need a separate search step before generating.
     ToolDefinition(
         name="generate_report",
         description="Generate a structured report from provided content and export it",
@@ -579,7 +561,7 @@ def build_tools(
         tools = build_tools(deps)
 
         # Use only specific tools
-        tools = build_tools(deps, enabled_tools=["search_knowledge_base"])
+        tools = build_tools(deps, enabled_tools=["generate_report"])
 
         # Use defaults but disable podcast
         tools = build_tools(deps, disabled_tools=["generate_podcast"])

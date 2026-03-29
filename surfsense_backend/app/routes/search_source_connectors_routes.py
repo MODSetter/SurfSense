@@ -2453,7 +2453,11 @@ async def run_google_drive_indexing(
         if items.files:
             try:
                 file_tuples = [(f.id, f.name) for f in items.files]
-                indexed_count, _skipped, file_errors = await index_google_drive_selected_files(
+                (
+                    indexed_count,
+                    _skipped,
+                    file_errors,
+                ) = await index_google_drive_selected_files(
                     session,
                     connector_id,
                     search_space_id,

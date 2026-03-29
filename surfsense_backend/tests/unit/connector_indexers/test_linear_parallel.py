@@ -128,13 +128,17 @@ def _mock_linear_client(issues=None, error=None):
     client.get_issues_by_date_range = AsyncMock(
         return_value=(issues if issues is not None else [], error),
     )
-    client.format_issue = MagicMock(side_effect=lambda i: _make_formatted_issue(
-        issue_id=i.get("id", ""),
-        identifier=i.get("identifier", ""),
-        title=i.get("title", ""),
-    ))
+    client.format_issue = MagicMock(
+        side_effect=lambda i: _make_formatted_issue(
+            issue_id=i.get("id", ""),
+            identifier=i.get("identifier", ""),
+            title=i.get("title", ""),
+        )
+    )
     client.format_issue_to_markdown = MagicMock(
-        side_effect=lambda fi: f"# {fi.get('identifier', '')}: {fi.get('title', '')}\n\nContent"
+        side_effect=lambda fi: (
+            f"# {fi.get('identifier', '')}: {fi.get('title', '')}\n\nContent"
+        )
     )
     return client
 
@@ -147,24 +151,34 @@ def linear_mocks(monkeypatch):
 
     mock_connector = _mock_connector()
     monkeypatch.setattr(
-        _mod, "get_connector_by_id", AsyncMock(return_value=mock_connector),
+        _mod,
+        "get_connector_by_id",
+        AsyncMock(return_value=mock_connector),
     )
 
     linear_client = _mock_linear_client(issues=[_make_issue()])
     monkeypatch.setattr(
-        _mod, "LinearConnector", MagicMock(return_value=linear_client),
+        _mod,
+        "LinearConnector",
+        MagicMock(return_value=linear_client),
     )
 
     monkeypatch.setattr(
-        _mod, "check_duplicate_document_by_hash", AsyncMock(return_value=None),
+        _mod,
+        "check_duplicate_document_by_hash",
+        AsyncMock(return_value=None),
     )
 
     monkeypatch.setattr(
-        _mod, "update_connector_last_indexed", AsyncMock(),
+        _mod,
+        "update_connector_last_indexed",
+        AsyncMock(),
     )
 
     monkeypatch.setattr(
-        _mod, "calculate_date_range", MagicMock(return_value=("2025-01-01", "2025-12-31")),
+        _mod,
+        "calculate_date_range",
+        MagicMock(return_value=("2025-01-01", "2025-12-31")),
     )
 
     mock_task_logger = MagicMock()
@@ -173,15 +187,20 @@ def linear_mocks(monkeypatch):
     mock_task_logger.log_task_success = AsyncMock()
     mock_task_logger.log_task_failure = AsyncMock()
     monkeypatch.setattr(
-        _mod, "TaskLoggingService", MagicMock(return_value=mock_task_logger),
+        _mod,
+        "TaskLoggingService",
+        MagicMock(return_value=mock_task_logger),
     )
 
     batch_mock = AsyncMock(return_value=([], 1, 0))
     pipeline_mock = MagicMock()
     pipeline_mock.index_batch_parallel = batch_mock
     pipeline_mock.migrate_legacy_docs = AsyncMock()
+    pipeline_mock.create_placeholder_documents = AsyncMock(return_value=0)
     monkeypatch.setattr(
-        _mod, "IndexingPipelineService", MagicMock(return_value=pipeline_mock),
+        _mod,
+        "IndexingPipelineService",
+        MagicMock(return_value=pipeline_mock),
     )
 
     return {
@@ -255,7 +274,7 @@ async def test_issues_with_missing_id_are_skipped(linear_mocks):
     ]
     linear_mocks["linear_client"].get_issues_by_date_range.return_value = (issues, None)
 
-    indexed, skipped, _ = await _run_index(linear_mocks)
+    _indexed, skipped, _ = await _run_index(linear_mocks)
 
     connector_docs = linear_mocks["batch_mock"].call_args[0][0]
     assert len(connector_docs) == 1
@@ -271,7 +290,7 @@ async def test_issues_with_missing_title_are_skipped(linear_mocks):
     ]
     linear_mocks["linear_client"].get_issues_by_date_range.return_value = (issues, None)
 
-    indexed, skipped, _ = await _run_index(linear_mocks)
+    _indexed, skipped, _ = await _run_index(linear_mocks)
 
     connector_docs = linear_mocks["batch_mock"].call_args[0][0]
     assert len(connector_docs) == 1
@@ -305,7 +324,7 @@ async def test_duplicate_content_issues_are_skipped(linear_mocks, monkeypatch):
 
     monkeypatch.setattr(_mod, "check_duplicate_document_by_hash", _check_dup)
 
-    indexed, skipped, _ = await _run_index(linear_mocks)
+    _indexed, skipped, _ = await _run_index(linear_mocks)
 
     connector_docs = linear_mocks["batch_mock"].call_args[0][0]
     assert len(connector_docs) == 1

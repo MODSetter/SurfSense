@@ -4,7 +4,6 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { AlertTriangle, Cable, Settings } from "lucide-react";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { useZeroDocumentTypeCounts } from "@/hooks/use-zero-document-type-counts";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
 import {
 	globalNewLLMConfigsAtom,
@@ -22,6 +21,7 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { useConnectorsSync } from "@/hooks/use-connectors-sync";
 import { PICKER_CLOSE_EVENT, PICKER_OPEN_EVENT } from "@/hooks/use-google-picker";
+import { useZeroDocumentTypeCounts } from "@/hooks/use-zero-document-type-counts";
 import { cn } from "@/lib/utils";
 import { ConnectorDialogHeader } from "./connector-popup/components/connector-dialog-header";
 import { ConnectorConnectView } from "./connector-popup/connector-configs/views/connector-connect-view";

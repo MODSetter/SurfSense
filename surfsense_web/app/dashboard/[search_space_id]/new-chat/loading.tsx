@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Loading() {
 	return (
-		<div className="flex h-[calc(100dvh-64px)] flex-col bg-main-panel px-4">
+		<div className="flex h-full flex-col bg-main-panel px-4">
 			<div className="mx-auto w-full max-w-[44rem] flex flex-1 flex-col gap-6 py-8">
 				{/* User message */}
 				<div className="flex justify-end">

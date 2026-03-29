@@ -16,7 +16,10 @@ from app.connectors.google_gmail_connector import GoogleGmailConnector
 from app.db import DocumentType, SearchSourceConnectorType
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.document_hashing import compute_content_hash
-from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
+from app.indexing_pipeline.indexing_pipeline_service import (
+    IndexingPipelineService,
+    PlaceholderInfo,
+)
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.google_credentials import (
@@ -282,6 +285,34 @@ async def index_google_gmail_messages(
 
         logger.info(f"Found {len(messages)} Google gmail messages to index")
 
+        # ── Create placeholders for instant UI feedback ───────────────
+        pipeline = IndexingPipelineService(session)
+
+        def _gmail_subject(msg: dict) -> str:
+            for h in msg.get("payload", {}).get("headers", []):
+                if h.get("name", "").lower() == "subject":
+                    return h.get("value", "No Subject")
+            return "No Subject"
+
+        placeholders = [
+            PlaceholderInfo(
+                title=_gmail_subject(msg),
+                document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
+                unique_id=msg.get("id", ""),
+                search_space_id=search_space_id,
+                connector_id=connector_id,
+                created_by_id=user_id,
+                metadata={
+                    "message_id": msg.get("id", ""),
+                    "connector_id": connector_id,
+                    "connector_type": "Google Gmail",
+                },
+            )
+            for msg in messages
+            if msg.get("id")
+        ]
+        await pipeline.create_placeholder_documents(placeholders)
+
         # ── Build ConnectorDocuments ──────────────────────────────────
         connector_docs: list[ConnectorDocument] = []
         documents_skipped = 0
@@ -327,13 +358,14 @@ async def index_google_gmail_messages(
                 connector_docs.append(doc)
 
             except Exception as e:
-                logger.error(f"Error building ConnectorDocument for message: {e!s}", exc_info=True)
+                logger.error(
+                    f"Error building ConnectorDocument for message: {e!s}",
+                    exc_info=True,
+                )
                 documents_skipped += 1
                 continue
 
         # ── Pipeline: migrate legacy docs + parallel index ─────────────
-        pipeline = IndexingPipelineService(session)
-
         await pipeline.migrate_legacy_docs(connector_docs)
 
         async def _get_llm(s):

@@ -273,9 +273,7 @@ def create_update_calendar_event_tool(
                     final_new_start_datetime, context
                 )
             if final_new_end_datetime is not None:
-                update_body["end"] = _build_time_body(
-                    final_new_end_datetime, context
-                )
+                update_body["end"] = _build_time_body(final_new_end_datetime, context)
             if final_new_description is not None:
                 update_body["description"] = final_new_description
             if final_new_location is not None:

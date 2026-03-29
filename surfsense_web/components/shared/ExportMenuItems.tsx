@@ -1,8 +1,12 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ContextMenuItem } from "@/components/ui/context-menu";
+import {
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 export const EXPORT_FILE_EXTENSIONS: Record<string, string> = {
 	pdf: "pdf",
@@ -36,9 +40,7 @@ export function ExportDropdownItems({
 		<>
 			{showAllFormats && (
 				<>
-					<DropdownMenuLabel className="text-xs text-muted-foreground">
-						Documents
-					</DropdownMenuLabel>
+					<DropdownMenuLabel className="text-xs text-muted-foreground">Documents</DropdownMenuLabel>
 					<DropdownMenuItem onClick={handle("pdf")} disabled={exporting !== null}>
 						{exporting === "pdf" && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
 						PDF (.pdf)

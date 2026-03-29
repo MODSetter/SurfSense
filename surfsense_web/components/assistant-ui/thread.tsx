@@ -109,7 +109,7 @@ const ThreadContent: FC = () => {
 		>
 			<ThreadPrimitive.Viewport
 				turnAnchor="top"
-				className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 pt-4"
+				className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-scroll px-4 pt-4"
 			>
 				<AuiIf condition={({ thread }) => thread.isEmpty}>
 					<ThreadWelcome />
@@ -944,6 +944,8 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 				{hasWebSearchTool && (
 					<button
 						type="button"
+						aria-label={isWebSearchEnabled ? "Disable web search" : "Enable web search"}
+						aria-pressed={isWebSearchEnabled}
 						onClick={() => toggleTool("web_search")}
 						className={cn(
 							"rounded-full transition-all flex items-center gap-1 px-2 py-1 border h-8 select-none",
@@ -1062,7 +1064,7 @@ interface ToolGroup {
 const TOOL_GROUPS: ToolGroup[] = [
 	{
 		label: "Research",
-		tools: ["search_knowledge_base", "search_surfsense_docs", "scrape_webpage"],
+		tools: ["search_surfsense_docs", "scrape_webpage"],
 	},
 	{
 		label: "Generate",

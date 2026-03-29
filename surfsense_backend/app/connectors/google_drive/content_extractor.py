@@ -1,6 +1,7 @@
 """Content extraction for Google Drive files."""
 
 import asyncio
+import contextlib
 import logging
 import os
 import tempfile
@@ -72,7 +73,11 @@ async def download_and_extract_content(
         if is_google_workspace_file(mime_type):
             export_mime = get_export_mime_type(mime_type)
             if not export_mime:
-                return None, drive_metadata, f"Cannot export Google Workspace type: {mime_type}"
+                return (
+                    None,
+                    drive_metadata,
+                    f"Cannot export Google Workspace type: {mime_type}",
+                )
             content_bytes, error = await client.export_google_file(file_id, export_mime)
             if error:
                 return None, drive_metadata, error
@@ -83,9 +88,7 @@ async def download_and_extract_content(
                 temp_file_path = tmp.name
         else:
             extension = (
-                Path(file_name).suffix
-                or get_extension_from_mime(mime_type)
-                or ".bin"
+                Path(file_name).suffix or get_extension_from_mime(mime_type) or ".bin"
             )
             with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as tmp:
                 temp_file_path = tmp.name
@@ -102,10 +105,8 @@ async def download_and_extract_content(
         return None, drive_metadata, str(e)
     finally:
         if temp_file_path and os.path.exists(temp_file_path):
-            try:
+            with contextlib.suppress(Exception):
                 os.unlink(temp_file_path)
-            except Exception:
-                pass
 
 
 async def _parse_file_to_markdown(file_path: str, filename: str) -> str:
@@ -117,8 +118,9 @@ async def _parse_file_to_markdown(file_path: str, filename: str) -> str:
             return f.read()
 
     if lower.endswith((".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm")):
-        from app.config import config as app_config
         from litellm import atranscription
+
+        from app.config import config as app_config
 
         stt_service_type = (
             "local"
@@ -127,10 +129,15 @@ async def _parse_file_to_markdown(file_path: str, filename: str) -> str:
         )
         if stt_service_type == "local":
             from app.services.stt_service import stt_service
+
             t0 = time.monotonic()
-            logger.info(f"[local-stt] START file={filename} thread={threading.current_thread().name}")
+            logger.info(
+                f"[local-stt] START file={filename} thread={threading.current_thread().name}"
+            )
             result = await asyncio.to_thread(stt_service.transcribe_file, file_path)
-            logger.info(f"[local-stt] END file={filename} elapsed={time.monotonic() - t0:.2f}s")
+            logger.info(
+                f"[local-stt] END file={filename} elapsed={time.monotonic() - t0:.2f}s"
+            )
             text = result.get("text", "")
         else:
             with open(file_path, "rb") as audio_file:
@@ -153,6 +160,7 @@ async def _parse_file_to_markdown(file_path: str, filename: str) -> str:
 
     if app_config.ETL_SERVICE == "UNSTRUCTURED":
         from langchain_unstructured import UnstructuredLoader
+
         from app.utils.document_converters import convert_document_to_markdown
 
         loader = UnstructuredLoader(
@@ -172,7 +180,9 @@ async def _parse_file_to_markdown(file_path: str, filename: str) -> str:
             parse_with_llamacloud_retry,
         )
 
-        result = await parse_with_llamacloud_retry(file_path=file_path, estimated_pages=50)
+        result = await parse_with_llamacloud_retry(
+            file_path=file_path, estimated_pages=50
+        )
         markdown_documents = await result.aget_markdown_documents(split_by_page=False)
         if not markdown_documents:
             raise RuntimeError(f"LlamaCloud returned no documents for {filename}")
@@ -183,9 +193,13 @@ async def _parse_file_to_markdown(file_path: str, filename: str) -> str:
 
         converter = DocumentConverter()
         t0 = time.monotonic()
-        logger.info(f"[docling] START file={filename} thread={threading.current_thread().name}")
+        logger.info(
+            f"[docling] START file={filename} thread={threading.current_thread().name}"
+        )
         result = await asyncio.to_thread(converter.convert, file_path)
-        logger.info(f"[docling] END file={filename} elapsed={time.monotonic() - t0:.2f}s")
+        logger.info(
+            f"[docling] END file={filename} elapsed={time.monotonic() - t0:.2f}s"
+        )
         return result.document.export_to_markdown()
 
     raise RuntimeError(f"Unknown ETL_SERVICE: {app_config.ETL_SERVICE}")
@@ -249,9 +263,7 @@ async def download_and_process_file(
                 return None, error
 
             extension = (
-                Path(file_name).suffix
-                or get_extension_from_mime(mime_type)
-                or ".bin"
+                Path(file_name).suffix or get_extension_from_mime(mime_type) or ".bin"
             )
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as tmp_file:
@@ -290,9 +302,7 @@ async def download_and_process_file(
             connector_info["metadata"]["md5_checksum"] = file["md5Checksum"]
 
         if is_google_workspace_file(mime_type):
-            export_ext = get_extension_from_mime(
-                get_export_mime_type(mime_type) or ""
-            )
+            export_ext = get_extension_from_mime(get_export_mime_type(mime_type) or "")
             connector_info["metadata"]["exported_as"] = (
                 export_ext.lstrip(".") if export_ext else "pdf"
             )

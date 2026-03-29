@@ -10,7 +10,10 @@ from app.connectors.jira_history import JiraHistoryConnector
 from app.db import DocumentType, SearchSourceConnectorType
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.document_hashing import compute_content_hash
-from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
+from app.indexing_pipeline.indexing_pipeline_service import (
+    IndexingPipelineService,
+    PlaceholderInfo,
+)
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 
@@ -191,6 +194,27 @@ async def index_jira_issues(
             await jira_client.close()
             return 0, 0, None
 
+        # ── Create placeholders for instant UI feedback ───────────────
+        pipeline = IndexingPipelineService(session)
+        placeholders = [
+            PlaceholderInfo(
+                title=f"{issue.get('key', '')}: {issue.get('id', '')}",
+                document_type=DocumentType.JIRA_CONNECTOR,
+                unique_id=issue.get("key", ""),
+                search_space_id=search_space_id,
+                connector_id=connector_id,
+                created_by_id=user_id,
+                metadata={
+                    "issue_id": issue.get("key", ""),
+                    "connector_id": connector_id,
+                    "connector_type": "Jira",
+                },
+            )
+            for issue in issues
+            if issue.get("key") and issue.get("id")
+        ]
+        await pipeline.create_placeholder_documents(placeholders)
+
         connector_docs: list[ConnectorDocument] = []
         documents_skipped = 0
         duplicate_content_count = 0
@@ -253,7 +277,6 @@ async def index_jira_issues(
                 documents_skipped += 1
                 continue
 
-        pipeline = IndexingPipelineService(session)
         await pipeline.migrate_legacy_docs(connector_docs)
 
         async def _get_llm(s: AsyncSession):

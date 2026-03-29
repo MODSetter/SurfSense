@@ -9,7 +9,9 @@ from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineServ
 pytestmark = pytest.mark.integration
 
 
-@pytest.mark.usefixtures("patched_summarize", "patched_embed_texts", "patched_chunk_text")
+@pytest.mark.usefixtures(
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
+)
 async def test_index_batch_creates_ready_documents(
     db_session, db_search_space, make_connector_document, mocker
 ):
@@ -47,7 +49,9 @@ async def test_index_batch_creates_ready_documents(
         assert row.embedding is not None
 
 
-@pytest.mark.usefixtures("patched_summarize", "patched_embed_texts", "patched_chunk_text")
+@pytest.mark.usefixtures(
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
+)
 async def test_index_batch_empty_returns_empty(db_session, mocker):
     """index_batch with empty input returns an empty list."""
     service = IndexingPipelineService(session=db_session)

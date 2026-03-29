@@ -5,7 +5,6 @@ This module provides:
 - Connector constants and normalization
 - Async knowledge base search across multiple connectors
 - Document formatting for LLM context
-- Tool factory for creating search_knowledge_base tools
 """
 
 import asyncio
@@ -16,8 +15,6 @@ import time
 from datetime import datetime
 from typing import Any
 
-from langchain_core.tools import StructuredTool
-from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import NATIVE_TO_LEGACY_DOCTYPE, shielded_async_session
@@ -622,9 +619,76 @@ async def search_knowledge_base_async(
     perf = get_perf_logger()
     t0 = time.perf_counter()
 
+    deduplicated = await search_knowledge_base_raw_async(
+        query=query,
+        search_space_id=search_space_id,
+        db_session=db_session,
+        connector_service=connector_service,
+        connectors_to_search=connectors_to_search,
+        top_k=top_k,
+        start_date=start_date,
+        end_date=end_date,
+        available_connectors=available_connectors,
+        available_document_types=available_document_types,
+    )
+
+    if not deduplicated:
+        return "No documents found in the knowledge base. The search space has no indexed content yet."
+
+    # Use browse chunk cap for degenerate queries, otherwise adaptive chunking.
+    max_chunks_per_doc = (
+        _BROWSE_MAX_CHUNKS_PER_DOC if _is_degenerate_query(query) else 0
+    )
+    output_budget = _compute_tool_output_budget(max_input_tokens)
+    result = format_documents_for_context(
+        deduplicated,
+        max_chars=output_budget,
+        max_chunks_per_doc=max_chunks_per_doc,
+    )
+
+    if len(result) > output_budget:
+        perf.warning(
+            "[kb_search] output STILL exceeds budget after format (%d > %d), "
+            "hard truncation should have fired",
+            len(result),
+            output_budget,
+        )
+
+    perf.info(
+        "[kb_search] TOTAL in %.3fs total_docs=%d deduped=%d output_chars=%d "
+        "budget=%d max_input_tokens=%s space=%d",
+        time.perf_counter() - t0,
+        len(deduplicated),
+        len(deduplicated),
+        len(result),
+        output_budget,
+        max_input_tokens,
+        search_space_id,
+    )
+    return result
+
+
+async def search_knowledge_base_raw_async(
+    query: str,
+    search_space_id: int,
+    db_session: AsyncSession,
+    connector_service: ConnectorService,
+    connectors_to_search: list[str] | None = None,
+    top_k: int = 10,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+    available_connectors: list[str] | None = None,
+    available_document_types: list[str] | None = None,
+    query_embedding: list[float] | None = None,
+) -> list[dict[str, Any]]:
+    """Search knowledge base and return raw document dicts (no XML formatting)."""
+    perf = get_perf_logger()
+    t0 = time.perf_counter()
     all_documents: list[dict[str, Any]] = []
 
-    # Resolve date range (default last 2 years)
+    # Preserve the public signature for compatibility even if values are unused.
+    _ = (db_session, connector_service)
+
     from app.agents.new_chat.utils import resolve_date_range
 
     resolved_start_date, resolved_end_date = resolve_date_range(
@@ -634,144 +698,76 @@ async def search_knowledge_base_async(
 
     connectors = _normalize_connectors(connectors_to_search, available_connectors)
 
-    # --- Optimization 1: skip connectors that have zero indexed documents ---
     if available_document_types:
         doc_types_set = set(available_document_types)
-        before_count = len(connectors)
         connectors = [
             c
             for c in connectors
             if c in doc_types_set
             or NATIVE_TO_LEGACY_DOCTYPE.get(c, "") in doc_types_set
         ]
-        skipped = before_count - len(connectors)
-        if skipped:
-            perf.info(
-                "[kb_search] skipped %d empty connectors (had %d, now %d)",
-                skipped,
-                before_count,
-                len(connectors),
-            )
 
-    perf.info(
-        "[kb_search] searching %d connectors: %s (space=%d, top_k=%d)",
-        len(connectors),
-        connectors[:5],
-        search_space_id,
-        top_k,
-    )
-
-    # --- Fast-path: no connectors left after filtering ---
     if not connectors:
-        perf.info(
-            "[kb_search] TOTAL in %.3fs — no connectors to search, returning empty",
-            time.perf_counter() - t0,
-        )
-        return "No documents found in the knowledge base. The search space has no indexed content yet."
+        return []
 
-    # --- Fast-path: degenerate queries (*, **, empty, etc.) ---
-    # Semantic embedding of '*' is noise and plainto_tsquery('english', '*')
-    # yields an empty tsquery, so both retrieval signals are useless.
-    # Fall back to a recency-ordered browse that returns diverse results.
     if _is_degenerate_query(query):
         perf.info(
-            "[kb_search] degenerate query %r detected - falling back to recency browse",
+            "[kb_search_raw] degenerate query %r detected - recency browse",
             query,
         )
         browse_connectors = connectors if connectors else [None]  # type: ignore[list-item]
-
         expanded_browse = []
-        for c in browse_connectors:
-            if c is not None and c in NATIVE_TO_LEGACY_DOCTYPE:
-                expanded_browse.append([c, NATIVE_TO_LEGACY_DOCTYPE[c]])
+        for connector in browse_connectors:
+            if connector is not None and connector in NATIVE_TO_LEGACY_DOCTYPE:
+                expanded_browse.append([connector, NATIVE_TO_LEGACY_DOCTYPE[connector]])
             else:
-                expanded_browse.append(c)
-
+                expanded_browse.append(connector)
         browse_results = await asyncio.gather(
             *[
                 _browse_recent_documents(
-                    search_space_id=search_space_id,
-                    document_type=c,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                for c in expanded_browse
-            ]
-        )
-        for docs in browse_results:
-            all_documents.extend(docs)
-
-        # Skip dedup + formatting below (browse already returns unique docs)
-        # but still cap output budget.
-        output_budget = _compute_tool_output_budget(max_input_tokens)
-        result = format_documents_for_context(
-            all_documents,
-            max_chars=output_budget,
-            max_chunks_per_doc=_BROWSE_MAX_CHUNKS_PER_DOC,
-        )
-        perf.info(
-            "[kb_search] TOTAL (browse) in %.3fs total_docs=%d output_chars=%d "
-            "budget=%d space=%d",
-            time.perf_counter() - t0,
-            len(all_documents),
-            len(result),
-            output_budget,
-            search_space_id,
-        )
-        return result
-
-    # --- Optimization 2: compute the query embedding once, share across all local searches ---
-    from app.config import config as app_config
-
-    t_embed = time.perf_counter()
-    precomputed_embedding = app_config.embedding_model_instance.embed(query)
-    perf.info(
-        "[kb_search] shared embedding computed in %.3fs",
-        time.perf_counter() - t_embed,
-    )
-
-    max_parallel_searches = 4
-    semaphore = asyncio.Semaphore(max_parallel_searches)
-
-    async def _search_one_connector(connector: str) -> list[dict[str, Any]]:
-        try:
-            t_conn = time.perf_counter()
-            async with semaphore, shielded_async_session() as isolated_session:
-                svc = ConnectorService(isolated_session, search_space_id)
-                chunks = await svc._combined_rrf_search(
-                    query_text=query,
                     search_space_id=search_space_id,
                     document_type=connector,
                     top_k=top_k,
                     start_date=resolved_start_date,
                     end_date=resolved_end_date,
-                    query_embedding=precomputed_embedding,
                 )
-                perf.info(
-                    "[kb_search] connector=%s results=%d in %.3fs",
-                    connector,
-                    len(chunks),
-                    time.perf_counter() - t_conn,
-                )
-                return chunks
-        except Exception as e:
-            perf.warning("[kb_search] connector=%s FAILED: %s", connector, e)
-            return []
+                for connector in expanded_browse
+            ]
+        )
+        for docs in browse_results:
+            all_documents.extend(docs)
+    else:
+        if query_embedding is None:
+            from app.config import config as app_config
 
-    t_gather = time.perf_counter()
-    connector_results = await asyncio.gather(
-        *[_search_one_connector(connector) for connector in connectors]
-    )
-    perf.info(
-        "[kb_search] all connectors gathered in %.3fs",
-        time.perf_counter() - t_gather,
-    )
-    for chunks in connector_results:
-        all_documents.extend(chunks)
+            query_embedding = app_config.embedding_model_instance.embed(query)
 
-    # Deduplicate primarily by document ID. Only fall back to content hashing
-    # when a document has no ID.
+        max_parallel_searches = 4
+        semaphore = asyncio.Semaphore(max_parallel_searches)
+
+        async def _search_one_connector(connector: str) -> list[dict[str, Any]]:
+            try:
+                async with semaphore, shielded_async_session() as isolated_session:
+                    svc = ConnectorService(isolated_session, search_space_id)
+                    return await svc._combined_rrf_search(
+                        query_text=query,
+                        search_space_id=search_space_id,
+                        document_type=connector,
+                        top_k=top_k,
+                        start_date=resolved_start_date,
+                        end_date=resolved_end_date,
+                        query_embedding=query_embedding,
+                    )
+            except Exception as exc:
+                perf.warning("[kb_search_raw] connector=%s FAILED: %s", connector, exc)
+                return []
+
+        connector_results = await asyncio.gather(
+            *[_search_one_connector(connector) for connector in connectors]
+        )
+        for docs in connector_results:
+            all_documents.extend(docs)
+
     seen_doc_ids: set[Any] = set()
     seen_content_hashes: set[int] = set()
     deduplicated: list[dict[str, Any]] = []
@@ -788,7 +784,6 @@ async def search_knowledge_base_async(
                     chunk_texts.append(chunk_content)
             if chunk_texts:
                 return hash("||".join(chunk_texts))
-
         flat_content = (document.get("content") or "").strip()
         if flat_content:
             return hash(flat_content)
@@ -796,216 +791,24 @@ async def search_knowledge_base_async(
 
     for doc in all_documents:
         doc_id = (doc.get("document", {}) or {}).get("id")
-
         if doc_id is not None:
             if doc_id in seen_doc_ids:
                 continue
             seen_doc_ids.add(doc_id)
             deduplicated.append(doc)
             continue
-
         content_hash = _content_fingerprint(doc)
+        if content_hash is not None and content_hash in seen_content_hashes:
+            continue
         if content_hash is not None:
-            if content_hash in seen_content_hashes:
-                continue
             seen_content_hashes.add(content_hash)
-
         deduplicated.append(doc)
 
-    # Sort by RRF score so the most relevant documents from ANY connector
-    # appear first, preventing budget truncation from hiding top results.
-    deduplicated.sort(key=lambda d: d.get("score", 0), reverse=True)
-
-    output_budget = _compute_tool_output_budget(max_input_tokens)
-    result = format_documents_for_context(deduplicated, max_chars=output_budget)
-
-    if len(result) > output_budget:
-        perf.warning(
-            "[kb_search] output STILL exceeds budget after format (%d > %d), "
-            "hard truncation should have fired",
-            len(result),
-            output_budget,
-        )
-
+    deduplicated.sort(key=lambda doc: doc.get("score", 0), reverse=True)
     perf.info(
-        "[kb_search] TOTAL in %.3fs total_docs=%d deduped=%d output_chars=%d "
-        "budget=%d max_input_tokens=%s space=%d",
+        "[kb_search_raw] done in %.3fs total=%d deduped=%d",
         time.perf_counter() - t0,
         len(all_documents),
         len(deduplicated),
-        len(result),
-        output_budget,
-        max_input_tokens,
-        search_space_id,
     )
-    return result
-
-
-def _build_connector_docstring(available_connectors: list[str] | None) -> str:
-    """
-    Build the connector documentation section for the tool docstring.
-
-    Args:
-        available_connectors: List of available connector types, or None for all
-
-    Returns:
-        Formatted docstring section listing available connectors
-    """
-    connectors = available_connectors if available_connectors else list(_ALL_CONNECTORS)
-
-    lines = []
-    for connector in connectors:
-        # Skip internal names, prefer user-facing aliases
-        if connector == "CRAWLED_URL":
-            # Show as WEBCRAWLER_CONNECTOR for user-facing docs
-            description = CONNECTOR_DESCRIPTIONS.get(connector, connector)
-            lines.append(f"- WEBCRAWLER_CONNECTOR: {description}")
-        else:
-            description = CONNECTOR_DESCRIPTIONS.get(connector, connector)
-            lines.append(f"- {connector}: {description}")
-
-    return "\n".join(lines)
-
-
-# =============================================================================
-# Tool Input Schema
-# =============================================================================
-
-
-class SearchKnowledgeBaseInput(BaseModel):
-    """Input schema for the search_knowledge_base tool."""
-
-    query: str = Field(
-        description=(
-            "The search query - use specific natural language terms. "
-            "NEVER use wildcards like '*' or '**'; instead describe what you want "
-            "(e.g. 'recent meeting notes' or 'project architecture overview')."
-        ),
-    )
-    top_k: int = Field(
-        default=10,
-        description="Number of results to retrieve (default: 10). Keep ≤20 for focused searches.",
-    )
-    start_date: str | None = Field(
-        default=None,
-        description="Optional ISO date/datetime (e.g. '2025-12-12' or '2025-12-12T00:00:00+00:00')",
-    )
-    end_date: str | None = Field(
-        default=None,
-        description="Optional ISO date/datetime (e.g. '2025-12-19' or '2025-12-19T23:59:59+00:00')",
-    )
-    connectors_to_search: list[str] | None = Field(
-        default=None,
-        description="Optional list of connector enums to search. If omitted, searches all available.",
-    )
-
-
-def create_search_knowledge_base_tool(
-    search_space_id: int,
-    db_session: AsyncSession,
-    connector_service: ConnectorService,
-    available_connectors: list[str] | None = None,
-    available_document_types: list[str] | None = None,
-    max_input_tokens: int | None = None,
-) -> StructuredTool:
-    """
-    Factory function to create the search_knowledge_base tool with injected dependencies.
-
-    Args:
-        search_space_id: The user's search space ID
-        db_session: Database session
-        connector_service: Initialized connector service
-        available_connectors: Optional list of connector types available in the search space.
-                            Used to dynamically generate the tool docstring.
-        available_document_types: Optional list of document types that have data in the search space.
-                                Used to inform the LLM about what data exists.
-        max_input_tokens: Model context window (tokens) from litellm model info.
-                         Used to dynamically size tool output.
-
-    Returns:
-        A configured StructuredTool instance
-    """
-    # Build connector documentation dynamically
-    connector_docs = _build_connector_docstring(available_connectors)
-
-    # Build context about available document types
-    doc_types_info = ""
-    if available_document_types:
-        doc_types_info = f"""
-
-## Document types with indexed content in this search space
-
-The following document types have content available for search:
-{", ".join(available_document_types)}
-
-Focus searches on these types for best results."""
-
-    # Build the dynamic description for the tool
-    # This is what the LLM sees when deciding whether/how to use the tool
-    dynamic_description = f"""Search the user's personal knowledge base for relevant information.
-
-Use this tool to find documents, notes, files, web pages, and other content the user has indexed.
-This searches ONLY local/indexed data (uploaded files, Notion, Slack, browser extension captures, etc.).
-For real-time web search (current events, news, live data), use the `web_search` tool instead.
-
-IMPORTANT:
-- Always craft specific, descriptive search queries using natural language keywords.
-  Good: "quarterly sales report Q3", "Python API authentication design".
-  Bad: "*", "**", "everything", single characters. Wildcard/empty queries yield poor results.
-- Prefer multiple focused searches over a single broad one with high top_k.
-- If the user requests a specific source type (e.g. "my notes", "Slack messages"), pass `connectors_to_search=[...]` using the enums below.
-- If `connectors_to_search` is omitted/empty, the system will search broadly.
-- Only connectors that are enabled/configured for this search space are available.{doc_types_info}
-
-## Available connector enums for `connectors_to_search`
-
-{connector_docs}
-
-NOTE: `WEBCRAWLER_CONNECTOR` is mapped internally to the canonical document type `CRAWLED_URL`."""
-
-    # Capture for closure
-    _available_connectors = available_connectors
-    _available_document_types = available_document_types
-
-    async def _search_knowledge_base_impl(
-        query: str,
-        top_k: int = 10,
-        start_date: str | None = None,
-        end_date: str | None = None,
-        connectors_to_search: list[str] | None = None,
-    ) -> str:
-        """Implementation function for knowledge base search."""
-        from app.agents.new_chat.utils import parse_date_or_datetime
-
-        parsed_start: datetime | None = None
-        parsed_end: datetime | None = None
-
-        if start_date:
-            parsed_start = parse_date_or_datetime(start_date)
-        if end_date:
-            parsed_end = parse_date_or_datetime(end_date)
-
-        return await search_knowledge_base_async(
-            query=query,
-            search_space_id=search_space_id,
-            db_session=db_session,
-            connector_service=connector_service,
-            connectors_to_search=connectors_to_search,
-            top_k=top_k,
-            start_date=parsed_start,
-            end_date=parsed_end,
-            available_connectors=_available_connectors,
-            available_document_types=_available_document_types,
-            max_input_tokens=max_input_tokens,
-        )
-
-    # Create StructuredTool with dynamic description
-    # This properly sets the description that the LLM sees
-    tool = StructuredTool(
-        name="search_knowledge_base",
-        description=dynamic_description,
-        coroutine=_search_knowledge_base_impl,
-        args_schema=SearchKnowledgeBaseInput,
-    )
-
-    return tool
+    return deduplicated

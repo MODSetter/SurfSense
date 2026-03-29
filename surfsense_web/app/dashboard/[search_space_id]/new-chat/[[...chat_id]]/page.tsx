@@ -30,6 +30,7 @@ import {
 	// extractWriteTodosFromContent,
 } from "@/atoms/chat/plan-state.atom";
 import { closeReportPanelAtom } from "@/atoms/chat/report-panel.atom";
+import { type AgentCreatedDocument, agentCreatedDocumentsAtom } from "@/atoms/documents/ui.atoms";
 import { closeEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import { updateChatTabTitleAtom } from "@/atoms/tabs/tabs.atom";
@@ -192,6 +193,7 @@ export default function NewChatPage() {
 	const closeReportPanel = useSetAtom(closeReportPanelAtom);
 	const closeEditorPanel = useSetAtom(closeEditorPanelAtom);
 	const updateChatTabTitle = useSetAtom(updateChatTabTitleAtom);
+	const setAgentCreatedDocuments = useSetAtom(agentCreatedDocumentsAtom);
 
 	// Get current user for author info in shared chats
 	const { data: currentUser } = useAtomValue(currentUserAtom);
@@ -736,6 +738,20 @@ export default function NewChatPage() {
 								updateChatTabTitle({ chatId: currentThreadId, title: titleData.title });
 								queryClient.invalidateQueries({
 									queryKey: ["threads", String(searchSpaceId)],
+								});
+							}
+							break;
+						}
+
+						case "data-documents-updated": {
+							const docEvent = parsed.data as {
+								action: string;
+								document: AgentCreatedDocument;
+							};
+							if (docEvent?.document?.id) {
+								setAgentCreatedDocuments((prev) => {
+									if (prev.some((d) => d.id === docEvent.document.id)) return prev;
+									return [...prev, docEvent.document];
 								});
 							}
 							break;
@@ -1536,7 +1552,7 @@ export default function NewChatPage() {
 	// For new chats (urlChatId === 0), threadId being null is expected (lazy creation)
 	if (!threadId && urlChatId > 0) {
 		return (
-			<div className="flex h-[calc(100dvh-64px)] flex-col items-center justify-center gap-4">
+			<div className="flex h-full flex-col items-center justify-center gap-4">
 				<div className="text-destructive">Failed to load chat</div>
 				<button
 					type="button"
@@ -1555,7 +1571,7 @@ export default function NewChatPage() {
 	return (
 		<AssistantRuntimeProvider runtime={runtime}>
 			<ThinkingStepsDataUI />
-			<div key={searchSpaceId} className="flex h-[calc(100dvh-64px)] overflow-hidden">
+			<div key={searchSpaceId} className="flex h-full overflow-hidden">
 				<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 					<Thread />
 				</div>
