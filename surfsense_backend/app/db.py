@@ -1775,6 +1775,35 @@ class SearchSpaceInvite(BaseModel, TimestampMixin):
     )
 
 
+class PromptMode(StrEnum):
+    TRANSFORM = "transform"
+    EXPLORE = "explore"
+
+
+class Prompt(BaseModel, TimestampMixin):
+    __tablename__ = "prompts"
+
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    search_space_id = Column(
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    name = Column(String(200), nullable=False)
+    prompt = Column(Text, nullable=False)
+    mode = Column(SQLAlchemyEnum(PromptMode), nullable=False)
+    icon = Column(String(50), nullable=True)
+
+    user = relationship("User")
+    search_space = relationship("SearchSpace")
+
+
 if config.AUTH_TYPE == "GOOGLE":
 
     class OAuthAccount(SQLAlchemyBaseOAuthAccountTableUUID, Base):
