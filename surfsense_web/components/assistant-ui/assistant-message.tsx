@@ -12,6 +12,7 @@ import type { FC } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { commentsEnabledAtom, targetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { CitationMetadataProvider } from "@/components/assistant-ui/citation-metadata-context";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
@@ -78,7 +79,7 @@ export const MessageError: FC = () => {
 
 const AssistantMessageInner: FC = () => {
 	return (
-		<>
+		<CitationMetadataProvider>
 			<div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
 				<MessagePrimitive.Parts
 					components={{
@@ -116,9 +117,10 @@ const AssistantMessageInner: FC = () => {
 								create_confluence_page: CreateConfluencePageToolUI,
 								update_confluence_page: UpdateConfluencePageToolUI,
 								delete_confluence_page: DeleteConfluencePageToolUI,
-								link_preview: () => null,
-								multi_link_preview: () => null,
-								scrape_webpage: () => null,
+							web_search: () => null,
+							link_preview: () => null,
+							multi_link_preview: () => null,
+							scrape_webpage: () => null,
 							},
 							Fallback: ToolFallback,
 						},
@@ -130,7 +132,7 @@ const AssistantMessageInner: FC = () => {
 			<div className="aui-assistant-message-footer mt-1 mb-5 ml-2 flex">
 				<AssistantActionBar />
 			</div>
-		</>
+		</CitationMetadataProvider>
 	);
 };
 

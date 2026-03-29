@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { defineToolUiContract } from "../shared/contract";
 import {
   ToolUIIdSchema,
   ToolUIReceiptSchema,
@@ -37,16 +36,3 @@ export const SerializableCitationSchema = z.object({
 });
 
 export type SerializableCitation = z.infer<typeof SerializableCitationSchema>;
-
-const SerializableCitationSchemaContract = defineToolUiContract(
-  "Citation",
-  SerializableCitationSchema,
-);
-
-export const parseSerializableCitation: (
-  input: unknown,
-) => SerializableCitation = SerializableCitationSchemaContract.parse;
-
-export const safeParseSerializableCitation: (
-  input: unknown,
-) => SerializableCitation | null = SerializableCitationSchemaContract.safeParse;

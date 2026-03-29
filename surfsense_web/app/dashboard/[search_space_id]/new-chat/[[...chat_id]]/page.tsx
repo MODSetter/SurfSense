@@ -132,6 +132,7 @@ function extractMentionedDocuments(content: unknown): MentionedDocumentInfo[] {
  * Tools that should render custom UI in the chat.
  */
 const TOOLS_WITH_UI = new Set([
+	"web_search",
 	"generate_podcast",
 	"generate_report",
 	"generate_video_presentation",
