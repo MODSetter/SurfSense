@@ -460,38 +460,34 @@ export function ImageConfigDialog({
 						Cancel
 					</Button>
 					{mode === "create" || (mode === "edit" && !isGlobal) ? (
-						<Button
-							onClick={handleSubmit}
-							disabled={isSubmitting || !isFormValid}
-							className="text-sm h-9 min-w-[120px]"
-						>
-							{isSubmitting ? (
-								<>
-									<Spinner size="sm" />
-									{mode === "edit" ? "Saving" : "Creating"}
-								</>
-							) : mode === "edit" ? (
-								"Save Changes"
-							) : (
-								"Create & Use"
-							)}
-						</Button>
+					<Button
+						onClick={handleSubmit}
+						disabled={isSubmitting || !isFormValid}
+						className="relative text-sm h-9 min-w-[120px]"
+					>
+						<span className={isSubmitting ? "opacity-0" : ""}>
+							{mode === "edit" ? "Save Changes" : "Create & Use"}
+						</span>
+						{isSubmitting && <Spinner size="sm" className="absolute" />}
+					</Button>
 					) : isAutoMode ? (
-						<Button
-							className="text-sm h-9 gap-2 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
-							onClick={handleUseGlobalConfig}
-							disabled={isSubmitting}
-						>
-							{isSubmitting ? "Loading..." : "Use Auto Mode"}
-						</Button>
+					<Button
+						className="relative text-sm h-9 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
+						onClick={handleUseGlobalConfig}
+						disabled={isSubmitting}
+					>
+						<span className={isSubmitting ? "opacity-0" : ""}>Use Auto Mode</span>
+						{isSubmitting && <Spinner size="sm" className="absolute" />}
+					</Button>
 					) : isGlobal && config ? (
-						<Button
-							className="text-sm h-9 gap-2"
-							onClick={handleUseGlobalConfig}
-							disabled={isSubmitting}
-						>
-							{isSubmitting ? "Loading..." : "Use This Model"}
-						</Button>
+					<Button
+						className="relative text-sm h-9"
+						onClick={handleUseGlobalConfig}
+						disabled={isSubmitting}
+					>
+						<span className={isSubmitting ? "opacity-0" : ""}>Use This Model</span>
+						{isSubmitting && <Spinner size="sm" className="absolute" />}
+					</Button>
 					) : null}
 				</div>
 			</DialogContent>
