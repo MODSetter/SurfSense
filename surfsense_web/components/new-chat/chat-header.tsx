@@ -8,7 +8,7 @@ import type {
 	NewLLMConfigPublic,
 } from "@/contracts/types/new-llm-config.types";
 import { ImageConfigDialog } from "@/components/shared/image-config-dialog";
-import { ModelConfigDialog } from "./model-config-dialog";
+import { ModelConfigDialog } from "@/components/shared/model-config-dialog";
 import { ModelSelector } from "./model-selector";
 
 interface ChatHeaderProps {

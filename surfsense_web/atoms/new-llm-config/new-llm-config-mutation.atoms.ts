@@ -26,7 +26,7 @@ export const createNewLLMConfigMutationAtom = atomWithMutation((get) => {
 			return newLLMConfigApiService.createConfig(request);
 		},
 		onSuccess: () => {
-			toast.success("Configuration created successfully");
+			toast.success("LLM model created");
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.newLLMConfigs.all(Number(searchSpaceId)),
 			});
@@ -50,7 +50,7 @@ export const updateNewLLMConfigMutationAtom = atomWithMutation((get) => {
 			return newLLMConfigApiService.updateConfig(request);
 		},
 		onSuccess: (_: UpdateNewLLMConfigResponse, request: UpdateNewLLMConfigRequest) => {
-			toast.success("Configuration updated successfully");
+			toast.success("LLM model updated");
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.newLLMConfigs.all(Number(searchSpaceId)),
 			});
@@ -77,7 +77,7 @@ export const deleteNewLLMConfigMutationAtom = atomWithMutation((get) => {
 			return newLLMConfigApiService.deleteConfig(request);
 		},
 		onSuccess: (_, request: DeleteNewLLMConfigRequest) => {
-			toast.success("Configuration deleted successfully");
+			toast.success("LLM model deleted");
 			queryClient.setQueryData(
 				cacheKeys.newLLMConfigs.all(Number(searchSpaceId)),
 				(oldData: GetNewLLMConfigsResponse | undefined) => {
