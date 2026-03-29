@@ -58,7 +58,7 @@ export function TabBar({ onTabSwitch, onNewChat, className }: TabBarProps) {
 	if (tabs.length <= 1) return null;
 
 	return (
-		<div className={cn("flex h-12 items-stretch shrink-0 border-b bg-main-panel", className)}>
+		<div className={cn("flex h-12 items-stretch shrink-0 border-b border-border/35 bg-main-panel", className)}>
 			<div
 				ref={scrollRef}
 				className="flex h-full items-stretch flex-1 overflow-x-auto overflow-y-hidden scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
@@ -73,13 +73,12 @@ export function TabBar({ onTabSwitch, onNewChat, className }: TabBarProps) {
 							data-tab-id={tab.id}
 							onClick={() => handleTabClick(tab)}
 							className={cn(
-								"group relative flex h-full w-[170px] items-center self-stretch px-3 min-w-0 overflow-hidden text-sm font-medium border-r transition-colors shrink-0",
+								"group relative flex h-full w-[170px] items-center self-stretch px-3 min-w-0 overflow-hidden text-sm font-medium border-r border-border/35 transition-colors shrink-0",
 								isActive
-									? "bg-muted/40 text-foreground"
+									? "bg-muted/50 text-foreground"
 									: "bg-transparent text-muted-foreground hover:bg-muted/25 hover:text-foreground"
 							)}
 						>
-							{isActive && <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-primary" />}
 							<span className="block min-w-0 flex-1 truncate text-left transition-[padding-right] duration-150 group-hover:pr-5 group-focus-within:pr-5">
 								{tab.title}
 							</span>
@@ -97,8 +96,8 @@ export function TabBar({ onTabSwitch, onNewChat, className }: TabBarProps) {
 								className={cn(
 									"absolute right-2 top-1/2 -translate-y-1/2 shrink-0 rounded-sm p-0.5 transition-colors",
 									isActive
-										? "opacity-0 group-hover:opacity-70 group-focus-within:opacity-70 hover:opacity-100 hover:bg-muted"
-										: "opacity-0 group-hover:opacity-60 group-focus-within:opacity-60 hover:opacity-100! hover:bg-muted"
+										? "opacity-0 group-hover:opacity-70 group-focus-within:opacity-70 hover:opacity-100"
+										: "opacity-0 group-hover:opacity-60 group-focus-within:opacity-60 hover:opacity-100!"
 								)}
 							>
 								<X className="size-3" />
