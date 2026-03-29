@@ -84,22 +84,50 @@ async def get_changes(
         return [], None, f"Error getting changes: {e!s}"
 
 
+async def _is_descendant_of(
+    client: GoogleDriveClient,
+    parent_ids: list[str],
+    target_folder_id: str,
+    max_depth: int = 20,
+) -> bool:
+    """Walk up the parent chain to check if any ancestor is *target_folder_id*."""
+    visited: set[str] = set()
+    to_check = list(parent_ids)
+
+    for _ in range(max_depth):
+        if not to_check:
+            return False
+
+        current = to_check.pop(0)
+        if current in visited:
+            continue
+        visited.add(current)
+
+        if current == target_folder_id:
+            return True
+
+        try:
+            service = await client.get_service()
+            meta = (
+                service.files()
+                .get(fileId=current, fields="parents", supportsAllDrives=True)
+                .execute()
+            )
+            grandparents = meta.get("parents", [])
+            to_check.extend(grandparents)
+        except Exception:
+            continue
+
+    return False
+
+
 async def _filter_changes_by_folder(
     client: GoogleDriveClient,
     changes: list[dict[str, Any]],
     folder_id: str,
 ) -> list[dict[str, Any]]:
-    """
-    Filter changes to only include files within the specified folder.
-
-    Args:
-        client: GoogleDriveClient instance
-        changes: List of changes from API
-        folder_id: Folder ID to filter by
-
-    Returns:
-        Filtered list of changes
-    """
+    """Filter changes to only include files within the specified folder
+    (direct children or nested descendants)."""
     filtered = []
 
     for change in changes:
@@ -108,14 +136,8 @@ async def _filter_changes_by_folder(
             filtered.append(change)
             continue
 
-        # Check if file is in the folder (or subfolder)
         parents = file.get("parents", [])
-        if folder_id in parents:
-            filtered.append(change)
-        else:
-            # Check if any parent is a descendant of folder_id
-            # This is a simplified check - full implementation would traverse hierarchy
-            # For now, we'll include it and let indexer validate
+        if folder_id in parents or await _is_descendant_of(client, parents, folder_id):
             filtered.append(change)
 
     return filtered

@@ -67,13 +67,14 @@ const SANDBOX_FILE_RE = /^SANDBOX_FILE:\s*(.+)$/gm;
 
 function extractSandboxFiles(text: string): SandboxFile[] {
 	const files: SandboxFile[] = [];
-	let match: RegExpExecArray | null;
-	while ((match = SANDBOX_FILE_RE.exec(text)) !== null) {
+	let match: RegExpExecArray | null = SANDBOX_FILE_RE.exec(text);
+	while (match !== null) {
 		const filePath = match[1].trim();
 		if (filePath) {
 			const name = filePath.includes("/") ? filePath.split("/").pop() || filePath : filePath;
 			files.push({ path: filePath, name });
 		}
+		match = SANDBOX_FILE_RE.exec(text);
 	}
 	SANDBOX_FILE_RE.lastIndex = 0;
 	return files;
@@ -148,7 +149,7 @@ function parseExecuteResult(result: ExecuteResult): ParsedOutput {
 
 function truncateCommand(command: string, maxLen = 80): string {
 	if (command.length <= maxLen) return command;
-	return command.slice(0, maxLen) + "…";
+	return `${command.slice(0, maxLen)}…`;
 }
 
 // ============================================================================

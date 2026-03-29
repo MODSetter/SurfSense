@@ -93,6 +93,7 @@
 		"dotenv": "^17.2.3",
 		"drizzle-orm": "^0.44.5",
 		"emblor": "^1.4.8",
+		"fractional-indexing": "^3.2.0",
 		"fumadocs-core": "^16.3.1",
 		"fumadocs-mdx": "^14.2.1",
 		"fumadocs-ui": "^16.3.1",

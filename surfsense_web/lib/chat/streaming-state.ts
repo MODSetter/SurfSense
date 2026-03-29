@@ -136,7 +136,7 @@ export function buildContentForPersistence(
  * Async generator that reads an SSE stream and yields parsed JSON objects.
  * Handles buffering, event splitting, and skips malformed JSON / [DONE] lines.
  */
-export async function* readSSEStream(response: Response): AsyncGenerator<any> {
+export async function* readSSEStream(response: Response): AsyncGenerator<unknown> {
 	if (!response.body) {
 		throw new Error("No response body");
 	}

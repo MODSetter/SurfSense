@@ -1,6 +1,7 @@
 import { createBuilder, createSchema, relationships } from "@rocicorp/zero";
 import { chatCommentTable, chatSessionStateTable, newChatMessageTable } from "./chat";
 import { documentTable, searchSourceConnectorTable } from "./documents";
+import { folderTable } from "./folders";
 import { notificationTable } from "./inbox";
 
 const chatCommentRelationships = relationships(chatCommentTable, ({ one }) => ({
@@ -28,6 +29,7 @@ export const schema = createSchema({
 	tables: [
 		notificationTable,
 		documentTable,
+		folderTable,
 		searchSourceConnectorTable,
 		newChatMessageTable,
 		chatCommentTable,

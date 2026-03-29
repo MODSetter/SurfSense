@@ -8,6 +8,7 @@ import { reportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { activeTabAtom } from "@/atoms/tabs/tabs.atom";
 import { ChatHeader } from "@/components/new-chat/chat-header";
 import { ChatShareButton } from "@/components/new-chat/chat-share-button";
 import { Button } from "@/components/ui/button";
@@ -23,12 +24,14 @@ export function Header({ mobileMenuTrigger }: HeaderProps) {
 	const pathname = usePathname();
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const isMobile = useIsMobile();
+	const activeTab = useAtomValue(activeTabAtom);
 
 	const isChatPage = pathname?.includes("/new-chat") ?? false;
+	const isDocumentTab = activeTab?.type === "document";
 
 	const currentThreadState = useAtomValue(currentThreadAtom);
 
-	const hasThread = isChatPage && currentThreadState.id !== null;
+	const hasThread = isChatPage && !isDocumentTab && currentThreadState.id !== null;
 
 	const threadForButton: ThreadRecord | null =
 		hasThread && currentThreadState.id !== null
@@ -58,7 +61,7 @@ export function Header({ mobileMenuTrigger }: HeaderProps) {
 			{/* Left side - Mobile menu trigger + Model selector */}
 			<div className="flex flex-1 items-center gap-2 min-w-0">
 				{mobileMenuTrigger}
-				{isChatPage && searchSpaceId && (
+				{isChatPage && !isDocumentTab && searchSpaceId && (
 					<ChatHeader searchSpaceId={Number(searchSpaceId)} className="md:h-9 md:px-4 md:text-sm" />
 				)}
 			</div>

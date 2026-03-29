@@ -18,7 +18,7 @@ import {
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 const UNDRAGGABLE_KEYS = [KEYS.column, KEYS.tr, KEYS.td];
@@ -94,23 +94,24 @@ function Draggable(props: PlateElementProps) {
 	};
 
 	// clear up virtual multiple preview when drag end
+	// biome-ignore lint/correctness/useExhaustiveDependencies: resetPreview is stable; intentionally only run on isDragging change
 	React.useEffect(() => {
 		if (!isDragging) {
 			resetPreview();
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [isDragging]);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: previewRef is a stable ref; only run on isAboutToDrag change
 	React.useEffect(() => {
 		if (isAboutToDrag) {
 			previewRef.current?.classList.remove("opacity-0");
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [isAboutToDrag]);
 
 	const [dragButtonTop, setDragButtonTop] = React.useState(0);
 
 	return (
+		// biome-ignore lint/a11y/noStaticElementInteractions: plate editor block wrapper requires mouse events
 		<div
 			className={cn(
 				"relative",
@@ -158,6 +159,7 @@ function Draggable(props: PlateElementProps) {
 				contentEditable={false}
 			/>
 
+			{/* biome-ignore lint/a11y/noStaticElementInteractions: plate editor context menu handler */}
 			<div
 				ref={nodeRef}
 				className="slate-blockWrapper flow-root"
@@ -215,8 +217,10 @@ const DragHandle = React.memo(function DragHandle({
 	return (
 		<Tooltip>
 			<TooltipTrigger asChild>
+				{/* biome-ignore lint/a11y/useSemanticElements: drag handle requires div for plate editor integration */}
 				<div
 					className="flex size-full items-center justify-center"
+					tabIndex={0}
 					onClick={(e) => {
 						e.preventDefault();
 						editor.getApi(BlockSelectionPlugin).blockSelection.focus();
@@ -290,6 +294,12 @@ const DragHandle = React.memo(function DragHandle({
 					}}
 					onMouseUp={() => {
 						resetPreview();
+					}}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
+							editor.getApi(BlockSelectionPlugin).blockSelection.focus();
+						}
 					}}
 					data-plate-prevent-deselect
 					role="button"

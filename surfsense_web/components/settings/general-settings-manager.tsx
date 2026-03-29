@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
+import { Spinner } from "../ui/spinner";
 
 interface GeneralSettingsManagerProps {
 	searchSpaceId: number;
@@ -26,6 +27,7 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 	const {
 		data: searchSpace,
 		isLoading: loading,
+		isError,
 		refetch: fetchSearchSpace,
 	} = useQuery({
 		queryKey: cacheKeys.searchSpaces.detail(searchSpaceId.toString()),
@@ -81,6 +83,11 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 		}
 	};
 
+	const onSubmit = (e: React.FormEvent) => {
+		e.preventDefault();
+		handleSave();
+	};
+
 	if (loading) {
 		return (
 			<div className="space-y-4 md:space-y-6">
@@ -98,6 +105,17 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 		);
 	}
 
+	if (isError) {
+		return (
+			<div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+				<p className="text-sm text-destructive">Failed to load settings.</p>
+				<Button variant="outline" size="sm" onClick={() => fetchSearchSpace()}>
+					Retry
+				</Button>
+			</div>
+		);
+	}
+
 	return (
 		<div className="space-y-4 md:space-y-6">
 			<Alert className="bg-muted/50 py-3 md:py-4">
@@ -109,60 +127,66 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 			</Alert>
 
 			{/* Search Space Details Card */}
-			<Card>
-				<CardHeader className="px-3 md:px-6 pt-3 md:pt-6 pb-2 md:pb-3">
-					<CardTitle className="text-base md:text-lg">Search Space Details</CardTitle>
-					<CardDescription className="text-xs md:text-sm">
-						Manage the basic information for this search space.
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="space-y-4 md:space-y-5 px-3 md:px-6 pb-3 md:pb-6">
-					<div className="space-y-1.5 md:space-y-2">
-						<Label htmlFor="search-space-name" className="text-sm md:text-base font-medium">
-							{t("general_name_label")}
-						</Label>
-						<Input
-							id="search-space-name"
-							placeholder={t("general_name_placeholder")}
-							value={name}
-							onChange={(e) => setName(e.target.value)}
-							className="text-sm md:text-base h-9 md:h-10"
-						/>
-						<p className="text-[10px] md:text-xs text-muted-foreground">
-							{t("general_name_description")}
-						</p>
-					</div>
+			<form onSubmit={onSubmit} className="space-y-4 md:space-y-6">
+				<Card>
+					<CardHeader className="px-3 md:px-6 pt-3 md:pt-6 pb-2 md:pb-3">
+						<CardTitle className="text-base md:text-lg">Search Space Details</CardTitle>
+						<CardDescription className="text-xs md:text-sm">
+							Manage the basic information for this search space.
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-4 md:space-y-5 px-3 md:px-6 pb-3 md:pb-6">
+						<div className="space-y-1.5 md:space-y-2">
+							<Label htmlFor="search-space-name" className="text-sm md:text-base font-medium">
+								{t("general_name_label")}
+							</Label>
+							<Input
+								id="search-space-name"
+								placeholder={t("general_name_placeholder")}
+								value={name}
+								onChange={(e) => setName(e.target.value)}
+								className="text-sm md:text-base h-9 md:h-10"
+							/>
+							<p className="text-[10px] md:text-xs text-muted-foreground">
+								{t("general_name_description")}
+							</p>
+						</div>
 
-					<div className="space-y-1.5 md:space-y-2">
-						<Label htmlFor="search-space-description" className="text-sm md:text-base font-medium">
-							{t("general_description_label")}{" "}
-							<span className="text-muted-foreground font-normal">({tCommon("optional")})</span>
-						</Label>
-						<Input
-							id="search-space-description"
-							placeholder={t("general_description_placeholder")}
-							value={description}
-							onChange={(e) => setDescription(e.target.value)}
-							className="text-sm md:text-base h-9 md:h-10"
-						/>
-						<p className="text-[10px] md:text-xs text-muted-foreground">
-							{t("general_description_description")}
-						</p>
-					</div>
-				</CardContent>
-			</Card>
+						<div className="space-y-1.5 md:space-y-2">
+							<Label
+								htmlFor="search-space-description"
+								className="text-sm md:text-base font-medium"
+							>
+								{t("general_description_label")}{" "}
+								<span className="text-muted-foreground font-normal">({tCommon("optional")})</span>
+							</Label>
+							<Input
+								id="search-space-description"
+								placeholder={t("general_description_placeholder")}
+								value={description}
+								onChange={(e) => setDescription(e.target.value)}
+								className="text-sm md:text-base h-9 md:h-10"
+							/>
+							<p className="text-[10px] md:text-xs text-muted-foreground">
+								{t("general_description_description")}
+							</p>
+						</div>
+					</CardContent>
+				</Card>
 
-			{/* Action Buttons */}
-			<div className="flex justify-end pt-3 md:pt-4">
-				<Button
-					variant="outline"
-					onClick={handleSave}
-					disabled={!hasChanges || saving || !name.trim()}
-					className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
-				>
-					{saving ? t("general_saving") : t("general_save")}
-				</Button>
-			</div>
+				{/* Action Buttons */}
+				<div className="flex justify-end pt-3 md:pt-4">
+					<Button
+						type="submit"
+						variant="outline"
+						disabled={!hasChanges || saving || !name.trim()}
+						className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+					>
+						{saving ? <Spinner size="sm" /> : null}
+						{saving ? t("general_saving") : t("general_save")}
+					</Button>
+				</div>
+			</form>
 		</div>
 	);
 }

@@ -867,6 +867,9 @@ export const useConnectorDialog = () => {
 
 				setIsOpen(false);
 				setIsFromOAuth(false);
+				setIndexingConfig(null);
+				setIndexingConnector(null);
+				setIndexingConnectorConfig(null);
 
 				refreshConnectors();
 				queryClient.invalidateQueries({
@@ -898,6 +901,9 @@ export const useConnectorDialog = () => {
 	const handleSkipIndexing = useCallback(() => {
 		setIsOpen(false);
 		setIsFromOAuth(false);
+		setIndexingConfig(null);
+		setIndexingConnector(null);
+		setIndexingConnectorConfig(null);
 	}, [setIsOpen]);
 
 	// Handle starting edit mode

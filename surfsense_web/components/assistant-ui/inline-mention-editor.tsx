@@ -47,6 +47,7 @@ interface InlineMentionEditorProps {
 	disabled?: boolean;
 	className?: string;
 	initialDocuments?: MentionedDocument[];
+	initialText?: string;
 }
 
 // Unique data attribute to identify chip elements
@@ -96,6 +97,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			disabled = false,
 			className,
 			initialDocuments = [],
+			initialText,
 		},
 		ref
 	) => {
@@ -114,6 +116,29 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				);
 			}
 		}, [initialDocuments]);
+
+		useEffect(() => {
+			if (!initialText || !editorRef.current) return;
+			// Insert the text and add trailing line breaks for typing space
+			editorRef.current.innerText = initialText;
+			editorRef.current.appendChild(document.createElement("br"));
+			editorRef.current.appendChild(document.createElement("br"));
+			setIsEmpty(false);
+			onChange?.(initialText, Array.from(mentionedDocs.values()));
+			// Place cursor at the end of the content
+			editorRef.current.focus();
+			const sel = window.getSelection();
+			const range = document.createRange();
+			range.selectNodeContents(editorRef.current);
+			range.collapse(false);
+			sel?.removeAllRanges();
+			sel?.addRange(range);
+			// Scroll to cursor via a temporary anchor element
+			const anchor = document.createElement("span");
+			range.insertNode(anchor);
+			anchor.scrollIntoView({ block: "end" });
+			anchor.remove();
+		}, [initialText]); // eslint-disable-line react-hooks/exhaustive-deps
 
 		// Focus at the end of the editor
 		const focusAtEnd = useCallback(() => {

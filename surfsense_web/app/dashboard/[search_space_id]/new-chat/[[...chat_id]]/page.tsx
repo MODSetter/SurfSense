@@ -30,8 +30,10 @@ import {
 	// extractWriteTodosFromContent,
 } from "@/atoms/chat/plan-state.atom";
 import { closeReportPanelAtom } from "@/atoms/chat/report-panel.atom";
+import { type AgentCreatedDocument, agentCreatedDocumentsAtom } from "@/atoms/documents/ui.atoms";
 import { closeEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
+import { updateChatTabTitleAtom } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { ThinkingStepsDataUI } from "@/components/assistant-ui/thinking-steps";
 import { Thread } from "@/components/assistant-ui/thread";
@@ -74,6 +76,7 @@ import {
 	trackChatMessageSent,
 	trackChatResponseReceived,
 } from "@/lib/posthog/events";
+import Loading from "../loading";
 
 /**
  * After a tool produces output, mark any previously-decided interrupt tool
@@ -188,6 +191,8 @@ export default function NewChatPage() {
 	const clearTargetCommentId = useSetAtom(clearTargetCommentIdAtom);
 	const closeReportPanel = useSetAtom(closeReportPanelAtom);
 	const closeEditorPanel = useSetAtom(closeEditorPanelAtom);
+	const updateChatTabTitle = useSetAtom(updateChatTabTitleAtom);
+	const setAgentCreatedDocuments = useSetAtom(agentCreatedDocumentsAtom);
 
 	// Get current user for author info in shared chats
 	const { data: currentUser } = useAtomValue(currentUserAtom);
@@ -726,14 +731,26 @@ export default function NewChatPage() {
 						}
 
 						case "data-thread-title-update": {
-							// Handle thread title update from LLM-generated title
 							const titleData = parsed.data as { threadId: number; title: string };
 							if (titleData?.title && titleData?.threadId === currentThreadId) {
-								// Update current thread state with new title
 								setCurrentThread((prev) => (prev ? { ...prev, title: titleData.title } : prev));
-								// Invalidate thread list to refresh sidebar
+								updateChatTabTitle({ chatId: currentThreadId, title: titleData.title });
 								queryClient.invalidateQueries({
 									queryKey: ["threads", String(searchSpaceId)],
+								});
+							}
+							break;
+						}
+
+						case "data-documents-updated": {
+							const docEvent = parsed.data as {
+								action: string;
+								document: AgentCreatedDocument;
+							};
+							if (docEvent?.document?.id) {
+								setAgentCreatedDocuments((prev) => {
+									if (prev.some((d) => d.id === docEvent.document.id)) return prev;
+									return [...prev, docEvent.document];
 								});
 							}
 							break;
@@ -1526,49 +1543,14 @@ export default function NewChatPage() {
 
 	// Show loading state only when loading an existing thread
 	if (isInitializing) {
-		return (
-			<div className="flex h-[calc(100dvh-64px)] flex-col bg-main-panel px-4">
-				<div className="mx-auto w-full max-w-[44rem] flex flex-1 flex-col gap-6 py-8">
-					{/* User message */}
-					<div className="flex justify-end">
-						<Skeleton className="h-12 w-56 rounded-2xl" />
-					</div>
-
-					{/* Assistant message */}
-					<div className="flex flex-col gap-2">
-						<Skeleton className="h-4 w-full" />
-						<Skeleton className="h-4 w-[85%]" />
-						<Skeleton className="h-4 w-[70%]" />
-					</div>
-
-					{/* User message */}
-					<div className="flex justify-end">
-						<Skeleton className="h-12 w-40 rounded-2xl" />
-					</div>
-
-					{/* Assistant message */}
-					<div className="flex flex-col gap-2">
-						<Skeleton className="h-4 w-full" />
-						<Skeleton className="h-4 w-[90%]" />
-						<Skeleton className="h-4 w-[60%]" />
-					</div>
-				</div>
-
-				{/* Input bar */}
-				<div className="sticky bottom-0 pb-6 bg-main-panel">
-					<div className="mx-auto w-full max-w-[44rem]">
-						<Skeleton className="h-24 w-full rounded-2xl" />
-					</div>
-				</div>
-			</div>
-		);
+		return <Loading />;
 	}
 
 	// Show error state only if we tried to load an existing thread but failed
 	// For new chats (urlChatId === 0), threadId being null is expected (lazy creation)
 	if (!threadId && urlChatId > 0) {
 		return (
-			<div className="flex h-[calc(100dvh-64px)] flex-col items-center justify-center gap-4">
+			<div className="flex h-full flex-col items-center justify-center gap-4">
 				<div className="text-destructive">Failed to load chat</div>
 				<button
 					type="button"
@@ -1587,7 +1569,7 @@ export default function NewChatPage() {
 	return (
 		<AssistantRuntimeProvider runtime={runtime}>
 			<ThinkingStepsDataUI />
-			<div key={searchSpaceId} className="flex h-[calc(100dvh-64px)] overflow-hidden">
+			<div key={searchSpaceId} className="flex h-full overflow-hidden">
 				<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 					<Thread />
 				</div>

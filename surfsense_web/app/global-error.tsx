@@ -1,8 +1,9 @@
 "use client";
 
-import NextError from "next/error";
+import "./globals.css";
 import posthog from "posthog-js";
 import { useEffect } from "react";
+import { Button } from "@/components/ui/button";
 
 export default function GlobalError({
 	error,
@@ -18,10 +19,11 @@ export default function GlobalError({
 	return (
 		<html lang="en">
 			<body>
-				<NextError statusCode={0} />
-				<button type="button" onClick={reset}>
-					Try again
-				</button>
+				<div className="flex min-h-screen flex-col items-center justify-center gap-4 p-4">
+					<h2 className="text-xl font-semibold">Something went wrong</h2>
+					<p className="text-sm text-muted-foreground">An unexpected error occurred.</p>
+					<Button onClick={reset}>Try again</Button>
+				</div>
 			</body>
 		</html>
 	);

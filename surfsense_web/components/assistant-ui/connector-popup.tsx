@@ -4,7 +4,6 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { AlertTriangle, Cable, Settings } from "lucide-react";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
 import {
 	globalNewLLMConfigsAtom,
@@ -22,6 +21,7 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { useConnectorsSync } from "@/hooks/use-connectors-sync";
 import { PICKER_CLOSE_EVENT, PICKER_OPEN_EVENT } from "@/hooks/use-google-picker";
+import { useZeroDocumentTypeCounts } from "@/hooks/use-zero-document-type-counts";
 import { cn } from "@/lib/utils";
 import { ConnectorDialogHeader } from "./connector-popup/components/connector-dialog-header";
 import { ConnectorConnectView } from "./connector-popup/connector-configs/views/connector-connect-view";
@@ -72,9 +72,9 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 
 		const llmConfigLoading = preferencesLoading || globalConfigsLoading;
 
-		// Fetch document type counts via the lightweight /type-counts endpoint (cached 10 min)
-		const { data: documentTypeCounts, isFetching: documentTypesLoading } =
-			useAtomValue(documentTypeCountsAtom);
+		// Real-time document type counts via Zero (updates instantly as docs are indexed)
+		const documentTypeCounts = useZeroDocumentTypeCounts(searchSpaceId);
+		const documentTypesLoading = documentTypeCounts === undefined;
 
 		// Read status inbox items from shared atom (populated by LayoutDataProvider)
 		// instead of creating a duplicate useInbox("status") hook.

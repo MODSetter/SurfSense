@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
+import { Spinner } from "../ui/spinner";
 
 interface PromptConfigManagerProps {
 	searchSpaceId: number;
@@ -83,6 +84,11 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 		}
 	};
 
+	const onSubmit = (e: React.FormEvent) => {
+		e.preventDefault();
+		handleSave();
+	};
+
 	if (loading) {
 		return (
 			<div className="space-y-4 md:space-y-6">
@@ -124,69 +130,73 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 			</Alert>
 
 			{/* System Instructions Card */}
-			<Card>
-				<CardHeader className="px-3 md:px-6 pt-3 md:pt-6 pb-2 md:pb-3">
-					<CardTitle className="text-base md:text-lg">Custom System Instructions</CardTitle>
-					<CardDescription className="text-xs md:text-sm">
-						Provide specific guidelines for how you want the AI to respond. These instructions will
-						be applied to all answers in this search space.
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="space-y-3 md:space-y-4 px-3 md:px-6 pb-3 md:pb-6">
-					<div className="space-y-1.5 md:space-y-2">
-						<Label
-							htmlFor="custom-instructions-settings"
-							className="text-sm md:text-base font-medium"
-						>
-							Your Instructions
-						</Label>
-						<Textarea
-							id="custom-instructions-settings"
-							placeholder="E.g., Always provide practical examples, be concise, focus on technical details, use simple language, respond in a specific format..."
-							value={customInstructions}
-							onChange={(e) => setCustomInstructions(e.target.value)}
-							rows={10}
-							className="resize-none font-mono text-xs md:text-sm"
-						/>
-						<div className="flex items-center justify-between">
-							<p className="text-[10px] md:text-xs text-muted-foreground">
-								{customInstructions.length} characters
-							</p>
-							{customInstructions.length > 0 && (
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={() => setCustomInstructions("")}
-									className="h-auto py-0.5 md:py-1 px-1.5 md:px-2 text-[10px] md:text-xs"
-								>
-									Clear
-								</Button>
-							)}
+			<form onSubmit={onSubmit} className="space-y-4 md:space-y-6">
+				<Card>
+					<CardHeader className="px-3 md:px-6 pt-3 md:pt-6 pb-2 md:pb-3">
+						<CardTitle className="text-base md:text-lg">Custom System Instructions</CardTitle>
+						<CardDescription className="text-xs md:text-sm">
+							Provide specific guidelines for how you want the AI to respond. These instructions
+							will be applied to all answers in this search space.
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-3 md:space-y-4 px-3 md:px-6 pb-3 md:pb-6">
+						<div className="space-y-1.5 md:space-y-2">
+							<Label
+								htmlFor="custom-instructions-settings"
+								className="text-sm md:text-base font-medium"
+							>
+								Your Instructions
+							</Label>
+							<Textarea
+								id="custom-instructions-settings"
+								placeholder="E.g., Always provide practical examples, be concise, focus on technical details, use simple language, respond in a specific format..."
+								value={customInstructions}
+								onChange={(e) => setCustomInstructions(e.target.value)}
+								rows={10}
+								className="resize-none font-mono text-xs md:text-sm"
+							/>
+							<div className="flex items-center justify-between">
+								<p className="text-[10px] md:text-xs text-muted-foreground">
+									{customInstructions.length} characters
+								</p>
+								{customInstructions.length > 0 && (
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										onClick={() => setCustomInstructions("")}
+										className="h-auto py-0.5 md:py-1 px-1.5 md:px-2 text-[10px] md:text-xs"
+									>
+										Clear
+									</Button>
+								)}
+							</div>
 						</div>
-					</div>
 
-					{customInstructions.trim().length === 0 && (
-						<Alert className="py-2 md:py-3">
-							<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
-							<AlertDescription className="text-xs md:text-sm">
-								No system instructions are currently set. The AI will use default behavior.
-							</AlertDescription>
-						</Alert>
-					)}
-				</CardContent>
-			</Card>
+						{customInstructions.trim().length === 0 && (
+							<Alert className="py-2 md:py-3">
+								<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
+								<AlertDescription className="text-xs md:text-sm">
+									No system instructions are currently set. The AI will use default behavior.
+								</AlertDescription>
+							</Alert>
+						)}
+					</CardContent>
+				</Card>
 
-			{/* Action Buttons */}
-			<div className="flex justify-end pt-3 md:pt-4">
-				<Button
-					variant="outline"
-					onClick={handleSave}
-					disabled={!hasChanges || saving}
-					className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
-				>
-					{saving ? "Saving" : "Save Instructions"}
-				</Button>
-			</div>
+				{/* Action Buttons */}
+				<div className="flex justify-end pt-3 md:pt-4">
+					<Button
+						type="submit"
+						variant="outline"
+						disabled={!hasChanges || saving}
+						className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+					>
+						{saving ? <Spinner size="sm" /> : null}
+						{saving ? "Saving" : "Save Instructions"}
+					</Button>
+				</div>
+			</form>
 		</div>
 	);
 }

@@ -188,13 +188,13 @@ export function TeamContent({ searchSpaceId }: TeamContentProps) {
 		[deleteMember, searchSpaceId]
 	);
 
-	const { data: roles = [] } = useQuery({
+	const { data: roles = [], isLoading: rolesLoading } = useQuery({
 		queryKey: cacheKeys.roles.all(searchSpaceId.toString()),
 		queryFn: () => rolesApiService.getRoles({ search_space_id: searchSpaceId }),
 		enabled: !!searchSpaceId,
 	});
 
-	const { data: invites = [] } = useQuery({
+	const { data: invites = [], isLoading: invitesLoading } = useQuery({
 		queryKey: cacheKeys.invites.all(searchSpaceId.toString()),
 		queryFn: () => invitesApiService.getInvites({ search_space_id: searchSpaceId }),
 		staleTime: 5 * 60 * 1000,
@@ -294,15 +294,23 @@ export function TeamContent({ searchSpaceId }: TeamContentProps) {
 	return (
 		<div className="space-y-4 md:space-y-6">
 			<div className="flex items-center gap-2 flex-wrap">
-				{canInvite && (
-					<CreateInviteDialog
-						roles={roles}
-						onCreateInvite={handleCreateInvite}
-						searchSpaceId={searchSpaceId}
-					/>
+				{rolesLoading ? (
+					<Skeleton className="h-9 w-32 rounded-md" />
+				) : (
+					canInvite && (
+						<CreateInviteDialog
+							roles={roles}
+							onCreateInvite={handleCreateInvite}
+							searchSpaceId={searchSpaceId}
+						/>
+					)
 				)}
-				{canInvite && activeInvites.length > 0 && (
-					<AllInvitesDialog invites={activeInvites} onRevokeInvite={handleRevokeInvite} />
+				{invitesLoading ? (
+					<Skeleton className="h-9 w-32 rounded-md" />
+				) : (
+					canInvite && activeInvites.length > 0 && (
+						<AllInvitesDialog invites={activeInvites} onRevokeInvite={handleRevokeInvite} />
+					)
 				)}
 				<p className="text-xs md:text-sm text-muted-foreground whitespace-nowrap">
 					{members.length} {members.length === 1 ? "member" : "members"}
@@ -595,6 +603,7 @@ function CreateInviteDialog({
 			});
 		} catch (error) {
 			console.error("Failed to create invite:", error);
+			toast.error("Failed to create invite. Please try again.");
 		} finally {
 			setCreating(false);
 		}

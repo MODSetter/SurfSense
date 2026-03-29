@@ -199,7 +199,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 									className={cn(
 										"w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all",
 										"hover:bg-accent/50 dark:hover:bg-white/10 cursor-pointer",
-										"focus:outline-none",
+										"focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
 										isSelected && "bg-accent/80 dark:bg-white/10"
 									)}
 								>
@@ -248,7 +248,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 									className={cn(
 										"w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all",
 										"hover:bg-accent/50 dark:hover:bg-white/10 cursor-pointer",
-										"focus:outline-none",
+										"focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
 										"disabled:opacity-50 disabled:cursor-not-allowed"
 									)}
 								>

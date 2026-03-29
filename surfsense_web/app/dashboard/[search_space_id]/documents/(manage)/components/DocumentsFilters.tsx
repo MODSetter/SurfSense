@@ -1,6 +1,6 @@
 "use client";
 
-import { ListFilter, Search, Upload, X } from "lucide-react";
+import { FolderPlus, ListFilter, Search, Upload, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { getDocumentTypeIcon, getDocumentTypeLabel } from "./DocumentTypeIcon";
 
@@ -17,12 +18,14 @@ export function DocumentsFilters({
 	searchValue,
 	onToggleType,
 	activeTypes,
+	onCreateFolder,
 }: {
 	typeCounts: Partial<Record<DocumentTypeEnum, number>>;
 	onSearch: (v: string) => void;
 	searchValue: string;
 	onToggleType: (type: DocumentTypeEnum, checked: boolean) => void;
 	activeTypes: DocumentTypeEnum[];
+	onCreateFolder?: () => void;
 }) {
 	const t = useTranslations("documents");
 	const id = React.useId();
@@ -193,6 +196,23 @@ export function DocumentsFilters({
 						</button>
 					)}
 				</div>
+
+				{/* New Folder Button */}
+				{onCreateFolder && (
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								variant="outline"
+								size="icon"
+								className="h-9 w-9 shrink-0 border-dashed border-sidebar-border text-sidebar-foreground/60 hover:text-sidebar-foreground hover:border-sidebar-border bg-sidebar"
+								onClick={onCreateFolder}
+							>
+								<FolderPlus size={14} />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>New folder</TooltipContent>
+					</Tooltip>
+				)}
 
 				{/* Upload Button */}
 				<Button
