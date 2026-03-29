@@ -1,20 +1,20 @@
 "use client";
 
-import { useAtom, useAtomValue } from "jotai";
-import { PanelRight } from "lucide-react";
+import { useAtomValue } from "jotai";
 import { usePathname } from "next/navigation";
+import { hitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { reportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
+import { editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
-import { activeTabAtom } from "@/atoms/tabs/tabs.atom";
+import { activeTabAtom, tabsAtom } from "@/atoms/tabs/tabs.atom";
 import { ChatHeader } from "@/components/new-chat/chat-header";
 import { ChatShareButton } from "@/components/new-chat/chat-share-button";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { ChatVisibility, ThreadRecord } from "@/lib/chat/thread-persistence";
+import { cn } from "@/lib/utils";
 
 interface HeaderProps {
 	mobileMenuTrigger?: React.ReactNode;
@@ -25,9 +25,20 @@ export function Header({ mobileMenuTrigger }: HeaderProps) {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const isMobile = useIsMobile();
 	const activeTab = useAtomValue(activeTabAtom);
+	const tabs = useAtomValue(tabsAtom);
+	const collapsed = useAtomValue(rightPanelCollapsedAtom);
+	const documentsOpen = useAtomValue(documentsSidebarOpenAtom);
+	const reportState = useAtomValue(reportPanelAtom);
+	const editorState = useAtomValue(editorPanelAtom);
+	const hitlEditState = useAtomValue(hitlEditPanelAtom);
 
 	const isChatPage = pathname?.includes("/new-chat") ?? false;
 	const isDocumentTab = activeTab?.type === "document";
+	const reportOpen = reportState.isOpen && !!reportState.reportId;
+	const editorOpen = editorState.isOpen && !!editorState.documentId;
+	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
+	const showExpandButton = !isMobile && collapsed && (documentsOpen || reportOpen || editorOpen || hitlEditOpen);
+	const hasTabBar = tabs.length > 1;
 
 	const currentThreadState = useAtomValue(currentThreadAtom);
 
@@ -49,15 +60,8 @@ export function Header({ mobileMenuTrigger }: HeaderProps) {
 
 	const handleVisibilityChange = (_visibility: ChatVisibility) => {};
 
-	const [collapsed, setCollapsed] = useAtom(rightPanelCollapsedAtom);
-	const documentsOpen = useAtomValue(documentsSidebarOpenAtom);
-	const reportState = useAtomValue(reportPanelAtom);
-	const reportOpen = reportState.isOpen && !!reportState.reportId;
-	const hasRightPanelContent = documentsOpen || reportOpen;
-	const showExpandButton = !isMobile && collapsed && hasRightPanelContent;
-
 	return (
-		<header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 bg-main-panel/95 backdrop-blur supports-backdrop-filter:bg-main-panel/60 px-4">
+		<header className="sticky top-0 z-10 flex h-12 shrink-0 items-center gap-2 bg-main-panel/95 backdrop-blur supports-backdrop-filter:bg-main-panel/60 px-4">
 			{/* Left side - Mobile menu trigger + Model selector */}
 			<div className="flex flex-1 items-center gap-2 min-w-0">
 				{mobileMenuTrigger}
@@ -67,25 +71,9 @@ export function Header({ mobileMenuTrigger }: HeaderProps) {
 			</div>
 
 			{/* Right side - Actions */}
-			<div className="flex items-center gap-2">
+			<div className={cn("ml-auto flex items-center gap-2", showExpandButton && !hasTabBar && "mr-10")}>
 				{hasThread && (
 					<ChatShareButton thread={threadForButton} onVisibilityChange={handleVisibilityChange} />
-				)}
-				{showExpandButton && (
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								variant="ghost"
-								size="icon"
-								onClick={() => setCollapsed(false)}
-								className="h-8 w-8 shrink-0"
-							>
-								<PanelRight className="h-4 w-4" />
-								<span className="sr-only">Expand panel</span>
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent side="bottom">Expand panel</TooltipContent>
-					</Tooltip>
 				)}
 			</div>
 		</header>

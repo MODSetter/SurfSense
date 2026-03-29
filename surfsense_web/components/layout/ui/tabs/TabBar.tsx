@@ -58,8 +58,11 @@ export function TabBar({ onTabSwitch, onNewChat, className }: TabBarProps) {
 	if (tabs.length <= 1) return null;
 
 	return (
-		<div className={cn("flex items-center shrink-0 border-b bg-main-panel", className)}>
-			<div ref={scrollRef} className="flex items-center flex-1 overflow-x-auto scrollbar-none">
+		<div className={cn("flex h-12 items-stretch shrink-0 border-b bg-main-panel", className)}>
+			<div
+				ref={scrollRef}
+				className="flex h-full items-stretch flex-1 overflow-x-auto overflow-y-hidden scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+			>
 				{tabs.map((tab) => {
 					const isActive = tab.id === activeTabId;
 					const Icon = tab.type === "document" ? FileText : MessageSquare;
@@ -71,10 +74,10 @@ export function TabBar({ onTabSwitch, onNewChat, className }: TabBarProps) {
 							data-tab-id={tab.id}
 							onClick={() => handleTabClick(tab)}
 							className={cn(
-								"group relative flex items-center gap-1.5 px-3 h-9 min-w-0 max-w-[200px] text-xs font-medium border-r transition-colors shrink-0",
+								"group relative flex h-full items-center self-stretch gap-1.5 px-3 min-w-0 max-w-[200px] text-xs font-medium border-r transition-colors shrink-0",
 								isActive
-									? "bg-main-panel text-foreground"
-									: "bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+									? "bg-muted/40 text-foreground"
+									: "bg-transparent text-muted-foreground hover:bg-muted/25 hover:text-foreground"
 							)}
 						>
 							{isActive && <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-primary" />}
@@ -103,18 +106,19 @@ export function TabBar({ onTabSwitch, onNewChat, className }: TabBarProps) {
 						</button>
 					);
 				})}
+				{onNewChat && (
+					<div className="flex h-full items-center px-1.5 shrink-0">
+						<button
+							type="button"
+							onClick={onNewChat}
+							className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground hover:bg-muted/60"
+							title="New Chat"
+						>
+							<Plus className="size-3.5" />
+						</button>
+					</div>
+				)}
 			</div>
-
-			{onNewChat && (
-				<button
-					type="button"
-					onClick={onNewChat}
-					className="flex items-center justify-center size-9 shrink-0 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-					title="New Chat"
-				>
-					<Plus className="size-3.5" />
-				</button>
-			)}
 		</div>
 	);
 }

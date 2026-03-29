@@ -557,7 +557,7 @@ export function DocumentsSidebar({
 
 	const documentsContent = (
 		<>
-			<div className="shrink-0 flex h-14 items-center px-4">
+			<div className="shrink-0 flex h-12 items-center px-4">
 				<div className="flex w-full items-center justify-between">
 					<div className="flex items-center gap-2">
 						{isMobile && (
@@ -609,7 +609,7 @@ export function DocumentsSidebar({
 			</div>
 
 			{/* Connected tools strip */}
-			<div className="shrink-0 mx-4 mt-2 mb-3 flex select-none items-center gap-2 rounded-lg border bg-muted/50 transition-colors hover:bg-muted/80">
+			<div className="shrink-0 mx-4 mt-4 mb-4 flex select-none items-center gap-2 rounded-lg border bg-muted/50 transition-colors hover:bg-muted/80">
 				<button
 					type="button"
 					onClick={() => setConnectorDialogOpen(true)}
