@@ -1,7 +1,7 @@
 """add prompts table
 
-Revision ID: 109
-Revises: 108
+Revision ID: 110
+Revises: 109
 """
 
 from collections.abc import Sequence
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "109"
-down_revision: str | None = "108"
+revision: str = "110"
+down_revision: str | None = "109"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
