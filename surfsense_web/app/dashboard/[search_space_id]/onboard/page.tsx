@@ -16,6 +16,7 @@ import { Logo } from "@/components/Logo";
 import { LLMConfigForm, type LLMConfigFormData } from "@/components/shared/llm-config-form";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 import { getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 
 export default function OnboardPage() {
@@ -138,17 +139,11 @@ export default function OnboardPage() {
 
 	const isSubmitting = isCreating || isUpdatingPreferences;
 
-	if (globalConfigsLoading || preferencesLoading || isAutoConfiguring) {
-		return (
-			<div className="h-screen flex items-center justify-center bg-background dark:bg-neutral-900">
-				<div className="text-center space-y-3">
-					<Spinner size="lg" className="mx-auto text-muted-foreground" />
-					<p className="text-sm text-muted-foreground">
-						{isAutoConfiguring ? "Setting up your AI..." : "Loading..."}
-					</p>
-				</div>
-			</div>
-		);
+	const isLoading = globalConfigsLoading || preferencesLoading || isAutoConfiguring;
+	useGlobalLoadingEffect(isLoading);
+
+	if (isLoading) {
+		return null;
 	}
 
 	if (globalConfigs.length > 0 && !isAutoConfiguring) {
@@ -171,15 +166,13 @@ export default function OnboardPage() {
 
 				{/* Form card */}
 				<div className="rounded-xl border bg-background dark:bg-neutral-900 flex-1 min-h-0 overflow-y-auto px-6 py-6">
-					<LLMConfigForm
-						searchSpaceId={searchSpaceId}
-						onSubmit={handleSubmit}
-						isSubmitting={isSubmitting}
-						mode="create"
-						showAdvanced={true}
-						formId="onboard-config-form"
-						hideActions
-						initialData={{
+				<LLMConfigForm
+					searchSpaceId={searchSpaceId}
+					onSubmit={handleSubmit}
+					mode="create"
+					showAdvanced={true}
+					formId="onboard-config-form"
+					initialData={{
 							citations_enabled: true,
 							use_default_system_instructions: true,
 						}}

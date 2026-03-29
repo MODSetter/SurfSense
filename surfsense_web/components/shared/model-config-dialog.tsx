@@ -213,14 +213,12 @@ export function ModelConfigDialog({
 					)}
 
 					{mode === "create" ? (
-						<LLMConfigForm
-							searchSpaceId={searchSpaceId}
-							onSubmit={handleSubmit}
-							isSubmitting={isSubmitting}
-							mode="create"
-							formId="model-config-form"
-							hideActions
-						/>
+					<LLMConfigForm
+						searchSpaceId={searchSpaceId}
+						onSubmit={handleSubmit}
+						mode="create"
+						formId="model-config-form"
+					/>
 					) : isAutoMode && config ? (
 						<div className="space-y-6">
 							<div className="space-y-4">
@@ -362,11 +360,9 @@ export function ModelConfigDialog({
 								citations_enabled: config.citations_enabled,
 								search_space_id: searchSpaceId,
 							}}
-							onSubmit={handleSubmit}
-							isSubmitting={isSubmitting}
-							mode="edit"
-							formId="model-config-form"
-							hideActions
+						onSubmit={handleSubmit}
+						mode="edit"
+						formId="model-config-form"
 						/>
 					) : null}
 				</div>

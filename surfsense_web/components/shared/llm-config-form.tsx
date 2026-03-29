@@ -3,9 +3,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtomValue } from "jotai";
 import { Check, ChevronDown, ChevronsUpDown } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { z } from "zod";
 import {
 	defaultSystemInstructionsAtom,
@@ -41,7 +40,6 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
@@ -73,28 +71,18 @@ interface LLMConfigFormProps {
 	initialData?: Partial<LLMConfigFormData>;
 	searchSpaceId: number;
 	onSubmit: (data: LLMConfigFormData) => Promise<void>;
-	onCancel?: () => void;
-	isSubmitting?: boolean;
 	mode?: "create" | "edit";
-	submitLabel?: string;
 	showAdvanced?: boolean;
-	compact?: boolean;
 	formId?: string;
-	hideActions?: boolean;
 }
 
 export function LLMConfigForm({
 	initialData,
 	searchSpaceId,
 	onSubmit,
-	onCancel,
-	isSubmitting = false,
 	mode = "create",
-	submitLabel,
 	showAdvanced = true,
-	compact = false,
 	formId,
-	hideActions = false,
 }: LLMConfigFormProps) {
 	const { data: defaultInstructions, isSuccess: defaultInstructionsLoaded } = useAtomValue(
 		defaultSystemInstructionsAtom
@@ -105,8 +93,7 @@ export function LLMConfigForm({
 	const [systemInstructionsOpen, setSystemInstructionsOpen] = useState(false);
 
 	const form = useForm<FormValues>({
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		resolver: zodResolver(formSchema) as any,
+		resolver: zodResolver(formSchema) as Resolver<FormValues>,
 		defaultValues: {
 			name: initialData?.name ?? "",
 			description: initialData?.description ?? "",
@@ -232,34 +219,26 @@ export function LLMConfigForm({
 						)}
 					/>
 
-					{/* Custom Provider (conditional) */}
-					<AnimatePresence>
-						{watchProvider === "CUSTOM" && (
-							<motion.div
-								initial={{ opacity: 0, height: 0 }}
-								animate={{ opacity: 1, height: "auto" }}
-								exit={{ opacity: 0, height: 0 }}
-							>
-								<FormField
-									control={form.control}
-									name="custom_provider"
-									render={({ field }) => (
-										<FormItem>
-											<FormLabel className="text-xs sm:text-sm">Custom Provider Name</FormLabel>
-											<FormControl>
-												<Input
-													placeholder="my-custom-provider"
-													{...field}
-													value={field.value ?? ""}
-												/>
-											</FormControl>
-											<FormMessage />
-										</FormItem>
-									)}
-								/>
-							</motion.div>
+				{/* Custom Provider (conditional) */}
+				{watchProvider === "CUSTOM" && (
+					<FormField
+						control={form.control}
+						name="custom_provider"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel className="text-xs sm:text-sm">Custom Provider Name</FormLabel>
+								<FormControl>
+									<Input
+										placeholder="my-custom-provider"
+										{...field}
+										value={field.value ?? ""}
+									/>
+								</FormControl>
+								<FormMessage />
+							</FormItem>
 						)}
-					</AnimatePresence>
+					/>
+				)}
 
 					{/* Model Name with Combobox */}
 					<FormField
@@ -404,36 +383,29 @@ export function LLMConfigForm({
 						/>
 					</div>
 
-					{/* Ollama Quick Actions */}
-					<AnimatePresence>
-						{watchProvider === "OLLAMA" && (
-							<motion.div
-								initial={{ opacity: 0, height: 0 }}
-								animate={{ opacity: 1, height: "auto" }}
-								exit={{ opacity: 0, height: 0 }}
-								className="flex flex-wrap gap-2"
-							>
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									className="h-7 text-xs"
-									onClick={() => form.setValue("api_base", "http://localhost:11434")}
-								>
-									localhost:11434
-								</Button>
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									className="h-7 text-xs"
-									onClick={() => form.setValue("api_base", "http://host.docker.internal:11434")}
-								>
-									Docker
-								</Button>
-							</motion.div>
-						)}
-					</AnimatePresence>
+				{/* Ollama Quick Actions */}
+				{watchProvider === "OLLAMA" && (
+					<div className="flex flex-wrap gap-2">
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							className="h-7 text-xs"
+							onClick={() => form.setValue("api_base", "http://localhost:11434")}
+						>
+							localhost:11434
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							className="h-7 text-xs"
+							onClick={() => form.setValue("api_base", "http://host.docker.internal:11434")}
+						>
+							Docker
+						</Button>
+					</div>
+				)}
 				</div>
 
 				{/* Advanced Parameters */}
@@ -554,44 +526,6 @@ export function LLMConfigForm({
 						/>
 					</CollapsibleContent>
 				</Collapsible>
-
-				{!hideActions && (
-					<div
-						className={cn(
-							"flex gap-3 pt-4",
-							compact ? "justify-end" : "justify-center sm:justify-end"
-						)}
-					>
-						{onCancel && (
-							<Button
-								type="button"
-								variant="secondary"
-								onClick={onCancel}
-								disabled={isSubmitting}
-								className="text-xs sm:text-sm h-9 sm:h-10"
-							>
-								Cancel
-							</Button>
-						)}
-						<Button
-							type="submit"
-							disabled={isSubmitting}
-							className="gap-2 min-w-[140px] sm:min-w-[160px] text-xs sm:text-sm h-9 sm:h-10"
-						>
-							{isSubmitting ? (
-								<>
-									<Spinner size="sm" />
-									{mode === "edit" ? "Updating..." : "Creating"}
-								</>
-							) : (
-								<>
-									{submitLabel ??
-										(mode === "edit" ? "Update Configuration" : "Create Configuration")}
-								</>
-							)}
-						</Button>
-					</div>
-				)}
 			</form>
 		</Form>
 	);
