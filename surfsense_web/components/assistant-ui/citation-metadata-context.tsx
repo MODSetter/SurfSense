@@ -63,3 +63,7 @@ export function useCitationMetadata(url: string): CitationMeta | undefined {
 	const map = useContext(CitationMetadataContext);
 	return map.get(url);
 }
+
+export function useAllCitationMetadata(): CitationMetadataMap {
+	return useContext(CitationMetadataContext);
+}
