@@ -78,7 +78,10 @@ export const deleteNewLLMConfigMutationAtom = atomWithMutation((get) => {
 		mutationFn: async (request: DeleteNewLLMConfigRequest & { name: string }) => {
 			return newLLMConfigApiService.deleteConfig({ id: request.id });
 		},
-		onSuccess: (_: DeleteNewLLMConfigResponse, request: DeleteNewLLMConfigRequest & { name: string }) => {
+		onSuccess: (
+			_: DeleteNewLLMConfigResponse,
+			request: DeleteNewLLMConfigRequest & { name: string }
+		) => {
 			toast.success(`${request.name} deleted`);
 			queryClient.setQueryData(
 				cacheKeys.newLLMConfigs.all(Number(searchSpaceId)),

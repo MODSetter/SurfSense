@@ -105,8 +105,8 @@ export function Sidebar({
 		>
 			{/* Header - search space name or collapse button when collapsed */}
 			{isCollapsed ? (
-			<div className="flex h-12 shrink-0 items-center justify-center border-b">
-				<SidebarCollapseButton
+				<div className="flex h-12 shrink-0 items-center justify-center border-b">
+					<SidebarCollapseButton
 						isCollapsed={isCollapsed}
 						onToggle={onToggleCollapse ?? (() => {})}
 						disableTooltip={disableTooltips}

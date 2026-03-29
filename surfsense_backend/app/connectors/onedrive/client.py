@@ -39,7 +39,9 @@ class OneDriveClient:
 
         cfg = connector.config or {}
         is_encrypted = cfg.get("_token_encrypted", False)
-        token_encryption = TokenEncryption(config.SECRET_KEY) if config.SECRET_KEY else None
+        token_encryption = (
+            TokenEncryption(config.SECRET_KEY) if config.SECRET_KEY else None
+        )
 
         access_token = cfg.get("access_token", "")
         refresh_token = cfg.get("refresh_token")
@@ -206,18 +208,20 @@ class OneDriveClient:
     async def download_file_to_disk(self, item_id: str, dest_path: str) -> str | None:
         """Stream file content to disk. Returns error message on failure."""
         token = await self._get_valid_token()
-        async with httpx.AsyncClient(follow_redirects=True) as client:
-            async with client.stream(
+        async with (
+            httpx.AsyncClient(follow_redirects=True) as client,
+            client.stream(
                 "GET",
                 f"{GRAPH_API_BASE}/me/drive/items/{item_id}/content",
                 headers={"Authorization": f"Bearer {token}"},
                 timeout=120.0,
-            ) as resp:
-                if resp.status_code != 200:
-                    return f"Download failed: {resp.status_code}"
-                with open(dest_path, "wb") as f:
-                    async for chunk in resp.aiter_bytes(chunk_size=5 * 1024 * 1024):
-                        f.write(chunk)
+            ) as resp,
+        ):
+            if resp.status_code != 200:
+                return f"Download failed: {resp.status_code}"
+            with open(dest_path, "wb") as f:
+                async for chunk in resp.aiter_bytes(chunk_size=5 * 1024 * 1024):
+                    f.write(chunk)
         return None
 
     async def create_file(

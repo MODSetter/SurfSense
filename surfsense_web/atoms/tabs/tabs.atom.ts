@@ -143,9 +143,7 @@ export const updateChatTabTitleAtom = atom(
 			set(tabsStateAtom, {
 				...state,
 				activeTabId: tabId,
-				tabs: state.tabs.map((t) =>
-					t.id === "chat-new" ? { ...t, id: tabId, chatId, title } : t
-				),
+				tabs: state.tabs.map((t) => (t.id === "chat-new" ? { ...t, id: tabId, chatId, title } : t)),
 			});
 			return;
 		}

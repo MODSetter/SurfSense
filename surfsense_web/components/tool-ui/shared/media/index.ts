@@ -1,5 +1,5 @@
-export { sanitizeHref } from "./sanitize-href";
 export {
-  resolveSafeNavigationHref,
-  openSafeNavigationHref,
+	openSafeNavigationHref,
+	resolveSafeNavigationHref,
 } from "./safe-navigation";
+export { sanitizeHref } from "./sanitize-href";

@@ -217,9 +217,7 @@ export function ImageConfigDialog({
 						</div>
 						<p className="text-sm text-muted-foreground">{getSubtitle()}</p>
 						{config && mode !== "create" && (
-							<p className="text-xs font-mono text-muted-foreground/70">
-								{config.model_name}
-							</p>
+							<p className="text-xs font-mono text-muted-foreground/70">{config.model_name}</p>
 						)}
 					</div>
 				</div>
@@ -234,7 +232,7 @@ export function ImageConfigDialog({
 						WebkitMaskImage: `linear-gradient(to bottom, ${scrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${scrollPos === "bottom" ? "black" : "transparent"})`,
 					}}
 				>
-				{isGlobal && config && (
+					{isGlobal && config && (
 						<>
 							<Alert className="mb-5 border-amber-500/30 bg-amber-500/5">
 								<AlertCircle className="size-4 text-amber-500" />
@@ -294,9 +292,7 @@ export function ImageConfigDialog({
 								<Input
 									placeholder="Optional description"
 									value={formData.description}
-									onChange={(e) =>
-										setFormData((p) => ({ ...p, description: e.target.value }))
-									}
+									onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
 								/>
 							</div>
 
@@ -337,17 +333,12 @@ export function ImageConfigDialog({
 												<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
 											</Button>
 										</PopoverTrigger>
-										<PopoverContent
-											className="w-full p-0"
-											align="start"
-										>
+										<PopoverContent className="w-full p-0" align="start">
 											<Command className="bg-transparent">
 												<CommandInput
 													placeholder="Search or type model..."
 													value={formData.model_name}
-													onValueChange={(val) =>
-														setFormData((p) => ({ ...p, model_name: val }))
-													}
+													onValueChange={(val) => setFormData((p) => ({ ...p, model_name: val }))}
 												/>
 												<CommandList>
 													<CommandEmpty>
@@ -368,9 +359,7 @@ export function ImageConfigDialog({
 																<Check
 																	className={cn(
 																		"mr-2 h-4 w-4",
-																		formData.model_name === m.value
-																			? "opacity-100"
-																			: "opacity-0"
+																		formData.model_name === m.value ? "opacity-100" : "opacity-0"
 																	)}
 																/>
 																<span className="font-mono text-sm">{m.value}</span>
@@ -388,9 +377,7 @@ export function ImageConfigDialog({
 									<Input
 										placeholder="e.g., dall-e-3"
 										value={formData.model_name}
-										onChange={(e) =>
-											setFormData((p) => ({ ...p, model_name: e.target.value }))
-										}
+										onChange={(e) => setFormData((p) => ({ ...p, model_name: e.target.value }))}
 									/>
 								)}
 							</div>
@@ -420,9 +407,7 @@ export function ImageConfigDialog({
 									<Input
 										placeholder="2024-02-15-preview"
 										value={formData.api_version}
-										onChange={(e) =>
-											setFormData((p) => ({ ...p, api_version: e.target.value }))
-										}
+										onChange={(e) => setFormData((p) => ({ ...p, api_version: e.target.value }))}
 									/>
 								</div>
 							)}
@@ -442,25 +427,25 @@ export function ImageConfigDialog({
 						Cancel
 					</Button>
 					{mode === "create" || (mode === "edit" && !isGlobal) ? (
-					<Button
-						onClick={handleSubmit}
-						disabled={isSubmitting || !isFormValid}
-						className="relative text-sm h-9 min-w-[120px]"
-					>
-						<span className={isSubmitting ? "opacity-0" : ""}>
-							{mode === "edit" ? "Save Changes" : "Create & Use"}
-						</span>
-						{isSubmitting && <Spinner size="sm" className="absolute" />}
-					</Button>
-				) : isGlobal && config ? (
-					<Button
-						className="relative text-sm h-9"
-						onClick={handleUseGlobalConfig}
-						disabled={isSubmitting}
-					>
-						<span className={isSubmitting ? "opacity-0" : ""}>Use This Model</span>
-						{isSubmitting && <Spinner size="sm" className="absolute" />}
-					</Button>
+						<Button
+							onClick={handleSubmit}
+							disabled={isSubmitting || !isFormValid}
+							className="relative text-sm h-9 min-w-[120px]"
+						>
+							<span className={isSubmitting ? "opacity-0" : ""}>
+								{mode === "edit" ? "Save Changes" : "Create & Use"}
+							</span>
+							{isSubmitting && <Spinner size="sm" className="absolute" />}
+						</Button>
+					) : isGlobal && config ? (
+						<Button
+							className="relative text-sm h-9"
+							onClick={handleUseGlobalConfig}
+							disabled={isSubmitting}
+						>
+							<span className={isSubmitting ? "opacity-0" : ""}>Use This Model</span>
+							{isSubmitting && <Spinner size="sm" className="absolute" />}
+						</Button>
 					) : null}
 				</div>
 			</DialogContent>

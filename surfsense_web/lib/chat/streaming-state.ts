@@ -27,10 +27,7 @@ export interface ContentPartsState {
 	toolCallIndices: Map<string, number>;
 }
 
-function areThinkingStepsEqual(
-	current: ThinkingStepData[],
-	next: ThinkingStepData[]
-): boolean {
+function areThinkingStepsEqual(current: ThinkingStepData[], next: ThinkingStepData[]): boolean {
 	if (current.length !== next.length) return false;
 
 	for (let i = 0; i < current.length; i += 1) {

@@ -167,9 +167,7 @@ export function ModelConfigDialog({
 						</div>
 						<p className="text-sm text-muted-foreground">{getSubtitle()}</p>
 						{config && mode !== "create" && (
-							<p className="text-xs font-mono text-muted-foreground/70">
-								{config.model_name}
-							</p>
+							<p className="text-xs font-mono text-muted-foreground/70">{config.model_name}</p>
 						)}
 					</div>
 				</div>
@@ -184,7 +182,7 @@ export function ModelConfigDialog({
 						WebkitMaskImage: `linear-gradient(to bottom, ${scrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${scrollPos === "bottom" ? "black" : "transparent"})`,
 					}}
 				>
-				{isGlobal && mode !== "create" && (
+					{isGlobal && mode !== "create" && (
 						<Alert className="mb-5 border-amber-500/30 bg-amber-500/5">
 							<AlertCircle className="size-4 text-amber-500" />
 							<AlertDescription className="text-sm text-amber-700 dark:text-amber-400">
@@ -195,13 +193,13 @@ export function ModelConfigDialog({
 					)}
 
 					{mode === "create" ? (
-					<LLMConfigForm
-						searchSpaceId={searchSpaceId}
-						onSubmit={handleSubmit}
-						mode="create"
-						formId="model-config-form"
-					/>
-				) : isGlobal && config ? (
+						<LLMConfigForm
+							searchSpaceId={searchSpaceId}
+							onSubmit={handleSubmit}
+							mode="create"
+							formId="model-config-form"
+						/>
+					) : isGlobal && config ? (
 						<div className="space-y-6">
 							<div className="space-y-4">
 								<div className="grid gap-4 sm:grid-cols-2">
@@ -288,9 +286,9 @@ export function ModelConfigDialog({
 								citations_enabled: config.citations_enabled,
 								search_space_id: searchSpaceId,
 							}}
-						onSubmit={handleSubmit}
-						mode="edit"
-						formId="model-config-form"
+							onSubmit={handleSubmit}
+							mode="edit"
+							formId="model-config-form"
 						/>
 					) : null}
 				</div>
@@ -307,26 +305,26 @@ export function ModelConfigDialog({
 						Cancel
 					</Button>
 					{mode === "create" || (!isGlobal && config) ? (
-					<Button
-						type="submit"
-						form="model-config-form"
-						disabled={isSubmitting}
-						className="relative text-sm h-9 min-w-[120px]"
-					>
-						<span className={isSubmitting ? "opacity-0" : ""}>
-							{mode === "edit" ? "Save Changes" : "Create & Use"}
-						</span>
-						{isSubmitting && <Spinner size="sm" className="absolute" />}
-					</Button>
-				) : isGlobal && config ? (
-					<Button
-						className="relative text-sm h-9"
-						onClick={handleUseGlobalConfig}
-						disabled={isSubmitting}
-					>
-						<span className={isSubmitting ? "opacity-0" : ""}>Use This Model</span>
-						{isSubmitting && <Spinner size="sm" className="absolute" />}
-					</Button>
+						<Button
+							type="submit"
+							form="model-config-form"
+							disabled={isSubmitting}
+							className="relative text-sm h-9 min-w-[120px]"
+						>
+							<span className={isSubmitting ? "opacity-0" : ""}>
+								{mode === "edit" ? "Save Changes" : "Create & Use"}
+							</span>
+							{isSubmitting && <Spinner size="sm" className="absolute" />}
+						</Button>
+					) : isGlobal && config ? (
+						<Button
+							className="relative text-sm h-9"
+							onClick={handleUseGlobalConfig}
+							disabled={isSubmitting}
+						>
+							<span className={isSubmitting ? "opacity-0" : ""}>Use This Model</span>
+							{isSubmitting && <Spinner size="sm" className="absolute" />}
+						</Button>
 					) : null}
 				</div>
 			</DialogContent>

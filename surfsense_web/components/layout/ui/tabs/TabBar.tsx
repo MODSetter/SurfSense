@@ -58,7 +58,12 @@ export function TabBar({ onTabSwitch, onNewChat, className }: TabBarProps) {
 	if (tabs.length <= 1) return null;
 
 	return (
-		<div className={cn("flex h-12 items-stretch shrink-0 border-b border-border/35 bg-main-panel", className)}>
+		<div
+			className={cn(
+				"flex h-12 items-stretch shrink-0 border-b border-border/35 bg-main-panel",
+				className
+			)}
+		>
 			<div
 				ref={scrollRef}
 				className="flex h-full items-stretch flex-1 overflow-x-auto overflow-y-hidden scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"

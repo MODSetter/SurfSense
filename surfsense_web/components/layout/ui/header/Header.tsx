@@ -2,8 +2,8 @@
 
 import { useAtomValue } from "jotai";
 import { usePathname } from "next/navigation";
-import { hitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
+import { hitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 import { reportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
@@ -37,7 +37,8 @@ export function Header({ mobileMenuTrigger }: HeaderProps) {
 	const reportOpen = reportState.isOpen && !!reportState.reportId;
 	const editorOpen = editorState.isOpen && !!editorState.documentId;
 	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
-	const showExpandButton = !isMobile && collapsed && (documentsOpen || reportOpen || editorOpen || hitlEditOpen);
+	const showExpandButton =
+		!isMobile && collapsed && (documentsOpen || reportOpen || editorOpen || hitlEditOpen);
 	const hasTabBar = tabs.length > 1;
 
 	const currentThreadState = useAtomValue(currentThreadAtom);
@@ -71,7 +72,9 @@ export function Header({ mobileMenuTrigger }: HeaderProps) {
 			</div>
 
 			{/* Right side - Actions */}
-			<div className={cn("ml-auto flex items-center gap-2", showExpandButton && !hasTabBar && "mr-10")}>
+			<div
+				className={cn("ml-auto flex items-center gap-2", showExpandButton && !hasTabBar && "mr-10")}
+			>
 				{hasThread && (
 					<ChatShareButton thread={threadForButton} onVisibilityChange={handleVisibilityChange} />
 				)}

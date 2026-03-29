@@ -12,10 +12,10 @@ import { sidebarSelectedDocumentsAtom } from "@/atoms/chat/mentioned-documents.a
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
-import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { expandedFolderIdsAtom } from "@/atoms/documents/folder.atoms";
-import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { agentCreatedDocumentsAtom } from "@/atoms/documents/ui.atoms";
+import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
+import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { CreateFolderDialog } from "@/components/documents/CreateFolderDialog";
 import type { DocumentNodeDoc } from "@/components/documents/DocumentNode";
 import type { FolderDisplay } from "@/components/documents/FolderNode";

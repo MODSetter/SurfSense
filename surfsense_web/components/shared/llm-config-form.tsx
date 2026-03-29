@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtomValue } from "jotai";
 import { Check, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useForm, type Resolver } from "react-hook-form";
+import { type Resolver, useForm } from "react-hook-form";
 import { z } from "zod";
 import {
 	defaultSystemInstructionsAtom,
@@ -219,26 +219,22 @@ export function LLMConfigForm({
 						)}
 					/>
 
-				{/* Custom Provider (conditional) */}
-				{watchProvider === "CUSTOM" && (
-					<FormField
-						control={form.control}
-						name="custom_provider"
-						render={({ field }) => (
-							<FormItem>
-								<FormLabel className="text-xs sm:text-sm">Custom Provider Name</FormLabel>
-								<FormControl>
-									<Input
-										placeholder="my-custom-provider"
-										{...field}
-										value={field.value ?? ""}
-									/>
-								</FormControl>
-								<FormMessage />
-							</FormItem>
-						)}
-					/>
-				)}
+					{/* Custom Provider (conditional) */}
+					{watchProvider === "CUSTOM" && (
+						<FormField
+							control={form.control}
+							name="custom_provider"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel className="text-xs sm:text-sm">Custom Provider Name</FormLabel>
+									<FormControl>
+										<Input placeholder="my-custom-provider" {...field} value={field.value ?? ""} />
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+					)}
 
 					{/* Model Name with Combobox */}
 					<FormField
@@ -383,29 +379,29 @@ export function LLMConfigForm({
 						/>
 					</div>
 
-				{/* Ollama Quick Actions */}
-				{watchProvider === "OLLAMA" && (
-					<div className="flex flex-wrap gap-2">
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							className="h-7 text-xs"
-							onClick={() => form.setValue("api_base", "http://localhost:11434")}
-						>
-							localhost:11434
-						</Button>
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							className="h-7 text-xs"
-							onClick={() => form.setValue("api_base", "http://host.docker.internal:11434")}
-						>
-							Docker
-						</Button>
-					</div>
-				)}
+					{/* Ollama Quick Actions */}
+					{watchProvider === "OLLAMA" && (
+						<div className="flex flex-wrap gap-2">
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								className="h-7 text-xs"
+								onClick={() => form.setValue("api_base", "http://localhost:11434")}
+							>
+								localhost:11434
+							</Button>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								className="h-7 text-xs"
+								onClick={() => form.setValue("api_base", "http://host.docker.internal:11434")}
+							>
+								Docker
+							</Button>
+						</div>
+					)}
 				</div>
 
 				{/* Advanced Parameters */}

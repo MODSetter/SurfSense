@@ -20,7 +20,12 @@ import {
 	teamDialogAtom,
 	userSettingsDialogAtom,
 } from "@/atoms/settings/settings-dialog.atoms";
-import { removeChatTabAtom, resetTabsAtom, syncChatTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
+import {
+	removeChatTabAtom,
+	resetTabsAtom,
+	syncChatTabAtom,
+	type Tab,
+} from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { MorePagesDialog } from "@/components/settings/more-pages-dialog";
 import { SearchSpaceSettingsDialog } from "@/components/settings/search-space-settings-dialog";
@@ -846,7 +851,9 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 							disabled={isRenamingChat || !newChatTitle.trim()}
 							className="relative"
 						>
-							<span className={isRenamingChat ? "opacity-0" : ""}>{tSidebar("rename") || "Rename"}</span>
+							<span className={isRenamingChat ? "opacity-0" : ""}>
+								{tSidebar("rename") || "Rename"}
+							</span>
 							{isRenamingChat && (
 								<span className="absolute h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
 							)}

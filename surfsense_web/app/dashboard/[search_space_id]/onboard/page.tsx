@@ -166,13 +166,13 @@ export default function OnboardPage() {
 
 				{/* Form card */}
 				<div className="rounded-xl border bg-background dark:bg-neutral-900 flex-1 min-h-0 overflow-y-auto px-6 py-6">
-				<LLMConfigForm
-					searchSpaceId={searchSpaceId}
-					onSubmit={handleSubmit}
-					mode="create"
-					showAdvanced={true}
-					formId="onboard-config-form"
-					initialData={{
+					<LLMConfigForm
+						searchSpaceId={searchSpaceId}
+						onSubmit={handleSubmit}
+						mode="create"
+						showAdvanced={true}
+						formId="onboard-config-form"
+						initialData={{
 							citations_enabled: true,
 							use_default_system_instructions: true,
 						}}
@@ -190,9 +190,7 @@ export default function OnboardPage() {
 						<span className={isSubmitting ? "opacity-0" : ""}>Start Using SurfSense</span>
 						{isSubmitting && <Spinner size="sm" className="absolute" />}
 					</Button>
-					<p className="text-xs text-muted-foreground">
-						You can add more configurations later
-					</p>
+					<p className="text-xs text-muted-foreground">You can add more configurations later</p>
 				</div>
 			</div>
 		</div>

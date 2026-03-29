@@ -1076,7 +1076,11 @@ async def _stream_agent_events(
                     },
                 )
             elif tool_name == "web_search":
-                xml = tool_output.get("result", str(tool_output)) if isinstance(tool_output, dict) else str(tool_output)
+                xml = (
+                    tool_output.get("result", str(tool_output))
+                    if isinstance(tool_output, dict)
+                    else str(tool_output)
+                )
                 citations: dict[str, dict[str, str]] = {}
                 for m in re.finditer(
                     r"<title><!\[CDATA\[(.*?)\]\]></title>\s*<url><!\[CDATA\[(.*?)\]\]></url>",

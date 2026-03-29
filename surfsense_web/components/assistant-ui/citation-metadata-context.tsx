@@ -24,7 +24,9 @@ interface MessageContent {
 }
 
 export const CitationMetadataProvider: FC<{ children: ReactNode }> = ({ children }) => {
-	const content = useAuiState(({ message }) => (message as { content?: MessageContent[] })?.content);
+	const content = useAuiState(
+		({ message }) => (message as { content?: MessageContent[] })?.content
+	);
 
 	const metadataMap = useMemo<CitationMetadataMap>(() => {
 		if (!content || !Array.isArray(content)) return new Map();
@@ -51,7 +53,9 @@ export const CitationMetadataProvider: FC<{ children: ReactNode }> = ({ children
 	}, [content]);
 
 	return (
-		<CitationMetadataContext.Provider value={metadataMap}>{children}</CitationMetadataContext.Provider>
+		<CitationMetadataContext.Provider value={metadataMap}>
+			{children}
+		</CitationMetadataContext.Provider>
 	);
 };
 

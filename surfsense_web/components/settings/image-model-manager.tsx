@@ -1,24 +1,15 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import {
-	AlertCircle,
-	Edit3,
-	Info,
-	Plus,
-	RefreshCw,
-	Trash2,
-	Wand2,
-} from "lucide-react";
+import { AlertCircle, Edit3, Info, Plus, RefreshCw, Trash2, Wand2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import {
-	deleteImageGenConfigMutationAtom,
-} from "@/atoms/image-gen-config/image-gen-config-mutation.atoms";
+import { deleteImageGenConfigMutationAtom } from "@/atoms/image-gen-config/image-gen-config-mutation.atoms";
 import {
 	globalImageGenConfigsAtom,
 	imageGenConfigsAtom,
 } from "@/atoms/image-gen-config/image-gen-config-query.atoms";
 import { membersAtom, myAccessAtom } from "@/atoms/members/members-query.atoms";
+import { ImageConfigDialog } from "@/components/shared/image-config-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
 	AlertDialog,
@@ -40,7 +31,6 @@ import type { ImageGenerationConfig } from "@/contracts/types/new-llm-config.typ
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { getProviderIcon } from "@/lib/provider-icons";
 import { cn } from "@/lib/utils";
-import { ImageConfigDialog } from "@/components/shared/image-config-dialog";
 
 interface ImageModelManagerProps {
 	searchSpaceId: number;
@@ -196,7 +186,16 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 				<Alert className="bg-muted/50 py-3">
 					<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
 					<AlertDescription className="text-xs md:text-sm">
-						<p><span className="font-medium">{globalConfigs.filter((g) => !("is_auto_mode" in g && g.is_auto_mode)).length} global image {globalConfigs.filter((g) => !("is_auto_mode" in g && g.is_auto_mode)).length === 1 ? "model" : "models"}</span> available from your administrator. Use the model selector to view and select them.</p>
+						<p>
+							<span className="font-medium">
+								{globalConfigs.filter((g) => !("is_auto_mode" in g && g.is_auto_mode)).length}{" "}
+								global image{" "}
+								{globalConfigs.filter((g) => !("is_auto_mode" in g && g.is_auto_mode)).length === 1
+									? "model"
+									: "models"}
+							</span>{" "}
+							available from your administrator. Use the model selector to view and select them.
+						</p>
 					</AlertDescription>
 				</Alert>
 			)}
@@ -399,10 +398,8 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 				onOpenChange={(open) => !open && setConfigToDelete(null)}
 			>
 				<AlertDialogContent className="select-none">
-				<AlertDialogHeader>
-					<AlertDialogTitle>
-						Delete Image Model
-					</AlertDialogTitle>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Delete Image Model</AlertDialogTitle>
 						<AlertDialogDescription>
 							Are you sure you want to delete{" "}
 							<span className="font-semibold text-foreground">{configToDelete?.name}</span>?
@@ -410,14 +407,14 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 					</AlertDialogHeader>
 					<AlertDialogFooter>
 						<AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-					<AlertDialogAction
-						onClick={handleDelete}
-						disabled={isDeleting}
-						className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90"
-					>
-						<span className={isDeleting ? "opacity-0" : ""}>Delete</span>
-						{isDeleting && <Spinner size="sm" className="absolute" />}
-					</AlertDialogAction>
+						<AlertDialogAction
+							onClick={handleDelete}
+							disabled={isDeleting}
+							className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90"
+						>
+							<span className={isDeleting ? "opacity-0" : ""}>Delete</span>
+							{isDeleting && <Spinner size="sm" className="absolute" />}
+						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>

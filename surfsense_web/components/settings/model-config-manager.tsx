@@ -14,9 +14,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { membersAtom, myAccessAtom } from "@/atoms/members/members-query.atoms";
-import {
-	deleteNewLLMConfigMutationAtom,
-} from "@/atoms/new-llm-config/new-llm-config-mutation.atoms";
+import { deleteNewLLMConfigMutationAtom } from "@/atoms/new-llm-config/new-llm-config-mutation.atoms";
 import {
 	globalNewLLMConfigsAtom,
 	newLLMConfigsAtom,
@@ -203,7 +201,12 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 				<Alert className="bg-muted/50 py-3">
 					<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
 					<AlertDescription className="text-xs md:text-sm">
-						<p><span className="font-medium">{globalConfigs.length} global {globalConfigs.length === 1 ? "model" : "models"}</span> available from your administrator. Use the model selector to view and select them.</p>
+						<p>
+							<span className="font-medium">
+								{globalConfigs.length} global {globalConfigs.length === 1 ? "model" : "models"}
+							</span>{" "}
+							available from your administrator. Use the model selector to view and select them.
+						</p>
 					</AlertDescription>
 				</Alert>
 			)}
@@ -433,9 +436,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 			>
 				<AlertDialogContent className="select-none">
 					<AlertDialogHeader>
-					<AlertDialogTitle>
-						Delete LLM Model
-					</AlertDialogTitle>
+						<AlertDialogTitle>Delete LLM Model</AlertDialogTitle>
 						<AlertDialogDescription>
 							Are you sure you want to delete{" "}
 							<span className="font-semibold text-foreground">{configToDelete?.name}</span>? This
@@ -449,14 +450,14 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 							disabled={isDeleting}
 							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
-						{isDeleting ? (
-							<>
-								<Spinner size="sm" className="mr-2" />
-								Deleting
-							</>
-						) : (
-							"Delete"
-						)}
+							{isDeleting ? (
+								<>
+									<Spinner size="sm" className="mr-2" />
+									Deleting
+								</>
+							) : (
+								"Delete"
+							)}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
