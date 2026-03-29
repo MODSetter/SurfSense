@@ -795,9 +795,10 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 								confirmDeleteChat();
 							}}
 							disabled={isDeletingChat}
-							className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
+							className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90 items-center justify-center"
 						>
-							{isDeletingChat ? <Spinner size="sm" /> : tCommon("delete")}
+							<span className={isDeletingChat ? "opacity-0" : ""}>{tCommon("delete")}</span>
+							{isDeletingChat && <Spinner size="sm" className="absolute" />}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
@@ -835,15 +836,11 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						<Button
 							onClick={confirmRenameChat}
 							disabled={isRenamingChat || !newChatTitle.trim()}
-							className="gap-2"
+							className="relative"
 						>
-							{isRenamingChat ? (
-								<>
-									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-									{tSidebar("renaming") || "Renaming"}
-								</>
-							) : (
-								tSidebar("rename") || "Rename"
+							<span className={isRenamingChat ? "opacity-0" : ""}>{tSidebar("rename") || "Rename"}</span>
+							{isRenamingChat && (
+								<span className="absolute h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
 							)}
 						</Button>
 					</DialogFooter>
@@ -869,15 +866,11 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 								confirmDeleteSearchSpace();
 							}}
 							disabled={isDeletingSearchSpace}
-							className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
+							className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
-							{isDeletingSearchSpace ? (
-								<>
-									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-									{t("deleting")}
-								</>
-							) : (
-								tCommon("delete")
+							<span className={isDeletingSearchSpace ? "opacity-0" : ""}>{tCommon("delete")}</span>
+							{isDeletingSearchSpace && (
+								<span className="absolute h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
 							)}
 						</AlertDialogAction>
 					</AlertDialogFooter>
@@ -903,15 +896,11 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 								confirmLeaveSearchSpace();
 							}}
 							disabled={isLeavingSearchSpace}
-							className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
+							className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
-							{isLeavingSearchSpace ? (
-								<>
-									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-									{t("leaving")}
-								</>
-							) : (
-								t("leave")
+							<span className={isLeavingSearchSpace ? "opacity-0" : ""}>{t("leave")}</span>
+							{isLeavingSearchSpace && (
+								<span className="absolute h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
 							)}
 						</AlertDialogAction>
 					</AlertDialogFooter>

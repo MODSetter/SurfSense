@@ -165,8 +165,9 @@ export function PromptsContent() {
 						<Button variant="ghost" size="sm" onClick={handleCancel}>
 							Cancel
 						</Button>
-						<Button size="sm" onClick={handleSave} disabled={isSaving}>
-							{isSaving ? <Spinner className="size-3.5" /> : editingId ? "Update" : "Create"}
+						<Button size="sm" onClick={handleSave} disabled={isSaving} className="relative">
+							<span className={isSaving ? "opacity-0" : ""}>{editingId ? "Update" : "Create"}</span>
+							{isSaving && <Spinner className="size-3.5 absolute" />}
 						</Button>
 					</div>
 				</div>
