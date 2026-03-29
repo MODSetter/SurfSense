@@ -37,8 +37,14 @@ export function useSidebarState(defaultCollapsed = false): UseSidebarStateReturn
 	}, []);
 
 	const toggleCollapsed = useCallback(() => {
-		setIsCollapsed(!isCollapsed);
-	}, [isCollapsed, setIsCollapsed]);
+		setIsCollapsedState(prev => {
+			const next = !prev;
+			try {
+				document.cookie = `${SIDEBAR_COOKIE_NAME}=${next}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
+			} catch {}
+			return next;
+		});
+	}, []);
 
 	// Keyboard shortcut: Cmd/Ctrl + \
 	useEffect(() => {

@@ -40,26 +40,17 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 	const [name, setName] = useState("");
 	const [description, setDescription] = useState("");
 	const [saving, setSaving] = useState(false);
-	const [hasChanges, setHasChanges] = useState(false);
 
 	// Initialize state from fetched search space
 	useEffect(() => {
 		if (searchSpace) {
 			setName(searchSpace.name || "");
 			setDescription(searchSpace.description || "");
-			setHasChanges(false);
 		}
 	}, [searchSpace]);
 
-	// Track changes
-	useEffect(() => {
-		if (searchSpace) {
-			const currentName = searchSpace.name || "";
-			const currentDescription = searchSpace.description || "";
-			const changed = currentName !== name || currentDescription !== description;
-			setHasChanges(changed);
-		}
-	}, [searchSpace, name, description]);
+	// Derive hasChanges during render
+	const hasChanges = !!searchSpace && ((searchSpace.name || "") !== name || (searchSpace.description || "") !== description);
 
 	const handleSave = async () => {
 		try {
@@ -73,7 +64,6 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 				},
 			});
 
-			setHasChanges(false);
 			await fetchSearchSpace();
 		} catch (error: any) {
 			console.error("Error saving search space details:", error);
