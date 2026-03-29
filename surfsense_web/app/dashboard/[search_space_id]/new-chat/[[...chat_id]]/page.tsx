@@ -218,15 +218,13 @@ export default function NewChatPage() {
 				return;
 			}
 
-			const isSharedChat = currentThread?.visibility === "SEARCH_SPACE";
-
 			setMessages((prev) => {
 				if (syncedMessages.length < prev.length) {
 					return prev;
 				}
 
 				return syncedMessages.map((msg) => {
-					const member = isSharedChat && msg.author_id
+					const member = msg.author_id
 						? membersData?.find((m) => m.user_id === msg.author_id)
 						: null;
 
@@ -241,7 +239,7 @@ export default function NewChatPage() {
 						thread_id: msg.thread_id,
 						role: msg.role.toLowerCase() as "user" | "assistant" | "system",
 						content: msg.content,
-						author_id: isSharedChat ? msg.author_id : null,
+						author_id: msg.author_id,
 						created_at: msg.created_at,
 						author_display_name: member?.user_display_name ?? existingAuthor?.displayName ?? null,
 						author_avatar_url: member?.user_avatar_url ?? existingAuthor?.avatarUrl ?? null,
@@ -249,7 +247,7 @@ export default function NewChatPage() {
 				});
 			});
 		},
-		[isRunning, membersData, currentThread?.visibility]
+		[isRunning, membersData]
 	);
 
 	useMessagesSync(threadId, handleSyncedMessagesUpdate);
@@ -485,18 +483,17 @@ export default function NewChatPage() {
 			// Add user message to state
 			const userMsgId = `msg-user-${Date.now()}`;
 
-			// Include author metadata for shared chats
-			const authorMetadata =
-				currentThread?.visibility === "SEARCH_SPACE" && currentUser
-					? {
-							custom: {
-								author: {
-									displayName: currentUser.display_name ?? null,
-									avatarUrl: currentUser.avatar_url ?? null,
-								},
+			// Always include author metadata so the UI layer can decide visibility
+			const authorMetadata = currentUser
+				? {
+						custom: {
+							author: {
+								displayName: currentUser.display_name ?? null,
+								avatarUrl: currentUser.avatar_url ?? null,
 							},
-						}
-					: undefined;
+						},
+					}
+				: undefined;
 
 			const userMessage: ThreadMessageLike = {
 				id: userMsgId,
@@ -884,7 +881,6 @@ export default function NewChatPage() {
 			setMessageDocumentsMap,
 			setAgentCreatedDocuments,
 			queryClient,
-			currentThread,
 			currentUser,
 			disabledTools,
 			updateChatTabTitle,
