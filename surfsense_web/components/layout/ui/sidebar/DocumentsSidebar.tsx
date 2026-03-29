@@ -7,12 +7,14 @@ import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { MarkdownViewer } from "@/components/markdown-viewer";
 import { DocumentsFilters } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentsFilters";
 import { sidebarSelectedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { expandedFolderIdsAtom } from "@/atoms/documents/folder.atoms";
+import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { agentCreatedDocumentsAtom } from "@/atoms/documents/ui.atoms";
 import { openDocumentTabAtom } from "@/atoms/tabs/tabs.atom";
 import { CreateFolderDialog } from "@/components/documents/CreateFolderDialog";
@@ -33,13 +35,22 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+	Drawer,
+	DrawerContent,
+	DrawerHandle,
+	DrawerHeader,
+	DrawerTitle,
+} from "@/components/ui/drawer";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
+import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import { queries } from "@/zero/queries/index";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
@@ -83,9 +94,12 @@ export function DocumentsSidebar({
 	const isMobile = !useMediaQuery("(min-width: 640px)");
 	const searchSpaceId = Number(params.search_space_id);
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
+	const setRightPanelCollapsed = useSetAtom(rightPanelCollapsedAtom);
 	const openDocumentTab = useSetAtom(openDocumentTabAtom);
 	const { data: connectors } = useAtomValue(connectorsAtom);
 	const connectorCount = connectors?.length ?? 0;
+
+	const isMobileLayout = useIsMobile();
 
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebouncedValue(search, 250);
@@ -360,6 +374,31 @@ export function DocumentsSidebar({
 		[]
 	);
 
+	// Document popup viewer state (for tree view "Open" and mobile preview)
+	const [viewingDoc, setViewingDoc] = useState<DocumentNodeDoc | null>(null);
+	const [viewingContent, setViewingContent] = useState<string>("");
+	const [viewingLoading, setViewingLoading] = useState(false);
+
+	const handleViewDocumentPopup = useCallback(async (doc: DocumentNodeDoc) => {
+		setViewingDoc(doc);
+		setViewingLoading(true);
+		try {
+			const fullDoc = await documentsApiService.getDocument({ id: doc.id });
+			setViewingContent(fullDoc.content);
+		} catch (err) {
+			console.error("[DocumentsSidebar] Failed to fetch document content:", err);
+			setViewingContent("Failed to load document content.");
+		} finally {
+			setViewingLoading(false);
+		}
+	}, []);
+
+	const handleCloseViewer = useCallback(() => {
+		setViewingDoc(null);
+		setViewingContent("");
+		setViewingLoading(false);
+	}, []);
+
 	const handleToggleChatMention = useCallback(
 		(doc: { id: number; title: string; document_type: string }, isMentioned: boolean) => {
 			if (isMentioned) {
@@ -505,12 +544,16 @@ export function DocumentsSidebar({
 	useEffect(() => {
 		const handleEscape = (e: KeyboardEvent) => {
 			if (e.key === "Escape" && open) {
-				onOpenChange(false);
+				if (isMobile) {
+					onOpenChange(false);
+				} else {
+					setRightPanelCollapsed(true);
+				}
 			}
 		};
 		document.addEventListener("keydown", handleEscape);
 		return () => document.removeEventListener("keydown", handleEscape);
-	}, [open, onOpenChange]);
+	}, [open, onOpenChange, isMobile, setRightPanelCollapsed]);
 
 	const documentsContent = (
 		<>
@@ -673,18 +716,24 @@ export function DocumentsSidebar({
 					onCreateFolder={handleCreateFolder}
 					searchQuery={debouncedSearch.trim() || undefined}
 					onPreviewDocument={(doc) => {
-						openDocumentTab({
-							documentId: doc.id,
-							searchSpaceId,
-							title: doc.title,
-						});
+						if (isMobileLayout) {
+							handleViewDocumentPopup(doc);
+						} else {
+							openDocumentTab({
+								documentId: doc.id,
+								searchSpaceId,
+								title: doc.title,
+							});
+						}
 					}}
 					onEditDocument={(doc) => {
-						openDocumentTab({
-							documentId: doc.id,
-							searchSpaceId,
-							title: doc.title,
-						});
+						if (!isMobileLayout) {
+							openDocumentTab({
+								documentId: doc.id,
+								searchSpaceId,
+								title: doc.title,
+							});
+						}
 					}}
 					onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
 					onMoveDocument={handleMoveDocument}
@@ -711,6 +760,26 @@ export function DocumentsSidebar({
 				parentFolderName={createFolderParentName}
 				onConfirm={handleCreateFolderConfirm}
 			/>
+
+			<Drawer open={!!viewingDoc} onOpenChange={(open) => !open && handleCloseViewer()}>
+				<DrawerContent className="max-h-[85vh] flex flex-col">
+					<DrawerHandle />
+					<DrawerHeader className="text-left shrink-0">
+						<DrawerTitle className="text-base leading-tight break-words">
+							{viewingDoc?.title}
+						</DrawerTitle>
+					</DrawerHeader>
+					<div className="overflow-y-auto flex-1 min-h-0 px-4 pb-6 select-text text-xs [&_h1]:text-base! [&_h1]:mt-3! [&_h2]:text-sm! [&_h2]:mt-2! [&_h3]:text-xs! [&_h3]:mt-2!">
+						{viewingLoading ? (
+							<div className="flex items-center justify-center py-12">
+								<Spinner size="lg" className="text-muted-foreground" />
+							</div>
+						) : (
+							<MarkdownViewer content={viewingContent} />
+						)}
+					</div>
+				</DrawerContent>
+			</Drawer>
 
 			<AlertDialog
 				open={bulkDeleteConfirmOpen}

@@ -277,6 +277,19 @@ class ConnectorsApiService {
 		}>(`/api/v1/connectors/${connectorId}/drive-picker-token`);
 	};
 
+	/**
+	 * List OneDrive folders and files
+	 */
+	listOneDriveFolders = async (request: { connector_id: number; parent_id?: string }) => {
+		const queryParams = request.parent_id
+			? `?parent_id=${encodeURIComponent(request.parent_id)}`
+			: "";
+		return baseApiService.get(
+			`/api/v1/connectors/${request.connector_id}/onedrive/folders${queryParams}`,
+			listGoogleDriveFoldersResponse
+		);
+	};
+
 	// =============================================================================
 	// MCP Connector Methods
 	// =============================================================================

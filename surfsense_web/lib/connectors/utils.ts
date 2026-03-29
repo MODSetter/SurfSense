@@ -8,6 +8,7 @@ export const getConnectorTypeDisplay = (type: string): string => {
 		BAIDU_SEARCH_API: "Baidu Search",
 		SLACK_CONNECTOR: "Slack",
 		TEAMS_CONNECTOR: "Microsoft Teams",
+		ONEDRIVE_CONNECTOR: "OneDrive",
 		NOTION_CONNECTOR: "Notion",
 		GITHUB_CONNECTOR: "GitHub",
 		LINEAR_CONNECTOR: "Linear",

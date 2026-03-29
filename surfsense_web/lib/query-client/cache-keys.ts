@@ -79,10 +79,6 @@ export const cacheKeys = {
 			folders: (connectorId: number, parentId?: string) =>
 				["connectors", "google-drive", connectorId, "folders", parentId] as const,
 		},
-		composioDrive: {
-			folders: (connectorId: number, parentId?: string) =>
-				["connectors", "composio-drive", connectorId, "folders", parentId] as const,
-		},
 	},
 	comments: {
 		byMessage: (messageId: number) => ["comments", "message", messageId] as const,

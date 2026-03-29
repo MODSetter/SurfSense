@@ -127,9 +127,10 @@ Edit the `.env` file and set the following variables:
 | SLACK_CLIENT_ID            | (Optional) Slack OAuth client ID                                                                                                                                                          |
 | SLACK_CLIENT_SECRET        | (Optional) Slack OAuth client secret                                                                                                                                                      |
 | SLACK_REDIRECT_URI         | (Optional) Redirect URI for Slack connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/slack/connector/callback`)                                                          |
-| TEAMS_CLIENT_ID            | (Optional) Microsoft Teams OAuth client ID                                                                                                                                                |
-| TEAMS_CLIENT_SECRET        | (Optional) Microsoft Teams OAuth client secret                                                                                                                                            |
+| MICROSOFT_CLIENT_ID        | (Optional) Microsoft OAuth client ID (shared for Teams and OneDrive)                                                                                                                      |
+| MICROSOFT_CLIENT_SECRET    | (Optional) Microsoft OAuth client secret (shared for Teams and OneDrive)                                                                                                                  |
 | TEAMS_REDIRECT_URI         | (Optional) Redirect URI for Teams connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/teams/connector/callback`)                                                          |
+| ONEDRIVE_REDIRECT_URI      | (Optional) Redirect URI for OneDrive connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/onedrive/connector/callback`)                                                    |
 
 **(Optional) Backend LangSmith Observability:**
 | ENV VARIABLE | DESCRIPTION |

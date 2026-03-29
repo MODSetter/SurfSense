@@ -182,6 +182,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
 			priority: 0.8,
 		},
 		{
+			url: "https://www.surfsense.com/docs/connectors/microsoft-onedrive",
+			lastModified,
+			changeFrequency: "daily",
+			priority: 0.8,
+		},
+		{
 			url: "https://www.surfsense.com/docs/connectors/microsoft-teams",
 			lastModified,
 			changeFrequency: "daily",

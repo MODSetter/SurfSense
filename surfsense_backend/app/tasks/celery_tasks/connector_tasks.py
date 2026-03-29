@@ -526,6 +526,54 @@ async def _index_google_drive_files(
         )
 
 
+@celery_app.task(name="index_onedrive_files", bind=True)
+def index_onedrive_files_task(
+    self,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    items_dict: dict,
+):
+    """Celery task to index OneDrive folders and files."""
+    import asyncio
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    try:
+        loop.run_until_complete(
+            _index_onedrive_files(
+                connector_id,
+                search_space_id,
+                user_id,
+                items_dict,
+            )
+        )
+    finally:
+        loop.close()
+
+
+async def _index_onedrive_files(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    items_dict: dict,
+):
+    """Index OneDrive folders and files with new session."""
+    from app.routes.search_source_connectors_routes import (
+        run_onedrive_indexing,
+    )
+
+    async with get_celery_session_maker()() as session:
+        await run_onedrive_indexing(
+            session,
+            connector_id,
+            search_space_id,
+            user_id,
+            items_dict,
+        )
+
+
 @celery_app.task(name="index_discord_messages", bind=True)
 def index_discord_messages_task(
     self,

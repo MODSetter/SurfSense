@@ -84,6 +84,7 @@ _CONNECTOR_TYPE_TO_SEARCHABLE: dict[str, str] = {
     "BOOKSTACK_CONNECTOR": "BOOKSTACK_CONNECTOR",
     "CIRCLEBACK_CONNECTOR": "CIRCLEBACK",  # Connector type differs from document type
     "OBSIDIAN_CONNECTOR": "OBSIDIAN_CONNECTOR",
+    "ONEDRIVE_CONNECTOR": "ONEDRIVE_FILE",  # Connector type differs from document type
     # Composio connectors (unified to native document types).
     # Reverse of NATIVE_TO_LEGACY_DOCTYPE in app.db.
     "COMPOSIO_GOOGLE_DRIVE_CONNECTOR": "GOOGLE_DRIVE_FILE",
@@ -315,6 +316,12 @@ async def create_surfsense_deep_agent(
             "delete_google_drive_file",
         ]
         modified_disabled_tools.extend(google_drive_tools)
+
+    has_onedrive_connector = (
+        available_connectors is not None and "ONEDRIVE_FILE" in available_connectors
+    )
+    if not has_onedrive_connector:
+        modified_disabled_tools.extend(["create_onedrive_file", "delete_onedrive_file"])
 
     # Disable Google Calendar action tools if no Google Calendar connector is configured
     has_google_calendar_connector = (

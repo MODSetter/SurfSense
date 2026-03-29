@@ -12,15 +12,13 @@ import {
 	Image,
 	Presentation,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
-import { useComposioDriveFolders } from "@/hooks/use-composio-drive-folders";
-import { connectorsApiService } from "@/lib/apis/connectors-api.service";
 import { cn } from "@/lib/utils";
 
-interface DriveItem {
+export interface DriveItem {
 	id: string;
 	name: string;
 	mimeType: string;
@@ -32,73 +30,92 @@ interface DriveItem {
 
 interface ItemTreeNode {
 	item: DriveItem;
-	children: DriveItem[] | null; // null = not loaded, [] = loaded but empty
+	children: DriveItem[] | null;
 	isExpanded: boolean;
 	isLoading: boolean;
 }
 
-interface SelectedFolder {
+export interface SelectedFolder {
 	id: string;
 	name: string;
 }
 
-interface ComposioDriveFolderTreeProps {
-	connectorId: number;
+interface DriveFolderTreeProps {
+	fetchItems: (parentId?: string) => Promise<{ items: DriveItem[] }>;
 	selectedFolders: SelectedFolder[];
 	onSelectFolders: (folders: SelectedFolder[]) => void;
 	selectedFiles?: SelectedFolder[];
 	onSelectFiles?: (files: SelectedFolder[]) => void;
 	onAuthError?: (message: string) => void;
+	rootLabel?: string;
+	providerName?: string;
 }
 
-// Helper to get appropriate icon for file type
-function getFileIcon(mimeType: string, className: string = "h-4 w-4") {
-	if (mimeType.includes("spreadsheet") || mimeType.includes("excel")) {
+function getFileIcon(mimeType?: string, className: string = "h-4 w-4") {
+	const type = mimeType ?? "";
+	if (type.includes("spreadsheet") || type.includes("excel")) {
 		return <FileSpreadsheet className={`${className} text-muted-foreground`} />;
 	}
-	if (mimeType.includes("presentation") || mimeType.includes("powerpoint")) {
+	if (type.includes("presentation") || type.includes("powerpoint")) {
 		return <Presentation className={`${className} text-muted-foreground`} />;
 	}
-	if (mimeType.includes("document") || mimeType.includes("word") || mimeType.includes("text")) {
+	if (type.includes("document") || type.includes("word") || type.includes("text")) {
 		return <FileText className={`${className} text-muted-foreground`} />;
 	}
-	if (mimeType.includes("image")) {
+	if (type.includes("image")) {
 		return <Image className={`${className} text-muted-foreground`} />;
 	}
 	return <File className={`${className} text-muted-foreground`} />;
 }
 
-export function ComposioDriveFolderTree({
-	connectorId,
+export function DriveFolderTree({
+	fetchItems,
 	selectedFolders,
 	onSelectFolders,
 	selectedFiles = [],
 	onSelectFiles = () => {},
 	onAuthError,
-}: ComposioDriveFolderTreeProps) {
+	rootLabel = "My Drive",
+	providerName = "Drive",
+}: DriveFolderTreeProps) {
 	const [itemStates, setItemStates] = useState<Map<string, ItemTreeNode>>(new Map());
-
-	const {
-		data: rootData,
-		isLoading: isLoadingRoot,
-		error: rootError,
-	} = useComposioDriveFolders({
-		connectorId,
-	});
+	const [rootItems, setRootItems] = useState<DriveItem[]>([]);
+	const [isLoadingRoot, setIsLoadingRoot] = useState(true);
+	const [rootError, setRootError] = useState<Error | null>(null);
 
 	useEffect(() => {
-		if (rootError && onAuthError) {
-			const msg = rootError instanceof Error ? rootError.message : String(rootError);
-			if (
-				msg.toLowerCase().includes("authentication expired") ||
-				msg.toLowerCase().includes("re-authenticate")
-			) {
-				onAuthError(msg);
-			}
-		}
-	}, [rootError, onAuthError]);
+		let cancelled = false;
+		setIsLoadingRoot(true);
+		setRootError(null);
 
-	const rootItems = rootData?.items || [];
+		fetchItems()
+			.then((data) => {
+				if (!cancelled) {
+					setRootItems(data.items || []);
+					setIsLoadingRoot(false);
+				}
+			})
+			.catch((err) => {
+				if (!cancelled) {
+					const error = err instanceof Error ? err : new Error(String(err));
+					setRootError(error);
+					setIsLoadingRoot(false);
+					if (onAuthError) {
+						const msg = error.message;
+						if (
+							msg.toLowerCase().includes("authentication expired") ||
+							msg.toLowerCase().includes("re-authenticate")
+						) {
+							onAuthError(msg);
+						}
+					}
+				}
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [fetchItems, onAuthError]);
 
 	const isFolderSelected = (folderId: string): boolean => {
 		return selectedFolders.some((f) => f.id === folderId);
@@ -124,89 +141,81 @@ export function ComposioDriveFolderTree({
 		}
 	};
 
-	/**
-	 * Find an item by ID across all loaded items (root and nested).
-	 */
-	const findItem = (itemId: string): DriveItem | undefined => {
-		const state = itemStates.get(itemId);
-		if (state?.item) return state.item;
+	const findItem = useCallback(
+		(itemId: string): DriveItem | undefined => {
+			const state = itemStates.get(itemId);
+			if (state?.item) return state.item;
 
-		const rootItem = rootItems.find((item) => item.id === itemId);
-		if (rootItem) return rootItem;
+			const rootItem = rootItems.find((item) => item.id === itemId);
+			if (rootItem) return rootItem;
 
-		for (const [, nodeState] of itemStates) {
-			if (nodeState.children) {
-				const found = nodeState.children.find((child) => child.id === itemId);
-				if (found) return found;
+			for (const [, nodeState] of itemStates) {
+				if (nodeState.children) {
+					const found = nodeState.children.find((child) => child.id === itemId);
+					if (found) return found;
+				}
 			}
-		}
 
-		return undefined;
-	};
+			return undefined;
+		},
+		[itemStates, rootItems]
+	);
 
-	/**
-	 * Load and display contents of a specific folder.
-	 */
-	const loadFolderContents = async (folderId: string) => {
-		try {
-			setItemStates((prev) => {
-				const newMap = new Map(prev);
-				const existing = newMap.get(folderId);
-				if (existing) {
-					newMap.set(folderId, { ...existing, isLoading: true });
-				} else {
-					const item = findItem(folderId);
+	const loadFolderContents = useCallback(
+		async (folderId: string) => {
+			try {
+				setItemStates((prev) => {
+					const newMap = new Map(prev);
+					const existing = newMap.get(folderId);
+					if (existing) {
+						newMap.set(folderId, { ...existing, isLoading: true });
+					} else {
+						const item = findItem(folderId);
+						if (item) {
+							newMap.set(folderId, {
+								item,
+								children: null,
+								isExpanded: false,
+								isLoading: true,
+							});
+						}
+					}
+					return newMap;
+				});
+
+				const data = await fetchItems(folderId);
+				const items = data.items || [];
+
+				setItemStates((prev) => {
+					const newMap = new Map(prev);
+					const existing = newMap.get(folderId);
+					const item = existing?.item || findItem(folderId);
+
 					if (item) {
 						newMap.set(folderId, {
 							item,
-							children: null,
-							isExpanded: false,
-							isLoading: true,
+							children: items,
+							isExpanded: true,
+							isLoading: false,
 						});
 					}
-				}
-				return newMap;
-			});
+					return newMap;
+				});
+			} catch (error) {
+				console.error("Error loading folder contents:", error);
+				setItemStates((prev) => {
+					const newMap = new Map(prev);
+					const existing = newMap.get(folderId);
+					if (existing) {
+						newMap.set(folderId, { ...existing, isLoading: false });
+					}
+					return newMap;
+				});
+			}
+		},
+		[fetchItems, findItem]
+	);
 
-			const data = await connectorsApiService.listComposioDriveFolders({
-				connector_id: connectorId,
-				parent_id: folderId,
-			});
-			const items = data.items || [];
-
-			setItemStates((prev) => {
-				const newMap = new Map(prev);
-				const existing = newMap.get(folderId);
-				const item = existing?.item || findItem(folderId);
-
-				if (item) {
-					newMap.set(folderId, {
-						item,
-						children: items,
-						isExpanded: true,
-						isLoading: false,
-					});
-				} else {
-					console.error(`Could not find item for folderId: ${folderId}`);
-				}
-				return newMap;
-			});
-		} catch (error) {
-			console.error("Error loading folder contents:", error);
-			setItemStates((prev) => {
-				const newMap = new Map(prev);
-				const existing = newMap.get(folderId);
-				if (existing) {
-					newMap.set(folderId, { ...existing, isLoading: false });
-				}
-				return newMap;
-			});
-		}
-	};
-
-	/**
-	 * Toggle folder expand/collapse state.
-	 */
 	const toggleFolder = async (item: DriveItem) => {
 		if (!item.isFolder) return;
 
@@ -226,9 +235,6 @@ export function ComposioDriveFolderTree({
 		}
 	};
 
-	/**
-	 * Render a single item (folder or file) with its children.
-	 */
 	const renderItem = (item: DriveItem, level: number = 0) => {
 		const state = itemStates.get(item.id);
 		const isExpanded = state?.isExpanded || false;
@@ -240,7 +246,7 @@ export function ComposioDriveFolderTree({
 		const childFolders = children?.filter((c) => c.isFolder) || [];
 		const childFiles = children?.filter((c) => !c.isFolder) || [];
 
-		const indentSize = 0.75; // Smaller indent for mobile
+		const indentSize = 0.75;
 
 		return (
 			<div
@@ -346,16 +352,16 @@ export function ComposioDriveFolderTree({
 						<div className="flex items-center gap-1 sm:gap-2 h-auto py-1 sm:py-2 px-1 sm:px-2 rounded-md hover:bg-accent cursor-pointer">
 							<Checkbox
 								checked={isFolderSelected("root")}
-								onCheckedChange={() => toggleFolderSelection("root", "My Drive")}
+								onCheckedChange={() => toggleFolderSelection("root", rootLabel)}
 								className="shrink-0 h-3.5 w-3.5 sm:h-4 sm:w-4 border-slate-400/20 dark:border-white/20"
 							/>
 							<HardDrive className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
 							<button
 								type="button"
 								className="font-semibold truncate text-xs sm:text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
-								onClick={() => toggleFolderSelection("root", "My Drive")}
+								onClick={() => toggleFolderSelection("root", rootLabel)}
 							>
-								My Drive
+								{rootLabel}
 							</button>
 						</div>
 					</div>
@@ -372,17 +378,15 @@ export function ComposioDriveFolderTree({
 
 					{!isLoadingRoot && rootError && (
 						<div className="text-center text-xs sm:text-sm text-amber-600 dark:text-amber-500 py-4 sm:py-8">
-							{(rootError instanceof Error ? rootError.message : String(rootError)).includes(
-								"authentication expired"
-							)
-								? "Google Drive authentication has expired. Please re-authenticate above."
-								: "Failed to load Google Drive contents."}
+							{rootError.message.includes("authentication expired")
+								? `${providerName} authentication has expired. Please re-authenticate above.`
+								: `Failed to load ${providerName} contents.`}
 						</div>
 					)}
 
 					{!isLoadingRoot && !rootError && rootItems.length === 0 && (
 						<div className="text-center text-xs sm:text-sm text-muted-foreground py-4 sm:py-8">
-							No files or folders found in your Google Drive
+							No files or folders found in your {providerName}
 						</div>
 					)}
 				</div>

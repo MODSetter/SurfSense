@@ -26,6 +26,7 @@ _HITL_TOOL_DEDUP_KEYS: dict[str, str] = {
     "trash_gmail_email": "email_subject_or_id",
     "update_gmail_draft": "draft_subject_or_id",
     "delete_google_drive_file": "file_name",
+    "delete_onedrive_file": "file_name",
     "delete_notion_page": "page_title",
     "update_notion_page": "page_title",
     "delete_linear_issue": "issue_ref",

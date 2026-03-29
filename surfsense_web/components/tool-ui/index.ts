@@ -17,6 +17,7 @@ export {
 export { GeneratePodcastToolUI } from "./generate-podcast";
 export { GenerateReportToolUI } from "./generate-report";
 export { CreateGoogleDriveFileToolUI, DeleteGoogleDriveFileToolUI } from "./google-drive";
+export { CreateOneDriveFileToolUI, DeleteOneDriveFileToolUI } from "./onedrive";
 export {
 	Image,
 	ImageErrorBoundary,
