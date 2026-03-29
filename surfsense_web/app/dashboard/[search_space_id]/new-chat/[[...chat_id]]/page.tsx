@@ -218,13 +218,15 @@ export default function NewChatPage() {
 				return;
 			}
 
+			const isSharedChat = currentThread?.visibility === "SEARCH_SPACE";
+
 			setMessages((prev) => {
 				if (syncedMessages.length < prev.length) {
 					return prev;
 				}
 
 				return syncedMessages.map((msg) => {
-					const member = msg.author_id
+					const member = isSharedChat && msg.author_id
 						? membersData?.find((m) => m.user_id === msg.author_id)
 						: null;
 
@@ -239,7 +241,7 @@ export default function NewChatPage() {
 						thread_id: msg.thread_id,
 						role: msg.role.toLowerCase() as "user" | "assistant" | "system",
 						content: msg.content,
-						author_id: msg.author_id,
+						author_id: isSharedChat ? msg.author_id : null,
 						created_at: msg.created_at,
 						author_display_name: member?.user_display_name ?? existingAuthor?.displayName ?? null,
 						author_avatar_url: member?.user_avatar_url ?? existingAuthor?.avatarUrl ?? null,
@@ -247,7 +249,7 @@ export default function NewChatPage() {
 				});
 			});
 		},
-		[isRunning, membersData]
+		[isRunning, membersData, currentThread?.visibility]
 	);
 
 	useMessagesSync(threadId, handleSyncedMessagesUpdate);
