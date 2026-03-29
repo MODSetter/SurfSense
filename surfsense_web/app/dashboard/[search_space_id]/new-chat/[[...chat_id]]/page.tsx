@@ -33,7 +33,7 @@ import { closeReportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { type AgentCreatedDocument, agentCreatedDocumentsAtom } from "@/atoms/documents/ui.atoms";
 import { closeEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
-import { updateChatTabTitleAtom } from "@/atoms/tabs/tabs.atom";
+import { removeChatTabAtom, updateChatTabTitleAtom } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { ThinkingStepsDataUI } from "@/components/assistant-ui/thinking-steps";
 import { Thread } from "@/components/assistant-ui/thread";
@@ -70,6 +70,7 @@ import {
 	getThreadMessages,
 	type ThreadRecord,
 } from "@/lib/chat/thread-persistence";
+import { NotFoundError } from "@/lib/error";
 import {
 	trackChatCreated,
 	trackChatError,
@@ -131,6 +132,7 @@ function extractMentionedDocuments(content: unknown): MentionedDocumentInfo[] {
  * Tools that should render custom UI in the chat.
  */
 const TOOLS_WITH_UI = new Set([
+	"web_search",
 	"generate_podcast",
 	"generate_report",
 	"generate_video_presentation",
@@ -194,6 +196,7 @@ export default function NewChatPage() {
 	const closeReportPanel = useSetAtom(closeReportPanelAtom);
 	const closeEditorPanel = useSetAtom(closeEditorPanelAtom);
 	const updateChatTabTitle = useSetAtom(updateChatTabTitleAtom);
+	const removeChatTab = useSetAtom(removeChatTabAtom);
 	const setAgentCreatedDocuments = useSetAtom(agentCreatedDocumentsAtom);
 
 	// Get current user for author info in shared chats
@@ -323,6 +326,14 @@ export default function NewChatPage() {
 			// This improves UX (instant load) and avoids orphan threads
 		} catch (error) {
 			console.error("[NewChatPage] Failed to initialize thread:", error);
+			if (urlChatId > 0 && error instanceof NotFoundError) {
+				removeChatTab(urlChatId);
+				if (typeof window !== "undefined") {
+					window.history.replaceState(null, "", `/dashboard/${searchSpaceId}/new-chat`);
+				}
+				toast.error("This chat was deleted.");
+				return;
+			}
 			// Keep threadId as null - don't use Date.now() as it creates an invalid ID
 			// that will cause 404 errors on subsequent API calls
 			setThreadId(null);
@@ -338,12 +349,14 @@ export default function NewChatPage() {
 		setSidebarDocuments,
 		closeReportPanel,
 		closeEditorPanel,
+		removeChatTab,
+		searchSpaceId,
 	]);
 
 	// Initialize on mount, and re-init when switching search spaces (even if urlChatId is the same)
 	useEffect(() => {
 		initializeThread();
-	}, [initializeThread, searchSpaceId]);
+	}, [initializeThread]);
 
 	// Prefetch document titles for @ mention picker
 	// Runs when user lands on page so data is ready when they type @
@@ -483,18 +496,17 @@ export default function NewChatPage() {
 			// Add user message to state
 			const userMsgId = `msg-user-${Date.now()}`;
 
-			// Include author metadata for shared chats
-			const authorMetadata =
-				currentThread?.visibility === "SEARCH_SPACE" && currentUser
-					? {
-							custom: {
-								author: {
-									displayName: currentUser.display_name ?? null,
-									avatarUrl: currentUser.avatar_url ?? null,
-								},
+			// Always include author metadata so the UI layer can decide visibility
+			const authorMetadata = currentUser
+				? {
+						custom: {
+							author: {
+								displayName: currentUser.display_name ?? null,
+								avatarUrl: currentUser.avatar_url ?? null,
 							},
-						}
-					: undefined;
+						},
+					}
+				: undefined;
 
 			const userMessage: ThreadMessageLike = {
 				id: userMsgId,
@@ -654,62 +666,62 @@ export default function NewChatPage() {
 				const scheduleFlush = () => batcher.schedule(flushMessages);
 
 				for await (const parsed of readSSEStream(response)) {
-				switch (parsed.type) {
-					case "text-delta":
-						appendText(contentPartsState, parsed.delta);
-						scheduleFlush();
-						break;
+					switch (parsed.type) {
+						case "text-delta":
+							appendText(contentPartsState, parsed.delta);
+							scheduleFlush();
+							break;
 
-					case "tool-input-start":
-						addToolCall(contentPartsState, TOOLS_WITH_UI, parsed.toolCallId, parsed.toolName, {});
-						batcher.flush();
-						break;
+						case "tool-input-start":
+							addToolCall(contentPartsState, TOOLS_WITH_UI, parsed.toolCallId, parsed.toolName, {});
+							batcher.flush();
+							break;
 
-					case "tool-input-available": {
-						if (toolCallIndices.has(parsed.toolCallId)) {
-							updateToolCall(contentPartsState, parsed.toolCallId, { args: parsed.input || {} });
-						} else {
-							addToolCall(
-								contentPartsState,
-								TOOLS_WITH_UI,
-								parsed.toolCallId,
-								parsed.toolName,
-								parsed.input || {}
-							);
+						case "tool-input-available": {
+							if (toolCallIndices.has(parsed.toolCallId)) {
+								updateToolCall(contentPartsState, parsed.toolCallId, { args: parsed.input || {} });
+							} else {
+								addToolCall(
+									contentPartsState,
+									TOOLS_WITH_UI,
+									parsed.toolCallId,
+									parsed.toolName,
+									parsed.input || {}
+								);
+							}
+							batcher.flush();
+							break;
 						}
-						batcher.flush();
-						break;
-					}
 
-					case "tool-output-available": {
-						updateToolCall(contentPartsState, parsed.toolCallId, { result: parsed.output });
-						markInterruptsCompleted(contentParts);
-						if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
-							const idx = toolCallIndices.get(parsed.toolCallId);
-							if (idx !== undefined) {
-								const part = contentParts[idx];
-								if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
-									setActivePodcastTaskId(String(parsed.output.podcast_id));
+						case "tool-output-available": {
+							updateToolCall(contentPartsState, parsed.toolCallId, { result: parsed.output });
+							markInterruptsCompleted(contentParts);
+							if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
+								const idx = toolCallIndices.get(parsed.toolCallId);
+								if (idx !== undefined) {
+									const part = contentParts[idx];
+									if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
+										setActivePodcastTaskId(String(parsed.output.podcast_id));
+									}
 								}
 							}
+							batcher.flush();
+							break;
 						}
-						batcher.flush();
-						break;
-					}
 
-					case "data-thinking-step": {
-						const stepData = parsed.data as ThinkingStepData;
-						if (stepData?.id) {
-							currentThinkingSteps.set(stepData.id, stepData);
-							const didUpdate = updateThinkingSteps(contentPartsState, currentThinkingSteps);
-							if (didUpdate) {
-								scheduleFlush();
+						case "data-thinking-step": {
+							const stepData = parsed.data as ThinkingStepData;
+							if (stepData?.id) {
+								currentThinkingSteps.set(stepData.id, stepData);
+								const didUpdate = updateThinkingSteps(contentPartsState, currentThinkingSteps);
+								if (didUpdate) {
+									scheduleFlush();
+								}
 							}
+							break;
 						}
-						break;
-					}
 
-					case "data-thread-title-update": {
+						case "data-thread-title-update": {
 							const titleData = parsed.data as { threadId: number; title: string };
 							if (titleData?.title && titleData?.threadId === currentThreadId) {
 								setCurrentThread((prev) => (prev ? { ...prev, title: titleData.title } : prev));
@@ -882,7 +894,6 @@ export default function NewChatPage() {
 			setMessageDocumentsMap,
 			setAgentCreatedDocuments,
 			queryClient,
-			currentThread,
 			currentUser,
 			disabledTools,
 			updateChatTabTitle,
@@ -1001,7 +1012,7 @@ export default function NewChatPage() {
 					throw new Error(`Backend error: ${response.status}`);
 				}
 
-			const flushMessages = () => {
+				const flushMessages = () => {
 					setMessages((prev) =>
 						prev.map((m) =>
 							m.id === assistantMsgId
@@ -1013,55 +1024,55 @@ export default function NewChatPage() {
 				const scheduleFlush = () => batcher.schedule(flushMessages);
 
 				for await (const parsed of readSSEStream(response)) {
-				switch (parsed.type) {
-					case "text-delta":
-						appendText(contentPartsState, parsed.delta);
-						scheduleFlush();
-						break;
+					switch (parsed.type) {
+						case "text-delta":
+							appendText(contentPartsState, parsed.delta);
+							scheduleFlush();
+							break;
 
-					case "tool-input-start":
-						addToolCall(contentPartsState, TOOLS_WITH_UI, parsed.toolCallId, parsed.toolName, {});
-						batcher.flush();
-						break;
+						case "tool-input-start":
+							addToolCall(contentPartsState, TOOLS_WITH_UI, parsed.toolCallId, parsed.toolName, {});
+							batcher.flush();
+							break;
 
-					case "tool-input-available":
-						if (toolCallIndices.has(parsed.toolCallId)) {
-							updateToolCall(contentPartsState, parsed.toolCallId, {
-								args: parsed.input || {},
-							});
-						} else {
-							addToolCall(
-								contentPartsState,
-								TOOLS_WITH_UI,
-								parsed.toolCallId,
-								parsed.toolName,
-								parsed.input || {}
-							);
-						}
-						batcher.flush();
-						break;
-
-					case "tool-output-available":
-						updateToolCall(contentPartsState, parsed.toolCallId, {
-							result: parsed.output,
-						});
-						markInterruptsCompleted(contentParts);
-						batcher.flush();
-						break;
-
-					case "data-thinking-step": {
-						const stepData = parsed.data as ThinkingStepData;
-						if (stepData?.id) {
-							currentThinkingSteps.set(stepData.id, stepData);
-							const didUpdate = updateThinkingSteps(contentPartsState, currentThinkingSteps);
-							if (didUpdate) {
-								scheduleFlush();
+						case "tool-input-available":
+							if (toolCallIndices.has(parsed.toolCallId)) {
+								updateToolCall(contentPartsState, parsed.toolCallId, {
+									args: parsed.input || {},
+								});
+							} else {
+								addToolCall(
+									contentPartsState,
+									TOOLS_WITH_UI,
+									parsed.toolCallId,
+									parsed.toolName,
+									parsed.input || {}
+								);
 							}
-						}
-						break;
-					}
+							batcher.flush();
+							break;
 
-					case "data-interrupt-request": {
+						case "tool-output-available":
+							updateToolCall(contentPartsState, parsed.toolCallId, {
+								result: parsed.output,
+							});
+							markInterruptsCompleted(contentParts);
+							batcher.flush();
+							break;
+
+						case "data-thinking-step": {
+							const stepData = parsed.data as ThinkingStepData;
+							if (stepData?.id) {
+								currentThinkingSteps.set(stepData.id, stepData);
+								const didUpdate = updateThinkingSteps(contentPartsState, currentThinkingSteps);
+								if (didUpdate) {
+									scheduleFlush();
+								}
+							}
+							break;
+						}
+
+						case "data-interrupt-request": {
 							const interruptData = parsed.data as Record<string, unknown>;
 							const actionRequests = (interruptData.action_requests ?? []) as Array<{
 								name: string;
@@ -1319,7 +1330,7 @@ export default function NewChatPage() {
 					throw new Error(`Backend error: ${response.status}`);
 				}
 
-			const flushMessages = () => {
+				const flushMessages = () => {
 					setMessages((prev) =>
 						prev.map((m) =>
 							m.id === assistantMsgId
@@ -1331,63 +1342,63 @@ export default function NewChatPage() {
 				const scheduleFlush = () => batcher.schedule(flushMessages);
 
 				for await (const parsed of readSSEStream(response)) {
-				switch (parsed.type) {
-					case "text-delta":
-						appendText(contentPartsState, parsed.delta);
-						scheduleFlush();
-						break;
+					switch (parsed.type) {
+						case "text-delta":
+							appendText(contentPartsState, parsed.delta);
+							scheduleFlush();
+							break;
 
-					case "tool-input-start":
-						addToolCall(contentPartsState, TOOLS_WITH_UI, parsed.toolCallId, parsed.toolName, {});
-						batcher.flush();
-						break;
+						case "tool-input-start":
+							addToolCall(contentPartsState, TOOLS_WITH_UI, parsed.toolCallId, parsed.toolName, {});
+							batcher.flush();
+							break;
 
-					case "tool-input-available":
-						if (toolCallIndices.has(parsed.toolCallId)) {
-							updateToolCall(contentPartsState, parsed.toolCallId, { args: parsed.input || {} });
-						} else {
-							addToolCall(
-								contentPartsState,
-								TOOLS_WITH_UI,
-								parsed.toolCallId,
-								parsed.toolName,
-								parsed.input || {}
-							);
-						}
-						batcher.flush();
-						break;
+						case "tool-input-available":
+							if (toolCallIndices.has(parsed.toolCallId)) {
+								updateToolCall(contentPartsState, parsed.toolCallId, { args: parsed.input || {} });
+							} else {
+								addToolCall(
+									contentPartsState,
+									TOOLS_WITH_UI,
+									parsed.toolCallId,
+									parsed.toolName,
+									parsed.input || {}
+								);
+							}
+							batcher.flush();
+							break;
 
-					case "tool-output-available":
-						updateToolCall(contentPartsState, parsed.toolCallId, { result: parsed.output });
-						markInterruptsCompleted(contentParts);
-						if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
-							const idx = toolCallIndices.get(parsed.toolCallId);
-							if (idx !== undefined) {
-								const part = contentParts[idx];
-								if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
-									setActivePodcastTaskId(String(parsed.output.podcast_id));
+						case "tool-output-available":
+							updateToolCall(contentPartsState, parsed.toolCallId, { result: parsed.output });
+							markInterruptsCompleted(contentParts);
+							if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
+								const idx = toolCallIndices.get(parsed.toolCallId);
+								if (idx !== undefined) {
+									const part = contentParts[idx];
+									if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
+										setActivePodcastTaskId(String(parsed.output.podcast_id));
+									}
 								}
 							}
-						}
-						batcher.flush();
-						break;
+							batcher.flush();
+							break;
 
-					case "data-thinking-step": {
-						const stepData = parsed.data as ThinkingStepData;
-						if (stepData?.id) {
-							currentThinkingSteps.set(stepData.id, stepData);
-							const didUpdate = updateThinkingSteps(contentPartsState, currentThinkingSteps);
-							if (didUpdate) {
-								scheduleFlush();
+						case "data-thinking-step": {
+							const stepData = parsed.data as ThinkingStepData;
+							if (stepData?.id) {
+								currentThinkingSteps.set(stepData.id, stepData);
+								const didUpdate = updateThinkingSteps(contentPartsState, currentThinkingSteps);
+								if (didUpdate) {
+									scheduleFlush();
+								}
 							}
+							break;
 						}
-						break;
-					}
 
-					case "error":
-						throw new Error(parsed.errorText || "Server error");
+						case "error":
+							throw new Error(parsed.errorText || "Server error");
+					}
 				}
-			}
 
 				batcher.flush();
 

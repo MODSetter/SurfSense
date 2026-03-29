@@ -640,7 +640,6 @@
 		"active": "Ativo",
 		"your_configs": "Suas configurações",
 		"manage_configs": "Gerencie e configure seus provedores de LLM",
-		"add_config": "Adicionar configuração",
 		"no_configs": "Nenhuma configuração ainda",
 		"no_configs_desc": "Adicione suas próprias configurações de provedor de LLM.",
 		"add_first_config": "Adicionar primeira configuração",

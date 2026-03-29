@@ -3,11 +3,11 @@
 import { PenLine, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import type { PromptRead } from "@/contracts/types/prompts.types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import type { PromptRead } from "@/contracts/types/prompts.types";
 import { promptsApiService } from "@/lib/apis/prompts-api.service";
 
 interface PromptFormData {
@@ -99,7 +99,9 @@ export function PromptsContent() {
 		<div className="space-y-6 min-w-0 overflow-hidden">
 			<div className="flex items-center justify-between">
 				<p className="text-sm text-muted-foreground">
-					Create prompt templates triggered with <kbd className="rounded border bg-muted px-1.5 py-0.5 text-xs font-mono">/</kbd> in the chat composer.
+					Create prompt templates triggered with{" "}
+					<kbd className="rounded border bg-muted px-1.5 py-0.5 text-xs font-mono">/</kbd> in the
+					chat composer.
 				</p>
 				{!showForm && (
 					<Button
@@ -144,7 +146,11 @@ export function PromptsContent() {
 							className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none resize-none focus:ring-1 focus:ring-ring"
 						/>
 						<p className="text-xs text-muted-foreground">
-							Use <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">{"{selection}"}</code> to insert the input text. If omitted, the text is appended automatically.
+							Use{" "}
+							<code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">
+								{"{selection}"}
+							</code>{" "}
+							to insert the input text. If omitted, the text is appended automatically.
 						</p>
 					</div>
 
@@ -153,7 +159,9 @@ export function PromptsContent() {
 						<select
 							id="prompt-mode"
 							value={formData.mode}
-							onChange={(e) => setFormData((p) => ({ ...p, mode: e.target.value as "transform" | "explore" }))}
+							onChange={(e) =>
+								setFormData((p) => ({ ...p, mode: e.target.value as "transform" | "explore" }))
+							}
 							className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
 						>
 							<option value="transform">Transform — rewrites or modifies your text</option>
@@ -165,8 +173,9 @@ export function PromptsContent() {
 						<Button variant="ghost" size="sm" onClick={handleCancel}>
 							Cancel
 						</Button>
-						<Button size="sm" onClick={handleSave} disabled={isSaving}>
-							{isSaving ? <Spinner className="size-3.5" /> : editingId ? "Update" : "Create"}
+						<Button size="sm" onClick={handleSave} disabled={isSaving} className="relative">
+							<span className={isSaving ? "opacity-0" : ""}>{editingId ? "Update" : "Create"}</span>
+							{isSaving && <Spinner className="size-3.5 absolute" />}
 						</Button>
 					</div>
 				</div>

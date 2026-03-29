@@ -19,9 +19,9 @@ import { LinkupApiConfig } from "./components/linkup-api-config";
 import { LumaConfig } from "./components/luma-config";
 import { MCPConfig } from "./components/mcp-config";
 import { ObsidianConfig } from "./components/obsidian-config";
+import { OneDriveConfig } from "./components/onedrive-config";
 import { SlackConfig } from "./components/slack-config";
 import { TavilyApiConfig } from "./components/tavily-api-config";
-import { OneDriveConfig } from "./components/onedrive-config";
 import { TeamsConfig } from "./components/teams-config";
 import { WebcrawlerConfig } from "./components/webcrawler-config";
 

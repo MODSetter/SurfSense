@@ -52,10 +52,15 @@ def create_delete_onedrive_file_tool(
             - If status is "not_found", relay the exact message to the user and ask them
               to verify the file name or check if it has been indexed.
         """
-        logger.info(f"delete_onedrive_file called: file_name='{file_name}', delete_from_kb={delete_from_kb}")
+        logger.info(
+            f"delete_onedrive_file called: file_name='{file_name}', delete_from_kb={delete_from_kb}"
+        )
 
         if db_session is None or search_space_id is None or user_id is None:
-            return {"status": "error", "message": "OneDrive tool not properly configured."}
+            return {
+                "status": "error",
+                "message": "OneDrive tool not properly configured.",
+            }
 
         try:
             doc_result = await db_session.execute(
@@ -89,8 +94,12 @@ def create_delete_onedrive_file_tool(
                             Document.search_space_id == search_space_id,
                             Document.document_type == DocumentType.ONEDRIVE_FILE,
                             func.lower(
-                                cast(Document.document_metadata["onedrive_file_name"], String)
-                            ) == func.lower(file_name),
+                                cast(
+                                    Document.document_metadata["onedrive_file_name"],
+                                    String,
+                                )
+                            )
+                            == func.lower(file_name),
                             SearchSourceConnector.user_id == user_id,
                         )
                     )
@@ -110,14 +119,20 @@ def create_delete_onedrive_file_tool(
                 }
 
             if not document.connector_id:
-                return {"status": "error", "message": "Document has no associated connector."}
+                return {
+                    "status": "error",
+                    "message": "Document has no associated connector.",
+                }
 
             meta = document.document_metadata or {}
             file_id = meta.get("onedrive_file_id")
             document_id = document.id
 
             if not file_id:
-                return {"status": "error", "message": "File ID is missing. Please re-index the file."}
+                return {
+                    "status": "error",
+                    "message": "File ID is missing. Please re-index the file.",
+                }
 
             conn_result = await db_session.execute(
                 select(SearchSourceConnector).filter(
@@ -125,13 +140,17 @@ def create_delete_onedrive_file_tool(
                         SearchSourceConnector.id == document.connector_id,
                         SearchSourceConnector.search_space_id == search_space_id,
                         SearchSourceConnector.user_id == user_id,
-                        SearchSourceConnector.connector_type == SearchSourceConnectorType.ONEDRIVE_CONNECTOR,
+                        SearchSourceConnector.connector_type
+                        == SearchSourceConnectorType.ONEDRIVE_CONNECTOR,
                     )
                 )
             )
             connector = conn_result.scalars().first()
             if not connector:
-                return {"status": "error", "message": "OneDrive connector not found or access denied."}
+                return {
+                    "status": "error",
+                    "message": "OneDrive connector not found or access denied.",
+                }
 
             cfg = connector.config or {}
             if cfg.get("auth_expired"):
@@ -170,8 +189,12 @@ def create_delete_onedrive_file_tool(
                 }
             )
 
-            decisions_raw = approval.get("decisions", []) if isinstance(approval, dict) else []
-            decisions = decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
+            decisions_raw = (
+                approval.get("decisions", []) if isinstance(approval, dict) else []
+            )
+            decisions = (
+                decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
+            )
             decisions = [d for d in decisions if isinstance(d, dict)]
             if not decisions:
                 return {"status": "error", "message": "No approval decision received"}
@@ -206,7 +229,8 @@ def create_delete_onedrive_file_tool(
                             SearchSourceConnector.id == final_connector_id,
                             SearchSourceConnector.search_space_id == search_space_id,
                             SearchSourceConnector.user_id == user_id,
-                            SearchSourceConnector.connector_type == SearchSourceConnectorType.ONEDRIVE_CONNECTOR,
+                            SearchSourceConnector.connector_type
+                            == SearchSourceConnectorType.ONEDRIVE_CONNECTOR,
                         )
                     )
                 )
@@ -224,10 +248,14 @@ def create_delete_onedrive_file_tool(
                 f"Deleting OneDrive file: file_id='{final_file_id}', connector={actual_connector_id}"
             )
 
-            client = OneDriveClient(session=db_session, connector_id=actual_connector_id)
+            client = OneDriveClient(
+                session=db_session, connector_id=actual_connector_id
+            )
             await client.trash_file(final_file_id)
 
-            logger.info(f"OneDrive file deleted (moved to recycle bin): file_id={final_file_id}")
+            logger.info(
+                f"OneDrive file deleted (moved to recycle bin): file_id={final_file_id}"
+            )
 
             trash_result: dict[str, Any] = {
                 "status": "success",
@@ -272,6 +300,9 @@ def create_delete_onedrive_file_tool(
             if isinstance(e, GraphInterrupt):
                 raise
             logger.error(f"Error deleting OneDrive file: {e}", exc_info=True)
-            return {"status": "error", "message": "Something went wrong while trashing the file. Please try again."}
+            return {
+                "status": "error",
+                "message": "Something went wrong while trashing the file. Please try again.",
+            }
 
     return delete_onedrive_file

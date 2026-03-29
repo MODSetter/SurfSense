@@ -270,9 +270,7 @@ function ApprovalCard({
 								)}
 
 								<div className="space-y-2">
-									<p className="text-xs font-medium text-muted-foreground">
-										File Type
-									</p>
+									<p className="text-xs font-medium text-muted-foreground">File Type</p>
 									<Select value="docx" disabled>
 										<SelectTrigger className="w-full">
 											<SelectValue />
@@ -315,11 +313,25 @@ function ApprovalCard({
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 pt-3">
 				{(pendingEdits?.name ?? args.name) != null && (
-					<p className="text-sm font-medium text-foreground">{String(pendingEdits?.name ?? args.name)}</p>
+					<p className="text-sm font-medium text-foreground">
+						{String(pendingEdits?.name ?? args.name)}
+					</p>
 				)}
 				{(pendingEdits?.content ?? args.content) != null && (
-					<div className="mt-2 max-h-[7rem] overflow-hidden text-sm" style={{ maskImage: "linear-gradient(to bottom, black 50%, transparent 100%)", WebkitMaskImage: "linear-gradient(to bottom, black 50%, transparent 100%)" }}>
-						<PlateEditor markdown={String(pendingEdits?.content ?? args.content)} readOnly preset="readonly" editorVariant="none" className="h-auto [&_[data-slate-editor]]:!min-h-0 [&_[data-slate-editor]>*:first-child]:!mt-0" />
+					<div
+						className="mt-2 max-h-[7rem] overflow-hidden text-sm"
+						style={{
+							maskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
+							WebkitMaskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
+						}}
+					>
+						<PlateEditor
+							markdown={String(pendingEdits?.content ?? args.content)}
+							readOnly
+							preset="readonly"
+							editorVariant="none"
+							className="h-auto [&_[data-slate-editor]]:!min-h-0 [&_[data-slate-editor]>*:first-child]:!mt-0"
+						/>
 					</div>
 				)}
 			</div>
@@ -329,12 +341,26 @@ function ApprovalCard({
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 flex items-center gap-2 select-none">
 						{allowedDecisions.includes("approve") && (
-							<Button size="sm" className="rounded-lg gap-1.5" onClick={handleApprove} disabled={!canApprove || isPanelOpen}>
+							<Button
+								size="sm"
+								className="rounded-lg gap-1.5"
+								onClick={handleApprove}
+								disabled={!canApprove || isPanelOpen}
+							>
 								Approve <CornerDownLeftIcon className="size-3 opacity-60" />
 							</Button>
 						)}
 						{allowedDecisions.includes("reject") && (
-							<Button size="sm" variant="ghost" className="rounded-lg text-muted-foreground" disabled={isPanelOpen} onClick={() => { setRejected(); onDecision({ type: "reject", message: "User rejected the action." }); }}>
+							<Button
+								size="sm"
+								variant="ghost"
+								className="rounded-lg text-muted-foreground"
+								disabled={isPanelOpen}
+								onClick={() => {
+									setRejected();
+									onDecision({ type: "reject", message: "User rejected the action." });
+								}}
+							>
 								Reject
 							</Button>
 						)}
@@ -352,7 +378,9 @@ function ErrorCard({ result }: { result: ErrorResult }) {
 				<p className="text-sm font-semibold text-destructive">Failed to create OneDrive file</p>
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
-			<div className="px-5 py-4"><p className="text-sm text-muted-foreground">{result.message}</p></div>
+			<div className="px-5 py-4">
+				<p className="text-sm text-muted-foreground">{result.message}</p>
+			</div>
 		</div>
 	);
 }
@@ -364,7 +392,9 @@ function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 				<p className="text-sm font-semibold text-destructive">OneDrive authentication expired</p>
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
-			<div className="px-5 py-4"><p className="text-sm text-muted-foreground">{result.message}</p></div>
+			<div className="px-5 py-4">
+				<p className="text-sm text-muted-foreground">{result.message}</p>
+			</div>
 		</div>
 	);
 }
@@ -373,7 +403,9 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
-				<p className="text-sm font-semibold text-foreground">{result.message || "OneDrive file created successfully"}</p>
+				<p className="text-sm font-semibold text-foreground">
+					{result.message || "OneDrive file created successfully"}
+				</p>
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4 space-y-2 text-xs">
@@ -383,7 +415,14 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 				</div>
 				{result.web_url && (
 					<div>
-						<a href={result.web_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Open in OneDrive</a>
+						<a
+							href={result.web_url}
+							target="_blank"
+							rel="noopener noreferrer"
+							className="text-primary hover:underline"
+						>
+							Open in OneDrive
+						</a>
 					</div>
 				)}
 			</div>
@@ -391,12 +430,31 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 	);
 }
 
-export const CreateOneDriveFileToolUI = ({ args, result }: ToolCallMessagePartProps<{ name: string; content?: string }, CreateOneDriveFileResult>) => {
+export const CreateOneDriveFileToolUI = ({
+	args,
+	result,
+}: ToolCallMessagePartProps<{ name: string; content?: string }, CreateOneDriveFileResult>) => {
 	if (!result) return null;
 	if (isInterruptResult(result)) {
-		return <ApprovalCard args={args} interruptData={result} onDecision={(decision) => { window.dispatchEvent(new CustomEvent("hitl-decision", { detail: { decisions: [decision] } })); }} />;
+		return (
+			<ApprovalCard
+				args={args}
+				interruptData={result}
+				onDecision={(decision) => {
+					window.dispatchEvent(
+						new CustomEvent("hitl-decision", { detail: { decisions: [decision] } })
+					);
+				}}
+			/>
+		);
 	}
-	if (typeof result === "object" && result !== null && "status" in result && (result as { status: string }).status === "rejected") return null;
+	if (
+		typeof result === "object" &&
+		result !== null &&
+		"status" in result &&
+		(result as { status: string }).status === "rejected"
+	)
+		return null;
 	if (isAuthErrorResult(result)) return <AuthErrorCard result={result} />;
 	if (isErrorResult(result)) return <ErrorCard result={result} />;
 	return <SuccessCard result={result as SuccessResult} />;

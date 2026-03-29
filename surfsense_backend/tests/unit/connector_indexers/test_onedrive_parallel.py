@@ -48,12 +48,14 @@ def patch_extract(monkeypatch):
             mock,
         )
         return mock
+
     return _patch
 
 
 # Slice 1: Tracer bullet
 async def test_single_file_returns_one_connector_document(
-    mock_onedrive_client, patch_extract,
+    mock_onedrive_client,
+    patch_extract,
 ):
     patch_extract(return_value=_mock_extract_ok("f1", "test.txt"))
 
@@ -75,7 +77,8 @@ async def test_single_file_returns_one_connector_document(
 
 # Slice 2: Multiple files all produce documents
 async def test_multiple_files_all_produce_documents(
-    mock_onedrive_client, patch_extract,
+    mock_onedrive_client,
+    patch_extract,
 ):
     files = [_make_file_dict(f"f{i}", f"file{i}.txt") for i in range(3)]
     patch_extract(
@@ -98,7 +101,8 @@ async def test_multiple_files_all_produce_documents(
 
 # Slice 3: Error isolation
 async def test_one_download_exception_does_not_block_others(
-    mock_onedrive_client, patch_extract,
+    mock_onedrive_client,
+    patch_extract,
 ):
     files = [_make_file_dict(f"f{i}", f"file{i}.txt") for i in range(3)]
     patch_extract(
@@ -125,7 +129,8 @@ async def test_one_download_exception_does_not_block_others(
 
 # Slice 4: ETL error counts as download failure
 async def test_etl_error_counts_as_download_failure(
-    mock_onedrive_client, patch_extract,
+    mock_onedrive_client,
+    patch_extract,
 ):
     files = [_make_file_dict("f0", "good.txt"), _make_file_dict("f1", "bad.txt")]
     patch_extract(
@@ -150,7 +155,8 @@ async def test_etl_error_counts_as_download_failure(
 
 # Slice 5: Semaphore bound
 async def test_concurrency_bounded_by_semaphore(
-    mock_onedrive_client, monkeypatch,
+    mock_onedrive_client,
+    monkeypatch,
 ):
     lock = asyncio.Lock()
     active = 0
@@ -190,7 +196,8 @@ async def test_concurrency_bounded_by_semaphore(
 
 # Slice 6: Heartbeat fires
 async def test_heartbeat_fires_during_parallel_downloads(
-    mock_onedrive_client, monkeypatch,
+    mock_onedrive_client,
+    monkeypatch,
 ):
     import app.tasks.connector_indexers.onedrive_indexer as _mod
 
