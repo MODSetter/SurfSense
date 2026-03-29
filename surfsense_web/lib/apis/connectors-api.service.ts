@@ -378,6 +378,23 @@ class ConnectorsApiService {
 			listDiscordChannelsResponse
 		);
 	};
+
+	// =============================================================================
+	// BookStack Connector Methods
+	// =============================================================================
+
+	/**
+	 * List BookStack shelves for shelf exclusion picker
+	 */
+	listBookStackShelves = async (baseUrl: string, tokenId: string, tokenSecret: string) => {
+		return baseApiService.post<any>(`/api/v1/bookstack/shelves`, undefined, {
+			body: {
+				base_url: baseUrl,
+				token_id: tokenId,
+				token_secret: tokenSecret,
+			},
+		});
+	};
 }
 
 export type { SlackChannel, DiscordChannel };

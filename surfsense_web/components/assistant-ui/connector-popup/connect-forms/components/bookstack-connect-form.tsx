@@ -1,12 +1,15 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Info } from "lucide-react";
+import { Info, Loader2, RefreshCw, X } from "lucide-react";
 import type { FC } from "react";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Form,
 	FormControl,
@@ -27,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { EnumConnectorName } from "@/contracts/enums/connector";
+import { connectorsApiService } from "@/lib/apis/connectors-api.service";
 import { DateRangeSelector } from "../../components/date-range-selector";
 import { getConnectorBenefits } from "../connector-benefits";
 import type { ConnectFormProps } from "../index";
@@ -46,12 +50,25 @@ const bookstackConnectorFormSchema = z.object({
 
 type BookStackConnectorFormValues = z.infer<typeof bookstackConnectorFormSchema>;
 
+interface BookStackShelf {
+	id: number;
+	name: string;
+	book_count: number;
+	books: { id: number; name: string }[];
+}
+
 export const BookStackConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting }) => {
 	const isSubmittingRef = useRef(false);
 	const [startDate, setStartDate] = useState<Date | undefined>(undefined);
 	const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 	const [periodicEnabled, setPeriodicEnabled] = useState(false);
 	const [frequencyMinutes, setFrequencyMinutes] = useState("1440");
+	const [shelves, setShelves] = useState<BookStackShelf[]>([]);
+	const [excludedShelfIds, setExcludedShelfIds] = useState<number[]>([]);
+	const [loadingShelves, setLoadingShelves] = useState(false);
+	const [shelvesError, setShelvesError] = useState<string | null>(null);
+	const [shelvesLoaded, setShelvesLoaded] = useState(false);
+
 	const form = useForm<BookStackConnectorFormValues>({
 		resolver: zodResolver(bookstackConnectorFormSchema),
 		defaultValues: {
@@ -62,8 +79,42 @@ export const BookStackConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitt
 		},
 	});
 
+	const fetchShelves = useCallback(async () => {
+		const values = form.getValues();
+		if (!values.base_url || !values.token_id || !values.token_secret) {
+			setShelvesError("Please fill in Base URL, Token ID, and Token Secret first.");
+			return;
+		}
+
+		setLoadingShelves(true);
+		setShelvesError(null);
+
+		try {
+			const data = await connectorsApiService.listBookStackShelves(
+				values.base_url,
+				values.token_id,
+				values.token_secret,
+			) as BookStackShelf[];
+			setShelves(data);
+			setShelvesLoaded(true);
+		} catch (err) {
+			setShelvesError(err instanceof Error ? err.message : "Failed to fetch shelves");
+			setShelves([]);
+			setShelvesLoaded(false);
+		} finally {
+			setLoadingShelves(false);
+		}
+	}, [form]);
+
+	const toggleShelfExclusion = (shelfId: number) => {
+		setExcludedShelfIds((prev) =>
+			prev.includes(shelfId)
+				? prev.filter((id) => id !== shelfId)
+				: [...prev, shelfId]
+		);
+	};
+
 	const handleSubmit = async (values: BookStackConnectorFormValues) => {
-		// Prevent multiple submissions
 		if (isSubmittingRef.current || isSubmitting) {
 			return;
 		}
@@ -77,6 +128,7 @@ export const BookStackConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitt
 					BOOKSTACK_BASE_URL: values.base_url,
 					BOOKSTACK_TOKEN_ID: values.token_id,
 					BOOKSTACK_TOKEN_SECRET: values.token_secret,
+					BOOKSTACK_EXCLUDED_SHELF_IDS: excludedShelfIds,
 				},
 				is_indexable: true,
 				is_active: true,
@@ -202,6 +254,95 @@ export const BookStackConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitt
 								</FormItem>
 							)}
 						/>
+
+						{/* Shelf Exclusion Picker */}
+						<div className="space-y-3 pt-4 border-t border-slate-400/20">
+							<div className="flex items-center justify-between">
+								<div>
+									<h3 className="text-sm sm:text-base font-medium">Shelf Filter</h3>
+									<p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
+										Optionally exclude shelves from indexing. Click &quot;Load Shelves&quot; after entering your credentials.
+									</p>
+								</div>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={fetchShelves}
+									disabled={loadingShelves || isSubmitting}
+									className="text-xs"
+								>
+									{loadingShelves ? (
+										<Loader2 className="h-3 w-3 animate-spin mr-1" />
+									) : (
+										<RefreshCw className="h-3 w-3 mr-1" />
+									)}
+									{shelvesLoaded ? "Refresh" : "Load Shelves"}
+								</Button>
+							</div>
+
+							{shelvesError && (
+								<p className="text-xs text-destructive">{shelvesError}</p>
+							)}
+
+							{shelvesLoaded && shelves.length > 0 && (
+								<div className="rounded-lg border border-slate-400/20 divide-y divide-slate-400/10">
+									{shelves.map((shelf) => {
+										const isExcluded = excludedShelfIds.includes(shelf.id);
+										return (
+											<label
+												key={shelf.id}
+												className={`flex items-center gap-3 p-2.5 sm:p-3 cursor-pointer hover:bg-slate-400/5 transition-colors ${
+													isExcluded ? "opacity-50" : ""
+												}`}
+											>
+												<Checkbox
+													checked={!isExcluded}
+													onCheckedChange={() => toggleShelfExclusion(shelf.id)}
+												/>
+												<div className="flex-1 min-w-0">
+													<div className="text-xs sm:text-sm font-medium truncate">
+														{shelf.name}
+													</div>
+													<div className="text-[10px] sm:text-xs text-muted-foreground">
+														{shelf.book_count} {shelf.book_count === 1 ? "book" : "books"}
+													</div>
+												</div>
+												{isExcluded && (
+													<Badge variant="secondary" className="text-[10px] shrink-0">
+														Excluded
+													</Badge>
+												)}
+											</label>
+										);
+									})}
+								</div>
+							)}
+
+							{shelvesLoaded && shelves.length === 0 && (
+								<p className="text-xs text-muted-foreground italic">No shelves found in this BookStack instance.</p>
+							)}
+
+							{excludedShelfIds.length > 0 && shelvesLoaded && (
+								<div className="flex flex-wrap gap-1.5 mt-2">
+									<span className="text-[10px] sm:text-xs text-muted-foreground">Excluding:</span>
+									{excludedShelfIds.map((id) => {
+										const shelf = shelves.find((s) => s.id === id);
+										return (
+											<Badge
+												key={id}
+												variant="destructive"
+												className="text-[10px] cursor-pointer hover:bg-destructive/80"
+												onClick={() => toggleShelfExclusion(id)}
+											>
+												{shelf?.name || `ID ${id}`}
+												<X className="h-2.5 w-2.5 ml-1" />
+											</Badge>
+										);
+									})}
+								</div>
+							)}
+						</div>
 
 						{/* Indexing Configuration */}
 						<div className="space-y-4 pt-4 border-t border-slate-400/20">
