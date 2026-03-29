@@ -116,7 +116,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 	const handleDelete = async () => {
 		if (!configToDelete) return;
 		try {
-			await deleteConfig({ id: configToDelete.id });
+			await deleteConfig({ id: configToDelete.id, name: configToDelete.name });
 			setConfigToDelete(null);
 		} catch {
 			// Error handled by mutation state
@@ -431,12 +431,11 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 				open={!!configToDelete}
 				onOpenChange={(open) => !open && setConfigToDelete(null)}
 			>
-				<AlertDialogContent>
+				<AlertDialogContent className="select-none">
 					<AlertDialogHeader>
-						<AlertDialogTitle className="flex items-center gap-2">
-							<Trash2 className="h-5 w-5 text-destructive" />
-							Delete Configuration
-						</AlertDialogTitle>
+					<AlertDialogTitle>
+						Delete LLM Model
+					</AlertDialogTitle>
 						<AlertDialogDescription>
 							Are you sure you want to delete{" "}
 							<span className="font-semibold text-foreground">{configToDelete?.name}</span>? This
@@ -450,17 +449,14 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 							disabled={isDeleting}
 							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
-							{isDeleting ? (
-								<>
-									<Spinner size="sm" className="mr-2" />
-									Deleting
-								</>
-							) : (
-								<>
-									<Trash2 className="mr-2 h-4 w-4" />
-									Delete
-								</>
-							)}
+						{isDeleting ? (
+							<>
+								<Spinner size="sm" className="mr-2" />
+								Deleting
+							</>
+						) : (
+							"Delete"
+						)}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>

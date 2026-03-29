@@ -2,7 +2,9 @@ import { atomWithMutation } from "jotai-tanstack-query";
 import { toast } from "sonner";
 import type {
 	CreateNewLLMConfigRequest,
+	CreateNewLLMConfigResponse,
 	DeleteNewLLMConfigRequest,
+	DeleteNewLLMConfigResponse,
 	GetNewLLMConfigsResponse,
 	UpdateLLMPreferencesRequest,
 	UpdateNewLLMConfigRequest,
@@ -25,14 +27,14 @@ export const createNewLLMConfigMutationAtom = atomWithMutation((get) => {
 		mutationFn: async (request: CreateNewLLMConfigRequest) => {
 			return newLLMConfigApiService.createConfig(request);
 		},
-		onSuccess: () => {
-			toast.success("LLM model created");
+		onSuccess: (_: CreateNewLLMConfigResponse, request: CreateNewLLMConfigRequest) => {
+			toast.success(`${request.name} created`);
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.newLLMConfigs.all(Number(searchSpaceId)),
 			});
 		},
 		onError: (error: Error) => {
-			toast.error(error.message || "Failed to create configuration");
+			toast.error(error.message || "Failed to create LLM model");
 		},
 	};
 });
@@ -50,7 +52,7 @@ export const updateNewLLMConfigMutationAtom = atomWithMutation((get) => {
 			return newLLMConfigApiService.updateConfig(request);
 		},
 		onSuccess: (_: UpdateNewLLMConfigResponse, request: UpdateNewLLMConfigRequest) => {
-			toast.success("LLM model updated");
+			toast.success(`${request.data.name ?? "Configuration"} updated`);
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.newLLMConfigs.all(Number(searchSpaceId)),
 			});
@@ -59,7 +61,7 @@ export const updateNewLLMConfigMutationAtom = atomWithMutation((get) => {
 			});
 		},
 		onError: (error: Error) => {
-			toast.error(error.message || "Failed to update configuration");
+			toast.error(error.message || "Failed to update");
 		},
 	};
 });
@@ -73,11 +75,11 @@ export const deleteNewLLMConfigMutationAtom = atomWithMutation((get) => {
 	return {
 		mutationKey: ["new-llm-configs", "delete"],
 		enabled: !!searchSpaceId,
-		mutationFn: async (request: DeleteNewLLMConfigRequest) => {
-			return newLLMConfigApiService.deleteConfig(request);
+		mutationFn: async (request: DeleteNewLLMConfigRequest & { name: string }) => {
+			return newLLMConfigApiService.deleteConfig({ id: request.id });
 		},
-		onSuccess: (_, request: DeleteNewLLMConfigRequest) => {
-			toast.success("LLM model deleted");
+		onSuccess: (_: DeleteNewLLMConfigResponse, request: DeleteNewLLMConfigRequest & { name: string }) => {
+			toast.success(`${request.name} deleted`);
 			queryClient.setQueryData(
 				cacheKeys.newLLMConfigs.all(Number(searchSpaceId)),
 				(oldData: GetNewLLMConfigsResponse | undefined) => {
@@ -87,7 +89,7 @@ export const deleteNewLLMConfigMutationAtom = atomWithMutation((get) => {
 			);
 		},
 		onError: (error: Error) => {
-			toast.error(error.message || "Failed to delete configuration");
+			toast.error(error.message || "Failed to delete");
 		},
 	};
 });
