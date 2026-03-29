@@ -229,6 +229,7 @@ export type SSEEvent =
 	| { type: "data-thinking-step"; data: ThinkingStepData }
 	| { type: "data-thread-title-update"; data: { threadId: number; title: string } }
 	| { type: "data-interrupt-request"; data: Record<string, unknown> }
+	| { type: "data-documents-updated"; data: Record<string, unknown> }
 	| { type: "error"; errorText: string };
 
 /**

@@ -273,7 +273,6 @@ export default function NewChatPage() {
 
 	// Initialize thread and load messages
 	// For new chats (no urlChatId), we use lazy creation - thread is created on first message
-	// biome-ignore lint/correctness/useExhaustiveDependencies: searchSpaceId triggers re-init when switching spaces with the same urlChatId
 	const initializeThread = useCallback(async () => {
 		setIsInitializing(true);
 
@@ -334,7 +333,6 @@ export default function NewChatPage() {
 		}
 	}, [
 		urlChatId,
-		searchSpaceId,
 		setMessageDocumentsMap,
 		setMentionedDocuments,
 		setSidebarDocuments,
@@ -342,10 +340,10 @@ export default function NewChatPage() {
 		closeEditorPanel,
 	]);
 
-	// Initialize on mount
+	// Initialize on mount, and re-init when switching search spaces (even if urlChatId is the same)
 	useEffect(() => {
 		initializeThread();
-	}, [initializeThread]);
+	}, [initializeThread, searchSpaceId]);
 
 	// Prefetch document titles for @ mention picker
 	// Runs when user lands on page so data is ready when they type @
@@ -882,6 +880,7 @@ export default function NewChatPage() {
 			setMentionedDocuments,
 			setSidebarDocuments,
 			setMessageDocumentsMap,
+			setAgentCreatedDocuments,
 			queryClient,
 			currentThread,
 			currentUser,
