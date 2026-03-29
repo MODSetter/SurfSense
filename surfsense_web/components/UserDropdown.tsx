@@ -1,7 +1,7 @@
 "use client";
 
 import { BadgeCheck, LogOut } from "lucide-react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,6 @@ export function UserDropdown({
 		avatar: string;
 	};
 }) {
-	const router = useRouter();
 	const [isLoggingOut, setIsLoggingOut] = useState(false);
 
 	const handleLogout = async () => {
@@ -75,12 +74,11 @@ export function UserDropdown({
 				</DropdownMenuLabel>
 				<DropdownMenuSeparator />
 				<DropdownMenuGroup>
-					<DropdownMenuItem
-						onClick={() => router.push(`/dashboard/api-key`)}
-						className="text-xs md:text-sm"
-					>
-						<BadgeCheck className="mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
-						API Key
+					<DropdownMenuItem asChild className="text-xs md:text-sm">
+						<Link href="/dashboard/api-key">
+							<BadgeCheck className="mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
+							API Key
+						</Link>
 					</DropdownMenuItem>
 				</DropdownMenuGroup>
 				<DropdownMenuSeparator />

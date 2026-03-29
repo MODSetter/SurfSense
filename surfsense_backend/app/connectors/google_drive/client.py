@@ -1,9 +1,15 @@
 """Google Drive API client."""
 
+import asyncio
 import io
+import logging
+import threading
+import time
 from typing import Any
 
+import httplib2
 from google.oauth2.credentials import Credentials
+from google_auth_httplib2 import AuthorizedHttp
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseUpload
@@ -11,6 +17,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .credentials import get_valid_credentials
 from .file_types import GOOGLE_DOC, GOOGLE_SHEET
+
+logger = logging.getLogger(__name__)
+
+
+def _build_thread_http(credentials: Credentials) -> AuthorizedHttp:
+    """Create a per-thread HTTP transport so concurrent downloads don't share
+    the same ``httplib2.Http`` (which is not thread-safe)."""
+    return AuthorizedHttp(credentials, http=httplib2.Http())
 
 
 class GoogleDriveClient:
@@ -34,7 +48,9 @@ class GoogleDriveClient:
         self.session = session
         self.connector_id = connector_id
         self._credentials = credentials
+        self._resolved_credentials: Credentials | None = None
         self.service = None
+        self._service_lock = asyncio.Lock()
 
     async def get_service(self):
         """
@@ -49,17 +65,22 @@ class GoogleDriveClient:
         if self.service:
             return self.service
 
-        try:
-            if self._credentials:
-                credentials = self._credentials
-            else:
-                credentials = await get_valid_credentials(
-                    self.session, self.connector_id
-                )
-            self.service = build("drive", "v3", credentials=credentials)
-            return self.service
-        except Exception as e:
-            raise Exception(f"Failed to create Google Drive service: {e!s}") from e
+        async with self._service_lock:
+            if self.service:
+                return self.service
+
+            try:
+                if self._credentials:
+                    credentials = self._credentials
+                else:
+                    credentials = await get_valid_credentials(
+                        self.session, self.connector_id
+                    )
+                self._resolved_credentials = credentials
+                self.service = build("drive", "v3", credentials=credentials)
+                return self.service
+            except Exception as e:
+                raise Exception(f"Failed to create Google Drive service: {e!s}") from e
 
     async def list_files(
         self,
@@ -134,6 +155,37 @@ class GoogleDriveClient:
         except Exception as e:
             return None, f"Error getting file metadata: {e!s}"
 
+    @staticmethod
+    def _sync_download_file(
+        service,
+        file_id: str,
+        credentials: Credentials,
+    ) -> tuple[bytes | None, str | None]:
+        """Blocking download — runs on a worker thread via ``to_thread``."""
+        thread = threading.current_thread().name
+        t0 = time.monotonic()
+        logger.info(f"[download] START file={file_id} thread={thread}")
+        try:
+            from googleapiclient.http import MediaIoBaseDownload
+
+            http = _build_thread_http(credentials)
+            request = service.files().get_media(fileId=file_id)
+            request.http = http
+            fh = io.BytesIO()
+            downloader = MediaIoBaseDownload(fh, request)
+            done = False
+            while not done:
+                _, done = downloader.next_chunk()
+            return fh.getvalue(), None
+        except HttpError as e:
+            return None, f"HTTP error downloading file: {e.resp.status}"
+        except Exception as e:
+            return None, f"Error downloading file: {e!s}"
+        finally:
+            logger.info(
+                f"[download] END file={file_id} thread={thread} elapsed={time.monotonic() - t0:.2f}s"
+            )
+
     async def download_file(self, file_id: str) -> tuple[bytes | None, str | None]:
         """
         Download binary file content.
@@ -144,27 +196,96 @@ class GoogleDriveClient:
         Returns:
             Tuple of (file content bytes, error message)
         """
+        service = await self.get_service()
+        return await asyncio.to_thread(
+            self._sync_download_file,
+            service,
+            file_id,
+            self._resolved_credentials,
+        )
+
+    @staticmethod
+    def _sync_download_file_to_disk(
+        service,
+        file_id: str,
+        dest_path: str,
+        chunksize: int,
+        credentials: Credentials,
+    ) -> str | None:
+        """Blocking download-to-disk — runs on a worker thread via ``to_thread``."""
+        thread = threading.current_thread().name
+        t0 = time.monotonic()
+        logger.info(f"[download-to-disk] START file={file_id} thread={thread}")
         try:
-            service = await self.get_service()
-            request = service.files().get_media(fileId=file_id)
-
-            import io
-
-            fh = io.BytesIO()
             from googleapiclient.http import MediaIoBaseDownload
 
-            downloader = MediaIoBaseDownload(fh, request)
-
-            done = False
-            while not done:
-                _, done = downloader.next_chunk()
-
-            return fh.getvalue(), None
-
+            http = _build_thread_http(credentials)
+            request = service.files().get_media(fileId=file_id)
+            request.http = http
+            with open(dest_path, "wb") as fh:
+                downloader = MediaIoBaseDownload(fh, request, chunksize=chunksize)
+                done = False
+                while not done:
+                    _, done = downloader.next_chunk()
+            return None
         except HttpError as e:
-            return None, f"HTTP error downloading file: {e.resp.status}"
+            return f"HTTP error downloading file: {e.resp.status}"
         except Exception as e:
-            return None, f"Error downloading file: {e!s}"
+            return f"Error downloading file: {e!s}"
+        finally:
+            logger.info(
+                f"[download-to-disk] END file={file_id} thread={thread} elapsed={time.monotonic() - t0:.2f}s"
+            )
+
+    async def download_file_to_disk(
+        self,
+        file_id: str,
+        dest_path: str,
+        chunksize: int = 5 * 1024 * 1024,
+    ) -> str | None:
+        """Stream file directly to disk in chunks, avoiding full in-memory buffering.
+
+        Returns error message on failure, None on success.
+        """
+        service = await self.get_service()
+        return await asyncio.to_thread(
+            self._sync_download_file_to_disk,
+            service,
+            file_id,
+            dest_path,
+            chunksize,
+            self._resolved_credentials,
+        )
+
+    @staticmethod
+    def _sync_export_google_file(
+        service,
+        file_id: str,
+        mime_type: str,
+        credentials: Credentials,
+    ) -> tuple[bytes | None, str | None]:
+        """Blocking export — runs on a worker thread via ``to_thread``."""
+        thread = threading.current_thread().name
+        t0 = time.monotonic()
+        logger.info(f"[export] START file={file_id} thread={thread}")
+        try:
+            http = _build_thread_http(credentials)
+            content = (
+                service.files()
+                .export(fileId=file_id, mimeType=mime_type)
+                .execute(http=http)
+            )
+            if not isinstance(content, bytes):
+                content = content.encode("utf-8")
+            return content, None
+        except HttpError as e:
+            return None, f"HTTP error exporting file: {e.resp.status}"
+        except Exception as e:
+            return None, f"Error exporting file: {e!s}"
+        finally:
+            logger.info(
+                f"[export] END file={file_id} thread={thread} elapsed={time.monotonic() - t0:.2f}s"
+            )
 
     async def export_google_file(
         self, file_id: str, mime_type: str
@@ -179,23 +300,14 @@ class GoogleDriveClient:
         Returns:
             Tuple of (exported content as bytes, error message)
         """
-        try:
-            service = await self.get_service()
-            content = (
-                service.files().export(fileId=file_id, mimeType=mime_type).execute()
-            )
-
-            # Content is already bytes from the API
-            # Keep as bytes to support both text and binary formats (like PDF)
-            if not isinstance(content, bytes):
-                content = content.encode("utf-8")
-
-            return content, None
-
-        except HttpError as e:
-            return None, f"HTTP error exporting file: {e.resp.status}"
-        except Exception as e:
-            return None, f"Error exporting file: {e!s}"
+        service = await self.get_service()
+        return await asyncio.to_thread(
+            self._sync_export_google_file,
+            service,
+            file_id,
+            mime_type,
+            self._resolved_credentials,
+        )
 
     async def create_file(
         self,

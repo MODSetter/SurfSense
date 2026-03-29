@@ -253,6 +253,12 @@ function ApprovalCard({
 		String(effectiveNewDescription ?? "") !== (event?.description ?? "");
 
 	const buildFinalArgs = useCallback(() => {
+		const base = {
+			event_id: event?.event_id,
+			document_id: event?.document_id,
+			connector_id: account?.id,
+		};
+
 		if (pendingEdits) {
 			const attendeesArr = pendingEdits.attendees
 				? pendingEdits.attendees
@@ -260,22 +266,34 @@ function ApprovalCard({
 						.map((e) => e.trim())
 						.filter(Boolean)
 				: null;
+			const origAttendees = event?.attendees?.map((a) => a.email) ?? [];
+
 			return {
-				event_id: event?.event_id,
-				document_id: event?.document_id,
-				connector_id: account?.id,
-				new_summary: pendingEdits.summary || null,
-				new_description: pendingEdits.description || null,
-				new_start_datetime: pendingEdits.start_datetime || null,
-				new_end_datetime: pendingEdits.end_datetime || null,
-				new_location: pendingEdits.location || null,
-				new_attendees: attendeesArr,
+				...base,
+				new_summary:
+					pendingEdits.summary && pendingEdits.summary !== (event?.summary ?? "")
+						? pendingEdits.summary
+						: null,
+				new_description:
+					pendingEdits.description !== (event?.description ?? "")
+						? pendingEdits.description || null
+						: null,
+				new_start_datetime:
+					pendingEdits.start_datetime && pendingEdits.start_datetime !== (event?.start ?? "")
+						? pendingEdits.start_datetime
+						: null,
+				new_end_datetime:
+					pendingEdits.end_datetime && pendingEdits.end_datetime !== (event?.end ?? "")
+						? pendingEdits.end_datetime
+						: null,
+				new_location:
+					pendingEdits.location !== (event?.location ?? "") ? pendingEdits.location || null : null,
+				new_attendees:
+					attendeesArr && attendeesArr.join(",") !== origAttendees.join(",") ? attendeesArr : null,
 			};
 		}
 		return {
-			event_id: event?.event_id,
-			document_id: event?.document_id,
-			connector_id: account?.id,
+			...base,
 			new_summary: actionArgs.new_summary ?? null,
 			new_description: actionArgs.new_description ?? null,
 			new_start_datetime: actionArgs.new_start_datetime ?? null,

@@ -2329,7 +2329,7 @@ async def run_google_drive_indexing(
     try:
         from app.tasks.connector_indexers.google_drive_indexer import (
             index_google_drive_files,
-            index_google_drive_single_file,
+            index_google_drive_selected_files,
         )
 
         # Parse the structured data
@@ -2402,25 +2402,27 @@ async def run_google_drive_indexing(
                     exc_info=True,
                 )
 
-        # Index each individual file
-        for file in items.files:
+        # Index all selected files together via the parallel pipeline
+        if items.files:
             try:
-                indexed_count, error_message = await index_google_drive_single_file(
+                file_tuples = [(f.id, f.name) for f in items.files]
+                (
+                    indexed_count,
+                    _skipped,
+                    file_errors,
+                ) = await index_google_drive_selected_files(
                     session,
                     connector_id,
                     search_space_id,
                     user_id,
-                    file_id=file.id,
-                    file_name=file.name,
+                    files=file_tuples,
                 )
-                if error_message:
-                    errors.append(f"File '{file.name}': {error_message}")
-                else:
-                    total_indexed += indexed_count
+                total_indexed += indexed_count
+                errors.extend(file_errors)
             except Exception as e:
-                errors.append(f"File '{file.name}': {e!s}")
+                errors.append(f"File batch indexing: {e!s}")
                 logger.error(
-                    f"Error indexing file {file.name} ({file.id}): {e}",
+                    f"Error batch indexing files: {e}",
                     exc_info=True,
                 )
 

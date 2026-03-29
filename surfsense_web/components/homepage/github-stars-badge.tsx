@@ -3,6 +3,7 @@
 import { IconBrandGithub } from "@tabler/icons-react";
 import { motion, useMotionValue, useSpring } from "motion/react";
 import * as React from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -277,12 +278,16 @@ function NavbarGitHubStars({
 			)}
 		>
 			<IconBrandGithub className="h-5 w-5 text-neutral-700 dark:text-neutral-300 shrink-0" />
-			<AnimatedStarCount
-				value={isLoading ? 10000 : stars}
-				itemSize={ITEM_SIZE}
-				isRolling={isLoading}
-				className="text-sm font-semibold tabular-nums text-neutral-700 dark:text-neutral-300 group-hover:text-neutral-900 dark:group-hover:text-neutral-100 transition-colors"
-			/>
+			{isLoading ? (
+				<Skeleton className="h-4 w-10" />
+			) : (
+				<AnimatedStarCount
+					value={stars}
+					itemSize={ITEM_SIZE}
+					isRolling={false}
+					className="text-sm font-semibold tabular-nums text-neutral-700 dark:text-neutral-300 group-hover:text-neutral-900 dark:group-hover:text-neutral-100 transition-colors"
+				/>
+			)}
 		</a>
 	);
 }

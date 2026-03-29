@@ -28,16 +28,14 @@ export const InlineCitation: FC<InlineCitationProps> = ({ chunkId, isDocsChunk =
 			url=""
 			isDocsChunk={isDocsChunk}
 		>
-			<span
+			<button
+				type="button"
 				onClick={() => setIsOpen(true)}
-				onKeyDown={(e) => e.key === "Enter" && setIsOpen(true)}
 				className="text-[10px] font-bold bg-primary/80 hover:bg-primary text-primary-foreground rounded-full min-w-4 h-4 px-1 inline-flex items-center justify-center align-super cursor-pointer transition-colors ml-0.5"
 				title={`View source chunk #${chunkId}`}
-				role="button"
-				tabIndex={0}
 			>
 				{chunkId}
-			</span>
+			</button>
 		</SourceDetailPanel>
 	);
 };

@@ -185,7 +185,20 @@ export const Grid = ({ pattern, size }: { pattern?: [number, number][]; size?: n
 	);
 };
 
-export function GridPattern({ width, height, x, y, squares, ...props }: React.ComponentProps<"svg"> & { width: number; height: number; x: string | number; y: string | number; squares?: [number, number][] }) {
+export function GridPattern({
+	width,
+	height,
+	x,
+	y,
+	squares,
+	...props
+}: React.ComponentProps<"svg"> & {
+	width: number;
+	height: number;
+	x: string | number;
+	y: string | number;
+	squares?: [number, number][];
+}) {
 	const patternId = useId();
 
 	return (

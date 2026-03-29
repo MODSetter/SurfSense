@@ -43,10 +43,16 @@ export function EquationElement({ children, ...props }: PlateElementProps<TEquat
 				props.className
 			)}
 		>
+			{/* biome-ignore lint/a11y/useSemanticElements: contentEditable context requires div */}
 			<div
+				role="button"
+				tabIndex={0}
 				className="flex cursor-pointer items-center justify-center"
 				contentEditable={false}
 				onDoubleClick={() => setIsEditing(true)}
+				onKeyDown={(e) => {
+					if (e.key === "Enter") setIsEditing(true);
+				}}
 			>
 				{element.texExpression ? (
 					<div ref={katexRef} className="text-center" />
@@ -123,10 +129,16 @@ export function InlineEquationElement({ children, ...props }: PlateElementProps<
 			as="span"
 			className={cn("inline rounded-sm px-0.5", selected && "bg-brand/15", props.className)}
 		>
+			{/* biome-ignore lint/a11y/useSemanticElements: inline contentEditable context requires span */}
 			<span
+				role="button"
+				tabIndex={0}
 				className="cursor-pointer"
 				contentEditable={false}
 				onDoubleClick={() => setIsEditing(true)}
+				onKeyDown={(e) => {
+					if (e.key === "Enter") setIsEditing(true);
+				}}
 			>
 				{element.texExpression ? (
 					<span ref={katexRef} />

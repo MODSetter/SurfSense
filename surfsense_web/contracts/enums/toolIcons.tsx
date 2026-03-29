@@ -1,23 +1,21 @@
 import {
 	BookOpen,
 	Brain,
-	Database,
 	FileText,
 	Film,
 	Globe,
+	ImageIcon,
 	type LucideIcon,
 	Podcast,
 	ScanLine,
-	Sparkles,
 	Wrench,
 } from "lucide-react";
 
 const TOOL_ICONS: Record<string, LucideIcon> = {
-	search_knowledge_base: Database,
 	generate_podcast: Podcast,
 	generate_video_presentation: Film,
 	generate_report: FileText,
-	generate_image: Sparkles,
+	generate_image: ImageIcon,
 	scrape_webpage: ScanLine,
 	web_search: Globe,
 	search_surfsense_docs: BookOpen,

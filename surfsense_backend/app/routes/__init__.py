@@ -11,6 +11,7 @@ from .confluence_add_connector_route import router as confluence_add_connector_r
 from .discord_add_connector_route import router as discord_add_connector_router
 from .documents_routes import router as documents_router
 from .editor_routes import router as editor_router
+from .folders_routes import router as folders_router
 from .google_calendar_add_connector_route import (
     router as google_calendar_add_connector_router,
 )
@@ -52,6 +53,7 @@ router.include_router(search_spaces_router)
 router.include_router(rbac_router)  # RBAC routes for roles, members, invites
 router.include_router(editor_router)
 router.include_router(documents_router)
+router.include_router(folders_router)
 router.include_router(notes_router)
 router.include_router(new_chat_router)  # Chat with assistant-ui persistence
 router.include_router(sandbox_router)  # Sandbox file downloads (Daytona)

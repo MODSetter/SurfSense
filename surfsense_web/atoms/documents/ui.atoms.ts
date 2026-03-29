@@ -7,3 +7,14 @@ export const globalDocumentsQueryParamsAtom = atom<GetDocumentsRequest["queryPar
 });
 
 export const documentsSidebarOpenAtom = atom(false);
+
+export interface AgentCreatedDocument {
+	id: number;
+	title: string;
+	documentType: string;
+	searchSpaceId: number;
+	folderId: number | null;
+	createdById: string | null;
+}
+
+export const agentCreatedDocumentsAtom = atom<AgentCreatedDocument[]>([]);

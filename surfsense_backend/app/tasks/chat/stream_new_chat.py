@@ -9,6 +9,7 @@ Supports loading LLM configurations from:
 - NewLLMConfig database table (positive IDs for user-created configs with prompt settings)
 """
 
+import ast
 import asyncio
 import contextlib
 import gc
@@ -35,10 +36,6 @@ from app.agents.new_chat.llm_config import (
     create_chat_litellm_from_config,
     load_agent_config,
     load_llm_config_from_yaml,
-)
-from app.agents.new_chat.sandbox import (
-    get_or_create_sandbox,
-    is_sandbox_enabled,
 )
 from app.db import (
     ChatVisibility,
@@ -212,7 +209,7 @@ class StreamResult:
     accumulated_text: str = ""
     is_interrupted: bool = False
     interrupt_value: dict[str, Any] | None = None
-    sandbox_files: list[str] = field(default_factory=list)
+    sandbox_files: list[str] = field(default_factory=list)  # unused, kept for compat
 
 
 async def _stream_agent_events(
@@ -281,6 +278,8 @@ async def _stream_agent_events(
         if event_type == "on_chat_model_stream":
             if active_tool_depth > 0:
                 continue  # Suppress inner-tool LLM tokens from leaking into chat
+            if "surfsense:internal" in event.get("tags", []):
+                continue  # Suppress middleware-internal LLM tokens (e.g. KB search classification)
             chunk = event.get("data", {}).get("chunk")
             if chunk and hasattr(chunk, "content"):
                 content = chunk.content
@@ -319,19 +318,114 @@ async def _stream_agent_events(
             tool_step_ids[run_id] = tool_step_id
             last_active_step_id = tool_step_id
 
-            if tool_name == "search_knowledge_base":
-                query = (
-                    tool_input.get("query", "")
+            if tool_name == "ls":
+                ls_path = (
+                    tool_input.get("path", "/")
                     if isinstance(tool_input, dict)
                     else str(tool_input)
                 )
-                last_active_step_title = "Searching knowledge base"
+                last_active_step_title = "Listing files"
+                last_active_step_items = [ls_path]
+                yield streaming_service.format_thinking_step(
+                    step_id=tool_step_id,
+                    title="Listing files",
+                    status="in_progress",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "read_file":
+                fp = (
+                    tool_input.get("file_path", "")
+                    if isinstance(tool_input, dict)
+                    else str(tool_input)
+                )
+                display_fp = fp if len(fp) <= 80 else "…" + fp[-77:]
+                last_active_step_title = "Reading file"
+                last_active_step_items = [display_fp]
+                yield streaming_service.format_thinking_step(
+                    step_id=tool_step_id,
+                    title="Reading file",
+                    status="in_progress",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "write_file":
+                fp = (
+                    tool_input.get("file_path", "")
+                    if isinstance(tool_input, dict)
+                    else str(tool_input)
+                )
+                display_fp = fp if len(fp) <= 80 else "…" + fp[-77:]
+                last_active_step_title = "Writing file"
+                last_active_step_items = [display_fp]
+                yield streaming_service.format_thinking_step(
+                    step_id=tool_step_id,
+                    title="Writing file",
+                    status="in_progress",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "edit_file":
+                fp = (
+                    tool_input.get("file_path", "")
+                    if isinstance(tool_input, dict)
+                    else str(tool_input)
+                )
+                display_fp = fp if len(fp) <= 80 else "…" + fp[-77:]
+                last_active_step_title = "Editing file"
+                last_active_step_items = [display_fp]
+                yield streaming_service.format_thinking_step(
+                    step_id=tool_step_id,
+                    title="Editing file",
+                    status="in_progress",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "glob":
+                pat = (
+                    tool_input.get("pattern", "")
+                    if isinstance(tool_input, dict)
+                    else str(tool_input)
+                )
+                base_path = (
+                    tool_input.get("path", "/") if isinstance(tool_input, dict) else "/"
+                )
+                last_active_step_title = "Searching files"
+                last_active_step_items = [f"{pat} in {base_path}"]
+                yield streaming_service.format_thinking_step(
+                    step_id=tool_step_id,
+                    title="Searching files",
+                    status="in_progress",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "grep":
+                pat = (
+                    tool_input.get("pattern", "")
+                    if isinstance(tool_input, dict)
+                    else str(tool_input)
+                )
+                grep_path = (
+                    tool_input.get("path", "") if isinstance(tool_input, dict) else ""
+                )
+                display_pat = pat[:60] + ("…" if len(pat) > 60 else "")
+                last_active_step_title = "Searching content"
                 last_active_step_items = [
-                    f"Query: {query[:100]}{'...' if len(query) > 100 else ''}"
+                    f'"{display_pat}"' + (f" in {grep_path}" if grep_path else "")
                 ]
                 yield streaming_service.format_thinking_step(
                     step_id=tool_step_id,
-                    title="Searching knowledge base",
+                    title="Searching content",
+                    status="in_progress",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "save_document":
+                doc_title = (
+                    tool_input.get("title", "")
+                    if isinstance(tool_input, dict)
+                    else str(tool_input)
+                )
+                display_title = doc_title[:60] + ("…" if len(doc_title) > 60 else "")
+                last_active_step_title = "Saving document"
+                last_active_step_items = [display_title]
+                yield streaming_service.format_thinking_step(
+                    step_id=tool_step_id,
+                    title="Saving document",
                     status="in_progress",
                     items=last_active_step_items,
                 )
@@ -441,10 +535,22 @@ async def _stream_agent_events(
                 else streaming_service.generate_tool_call_id()
             )
             yield streaming_service.format_tool_input_start(tool_call_id, tool_name)
+            # Sanitize tool_input: strip runtime-injected non-serializable
+            # values (e.g. LangChain ToolRuntime) before sending over SSE.
+            if isinstance(tool_input, dict):
+                _safe_input: dict[str, Any] = {}
+                for _k, _v in tool_input.items():
+                    try:
+                        json.dumps(_v)
+                        _safe_input[_k] = _v
+                    except (TypeError, ValueError, OverflowError):
+                        pass
+            else:
+                _safe_input = {"input": tool_input}
             yield streaming_service.format_tool_input_available(
                 tool_call_id,
                 tool_name,
-                tool_input if isinstance(tool_input, dict) else {"input": tool_input},
+                _safe_input,
             )
 
         elif event_type == "on_tool_end":
@@ -475,16 +581,55 @@ async def _stream_agent_events(
             )
             completed_step_ids.add(original_step_id)
 
-            if tool_name == "search_knowledge_base":
-                result_info = "Search completed"
-                if isinstance(tool_output, dict):
-                    result_len = tool_output.get("result_length", 0)
-                    if result_len > 0:
-                        result_info = f"Found relevant information ({result_len} chars)"
-                completed_items = [*last_active_step_items, result_info]
+            if tool_name == "read_file":
                 yield streaming_service.format_thinking_step(
                     step_id=original_step_id,
-                    title="Searching knowledge base",
+                    title="Reading file",
+                    status="completed",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "write_file":
+                yield streaming_service.format_thinking_step(
+                    step_id=original_step_id,
+                    title="Writing file",
+                    status="completed",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "edit_file":
+                yield streaming_service.format_thinking_step(
+                    step_id=original_step_id,
+                    title="Editing file",
+                    status="completed",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "glob":
+                yield streaming_service.format_thinking_step(
+                    step_id=original_step_id,
+                    title="Searching files",
+                    status="completed",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "grep":
+                yield streaming_service.format_thinking_step(
+                    step_id=original_step_id,
+                    title="Searching content",
+                    status="completed",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "save_document":
+                result_str = (
+                    tool_output.get("result", "")
+                    if isinstance(tool_output, dict)
+                    else str(tool_output)
+                )
+                is_error = "Error" in result_str
+                completed_items = [
+                    *last_active_step_items,
+                    result_str[:80] if is_error else "Saved to knowledge base",
+                ]
+                yield streaming_service.format_thinking_step(
+                    step_id=original_step_id,
+                    title="Saving document",
                     status="completed",
                     items=completed_items,
                 )
@@ -690,14 +835,23 @@ async def _stream_agent_events(
                     ls_output = str(tool_output) if tool_output else ""
                 file_names: list[str] = []
                 if ls_output:
-                    for line in ls_output.strip().split("\n"):
-                        line = line.strip()
-                        if line:
-                            name = line.rstrip("/").split("/")[-1]
-                            if name and len(name) <= 40:
-                                file_names.append(name)
-                            elif name:
-                                file_names.append(name[:37] + "...")
+                    paths: list[str] = []
+                    try:
+                        parsed = ast.literal_eval(ls_output)
+                        if isinstance(parsed, list):
+                            paths = [str(p) for p in parsed]
+                    except (ValueError, SyntaxError):
+                        paths = [
+                            line.strip()
+                            for line in ls_output.strip().split("\n")
+                            if line.strip()
+                        ]
+                    for p in paths:
+                        name = p.rstrip("/").split("/")[-1]
+                        if name and len(name) <= 40:
+                            file_names.append(name)
+                        elif name:
+                            file_names.append(name[:37] + "...")
                 if file_names:
                     if len(file_names) <= 5:
                         completed_items = [f"[{name}]" for name in file_names]
@@ -708,7 +862,7 @@ async def _stream_agent_events(
                     completed_items = ["No files found"]
                 yield streaming_service.format_thinking_step(
                     step_id=original_step_id,
-                    title="Exploring files",
+                    title="Listing files",
                     status="completed",
                     items=completed_items,
                 )
@@ -832,14 +986,6 @@ async def _stream_agent_events(
                         f"Scrape failed: {error_msg}",
                         "error",
                     )
-            elif tool_name == "search_knowledge_base":
-                yield streaming_service.format_tool_output_available(
-                    tool_call_id,
-                    {"status": "completed", "result_length": len(str(tool_output))},
-                )
-                yield streaming_service.format_terminal_info(
-                    "Knowledge base search completed", "success"
-                )
             elif tool_name == "generate_report":
                 # Stream the full report result so frontend can render the ReportCard
                 yield streaming_service.format_tool_output_available(
@@ -973,6 +1119,19 @@ async def _stream_agent_events(
                     items=last_active_step_items,
                 )
 
+        elif (
+            event_type == "on_custom_event" and event.get("name") == "document_created"
+        ):
+            data = event.get("data", {})
+            if data.get("id"):
+                yield streaming_service.format_data(
+                    "documents-updated",
+                    {
+                        "action": "created",
+                        "document": data,
+                    },
+                )
+
         elif event_type in ("on_chain_end", "on_agent_end"):
             if current_text_id is not None:
                 yield streaming_service.format_text_end(current_text_id)
@@ -993,38 +1152,6 @@ async def _stream_agent_events(
         result.is_interrupted = True
         result.interrupt_value = state.tasks[0].interrupts[0].value
         yield streaming_service.format_interrupt_request(result.interrupt_value)
-
-
-def _try_persist_and_delete_sandbox(
-    thread_id: int,
-    sandbox_files: list[str],
-) -> None:
-    """Fire-and-forget: persist sandbox files locally then delete the sandbox."""
-    from app.agents.new_chat.sandbox import (
-        is_sandbox_enabled,
-        persist_and_delete_sandbox,
-    )
-
-    if not is_sandbox_enabled():
-        return
-
-    async def _run() -> None:
-        try:
-            await persist_and_delete_sandbox(thread_id, sandbox_files)
-        except Exception:
-            logging.getLogger(__name__).warning(
-                "persist_and_delete_sandbox failed for thread %s",
-                thread_id,
-                exc_info=True,
-            )
-
-    try:
-        loop = asyncio.get_running_loop()
-        task = loop.create_task(_run())
-        _background_tasks.add(task)
-        task.add_done_callback(_background_tasks.discard)
-    except RuntimeError:
-        pass
 
 
 async def stream_new_chat(
@@ -1141,22 +1268,6 @@ async def stream_new_chat(
             "[stream_new_chat] Checkpointer ready in %.3fs", time.perf_counter() - _t0
         )
 
-        sandbox_backend = None
-        _t0 = time.perf_counter()
-        if is_sandbox_enabled():
-            try:
-                sandbox_backend = await get_or_create_sandbox(chat_id)
-            except Exception as sandbox_err:
-                logging.getLogger(__name__).warning(
-                    "Sandbox creation failed, continuing without execute tool: %s",
-                    sandbox_err,
-                )
-        _perf_log.info(
-            "[stream_new_chat] Sandbox provisioning in %.3fs (enabled=%s)",
-            time.perf_counter() - _t0,
-            sandbox_backend is not None,
-        )
-
         visibility = thread_visibility or ChatVisibility.PRIVATE
         _t0 = time.perf_counter()
         agent = await create_surfsense_deep_agent(
@@ -1170,7 +1281,6 @@ async def stream_new_chat(
             agent_config=agent_config,
             firecrawl_api_key=firecrawl_api_key,
             thread_visibility=visibility,
-            sandbox_backend=sandbox_backend,
             disabled_tools=disabled_tools,
         )
         _perf_log.info(
@@ -1531,8 +1641,6 @@ async def stream_new_chat(
                         "Failed to clear AI responding state for thread %s", chat_id
                     )
 
-            _try_persist_and_delete_sandbox(chat_id, stream_result.sandbox_files)
-
             with contextlib.suppress(Exception):
                 session.expunge_all()
 
@@ -1541,7 +1649,7 @@ async def stream_new_chat(
 
         # Break circular refs held by the agent graph, tools, and LLM
         # wrappers so the GC can reclaim them in a single pass.
-        agent = llm = connector_service = sandbox_backend = None
+        agent = llm = connector_service = None
         input_state = stream_result = None
         session = None
 
@@ -1627,22 +1735,6 @@ async def stream_resume_chat(
             "[stream_resume] Checkpointer ready in %.3fs", time.perf_counter() - _t0
         )
 
-        sandbox_backend = None
-        _t0 = time.perf_counter()
-        if is_sandbox_enabled():
-            try:
-                sandbox_backend = await get_or_create_sandbox(chat_id)
-            except Exception as sandbox_err:
-                logging.getLogger(__name__).warning(
-                    "Sandbox creation failed, continuing without execute tool: %s",
-                    sandbox_err,
-                )
-        _perf_log.info(
-            "[stream_resume] Sandbox provisioning in %.3fs (enabled=%s)",
-            time.perf_counter() - _t0,
-            sandbox_backend is not None,
-        )
-
         visibility = thread_visibility or ChatVisibility.PRIVATE
 
         _t0 = time.perf_counter()
@@ -1657,7 +1749,6 @@ async def stream_resume_chat(
             agent_config=agent_config,
             firecrawl_api_key=firecrawl_api_key,
             thread_visibility=visibility,
-            sandbox_backend=sandbox_backend,
         )
         _perf_log.info(
             "[stream_resume] Agent created in %.3fs", time.perf_counter() - _t0
@@ -1742,15 +1833,13 @@ async def stream_resume_chat(
                         "Failed to clear AI responding state for thread %s", chat_id
                     )
 
-            _try_persist_and_delete_sandbox(chat_id, stream_result.sandbox_files)
-
             with contextlib.suppress(Exception):
                 session.expunge_all()
 
             with contextlib.suppress(Exception):
                 await session.close()
 
-        agent = llm = connector_service = sandbox_backend = None
+        agent = llm = connector_service = None
         stream_result = None
         session = None
 

@@ -97,7 +97,7 @@ function HeroCarouselCard({
 		observer.observe(video);
 
 		return () => observer.disconnect();
-	}, [src]);
+	}, []);
 
 	const handleCanPlay = useCallback(() => {
 		setHasLoaded(true);
@@ -114,7 +114,19 @@ function HeroCarouselCard({
 						<p className="text-sm text-neutral-500 dark:text-neutral-400">{description}</p>
 					</div>
 				</div>
-				<div className="cursor-pointer bg-neutral-50 p-2 sm:p-3 dark:bg-neutral-950" onClick={open}>
+				{/* biome-ignore lint/a11y/useSemanticElements: div wraps video element, button would break layout */}
+				<div
+					role="button"
+					tabIndex={0}
+					className="cursor-pointer bg-neutral-50 p-2 sm:p-3 dark:bg-neutral-950"
+					onClick={open}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
+							open();
+						}
+					}}
+				>
 					<div className="relative">
 						<video
 							ref={videoRef}
@@ -145,21 +157,26 @@ function HeroCarousel() {
 	const [isGifExpanded, setIsGifExpanded] = useState(false);
 	const directionRef = useRef<"forward" | "backward">("forward");
 
-	const goTo = useCallback(
-		(newIndex: number) => {
-			directionRef.current = newIndex >= activeIndex ? "forward" : "backward";
-			setActiveIndex(newIndex);
-		},
-		[activeIndex]
-	);
+	const goTo = useCallback((newIndex: number) => {
+		setActiveIndex((prev) => {
+			directionRef.current = newIndex >= prev ? "forward" : "backward";
+			return newIndex;
+		});
+	}, []);
 
 	const goToPrev = useCallback(() => {
-		goTo(activeIndex <= 0 ? carouselItems.length - 1 : activeIndex - 1);
-	}, [activeIndex, goTo]);
+		setActiveIndex((prev) => {
+			directionRef.current = "backward";
+			return prev <= 0 ? carouselItems.length - 1 : prev - 1;
+		});
+	}, []);
 
 	const goToNext = useCallback(() => {
-		goTo(activeIndex >= carouselItems.length - 1 ? 0 : activeIndex + 1);
-	}, [activeIndex, goTo]);
+		setActiveIndex((prev) => {
+			directionRef.current = "forward";
+			return prev >= carouselItems.length - 1 ? 0 : prev + 1;
+		});
+	}, []);
 
 	const item = carouselItems[activeIndex];
 	const isForward = directionRef.current === "forward";
@@ -185,45 +202,45 @@ function HeroCarousel() {
 				</AnimatePresence>
 			</div>
 
-		<div className="relative z-5 mt-4 flex items-center justify-center gap-2">
-			<button
-				type="button"
-				onClick={() => !isGifExpanded && goToPrev()}
-				className="flex size-11 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-sm transition-colors hover:bg-neutral-100 touch-manipulation dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
-				aria-label="Previous slide"
-			>
-				<ChevronLeft className="size-5" />
-			</button>
+			<div className="relative z-5 mt-4 flex items-center justify-center gap-2">
+				<button
+					type="button"
+					onClick={() => !isGifExpanded && goToPrev()}
+					className="flex size-11 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-sm transition-colors hover:bg-neutral-100 touch-manipulation dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+					aria-label="Previous slide"
+				>
+					<ChevronLeft className="size-5" />
+				</button>
 
-			<div className="flex items-center">
-				{carouselItems.map((_, i) => (
-					<button
-						key={`dot_${i}`}
-						type="button"
-						onClick={() => !isGifExpanded && goTo(i)}
-						className="flex h-11 min-w-[28px] items-center justify-center touch-manipulation"
-						aria-label={`Go to slide ${i + 1}`}
-					>
-						<span
-							className={`block h-2.5 rounded-full transition-all duration-300 ${
-								i === activeIndex
-									? "w-6 bg-neutral-900 dark:bg-white"
-									: "w-2.5 bg-neutral-300 hover:bg-neutral-400 dark:bg-neutral-600 dark:hover:bg-neutral-500"
-							}`}
-						/>
-					</button>
-				))}
+				<div className="flex items-center">
+					{carouselItems.map((_, i) => (
+						<button
+							key={`dot_${i}`}
+							type="button"
+							onClick={() => !isGifExpanded && goTo(i)}
+							className="flex h-11 min-w-[28px] items-center justify-center touch-manipulation"
+							aria-label={`Go to slide ${i + 1}`}
+						>
+							<span
+								className={`block h-2.5 rounded-full transition-all duration-300 ${
+									i === activeIndex
+										? "w-6 bg-neutral-900 dark:bg-white"
+										: "w-2.5 bg-neutral-300 hover:bg-neutral-400 dark:bg-neutral-600 dark:hover:bg-neutral-500"
+								}`}
+							/>
+						</button>
+					))}
+				</div>
+
+				<button
+					type="button"
+					onClick={() => !isGifExpanded && goToNext()}
+					className="flex size-11 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-sm transition-colors hover:bg-neutral-100 touch-manipulation dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+					aria-label="Next slide"
+				>
+					<ChevronRight className="size-5" />
+				</button>
 			</div>
-
-			<button
-				type="button"
-				onClick={() => !isGifExpanded && goToNext()}
-				className="flex size-11 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-sm transition-colors hover:bg-neutral-100 touch-manipulation dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
-				aria-label="Next slide"
-			>
-				<ChevronRight className="size-5" />
-			</button>
-		</div>
 		</div>
 	);
 }

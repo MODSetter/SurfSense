@@ -1,7 +1,13 @@
 import { loader } from "fumadocs-core/source";
+import type { Metadata } from "next";
 import { changelog } from "@/.source/server";
 import { formatDate } from "@/lib/utils";
 import { getMDXComponents } from "@/mdx-components";
+
+export const metadata: Metadata = {
+	title: "Changelog | SurfSense",
+	description: "See what's new in SurfSense.",
+};
 
 const source = loader({
 	baseUrl: "/changelog",

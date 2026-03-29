@@ -9,14 +9,13 @@ import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { closeReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { PlateEditor } from "@/components/editor/plate-editor";
 import { MarkdownViewer } from "@/components/markdown-viewer";
+import { EXPORT_FILE_EXTENSIONS, ExportDropdownItems } from "@/components/shared/ExportMenuItems";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -198,19 +197,6 @@ export function ReportPanelContent({
 		}
 	}, [currentMarkdown]);
 
-	// Maps backend format values to download file extensions
-	const FILE_EXTENSIONS: Record<string, string> = {
-		pdf: "pdf",
-		docx: "docx",
-		html: "html",
-		latex: "tex",
-		epub: "epub",
-		odt: "odt",
-		plain: "txt",
-		md: "md",
-	};
-
-	// Export report
 	const handleExport = useCallback(
 		async (format: string) => {
 			setExporting(format);
@@ -219,7 +205,7 @@ export function ReportPanelContent({
 					.replace(/[^a-zA-Z0-9 _-]/g, "_")
 					.trim()
 					.slice(0, 80) || "report";
-			const ext = FILE_EXTENSIONS[format] ?? format;
+			const ext = EXPORT_FILE_EXTENSIONS[format] ?? format;
 			try {
 				if (format === "md") {
 					if (!currentMarkdown) return;
@@ -329,68 +315,11 @@ export function ReportPanelContent({
 							align="start"
 							className={`min-w-[200px] select-none${insideDrawer ? " z-[100]" : ""}`}
 						>
-							{!shareToken && (
-								<>
-									<DropdownMenuLabel className="text-xs text-muted-foreground">
-										Documents
-									</DropdownMenuLabel>
-									<DropdownMenuItem
-										onClick={() => handleExport("pdf")}
-										disabled={exporting !== null}
-									>
-										PDF (.pdf)
-									</DropdownMenuItem>
-									<DropdownMenuItem
-										onClick={() => handleExport("docx")}
-										disabled={exporting !== null}
-									>
-										Word (.docx)
-									</DropdownMenuItem>
-									<DropdownMenuItem
-										onClick={() => handleExport("odt")}
-										disabled={exporting !== null}
-									>
-										OpenDocument (.odt)
-									</DropdownMenuItem>
-									<DropdownMenuSeparator />
-									<DropdownMenuLabel className="text-xs text-muted-foreground">
-										Web &amp; E-Book
-									</DropdownMenuLabel>
-									<DropdownMenuItem
-										onClick={() => handleExport("html")}
-										disabled={exporting !== null}
-									>
-										HTML (.html)
-									</DropdownMenuItem>
-									<DropdownMenuItem
-										onClick={() => handleExport("epub")}
-										disabled={exporting !== null}
-									>
-										EPUB (.epub)
-									</DropdownMenuItem>
-									<DropdownMenuSeparator />
-									<DropdownMenuLabel className="text-xs text-muted-foreground">
-										Source &amp; Plain
-									</DropdownMenuLabel>
-									<DropdownMenuItem
-										onClick={() => handleExport("latex")}
-										disabled={exporting !== null}
-									>
-										LaTeX (.tex)
-									</DropdownMenuItem>
-								</>
-							)}
-							<DropdownMenuItem onClick={() => handleExport("md")} disabled={exporting !== null}>
-								Markdown (.md)
-							</DropdownMenuItem>
-							{!shareToken && (
-								<DropdownMenuItem
-									onClick={() => handleExport("plain")}
-									disabled={exporting !== null}
-								>
-									Plain Text (.txt)
-								</DropdownMenuItem>
-							)}
+							<ExportDropdownItems
+								onExport={handleExport}
+								exporting={exporting}
+								showAllFormats={!shareToken}
+							/>
 						</DropdownMenuContent>
 					</DropdownMenu>
 
