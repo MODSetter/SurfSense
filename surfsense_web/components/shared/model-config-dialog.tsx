@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { AlertCircle, Zap } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -53,18 +53,14 @@ export function ModelConfigDialog({
 	const { mutateAsync: updateConfig } = useAtomValue(updateNewLLMConfigMutationAtom);
 	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
 
-	const isAutoMode = config && "is_auto_mode" in config && config.is_auto_mode;
-
 	const getTitle = () => {
 		if (mode === "create") return "Add New Configuration";
-		if (isAutoMode) return "Auto Mode (Fastest)";
 		if (isGlobal) return "View Global Configuration";
 		return "Edit Configuration";
 	};
 
 	const getSubtitle = () => {
 		if (mode === "create") return "Set up a new LLM provider for this search space";
-		if (isAutoMode) return "Automatically routes requests across providers";
 		if (isGlobal) return "Read-only global configuration";
 		return "Update your configuration settings";
 	};
@@ -158,24 +154,19 @@ export function ModelConfigDialog({
 					<div className="space-y-1">
 						<div className="flex items-center gap-2">
 							<h2 className="text-lg font-semibold tracking-tight">{getTitle()}</h2>
-							{isAutoMode && (
-								<Badge variant="secondary" className="text-[10px]">
-									Recommended
-								</Badge>
-							)}
-							{isGlobal && !isAutoMode && mode !== "create" && (
+							{isGlobal && mode !== "create" && (
 								<Badge variant="secondary" className="text-[10px]">
 									Global
 								</Badge>
 							)}
-							{!isGlobal && mode !== "create" && !isAutoMode && (
+							{!isGlobal && mode !== "create" && (
 								<Badge variant="outline" className="text-[10px]">
 									Custom
 								</Badge>
 							)}
 						</div>
 						<p className="text-sm text-muted-foreground">{getSubtitle()}</p>
-						{config && !isAutoMode && mode !== "create" && (
+						{config && mode !== "create" && (
 							<p className="text-xs font-mono text-muted-foreground/70">
 								{config.model_name}
 							</p>
@@ -193,16 +184,7 @@ export function ModelConfigDialog({
 						WebkitMaskImage: `linear-gradient(to bottom, ${scrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${scrollPos === "bottom" ? "black" : "transparent"})`,
 					}}
 				>
-					{isAutoMode && (
-						<Alert className="mb-5 border-violet-500/30 bg-violet-500/5">
-							<AlertDescription className="text-sm text-violet-700 dark:text-violet-400">
-								Auto mode automatically distributes requests across all available LLM
-								providers to optimize performance and avoid rate limits.
-							</AlertDescription>
-						</Alert>
-					)}
-
-					{isGlobal && !isAutoMode && mode !== "create" && (
+				{isGlobal && mode !== "create" && (
 						<Alert className="mb-5 border-amber-500/30 bg-amber-500/5">
 							<AlertCircle className="size-4 text-amber-500" />
 							<AlertDescription className="text-sm text-amber-700 dark:text-amber-400">
@@ -219,61 +201,7 @@ export function ModelConfigDialog({
 						mode="create"
 						formId="model-config-form"
 					/>
-					) : isAutoMode && config ? (
-						<div className="space-y-6">
-							<div className="space-y-4">
-								<div className="space-y-1.5">
-									<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-										How It Works
-									</div>
-									<p className="text-sm text-muted-foreground">{config.description}</p>
-								</div>
-
-								<div className="h-px bg-border/50" />
-
-								<div className="space-y-3">
-									<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-										Key Benefits
-									</div>
-									<div className="space-y-2">
-										<div className="flex items-start gap-3 p-3 rounded-lg bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800/50">
-											<Zap className="size-4 text-violet-600 dark:text-violet-400 mt-0.5 shrink-0" />
-											<div>
-												<p className="text-sm font-medium text-violet-900 dark:text-violet-100">
-													Automatic (Fastest)
-												</p>
-												<p className="text-xs text-violet-700 dark:text-violet-300">
-													Distributes requests across all configured LLM providers
-												</p>
-											</div>
-										</div>
-										<div className="flex items-start gap-3 p-3 rounded-lg bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800/50">
-											<Zap className="size-4 text-violet-600 dark:text-violet-400 mt-0.5 shrink-0" />
-											<div>
-												<p className="text-sm font-medium text-violet-900 dark:text-violet-100">
-													Rate Limit Protection
-												</p>
-												<p className="text-xs text-violet-700 dark:text-violet-300">
-													Automatically handles rate limits with cooldowns and retries
-												</p>
-											</div>
-										</div>
-										<div className="flex items-start gap-3 p-3 rounded-lg bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800/50">
-											<Zap className="size-4 text-violet-600 dark:text-violet-400 mt-0.5 shrink-0" />
-											<div>
-												<p className="text-sm font-medium text-violet-900 dark:text-violet-100">
-													Automatic Failover
-												</p>
-												<p className="text-xs text-violet-700 dark:text-violet-300">
-													Falls back to other providers if one becomes unavailable
-												</p>
-											</div>
-										</div>
-									</div>
-								</div>
-							</div>
-						</div>
-					) : isGlobal && config ? (
+				) : isGlobal && config ? (
 						<div className="space-y-6">
 							<div className="space-y-4">
 								<div className="grid gap-4 sm:grid-cols-2">
@@ -378,7 +306,7 @@ export function ModelConfigDialog({
 					>
 						Cancel
 					</Button>
-					{mode === "create" || (!isGlobal && !isAutoMode && config) ? (
+					{mode === "create" || (!isGlobal && config) ? (
 					<Button
 						type="submit"
 						form="model-config-form"
@@ -390,16 +318,7 @@ export function ModelConfigDialog({
 						</span>
 						{isSubmitting && <Spinner size="sm" className="absolute" />}
 					</Button>
-					) : isAutoMode ? (
-					<Button
-						className="relative text-sm h-9 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
-						onClick={handleUseGlobalConfig}
-						disabled={isSubmitting}
-					>
-						<span className={isSubmitting ? "opacity-0" : ""}>Use Auto Mode</span>
-						{isSubmitting && <Spinner size="sm" className="absolute" />}
-					</Button>
-					) : isGlobal && config ? (
+				) : isGlobal && config ? (
 					<Button
 						className="relative text-sm h-9"
 						onClick={handleUseGlobalConfig}

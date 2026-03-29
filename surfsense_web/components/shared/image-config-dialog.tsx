@@ -104,8 +104,6 @@ export function ImageConfigDialog({
 		setScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
 	}, []);
 
-	const isAutoMode = config && "is_auto_mode" in config && config.is_auto_mode;
-
 	const suggestedModels = useMemo(() => {
 		if (!formData.provider) return [];
 		return IMAGE_GEN_MODELS.filter((m) => m.provider === formData.provider);
@@ -113,14 +111,12 @@ export function ImageConfigDialog({
 
 	const getTitle = () => {
 		if (mode === "create") return "Add Image Model";
-		if (isAutoMode) return "Auto Mode (Fastest)";
 		if (isGlobal) return "View Global Image Model";
 		return "Edit Image Model";
 	};
 
 	const getSubtitle = () => {
 		if (mode === "create") return "Set up a new image generation provider";
-		if (isAutoMode) return "Automatically routes requests across providers";
 		if (isGlobal) return "Read-only global configuration";
 		return "Update your image model settings";
 	};
@@ -213,19 +209,14 @@ export function ImageConfigDialog({
 					<div className="space-y-1">
 						<div className="flex items-center gap-2">
 							<h2 className="text-lg font-semibold tracking-tight">{getTitle()}</h2>
-							{isAutoMode && (
-								<Badge variant="secondary" className="text-[10px]">
-									Recommended
-								</Badge>
-							)}
-							{isGlobal && !isAutoMode && mode !== "create" && (
+							{isGlobal && mode !== "create" && (
 								<Badge variant="secondary" className="text-[10px]">
 									Global
 								</Badge>
 							)}
 						</div>
 						<p className="text-sm text-muted-foreground">{getSubtitle()}</p>
-						{config && !isAutoMode && mode !== "create" && (
+						{config && mode !== "create" && (
 							<p className="text-xs font-mono text-muted-foreground/70">
 								{config.model_name}
 							</p>
@@ -243,16 +234,7 @@ export function ImageConfigDialog({
 						WebkitMaskImage: `linear-gradient(to bottom, ${scrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${scrollPos === "bottom" ? "black" : "transparent"})`,
 					}}
 				>
-					{isAutoMode && (
-						<Alert className="mb-5 border-violet-500/30 bg-violet-500/5">
-							<AlertDescription className="text-sm text-violet-700 dark:text-violet-400">
-								Auto mode distributes image generation requests across all configured
-								providers for optimal performance and rate limit protection.
-							</AlertDescription>
-						</Alert>
-					)}
-
-					{isGlobal && !isAutoMode && config && (
+				{isGlobal && config && (
 						<>
 							<Alert className="mb-5 border-amber-500/30 bg-amber-500/5">
 								<AlertCircle className="size-4 text-amber-500" />
@@ -470,16 +452,7 @@ export function ImageConfigDialog({
 						</span>
 						{isSubmitting && <Spinner size="sm" className="absolute" />}
 					</Button>
-					) : isAutoMode ? (
-					<Button
-						className="relative text-sm h-9 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
-						onClick={handleUseGlobalConfig}
-						disabled={isSubmitting}
-					>
-						<span className={isSubmitting ? "opacity-0" : ""}>Use Auto Mode</span>
-						{isSubmitting && <Spinner size="sm" className="absolute" />}
-					</Button>
-					) : isGlobal && config ? (
+				) : isGlobal && config ? (
 					<Button
 						className="relative text-sm h-9"
 						onClick={handleUseGlobalConfig}
