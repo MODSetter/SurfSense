@@ -763,7 +763,7 @@ function CreateInviteDialog({
 								</div>
 							</div>
 						</div>
-						<DialogFooter className="gap-3 sm:gap-2">
+						<DialogFooter>
 							<Button variant="secondary" onClick={handleClose}>
 								Cancel
 							</Button>

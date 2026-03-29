@@ -41,6 +41,10 @@ import {
 	DeleteGoogleDriveFileToolUI,
 } from "@/components/tool-ui/google-drive";
 import {
+	CreateOneDriveFileToolUI,
+	DeleteOneDriveFileToolUI,
+} from "@/components/tool-ui/onedrive";
+import {
 	CreateJiraIssueToolUI,
 	DeleteJiraIssueToolUI,
 	UpdateJiraIssueToolUI,
@@ -97,6 +101,8 @@ const AssistantMessageInner: FC = () => {
 								delete_linear_issue: DeleteLinearIssueToolUI,
 								create_google_drive_file: CreateGoogleDriveFileToolUI,
 								delete_google_drive_file: DeleteGoogleDriveFileToolUI,
+								create_onedrive_file: CreateOneDriveFileToolUI,
+								delete_onedrive_file: DeleteOneDriveFileToolUI,
 								create_calendar_event: CreateCalendarEventToolUI,
 								update_calendar_event: UpdateCalendarEventToolUI,
 								delete_calendar_event: DeleteCalendarEventToolUI,

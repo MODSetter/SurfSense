@@ -242,8 +242,6 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 					{totalSelected > 0 ? "Change Selection" : "Select from Google Drive"}
 				</Button>
 
-				{pickerError && !isAuthExpired && <p className="text-xs text-destructive">{pickerError}</p>}
-
 				{isAuthExpired && (
 					<p className="text-xs text-amber-600 dark:text-amber-500">
 						Your Google Drive authentication has expired. Please re-authenticate using the button

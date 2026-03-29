@@ -201,6 +201,7 @@ _ALL_CONNECTORS: list[str] = [
     "CRAWLED_URL",
     "CIRCLEBACK",
     "OBSIDIAN_CONNECTOR",
+    "ONEDRIVE_FILE",
 ]
 
 # Human-readable descriptions for each connector type
@@ -230,6 +231,7 @@ CONNECTOR_DESCRIPTIONS: dict[str, str] = {
     "BOOKSTACK_CONNECTOR": "BookStack pages (personal documentation)",
     "CIRCLEBACK": "Circleback meeting notes, transcripts, and action items",
     "OBSIDIAN_CONNECTOR": "Obsidian vault notes and markdown files (personal notes)",
+    "ONEDRIVE_FILE": "Microsoft OneDrive files and documents (personal cloud storage)",
 }
 
 
@@ -357,6 +359,7 @@ _INTERNAL_METADATA_KEYS: frozenset[str] = frozenset(
         "event_id",
         "calendar_id",
         "google_drive_file_id",
+        "onedrive_file_id",
         "page_id",
         "issue_id",
         "connector_id",

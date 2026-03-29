@@ -40,7 +40,6 @@ import { Thread } from "@/components/assistant-ui/thread";
 import { MobileEditorPanel } from "@/components/editor-panel/editor-panel";
 import { MobileHitlEditPanel } from "@/components/hitl-edit-panel/hitl-edit-panel";
 import { MobileReportPanel } from "@/components/report-panel/report-panel";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
 import { useMessagesSync } from "@/hooks/use-messages-sync";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
@@ -144,6 +143,8 @@ const TOOLS_WITH_UI = new Set([
 	"delete_linear_issue",
 	"create_google_drive_file",
 	"delete_google_drive_file",
+	"create_onedrive_file",
+	"delete_onedrive_file",
 	"create_calendar_event",
 	"update_calendar_event",
 	"delete_calendar_event",
@@ -902,6 +903,7 @@ export default function NewChatPage() {
 			currentThread,
 			currentUser,
 			disabledTools,
+			updateChatTabTitle,
 		]
 	);
 

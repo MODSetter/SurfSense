@@ -1268,6 +1268,12 @@ const TOOL_GROUPS: ToolGroup[] = [
 		tooltip: "Create and delete files in Google Drive.",
 	},
 	{
+		label: "OneDrive",
+		tools: ["create_onedrive_file", "delete_onedrive_file"],
+		connectorIcon: "onedrive",
+		tooltip: "Create and delete files in OneDrive.",
+	},
+	{
 		label: "Notion",
 		tools: ["create_notion_page", "update_notion_page", "delete_notion_page"],
 		connectorIcon: "notion",
