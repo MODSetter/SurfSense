@@ -24,13 +24,13 @@ export const createImageGenConfigMutationAtom = atomWithMutation((get) => {
 			return imageGenConfigApiService.createConfig(request);
 		},
 		onSuccess: () => {
-			toast.success("Image model configuration created");
+			toast.success("Image model created");
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.imageGenConfigs.all(Number(searchSpaceId)),
 			});
 		},
 		onError: (error: Error) => {
-			toast.error(error.message || "Failed to create image model configuration");
+			toast.error(error.message || "Failed to create image model");
 		},
 	};
 });
@@ -48,7 +48,7 @@ export const updateImageGenConfigMutationAtom = atomWithMutation((get) => {
 			return imageGenConfigApiService.updateConfig(request);
 		},
 		onSuccess: (_: UpdateImageGenConfigResponse, request: UpdateImageGenConfigRequest) => {
-			toast.success("Image model configuration updated");
+			toast.success("Image model updated");
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.imageGenConfigs.all(Number(searchSpaceId)),
 			});
@@ -57,7 +57,7 @@ export const updateImageGenConfigMutationAtom = atomWithMutation((get) => {
 			});
 		},
 		onError: (error: Error) => {
-			toast.error(error.message || "Failed to update image model configuration");
+			toast.error(error.message || "Failed to update image model");
 		},
 	};
 });
@@ -75,7 +75,7 @@ export const deleteImageGenConfigMutationAtom = atomWithMutation((get) => {
 			return imageGenConfigApiService.deleteConfig(id);
 		},
 		onSuccess: (_, id: number) => {
-			toast.success("Image model configuration deleted");
+			toast.success("Image model deleted");
 			queryClient.setQueryData(
 				cacheKeys.imageGenConfigs.all(Number(searchSpaceId)),
 				(oldData: GetImageGenConfigsResponse | undefined) => {
@@ -85,7 +85,7 @@ export const deleteImageGenConfigMutationAtom = atomWithMutation((get) => {
 			);
 		},
 		onError: (error: Error) => {
-			toast.error(error.message || "Failed to delete image model configuration");
+			toast.error(error.message || "Failed to delete image model");
 		},
 	};
 });

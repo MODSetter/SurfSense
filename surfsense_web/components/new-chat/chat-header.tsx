@@ -7,7 +7,7 @@ import type {
 	ImageGenerationConfig,
 	NewLLMConfigPublic,
 } from "@/contracts/types/new-llm-config.types";
-import { ImageConfigDialog } from "./image-config-dialog";
+import { ImageConfigDialog } from "@/components/shared/image-config-dialog";
 import { ModelConfigDialog } from "./model-config-dialog";
 import { ModelSelector } from "./model-selector";
 
