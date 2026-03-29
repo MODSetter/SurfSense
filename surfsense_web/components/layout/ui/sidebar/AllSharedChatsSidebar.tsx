@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSetAtom } from "jotai";
 import { format } from "date-fns";
 import {
 	ArchiveIcon,
@@ -41,6 +42,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useLongPress } from "@/hooks/use-long-press";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { removeChatTabAtom } from "@/atoms/tabs/tabs.atom";
 import {
 	deleteThread,
 	fetchThreads,
@@ -70,6 +72,7 @@ export function AllSharedChatsSidebarContent({
 	const params = useParams();
 	const queryClient = useQueryClient();
 	const isMobile = useIsMobile();
+	const removeChatTab = useSetAtom(removeChatTabAtom);
 
 	const currentChatId = Array.isArray(params.chat_id)
 		? Number(params.chat_id[0])
@@ -158,6 +161,7 @@ export function AllSharedChatsSidebarContent({
 			setDeletingThreadId(threadId);
 			try {
 				await deleteThread(threadId);
+				removeChatTab(threadId);
 				toast.success(t("chat_deleted") || "Chat deleted successfully");
 				queryClient.invalidateQueries({ queryKey: ["all-threads", searchSpaceId] });
 				queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
@@ -176,7 +180,7 @@ export function AllSharedChatsSidebarContent({
 				setDeletingThreadId(null);
 			}
 		},
-		[queryClient, searchSpaceId, t, currentChatId, router, onOpenChange]
+		[queryClient, searchSpaceId, t, currentChatId, router, onOpenChange, removeChatTab]
 	);
 
 	const handleToggleArchive = useCallback(

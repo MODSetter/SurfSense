@@ -20,7 +20,7 @@ import {
 	teamDialogAtom,
 	userSettingsDialogAtom,
 } from "@/atoms/settings/settings-dialog.atoms";
-import { resetTabsAtom, syncChatTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
+import { removeChatTabAtom, resetTabsAtom, syncChatTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { MorePagesDialog } from "@/components/settings/more-pages-dialog";
 import { SearchSpaceSettingsDialog } from "@/components/settings/search-space-settings-dialog";
@@ -103,6 +103,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const resetCurrentThread = useSetAtom(resetCurrentThreadAtom);
 	const syncChatTab = useSetAtom(syncChatTabAtom);
 	const resetTabs = useSetAtom(resetTabsAtom);
+	const removeChatTab = useSetAtom(removeChatTabAtom);
 
 	// State for handling new chat navigation when router is out of sync
 	const [pendingNewChat, setPendingNewChat] = useState(false);
@@ -325,7 +326,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		const thread = threadsData?.threads?.find((t) => t.id === chatId);
 		syncChatTab({
 			chatId,
-			title: thread?.title || (chatId ? `Chat ${chatId}` : "New Chat"),
+			// Avoid overwriting live SSE-updated tab titles with fallback values.
+			title: chatId ? (thread?.title ?? undefined) : "New Chat",
 			chatUrl,
 		});
 	}, [currentChatId, searchSpaceId, threadsData?.threads, syncChatTab]);
@@ -637,6 +639,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		setIsDeletingChat(true);
 		try {
 			await deleteThread(chatToDelete.id);
+			removeChatTab(chatToDelete.id);
 			queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
 			if (currentChatId === chatToDelete.id) {
 				resetCurrentThread();
@@ -664,6 +667,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		currentThreadState.id,
 		params?.chat_id,
 		router,
+		removeChatTab,
 	]);
 
 	// Rename handler
