@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { Document } from "./types";
 
-const EDITABLE_DOCUMENT_TYPES = ["NOTE"] as const;
+const EDITABLE_DOCUMENT_TYPES = ["FILE", "NOTE"] as const;
 
 // SURFSENSE_DOCS are system-managed and cannot be deleted
 const NON_DELETABLE_DOCUMENT_TYPES = ["SURFSENSE_DOCS"] as const;
