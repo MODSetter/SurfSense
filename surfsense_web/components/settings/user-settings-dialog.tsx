@@ -1,10 +1,11 @@
 "use client";
 
 import { useAtom } from "jotai";
-import { KeyRound, User } from "lucide-react";
+import { KeyRound, Sparkles, User } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ApiKeyContent } from "@/app/dashboard/[search_space_id]/user-settings/components/ApiKeyContent";
 import { ProfileContent } from "@/app/dashboard/[search_space_id]/user-settings/components/ProfileContent";
+import { PromptsContent } from "@/app/dashboard/[search_space_id]/user-settings/components/PromptsContent";
 import { userSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
 import { SettingsDialog } from "@/components/settings/settings-dialog";
 
@@ -18,6 +19,11 @@ export function UserSettingsDialog() {
 			value: "api-key",
 			label: t("api_key_nav_label"),
 			icon: <KeyRound className="h-4 w-4" />,
+		},
+		{
+			value: "prompts",
+			label: "My Prompts",
+			icon: <Sparkles className="h-4 w-4" />,
 		},
 	];
 
@@ -33,6 +39,7 @@ export function UserSettingsDialog() {
 			<div className="pt-4">
 				{state.initialTab === "profile" && <ProfileContent />}
 				{state.initialTab === "api-key" && <ApiKeyContent />}
+				{state.initialTab === "prompts" && <PromptsContent />}
 			</div>
 		</SettingsDialog>
 	);

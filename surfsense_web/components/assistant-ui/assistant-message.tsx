@@ -3,12 +3,13 @@ import {
 	AuiIf,
 	ErrorPrimitive,
 	MessagePrimitive,
+	useAui,
 	useAuiState,
 } from "@assistant-ui/react";
 import { useAtomValue } from "jotai";
-import { CheckIcon, CopyIcon, DownloadIcon, MessageSquare, RefreshCwIcon } from "lucide-react";
+import { CheckIcon, ClipboardPaste, CopyIcon, DownloadIcon, MessageSquare, RefreshCwIcon } from "lucide-react";
 import type { FC } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { commentsEnabledAtom, targetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
@@ -278,6 +279,17 @@ export const AssistantMessage: FC = () => {
 
 const AssistantActionBar: FC = () => {
 	const isLast = useAuiState((s) => s.message.isLast);
+	const aui = useAui();
+	const [quickAskMode, setQuickAskMode] = useState("");
+
+	useEffect(() => {
+		if (!isLast || !window.electronAPI?.getQuickAskMode) return;
+		window.electronAPI.getQuickAskMode().then((mode) => {
+			if (mode) setQuickAskMode(mode);
+		});
+	}, [isLast]);
+
+	const isTransform = isLast && !!window.electronAPI?.replaceText && quickAskMode === "transform";
 
 	return (
 		<ActionBarPrimitive.Root
@@ -301,13 +313,25 @@ const AssistantActionBar: FC = () => {
 					<DownloadIcon />
 				</TooltipIconButton>
 			</ActionBarPrimitive.ExportMarkdown>
-			{/* Only allow regenerating the last assistant message */}
 			{isLast && (
 				<ActionBarPrimitive.Reload asChild>
 					<TooltipIconButton tooltip="Refresh">
 						<RefreshCwIcon />
 					</TooltipIconButton>
 				</ActionBarPrimitive.Reload>
+			)}
+			{isTransform && (
+				<button
+					type="button"
+					onClick={() => {
+						const text = aui.message().getCopyText();
+						window.electronAPI?.replaceText(text);
+					}}
+					className="ml-1 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+				>
+					<ClipboardPaste className="size-3.5" />
+					Paste back
+				</button>
 			)}
 		</ActionBarPrimitive.Root>
 	);

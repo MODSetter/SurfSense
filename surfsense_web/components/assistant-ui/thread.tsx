@@ -12,6 +12,9 @@ import {
 	AlertCircle,
 	ArrowDownIcon,
 	ArrowUpIcon,
+	ChevronDown,
+	ChevronUp,
+	Clipboard,
 	Globe,
 	Plus,
 	Settings2,
@@ -58,6 +61,7 @@ import {
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { UserMessage } from "@/components/assistant-ui/user-message";
 import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/components/layout/ui/sidebar/SidebarSlideOutPanel";
+import { PromptPicker, type PromptPickerRef } from "@/components/new-chat/prompt-picker";
 import {
 	DocumentMentionPicker,
 	type DocumentMentionPickerRef,
@@ -295,15 +299,56 @@ const ConnectToolsBanner: FC<{ isThreadEmpty: boolean }> = ({ isThreadEmpty }) =
 	);
 };
 
+const ClipboardChip: FC<{ text: string; onDismiss: () => void }> = ({ text, onDismiss }) => {
+	const [expanded, setExpanded] = useState(false);
+	const isLong = text.length > 120;
+	const preview = isLong ? `${text.slice(0, 120)}…` : text;
+
+	return (
+		<div className="mx-3 mt-2 rounded-lg border border-border/40 bg-background/60">
+			<div className="flex items-center gap-2 px-3 py-2">
+				<Clipboard className="size-4 shrink-0 text-muted-foreground" />
+				<span className="text-xs font-medium text-muted-foreground">From clipboard</span>
+				<div className="flex-1" />
+				{isLong && (
+					<button
+						type="button"
+						onClick={() => setExpanded((v) => !v)}
+						className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
+					>
+						{expanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+					</button>
+				)}
+				<button
+					type="button"
+					onClick={onDismiss}
+					className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
+				>
+					<X className="size-3.5" />
+				</button>
+			</div>
+			<div className="px-3 pb-2">
+				<p className="text-xs text-foreground/80 whitespace-pre-wrap wrap-break-word leading-relaxed">
+					{expanded ? text : preview}
+				</p>
+			</div>
+		</div>
+	);
+};
+
 const Composer: FC = () => {
 	// Document mention state (atoms persist across component remounts)
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
 	const setSidebarDocs = useSetAtom(sidebarSelectedDocumentsAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
+	const [showPromptPicker, setShowPromptPicker] = useState(false);
 	const [mentionQuery, setMentionQuery] = useState("");
+	const [actionQuery, setActionQuery] = useState("");
 	const editorRef = useRef<InlineMentionEditorRef>(null);
 	const editorContainerRef = useRef<HTMLDivElement>(null);
+	const composerBoxRef = useRef<HTMLDivElement>(null);
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
+	const promptPickerRef = useRef<PromptPickerRef>(null);
 	const { search_space_id, chat_id } = useParams();
 	const aui = useAui();
 	const threadViewportStore = useThreadViewportStore();
@@ -314,10 +359,16 @@ const Composer: FC = () => {
 		return () => { submitCleanupRef.current?.(); };
 	}, []);
 
-	const [quickAskText, setQuickAskText] = useState<string | undefined>();
+	const [clipboardInitialText, setClipboardInitialText] = useState<string | undefined>();
+	const clipboardLoadedRef = useRef(false);
 	useEffect(() => {
-		window.electronAPI?.getQuickAskText().then((text) => {
-			if (text) setQuickAskText(text);
+		if (!window.electronAPI || clipboardLoadedRef.current) return;
+		clipboardLoadedRef.current = true;
+		window.electronAPI.getQuickAskText().then((text) => {
+			if (text) {
+				setClipboardInitialText(text);
+				setShowPromptPicker(true);
+			}
 		});
 	}, []);
 
@@ -424,9 +475,86 @@ const Composer: FC = () => {
 		}
 	}, [showDocumentPopover]);
 
-	// Keyboard navigation for document picker (arrow keys, Enter, Escape)
+	// Open action picker when / is triggered
+	const handleActionTrigger = useCallback((query: string) => {
+		setShowPromptPicker(true);
+		setActionQuery(query);
+	}, []);
+
+	// Close action picker and reset query
+	const handleActionClose = useCallback(() => {
+		if (showPromptPicker) {
+			setShowPromptPicker(false);
+			setActionQuery("");
+		}
+	}, [showPromptPicker]);
+
+	const handleActionSelect = useCallback(
+		(action: { name: string; prompt: string; mode: "transform" | "explore" }) => {
+			let userText = editorRef.current?.getText() ?? "";
+			const trigger = `/${actionQuery}`;
+			if (userText.endsWith(trigger)) {
+				userText = userText.slice(0, -trigger.length).trimEnd();
+			}
+			const finalPrompt = action.prompt.includes("{selection}")
+				? action.prompt.replace("{selection}", () => userText)
+				: userText ? `${action.prompt}\n\n${userText}` : action.prompt;
+			aui.composer().setText(finalPrompt);
+			aui.composer().send();
+			editorRef.current?.clear();
+			setShowPromptPicker(false);
+			setActionQuery("");
+			setMentionedDocuments([]);
+			setSidebarDocs([]);
+		},
+		[actionQuery, aui, setMentionedDocuments, setSidebarDocs]
+	);
+
+	const handleQuickAskSelect = useCallback(
+		(action: { name: string; prompt: string; mode: "transform" | "explore" }) => {
+			if (!clipboardInitialText) return;
+			window.electronAPI?.setQuickAskMode(action.mode);
+			const finalPrompt = action.prompt.includes("{selection}")
+				? action.prompt.replace("{selection}", () => clipboardInitialText)
+				: `${action.prompt}\n\n${clipboardInitialText}`;
+			aui.composer().setText(finalPrompt);
+			aui.composer().send();
+			editorRef.current?.clear();
+			setShowPromptPicker(false);
+			setActionQuery("");
+			setClipboardInitialText(undefined);
+			setMentionedDocuments([]);
+			setSidebarDocs([]);
+		},
+		[clipboardInitialText, aui, setMentionedDocuments, setSidebarDocs]
+	);
+
+	// Keyboard navigation for document/action picker (arrow keys, Enter, Escape)
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
+			if (showPromptPicker) {
+				if (e.key === "ArrowDown") {
+					e.preventDefault();
+					promptPickerRef.current?.moveDown();
+					return;
+				}
+				if (e.key === "ArrowUp") {
+					e.preventDefault();
+					promptPickerRef.current?.moveUp();
+					return;
+				}
+				if (e.key === "Enter") {
+					e.preventDefault();
+					promptPickerRef.current?.selectHighlighted();
+					return;
+				}
+				if (e.key === "Escape") {
+					e.preventDefault();
+					setShowPromptPicker(false);
+					setActionQuery("");
+					return;
+				}
+			}
 			if (showDocumentPopover) {
 				if (e.key === "ArrowDown") {
 					e.preventDefault();
@@ -451,11 +579,28 @@ const Composer: FC = () => {
 				}
 			}
 		},
-		[showDocumentPopover]
+		[showDocumentPopover, showPromptPicker]
 	);
 
 	// Submit message (blocked during streaming, document picker open, or AI responding to another user)
 	const handleSubmit = useCallback(() => {
+		if (isThreadRunning || isBlockedByOtherUser) {
+			return;
+		}
+		if (!showDocumentPopover && !showPromptPicker) {
+			if (clipboardInitialText) {
+				const userText = editorRef.current?.getText() ?? "";
+				const combined = userText
+					? `${userText}\n\n${clipboardInitialText}`
+					: clipboardInitialText;
+				aui.composer().setText(combined);
+				setClipboardInitialText(undefined);
+			}
+			aui.composer().send();
+			editorRef.current?.clear();
+			setMentionedDocuments([]);
+			setSidebarDocs([]);
+		}
 		if (isThreadRunning || isBlockedByOtherUser) return;
 		if (showDocumentPopover) return;
 
@@ -515,8 +660,10 @@ const Composer: FC = () => {
 		};
 	}, [
 		showDocumentPopover,
+		showPromptPicker,
 		isThreadRunning,
 		isBlockedByOtherUser,
+		clipboardInitialText,
 		aui,
 		setMentionedDocuments,
 		setSidebarDocs,
@@ -557,14 +704,23 @@ const Composer: FC = () => {
 	);
 
 	return (
-		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col gap-2">
+		<ComposerPrimitive.Root
+			className="aui-composer-root relative flex w-full flex-col gap-2"
+			style={(showPromptPicker && clipboardInitialText) ? { marginBottom: 220 } : undefined}
+		>
 			<ChatSessionStatus
 				isAiResponding={isAiResponding}
 				respondingToUserId={respondingToUserId}
 				currentUserId={currentUser?.id ?? null}
 				members={members ?? []}
 			/>
-			<div className="aui-composer-attachment-dropzone flex w-full flex-col overflow-hidden rounded-2xl border-input bg-muted pt-2 outline-none transition-shadow">
+			<div ref={composerBoxRef} className="aui-composer-attachment-dropzone flex w-full flex-col overflow-hidden rounded-2xl border-input bg-muted pt-2 outline-none transition-shadow">
+				{clipboardInitialText && (
+					<ClipboardChip
+						text={clipboardInitialText}
+						onDismiss={() => setClipboardInitialText(undefined)}
+					/>
+				)}
 				{/* Inline editor with @mention support */}
 				<div ref={editorContainerRef} className="aui-composer-input-wrapper px-4 pt-3 pb-6">
 					<InlineMentionEditor
@@ -572,11 +728,12 @@ const Composer: FC = () => {
 						placeholder={currentPlaceholder}
 						onMentionTrigger={handleMentionTrigger}
 						onMentionClose={handleMentionClose}
+						onActionTrigger={handleActionTrigger}
+						onActionClose={handleActionClose}
 						onChange={handleEditorChange}
 						onDocumentRemove={handleDocumentRemove}
 						onSubmit={handleSubmit}
 						onKeyDown={handleKeyDown}
-						initialText={quickAskText}
 						className="min-h-[24px]"
 					/>
 				</div>
@@ -601,6 +758,33 @@ const Composer: FC = () => {
 								left: editorContainerRef.current
 									? `${editorContainerRef.current.getBoundingClientRect().left}px`
 									: "50%",
+							}}
+						/>,
+						document.body
+					)}
+				{showPromptPicker &&
+					typeof document !== "undefined" &&
+					createPortal(
+						<PromptPicker
+							ref={promptPickerRef}
+							onSelect={clipboardInitialText ? handleQuickAskSelect : handleActionSelect}
+							onDone={() => {
+								setShowPromptPicker(false);
+								setActionQuery("");
+							}}
+							externalSearch={actionQuery}
+							containerStyle={{
+								position: "fixed",
+								...(clipboardInitialText && composerBoxRef.current
+									? { top: `${composerBoxRef.current.getBoundingClientRect().bottom + 8}px` }
+									: { bottom: editorContainerRef.current
+										? `${window.innerHeight - editorContainerRef.current.getBoundingClientRect().top + 8}px`
+										: "200px" }
+								),
+								left: editorContainerRef.current
+									? `${editorContainerRef.current.getBoundingClientRect().left}px`
+									: "50%",
+								zIndex: 50,
 							}}
 						/>,
 						document.body
