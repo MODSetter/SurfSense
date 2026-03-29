@@ -175,6 +175,7 @@ function parseTextWithCitations(text: string): ReactNode[] {
 const MarkdownTextImpl = () => {
 	return (
 		<MarkdownTextPrimitive
+			smooth={false}
 			remarkPlugins={[remarkGfm, remarkMath]}
 			rehypePlugins={[rehypeKatex]}
 			className="aui-md"
