@@ -11,6 +11,9 @@ import {
 	AlertCircle,
 	ArrowDownIcon,
 	ArrowUpIcon,
+	ChevronDown,
+	ChevronUp,
+	Clipboard,
 	Globe,
 	Plus,
 	Settings2,
@@ -294,6 +297,43 @@ const ConnectToolsBanner: FC<{ isThreadEmpty: boolean }> = ({ isThreadEmpty }) =
 	);
 };
 
+const ClipboardChip: FC<{ text: string; onDismiss: () => void }> = ({ text, onDismiss }) => {
+	const [expanded, setExpanded] = useState(false);
+	const isLong = text.length > 120;
+	const preview = isLong ? `${text.slice(0, 120)}…` : text;
+
+	return (
+		<div className="mx-3 mt-2 rounded-lg border border-border/40 bg-background/60">
+			<div className="flex items-center gap-2 px-3 py-2">
+				<Clipboard className="size-4 shrink-0 text-muted-foreground" />
+				<span className="text-xs font-medium text-muted-foreground">From clipboard</span>
+				<div className="flex-1" />
+				{isLong && (
+					<button
+						type="button"
+						onClick={() => setExpanded((v) => !v)}
+						className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
+					>
+						{expanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+					</button>
+				)}
+				<button
+					type="button"
+					onClick={onDismiss}
+					className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
+				>
+					<X className="size-3.5" />
+				</button>
+			</div>
+			<div className="px-3 pb-2">
+				<p className="text-xs text-foreground/80 whitespace-pre-wrap wrap-break-word leading-relaxed">
+					{expanded ? text : preview}
+				</p>
+			</div>
+		</div>
+	);
+};
+
 const Composer: FC = () => {
 	// Document mention state (atoms persist across component remounts)
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
@@ -304,6 +344,7 @@ const Composer: FC = () => {
 	const [actionQuery, setActionQuery] = useState("");
 	const editorRef = useRef<InlineMentionEditorRef>(null);
 	const editorContainerRef = useRef<HTMLDivElement>(null);
+	const composerBoxRef = useRef<HTMLDivElement>(null);
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
 	const promptPickerRef = useRef<PromptPickerRef>(null);
 	const { search_space_id, chat_id } = useParams();
@@ -440,33 +481,45 @@ const Composer: FC = () => {
 		}
 	}, [showPromptPicker]);
 
-	// Pending action prompt stored when user picks an action
-	const pendingActionRef = useRef<{ name: string; prompt: string; mode: "transform" | "explore" } | null>(null);
-
 	const handleActionSelect = useCallback(
 		(action: { name: string; prompt: string; mode: "transform" | "explore" }) => {
+			let userText = editorRef.current?.getText() ?? "";
+			const trigger = `/${actionQuery}`;
+			if (userText.endsWith(trigger)) {
+				userText = userText.slice(0, -trigger.length).trimEnd();
+			}
+			const finalPrompt = action.prompt.includes("{selection}")
+				? action.prompt.replace("{selection}", () => userText)
+				: userText ? `${action.prompt}\n\n${userText}` : action.prompt;
+			aui.composer().setText(finalPrompt);
+			aui.composer().send();
+			editorRef.current?.clear();
 			setShowPromptPicker(false);
 			setActionQuery("");
+			setMentionedDocuments([]);
+			setSidebarDocs([]);
+		},
+		[actionQuery, aui, setMentionedDocuments, setSidebarDocs]
+	);
 
-			if (clipboardInitialText) {
-				const finalPrompt = action.prompt.replace("{selection}", clipboardInitialText);
-				window.electronAPI?.setQuickAskMode(action.mode);
-				aui.composer().setText(finalPrompt);
-				aui.composer().send();
-				editorRef.current?.clear();
-				setMentionedDocuments([]);
-				setSidebarDocs([]);
-			} else {
-				pendingActionRef.current = action;
-				editorRef.current?.insertActionChip(action.name);
-			}
+	const handleQuickAskSelect = useCallback(
+		(action: { name: string; prompt: string; mode: "transform" | "explore" }) => {
+			if (!clipboardInitialText) return;
+			window.electronAPI?.setQuickAskMode(action.mode);
+			const finalPrompt = action.prompt.includes("{selection}")
+				? action.prompt.replace("{selection}", () => clipboardInitialText)
+				: `${action.prompt}\n\n${clipboardInitialText}`;
+			aui.composer().setText(finalPrompt);
+			aui.composer().send();
+			editorRef.current?.clear();
+			setShowPromptPicker(false);
+			setActionQuery("");
+			setClipboardInitialText(undefined);
+			setMentionedDocuments([]);
+			setSidebarDocs([]);
 		},
 		[clipboardInitialText, aui, setMentionedDocuments, setSidebarDocs]
 	);
-
-	const handleActionRemove = useCallback(() => {
-		pendingActionRef.current = null;
-	}, []);
 
 	// Keyboard navigation for document/action picker (arrow keys, Enter, Escape)
 	const handleKeyDown = useCallback(
@@ -527,11 +580,13 @@ const Composer: FC = () => {
 			return;
 		}
 		if (!showDocumentPopover && !showPromptPicker) {
-			if (pendingActionRef.current) {
+			if (clipboardInitialText) {
 				const userText = editorRef.current?.getText() ?? "";
-				const finalPrompt = pendingActionRef.current.prompt.replace("{selection}", userText);
-				aui.composer().setText(finalPrompt);
-				pendingActionRef.current = null;
+				const combined = userText
+					? `${userText}\n\n${clipboardInitialText}`
+					: clipboardInitialText;
+				aui.composer().setText(combined);
+				setClipboardInitialText(undefined);
 			}
 			aui.composer().send();
 			editorRef.current?.clear();
@@ -543,6 +598,7 @@ const Composer: FC = () => {
 		showPromptPicker,
 		isThreadRunning,
 		isBlockedByOtherUser,
+		clipboardInitialText,
 		aui,
 		setMentionedDocuments,
 		setSidebarDocs,
@@ -582,14 +638,23 @@ const Composer: FC = () => {
 	);
 
 	return (
-		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col gap-2">
+		<ComposerPrimitive.Root
+			className="aui-composer-root relative flex w-full flex-col gap-2"
+			style={(showPromptPicker && clipboardInitialText) ? { marginBottom: 220 } : undefined}
+		>
 			<ChatSessionStatus
 				isAiResponding={isAiResponding}
 				respondingToUserId={respondingToUserId}
 				currentUserId={currentUser?.id ?? null}
 				members={members ?? []}
 			/>
-			<div className="aui-composer-attachment-dropzone flex w-full flex-col overflow-hidden rounded-2xl border-input bg-muted pt-2 outline-none transition-shadow">
+			<div ref={composerBoxRef} className="aui-composer-attachment-dropzone flex w-full flex-col overflow-hidden rounded-2xl border-input bg-muted pt-2 outline-none transition-shadow">
+				{clipboardInitialText && (
+					<ClipboardChip
+						text={clipboardInitialText}
+						onDismiss={() => setClipboardInitialText(undefined)}
+					/>
+				)}
 				{/* Inline editor with @mention support */}
 				<div ref={editorContainerRef} className="aui-composer-input-wrapper px-4 pt-3 pb-6">
 					<InlineMentionEditor
@@ -599,12 +664,10 @@ const Composer: FC = () => {
 						onMentionClose={handleMentionClose}
 						onActionTrigger={handleActionTrigger}
 						onActionClose={handleActionClose}
-						onActionRemove={handleActionRemove}
 						onChange={handleEditorChange}
 						onDocumentRemove={handleDocumentRemove}
 						onSubmit={handleSubmit}
 						onKeyDown={handleKeyDown}
-						initialText={clipboardInitialText}
 						className="min-h-[24px]"
 					/>
 				</div>
@@ -638,7 +701,7 @@ const Composer: FC = () => {
 					createPortal(
 						<PromptPicker
 							ref={promptPickerRef}
-							onSelect={handleActionSelect}
+							onSelect={clipboardInitialText ? handleQuickAskSelect : handleActionSelect}
 							onDone={() => {
 								setShowPromptPicker(false);
 								setActionQuery("");
@@ -646,9 +709,12 @@ const Composer: FC = () => {
 							externalSearch={actionQuery}
 							containerStyle={{
 								position: "fixed",
-								bottom: editorContainerRef.current
-									? `${window.innerHeight - editorContainerRef.current.getBoundingClientRect().top + 12}px`
-									: "200px",
+								...(clipboardInitialText && composerBoxRef.current
+									? { top: `${composerBoxRef.current.getBoundingClientRect().bottom + 8}px` }
+									: { bottom: editorContainerRef.current
+										? `${window.innerHeight - editorContainerRef.current.getBoundingClientRect().top + 8}px`
+										: "200px" }
+								),
 								left: editorContainerRef.current
 									? `${editorContainerRef.current.getBoundingClientRect().left}px`
 									: "50%",

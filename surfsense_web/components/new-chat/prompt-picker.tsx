@@ -108,9 +108,8 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(
 				const action = filtered[index];
 				if (!action) return;
 				onSelect({ name: action.name, prompt: action.prompt, mode: action.mode });
-				onDone();
 			},
-			[filtered, onSelect, onDone]
+			[filtered, onSelect]
 		);
 
 		// Auto-scroll highlighted item into view

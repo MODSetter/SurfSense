@@ -33,7 +33,7 @@ function createQuickAskWindow(x: number, y: number): BrowserWindow {
 
   quickAskWindow = new BrowserWindow({
     width: 450,
-    height: 550,
+    height: 750,
     x,
     y,
     ...(process.platform === 'darwin'
@@ -92,7 +92,7 @@ export function registerQuickAsk(): void {
 
     pendingText = text;
     const cursor = screen.getCursorScreenPoint();
-    const pos = clampToScreen(cursor.x, cursor.y, 450, 550);
+    const pos = clampToScreen(cursor.x, cursor.y, 450, 750);
     createQuickAskWindow(pos.x, pos.y);
   });
 
@@ -101,15 +101,20 @@ export function registerQuickAsk(): void {
   }
 
   ipcMain.handle(IPC_CHANNELS.QUICK_ASK_TEXT, () => {
-    return pendingText;
+    const text = pendingText;
+    pendingText = '';
+    return text;
   });
 
   ipcMain.handle(IPC_CHANNELS.SET_QUICK_ASK_MODE, (_event, mode: string) => {
     pendingMode = mode;
   });
 
-  ipcMain.handle(IPC_CHANNELS.GET_QUICK_ASK_MODE, () => {
-    return pendingMode;
+  ipcMain.handle(IPC_CHANNELS.GET_QUICK_ASK_MODE, (event) => {
+    if (quickAskWindow && !quickAskWindow.isDestroyed() && event.sender.id === quickAskWindow.webContents.id) {
+      return pendingMode;
+    }
+    return '';
   });
 
   ipcMain.handle(IPC_CHANNELS.REPLACE_TEXT, async (_event, text: string) => {

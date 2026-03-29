@@ -139,10 +139,13 @@ export function PromptsContent() {
 							id="prompt-template"
 							value={formData.prompt}
 							onChange={(e) => setFormData((p) => ({ ...p, prompt: e.target.value }))}
-							placeholder="e.g. Fix the grammar in the following text. Return only the corrected text."
+							placeholder="e.g. Fix the grammar in the following text:\n\n{selection}"
 							rows={4}
 							className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none resize-none focus:ring-1 focus:ring-ring"
 						/>
+						<p className="text-xs text-muted-foreground">
+							Use <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">{"{selection}"}</code> to insert the input text. If omitted, the text is appended automatically.
+						</p>
 					</div>
 
 					<div className="space-y-2">
