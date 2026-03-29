@@ -196,7 +196,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 						onClick={openNewDialog}
 						className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
 					>
-						Add Configuration
+						Add LLM Model
 					</Button>
 				)}
 			</div>
@@ -243,18 +243,12 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 
 			{/* Global Configs Info */}
 			{globalConfigs.length > 0 && (
-				<div>
-					<Alert className="bg-muted/50 py-3 md:py-4">
-						<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
-						<AlertDescription className="text-xs md:text-sm">
-							<span className="font-medium">{globalConfigs.length} global configuration(s)</span>{" "}
-							available from your administrator. These are pre-configured and ready to use.{" "}
-							<span className="text-muted-foreground">
-								Global configs: {globalConfigs.map((g) => g.name).join(", ")}
-							</span>
-						</AlertDescription>
-					</Alert>
-				</div>
+				<Alert className="bg-muted/50 py-3">
+					<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
+					<AlertDescription className="text-xs md:text-sm">
+						<p><span className="font-medium">{globalConfigs.length} global {globalConfigs.length === 1 ? "model" : "models"}</span> available from your administrator. Use the model selector to view and select them.</p>
+					</AlertDescription>
+				</Alert>
 			)}
 
 			{/* Loading Skeleton */}

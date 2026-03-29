@@ -196,11 +196,7 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 				<Alert className="bg-muted/50 py-3">
 					<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
 					<AlertDescription className="text-xs md:text-sm">
-						<span className="font-medium">
-							{globalConfigs.filter((g) => !("is_auto_mode" in g && g.is_auto_mode)).length} global
-							image model(s)
-						</span>{" "}
-						available from your administrator.
+						<p><span className="font-medium">{globalConfigs.filter((g) => !("is_auto_mode" in g && g.is_auto_mode)).length} global image {globalConfigs.filter((g) => !("is_auto_mode" in g && g.is_auto_mode)).length === 1 ? "model" : "models"}</span> available from your administrator. Use the model selector to view and select them.</p>
 					</AlertDescription>
 				</Alert>
 			)}
