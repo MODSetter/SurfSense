@@ -33,7 +33,7 @@ import { closeReportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { type AgentCreatedDocument, agentCreatedDocumentsAtom } from "@/atoms/documents/ui.atoms";
 import { closeEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
-import { updateChatTabTitleAtom } from "@/atoms/tabs/tabs.atom";
+import { removeChatTabAtom, updateChatTabTitleAtom } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { ThinkingStepsDataUI } from "@/components/assistant-ui/thinking-steps";
 import { Thread } from "@/components/assistant-ui/thread";
@@ -70,6 +70,7 @@ import {
 	getThreadMessages,
 	type ThreadRecord,
 } from "@/lib/chat/thread-persistence";
+import { NotFoundError } from "@/lib/error";
 import {
 	trackChatCreated,
 	trackChatError,
@@ -194,6 +195,7 @@ export default function NewChatPage() {
 	const closeReportPanel = useSetAtom(closeReportPanelAtom);
 	const closeEditorPanel = useSetAtom(closeEditorPanelAtom);
 	const updateChatTabTitle = useSetAtom(updateChatTabTitleAtom);
+	const removeChatTab = useSetAtom(removeChatTabAtom);
 	const setAgentCreatedDocuments = useSetAtom(agentCreatedDocumentsAtom);
 
 	// Get current user for author info in shared chats
@@ -323,6 +325,14 @@ export default function NewChatPage() {
 			// This improves UX (instant load) and avoids orphan threads
 		} catch (error) {
 			console.error("[NewChatPage] Failed to initialize thread:", error);
+			if (urlChatId > 0 && error instanceof NotFoundError) {
+				removeChatTab(urlChatId);
+				if (typeof window !== "undefined") {
+					window.history.replaceState(null, "", `/dashboard/${searchSpaceId}/new-chat`);
+				}
+				toast.error("This chat was deleted.");
+				return;
+			}
 			// Keep threadId as null - don't use Date.now() as it creates an invalid ID
 			// that will cause 404 errors on subsequent API calls
 			setThreadId(null);
@@ -338,12 +348,14 @@ export default function NewChatPage() {
 		setSidebarDocuments,
 		closeReportPanel,
 		closeEditorPanel,
+		removeChatTab,
+		searchSpaceId,
 	]);
 
 	// Initialize on mount, and re-init when switching search spaces (even if urlChatId is the same)
 	useEffect(() => {
 		initializeThread();
-	}, [initializeThread, searchSpaceId]);
+	}, [initializeThread]);
 
 	// Prefetch document titles for @ mention picker
 	// Runs when user lands on page so data is ready when they type @

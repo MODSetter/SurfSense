@@ -33,6 +33,9 @@ const initialState: TabsState = {
 	activeTabId: "chat-new",
 };
 
+// Prevent race conditions where route-sync recreates a just-deleted chat tab.
+const deletedChatIdsAtom = atom<Set<number>>(new Set<number>());
+
 const sessionStorageAdapter = createJSONStorage<TabsState>(
 	() => (typeof window !== "undefined" ? sessionStorage : undefined) as Storage
 );
@@ -71,6 +74,10 @@ export const syncChatTabAtom = atom(
 		set,
 		{ chatId, title, chatUrl }: { chatId: number | null; title?: string; chatUrl?: string }
 	) => {
+		if (chatId && get(deletedChatIdsAtom).has(chatId)) {
+			return;
+		}
+
 		const state = get(tabsStateAtom);
 		const tabId = makeChatTabId(chatId);
 		const existing = state.tabs.find((t) => t.id === tabId);
@@ -235,6 +242,9 @@ export const removeChatTabAtom = atom(null, (get, set, chatId: number) => {
 	const idx = state.tabs.findIndex((t) => t.id === tabId);
 	if (idx === -1) return null;
 
+	const deletedChatIds = get(deletedChatIdsAtom);
+	set(deletedChatIdsAtom, new Set([...deletedChatIds, chatId]));
+
 	const remaining = state.tabs.filter((t) => t.id !== tabId);
 
 	// Always keep at least one tab available.
@@ -259,4 +269,5 @@ export const removeChatTabAtom = atom(null, (get, set, chatId: number) => {
 /** Reset tabs when switching search spaces. */
 export const resetTabsAtom = atom(null, (_get, set) => {
 	set(tabsStateAtom, { ...initialState });
+	set(deletedChatIdsAtom, new Set<number>());
 });

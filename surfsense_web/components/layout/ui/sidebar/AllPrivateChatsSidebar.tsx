@@ -161,7 +161,7 @@ export function AllPrivateChatsSidebarContent({
 			setDeletingThreadId(threadId);
 			try {
 				await deleteThread(threadId);
-				removeChatTab(threadId);
+				const fallbackTab = removeChatTab(threadId);
 				toast.success(t("chat_deleted") || "Chat deleted successfully");
 				queryClient.invalidateQueries({ queryKey: ["all-threads", searchSpaceId] });
 				queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
@@ -170,6 +170,10 @@ export function AllPrivateChatsSidebarContent({
 				if (currentChatId === threadId) {
 					onOpenChange(false);
 					setTimeout(() => {
+						if (fallbackTab?.type === "chat" && fallbackTab.chatUrl) {
+							router.push(fallbackTab.chatUrl);
+							return;
+						}
 						router.push(`/dashboard/${searchSpaceId}/new-chat`);
 					}, 250);
 				}

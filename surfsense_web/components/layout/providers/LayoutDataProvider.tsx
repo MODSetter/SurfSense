@@ -639,16 +639,20 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		setIsDeletingChat(true);
 		try {
 			await deleteThread(chatToDelete.id);
-			removeChatTab(chatToDelete.id);
+			const fallbackTab = removeChatTab(chatToDelete.id);
 			queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
 			if (currentChatId === chatToDelete.id) {
 				resetCurrentThread();
-				const isOutOfSync = currentThreadState.id !== null && !params?.chat_id;
-				if (isOutOfSync) {
-					window.history.replaceState(null, "", `/dashboard/${searchSpaceId}/new-chat`);
-					setChatResetKey((k) => k + 1);
+				if (fallbackTab?.type === "chat" && fallbackTab.chatUrl) {
+					router.push(fallbackTab.chatUrl);
 				} else {
-					router.push(`/dashboard/${searchSpaceId}/new-chat`);
+					const isOutOfSync = currentThreadState.id !== null && !params?.chat_id;
+					if (isOutOfSync) {
+						window.history.replaceState(null, "", `/dashboard/${searchSpaceId}/new-chat`);
+						setChatResetKey((k) => k + 1);
+					} else {
+						router.push(`/dashboard/${searchSpaceId}/new-chat`);
+					}
 				}
 			}
 		} catch (error) {
