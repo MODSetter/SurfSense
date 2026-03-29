@@ -77,7 +77,7 @@ import {
 } from "@/components/tool-ui/shared/media";
 import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-memory";
 import { GenerateVideoPresentationToolUI } from "@/components/tool-ui/video-presentation";
-import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerHandle, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { useComments } from "@/hooks/use-comments";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
@@ -180,12 +180,12 @@ const MobileCitationDrawer: FC = () => {
 			</button>
 
 			<Drawer open={open} onOpenChange={setOpen}>
-				<DrawerContent className="max-h-[70dvh]">
+				<DrawerContent className="max-h-[85vh] flex flex-col">
 					<DrawerHandle />
-					<div className="flex items-center px-4 py-2">
-						<DrawerTitle className="text-sm font-medium">Sources</DrawerTitle>
-					</div>
-					<div className="overflow-y-auto px-1 pb-6">
+					<DrawerHeader className="text-left">
+						<DrawerTitle className="text-base font-semibold">Sources</DrawerTitle>
+					</DrawerHeader>
+					<div className="overflow-y-auto flex-1 min-h-0 px-1 pb-6">
 						{citations.map((citation) => (
 							<button
 								key={citation.id}
