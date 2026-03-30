@@ -60,11 +60,11 @@ import {
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { UserMessage } from "@/components/assistant-ui/user-message";
 import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/components/layout/ui/sidebar/SidebarSlideOutPanel";
-import { PromptPicker, type PromptPickerRef } from "@/components/new-chat/prompt-picker";
 import {
 	DocumentMentionPicker,
 	type DocumentMentionPickerRef,
 } from "@/components/new-chat/document-mention-picker";
+import { PromptPicker, type PromptPickerRef } from "@/components/new-chat/prompt-picker";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
@@ -490,7 +490,9 @@ const Composer: FC = () => {
 			}
 			const finalPrompt = action.prompt.includes("{selection}")
 				? action.prompt.replace("{selection}", () => userText)
-				: userText ? `${action.prompt}\n\n${userText}` : action.prompt;
+				: userText
+					? `${action.prompt}\n\n${userText}`
+					: action.prompt;
 			aui.composer().setText(finalPrompt);
 			aui.composer().send();
 			editorRef.current?.clear();
@@ -582,9 +584,7 @@ const Composer: FC = () => {
 		if (!showDocumentPopover && !showPromptPicker) {
 			if (clipboardInitialText) {
 				const userText = editorRef.current?.getText() ?? "";
-				const combined = userText
-					? `${userText}\n\n${clipboardInitialText}`
-					: clipboardInitialText;
+				const combined = userText ? `${userText}\n\n${clipboardInitialText}` : clipboardInitialText;
 				aui.composer().setText(combined);
 				setClipboardInitialText(undefined);
 			}
@@ -640,7 +640,7 @@ const Composer: FC = () => {
 	return (
 		<ComposerPrimitive.Root
 			className="aui-composer-root relative flex w-full flex-col gap-2"
-			style={(showPromptPicker && clipboardInitialText) ? { marginBottom: 220 } : undefined}
+			style={showPromptPicker && clipboardInitialText ? { marginBottom: 220 } : undefined}
 		>
 			<ChatSessionStatus
 				isAiResponding={isAiResponding}
@@ -648,7 +648,10 @@ const Composer: FC = () => {
 				currentUserId={currentUser?.id ?? null}
 				members={members ?? []}
 			/>
-			<div ref={composerBoxRef} className="aui-composer-attachment-dropzone flex w-full flex-col overflow-hidden rounded-2xl border-input bg-muted pt-2 outline-none transition-shadow">
+			<div
+				ref={composerBoxRef}
+				className="aui-composer-attachment-dropzone flex w-full flex-col overflow-hidden rounded-2xl border-input bg-muted pt-2 outline-none transition-shadow"
+			>
 				{clipboardInitialText && (
 					<ClipboardChip
 						text={clipboardInitialText}
@@ -711,10 +714,11 @@ const Composer: FC = () => {
 								position: "fixed",
 								...(clipboardInitialText && composerBoxRef.current
 									? { top: `${composerBoxRef.current.getBoundingClientRect().bottom + 8}px` }
-									: { bottom: editorContainerRef.current
-										? `${window.innerHeight - editorContainerRef.current.getBoundingClientRect().top + 8}px`
-										: "200px" }
-								),
+									: {
+											bottom: editorContainerRef.current
+												? `${window.innerHeight - editorContainerRef.current.getBoundingClientRect().top + 8}px`
+												: "200px",
+										}),
 								left: editorContainerRef.current
 									? `${editorContainerRef.current.getBoundingClientRect().left}px`
 									: "50%",

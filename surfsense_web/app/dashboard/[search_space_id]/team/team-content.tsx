@@ -308,7 +308,8 @@ export function TeamContent({ searchSpaceId }: TeamContentProps) {
 				{invitesLoading ? (
 					<Skeleton className="h-9 w-32 rounded-md" />
 				) : (
-					canInvite && activeInvites.length > 0 && (
+					canInvite &&
+					activeInvites.length > 0 && (
 						<AllInvitesDialog invites={activeInvites} onRevokeInvite={handleRevokeInvite} />
 					)
 				)}

@@ -779,11 +779,11 @@ export const useConnectorDialog = () => {
 					});
 				}
 
-			// Handle Google Drive / OneDrive folder selection (regular and Composio)
-			if (
-				(indexingConfig.connectorType === "GOOGLE_DRIVE_CONNECTOR" ||
-					indexingConfig.connectorType === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" ||
-					indexingConfig.connectorType === "ONEDRIVE_CONNECTOR") &&
+				// Handle Google Drive / OneDrive folder selection (regular and Composio)
+				if (
+					(indexingConfig.connectorType === "GOOGLE_DRIVE_CONNECTOR" ||
+						indexingConfig.connectorType === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" ||
+						indexingConfig.connectorType === "ONEDRIVE_CONNECTOR") &&
 					indexingConnectorConfig
 				) {
 					const selectedFolders = indexingConnectorConfig.selected_folders as

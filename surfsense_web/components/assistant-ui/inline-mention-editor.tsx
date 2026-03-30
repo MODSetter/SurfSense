@@ -544,7 +544,12 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 						}
 					}
 
-					if (slashIndex !== -1 && (slashIndex === 0 || textContent[slashIndex - 1] === " " || textContent[slashIndex - 1] === "\n")) {
+					if (
+						slashIndex !== -1 &&
+						(slashIndex === 0 ||
+							textContent[slashIndex - 1] === " " ||
+							textContent[slashIndex - 1] === "\n")
+					) {
 						const query = textContent.slice(slashIndex + 1, cursorPos);
 						if (!query.startsWith(" ")) {
 							shouldTriggerAction = true;
@@ -575,7 +580,15 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 
 			// Notify parent of change
 			onChange?.(text, Array.from(mentionedDocs.values()));
-		}, [getText, mentionedDocs, onChange, onMentionTrigger, onMentionClose, onActionTrigger, onActionClose]);
+		}, [
+			getText,
+			mentionedDocs,
+			onChange,
+			onMentionTrigger,
+			onMentionClose,
+			onActionTrigger,
+			onActionClose,
+		]);
 
 		// Handle keydown
 		const handleKeyDown = useCallback(

@@ -744,7 +744,11 @@ export function DocumentsTableShell({
 																</button>
 															</DropdownMenuTrigger>
 															<DropdownMenuContent align="end" className="w-48">
-																<DropdownMenuItem onClick={() => onOpenInTab ? onOpenInTab(doc) : handleViewDocument(doc)}>
+																<DropdownMenuItem
+																	onClick={() =>
+																		onOpenInTab ? onOpenInTab(doc) : handleViewDocument(doc)
+																	}
+																>
 																	<Eye className="h-4 w-4" />
 																	Open
 																</DropdownMenuItem>
