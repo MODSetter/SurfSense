@@ -243,7 +243,7 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 										onClick={(e) => {
 											e.preventDefault();
 											e.stopPropagation();
-											setShowDetails(!showDetails);
+											setShowDetails(prev => !prev);
 										}}
 									>
 										{showDetails ? (

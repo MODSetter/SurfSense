@@ -248,7 +248,7 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 										onClick={(e) => {
 											e.preventDefault();
 											e.stopPropagation();
-											setShowDetails(!showDetails);
+											setShowDetails(prev => !prev);
 										}}
 									>
 										{showDetails ? (

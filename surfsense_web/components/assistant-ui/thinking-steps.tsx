@@ -69,7 +69,7 @@ export const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?:
 			<div className="rounded-lg">
 				<button
 					type="button"
-					onClick={() => setIsOpen(!isOpen)}
+					onClick={() => setIsOpen(prev => !prev)}
 					className={cn(
 						"flex w-full items-center gap-1.5 text-left text-sm transition-colors",
 						"text-muted-foreground hover:text-foreground"
