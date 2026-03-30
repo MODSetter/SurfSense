@@ -84,6 +84,7 @@ _CONNECTOR_TYPE_TO_SEARCHABLE: dict[str, str] = {
     "BOOKSTACK_CONNECTOR": "BOOKSTACK_CONNECTOR",
     "CIRCLEBACK_CONNECTOR": "CIRCLEBACK",  # Connector type differs from document type
     "OBSIDIAN_CONNECTOR": "OBSIDIAN_CONNECTOR",
+    "DROPBOX_CONNECTOR": "DROPBOX_FILE",  # Connector type differs from document type
     "ONEDRIVE_CONNECTOR": "ONEDRIVE_FILE",  # Connector type differs from document type
     # Composio connectors (unified to native document types).
     # Reverse of NATIVE_TO_LEGACY_DOCTYPE in app.db.
@@ -316,6 +317,12 @@ async def create_surfsense_deep_agent(
             "delete_google_drive_file",
         ]
         modified_disabled_tools.extend(google_drive_tools)
+
+    has_dropbox_connector = (
+        available_connectors is not None and "DROPBOX_FILE" in available_connectors
+    )
+    if not has_dropbox_connector:
+        modified_disabled_tools.extend(["create_dropbox_file", "delete_dropbox_file"])
 
     has_onedrive_connector = (
         available_connectors is not None and "ONEDRIVE_FILE" in available_connectors
