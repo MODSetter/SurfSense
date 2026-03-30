@@ -1,15 +1,21 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useAtomValue, useSetAtom } from "jotai";
 import { AlertCircle, XIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { closeEditorPanelAtom, editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
-import { PlateEditor } from "@/components/editor/plate-editor";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
+
+const PlateEditor = dynamic(
+	() => import("@/components/editor/plate-editor").then((m) => ({ default: m.PlateEditor })),
+	{ ssr: false, loading: () => <Skeleton className="h-64 w-full" /> }
+);
 
 interface EditorContent {
 	document_id: number;
