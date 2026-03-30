@@ -834,7 +834,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						</Button>
 						<Button
 							onClick={confirmRenameChat}
-							disabled={isRenamingChat || !newChatTitle.trim()}
+							disabled={isRenamingChat || !newChatTitle.trim() || newChatTitle.trim() === chatToRename?.name}
 							className="gap-2"
 						>
 							{isRenamingChat ? (
