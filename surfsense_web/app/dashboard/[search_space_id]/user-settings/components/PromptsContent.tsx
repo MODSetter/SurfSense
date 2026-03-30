@@ -230,6 +230,22 @@ export function PromptsContent() {
 								<p className="mt-1 text-xs text-muted-foreground line-clamp-2">{prompt.prompt}</p>
 							</div>
 							<div className="hidden group-hover:flex items-center gap-1 shrink-0">
+								<button
+									type="button"
+									title={prompt.is_public ? "Make private" : "Share with community"}
+									onClick={async () => {
+										try {
+											const updated = await promptsApiService.update(prompt.id, { is_public: !prompt.is_public });
+											setPrompts((prev) => prev.map((p) => (p.id === prompt.id ? updated : p)));
+											toast.success(updated.is_public ? "Shared with community" : "Made private");
+										} catch {
+											toast.error("Failed to update");
+										}
+									}}
+									className="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+								>
+									<Globe className={`size-3.5 ${prompt.is_public ? "text-primary" : ""}`} />
+								</button>
 								<Button
 									variant="ghost"
 									size="icon"
