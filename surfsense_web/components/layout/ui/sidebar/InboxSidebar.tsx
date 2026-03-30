@@ -111,6 +111,7 @@ function getConnectorTypeDisplayName(connectorType: string): string {
 		CIRCLEBACK_CONNECTOR: "Circleback",
 		MCP_CONNECTOR: "MCP",
 		OBSIDIAN_CONNECTOR: "Obsidian",
+		DROPBOX_CONNECTOR: "Dropbox",
 		TAVILY_API: "Tavily",
 		SEARXNG_API: "SearXNG",
 		LINKUP_API: "Linkup",
