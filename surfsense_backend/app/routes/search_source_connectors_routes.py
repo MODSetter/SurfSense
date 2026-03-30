@@ -1071,6 +1071,7 @@ async def index_connector_content(
                     "indexing_options",
                     {
                         "max_files_per_folder": 100,
+                        "incremental_sync": True,
                         "include_subfolders": True,
                     },
                 )

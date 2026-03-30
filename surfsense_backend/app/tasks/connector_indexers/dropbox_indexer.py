@@ -262,6 +262,7 @@ async def _index_full_scan(
     log_entry: object,
     max_files: int,
     include_subfolders: bool = True,
+    incremental_sync: bool = True,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
     enable_summary: bool = True,
 ) -> tuple[int, int]:
@@ -273,6 +274,7 @@ async def _index_full_scan(
             "stage": "full_scan",
             "folder_path": folder_path,
             "include_subfolders": include_subfolders,
+            "incremental_sync": incremental_sync,
         },
     )
 
@@ -294,12 +296,16 @@ async def _index_full_scan(
         raise Exception(f"Failed to list Dropbox files: {error}")
 
     for file in all_files[:max_files]:
-        skip, msg = await _should_skip_file(session, file, search_space_id)
-        if skip:
-            if msg and "renamed" in msg.lower():
-                renamed_count += 1
-            else:
-                skipped += 1
+        if incremental_sync:
+            skip, msg = await _should_skip_file(session, file, search_space_id)
+            if skip:
+                if msg and "renamed" in msg.lower():
+                    renamed_count += 1
+                else:
+                    skipped += 1
+                continue
+        elif skip_item(file):
+            skipped += 1
             continue
         files_to_download.append(file)
 
@@ -330,6 +336,7 @@ async def _index_selected_files(
     search_space_id: int,
     user_id: str,
     enable_summary: bool,
+    incremental_sync: bool = True,
     on_heartbeat: HeartbeatCallbackType | None = None,
 ) -> tuple[int, int, list[str]]:
     """Index user-selected files using the parallel pipeline."""
@@ -345,12 +352,16 @@ async def _index_selected_files(
             errors.append(f"File '{display}': {error or 'File not found'}")
             continue
 
-        skip, msg = await _should_skip_file(session, file, search_space_id)
-        if skip:
-            if msg and "renamed" in msg.lower():
-                renamed_count += 1
-            else:
-                skipped += 1
+        if incremental_sync:
+            skip, msg = await _should_skip_file(session, file, search_space_id)
+            if skip:
+                if msg and "renamed" in msg.lower():
+                    renamed_count += 1
+                else:
+                    skipped += 1
+                continue
+        elif skip_item(file):
+            skipped += 1
             continue
 
         files_to_download.append(file)
@@ -382,7 +393,11 @@ async def index_dropbox_files(
         {
             "folders": [{"path": "...", "name": "..."}, ...],
             "files": [{"path": "...", "name": "..."}, ...],
-            "indexing_options": {"max_files": 500, "include_subfolders": true}
+            "indexing_options": {
+                "max_files": 500,
+                "incremental_sync": true,
+                "include_subfolders": true,
+            }
         }
     """
     task_logger = TaskLoggingService(session, search_space_id)
@@ -420,6 +435,7 @@ async def index_dropbox_files(
 
         indexing_options = items_dict.get("indexing_options", {})
         max_files = indexing_options.get("max_files", 500)
+        incremental_sync = indexing_options.get("incremental_sync", True)
         include_subfolders = indexing_options.get("include_subfolders", True)
 
         total_indexed = 0
@@ -439,6 +455,7 @@ async def index_dropbox_files(
                 search_space_id=search_space_id,
                 user_id=user_id,
                 enable_summary=connector_enable_summary,
+                incremental_sync=incremental_sync,
             )
             total_indexed += indexed
             total_skipped += skipped
@@ -461,6 +478,7 @@ async def index_dropbox_files(
                 log_entry,
                 max_files,
                 include_subfolders,
+                incremental_sync=incremental_sync,
                 enable_summary=connector_enable_summary,
             )
             total_indexed += indexed

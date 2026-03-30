@@ -28,11 +28,13 @@ import type { ConnectorConfigProps } from "../index";
 
 interface IndexingOptions {
 	max_files_per_folder: number;
+	incremental_sync: boolean;
 	include_subfolders: boolean;
 }
 
 const DEFAULT_INDEXING_OPTIONS: IndexingOptions = {
 	max_files_per_folder: 100,
+	incremental_sync: true,
 	include_subfolders: true,
 };
 
@@ -295,21 +297,37 @@ export const DropboxConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCha
 					</div>
 				</div>
 
-				<div className="flex items-center justify-between pt-2 border-t border-slate-400/20">
-					<div className="space-y-0.5">
-						<Label htmlFor="db-include-subfolders" className="text-sm font-medium">
-							Include subfolders
-						</Label>
-						<p className="text-xs text-muted-foreground">
-							Recursively index files in subfolders of selected folders
-						</p>
-					</div>
-					<Switch
-						id="db-include-subfolders"
-						checked={indexingOptions.include_subfolders}
-						onCheckedChange={(checked) => handleIndexingOptionChange("include_subfolders", checked)}
-					/>
+			<div className="flex items-center justify-between pt-2 border-t border-slate-400/20">
+				<div className="space-y-0.5">
+					<Label htmlFor="db-incremental-sync" className="text-sm font-medium">
+						Incremental sync
+					</Label>
+					<p className="text-xs text-muted-foreground">
+						Only sync changes since last index (faster). Disable for a full re-index.
+					</p>
 				</div>
+				<Switch
+					id="db-incremental-sync"
+					checked={indexingOptions.incremental_sync}
+					onCheckedChange={(checked) => handleIndexingOptionChange("incremental_sync", checked)}
+				/>
+			</div>
+
+			<div className="flex items-center justify-between pt-2 border-t border-slate-400/20">
+				<div className="space-y-0.5">
+					<Label htmlFor="db-include-subfolders" className="text-sm font-medium">
+						Include subfolders
+					</Label>
+					<p className="text-xs text-muted-foreground">
+						Recursively index files in subfolders of selected folders
+					</p>
+				</div>
+				<Switch
+					id="db-include-subfolders"
+					checked={indexingOptions.include_subfolders}
+					onCheckedChange={(checked) => handleIndexingOptionChange("include_subfolders", checked)}
+				/>
+			</div>
 			</div>
 		</div>
 	);
