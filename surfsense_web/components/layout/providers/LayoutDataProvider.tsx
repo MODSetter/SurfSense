@@ -104,9 +104,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const syncChatTab = useSetAtom(syncChatTabAtom);
 	const resetTabs = useSetAtom(resetTabsAtom);
 
-	// State for handling new chat navigation when router is out of sync
-	const [pendingNewChat, setPendingNewChat] = useState(false);
-
 	// Key used to force-remount the page component (e.g. after deleting the active chat
 	// when the router is out of sync due to replaceState)
 	const [chatResetKey, setChatResetKey] = useState(0);
@@ -255,17 +252,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const [searchSpaceToLeave, setSearchSpaceToLeave] = useState<SearchSpace | null>(null);
 	const [isDeletingSearchSpace, setIsDeletingSearchSpace] = useState(false);
 	const [isLeavingSearchSpace, setIsLeavingSearchSpace] = useState(false);
-
-	// Effect to complete new chat navigation after router syncs
-	// This runs when handleNewChat detected an out-of-sync state and triggered a sync
-	useEffect(() => {
-		if (pendingNewChat && params?.chat_id) {
-			// Router is now synced (chat_id is in params), complete navigation to new-chat
-			resetCurrentThread();
-			router.push(`/dashboard/${searchSpaceId}/new-chat`);
-			setPendingNewChat(false);
-		}
-	}, [pendingNewChat, params?.chat_id, router, searchSpaceId, resetCurrentThread]);
 
 	// Reset transient slide-out panels and tabs when switching search spaces.
 	// Use a ref to skip the initial mount — only reset when the space actually changes.
@@ -548,14 +534,17 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		if (isOutOfSync) {
 			// First sync Next.js router by navigating to the current chat's actual URL
 			// This updates the router's internal state to match the browser URL
+			resetCurrentThread();
 			router.replace(`/dashboard/${searchSpaceId}/new-chat/${currentThreadState.id}`);
-			// Set flag to trigger navigation to new-chat after params update
-			setPendingNewChat(true);
+			// Allow router to sync, then navigate to fresh new-chat
+			setTimeout(() => {
+				router.push(`/dashboard/${searchSpaceId}/new-chat`);
+			}, 0);
 		} else {
 			// Normal navigation - router is in sync
 			router.push(`/dashboard/${searchSpaceId}/new-chat`);
 		}
-	}, [router, searchSpaceId, currentThreadState.id, params?.chat_id]);
+	}, [router, searchSpaceId, currentThreadState.id, params?.chat_id, resetCurrentThread]);
 
 	const handleChatSelect = useCallback(
 		(chat: ChatItem) => {
