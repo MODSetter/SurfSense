@@ -1,12 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.db import Prompt, User, get_async_session
 from app.schemas.prompts import (
     PromptCreate,
     PromptRead,
     PromptUpdate,
+    PublicPromptRead,
 )
 from app.users import current_active_user
 
@@ -92,3 +94,54 @@ async def delete_prompt(
     await session.delete(prompt)
     await session.commit()
     return {"success": True}
+
+
+@router.get("/prompts/public", response_model=list[PublicPromptRead])
+async def list_public_prompts(
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    result = await session.execute(
+        select(Prompt)
+        .options(selectinload(Prompt.user))
+        .where(Prompt.is_public.is_(True))
+        .order_by(Prompt.created_at.desc())
+    )
+    prompts = result.scalars().all()
+    return [
+        PublicPromptRead(
+            **PromptRead.model_validate(p).model_dump(),
+            author_name=p.user.email if p.user else None,
+        )
+        for p in prompts
+    ]
+
+
+@router.post("/prompts/{prompt_id}/copy", response_model=PromptRead)
+async def copy_public_prompt(
+    prompt_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    result = await session.execute(
+        select(Prompt).where(
+            Prompt.id == prompt_id,
+            Prompt.is_public.is_(True),
+        )
+    )
+    source = result.scalar_one_or_none()
+    if not source:
+        raise HTTPException(status_code=404, detail="Prompt not found")
+
+    copy = Prompt(
+        user_id=user.id,
+        name=source.name,
+        prompt=source.prompt,
+        mode=source.mode,
+        icon=source.icon,
+        is_public=False,
+    )
+    session.add(copy)
+    await session.commit()
+    await session.refresh(copy)
+    return copy
