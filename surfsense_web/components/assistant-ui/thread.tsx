@@ -897,24 +897,6 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 		return result;
 	}, [filteredTools, connectedTypes]);
 
-	const { visibleTotal, visibleEnabled } = useMemo(() => {
-		let total = 0;
-		let enabled = 0;
-		for (const group of groupedTools) {
-			if (group.connectorIcon) {
-				total += 1;
-				const allDisabled = group.tools.every((t) => disabledTools.includes(t.name));
-				if (!allDisabled) enabled += 1;
-			} else {
-				for (const tool of group.tools) {
-					total += 1;
-					if (!disabledTools.includes(tool.name)) enabled += 1;
-				}
-			}
-		}
-		return { visibleTotal: total, visibleEnabled: enabled };
-	}, [groupedTools, disabledTools]);
-
 	useEffect(() => {
 		hydrateDisabled();
 	}, [hydrateDisabled]);
@@ -963,11 +945,8 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 						<Drawer open={toolsPopoverOpen} onOpenChange={setToolsPopoverOpen}>
 							<DrawerContent className="max-h-[60dvh]">
 								<DrawerHandle />
-								<div className="flex items-center justify-between px-4 py-2">
-									<DrawerTitle className="text-sm font-medium">Agent Tools</DrawerTitle>
-									<span className="text-xs text-muted-foreground">
-										{visibleEnabled}/{visibleTotal} enabled
-									</span>
+								<div className="px-4 py-2">
+									<DrawerTitle className="text-sm font-medium">Manage Tools</DrawerTitle>
 								</div>
 								<div className="overflow-y-auto pb-6" onScroll={handleToolsScroll}>
 									{groupedTools
@@ -1082,12 +1061,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							className="w-[calc(100vw-2rem)] max-w-56 sm:max-w-72 sm:w-72 p-0 select-none"
 							onOpenAutoFocus={(e) => e.preventDefault()}
 						>
-							<div className="flex items-center justify-between px-2.5 py-2 sm:px-3 sm:py-2.5 border-b">
-								<span className="text-xs sm:text-sm font-medium">Agent Tools</span>
-								<span className="text-[10px] sm:text-xs text-muted-foreground">
-									{visibleEnabled}/{visibleTotal} enabled
-								</span>
-							</div>
+							<div className="sr-only">Manage Tools</div>
 							<div
 								className="max-h-48 sm:max-h-64 overflow-y-auto py-0.5 sm:py-1"
 								onScroll={handleToolsScroll}
