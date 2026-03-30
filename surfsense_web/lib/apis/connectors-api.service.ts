@@ -290,6 +290,19 @@ class ConnectorsApiService {
 		);
 	};
 
+	/**
+	 * List Dropbox folders and files
+	 */
+	listDropboxFolders = async (request: { connector_id: number; parent_path?: string }) => {
+		const queryParams = request.parent_path
+			? `?parent_path=${encodeURIComponent(request.parent_path)}`
+			: "";
+		return baseApiService.get(
+			`/api/v1/connectors/${request.connector_id}/dropbox/folders${queryParams}`,
+			listGoogleDriveFoldersResponse
+		);
+	};
+
 	// =============================================================================
 	// MCP Connector Methods
 	// =============================================================================
