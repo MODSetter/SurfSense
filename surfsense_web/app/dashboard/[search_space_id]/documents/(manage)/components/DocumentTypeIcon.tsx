@@ -17,6 +17,7 @@ export function getDocumentTypeLabel(type: string): string {
 		SLACK_CONNECTOR: "Slack",
 		TEAMS_CONNECTOR: "Microsoft Teams",
 		ONEDRIVE_FILE: "OneDrive",
+		DROPBOX_FILE: "Dropbox",
 		NOTION_CONNECTOR: "Notion",
 		YOUTUBE_VIDEO: "YouTube Video",
 		GITHUB_CONNECTOR: "GitHub",
