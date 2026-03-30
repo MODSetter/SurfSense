@@ -1,6 +1,6 @@
 "use client";
 
-import { Globe, PenLine, Plus, Sparkles, Trash2 } from "lucide-react";
+import { Globe, Lock, PenLine, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -244,7 +244,7 @@ export function PromptsContent() {
 									}}
 									className="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
 								>
-									<Globe className={`size-3.5 ${prompt.is_public ? "text-primary" : ""}`} />
+									{prompt.is_public ? <Lock className="size-3.5" /> : <Globe className="size-3.5" />}
 								</button>
 								<Button
 									variant="ghost"
