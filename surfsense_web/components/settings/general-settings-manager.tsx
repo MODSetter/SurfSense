@@ -49,7 +49,7 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 			setDescription(searchSpace.description || "");
 			setHasChanges(false);
 		}
-	}, [searchSpace]);
+	}, [searchSpace?.name, searchSpace?.description]);
 
 	// Track changes
 	useEffect(() => {
