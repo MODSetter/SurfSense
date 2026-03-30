@@ -12,6 +12,7 @@ export function CommunityPromptsContent() {
 	const [prompts, setPrompts] = useState<PublicPromptRead[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [copyingId, setCopyingId] = useState<number | null>(null);
+	const [expandedId, setExpandedId] = useState<number | null>(null);
 
 	useEffect(() => {
 		promptsApiService
@@ -73,12 +74,23 @@ export function CommunityPromptsContent() {
 									<span className="rounded-full border px-2 py-0.5 text-[10px] text-muted-foreground">
 										{prompt.mode}
 									</span>
+									{prompt.author_name && (
+										<span className="text-[11px] text-muted-foreground/60">
+											by {prompt.author_name}
+										</span>
+									)}
 								</div>
-								<p className="mt-1 text-xs text-muted-foreground line-clamp-2">{prompt.prompt}</p>
-								{prompt.author_name && (
-									<p className="mt-1.5 text-[11px] text-muted-foreground/60">
-										by {prompt.author_name}
-									</p>
+								<p className={`mt-1 text-xs text-muted-foreground ${expandedId === prompt.id ? "whitespace-pre-wrap" : "line-clamp-2"}`}>
+									{prompt.prompt}
+								</p>
+								{prompt.prompt.length > 100 && (
+									<button
+										type="button"
+										onClick={() => setExpandedId(expandedId === prompt.id ? null : prompt.id)}
+										className="mt-1 text-[11px] text-primary hover:underline cursor-pointer"
+									>
+										{expandedId === prompt.id ? "See less" : "See more"}
+									</button>
 								)}
 							</div>
 							<Button

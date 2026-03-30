@@ -27,6 +27,7 @@ export function PromptsContent() {
 	const [editingId, setEditingId] = useState<number | null>(null);
 	const [formData, setFormData] = useState<PromptFormData>(EMPTY_FORM);
 	const [isSaving, setIsSaving] = useState(false);
+	const [expandedId, setExpandedId] = useState<number | null>(null);
 
 	useEffect(() => {
 		promptsApiService
@@ -227,7 +228,18 @@ export function PromptsContent() {
 										</span>
 									)}
 								</div>
-								<p className="mt-1 text-xs text-muted-foreground line-clamp-2">{prompt.prompt}</p>
+								<p className={`mt-1 text-xs text-muted-foreground ${expandedId === prompt.id ? "whitespace-pre-wrap" : "line-clamp-2"}`}>
+									{prompt.prompt}
+								</p>
+								{prompt.prompt.length > 100 && (
+									<button
+										type="button"
+										onClick={() => setExpandedId(expandedId === prompt.id ? null : prompt.id)}
+										className="mt-1 text-[11px] text-primary hover:underline cursor-pointer"
+									>
+										{expandedId === prompt.id ? "See less" : "See more"}
+									</button>
+								)}
 							</div>
 							<div className="hidden group-hover:flex items-center gap-1 shrink-0">
 								<button
