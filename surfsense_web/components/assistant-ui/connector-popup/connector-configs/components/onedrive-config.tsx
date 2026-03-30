@@ -212,8 +212,7 @@ export const OneDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCh
 
 				{isAuthExpired && (
 					<p className="text-xs text-amber-600 dark:text-amber-500">
-						Your OneDrive authentication has expired. Please re-authenticate using the button
-						below.
+						Your OneDrive authentication has expired. Please re-authenticate using the button below.
 					</p>
 				)}
 

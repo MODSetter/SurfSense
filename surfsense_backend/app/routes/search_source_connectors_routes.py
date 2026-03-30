@@ -2567,8 +2567,12 @@ async def run_onedrive_indexing(
                 search_space_id=search_space_id,
                 folder_count=len(items_dict.get("folders", [])),
                 file_count=len(items_dict.get("files", [])),
-                folder_names=[f.get("name", "Unknown") for f in items_dict.get("folders", [])],
-                file_names=[f.get("name", "Unknown") for f in items_dict.get("files", [])],
+                folder_names=[
+                    f.get("name", "Unknown") for f in items_dict.get("folders", [])
+                ],
+                file_names=[
+                    f.get("name", "Unknown") for f in items_dict.get("files", [])
+                ],
             )
 
         if notification:
@@ -2593,7 +2597,9 @@ async def run_onedrive_indexing(
             )
             if _is_auth_error(error_message):
                 await _persist_auth_expired(session, connector_id)
-                error_message = "OneDrive authentication expired. Please re-authenticate."
+                error_message = (
+                    "OneDrive authentication expired. Please re-authenticate."
+                )
         else:
             if notification:
                 await session.refresh(notification)

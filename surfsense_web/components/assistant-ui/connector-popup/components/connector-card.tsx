@@ -143,7 +143,7 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 				size="sm"
 				variant={isConnected ? "secondary" : "default"}
 				className={cn(
-					"h-8 text-[11px] px-3 rounded-lg shrink-0 font-medium",
+					"relative h-8 text-[11px] px-3 rounded-lg shrink-0 font-medium items-center justify-center",
 					isConnected &&
 						"bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80",
 					!isConnected && "shadow-xs"
@@ -151,19 +151,18 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 				onClick={isConnected ? onManage : onConnect}
 				disabled={isConnecting || !isEnabled}
 			>
-				{isConnecting ? (
-					<Spinner size="xs" />
-				) : !isEnabled ? (
-					"Unavailable"
-				) : isConnected ? (
-					"Manage"
-				) : id === "youtube-crawler" ? (
-					"Add"
-				) : connectorType ? (
-					"Connect"
-				) : (
-					"Add"
-				)}
+				<span className={isConnecting ? "opacity-0" : ""}>
+					{!isEnabled
+						? "Unavailable"
+						: isConnected
+							? "Manage"
+							: id === "youtube-crawler"
+								? "Add"
+								: connectorType
+									? "Connect"
+									: "Add"}
+				</span>
+				{isConnecting && <Spinner size="xs" className="absolute" />}
 			</Button>
 		</div>
 	);

@@ -3,6 +3,11 @@
 import { useAtomValue } from "jotai";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useMemo, useState } from "react";
+import { hitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
+import { reportPanelAtom } from "@/atoms/chat/report-panel.atom";
+import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
+import { editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
+import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { activeTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { InboxItem } from "@/hooks/use-inbox";
@@ -13,7 +18,7 @@ import { useSidebarResize } from "../../hooks/useSidebarResize";
 import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
 import { Header } from "../header";
 import { IconRail } from "../icon-rail";
-import { RightPanel } from "../right-panel/RightPanel";
+import { RightPanel, RightPanelExpandButton } from "../right-panel/RightPanel";
 import {
 	AllPrivateChatsSidebarContent,
 	AllSharedChatsSidebarContent,
@@ -116,11 +121,26 @@ function MainContentPanel({
 	children: React.ReactNode;
 }) {
 	const activeTab = useAtomValue(activeTabAtom);
+	const rightPanelCollapsed = useAtomValue(rightPanelCollapsedAtom);
+	const documentsOpen = useAtomValue(documentsSidebarOpenAtom);
+	const reportState = useAtomValue(reportPanelAtom);
+	const editorState = useAtomValue(editorPanelAtom);
+	const hitlEditState = useAtomValue(hitlEditPanelAtom);
 	const isDocumentTab = activeTab?.type === "document";
+	const reportOpen = reportState.isOpen && !!reportState.reportId;
+	const editorOpen = editorState.isOpen && !!editorState.documentId;
+	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
+	const showRightPanelExpandButton =
+		rightPanelCollapsed && (documentsOpen || reportOpen || editorOpen || hitlEditOpen);
 
 	return (
 		<div className="relative flex flex-1 flex-col rounded-xl border bg-main-panel overflow-hidden min-w-0">
-			<TabBar onTabSwitch={onTabSwitch} onNewChat={onNewChat} />
+			<RightPanelExpandButton />
+			<TabBar
+				onTabSwitch={onTabSwitch}
+				onNewChat={onNewChat}
+				className={showRightPanelExpandButton ? "pr-14" : undefined}
+			/>
 			<Header />
 
 			{isDocumentTab && activeTab.documentId && activeTab.searchSpaceId ? (

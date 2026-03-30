@@ -24,7 +24,7 @@ SurfSense 现已支持以下国产 LLM：
 
 1. 登录 SurfSense Dashboard
 2. 进入 **Settings** → **API Keys** (或 **LLM Configurations**)
-3. 点击 **Add New Configuration**
+3. 点击 **Add LLM Model**
 4. 从 **Provider** 下拉菜单中选择你的国产 LLM 提供商
 5. 填写必填字段（见下方各提供商详细配置）
 6. 点击 **Save**

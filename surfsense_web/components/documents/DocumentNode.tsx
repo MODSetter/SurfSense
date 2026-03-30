@@ -40,6 +40,8 @@ import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { cn } from "@/lib/utils";
 import { DND_TYPES } from "./FolderNode";
 
+const EDITABLE_DOCUMENT_TYPES = new Set(["FILE", "NOTE"]);
+
 export interface DocumentNodeDoc {
 	id: number;
 	title: string;
@@ -78,7 +80,9 @@ export const DocumentNode = React.memo(function DocumentNode({
 	const statusState = doc.status?.state ?? "ready";
 	const isSelectable = statusState !== "pending" && statusState !== "processing";
 	const isEditable =
-		doc.document_type === "NOTE" && statusState !== "pending" && statusState !== "processing";
+		EDITABLE_DOCUMENT_TYPES.has(doc.document_type) &&
+		statusState !== "pending" &&
+		statusState !== "processing";
 
 	const handleCheckChange = useCallback(() => {
 		if (isSelectable) {
