@@ -40,7 +40,7 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 			setCustomInstructions(searchSpace.qna_custom_instructions || "");
 			setHasChanges(false);
 		}
-	}, [searchSpace]);
+	}, [searchSpace?.qna_custom_instructions]);
 
 	// Track changes
 	useEffect(() => {
