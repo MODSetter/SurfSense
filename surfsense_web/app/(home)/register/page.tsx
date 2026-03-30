@@ -11,6 +11,7 @@ import { registerMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
 import { Logo } from "@/components/Logo";
 import { Spinner } from "@/components/ui/spinner";
 import { getAuthErrorDetails, isNetworkError, shouldRetry } from "@/lib/auth-errors";
+import { getBearerToken } from "@/lib/auth-utils";
 import { AUTH_TYPE } from "@/lib/env-config";
 import { AppError, ValidationError } from "@/lib/error";
 import {
@@ -38,6 +39,10 @@ export default function RegisterPage() {
 
 	// Check authentication type and redirect if not LOCAL
 	useEffect(() => {
+		if (getBearerToken()) {
+			router.replace("/dashboard");
+			return;
+		}
 		if (AUTH_TYPE !== "LOCAL") {
 			router.push("/login");
 		}
