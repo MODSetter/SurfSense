@@ -1,22 +1,24 @@
 "use client";
 
-import { PenLine, Plus, Sparkles, Trash2 } from "lucide-react";
+import { Globe, PenLine, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import type { PromptRead } from "@/contracts/types/prompts.types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
+import type { PromptRead } from "@/contracts/types/prompts.types";
 import { promptsApiService } from "@/lib/apis/prompts-api.service";
 
 interface PromptFormData {
 	name: string;
 	prompt: string;
 	mode: "transform" | "explore";
+	is_public: boolean;
 }
 
-const EMPTY_FORM: PromptFormData = { name: "", prompt: "", mode: "transform" };
+const EMPTY_FORM: PromptFormData = { name: "", prompt: "", mode: "transform", is_public: false };
 
 export function PromptsContent() {
 	const [prompts, setPrompts] = useState<PromptRead[]>([]);
@@ -66,6 +68,7 @@ export function PromptsContent() {
 			name: prompt.name,
 			prompt: prompt.prompt,
 			mode: prompt.mode as "transform" | "explore",
+			is_public: prompt.is_public,
 		});
 		setEditingId(prompt.id);
 		setShowForm(true);
@@ -99,7 +102,9 @@ export function PromptsContent() {
 		<div className="space-y-6 min-w-0 overflow-hidden">
 			<div className="flex items-center justify-between">
 				<p className="text-sm text-muted-foreground">
-					Create prompt templates triggered with <kbd className="rounded border bg-muted px-1.5 py-0.5 text-xs font-mono">/</kbd> in the chat composer.
+					Create prompt templates triggered with{" "}
+					<kbd className="rounded border bg-muted px-1.5 py-0.5 text-xs font-mono">/</kbd> in the
+					chat composer.
 				</p>
 				{!showForm && (
 					<Button
@@ -144,7 +149,11 @@ export function PromptsContent() {
 							className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none resize-none focus:ring-1 focus:ring-ring"
 						/>
 						<p className="text-xs text-muted-foreground">
-							Use <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">{"{selection}"}</code> to insert the input text. If omitted, the text is appended automatically.
+							Use{" "}
+							<code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">
+								{"{selection}"}
+							</code>{" "}
+							to insert the input text. If omitted, the text is appended automatically.
 						</p>
 					</div>
 
@@ -153,7 +162,9 @@ export function PromptsContent() {
 						<select
 							id="prompt-mode"
 							value={formData.mode}
-							onChange={(e) => setFormData((p) => ({ ...p, mode: e.target.value as "transform" | "explore" }))}
+							onChange={(e) =>
+								setFormData((p) => ({ ...p, mode: e.target.value as "transform" | "explore" }))
+							}
 							className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
 						>
 							<option value="transform">Transform — rewrites or modifies your text</option>
@@ -161,14 +172,25 @@ export function PromptsContent() {
 						</select>
 					</div>
 
-					<div className="flex items-center justify-end gap-2 pt-2">
-						<Button variant="ghost" size="sm" onClick={handleCancel}>
-							Cancel
-						</Button>
-						<Button size="sm" onClick={handleSave} disabled={isSaving}>
-							{isSaving ? <Spinner className="size-3.5" /> : editingId ? "Update" : "Create"}
-						</Button>
-					</div>
+				<div className="flex items-center gap-2">
+					<Switch
+						id="prompt-public"
+						checked={formData.is_public}
+						onCheckedChange={(checked) => setFormData((p) => ({ ...p, is_public: checked }))}
+					/>
+					<Label htmlFor="prompt-public" className="text-sm font-normal">
+						Share with community
+					</Label>
+				</div>
+
+				<div className="flex items-center justify-end gap-2 pt-2">
+					<Button variant="ghost" size="sm" onClick={handleCancel}>
+						Cancel
+					</Button>
+					<Button size="sm" onClick={handleSave} disabled={isSaving}>
+						{isSaving ? <Spinner className="size-3.5" /> : editingId ? "Update" : "Create"}
+					</Button>
+				</div>
 				</div>
 			)}
 
@@ -198,6 +220,12 @@ export function PromptsContent() {
 									<span className="rounded-full border px-2 py-0.5 text-[10px] text-muted-foreground">
 										{prompt.mode}
 									</span>
+									{prompt.is_public && (
+										<span className="flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5 text-[10px] text-primary">
+											<Globe className="size-2.5" />
+											Public
+										</span>
+									)}
 								</div>
 								<p className="mt-1 text-xs text-muted-foreground line-clamp-2">{prompt.prompt}</p>
 							</div>
