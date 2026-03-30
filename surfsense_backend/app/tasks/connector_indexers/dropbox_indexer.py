@@ -444,10 +444,10 @@ async def index_dropbox_files(
         selected_files = items_dict.get("files", [])
         if selected_files:
             file_tuples = [
-                (f.get("path", f.get("path_lower", "")), f.get("name"))
+                (f.get("path", f.get("path_lower", f.get("id", ""))), f.get("name"))
                 for f in selected_files
             ]
-            indexed, skipped, _errors = await _index_selected_files(
+            indexed, skipped, file_errors = await _index_selected_files(
                 dropbox_client,
                 session,
                 file_tuples,
@@ -459,10 +459,14 @@ async def index_dropbox_files(
             )
             total_indexed += indexed
             total_skipped += skipped
+            if file_errors:
+                logger.warning(
+                    f"File indexing errors for connector {connector_id}: {file_errors}"
+                )
 
         folders = items_dict.get("folders", [])
         for folder in folders:
-            folder_path = folder.get("path", folder.get("path_lower", ""))
+            folder_path = folder.get("path", folder.get("path_lower", folder.get("id", "")))
             folder_name = folder.get("name", "Root")
 
             logger.info(f"Using full scan for folder {folder_name}")
