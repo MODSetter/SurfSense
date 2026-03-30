@@ -9,7 +9,7 @@ import {
 	TrashIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -215,7 +215,7 @@ interface ThreadListItemComponentProps {
 	onDelete: () => void;
 }
 
-function ThreadListItemComponent({
+const ThreadListItemComponent = memo(function ThreadListItemComponent({
 	thread,
 	isActive,
 	isArchived,
@@ -272,7 +272,7 @@ function ThreadListItemComponent({
 			</DropdownMenu>
 		</button>
 	);
-}
+});
 
 /**
  * Format a date as relative time (e.g., "2 hours ago", "Yesterday")
