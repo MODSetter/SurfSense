@@ -182,7 +182,8 @@ function ApprovalCard({
 	const priorities = context?.priorities ?? [];
 	const issue = context?.issue;
 
-	const initialEditState = {
+	const [isPanelOpen, setIsPanelOpen] = useState(false);
+	const [editedArgs, setEditedArgs] = useState(() => ({
 		title: actionArgs.new_title
 			? String(actionArgs.new_title)
 			: (issue?.title ?? args.new_title ?? ""),
@@ -202,10 +203,7 @@ function ApprovalCard({
 		labelIds: Array.isArray(actionArgs.new_label_ids)
 			? (actionArgs.new_label_ids as string[])
 			: (issue?.current_labels?.map((l) => l.id) ?? []),
-	};
-
-	const [isPanelOpen, setIsPanelOpen] = useState(false);
-	const [editedArgs, setEditedArgs] = useState(initialEditState);
+	}));
 	const [hasPanelEdits, setHasPanelEdits] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
 

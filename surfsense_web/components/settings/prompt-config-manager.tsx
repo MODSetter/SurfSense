@@ -38,7 +38,7 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 		if (searchSpace) {
 			setCustomInstructions(searchSpace.qna_custom_instructions || "");
 		}
-	}, [searchSpace]);
+	}, [searchSpace?.qna_custom_instructions]);
 
 	// Derive hasChanges during render
 	const hasChanges = !!searchSpace && (searchSpace.qna_custom_instructions || "") !== customInstructions;

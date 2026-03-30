@@ -47,7 +47,7 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 			setName(searchSpace.name || "");
 			setDescription(searchSpace.description || "");
 		}
-	}, [searchSpace]);
+	}, [searchSpace?.name, searchSpace?.description]);
 
 	// Derive hasChanges during render
 	const hasChanges = !!searchSpace && ((searchSpace.name || "") !== name || (searchSpace.description || "") !== description);

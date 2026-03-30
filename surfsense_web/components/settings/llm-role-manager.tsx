@@ -112,11 +112,11 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 
 	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
 
-	const [assignments, setAssignments] = useState({
+	const [assignments, setAssignments] = useState(() => ({
 		agent_llm_id: preferences.agent_llm_id ?? "",
 		document_summary_llm_id: preferences.document_summary_llm_id ?? "",
 		image_generation_config_id: preferences.image_generation_config_id ?? "",
-	});
+	}));
 
 	const [hasChanges, setHasChanges] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
@@ -129,7 +129,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		};
 		setAssignments(newAssignments);
 		setHasChanges(false);
-	}, [preferences]);
+	}, [preferences?.agent_llm_id, preferences?.document_summary_llm_id, preferences?.image_generation_config_id]);
 
 	const handleRoleAssignment = (prefKey: string, configId: string) => {
 		const newAssignments = {
