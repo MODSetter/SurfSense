@@ -50,6 +50,10 @@ from .confluence import (
     create_delete_confluence_page_tool,
     create_update_confluence_page_tool,
 )
+from .dropbox import (
+    create_create_dropbox_file_tool,
+    create_delete_dropbox_file_tool,
+)
 from .generate_image import create_generate_image_tool
 from .gmail import (
     create_create_gmail_draft_tool,
@@ -333,6 +337,30 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         name="delete_google_drive_file",
         description="Move an indexed Google Drive file to trash",
         factory=lambda deps: create_delete_google_drive_file_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    # =========================================================================
+    # DROPBOX TOOLS - create and trash files
+    # Auto-disabled when no Dropbox connector is configured (see chat_deepagent.py)
+    # =========================================================================
+    ToolDefinition(
+        name="create_dropbox_file",
+        description="Create a new file in Dropbox",
+        factory=lambda deps: create_create_dropbox_file_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    ToolDefinition(
+        name="delete_dropbox_file",
+        description="Delete a file from Dropbox",
+        factory=lambda deps: create_delete_dropbox_file_tool(
             db_session=deps["db_session"],
             search_space_id=deps["search_space_id"],
             user_id=deps["user_id"],
