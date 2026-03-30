@@ -1346,6 +1346,12 @@ const TOOL_GROUPS: ToolGroup[] = [
 		tooltip: "Create and delete files in OneDrive.",
 	},
 	{
+		label: "Dropbox",
+		tools: ["create_dropbox_file", "delete_dropbox_file"],
+		connectorIcon: "dropbox",
+		tooltip: "Create and delete files in Dropbox.",
+	},
+	{
 		label: "Notion",
 		tools: ["create_notion_page", "update_notion_page", "delete_notion_page"],
 		connectorIcon: "notion",

@@ -69,6 +69,7 @@ import {
 	DeleteNotionPageToolUI,
 	UpdateNotionPageToolUI,
 } from "@/components/tool-ui/notion";
+import { CreateDropboxFileToolUI, DeleteDropboxFileToolUI } from "@/components/tool-ui/dropbox";
 import { CreateOneDriveFileToolUI, DeleteOneDriveFileToolUI } from "@/components/tool-ui/onedrive";
 import { SandboxExecuteToolUI } from "@/components/tool-ui/sandbox-execute";
 import {
@@ -261,6 +262,8 @@ const AssistantMessageInner: FC = () => {
 								delete_google_drive_file: DeleteGoogleDriveFileToolUI,
 								create_onedrive_file: CreateOneDriveFileToolUI,
 								delete_onedrive_file: DeleteOneDriveFileToolUI,
+								create_dropbox_file: CreateDropboxFileToolUI,
+								delete_dropbox_file: DeleteDropboxFileToolUI,
 								create_calendar_event: CreateCalendarEventToolUI,
 								update_calendar_event: UpdateCalendarEventToolUI,
 								delete_calendar_event: DeleteCalendarEventToolUI,
