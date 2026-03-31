@@ -1,7 +1,7 @@
 "use client";
 
 import type { FC } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -33,25 +33,6 @@ export const ObsidianConfig: FC<ObsidianConfigProps> = ({
 		(connector.config?.include_attachments as boolean) || false
 	);
 	const [name, setName] = useState<string>(connector.name || "");
-
-	// Update values when connector changes
-	useEffect(() => {
-		const path = (connector.config?.vault_path as string) || "";
-		const vName = (connector.config?.vault_name as string) || "";
-		const folders = connector.config?.exclude_folders;
-		const attachments = (connector.config?.include_attachments as boolean) || false;
-
-		setVaultPath(path);
-		setVaultName(vName);
-		setIncludeAttachments(attachments);
-		setName(connector.name || "");
-
-		if (Array.isArray(folders)) {
-			setExcludeFolders(folders.join(", "));
-		} else if (typeof folders === "string") {
-			setExcludeFolders(folders);
-		}
-	}, [connector.config, connector.name]);
 
 	const handleVaultPathChange = (value: string) => {
 		setVaultPath(value);

@@ -34,11 +34,6 @@ export const CirclebackConfig: FC<CirclebackConfigProps> = ({ connector, onNameC
 	const [isLoading, setIsLoading] = useState(true);
 	const [copied, setCopied] = useState(false);
 
-	// Update name when connector changes
-	useEffect(() => {
-		setName(connector.name || "");
-	}, [connector.name]);
-
 	// Fetch webhook info
 	useEffect(() => {
 		const fetchWebhookInfo = async () => {

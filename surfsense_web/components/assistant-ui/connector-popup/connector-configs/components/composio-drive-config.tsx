@@ -12,7 +12,7 @@ import {
 	X,
 } from "lucide-react";
 import type { FC } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { DriveFolderTree, type SelectedFolder } from "@/components/connectors/drive-folder-tree";
 import { Label } from "@/components/ui/label";
 import {
@@ -110,17 +110,6 @@ export const ComposioDriveConfig: FC<ConnectorConfigProps> = ({ connector, onCon
 
 	const [isEditMode] = useState(() => existingFolders.length > 0 || existingFiles.length > 0);
 	const [isFolderTreeOpen, setIsFolderTreeOpen] = useState(!isEditMode);
-
-	useEffect(() => {
-		const folders = (connector.config?.selected_folders as SelectedFolder[] | undefined) || [];
-		const files = (connector.config?.selected_files as SelectedFolder[] | undefined) || [];
-		const options =
-			(connector.config?.indexing_options as IndexingOptions | undefined) ||
-			DEFAULT_INDEXING_OPTIONS;
-		setSelectedFolders(folders);
-		setSelectedFiles(files);
-		setIndexingOptions(options);
-	}, [connector.config]);
 
 	const updateConfig = (
 		folders: SelectedFolder[],
