@@ -1,6 +1,7 @@
 SYSTEM_PROMPT_DEFAULTS: list[dict] = [
     {
         "slug": "fix-grammar",
+        "version": 1,
         "name": "Fix grammar",
         "prompt": (
             "Fix the grammar and spelling in the following text."
@@ -10,6 +11,7 @@ SYSTEM_PROMPT_DEFAULTS: list[dict] = [
     },
     {
         "slug": "make-shorter",
+        "version": 1,
         "name": "Make shorter",
         "prompt": (
             "Make the following text more concise while preserving its meaning."
@@ -19,6 +21,7 @@ SYSTEM_PROMPT_DEFAULTS: list[dict] = [
     },
     {
         "slug": "translate",
+        "version": 1,
         "name": "Translate",
         "prompt": (
             "Translate the following text to English."
@@ -29,6 +32,7 @@ SYSTEM_PROMPT_DEFAULTS: list[dict] = [
     },
     {
         "slug": "rewrite",
+        "version": 1,
         "name": "Rewrite",
         "prompt": (
             "Rewrite the following text to improve clarity and readability."
@@ -38,6 +42,7 @@ SYSTEM_PROMPT_DEFAULTS: list[dict] = [
     },
     {
         "slug": "summarize",
+        "version": 1,
         "name": "Summarize",
         "prompt": (
             "Summarize the following text concisely."
@@ -47,22 +52,23 @@ SYSTEM_PROMPT_DEFAULTS: list[dict] = [
     },
     {
         "slug": "explain",
+        "version": 1,
         "name": "Explain",
         "prompt": "Explain the following text in simple terms:\n\n{selection}",
         "mode": "explore",
     },
     {
         "slug": "ask-knowledge-base",
+        "version": 1,
         "name": "Ask my knowledge base",
         "prompt": "Search my knowledge base for information related to:\n\n{selection}",
         "mode": "explore",
     },
     {
         "slug": "look-up-web",
+        "version": 1,
         "name": "Look up on the web",
         "prompt": "Search the web for information about:\n\n{selection}",
         "mode": "explore",
     },
 ]
-
-SYSTEM_PROMPT_SLUGS: set[str] = {p["slug"] for p in SYSTEM_PROMPT_DEFAULTS}

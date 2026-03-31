@@ -1785,8 +1785,8 @@ class Prompt(BaseModel, TimestampMixin):
     __table_args__ = (
         UniqueConstraint(
             "user_id",
-            "system_prompt_slug",
-            name="uq_prompt_user_system_slug",
+            "default_prompt_slug",
+            name="uq_prompt_user_default_slug",
         ),
     )
 
@@ -1802,10 +1802,11 @@ class Prompt(BaseModel, TimestampMixin):
         nullable=True,
         index=True,
     )
-    system_prompt_slug = Column(String(100), nullable=True, index=True)
+    default_prompt_slug = Column(String(100), nullable=True, index=True)
     name = Column(String(200), nullable=False)
     prompt = Column(Text, nullable=False)
     mode = Column(SQLAlchemyEnum(PromptMode), nullable=False)
+    version = Column(Integer, nullable=False, default=1)
     is_public = Column(Boolean, nullable=False, default=False)
 
     user = relationship("User")
