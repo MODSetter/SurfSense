@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { Copy, Globe, Sparkles } from "lucide-react";
+import { AlertTriangle, Copy, Globe, Sparkles } from "lucide-react";
 import { useCallback, useState } from "react";
 import { copyPromptMutationAtom } from "@/atoms/prompts/prompts-mutation.atoms";
 import { publicPromptsAtom } from "@/atoms/prompts/prompts-query.atoms";
@@ -9,20 +9,24 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 
 export function CommunityPromptsContent() {
-	const { data: prompts, isLoading } = useAtomValue(publicPromptsAtom);
-	const { mutateAsync: copyPrompt, isPending: isCopying } = useAtomValue(copyPromptMutationAtom);
-	const [copyingId, setCopyingId] = useState<number | null>(null);
+	const { data: prompts, isLoading, isError } = useAtomValue(publicPromptsAtom);
+	const { mutateAsync: copyPrompt } = useAtomValue(copyPromptMutationAtom);
+	const [copyingIds, setCopyingIds] = useState<Set<number>>(new Set());
 	const [expandedId, setExpandedId] = useState<number | null>(null);
 
 	const handleCopy = useCallback(
 		async (id: number) => {
-			setCopyingId(id);
+			setCopyingIds((prev) => new Set(prev).add(id));
 			try {
 				await copyPrompt(id);
 			} catch {
 				// toast handled by mutation atom
 			} finally {
-				setCopyingId(null);
+				setCopyingIds((prev) => {
+					const next = new Set(prev);
+					next.delete(id);
+					return next;
+				});
 			}
 		},
 		[copyPrompt]
@@ -34,6 +38,16 @@ export function CommunityPromptsContent() {
 		return (
 			<div className="flex items-center justify-center py-12">
 				<Spinner className="size-6" />
+			</div>
+		);
+	}
+
+	if (isError) {
+		return (
+			<div className="rounded-lg border border-dashed border-destructive/40 p-8 text-center">
+				<AlertTriangle className="mx-auto size-8 text-destructive/60" />
+				<p className="mt-2 text-sm text-destructive">Failed to load community prompts</p>
+				<p className="text-xs text-muted-foreground">Please try refreshing the page.</p>
 			</div>
 		);
 	}
@@ -91,20 +105,20 @@ export function CommunityPromptsContent() {
 									</button>
 								)}
 							</div>
-							<Button
-								variant="outline"
-								size="sm"
-								className="shrink-0 gap-1.5"
-								disabled={copyingId === prompt.id && isCopying}
-								onClick={() => handleCopy(prompt.id)}
-							>
-								{copyingId === prompt.id && isCopying ? (
-									<Spinner className="size-3" />
-								) : (
-									<Copy className="size-3" />
-								)}
-								Add to mine
-							</Button>
+						<Button
+							variant="outline"
+							size="sm"
+							className="shrink-0 gap-1.5"
+							disabled={copyingIds.has(prompt.id)}
+							onClick={() => handleCopy(prompt.id)}
+						>
+							{copyingIds.has(prompt.id) ? (
+								<Spinner className="size-3" />
+							) : (
+								<Copy className="size-3" />
+							)}
+							Add to mine
+						</Button>
 						</div>
 					))}
 				</div>

@@ -31,7 +31,6 @@ export const updatePromptMutationAtom = atomWithMutation(() => ({
 	onSuccess: () => {
 		toast.success("Prompt updated");
 		queryClient.invalidateQueries({ queryKey: cacheKeys.prompts.all() });
-		queryClient.invalidateQueries({ queryKey: cacheKeys.prompts.public() });
 	},
 	onError: (error: Error) => {
 		toast.error(error.message || "Failed to update prompt");

@@ -98,35 +98,37 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 		[filtered.length, highlightedIndex, handleSelect]
 	);
 
-	if (filtered.length === 0) return null;
-
 	return (
 		<div
 			className="w-64 rounded-lg border bg-popover shadow-lg overflow-hidden"
 			style={containerStyle}
 		>
 			<div ref={scrollContainerRef} className="max-h-48 overflow-y-auto py-1">
-				{filtered.map((action, index) => (
-					<button
-						key={action.id}
-						ref={(el) => {
-							if (el) itemRefs.current.set(index, el);
-							else itemRefs.current.delete(index);
-						}}
-						type="button"
-						onClick={() => handleSelect(index)}
-						onMouseEnter={() => setHighlightedIndex(index)}
-						className={cn(
-							"flex w-full items-center gap-2 px-3 py-1.5 text-sm cursor-pointer",
-							index === highlightedIndex ? "bg-accent" : "hover:bg-accent/50"
-						)}
-					>
-						<span className="text-muted-foreground">
-							<Zap className="size-3.5" />
-						</span>
-						<span className="truncate">{action.name}</span>
-					</button>
-				))}
+				{filtered.length === 0 ? (
+					<p className="px-3 py-2 text-xs text-muted-foreground">No matching prompts</p>
+				) : (
+					filtered.map((action, index) => (
+						<button
+							key={action.id}
+							ref={(el) => {
+								if (el) itemRefs.current.set(index, el);
+								else itemRefs.current.delete(index);
+							}}
+							type="button"
+							onClick={() => handleSelect(index)}
+							onMouseEnter={() => setHighlightedIndex(index)}
+							className={cn(
+								"flex w-full items-center gap-2 px-3 py-1.5 text-sm cursor-pointer",
+								index === highlightedIndex ? "bg-accent" : "hover:bg-accent/50"
+							)}
+						>
+							<span className="text-muted-foreground">
+								<Zap className="size-3.5" />
+							</span>
+							<span className="truncate">{action.name}</span>
+						</button>
+					))
+				)}
 
 				<div className="my-1 h-px bg-border mx-2" />
 				<button

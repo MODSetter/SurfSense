@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.db import Prompt, User, get_async_session
+from app.db import Prompt, SearchSpaceMembership, User, get_async_session
 from app.schemas.prompts import (
     PromptCreate,
     PromptRead,
@@ -35,6 +35,19 @@ async def create_prompt(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
+    if body.search_space_id is not None:
+        membership = await session.execute(
+            select(SearchSpaceMembership).where(
+                SearchSpaceMembership.user_id == user.id,
+                SearchSpaceMembership.search_space_id == body.search_space_id,
+            )
+        )
+        if not membership.scalar_one_or_none():
+            raise HTTPException(
+                status_code=403,
+                detail="You are not a member of this search space",
+            )
+
     prompt = Prompt(
         user_id=user.id,
         search_space_id=body.search_space_id,
@@ -74,7 +87,7 @@ async def update_prompt(
         setattr(prompt, field, value)
 
     if has_content_change:
-        prompt.version = (prompt.version or 0) + 1
+        prompt.version = Prompt.version + 1
 
     session.add(prompt)
     await session.commit()
@@ -111,7 +124,7 @@ async def list_public_prompts(
     result = await session.execute(
         select(Prompt)
         .options(selectinload(Prompt.user))
-        .where(Prompt.is_public.is_(True))
+        .where(Prompt.is_public.is_(True), Prompt.user_id != user.id)
         .order_by(Prompt.created_at.desc())
     )
     prompts = result.scalars().all()

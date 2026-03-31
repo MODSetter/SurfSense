@@ -1,14 +1,13 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 import { getAuthErrorDetails, shouldRetry } from "@/lib/auth-errors";
-import { getBearerToken } from "@/lib/auth-utils";
 import { AUTH_TYPE } from "@/lib/env-config";
 import { AmbientBackground } from "./AmbientBackground";
 import { GoogleLoginButton } from "./GoogleLoginButton";
@@ -17,18 +16,10 @@ import { LocalLoginForm } from "./LocalLoginForm";
 function LoginContent() {
 	const t = useTranslations("auth");
 	const tCommon = useTranslations("common");
-	const router = useRouter();
 	const [authType, setAuthType] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [urlError, setUrlError] = useState<{ title: string; message: string } | null>(null);
 	const searchParams = useSearchParams();
-
-	useEffect(() => {
-		if (getBearerToken()) {
-			router.replace("/dashboard");
-			return;
-		}
-	}, [router]);
 
 	useEffect(() => {
 		// Check for various URL parameters that might indicate success or error states

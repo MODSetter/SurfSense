@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { Globe, Lock, PenLine, Plus, Sparkles, Trash2 } from "lucide-react";
+import { AlertTriangle, Globe, Lock, PenLine, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -10,6 +10,16 @@ import {
 	updatePromptMutationAtom,
 } from "@/atoms/prompts/prompts-mutation.atoms";
 import { promptsAtom } from "@/atoms/prompts/prompts-query.atoms";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +37,7 @@ interface PromptFormData {
 const EMPTY_FORM: PromptFormData = { name: "", prompt: "", mode: "transform", is_public: false };
 
 export function PromptsContent() {
-	const { data: prompts, isLoading } = useAtomValue(promptsAtom);
+	const { data: prompts, isLoading, isError } = useAtomValue(promptsAtom);
 	const { mutateAsync: createPrompt } = useAtomValue(createPromptMutationAtom);
 	const { mutateAsync: updatePrompt } = useAtomValue(updatePromptMutationAtom);
 	const { mutateAsync: deletePrompt } = useAtomValue(deletePromptMutationAtom);
@@ -37,6 +47,7 @@ export function PromptsContent() {
 	const [formData, setFormData] = useState<PromptFormData>(EMPTY_FORM);
 	const [isSaving, setIsSaving] = useState(false);
 	const [expandedId, setExpandedId] = useState<number | null>(null);
+	const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
 
 	const handleSave = useCallback(async () => {
 		if (!formData.name.trim() || !formData.prompt.trim()) {
@@ -46,7 +57,7 @@ export function PromptsContent() {
 
 		setIsSaving(true);
 		try {
-			if (editingId) {
+			if (editingId !== null) {
 				await updatePrompt({ id: editingId, ...formData });
 			} else {
 				await createPrompt(formData);
@@ -72,16 +83,16 @@ export function PromptsContent() {
 		setShowForm(true);
 	}, []);
 
-	const handleDelete = useCallback(
-		async (id: number) => {
-			try {
-				await deletePrompt(id);
-			} catch {
-				// toast handled by mutation atom
-			}
-		},
-		[deletePrompt]
-	);
+	const handleConfirmDelete = useCallback(async () => {
+		if (deleteTarget === null) return;
+		try {
+			await deletePrompt(deleteTarget);
+		} catch {
+			// toast handled by mutation atom
+		} finally {
+			setDeleteTarget(null);
+		}
+	}, [deleteTarget, deletePrompt]);
 
 	const handleTogglePublic = useCallback(
 		async (prompt: PromptRead) => {
@@ -106,6 +117,16 @@ export function PromptsContent() {
 		return (
 			<div className="flex items-center justify-center py-12">
 				<Spinner className="size-6" />
+			</div>
+		);
+	}
+
+	if (isError) {
+		return (
+			<div className="rounded-lg border border-dashed border-destructive/40 p-8 text-center">
+				<AlertTriangle className="mx-auto size-8 text-destructive/60" />
+				<p className="mt-2 text-sm text-destructive">Failed to load prompts</p>
+				<p className="text-xs text-muted-foreground">Please try refreshing the page.</p>
 			</div>
 		);
 	}
@@ -137,7 +158,7 @@ export function PromptsContent() {
 			{showForm && (
 				<div className="rounded-lg border border-border/60 bg-card p-6 space-y-4">
 					<h3 className="text-sm font-semibold tracking-tight">
-						{editingId ? "Edit prompt" : "New prompt"}
+						{editingId !== null ? "Edit prompt" : "New prompt"}
 					</h3>
 
 					<div className="space-y-2">
@@ -200,7 +221,7 @@ export function PromptsContent() {
 							Cancel
 						</Button>
 						<Button size="sm" onClick={handleSave} disabled={isSaving}>
-							{isSaving ? <Spinner className="size-3.5" /> : editingId ? "Update" : "Create"}
+							{isSaving ? <Spinner className="size-3.5" /> : editingId !== null ? "Update" : "Create"}
 						</Button>
 					</div>
 				</div>
@@ -279,7 +300,7 @@ export function PromptsContent() {
 									variant="ghost"
 									size="icon"
 									className="size-7 text-destructive hover:text-destructive"
-									onClick={() => handleDelete(prompt.id)}
+									onClick={() => setDeleteTarget(prompt.id)}
 								>
 									<Trash2 className="size-3.5" />
 								</Button>
@@ -288,6 +309,21 @@ export function PromptsContent() {
 					))}
 				</div>
 			)}
+
+			<AlertDialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Delete prompt</AlertDialogTitle>
+						<AlertDialogDescription>
+							This action cannot be undone. The prompt will be permanently removed.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction onClick={handleConfirmDelete}>Delete</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }
