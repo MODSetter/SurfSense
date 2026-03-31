@@ -3,16 +3,14 @@ import { z } from "zod";
 export type PromptMode = "transform" | "explore";
 
 export const promptRead = z.object({
-	id: z.number().nullable(),
+	id: z.number(),
 	name: z.string(),
 	prompt: z.string(),
 	mode: z.enum(["transform", "explore"]),
-	search_space_id: z.number().nullable().optional(),
-	is_public: z.boolean().optional(),
-	created_at: z.string().nullable().optional(),
-	source: z.enum(["system", "custom"]),
-	system_prompt_slug: z.string().nullable().optional(),
-	is_modified: z.boolean().optional(),
+	search_space_id: z.number().nullable(),
+	is_public: z.boolean(),
+	version: z.number(),
+	created_at: z.string(),
 });
 
 export type PromptRead = z.infer<typeof promptRead>;
@@ -45,14 +43,6 @@ export const promptUpdateRequest = z.object({
 });
 
 export type PromptUpdateRequest = z.infer<typeof promptUpdateRequest>;
-
-export const systemPromptUpdateRequest = z.object({
-	name: z.string().min(1).max(200).optional(),
-	prompt: z.string().min(1).optional(),
-	mode: z.enum(["transform", "explore"]).optional(),
-});
-
-export type SystemPromptUpdateRequest = z.infer<typeof systemPromptUpdateRequest>;
 
 export const promptDeleteResponse = z.object({
 	success: z.boolean(),

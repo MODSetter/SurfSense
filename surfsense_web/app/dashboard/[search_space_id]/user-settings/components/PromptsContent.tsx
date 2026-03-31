@@ -173,32 +173,32 @@ export function PromptsContent() {
 						</select>
 					</div>
 
-				<div className="flex items-center gap-2">
-					<Switch
-						id="prompt-public"
-						checked={formData.is_public}
-						onCheckedChange={(checked) => setFormData((p) => ({ ...p, is_public: checked }))}
-					/>
-					<Label htmlFor="prompt-public" className="text-sm font-normal">
-						Share with community
-					</Label>
-				</div>
+					<div className="flex items-center gap-2">
+						<Switch
+							id="prompt-public"
+							checked={formData.is_public}
+							onCheckedChange={(checked) => setFormData((p) => ({ ...p, is_public: checked }))}
+						/>
+						<Label htmlFor="prompt-public" className="text-sm font-normal">
+							Share with community
+						</Label>
+					</div>
 
-				<div className="flex items-center justify-end gap-2 pt-2">
-					<Button variant="ghost" size="sm" onClick={handleCancel}>
-						Cancel
-					</Button>
-					<Button size="sm" onClick={handleSave} disabled={isSaving}>
-						{isSaving ? <Spinner className="size-3.5" /> : editingId ? "Update" : "Create"}
-					</Button>
-				</div>
+					<div className="flex items-center justify-end gap-2 pt-2">
+						<Button variant="ghost" size="sm" onClick={handleCancel}>
+							Cancel
+						</Button>
+						<Button size="sm" onClick={handleSave} disabled={isSaving}>
+							{isSaving ? <Spinner className="size-3.5" /> : editingId ? "Update" : "Create"}
+						</Button>
+					</div>
 				</div>
 			)}
 
 			{prompts.length === 0 && !showForm && (
 				<div className="rounded-lg border border-dashed border-border/60 p-8 text-center">
 					<Sparkles className="mx-auto size-8 text-muted-foreground/40" />
-					<p className="mt-2 text-sm text-muted-foreground">No custom prompts yet</p>
+					<p className="mt-2 text-sm text-muted-foreground">No prompts yet</p>
 					<p className="text-xs text-muted-foreground/60">
 						Create prompts to quickly transform or explore text with /
 					</p>
@@ -228,7 +228,9 @@ export function PromptsContent() {
 										</span>
 									)}
 								</div>
-								<p className={`mt-1 text-xs text-muted-foreground ${expandedId === prompt.id ? "whitespace-pre-wrap" : "line-clamp-2"}`}>
+								<p
+									className={`mt-1 text-xs text-muted-foreground ${expandedId === prompt.id ? "whitespace-pre-wrap" : "line-clamp-2"}`}
+								>
 									{prompt.prompt}
 								</p>
 								{prompt.prompt.length > 100 && (
@@ -247,7 +249,9 @@ export function PromptsContent() {
 									title={prompt.is_public ? "Make private" : "Share with community"}
 									onClick={async () => {
 										try {
-											const updated = await promptsApiService.update(prompt.id, { is_public: !prompt.is_public });
+											const updated = await promptsApiService.update(prompt.id, {
+												is_public: !prompt.is_public,
+											});
 											setPrompts((prev) => prev.map((p) => (p.id === prompt.id ? updated : p)));
 											toast.success(updated.is_public ? "Shared with community" : "Made private");
 										} catch {
@@ -256,7 +260,11 @@ export function PromptsContent() {
 									}}
 									className="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
 								>
-									{prompt.is_public ? <Lock className="size-3.5" /> : <Globe className="size-3.5" />}
+									{prompt.is_public ? (
+										<Lock className="size-3.5" />
+									) : (
+										<Globe className="size-3.5" />
+									)}
 								</button>
 								<Button
 									variant="ghost"
