@@ -1776,8 +1776,8 @@ class SearchSpaceInvite(BaseModel, TimestampMixin):
 
 
 class PromptMode(StrEnum):
-    TRANSFORM = "transform"
-    EXPLORE = "explore"
+    transform = "transform"
+    explore = "explore"
 
 
 class Prompt(BaseModel, TimestampMixin):
@@ -1805,7 +1805,10 @@ class Prompt(BaseModel, TimestampMixin):
     default_prompt_slug = Column(String(100), nullable=True, index=True)
     name = Column(String(200), nullable=False)
     prompt = Column(Text, nullable=False)
-    mode = Column(SQLAlchemyEnum(PromptMode), nullable=False)
+    mode = Column(
+        SQLAlchemyEnum(PromptMode, name="prompt_mode", create_type=False),
+        nullable=False,
+    )
     version = Column(Integer, nullable=False, default=1)
     is_public = Column(Boolean, nullable=False, default=False)
 
