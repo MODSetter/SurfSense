@@ -6,6 +6,7 @@ import {
 	useAui,
 	useAuiState,
 } from "@assistant-ui/react";
+import dynamic from "next/dynamic";
 import { useAtomValue } from "jotai";
 import {
 	CheckIcon,
@@ -77,11 +78,19 @@ import {
 	resolveSafeNavigationHref,
 } from "@/components/tool-ui/shared/media";
 import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-memory";
-import { GenerateVideoPresentationToolUI } from "@/components/tool-ui/video-presentation";
 import { Drawer, DrawerContent, DrawerHandle, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { useComments } from "@/hooks/use-comments";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
+
+// Dynamically import video presentation tool to avoid loading Babel and Remotion in main bundle
+const GenerateVideoPresentationToolUI = dynamic(
+	() =>
+		import("@/components/tool-ui/video-presentation").then((m) => ({
+			default: m.GenerateVideoPresentationToolUI,
+		})),
+	{ ssr: false }
+);
 
 function extractDomain(url: string): string | undefined {
 	try {
