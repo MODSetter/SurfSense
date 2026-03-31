@@ -1,7 +1,7 @@
 """add prompt library schema: is_public, default_prompt_slug, version, drop icon
 
-Revision ID: 112
-Revises: 111
+Revision ID: 113
+Revises: 112
 """
 
 from collections.abc import Sequence
@@ -9,8 +9,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "112"
-down_revision: str | None = "111"
+revision: str = "113"
+down_revision: str | None = "112"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
