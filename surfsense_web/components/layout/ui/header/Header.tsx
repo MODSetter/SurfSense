@@ -62,7 +62,7 @@ export function Header({ mobileMenuTrigger }: HeaderProps) {
 	const handleVisibilityChange = (_visibility: ChatVisibility) => {};
 
 	return (
-		<header className="sticky top-0 z-10 flex h-12 shrink-0 items-center gap-2 bg-main-panel/95 backdrop-blur supports-backdrop-filter:bg-main-panel/60 px-4">
+		<header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 bg-main-panel/95 backdrop-blur supports-backdrop-filter:bg-main-panel/60 px-4">
 			{/* Left side - Mobile menu trigger + Model selector */}
 			<div className="flex flex-1 items-center gap-2 min-w-0">
 				{mobileMenuTrigger}
