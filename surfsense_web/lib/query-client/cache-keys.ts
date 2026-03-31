@@ -91,6 +91,10 @@ export const cacheKeys = {
 		bySearchSpace: (searchSpaceId: number) =>
 			["public-chat-snapshots", "search-space", searchSpaceId] as const,
 	},
+	prompts: {
+		all: () => ["prompts"] as const,
+		public: () => ["prompts", "public"] as const,
+	},
 	notifications: {
 		search: (searchSpaceId: number | null, search: string, tab: string) =>
 			["notifications", "search", searchSpaceId, search, tab] as const,

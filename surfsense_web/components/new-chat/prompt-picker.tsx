@@ -1,6 +1,6 @@
 "use client";
 
-import { useSetAtom } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { Plus, Zap } from "lucide-react";
 import {
 	forwardRef,
@@ -12,9 +12,8 @@ import {
 	useState,
 } from "react";
 
+import { promptsAtom } from "@/atoms/prompts/prompts-query.atoms";
 import { userSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
-import type { PromptRead } from "@/contracts/types/prompts.types";
-import { promptsApiService } from "@/lib/apis/prompts-api.service";
 import { cn } from "@/lib/utils";
 
 export interface PromptPickerRef {
@@ -35,22 +34,16 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 	ref
 ) {
 	const setUserSettingsDialog = useSetAtom(userSettingsDialogAtom);
+	const { data: prompts } = useAtomValue(promptsAtom);
 	const [highlightedIndex, setHighlightedIndex] = useState(0);
-	const [prompts, setPrompts] = useState<PromptRead[]>([]);
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 	const shouldScrollRef = useRef(false);
 	const itemRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
 
-	useEffect(() => {
-		promptsApiService
-			.list()
-			.then(setPrompts)
-			.catch(() => {});
-	}, []);
-
 	const filtered = useMemo(() => {
-		if (!externalSearch) return prompts;
-		return prompts.filter((a) => a.name.toLowerCase().includes(externalSearch.toLowerCase()));
+		const list = prompts ?? [];
+		if (!externalSearch) return list;
+		return list.filter((a) => a.name.toLowerCase().includes(externalSearch.toLowerCase()));
 	}, [prompts, externalSearch]);
 
 	const prevSearchRef = useRef(externalSearch);

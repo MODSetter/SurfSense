@@ -1,38 +1,34 @@
 "use client";
 
+import { useAtomValue } from "jotai";
 import { Copy, Globe, Sparkles } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { useCallback, useState } from "react";
+import { copyPromptMutationAtom } from "@/atoms/prompts/prompts-mutation.atoms";
+import { publicPromptsAtom } from "@/atoms/prompts/prompts-query.atoms";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import type { PublicPromptRead } from "@/contracts/types/prompts.types";
-import { promptsApiService } from "@/lib/apis/prompts-api.service";
 
 export function CommunityPromptsContent() {
-	const [prompts, setPrompts] = useState<PublicPromptRead[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
+	const { data: prompts, isLoading } = useAtomValue(publicPromptsAtom);
+	const { mutateAsync: copyPrompt, isPending: isCopying } = useAtomValue(copyPromptMutationAtom);
 	const [copyingId, setCopyingId] = useState<number | null>(null);
 	const [expandedId, setExpandedId] = useState<number | null>(null);
 
-	useEffect(() => {
-		promptsApiService
-			.listPublic()
-			.then(setPrompts)
-			.catch(() => toast.error("Failed to load community prompts"))
-			.finally(() => setIsLoading(false));
-	}, []);
+	const handleCopy = useCallback(
+		async (id: number) => {
+			setCopyingId(id);
+			try {
+				await copyPrompt(id);
+			} catch {
+				// toast handled by mutation atom
+			} finally {
+				setCopyingId(null);
+			}
+		},
+		[copyPrompt]
+	);
 
-	const handleCopy = useCallback(async (id: number) => {
-		setCopyingId(id);
-		try {
-			await promptsApiService.copy(id);
-			toast.success("Prompt added to your collection");
-		} catch {
-			toast.error("Failed to copy prompt");
-		} finally {
-			setCopyingId(null);
-		}
-	}, []);
+	const list = prompts ?? [];
 
 	if (isLoading) {
 		return (
@@ -48,7 +44,7 @@ export function CommunityPromptsContent() {
 				Prompts shared by other users. Add any to your collection with one click.
 			</p>
 
-			{prompts.length === 0 && (
+			{list.length === 0 && (
 				<div className="rounded-lg border border-dashed border-border/60 p-8 text-center">
 					<Globe className="mx-auto size-8 text-muted-foreground/40" />
 					<p className="mt-2 text-sm text-muted-foreground">No community prompts yet</p>
@@ -58,9 +54,9 @@ export function CommunityPromptsContent() {
 				</div>
 			)}
 
-			{prompts.length > 0 && (
+			{list.length > 0 && (
 				<div className="space-y-2">
-					{prompts.map((prompt) => (
+					{list.map((prompt) => (
 						<div
 							key={prompt.id}
 							className="group flex items-start gap-3 rounded-lg border border-border/60 bg-card p-4"
@@ -80,7 +76,9 @@ export function CommunityPromptsContent() {
 										</span>
 									)}
 								</div>
-								<p className={`mt-1 text-xs text-muted-foreground ${expandedId === prompt.id ? "whitespace-pre-wrap" : "line-clamp-2"}`}>
+								<p
+									className={`mt-1 text-xs text-muted-foreground ${expandedId === prompt.id ? "whitespace-pre-wrap" : "line-clamp-2"}`}
+								>
 									{prompt.prompt}
 								</p>
 								{prompt.prompt.length > 100 && (
@@ -97,10 +95,10 @@ export function CommunityPromptsContent() {
 								variant="outline"
 								size="sm"
 								className="shrink-0 gap-1.5"
-								disabled={copyingId === prompt.id}
+								disabled={copyingId === prompt.id && isCopying}
 								onClick={() => handleCopy(prompt.id)}
 							>
-								{copyingId === prompt.id ? (
+								{copyingId === prompt.id && isCopying ? (
 									<Spinner className="size-3" />
 								) : (
 									<Copy className="size-3" />

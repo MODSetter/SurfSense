@@ -1,15 +1,21 @@
 "use client";
 
+import { useAtomValue } from "jotai";
 import { Globe, Lock, PenLine, Plus, Sparkles, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
+import {
+	createPromptMutationAtom,
+	deletePromptMutationAtom,
+	updatePromptMutationAtom,
+} from "@/atoms/prompts/prompts-mutation.atoms";
+import { promptsAtom } from "@/atoms/prompts/prompts-query.atoms";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import type { PromptRead } from "@/contracts/types/prompts.types";
-import { promptsApiService } from "@/lib/apis/prompts-api.service";
 
 interface PromptFormData {
 	name: string;
@@ -21,21 +27,16 @@ interface PromptFormData {
 const EMPTY_FORM: PromptFormData = { name: "", prompt: "", mode: "transform", is_public: false };
 
 export function PromptsContent() {
-	const [prompts, setPrompts] = useState<PromptRead[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
+	const { data: prompts, isLoading } = useAtomValue(promptsAtom);
+	const { mutateAsync: createPrompt } = useAtomValue(createPromptMutationAtom);
+	const { mutateAsync: updatePrompt } = useAtomValue(updatePromptMutationAtom);
+	const { mutateAsync: deletePrompt } = useAtomValue(deletePromptMutationAtom);
+
 	const [showForm, setShowForm] = useState(false);
 	const [editingId, setEditingId] = useState<number | null>(null);
 	const [formData, setFormData] = useState<PromptFormData>(EMPTY_FORM);
 	const [isSaving, setIsSaving] = useState(false);
 	const [expandedId, setExpandedId] = useState<number | null>(null);
-
-	useEffect(() => {
-		promptsApiService
-			.list()
-			.then(setPrompts)
-			.catch(() => toast.error("Failed to load prompts"))
-			.finally(() => setIsLoading(false));
-	}, []);
 
 	const handleSave = useCallback(async () => {
 		if (!formData.name.trim() || !formData.prompt.trim()) {
@@ -46,23 +47,19 @@ export function PromptsContent() {
 		setIsSaving(true);
 		try {
 			if (editingId) {
-				const updated = await promptsApiService.update(editingId, formData);
-				setPrompts((prev) => prev.map((p) => (p.id === editingId ? updated : p)));
-				toast.success("Prompt updated");
+				await updatePrompt({ id: editingId, ...formData });
 			} else {
-				const created = await promptsApiService.create(formData);
-				setPrompts((prev) => [created, ...prev]);
-				toast.success("Prompt created");
+				await createPrompt(formData);
 			}
 			setShowForm(false);
 			setFormData(EMPTY_FORM);
 			setEditingId(null);
 		} catch {
-			toast.error("Failed to save prompt");
+			// toast handled by mutation atoms
 		} finally {
 			setIsSaving(false);
 		}
-	}, [formData, editingId]);
+	}, [formData, editingId, createPrompt, updatePrompt]);
 
 	const handleEdit = useCallback((prompt: PromptRead) => {
 		setFormData({
@@ -75,21 +72,35 @@ export function PromptsContent() {
 		setShowForm(true);
 	}, []);
 
-	const handleDelete = useCallback(async (id: number) => {
-		try {
-			await promptsApiService.delete(id);
-			setPrompts((prev) => prev.filter((p) => p.id !== id));
-			toast.success("Prompt deleted");
-		} catch {
-			toast.error("Failed to delete prompt");
-		}
-	}, []);
+	const handleDelete = useCallback(
+		async (id: number) => {
+			try {
+				await deletePrompt(id);
+			} catch {
+				// toast handled by mutation atom
+			}
+		},
+		[deletePrompt]
+	);
+
+	const handleTogglePublic = useCallback(
+		async (prompt: PromptRead) => {
+			try {
+				await updatePrompt({ id: prompt.id, is_public: !prompt.is_public });
+			} catch {
+				// toast handled by mutation atom
+			}
+		},
+		[updatePrompt]
+	);
 
 	const handleCancel = useCallback(() => {
 		setShowForm(false);
 		setFormData(EMPTY_FORM);
 		setEditingId(null);
 	}, []);
+
+	const list = prompts ?? [];
 
 	if (isLoading) {
 		return (
@@ -195,7 +206,7 @@ export function PromptsContent() {
 				</div>
 			)}
 
-			{prompts.length === 0 && !showForm && (
+			{list.length === 0 && !showForm && (
 				<div className="rounded-lg border border-dashed border-border/60 p-8 text-center">
 					<Sparkles className="mx-auto size-8 text-muted-foreground/40" />
 					<p className="mt-2 text-sm text-muted-foreground">No prompts yet</p>
@@ -205,9 +216,9 @@ export function PromptsContent() {
 				</div>
 			)}
 
-			{prompts.length > 0 && (
+			{list.length > 0 && (
 				<div className="space-y-2">
-					{prompts.map((prompt) => (
+					{list.map((prompt) => (
 						<div
 							key={prompt.id}
 							className="group flex items-start gap-3 rounded-lg border border-border/60 bg-card p-4"
@@ -247,17 +258,7 @@ export function PromptsContent() {
 								<button
 									type="button"
 									title={prompt.is_public ? "Make private" : "Share with community"}
-									onClick={async () => {
-										try {
-											const updated = await promptsApiService.update(prompt.id, {
-												is_public: !prompt.is_public,
-											});
-											setPrompts((prev) => prev.map((p) => (p.id === prompt.id ? updated : p)));
-											toast.success(updated.is_public ? "Shared with community" : "Made private");
-										} catch {
-											toast.error("Failed to update");
-										}
-									}}
+									onClick={() => handleTogglePublic(prompt)}
 									className="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
 								>
 									{prompt.is_public ? (

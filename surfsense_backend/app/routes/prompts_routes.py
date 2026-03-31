@@ -41,6 +41,7 @@ async def create_prompt(
         name=body.name,
         prompt=body.prompt,
         mode=body.mode,
+        is_public=body.is_public,
     )
     session.add(prompt)
     await session.commit()
@@ -65,10 +66,15 @@ async def update_prompt(
     if not prompt:
         raise HTTPException(status_code=404, detail="Prompt not found")
 
-    for field, value in body.model_dump(exclude_unset=True).items():
+    updates = body.model_dump(exclude_unset=True)
+    content_fields = {"name", "prompt", "mode"}
+    has_content_change = bool(updates.keys() & content_fields)
+
+    for field, value in updates.items():
         setattr(prompt, field, value)
 
-    prompt.version = (prompt.version or 0) + 1
+    if has_content_change:
+        prompt.version = (prompt.version or 0) + 1
 
     session.add(prompt)
     await session.commit()
