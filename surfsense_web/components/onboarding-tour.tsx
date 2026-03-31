@@ -598,7 +598,7 @@ export function OnboardingTour() {
 		};
 
 		window.addEventListener("resize", handleUpdate);
-		window.addEventListener("scroll", handleUpdate, true);
+		window.addEventListener("scroll", handleUpdate, { capture: true, passive: true });
 
 		return () => {
 			window.removeEventListener("resize", handleUpdate);

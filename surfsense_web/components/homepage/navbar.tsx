@@ -32,7 +32,7 @@ export const Navbar = ({ scrolledBgClassName }: NavbarProps = {}) => {
 		};
 
 		handleScroll();
-		window.addEventListener("scroll", handleScroll);
+		window.addEventListener("scroll", handleScroll, { passive: true });
 		return () => window.removeEventListener("scroll", handleScroll);
 	}, []);
 
@@ -132,7 +132,7 @@ const MobileNav = ({ navItems, isScrolled, scrolledBgClassName }: any) => {
 		};
 
 		document.addEventListener("mousedown", handleClickOutside);
-		document.addEventListener("touchstart", handleClickOutside);
+		document.addEventListener("touchstart", handleClickOutside, { passive: true });
 		return () => {
 			document.removeEventListener("mousedown", handleClickOutside);
 			document.removeEventListener("touchstart", handleClickOutside);
