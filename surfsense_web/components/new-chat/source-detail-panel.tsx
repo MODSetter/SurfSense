@@ -5,7 +5,7 @@ import { BookOpen, ChevronDown, ExternalLink, FileText, Hash, Sparkles, X } from
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useTranslations } from "next-intl";
 import type React from "react";
-import { forwardRef, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { forwardRef, memo, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Badge } from "@/components/ui/badge";
@@ -55,7 +55,7 @@ interface ChunkCardProps {
 	disableLayoutAnimation?: boolean;
 }
 
-const ChunkCard = forwardRef<HTMLDivElement, ChunkCardProps>(
+const ChunkCard = memo(forwardRef<HTMLDivElement, ChunkCardProps>(
 	({ chunk, index, totalChunks, isCited }, ref) => {
 		return (
 			<div
@@ -101,7 +101,7 @@ const ChunkCard = forwardRef<HTMLDivElement, ChunkCardProps>(
 			</div>
 		);
 	}
-);
+));
 ChunkCard.displayName = "ChunkCard";
 
 export function SourceDetailPanel({
