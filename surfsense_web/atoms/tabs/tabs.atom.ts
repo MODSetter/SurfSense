@@ -33,6 +33,9 @@ const initialState: TabsState = {
 	activeTabId: "chat-new",
 };
 
+// Prevent race conditions where route-sync recreates a just-deleted chat tab.
+const deletedChatIdsAtom = atom<Set<number>>(new Set<number>());
+
 const sessionStorageAdapter = createJSONStorage<TabsState>(
 	() => (typeof window !== "undefined" ? sessionStorage : undefined) as Storage
 );
@@ -71,6 +74,10 @@ export const syncChatTabAtom = atom(
 		set,
 		{ chatId, title, chatUrl }: { chatId: number | null; title?: string; chatUrl?: string }
 	) => {
+		if (chatId && get(deletedChatIdsAtom).has(chatId)) {
+			return;
+		}
+
 		const state = get(tabsStateAtom);
 		const tabId = makeChatTabId(chatId);
 		const existing = state.tabs.find((t) => t.id === tabId);
@@ -128,6 +135,19 @@ export const updateChatTabTitleAtom = atom(
 	(get, set, { chatId, title }: { chatId: number; title: string }) => {
 		const state = get(tabsStateAtom);
 		const tabId = makeChatTabId(chatId);
+		const hasExactTab = state.tabs.some((t) => t.id === tabId);
+
+		// During lazy thread creation, title updates can arrive before "chat-new"
+		// is swapped to chat-{id}. In that case, promote the active "chat-new" tab.
+		if (!hasExactTab && state.activeTabId === "chat-new") {
+			set(tabsStateAtom, {
+				...state,
+				activeTabId: tabId,
+				tabs: state.tabs.map((t) => (t.id === "chat-new" ? { ...t, id: tabId, chatId, title } : t)),
+			});
+			return;
+		}
+
 		set(tabsStateAtom, {
 			...state,
 			tabs: state.tabs.map((t) => (t.id === tabId ? { ...t, title } : t)),
@@ -213,7 +233,39 @@ export const closeTabAtom = atom(null, (get, set, tabId: string) => {
 	return remaining.find((t) => t.id === newActiveId) ?? null;
 });
 
+/** Remove a chat tab by chat ID (used when a chat is deleted). */
+export const removeChatTabAtom = atom(null, (get, set, chatId: number) => {
+	const state = get(tabsStateAtom);
+	const tabId = makeChatTabId(chatId);
+	const idx = state.tabs.findIndex((t) => t.id === tabId);
+	if (idx === -1) return null;
+
+	const deletedChatIds = get(deletedChatIdsAtom);
+	set(deletedChatIdsAtom, new Set([...deletedChatIds, chatId]));
+
+	const remaining = state.tabs.filter((t) => t.id !== tabId);
+
+	// Always keep at least one tab available.
+	if (remaining.length === 0) {
+		set(tabsStateAtom, {
+			tabs: [INITIAL_CHAT_TAB],
+			activeTabId: "chat-new",
+		});
+		return INITIAL_CHAT_TAB;
+	}
+
+	let newActiveId = state.activeTabId;
+	if (state.activeTabId === tabId) {
+		const newIdx = Math.min(idx, remaining.length - 1);
+		newActiveId = remaining[newIdx].id;
+	}
+
+	set(tabsStateAtom, { tabs: remaining, activeTabId: newActiveId });
+	return remaining.find((t) => t.id === newActiveId) ?? null;
+});
+
 /** Reset tabs when switching search spaces. */
 export const resetTabsAtom = atom(null, (_get, set) => {
 	set(tabsStateAtom, { ...initialState });
+	set(deletedChatIdsAtom, new Set<number>());
 });

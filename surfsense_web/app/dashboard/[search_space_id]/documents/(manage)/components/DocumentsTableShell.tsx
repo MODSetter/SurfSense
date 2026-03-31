@@ -990,9 +990,10 @@ export function DocumentsTableShell({
 								handleDeleteFromMenu();
 							}}
 							disabled={isDeleting}
-							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+							className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
-							{isDeleting ? <Spinner size="sm" /> : "Delete"}
+							<span className={isDeleting ? "opacity-0" : ""}>Delete</span>
+							{isDeleting && <Spinner size="sm" className="absolute" />}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
@@ -1108,9 +1109,10 @@ export function DocumentsTableShell({
 								handleBulkDelete();
 							}}
 							disabled={isBulkDeleting}
-							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+							className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
-							{isBulkDeleting ? <Spinner size="sm" /> : "Delete"}
+							<span className={isBulkDeleting ? "opacity-0" : ""}>Delete</span>
+							{isBulkDeleting && <Spinner size="sm" className="absolute" />}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>

@@ -106,16 +106,16 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 			className="w-64 rounded-lg border bg-popover shadow-lg overflow-hidden"
 			style={containerStyle}
 		>
-		<div ref={scrollContainerRef} className="max-h-48 overflow-y-auto py-1">
-			{isLoading ? (
-				<div className="flex items-center justify-center py-3">
-					<Spinner className="size-4" />
-				</div>
-			) : isError ? (
-				<p className="px-3 py-2 text-xs text-destructive">Failed to load prompts</p>
-			) : filtered.length === 0 ? (
-				<p className="px-3 py-2 text-xs text-muted-foreground">No matching prompts</p>
-			) : (
+			<div ref={scrollContainerRef} className="max-h-48 overflow-y-auto py-1">
+				{isLoading ? (
+					<div className="flex items-center justify-center py-3">
+						<Spinner className="size-4" />
+					</div>
+				) : isError ? (
+					<p className="px-3 py-2 text-xs text-destructive">Failed to load prompts</p>
+				) : filtered.length === 0 ? (
+					<p className="px-3 py-2 text-xs text-muted-foreground">No matching prompts</p>
+				) : (
 					filtered.map((action, index) => (
 						<button
 							key={action.id}

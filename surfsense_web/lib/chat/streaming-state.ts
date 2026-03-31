@@ -27,18 +27,45 @@ export interface ContentPartsState {
 	toolCallIndices: Map<string, number>;
 }
 
+function areThinkingStepsEqual(current: ThinkingStepData[], next: ThinkingStepData[]): boolean {
+	if (current.length !== next.length) return false;
+
+	for (let i = 0; i < current.length; i += 1) {
+		const curr = current[i];
+		const nxt = next[i];
+		if (curr.id !== nxt.id || curr.title !== nxt.title || curr.status !== nxt.status) {
+			return false;
+		}
+		if (curr.items.length !== nxt.items.length) return false;
+		for (let j = 0; j < curr.items.length; j += 1) {
+			if (curr.items[j] !== nxt.items[j]) return false;
+		}
+	}
+
+	return true;
+}
+
 export function updateThinkingSteps(
 	state: ContentPartsState,
 	steps: Map<string, ThinkingStepData>
-): void {
+): boolean {
 	const stepsArray = Array.from(steps.values());
 	const existingIdx = state.contentParts.findIndex((p) => p.type === "data-thinking-steps");
 
 	if (existingIdx >= 0) {
+		const existing = state.contentParts[existingIdx];
+		if (
+			existing?.type === "data-thinking-steps" &&
+			areThinkingStepsEqual(existing.data.steps, stepsArray)
+		) {
+			return false;
+		}
+
 		state.contentParts[existingIdx] = {
 			type: "data-thinking-steps",
 			data: { steps: stepsArray },
 		};
+		return true;
 	} else {
 		state.contentParts.unshift({
 			type: "data-thinking-steps",
@@ -50,6 +77,56 @@ export function updateThinkingSteps(
 		for (const [id, idx] of state.toolCallIndices) {
 			state.toolCallIndices.set(id, idx + 1);
 		}
+		return true;
+	}
+}
+
+/**
+ * Coalesces rapid setMessages calls into at most one React state update per
+ * throttle interval. During streaming, SSE text-delta events arrive much
+ * faster than the user can perceive; throttling to ~50 ms lets React +
+ * ReactMarkdown do far fewer reconciliation passes, eliminating flicker.
+ */
+export class FrameBatchedUpdater {
+	private timerId: ReturnType<typeof setTimeout> | null = null;
+	private flusher: (() => void) | null = null;
+	private dirty = false;
+	private static readonly INTERVAL_MS = 50;
+
+	/** Mark state as dirty — will flush after the throttle interval. */
+	schedule(flush: () => void): void {
+		this.flusher = flush;
+		this.dirty = true;
+		if (this.timerId === null) {
+			this.timerId = setTimeout(() => {
+				this.timerId = null;
+				if (this.dirty) {
+					this.dirty = false;
+					this.flusher?.();
+				}
+			}, FrameBatchedUpdater.INTERVAL_MS);
+		}
+	}
+
+	/** Immediately flush any pending update (call on tool events or stream end). */
+	flush(): void {
+		if (this.timerId !== null) {
+			clearTimeout(this.timerId);
+			this.timerId = null;
+		}
+		if (this.dirty) {
+			this.dirty = false;
+			this.flusher?.();
+		}
+	}
+
+	dispose(): void {
+		if (this.timerId !== null) {
+			clearTimeout(this.timerId);
+			this.timerId = null;
+		}
+		this.dirty = false;
+		this.flusher = null;
 	}
 }
 
@@ -149,6 +226,7 @@ export type SSEEvent =
 	| { type: "data-thinking-step"; data: ThinkingStepData }
 	| { type: "data-thread-title-update"; data: { threadId: number; title: string } }
 	| { type: "data-interrupt-request"; data: Record<string, unknown> }
+	| { type: "data-documents-updated"; data: Record<string, unknown> }
 	| { type: "error"; errorText: string };
 
 /**

@@ -93,7 +93,7 @@ DrawerDescription.displayName = DrawerPrimitive.Description.displayName;
 function DrawerHandle({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
 	return (
 		<div
-			className={cn("mx-auto mt-4 h-1.5 w-12 rounded-full bg-muted-foreground/40", className)}
+			className={cn("mx-auto mt-4 h-2 w-12 rounded-full bg-muted-foreground/40", className)}
 			{...props}
 		/>
 	);

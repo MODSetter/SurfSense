@@ -42,7 +42,9 @@ def upgrade() -> None:
             )
         """)
         op.execute("CREATE INDEX ix_prompts_user_id ON prompts (user_id)")
-        op.execute("CREATE INDEX ix_prompts_search_space_id ON prompts (search_space_id)")
+        op.execute(
+            "CREATE INDEX ix_prompts_search_space_id ON prompts (search_space_id)"
+        )
 
 
 def downgrade() -> None:

@@ -14,8 +14,8 @@ import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { expandedFolderIdsAtom } from "@/atoms/documents/folder.atoms";
 import { agentCreatedDocumentsAtom } from "@/atoms/documents/ui.atoms";
+import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
-import { openDocumentTabAtom } from "@/atoms/tabs/tabs.atom";
 import { CreateFolderDialog } from "@/components/documents/CreateFolderDialog";
 import type { DocumentNodeDoc } from "@/components/documents/DocumentNode";
 import type { FolderDisplay } from "@/components/documents/FolderNode";
@@ -35,21 +35,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-	Drawer,
-	DrawerContent,
-	DrawerHandle,
-	DrawerHeader,
-	DrawerTitle,
-} from "@/components/ui/drawer";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import { queries } from "@/zero/queries/index";
@@ -95,11 +86,9 @@ export function DocumentsSidebar({
 	const searchSpaceId = Number(params.search_space_id);
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 	const setRightPanelCollapsed = useSetAtom(rightPanelCollapsedAtom);
-	const openDocumentTab = useSetAtom(openDocumentTabAtom);
+	const openEditorPanel = useSetAtom(openEditorPanelAtom);
 	const { data: connectors } = useAtomValue(connectorsAtom);
 	const connectorCount = connectors?.length ?? 0;
-
-	const isMobileLayout = useIsMobile();
 
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebouncedValue(search, 250);
@@ -374,31 +363,6 @@ export function DocumentsSidebar({
 		[]
 	);
 
-	// Document popup viewer state (for tree view "Open" and mobile preview)
-	const [viewingDoc, setViewingDoc] = useState<DocumentNodeDoc | null>(null);
-	const [viewingContent, setViewingContent] = useState<string>("");
-	const [viewingLoading, setViewingLoading] = useState(false);
-
-	const handleViewDocumentPopup = useCallback(async (doc: DocumentNodeDoc) => {
-		setViewingDoc(doc);
-		setViewingLoading(true);
-		try {
-			const fullDoc = await documentsApiService.getDocument({ id: doc.id });
-			setViewingContent(fullDoc.content);
-		} catch (err) {
-			console.error("[DocumentsSidebar] Failed to fetch document content:", err);
-			setViewingContent("Failed to load document content.");
-		} finally {
-			setViewingLoading(false);
-		}
-	}, []);
-
-	const handleCloseViewer = useCallback(() => {
-		setViewingDoc(null);
-		setViewingContent("");
-		setViewingLoading(false);
-	}, []);
-
 	const handleToggleChatMention = useCallback(
 		(doc: { id: number; title: string; document_type: string }, isMentioned: boolean) => {
 			if (isMentioned) {
@@ -557,7 +521,7 @@ export function DocumentsSidebar({
 
 	const documentsContent = (
 		<>
-			<div className="shrink-0 flex h-14 items-center px-4">
+			<div className="shrink-0 flex h-12 items-center px-4">
 				<div className="flex w-full items-center justify-between">
 					<div className="flex items-center gap-2">
 						{isMobile && (
@@ -609,7 +573,7 @@ export function DocumentsSidebar({
 			</div>
 
 			{/* Connected tools strip */}
-			<div className="shrink-0 mx-4 mt-2 mb-3 flex select-none items-center gap-2 rounded-lg border bg-muted/50 transition-colors hover:bg-muted/80">
+			<div className="shrink-0 mx-4 mt-4 mb-4 flex select-none items-center gap-2 rounded-lg border bg-muted/50 transition-colors hover:bg-muted/80">
 				<button
 					type="button"
 					onClick={() => setConnectorDialogOpen(true)}
@@ -716,24 +680,18 @@ export function DocumentsSidebar({
 					onCreateFolder={handleCreateFolder}
 					searchQuery={debouncedSearch.trim() || undefined}
 					onPreviewDocument={(doc) => {
-						if (isMobileLayout) {
-							handleViewDocumentPopup(doc);
-						} else {
-							openDocumentTab({
-								documentId: doc.id,
-								searchSpaceId,
-								title: doc.title,
-							});
-						}
+						openEditorPanel({
+							documentId: doc.id,
+							searchSpaceId,
+							title: doc.title,
+						});
 					}}
 					onEditDocument={(doc) => {
-						if (!isMobileLayout) {
-							openDocumentTab({
-								documentId: doc.id,
-								searchSpaceId,
-								title: doc.title,
-							});
-						}
+						openEditorPanel({
+							documentId: doc.id,
+							searchSpaceId,
+							title: doc.title,
+						});
 					}}
 					onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
 					onMoveDocument={handleMoveDocument}
@@ -761,26 +719,6 @@ export function DocumentsSidebar({
 				onConfirm={handleCreateFolderConfirm}
 			/>
 
-			<Drawer open={!!viewingDoc} onOpenChange={(open) => !open && handleCloseViewer()}>
-				<DrawerContent className="max-h-[85vh] flex flex-col">
-					<DrawerHandle />
-					<DrawerHeader className="text-left shrink-0">
-						<DrawerTitle className="text-base leading-tight break-words">
-							{viewingDoc?.title}
-						</DrawerTitle>
-					</DrawerHeader>
-					<div className="overflow-y-auto flex-1 min-h-0 px-4 pb-6 select-text text-xs [&_h1]:text-base! [&_h1]:mt-3! [&_h2]:text-sm! [&_h2]:mt-2! [&_h3]:text-xs! [&_h3]:mt-2!">
-						{viewingLoading ? (
-							<div className="flex items-center justify-center py-12">
-								<Spinner size="lg" className="text-muted-foreground" />
-							</div>
-						) : (
-							<MarkdownViewer content={viewingContent} />
-						)}
-					</div>
-				</DrawerContent>
-			</Drawer>
-
 			<AlertDialog
 				open={bulkDeleteConfirmOpen}
 				onOpenChange={(open) => !open && !isBulkDeleting && setBulkDeleteConfirmOpen(false)}
@@ -807,9 +745,10 @@ export function DocumentsSidebar({
 								handleBulkDeleteSelected();
 							}}
 							disabled={isBulkDeleting}
-							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+							className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
-							{isBulkDeleting ? <Spinner size="sm" /> : "Delete"}
+							<span className={isBulkDeleting ? "opacity-0" : ""}>Delete</span>
+							{isBulkDeleting && <Spinner size="sm" className="absolute" />}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>

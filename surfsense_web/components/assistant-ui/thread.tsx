@@ -5,6 +5,7 @@ import {
 	ThreadPrimitive,
 	useAui,
 	useAuiState,
+	useThreadViewportStore,
 } from "@assistant-ui/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
@@ -113,7 +114,8 @@ const ThreadContent: FC = () => {
 		>
 			<ThreadPrimitive.Viewport
 				turnAnchor="top"
-				className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-scroll px-4 pt-4"
+				className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 pt-4"
+				style={{ scrollbarGutter: "stable" }}
 			>
 				<AuiIf condition={({ thread }) => thread.isEmpty}>
 					<ThreadWelcome />
@@ -128,7 +130,7 @@ const ThreadContent: FC = () => {
 				/>
 
 				<ThreadPrimitive.ViewportFooter
-					className="aui-thread-viewport-footer sticky bottom-0 z-10 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-main-panel pb-4 md:pb-6"
+					className="aui-thread-viewport-footer sticky bottom-0 z-10 mx-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-main-panel pb-4 md:pb-6"
 					style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
 				>
 					<ThreadScrollToBottom />
@@ -349,7 +351,15 @@ const Composer: FC = () => {
 	const promptPickerRef = useRef<PromptPickerRef>(null);
 	const { search_space_id, chat_id } = useParams();
 	const aui = useAui();
+	const threadViewportStore = useThreadViewportStore();
 	const hasAutoFocusedRef = useRef(false);
+	const submitCleanupRef = useRef<(() => void) | null>(null);
+
+	useEffect(() => {
+		return () => {
+			submitCleanupRef.current?.();
+		};
+	}, []);
 
 	const [clipboardInitialText, setClipboardInitialText] = useState<string | undefined>();
 	const clipboardLoadedRef = useRef(false);
@@ -593,6 +603,63 @@ const Composer: FC = () => {
 			setMentionedDocuments([]);
 			setSidebarDocs([]);
 		}
+		if (isThreadRunning || isBlockedByOtherUser) return;
+		if (showDocumentPopover) return;
+
+		const viewportEl = document.querySelector(".aui-thread-viewport");
+		const heightBefore = viewportEl?.scrollHeight ?? 0;
+
+		aui.composer().send();
+		editorRef.current?.clear();
+		setMentionedDocuments([]);
+		setSidebarDocs([]);
+
+		// With turnAnchor="top", ViewportSlack adds min-height to the last
+		// assistant message so that scrolling-to-bottom actually positions the
+		// user message at the TOP of the viewport. That slack height is
+		// calculated asynchronously (ResizeObserver → style → layout).
+		//
+		// We poll via rAF for ~2 s, re-scrolling whenever scrollHeight changes
+		// (user msg render → assistant placeholder → ViewportSlack min-height →
+		// first streamed content). Backup setTimeout calls cover cases where
+		// the batcher's 50 ms throttle delays the DOM update past the rAF.
+		const scrollToBottom = () =>
+			threadViewportStore.getState().scrollToBottom({ behavior: "instant" });
+
+		let lastHeight = heightBefore;
+		let frames = 0;
+		let cancelled = false;
+		const POLL_FRAMES = 120;
+
+		const pollAndScroll = () => {
+			if (cancelled) return;
+			const el = document.querySelector(".aui-thread-viewport");
+			if (el) {
+				const h = el.scrollHeight;
+				if (h !== lastHeight) {
+					lastHeight = h;
+					scrollToBottom();
+				}
+			}
+			if (++frames < POLL_FRAMES) {
+				requestAnimationFrame(pollAndScroll);
+			}
+		};
+		requestAnimationFrame(pollAndScroll);
+
+		const t1 = setTimeout(scrollToBottom, 100);
+		const t2 = setTimeout(scrollToBottom, 300);
+		const t3 = setTimeout(scrollToBottom, 600);
+
+		// Cleanup if component unmounts during the polling window. The ref is
+		// checked inside pollAndScroll; timeouts are cleared in the return below.
+		// Store cleanup fn so it can be called from a useEffect cleanup if needed.
+		submitCleanupRef.current = () => {
+			cancelled = true;
+			clearTimeout(t1);
+			clearTimeout(t2);
+			clearTimeout(t3);
+		};
 	}, [
 		showDocumentPopover,
 		showPromptPicker,
@@ -602,6 +669,7 @@ const Composer: FC = () => {
 		aui,
 		setMentionedDocuments,
 		setSidebarDocs,
+		threadViewportStore,
 	]);
 
 	const handleDocumentRemove = useCallback(

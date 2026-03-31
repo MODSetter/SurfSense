@@ -41,6 +41,8 @@ interface DocumentTabContentProps {
 	title?: string;
 }
 
+const EDITABLE_DOCUMENT_TYPES = new Set(["FILE", "NOTE"]);
+
 export function DocumentTabContent({ documentId, searchSpaceId, title }: DocumentTabContentProps) {
 	const [doc, setDoc] = useState<DocumentContent | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
@@ -171,6 +173,8 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 		);
 	}
 
+	const isEditable = EDITABLE_DOCUMENT_TYPES.has(doc.document_type ?? "");
+
 	if (isEditing) {
 		return (
 			<div className="flex flex-col h-full overflow-hidden">
@@ -218,7 +222,7 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 				<h1 className="text-base font-semibold truncate flex-1 min-w-0">
 					{doc.title || title || "Untitled"}
 				</h1>
-				{doc.document_type === "NOTE" && (
+				{isEditable && (
 					<Button
 						variant="outline"
 						size="sm"
