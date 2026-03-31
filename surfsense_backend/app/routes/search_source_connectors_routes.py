@@ -1046,6 +1046,53 @@ async def index_connector_content(
             )
             response_message = "OneDrive indexing started in the background."
 
+        elif connector.connector_type == SearchSourceConnectorType.DROPBOX_CONNECTOR:
+            from app.tasks.celery_tasks.connector_tasks import (
+                index_dropbox_files_task,
+            )
+
+            if drive_items and drive_items.has_items():
+                logger.info(
+                    f"Triggering Dropbox indexing for connector {connector_id} into search space {search_space_id}, "
+                    f"folders: {len(drive_items.folders)}, files: {len(drive_items.files)}"
+                )
+                items_dict = drive_items.model_dump()
+            else:
+                config = connector.config or {}
+                selected_folders = config.get("selected_folders", [])
+                selected_files = config.get("selected_files", [])
+                if not selected_folders and not selected_files:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Dropbox indexing requires folders or files to be configured. "
+                        "Please select folders/files to index.",
+                    )
+                indexing_options = config.get(
+                    "indexing_options",
+                    {
+                        "max_files_per_folder": 100,
+                        "incremental_sync": True,
+                        "include_subfolders": True,
+                    },
+                )
+                items_dict = {
+                    "folders": selected_folders,
+                    "files": selected_files,
+                    "indexing_options": indexing_options,
+                }
+                logger.info(
+                    f"Triggering Dropbox indexing for connector {connector_id} into search space {search_space_id} "
+                    f"using existing config"
+                )
+
+            index_dropbox_files_task.delay(
+                connector_id,
+                search_space_id,
+                str(user.id),
+                items_dict,
+            )
+            response_message = "Dropbox indexing started in the background."
+
         elif connector.connector_type == SearchSourceConnectorType.DISCORD_CONNECTOR:
             from app.tasks.celery_tasks.connector_tasks import (
                 index_discord_messages_task,
@@ -2629,6 +2676,114 @@ async def run_onedrive_indexing(
     except Exception as e:
         logger.error(
             f"Critical error in run_onedrive_indexing for connector {connector_id}: {e}",
+            exc_info=True,
+        )
+        if notification:
+            try:
+                await session.refresh(notification)
+                await NotificationService.connector_indexing.notify_indexing_completed(
+                    session=session,
+                    notification=notification,
+                    indexed_count=0,
+                    error_message=str(e),
+                )
+            except Exception as notif_error:
+                logger.error(f"Failed to update notification: {notif_error!s}")
+
+
+async def run_dropbox_indexing(
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    items_dict: dict,
+):
+    """Runs the Dropbox indexing task for folders and files with notifications."""
+    from uuid import UUID
+
+    notification = None
+    try:
+        from app.tasks.connector_indexers.dropbox_indexer import index_dropbox_files
+
+        connector_result = await session.execute(
+            select(SearchSourceConnector).where(
+                SearchSourceConnector.id == connector_id
+            )
+        )
+        connector = connector_result.scalar_one_or_none()
+
+        if connector:
+            notification = await NotificationService.connector_indexing.notify_google_drive_indexing_started(
+                session=session,
+                user_id=UUID(user_id),
+                connector_id=connector_id,
+                connector_name=connector.name,
+                connector_type=connector.connector_type.value,
+                search_space_id=search_space_id,
+                folder_count=len(items_dict.get("folders", [])),
+                file_count=len(items_dict.get("files", [])),
+                folder_names=[
+                    f.get("name", "Unknown") for f in items_dict.get("folders", [])
+                ],
+                file_names=[
+                    f.get("name", "Unknown") for f in items_dict.get("files", [])
+                ],
+            )
+
+        if notification:
+            await NotificationService.connector_indexing.notify_indexing_progress(
+                session=session,
+                notification=notification,
+                indexed_count=0,
+                stage="fetching",
+            )
+
+        total_indexed, total_skipped, error_message = await index_dropbox_files(
+            session,
+            connector_id,
+            search_space_id,
+            user_id,
+            items_dict,
+        )
+
+        if error_message:
+            logger.error(
+                f"Dropbox indexing completed with errors for connector {connector_id}: {error_message}"
+            )
+            if _is_auth_error(error_message):
+                await _persist_auth_expired(session, connector_id)
+                error_message = (
+                    "Dropbox authentication expired. Please re-authenticate."
+                )
+        else:
+            if notification:
+                await session.refresh(notification)
+                await NotificationService.connector_indexing.notify_indexing_progress(
+                    session=session,
+                    notification=notification,
+                    indexed_count=total_indexed,
+                    stage="storing",
+                )
+
+            logger.info(
+                f"Dropbox indexing successful for connector {connector_id}. Indexed {total_indexed} documents."
+            )
+            await _update_connector_timestamp_by_id(session, connector_id)
+            await session.commit()
+
+        if notification:
+            await session.refresh(notification)
+            await NotificationService.connector_indexing.notify_indexing_completed(
+                session=session,
+                notification=notification,
+                indexed_count=total_indexed,
+                error_message=error_message,
+                skipped_count=total_skipped,
+            )
+
+    except Exception as e:
+        logger.error(
+            f"Critical error in run_dropbox_indexing for connector {connector_id}: {e}",
             exc_info=True,
         )
         if notification:

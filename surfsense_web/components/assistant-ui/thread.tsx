@@ -897,24 +897,6 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 		return result;
 	}, [filteredTools, connectedTypes]);
 
-	const { visibleTotal, visibleEnabled } = useMemo(() => {
-		let total = 0;
-		let enabled = 0;
-		for (const group of groupedTools) {
-			if (group.connectorIcon) {
-				total += 1;
-				const allDisabled = group.tools.every((t) => disabledTools.includes(t.name));
-				if (!allDisabled) enabled += 1;
-			} else {
-				for (const tool of group.tools) {
-					total += 1;
-					if (!disabledTools.includes(tool.name)) enabled += 1;
-				}
-			}
-		}
-		return { visibleTotal: total, visibleEnabled: enabled };
-	}, [groupedTools, disabledTools]);
-
 	useEffect(() => {
 		hydrateDisabled();
 	}, [hydrateDisabled]);
@@ -963,11 +945,8 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 						<Drawer open={toolsPopoverOpen} onOpenChange={setToolsPopoverOpen}>
 							<DrawerContent className="max-h-[60dvh]">
 								<DrawerHandle />
-								<div className="flex items-center justify-between px-4 py-2">
-									<DrawerTitle className="text-sm font-medium">Agent Tools</DrawerTitle>
-									<span className="text-xs text-muted-foreground">
-										{visibleEnabled}/{visibleTotal} enabled
-									</span>
+								<div className="px-4 py-2">
+									<DrawerTitle className="text-sm font-medium">Manage Tools</DrawerTitle>
 								</div>
 								<div className="overflow-y-auto pb-6" onScroll={handleToolsScroll}>
 									{groupedTools
@@ -1082,12 +1061,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							className="w-[calc(100vw-2rem)] max-w-56 sm:max-w-72 sm:w-72 p-0 select-none"
 							onOpenAutoFocus={(e) => e.preventDefault()}
 						>
-							<div className="flex items-center justify-between px-2.5 py-2 sm:px-3 sm:py-2.5 border-b">
-								<span className="text-xs sm:text-sm font-medium">Agent Tools</span>
-								<span className="text-[10px] sm:text-xs text-muted-foreground">
-									{visibleEnabled}/{visibleTotal} enabled
-								</span>
-							</div>
+							<div className="sr-only">Manage Tools</div>
 							<div
 								className="max-h-48 sm:max-h-64 overflow-y-auto py-0.5 sm:py-1"
 								onScroll={handleToolsScroll}
@@ -1325,49 +1299,55 @@ const TOOL_GROUPS: ToolGroup[] = [
 		label: "Gmail",
 		tools: ["create_gmail_draft", "update_gmail_draft", "send_gmail_email", "trash_gmail_email"],
 		connectorIcon: "gmail",
-		tooltip: "Create drafts, update drafts, send emails, and trash emails in Gmail.",
+		tooltip: "Create drafts, update drafts, send emails, and trash emails in Gmail",
 	},
 	{
 		label: "Google Calendar",
 		tools: ["create_calendar_event", "update_calendar_event", "delete_calendar_event"],
 		connectorIcon: "google_calendar",
-		tooltip: "Create, update, and delete events in Google Calendar.",
+		tooltip: "Create, update, and delete events in Google Calendar",
 	},
 	{
 		label: "Google Drive",
 		tools: ["create_google_drive_file", "delete_google_drive_file"],
 		connectorIcon: "google_drive",
-		tooltip: "Create and delete files in Google Drive.",
+		tooltip: "Create and delete files in Google Drive",
 	},
 	{
 		label: "OneDrive",
 		tools: ["create_onedrive_file", "delete_onedrive_file"],
 		connectorIcon: "onedrive",
-		tooltip: "Create and delete files in OneDrive.",
+		tooltip: "Create and delete files in OneDrive",
+	},
+	{
+		label: "Dropbox",
+		tools: ["create_dropbox_file", "delete_dropbox_file"],
+		connectorIcon: "dropbox",
+		tooltip: "Create and delete files in Dropbox",
 	},
 	{
 		label: "Notion",
 		tools: ["create_notion_page", "update_notion_page", "delete_notion_page"],
 		connectorIcon: "notion",
-		tooltip: "Create, update, and delete pages in Notion.",
+		tooltip: "Create, update, and delete pages in Notion",
 	},
 	{
 		label: "Linear",
 		tools: ["create_linear_issue", "update_linear_issue", "delete_linear_issue"],
 		connectorIcon: "linear",
-		tooltip: "Create, update, and delete issues in Linear.",
+		tooltip: "Create, update, and delete issues in Linear",
 	},
 	{
 		label: "Jira",
 		tools: ["create_jira_issue", "update_jira_issue", "delete_jira_issue"],
 		connectorIcon: "jira",
-		tooltip: "Create, update, and delete issues in Jira.",
+		tooltip: "Create, update, and delete issues in Jira",
 	},
 	{
 		label: "Confluence",
 		tools: ["create_confluence_page", "update_confluence_page", "delete_confluence_page"],
 		connectorIcon: "confluence",
-		tooltip: "Create, update, and delete pages in Confluence.",
+		tooltip: "Create, update, and delete pages in Confluence",
 	},
 ];
 

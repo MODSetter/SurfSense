@@ -148,6 +148,8 @@ const TOOLS_WITH_UI = new Set([
 	"delete_google_drive_file",
 	"create_onedrive_file",
 	"delete_onedrive_file",
+	"create_dropbox_file",
+	"delete_dropbox_file",
 	"create_calendar_event",
 	"update_calendar_event",
 	"delete_calendar_event",

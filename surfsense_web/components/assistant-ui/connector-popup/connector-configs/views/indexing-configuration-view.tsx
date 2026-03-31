@@ -158,11 +158,13 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 								{/* AI Summary toggle */}
 								<SummaryConfig enabled={enableSummary} onEnabledChange={onEnableSummaryChange} />
 
-								{/* Date range selector - not shown for Google Drive (regular and Composio), Webcrawler, or GitHub (indexes full repo snapshots) */}
-								{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" &&
-									config.connectorType !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&
-									config.connectorType !== "WEBCRAWLER_CONNECTOR" &&
-									config.connectorType !== "GITHUB_CONNECTOR" && (
+							{/* Date range selector - not shown for file-based connectors (Drive, Dropbox, OneDrive), Webcrawler, or GitHub (indexes full repo snapshots) */}
+							{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" &&
+								config.connectorType !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&
+								config.connectorType !== "DROPBOX_CONNECTOR" &&
+								config.connectorType !== "ONEDRIVE_CONNECTOR" &&
+								config.connectorType !== "WEBCRAWLER_CONNECTOR" &&
+								config.connectorType !== "GITHUB_CONNECTOR" && (
 										<DateRangeSelector
 											startDate={startDate}
 											endDate={endDate}
@@ -219,20 +221,14 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 
 			{/* Fixed Footer - Action buttons */}
 			<div className="flex-shrink-0 flex items-center justify-end px-6 sm:px-12 py-6 bg-muted">
-				<Button
-					onClick={onStartIndexing}
-					disabled={isStartingIndexing}
-					className="text-xs sm:text-sm"
-				>
-					{isStartingIndexing ? (
-						<>
-							<Spinner size="sm" className="mr-2" />
-							Starting
-						</>
-					) : (
-						"Start Indexing"
-					)}
-				</Button>
+		<Button
+			onClick={onStartIndexing}
+			disabled={isStartingIndexing}
+			className="text-xs sm:text-sm relative"
+		>
+			<span className={isStartingIndexing ? "opacity-0" : ""}>Start Indexing</span>
+			{isStartingIndexing && <Spinner size="sm" className="absolute" />}
+		</Button>
 			</div>
 		</div>
 	);

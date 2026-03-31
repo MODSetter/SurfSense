@@ -134,6 +134,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
 			priority: 0.8,
 		},
 		{
+			url: "https://www.surfsense.com/docs/connectors/dropbox",
+			lastModified,
+			changeFrequency: "daily",
+			priority: 0.8,
+		},
+		{
 			url: "https://www.surfsense.com/docs/connectors/elasticsearch",
 			lastModified,
 			changeFrequency: "daily",
