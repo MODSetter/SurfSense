@@ -257,6 +257,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						{/* Connector-specific configuration */}
 						{ConnectorConfigComponent && (
 							<ConnectorConfigComponent
+								key={connector.id}
 								connector={connector}
 								onConfigChange={onConfigChange}
 								onNameChange={onNameChange}

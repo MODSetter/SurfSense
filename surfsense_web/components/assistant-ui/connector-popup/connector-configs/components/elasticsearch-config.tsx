@@ -2,7 +2,7 @@
 
 import { KeyRound, Server } from "lucide-react";
 import type { FC } from "react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,38 +55,6 @@ export const ElasticsearchConfig: FC<ElasticsearchConfigProps> = ({
 			? String(connector.config.ELASTICSEARCH_MAX_DOCUMENTS)
 			: ""
 	);
-
-	// Update values when the connector identity changes (e.g. switching to a different connector)
-	const connectorIdRef = useRef(connector.id);
-	useEffect(() => {
-		if (connectorIdRef.current === connector.id) return;
-		connectorIdRef.current = connector.id;
-
-		setName(connector.name || "");
-		setEndpointUrl((connector.config?.ELASTICSEARCH_URL as string) || "");
-		setAuthMethod(
-			(connector.config?.ELASTICSEARCH_API_KEY ? "api_key" : "basic") as "basic" | "api_key"
-		);
-		setUsername((connector.config?.ELASTICSEARCH_USERNAME as string) || "");
-		setPassword((connector.config?.ELASTICSEARCH_PASSWORD as string) || "");
-		setApiKey((connector.config?.ELASTICSEARCH_API_KEY as string) || "");
-		setIndices(
-			Array.isArray(connector.config?.ELASTICSEARCH_INDEX)
-				? (connector.config?.ELASTICSEARCH_INDEX as string[]).join(", ")
-				: (connector.config?.ELASTICSEARCH_INDEX as string) || ""
-		);
-		setQuery((connector.config?.ELASTICSEARCH_QUERY as string) || "*");
-		setSearchFields(
-			Array.isArray(connector.config?.ELASTICSEARCH_FIELDS)
-				? (connector.config?.ELASTICSEARCH_FIELDS as string[]).join(", ")
-				: ""
-		);
-		setMaxDocuments(
-			connector.config?.ELASTICSEARCH_MAX_DOCUMENTS
-				? String(connector.config.ELASTICSEARCH_MAX_DOCUMENTS)
-				: ""
-		);
-	}, [connector]);
 
 	const stringToArray = (str: string): string[] => {
 		const items = str

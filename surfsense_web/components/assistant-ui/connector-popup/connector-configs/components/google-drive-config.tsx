@@ -10,7 +10,7 @@ import {
 	X,
 } from "lucide-react";
 import type { FC } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -91,17 +91,6 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 	const [selectedFolders, setSelectedFolders] = useState<SelectedItem[]>(existingFolders);
 	const [selectedFiles, setSelectedFiles] = useState<SelectedItem[]>(existingFiles);
 	const [indexingOptions, setIndexingOptions] = useState<IndexingOptions>(existingIndexingOptions);
-
-	useEffect(() => {
-		const folders = (connector.config?.selected_folders as SelectedItem[] | undefined) || [];
-		const files = (connector.config?.selected_files as SelectedItem[] | undefined) || [];
-		const options =
-			(connector.config?.indexing_options as IndexingOptions | undefined) ||
-			DEFAULT_INDEXING_OPTIONS;
-		setSelectedFolders(folders);
-		setSelectedFiles(files);
-		setIndexingOptions(options);
-	}, [connector.config]);
 
 	const updateConfig = (
 		folders: SelectedItem[],
