@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useAtomValue, useSetAtom } from "jotai";
 import { ChevronDownIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -7,11 +8,11 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { closeReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
-import { PlateEditor } from "@/components/editor/plate-editor";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { EXPORT_FILE_EXTENSIONS, ExportDropdownItems } from "@/components/shared/ExportMenuItems";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -21,6 +22,11 @@ import {
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
+
+const PlateEditor = dynamic(
+	() => import("@/components/editor/plate-editor").then((m) => ({ default: m.PlateEditor })),
+	{ ssr: false, loading: () => <Skeleton className="h-64 w-full" /> }
+);
 
 /**
  * Zod schema for a single version entry
