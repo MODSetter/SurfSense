@@ -6,6 +6,7 @@ Revises: 111
 
 from collections.abc import Sequence
 
+import sqlalchemy as sa
 from alembic import op
 
 revision: str = "112"
@@ -31,10 +32,17 @@ def upgrade() -> None:
         "CREATE INDEX IF NOT EXISTS ix_prompts_default_prompt_slug"
         " ON prompts (default_prompt_slug)"
     )
-    op.execute(
-        "ALTER TABLE prompts ADD CONSTRAINT uq_prompt_user_default_slug"
-        " UNIQUE (user_id, default_prompt_slug)"
-    )
+    conn = op.get_bind()
+    exists = conn.execute(
+        sa.text(
+            "SELECT 1 FROM pg_constraint WHERE conname = 'uq_prompt_user_default_slug'"
+        )
+    ).scalar()
+    if not exists:
+        op.execute(
+            "ALTER TABLE prompts ADD CONSTRAINT uq_prompt_user_default_slug"
+            " UNIQUE (user_id, default_prompt_slug)"
+        )
     op.execute(
         "ALTER TABLE prompts ADD COLUMN IF NOT EXISTS"
         " version INTEGER NOT NULL DEFAULT 1"

@@ -48,6 +48,7 @@ export function PromptsContent() {
 	const [isSaving, setIsSaving] = useState(false);
 	const [expandedId, setExpandedId] = useState<number | null>(null);
 	const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
+	const [togglingPublicIds, setTogglingPublicIds] = useState<Set<number>>(new Set());
 
 	const handleSave = useCallback(async () => {
 		if (!formData.name.trim() || !formData.prompt.trim()) {
@@ -96,13 +97,21 @@ export function PromptsContent() {
 
 	const handleTogglePublic = useCallback(
 		async (prompt: PromptRead) => {
+			if (togglingPublicIds.has(prompt.id)) return;
+			setTogglingPublicIds((prev) => new Set(prev).add(prompt.id));
 			try {
 				await updatePrompt({ id: prompt.id, is_public: !prompt.is_public });
 			} catch {
 				// toast handled by mutation atom
+			} finally {
+				setTogglingPublicIds((prev) => {
+					const next = new Set(prev);
+					next.delete(prompt.id);
+					return next;
+				});
 			}
 		},
-		[updatePrompt]
+		[updatePrompt, togglingPublicIds]
 	);
 
 	const handleCancel = useCallback(() => {
@@ -276,18 +285,21 @@ export function PromptsContent() {
 								)}
 							</div>
 							<div className="hidden group-hover:flex items-center gap-1 shrink-0">
-								<button
-									type="button"
-									title={prompt.is_public ? "Make private" : "Share with community"}
-									onClick={() => handleTogglePublic(prompt)}
-									className="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-								>
-									{prompt.is_public ? (
-										<Lock className="size-3.5" />
-									) : (
-										<Globe className="size-3.5" />
-									)}
-								</button>
+							<button
+								type="button"
+								title={prompt.is_public ? "Make private" : "Share with community"}
+								onClick={() => handleTogglePublic(prompt)}
+								disabled={togglingPublicIds.has(prompt.id)}
+								className="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50 disabled:pointer-events-none"
+							>
+								{togglingPublicIds.has(prompt.id) ? (
+									<Spinner className="size-3.5" />
+								) : prompt.is_public ? (
+									<Lock className="size-3.5" />
+								) : (
+									<Globe className="size-3.5" />
+								)}
+							</button>
 								<Button
 									variant="ghost"
 									size="icon"

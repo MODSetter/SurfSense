@@ -14,6 +14,7 @@ import {
 
 import { promptsAtom } from "@/atoms/prompts/prompts-query.atoms";
 import { userSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
 export interface PromptPickerRef {
@@ -34,7 +35,7 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 	ref
 ) {
 	const setUserSettingsDialog = useSetAtom(userSettingsDialogAtom);
-	const { data: prompts } = useAtomValue(promptsAtom);
+	const { data: prompts, isLoading, isError } = useAtomValue(promptsAtom);
 	const [highlightedIndex, setHighlightedIndex] = useState(0);
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 	const shouldScrollRef = useRef(false);
@@ -87,10 +88,12 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 		() => ({
 			selectHighlighted: () => handleSelect(highlightedIndex),
 			moveUp: () => {
+				if (filtered.length === 0) return;
 				shouldScrollRef.current = true;
 				setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : filtered.length - 1));
 			},
 			moveDown: () => {
+				if (filtered.length === 0) return;
 				shouldScrollRef.current = true;
 				setHighlightedIndex((prev) => (prev < filtered.length - 1 ? prev + 1 : 0));
 			},
@@ -103,10 +106,16 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 			className="w-64 rounded-lg border bg-popover shadow-lg overflow-hidden"
 			style={containerStyle}
 		>
-			<div ref={scrollContainerRef} className="max-h-48 overflow-y-auto py-1">
-				{filtered.length === 0 ? (
-					<p className="px-3 py-2 text-xs text-muted-foreground">No matching prompts</p>
-				) : (
+		<div ref={scrollContainerRef} className="max-h-48 overflow-y-auto py-1">
+			{isLoading ? (
+				<div className="flex items-center justify-center py-3">
+					<Spinner className="size-4" />
+				</div>
+			) : isError ? (
+				<p className="px-3 py-2 text-xs text-destructive">Failed to load prompts</p>
+			) : filtered.length === 0 ? (
+				<p className="px-3 py-2 text-xs text-muted-foreground">No matching prompts</p>
+			) : (
 					filtered.map((action, index) => (
 						<button
 							key={action.id}
