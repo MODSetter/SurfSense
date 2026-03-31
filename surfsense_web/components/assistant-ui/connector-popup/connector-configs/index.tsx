@@ -11,6 +11,7 @@ import { ComposioDriveConfig } from "./components/composio-drive-config";
 import { ComposioGmailConfig } from "./components/composio-gmail-config";
 import { ConfluenceConfig } from "./components/confluence-config";
 import { DiscordConfig } from "./components/discord-config";
+import { DropboxConfig } from "./components/dropbox-config";
 import { ElasticsearchConfig } from "./components/elasticsearch-config";
 import { GithubConfig } from "./components/github-config";
 import { GoogleDriveConfig } from "./components/google-drive-config";
@@ -59,6 +60,8 @@ export function getConnectorConfigComponent(
 			return DiscordConfig;
 		case "TEAMS_CONNECTOR":
 			return TeamsConfig;
+		case "DROPBOX_CONNECTOR":
+			return DropboxConfig;
 		case "ONEDRIVE_CONNECTOR":
 			return OneDriveConfig;
 		case "CONFLUENCE_CONNECTOR":

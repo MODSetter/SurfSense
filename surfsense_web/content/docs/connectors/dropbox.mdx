@@ -1,0 +1,79 @@
+---
+title: Dropbox
+description: Connect your Dropbox to SurfSense
+---
+
+# Dropbox OAuth Integration Setup Guide
+
+This guide walks you through setting up a Dropbox OAuth integration for SurfSense using the Dropbox App Console.
+
+## Step 1: Access the Dropbox App Console
+
+1. Navigate to [dropbox.com/developers/apps](https://www.dropbox.com/developers/apps)
+2. Sign in with your Dropbox account
+
+## Step 2: Create a New App
+
+1. Click **"Create app"**
+2. Fill in the app details:
+
+| Field | Value |
+|-------|-------|
+| **Choose an API** | Select **"Scoped access"** |
+| **Choose the type of access** | Select **"Full Dropbox"** |
+| **Name your app** | `SurfSense` (or any unique name) |
+
+3. Click **"Create app"**
+
+## Step 3: Configure Redirect URI
+
+1. On your app's **Settings** page, scroll to the **OAuth 2** section
+2. Under **Redirect URIs**, add: `http://localhost:8000/api/v1/auth/dropbox/connector/callback`
+3. Click **"Add"**
+
+## Step 4: Get App Key and Secret
+
+On the same **Settings** page, you will find:
+
+1. **App key** - this is your `DROPBOX_APP_KEY`
+2. **App secret** - click **"Show"** to reveal, then copy. This is your `DROPBOX_APP_SECRET`
+
+<Callout type="warn">
+  Never share your app secret publicly or include it in code repositories.
+</Callout>
+
+## Step 5: Configure Permissions
+
+1. Go to the **Permissions** tab of your app
+2. Enable the following scopes:
+
+| Permission | Description |
+|------------|-------------|
+| `files.metadata.read` | View information about files and folders |
+| `files.content.read` | View and download file content |
+| `files.content.write` | Create, modify, and delete files |
+| `account_info.read` | View basic account information |
+
+3. Click **"Submit"** to save the permissions
+
+<Callout type="warn">
+  All four permissions listed above are required. The connector will not authenticate successfully if any are missing.
+</Callout>
+
+---
+
+## Running SurfSense with Dropbox Connector
+
+Add the Dropbox OAuth credentials to your `.env` file (created during [Docker installation](/docs/docker-installation/docker-compose)):
+
+```bash
+DROPBOX_APP_KEY=your_dropbox_app_key
+DROPBOX_APP_SECRET=your_dropbox_app_secret
+DROPBOX_REDIRECT_URI=http://localhost:8000/api/v1/auth/dropbox/connector/callback
+```
+
+Then restart the services:
+
+```bash
+docker compose up -d
+```

@@ -55,14 +55,14 @@ export function RightPanelExpandButton() {
 	if (!collapsed || !hasContent) return null;
 
 	return (
-		<div className="absolute top-0 right-4 z-20 flex h-12 items-center">
+		<div className="flex shrink-0 items-center px-1">
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<Button
 						variant="ghost"
 						size="icon"
 						onClick={() => startTransition(() => setCollapsed(false))}
-						className="h-8 w-8 shrink-0"
+						className="h-7 w-7 shrink-0"
 					>
 						<PanelRight className="h-4 w-4" />
 						<span className="sr-only">Expand panel</span>

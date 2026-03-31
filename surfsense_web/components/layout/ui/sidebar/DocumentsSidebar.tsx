@@ -521,7 +521,7 @@ export function DocumentsSidebar({
 
 	const documentsContent = (
 		<>
-			<div className="shrink-0 flex h-12 items-center px-4">
+			<div className="shrink-0 flex h-14 items-center px-4">
 				<div className="flex w-full items-center justify-between">
 					<div className="flex items-center gap-2">
 						{isMobile && (

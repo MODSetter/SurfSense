@@ -292,6 +292,11 @@ class Config:
     CLICKUP_CLIENT_SECRET = os.getenv("CLICKUP_CLIENT_SECRET")
     CLICKUP_REDIRECT_URI = os.getenv("CLICKUP_REDIRECT_URI")
 
+    # Dropbox OAuth
+    DROPBOX_APP_KEY = os.getenv("DROPBOX_APP_KEY")
+    DROPBOX_APP_SECRET = os.getenv("DROPBOX_APP_SECRET")
+    DROPBOX_REDIRECT_URI = os.getenv("DROPBOX_REDIRECT_URI")
+
     # Composio Configuration (for managed OAuth integrations)
     # Get your API key from https://app.composio.dev
     COMPOSIO_API_KEY = os.getenv("COMPOSIO_API_KEY")

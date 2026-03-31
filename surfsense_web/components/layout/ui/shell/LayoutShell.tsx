@@ -3,11 +3,6 @@
 import { useAtomValue } from "jotai";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useMemo, useState } from "react";
-import { hitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
-import { reportPanelAtom } from "@/atoms/chat/report-panel.atom";
-import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
-import { editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
-import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { activeTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { InboxItem } from "@/hooks/use-inbox";
@@ -121,42 +116,34 @@ function MainContentPanel({
 	children: React.ReactNode;
 }) {
 	const activeTab = useAtomValue(activeTabAtom);
-	const rightPanelCollapsed = useAtomValue(rightPanelCollapsedAtom);
-	const documentsOpen = useAtomValue(documentsSidebarOpenAtom);
-	const reportState = useAtomValue(reportPanelAtom);
-	const editorState = useAtomValue(editorPanelAtom);
-	const hitlEditState = useAtomValue(hitlEditPanelAtom);
 	const isDocumentTab = activeTab?.type === "document";
-	const reportOpen = reportState.isOpen && !!reportState.reportId;
-	const editorOpen = editorState.isOpen && !!editorState.documentId;
-	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
-	const showRightPanelExpandButton =
-		rightPanelCollapsed && (documentsOpen || reportOpen || editorOpen || hitlEditOpen);
 
 	return (
-		<div className="relative flex flex-1 flex-col rounded-xl border bg-main-panel overflow-hidden min-w-0">
-			<RightPanelExpandButton />
+		<div className="relative flex flex-1 flex-col min-w-0">
 			<TabBar
 				onTabSwitch={onTabSwitch}
 				onNewChat={onNewChat}
-				className={showRightPanelExpandButton ? "pr-14" : undefined}
+				rightActions={<RightPanelExpandButton />}
+				className="min-w-0"
 			/>
-			<Header />
+			<div className="relative flex flex-1 flex-col rounded-xl border bg-main-panel overflow-hidden min-w-0">
+				<Header />
 
-			{isDocumentTab && activeTab.documentId && activeTab.searchSpaceId ? (
-				<div className="flex-1 overflow-hidden">
-					<DocumentTabContent
-						key={activeTab.documentId}
-						documentId={activeTab.documentId}
-						searchSpaceId={activeTab.searchSpaceId}
-						title={activeTab.title}
-					/>
-				</div>
-			) : (
-				<div className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
-					{children}
-				</div>
-			)}
+				{isDocumentTab && activeTab.documentId && activeTab.searchSpaceId ? (
+					<div className="flex-1 overflow-hidden">
+						<DocumentTabContent
+							key={activeTab.documentId}
+							documentId={activeTab.documentId}
+							searchSpaceId={activeTab.searchSpaceId}
+							title={activeTab.title}
+						/>
+					</div>
+				) : (
+					<div className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
+						{children}
+					</div>
+				)}
+			</div>
 		</div>
 	);
 }

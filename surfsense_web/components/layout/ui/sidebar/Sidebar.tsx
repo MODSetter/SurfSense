@@ -105,7 +105,7 @@ export function Sidebar({
 		>
 			{/* Header - search space name or collapse button when collapsed */}
 			{isCollapsed ? (
-				<div className="flex h-12 shrink-0 items-center justify-center border-b">
+				<div className="flex h-14 shrink-0 items-center justify-center border-b">
 					<SidebarCollapseButton
 						isCollapsed={isCollapsed}
 						onToggle={onToggleCollapse ?? (() => {})}
@@ -113,7 +113,7 @@ export function Sidebar({
 					/>
 				</div>
 			) : (
-				<div className="flex h-12 shrink-0 items-center gap-0 px-1 border-b">
+				<div className="flex h-14 shrink-0 items-center gap-0 px-1 border-b">
 					<SidebarHeader
 						searchSpace={searchSpace}
 						isCollapsed={isCollapsed}

@@ -30,6 +30,7 @@ export const getConnectorTypeDisplay = (type: string): string => {
 		YOUTUBE_CONNECTOR: "YouTube",
 		CIRCLEBACK_CONNECTOR: "Circleback",
 		OBSIDIAN_CONNECTOR: "Obsidian",
+		DROPBOX_CONNECTOR: "Dropbox",
 		MCP_CONNECTOR: "MCP Server",
 	};
 	return typeMap[type] || type;
