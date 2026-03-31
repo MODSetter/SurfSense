@@ -41,7 +41,6 @@ async def create_prompt(
         name=body.name,
         prompt=body.prompt,
         mode=body.mode,
-        icon=body.icon,
     )
     session.add(prompt)
     await session.commit()
@@ -138,7 +137,6 @@ async def copy_public_prompt(
         name=source.name,
         prompt=source.prompt,
         mode=source.mode,
-        icon=source.icon,
         is_public=False,
     )
     session.add(copy)

@@ -7,7 +7,6 @@ SYSTEM_PROMPT_DEFAULTS: list[dict] = [
             " Return only the corrected text, nothing else.\n\n{selection}"
         ),
         "mode": "transform",
-        "icon": "check",
     },
     {
         "slug": "make-shorter",
@@ -17,7 +16,6 @@ SYSTEM_PROMPT_DEFAULTS: list[dict] = [
             " Return only the shortened text, nothing else.\n\n{selection}"
         ),
         "mode": "transform",
-        "icon": "minimize",
     },
     {
         "slug": "translate",
@@ -28,7 +26,6 @@ SYSTEM_PROMPT_DEFAULTS: list[dict] = [
             " Return only the translation, nothing else.\n\n{selection}"
         ),
         "mode": "transform",
-        "icon": "languages",
     },
     {
         "slug": "rewrite",
@@ -38,7 +35,6 @@ SYSTEM_PROMPT_DEFAULTS: list[dict] = [
             " Return only the rewritten text, nothing else.\n\n{selection}"
         ),
         "mode": "transform",
-        "icon": "pen-line",
     },
     {
         "slug": "summarize",
@@ -48,28 +44,24 @@ SYSTEM_PROMPT_DEFAULTS: list[dict] = [
             " Return only the summary, nothing else.\n\n{selection}"
         ),
         "mode": "transform",
-        "icon": "list",
     },
     {
         "slug": "explain",
         "name": "Explain",
         "prompt": "Explain the following text in simple terms:\n\n{selection}",
         "mode": "explore",
-        "icon": "book-open",
     },
     {
         "slug": "ask-knowledge-base",
         "name": "Ask my knowledge base",
         "prompt": "Search my knowledge base for information related to:\n\n{selection}",
         "mode": "explore",
-        "icon": "search",
     },
     {
         "slug": "look-up-web",
         "name": "Look up on the web",
         "prompt": "Search the web for information about:\n\n{selection}",
         "mode": "explore",
-        "icon": "globe",
     },
 ]
 

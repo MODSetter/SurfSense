@@ -1806,7 +1806,6 @@ class Prompt(BaseModel, TimestampMixin):
     name = Column(String(200), nullable=False)
     prompt = Column(Text, nullable=False)
     mode = Column(SQLAlchemyEnum(PromptMode), nullable=False)
-    icon = Column(String(50), nullable=True)
     is_public = Column(Boolean, nullable=False, default=False)
 
     user = relationship("User")

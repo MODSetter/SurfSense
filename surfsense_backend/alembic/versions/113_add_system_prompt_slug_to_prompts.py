@@ -1,4 +1,4 @@
-"""add system_prompt_slug to prompts
+"""add system_prompt_slug and drop icon from prompts
 
 Revision ID: 113
 Revises: 112
@@ -16,7 +16,8 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     op.execute(
-        "ALTER TABLE prompts ADD COLUMN IF NOT EXISTS system_prompt_slug VARCHAR(100)"
+        "ALTER TABLE prompts ADD COLUMN IF NOT EXISTS"
+        " system_prompt_slug VARCHAR(100)"
     )
     op.execute(
         "CREATE INDEX IF NOT EXISTS ix_prompts_system_prompt_slug"
@@ -26,9 +27,11 @@ def upgrade() -> None:
         "ALTER TABLE prompts ADD CONSTRAINT uq_prompt_user_system_slug"
         " UNIQUE (user_id, system_prompt_slug)"
     )
+    op.execute("ALTER TABLE prompts DROP COLUMN IF EXISTS icon")
 
 
 def downgrade() -> None:
+    op.execute("ALTER TABLE prompts ADD COLUMN IF NOT EXISTS icon VARCHAR(50)")
     op.execute(
         "ALTER TABLE prompts DROP CONSTRAINT IF EXISTS uq_prompt_user_system_slug"
     )
