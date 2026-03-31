@@ -96,9 +96,7 @@ export function ModelSelector({
 		return llmUserConfigs?.find((c) => c.id === agentLlmId) ?? null;
 	}, [preferences, llmGlobalConfigs, llmUserConfigs]);
 
-	const isLLMAutoMode = useMemo(() => {
-		return currentLLMConfig && "is_auto_mode" in currentLLMConfig && currentLLMConfig.is_auto_mode;
-	}, [currentLLMConfig]);
+	const isLLMAutoMode = currentLLMConfig && "is_auto_mode" in currentLLMConfig && currentLLMConfig.is_auto_mode;
 
 	// ─── Image current config ───
 	const currentImageConfig = useMemo(() => {
@@ -110,11 +108,7 @@ export function ModelSelector({
 		return imageUserConfigs?.find((c) => c.id === id) ?? null;
 	}, [preferences, imageGlobalConfigs, imageUserConfigs]);
 
-	const isImageAutoMode = useMemo(() => {
-		return (
-			currentImageConfig && "is_auto_mode" in currentImageConfig && currentImageConfig.is_auto_mode
-		);
-	}, [currentImageConfig]);
+	const isImageAutoMode = currentImageConfig && "is_auto_mode" in currentImageConfig && currentImageConfig.is_auto_mode;
 
 	// ─── LLM filtering ───
 	const filteredLLMGlobal = useMemo(() => {
