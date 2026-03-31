@@ -1,10 +1,8 @@
 """File type handlers for Dropbox."""
 
-SKIP_EXTENSIONS = frozenset(
-    {
-        ".paper",  # Dropbox Paper docs are not downloadable via /files/download
-    }
-)
+PAPER_EXTENSION = ".paper"
+
+SKIP_EXTENSIONS: frozenset[str] = frozenset()
 
 MIME_TO_EXTENSION: dict[str, str] = {
     "application/pdf": ".pdf",
@@ -37,10 +35,22 @@ def is_folder(item: dict) -> bool:
     return item.get(".tag") == "folder"
 
 
+def is_paper_file(item: dict) -> bool:
+    """Detect Dropbox Paper docs (exported via /2/files/export, not /2/files/download)."""
+    name = item.get("name", "")
+    ext = get_extension_from_name(name).lower()
+    return ext == PAPER_EXTENSION
+
+
 def should_skip_file(item: dict) -> bool:
-    """Skip folders and non-downloadable files."""
+    """Skip folders and truly non-indexable files.
+
+    Paper docs are non-downloadable but exportable, so they are NOT skipped.
+    """
     if is_folder(item):
         return True
+    if is_paper_file(item):
+        return False
     if not item.get("is_downloadable", True):
         return True
     name = item.get("name", "")

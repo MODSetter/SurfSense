@@ -12,9 +12,34 @@ from pathlib import Path
 from typing import Any
 
 from .client import DropboxClient
-from .file_types import get_extension_from_name, should_skip_file
+from .file_types import get_extension_from_name, is_paper_file, should_skip_file
 
 logger = logging.getLogger(__name__)
+
+
+async def _export_paper_content(
+    client: DropboxClient,
+    file: dict[str, Any],
+    metadata: dict[str, Any],
+) -> tuple[str | None, dict[str, Any], str | None]:
+    """Export a Dropbox Paper doc as markdown via ``/2/files/export``."""
+    file_path_lower = file.get("path_lower", "")
+    file_name = file.get("name", "Unknown")
+
+    logger.info(f"Exporting Paper doc as markdown: {file_name}")
+
+    content_bytes, error = await client.export_file(
+        file_path_lower, export_format="markdown"
+    )
+    if error:
+        return None, metadata, error
+    if not content_bytes:
+        return None, metadata, "Export returned empty content"
+
+    markdown = content_bytes.decode("utf-8", errors="replace")
+    metadata["exported_as"] = "markdown"
+    metadata["original_type"] = "paper"
+    return markdown, metadata, None
 
 
 async def download_and_extract_content(
@@ -49,6 +74,9 @@ async def download_and_extract_content(
         metadata["file_size"] = file["size"]
     if "content_hash" in file:
         metadata["content_hash"] = file["content_hash"]
+
+    if is_paper_file(file):
+        return await _export_paper_content(client, file, metadata)
 
     temp_file_path = None
     try:

@@ -264,6 +264,24 @@ class DropboxClient:
                     f.write(chunk)
         return None
 
+    async def export_file(
+        self,
+        path: str,
+        export_format: str | None = None,
+    ) -> tuple[bytes | None, str | None]:
+        """Export a non-downloadable file (e.g. .paper) via /2/files/export.
+
+        Uses the recommended new API for Paper-as-files.
+        Returns (content_bytes, error_message).
+        """
+        api_arg: dict[str, str] = {"path": path}
+        if export_format:
+            api_arg["export_format"] = export_format
+        resp = await self._content_request("/2/files/export", api_arg)
+        if resp.status_code != 200:
+            return None, f"Export failed: {resp.status_code} - {resp.text}"
+        return resp.content, None
+
     async def upload_file(
         self,
         path: str,
