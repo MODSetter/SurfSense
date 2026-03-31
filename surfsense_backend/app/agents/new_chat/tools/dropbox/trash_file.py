@@ -248,9 +248,7 @@ def create_delete_dropbox_file_tool(
                 f"Deleting Dropbox file: path='{final_file_path}', connector={actual_connector_id}"
             )
 
-            client = DropboxClient(
-                session=db_session, connector_id=actual_connector_id
-            )
+            client = DropboxClient(session=db_session, connector_id=actual_connector_id)
             await client.delete_file(final_file_path)
 
             logger.info(f"Dropbox file deleted: path={final_file_path}")

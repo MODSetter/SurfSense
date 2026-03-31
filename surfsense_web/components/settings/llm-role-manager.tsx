@@ -129,7 +129,11 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		};
 		setAssignments(newAssignments);
 		setHasChanges(false);
-	}, [preferences?.agent_llm_id, preferences?.document_summary_llm_id, preferences?.image_generation_config_id]);
+	}, [
+		preferences?.agent_llm_id,
+		preferences?.document_summary_llm_id,
+		preferences?.image_generation_config_id,
+	]);
 
 	const handleRoleAssignment = (prefKey: string, configId: string) => {
 		const newAssignments = {

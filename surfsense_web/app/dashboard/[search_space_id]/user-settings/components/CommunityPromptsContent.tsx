@@ -105,20 +105,20 @@ export function CommunityPromptsContent() {
 									</button>
 								)}
 							</div>
-						<Button
-							variant="outline"
-							size="sm"
-							className="shrink-0 gap-1.5"
-							disabled={copyingIds.has(prompt.id)}
-							onClick={() => handleCopy(prompt.id)}
-						>
-							{copyingIds.has(prompt.id) ? (
-								<Spinner className="size-3" />
-							) : (
-								<Copy className="size-3" />
-							)}
-							Add to mine
-						</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								className="shrink-0 gap-1.5"
+								disabled={copyingIds.has(prompt.id)}
+								onClick={() => handleCopy(prompt.id)}
+							>
+								{copyingIds.has(prompt.id) ? (
+									<Spinner className="size-3" />
+								) : (
+									<Copy className="size-3" />
+								)}
+								Add to mine
+							</Button>
 						</div>
 					))}
 				</div>

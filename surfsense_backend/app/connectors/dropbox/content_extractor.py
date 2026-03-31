@@ -8,7 +8,6 @@ import contextlib
 import logging
 import os
 import tempfile
-from pathlib import Path
 from typing import Any
 
 from .client import DropboxClient

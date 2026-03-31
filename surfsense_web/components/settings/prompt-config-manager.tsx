@@ -41,7 +41,8 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 	}, [searchSpace?.qna_custom_instructions]);
 
 	// Derive hasChanges during render
-	const hasChanges = !!searchSpace && (searchSpace.qna_custom_instructions || "") !== customInstructions;
+	const hasChanges =
+		!!searchSpace && (searchSpace.qna_custom_instructions || "") !== customInstructions;
 
 	const handleSave = async () => {
 		try {

@@ -837,7 +837,9 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						</Button>
 						<Button
 							onClick={confirmRenameChat}
-							disabled={isRenamingChat || !newChatTitle.trim() || newChatTitle.trim() === chatToRename?.name}
+							disabled={
+								isRenamingChat || !newChatTitle.trim() || newChatTitle.trim() === chatToRename?.name
+							}
 							className="relative"
 						>
 							<span className={isRenamingChat ? "opacity-0" : ""}>

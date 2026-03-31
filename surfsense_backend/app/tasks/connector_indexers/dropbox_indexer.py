@@ -466,7 +466,9 @@ async def index_dropbox_files(
 
         folders = items_dict.get("folders", [])
         for folder in folders:
-            folder_path = folder.get("path", folder.get("path_lower", folder.get("id", "")))
+            folder_path = folder.get(
+                "path", folder.get("path_lower", folder.get("id", ""))
+            )
             folder_name = folder.get("name", "Root")
 
             logger.info(f"Using full scan for folder {folder_name}")

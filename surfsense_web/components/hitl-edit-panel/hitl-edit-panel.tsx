@@ -1,10 +1,10 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { format } from "date-fns";
 import { TagInput, type Tag as TagType } from "emblor";
 import { useAtomValue, useSetAtom } from "jotai";
 import { CalendarIcon, XIcon } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ExtraField } from "@/atoms/chat/hitl-edit-panel.atom";
 import { closeHitlEditPanelAtom, hitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";

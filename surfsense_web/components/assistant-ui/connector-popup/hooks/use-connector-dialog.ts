@@ -780,12 +780,12 @@ export const useConnectorDialog = () => {
 					});
 				}
 
-			// Handle Google Drive / OneDrive / Dropbox folder selection (regular and Composio)
-			if (
-				(indexingConfig.connectorType === "GOOGLE_DRIVE_CONNECTOR" ||
-					indexingConfig.connectorType === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" ||
-					indexingConfig.connectorType === "ONEDRIVE_CONNECTOR" ||
-					indexingConfig.connectorType === "DROPBOX_CONNECTOR") &&
+				// Handle Google Drive / OneDrive / Dropbox folder selection (regular and Composio)
+				if (
+					(indexingConfig.connectorType === "GOOGLE_DRIVE_CONNECTOR" ||
+						indexingConfig.connectorType === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" ||
+						indexingConfig.connectorType === "ONEDRIVE_CONNECTOR" ||
+						indexingConfig.connectorType === "DROPBOX_CONNECTOR") &&
 					indexingConnectorConfig
 				) {
 					const selectedFolders = indexingConnectorConfig.selected_folders as
@@ -1049,13 +1049,13 @@ export const useConnectorDialog = () => {
 				if (!editingConnector.is_indexable) {
 					// Non-indexable connectors (like Tavily API) don't need re-indexing
 					indexingDescription = "Settings saved.";
-			} else if (
-				editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ||
-				editingConnector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" ||
-				editingConnector.connector_type === "ONEDRIVE_CONNECTOR" ||
-				editingConnector.connector_type === "DROPBOX_CONNECTOR"
-			) {
-				// Google Drive (both regular and Composio) / OneDrive / Dropbox uses folder selection from config, not date ranges
+				} else if (
+					editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ||
+					editingConnector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" ||
+					editingConnector.connector_type === "ONEDRIVE_CONNECTOR" ||
+					editingConnector.connector_type === "DROPBOX_CONNECTOR"
+				) {
+					// Google Drive (both regular and Composio) / OneDrive / Dropbox uses folder selection from config, not date ranges
 					const selectedFolders = (connectorConfig || editingConnector.config)?.selected_folders as
 						| Array<{ id: string; name: string }>
 						| undefined;

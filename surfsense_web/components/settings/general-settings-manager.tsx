@@ -50,7 +50,9 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 	}, [searchSpace?.name, searchSpace?.description]);
 
 	// Derive hasChanges during render
-	const hasChanges = !!searchSpace && ((searchSpace.name || "") !== name || (searchSpace.description || "") !== description);
+	const hasChanges =
+		!!searchSpace &&
+		((searchSpace.name || "") !== name || (searchSpace.description || "") !== description);
 
 	const handleSave = async () => {
 		try {

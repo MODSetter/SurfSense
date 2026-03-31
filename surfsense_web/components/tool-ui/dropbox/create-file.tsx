@@ -150,7 +150,8 @@ function ApprovalCard({
 	const allowedDecisions = reviewConfig?.allowed_decisions ?? ["approve", "reject"];
 	const canEdit = allowedDecisions.includes("edit");
 
-	const fileTypeLabel = supportedTypes.find((t) => t.value === selectedFileType)?.label ?? selectedFileType;
+	const fileTypeLabel =
+		supportedTypes.find((t) => t.value === selectedFileType)?.label ?? selectedFileType;
 
 	const handleApprove = useCallback(() => {
 		if (phase !== "pending" || isPanelOpen || !canApprove) return;
@@ -450,7 +451,10 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 export const CreateDropboxFileToolUI = ({
 	args,
 	result,
-}: ToolCallMessagePartProps<{ name: string; file_type?: string; content?: string }, CreateDropboxFileResult>) => {
+}: ToolCallMessagePartProps<
+	{ name: string; file_type?: string; content?: string },
+	CreateDropboxFileResult
+>) => {
 	if (!result) return null;
 	if (isInterruptResult(result)) {
 		return (

@@ -6,7 +6,6 @@ import {
 	useAui,
 	useAuiState,
 } from "@assistant-ui/react";
-import dynamic from "next/dynamic";
 import { useAtomValue } from "jotai";
 import {
 	CheckIcon,
@@ -18,6 +17,7 @@ import {
 	MessageSquare,
 	RefreshCwIcon,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import type { FC } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { commentsEnabledAtom, targetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
@@ -37,6 +37,7 @@ import {
 	DeleteConfluencePageToolUI,
 	UpdateConfluencePageToolUI,
 } from "@/components/tool-ui/confluence";
+import { CreateDropboxFileToolUI, DeleteDropboxFileToolUI } from "@/components/tool-ui/dropbox";
 import { GenerateImageToolUI } from "@/components/tool-ui/generate-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
@@ -70,7 +71,6 @@ import {
 	DeleteNotionPageToolUI,
 	UpdateNotionPageToolUI,
 } from "@/components/tool-ui/notion";
-import { CreateDropboxFileToolUI, DeleteDropboxFileToolUI } from "@/components/tool-ui/dropbox";
 import { CreateOneDriveFileToolUI, DeleteOneDriveFileToolUI } from "@/components/tool-ui/onedrive";
 import { SandboxExecuteToolUI } from "@/components/tool-ui/sandbox-execute";
 import {
@@ -78,7 +78,13 @@ import {
 	resolveSafeNavigationHref,
 } from "@/components/tool-ui/shared/media";
 import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-memory";
-import { Drawer, DrawerContent, DrawerHandle, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import {
+	Drawer,
+	DrawerContent,
+	DrawerHandle,
+	DrawerHeader,
+	DrawerTitle,
+} from "@/components/ui/drawer";
 import { useComments } from "@/hooks/use-comments";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";

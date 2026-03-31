@@ -162,7 +162,7 @@ const MobileNav = ({ navItems, isScrolled, scrolledBgClassName }: any) => {
 				</Link>
 				<button
 					type="button"
-					onClick={() => setOpen(prev => !prev)}
+					onClick={() => setOpen((prev) => !prev)}
 					className="relative z-50 flex items-center justify-center p-2 -mr-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors touch-manipulation"
 					aria-label={open ? "Close menu" : "Open menu"}
 				>

@@ -45,7 +45,7 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
 		>
 			<button
 				type="button"
-			onClick={() => setIsExpanded(prev => !prev)}
+				onClick={() => setIsExpanded((prev) => !prev)}
 				className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:outline-none"
 			>
 				<div

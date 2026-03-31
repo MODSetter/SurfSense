@@ -150,10 +150,7 @@ export function LocalLoginForm() {
 				</AnimatePresence>
 
 				<div>
-					<label
-						htmlFor="email"
-						className="block text-sm font-medium text-foreground"
-					>
+					<label htmlFor="email" className="block text-sm font-medium text-foreground">
 						{t("email")}
 					</label>
 					<input
@@ -163,20 +160,17 @@ export function LocalLoginForm() {
 						placeholder="you@example.com"
 						value={username}
 						onChange={(e) => setUsername(e.target.value)}
-					className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 bg-background text-foreground transition-all ${
-						error.title
-							? "border-destructive focus:border-destructive focus:ring-destructive"
-							: "border-border focus:border-primary focus:ring-primary"
+						className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 bg-background text-foreground transition-all ${
+							error.title
+								? "border-destructive focus:border-destructive focus:ring-destructive"
+								: "border-border focus:border-primary focus:ring-primary"
 						}`}
 						disabled={isLoggingIn}
 					/>
 				</div>
 
 				<div>
-					<label
-						htmlFor="password"
-						className="block text-sm font-medium text-foreground"
-					>
+					<label htmlFor="password" className="block text-sm font-medium text-foreground">
 						{t("password")}
 					</label>
 					<div className="relative">
@@ -223,10 +217,7 @@ export function LocalLoginForm() {
 				<div className="mt-4 text-center text-sm">
 					<p className="text-muted-foreground">
 						{t("dont_have_account")}{" "}
-						<Link
-							href="/register"
-							className="font-medium text-primary hover:text-primary/90"
-						>
+						<Link href="/register" className="font-medium text-primary hover:text-primary/90">
 							{t("sign_up")}
 						</Link>
 					</p>
