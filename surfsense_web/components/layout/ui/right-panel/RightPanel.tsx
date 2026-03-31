@@ -69,7 +69,7 @@ export function RightPanelExpandButton() {
 	if (!collapsed || !hasContent) return null;
 
 	return (
-		<div className="absolute top-4 right-4 z-20">
+		<div className="absolute top-0 right-4 z-20 flex h-12 items-center">
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<Button

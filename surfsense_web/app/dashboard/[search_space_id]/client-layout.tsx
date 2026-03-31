@@ -183,6 +183,10 @@ export function DashboardClientLayout({
 		);
 	}
 
+	if (isOnboardingPage) {
+		return <>{children}</>;
+	}
+
 	return (
 		<DocumentUploadDialogProvider>
 			<OnboardingTour />

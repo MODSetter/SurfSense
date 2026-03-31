@@ -27,7 +27,10 @@ async def list_folder_contents(
             if item["isFolder"]:
                 item.setdefault("mimeType", "application/vnd.ms-folder")
             else:
-                item.setdefault("mimeType", item.get("file", {}).get("mimeType", "application/octet-stream"))
+                item.setdefault(
+                    "mimeType",
+                    item.get("file", {}).get("mimeType", "application/octet-stream"),
+                )
 
         items.sort(key=lambda x: (not x["isFolder"], x.get("name", "").lower()))
 
@@ -63,7 +66,9 @@ async def get_files_in_folder(
                         client, item["id"], include_subfolders=True
                     )
                     if sub_error:
-                        logger.warning(f"Error recursing into folder {item.get('name')}: {sub_error}")
+                        logger.warning(
+                            f"Error recursing into folder {item.get('name')}: {sub_error}"
+                        )
                         continue
                     files.extend(sub_files)
             elif not should_skip_file(item):

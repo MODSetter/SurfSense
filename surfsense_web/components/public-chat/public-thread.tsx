@@ -10,6 +10,7 @@ import {
 import { CheckIcon, CopyIcon } from "lucide-react";
 import Image from "next/image";
 import { type FC, type ReactNode, useState } from "react";
+import { CitationMetadataProvider } from "@/components/assistant-ui/citation-metadata-context";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
@@ -142,30 +143,33 @@ const PublicAssistantMessage: FC = () => {
 			className="aui-assistant-message-root group fade-in slide-in-from-bottom-1 relative mx-auto w-full max-w-(--thread-max-width) animate-in py-3 duration-150"
 			data-role="assistant"
 		>
-			<div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
-				<MessagePrimitive.Parts
-					components={{
-						Text: MarkdownText,
-						tools: {
-							by_name: {
-								generate_podcast: GeneratePodcastToolUI,
-								generate_report: GenerateReportToolUI,
-								generate_video_presentation: GenerateVideoPresentationToolUI,
-								display_image: GenerateImageToolUI,
-								generate_image: GenerateImageToolUI,
-								link_preview: () => null,
-								multi_link_preview: () => null,
-								scrape_webpage: () => null,
+			<CitationMetadataProvider>
+				<div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
+					<MessagePrimitive.Parts
+						components={{
+							Text: MarkdownText,
+							tools: {
+								by_name: {
+									generate_podcast: GeneratePodcastToolUI,
+									generate_report: GenerateReportToolUI,
+									generate_video_presentation: GenerateVideoPresentationToolUI,
+									display_image: GenerateImageToolUI,
+									generate_image: GenerateImageToolUI,
+									web_search: () => null,
+									link_preview: () => null,
+									multi_link_preview: () => null,
+									scrape_webpage: () => null,
+								},
+								Fallback: ToolFallback,
 							},
-							Fallback: ToolFallback,
-						},
-					}}
-				/>
-			</div>
+						}}
+					/>
+				</div>
 
-			<div className="aui-assistant-message-footer mt-1 mb-5 ml-2 flex">
-				<PublicAssistantActionBar />
-			</div>
+				<div className="aui-assistant-message-footer mt-1 mb-5 ml-2 flex">
+					<PublicAssistantActionBar />
+				</div>
+			</CitationMetadataProvider>
 		</MessagePrimitive.Root>
 	);
 };

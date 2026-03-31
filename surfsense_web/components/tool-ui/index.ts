@@ -17,7 +17,6 @@ export {
 export { GeneratePodcastToolUI } from "./generate-podcast";
 export { GenerateReportToolUI } from "./generate-report";
 export { CreateGoogleDriveFileToolUI, DeleteGoogleDriveFileToolUI } from "./google-drive";
-export { CreateOneDriveFileToolUI, DeleteOneDriveFileToolUI } from "./onedrive";
 export {
 	Image,
 	ImageErrorBoundary,
@@ -33,6 +32,7 @@ export {
 	UpdateLinearIssueToolUI,
 } from "./linear";
 export { CreateNotionPageToolUI, DeleteNotionPageToolUI, UpdateNotionPageToolUI } from "./notion";
+export { CreateOneDriveFileToolUI, DeleteOneDriveFileToolUI } from "./onedrive";
 export {
 	Plan,
 	PlanErrorBoundary,

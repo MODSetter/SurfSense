@@ -12,18 +12,14 @@ import {
 	Trash2,
 	Wand2,
 } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { membersAtom, myAccessAtom } from "@/atoms/members/members-query.atoms";
-import {
-	createNewLLMConfigMutationAtom,
-	deleteNewLLMConfigMutationAtom,
-	updateNewLLMConfigMutationAtom,
-} from "@/atoms/new-llm-config/new-llm-config-mutation.atoms";
+import { deleteNewLLMConfigMutationAtom } from "@/atoms/new-llm-config/new-llm-config-mutation.atoms";
 import {
 	globalNewLLMConfigsAtom,
 	newLLMConfigsAtom,
 } from "@/atoms/new-llm-config/new-llm-config-query.atoms";
-import { LLMConfigForm, type LLMConfigFormData } from "@/components/shared/llm-config-form";
+import { ModelConfigDialog } from "@/components/shared/model-config-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
 	AlertDialog,
@@ -39,13 +35,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -69,12 +58,6 @@ function getInitials(name: string): string {
 export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 	const isDesktop = useMediaQuery("(min-width: 768px)");
 	// Mutations
-	const { mutateAsync: createConfig, isPending: isCreating } = useAtomValue(
-		createNewLLMConfigMutationAtom
-	);
-	const { mutateAsync: updateConfig, isPending: isUpdating } = useAtomValue(
-		updateNewLLMConfigMutationAtom
-	);
 	const { mutateAsync: deleteConfig, isPending: isDeleting } = useAtomValue(
 		deleteNewLLMConfigMutationAtom
 	);
@@ -128,33 +111,10 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 	const [editingConfig, setEditingConfig] = useState<NewLLMConfig | null>(null);
 	const [configToDelete, setConfigToDelete] = useState<NewLLMConfig | null>(null);
 
-	const isSubmitting = isCreating || isUpdating;
-
-	const handleFormSubmit = useCallback(
-		async (formData: LLMConfigFormData) => {
-			try {
-				if (editingConfig) {
-					const { search_space_id, ...updateData } = formData;
-					await updateConfig({
-						id: editingConfig.id,
-						data: updateData,
-					});
-				} else {
-					await createConfig(formData);
-				}
-				setIsDialogOpen(false);
-				setEditingConfig(null);
-			} catch {
-				// Error is displayed inside the dialog by the form
-			}
-		},
-		[editingConfig, createConfig, updateConfig]
-	);
-
 	const handleDelete = async () => {
 		if (!configToDelete) return;
 		try {
-			await deleteConfig({ id: configToDelete.id });
+			await deleteConfig({ id: configToDelete.id, name: configToDelete.name });
 			setConfigToDelete(null);
 		} catch {
 			// Error handled by mutation state
@@ -169,11 +129,6 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 	const openNewDialog = () => {
 		setEditingConfig(null);
 		setIsDialogOpen(true);
-	};
-
-	const closeDialog = () => {
-		setIsDialogOpen(false);
-		setEditingConfig(null);
 	};
 
 	return (
@@ -196,7 +151,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 						onClick={openNewDialog}
 						className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
 					>
-						Add Configuration
+						Add LLM Model
 					</Button>
 				)}
 			</div>
@@ -243,18 +198,17 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 
 			{/* Global Configs Info */}
 			{globalConfigs.length > 0 && (
-				<div>
-					<Alert className="bg-muted/50 py-3 md:py-4">
-						<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
-						<AlertDescription className="text-xs md:text-sm">
-							<span className="font-medium">{globalConfigs.length} global configuration(s)</span>{" "}
-							available from your administrator. These are pre-configured and ready to use.{" "}
-							<span className="text-muted-foreground">
-								Global configs: {globalConfigs.map((g) => g.name).join(", ")}
-							</span>
-						</AlertDescription>
-					</Alert>
-				</div>
+				<Alert className="bg-muted/50 py-3">
+					<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
+					<AlertDescription className="text-xs md:text-sm">
+						<p>
+							<span className="font-medium">
+								{globalConfigs.length} global {globalConfigs.length === 1 ? "model" : "models"}
+							</span>{" "}
+							available from your administrator. Use the model selector to view and select them.
+						</p>
+					</AlertDescription>
+				</Alert>
 			)}
 
 			{/* Loading Skeleton */}
@@ -463,66 +417,26 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 			)}
 
 			{/* Add/Edit Configuration Dialog */}
-			<Dialog open={isDialogOpen} onOpenChange={(open) => !open && closeDialog()}>
-				<DialogContent
-					className="max-w-2xl max-h-[90vh] overflow-y-auto"
-					onOpenAutoFocus={(e) => e.preventDefault()}
-				>
-					<DialogHeader>
-						<DialogTitle>
-							{editingConfig ? "Edit Configuration" : "Create New Configuration"}
-						</DialogTitle>
-						<DialogDescription>
-							{editingConfig
-								? "Update your AI model and prompt configuration"
-								: "Set up a new AI model with custom prompts and citation settings"}
-						</DialogDescription>
-					</DialogHeader>
-
-					<LLMConfigForm
-						key={editingConfig ? `edit-${editingConfig.id}` : "create"}
-						searchSpaceId={searchSpaceId}
-						initialData={
-							editingConfig
-								? {
-										name: editingConfig.name,
-										description: editingConfig.description || "",
-										provider: editingConfig.provider,
-										custom_provider: editingConfig.custom_provider || "",
-										model_name: editingConfig.model_name,
-										api_key: editingConfig.api_key,
-										api_base: editingConfig.api_base || "",
-										litellm_params: editingConfig.litellm_params || {},
-										system_instructions: editingConfig.system_instructions || "",
-										use_default_system_instructions: editingConfig.use_default_system_instructions,
-										citations_enabled: editingConfig.citations_enabled,
-									}
-								: {
-										citations_enabled: true,
-										use_default_system_instructions: true,
-									}
-						}
-						onSubmit={handleFormSubmit}
-						onCancel={closeDialog}
-						isSubmitting={isSubmitting}
-						mode={editingConfig ? "edit" : "create"}
-						showAdvanced={true}
-						compact={true}
-					/>
-				</DialogContent>
-			</Dialog>
+			<ModelConfigDialog
+				open={isDialogOpen}
+				onOpenChange={(open) => {
+					setIsDialogOpen(open);
+					if (!open) setEditingConfig(null);
+				}}
+				config={editingConfig}
+				isGlobal={false}
+				searchSpaceId={searchSpaceId}
+				mode={editingConfig ? "edit" : "create"}
+			/>
 
 			{/* Delete Confirmation Dialog */}
 			<AlertDialog
 				open={!!configToDelete}
 				onOpenChange={(open) => !open && setConfigToDelete(null)}
 			>
-				<AlertDialogContent>
+				<AlertDialogContent className="select-none">
 					<AlertDialogHeader>
-						<AlertDialogTitle className="flex items-center gap-2">
-							<Trash2 className="h-5 w-5 text-destructive" />
-							Delete Configuration
-						</AlertDialogTitle>
+						<AlertDialogTitle>Delete LLM Model</AlertDialogTitle>
 						<AlertDialogDescription>
 							Are you sure you want to delete{" "}
 							<span className="font-semibold text-foreground">{configToDelete?.name}</span>? This
@@ -542,10 +456,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 									Deleting
 								</>
 							) : (
-								<>
-									<Trash2 className="mr-2 h-4 w-4" />
-									Delete
-								</>
+								"Delete"
 							)}
 						</AlertDialogAction>
 					</AlertDialogFooter>

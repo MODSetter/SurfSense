@@ -13,7 +13,9 @@ _EMBEDDING_DIM = app_config.embedding_model_instance.dimension
 pytestmark = pytest.mark.integration
 
 
-def _onedrive_doc(*, unique_id: str, search_space_id: int, connector_id: int, user_id: str) -> ConnectorDocument:
+def _onedrive_doc(
+    *, unique_id: str, search_space_id: int, connector_id: int, user_id: str
+) -> ConnectorDocument:
     return ConnectorDocument(
         title=f"File {unique_id}.docx",
         source_markdown=f"## Document\n\nContent from {unique_id}",
@@ -32,7 +34,9 @@ def _onedrive_doc(*, unique_id: str, search_space_id: int, connector_id: int, us
     )
 
 
-@pytest.mark.usefixtures("patched_summarize", "patched_embed_texts", "patched_chunk_text")
+@pytest.mark.usefixtures(
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
+)
 async def test_onedrive_pipeline_creates_ready_document(
     db_session, db_search_space, db_connector, db_user, mocker
 ):
@@ -61,7 +65,9 @@ async def test_onedrive_pipeline_creates_ready_document(
     assert DocumentStatus.is_state(row.status, DocumentStatus.READY)
 
 
-@pytest.mark.usefixtures("patched_summarize", "patched_embed_texts", "patched_chunk_text")
+@pytest.mark.usefixtures(
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
+)
 async def test_onedrive_duplicate_content_skipped(
     db_session, db_search_space, db_connector, db_user, mocker
 ):
@@ -87,8 +93,6 @@ async def test_onedrive_duplicate_content_skipped(
     )
     first_doc = result.scalars().first()
     assert first_doc is not None
-    first_id = first_doc.id
-
     doc2 = _onedrive_doc(
         unique_id="od-dup-file",
         search_space_id=space_id,
@@ -97,4 +101,6 @@ async def test_onedrive_duplicate_content_skipped(
     )
 
     prepared2 = await service.prepare_for_indexing([doc2])
-    assert len(prepared2) == 0 or (len(prepared2) == 1 and prepared2[0].existing_document is not None)
+    assert len(prepared2) == 0 or (
+        len(prepared2) == 1 and prepared2[0].existing_document is not None
+    )

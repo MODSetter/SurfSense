@@ -5,6 +5,7 @@ extension-based, not provider-specific.
 """
 
 import asyncio
+import contextlib
 import logging
 import os
 import tempfile
@@ -60,7 +61,9 @@ async def download_and_extract_content(
 
     temp_file_path = None
     try:
-        extension = Path(file_name).suffix or get_extension_from_mime(mime_type) or ".bin"
+        extension = (
+            Path(file_name).suffix or get_extension_from_mime(mime_type) or ".bin"
+        )
         with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as tmp:
             temp_file_path = tmp.name
 
@@ -76,10 +79,8 @@ async def download_and_extract_content(
         return None, metadata, str(e)
     finally:
         if temp_file_path and os.path.exists(temp_file_path):
-            try:
+            with contextlib.suppress(Exception):
                 os.unlink(temp_file_path)
-            except Exception:
-                pass
 
 
 async def _parse_file_to_markdown(file_path: str, filename: str) -> str:
@@ -94,8 +95,9 @@ async def _parse_file_to_markdown(file_path: str, filename: str) -> str:
             return f.read()
 
     if lower.endswith((".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm")):
-        from app.config import config as app_config
         from litellm import atranscription
+
+        from app.config import config as app_config
 
         stt_service_type = (
             "local"
@@ -106,9 +108,13 @@ async def _parse_file_to_markdown(file_path: str, filename: str) -> str:
             from app.services.stt_service import stt_service
 
             t0 = time.monotonic()
-            logger.info(f"[local-stt] START file={filename} thread={threading.current_thread().name}")
+            logger.info(
+                f"[local-stt] START file={filename} thread={threading.current_thread().name}"
+            )
             result = await asyncio.to_thread(stt_service.transcribe_file, file_path)
-            logger.info(f"[local-stt] END file={filename} elapsed={time.monotonic() - t0:.2f}s")
+            logger.info(
+                f"[local-stt] END file={filename} elapsed={time.monotonic() - t0:.2f}s"
+            )
             text = result.get("text", "")
         else:
             with open(file_path, "rb") as audio_file:
@@ -150,7 +156,9 @@ async def _parse_file_to_markdown(file_path: str, filename: str) -> str:
             parse_with_llamacloud_retry,
         )
 
-        result = await parse_with_llamacloud_retry(file_path=file_path, estimated_pages=50)
+        result = await parse_with_llamacloud_retry(
+            file_path=file_path, estimated_pages=50
+        )
         markdown_documents = await result.aget_markdown_documents(split_by_page=False)
         if not markdown_documents:
             raise RuntimeError(f"LlamaCloud returned no documents for {filename}")
@@ -161,9 +169,13 @@ async def _parse_file_to_markdown(file_path: str, filename: str) -> str:
 
         converter = DocumentConverter()
         t0 = time.monotonic()
-        logger.info(f"[docling] START file={filename} thread={threading.current_thread().name}")
+        logger.info(
+            f"[docling] START file={filename} thread={threading.current_thread().name}"
+        )
         result = await asyncio.to_thread(converter.convert, file_path)
-        logger.info(f"[docling] END file={filename} elapsed={time.monotonic() - t0:.2f}s")
+        logger.info(
+            f"[docling] END file={filename} elapsed={time.monotonic() - t0:.2f}s"
+        )
         return result.document.export_to_markdown()
 
     raise RuntimeError(f"Unknown ETL_SERVICE: {app_config.ETL_SERVICE}")

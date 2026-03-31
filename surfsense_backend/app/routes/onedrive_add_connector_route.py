@@ -79,9 +79,13 @@ async def connect_onedrive(space_id: int, user: User = Depends(current_active_us
         if not space_id:
             raise HTTPException(status_code=400, detail="space_id is required")
         if not config.MICROSOFT_CLIENT_ID:
-            raise HTTPException(status_code=500, detail="Microsoft OneDrive OAuth not configured.")
+            raise HTTPException(
+                status_code=500, detail="Microsoft OneDrive OAuth not configured."
+            )
         if not config.SECRET_KEY:
-            raise HTTPException(status_code=500, detail="SECRET_KEY not configured for OAuth security.")
+            raise HTTPException(
+                status_code=500, detail="SECRET_KEY not configured for OAuth security."
+            )
 
         state_manager = get_state_manager()
         state_encoded = state_manager.generate_secure_state(space_id, user.id)
@@ -96,14 +100,18 @@ async def connect_onedrive(space_id: int, user: User = Depends(current_active_us
         }
         auth_url = f"{AUTHORIZATION_URL}?{urlencode(auth_params)}"
 
-        logger.info("Generated OneDrive OAuth URL for user %s, space %s", user.id, space_id)
+        logger.info(
+            "Generated OneDrive OAuth URL for user %s, space %s", user.id, space_id
+        )
         return {"auth_url": auth_url}
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error("Failed to initiate OneDrive OAuth: %s", str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to initiate OneDrive OAuth: {e!s}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to initiate OneDrive OAuth: {e!s}"
+        ) from e
 
 
 @router.get("/auth/onedrive/connector/reauth")
@@ -121,15 +129,20 @@ async def reauth_onedrive(
                 SearchSourceConnector.id == connector_id,
                 SearchSourceConnector.user_id == user.id,
                 SearchSourceConnector.search_space_id == space_id,
-                SearchSourceConnector.connector_type == SearchSourceConnectorType.ONEDRIVE_CONNECTOR,
+                SearchSourceConnector.connector_type
+                == SearchSourceConnectorType.ONEDRIVE_CONNECTOR,
             )
         )
         connector = result.scalars().first()
         if not connector:
-            raise HTTPException(status_code=404, detail="OneDrive connector not found or access denied")
+            raise HTTPException(
+                status_code=404, detail="OneDrive connector not found or access denied"
+            )
 
         if not config.SECRET_KEY:
-            raise HTTPException(status_code=500, detail="SECRET_KEY not configured for OAuth security.")
+            raise HTTPException(
+                status_code=500, detail="SECRET_KEY not configured for OAuth security."
+            )
 
         state_manager = get_state_manager()
         extra: dict = {"connector_id": connector_id}
@@ -148,14 +161,20 @@ async def reauth_onedrive(
         }
         auth_url = f"{AUTHORIZATION_URL}?{urlencode(auth_params)}"
 
-        logger.info("Initiating OneDrive re-auth for user %s, connector %s", user.id, connector_id)
+        logger.info(
+            "Initiating OneDrive re-auth for user %s, connector %s",
+            user.id,
+            connector_id,
+        )
         return {"auth_url": auth_url}
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error("Failed to initiate OneDrive re-auth: %s", str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to initiate OneDrive re-auth: {e!s}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to initiate OneDrive re-auth: {e!s}"
+        ) from e
 
 
 @router.get("/auth/onedrive/connector/callback")
@@ -182,10 +201,14 @@ async def onedrive_callback(
                 return RedirectResponse(
                     url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=onedrive_oauth_denied"
                 )
-            return RedirectResponse(url=f"{config.NEXT_FRONTEND_URL}/dashboard?error=onedrive_oauth_denied")
+            return RedirectResponse(
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard?error=onedrive_oauth_denied"
+            )
 
         if not code or not state:
-            raise HTTPException(status_code=400, detail="Missing required OAuth parameters")
+            raise HTTPException(
+                status_code=400, detail="Missing required OAuth parameters"
+            )
 
         state_manager = get_state_manager()
         try:
@@ -194,7 +217,9 @@ async def onedrive_callback(
             user_id = UUID(data["user_id"])
         except (HTTPException, ValueError, KeyError) as e:
             logger.error("Invalid OAuth state: %s", str(e))
-            return RedirectResponse(url=f"{config.NEXT_FRONTEND_URL}/dashboard?error=invalid_state")
+            return RedirectResponse(
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard?error=invalid_state"
+            )
 
         reauth_connector_id = data.get("connector_id")
         reauth_return_url = data.get("return_url")
@@ -222,20 +247,26 @@ async def onedrive_callback(
                 error_detail = error_json.get("error_description", error_detail)
             except Exception:
                 pass
-            raise HTTPException(status_code=400, detail=f"Token exchange failed: {error_detail}")
+            raise HTTPException(
+                status_code=400, detail=f"Token exchange failed: {error_detail}"
+            )
 
         token_json = token_response.json()
         access_token = token_json.get("access_token")
         refresh_token = token_json.get("refresh_token")
 
         if not access_token:
-            raise HTTPException(status_code=400, detail="No access token received from Microsoft")
+            raise HTTPException(
+                status_code=400, detail="No access token received from Microsoft"
+            )
 
         token_encryption = get_token_encryption()
 
         expires_at = None
         if token_json.get("expires_in"):
-            expires_at = datetime.now(UTC) + timedelta(seconds=int(token_json["expires_in"]))
+            expires_at = datetime.now(UTC) + timedelta(
+                seconds=int(token_json["expires_in"])
+            )
 
         user_info: dict = {}
         try:
@@ -248,7 +279,8 @@ async def onedrive_callback(
                 if user_response.status_code == 200:
                     user_data = user_response.json()
                     user_info = {
-                        "user_email": user_data.get("mail") or user_data.get("userPrincipalName"),
+                        "user_email": user_data.get("mail")
+                        or user_data.get("userPrincipalName"),
                         "user_name": user_data.get("displayName"),
                     }
         except Exception as e:
@@ -256,7 +288,9 @@ async def onedrive_callback(
 
         connector_config = {
             "access_token": token_encryption.encrypt_token(access_token),
-            "refresh_token": token_encryption.encrypt_token(refresh_token) if refresh_token else None,
+            "refresh_token": token_encryption.encrypt_token(refresh_token)
+            if refresh_token
+            else None,
             "token_type": token_json.get("token_type", "Bearer"),
             "expires_in": token_json.get("expires_in"),
             "expires_at": expires_at.isoformat() if expires_at else None,
@@ -273,22 +307,36 @@ async def onedrive_callback(
                     SearchSourceConnector.id == reauth_connector_id,
                     SearchSourceConnector.user_id == user_id,
                     SearchSourceConnector.search_space_id == space_id,
-                    SearchSourceConnector.connector_type == SearchSourceConnectorType.ONEDRIVE_CONNECTOR,
+                    SearchSourceConnector.connector_type
+                    == SearchSourceConnectorType.ONEDRIVE_CONNECTOR,
                 )
             )
             db_connector = result.scalars().first()
             if not db_connector:
-                raise HTTPException(status_code=404, detail="Connector not found or access denied during re-auth")
+                raise HTTPException(
+                    status_code=404,
+                    detail="Connector not found or access denied during re-auth",
+                )
 
             existing_delta_link = db_connector.config.get("delta_link")
-            db_connector.config = {**connector_config, "delta_link": existing_delta_link, "auth_expired": False}
+            db_connector.config = {
+                **connector_config,
+                "delta_link": existing_delta_link,
+                "auth_expired": False,
+            }
             flag_modified(db_connector, "config")
             await session.commit()
             await session.refresh(db_connector)
 
-            logger.info("Re-authenticated OneDrive connector %s for user %s", db_connector.id, user_id)
+            logger.info(
+                "Re-authenticated OneDrive connector %s for user %s",
+                db_connector.id,
+                user_id,
+            )
             if reauth_return_url and reauth_return_url.startswith("/"):
-                return RedirectResponse(url=f"{config.NEXT_FRONTEND_URL}{reauth_return_url}")
+                return RedirectResponse(
+                    url=f"{config.NEXT_FRONTEND_URL}{reauth_return_url}"
+                )
             return RedirectResponse(
                 url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?success=true&connector=ONEDRIVE_CONNECTOR&connectorId={db_connector.id}"
             )
@@ -298,16 +346,26 @@ async def onedrive_callback(
             SearchSourceConnectorType.ONEDRIVE_CONNECTOR, connector_config
         )
         is_duplicate = await check_duplicate_connector(
-            session, SearchSourceConnectorType.ONEDRIVE_CONNECTOR, space_id, user_id, connector_identifier,
+            session,
+            SearchSourceConnectorType.ONEDRIVE_CONNECTOR,
+            space_id,
+            user_id,
+            connector_identifier,
         )
         if is_duplicate:
-            logger.warning("Duplicate OneDrive connector for user %s, space %s", user_id, space_id)
+            logger.warning(
+                "Duplicate OneDrive connector for user %s, space %s", user_id, space_id
+            )
             return RedirectResponse(
                 url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=duplicate_account&connector=ONEDRIVE_CONNECTOR"
             )
 
         connector_name = await generate_unique_connector_name(
-            session, SearchSourceConnectorType.ONEDRIVE_CONNECTOR, space_id, user_id, connector_identifier,
+            session,
+            SearchSourceConnectorType.ONEDRIVE_CONNECTOR,
+            space_id,
+            user_id,
+            connector_identifier,
         )
 
         new_connector = SearchSourceConnector(
@@ -323,20 +381,30 @@ async def onedrive_callback(
             session.add(new_connector)
             await session.commit()
             await session.refresh(new_connector)
-            logger.info("Successfully created OneDrive connector %s for user %s", new_connector.id, user_id)
+            logger.info(
+                "Successfully created OneDrive connector %s for user %s",
+                new_connector.id,
+                user_id,
+            )
             return RedirectResponse(
                 url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?success=true&connector=ONEDRIVE_CONNECTOR&connectorId={new_connector.id}"
             )
         except IntegrityError as e:
             await session.rollback()
-            logger.error("Database integrity error creating OneDrive connector: %s", str(e))
-            return RedirectResponse(url=f"{config.NEXT_FRONTEND_URL}/dashboard?error=connector_creation_failed")
+            logger.error(
+                "Database integrity error creating OneDrive connector: %s", str(e)
+            )
+            return RedirectResponse(
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard?error=connector_creation_failed"
+            )
 
     except HTTPException:
         raise
     except (IntegrityError, ValueError) as e:
         logger.error("OneDrive OAuth callback error: %s", str(e), exc_info=True)
-        return RedirectResponse(url=f"{config.NEXT_FRONTEND_URL}/dashboard?error=onedrive_auth_error")
+        return RedirectResponse(
+            url=f"{config.NEXT_FRONTEND_URL}/dashboard?error=onedrive_auth_error"
+        )
 
 
 @router.get("/connectors/{connector_id}/onedrive/folders")
@@ -353,28 +421,44 @@ async def list_onedrive_folders(
             select(SearchSourceConnector).filter(
                 SearchSourceConnector.id == connector_id,
                 SearchSourceConnector.user_id == user.id,
-                SearchSourceConnector.connector_type == SearchSourceConnectorType.ONEDRIVE_CONNECTOR,
+                SearchSourceConnector.connector_type
+                == SearchSourceConnectorType.ONEDRIVE_CONNECTOR,
             )
         )
         connector = result.scalars().first()
         if not connector:
-            raise HTTPException(status_code=404, detail="OneDrive connector not found or access denied")
+            raise HTTPException(
+                status_code=404, detail="OneDrive connector not found or access denied"
+            )
 
         onedrive_client = OneDriveClient(session, connector_id)
         items, error = await list_folder_contents(onedrive_client, parent_id=parent_id)
 
         if error:
             error_lower = error.lower()
-            if "401" in error or "authentication expired" in error_lower or "invalid_grant" in error_lower:
+            if (
+                "401" in error
+                or "authentication expired" in error_lower
+                or "invalid_grant" in error_lower
+            ):
                 try:
                     if connector and not connector.config.get("auth_expired"):
                         connector.config = {**connector.config, "auth_expired": True}
                         flag_modified(connector, "config")
                         await session.commit()
                 except Exception:
-                    logger.warning("Failed to persist auth_expired for connector %s", connector_id, exc_info=True)
-                raise HTTPException(status_code=400, detail="OneDrive authentication expired. Please re-authenticate.")
-            raise HTTPException(status_code=500, detail=f"Failed to list folder contents: {error}")
+                    logger.warning(
+                        "Failed to persist auth_expired for connector %s",
+                        connector_id,
+                        exc_info=True,
+                    )
+                raise HTTPException(
+                    status_code=400,
+                    detail="OneDrive authentication expired. Please re-authenticate.",
+                )
+            raise HTTPException(
+                status_code=500, detail=f"Failed to list folder contents: {error}"
+            )
 
         return {"items": items}
 
@@ -391,8 +475,13 @@ async def list_onedrive_folders(
                     await session.commit()
             except Exception:
                 pass
-            raise HTTPException(status_code=400, detail="OneDrive authentication expired. Please re-authenticate.") from e
-        raise HTTPException(status_code=500, detail=f"Failed to list OneDrive contents: {e!s}") from e
+            raise HTTPException(
+                status_code=400,
+                detail="OneDrive authentication expired. Please re-authenticate.",
+            ) from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to list OneDrive contents: {e!s}"
+        ) from e
 
 
 async def refresh_onedrive_token(
@@ -410,10 +499,15 @@ async def refresh_onedrive_token(
             refresh_token = token_encryption.decrypt_token(refresh_token)
         except Exception as e:
             logger.error("Failed to decrypt refresh token: %s", str(e))
-            raise HTTPException(status_code=500, detail="Failed to decrypt stored refresh token") from e
+            raise HTTPException(
+                status_code=500, detail="Failed to decrypt stored refresh token"
+            ) from e
 
     if not refresh_token:
-        raise HTTPException(status_code=400, detail=f"No refresh token available for connector {connector.id}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"No refresh token available for connector {connector.id}",
+        )
 
     refresh_data = {
         "client_id": config.MICROSOFT_CLIENT_ID,
@@ -425,8 +519,10 @@ async def refresh_onedrive_token(
 
     async with httpx.AsyncClient() as client:
         token_response = await client.post(
-            TOKEN_URL, data=refresh_data,
-            headers={"Content-Type": "application/x-www-form-urlencoded"}, timeout=30.0,
+            TOKEN_URL,
+            data=refresh_data,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            timeout=30.0,
         )
 
     if token_response.status_code != 200:
@@ -439,16 +535,27 @@ async def refresh_onedrive_token(
         except Exception:
             pass
         error_lower = (error_detail + error_code).lower()
-        if "invalid_grant" in error_lower or "expired" in error_lower or "revoked" in error_lower:
-            raise HTTPException(status_code=401, detail="OneDrive authentication failed. Please re-authenticate.")
-        raise HTTPException(status_code=400, detail=f"Token refresh failed: {error_detail}")
+        if (
+            "invalid_grant" in error_lower
+            or "expired" in error_lower
+            or "revoked" in error_lower
+        ):
+            raise HTTPException(
+                status_code=401,
+                detail="OneDrive authentication failed. Please re-authenticate.",
+            )
+        raise HTTPException(
+            status_code=400, detail=f"Token refresh failed: {error_detail}"
+        )
 
     token_json = token_response.json()
     access_token = token_json.get("access_token")
     new_refresh_token = token_json.get("refresh_token")
 
     if not access_token:
-        raise HTTPException(status_code=400, detail="No access token received from Microsoft refresh")
+        raise HTTPException(
+            status_code=400, detail="No access token received from Microsoft refresh"
+        )
 
     expires_at = None
     expires_in = token_json.get("expires_in")

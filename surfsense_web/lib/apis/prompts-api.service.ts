@@ -4,8 +4,8 @@ import {
 	promptCreateRequest,
 	promptDeleteResponse,
 	promptRead,
-	promptUpdateRequest,
 	promptsListResponse,
+	promptUpdateRequest,
 } from "@/contracts/types/prompts.types";
 import { ValidationError } from "@/lib/error";
 import { baseApiService } from "./base-api.service";

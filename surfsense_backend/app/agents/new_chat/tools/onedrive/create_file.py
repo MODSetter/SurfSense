@@ -81,7 +81,8 @@ def create_create_onedrive_file_tool(
                 select(SearchSourceConnector).filter(
                     SearchSourceConnector.search_space_id == search_space_id,
                     SearchSourceConnector.user_id == user_id,
-                    SearchSourceConnector.connector_type == SearchSourceConnectorType.ONEDRIVE_CONNECTOR,
+                    SearchSourceConnector.connector_type
+                    == SearchSourceConnectorType.ONEDRIVE_CONNECTOR,
                 )
             )
             connectors = result.scalars().all()
@@ -95,12 +96,14 @@ def create_create_onedrive_file_tool(
             accounts = []
             for c in connectors:
                 cfg = c.config or {}
-                accounts.append({
-                    "id": c.id,
-                    "name": c.name,
-                    "user_email": cfg.get("user_email"),
-                    "auth_expired": cfg.get("auth_expired", False),
-                })
+                accounts.append(
+                    {
+                        "id": c.id,
+                        "name": c.name,
+                        "user_email": cfg.get("user_email"),
+                        "auth_expired": cfg.get("auth_expired", False),
+                    }
+                )
 
             if all(a.get("auth_expired") for a in accounts):
                 return {
@@ -119,16 +122,22 @@ def create_create_onedrive_file_tool(
                     client = OneDriveClient(session=db_session, connector_id=cid)
                     items, err = await client.list_children("root")
                     if err:
-                        logger.warning("Failed to list folders for connector %s: %s", cid, err)
+                        logger.warning(
+                            "Failed to list folders for connector %s: %s", cid, err
+                        )
                         parent_folders[cid] = []
                     else:
                         parent_folders[cid] = [
                             {"folder_id": item["id"], "name": item["name"]}
                             for item in items
-                            if item.get("folder") is not None and item.get("id") and item.get("name")
+                            if item.get("folder") is not None
+                            and item.get("id")
+                            and item.get("name")
                         ]
                 except Exception:
-                    logger.warning("Error fetching folders for connector %s", cid, exc_info=True)
+                    logger.warning(
+                        "Error fetching folders for connector %s", cid, exc_info=True
+                    )
                     parent_folders[cid] = []
 
             context: dict[str, Any] = {
@@ -152,8 +161,12 @@ def create_create_onedrive_file_tool(
                 }
             )
 
-            decisions_raw = approval.get("decisions", []) if isinstance(approval, dict) else []
-            decisions = decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
+            decisions_raw = (
+                approval.get("decisions", []) if isinstance(approval, dict) else []
+            )
+            decisions = (
+                decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
+            )
             decisions = [d for d in decisions if isinstance(d, dict)]
             if not decisions:
                 return {"status": "error", "message": "No approval decision received"}
@@ -192,7 +205,8 @@ def create_create_onedrive_file_tool(
                         SearchSourceConnector.id == final_connector_id,
                         SearchSourceConnector.search_space_id == search_space_id,
                         SearchSourceConnector.user_id == user_id,
-                        SearchSourceConnector.connector_type == SearchSourceConnectorType.ONEDRIVE_CONNECTOR,
+                        SearchSourceConnector.connector_type
+                        == SearchSourceConnectorType.ONEDRIVE_CONNECTOR,
                     )
                 )
                 connector = result.scalars().first()
@@ -200,7 +214,10 @@ def create_create_onedrive_file_tool(
                 connector = connectors[0]
 
             if not connector:
-                return {"status": "error", "message": "Selected OneDrive connector is invalid."}
+                return {
+                    "status": "error",
+                    "message": "Selected OneDrive connector is invalid.",
+                }
 
             docx_bytes = _markdown_to_docx(final_content or "")
 
@@ -212,7 +229,9 @@ def create_create_onedrive_file_tool(
                 mime_type=DOCX_MIME,
             )
 
-            logger.info(f"OneDrive file created: id={created.get('id')}, name={created.get('name')}")
+            logger.info(
+                f"OneDrive file created: id={created.get('id')}, name={created.get('name')}"
+            )
 
             kb_message_suffix = ""
             try:

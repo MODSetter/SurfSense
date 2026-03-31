@@ -212,8 +212,7 @@ export const OneDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCh
 
 				{isAuthExpired && (
 					<p className="text-xs text-amber-600 dark:text-amber-500">
-						Your OneDrive authentication has expired. Please re-authenticate using the button
-						below.
+						Your OneDrive authentication has expired. Please re-authenticate using the button below.
 					</p>
 				)}
 
@@ -221,7 +220,7 @@ export const OneDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCh
 					<div className="space-y-2">
 						<button
 							type="button"
-							onClick={() => setIsFolderTreeOpen(!isFolderTreeOpen)}
+							onClick={() => setIsFolderTreeOpen(prev => !prev)}
 							className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
 						>
 							Change Selection

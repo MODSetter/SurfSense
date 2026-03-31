@@ -2,6 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { useSetAtom } from "jotai";
 import {
 	ArchiveIcon,
 	ChevronLeft,
@@ -18,6 +19,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { removeChatTabAtom } from "@/atoms/tabs/tabs.atom";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/animated-tabs";
 import { Button } from "@/components/ui/button";
 import {
@@ -70,6 +72,7 @@ export function AllPrivateChatsSidebarContent({
 	const params = useParams();
 	const queryClient = useQueryClient();
 	const isMobile = useIsMobile();
+	const removeChatTab = useSetAtom(removeChatTabAtom);
 
 	const currentChatId = Array.isArray(params.chat_id)
 		? Number(params.chat_id[0])
@@ -158,6 +161,7 @@ export function AllPrivateChatsSidebarContent({
 			setDeletingThreadId(threadId);
 			try {
 				await deleteThread(threadId);
+				const fallbackTab = removeChatTab(threadId);
 				toast.success(t("chat_deleted") || "Chat deleted successfully");
 				queryClient.invalidateQueries({ queryKey: ["all-threads", searchSpaceId] });
 				queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
@@ -166,6 +170,10 @@ export function AllPrivateChatsSidebarContent({
 				if (currentChatId === threadId) {
 					onOpenChange(false);
 					setTimeout(() => {
+						if (fallbackTab?.type === "chat" && fallbackTab.chatUrl) {
+							router.push(fallbackTab.chatUrl);
+							return;
+						}
 						router.push(`/dashboard/${searchSpaceId}/new-chat`);
 					}, 250);
 				}
@@ -176,7 +184,7 @@ export function AllPrivateChatsSidebarContent({
 				setDeletingThreadId(null);
 			}
 		},
-		[queryClient, searchSpaceId, t, currentChatId, router, onOpenChange]
+		[queryClient, searchSpaceId, t, currentChatId, router, onOpenChange, removeChatTab]
 	);
 
 	const handleToggleArchive = useCallback(

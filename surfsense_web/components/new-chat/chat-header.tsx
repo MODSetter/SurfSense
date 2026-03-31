@@ -1,14 +1,14 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { ImageConfigDialog } from "@/components/shared/image-config-dialog";
+import { ModelConfigDialog } from "@/components/shared/model-config-dialog";
 import type {
 	GlobalImageGenConfig,
 	GlobalNewLLMConfig,
 	ImageGenerationConfig,
 	NewLLMConfigPublic,
 } from "@/contracts/types/new-llm-config.types";
-import { ImageConfigDialog } from "./image-config-dialog";
-import { ModelConfigDialog } from "./model-config-dialog";
 import { ModelSelector } from "./model-selector";
 
 interface ChatHeaderProps {
