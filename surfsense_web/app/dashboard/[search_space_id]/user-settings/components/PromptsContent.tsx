@@ -1,38 +1,54 @@
 "use client";
 
-import { PenLine, Plus, Sparkles, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useAtomValue } from "jotai";
+import { AlertTriangle, Globe, Lock, PenLine, Plus, Sparkles, Trash2 } from "lucide-react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
+import {
+	createPromptMutationAtom,
+	deletePromptMutationAtom,
+	updatePromptMutationAtom,
+} from "@/atoms/prompts/prompts-mutation.atoms";
+import { promptsAtom } from "@/atoms/prompts/prompts-query.atoms";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 import type { PromptRead } from "@/contracts/types/prompts.types";
-import { promptsApiService } from "@/lib/apis/prompts-api.service";
 
 interface PromptFormData {
 	name: string;
 	prompt: string;
 	mode: "transform" | "explore";
+	is_public: boolean;
 }
 
-const EMPTY_FORM: PromptFormData = { name: "", prompt: "", mode: "transform" };
+const EMPTY_FORM: PromptFormData = { name: "", prompt: "", mode: "transform", is_public: false };
 
 export function PromptsContent() {
-	const [prompts, setPrompts] = useState<PromptRead[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
+	const { data: prompts, isLoading, isError } = useAtomValue(promptsAtom);
+	const { mutateAsync: createPrompt } = useAtomValue(createPromptMutationAtom);
+	const { mutateAsync: updatePrompt } = useAtomValue(updatePromptMutationAtom);
+	const { mutateAsync: deletePrompt } = useAtomValue(deletePromptMutationAtom);
+
 	const [showForm, setShowForm] = useState(false);
 	const [editingId, setEditingId] = useState<number | null>(null);
 	const [formData, setFormData] = useState<PromptFormData>(EMPTY_FORM);
 	const [isSaving, setIsSaving] = useState(false);
-
-	useEffect(() => {
-		promptsApiService
-			.list()
-			.then(setPrompts)
-			.catch(() => toast.error("Failed to load prompts"))
-			.finally(() => setIsLoading(false));
-	}, []);
+	const [expandedId, setExpandedId] = useState<number | null>(null);
+	const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
+	const [togglingPublicIds, setTogglingPublicIds] = useState<Set<number>>(new Set());
 
 	const handleSave = useCallback(async () => {
 		if (!formData.name.trim() || !formData.prompt.trim()) {
@@ -42,44 +58,61 @@ export function PromptsContent() {
 
 		setIsSaving(true);
 		try {
-			if (editingId) {
-				const updated = await promptsApiService.update(editingId, formData);
-				setPrompts((prev) => prev.map((p) => (p.id === editingId ? updated : p)));
-				toast.success("Prompt updated");
+			if (editingId !== null) {
+				await updatePrompt({ id: editingId, ...formData });
 			} else {
-				const created = await promptsApiService.create(formData);
-				setPrompts((prev) => [created, ...prev]);
-				toast.success("Prompt created");
+				await createPrompt(formData);
 			}
 			setShowForm(false);
 			setFormData(EMPTY_FORM);
 			setEditingId(null);
 		} catch {
-			toast.error("Failed to save prompt");
+			// toast handled by mutation atoms
 		} finally {
 			setIsSaving(false);
 		}
-	}, [formData, editingId]);
+	}, [formData, editingId, createPrompt, updatePrompt]);
 
 	const handleEdit = useCallback((prompt: PromptRead) => {
 		setFormData({
 			name: prompt.name,
 			prompt: prompt.prompt,
 			mode: prompt.mode as "transform" | "explore",
+			is_public: prompt.is_public,
 		});
 		setEditingId(prompt.id);
 		setShowForm(true);
 	}, []);
 
-	const handleDelete = useCallback(async (id: number) => {
+	const handleConfirmDelete = useCallback(async () => {
+		if (deleteTarget === null) return;
 		try {
-			await promptsApiService.delete(id);
-			setPrompts((prev) => prev.filter((p) => p.id !== id));
-			toast.success("Prompt deleted");
+			await deletePrompt(deleteTarget);
 		} catch {
-			toast.error("Failed to delete prompt");
+			// toast handled by mutation atom
+		} finally {
+			setDeleteTarget(null);
 		}
-	}, []);
+	}, [deleteTarget, deletePrompt]);
+
+	const handleTogglePublic = useCallback(
+		async (prompt: PromptRead) => {
+			if (togglingPublicIds.has(prompt.id)) return;
+			setTogglingPublicIds((prev) => new Set(prev).add(prompt.id));
+			try {
+				await updatePrompt({ id: prompt.id, is_public: !prompt.is_public });
+			} catch {
+				// toast handled by mutation atom
+			} finally {
+				setTogglingPublicIds((prev) => {
+					const next = new Set(prev);
+					next.delete(prompt.id);
+					return next;
+				});
+			}
+		},
+		[updatePrompt, togglingPublicIds]
+	);
 
 	const handleCancel = useCallback(() => {
 		setShowForm(false);
@@ -87,10 +120,22 @@ export function PromptsContent() {
 		setEditingId(null);
 	}, []);
 
+	const list = prompts ?? [];
+
 	if (isLoading) {
 		return (
 			<div className="flex items-center justify-center py-12">
 				<Spinner className="size-6" />
+			</div>
+		);
+	}
+
+	if (isError) {
+		return (
+			<div className="rounded-lg border border-dashed border-destructive/40 p-8 text-center">
+				<AlertTriangle className="mx-auto size-8 text-destructive/60" />
+				<p className="mt-2 text-sm text-destructive">Failed to load prompts</p>
+				<p className="text-xs text-muted-foreground">Please try refreshing the page.</p>
 			</div>
 		);
 	}
@@ -122,7 +167,7 @@ export function PromptsContent() {
 			{showForm && (
 				<div className="rounded-lg border border-border/60 bg-card p-6 space-y-4">
 					<h3 className="text-sm font-semibold tracking-tight">
-						{editingId ? "Edit prompt" : "New prompt"}
+						{editingId !== null ? "Edit prompt" : "New prompt"}
 					</h3>
 
 					<div className="space-y-2">
@@ -169,31 +214,42 @@ export function PromptsContent() {
 						</select>
 					</div>
 
+					<div className="flex items-center gap-2">
+						<Switch
+							id="prompt-public"
+							checked={formData.is_public}
+							onCheckedChange={(checked) => setFormData((p) => ({ ...p, is_public: checked }))}
+						/>
+						<Label htmlFor="prompt-public" className="text-sm font-normal">
+							Share with community
+						</Label>
+					</div>
+
 					<div className="flex items-center justify-end gap-2 pt-2">
 						<Button variant="ghost" size="sm" onClick={handleCancel}>
 							Cancel
 						</Button>
 						<Button size="sm" onClick={handleSave} disabled={isSaving} className="relative">
-							<span className={isSaving ? "opacity-0" : ""}>{editingId ? "Update" : "Create"}</span>
+							<span className={isSaving ? "opacity-0" : ""}>{editingId !== null ? "Update" : "Create"}</span>
 							{isSaving && <Spinner className="size-3.5 absolute" />}
 						</Button>
 					</div>
 				</div>
 			)}
 
-			{prompts.length === 0 && !showForm && (
+			{list.length === 0 && !showForm && (
 				<div className="rounded-lg border border-dashed border-border/60 p-8 text-center">
 					<Sparkles className="mx-auto size-8 text-muted-foreground/40" />
-					<p className="mt-2 text-sm text-muted-foreground">No custom prompts yet</p>
+					<p className="mt-2 text-sm text-muted-foreground">No prompts yet</p>
 					<p className="text-xs text-muted-foreground/60">
 						Create prompts to quickly transform or explore text with /
 					</p>
 				</div>
 			)}
 
-			{prompts.length > 0 && (
+			{list.length > 0 && (
 				<div className="space-y-2">
-					{prompts.map((prompt) => (
+					{list.map((prompt) => (
 						<div
 							key={prompt.id}
 							className="group flex items-start gap-3 rounded-lg border border-border/60 bg-card p-4"
@@ -207,10 +263,44 @@ export function PromptsContent() {
 									<span className="rounded-full border px-2 py-0.5 text-[10px] text-muted-foreground">
 										{prompt.mode}
 									</span>
+									{prompt.is_public && (
+										<span className="flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5 text-[10px] text-primary">
+											<Globe className="size-2.5" />
+											Public
+										</span>
+									)}
 								</div>
-								<p className="mt-1 text-xs text-muted-foreground line-clamp-2">{prompt.prompt}</p>
+								<p
+									className={`mt-1 text-xs text-muted-foreground ${expandedId === prompt.id ? "whitespace-pre-wrap" : "line-clamp-2"}`}
+								>
+									{prompt.prompt}
+								</p>
+								{prompt.prompt.length > 100 && (
+									<button
+										type="button"
+										onClick={() => setExpandedId(expandedId === prompt.id ? null : prompt.id)}
+										className="mt-1 text-[11px] text-primary hover:underline cursor-pointer"
+									>
+										{expandedId === prompt.id ? "See less" : "See more"}
+									</button>
+								)}
 							</div>
 							<div className="hidden group-hover:flex items-center gap-1 shrink-0">
+							<button
+								type="button"
+								title={prompt.is_public ? "Make private" : "Share with community"}
+								onClick={() => handleTogglePublic(prompt)}
+								disabled={togglingPublicIds.has(prompt.id)}
+								className="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50 disabled:pointer-events-none"
+							>
+								{togglingPublicIds.has(prompt.id) ? (
+									<Spinner className="size-3.5" />
+								) : prompt.is_public ? (
+									<Lock className="size-3.5" />
+								) : (
+									<Globe className="size-3.5" />
+								)}
+							</button>
 								<Button
 									variant="ghost"
 									size="icon"
@@ -223,7 +313,7 @@ export function PromptsContent() {
 									variant="ghost"
 									size="icon"
 									className="size-7 text-destructive hover:text-destructive"
-									onClick={() => handleDelete(prompt.id)}
+									onClick={() => setDeleteTarget(prompt.id)}
 								>
 									<Trash2 className="size-3.5" />
 								</Button>
@@ -232,6 +322,21 @@ export function PromptsContent() {
 					))}
 				</div>
 			)}
+
+			<AlertDialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Delete prompt</AlertDialogTitle>
+						<AlertDialogDescription>
+							This action cannot be undone. The prompt will be permanently removed.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction onClick={handleConfirmDelete}>Delete</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }

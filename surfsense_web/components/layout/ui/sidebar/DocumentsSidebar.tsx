@@ -21,6 +21,7 @@ import type { DocumentNodeDoc } from "@/components/documents/DocumentNode";
 import type { FolderDisplay } from "@/components/documents/FolderNode";
 import { FolderPickerDialog } from "@/components/documents/FolderPickerDialog";
 import { FolderTreeView } from "@/components/documents/FolderTreeView";
+import { MarkdownViewer } from "@/components/markdown-viewer";
 import { EXPORT_FILE_EXTENSIONS } from "@/components/shared/ExportMenuItems";
 import {
 	AlertDialog,

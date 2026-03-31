@@ -1,6 +1,9 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { getBearerToken } from "@/lib/auth-utils";
 import { HeroSection } from "@/components/homepage/hero-section";
 
 const FeaturesCards = dynamic(
@@ -26,6 +29,14 @@ const CTAHomepage = dynamic(
 );
 
 export default function HomePage() {
+	const router = useRouter();
+
+	useEffect(() => {
+		if (getBearerToken()) {
+			router.replace("/dashboard");
+		}
+	}, [router]);
+
 	return (
 		<main className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 text-gray-900 dark:from-black dark:to-gray-900 dark:text-white">
 			<HeroSection />

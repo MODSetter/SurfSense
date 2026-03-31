@@ -1778,12 +1778,19 @@ class SearchSpaceInvite(BaseModel, TimestampMixin):
 
 
 class PromptMode(StrEnum):
-    TRANSFORM = "transform"
-    EXPLORE = "explore"
+    transform = "transform"
+    explore = "explore"
 
 
 class Prompt(BaseModel, TimestampMixin):
     __tablename__ = "prompts"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "default_prompt_slug",
+            name="uq_prompt_user_default_slug",
+        ),
+    )
 
     user_id = Column(
         UUID(as_uuid=True),
@@ -1797,10 +1804,15 @@ class Prompt(BaseModel, TimestampMixin):
         nullable=True,
         index=True,
     )
+    default_prompt_slug = Column(String(100), nullable=True, index=True)
     name = Column(String(200), nullable=False)
     prompt = Column(Text, nullable=False)
-    mode = Column(SQLAlchemyEnum(PromptMode), nullable=False)
-    icon = Column(String(50), nullable=True)
+    mode = Column(
+        SQLAlchemyEnum(PromptMode, name="prompt_mode", create_type=False),
+        nullable=False,
+    )
+    version = Column(Integer, nullable=False, default=1)
+    is_public = Column(Boolean, nullable=False, default=False)
 
     user = relationship("User")
     search_space = relationship("SearchSpace")
