@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { AlertCircle, Edit3, Info, Plus, RefreshCw, Trash2, Wand2 } from "lucide-react";
+import { AlertCircle, Edit3, Info, RefreshCw, Trash2, Wand2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { deleteImageGenConfigMutationAtom } from "@/atoms/image-gen-config/image-gen-config-mutation.atoms";
 import {
@@ -257,7 +257,6 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 										size="lg"
 										className="gap-2 text-xs md:text-sm h-9 md:h-10"
 									>
-										<Plus className="h-3 w-3 md:h-4 md:w-4" />
 										Add First Image Model
 									</Button>
 								)}

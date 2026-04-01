@@ -1,7 +1,8 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { AlertTriangle, Globe, Lock, PenLine, Plus, Sparkles, Trash2 } from "lucide-react";
+import { AlertTriangle, Globe, Lock, PenLine, Sparkles, Trash2 } from "lucide-react";
+import { ShortcutKbd } from "@/components/ui/shortcut-kbd";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -145,7 +146,7 @@ export function PromptsContent() {
 			<div className="flex items-center justify-between">
 				<p className="text-sm text-muted-foreground">
 					Create prompt templates triggered with{" "}
-					<kbd className="rounded border bg-muted px-1.5 py-0.5 text-xs font-mono">/</kbd> in the
+					<ShortcutKbd keys={["/"]} className="ml-0" /> in the
 					chat composer.
 				</p>
 				{!showForm && (
@@ -158,7 +159,6 @@ export function PromptsContent() {
 						}}
 						className="shrink-0 gap-1.5"
 					>
-						<Plus className="size-3.5" />
 						New
 					</Button>
 				)}

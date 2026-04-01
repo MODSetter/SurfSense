@@ -7,7 +7,6 @@ import {
 	FileText,
 	Info,
 	MessageSquareQuote,
-	Plus,
 	RefreshCw,
 	Trash2,
 	Wand2,
@@ -270,7 +269,6 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 											size="lg"
 											className="gap-2 text-xs md:text-sm h-9 md:h-10"
 										>
-											<Plus className="h-3 w-3 md:h-4 md:w-4" />
 											Create First Configuration
 										</Button>
 									)}
