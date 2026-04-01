@@ -1063,7 +1063,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 						>
 							<div className="sr-only">Manage Tools</div>
 							<div
-								className="max-h-48 sm:max-h-64 overflow-y-auto py-0.5 sm:py-1"
+								className="max-h-48 sm:max-h-64 overflow-y-auto overscroll-none py-0.5 sm:py-1"
 								onScroll={handleToolsScroll}
 								style={{
 									maskImage: `linear-gradient(to bottom, ${toolsScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${toolsScrollPos === "bottom" ? "black" : "transparent"})`,
