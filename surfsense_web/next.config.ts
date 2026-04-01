@@ -24,6 +24,16 @@ const nextConfig: NextConfig = {
 			},
 		],
 	},
+	experimental: {
+		optimizePackageImports: [
+			"lucide-react",
+			"@tabler/icons-react",
+			"date-fns",
+			"@assistant-ui/react",
+			"@assistant-ui/react-markdown",
+			"motion",
+		],
+	},
 	// Turbopack config (used during `next dev --turbopack`)
 	turbopack: {
 		rules: {
