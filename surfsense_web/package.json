@@ -1,6 +1,6 @@
 {
 	"name": "surfsense_web",
-	"version": "0.0.13",
+	"version": "0.0.14",
 	"private": true,
 	"description": "SurfSense Frontend",
 	"scripts": {
