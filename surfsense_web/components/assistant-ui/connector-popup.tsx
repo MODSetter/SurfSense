@@ -298,11 +298,11 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 							onBack={handleBackFromEdit}
 							onQuickIndex={(() => {
 								const cfg = connectorConfig || editingConnector.config;
-							const isDriveOrOneDrive =
-								editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ||
-								editingConnector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" ||
-								editingConnector.connector_type === "ONEDRIVE_CONNECTOR" ||
-								editingConnector.connector_type === "DROPBOX_CONNECTOR";
+								const isDriveOrOneDrive =
+									editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ||
+									editingConnector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" ||
+									editingConnector.connector_type === "ONEDRIVE_CONNECTOR" ||
+									editingConnector.connector_type === "DROPBOX_CONNECTOR";
 								const hasDriveItems = isDriveOrOneDrive
 									? ((cfg?.selected_folders as unknown[]) ?? []).length > 0 ||
 										((cfg?.selected_files as unknown[]) ?? []).length > 0

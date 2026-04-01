@@ -15,7 +15,6 @@ import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import {
-	morePagesDialogAtom,
 	searchSpaceSettingsDialogAtom,
 	teamDialogAtom,
 	userSettingsDialogAtom,
@@ -27,7 +26,6 @@ import {
 	type Tab,
 } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
-import { MorePagesDialog } from "@/components/settings/more-pages-dialog";
 import { SearchSpaceSettingsDialog } from "@/components/settings/search-space-settings-dialog";
 import { TeamDialog } from "@/components/settings/team-dialog";
 import { UserSettingsDialog } from "@/components/settings/user-settings-dialog";
@@ -203,8 +201,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const seenPageLimitNotifications = useRef<Set<number>>(new Set());
 	const isInitialLoad = useRef(true);
 
-	const setMorePagesOpen = useSetAtom(morePagesDialogAtom);
-
 	// Effect to show toast for new page_limit_exceeded notifications
 	useEffect(() => {
 		if (statusInbox.loading) return;
@@ -233,12 +229,12 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				duration: 8000,
 				icon: <AlertTriangle className="h-5 w-5 text-amber-500" />,
 				action: {
-					label: "View Plans",
-					onClick: () => setMorePagesOpen(true),
+					label: "Get More Pages",
+					onClick: () => router.push(`/dashboard/${searchSpaceId}/more-pages`),
 				},
 			});
 		}
-	}, [statusInbox.inboxItems, statusInbox.loading, searchSpaceId, setMorePagesOpen]);
+	}, [statusInbox.inboxItems, statusInbox.loading, searchSpaceId, router]);
 
 	// Delete dialogs state
 	const [showDeleteChatDialog, setShowDeleteChatDialog] = useState(false);
@@ -837,7 +833,9 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						</Button>
 						<Button
 							onClick={confirmRenameChat}
-							disabled={isRenamingChat || !newChatTitle.trim() || newChatTitle.trim() === chatToRename?.name}
+							disabled={
+								isRenamingChat || !newChatTitle.trim() || newChatTitle.trim() === chatToRename?.name
+							}
 							className="relative"
 						>
 							<span className={isRenamingChat ? "opacity-0" : ""}>
@@ -921,7 +919,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			<SearchSpaceSettingsDialog searchSpaceId={Number(searchSpaceId)} />
 			<UserSettingsDialog />
 			<TeamDialog searchSpaceId={Number(searchSpaceId)} />
-			<MorePagesDialog />
 		</>
 	);
 }

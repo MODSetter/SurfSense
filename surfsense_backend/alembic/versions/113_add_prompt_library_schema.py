@@ -7,6 +7,7 @@ Revises: 112
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision: str = "113"
@@ -25,8 +26,7 @@ def upgrade() -> None:
         " ON prompts (is_public) WHERE is_public = true"
     )
     op.execute(
-        "ALTER TABLE prompts ADD COLUMN IF NOT EXISTS"
-        " default_prompt_slug VARCHAR(100)"
+        "ALTER TABLE prompts ADD COLUMN IF NOT EXISTS default_prompt_slug VARCHAR(100)"
     )
     op.execute(
         "CREATE INDEX IF NOT EXISTS ix_prompts_default_prompt_slug"

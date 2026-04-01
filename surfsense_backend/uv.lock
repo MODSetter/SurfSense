@@ -7919,6 +7919,19 @@ wheels = [
 ]
 
 [[package]]
+name = "stripe"
+version = "15.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/36/5a/0cdea4b7911b8012936c765544109da27c0728f6911ec7aefe9d59e7a4f9/stripe-15.0.0.tar.gz", hash = "sha256:0717cd9ba8e8193cef8b1c488ce27836754df496ab6fb75864096e0cdf15e52d", size = 1486873 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/03/4a/4431c998c451cf07f8b4fed98f425b4aaf3d59cc4fb1e6f54d7713606688/stripe-15.0.0-py3-none-any.whl", hash = "sha256:434ec5267a7402a30b76786d159c18d0e138f89195969d6c56bea2e08d353be0", size = 2125454 },
+]
+
+[[package]]
 name = "surf-new-backend"
 version = "0.0.13"
 source = { editable = "." }
@@ -7984,6 +7997,7 @@ dependencies = [
     { name = "sse-starlette" },
     { name = "starlette" },
     { name = "static-ffmpeg" },
+    { name = "stripe" },
     { name = "tavily-python" },
     { name = "tornado" },
     { name = "trafilatura" },
@@ -8067,6 +8081,7 @@ requires-dist = [
     { name = "sse-starlette", specifier = ">=3.1.1,<3.1.2" },
     { name = "starlette", specifier = ">=0.40.0,<0.51.0" },
     { name = "static-ffmpeg", specifier = ">=2.13" },
+    { name = "stripe", specifier = ">=15.0.0" },
     { name = "tavily-python", specifier = ">=0.3.2" },
     { name = "tornado", specifier = ">=6.5.5" },
     { name = "trafilatura", specifier = ">=2.0.0" },

@@ -1,8 +1,8 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { PanelRight, PanelRightClose } from "lucide-react";
+import dynamic from "next/dynamic";
 import { startTransition, useEffect } from "react";
 import { closeHitlEditPanelAtom, hitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 import { closeReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
@@ -15,17 +15,26 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { DocumentsSidebar } from "../sidebar";
 
 const EditorPanelContent = dynamic(
-	() => import("@/components/editor-panel/editor-panel").then((m) => ({ default: m.EditorPanelContent })),
+	() =>
+		import("@/components/editor-panel/editor-panel").then((m) => ({
+			default: m.EditorPanelContent,
+		})),
 	{ ssr: false, loading: () => <Skeleton className="h-96 w-full" /> }
 );
 
 const HitlEditPanelContent = dynamic(
-	() => import("@/components/hitl-edit-panel/hitl-edit-panel").then((m) => ({ default: m.HitlEditPanelContent })),
+	() =>
+		import("@/components/hitl-edit-panel/hitl-edit-panel").then((m) => ({
+			default: m.HitlEditPanelContent,
+		})),
 	{ ssr: false, loading: () => <Skeleton className="h-96 w-full" /> }
 );
 
 const ReportPanelContent = dynamic(
-	() => import("@/components/report-panel/report-panel").then((m) => ({ default: m.ReportPanelContent })),
+	() =>
+		import("@/components/report-panel/report-panel").then((m) => ({
+			default: m.ReportPanelContent,
+		})),
 	{ ssr: false, loading: () => <Skeleton className="h-96 w-full" /> }
 );
 

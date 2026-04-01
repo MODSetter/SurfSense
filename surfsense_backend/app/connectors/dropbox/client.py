@@ -225,18 +225,14 @@ class DropboxClient:
 
         return all_items, None
 
-    async def get_metadata(
-        self, path: str
-    ) -> tuple[dict[str, Any] | None, str | None]:
+    async def get_metadata(self, path: str) -> tuple[dict[str, Any] | None, str | None]:
         resp = await self._request("/2/files/get_metadata", {"path": path})
         if resp.status_code != 200:
             return None, f"Failed to get metadata: {resp.status_code} - {resp.text}"
         return resp.json(), None
 
     async def download_file(self, path: str) -> tuple[bytes | None, str | None]:
-        resp = await self._content_request(
-            "/2/files/download", {"path": path}
-        )
+        resp = await self._content_request("/2/files/download", {"path": path})
         if resp.status_code != 200:
             return None, f"Download failed: {resp.status_code}"
         return resp.content, None

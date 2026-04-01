@@ -3,8 +3,8 @@
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { getBearerToken } from "@/lib/auth-utils";
 import { HeroSection } from "@/components/homepage/hero-section";
+import { getBearerToken } from "@/lib/auth-utils";
 
 const FeaturesCards = dynamic(
 	() => import("@/components/homepage/features-card").then((m) => ({ default: m.FeaturesCards })),

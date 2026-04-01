@@ -287,47 +287,57 @@ export const DropboxConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCha
 								<SelectValue placeholder="Select limit" />
 							</SelectTrigger>
 							<SelectContent className="z-[100]">
-								<SelectItem value="50" className="text-xs sm:text-sm">50 files</SelectItem>
-								<SelectItem value="100" className="text-xs sm:text-sm">100 files</SelectItem>
-								<SelectItem value="250" className="text-xs sm:text-sm">250 files</SelectItem>
-								<SelectItem value="500" className="text-xs sm:text-sm">500 files</SelectItem>
-								<SelectItem value="1000" className="text-xs sm:text-sm">1000 files</SelectItem>
+								<SelectItem value="50" className="text-xs sm:text-sm">
+									50 files
+								</SelectItem>
+								<SelectItem value="100" className="text-xs sm:text-sm">
+									100 files
+								</SelectItem>
+								<SelectItem value="250" className="text-xs sm:text-sm">
+									250 files
+								</SelectItem>
+								<SelectItem value="500" className="text-xs sm:text-sm">
+									500 files
+								</SelectItem>
+								<SelectItem value="1000" className="text-xs sm:text-sm">
+									1000 files
+								</SelectItem>
 							</SelectContent>
 						</Select>
 					</div>
 				</div>
 
-			<div className="flex items-center justify-between pt-2 border-t border-slate-400/20">
-				<div className="space-y-0.5">
-					<Label htmlFor="db-incremental-sync" className="text-sm font-medium">
-						Incremental sync
-					</Label>
-					<p className="text-xs text-muted-foreground">
-						Only sync changes since last index (faster). Disable for a full re-index.
-					</p>
+				<div className="flex items-center justify-between pt-2 border-t border-slate-400/20">
+					<div className="space-y-0.5">
+						<Label htmlFor="db-incremental-sync" className="text-sm font-medium">
+							Incremental sync
+						</Label>
+						<p className="text-xs text-muted-foreground">
+							Only sync changes since last index (faster). Disable for a full re-index.
+						</p>
+					</div>
+					<Switch
+						id="db-incremental-sync"
+						checked={indexingOptions.incremental_sync}
+						onCheckedChange={(checked) => handleIndexingOptionChange("incremental_sync", checked)}
+					/>
 				</div>
-				<Switch
-					id="db-incremental-sync"
-					checked={indexingOptions.incremental_sync}
-					onCheckedChange={(checked) => handleIndexingOptionChange("incremental_sync", checked)}
-				/>
-			</div>
 
-			<div className="flex items-center justify-between pt-2 border-t border-slate-400/20">
-				<div className="space-y-0.5">
-					<Label htmlFor="db-include-subfolders" className="text-sm font-medium">
-						Include subfolders
-					</Label>
-					<p className="text-xs text-muted-foreground">
-						Recursively index files in subfolders of selected folders
-					</p>
+				<div className="flex items-center justify-between pt-2 border-t border-slate-400/20">
+					<div className="space-y-0.5">
+						<Label htmlFor="db-include-subfolders" className="text-sm font-medium">
+							Include subfolders
+						</Label>
+						<p className="text-xs text-muted-foreground">
+							Recursively index files in subfolders of selected folders
+						</p>
+					</div>
+					<Switch
+						id="db-include-subfolders"
+						checked={indexingOptions.include_subfolders}
+						onCheckedChange={(checked) => handleIndexingOptionChange("include_subfolders", checked)}
+					/>
 				</div>
-				<Switch
-					id="db-include-subfolders"
-					checked={indexingOptions.include_subfolders}
-					onCheckedChange={(checked) => handleIndexingOptionChange("include_subfolders", checked)}
-				/>
-			</div>
 			</div>
 		</div>
 	);

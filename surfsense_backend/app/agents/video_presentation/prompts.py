@@ -1,9 +1,10 @@
 import datetime
 
-# TODO: move these to config file
-MAX_SLIDES = 5
-FPS = 30
-DEFAULT_DURATION_IN_FRAMES = 300
+from app.config import config as app_config
+
+MAX_SLIDES = app_config.VIDEO_PRESENTATION_MAX_SLIDES
+FPS = app_config.VIDEO_PRESENTATION_FPS
+DEFAULT_DURATION_IN_FRAMES = app_config.VIDEO_PRESENTATION_DEFAULT_DURATION_IN_FRAMES
 
 THEME_PRESETS = [
     "TERRA",

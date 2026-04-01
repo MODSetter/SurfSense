@@ -72,12 +72,7 @@ export function TabBar({ onTabSwitch, onNewChat, rightActions, className }: TabB
 	if (tabs.length <= 1) return null;
 
 	return (
-		<div
-			className={cn(
-				"mb-2 flex h-9 items-center shrink-0 px-1 gap-0.5",
-				className
-			)}
-		>
+		<div className={cn("mb-2 flex h-9 items-center shrink-0 px-1 gap-0.5", className)}>
 			<div
 				ref={scrollRef}
 				className="flex h-full items-center flex-1 gap-0.5 overflow-x-auto overflow-y-hidden scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden py-1"

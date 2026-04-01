@@ -8,11 +8,12 @@ const demoPlans = [
 		price: "0",
 		yearlyPrice: "0",
 		period: "",
-		billingText: "",
+		billingText: "1,000 pages included",
 		features: [
 			"Self Hostable",
-			"Upload and chat with 300+ pages of content",
-			"Includes access to ChatGPT text and audio models",
+			"1,000 pages included to start",
+			"Earn up to 6,000+ bonus pages for free",
+			"Includes access to OpenAI text, audio and image models",
 			"Realtime Collaborative Group Chats with teammates",
 			"Community support on Discord",
 		],
@@ -22,21 +23,20 @@ const demoPlans = [
 		isPopular: false,
 	},
 	{
-		name: "PRO",
-		price: "0",
-		yearlyPrice: "0",
-		period: "",
-		billingText: "Free during beta",
+		name: "PAY AS YOU GO",
+		price: "1",
+		yearlyPrice: "1",
+		period: "1,000 pages",
+		billingText: "No subscription, buy only when you need more",
 		features: [
 			"Everything in Free",
-			"Includes 6000+ pages of content",
-			"Access to more models and providers",
+			"Buy 1,000-page packs at $1 each",
 			"Priority support on Discord",
 		],
 		description: "",
 		buttonText: "Get Started",
 		href: "/login",
-		isPopular: true,
+		isPopular: false,
 	},
 	{
 		name: "ENTERPRISE",
@@ -45,7 +45,7 @@ const demoPlans = [
 		period: "",
 		billingText: "",
 		features: [
-			"Everything in Pro",
+			"Everything in Pay As You Go",
 			"On-prem or VPC deployment",
 			"Audit logs and compliance",
 			"SSO, OIDC & SAML",
@@ -63,7 +63,11 @@ const demoPlans = [
 
 function PricingBasic() {
 	return (
-		<Pricing plans={demoPlans} title="SurfSense Pricing" description="Choose what works for you" />
+		<Pricing
+			plans={demoPlans}
+			title="SurfSense Pricing"
+			description="Start free with 1,000 pages. Earn up to 6,000+ more or buy as you go."
+		/>
 	);
 }
 

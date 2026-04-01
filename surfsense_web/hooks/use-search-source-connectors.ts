@@ -185,7 +185,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 			}
 
 			const newConnector = await response.json();
-			setConnectors(prev => {
+			setConnectors((prev) => {
 				const updated = [...prev, newConnector];
 				updateConnectorSourceItems(updated);
 				return updated;
@@ -221,8 +221,8 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 			}
 
 			const updatedConnector = await response.json();
-			setConnectors(prev => {
-				const updated = prev.map(c => c.id === connectorId ? updatedConnector : c);
+			setConnectors((prev) => {
+				const updated = prev.map((c) => (c.id === connectorId ? updatedConnector : c));
 				updateConnectorSourceItems(updated);
 				return updated;
 			});
@@ -250,8 +250,8 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 				throw new Error(`Failed to delete connector: ${response.statusText}`);
 			}
 
-			setConnectors(prev => {
-				const updated = prev.filter(c => c.id !== connectorId);
+			setConnectors((prev) => {
+				const updated = prev.filter((c) => c.id !== connectorId);
 				updateConnectorSourceItems(updated);
 				return updated;
 			});
@@ -299,19 +299,18 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 			const result = await response.json();
 
 			// Update the connector's last_indexed_at timestamp
-			setConnectors(prev =>
-				prev.map(c => c.id === connectorId
-					? { ...c, last_indexed_at: new Date().toISOString() }
-					: c
+			setConnectors((prev) =>
+				prev.map((c) =>
+					c.id === connectorId ? { ...c, last_indexed_at: new Date().toISOString() } : c
 				)
 			);
 
 			return result;
-	} catch (err) {
-		console.error("Error indexing connector content:", err);
-		throw err;
-	}
-};
+		} catch (err) {
+			console.error("Error indexing connector content:", err);
+			throw err;
+		}
+	};
 
 	/**
 	 * Get connector source items - memoized to prevent unnecessary re-renders

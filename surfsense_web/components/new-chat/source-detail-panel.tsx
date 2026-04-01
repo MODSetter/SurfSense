@@ -55,8 +55,8 @@ interface ChunkCardProps {
 	disableLayoutAnimation?: boolean;
 }
 
-const ChunkCard = memo(forwardRef<HTMLDivElement, ChunkCardProps>(
-	({ chunk, index, totalChunks, isCited }, ref) => {
+const ChunkCard = memo(
+	forwardRef<HTMLDivElement, ChunkCardProps>(({ chunk, index, totalChunks, isCited }, ref) => {
 		return (
 			<div
 				ref={ref}
@@ -100,8 +100,8 @@ const ChunkCard = memo(forwardRef<HTMLDivElement, ChunkCardProps>(
 				</div>
 			</div>
 		);
-	}
-));
+	})
+);
 ChunkCard.displayName = "ChunkCard";
 
 export function SourceDetailPanel({

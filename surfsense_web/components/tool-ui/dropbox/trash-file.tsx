@@ -116,7 +116,11 @@ function ApprovalCard({
 			type: "approve",
 			edited_action: {
 				name: interruptData.action_requests[0].name,
-				args: { file_path: file?.file_path, connector_id: account?.id, delete_from_kb: deleteFromKb },
+				args: {
+					file_path: file?.file_path,
+					connector_id: account?.id,
+					delete_from_kb: deleteFromKb,
+				},
 			},
 		});
 	}, [phase, setProcessing, onDecision, interruptData, file?.file_path, account?.id, deleteFromKb]);

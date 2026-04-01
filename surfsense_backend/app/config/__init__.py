@@ -231,6 +231,21 @@ class Config:
     # Backend URL to override the http to https in the OAuth redirect URI
     BACKEND_URL = os.getenv("BACKEND_URL")
 
+    # Stripe checkout for pay-as-you-go page packs
+    STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+    STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+    STRIPE_PRICE_ID = os.getenv("STRIPE_PRICE_ID")
+    STRIPE_PAGES_PER_UNIT = int(os.getenv("STRIPE_PAGES_PER_UNIT", "1000"))
+    STRIPE_PAGE_BUYING_ENABLED = (
+        os.getenv("STRIPE_PAGE_BUYING_ENABLED", "TRUE").upper() == "TRUE"
+    )
+    STRIPE_RECONCILIATION_LOOKBACK_MINUTES = int(
+        os.getenv("STRIPE_RECONCILIATION_LOOKBACK_MINUTES", "10")
+    )
+    STRIPE_RECONCILIATION_BATCH_SIZE = int(
+        os.getenv("STRIPE_RECONCILIATION_BATCH_SIZE", "100")
+    )
+
     # Auth
     AUTH_TYPE = os.getenv("AUTH_TYPE")
     REGISTRATION_ENABLED = os.getenv("REGISTRATION_ENABLED", "TRUE").upper() == "TRUE"
@@ -399,6 +414,15 @@ class Config:
     STT_SERVICE = os.getenv("STT_SERVICE")
     STT_SERVICE_API_BASE = os.getenv("STT_SERVICE_API_BASE")
     STT_SERVICE_API_KEY = os.getenv("STT_SERVICE_API_KEY")
+
+    # Video presentation defaults
+    VIDEO_PRESENTATION_MAX_SLIDES = int(
+        os.getenv("VIDEO_PRESENTATION_MAX_SLIDES", "30")
+    )
+    VIDEO_PRESENTATION_FPS = int(os.getenv("VIDEO_PRESENTATION_FPS", "30"))
+    VIDEO_PRESENTATION_DEFAULT_DURATION_IN_FRAMES = int(
+        os.getenv("VIDEO_PRESENTATION_DEFAULT_DURATION_IN_FRAMES", "300")
+    )
 
     # Validation Checks
     # Check embedding dimension

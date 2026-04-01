@@ -235,7 +235,13 @@ export function Audio({ id, src, title, durationMs, className }: AudioProps) {
 					</Button>
 
 					<div className="group/volume flex items-center gap-1 sm:gap-1.5">
-						<Button variant="ghost" size="icon" onClick={toggleMute} className="size-7 sm:size-8" aria-label={isMuted ? "Unmute" : "Mute"}>
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={toggleMute}
+							className="size-7 sm:size-8"
+							aria-label={isMuted ? "Unmute" : "Mute"}
+						>
 							{isMuted ? (
 								<VolumeXIcon className="size-3.5 sm:size-4" />
 							) : (

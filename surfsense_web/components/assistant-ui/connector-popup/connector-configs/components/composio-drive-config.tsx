@@ -239,7 +239,7 @@ export const ComposioDriveConfig: FC<ConnectorConfigProps> = ({ connector, onCon
 					<div className="space-y-2">
 						<button
 							type="button"
-							onClick={() => setIsFolderTreeOpen(prev => !prev)}
+							onClick={() => setIsFolderTreeOpen((prev) => !prev)}
 							className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
 						>
 							Change Selection

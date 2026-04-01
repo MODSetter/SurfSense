@@ -117,8 +117,10 @@ async def complete_task(
     )
     session.add(new_task)
 
-    # Update user's pages_limit
-    user.pages_limit += pages_reward
+    # pages_used can exceed pages_limit when a document's final page count is
+    # determined after processing. Base the new limit on the higher of the two
+    # so the rewarded pages are fully usable above the current high-water mark.
+    user.pages_limit = max(user.pages_used, user.pages_limit) + pages_reward
 
     await session.commit()
     await session.refresh(user)

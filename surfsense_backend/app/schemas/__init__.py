@@ -110,6 +110,14 @@ from .search_space import (
     SearchSpaceUpdate,
     SearchSpaceWithStats,
 )
+from .stripe import (
+    CreateCheckoutSessionRequest,
+    CreateCheckoutSessionResponse,
+    PagePurchaseHistoryResponse,
+    PagePurchaseRead,
+    StripeStatusResponse,
+    StripeWebhookResponse,
+)
 from .users import UserCreate, UserRead, UserUpdate
 from .video_presentations import (
     VideoPresentationBase,
@@ -128,6 +136,8 @@ __all__ = [
     "ChunkCreate",
     "ChunkRead",
     "ChunkUpdate",
+    "CreateCheckoutSessionRequest",
+    "CreateCheckoutSessionResponse",
     "DefaultSystemInstructionsResponse",
     # Document schemas
     "DocumentBase",
@@ -207,6 +217,8 @@ __all__ = [
     "NewLLMConfigPublic",
     "NewLLMConfigRead",
     "NewLLMConfigUpdate",
+    "PagePurchaseHistoryResponse",
+    "PagePurchaseRead",
     "PaginatedResponse",
     "PermissionInfo",
     "PermissionsListResponse",
@@ -236,6 +248,8 @@ __all__ = [
     "SearchSpaceRead",
     "SearchSpaceUpdate",
     "SearchSpaceWithStats",
+    "StripeStatusResponse",
+    "StripeWebhookResponse",
     "ThreadHistoryLoadResponse",
     "ThreadListItem",
     "ThreadListResponse",

@@ -668,7 +668,7 @@ export function OnboardingTour() {
 	const handleNext = useCallback(() => {
 		retryCountRef.current = 0;
 		setShouldAnimate(true);
-		setStepIndex(prev => {
+		setStepIndex((prev) => {
 			if (prev < TOUR_STEPS.length - 1) {
 				return prev + 1;
 			} else {
@@ -686,7 +686,7 @@ export function OnboardingTour() {
 	const handlePrev = useCallback(() => {
 		retryCountRef.current = 0;
 		setShouldAnimate(true);
-		setStepIndex(prev => {
+		setStepIndex((prev) => {
 			if (prev > 0) {
 				return prev - 1;
 			}

@@ -230,7 +230,9 @@ export function PromptsContent() {
 							Cancel
 						</Button>
 						<Button size="sm" onClick={handleSave} disabled={isSaving} className="relative">
-							<span className={isSaving ? "opacity-0" : ""}>{editingId !== null ? "Update" : "Create"}</span>
+							<span className={isSaving ? "opacity-0" : ""}>
+								{editingId !== null ? "Update" : "Create"}
+							</span>
 							{isSaving && <Spinner className="size-3.5 absolute" />}
 						</Button>
 					</div>
@@ -286,21 +288,21 @@ export function PromptsContent() {
 								)}
 							</div>
 							<div className="hidden group-hover:flex items-center gap-1 shrink-0">
-							<button
-								type="button"
-								title={prompt.is_public ? "Make private" : "Share with community"}
-								onClick={() => handleTogglePublic(prompt)}
-								disabled={togglingPublicIds.has(prompt.id)}
-								className="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50 disabled:pointer-events-none"
-							>
-								{togglingPublicIds.has(prompt.id) ? (
-									<Spinner className="size-3.5" />
-								) : prompt.is_public ? (
-									<Lock className="size-3.5" />
-								) : (
-									<Globe className="size-3.5" />
-								)}
-							</button>
+								<button
+									type="button"
+									title={prompt.is_public ? "Make private" : "Share with community"}
+									onClick={() => handleTogglePublic(prompt)}
+									disabled={togglingPublicIds.has(prompt.id)}
+									className="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50 disabled:pointer-events-none"
+								>
+									{togglingPublicIds.has(prompt.id) ? (
+										<Spinner className="size-3.5" />
+									) : prompt.is_public ? (
+										<Lock className="size-3.5" />
+									) : (
+										<Globe className="size-3.5" />
+									)}
+								</button>
 								<Button
 									variant="ghost"
 									size="icon"
@@ -323,7 +325,10 @@ export function PromptsContent() {
 				</div>
 			)}
 
-			<AlertDialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+			<AlertDialog
+				open={deleteTarget !== null}
+				onOpenChange={(open) => !open && setDeleteTarget(null)}
+			>
 				<AlertDialogContent>
 					<AlertDialogHeader>
 						<AlertDialogTitle>Delete prompt</AlertDialogTitle>

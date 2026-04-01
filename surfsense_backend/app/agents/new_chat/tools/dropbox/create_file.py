@@ -145,8 +145,7 @@ def create_create_dropbox_file_tool(
                                 "name": item["name"],
                             }
                             for item in items
-                            if item.get(".tag") == "folder"
-                            and item.get("name")
+                            if item.get(".tag") == "folder" and item.get("name")
                         ]
                 except Exception:
                     logger.warning(
@@ -239,12 +238,12 @@ def create_create_dropbox_file_tool(
             client = DropboxClient(session=db_session, connector_id=connector.id)
 
             parent_path = final_parent_folder_path or ""
-            file_path = f"{parent_path}/{final_name}" if parent_path else f"/{final_name}"
+            file_path = (
+                f"{parent_path}/{final_name}" if parent_path else f"/{final_name}"
+            )
 
             if final_file_type == "paper":
-                created = await client.create_paper_doc(
-                    file_path, final_content or ""
-                )
+                created = await client.create_paper_doc(file_path, final_content or "")
                 file_id = created.get("file_id", "")
                 web_url = created.get("url", "")
             else:
@@ -255,9 +254,7 @@ def create_create_dropbox_file_tool(
                 file_id = created.get("id", "")
                 web_url = ""
 
-            logger.info(
-                f"Dropbox file created: id={file_id}, name={final_name}"
-            )
+            logger.info(f"Dropbox file created: id={file_id}, name={final_name}")
 
             kb_message_suffix = ""
             try:

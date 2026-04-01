@@ -72,9 +72,7 @@ async def connect_dropbox(space_id: int, user: User = Depends(current_active_use
         if not space_id:
             raise HTTPException(status_code=400, detail="space_id is required")
         if not config.DROPBOX_APP_KEY:
-            raise HTTPException(
-                status_code=500, detail="Dropbox OAuth not configured."
-            )
+            raise HTTPException(status_code=500, detail="Dropbox OAuth not configured.")
         if not config.SECRET_KEY:
             raise HTTPException(
                 status_code=500, detail="SECRET_KEY not configured for OAuth security."

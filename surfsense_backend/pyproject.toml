@@ -74,6 +74,7 @@ dependencies = [
     "langgraph>=1.1.3",
     "langchain-community>=0.4.1",
     "deepagents>=0.4.12",
+    "stripe>=15.0.0",
 ]
 
 [dependency-groups]
