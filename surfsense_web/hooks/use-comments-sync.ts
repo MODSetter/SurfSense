@@ -118,8 +118,9 @@ function transformComments(
 
 	for (const [messageId, group] of byMessage) {
 		const comments: Comment[] = group.topLevel.map((raw) => {
-			const replies = (group.replies.get(raw.id) || [])
-				.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+			const replies = (group.replies.get(raw.id) ?? []).toSorted(
+				(a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+			)
 				.map((r) => transformReply(r, memberMap, currentUserId, isOwner));
 
 			return {
