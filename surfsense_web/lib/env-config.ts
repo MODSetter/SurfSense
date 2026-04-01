@@ -45,4 +45,3 @@ export const isSelfHosted = () => DEPLOYMENT_MODE === "self-hosted";
 
 // Helper to check if running in cloud mode
 export const isCloud = () => DEPLOYMENT_MODE === "cloud";
-

@@ -46,9 +46,7 @@ export function BuyPagesContent() {
 		return (
 			<div className="w-full space-y-3 text-center">
 				<h2 className="text-xl font-bold tracking-tight">Buy Pages</h2>
-				<p className="text-sm text-muted-foreground">
-					Page purchases are temporarily unavailable.
-				</p>
+				<p className="text-sm text-muted-foreground">Page purchases are temporarily unavailable.</p>
 			</div>
 		);
 	}
@@ -68,9 +66,7 @@ export function BuyPagesContent() {
 		<div className="w-full space-y-5">
 			<div className="text-center">
 				<h2 className="text-xl font-bold tracking-tight">Buy Pages</h2>
-				<p className="mt-1 text-sm text-muted-foreground">
-					$1 per 1,000 pages, pay as you go
-				</p>
+				<p className="mt-1 text-sm text-muted-foreground">$1 per 1,000 pages, pay as you go</p>
 			</div>
 
 			<div className="space-y-3">
@@ -118,7 +114,9 @@ export function BuyPagesContent() {
 				</div>
 
 				<div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2">
-					<span className="text-sm font-medium tabular-nums">{totalPages.toLocaleString()} pages</span>
+					<span className="text-sm font-medium tabular-nums">
+						{totalPages.toLocaleString()} pages
+					</span>
 					<span className="text-sm font-semibold tabular-nums">${totalPrice}</span>
 				</div>
 
@@ -133,12 +131,12 @@ export function BuyPagesContent() {
 							Redirecting
 						</>
 					) : (
-						<>Buy {totalPages.toLocaleString()} Pages for ${totalPrice}</>
+						<>
+							Buy {totalPages.toLocaleString()} Pages for ${totalPrice}
+						</>
 					)}
 				</Button>
-				<p className="text-center text-[11px] text-muted-foreground">
-					Secure checkout via Stripe
-				</p>
+				<p className="text-center text-[11px] text-muted-foreground">Secure checkout via Stripe</p>
 			</div>
 		</div>
 	);

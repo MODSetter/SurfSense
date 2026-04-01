@@ -99,10 +99,7 @@ function StatusIcon({
 	if (status === "background_sync") {
 		return (
 			<RefreshCw
-				className={cn(
-					"shrink-0 text-primary animate-[spin_3s_linear_infinite]",
-					className
-				)}
+				className={cn("shrink-0 text-primary animate-[spin_3s_linear_infinite]", className)}
 			/>
 		);
 	}

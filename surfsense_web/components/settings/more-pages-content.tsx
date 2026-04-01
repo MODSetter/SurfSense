@@ -8,10 +8,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { USER_QUERY_KEY } from "@/atoms/user/user-query.atoms";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
 	Dialog,
 	DialogContent,
@@ -98,7 +95,11 @@ export function MorePagesContent() {
 							Limited offer. Schedule a meeting or email us to claim.
 						</p>
 					</div>
-					<Button size="sm" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={() => setClaimOpen(true)}>
+					<Button
+						size="sm"
+						className="bg-emerald-600 text-white hover:bg-emerald-700"
+						onClick={() => setClaimOpen(true)}
+					>
 						Claim
 					</Button>
 				</CardContent>
@@ -133,7 +134,11 @@ export function MorePagesContent() {
 											task.completed ? "bg-primary text-primary-foreground" : "bg-muted"
 										)}
 									>
-										{task.completed ? <Check className="h-3.5 w-3.5" /> : <span className="text-xs font-semibold">+{task.pages_reward}</span>}
+										{task.completed ? (
+											<Check className="h-3.5 w-3.5" />
+										) : (
+											<span className="text-xs font-semibold">+{task.pages_reward}</span>
+										)}
 									</div>
 									<p
 										className={cn(
@@ -199,7 +204,8 @@ export function MorePagesContent() {
 					<DialogHeader>
 						<DialogTitle>Claim 6,000 Free Pages</DialogTitle>
 						<DialogDescription>
-							Send us an email to claim your free 6,000 pages. Include your account email and primary usecase for free pages.
+							Send us an email to claim your free 6,000 pages. Include your account email and
+							primary usecase for free pages.
 						</DialogDescription>
 					</DialogHeader>
 					<Button asChild className="w-full gap-2">

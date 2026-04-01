@@ -160,10 +160,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 				: [];
 
 		const accountCount = typeConnectors.length;
-		const documentCount = getDocumentCountForConnector(
-			connector.connectorType,
-			documentTypeCounts
-		);
+		const documentCount = getDocumentCountForConnector(connector.connectorType, documentTypeCounts);
 		const isIndexing = typeConnectors.some((c) => indexingConnectorIds?.has(c.id));
 
 		return (
@@ -199,18 +196,14 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 					)
 				: undefined;
 
-		const documentCount = getDocumentCountForConnector(
-			connector.connectorType,
-			documentTypeCounts
-		);
+		const documentCount = getDocumentCountForConnector(connector.connectorType, documentTypeCounts);
 		const isIndexing = actualConnector && indexingConnectorIds?.has(actualConnector.id);
 
 		const isMCP = connector.connectorType === EnumConnectorName.MCP_CONNECTOR;
 		const mcpConnectorCount =
 			isMCP && allConnectors
 				? allConnectors.filter(
-						(c: SearchSourceConnector) =>
-							c.connector_type === EnumConnectorName.MCP_CONNECTOR
+						(c: SearchSourceConnector) => c.connector_type === EnumConnectorName.MCP_CONNECTOR
 					).length
 				: undefined;
 
@@ -231,9 +224,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 				connectorCount={mcpConnectorCount}
 				isIndexing={isIndexing}
 				onConnect={handleConnect}
-				onManage={
-					actualConnector && onManage ? () => onManage(actualConnector) : undefined
-				}
+				onManage={actualConnector && onManage ? () => onManage(actualConnector) : undefined}
 			/>
 		);
 	};
@@ -241,9 +232,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 	const renderCrawlerCard = (crawler: CrawlerConnector) => {
 		const isYouTube = crawler.id === "youtube-crawler";
 		const isWebcrawler = crawler.id === "webcrawler-connector";
-		const isConnected = crawler.connectorType
-			? connectedTypes.has(crawler.connectorType)
-			: false;
+		const isConnected = crawler.connectorType ? connectedTypes.has(crawler.connectorType) : false;
 		const isConnecting = connectingId === crawler.id;
 
 		const actualConnector =
@@ -283,9 +272,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 				documentCount={documentCount}
 				isIndexing={isIndexing}
 				onConnect={handleConnect}
-				onManage={
-					actualConnector && onManage ? () => onManage(actualConnector) : undefined
-				}
+				onManage={actualConnector && onManage ? () => onManage(actualConnector) : undefined}
 			/>
 		);
 	};

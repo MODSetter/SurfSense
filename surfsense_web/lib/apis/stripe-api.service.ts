@@ -13,9 +13,13 @@ class StripeApiService {
 	createCheckoutSession = async (
 		request: CreateCheckoutSessionRequest
 	): Promise<CreateCheckoutSessionResponse> => {
-		return baseApiService.post("/api/v1/stripe/create-checkout-session", createCheckoutSessionResponse, {
-			body: request,
-		});
+		return baseApiService.post(
+			"/api/v1/stripe/create-checkout-session",
+			createCheckoutSessionResponse,
+			{
+				body: request,
+			}
+		);
 	};
 
 	getPurchases = async (): Promise<GetPagePurchasesResponse> => {
