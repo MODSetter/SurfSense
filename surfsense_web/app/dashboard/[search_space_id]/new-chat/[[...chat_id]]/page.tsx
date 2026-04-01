@@ -228,13 +228,14 @@ export default function NewChatPage() {
 					return prev;
 				}
 
+				const memberById = new Map(membersData?.map((m) => [m.user_id, m]) ?? []);
+				const prevById = new Map(prev.map((m) => [m.id, m]));
+
 				return syncedMessages.map((msg) => {
-					const member = msg.author_id
-						? membersData?.find((m) => m.user_id === msg.author_id)
-						: null;
+					const member = msg.author_id ? memberById.get(msg.author_id) ?? null : null;
 
 					// Preserve existing author info if member lookup fails (e.g., cloned chats)
-					const existingMsg = prev.find((m) => m.id === `msg-${msg.id}`);
+					const existingMsg = prevById.get(`msg-${msg.id}`);
 					const existingAuthor = existingMsg?.metadata?.custom?.author as
 						| { displayName?: string | null; avatarUrl?: string | null }
 						| undefined;
