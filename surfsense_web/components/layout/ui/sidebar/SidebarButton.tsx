@@ -16,6 +16,10 @@ interface SidebarButtonProps {
 	collapsedOverlay?: React.ReactNode;
 	/** Custom icon node for expanded mode — overrides the default <Icon> rendering */
 	expandedIconNode?: React.ReactNode;
+	/** Optional inline trailing content shown in expanded mode */
+	trailingContent?: React.ReactNode;
+	/** Optional tooltip content that replaces the default label tooltip */
+	tooltipContent?: React.ReactNode;
 	className?: string;
 	/** Extra attributes spread onto the inner <button> (e.g. data-joyride) */
 	buttonProps?: React.ButtonHTMLAttributes<HTMLButtonElement>;
@@ -42,6 +46,8 @@ export function SidebarButton({
 	badge,
 	collapsedOverlay,
 	expandedIconNode,
+	trailingContent,
+	tooltipContent,
 	className,
 	buttonProps,
 }: SidebarButtonProps) {
@@ -62,15 +68,19 @@ export function SidebarButton({
 						<span className="sr-only">{label}</span>
 					</button>
 				</TooltipTrigger>
-				<TooltipContent side="right">
-					{label}
-					{typeof badge === "string" && ` (${badge})`}
+				<TooltipContent side="right" className="max-w-xs">
+					{tooltipContent ?? (
+						<>
+							{label}
+							{typeof badge === "string" && ` (${badge})`}
+						</>
+					)}
 				</TooltipContent>
 			</Tooltip>
 		);
 	}
 
-	return (
+	const button = (
 		<button
 			type="button"
 			onClick={onClick}
@@ -79,6 +89,7 @@ export function SidebarButton({
 		>
 			{expandedIconNode ?? <Icon className="h-4 w-4 shrink-0" />}
 			<span className="flex-1 truncate">{label}</span>
+			{trailingContent}
 			{badge && typeof badge !== "string" ? badge : null}
 			{badge && typeof badge === "string" ? (
 				<span className="inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-medium">
@@ -86,5 +97,18 @@ export function SidebarButton({
 				</span>
 			) : null}
 		</button>
+	);
+
+	if (!tooltipContent) {
+		return button;
+	}
+
+	return (
+		<Tooltip>
+			<TooltipTrigger asChild>{button}</TooltipTrigger>
+			<TooltipContent side="right" className="max-w-xs">
+				{tooltipContent}
+			</TooltipContent>
+		</Tooltip>
 	);
 }

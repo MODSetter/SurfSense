@@ -54,9 +54,7 @@ export function PageUsageDisplay({ pagesUsed, pagesLimit }: PageUsageDisplayProp
 							<CreditCard className="h-3 w-3 shrink-0" />
 							Buy Pages
 						</span>
-						<span className="text-[10px] font-medium text-muted-foreground">
-							$1/1k
-						</span>
+						<span className="text-[10px] font-medium text-muted-foreground">$1/1k</span>
 					</Link>
 				)}
 			</div>

@@ -447,6 +447,7 @@ async def create_surfsense_deep_agent(
     deepagent_middleware = [
         TodoListMiddleware(),
         KnowledgeBaseSearchMiddleware(
+            llm=llm,
             search_space_id=search_space_id,
             available_connectors=available_connectors,
             available_document_types=available_document_types,

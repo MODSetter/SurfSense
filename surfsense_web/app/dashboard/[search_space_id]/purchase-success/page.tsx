@@ -7,7 +7,14 @@ import { useParams } from "next/navigation";
 import { useEffect } from "react";
 import { USER_QUERY_KEY } from "@/atoms/user/user-query.atoms";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 
 export default function PurchaseSuccessPage() {
 	const params = useParams();

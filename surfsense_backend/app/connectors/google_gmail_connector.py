@@ -310,7 +310,7 @@ class GoogleGmailConnector:
         Fetch recent messages from Gmail within specified date range.
         Args:
             max_results: Maximum number of messages to fetch (default: 50)
-            start_date: Start date in YYYY-MM-DD format (default: 30 days ago)
+            start_date: Start date in YYYY-MM-DD format (default: 3 days ago)
             end_date: End date in YYYY-MM-DD format (default: today)
         Returns:
             Tuple containing (messages list with details, error message or None)
@@ -334,8 +334,8 @@ class GoogleGmailConnector:
                 start_query = start_dt.strftime("%Y/%m/%d")
                 query_parts.append(f"after:{start_query}")
             else:
-                # Default to 30 days ago
-                cutoff_date = datetime.now() - timedelta(days=30)
+                # Default to 3 days ago
+                cutoff_date = datetime.now() - timedelta(days=3)
                 date_query = cutoff_date.strftime("%Y/%m/%d")
                 query_parts.append(f"after:{date_query}")
 

@@ -152,7 +152,9 @@ class _FakeReconciliationStripeClient:
 
 
 class TestStripeCheckoutSessionCreation:
-    async def test_get_status_reflects_backend_toggle(self, client, headers, monkeypatch):
+    async def test_get_status_reflects_backend_toggle(
+        self, client, headers, monkeypatch
+    ):
         monkeypatch.setattr(stripe_routes.config, "STRIPE_PAGE_BUYING_ENABLED", False)
         disabled_response = await client.get("/api/v1/stripe/status", headers=headers)
         assert disabled_response.status_code == 200, disabled_response.text
@@ -237,7 +239,9 @@ class TestStripeCheckoutSessionCreation:
         )
 
         assert response.status_code == 503, response.text
-        assert response.json()["detail"] == "Page purchases are temporarily unavailable."
+        assert (
+            response.json()["detail"] == "Page purchases are temporarily unavailable."
+        )
 
         purchase_count = await _fetchrow("SELECT COUNT(*) AS count FROM page_purchases")
         assert purchase_count is not None

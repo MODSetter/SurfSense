@@ -17,9 +17,18 @@ import { stripeApiService } from "@/lib/apis/stripe-api.service";
 import { cn } from "@/lib/utils";
 
 const STATUS_STYLES: Record<PagePurchaseStatus, { label: string; className: string }> = {
-	completed: { label: "Completed", className: "bg-emerald-600 text-white border-transparent hover:bg-emerald-600" },
-	pending: { label: "Pending", className: "bg-yellow-600 text-white border-transparent hover:bg-yellow-600" },
-	failed: { label: "Failed", className: "bg-destructive text-white border-transparent hover:bg-destructive" },
+	completed: {
+		label: "Completed",
+		className: "bg-emerald-600 text-white border-transparent hover:bg-emerald-600",
+	},
+	pending: {
+		label: "Pending",
+		className: "bg-yellow-600 text-white border-transparent hover:bg-yellow-600",
+	},
+	failed: {
+		label: "Failed",
+		className: "bg-destructive text-white border-transparent hover:bg-destructive",
+	},
 };
 
 function formatDate(iso: string): string {
@@ -82,9 +91,7 @@ export function PurchaseHistoryContent() {
 							const style = STATUS_STYLES[p.status];
 							return (
 								<TableRow key={p.id}>
-									<TableCell className="text-sm">
-										{formatDate(p.created_at)}
-									</TableCell>
+									<TableCell className="text-sm">{formatDate(p.created_at)}</TableCell>
 									<TableCell className="text-right tabular-nums text-sm">
 										{p.pages_granted.toLocaleString()}
 									</TableCell>
@@ -92,9 +99,7 @@ export function PurchaseHistoryContent() {
 										{formatAmount(p)}
 									</TableCell>
 									<TableCell className="text-center">
-										<Badge className={cn("text-[10px]", style.className)}>
-											{style.label}
-										</Badge>
+										<Badge className={cn("text-[10px]", style.className)}>{style.label}</Badge>
 									</TableCell>
 								</TableRow>
 							);

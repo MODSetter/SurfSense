@@ -4,7 +4,14 @@ import { CircleSlash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 
 export default function PurchaseCancelPage() {
 	const params = useParams();
@@ -16,7 +23,9 @@ export default function PurchaseCancelPage() {
 				<CardHeader className="text-center">
 					<CircleSlash2 className="mx-auto h-10 w-10 text-muted-foreground" />
 					<CardTitle className="text-2xl">Checkout canceled</CardTitle>
-					<CardDescription>No charge was made and your current pages are unchanged.</CardDescription>
+					<CardDescription>
+						No charge was made and your current pages are unchanged.
+					</CardDescription>
 				</CardHeader>
 				<CardContent className="text-center text-sm text-muted-foreground">
 					You can return to the pricing options and try again whenever you&apos;re ready.
