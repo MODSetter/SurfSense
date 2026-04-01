@@ -35,6 +35,8 @@ const INTEGRATIONS: Integration[] = [
 
 	// Cloud Storage
 	{ name: "Google Drive", icon: "/connectors/google-drive.svg" },
+	{ name: "OneDrive", icon: "/connectors/onedrive.svg" },
+	{ name: "Dropbox", icon: "/connectors/dropbox.svg" },
 
 	// Development
 	{ name: "GitHub", icon: "/connectors/github.svg" },
@@ -56,11 +58,11 @@ const INTEGRATIONS: Integration[] = [
 	{ name: "MCP", icon: "/connectors/modelcontextprotocol.svg" },
 ];
 
-// 5 vertical columns — 23 icons spread across categories
+// 5 vertical columns — 26 icons spread across categories
 const COLUMNS: number[][] = [
 	[2, 5, 10, 0, 21, 11],
-	[1, 7, 20, 17],
-	[13, 6, 23, 4, 16],
+	[1, 7, 20, 17, 24],
+	[13, 6, 23, 4, 16, 25],
 	[12, 8, 15, 18],
 	[3, 9, 14, 22, 19],
 ];
@@ -131,7 +133,7 @@ function ScrollingColumn({
 
 	return (
 		<div
-			className="flex-shrink-0 overflow-hidden"
+			className="shrink-0 overflow-hidden"
 			style={{ ...columnMask, contain: "layout style paint" }}
 		>
 			{/* Outer div has NO gap — each inner copy uses pb matching the gap so both halves are identical in height → seamless -50% loop */}

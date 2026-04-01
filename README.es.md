@@ -23,7 +23,7 @@
 # SurfSense
 Conecta cualquier LLM a tus fuentes de conocimiento internas y chatea con él en tiempo real junto a tu equipo. Alternativa de código abierto a NotebookLM, Perplexity y Glean.
 
-SurfSense es un agente de investigación de IA altamente personalizable, conectado a fuentes externas como motores de búsqueda (SearxNG, Tavily, LinkUp), Google Drive, Slack, Microsoft Teams, Linear, Jira, ClickUp, Confluence, BookStack, Gmail, Notion, YouTube, GitHub, Discord, Airtable, Google Calendar, Luma, Circleback, Elasticsearch, Obsidian y más por venir.
+SurfSense es un agente de investigación de IA altamente personalizable, conectado a fuentes externas como motores de búsqueda (SearxNG, Tavily, LinkUp), Google Drive, OneDrive, Dropbox, Slack, Microsoft Teams, Linear, Jira, ClickUp, Confluence, BookStack, Gmail, Notion, YouTube, GitHub, Discord, Airtable, Google Calendar, Luma, Circleback, Elasticsearch, Obsidian y más por venir.
 
 
 
@@ -149,14 +149,14 @@ Para Docker Compose, instalación manual y otras opciones de despliegue, consult
 | Generación de Presentaciones | Crea presentaciones editables basadas en diapositivas |
 | Generación de Podcasts | Podcast de 3 min en menos de 20 segundos; múltiples proveedores TTS (OpenAI, Azure, Kokoro) |
 | Extensión de Navegador | Extensión multi-navegador para guardar cualquier página web, incluyendo páginas protegidas por autenticación |
-| 25+ Conectores | Motores de búsqueda, Google Drive, Slack, Teams, Jira, Notion, GitHub, Discord y [más](#fuentes-externas) |
+| 27+ Conectores | Motores de búsqueda, Google Drive, OneDrive, Dropbox, Slack, Teams, Jira, Notion, GitHub, Discord y [más](#fuentes-externas) |
 | Auto-Hospedable | Código abierto, Docker en un solo comando o Docker Compose completo para producción |
 
 <details>
 <summary><b>Lista completa de Fuentes Externas</b></summary>
 <a id="fuentes-externas"></a>
 
-Motores de Búsqueda (Tavily, LinkUp) · SearxNG · Google Drive · Slack · Microsoft Teams · Linear · Jira · ClickUp · Confluence · BookStack · Notion · Gmail · Videos de YouTube · GitHub · Discord · Airtable · Google Calendar · Luma · Circleback · Elasticsearch · Obsidian, y más por venir.
+Motores de Búsqueda (Tavily, LinkUp) · SearxNG · Google Drive · OneDrive · Dropbox · Slack · Microsoft Teams · Linear · Jira · ClickUp · Confluence · BookStack · Notion · Gmail · Videos de YouTube · GitHub · Discord · Airtable · Google Calendar · Luma · Circleback · Elasticsearch · Obsidian, y más por venir.
 
 </details>
 

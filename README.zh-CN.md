@@ -23,7 +23,7 @@
 # SurfSense
 将任何 LLM 连接到您的内部知识源，并与团队成员实时聊天。NotebookLM、Perplexity 和 Glean 的开源替代方案。
 
-SurfSense 是一个高度可定制的 AI 研究助手，可以连接外部数据源，如搜索引擎（SearxNG、Tavily、LinkUp）、Google Drive、Slack、Microsoft Teams、Linear、Jira、ClickUp、Confluence、BookStack、Gmail、Notion、YouTube、GitHub、Discord、Airtable、Google Calendar、Luma、Circleback、Elasticsearch、Obsidian 等，未来还会支持更多。
+SurfSense 是一个高度可定制的 AI 研究助手，可以连接外部数据源，如搜索引擎（SearxNG、Tavily、LinkUp）、Google Drive、OneDrive、Dropbox、Slack、Microsoft Teams、Linear、Jira、ClickUp、Confluence、BookStack、Gmail、Notion、YouTube、GitHub、Discord、Airtable、Google Calendar、Luma、Circleback、Elasticsearch、Obsidian 等，未来还会支持更多。
 
 
 
@@ -149,14 +149,14 @@ irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/in
 | 演示文稿生成 | 创建可编辑的幻灯片式演示文稿 |
 | 播客生成 | 20 秒内生成 3 分钟播客；多种 TTS 提供商（OpenAI、Azure、Kokoro） |
 | 浏览器扩展 | 跨浏览器扩展，保存任何网页，包括需要身份验证的页面 |
-| 25+ 连接器 | 搜索引擎、Google Drive、Slack、Teams、Jira、Notion、GitHub、Discord 等[更多](#外部数据源) |
+| 27+ 连接器 | 搜索引擎、Google Drive、OneDrive、Dropbox、Slack、Teams、Jira、Notion、GitHub、Discord 等[更多](#外部数据源) |
 | 可自托管 | 开源，Docker 一行命令或完整 Docker Compose 用于生产环境 |
 
 <details>
 <summary><b>外部数据源完整列表</b></summary>
 <a id="外部数据源"></a>
 
-搜索引擎（Tavily、LinkUp）· SearxNG · Google Drive · Slack · Microsoft Teams · Linear · Jira · ClickUp · Confluence · BookStack · Notion · Gmail · YouTube 视频 · GitHub · Discord · Airtable · Google Calendar · Luma · Circleback · Elasticsearch · Obsidian，更多即将推出。
+搜索引擎（Tavily、LinkUp）· SearxNG · Google Drive · OneDrive · Dropbox · Slack · Microsoft Teams · Linear · Jira · ClickUp · Confluence · BookStack · Notion · Gmail · YouTube 视频 · GitHub · Discord · Airtable · Google Calendar · Luma · Circleback · Elasticsearch · Obsidian，更多即将推出。
 
 </details>
 
