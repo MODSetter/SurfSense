@@ -36,6 +36,10 @@ zero-cache is included in the Docker Compose setup. The key environment variable
 | `ZERO_ADMIN_PASSWORD` | Password for the zero-cache admin UI and `/statz` endpoint | `surfsense-zero-admin` |
 | `ZERO_UPSTREAM_DB` | PostgreSQL connection URL for replication | Built from `DB_*` vars |
 | `NEXT_PUBLIC_ZERO_CACHE_URL` | URL the frontend uses to connect to zero-cache | `http://localhost:<ZERO_CACHE_PORT>` |
+| `ZERO_APP_PUBLICATIONS` | PostgreSQL publication restricting which tables are replicated | `zero_publication` |
+| `ZERO_NUM_SYNC_WORKERS` | Number of view-sync worker processes. Must be ≤ `ZERO_UPSTREAM_MAX_CONNS` and ≤ `ZERO_CVR_MAX_CONNS` | `4` |
+| `ZERO_UPSTREAM_MAX_CONNS` | Max connections to upstream PostgreSQL for mutations | `20` |
+| `ZERO_CVR_MAX_CONNS` | Max connections to the CVR database | `30` |
 
 ### Manual / Local Development
 
@@ -83,6 +87,7 @@ Zero syncs the following tables for real-time features:
 ## Troubleshooting
 
 - **zero-cache not starting**: Check `docker compose logs zero-cache`. Ensure PostgreSQL has `wal_level=logical` (configured in `postgresql.conf`).
+- **"Insufficient upstream connections" error**: zero-cache defaults `ZERO_NUM_SYNC_WORKERS` to the number of CPU cores, which can exceed connection pool limits on high-core machines. Lower `ZERO_NUM_SYNC_WORKERS` or raise `ZERO_UPSTREAM_MAX_CONNS` / `ZERO_CVR_MAX_CONNS` in your `.env`.
 - **Frontend not syncing**: Open DevTools → Console and check for WebSocket connection errors. Verify `NEXT_PUBLIC_ZERO_CACHE_URL` matches the running zero-cache address.
 - **Stale data after restart**: zero-cache rebuilds its SQLite replica from PostgreSQL on startup. This may take a moment for large databases.
 

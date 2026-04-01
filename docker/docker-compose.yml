@@ -170,13 +170,17 @@ services:
       ZERO_CHANGE_DB: ${ZERO_CHANGE_DB:-postgresql://${DB_USER:-surfsense}:${DB_PASSWORD:-surfsense}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}?sslmode=${DB_SSLMODE:-disable}}
       ZERO_REPLICA_FILE: /data/zero.db
       ZERO_ADMIN_PASSWORD: ${ZERO_ADMIN_PASSWORD:-surfsense-zero-admin}
+      ZERO_APP_PUBLICATIONS: ${ZERO_APP_PUBLICATIONS:-zero_publication}
+      ZERO_NUM_SYNC_WORKERS: ${ZERO_NUM_SYNC_WORKERS:-4}
+      ZERO_UPSTREAM_MAX_CONNS: ${ZERO_UPSTREAM_MAX_CONNS:-20}
+      ZERO_CVR_MAX_CONNS: ${ZERO_CVR_MAX_CONNS:-30}
       ZERO_QUERY_URL: ${ZERO_QUERY_URL:-http://frontend:3000/api/zero/query}
       ZERO_MUTATE_URL: ${ZERO_MUTATE_URL:-http://frontend:3000/api/zero/mutate}
     volumes:
       - zero_cache_data:/data
     restart: unless-stopped
     depends_on:
-      db:
+      backend:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4848/keepalive"]

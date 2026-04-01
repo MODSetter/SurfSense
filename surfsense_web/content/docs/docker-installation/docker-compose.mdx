@@ -71,6 +71,10 @@ Defaults work out of the box. Change `ZERO_ADMIN_PASSWORD` for security in produ
 | `ZERO_UPSTREAM_DB` | PostgreSQL connection URL for replication (must be a direct connection, not via pgbouncer) | *(built from DB_* vars)* |
 | `ZERO_CVR_DB` | PostgreSQL connection URL for client view records | *(built from DB_* vars)* |
 | `ZERO_CHANGE_DB` | PostgreSQL connection URL for replication log entries | *(built from DB_* vars)* |
+| `ZERO_APP_PUBLICATIONS` | PostgreSQL publication restricting which tables are replicated (created by migration 116) | `zero_publication` |
+| `ZERO_NUM_SYNC_WORKERS` | Number of view-sync worker processes. Must be ≤ connection pool sizes | `4` |
+| `ZERO_UPSTREAM_MAX_CONNS` | Max connections to upstream PostgreSQL for mutations | `20` |
+| `ZERO_CVR_MAX_CONNS` | Max connections to the CVR database | `30` |
 
 ### Database
 
