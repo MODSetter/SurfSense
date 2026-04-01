@@ -2,7 +2,7 @@
 
 import { KeyRound } from "lucide-react";
 import type { FC } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ConnectorConfigProps } from "../index";
@@ -26,17 +26,6 @@ export const BookStackConfig: FC<BookStackConfigProps> = ({
 		(connector.config?.BOOKSTACK_TOKEN_SECRET as string) || ""
 	);
 	const [name, setName] = useState<string>(connector.name || "");
-
-	// Update values when connector changes
-	useEffect(() => {
-		const url = (connector.config?.BOOKSTACK_BASE_URL as string) || "";
-		const id = (connector.config?.BOOKSTACK_TOKEN_ID as string) || "";
-		const secret = (connector.config?.BOOKSTACK_TOKEN_SECRET as string) || "";
-		setBaseUrl(url);
-		setTokenId(id);
-		setTokenSecret(secret);
-		setName(connector.name || "");
-	}, [connector.config, connector.name]);
 
 	const handleBaseUrlChange = (value: string) => {
 		setBaseUrl(value);

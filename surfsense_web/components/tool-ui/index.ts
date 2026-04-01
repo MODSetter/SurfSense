@@ -7,6 +7,7 @@
  */
 
 export { Audio } from "./audio";
+export { CreateDropboxFileToolUI, DeleteDropboxFileToolUI } from "./dropbox";
 export {
 	type GenerateImageArgs,
 	GenerateImageArgsSchema,
@@ -32,6 +33,7 @@ export {
 	UpdateLinearIssueToolUI,
 } from "./linear";
 export { CreateNotionPageToolUI, DeleteNotionPageToolUI, UpdateNotionPageToolUI } from "./notion";
+export { CreateOneDriveFileToolUI, DeleteOneDriveFileToolUI } from "./onedrive";
 export {
 	Plan,
 	PlanErrorBoundary,

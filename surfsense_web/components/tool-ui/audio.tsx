@@ -223,6 +223,7 @@ export function Audio({ id, src, title, durationMs, className }: AudioProps) {
 						onClick={togglePlayPause}
 						disabled={isLoading}
 						className="size-7 sm:size-8"
+						aria-label={isPlaying ? "Pause" : "Play"}
 					>
 						{isLoading ? (
 							<div className="size-3 sm:size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -234,7 +235,13 @@ export function Audio({ id, src, title, durationMs, className }: AudioProps) {
 					</Button>
 
 					<div className="group/volume flex items-center gap-1 sm:gap-1.5">
-						<Button variant="ghost" size="icon" onClick={toggleMute} className="size-7 sm:size-8">
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={toggleMute}
+							className="size-7 sm:size-8"
+							aria-label={isMuted ? "Unmute" : "Mute"}
+						>
 							{isMuted ? (
 								<VolumeXIcon className="size-3.5 sm:size-4" />
 							) : (

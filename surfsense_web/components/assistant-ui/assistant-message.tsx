@@ -3,24 +3,41 @@ import {
 	AuiIf,
 	ErrorPrimitive,
 	MessagePrimitive,
+	useAui,
 	useAuiState,
 } from "@assistant-ui/react";
 import { useAtomValue } from "jotai";
-import { CheckIcon, CopyIcon, DownloadIcon, MessageSquare, RefreshCwIcon } from "lucide-react";
+import {
+	CheckIcon,
+	ClipboardPaste,
+	CopyIcon,
+	DownloadIcon,
+	ExternalLink,
+	Globe,
+	MessageSquare,
+	RefreshCwIcon,
+} from "lucide-react";
+import dynamic from "next/dynamic";
 import type { FC } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { commentsEnabledAtom, targetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import {
+	CitationMetadataProvider,
+	useAllCitationMetadata,
+} from "@/components/assistant-ui/citation-metadata-context";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { CommentPanelContainer } from "@/components/chat-comments/comment-panel-container/comment-panel-container";
 import { CommentSheet } from "@/components/chat-comments/comment-sheet/comment-sheet";
+import type { SerializableCitation } from "@/components/tool-ui/citation";
 import {
 	CreateConfluencePageToolUI,
 	DeleteConfluencePageToolUI,
 	UpdateConfluencePageToolUI,
 } from "@/components/tool-ui/confluence";
+import { CreateDropboxFileToolUI, DeleteDropboxFileToolUI } from "@/components/tool-ui/dropbox";
 import { GenerateImageToolUI } from "@/components/tool-ui/generate-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
@@ -54,12 +71,172 @@ import {
 	DeleteNotionPageToolUI,
 	UpdateNotionPageToolUI,
 } from "@/components/tool-ui/notion";
+import { CreateOneDriveFileToolUI, DeleteOneDriveFileToolUI } from "@/components/tool-ui/onedrive";
 import { SandboxExecuteToolUI } from "@/components/tool-ui/sandbox-execute";
+import {
+	openSafeNavigationHref,
+	resolveSafeNavigationHref,
+} from "@/components/tool-ui/shared/media";
 import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-memory";
-import { GenerateVideoPresentationToolUI } from "@/components/tool-ui/video-presentation";
+import {
+	Drawer,
+	DrawerContent,
+	DrawerHandle,
+	DrawerHeader,
+	DrawerTitle,
+} from "@/components/ui/drawer";
 import { useComments } from "@/hooks/use-comments";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
+
+// Dynamically import video presentation tool to avoid loading Babel and Remotion in main bundle
+const GenerateVideoPresentationToolUI = dynamic(
+	() =>
+		import("@/components/tool-ui/video-presentation").then((m) => ({
+			default: m.GenerateVideoPresentationToolUI,
+		})),
+	{ ssr: false }
+);
+
+function extractDomain(url: string): string | undefined {
+	try {
+		return new URL(url).hostname.replace(/^www\./, "");
+	} catch {
+		return undefined;
+	}
+}
+
+function useCitationsFromMetadata(): SerializableCitation[] {
+	const allCitations = useAllCitationMetadata();
+	return useMemo(() => {
+		const result: SerializableCitation[] = [];
+		for (const [url, meta] of allCitations) {
+			const domain = extractDomain(url);
+			result.push({
+				id: `url-cite-${url}`,
+				href: url,
+				title: meta.title,
+				snippet: meta.snippet,
+				domain,
+				favicon: domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=32` : undefined,
+				type: "webpage",
+			});
+		}
+		return result;
+	}, [allCitations]);
+}
+
+const MobileCitationDrawer: FC = () => {
+	const [open, setOpen] = useState(false);
+	const citations = useCitationsFromMetadata();
+
+	if (citations.length === 0) return null;
+
+	const maxIcons = 4;
+	const visible = citations.slice(0, maxIcons);
+	const remainingCount = Math.max(0, citations.length - maxIcons);
+
+	const handleNavigate = (citation: SerializableCitation) => {
+		const href = resolveSafeNavigationHref(citation.href);
+		if (href) openSafeNavigationHref(href);
+	};
+
+	return (
+		<>
+			<button
+				type="button"
+				onClick={() => setOpen(true)}
+				className={cn(
+					"isolate inline-flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2",
+					"bg-muted/40 outline-none",
+					"transition-colors duration-150",
+					"hover:bg-muted/70",
+					"focus-visible:ring-ring focus-visible:ring-2"
+				)}
+			>
+				<div className="flex items-center">
+					{visible.map((citation, index) => (
+						<div
+							key={citation.id}
+							className={cn(
+								"border-border bg-background dark:border-foreground/20 relative flex size-6 items-center justify-center rounded-full border shadow-xs",
+								index > 0 && "-ml-2"
+							)}
+							style={{ zIndex: maxIcons - index }}
+						>
+							{citation.favicon ? (
+								// biome-ignore lint/performance/noImgElement: external favicon from arbitrary domain
+								<img
+									src={citation.favicon}
+									alt=""
+									aria-hidden="true"
+									width={18}
+									height={18}
+									className="size-4.5 rounded-full object-cover"
+								/>
+							) : (
+								<Globe className="text-muted-foreground size-3" aria-hidden="true" />
+							)}
+						</div>
+					))}
+					{remainingCount > 0 && (
+						<div
+							className="border-border bg-background dark:border-foreground/20 relative -ml-2 flex size-6 items-center justify-center rounded-full border shadow-xs"
+							style={{ zIndex: 0 }}
+						>
+							<span className="text-muted-foreground text-[10px] font-medium tracking-tight">
+								•••
+							</span>
+						</div>
+					)}
+				</div>
+				<span className="text-muted-foreground text-sm tabular-nums">
+					{citations.length} source{citations.length !== 1 && "s"}
+				</span>
+			</button>
+
+			<Drawer open={open} onOpenChange={setOpen}>
+				<DrawerContent className="max-h-[85vh] flex flex-col">
+					<DrawerHandle />
+					<DrawerHeader className="text-left">
+						<DrawerTitle className="text-base font-semibold">Sources</DrawerTitle>
+					</DrawerHeader>
+					<div className="overflow-y-auto flex-1 min-h-0 px-1 pb-6">
+						{citations.map((citation) => (
+							<button
+								key={citation.id}
+								type="button"
+								onClick={() => handleNavigate(citation)}
+								className="group flex w-full items-center gap-2.5 rounded-md px-3 py-2.5 text-left transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+							>
+								{citation.favicon ? (
+									// biome-ignore lint/performance/noImgElement: external favicon from arbitrary domain
+									<img
+										src={citation.favicon}
+										alt=""
+										aria-hidden="true"
+										width={16}
+										height={16}
+										className="bg-muted size-4 shrink-0 rounded object-cover"
+									/>
+								) : (
+									<Globe className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
+								)}
+								<div className="min-w-0 flex-1">
+									<p className="truncate text-sm font-medium group-hover:underline group-hover:underline-offset-2">
+										{citation.title}
+									</p>
+									<p className="text-muted-foreground truncate text-xs">{citation.domain}</p>
+								</div>
+								<ExternalLink className="text-muted-foreground size-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
+							</button>
+						))}
+					</div>
+				</DrawerContent>
+			</Drawer>
+		</>
+	);
+};
 
 export const MessageError: FC = () => {
 	return (
@@ -72,8 +249,10 @@ export const MessageError: FC = () => {
 };
 
 const AssistantMessageInner: FC = () => {
+	const isMobile = !useMediaQuery("(min-width: 768px)");
+
 	return (
-		<>
+		<CitationMetadataProvider>
 			<div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
 				<MessagePrimitive.Parts
 					components={{
@@ -96,6 +275,10 @@ const AssistantMessageInner: FC = () => {
 								delete_linear_issue: DeleteLinearIssueToolUI,
 								create_google_drive_file: CreateGoogleDriveFileToolUI,
 								delete_google_drive_file: DeleteGoogleDriveFileToolUI,
+								create_onedrive_file: CreateOneDriveFileToolUI,
+								delete_onedrive_file: DeleteOneDriveFileToolUI,
+								create_dropbox_file: CreateDropboxFileToolUI,
+								delete_dropbox_file: DeleteDropboxFileToolUI,
 								create_calendar_event: CreateCalendarEventToolUI,
 								update_calendar_event: UpdateCalendarEventToolUI,
 								delete_calendar_event: DeleteCalendarEventToolUI,
@@ -109,6 +292,7 @@ const AssistantMessageInner: FC = () => {
 								create_confluence_page: CreateConfluencePageToolUI,
 								update_confluence_page: UpdateConfluencePageToolUI,
 								delete_confluence_page: DeleteConfluencePageToolUI,
+								web_search: () => null,
 								link_preview: () => null,
 								multi_link_preview: () => null,
 								scrape_webpage: () => null,
@@ -120,10 +304,16 @@ const AssistantMessageInner: FC = () => {
 				<MessageError />
 			</div>
 
+			{isMobile && (
+				<div className="ml-2 mt-2">
+					<MobileCitationDrawer />
+				</div>
+			)}
+
 			<div className="aui-assistant-message-footer mt-1 mb-5 ml-2 flex">
 				<AssistantActionBar />
 			</div>
-		</>
+		</CitationMetadataProvider>
 	);
 };
 
@@ -272,6 +462,17 @@ export const AssistantMessage: FC = () => {
 
 const AssistantActionBar: FC = () => {
 	const isLast = useAuiState((s) => s.message.isLast);
+	const aui = useAui();
+	const [quickAskMode, setQuickAskMode] = useState("");
+
+	useEffect(() => {
+		if (!isLast || !window.electronAPI?.getQuickAskMode) return;
+		window.electronAPI.getQuickAskMode().then((mode) => {
+			if (mode) setQuickAskMode(mode);
+		});
+	}, [isLast]);
+
+	const isTransform = isLast && !!window.electronAPI?.replaceText && quickAskMode === "transform";
 
 	return (
 		<ActionBarPrimitive.Root
@@ -295,13 +496,25 @@ const AssistantActionBar: FC = () => {
 					<DownloadIcon />
 				</TooltipIconButton>
 			</ActionBarPrimitive.ExportMarkdown>
-			{/* Only allow regenerating the last assistant message */}
 			{isLast && (
 				<ActionBarPrimitive.Reload asChild>
 					<TooltipIconButton tooltip="Refresh">
 						<RefreshCwIcon />
 					</TooltipIconButton>
 				</ActionBarPrimitive.Reload>
+			)}
+			{isTransform && (
+				<button
+					type="button"
+					onClick={() => {
+						const text = aui.message().getCopyText();
+						window.electronAPI?.replaceText(text);
+					}}
+					className="ml-1 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+				>
+					<ClipboardPaste className="size-3.5" />
+					Paste back
+				</button>
 			)}
 		</ActionBarPrimitive.Root>
 	);

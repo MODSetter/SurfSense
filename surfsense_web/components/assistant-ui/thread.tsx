@@ -5,12 +5,16 @@ import {
 	ThreadPrimitive,
 	useAui,
 	useAuiState,
+	useThreadViewportStore,
 } from "@assistant-ui/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
 	AlertCircle,
 	ArrowDownIcon,
 	ArrowUpIcon,
+	ChevronDown,
+	ChevronUp,
+	Clipboard,
 	Globe,
 	Plus,
 	Settings2,
@@ -61,6 +65,7 @@ import {
 	DocumentMentionPicker,
 	type DocumentMentionPickerRef,
 } from "@/components/new-chat/document-mention-picker";
+import { PromptPicker, type PromptPickerRef } from "@/components/new-chat/prompt-picker";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
@@ -109,7 +114,8 @@ const ThreadContent: FC = () => {
 		>
 			<ThreadPrimitive.Viewport
 				turnAnchor="top"
-				className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-scroll px-4 pt-4"
+				className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 pt-4"
+				style={{ scrollbarGutter: "stable" }}
 			>
 				<AuiIf condition={({ thread }) => thread.isEmpty}>
 					<ThreadWelcome />
@@ -124,7 +130,7 @@ const ThreadContent: FC = () => {
 				/>
 
 				<ThreadPrimitive.ViewportFooter
-					className="aui-thread-viewport-footer sticky bottom-0 z-10 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-main-panel pb-4 md:pb-6"
+					className="aui-thread-viewport-footer sticky bottom-0 z-10 mx-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-main-panel pb-4 md:pb-6"
 					style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
 				>
 					<ThreadScrollToBottom />
@@ -293,23 +299,78 @@ const ConnectToolsBanner: FC<{ isThreadEmpty: boolean }> = ({ isThreadEmpty }) =
 	);
 };
 
+const ClipboardChip: FC<{ text: string; onDismiss: () => void }> = ({ text, onDismiss }) => {
+	const [expanded, setExpanded] = useState(false);
+	const isLong = text.length > 120;
+	const preview = isLong ? `${text.slice(0, 120)}…` : text;
+
+	return (
+		<div className="mx-3 mt-2 rounded-lg border border-border/40 bg-background/60">
+			<div className="flex items-center gap-2 px-3 py-2">
+				<Clipboard className="size-4 shrink-0 text-muted-foreground" />
+				<span className="text-xs font-medium text-muted-foreground">From clipboard</span>
+				<div className="flex-1" />
+				{isLong && (
+					<button
+						type="button"
+						onClick={() => setExpanded((v) => !v)}
+						className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
+					>
+						{expanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+					</button>
+				)}
+				<button
+					type="button"
+					onClick={onDismiss}
+					className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
+				>
+					<X className="size-3.5" />
+				</button>
+			</div>
+			<div className="px-3 pb-2">
+				<p className="text-xs text-foreground/80 whitespace-pre-wrap wrap-break-word leading-relaxed">
+					{expanded ? text : preview}
+				</p>
+			</div>
+		</div>
+	);
+};
+
 const Composer: FC = () => {
 	// Document mention state (atoms persist across component remounts)
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
 	const setSidebarDocs = useSetAtom(sidebarSelectedDocumentsAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
+	const [showPromptPicker, setShowPromptPicker] = useState(false);
 	const [mentionQuery, setMentionQuery] = useState("");
+	const [actionQuery, setActionQuery] = useState("");
 	const editorRef = useRef<InlineMentionEditorRef>(null);
 	const editorContainerRef = useRef<HTMLDivElement>(null);
+	const composerBoxRef = useRef<HTMLDivElement>(null);
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
+	const promptPickerRef = useRef<PromptPickerRef>(null);
 	const { search_space_id, chat_id } = useParams();
 	const aui = useAui();
+	const threadViewportStore = useThreadViewportStore();
 	const hasAutoFocusedRef = useRef(false);
+	const submitCleanupRef = useRef<(() => void) | null>(null);
 
-	const [quickAskText, setQuickAskText] = useState<string | undefined>();
 	useEffect(() => {
-		window.electronAPI?.getQuickAskText().then((text) => {
-			if (text) setQuickAskText(text);
+		return () => {
+			submitCleanupRef.current?.();
+		};
+	}, []);
+
+	const [clipboardInitialText, setClipboardInitialText] = useState<string | undefined>();
+	const clipboardLoadedRef = useRef(false);
+	useEffect(() => {
+		if (!window.electronAPI || clipboardLoadedRef.current) return;
+		clipboardLoadedRef.current = true;
+		window.electronAPI.getQuickAskText().then((text) => {
+			if (text) {
+				setClipboardInitialText(text);
+				setShowPromptPicker(true);
+			}
 		});
 	}, []);
 
@@ -416,9 +477,88 @@ const Composer: FC = () => {
 		}
 	}, [showDocumentPopover]);
 
-	// Keyboard navigation for document picker (arrow keys, Enter, Escape)
+	// Open action picker when / is triggered
+	const handleActionTrigger = useCallback((query: string) => {
+		setShowPromptPicker(true);
+		setActionQuery(query);
+	}, []);
+
+	// Close action picker and reset query
+	const handleActionClose = useCallback(() => {
+		if (showPromptPicker) {
+			setShowPromptPicker(false);
+			setActionQuery("");
+		}
+	}, [showPromptPicker]);
+
+	const handleActionSelect = useCallback(
+		(action: { name: string; prompt: string; mode: "transform" | "explore" }) => {
+			let userText = editorRef.current?.getText() ?? "";
+			const trigger = `/${actionQuery}`;
+			if (userText.endsWith(trigger)) {
+				userText = userText.slice(0, -trigger.length).trimEnd();
+			}
+			const finalPrompt = action.prompt.includes("{selection}")
+				? action.prompt.replace("{selection}", () => userText)
+				: userText
+					? `${action.prompt}\n\n${userText}`
+					: action.prompt;
+			aui.composer().setText(finalPrompt);
+			aui.composer().send();
+			editorRef.current?.clear();
+			setShowPromptPicker(false);
+			setActionQuery("");
+			setMentionedDocuments([]);
+			setSidebarDocs([]);
+		},
+		[actionQuery, aui, setMentionedDocuments, setSidebarDocs]
+	);
+
+	const handleQuickAskSelect = useCallback(
+		(action: { name: string; prompt: string; mode: "transform" | "explore" }) => {
+			if (!clipboardInitialText) return;
+			window.electronAPI?.setQuickAskMode(action.mode);
+			const finalPrompt = action.prompt.includes("{selection}")
+				? action.prompt.replace("{selection}", () => clipboardInitialText)
+				: `${action.prompt}\n\n${clipboardInitialText}`;
+			aui.composer().setText(finalPrompt);
+			aui.composer().send();
+			editorRef.current?.clear();
+			setShowPromptPicker(false);
+			setActionQuery("");
+			setClipboardInitialText(undefined);
+			setMentionedDocuments([]);
+			setSidebarDocs([]);
+		},
+		[clipboardInitialText, aui, setMentionedDocuments, setSidebarDocs]
+	);
+
+	// Keyboard navigation for document/action picker (arrow keys, Enter, Escape)
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
+			if (showPromptPicker) {
+				if (e.key === "ArrowDown") {
+					e.preventDefault();
+					promptPickerRef.current?.moveDown();
+					return;
+				}
+				if (e.key === "ArrowUp") {
+					e.preventDefault();
+					promptPickerRef.current?.moveUp();
+					return;
+				}
+				if (e.key === "Enter") {
+					e.preventDefault();
+					promptPickerRef.current?.selectHighlighted();
+					return;
+				}
+				if (e.key === "Escape") {
+					e.preventDefault();
+					setShowPromptPicker(false);
+					setActionQuery("");
+					return;
+				}
+			}
 			if (showDocumentPopover) {
 				if (e.key === "ArrowDown") {
 					e.preventDefault();
@@ -443,7 +583,7 @@ const Composer: FC = () => {
 				}
 			}
 		},
-		[showDocumentPopover]
+		[showDocumentPopover, showPromptPicker]
 	);
 
 	// Submit message (blocked during streaming, document picker open, or AI responding to another user)
@@ -451,19 +591,85 @@ const Composer: FC = () => {
 		if (isThreadRunning || isBlockedByOtherUser) {
 			return;
 		}
-		if (!showDocumentPopover) {
+		if (!showDocumentPopover && !showPromptPicker) {
+			if (clipboardInitialText) {
+				const userText = editorRef.current?.getText() ?? "";
+				const combined = userText ? `${userText}\n\n${clipboardInitialText}` : clipboardInitialText;
+				aui.composer().setText(combined);
+				setClipboardInitialText(undefined);
+			}
 			aui.composer().send();
 			editorRef.current?.clear();
 			setMentionedDocuments([]);
 			setSidebarDocs([]);
 		}
+		if (isThreadRunning || isBlockedByOtherUser) return;
+		if (showDocumentPopover) return;
+
+		const viewportEl = document.querySelector(".aui-thread-viewport");
+		const heightBefore = viewportEl?.scrollHeight ?? 0;
+
+		aui.composer().send();
+		editorRef.current?.clear();
+		setMentionedDocuments([]);
+		setSidebarDocs([]);
+
+		// With turnAnchor="top", ViewportSlack adds min-height to the last
+		// assistant message so that scrolling-to-bottom actually positions the
+		// user message at the TOP of the viewport. That slack height is
+		// calculated asynchronously (ResizeObserver → style → layout).
+		//
+		// We poll via rAF for ~2 s, re-scrolling whenever scrollHeight changes
+		// (user msg render → assistant placeholder → ViewportSlack min-height →
+		// first streamed content). Backup setTimeout calls cover cases where
+		// the batcher's 50 ms throttle delays the DOM update past the rAF.
+		const scrollToBottom = () =>
+			threadViewportStore.getState().scrollToBottom({ behavior: "instant" });
+
+		let lastHeight = heightBefore;
+		let frames = 0;
+		let cancelled = false;
+		const POLL_FRAMES = 120;
+
+		const pollAndScroll = () => {
+			if (cancelled) return;
+			const el = document.querySelector(".aui-thread-viewport");
+			if (el) {
+				const h = el.scrollHeight;
+				if (h !== lastHeight) {
+					lastHeight = h;
+					scrollToBottom();
+				}
+			}
+			if (++frames < POLL_FRAMES) {
+				requestAnimationFrame(pollAndScroll);
+			}
+		};
+		requestAnimationFrame(pollAndScroll);
+
+		const t1 = setTimeout(scrollToBottom, 100);
+		const t2 = setTimeout(scrollToBottom, 300);
+		const t3 = setTimeout(scrollToBottom, 600);
+
+		// Cleanup if component unmounts during the polling window. The ref is
+		// checked inside pollAndScroll; timeouts are cleared in the return below.
+		// Store cleanup fn so it can be called from a useEffect cleanup if needed.
+		submitCleanupRef.current = () => {
+			cancelled = true;
+			clearTimeout(t1);
+			clearTimeout(t2);
+			clearTimeout(t3);
+		};
 	}, [
 		showDocumentPopover,
+		showPromptPicker,
 		isThreadRunning,
 		isBlockedByOtherUser,
+		clipboardInitialText,
 		aui,
 		setMentionedDocuments,
 		setSidebarDocs,
+		threadViewportStore,
 	]);
 
 	const handleDocumentRemove = useCallback(
@@ -500,14 +706,26 @@ const Composer: FC = () => {
 	);
 
 	return (
-		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col gap-2">
+		<ComposerPrimitive.Root
+			className="aui-composer-root relative flex w-full flex-col gap-2"
+			style={showPromptPicker && clipboardInitialText ? { marginBottom: 220 } : undefined}
+		>
 			<ChatSessionStatus
 				isAiResponding={isAiResponding}
 				respondingToUserId={respondingToUserId}
 				currentUserId={currentUser?.id ?? null}
 				members={members ?? []}
 			/>
-			<div className="aui-composer-attachment-dropzone flex w-full flex-col overflow-hidden rounded-2xl border-input bg-muted pt-2 outline-none transition-shadow">
+			<div
+				ref={composerBoxRef}
+				className="aui-composer-attachment-dropzone flex w-full flex-col overflow-hidden rounded-2xl border-input bg-muted pt-2 outline-none transition-shadow"
+			>
+				{clipboardInitialText && (
+					<ClipboardChip
+						text={clipboardInitialText}
+						onDismiss={() => setClipboardInitialText(undefined)}
+					/>
+				)}
 				{/* Inline editor with @mention support */}
 				<div ref={editorContainerRef} className="aui-composer-input-wrapper px-4 pt-3 pb-6">
 					<InlineMentionEditor
@@ -515,11 +733,12 @@ const Composer: FC = () => {
 						placeholder={currentPlaceholder}
 						onMentionTrigger={handleMentionTrigger}
 						onMentionClose={handleMentionClose}
+						onActionTrigger={handleActionTrigger}
+						onActionClose={handleActionClose}
 						onChange={handleEditorChange}
 						onDocumentRemove={handleDocumentRemove}
 						onSubmit={handleSubmit}
 						onKeyDown={handleKeyDown}
-						initialText={quickAskText}
 						className="min-h-[24px]"
 					/>
 				</div>
@@ -544,6 +763,34 @@ const Composer: FC = () => {
 								left: editorContainerRef.current
 									? `${editorContainerRef.current.getBoundingClientRect().left}px`
 									: "50%",
+							}}
+						/>,
+						document.body
+					)}
+				{showPromptPicker &&
+					typeof document !== "undefined" &&
+					createPortal(
+						<PromptPicker
+							ref={promptPickerRef}
+							onSelect={clipboardInitialText ? handleQuickAskSelect : handleActionSelect}
+							onDone={() => {
+								setShowPromptPicker(false);
+								setActionQuery("");
+							}}
+							externalSearch={actionQuery}
+							containerStyle={{
+								position: "fixed",
+								...(clipboardInitialText && composerBoxRef.current
+									? { top: `${composerBoxRef.current.getBoundingClientRect().bottom + 8}px` }
+									: {
+											bottom: editorContainerRef.current
+												? `${window.innerHeight - editorContainerRef.current.getBoundingClientRect().top + 8}px`
+												: "200px",
+										}),
+								left: editorContainerRef.current
+									? `${editorContainerRef.current.getBoundingClientRect().left}px`
+									: "50%",
+								zIndex: 50,
 							}}
 						/>,
 						document.body
@@ -650,24 +897,6 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 		return result;
 	}, [filteredTools, connectedTypes]);
 
-	const { visibleTotal, visibleEnabled } = useMemo(() => {
-		let total = 0;
-		let enabled = 0;
-		for (const group of groupedTools) {
-			if (group.connectorIcon) {
-				total += 1;
-				const allDisabled = group.tools.every((t) => disabledTools.includes(t.name));
-				if (!allDisabled) enabled += 1;
-			} else {
-				for (const tool of group.tools) {
-					total += 1;
-					if (!disabledTools.includes(tool.name)) enabled += 1;
-				}
-			}
-		}
-		return { visibleTotal: total, visibleEnabled: enabled };
-	}, [groupedTools, disabledTools]);
-
 	useEffect(() => {
 		hydrateDisabled();
 	}, [hydrateDisabled]);
@@ -716,11 +945,8 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 						<Drawer open={toolsPopoverOpen} onOpenChange={setToolsPopoverOpen}>
 							<DrawerContent className="max-h-[60dvh]">
 								<DrawerHandle />
-								<div className="flex items-center justify-between px-4 py-2">
-									<DrawerTitle className="text-sm font-medium">Agent Tools</DrawerTitle>
-									<span className="text-xs text-muted-foreground">
-										{visibleEnabled}/{visibleTotal} enabled
-									</span>
+								<div className="px-4 py-2">
+									<DrawerTitle className="text-sm font-medium">Manage Tools</DrawerTitle>
 								</div>
 								<div className="overflow-y-auto pb-6" onScroll={handleToolsScroll}>
 									{groupedTools
@@ -835,12 +1061,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							className="w-[calc(100vw-2rem)] max-w-56 sm:max-w-72 sm:w-72 p-0 select-none"
 							onOpenAutoFocus={(e) => e.preventDefault()}
 						>
-							<div className="flex items-center justify-between px-2.5 py-2 sm:px-3 sm:py-2.5 border-b">
-								<span className="text-xs sm:text-sm font-medium">Agent Tools</span>
-								<span className="text-[10px] sm:text-xs text-muted-foreground">
-									{visibleEnabled}/{visibleTotal} enabled
-								</span>
-							</div>
+							<div className="sr-only">Manage Tools</div>
 							<div
 								className="max-h-48 sm:max-h-64 overflow-y-auto py-0.5 sm:py-1"
 								onScroll={handleToolsScroll}
@@ -1078,43 +1299,55 @@ const TOOL_GROUPS: ToolGroup[] = [
 		label: "Gmail",
 		tools: ["create_gmail_draft", "update_gmail_draft", "send_gmail_email", "trash_gmail_email"],
 		connectorIcon: "gmail",
-		tooltip: "Create drafts, update drafts, send emails, and trash emails in Gmail.",
+		tooltip: "Create drafts, update drafts, send emails, and trash emails in Gmail",
 	},
 	{
 		label: "Google Calendar",
 		tools: ["create_calendar_event", "update_calendar_event", "delete_calendar_event"],
 		connectorIcon: "google_calendar",
-		tooltip: "Create, update, and delete events in Google Calendar.",
+		tooltip: "Create, update, and delete events in Google Calendar",
 	},
 	{
 		label: "Google Drive",
 		tools: ["create_google_drive_file", "delete_google_drive_file"],
 		connectorIcon: "google_drive",
-		tooltip: "Create and delete files in Google Drive.",
+		tooltip: "Create and delete files in Google Drive",
+	},
+	{
+		label: "OneDrive",
+		tools: ["create_onedrive_file", "delete_onedrive_file"],
+		connectorIcon: "onedrive",
+		tooltip: "Create and delete files in OneDrive",
+	},
+	{
+		label: "Dropbox",
+		tools: ["create_dropbox_file", "delete_dropbox_file"],
+		connectorIcon: "dropbox",
+		tooltip: "Create and delete files in Dropbox",
 	},
 	{
 		label: "Notion",
 		tools: ["create_notion_page", "update_notion_page", "delete_notion_page"],
 		connectorIcon: "notion",
-		tooltip: "Create, update, and delete pages in Notion.",
+		tooltip: "Create, update, and delete pages in Notion",
 	},
 	{
 		label: "Linear",
 		tools: ["create_linear_issue", "update_linear_issue", "delete_linear_issue"],
 		connectorIcon: "linear",
-		tooltip: "Create, update, and delete issues in Linear.",
+		tooltip: "Create, update, and delete issues in Linear",
 	},
 	{
 		label: "Jira",
 		tools: ["create_jira_issue", "update_jira_issue", "delete_jira_issue"],
 		connectorIcon: "jira",
-		tooltip: "Create, update, and delete issues in Jira.",
+		tooltip: "Create, update, and delete issues in Jira",
 	},
 	{
 		label: "Confluence",
 		tools: ["create_confluence_page", "update_confluence_page", "delete_confluence_page"],
 		connectorIcon: "confluence",
-		tooltip: "Create, update, and delete pages in Confluence.",
+		tooltip: "Create, update, and delete pages in Confluence",
 	},
 ];
 

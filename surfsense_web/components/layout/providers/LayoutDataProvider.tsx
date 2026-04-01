@@ -15,14 +15,17 @@ import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import {
-	morePagesDialogAtom,
 	searchSpaceSettingsDialogAtom,
 	teamDialogAtom,
 	userSettingsDialogAtom,
 } from "@/atoms/settings/settings-dialog.atoms";
-import { resetTabsAtom, syncChatTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
+import {
+	removeChatTabAtom,
+	resetTabsAtom,
+	syncChatTabAtom,
+	type Tab,
+} from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
-import { MorePagesDialog } from "@/components/settings/more-pages-dialog";
 import { SearchSpaceSettingsDialog } from "@/components/settings/search-space-settings-dialog";
 import { TeamDialog } from "@/components/settings/team-dialog";
 import { UserSettingsDialog } from "@/components/settings/user-settings-dialog";
@@ -48,7 +51,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { useAnnouncements } from "@/hooks/use-announcements";
-import { useDocumentsProcessing } from "@/hooks/use-documents-processing";
 import { useInbox } from "@/hooks/use-inbox";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { notificationsApiService } from "@/lib/apis/notifications-api.service";
@@ -103,9 +105,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const resetCurrentThread = useSetAtom(resetCurrentThreadAtom);
 	const syncChatTab = useSetAtom(syncChatTabAtom);
 	const resetTabs = useSetAtom(resetTabsAtom);
-
-	// State for handling new chat navigation when router is out of sync
-	const [pendingNewChat, setPendingNewChat] = useState(false);
+	const removeChatTab = useSetAtom(removeChatTabAtom);
 
 	// Key used to force-remount the page component (e.g. after deleting the active chat
 	// when the router is out of sync due to replaceState)
@@ -193,14 +193,9 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		setStatusInboxItems(statusInbox.inboxItems);
 	}, [statusInbox.inboxItems, setStatusInboxItems]);
 
-	// Document processing status — drives sidebar status indicator (spinner / check / error)
-	const documentsProcessingStatus = useDocumentsProcessing(numericSpaceId);
-
 	// Track seen notification IDs to detect new page_limit_exceeded notifications
 	const seenPageLimitNotifications = useRef<Set<number>>(new Set());
 	const isInitialLoad = useRef(true);
-
-	const setMorePagesOpen = useSetAtom(morePagesDialogAtom);
 
 	// Effect to show toast for new page_limit_exceeded notifications
 	useEffect(() => {
@@ -230,12 +225,12 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				duration: 8000,
 				icon: <AlertTriangle className="h-5 w-5 text-amber-500" />,
 				action: {
-					label: "View Plans",
-					onClick: () => setMorePagesOpen(true),
+					label: "Get More Pages",
+					onClick: () => router.push(`/dashboard/${searchSpaceId}/more-pages`),
 				},
 			});
 		}
-	}, [statusInbox.inboxItems, statusInbox.loading, searchSpaceId, setMorePagesOpen]);
+	}, [statusInbox.inboxItems, statusInbox.loading, searchSpaceId, router]);
 
 	// Delete dialogs state
 	const [showDeleteChatDialog, setShowDeleteChatDialog] = useState(false);
@@ -255,17 +250,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const [searchSpaceToLeave, setSearchSpaceToLeave] = useState<SearchSpace | null>(null);
 	const [isDeletingSearchSpace, setIsDeletingSearchSpace] = useState(false);
 	const [isLeavingSearchSpace, setIsLeavingSearchSpace] = useState(false);
-
-	// Effect to complete new chat navigation after router syncs
-	// This runs when handleNewChat detected an out-of-sync state and triggered a sync
-	useEffect(() => {
-		if (pendingNewChat && params?.chat_id) {
-			// Router is now synced (chat_id is in params), complete navigation to new-chat
-			resetCurrentThread();
-			router.push(`/dashboard/${searchSpaceId}/new-chat`);
-			setPendingNewChat(false);
-		}
-	}, [pendingNewChat, params?.chat_id, router, searchSpaceId, resetCurrentThread]);
 
 	// Reset transient slide-out panels and tabs when switching search spaces.
 	// Use a ref to skip the initial mount — only reset when the space actually changes.
@@ -325,7 +309,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		const thread = threadsData?.threads?.find((t) => t.id === chatId);
 		syncChatTab({
 			chatId,
-			title: thread?.title || (chatId ? `Chat ${chatId}` : "New Chat"),
+			// Avoid overwriting live SSE-updated tab titles with fallback values.
+			title: chatId ? (thread?.title ?? undefined) : "New Chat",
 			chatUrl,
 		});
 	}, [currentChatId, searchSpaceId, threadsData?.threads, syncChatTab]);
@@ -377,7 +362,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				isActive: isMobile
 					? isDocumentsSidebarOpen
 					: isDocumentsSidebarOpen && !isRightPanelCollapsed,
-				statusIndicator: documentsProcessingStatus,
 			},
 			{
 				title: "Announcements",
@@ -395,7 +379,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			totalUnreadCount,
 			isAnnouncementsSidebarOpen,
 			announcementUnreadCount,
-			documentsProcessingStatus,
 		]
 	);
 
@@ -548,14 +531,17 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		if (isOutOfSync) {
 			// First sync Next.js router by navigating to the current chat's actual URL
 			// This updates the router's internal state to match the browser URL
+			resetCurrentThread();
 			router.replace(`/dashboard/${searchSpaceId}/new-chat/${currentThreadState.id}`);
-			// Set flag to trigger navigation to new-chat after params update
-			setPendingNewChat(true);
+			// Allow router to sync, then navigate to fresh new-chat
+			setTimeout(() => {
+				router.push(`/dashboard/${searchSpaceId}/new-chat`);
+			}, 0);
 		} else {
 			// Normal navigation - router is in sync
 			router.push(`/dashboard/${searchSpaceId}/new-chat`);
 		}
-	}, [router, searchSpaceId, currentThreadState.id, params?.chat_id]);
+	}, [router, searchSpaceId, currentThreadState.id, params?.chat_id, resetCurrentThread]);
 
 	const handleChatSelect = useCallback(
 		(chat: ChatItem) => {
@@ -637,15 +623,20 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		setIsDeletingChat(true);
 		try {
 			await deleteThread(chatToDelete.id);
+			const fallbackTab = removeChatTab(chatToDelete.id);
 			queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
 			if (currentChatId === chatToDelete.id) {
 				resetCurrentThread();
-				const isOutOfSync = currentThreadState.id !== null && !params?.chat_id;
-				if (isOutOfSync) {
-					window.history.replaceState(null, "", `/dashboard/${searchSpaceId}/new-chat`);
-					setChatResetKey((k) => k + 1);
+				if (fallbackTab?.type === "chat" && fallbackTab.chatUrl) {
+					router.push(fallbackTab.chatUrl);
 				} else {
-					router.push(`/dashboard/${searchSpaceId}/new-chat`);
+					const isOutOfSync = currentThreadState.id !== null && !params?.chat_id;
+					if (isOutOfSync) {
+						window.history.replaceState(null, "", `/dashboard/${searchSpaceId}/new-chat`);
+						setChatResetKey((k) => k + 1);
+					} else {
+						router.push(`/dashboard/${searchSpaceId}/new-chat`);
+					}
 				}
 			}
 		} catch (error) {
@@ -664,6 +655,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		currentThreadState.id,
 		params?.chat_id,
 		router,
+		removeChatTab,
 	]);
 
 	// Rename handler
@@ -795,9 +787,10 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 								confirmDeleteChat();
 							}}
 							disabled={isDeletingChat}
-							className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
+							className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90 items-center justify-center"
 						>
-							{isDeletingChat ? <Spinner size="sm" /> : tCommon("delete")}
+							<span className={isDeletingChat ? "opacity-0" : ""}>{tCommon("delete")}</span>
+							{isDeletingChat && <Spinner size="sm" className="absolute" />}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
@@ -824,7 +817,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 							}
 						}}
 					/>
-					<DialogFooter className="flex gap-2 sm:justify-end">
+					<DialogFooter className="flex sm:justify-end">
 						<Button
 							variant="secondary"
 							onClick={() => setShowRenameChatDialog(false)}
@@ -834,16 +827,16 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						</Button>
 						<Button
 							onClick={confirmRenameChat}
-							disabled={isRenamingChat || !newChatTitle.trim()}
-							className="gap-2"
+							disabled={
+								isRenamingChat || !newChatTitle.trim() || newChatTitle.trim() === chatToRename?.name
+							}
+							className="relative"
 						>
-							{isRenamingChat ? (
-								<>
-									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-									{tSidebar("renaming") || "Renaming"}
-								</>
-							) : (
-								tSidebar("rename") || "Rename"
+							<span className={isRenamingChat ? "opacity-0" : ""}>
+								{tSidebar("rename") || "Rename"}
+							</span>
+							{isRenamingChat && (
+								<span className="absolute h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
 							)}
 						</Button>
 					</DialogFooter>
@@ -869,15 +862,11 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 								confirmDeleteSearchSpace();
 							}}
 							disabled={isDeletingSearchSpace}
-							className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
+							className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
-							{isDeletingSearchSpace ? (
-								<>
-									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-									{t("deleting")}
-								</>
-							) : (
-								tCommon("delete")
+							<span className={isDeletingSearchSpace ? "opacity-0" : ""}>{tCommon("delete")}</span>
+							{isDeletingSearchSpace && (
+								<span className="absolute h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
 							)}
 						</AlertDialogAction>
 					</AlertDialogFooter>
@@ -903,15 +892,11 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 								confirmLeaveSearchSpace();
 							}}
 							disabled={isLeavingSearchSpace}
-							className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
+							className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
-							{isLeavingSearchSpace ? (
-								<>
-									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-									{t("leaving")}
-								</>
-							) : (
-								t("leave")
+							<span className={isLeavingSearchSpace ? "opacity-0" : ""}>{t("leave")}</span>
+							{isLeavingSearchSpace && (
+								<span className="absolute h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
 							)}
 						</AlertDialogAction>
 					</AlertDialogFooter>
@@ -928,7 +913,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			<SearchSpaceSettingsDialog searchSpaceId={Number(searchSpaceId)} />
 			<UserSettingsDialog />
 			<TeamDialog searchSpaceId={Number(searchSpaceId)} />
-			<MorePagesDialog />
 		</>
 	);
 }

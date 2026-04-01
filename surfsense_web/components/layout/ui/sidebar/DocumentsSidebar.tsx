@@ -14,7 +14,8 @@ import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { expandedFolderIdsAtom } from "@/atoms/documents/folder.atoms";
 import { agentCreatedDocumentsAtom } from "@/atoms/documents/ui.atoms";
-import { openDocumentTabAtom } from "@/atoms/tabs/tabs.atom";
+import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
+import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { CreateFolderDialog } from "@/components/documents/CreateFolderDialog";
 import type { DocumentNodeDoc } from "@/components/documents/DocumentNode";
 import type { FolderDisplay } from "@/components/documents/FolderNode";
@@ -83,7 +84,8 @@ export function DocumentsSidebar({
 	const isMobile = !useMediaQuery("(min-width: 640px)");
 	const searchSpaceId = Number(params.search_space_id);
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
-	const openDocumentTab = useSetAtom(openDocumentTabAtom);
+	const setRightPanelCollapsed = useSetAtom(rightPanelCollapsedAtom);
+	const openEditorPanel = useSetAtom(openEditorPanelAtom);
 	const { data: connectors } = useAtomValue(connectorsAtom);
 	const connectorCount = connectors?.length ?? 0;
 
@@ -505,12 +507,16 @@ export function DocumentsSidebar({
 	useEffect(() => {
 		const handleEscape = (e: KeyboardEvent) => {
 			if (e.key === "Escape" && open) {
-				onOpenChange(false);
+				if (isMobile) {
+					onOpenChange(false);
+				} else {
+					setRightPanelCollapsed(true);
+				}
 			}
 		};
 		document.addEventListener("keydown", handleEscape);
 		return () => document.removeEventListener("keydown", handleEscape);
-	}, [open, onOpenChange]);
+	}, [open, onOpenChange, isMobile, setRightPanelCollapsed]);
 
 	const documentsContent = (
 		<>
@@ -566,7 +572,7 @@ export function DocumentsSidebar({
 			</div>
 
 			{/* Connected tools strip */}
-			<div className="shrink-0 mx-4 mt-2 mb-3 flex select-none items-center gap-2 rounded-lg border bg-muted/50 transition-colors hover:bg-muted/80">
+			<div className="shrink-0 mx-4 mt-4 mb-4 flex select-none items-center gap-2 rounded-lg border bg-muted/50 transition-colors hover:bg-muted/80">
 				<button
 					type="button"
 					onClick={() => setConnectorDialogOpen(true)}
@@ -673,14 +679,14 @@ export function DocumentsSidebar({
 					onCreateFolder={handleCreateFolder}
 					searchQuery={debouncedSearch.trim() || undefined}
 					onPreviewDocument={(doc) => {
-						openDocumentTab({
+						openEditorPanel({
 							documentId: doc.id,
 							searchSpaceId,
 							title: doc.title,
 						});
 					}}
 					onEditDocument={(doc) => {
-						openDocumentTab({
+						openEditorPanel({
 							documentId: doc.id,
 							searchSpaceId,
 							title: doc.title,
@@ -738,9 +744,10 @@ export function DocumentsSidebar({
 								handleBulkDeleteSelected();
 							}}
 							disabled={isBulkDeleting}
-							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+							className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
-							{isBulkDeleting ? <Spinner size="sm" /> : "Delete"}
+							<span className={isBulkDeleting ? "opacity-0" : ""}>Delete</span>
+							{isBulkDeleting && <Spinner size="sm" className="absolute" />}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>

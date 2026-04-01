@@ -14,7 +14,7 @@ import { schema } from "@/zero/schema";
 
 const cacheURL = process.env.NEXT_PUBLIC_ZERO_CACHE_URL || "http://localhost:4848";
 
-function ZeroAuthGuard({ children }: { children: React.ReactNode }) {
+function ZeroAuthSync() {
 	const zero = useZero();
 	const connectionState = useConnectionState();
 	const isRefreshingRef = useRef(false);
@@ -37,7 +37,7 @@ function ZeroAuthGuard({ children }: { children: React.ReactNode }) {
 			});
 	}, [connectionState, zero]);
 
-	return <>{children}</>;
+	return null;
 }
 
 export function ZeroProvider({ children }: { children: React.ReactNode }) {
@@ -59,7 +59,8 @@ export function ZeroProvider({ children }: { children: React.ReactNode }) {
 
 	return (
 		<ZeroReactProvider {...opts}>
-			{hasUser ? <ZeroAuthGuard>{children}</ZeroAuthGuard> : children}
+			{hasUser && <ZeroAuthSync />}
+			{children}
 		</ZeroReactProvider>
 	);
 }

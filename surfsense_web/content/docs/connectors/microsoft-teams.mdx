@@ -7,6 +7,10 @@ description: Connect your Microsoft Teams to SurfSense
 
 This guide walks you through setting up a Microsoft Teams OAuth integration for SurfSense using Azure App Registration.
 
+<Callout type="info">
+  Microsoft Teams and [Microsoft OneDrive](/docs/connectors/microsoft-onedrive) share the same Azure App Registration. If you have already created an app for OneDrive, you can reuse the same Client ID and Client Secret. Just make sure both redirect URIs are added (see Step 3).
+</Callout>
+
 ## Step 1: Access Azure App Registrations
 
 1. Navigate to [portal.azure.com](https://portal.azure.com)
@@ -33,11 +37,18 @@ Fill in the application details:
 
 Click **"Register"**
 
+After registration, add the OneDrive redirect URI as well:
+
+1. Go to **Authentication** in the left sidebar
+2. Under **Platform configurations** > **Web** > **Redirect URIs**, click **Add URI**
+3. Add: `http://localhost:8000/api/v1/auth/onedrive/connector/callback`
+4. Click **Save**
+
 ![Register Application Form](/docs/connectors/microsoft-teams/azure-register-app.png)
 
 ## Step 4: Get Application (Client) ID
 
-After registration, you'll be taken to the app's **Overview** page. Here you'll find:
+After registration, you will be taken to the app's **Overview** page. Here you will find:
 
 1. Copy the **Application (client) ID** - this is your Client ID
 2. Note the **Directory (tenant) ID** if needed
@@ -54,7 +65,7 @@ After registration, you'll be taken to the app's **Overview** page. Here you'll 
 
 ![Certificates & Secrets - Empty](/docs/connectors/microsoft-teams/azure-certificates-empty.png)
 
-6. **Important**: Copy the secret **Value** immediately - it won't be shown again!
+6. **Important**: Copy the secret **Value** immediately. It will not be shown again!
 
 ![Certificates & Secrets - Created](/docs/connectors/microsoft-teams/azure-certificates-created.png)
 
@@ -90,13 +101,17 @@ After registration, you'll be taken to the app's **Overview** page. Here you'll 
 
 ## Running SurfSense with Microsoft Teams Connector
 
-Add the Microsoft Teams credentials to your `.env` file (created during [Docker installation](/docs/docker-installation/docker-compose)):
+Add the Microsoft OAuth credentials to your `.env` file (created during [Docker installation](/docs/docker-installation/docker-compose)):
 
 ```bash
-TEAMS_CLIENT_ID=your_microsoft_client_id
-TEAMS_CLIENT_SECRET=your_microsoft_client_secret
+MICROSOFT_CLIENT_ID=your_microsoft_client_id
+MICROSOFT_CLIENT_SECRET=your_microsoft_client_secret
 TEAMS_REDIRECT_URI=http://localhost:8000/api/v1/auth/teams/connector/callback
 ```
+
+<Callout type="info">
+  The `MICROSOFT_CLIENT_ID` and `MICROSOFT_CLIENT_SECRET` are shared between the Teams and OneDrive connectors. You only need to set them once.
+</Callout>
 
 Then restart the services:
 

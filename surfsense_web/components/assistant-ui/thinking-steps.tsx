@@ -20,8 +20,6 @@ export const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?:
 	steps,
 	isThreadRunning = true,
 }) => {
-	const [isOpen, setIsOpen] = useState(true);
-
 	const getEffectiveStatus = useCallback(
 		(step: ThinkingStep): "pending" | "in_progress" | "completed" => {
 			if (step.status === "in_progress" && !isThreadRunning) {
@@ -38,12 +36,18 @@ export const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?:
 		!isThreadRunning &&
 		steps.every((s) => getEffectiveStatus(s) === "completed");
 	const isProcessing = isThreadRunning && !allCompleted;
+	const [isOpen, setIsOpen] = useState(() => isProcessing);
 
 	useEffect(() => {
+		if (isProcessing) {
+			setIsOpen(true);
+			return;
+		}
+
 		if (allCompleted) {
 			setIsOpen(false);
 		}
-	}, [allCompleted]);
+	}, [allCompleted, isProcessing]);
 
 	if (steps.length === 0) return null;
 
@@ -65,7 +69,7 @@ export const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?:
 			<div className="rounded-lg">
 				<button
 					type="button"
-					onClick={() => setIsOpen(!isOpen)}
+					onClick={() => setIsOpen((prev) => !prev)}
 					className={cn(
 						"flex w-full items-center gap-1.5 text-left text-sm transition-colors",
 						"text-muted-foreground hover:text-foreground"

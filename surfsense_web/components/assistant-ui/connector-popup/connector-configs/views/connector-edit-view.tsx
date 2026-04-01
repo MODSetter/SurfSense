@@ -27,6 +27,8 @@ const REAUTH_ENDPOINTS: Partial<Record<string, string>> = {
 	[EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
 	[EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
 	[EnumConnectorName.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
+	[EnumConnectorName.ONEDRIVE_CONNECTOR]: "/api/v1/auth/onedrive/connector/reauth",
+	[EnumConnectorName.DROPBOX_CONNECTOR]: "/api/v1/auth/dropbox/connector/reauth",
 };
 
 interface ConnectorEditViewProps {
@@ -256,6 +258,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						{/* Connector-specific configuration */}
 						{ConnectorConfigComponent && (
 							<ConnectorConfigComponent
+								key={connector.id}
 								connector={connector}
 								onConfigChange={onConfigChange}
 								onNameChange={onNameChange}
@@ -269,9 +272,11 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 								{/* AI Summary toggle */}
 								<SummaryConfig enabled={enableSummary} onEnabledChange={onEnableSummaryChange} />
 
-								{/* Date range selector - not shown for Google Drive (regular and Composio), Webcrawler, or GitHub (indexes full repo snapshots) */}
+								{/* Date range selector - not shown for file-based connectors (Drive, Dropbox, OneDrive), Webcrawler, or GitHub (indexes full repo snapshots) */}
 								{connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" &&
 									connector.connector_type !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&
+									connector.connector_type !== "DROPBOX_CONNECTOR" &&
+									connector.connector_type !== "ONEDRIVE_CONNECTOR" &&
 									connector.connector_type !== "WEBCRAWLER_CONNECTOR" &&
 									connector.connector_type !== "GITHUB_CONNECTOR" && (
 										<DateRangeSelector

@@ -38,7 +38,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
 	Drawer,
 	DrawerContent,
@@ -234,6 +233,7 @@ export function DocumentsTableShell({
 	mentionedDocIds,
 	onToggleChatMention,
 	isSearchMode = false,
+	onOpenInTab,
 }: {
 	documents: Document[];
 	loading: boolean;
@@ -253,6 +253,8 @@ export function DocumentsTableShell({
 	onToggleChatMention?: (doc: Document, mentioned: boolean) => void;
 	/** Whether results are filtered by a search query or type filters */
 	isSearchMode?: boolean;
+	/** When provided, desktop "Preview" opens a document tab instead of the popup dialog */
+	onOpenInTab?: (doc: Document) => void;
 }) {
 	const t = useTranslations("documents");
 	const { openDialog } = useDocumentUploadDialog();
@@ -742,9 +744,13 @@ export function DocumentsTableShell({
 																</button>
 															</DropdownMenuTrigger>
 															<DropdownMenuContent align="end" className="w-48">
-																<DropdownMenuItem onClick={() => handleViewDocument(doc)}>
+																<DropdownMenuItem
+																	onClick={() =>
+																		onOpenInTab ? onOpenInTab(doc) : handleViewDocument(doc)
+																	}
+																>
 																	<Eye className="h-4 w-4" />
-																	Preview
+																	Open
 																</DropdownMenuItem>
 																{isEditable && (
 																	<DropdownMenuItem
@@ -923,26 +929,18 @@ export function DocumentsTableShell({
 				</div>
 			)}
 
-			{/* Document Content Viewer */}
-			<Dialog open={!!viewingDoc} onOpenChange={(open) => !open && handleCloseViewer()}>
-				<DialogContent className="max-w-4xl max-w-[92%] md:max-w-4xl max-h-[75vh] md:max-h-[80vh] flex flex-col overflow-hidden pb-0 p-3 md:p-6 gap-2 md:gap-4">
-					<DialogHeader className="flex-shrink-0">
-						<DialogTitle className="text-sm md:text-lg leading-tight pr-6">
+			{/* Document Content Viewer (mobile drawer) */}
+			<Drawer open={!!viewingDoc} onOpenChange={(open) => !open && handleCloseViewer()}>
+				<DrawerContent className="max-h-[85vh] flex flex-col">
+					<DrawerHandle />
+					<DrawerHeader className="text-left shrink-0">
+						<DrawerTitle className="text-base leading-tight break-words">
 							{viewingDoc?.title}
-						</DialogTitle>
-					</DialogHeader>
+						</DrawerTitle>
+					</DrawerHeader>
 					<div
 						onScroll={handlePreviewScroll}
-						className={[
-							"overflow-y-auto flex-1 min-h-0 px-1 md:px-6 select-text",
-							"max-md:text-xs",
-							"max-md:[&_h1]:text-base! max-md:[&_h1]:mt-3!",
-							"max-md:[&_h2]:text-sm! max-md:[&_h2]:mt-2!",
-							"max-md:[&_h3]:text-xs! max-md:[&_h3]:mt-2!",
-							"max-md:[&_h4]:text-xs!",
-							"max-md:[&_td]:text-[11px]! max-md:[&_td]:px-2! max-md:[&_td]:py-1.5!",
-							"max-md:[&_th]:text-[11px]! max-md:[&_th]:px-2! max-md:[&_th]:py-1.5!",
-						].join(" ")}
+						className="overflow-y-auto flex-1 min-h-0 px-4 pb-6 select-text text-xs [&_h1]:text-base! [&_h1]:mt-3! [&_h2]:text-sm! [&_h2]:mt-2! [&_h3]:text-xs! [&_h3]:mt-2! [&_h4]:text-xs! [&_td]:text-[11px]! [&_td]:px-2! [&_td]:py-1.5! [&_th]:text-[11px]! [&_th]:px-2! [&_th]:py-1.5!"
 						style={{
 							maskImage: `linear-gradient(to bottom, ${previewScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${previewScrollPos === "bottom" ? "black" : "transparent"})`,
 							WebkitMaskImage: `linear-gradient(to bottom, ${previewScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${previewScrollPos === "bottom" ? "black" : "transparent"})`,
@@ -956,8 +954,8 @@ export function DocumentsTableShell({
 							<MarkdownViewer content={viewingContent} />
 						)}
 					</div>
-				</DialogContent>
-			</Dialog>
+				</DrawerContent>
+			</Drawer>
 
 			{/* Document Metadata Viewer (Ctrl+Click) */}
 			<JsonMetadataViewer
@@ -992,9 +990,10 @@ export function DocumentsTableShell({
 								handleDeleteFromMenu();
 							}}
 							disabled={isDeleting}
-							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+							className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
-							{isDeleting ? <Spinner size="sm" /> : "Delete"}
+							<span className={isDeleting ? "opacity-0" : ""}>Delete</span>
+							{isDeleting && <Spinner size="sm" className="absolute" />}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
@@ -1027,7 +1026,7 @@ export function DocumentsTableShell({
 							}}
 						>
 							<Eye className="h-4 w-4" />
-							Preview
+							Open
 						</Button>
 						{mobileActionDoc &&
 							EDITABLE_DOCUMENT_TYPES.includes(
@@ -1110,9 +1109,10 @@ export function DocumentsTableShell({
 								handleBulkDelete();
 							}}
 							disabled={isBulkDeleting}
-							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+							className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
-							{isBulkDeleting ? <Spinner size="sm" /> : "Delete"}
+							<span className={isBulkDeleting ? "opacity-0" : ""}>Delete</span>
+							{isBulkDeleting && <Spinner size="sm" className="absolute" />}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>

@@ -149,17 +149,15 @@ function ApprovalCard({
 	const context = interruptData.context;
 	const page = context?.page;
 
-	const initialEditState = {
+	const [isPanelOpen, setIsPanelOpen] = useState(false);
+	const [editedArgs, setEditedArgs] = useState(() => ({
 		title: actionArgs.new_title
 			? String(actionArgs.new_title)
 			: (page?.page_title ?? args.new_title ?? ""),
 		content: actionArgs.new_content
 			? String(actionArgs.new_content)
 			: (page?.body ?? args.new_content ?? ""),
-	};
-
-	const [isPanelOpen, setIsPanelOpen] = useState(false);
-	const [editedArgs, setEditedArgs] = useState(initialEditState);
+	}));
 	const [hasPanelEdits, setHasPanelEdits] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
 

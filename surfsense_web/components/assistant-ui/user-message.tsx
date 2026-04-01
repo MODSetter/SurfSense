@@ -3,6 +3,7 @@ import { useAtomValue } from "jotai";
 import { CheckIcon, CopyIcon, FileText, Pen } from "lucide-react";
 import Image from "next/image";
 import { type FC, useState } from "react";
+import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { messageDocumentsMapAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 
@@ -51,6 +52,8 @@ export const UserMessage: FC = () => {
 	const mentionedDocs = messageId ? messageDocumentsMap[messageId] : undefined;
 	const metadata = useAuiState(({ message }) => message?.metadata);
 	const author = metadata?.custom?.author as AuthorMetadata | undefined;
+	const isSharedChat = useAtomValue(currentThreadAtom).visibility === "SEARCH_SPACE";
+	const showAvatar = isSharedChat && !!author;
 
 	return (
 		<MessagePrimitive.Root
@@ -81,7 +84,7 @@ export const UserMessage: FC = () => {
 							<UserActionBar />
 						</div>
 					</div>
-					{author && (
+					{showAvatar && (
 						<div className="shrink-0 mb-1.5">
 							<UserAvatar displayName={author.displayName} avatarUrl={author.avatarUrl} />
 						</div>

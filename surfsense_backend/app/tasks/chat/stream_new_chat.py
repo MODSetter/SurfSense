@@ -1023,6 +1023,10 @@ async def _stream_agent_events(
                 "delete_linear_issue",
                 "create_google_drive_file",
                 "delete_google_drive_file",
+                "create_onedrive_file",
+                "delete_onedrive_file",
+                "create_dropbox_file",
+                "delete_dropbox_file",
                 "create_gmail_draft",
                 "update_gmail_draft",
                 "send_gmail_email",
@@ -1072,6 +1076,37 @@ async def _stream_agent_events(
                         "output": output_text,
                         "thread_id": thread_id_str,
                     },
+                )
+            elif tool_name == "web_search":
+                xml = (
+                    tool_output.get("result", str(tool_output))
+                    if isinstance(tool_output, dict)
+                    else str(tool_output)
+                )
+                citations: dict[str, dict[str, str]] = {}
+                for m in re.finditer(
+                    r"<title><!\[CDATA\[(.*?)\]\]></title>\s*<url><!\[CDATA\[(.*?)\]\]></url>",
+                    xml,
+                ):
+                    title, url = m.group(1).strip(), m.group(2).strip()
+                    if url.startswith("http") and url not in citations:
+                        citations[url] = {"title": title}
+                for m in re.finditer(
+                    r"<chunk\s+id='([^']*)'><!\[CDATA\[([\s\S]*?)\]\]></chunk>",
+                    xml,
+                ):
+                    chunk_url, content = m.group(1).strip(), m.group(2).strip()
+                    if (
+                        chunk_url.startswith("http")
+                        and chunk_url in citations
+                        and content
+                    ):
+                        citations[chunk_url]["snippet"] = (
+                            content[:200] + "…" if len(content) > 200 else content
+                        )
+                yield streaming_service.format_tool_output_available(
+                    tool_call_id,
+                    {"status": "completed", "citations": citations},
                 )
             else:
                 yield streaming_service.format_tool_output_available(

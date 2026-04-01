@@ -729,10 +729,12 @@ export const useConnectorDialog = () => {
 		async (refreshConnectors: () => void) => {
 			if (!indexingConfig || !searchSpaceId) return;
 
-			// Validate date range (skip for Google Drive, Composio Drive, and Webcrawler)
+			// Validate date range (skip for Google Drive, Composio Drive, OneDrive, Dropbox, and Webcrawler)
 			if (
 				indexingConfig.connectorType !== "GOOGLE_DRIVE_CONNECTOR" &&
 				indexingConfig.connectorType !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&
+				indexingConfig.connectorType !== "ONEDRIVE_CONNECTOR" &&
+				indexingConfig.connectorType !== "DROPBOX_CONNECTOR" &&
 				indexingConfig.connectorType !== "WEBCRAWLER_CONNECTOR"
 			) {
 				const dateRangeValidation = dateRangeSchema.safeParse({ startDate, endDate });
@@ -778,10 +780,12 @@ export const useConnectorDialog = () => {
 					});
 				}
 
-				// Handle Google Drive folder selection (regular and Composio)
+				// Handle Google Drive / OneDrive / Dropbox folder selection (regular and Composio)
 				if (
 					(indexingConfig.connectorType === "GOOGLE_DRIVE_CONNECTOR" ||
-						indexingConfig.connectorType === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR") &&
+						indexingConfig.connectorType === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" ||
+						indexingConfig.connectorType === "ONEDRIVE_CONNECTOR" ||
+						indexingConfig.connectorType === "DROPBOX_CONNECTOR") &&
 					indexingConnectorConfig
 				) {
 					const selectedFolders = indexingConnectorConfig.selected_folders as
@@ -967,10 +971,12 @@ export const useConnectorDialog = () => {
 		async (refreshConnectors: () => void) => {
 			if (!editingConnector || !searchSpaceId || isSaving) return;
 
-			// Validate date range (skip for Google Drive which uses folder selection, Webcrawler which uses config, and non-indexable connectors)
+			// Validate date range (skip for Google Drive/OneDrive/Dropbox which uses folder selection, Webcrawler which uses config, and non-indexable connectors)
 			if (
 				editingConnector.is_indexable &&
 				editingConnector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" &&
+				editingConnector.connector_type !== "ONEDRIVE_CONNECTOR" &&
+				editingConnector.connector_type !== "DROPBOX_CONNECTOR" &&
 				editingConnector.connector_type !== "WEBCRAWLER_CONNECTOR"
 			) {
 				const dateRangeValidation = dateRangeSchema.safeParse({ startDate, endDate });
@@ -986,11 +992,13 @@ export const useConnectorDialog = () => {
 				return;
 			}
 
-			// Prevent periodic indexing for Google Drive (regular or Composio) without folders/files selected
+			// Prevent periodic indexing for Google Drive / OneDrive / Dropbox (regular or Composio) without folders/files selected
 			if (
 				periodicEnabled &&
 				(editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ||
-					editingConnector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR")
+					editingConnector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" ||
+					editingConnector.connector_type === "ONEDRIVE_CONNECTOR" ||
+					editingConnector.connector_type === "DROPBOX_CONNECTOR")
 			) {
 				const selectedFolders = (connectorConfig || editingConnector.config)?.selected_folders as
 					| Array<{ id: string; name: string }>
@@ -1043,9 +1051,11 @@ export const useConnectorDialog = () => {
 					indexingDescription = "Settings saved.";
 				} else if (
 					editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ||
-					editingConnector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR"
+					editingConnector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" ||
+					editingConnector.connector_type === "ONEDRIVE_CONNECTOR" ||
+					editingConnector.connector_type === "DROPBOX_CONNECTOR"
 				) {
-					// Google Drive (both regular and Composio) uses folder selection from config, not date ranges
+					// Google Drive (both regular and Composio) / OneDrive / Dropbox uses folder selection from config, not date ranges
 					const selectedFolders = (connectorConfig || editingConnector.config)?.selected_folders as
 						| Array<{ id: string; name: string }>
 						| undefined;

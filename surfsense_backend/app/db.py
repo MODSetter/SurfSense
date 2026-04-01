@@ -1,3 +1,4 @@
+import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -40,6 +41,7 @@ class DocumentType(StrEnum):
     FILE = "FILE"
     SLACK_CONNECTOR = "SLACK_CONNECTOR"
     TEAMS_CONNECTOR = "TEAMS_CONNECTOR"
+    ONEDRIVE_FILE = "ONEDRIVE_FILE"
     NOTION_CONNECTOR = "NOTION_CONNECTOR"
     YOUTUBE_VIDEO = "YOUTUBE_VIDEO"
     GITHUB_CONNECTOR = "GITHUB_CONNECTOR"
@@ -58,6 +60,7 @@ class DocumentType(StrEnum):
     CIRCLEBACK = "CIRCLEBACK"
     OBSIDIAN_CONNECTOR = "OBSIDIAN_CONNECTOR"
     NOTE = "NOTE"
+    DROPBOX_FILE = "DROPBOX_FILE"
     COMPOSIO_GOOGLE_DRIVE_CONNECTOR = "COMPOSIO_GOOGLE_DRIVE_CONNECTOR"
     COMPOSIO_GMAIL_CONNECTOR = "COMPOSIO_GMAIL_CONNECTOR"
     COMPOSIO_GOOGLE_CALENDAR_CONNECTOR = "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR"
@@ -81,6 +84,7 @@ class SearchSourceConnectorType(StrEnum):
     BAIDU_SEARCH_API = "BAIDU_SEARCH_API"  # Baidu AI Search API for Chinese web search
     SLACK_CONNECTOR = "SLACK_CONNECTOR"
     TEAMS_CONNECTOR = "TEAMS_CONNECTOR"
+    ONEDRIVE_CONNECTOR = "ONEDRIVE_CONNECTOR"
     NOTION_CONNECTOR = "NOTION_CONNECTOR"
     GITHUB_CONNECTOR = "GITHUB_CONNECTOR"
     LINEAR_CONNECTOR = "LINEAR_CONNECTOR"
@@ -101,6 +105,7 @@ class SearchSourceConnectorType(StrEnum):
         "OBSIDIAN_CONNECTOR"  # Self-hosted only - Local Obsidian vault indexing
     )
     MCP_CONNECTOR = "MCP_CONNECTOR"  # Model Context Protocol - User-defined API tools
+    DROPBOX_CONNECTOR = "DROPBOX_CONNECTOR"
     COMPOSIO_GOOGLE_DRIVE_CONNECTOR = "COMPOSIO_GOOGLE_DRIVE_CONNECTOR"
     COMPOSIO_GMAIL_CONNECTOR = "COMPOSIO_GMAIL_CONNECTOR"
     COMPOSIO_GOOGLE_CALENDAR_CONNECTOR = "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR"
@@ -286,6 +291,12 @@ class IncentiveTaskType(StrEnum):
     # GITHUB_ISSUE = "GITHUB_ISSUE"
     # SOCIAL_SHARE = "SOCIAL_SHARE"
     # REFER_FRIEND = "REFER_FRIEND"
+
+
+class PagePurchaseStatus(StrEnum):
+    PENDING = "pending"
+    COMPLETED = "completed"
+    FAILED = "failed"
 
 
 # Centralized configuration for incentive tasks
@@ -1639,6 +1650,39 @@ class UserIncentiveTask(BaseModel, TimestampMixin):
     user = relationship("User", back_populates="incentive_tasks")
 
 
+class PagePurchase(Base, TimestampMixin):
+    """Tracks Stripe checkout sessions used to grant additional page credits."""
+
+    __tablename__ = "page_purchases"
+    __allow_unmapped__ = True
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    stripe_checkout_session_id = Column(
+        String(255), nullable=False, unique=True, index=True
+    )
+    stripe_payment_intent_id = Column(String(255), nullable=True, index=True)
+    quantity = Column(Integer, nullable=False)
+    pages_granted = Column(Integer, nullable=False)
+    amount_total = Column(Integer, nullable=True)
+    currency = Column(String(10), nullable=True)
+    status = Column(
+        SQLAlchemyEnum(PagePurchaseStatus),
+        nullable=False,
+        default=PagePurchaseStatus.PENDING,
+        server_default=text("'PENDING'::pagepurchasestatus"),
+        index=True,
+    )
+    completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+    user = relationship("User", back_populates="page_purchases")
+
+
 class SearchSpaceRole(BaseModel, TimestampMixin):
     """
     Custom roles that can be defined per search space.
@@ -1773,6 +1817,47 @@ class SearchSpaceInvite(BaseModel, TimestampMixin):
     )
 
 
+class PromptMode(StrEnum):
+    transform = "transform"
+    explore = "explore"
+
+
+class Prompt(BaseModel, TimestampMixin):
+    __tablename__ = "prompts"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "default_prompt_slug",
+            name="uq_prompt_user_default_slug",
+        ),
+    )
+
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    search_space_id = Column(
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    default_prompt_slug = Column(String(100), nullable=True, index=True)
+    name = Column(String(200), nullable=False)
+    prompt = Column(Text, nullable=False)
+    mode = Column(
+        SQLAlchemyEnum(PromptMode, name="prompt_mode", create_type=False),
+        nullable=False,
+    )
+    version = Column(Integer, nullable=False, default=1)
+    is_public = Column(Boolean, nullable=False, default=False)
+
+    user = relationship("User")
+    search_space = relationship("SearchSpace")
+
+
 if config.AUTH_TYPE == "GOOGLE":
 
     class OAuthAccount(SQLAlchemyBaseOAuthAccountTableUUID, Base):
@@ -1862,6 +1947,11 @@ if config.AUTH_TYPE == "GOOGLE":
         # Incentive tasks completed by this user
         incentive_tasks = relationship(
             "UserIncentiveTask",
+            back_populates="user",
+            cascade="all, delete-orphan",
+        )
+        page_purchases = relationship(
+            "PagePurchase",
             back_populates="user",
             cascade="all, delete-orphan",
         )
@@ -1971,6 +2061,11 @@ else:
         # Incentive tasks completed by this user
         incentive_tasks = relationship(
             "UserIncentiveTask",
+            back_populates="user",
+            cascade="all, delete-orphan",
+        )
+        page_purchases = relationship(
+            "PagePurchase",
             back_populates="user",
             cascade="all, delete-orphan",
         )

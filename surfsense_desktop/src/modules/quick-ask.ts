@@ -1,16 +1,22 @@
 import { BrowserWindow, clipboard, globalShortcut, ipcMain, screen, shell } from 'electron';
 import path from 'path';
 import { IPC_CHANNELS } from '../ipc/channels';
+import { checkAccessibilityPermission, getFrontmostApp, simulatePaste } from './platform';
 import { getServerPort } from './server';
 
 const SHORTCUT = 'CommandOrControl+Option+S';
 let quickAskWindow: BrowserWindow | null = null;
 let pendingText = '';
+let pendingMode = '';
+let sourceApp = '';
+let savedClipboard = '';
 
-function hideQuickAsk(): void {
+function destroyQuickAsk(): void {
   if (quickAskWindow && !quickAskWindow.isDestroyed()) {
-    quickAskWindow.hide();
+    quickAskWindow.close();
   }
+  quickAskWindow = null;
+  pendingMode = '';
 }
 
 function clampToScreen(x: number, y: number, w: number, h: number): { x: number; y: number } {
@@ -23,16 +29,11 @@ function clampToScreen(x: number, y: number, w: number, h: number): { x: number;
 }
 
 function createQuickAskWindow(x: number, y: number): BrowserWindow {
-  if (quickAskWindow && !quickAskWindow.isDestroyed()) {
-    quickAskWindow.setPosition(x, y);
-    quickAskWindow.show();
-    quickAskWindow.focus();
-    return quickAskWindow;
-  }
+  destroyQuickAsk();
 
   quickAskWindow = new BrowserWindow({
     width: 450,
-    height: 550,
+    height: 750,
     x,
     y,
     ...(process.platform === 'darwin'
@@ -58,7 +59,7 @@ function createQuickAskWindow(x: number, y: number): BrowserWindow {
   });
 
   quickAskWindow.webContents.on('before-input-event', (_event, input) => {
-    if (input.key === 'Escape') hideQuickAsk();
+    if (input.key === 'Escape') destroyQuickAsk();
   });
 
   quickAskWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -78,17 +79,20 @@ function createQuickAskWindow(x: number, y: number): BrowserWindow {
 
 export function registerQuickAsk(): void {
   const ok = globalShortcut.register(SHORTCUT, () => {
-    if (quickAskWindow && !quickAskWindow.isDestroyed() && quickAskWindow.isVisible()) {
-      hideQuickAsk();
+    if (quickAskWindow && !quickAskWindow.isDestroyed()) {
+      destroyQuickAsk();
       return;
     }
 
-    const text = clipboard.readText().trim();
+    sourceApp = getFrontmostApp();
+    savedClipboard = clipboard.readText();
+
+    const text = savedClipboard.trim();
     if (!text) return;
 
     pendingText = text;
     const cursor = screen.getCursorScreenPoint();
-    const pos = clampToScreen(cursor.x, cursor.y, 450, 550);
+    const pos = clampToScreen(cursor.x, cursor.y, 450, 750);
     createQuickAskWindow(pos.x, pos.y);
   });
 
@@ -100,6 +104,35 @@ export function registerQuickAsk(): void {
     const text = pendingText;
     pendingText = '';
     return text;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.SET_QUICK_ASK_MODE, (_event, mode: string) => {
+    pendingMode = mode;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.GET_QUICK_ASK_MODE, (event) => {
+    if (quickAskWindow && !quickAskWindow.isDestroyed() && event.sender.id === quickAskWindow.webContents.id) {
+      return pendingMode;
+    }
+    return '';
+  });
+
+  ipcMain.handle(IPC_CHANNELS.REPLACE_TEXT, async (_event, text: string) => {
+    if (!sourceApp) return;
+
+    if (!checkAccessibilityPermission()) return;
+
+    clipboard.writeText(text);
+    destroyQuickAsk();
+
+    try {
+      await new Promise((r) => setTimeout(r, 50));
+      simulatePaste();
+      await new Promise((r) => setTimeout(r, 100));
+      clipboard.writeText(savedClipboard);
+    } catch {
+      clipboard.writeText(savedClipboard);
+    }
   });
 }
 

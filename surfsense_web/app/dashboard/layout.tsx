@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { USER_QUERY_KEY } from "@/atoms/user/user-query.atoms";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 import { getBearerToken, redirectToLogin } from "@/lib/auth-utils";
+import { queryClient } from "@/lib/query-client/client";
 
 interface DashboardLayoutProps {
 	children: React.ReactNode;
@@ -22,6 +24,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 			redirectToLogin();
 			return;
 		}
+		queryClient.invalidateQueries({ queryKey: [...USER_QUERY_KEY] });
 		setIsCheckingAuth(false);
 	}, []);
 

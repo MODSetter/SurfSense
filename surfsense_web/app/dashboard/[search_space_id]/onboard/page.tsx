@@ -1,7 +1,6 @@
 "use client";
 
-import { useAtomValue, useSetAtom } from "jotai";
-import { motion } from "motion/react";
+import { useAtomValue } from "jotai";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -13,19 +12,17 @@ import {
 	globalNewLLMConfigsAtom,
 	llmPreferencesAtom,
 } from "@/atoms/new-llm-config/new-llm-config-query.atoms";
-import { searchSpaceSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
 import { Logo } from "@/components/Logo";
 import { LLMConfigForm, type LLMConfigFormData } from "@/components/shared/llm-config-form";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 import { getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 
 export default function OnboardPage() {
 	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
-	const setSearchSpaceSettingsDialog = useSetAtom(searchSpaceSettingsDialogAtom);
-
 	// Queries
 	const {
 		data: globalConfigs = [],
@@ -62,14 +59,12 @@ export default function OnboardPage() {
 		preferences.document_summary_llm_id !== null &&
 		preferences.document_summary_llm_id !== undefined;
 
-	// If onboarding is already complete, redirect immediately
 	useEffect(() => {
 		if (!preferencesLoading && isOnboardingComplete) {
 			router.push(`/dashboard/${searchSpaceId}/new-chat`);
 		}
 	}, [preferencesLoading, isOnboardingComplete, router, searchSpaceId]);
 
-	// Auto-configure if global configs are available
 	useEffect(() => {
 		const autoConfigureWithGlobal = async () => {
 			if (hasAttemptedAutoConfig.current) return;
@@ -77,7 +72,6 @@ export default function OnboardPage() {
 			if (!globalConfigsLoaded) return;
 			if (isOnboardingComplete) return;
 
-			// Only auto-configure if we have global configs
 			if (globalConfigs.length > 0) {
 				hasAttemptedAutoConfig.current = true;
 				setIsAutoConfiguring(true);
@@ -97,7 +91,6 @@ export default function OnboardPage() {
 						description: `Using ${firstGlobalConfig.name}. You can customize this later in Settings.`,
 					});
 
-					// Redirect to new-chat
 					router.push(`/dashboard/${searchSpaceId}/new-chat`);
 				} catch (error) {
 					console.error("Auto-configuration failed:", error);
@@ -119,13 +112,10 @@ export default function OnboardPage() {
 		router,
 	]);
 
-	// Handle form submission
 	const handleSubmit = async (formData: LLMConfigFormData) => {
 		try {
-			// Create the config
 			const newConfig = await createConfig(formData);
 
-			// Auto-assign to all roles
 			await updatePreferences({
 				search_space_id: searchSpaceId,
 				data: {
@@ -138,7 +128,6 @@ export default function OnboardPage() {
 				description: "Redirecting to chat...",
 			});
 
-			// Redirect to new-chat
 			router.push(`/dashboard/${searchSpaceId}/new-chat`);
 		} catch (error) {
 			console.error("Failed to create config:", error);
@@ -150,124 +139,59 @@ export default function OnboardPage() {
 
 	const isSubmitting = isCreating || isUpdatingPreferences;
 
-	// Loading state
-	if (globalConfigsLoading || preferencesLoading || isAutoConfiguring) {
-		return (
-			<div className="min-h-screen bg-gradient-to-b from-background to-muted/20 flex items-center justify-center">
-				<motion.div
-					initial={{ opacity: 0, scale: 0.95 }}
-					animate={{ opacity: 1, scale: 1 }}
-					className="text-center space-y-6"
-				>
-					<div className="relative">
-						<div className="absolute inset-0 blur-3xl bg-gradient-to-r from-violet-500/20 to-cyan-500/20 rounded-full" />
-						<div className="relative flex items-center justify-center w-24 h-24 mx-auto rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-2xl shadow-violet-500/25">
-							<Spinner size="xl" className="text-white" />
-						</div>
-					</div>
-					<div className="space-y-2">
-						<h2 className="text-2xl font-bold tracking-tight">
-							{isAutoConfiguring ? "Setting up your AI..." : "Loading..."}
-						</h2>
-						<p className="text-muted-foreground">
-							{isAutoConfiguring
-								? "Auto-configuring with available settings"
-								: "Please wait while we check your configuration"}
+	const isLoading = globalConfigsLoading || preferencesLoading || isAutoConfiguring;
+	useGlobalLoadingEffect(isLoading);
+
+	if (isLoading) {
+		return null;
+	}
+
+	if (globalConfigs.length > 0 && !isAutoConfiguring) {
+		return null;
+	}
+
+	return (
+		<div className="h-screen flex flex-col items-center p-4 bg-background dark:bg-neutral-900 select-none overflow-hidden">
+			<div className="w-full max-w-lg flex flex-col min-h-0 h-full gap-6 py-8">
+				{/* Header */}
+				<div className="text-center space-y-3 shrink-0">
+					<Logo className="w-12 h-12 mx-auto" />
+					<div className="space-y-1">
+						<h1 className="text-2xl font-semibold tracking-tight">Configure Your AI</h1>
+						<p className="text-sm text-muted-foreground">
+							Add your LLM provider to get started with SurfSense
 						</p>
 					</div>
-					<div className="flex justify-center gap-1">
-						{[0, 1, 2].map((i) => (
-							<motion.div
-								key={i}
-								className="w-2 h-2 rounded-full bg-violet-500"
-								animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }}
-								transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
-							/>
-						))}
-					</div>
-				</motion.div>
-			</div>
-		);
-	}
+				</div>
 
-	// If global configs exist but auto-config failed, show simple message
-	if (globalConfigs.length > 0 && !isAutoConfiguring) {
-		return null; // Will redirect via useEffect
-	}
+				{/* Form card */}
+				<div className="rounded-xl border bg-background dark:bg-neutral-900 flex-1 min-h-0 overflow-y-auto px-6 py-6">
+					<LLMConfigForm
+						searchSpaceId={searchSpaceId}
+						onSubmit={handleSubmit}
+						mode="create"
+						showAdvanced={true}
+						formId="onboard-config-form"
+						initialData={{
+							citations_enabled: true,
+							use_default_system_instructions: true,
+						}}
+					/>
+				</div>
 
-	// No global configs - show the config form
-	return (
-		<div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30">
-			<div className="container mx-auto px-4 py-8 md:py-12 max-w-3xl">
-				<motion.div
-					initial={{ opacity: 0, y: 20 }}
-					animate={{ opacity: 1, y: 0 }}
-					transition={{ duration: 0.5 }}
-					className="space-y-8"
-				>
-					{/* Header */}
-					<div className="text-center space-y-4">
-						<motion.div
-							initial={{ scale: 0 }}
-							animate={{ scale: 1 }}
-							transition={{ type: "spring", delay: 0.2 }}
-							className="relative inline-block"
-						>
-							<Logo className="w-20 h-20 mx-auto rounded-full" />
-						</motion.div>
-
-						<div className="space-y-2">
-							<h1 className="text-3xl font-bold tracking-tight">Configure Your AI</h1>
-							<p className="text-muted-foreground text-lg">
-								Add your LLM provider to get started with SurfSense
-							</p>
-						</div>
-					</div>
-
-					{/* Config Form */}
-					<motion.div
-						initial={{ opacity: 0, y: 20 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ delay: 0.3 }}
+				{/* Footer */}
+				<div className="text-center space-y-4 shrink-0">
+					<Button
+						type="submit"
+						form="onboard-config-form"
+						disabled={isSubmitting}
+						className="relative text-sm h-9 min-w-[180px]"
 					>
-						<Card className="border-2 border-muted shadow-xl overflow-hidden">
-							<CardHeader className="pb-4">
-								<CardTitle className="text-xl">LLM Configuration</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<LLMConfigForm
-									searchSpaceId={searchSpaceId}
-									onSubmit={handleSubmit}
-									isSubmitting={isSubmitting}
-									mode="create"
-									showAdvanced={true}
-									submitLabel="Start Using SurfSense"
-									initialData={{
-										citations_enabled: true,
-										use_default_system_instructions: true,
-									}}
-								/>
-							</CardContent>
-						</Card>
-					</motion.div>
-
-					{/* Footer note */}
-					<motion.p
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						transition={{ delay: 0.5 }}
-						className="text-center text-sm text-muted-foreground"
-					>
-						You can add more configurations and customize settings anytime in{" "}
-						<button
-							type="button"
-							onClick={() => setSearchSpaceSettingsDialog({ open: true, initialTab: "general" })}
-							className="text-violet-500 hover:underline"
-						>
-							Settings
-						</button>
-					</motion.p>
-				</motion.div>
+						<span className={isSubmitting ? "opacity-0" : ""}>Start Using SurfSense</span>
+						{isSubmitting && <Spinner size="sm" className="absolute" />}
+					</Button>
+					<p className="text-xs text-muted-foreground">You can add more configurations later</p>
+				</div>
 			</div>
 		</div>
 	);

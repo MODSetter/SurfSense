@@ -2,14 +2,21 @@
 
 import { useAtomValue, useSetAtom } from "jotai";
 import { AlertCircle, XIcon } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { closeEditorPanelAtom, editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
-import { PlateEditor } from "@/components/editor/plate-editor";
+import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
+
+const PlateEditor = dynamic(
+	() => import("@/components/editor/plate-editor").then((m) => ({ default: m.PlateEditor })),
+	{ ssr: false, loading: () => <Skeleton className="h-64 w-full" /> }
+);
 
 interface EditorContent {
 	document_id: number;
@@ -17,6 +24,8 @@ interface EditorContent {
 	document_type?: string;
 	source_markdown: string;
 }
+
+const EDITABLE_DOCUMENT_TYPES = new Set(["FILE", "NOTE"]);
 
 function EditorPanelSkeleton() {
 	return (
@@ -165,12 +174,16 @@ export function EditorPanelContent({
 		}
 	}, [documentId, searchSpaceId]);
 
+	const isEditableType = editorDoc
+		? EDITABLE_DOCUMENT_TYPES.has(editorDoc.document_type ?? "")
+		: false;
+
 	return (
 		<>
 			<div className="flex items-center justify-between px-4 py-2 shrink-0 border-b">
 				<div className="flex-1 min-w-0">
 					<h2 className="text-sm font-semibold truncate">{displayTitle}</h2>
-					{editedMarkdown !== null && (
+					{isEditableType && editedMarkdown !== null && (
 						<p className="text-[10px] text-muted-foreground">Unsaved changes</p>
 					)}
 				</div>
@@ -193,7 +206,7 @@ export function EditorPanelContent({
 							<p className="text-sm text-red-500 mt-1">{error || "An unknown error occurred"}</p>
 						</div>
 					</div>
-				) : (
+				) : isEditableType ? (
 					<PlateEditor
 						key={documentId}
 						preset="full"
@@ -208,6 +221,10 @@ export function EditorPanelContent({
 						defaultEditing={true}
 						className="[&_[role=toolbar]]:!bg-sidebar"
 					/>
+				) : (
+					<div className="h-full overflow-y-auto px-5 py-4">
+						<MarkdownViewer content={editorDoc.source_markdown} />
+					</div>
 				)}
 			</div>
 		</>
@@ -255,7 +272,7 @@ function MobileEditorDrawer() {
 			shouldScaleBackground={false}
 		>
 			<DrawerContent
-				className="h-[95vh] max-h-[95vh] z-80 bg-sidebar overflow-hidden"
+				className="h-[90vh] max-h-[90vh] z-80 bg-sidebar overflow-hidden"
 				overlayClassName="z-80"
 			>
 				<DrawerHandle />

@@ -666,27 +666,33 @@ export function OnboardingTour() {
 	}, [targetEl, isActive]);
 
 	const handleNext = useCallback(() => {
-		if (stepIndex < TOUR_STEPS.length - 1) {
-			retryCountRef.current = 0;
-			setShouldAnimate(true);
-			setStepIndex(stepIndex + 1);
-		} else {
-			// Tour completed - save to localStorage
-			if (user?.id) {
-				const tourKey = `surfsense-tour-${user.id}`;
-				localStorage.setItem(tourKey, "true");
+		retryCountRef.current = 0;
+		setShouldAnimate(true);
+		setStepIndex((prev) => {
+			if (prev < TOUR_STEPS.length - 1) {
+				return prev + 1;
+			} else {
+				// Tour completed - save to localStorage
+				if (user?.id) {
+					const tourKey = `surfsense-tour-${user.id}`;
+					localStorage.setItem(tourKey, "true");
+				}
+				setIsActive(false);
+				return prev;
 			}
-			setIsActive(false);
-		}
-	}, [stepIndex, user?.id]);
+		});
+	}, [user?.id]);
 
 	const handlePrev = useCallback(() => {
-		if (stepIndex > 0) {
-			retryCountRef.current = 0;
-			setShouldAnimate(true);
-			setStepIndex(stepIndex - 1);
-		}
-	}, [stepIndex]);
+		retryCountRef.current = 0;
+		setShouldAnimate(true);
+		setStepIndex((prev) => {
+			if (prev > 0) {
+				return prev - 1;
+			}
+			return prev;
+		});
+	}, []);
 
 	const handleSkip = useCallback(() => {
 		// Tour skipped - save to localStorage

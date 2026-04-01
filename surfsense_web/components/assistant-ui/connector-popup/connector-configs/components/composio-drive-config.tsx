@@ -12,8 +12,8 @@ import {
 	X,
 } from "lucide-react";
 import type { FC } from "react";
-import { useCallback, useEffect, useState } from "react";
-import { ComposioDriveFolderTree } from "@/components/connectors/composio-drive-folder-tree";
+import { useCallback, useState } from "react";
+import { DriveFolderTree, type SelectedFolder } from "@/components/connectors/drive-folder-tree";
 import { Label } from "@/components/ui/label";
 import {
 	Select,
@@ -23,12 +23,8 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { connectorsApiService } from "@/lib/apis/connectors-api.service";
 import type { ConnectorConfigProps } from "../index";
-
-interface SelectedFolder {
-	id: string;
-	name: string;
-}
 
 interface IndexingOptions {
 	max_files_per_folder: number;
@@ -102,19 +98,18 @@ export const ComposioDriveConfig: FC<ConnectorConfigProps> = ({ connector, onCon
 		setAuthError(true);
 	}, []);
 
+	const fetchItems = useCallback(
+		async (parentId?: string) => {
+			return connectorsApiService.listComposioDriveFolders({
+				connector_id: connector.id,
+				parent_id: parentId,
+			});
+		},
+		[connector.id]
+	);
+
 	const [isEditMode] = useState(() => existingFolders.length > 0 || existingFiles.length > 0);
 	const [isFolderTreeOpen, setIsFolderTreeOpen] = useState(!isEditMode);
-
-	useEffect(() => {
-		const folders = (connector.config?.selected_folders as SelectedFolder[] | undefined) || [];
-		const files = (connector.config?.selected_files as SelectedFolder[] | undefined) || [];
-		const options =
-			(connector.config?.indexing_options as IndexingOptions | undefined) ||
-			DEFAULT_INDEXING_OPTIONS;
-		setSelectedFolders(folders);
-		setSelectedFiles(files);
-		setIndexingOptions(options);
-	}, [connector.config]);
 
 	const updateConfig = (
 		folders: SelectedFolder[],
@@ -244,7 +239,7 @@ export const ComposioDriveConfig: FC<ConnectorConfigProps> = ({ connector, onCon
 					<div className="space-y-2">
 						<button
 							type="button"
-							onClick={() => setIsFolderTreeOpen(!isFolderTreeOpen)}
+							onClick={() => setIsFolderTreeOpen((prev) => !prev)}
 							className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
 						>
 							Change Selection
@@ -255,24 +250,28 @@ export const ComposioDriveConfig: FC<ConnectorConfigProps> = ({ connector, onCon
 							)}
 						</button>
 						{isFolderTreeOpen && (
-							<ComposioDriveFolderTree
-								connectorId={connector.id}
+							<DriveFolderTree
+								fetchItems={fetchItems}
 								selectedFolders={selectedFolders}
 								onSelectFolders={handleSelectFolders}
 								selectedFiles={selectedFiles}
 								onSelectFiles={handleSelectFiles}
 								onAuthError={handleAuthError}
+								rootLabel="My Drive"
+								providerName="Google Drive"
 							/>
 						)}
 					</div>
 				) : (
-					<ComposioDriveFolderTree
-						connectorId={connector.id}
+					<DriveFolderTree
+						fetchItems={fetchItems}
 						selectedFolders={selectedFolders}
 						onSelectFolders={handleSelectFolders}
 						selectedFiles={selectedFiles}
 						onSelectFiles={handleSelectFiles}
 						onAuthError={handleAuthError}
+						rootLabel="My Drive"
+						providerName="Google Drive"
 					/>
 				)}
 			</div>

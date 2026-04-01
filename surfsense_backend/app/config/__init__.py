@@ -231,6 +231,21 @@ class Config:
     # Backend URL to override the http to https in the OAuth redirect URI
     BACKEND_URL = os.getenv("BACKEND_URL")
 
+    # Stripe checkout for pay-as-you-go page packs
+    STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+    STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+    STRIPE_PRICE_ID = os.getenv("STRIPE_PRICE_ID")
+    STRIPE_PAGES_PER_UNIT = int(os.getenv("STRIPE_PAGES_PER_UNIT", "1000"))
+    STRIPE_PAGE_BUYING_ENABLED = (
+        os.getenv("STRIPE_PAGE_BUYING_ENABLED", "TRUE").upper() == "TRUE"
+    )
+    STRIPE_RECONCILIATION_LOOKBACK_MINUTES = int(
+        os.getenv("STRIPE_RECONCILIATION_LOOKBACK_MINUTES", "10")
+    )
+    STRIPE_RECONCILIATION_BATCH_SIZE = int(
+        os.getenv("STRIPE_RECONCILIATION_BATCH_SIZE", "100")
+    )
+
     # Auth
     AUTH_TYPE = os.getenv("AUTH_TYPE")
     REGISTRATION_ENABLED = os.getenv("REGISTRATION_ENABLED", "TRUE").upper() == "TRUE"
@@ -281,15 +296,21 @@ class Config:
     DISCORD_REDIRECT_URI = os.getenv("DISCORD_REDIRECT_URI")
     DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
-    # Microsoft Teams OAuth
-    TEAMS_CLIENT_ID = os.getenv("TEAMS_CLIENT_ID")
-    TEAMS_CLIENT_SECRET = os.getenv("TEAMS_CLIENT_SECRET")
+    # Microsoft OAuth (shared for Teams and OneDrive)
+    MICROSOFT_CLIENT_ID = os.getenv("MICROSOFT_CLIENT_ID")
+    MICROSOFT_CLIENT_SECRET = os.getenv("MICROSOFT_CLIENT_SECRET")
     TEAMS_REDIRECT_URI = os.getenv("TEAMS_REDIRECT_URI")
+    ONEDRIVE_REDIRECT_URI = os.getenv("ONEDRIVE_REDIRECT_URI")
 
     # ClickUp OAuth
     CLICKUP_CLIENT_ID = os.getenv("CLICKUP_CLIENT_ID")
     CLICKUP_CLIENT_SECRET = os.getenv("CLICKUP_CLIENT_SECRET")
     CLICKUP_REDIRECT_URI = os.getenv("CLICKUP_REDIRECT_URI")
+
+    # Dropbox OAuth
+    DROPBOX_APP_KEY = os.getenv("DROPBOX_APP_KEY")
+    DROPBOX_APP_SECRET = os.getenv("DROPBOX_APP_SECRET")
+    DROPBOX_REDIRECT_URI = os.getenv("DROPBOX_REDIRECT_URI")
 
     # Composio Configuration (for managed OAuth integrations)
     # Get your API key from https://app.composio.dev
@@ -393,6 +414,15 @@ class Config:
     STT_SERVICE = os.getenv("STT_SERVICE")
     STT_SERVICE_API_BASE = os.getenv("STT_SERVICE_API_BASE")
     STT_SERVICE_API_KEY = os.getenv("STT_SERVICE_API_KEY")
+
+    # Video presentation defaults
+    VIDEO_PRESENTATION_MAX_SLIDES = int(
+        os.getenv("VIDEO_PRESENTATION_MAX_SLIDES", "30")
+    )
+    VIDEO_PRESENTATION_FPS = int(os.getenv("VIDEO_PRESENTATION_FPS", "30"))
+    VIDEO_PRESENTATION_DEFAULT_DURATION_IN_FRAMES = int(
+        os.getenv("VIDEO_PRESENTATION_DEFAULT_DURATION_IN_FRAMES", "300")
+    )
 
     # Validation Checks
     # Check embedding dimension

@@ -2,7 +2,7 @@
 
 import { KeyRound } from "lucide-react";
 import type { FC } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ConnectorConfigProps } from "../index";
@@ -18,13 +18,6 @@ export const TavilyApiConfig: FC<TavilyApiConfigProps> = ({
 }) => {
 	const [apiKey, setApiKey] = useState<string>((connector.config?.TAVILY_API_KEY as string) || "");
 	const [name, setName] = useState<string>(connector.name || "");
-
-	// Update API key and name when connector changes
-	useEffect(() => {
-		const key = (connector.config?.TAVILY_API_KEY as string) || "";
-		setApiKey(key);
-		setName(connector.name || "");
-	}, [connector.config, connector.name]);
 
 	const handleApiKeyChange = (value: string) => {
 		setApiKey(value);

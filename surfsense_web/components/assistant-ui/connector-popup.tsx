@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue, useSetAtom } from "jotai";
-import { AlertTriangle, Cable, Settings } from "lucide-react";
+import { AlertTriangle, Settings } from "lucide-react";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
@@ -12,17 +12,14 @@ import {
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { searchSpaceSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { useConnectorsSync } from "@/hooks/use-connectors-sync";
 import { PICKER_CLOSE_EVENT, PICKER_OPEN_EVENT } from "@/hooks/use-google-picker";
 import { useZeroDocumentTypeCounts } from "@/hooks/use-zero-document-type-counts";
-import { cn } from "@/lib/utils";
 import { ConnectorDialogHeader } from "./connector-popup/components/connector-dialog-header";
 import { ConnectorConnectView } from "./connector-popup/connector-configs/views/connector-connect-view";
 import { ConnectorEditView } from "./connector-popup/connector-configs/views/connector-edit-view";
@@ -47,7 +44,7 @@ interface ConnectorIndicatorProps {
 }
 
 export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, ConnectorIndicatorProps>(
-	({ showTrigger = true }, ref) => {
+	(_props, ref) => {
 		const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 		const setSearchSpaceSettingsDialog = useSetAtom(searchSpaceSettingsDialogAtom);
 		useAtomValue(currentUserAtom);
@@ -74,8 +71,6 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 
 		// Real-time document type counts via Zero (updates instantly as docs are indexed)
 		const documentTypeCounts = useZeroDocumentTypeCounts(searchSpaceId);
-		const documentTypesLoading = documentTypeCounts === undefined;
-
 		// Read status inbox items from shared atom (populated by LayoutDataProvider)
 		// instead of creating a duplicate useInbox("status") hook.
 		const statusInboxItems = useAtomValue(statusInboxItemsAtom);
@@ -178,8 +173,6 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 			inboxItems
 		);
 
-		const isLoading = connectorsLoading || documentTypesLoading;
-
 		// Get document types that have documents in the search space
 		const activeDocumentTypes = documentTypeCounts
 			? Object.entries(documentTypeCounts).filter(([, count]) => count > 0)
@@ -205,41 +198,6 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 
 		return (
 			<Dialog open={isOpen} modal={false} onOpenChange={handleOpenChange}>
-				{showTrigger && (
-					<TooltipIconButton
-						data-joyride="connector-icon"
-						tooltip={
-							hasConnectors ? `Manage ${activeConnectorsCount} connectors` : "Connect your data"
-						}
-						side="bottom"
-						className={cn(
-							"size-[34px] rounded-full p-1 flex items-center justify-center transition-colors relative",
-							"hover:bg-muted-foreground/15 dark:hover:bg-muted-foreground/30",
-							"outline-none focus:outline-none focus-visible:outline-none font-semibold text-xs",
-							"border-0 ring-0 focus:ring-0 shadow-none focus:shadow-none"
-						)}
-						aria-label={
-							hasConnectors
-								? `View ${activeConnectorsCount} connectors`
-								: "Add your first connector"
-						}
-						onClick={() => handleOpenChange(true)}
-					>
-						{isLoading ? (
-							<Spinner size="sm" />
-						) : (
-							<>
-								<Cable className="size-4 stroke-[1.5px]" />
-								{activeConnectorsCount > 0 && (
-									<span className="absolute -top-0.5 right-0 flex items-center justify-center min-w-[16px] h-4 px-1 text-[10px] font-medium rounded-full bg-primary text-primary-foreground shadow-sm select-none">
-										{activeConnectorsCount > 99 ? "99+" : activeConnectorsCount}
-									</span>
-								)}
-							</>
-						)}
-					</TooltipIconButton>
-				)}
-
 				{isOpen &&
 					createPortal(
 						<div
@@ -340,10 +298,12 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 							onBack={handleBackFromEdit}
 							onQuickIndex={(() => {
 								const cfg = connectorConfig || editingConnector.config;
-								const isDrive =
+								const isDriveOrOneDrive =
 									editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ||
-									editingConnector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR";
-								const hasDriveItems = isDrive
+									editingConnector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" ||
+									editingConnector.connector_type === "ONEDRIVE_CONNECTOR" ||
+									editingConnector.connector_type === "DROPBOX_CONNECTOR";
+								const hasDriveItems = isDriveOrOneDrive
 									? ((cfg?.selected_folders as unknown[]) ?? []).length > 0 ||
 										((cfg?.selected_files as unknown[]) ?? []).length > 0
 									: true;

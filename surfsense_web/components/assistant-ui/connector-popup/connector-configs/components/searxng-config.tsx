@@ -2,7 +2,7 @@
 
 import { Globe, KeyRound } from "lucide-react";
 import type { FC } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -54,32 +54,6 @@ export const SearxngConfig: FC<SearxngConfigProps> = ({
 			: true
 	);
 	const [name, setName] = useState<string>(connector.name || "");
-
-	// Update all fields when connector changes
-	useEffect(() => {
-		const hostValue = (connector.config?.SEARXNG_HOST as string) || "";
-		const apiKeyValue = (connector.config?.SEARXNG_API_KEY as string) || "";
-		const enginesValue = arrayToString(connector.config?.SEARXNG_ENGINES);
-		const categoriesValue = arrayToString(connector.config?.SEARXNG_CATEGORIES);
-		const languageValue = (connector.config?.SEARXNG_LANGUAGE as string) || "";
-		const safesearchValue =
-			connector.config?.SEARXNG_SAFESEARCH !== undefined
-				? String(connector.config.SEARXNG_SAFESEARCH)
-				: "";
-		const verifySslValue =
-			connector.config?.SEARXNG_VERIFY_SSL !== undefined
-				? (connector.config.SEARXNG_VERIFY_SSL as boolean)
-				: true;
-
-		setHost(hostValue);
-		setApiKey(apiKeyValue);
-		setEngines(enginesValue);
-		setCategories(categoriesValue);
-		setLanguage(languageValue);
-		setSafesearch(safesearchValue);
-		setVerifySsl(verifySslValue);
-		setName(connector.name || "");
-	}, [connector.config, connector.name]);
 
 	const updateConfig = (updates: Record<string, unknown>) => {
 		if (onConfigChange) {

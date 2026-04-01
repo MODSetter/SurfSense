@@ -84,6 +84,8 @@ _CONNECTOR_TYPE_TO_SEARCHABLE: dict[str, str] = {
     "BOOKSTACK_CONNECTOR": "BOOKSTACK_CONNECTOR",
     "CIRCLEBACK_CONNECTOR": "CIRCLEBACK",  # Connector type differs from document type
     "OBSIDIAN_CONNECTOR": "OBSIDIAN_CONNECTOR",
+    "DROPBOX_CONNECTOR": "DROPBOX_FILE",  # Connector type differs from document type
+    "ONEDRIVE_CONNECTOR": "ONEDRIVE_FILE",  # Connector type differs from document type
     # Composio connectors (unified to native document types).
     # Reverse of NATIVE_TO_LEGACY_DOCTYPE in app.db.
     "COMPOSIO_GOOGLE_DRIVE_CONNECTOR": "GOOGLE_DRIVE_FILE",
@@ -316,6 +318,18 @@ async def create_surfsense_deep_agent(
         ]
         modified_disabled_tools.extend(google_drive_tools)
 
+    has_dropbox_connector = (
+        available_connectors is not None and "DROPBOX_FILE" in available_connectors
+    )
+    if not has_dropbox_connector:
+        modified_disabled_tools.extend(["create_dropbox_file", "delete_dropbox_file"])
+
+    has_onedrive_connector = (
+        available_connectors is not None and "ONEDRIVE_FILE" in available_connectors
+    )
+    if not has_onedrive_connector:
+        modified_disabled_tools.extend(["create_onedrive_file", "delete_onedrive_file"])
+
     # Disable Google Calendar action tools if no Google Calendar connector is configured
     has_google_calendar_connector = (
         available_connectors is not None
@@ -433,6 +447,7 @@ async def create_surfsense_deep_agent(
     deepagent_middleware = [
         TodoListMiddleware(),
         KnowledgeBaseSearchMiddleware(
+            llm=llm,
             search_space_id=search_space_id,
             available_connectors=available_connectors,
             available_document_types=available_document_types,

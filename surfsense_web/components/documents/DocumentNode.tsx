@@ -40,6 +40,8 @@ import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { cn } from "@/lib/utils";
 import { DND_TYPES } from "./FolderNode";
 
+const EDITABLE_DOCUMENT_TYPES = new Set(["FILE", "NOTE"]);
+
 export interface DocumentNodeDoc {
 	id: number;
 	title: string;
@@ -78,7 +80,9 @@ export const DocumentNode = React.memo(function DocumentNode({
 	const statusState = doc.status?.state ?? "ready";
 	const isSelectable = statusState !== "pending" && statusState !== "processing";
 	const isEditable =
-		doc.document_type === "NOTE" && statusState !== "pending" && statusState !== "processing";
+		EDITABLE_DOCUMENT_TYPES.has(doc.document_type) &&
+		statusState !== "pending" &&
+		statusState !== "processing";
 
 	const handleCheckChange = useCallback(() => {
 		if (isSelectable) {
@@ -149,7 +153,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 											<Clock className="h-3.5 w-3.5 text-muted-foreground/60" />
 										</span>
 									</TooltipTrigger>
-									<TooltipContent side="top">Pending - waiting to be synced</TooltipContent>
+									<TooltipContent side="top">Pending — waiting to be synced</TooltipContent>
 								</Tooltip>
 							);
 						}
@@ -214,7 +218,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 								<MoreHorizontal className="h-3.5 w-3.5" />
 							</Button>
 						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" className="w-40">
+						<DropdownMenuContent align="end" className="w-40" onClick={(e) => e.stopPropagation()}>
 							<DropdownMenuItem onClick={() => onPreview(doc)}>
 								<Eye className="mr-2 h-4 w-4" />
 								Open
@@ -254,7 +258,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 			</ContextMenuTrigger>
 
 			{contextMenuOpen && (
-				<ContextMenuContent className="w-40">
+				<ContextMenuContent className="w-40" onClick={(e) => e.stopPropagation()}>
 					<ContextMenuItem onClick={() => onPreview(doc)}>
 						<Eye className="mr-2 h-4 w-4" />
 						Open

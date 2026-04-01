@@ -2,7 +2,7 @@
 
 import { Info } from "lucide-react";
 import type { FC } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,14 +18,6 @@ export const WebcrawlerConfig: FC<ConnectorConfigProps> = ({ connector, onConfig
 	const [apiKey, setApiKey] = useState(existingApiKey);
 	const [initialUrls, setInitialUrls] = useState(existingUrls);
 	const [showApiKey, setShowApiKey] = useState(false);
-
-	// Update state when connector config changes
-	useEffect(() => {
-		const apiKeyValue = (connector.config?.FIRECRAWL_API_KEY as string | undefined) || "";
-		const urlsValue = (connector.config?.INITIAL_URLS as string | undefined) || "";
-		setApiKey(apiKeyValue);
-		setInitialUrls(urlsValue);
-	}, [connector.config]);
 
 	const handleApiKeyChange = (value: string) => {
 		setApiKey(value);
@@ -86,7 +78,7 @@ export const WebcrawlerConfig: FC<ConnectorConfigProps> = ({ connector, onConfig
 						type="button"
 						variant="ghost"
 						size="sm"
-						onClick={() => setShowApiKey(!showApiKey)}
+						onClick={() => setShowApiKey((prev) => !prev)}
 						className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
 					>
 						{showApiKey ? "Hide" : "Show"}

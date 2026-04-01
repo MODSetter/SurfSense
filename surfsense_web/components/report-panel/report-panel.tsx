@@ -2,12 +2,12 @@
 
 import { useAtomValue, useSetAtom } from "jotai";
 import { ChevronDownIcon, XIcon } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { closeReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
-import { PlateEditor } from "@/components/editor/plate-editor";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { EXPORT_FILE_EXTENSIONS, ExportDropdownItems } from "@/components/shared/ExportMenuItems";
 import { Button } from "@/components/ui/button";
@@ -18,9 +18,15 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
+
+const PlateEditor = dynamic(
+	() => import("@/components/editor/plate-editor").then((m) => ({ default: m.PlateEditor })),
+	{ ssr: false, loading: () => <Skeleton className="h-64 w-full" /> }
+);
 
 /**
  * Zod schema for a single version entry
@@ -455,7 +461,7 @@ function MobileReportDrawer() {
 			shouldScaleBackground={false}
 		>
 			<DrawerContent
-				className="h-[95vh] max-h-[95vh] z-80 bg-sidebar overflow-hidden"
+				className="h-[90vh] max-h-[90vh] z-80 bg-sidebar overflow-hidden"
 				overlayClassName="z-80"
 			>
 				<DrawerHandle />

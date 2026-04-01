@@ -13,7 +13,7 @@ import { useSidebarResize } from "../../hooks/useSidebarResize";
 import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
 import { Header } from "../header";
 import { IconRail } from "../icon-rail";
-import { RightPanel } from "../right-panel/RightPanel";
+import { RightPanel, RightPanelExpandButton } from "../right-panel/RightPanel";
 import {
 	AllPrivateChatsSidebarContent,
 	AllSharedChatsSidebarContent,
@@ -119,24 +119,31 @@ function MainContentPanel({
 	const isDocumentTab = activeTab?.type === "document";
 
 	return (
-		<div className="relative flex flex-1 flex-col rounded-xl border bg-main-panel overflow-hidden min-w-0">
-			<TabBar onTabSwitch={onTabSwitch} onNewChat={onNewChat} />
-			<Header />
+		<div className="relative flex flex-1 flex-col min-w-0">
+			<TabBar
+				onTabSwitch={onTabSwitch}
+				onNewChat={onNewChat}
+				rightActions={<RightPanelExpandButton />}
+				className="min-w-0"
+			/>
+			<div className="relative flex flex-1 flex-col rounded-xl border bg-main-panel overflow-hidden min-w-0">
+				<Header />
 
-			{isDocumentTab && activeTab.documentId && activeTab.searchSpaceId ? (
-				<div className="flex-1 overflow-hidden">
-					<DocumentTabContent
-						key={activeTab.documentId}
-						documentId={activeTab.documentId}
-						searchSpaceId={activeTab.searchSpaceId}
-						title={activeTab.title}
-					/>
-				</div>
-			) : (
-				<div className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
-					{children}
-				</div>
-			)}
+				{isDocumentTab && activeTab.documentId && activeTab.searchSpaceId ? (
+					<div className="flex-1 overflow-hidden">
+						<DocumentTabContent
+							key={activeTab.documentId}
+							documentId={activeTab.documentId}
+							searchSpaceId={activeTab.searchSpaceId}
+							title={activeTab.title}
+						/>
+					</div>
+				) : (
+					<div className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
+						{children}
+					</div>
+				)}
+			</div>
 		</div>
 	);
 }

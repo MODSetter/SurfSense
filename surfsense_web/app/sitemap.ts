@@ -134,6 +134,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
 			priority: 0.8,
 		},
 		{
+			url: "https://www.surfsense.com/docs/connectors/dropbox",
+			lastModified,
+			changeFrequency: "daily",
+			priority: 0.8,
+		},
+		{
 			url: "https://www.surfsense.com/docs/connectors/elasticsearch",
 			lastModified,
 			changeFrequency: "daily",
@@ -177,6 +183,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
 		},
 		{
 			url: "https://www.surfsense.com/docs/connectors/luma",
+			lastModified,
+			changeFrequency: "daily",
+			priority: 0.8,
+		},
+		{
+			url: "https://www.surfsense.com/docs/connectors/microsoft-onedrive",
 			lastModified,
 			changeFrequency: "daily",
 			priority: 0.8,

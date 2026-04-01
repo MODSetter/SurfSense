@@ -158,9 +158,11 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 								{/* AI Summary toggle */}
 								<SummaryConfig enabled={enableSummary} onEnabledChange={onEnableSummaryChange} />
 
-								{/* Date range selector - not shown for Google Drive (regular and Composio), Webcrawler, or GitHub (indexes full repo snapshots) */}
+								{/* Date range selector - not shown for file-based connectors (Drive, Dropbox, OneDrive), Webcrawler, or GitHub (indexes full repo snapshots) */}
 								{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" &&
 									config.connectorType !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&
+									config.connectorType !== "DROPBOX_CONNECTOR" &&
+									config.connectorType !== "ONEDRIVE_CONNECTOR" &&
 									config.connectorType !== "WEBCRAWLER_CONNECTOR" &&
 									config.connectorType !== "GITHUB_CONNECTOR" && (
 										<DateRangeSelector
@@ -222,16 +224,10 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 				<Button
 					onClick={onStartIndexing}
 					disabled={isStartingIndexing}
-					className="text-xs sm:text-sm"
+					className="text-xs sm:text-sm relative"
 				>
-					{isStartingIndexing ? (
-						<>
-							<Spinner size="sm" className="mr-2" />
-							Starting
-						</>
-					) : (
-						"Start Indexing"
-					)}
+					<span className={isStartingIndexing ? "opacity-0" : ""}>Start Indexing</span>
+					{isStartingIndexing && <Spinner size="sm" className="absolute" />}
 				</Button>
 			</div>
 		</div>

@@ -4,18 +4,24 @@ import { format } from "date-fns";
 import { TagInput, type Tag as TagType } from "emblor";
 import { useAtomValue, useSetAtom } from "jotai";
 import { CalendarIcon, XIcon } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ExtraField } from "@/atoms/chat/hitl-edit-panel.atom";
 import { closeHitlEditPanelAtom, hitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
-import { PlateEditor } from "@/components/editor/plate-editor";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useMediaQuery } from "@/hooks/use-media-query";
+
+const PlateEditor = dynamic(
+	() => import("@/components/editor/plate-editor").then((m) => ({ default: m.PlateEditor })),
+	{ ssr: false, loading: () => <Skeleton className="h-64 w-full" /> }
+);
 
 function parseEmailsToTags(value: string): TagType[] {
 	if (!value.trim()) return [];
@@ -355,7 +361,7 @@ function MobileHitlEditDrawer() {
 			shouldScaleBackground={false}
 		>
 			<DrawerContent
-				className="h-[95vh] max-h-[95vh] z-80 bg-sidebar overflow-hidden"
+				className="h-[90vh] max-h-[90vh] z-80 bg-sidebar overflow-hidden"
 				overlayClassName="z-80"
 			>
 				<DrawerHandle />

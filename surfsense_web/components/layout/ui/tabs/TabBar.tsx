@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue, useSetAtom } from "jotai";
-import { FileText, MessageSquare, Plus, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import {
 	activeTabIdAtom,
@@ -15,10 +15,11 @@ import { cn } from "@/lib/utils";
 interface TabBarProps {
 	onTabSwitch?: (tab: Tab) => void;
 	onNewChat?: () => void;
+	rightActions?: React.ReactNode;
 	className?: string;
 }
 
-export function TabBar({ onTabSwitch, onNewChat, className }: TabBarProps) {
+export function TabBar({ onTabSwitch, onNewChat, rightActions, className }: TabBarProps) {
 	const tabs = useAtomValue(tabsAtom);
 	const activeTabId = useAtomValue(activeTabIdAtom);
 	const switchTab = useSetAtom(switchTabAtom);
@@ -45,12 +46,25 @@ export function TabBar({ onTabSwitch, onNewChat, className }: TabBarProps) {
 		[closeTab, onTabSwitch]
 	);
 
-	// Scroll active tab into view
+	// Keep active tab visible with minimal scroll shift.
 	useEffect(() => {
 		if (!scrollRef.current || !activeTabId) return;
-		const activeEl = scrollRef.current.querySelector(`[data-tab-id="${activeTabId}"]`);
-		if (activeEl) {
-			activeEl.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+		const scroller = scrollRef.current;
+		const activeEl = scroller.querySelector<HTMLElement>(`[data-tab-id="${activeTabId}"]`);
+		if (!activeEl) return;
+
+		const viewLeft = scroller.scrollLeft;
+		const viewRight = viewLeft + scroller.clientWidth;
+		const tabLeft = activeEl.offsetLeft;
+		const tabRight = tabLeft + activeEl.offsetWidth;
+
+		if (tabLeft < viewLeft) {
+			scroller.scrollTo({ left: tabLeft, behavior: "smooth" });
+			return;
+		}
+
+		if (tabRight > viewRight) {
+			scroller.scrollTo({ left: tabRight - scroller.clientWidth, behavior: "smooth" });
 		}
 	}, [activeTabId]);
 
@@ -58,11 +72,13 @@ export function TabBar({ onTabSwitch, onNewChat, className }: TabBarProps) {
 	if (tabs.length <= 1) return null;
 
 	return (
-		<div className={cn("flex items-center shrink-0 border-b bg-main-panel", className)}>
-			<div ref={scrollRef} className="flex items-center flex-1 overflow-x-auto scrollbar-none">
+		<div className={cn("mb-2 flex h-9 items-center shrink-0 px-1 gap-0.5", className)}>
+			<div
+				ref={scrollRef}
+				className="flex h-full items-center flex-1 gap-0.5 overflow-x-auto overflow-y-hidden scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden py-1"
+			>
 				{tabs.map((tab) => {
 					const isActive = tab.id === activeTabId;
-					const Icon = tab.type === "document" ? FileText : MessageSquare;
 
 					return (
 						<button
@@ -71,15 +87,15 @@ export function TabBar({ onTabSwitch, onNewChat, className }: TabBarProps) {
 							data-tab-id={tab.id}
 							onClick={() => handleTabClick(tab)}
 							className={cn(
-								"group relative flex items-center gap-1.5 px-3 h-9 min-w-0 max-w-[200px] text-xs font-medium border-r transition-colors shrink-0",
+								"group relative flex h-full w-[150px] items-center px-3 min-h-0 overflow-hidden text-[13px] font-medium rounded-lg transition-all duration-150 shrink-0",
 								isActive
-									? "bg-main-panel text-foreground"
-									: "bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+									? "bg-muted/60 text-foreground"
+									: "bg-transparent text-muted-foreground hover:bg-muted/30 hover:text-foreground"
 							)}
 						>
-							{isActive && <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-primary" />}
-							<Icon className="size-3.5 shrink-0" />
-							<span className="truncate">{tab.title}</span>
+							<span className="block min-w-0 flex-1 truncate text-left group-hover:pr-5 group-focus-within:pr-5">
+								{tab.title}
+							</span>
 							{/* biome-ignore lint/a11y/useSemanticElements: cannot nest button inside button */}
 							<span
 								role="button"
@@ -92,10 +108,10 @@ export function TabBar({ onTabSwitch, onNewChat, className }: TabBarProps) {
 									}
 								}}
 								className={cn(
-									"ml-auto shrink-0 rounded-sm p-0.5 transition-colors",
+									"absolute right-2 top-1/2 -translate-y-1/2 shrink-0 rounded-full p-0.5 transition-all duration-150 hover:bg-muted-foreground/15",
 									isActive
-										? "opacity-60 hover:opacity-100 hover:bg-muted"
-										: "opacity-0 group-hover:opacity-60 hover:opacity-100! hover:bg-muted"
+										? "opacity-0 group-hover:opacity-70 group-focus-within:opacity-70 hover:opacity-100"
+										: "opacity-0 group-hover:opacity-60 group-focus-within:opacity-60 hover:opacity-100!"
 								)}
 							>
 								<X className="size-3" />
@@ -104,17 +120,19 @@ export function TabBar({ onTabSwitch, onNewChat, className }: TabBarProps) {
 					);
 				})}
 			</div>
-
-			{onNewChat && (
-				<button
-					type="button"
-					onClick={onNewChat}
-					className="flex items-center justify-center size-9 shrink-0 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-					title="New Chat"
-				>
-					<Plus className="size-3.5" />
-				</button>
-			)}
+			<div className="flex items-center gap-0.5 shrink-0">
+				{onNewChat && (
+					<button
+						type="button"
+						onClick={onNewChat}
+						className="flex h-6 w-6 items-center justify-center shrink-0 rounded-md text-muted-foreground transition-all duration-150 hover:text-foreground hover:bg-muted/40"
+						title="New Chat"
+					>
+						<Plus className="size-3.5" />
+					</button>
+				)}
+				{rightActions}
+			</div>
 		</div>
 	);
 }

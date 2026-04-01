@@ -79,10 +79,6 @@ export const cacheKeys = {
 			folders: (connectorId: number, parentId?: string) =>
 				["connectors", "google-drive", connectorId, "folders", parentId] as const,
 		},
-		composioDrive: {
-			folders: (connectorId: number, parentId?: string) =>
-				["connectors", "composio-drive", connectorId, "folders", parentId] as const,
-		},
 	},
 	comments: {
 		byMessage: (messageId: number) => ["comments", "message", messageId] as const,
@@ -94,6 +90,10 @@ export const cacheKeys = {
 		all: ["public-chat-snapshots"] as const,
 		bySearchSpace: (searchSpaceId: number) =>
 			["public-chat-snapshots", "search-space", searchSpaceId] as const,
+	},
+	prompts: {
+		all: () => ["prompts"] as const,
+		public: () => ["prompts", "public"] as const,
 	},
 	notifications: {
 		search: (searchSpaceId: number | null, search: string, tab: string) =>

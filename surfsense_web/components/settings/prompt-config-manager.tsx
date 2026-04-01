@@ -32,24 +32,17 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 
 	const [customInstructions, setCustomInstructions] = useState("");
 	const [saving, setSaving] = useState(false);
-	const [hasChanges, setHasChanges] = useState(false);
 
 	// Initialize state from fetched search space
 	useEffect(() => {
 		if (searchSpace) {
 			setCustomInstructions(searchSpace.qna_custom_instructions || "");
-			setHasChanges(false);
 		}
-	}, [searchSpace]);
+	}, [searchSpace?.qna_custom_instructions]);
 
-	// Track changes
-	useEffect(() => {
-		if (searchSpace) {
-			const currentCustom = searchSpace.qna_custom_instructions || "";
-			const changed = currentCustom !== customInstructions;
-			setHasChanges(changed);
-		}
-	}, [searchSpace, customInstructions]);
+	// Derive hasChanges during render
+	const hasChanges =
+		!!searchSpace && (searchSpace.qna_custom_instructions || "") !== customInstructions;
 
 	const handleSave = async () => {
 		try {
@@ -74,7 +67,7 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 			}
 
 			toast.success("System instructions saved successfully");
-			setHasChanges(false);
+
 			await fetchSearchSpace();
 		} catch (error: any) {
 			console.error("Error saving system instructions:", error);

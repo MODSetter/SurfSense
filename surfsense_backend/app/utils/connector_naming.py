@@ -21,6 +21,8 @@ BASE_NAME_FOR_TYPE = {
     SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR: "Google Calendar",
     SearchSourceConnectorType.SLACK_CONNECTOR: "Slack",
     SearchSourceConnectorType.TEAMS_CONNECTOR: "Microsoft Teams",
+    SearchSourceConnectorType.ONEDRIVE_CONNECTOR: "OneDrive",
+    SearchSourceConnectorType.DROPBOX_CONNECTOR: "Dropbox",
     SearchSourceConnectorType.NOTION_CONNECTOR: "Notion",
     SearchSourceConnectorType.LINEAR_CONNECTOR: "Linear",
     SearchSourceConnectorType.JIRA_CONNECTOR: "Jira",
@@ -60,6 +62,12 @@ def extract_identifier_from_credentials(
 
     if connector_type == SearchSourceConnectorType.TEAMS_CONNECTOR:
         return credentials.get("tenant_name")
+
+    if connector_type == SearchSourceConnectorType.ONEDRIVE_CONNECTOR:
+        return credentials.get("user_email")
+
+    if connector_type == SearchSourceConnectorType.DROPBOX_CONNECTOR:
+        return credentials.get("user_email")
 
     if connector_type == SearchSourceConnectorType.NOTION_CONNECTOR:
         return credentials.get("workspace_name")
