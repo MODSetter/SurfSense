@@ -219,7 +219,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end" className="w-40" onClick={(e) => e.stopPropagation()}>
-							<DropdownMenuItem onClick={() => onPreview(doc)}>
+							<DropdownMenuItem onClick={() => onPreview(doc)} disabled={isProcessing}>
 								<Eye className="mr-2 h-4 w-4" />
 								Open
 							</DropdownMenuItem>
@@ -259,7 +259,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 
 			{contextMenuOpen && (
 				<ContextMenuContent className="w-40" onClick={(e) => e.stopPropagation()}>
-					<ContextMenuItem onClick={() => onPreview(doc)}>
+					<ContextMenuItem onClick={() => onPreview(doc)} disabled={isProcessing}>
 						<Eye className="mr-2 h-4 w-4" />
 						Open
 					</ContextMenuItem>

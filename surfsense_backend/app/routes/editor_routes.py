@@ -127,9 +127,16 @@ async def get_editor_content(
     chunks = sorted(document.chunks, key=lambda c: c.id)
 
     if not chunks:
+        doc_status = document.status or {}
+        state = doc_status.get("state", "ready") if isinstance(doc_status, dict) else "ready"
+        if state in ("pending", "processing"):
+            raise HTTPException(
+                status_code=409,
+                detail="This document is still being processed. Please wait a moment and try again.",
+            )
         raise HTTPException(
             status_code=400,
-            detail="This document has no content and cannot be edited. Please re-upload to enable editing.",
+            detail="This document has no viewable content yet. It may still be syncing. Try again in a few seconds, or re-upload if the issue persists.",
         )
 
     markdown_content = "\n\n".join(chunk.content for chunk in chunks)
@@ -137,7 +144,7 @@ async def get_editor_content(
     if not markdown_content.strip():
         raise HTTPException(
             status_code=400,
-            detail="This document has empty content and cannot be edited.",
+            detail="This document appears to be empty. Try re-uploading or editing it to add content.",
         )
 
     # Persist the lazy migration

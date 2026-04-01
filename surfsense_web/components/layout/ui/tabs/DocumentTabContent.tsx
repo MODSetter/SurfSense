@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Pencil } from "lucide-react";
+import { FileQuestionMark, PenLine, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { PlateEditor } from "@/components/editor/plate-editor";
@@ -160,15 +160,35 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 	if (isLoading) return <DocumentSkeleton />;
 
 	if (error || !doc) {
+		const isProcessing = error?.toLowerCase().includes("still being processed");
 		return (
-			<div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-				<AlertCircle className="size-10 text-destructive" />
-				<div>
-					<p className="font-medium text-foreground text-lg">Failed to load document</p>
-					<p className="text-sm text-muted-foreground mt-1">
+			<div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
+				<div className="rounded-full bg-muted/50 p-4">
+					{isProcessing ? (
+						<RefreshCw className="size-8 text-muted-foreground animate-spin" />
+					) : (
+						<FileQuestionMark className="size-8 text-muted-foreground" />
+					)}
+				</div>
+				<div className="space-y-1.5 max-w-sm">
+					<p className="font-semibold text-foreground text-lg">
+						{isProcessing ? "Document is processing" : "Document unavailable"}
+					</p>
+					<p className="text-sm text-muted-foreground">
 						{error || "An unknown error occurred"}
 					</p>
 				</div>
+				{!isProcessing && (
+					<Button
+						variant="outline"
+						size="sm"
+						className="mt-1 gap-1.5"
+						onClick={() => window.location.reload()}
+					>
+						<RefreshCw className="size-3.5" />
+						Retry
+					</Button>
+				)}
 			</div>
 		);
 	}
@@ -229,7 +249,7 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 						onClick={() => setIsEditing(true)}
 						className="gap-1.5"
 					>
-						<Pencil className="size-3.5" />
+						<PenLine className="size-3.5" />
 						Edit
 					</Button>
 				)}

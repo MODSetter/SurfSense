@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue, useSetAtom } from "jotai";
-import { AlertCircle, XIcon } from "lucide-react";
+import { FileQuestionMark, RefreshCw, XIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -200,10 +200,22 @@ export function EditorPanelContent({
 					<EditorPanelSkeleton />
 				) : error || !editorDoc ? (
 					<div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-						<AlertCircle className="size-8 text-destructive" />
-						<div>
-							<p className="font-medium text-foreground">Failed to load document</p>
-							<p className="text-sm text-red-500 mt-1">{error || "An unknown error occurred"}</p>
+						{error?.toLowerCase().includes("still being processed") ? (
+							<div className="rounded-full bg-muted/50 p-3">
+								<RefreshCw className="size-6 text-muted-foreground animate-spin" />
+							</div>
+						) : (
+							<div className="rounded-full bg-muted/50 p-3">
+								<FileQuestionMark className="size-6 text-muted-foreground" />
+							</div>
+						)}
+						<div className="space-y-1 max-w-xs">
+							<p className="font-medium text-foreground">
+								{error?.toLowerCase().includes("still being processed")
+									? "Document is processing"
+									: "Document unavailable"}
+							</p>
+							<p className="text-sm text-muted-foreground">{error || "An unknown error occurred"}</p>
 						</div>
 					</div>
 				) : isEditableType ? (
