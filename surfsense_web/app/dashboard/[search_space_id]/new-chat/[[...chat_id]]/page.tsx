@@ -8,7 +8,7 @@ import {
 } from "@assistant-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -388,22 +388,32 @@ export default function NewChatPage() {
 	}, [searchSpaceId, queryClient]);
 
 	// Handle scroll to comment from URL query params (e.g., from inbox item click)
-	const searchParams = useSearchParams();
-	const targetCommentIdParam = searchParams.get("commentId");
-
-	// Set target comment ID from URL param - the AssistantMessage and CommentItem
-	// components will handle scrolling and highlighting once comments are loaded
+	// Read from window.location.search inside the effect instead of subscribing via
+	// useSearchParams() — avoids re-rendering this heavy component tree on every
+	// unrelated query-string change. (Vercel Best Practice: rerender-defer-reads 5.2)
 	useEffect(() => {
-		if (targetCommentIdParam && !isInitializing) {
-			const commentId = Number.parseInt(targetCommentIdParam, 10);
-			if (!Number.isNaN(commentId)) {
-				setTargetCommentId(commentId);
+		const readAndApplyCommentId = () => {
+			const params = new URLSearchParams(window.location.search);
+			const raw = params.get("commentId");
+			if (raw && !isInitializing) {
+				const commentId = Number.parseInt(raw, 10);
+				if (!Number.isNaN(commentId)) {
+					setTargetCommentId(commentId);
+				}
 			}
-		}
+		};
+
+		readAndApplyCommentId();
+
+		// Also respond to SPA navigations (back/forward) that change the query string
+		window.addEventListener("popstate", readAndApplyCommentId);
 
 		// Cleanup on unmount or when navigating away
-		return () => clearTargetCommentId();
-	}, [targetCommentIdParam, isInitializing, setTargetCommentId, clearTargetCommentId]);
+		return () => {
+			window.removeEventListener("popstate", readAndApplyCommentId);
+			clearTargetCommentId();
+		};
+	}, [isInitializing, setTargetCommentId, clearTargetCommentId]);
 
 	// Sync current thread state to atom
 	useEffect(() => {
