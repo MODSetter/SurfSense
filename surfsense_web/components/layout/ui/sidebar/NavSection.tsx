@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, CircleAlert } from "lucide-react";
+import { CheckCircle2, CircleAlert, RefreshCw } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import type { NavItem } from "../../types/layout.types";
@@ -12,11 +12,58 @@ interface NavSectionProps {
 	isCollapsed?: boolean;
 }
 
+function getStatusInfo(status: NavItem["statusIndicator"]) {
+	switch (status) {
+		case "processing":
+			return {
+				tooltip: "New or updated documents are still being prepared for search.",
+			};
+		case "background_sync":
+			return {
+				pillLabel: "Background sync",
+				tooltip:
+					"Periodic sync is checking for updates in the background. Existing documents stay searchable while this runs.",
+			};
+		case "success":
+			return {
+				tooltip: "All document updates are fully synced.",
+			};
+		case "error":
+			return {
+				pillLabel: "Needs attention",
+				tooltip: "Some documents failed to sync. Open Documents or Inbox for details.",
+			};
+		default:
+			return {};
+	}
+}
+
+function StatusPill({ status }: { status: NavItem["statusIndicator"] }) {
+	const { pillLabel } = getStatusInfo(status);
+
+	if (!pillLabel) {
+		return null;
+	}
+
+	return (
+		<span className="inline-flex items-center rounded-full border border-border/60 bg-background/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+			{pillLabel}
+		</span>
+	);
+}
+
 function StatusBadge({ status }: { status: NavItem["statusIndicator"] }) {
 	if (status === "processing") {
 		return (
 			<span className="absolute top-0.5 right-0.5 inline-flex items-center justify-center h-[14px] w-[14px] rounded-full bg-primary/15">
 				<Spinner size="xs" className="text-primary" />
+			</span>
+		);
+	}
+	if (status === "background_sync") {
+		return (
+			<span className="absolute top-0.5 right-0.5 inline-flex items-center justify-center h-[14px] w-[14px] rounded-full bg-primary/15">
+				<RefreshCw className="h-[9px] w-[9px] text-primary animate-[spin_3s_linear_infinite]" />
 			</span>
 		);
 	}
@@ -48,6 +95,16 @@ function StatusIcon({
 }) {
 	if (status === "processing") {
 		return <Spinner size="sm" className={cn("shrink-0 text-primary", className)} />;
+	}
+	if (status === "background_sync") {
+		return (
+			<RefreshCw
+				className={cn(
+					"shrink-0 text-primary animate-[spin_3s_linear_infinite]",
+					className
+				)}
+			/>
+		);
 	}
 	if (status === "success") {
 		return (
@@ -89,6 +146,7 @@ export function NavSection({ items, onItemClick, isCollapsed = false }: NavSecti
 					item.title === "Inbox" || item.title.toLowerCase().includes("inbox")
 						? { "data-joyride": "inbox-sidebar" as const }
 						: {};
+				const { tooltip } = getStatusInfo(item.statusIndicator);
 
 				return (
 					<SidebarButton
@@ -107,6 +165,8 @@ export function NavSection({ items, onItemClick, isCollapsed = false }: NavSecti
 								className="h-4 w-4"
 							/>
 						}
+						trailingContent={<StatusPill status={item.statusIndicator} />}
+						tooltipContent={tooltip}
 						buttonProps={joyrideAttr}
 					/>
 				);

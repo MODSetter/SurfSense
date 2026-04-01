@@ -51,7 +51,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { useAnnouncements } from "@/hooks/use-announcements";
-import { useDocumentsProcessing } from "@/hooks/use-documents-processing";
 import { useInbox } from "@/hooks/use-inbox";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { notificationsApiService } from "@/lib/apis/notifications-api.service";
@@ -193,9 +192,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	useEffect(() => {
 		setStatusInboxItems(statusInbox.inboxItems);
 	}, [statusInbox.inboxItems, setStatusInboxItems]);
-
-	// Document processing status — drives sidebar status indicator (spinner / check / error)
-	const documentsProcessingStatus = useDocumentsProcessing(numericSpaceId);
 
 	// Track seen notification IDs to detect new page_limit_exceeded notifications
 	const seenPageLimitNotifications = useRef<Set<number>>(new Set());
@@ -366,7 +362,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				isActive: isMobile
 					? isDocumentsSidebarOpen
 					: isDocumentsSidebarOpen && !isRightPanelCollapsed,
-				statusIndicator: documentsProcessingStatus,
 			},
 			{
 				title: "Announcements",
@@ -384,7 +379,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			totalUnreadCount,
 			isAnnouncementsSidebarOpen,
 			announcementUnreadCount,
-			documentsProcessingStatus,
 		]
 	);
 
