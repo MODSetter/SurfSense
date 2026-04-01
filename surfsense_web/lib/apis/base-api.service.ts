@@ -1,4 +1,3 @@
-import posthog from "posthog-js";
 import type { ZodType } from "zod";
 import { getBearerToken, handleUnauthorized, refreshAccessToken } from "../auth-utils";
 import { AppError, AuthenticationError, AuthorizationError, NotFoundError } from "../error";
@@ -234,18 +233,21 @@ class BaseApiService {
 		} catch (error) {
 			console.error("Request failed:", JSON.stringify(error));
 			if (!(error instanceof AuthenticationError)) {
-				try {
-					posthog.captureException(error, {
-						api_url: url,
-						api_method: options?.method ?? "GET",
-						...(error instanceof AppError && {
-							status_code: error.status,
-							status_text: error.statusText,
-						}),
+				import("posthog-js")
+					.then(({ default: posthog }) => {
+						posthog.captureException(error, {
+							api_url: url,
+							api_method: options?.method ?? "GET",
+							...(error instanceof AppError && {
+								status_code: error.status,
+								status_text: error.statusText,
+							}),
+						});
+					})
+					.catch(() => {
+						// PostHog is not available in the current environment
+						console.error("Failed to capture exception in PostHog");
 					});
-				} catch {
-					// PostHog capture failed — don't block the error flow
-				}
 			}
 			throw error;
 		}
