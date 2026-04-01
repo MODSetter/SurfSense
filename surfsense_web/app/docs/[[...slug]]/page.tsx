@@ -2,10 +2,15 @@ import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/page
 import { notFound } from "next/navigation";
 import { source } from "@/lib/source";
 import { getMDXComponents } from "@/mdx-components";
+import { cache } from "react";
+
+const getDocPage = cache((slug?: string[]) => {
+	return source.getPage(slug);
+});
 
 export default async function Page(props: { params: Promise<{ slug?: string[] }> }) {
 	const params = await props.params;
-	const page = source.getPage(params.slug);
+	const page = getDocPage(params.slug);
 	if (!page) notFound();
 
 	const MDX = page.data.body;
@@ -37,7 +42,7 @@ export async function generateStaticParams() {
 
 export async function generateMetadata(props: { params: Promise<{ slug?: string[] }> }) {
 	const params = await props.params;
-	const page = source.getPage(params.slug);
+	const page = getDocPage(params.slug);
 	if (!page) notFound();
 
 	return {
