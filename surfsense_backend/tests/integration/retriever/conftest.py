@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +22,7 @@ def _make_document(
     content: str,
     search_space_id: int,
     created_by_id: str,
+    updated_at: datetime | None = None,
 ) -> Document:
     uid = uuid.uuid4().hex[:12]
     return Document(
@@ -34,7 +35,7 @@ def _make_document(
         search_space_id=search_space_id,
         created_by_id=created_by_id,
         embedding=DUMMY_EMBEDDING,
-        updated_at=datetime.now(UTC),
+        updated_at=updated_at or datetime.now(UTC),
         status={"state": "ready"},
     )
 
@@ -101,6 +102,57 @@ async def seed_large_doc(
         "small_doc": small_doc,
         "large_chunk_ids": [c.id for c in large_chunks],
         "small_chunk_ids": [c.id for c in small_chunks],
+        "search_space": db_search_space,
+        "user": db_user,
+    }
+
+
+@pytest_asyncio.fixture
+async def seed_date_filtered_docs(
+    db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+):
+    """Insert matching docs with different timestamps for date-filter tests."""
+    user_id = str(db_user.id)
+    space_id = db_search_space.id
+    now = datetime.now(UTC)
+
+    recent_doc = _make_document(
+        title="Recent OCV Notes",
+        document_type=DocumentType.FILE,
+        content="ocv meeting decisions and action items",
+        search_space_id=space_id,
+        created_by_id=user_id,
+        updated_at=now,
+    )
+    old_doc = _make_document(
+        title="Old OCV Notes",
+        document_type=DocumentType.FILE,
+        content="ocv meeting decisions and action items",
+        search_space_id=space_id,
+        created_by_id=user_id,
+        updated_at=now - timedelta(days=730),
+    )
+
+    db_session.add_all([recent_doc, old_doc])
+    await db_session.flush()
+
+    db_session.add_all(
+        [
+            _make_chunk(
+                content="ocv meeting decisions and action items recent",
+                document_id=recent_doc.id,
+            ),
+            _make_chunk(
+                content="ocv meeting decisions and action items old",
+                document_id=old_doc.id,
+            ),
+        ]
+    )
+    await db_session.flush()
+
+    return {
+        "recent_doc": recent_doc,
+        "old_doc": old_doc,
         "search_space": db_search_space,
         "user": db_user,
     }
