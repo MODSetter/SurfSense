@@ -1,3 +1,4 @@
+import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -290,6 +291,12 @@ class IncentiveTaskType(StrEnum):
     # GITHUB_ISSUE = "GITHUB_ISSUE"
     # SOCIAL_SHARE = "SOCIAL_SHARE"
     # REFER_FRIEND = "REFER_FRIEND"
+
+
+class PagePurchaseStatus(StrEnum):
+    PENDING = "pending"
+    COMPLETED = "completed"
+    FAILED = "failed"
 
 
 # Centralized configuration for incentive tasks
@@ -1643,6 +1650,39 @@ class UserIncentiveTask(BaseModel, TimestampMixin):
     user = relationship("User", back_populates="incentive_tasks")
 
 
+class PagePurchase(Base, TimestampMixin):
+    """Tracks Stripe checkout sessions used to grant additional page credits."""
+
+    __tablename__ = "page_purchases"
+    __allow_unmapped__ = True
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    stripe_checkout_session_id = Column(
+        String(255), nullable=False, unique=True, index=True
+    )
+    stripe_payment_intent_id = Column(String(255), nullable=True, index=True)
+    quantity = Column(Integer, nullable=False)
+    pages_granted = Column(Integer, nullable=False)
+    amount_total = Column(Integer, nullable=True)
+    currency = Column(String(10), nullable=True)
+    status = Column(
+        SQLAlchemyEnum(PagePurchaseStatus),
+        nullable=False,
+        default=PagePurchaseStatus.PENDING,
+        server_default=text("'PENDING'::pagepurchasestatus"),
+        index=True,
+    )
+    completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+    user = relationship("User", back_populates="page_purchases")
+
+
 class SearchSpaceRole(BaseModel, TimestampMixin):
     """
     Custom roles that can be defined per search space.
@@ -1910,6 +1950,11 @@ if config.AUTH_TYPE == "GOOGLE":
             back_populates="user",
             cascade="all, delete-orphan",
         )
+        page_purchases = relationship(
+            "PagePurchase",
+            back_populates="user",
+            cascade="all, delete-orphan",
+        )
 
         # Page usage tracking for ETL services
         pages_limit = Column(
@@ -2016,6 +2061,11 @@ else:
         # Incentive tasks completed by this user
         incentive_tasks = relationship(
             "UserIncentiveTask",
+            back_populates="user",
+            cascade="all, delete-orphan",
+        )
+        page_purchases = relationship(
+            "PagePurchase",
             back_populates="user",
             cascade="all, delete-orphan",
         )
