@@ -3,6 +3,7 @@ import {
 	BookOpen,
 	File,
 	FileText,
+	FolderSync,
 	Globe,
 	Microscope,
 	Search,
@@ -75,6 +76,8 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 			return <Image src="/connectors/circleback.svg" alt="Circleback" {...imgProps} />;
 		case EnumConnectorName.MCP_CONNECTOR:
 			return <Image src="/connectors/modelcontextprotocol.svg" alt="MCP" {...imgProps} />;
+		case EnumConnectorName.LOCAL_FOLDER_CONNECTOR:
+			return <FolderSync {...iconProps} />;
 		case EnumConnectorName.OBSIDIAN_CONNECTOR:
 			return <Image src="/connectors/obsidian.svg" alt="Obsidian" {...imgProps} />;
 		case EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR:

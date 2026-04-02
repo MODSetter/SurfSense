@@ -20,6 +20,7 @@ const FORM_ID_MAP: Record<string, string> = {
 	CIRCLEBACK_CONNECTOR: "circleback-connect-form",
 	MCP_CONNECTOR: "mcp-connect-form",
 	OBSIDIAN_CONNECTOR: "obsidian-connect-form",
+	LOCAL_FOLDER_CONNECTOR: "local-folder-connect-form",
 };
 
 interface ConnectorConnectViewProps {

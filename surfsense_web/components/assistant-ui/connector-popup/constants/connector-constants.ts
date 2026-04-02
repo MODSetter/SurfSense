@@ -184,6 +184,14 @@ export const OTHER_CONNECTORS = [
 		connectorType: EnumConnectorName.OBSIDIAN_CONNECTOR,
 		selfHostedOnly: true,
 	},
+	{
+		id: "local-folder-connector",
+		title: "Local Folder",
+		description: "Watch and sync local folders (desktop only)",
+		connectorType: EnumConnectorName.LOCAL_FOLDER_CONNECTOR,
+		selfHostedOnly: true,
+		desktopOnly: true,
+	},
 ] as const;
 
 // Composio Connectors - Individual entries for each supported toolkit
