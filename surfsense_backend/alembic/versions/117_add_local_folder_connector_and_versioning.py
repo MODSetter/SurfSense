@@ -1,4 +1,4 @@
-"""Add local folder connector enums and document_versions table
+"""Add LOCAL_FOLDER_FILE document type and document_versions table
 
 Revision ID: 117
 Revises: 116
@@ -20,23 +20,6 @@ PUBLICATION_NAME = "zero_publication"
 
 def upgrade() -> None:
     conn = op.get_bind()
-
-    # Add LOCAL_FOLDER_CONNECTOR to searchsourceconnectortype enum
-    op.execute(
-        """
-    DO $$
-    BEGIN
-        IF NOT EXISTS (
-            SELECT 1 FROM pg_type t
-            JOIN pg_enum e ON t.oid = e.enumtypid
-            WHERE t.typname = 'searchsourceconnectortype' AND e.enumlabel = 'LOCAL_FOLDER_CONNECTOR'
-        ) THEN
-            ALTER TYPE searchsourceconnectortype ADD VALUE 'LOCAL_FOLDER_CONNECTOR';
-        END IF;
-    END
-    $$;
-    """
-    )
 
     # Add LOCAL_FOLDER_FILE to documenttype enum
     op.execute(
@@ -126,9 +109,17 @@ def downgrade() -> None:
         {"name": PUBLICATION_NAME},
     ).fetchone()
     if pub_exists:
-        op.execute(
-            f"ALTER PUBLICATION {PUBLICATION_NAME} DROP TABLE IF EXISTS document_versions"
-        )
+        already_in_pub = conn.execute(
+            sa.text(
+                "SELECT 1 FROM pg_publication_tables "
+                "WHERE pubname = :name AND tablename = 'document_versions'"
+            ),
+            {"name": PUBLICATION_NAME},
+        ).fetchone()
+        if already_in_pub:
+            op.execute(
+                f"ALTER PUBLICATION {PUBLICATION_NAME} DROP TABLE document_versions"
+            )
 
     op.execute("DROP INDEX IF EXISTS ix_document_versions_created_at")
     op.execute("DROP INDEX IF EXISTS ix_document_versions_document_id")
