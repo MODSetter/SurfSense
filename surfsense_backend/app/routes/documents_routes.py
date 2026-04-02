@@ -1156,7 +1156,7 @@ async def list_document_versions(
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    await check_permission(session, user, document.search_space_id, Permission.READ)
+    await check_permission(session, user, document.search_space_id, Permission.DOCUMENTS_READ.value)
 
     versions = (
         await session.execute(
@@ -1191,7 +1191,7 @@ async def get_document_version(
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    await check_permission(session, user, document.search_space_id, Permission.READ)
+    await check_permission(session, user, document.search_space_id, Permission.DOCUMENTS_READ.value)
 
     version = (
         await session.execute(
@@ -1229,7 +1229,7 @@ async def restore_document_version(
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    await check_permission(session, user, document.search_space_id, Permission.WRITE)
+    await check_permission(session, user, document.search_space_id, Permission.DOCUMENTS_UPDATE.value)
 
     version = (
         await session.execute(

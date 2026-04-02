@@ -1355,7 +1355,7 @@ async def index_single_file(
     if not connector:
         raise HTTPException(status_code=404, detail="Local folder connector not found")
 
-    await check_permission(session, user, connector.search_space_id, Permission.WRITE)
+    await check_permission(session, user, connector.search_space_id, Permission.CONNECTORS_UPDATE.value)
 
     folder_path = connector.config.get("folder_path", "")
 
