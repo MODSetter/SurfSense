@@ -5,15 +5,16 @@ interface WatchedFolderConfig {
 	name: string;
 	excludePatterns: string[];
 	fileExtensions: string[] | null;
-	connectorId: number;
+	rootFolderId: number | null;
 	searchSpaceId: number;
 	active: boolean;
 }
 
 interface FolderSyncFileChangedEvent {
-	connectorId: number;
+	rootFolderId: number | null;
 	searchSpaceId: number;
 	folderPath: string;
+	folderName: string;
 	relativePath: string;
 	fullPath: string;
 	action: "add" | "change" | "unlink";
@@ -21,7 +22,7 @@ interface FolderSyncFileChangedEvent {
 }
 
 interface FolderSyncWatcherReadyEvent {
-	connectorId: number;
+	rootFolderId: number | null;
 	folderPath: string;
 }
 
@@ -49,6 +50,7 @@ interface ElectronAPI {
 	onWatcherReady: (callback: (data: FolderSyncWatcherReadyEvent) => void) => () => void;
 	pauseWatcher: () => Promise<void>;
 	resumeWatcher: () => Promise<void>;
+	signalRendererReady: () => Promise<void>;
 }
 
 declare global {

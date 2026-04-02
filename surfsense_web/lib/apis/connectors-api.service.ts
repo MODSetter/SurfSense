@@ -405,17 +405,6 @@ class ConnectorsApiService {
 		);
 	};
 
-	// =============================================================================
-	// Local Folder Connector Methods
-	// =============================================================================
-
-	indexFile = async (connectorId: number, filePath: string) => {
-		return baseApiService.post(
-			`/api/v1/search-source-connectors/${connectorId}/index-file`,
-			undefined,
-			{ body: { file_path: filePath } }
-		);
-	};
 }
 
 export type { SlackChannel, DiscordChannel };

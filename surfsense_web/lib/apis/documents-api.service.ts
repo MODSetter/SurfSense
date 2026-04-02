@@ -395,6 +395,14 @@ class DocumentsApiService {
 		);
 	};
 
+	folderIndex = async (searchSpaceId: number, body: { folder_path: string; folder_name: string; search_space_id: number; exclude_patterns?: string[]; file_extensions?: string[]; root_folder_id?: number; enable_summary?: boolean }) => {
+		return baseApiService.post(`/api/v1/documents/folder-index`, undefined, { body });
+	};
+
+	folderIndexFile = async (searchSpaceId: number, body: { folder_path: string; folder_name: string; search_space_id: number; target_file_path: string; enable_summary?: boolean }) => {
+		return baseApiService.post(`/api/v1/documents/folder-index-file`, undefined, { body });
+	};
+
 	/**
 	 * Delete a document
 	 */
