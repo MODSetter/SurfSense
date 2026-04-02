@@ -367,7 +367,7 @@ async def delete_folder(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """Delete a folder and cascade-delete subfolders. Documents are async-deleted via Celery."""
+    """Mark documents for deletion and dispatch Celery to delete docs first, then folders."""
     try:
         folder = await session.get(Folder, folder_id)
         if not folder:
@@ -399,30 +399,29 @@ async def delete_folder(
             )
             await session.commit()
 
-        await session.execute(Folder.__table__.delete().where(Folder.id == folder_id))
-        await session.commit()
+        try:
+            from app.tasks.celery_tasks.document_tasks import (
+                delete_folder_documents_task,
+            )
 
-        if document_ids:
-            try:
-                from app.tasks.celery_tasks.document_tasks import (
-                    delete_folder_documents_task,
-                )
-
-                delete_folder_documents_task.delay(document_ids)
-            except Exception as err:
+            delete_folder_documents_task.delay(
+                document_ids, folder_subtree_ids=list(subtree_ids)
+            )
+        except Exception as err:
+            if document_ids:
                 await session.execute(
                     Document.__table__.update()
                     .where(Document.id.in_(document_ids))
                     .values(status={"state": "ready"})
                 )
                 await session.commit()
-                raise HTTPException(
-                    status_code=503,
-                    detail="Folder deleted but document cleanup could not be queued. Documents have been restored.",
-                ) from err
+            raise HTTPException(
+                status_code=503,
+                detail="Could not queue folder deletion. Documents have been restored.",
+            ) from err
 
         return {
-            "message": "Folder deleted successfully",
+            "message": "Folder deletion started",
             "documents_queued_for_deletion": len(document_ids),
         }
 

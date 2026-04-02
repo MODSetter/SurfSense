@@ -188,7 +188,12 @@ export function DocumentsSidebar({
 
 	const treeDocuments: DocumentNodeDoc[] = useMemo(() => {
 		const zeroDocs = (zeroAllDocs ?? [])
-			.filter((d) => d.title && d.title.trim() !== "")
+			.filter((d) => {
+				if (!d.title || d.title.trim() === "") return false;
+				const state = (d.status as { state?: string } | undefined)?.state;
+				if (state === "deleting") return false;
+				return true;
+			})
 			.map((d) => ({
 				id: d.id,
 				title: d.title,

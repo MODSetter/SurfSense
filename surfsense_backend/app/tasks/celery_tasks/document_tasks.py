@@ -142,21 +142,30 @@ async def _delete_document_background(document_id: int) -> None:
     retry_backoff_max=300,
     max_retries=5,
 )
-def delete_folder_documents_task(self, document_ids: list[int]):
-    """Celery task to batch-delete documents orphaned by folder deletion."""
+def delete_folder_documents_task(
+    self,
+    document_ids: list[int],
+    folder_subtree_ids: list[int] | None = None,
+):
+    """Celery task to delete documents first, then the folder rows."""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
-        loop.run_until_complete(_delete_folder_documents(document_ids))
+        loop.run_until_complete(
+            _delete_folder_documents(document_ids, folder_subtree_ids)
+        )
     finally:
         loop.close()
 
 
-async def _delete_folder_documents(document_ids: list[int]) -> None:
-    """Delete chunks in batches, then document rows for each orphaned document."""
+async def _delete_folder_documents(
+    document_ids: list[int],
+    folder_subtree_ids: list[int] | None = None,
+) -> None:
+    """Delete chunks in batches, then document rows, then folder rows."""
     from sqlalchemy import delete as sa_delete, select
 
-    from app.db import Chunk, Document
+    from app.db import Chunk, Document, Folder
 
     async with get_celery_session_maker()() as session:
         batch_size = 500
@@ -177,6 +186,12 @@ async def _delete_folder_documents(document_ids: list[int]) -> None:
             if doc:
                 await session.delete(doc)
                 await session.commit()
+
+        if folder_subtree_ids:
+            await session.execute(
+                sa_delete(Folder).where(Folder.id.in_(folder_subtree_ids))
+            )
+            await session.commit()
 
 
 @celery_app.task(
