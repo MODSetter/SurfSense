@@ -1,5 +1,5 @@
 import { BrowserWindow, dialog } from 'electron';
-import chokidar from 'chokidar';
+import chokidar, { type FSWatcher } from 'chokidar';
 import * as path from 'path';
 import * as fs from 'fs';
 import { IPC_CHANNELS } from '../ipc/channels';
@@ -16,12 +16,23 @@ export interface WatchedFolderConfig {
 
 interface WatcherEntry {
   config: WatchedFolderConfig;
-  watcher: chokidar.FSWatcher | null;
+  watcher: FSWatcher | null;
 }
 
+type MtimeMap = Record<string, number>;
+
 const STORE_KEY = 'watchedFolders';
+const MTIME_TOLERANCE_S = 1.0;
+
 let store: any = null;
+let mtimeStore: any = null;
 let watchers: Map<string, WatcherEntry> = new Map();
+
+/**
+ * In-memory cache of mtime maps, keyed by folder path.
+ * Persisted to electron-store on mutation.
+ */
+const mtimeMaps: Map<string, MtimeMap> = new Map();
 
 async function getStore() {
   if (!store) {
@@ -36,6 +47,73 @@ async function getStore() {
   return store;
 }
 
+async function getMtimeStore() {
+  if (!mtimeStore) {
+    const { default: Store } = await import('electron-store');
+    mtimeStore = new Store({
+      name: 'folder-mtime-maps',
+      defaults: {} as Record<string, MtimeMap>,
+    });
+  }
+  return mtimeStore;
+}
+
+function loadMtimeMap(folderPath: string): MtimeMap {
+  return mtimeMaps.get(folderPath) ?? {};
+}
+
+function persistMtimeMap(folderPath: string) {
+  const map = mtimeMaps.get(folderPath) ?? {};
+  getMtimeStore().then((s) => s.set(folderPath, map));
+}
+
+function walkFolderMtimes(config: WatchedFolderConfig): MtimeMap {
+  const root = config.path;
+  const result: MtimeMap = {};
+  const excludes = new Set(config.excludePatterns);
+
+  function walk(dir: string) {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      const name = entry.name;
+
+      // Skip dotfiles/dotdirs and excluded names
+      if (name.startsWith('.') || excludes.has(name)) continue;
+
+      const full = path.join(dir, name);
+
+      if (entry.isDirectory()) {
+        walk(full);
+      } else if (entry.isFile()) {
+        if (
+          config.fileExtensions &&
+          config.fileExtensions.length > 0
+        ) {
+          const ext = path.extname(name).toLowerCase();
+          if (!config.fileExtensions.includes(ext)) continue;
+        }
+
+        try {
+          const stat = fs.statSync(full);
+          const rel = path.relative(root, full);
+          result[rel] = stat.mtimeMs;
+        } catch {
+          // File may have been removed between readdir and stat
+        }
+      }
+    }
+  }
+
+  walk(root);
+  return result;
+}
+
 function getMainWindow(): BrowserWindow | null {
   const windows = BrowserWindow.getAllWindows();
   return windows.length > 0 ? windows[0] : null;
@@ -48,10 +126,15 @@ function sendToRenderer(channel: string, data: any) {
   }
 }
 
-function startWatcher(config: WatchedFolderConfig) {
+async function startWatcher(config: WatchedFolderConfig) {
   if (watchers.has(config.path)) {
     return;
   }
+
+  // Load persisted mtime map into memory before starting the watcher
+  const ms = await getMtimeStore();
+  const storedMap: MtimeMap = ms.get(config.path) ?? {};
+  mtimeMaps.set(config.path, { ...storedMap });
 
   const ignored = [
     /(^|[/\\])\../, // dotfiles by default
@@ -60,7 +143,7 @@ function startWatcher(config: WatchedFolderConfig) {
 
   const watcher = chokidar.watch(config.path, {
     persistent: true,
-    ignoreInitial: false,
+    ignoreInitial: true,
     awaitWriteFinish: {
       stabilityThreshold: 500,
       pollInterval: 100,
@@ -72,6 +155,58 @@ function startWatcher(config: WatchedFolderConfig) {
 
   watcher.on('ready', () => {
     ready = true;
+
+    // Detect offline changes by diffing current filesystem against stored mtime map
+    const currentMap = walkFolderMtimes(config);
+    const storedSnapshot = loadMtimeMap(config.path);
+    const now = Date.now();
+
+    for (const [rel, currentMtime] of Object.entries(currentMap)) {
+      const storedMtime = storedSnapshot[rel];
+      if (storedMtime === undefined) {
+        // New file added while app was closed
+        sendToRenderer(IPC_CHANNELS.FOLDER_SYNC_FILE_CHANGED, {
+          connectorId: config.connectorId,
+          searchSpaceId: config.searchSpaceId,
+          folderPath: config.path,
+          relativePath: rel,
+          fullPath: path.join(config.path, rel),
+          action: 'add',
+          timestamp: now,
+        });
+      } else if (Math.abs(currentMtime - storedMtime) >= MTIME_TOLERANCE_S * 1000) {
+        // File modified while app was closed
+        sendToRenderer(IPC_CHANNELS.FOLDER_SYNC_FILE_CHANGED, {
+          connectorId: config.connectorId,
+          searchSpaceId: config.searchSpaceId,
+          folderPath: config.path,
+          relativePath: rel,
+          fullPath: path.join(config.path, rel),
+          action: 'change',
+          timestamp: now,
+        });
+      }
+    }
+
+    for (const rel of Object.keys(storedSnapshot)) {
+      if (!(rel in currentMap)) {
+        // File deleted while app was closed
+        sendToRenderer(IPC_CHANNELS.FOLDER_SYNC_FILE_CHANGED, {
+          connectorId: config.connectorId,
+          searchSpaceId: config.searchSpaceId,
+          folderPath: config.path,
+          relativePath: rel,
+          fullPath: path.join(config.path, rel),
+          action: 'unlink',
+          timestamp: now,
+        });
+      }
+    }
+
+    // Replace stored map with current filesystem state
+    mtimeMaps.set(config.path, currentMap);
+    persistMtimeMap(config.path);
+
     sendToRenderer(IPC_CHANNELS.FOLDER_SYNC_WATCHER_READY, {
       connectorId: config.connectorId,
       folderPath: config.path,
@@ -89,6 +224,21 @@ function startWatcher(config: WatchedFolderConfig) {
     ) {
       const ext = path.extname(filePath).toLowerCase();
       if (!config.fileExtensions.includes(ext)) return;
+    }
+
+    // Keep mtime map in sync with live changes
+    const map = mtimeMaps.get(config.path);
+    if (map) {
+      if (action === 'unlink') {
+        delete map[relativePath];
+      } else {
+        try {
+          map[relativePath] = fs.statSync(filePath).mtimeMs;
+        } catch {
+          // File may have been removed between event and stat
+        }
+      }
+      persistMtimeMap(config.path);
     }
 
     sendToRenderer(IPC_CHANNELS.FOLDER_SYNC_FILE_CHANGED, {
@@ -110,6 +260,7 @@ function startWatcher(config: WatchedFolderConfig) {
 }
 
 function stopWatcher(folderPath: string) {
+  persistMtimeMap(folderPath);
   const entry = watchers.get(folderPath);
   if (entry?.watcher) {
     entry.watcher.close();
@@ -144,7 +295,7 @@ export async function addWatchedFolder(
   s.set(STORE_KEY, folders);
 
   if (config.active) {
-    startWatcher(config);
+    await startWatcher(config);
   }
 
   return folders;
@@ -159,6 +310,11 @@ export async function removeWatchedFolder(
   s.set(STORE_KEY, updated);
 
   stopWatcher(folderPath);
+
+  // Clean up persisted mtime map for this folder
+  mtimeMaps.delete(folderPath);
+  const ms = await getMtimeStore();
+  ms.delete(folderPath);
 
   return updated;
 }
@@ -190,9 +346,9 @@ export async function pauseWatcher(): Promise<void> {
 }
 
 export async function resumeWatcher(): Promise<void> {
-  for (const [folderPath, entry] of watchers) {
+  for (const [, entry] of watchers) {
     if (!entry.watcher && entry.config.active) {
-      startWatcher(entry.config);
+      await startWatcher(entry.config);
     }
   }
 }
@@ -203,7 +359,7 @@ export async function registerFolderWatcher(): Promise<void> {
 
   for (const config of folders) {
     if (config.active && fs.existsSync(config.path)) {
-      startWatcher(config);
+      await startWatcher(config);
     }
   }
 }
