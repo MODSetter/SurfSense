@@ -610,12 +610,25 @@ async def index_local_folder(
         # ================================================================
         # PHASE 1.5: Delete documents no longer on disk
         # ================================================================
+        # Collect ALL folder IDs under this root (including folders that no
+        # longer exist on disk but still have rows in the DB) so we catch
+        # documents in deleted directories too.
+        all_root_folder_ids = set(folder_mapping.values())
+        all_db_folders = (
+            await session.execute(
+                select(Folder.id).where(
+                    Folder.search_space_id == search_space_id,
+                )
+            )
+        ).scalars().all()
+        all_root_folder_ids.update(all_db_folders)
+
         all_folder_docs = (
             await session.execute(
                 select(Document).where(
                     Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
                     Document.search_space_id == search_space_id,
-                    Document.folder_id.in_(list(folder_mapping.values())),
+                    Document.folder_id.in_(list(all_root_folder_ids)),
                 )
             )
         ).scalars().all()

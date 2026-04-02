@@ -485,8 +485,8 @@ class TestFolderMirroring:
             )
         ).scalars().all()
 
-        today_doc = next(d for d in docs if d.title == "today")
-        root_doc = next(d for d in docs if d.title == "root")
+        today_doc = next(d for d in docs if d.title == "today.md")
+        root_doc = next(d for d in docs if d.title == "root.md")
 
         daily_folder = (
             await db_session.execute(
