@@ -567,6 +567,136 @@ class TestFolderMirroring:
         ).scalar_one_or_none()
         assert daily_after is not None
 
+    @pytest.mark.usefixtures(
+        "patched_self_hosted",
+        "patched_embed_for_indexer",
+        "patched_chunks_for_indexer",
+        "patched_summary_for_indexer",
+    )
+    async def test_f6_single_file_creates_subfolder(
+        self,
+        db_session: AsyncSession,
+        db_user: User,
+        db_search_space: SearchSpace,
+        tmp_path: Path,
+    ):
+        """F6: Single-file mode creates missing Folder rows and assigns correct folder_id."""
+        from app.tasks.connector_indexers.local_folder_indexer import index_local_folder
+
+        (tmp_path / "root.md").write_text("root")
+
+        _, _, root_folder_id, _ = await index_local_folder(
+            session=db_session,
+            search_space_id=db_search_space.id,
+            user_id=str(db_user.id),
+            folder_path=str(tmp_path),
+            folder_name="test-folder",
+        )
+
+        sub = tmp_path / "notes" / "daily"
+        sub.mkdir(parents=True)
+        (sub / "new.md").write_text("new note in subfolder")
+
+        count, _, _, _ = await index_local_folder(
+            session=db_session,
+            search_space_id=db_search_space.id,
+            user_id=str(db_user.id),
+            folder_path=str(tmp_path),
+            folder_name="test-folder",
+            target_file_path=str(sub / "new.md"),
+            root_folder_id=root_folder_id,
+        )
+        assert count == 1
+
+        doc = (
+            await db_session.execute(
+                select(Document).where(
+                    Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
+                    Document.title == "new.md",
+                )
+            )
+        ).scalar_one()
+
+        daily_folder = (
+            await db_session.execute(
+                select(Folder).where(Folder.name == "daily")
+            )
+        ).scalar_one()
+
+        assert doc.folder_id == daily_folder.id
+        assert daily_folder.parent_id is not None
+
+        notes_folder = (
+            await db_session.execute(
+                select(Folder).where(Folder.name == "notes")
+            )
+        ).scalar_one()
+        assert daily_folder.parent_id == notes_folder.id
+        assert notes_folder.parent_id == root_folder_id
+
+    @pytest.mark.usefixtures(
+        "patched_self_hosted",
+        "patched_embed_for_indexer",
+        "patched_chunks_for_indexer",
+        "patched_summary_for_indexer",
+    )
+    async def test_f7_single_file_delete_cleans_empty_folders(
+        self,
+        db_session: AsyncSession,
+        db_user: User,
+        db_search_space: SearchSpace,
+        tmp_path: Path,
+    ):
+        """F7: Deleting the only file in a subfolder via single-file mode removes empty Folder rows."""
+        from app.tasks.connector_indexers.local_folder_indexer import index_local_folder
+
+        sub = tmp_path / "notes" / "ephemeral"
+        sub.mkdir(parents=True)
+        (sub / "temp.md").write_text("temporary")
+        (tmp_path / "keep.md").write_text("keep this")
+
+        _, _, root_folder_id, _ = await index_local_folder(
+            session=db_session,
+            search_space_id=db_search_space.id,
+            user_id=str(db_user.id),
+            folder_path=str(tmp_path),
+            folder_name="test-folder",
+        )
+
+        eph_folder = (
+            await db_session.execute(
+                select(Folder).where(Folder.name == "ephemeral")
+            )
+        ).scalar_one_or_none()
+        assert eph_folder is not None
+
+        target = sub / "temp.md"
+        target.unlink()
+
+        await index_local_folder(
+            session=db_session,
+            search_space_id=db_search_space.id,
+            user_id=str(db_user.id),
+            folder_path=str(tmp_path),
+            folder_name="test-folder",
+            target_file_path=str(target),
+            root_folder_id=root_folder_id,
+        )
+
+        eph_after = (
+            await db_session.execute(
+                select(Folder).where(Folder.name == "ephemeral")
+            )
+        ).scalar_one_or_none()
+        assert eph_after is None
+
+        notes_after = (
+            await db_session.execute(
+                select(Folder).where(Folder.name == "notes")
+            )
+        ).scalar_one_or_none()
+        assert notes_after is None
+
 
 # ====================================================================
 # Tier 5: Pipeline Integration (P1)

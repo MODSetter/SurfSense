@@ -312,6 +312,92 @@ async def _mirror_folder_structure(
     return mapping, root_folder_id
 
 
+async def _resolve_folder_for_file(
+    session: AsyncSession,
+    rel_path: str,
+    root_folder_id: int,
+    search_space_id: int,
+    user_id: str,
+) -> int:
+    """Given a file's relative path, ensure all parent Folder rows exist and
+    return the folder_id for the file's immediate parent directory.
+
+    For a file at "notes/daily/today.md", this ensures Folder rows exist for
+    "notes" and "notes/daily", and returns the id of "notes/daily".
+    For a file at "readme.md" (root level), returns root_folder_id.
+    """
+    parent_dir = str(Path(rel_path).parent)
+    if parent_dir == ".":
+        return root_folder_id
+
+    parts = Path(parent_dir).parts
+    current_parent_id = root_folder_id
+
+    for part in parts:
+        existing = (
+            await session.execute(
+                select(Folder).where(
+                    Folder.name == part,
+                    Folder.parent_id == current_parent_id,
+                    Folder.search_space_id == search_space_id,
+                )
+            )
+        ).scalar_one_or_none()
+
+        if existing:
+            current_parent_id = existing.id
+        else:
+            new_folder = Folder(
+                name=part,
+                parent_id=current_parent_id,
+                search_space_id=search_space_id,
+                created_by_id=user_id,
+                position="a0",
+            )
+            session.add(new_folder)
+            await session.flush()
+            current_parent_id = new_folder.id
+
+    return current_parent_id
+
+
+async def _cleanup_empty_folder_chain(
+    session: AsyncSession,
+    folder_id: int,
+    root_folder_id: int,
+) -> None:
+    """Walk up from folder_id toward root, deleting empty folders (no docs, no
+    children). Stops at root_folder_id which is never deleted."""
+    current_id = folder_id
+    while current_id and current_id != root_folder_id:
+        has_doc = (
+            await session.execute(
+                select(Document.id).where(Document.folder_id == current_id).limit(1)
+            )
+        ).scalar_one_or_none()
+        if has_doc is not None:
+            break
+
+        has_child = (
+            await session.execute(
+                select(Folder.id).where(Folder.parent_id == current_id).limit(1)
+            )
+        ).scalar_one_or_none()
+        if has_child is not None:
+            break
+
+        folder = (
+            await session.execute(select(Folder).where(Folder.id == current_id))
+        ).scalar_one_or_none()
+        if not folder:
+            break
+
+        parent_id = folder.parent_id
+        await session.delete(folder)
+        await session.flush()
+        current_id = parent_id
+
+
 async def _cleanup_empty_folders(
     session: AsyncSession,
     root_folder_id: int,
@@ -427,6 +513,7 @@ async def index_local_folder(
                 folder_name=folder_name,
                 target_file_path=target_file_path,
                 enable_summary=enable_summary,
+                root_folder_id=root_folder_id,
                 task_logger=task_logger,
                 log_entry=log_entry,
             )
@@ -802,6 +889,7 @@ async def _index_single_file(
     folder_name: str,
     target_file_path: str,
     enable_summary: bool,
+    root_folder_id: int | None,
     task_logger,
     log_entry,
 ) -> tuple[int, int, str | None]:
@@ -816,7 +904,13 @@ async def _index_single_file(
             )
             existing = await check_document_by_unique_identifier(session, uid_hash)
             if existing:
+                deleted_folder_id = existing.folder_id
                 await session.delete(existing)
+                await session.flush()
+                if deleted_folder_id and root_folder_id:
+                    await _cleanup_empty_folder_chain(
+                        session, deleted_folder_id, root_folder_id
+                    )
                 await session.commit()
                 return 0, 0, None
             return 0, 0, None
@@ -880,6 +974,12 @@ async def _index_single_file(
             "mtime": mtime,
         }
 
+        folder_id = None
+        if root_folder_id:
+            folder_id = await _resolve_folder_for_file(
+                session, rel_path, root_folder_id, search_space_id, user_id
+            )
+
         if existing:
             existing.title = title
             existing.content = document_string
@@ -887,6 +987,7 @@ async def _index_single_file(
             existing.source_markdown = content
             existing.embedding = embedding
             existing.document_metadata = doc_metadata
+            existing.folder_id = folder_id
             await safe_set_chunks(session, existing, chunks)
             existing.updated_at = get_current_timestamp()
             existing.status = DocumentStatus.ready()
@@ -905,6 +1006,7 @@ async def _index_single_file(
                 updated_at=get_current_timestamp(),
                 created_by_id=user_id,
                 connector_id=None,
+                folder_id=folder_id,
             )
             session.add(document)
             await session.flush()

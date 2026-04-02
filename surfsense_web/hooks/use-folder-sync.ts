@@ -32,6 +32,7 @@ export function useFolderSync() {
 					folder_name: event.folderName,
 					search_space_id: event.searchSpaceId,
 					target_file_path: event.fullPath,
+					root_folder_id: event.rootFolderId,
 				});
 			} catch (err) {
 				console.error("[FolderSync] Failed to trigger re-index:", err);

@@ -1280,6 +1280,7 @@ class FolderIndexFileRequest(PydanticBaseModel):
     folder_name: str
     search_space_id: int
     target_file_path: str
+    root_folder_id: int | None = None
     enable_summary: bool = False
 
 
@@ -1394,6 +1395,7 @@ async def folder_index_file(
         folder_path=request.folder_path,
         folder_name=request.folder_name,
         target_file_path=request.target_file_path,
+        root_folder_id=request.root_folder_id,
         enable_summary=request.enable_summary,
     )
 
