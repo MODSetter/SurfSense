@@ -250,28 +250,14 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 				<div className="space-y-4">
 					{configs?.length === 0 ? (
 						<div>
-							<Card className="border-dashed border-2 border-muted-foreground/25">
+							<Card className="border-0 bg-transparent shadow-none">
 								<CardContent className="flex flex-col items-center justify-center py-10 md:py-16 text-center">
-									<div className="rounded-full bg-gradient-to-br from-violet-500/10 to-purple-500/10 p-4 md:p-6 mb-4 md:mb-6">
-										<Wand2 className="h-8 w-8 md:h-12 md:w-12 text-violet-600 dark:text-violet-400" />
-									</div>
-									<div className="space-y-2 mb-4 md:mb-6">
-										<h3 className="text-lg md:text-xl font-semibold">No Configurations Yet</h3>
-										<p className="text-xs md:text-sm text-muted-foreground max-w-sm">
-											{canCreate
-												? "Create your first AI configuration to customize how your agent responds"
-												: "No AI configurations have been added to this space yet. Contact a space owner to add one."}
-										</p>
-									</div>
-									{canCreate && (
-										<Button
-											onClick={openNewDialog}
-											size="lg"
-											className="gap-2 text-xs md:text-sm h-9 md:h-10"
-										>
-											Create First Configuration
-										</Button>
-									)}
+									<h3 className="text-sm md:text-base font-semibold mb-2">No LLM Models Yet</h3>
+									<p className="text-[11px] md:text-xs text-muted-foreground max-w-sm mb-4">
+										{canCreate
+											? "Add your first LLM model to power document summarization, chat, and other agent capabilities"
+											: "No LLM models have been added to this space yet. Contact a space owner to add one"}
+									</p>
 								</CardContent>
 							</Card>
 						</div>

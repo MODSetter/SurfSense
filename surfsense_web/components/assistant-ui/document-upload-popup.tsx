@@ -149,14 +149,14 @@ const DocumentUploadPopupContent: FC<{
 					{/* Content */}
 					<div className="px-4 sm:px-12 pb-4 sm:pb-16">
 						{!isLoading && !hasDocumentSummaryLLM ? (
-							<Alert variant="destructive" className="mb-4">
+							<Alert variant="destructive" className="mb-4 bg-muted/50 rounded-xl border-destructive/30">
 								<AlertTriangle className="h-4 w-4" />
 								<AlertTitle>LLM Configuration Required</AlertTitle>
 								<AlertDescription className="mt-2">
 									<p className="mb-3">
 										{isAutoMode && !hasGlobalConfigs
-											? "Auto mode is selected but no global LLM configurations are available. Please configure a custom LLM in Settings to process and summarize your uploaded documents."
-											: "You need to configure a Document Summary LLM before uploading files. This LLM is used to process and summarize your uploaded documents."}
+											? "Auto mode requires a global LLM configuration. Please add one in Settings"
+											: "A Document Summary LLM is required to process uploads, configure one in Settings"}
 									</p>
 									<Button
 										size="sm"
