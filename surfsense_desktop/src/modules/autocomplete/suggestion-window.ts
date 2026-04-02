@@ -8,14 +8,22 @@ const MAX_HEIGHT = 400;
 
 let suggestionWindow: BrowserWindow | null = null;
 let resizeTimer: ReturnType<typeof setInterval> | null = null;
+let cursorOrigin = { x: 0, y: 0 };
 
-function clampToScreen(x: number, y: number, w: number, h: number): { x: number; y: number } {
-  const display = screen.getDisplayNearestPoint({ x, y });
+const CURSOR_GAP = 20;
+
+function positionOnScreen(cursorX: number, cursorY: number, w: number, h: number): { x: number; y: number } {
+  const display = screen.getDisplayNearestPoint({ x: cursorX, y: cursorY });
   const { x: dx, y: dy, width: dw, height: dh } = display.workArea;
-  return {
-    x: Math.max(dx, Math.min(x, dx + dw - w)),
-    y: Math.max(dy, Math.min(y, dy + dh - h)),
-  };
+
+  const x = Math.max(dx, Math.min(cursorX, dx + dw - w));
+
+  const spaceBelow = (dy + dh) - (cursorY + CURSOR_GAP);
+  const y = spaceBelow >= h
+    ? cursorY + CURSOR_GAP
+    : cursorY - h - CURSOR_GAP;
+
+  return { x, y: Math.max(dy, y) };
 }
 
 function stopResizePolling(): void {
@@ -34,8 +42,8 @@ function startResizePolling(win: BrowserWindow): void {
       if (h > 0 && h !== lastH) {
         lastH = h;
         const clamped = Math.min(h, MAX_HEIGHT);
-        const bounds = win.getBounds();
-        win.setBounds({ x: bounds.x, y: bounds.y, width: TOOLTIP_WIDTH, height: clamped });
+        const pos = positionOnScreen(cursorOrigin.x, cursorOrigin.y, TOOLTIP_WIDTH, clamped);
+        win.setBounds({ x: pos.x, y: pos.y, width: TOOLTIP_WIDTH, height: clamped });
       }
     } catch {}
   }, 150);
@@ -55,8 +63,9 @@ export function destroySuggestion(): void {
 
 export function createSuggestionWindow(x: number, y: number): BrowserWindow {
   destroySuggestion();
+  cursorOrigin = { x, y };
 
-  const pos = clampToScreen(x, y + 20, TOOLTIP_WIDTH, TOOLTIP_HEIGHT);
+  const pos = positionOnScreen(x, y, TOOLTIP_WIDTH, TOOLTIP_HEIGHT);
 
   suggestionWindow = new BrowserWindow({
     width: TOOLTIP_WIDTH,
