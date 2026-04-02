@@ -14,6 +14,12 @@ interface ElectronAPI {
 	setQuickAskMode: (mode: string) => Promise<void>;
 	getQuickAskMode: () => Promise<string>;
 	replaceText: (text: string) => Promise<void>;
+	onAutocompleteContext: (callback: (data: { text: string; cursorPosition: number; searchSpaceId?: string }) => void) => () => void;
+	acceptSuggestion: (text: string) => Promise<void>;
+	dismissSuggestion: () => Promise<void>;
+	updateSuggestionText: (text: string) => Promise<void>;
+	setAutocompleteEnabled: (enabled: boolean) => Promise<void>;
+	getAutocompleteEnabled: () => Promise<boolean>;
 }
 
 declare global {
