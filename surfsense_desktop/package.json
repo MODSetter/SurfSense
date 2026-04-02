@@ -11,12 +11,14 @@
     "dist:mac": "pnpm build && electron-builder --mac --config electron-builder.yml",
     "dist:win": "pnpm build && electron-builder --win --config electron-builder.yml",
     "dist:linux": "pnpm build && electron-builder --linux --config electron-builder.yml",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "postinstall": "electron-rebuild"
   },
   "author": "MODSetter",
   "license": "MIT",
   "packageManager": "pnpm@10.24.0",
   "devDependencies": {
+    "@electron/rebuild": "^4.0.3",
     "@types/node": "^25.5.0",
     "concurrently": "^9.2.1",
     "dotenv": "^17.3.1",
@@ -28,6 +30,8 @@
   },
   "dependencies": {
     "electron-updater": "^6.8.3",
-    "get-port-please": "^3.2.0"
+    "get-port-please": "^3.2.0",
+    "node-mac-permissions": "^2.5.0",
+    "uiohook-napi": "^1.5.5"
   }
 }

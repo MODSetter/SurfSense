@@ -9,6 +9,16 @@ directories:
 files:
   - dist/**/*
   - "!node_modules"
+  - node_modules/uiohook-napi/**/*
+  - "!node_modules/uiohook-napi/build"
+  - "!node_modules/uiohook-napi/src"
+  - "!node_modules/uiohook-napi/libuiohook"
+  - "!node_modules/uiohook-napi/binding.gyp"
+  - node_modules/node-gyp-build/**/*
+  - node_modules/node-mac-permissions/**/*
+  - "!node_modules/node-mac-permissions/build"
+  - "!node_modules/node-mac-permissions/src"
+  - "!node_modules/node-mac-permissions/binding.gyp"
   - "!src"
   - "!scripts"
   - "!release"
@@ -29,6 +39,9 @@ extraResources:
     filter: ["**/*"]
 asarUnpack:
   - "**/*.node"
+  - "node_modules/uiohook-napi/**/*"
+  - "node_modules/node-gyp-build/**/*"
+  - "node_modules/node-mac-permissions/**/*"
 mac:
   icon: assets/icon.icns
   category: public.app-category.productivity
