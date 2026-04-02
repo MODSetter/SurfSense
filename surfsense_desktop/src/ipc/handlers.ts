@@ -31,8 +31,8 @@ export function registerIpcHandlers(): void {
     requestAccessibility();
   });
 
-  ipcMain.handle(IPC_CHANNELS.REQUEST_INPUT_MONITORING, () => {
-    requestInputMonitoring();
+  ipcMain.handle(IPC_CHANNELS.REQUEST_INPUT_MONITORING, async () => {
+    return await requestInputMonitoring();
   });
 
   ipcMain.handle(IPC_CHANNELS.RESTART_APP, () => {

@@ -7,6 +7,7 @@ import { setupAutoUpdater } from './modules/auto-updater';
 import { setupMenu } from './modules/menu';
 import { registerQuickAsk, unregisterQuickAsk } from './modules/quick-ask';
 import { registerIpcHandlers } from './ipc/handlers';
+import { allPermissionsGranted } from './modules/permissions';
 
 registerGlobalErrorHandlers();
 
@@ -16,7 +17,13 @@ if (!setupDeepLinks()) {
 
 registerIpcHandlers();
 
-// App lifecycle
+function getInitialPath(): string {
+  if (process.platform === 'darwin' && !allPermissionsGranted()) {
+    return '/desktop/permissions';
+  }
+  return '/dashboard';
+}
+
 app.whenReady().then(async () => {
   setupMenu();
   try {
@@ -26,7 +33,9 @@ app.whenReady().then(async () => {
     setTimeout(() => app.quit(), 0);
     return;
   }
-  createMainWindow();
+
+  const initialPath = getInitialPath();
+  createMainWindow(initialPath);
   registerQuickAsk();
   setupAutoUpdater();
 
@@ -34,7 +43,7 @@ app.whenReady().then(async () => {
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createMainWindow();
+      createMainWindow(getInitialPath());
     }
   });
 });
