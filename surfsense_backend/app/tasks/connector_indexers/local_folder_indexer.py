@@ -719,6 +719,21 @@ async def index_local_folder(
             }
             documents = await pipeline.prepare_for_indexing(connector_docs)
 
+            # Assign folder_id immediately so docs appear in the correct
+            # folder while still pending/processing (visible via Zero sync).
+            for document in documents:
+                cd = doc_map.get(document.unique_identifier_hash)
+                if cd is None:
+                    continue
+                rel_path = (cd.metadata or {}).get("file_path", "")
+                parent_dir = str(Path(rel_path).parent) if rel_path else ""
+                if parent_dir == ".":
+                    parent_dir = ""
+                document.folder_id = folder_mapping.get(
+                    parent_dir, folder_mapping.get("")
+                )
+            await session.commit()
+
             llm = await get_user_long_context_llm(session, user_id, search_space_id)
 
             for document in documents:
@@ -732,17 +747,9 @@ async def index_local_folder(
                 if DocumentStatus.is_state(result.status, DocumentStatus.READY):
                     indexed_count += 1
 
-                    # Assign folder_id and mtime post-pipeline
-                    rel_path = (connector_doc.metadata or {}).get("file_path", "")
-                    parent_dir = str(Path(rel_path).parent) if rel_path else ""
-                    if parent_dir == ".":
-                        parent_dir = ""
-                    fid = folder_mapping.get(parent_dir, folder_mapping.get(""))
-
                     unique_id = connector_doc.unique_id
                     mtime_info = file_meta_map.get(unique_id, {})
 
-                    result.folder_id = fid
                     doc_meta = dict(result.document_metadata or {})
                     doc_meta["mtime"] = mtime_info.get("mtime")
                     result.document_metadata = doc_meta
@@ -894,16 +901,18 @@ async def _index_single_file(
             return 0, 1, None
 
         db_doc = documents[0]
-        await pipeline.index(db_doc, connector_doc, llm)
 
-        # Post-pipeline: assign folder_id and mtime
-        await session.refresh(db_doc)
-        folder_id = None
+        # Assign folder_id before indexing so the doc appears in the
+        # correct folder while still pending/processing.
         if root_folder_id:
-            folder_id = await _resolve_folder_for_file(
+            db_doc.folder_id = await _resolve_folder_for_file(
                 session, rel_path, root_folder_id, search_space_id, user_id
             )
-        db_doc.folder_id = folder_id
+            await session.commit()
+
+        await pipeline.index(db_doc, connector_doc, llm)
+
+        await session.refresh(db_doc)
         doc_meta = dict(db_doc.document_metadata or {})
         doc_meta["mtime"] = mtime
         db_doc.document_metadata = doc_meta
