@@ -926,6 +926,52 @@ async def _index_obsidian_vault(
         )
 
 
+@celery_app.task(name="index_local_folder", bind=True)
+def index_local_folder_task(
+    self,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str = None,
+    end_date: str = None,
+    target_file_path: str = None,
+):
+    """Celery task to index a local folder."""
+    import asyncio
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    try:
+        loop.run_until_complete(
+            _index_local_folder(
+                connector_id, search_space_id, user_id, start_date, end_date, target_file_path
+            )
+        )
+    finally:
+        loop.close()
+
+
+async def _index_local_folder(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str = None,
+    end_date: str = None,
+    target_file_path: str = None,
+):
+    """Index local folder with new session."""
+    from app.routes.search_source_connectors_routes import (
+        run_local_folder_indexing,
+    )
+
+    async with get_celery_session_maker()() as session:
+        await run_local_folder_indexing(
+            session, connector_id, search_space_id, user_id, start_date, end_date,
+            target_file_path=target_file_path,
+        )
+
+
 @celery_app.task(name="index_composio_connector", bind=True)
 def index_composio_connector_task(
     self,
