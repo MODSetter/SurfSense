@@ -80,7 +80,7 @@ export function createSuggestionWindow(x: number, y: number): BrowserWindow {
     hasShadow: true,
     type: 'panel',
     webPreferences: {
-      preload: path.join(__dirname, '..', 'preload.js'),
+      preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
