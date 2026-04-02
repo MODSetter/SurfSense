@@ -1,4 +1,4 @@
-"""Add LOCAL_FOLDER_FILE document type and document_versions table
+"""Add LOCAL_FOLDER_FILE document type, folder metadata, and document_versions table
 
 Revision ID: 117
 Revises: 116
@@ -37,6 +37,19 @@ def upgrade() -> None:
     $$;
     """
     )
+
+    # Add JSONB metadata column to folders table
+    col_exists = conn.execute(
+        sa.text(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_name = 'folders' AND column_name = 'metadata'"
+        )
+    ).fetchone()
+    if not col_exists:
+        op.add_column(
+            "folders",
+            sa.Column("metadata", sa.dialects.postgresql.JSONB, nullable=True),
+        )
 
     # Create document_versions table
     table_exists = conn.execute(
@@ -124,3 +137,13 @@ def downgrade() -> None:
     op.execute("DROP INDEX IF EXISTS ix_document_versions_created_at")
     op.execute("DROP INDEX IF EXISTS ix_document_versions_document_id")
     op.execute("DROP TABLE IF EXISTS document_versions")
+
+    # Drop metadata column from folders
+    col_exists = conn.execute(
+        sa.text(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_name = 'folders' AND column_name = 'metadata'"
+        )
+    ).fetchone()
+    if col_exists:
+        op.drop_column("folders", "metadata")

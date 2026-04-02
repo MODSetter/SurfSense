@@ -37,6 +37,7 @@ import {
 	uploadDocumentRequest,
 	uploadDocumentResponse,
 } from "@/contracts/types/document.types";
+import { folderListResponse } from "@/contracts/types/folder.types";
 import { ValidationError } from "../error";
 import { baseApiService } from "./base-api.service";
 
@@ -401,6 +402,10 @@ class DocumentsApiService {
 
 	folderIndexFile = async (searchSpaceId: number, body: { folder_path: string; folder_name: string; search_space_id: number; target_file_path: string; root_folder_id?: number | null; enable_summary?: boolean }) => {
 		return baseApiService.post(`/api/v1/documents/folder-index-file`, undefined, { body });
+	};
+
+	getWatchedFolders = async (searchSpaceId: number) => {
+		return baseApiService.get(`/api/v1/documents/watched-folders?search_space_id=${searchSpaceId}`, folderListResponse);
 	};
 
 	/**

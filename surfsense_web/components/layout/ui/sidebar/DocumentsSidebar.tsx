@@ -21,6 +21,7 @@ import type { DocumentNodeDoc } from "@/components/documents/DocumentNode";
 import type { FolderDisplay } from "@/components/documents/FolderNode";
 import { FolderPickerDialog } from "@/components/documents/FolderPickerDialog";
 import { FolderTreeView } from "@/components/documents/FolderTreeView";
+import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
 import { EXPORT_FILE_EXTENSIONS } from "@/components/shared/ExportMenuItems";
 import {
 	AlertDialog,
@@ -95,12 +96,46 @@ export function DocumentsSidebar({
 	const [activeTypes, setActiveTypes] = useState<DocumentTypeEnum[]>([]);
 	const [watchedFolderIds, setWatchedFolderIds] = useState<Set<number>>(new Set());
 
+	const [metadataFolder, setMetadataFolder] = useState<FolderDisplay | null>(null);
+	const [metadataJson, setMetadataJson] = useState<Record<string, unknown> | null>(null);
+	const [metadataLoading, setMetadataLoading] = useState(false);
+
 	useEffect(() => {
 		const api = typeof window !== "undefined" ? window.electronAPI : null;
 		if (!api?.getWatchedFolders) return;
 
 		async function loadWatchedIds() {
 			const folders = await api!.getWatchedFolders();
+
+			if (folders.length === 0) {
+				try {
+					const backendFolders = await documentsApiService.getWatchedFolders(searchSpaceId);
+					for (const bf of backendFolders) {
+						const meta = bf.metadata as Record<string, unknown> | null;
+						if (!meta?.watched || !meta.folder_path) continue;
+						await api!.addWatchedFolder({
+							path: meta.folder_path as string,
+							name: bf.name,
+							rootFolderId: bf.id,
+							searchSpaceId: bf.search_space_id,
+							excludePatterns: (meta.exclude_patterns as string[]) ?? [],
+							fileExtensions: (meta.file_extensions as string[] | null) ?? null,
+							active: true,
+						});
+					}
+					const recovered = await api!.getWatchedFolders();
+					const ids = new Set(
+						recovered
+							.filter((f) => f.rootFolderId != null)
+							.map((f) => f.rootFolderId as number)
+					);
+					setWatchedFolderIds(ids);
+					return;
+				} catch (err) {
+					console.error("[DocumentsSidebar] Recovery from backend failed:", err);
+				}
+			}
+
 			const ids = new Set(
 				folders
 					.filter((f) => f.rootFolderId != null)
@@ -110,7 +145,7 @@ export function DocumentsSidebar({
 		}
 
 		loadWatchedIds();
-	}, []);
+	}, [searchSpaceId]);
 	const { mutateAsync: deleteDocumentMutation } = useAtomValue(deleteDocumentMutationAtom);
 
 	const [sidebarDocs, setSidebarDocs] = useAtom(sidebarSelectedDocumentsAtom);
@@ -318,10 +353,29 @@ export function DocumentsSidebar({
 			}
 
 			await api.removeWatchedFolder(matched.path);
+			try {
+				await foldersApiService.stopWatching(folder.id);
+			} catch (err) {
+				console.error("[DocumentsSidebar] Failed to clear watched metadata:", err);
+			}
 			toast.success(`Stopped watching: ${matched.name}`);
 		},
 		[]
 	);
+
+	const handleViewFolderMetadata = useCallback(async (folder: FolderDisplay) => {
+		setMetadataFolder(folder);
+		setMetadataLoading(true);
+		try {
+			const fullFolder = await foldersApiService.getFolder(folder.id);
+			setMetadataJson((fullFolder.metadata as Record<string, unknown>) ?? {});
+		} catch (err) {
+			console.error("[DocumentsSidebar] Failed to fetch folder metadata:", err);
+			setMetadataJson({ error: "Failed to load folder metadata" });
+		} finally {
+			setMetadataLoading(false);
+		}
+	}, []);
 
 	const handleRenameFolder = useCallback(async (folder: FolderDisplay, newName: string) => {
 		try {
@@ -801,11 +855,26 @@ export function DocumentsSidebar({
 				onReorderFolder={handleReorderFolder}
 				watchedFolderIds={watchedFolderIds}
 				onRescanFolder={handleRescanFolder}
-				onStopWatchingFolder={handleStopWatching}
-			/>
-			</div>
+			onStopWatchingFolder={handleStopWatching}
+			onViewFolderMetadata={handleViewFolderMetadata}
+		/>
+		</div>
 
-			<FolderPickerDialog
+		<JsonMetadataViewer
+			title={metadataFolder?.name ?? "Folder"}
+			metadata={metadataJson}
+			loading={metadataLoading}
+			open={!!metadataFolder}
+			onOpenChange={(open) => {
+				if (!open) {
+					setMetadataFolder(null);
+					setMetadataJson(null);
+					setMetadataLoading(false);
+				}
+			}}
+		/>
+
+		<FolderPickerDialog
 				open={folderPickerOpen}
 				onOpenChange={setFolderPickerOpen}
 				folders={treeFolders}

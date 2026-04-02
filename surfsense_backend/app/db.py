@@ -956,6 +956,7 @@ class Folder(BaseModel, TimestampMixin):
         onupdate=lambda: datetime.now(UTC),
         index=True,
     )
+    folder_metadata = Column("metadata", JSONB, nullable=True)
 
     parent = relationship("Folder", remote_side="Folder.id", backref="children")
     search_space = relationship("SearchSpace", back_populates="folders")

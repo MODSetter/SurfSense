@@ -192,6 +192,33 @@ async def get_folder_breadcrumb(
         ) from e
 
 
+@router.patch("/folders/{folder_id}/watched")
+async def stop_watching_folder(
+    folder_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Clear the watched flag from a folder's metadata."""
+    folder = await session.get(Folder, folder_id)
+    if not folder:
+        raise HTTPException(status_code=404, detail="Folder not found")
+
+    await check_permission(
+        session,
+        user,
+        folder.search_space_id,
+        Permission.DOCUMENTS_UPDATE.value,
+        "You don't have permission to update folders in this search space",
+    )
+
+    if folder.folder_metadata and isinstance(folder.folder_metadata, dict):
+        updated = {**folder.folder_metadata, "watched": False}
+        folder.folder_metadata = updated
+    await session.commit()
+
+    return {"message": "Folder watch status updated"}
+
+
 @router.put("/folders/{folder_id}", response_model=FolderRead)
 async def update_folder(
     folder_id: int,
