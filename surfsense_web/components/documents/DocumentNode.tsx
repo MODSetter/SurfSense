@@ -195,12 +195,14 @@ export const DocumentNode = React.memo(function DocumentNode({
 
 					<span className="flex-1 min-w-0 truncate">{doc.title}</span>
 
-					<span className="shrink-0">
-						{getDocumentTypeIcon(
-							doc.document_type as DocumentTypeEnum,
-							"h-3.5 w-3.5 text-muted-foreground"
-						)}
-					</span>
+					{getDocumentTypeIcon(doc.document_type as DocumentTypeEnum, "h-3.5 w-3.5 text-muted-foreground") && (
+						<span className="shrink-0">
+							{getDocumentTypeIcon(
+								doc.document_type as DocumentTypeEnum,
+								"h-3.5 w-3.5 text-muted-foreground"
+							)}
+						</span>
+					)}
 
 					<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
 						<DropdownMenuTrigger asChild>

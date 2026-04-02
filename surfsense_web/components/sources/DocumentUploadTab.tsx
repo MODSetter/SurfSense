@@ -1,24 +1,21 @@
 "use client";
 
 import { useAtom } from "jotai";
-import { CheckCircle2, ChevronDown, File as FileIcon, FileType, FolderOpen, Info, Upload, X } from "lucide-react";
+import { CheckCircle2, ChevronDown, File as FileIcon, FileType, FolderOpen, Plus, Upload, X } from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { uploadDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
-import { SummaryConfig } from "@/components/assistant-ui/connector-popup/components/summary-config";
 import {
 	Accordion,
 	AccordionContent,
 	AccordionItem,
 	AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -27,7 +24,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
@@ -36,7 +32,6 @@ import {
 	trackDocumentUploadStarted,
 	trackDocumentUploadSuccess,
 } from "@/lib/posthog/events";
-import { GridPattern } from "./GridPattern";
 
 interface SelectedFolder {
 	path: string;
@@ -128,12 +123,11 @@ interface FileWithId {
 	file: File;
 }
 
-const cardClass = "border border-border bg-slate-400/5 dark:bg-white/5";
-
-// Upload limits — files are sent in batches of 5 to avoid proxy timeouts
 const MAX_FILES = 50;
 const MAX_TOTAL_SIZE_MB = 200;
 const MAX_TOTAL_SIZE_BYTES = MAX_TOTAL_SIZE_MB * 1024 * 1024;
+
+const toggleRowClass = "flex items-center justify-between rounded-lg bg-slate-400/5 dark:bg-white/5 p-3";
 
 export function DocumentUploadTab({
 	searchSpaceId,
@@ -198,7 +192,7 @@ export function DocumentUploadTab({
 	const { getRootProps, getInputProps, isDragActive } = useDropzone({
 		onDrop,
 		accept: acceptedFileTypes,
-		maxSize: 50 * 1024 * 1024, // 50MB per file
+		maxSize: 50 * 1024 * 1024,
 		noClick: isElectron,
 		disabled: files.length >= MAX_FILES,
 	});
@@ -270,6 +264,8 @@ export function DocumentUploadTab({
 		(MAX_TOTAL_SIZE_BYTES - totalFileSize) / (1024 * 1024)
 	).toFixed(1);
 
+	const hasContent = files.length > 0 || selectedFolder !== null;
+
 	const handleAccordionChange = useCallback(
 		(value: string) => {
 			setAccordionValue(value);
@@ -307,7 +303,7 @@ export function DocumentUploadTab({
 				});
 				toast.success(`Watching folder: ${selectedFolder.name}`);
 			} else {
-				toast.success(`Indexing folder: ${selectedFolder.name}`);
+				toast.success(`Syncing folder: ${selectedFolder.name}`);
 			}
 
 			setSelectedFolder(null);
@@ -355,139 +351,180 @@ export function DocumentUploadTab({
 		);
 	};
 
-	return (
-		<div className="space-y-3 sm:space-y-6 max-w-4xl mx-auto pt-0">
-			<Alert className="border border-border bg-slate-400/5 dark:bg-white/5">
-				<Info className="h-4 w-4 shrink-0 mt-0.5" />
-				<AlertDescription className="text-xs sm:text-sm leading-relaxed pt-0.5">
-					{t("file_size_limit")}{" "}
-					{t("upload_limits", { maxFiles: MAX_FILES, maxSizeMB: MAX_TOTAL_SIZE_MB })}
-				</AlertDescription>
-			</Alert>
+	const renderBrowseButton = (options?: { compact?: boolean; fullWidth?: boolean }) => {
+		const { compact, fullWidth } = options ?? {};
+		if (isFileCountLimitReached) return null;
 
-		<Card className={`relative overflow-hidden ${cardClass}`}>
-			<div className="absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,white,transparent)] opacity-30">
-				<GridPattern />
-			</div>
-			<CardContent className="p-4 sm:p-10 relative z-10">
-				<div
-					{...getRootProps()}
-					className={`flex flex-col items-center justify-center min-h-[200px] sm:min-h-[300px] border-2 border-dashed rounded-lg transition-colors ${
-						isFileCountLimitReached || isSizeLimitReached
-							? "border-destructive/50 bg-destructive/5 cursor-not-allowed"
-							: "border-border hover:border-primary/50 cursor-pointer"
-					}`}
-				>
-					<input
-						{...getInputProps()}
-						ref={fileInputRef}
-						className="hidden"
-						onClick={handleFileInputClick}
-					/>
-					{isFileCountLimitReached ? (
-						<div className="flex flex-col items-center gap-2 sm:gap-4 text-center px-4">
-							<Upload className="h-8 w-8 sm:h-12 sm:w-12 text-destructive/70" />
-							<div>
-								<p className="text-sm sm:text-lg font-medium text-destructive">
-									{t("file_limit_reached")}
-								</p>
-								<p className="text-xs sm:text-sm text-muted-foreground mt-1">
-									{t("file_limit_reached_desc", { max: MAX_FILES })}
-								</p>
+		const sizeClass = compact ? "h-7" : "h-8";
+		const widthClass = fullWidth ? "w-full" : "";
+
+		if (isElectron) {
+			return (
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+						<Button variant="secondary" size="sm" className={`text-xs gap-1 ${sizeClass} ${widthClass}`}>
+							Browse
+							<ChevronDown className="h-3 w-3 opacity-60" />
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="center" onClick={(e) => e.stopPropagation()}>
+						<DropdownMenuItem onClick={handleBrowseFiles}>
+							<FileIcon className="h-4 w-4 mr-2" />
+							Files
+						</DropdownMenuItem>
+						<DropdownMenuItem onClick={handleBrowseFolder}>
+							<FolderOpen className="h-4 w-4 mr-2" />
+							Folder
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			);
+		}
+
+		return (
+			<Button
+				variant="secondary"
+				size="sm"
+				className={`text-xs ${sizeClass} ${widthClass}`}
+				onClick={(e) => {
+					e.stopPropagation();
+					e.preventDefault();
+					fileInputRef.current?.click();
+				}}
+			>
+				{t("browse_files")}
+			</Button>
+		);
+	};
+
+	return (
+		<div className="space-y-2 w-full mx-auto">
+			{/* Hidden file input for mobile browse */}
+			<input
+				{...getInputProps()}
+				ref={fileInputRef}
+				className="hidden"
+				onClick={handleFileInputClick}
+			/>
+
+			{/* MOBILE DROP ZONE */}
+			<div className="sm:hidden">
+				{hasContent ? (
+					!selectedFolder && !isFileCountLimitReached && (
+						isElectron ? (
+							<div className="w-full">
+								{renderBrowseButton({ compact: true, fullWidth: true })}
 							</div>
-						</div>
-					) : isDragActive ? (
-						<div className="flex flex-col items-center gap-2 sm:gap-4">
-							<Upload className="h-8 w-8 sm:h-12 sm:w-12 text-primary" />
-							<p className="text-sm sm:text-lg font-medium text-primary">{t("drop_files")}</p>
-						</div>
-					) : (
-						<div className="flex flex-col items-center gap-2 sm:gap-4">
-							<Upload className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground" />
-							<div className="text-center">
-								<p className="text-sm sm:text-lg font-medium">{t("drag_drop")}</p>
-								<p className="text-xs sm:text-sm text-muted-foreground mt-1">{t("or_browse")}</p>
-							</div>
-							{files.length > 0 && (
-								<p className="text-xs text-muted-foreground">
-									{t("remaining_capacity", { files: remainingFiles, sizeMB: remainingSizeMB })}
-								</p>
-							)}
-						</div>
-					)}
-				{!isFileCountLimitReached && (
-					<div className="mt-2 sm:mt-4">
-						{isElectron ? (
-							<DropdownMenu>
-								<DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-									<Button variant="secondary" size="sm" className="text-xs sm:text-sm gap-1">
-										{t("browse_files")}
-										<ChevronDown className="h-3 w-3 opacity-60" />
-									</Button>
-								</DropdownMenuTrigger>
-								<DropdownMenuContent align="center" onClick={(e) => e.stopPropagation()}>
-									<DropdownMenuItem onClick={handleBrowseFiles}>
-										<FileIcon className="h-4 w-4 mr-2" />
-										Files
-									</DropdownMenuItem>
-									<DropdownMenuItem onClick={handleBrowseFolder}>
-										<FolderOpen className="h-4 w-4 mr-2" />
-										Folder
-									</DropdownMenuItem>
-								</DropdownMenuContent>
-							</DropdownMenu>
 						) : (
 							<Button
-								variant="secondary"
+								variant="outline"
 								size="sm"
-								className="text-xs sm:text-sm"
-								onClick={(e) => {
-									e.stopPropagation();
-									e.preventDefault();
-									fileInputRef.current?.click();
-								}}
+								className="w-full text-xs h-8 gap-1.5 border-dashed border-muted-foreground/30"
+								onClick={() => fileInputRef.current?.click()}
 							>
-								{t("browse_files")}
+								<Plus className="h-3.5 w-3.5" />
+								Add more files
 							</Button>
+						)
+					)
+				) : (
+					<div
+						className="flex flex-col items-center gap-3 py-6 px-4 cursor-pointer"
+						onClick={() => {
+							if (!isElectron) fileInputRef.current?.click();
+						}}
+					>
+						<Upload className="h-7 w-7 text-muted-foreground" />
+						<div className="text-center space-y-1">
+							<p className="text-sm font-medium">
+								{isElectron ? "Select files or folder" : "Tap to select files"}
+							</p>
+							<p className="text-xs text-muted-foreground">
+								{t("file_size_limit")}{" "}
+								{t("upload_limits", { maxFiles: MAX_FILES, maxSizeMB: MAX_TOTAL_SIZE_MB })}
+							</p>
+						</div>
+						{isElectron && (
+							<div className="w-full mt-1" onClick={(e) => e.stopPropagation()}>
+								{renderBrowseButton({ fullWidth: true })}
+							</div>
 						)}
 					</div>
 				)}
-				</div>
-			</CardContent>
-		</Card>
+			</div>
 
-		{selectedFolder && (
-			<Card className={cardClass}>
-				<CardHeader className="p-4 sm:p-6">
-					<div className="flex items-center justify-between gap-2">
-						<div className="flex items-center gap-3 min-w-0 flex-1">
-							<FolderOpen className="h-5 w-5 text-primary flex-shrink-0" />
-							<div className="min-w-0 flex-1">
-								<CardTitle className="text-base sm:text-lg truncate">
-									{selectedFolder.name}
-								</CardTitle>
-								<CardDescription className="text-xs sm:text-sm truncate">
-									{selectedFolder.path}
-								</CardDescription>
-							</div>
+			{/* DESKTOP DROP ZONE */}
+			<div
+				{...getRootProps()}
+				className={`hidden sm:block border-2 border-dashed rounded-lg transition-colors ${
+					isFileCountLimitReached || isSizeLimitReached
+						? "border-destructive/50 bg-destructive/5 cursor-not-allowed"
+						: "border-muted-foreground/30 hover:border-foreground/70 cursor-pointer"
+				} ${hasContent ? "p-3" : "py-20 px-4"}`}
+			>
+				{hasContent ? (
+					<div className="flex items-center gap-3">
+						<Upload className="h-4 w-4 text-muted-foreground shrink-0" />
+						<span className="text-xs text-muted-foreground flex-1 truncate">
+							{isDragActive
+								? t("drop_files")
+								: isFileCountLimitReached
+									? t("file_limit_reached")
+									: t("remaining_capacity", { files: remainingFiles, sizeMB: remainingSizeMB })}
+						</span>
+						{renderBrowseButton({ compact: true })}
+					</div>
+				) : isFileCountLimitReached ? (
+					<div className="flex flex-col items-center gap-2 text-center">
+						<Upload className="h-8 w-8 text-destructive/70" />
+						<p className="text-sm font-medium text-destructive">{t("file_limit_reached")}</p>
+						<p className="text-xs text-muted-foreground">
+							{t("file_limit_reached_desc", { max: MAX_FILES })}
+						</p>
+					</div>
+				) : isDragActive ? (
+					<div className="flex flex-col items-center gap-2">
+						<Upload className="h-8 w-8 text-primary" />
+						<p className="text-sm font-medium text-primary">{t("drop_files")}</p>
+					</div>
+				) : (
+					<div className="flex flex-col items-center gap-2">
+						<Upload className="h-8 w-8 text-muted-foreground" />
+						<p className="text-sm font-medium">{t("drag_drop")}</p>
+						<p className="text-xs text-muted-foreground text-center">
+							{t("file_size_limit")}{" "}
+							{t("upload_limits", { maxFiles: MAX_FILES, maxSizeMB: MAX_TOTAL_SIZE_MB })}
+						</p>
+						<div className="mt-1">{renderBrowseButton()}</div>
+					</div>
+				)}
+			</div>
+
+			{/* FOLDER SELECTED */}
+			{selectedFolder && (
+				<div className="rounded-lg border border-border p-3 space-y-2">
+					<div className="flex items-center gap-2">
+						<FolderOpen className="h-4 w-4 text-primary shrink-0" />
+						<div className="min-w-0 flex-1">
+							<p className="text-sm font-medium truncate">{selectedFolder.name}</p>
+							<p className="text-xs text-muted-foreground truncate">{selectedFolder.path}</p>
 						</div>
 						<Button
 							variant="ghost"
 							size="icon"
-							className="h-8 w-8 shrink-0"
+							className="h-7 w-7 shrink-0"
 							onClick={() => setSelectedFolder(null)}
 							disabled={folderSubmitting}
 						>
-							<X className="h-4 w-4" />
+							<X className="h-3.5 w-3.5" />
 						</Button>
 					</div>
-				</CardHeader>
-				<CardContent className="p-4 sm:p-6 pt-0 space-y-4">
-					<div className="flex items-center justify-between rounded-lg border border-border p-3">
-						<Label htmlFor="watch-folder-toggle" className="flex flex-col gap-1 cursor-pointer">
+
+					<div className={toggleRowClass}>
+						<Label htmlFor="watch-folder-toggle" className="flex flex-col gap-0.5 cursor-pointer">
 							<span className="text-sm font-medium">Watch folder</span>
 							<span className="text-xs text-muted-foreground font-normal">
-								Automatically sync changes when files are added, edited, or removed
+								Auto-sync when files change
 							</span>
 						</Label>
 						<Switch
@@ -497,150 +534,133 @@ export function DocumentUploadTab({
 						/>
 					</div>
 
-					<SummaryConfig enabled={shouldSummarize} onEnabledChange={setShouldSummarize} />
+					<div className={toggleRowClass}>
+						<div className="space-y-0.5">
+							<p className="font-medium text-sm">Enable AI Summary</p>
+							<p className="text-xs text-muted-foreground">
+								Improves search quality but adds latency
+							</p>
+						</div>
+						<Switch checked={shouldSummarize} onCheckedChange={setShouldSummarize} />
+					</div>
 
 					<Button
-						className="w-full py-3 sm:py-6 text-xs sm:text-base font-medium"
+						className="w-full relative"
 						onClick={handleFolderSubmit}
 						disabled={folderSubmitting}
 					>
-						{folderSubmitting ? (
-							<span className="flex items-center gap-2">
+						<span className={folderSubmitting ? "invisible" : ""}>
+							{watchFolder ? "Sync & Watch for Changes" : "Sync Folder"}
+						</span>
+						{folderSubmitting && (
+							<span className="absolute inset-0 flex items-center justify-center">
 								<Spinner size="sm" />
-								Processing...
-							</span>
-						) : (
-							<span className="flex items-center gap-2">
-								<CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" />
-								{watchFolder ? "Watch & Index Folder" : "Index Folder"}
 							</span>
 						)}
 					</Button>
-				</CardContent>
-			</Card>
-		)}
-
-			{files.length > 0 && (
-				<Card className={cardClass}>
-					<CardHeader className="p-4 sm:p-6">
-						<div className="flex items-center justify-between gap-2">
-							<div className="min-w-0 flex-1">
-								<CardTitle className="text-base sm:text-2xl">
-									{t("selected_files", { count: files.length })}
-								</CardTitle>
-								<CardDescription className="text-xs sm:text-sm">
-									{t("total_size")}: {formatFileSize(totalFileSize)}
-								</CardDescription>
-							</div>
-							<Button
-								variant="outline"
-								size="sm"
-								className="text-xs sm:text-sm shrink-0"
-								onClick={() => setFiles([])}
-								disabled={isUploading}
-							>
-								{t("clear_all")}
-							</Button>
-						</div>
-					</CardHeader>
-					<CardContent className="p-4 sm:p-6 pt-0">
-						<div className="space-y-2 sm:space-y-3 max-h-[250px] sm:max-h-[400px] overflow-y-auto">
-							{files.map((entry) => (
-								<div
-									key={entry.id}
-									className={`flex items-center justify-between p-2 sm:p-4 rounded-lg border border-border ${cardClass} hover:bg-slate-400/10 dark:hover:bg-white/10 transition-colors`}
-								>
-									<div className="flex items-center gap-3 flex-1 min-w-0">
-										<FileType className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-										<div className="flex-1 min-w-0">
-											<p className="text-sm sm:text-base font-medium truncate">{entry.file.name}</p>
-											<div className="flex items-center gap-2 mt-1">
-												<Badge variant="secondary" className="text-xs">
-													{formatFileSize(entry.file.size)}
-												</Badge>
-												<Badge variant="outline" className="text-xs">
-													{entry.file.type || "Unknown type"}
-												</Badge>
-											</div>
-										</div>
-									</div>
-									<Button
-										variant="ghost"
-										size="icon"
-										onClick={() => setFiles((prev) => prev.filter((e) => e.id !== entry.id))}
-										disabled={isUploading}
-										className="h-8 w-8"
-									>
-										<X className="h-4 w-4" />
-									</Button>
-								</div>
-							))}
-						</div>
-
-						{isUploading && (
-							<div className="mt-3 sm:mt-6 space-y-2 sm:space-y-3">
-								<Separator className="bg-border" />
-								<div className="space-y-2">
-									<div className="flex items-center justify-between text-xs sm:text-sm">
-										<span>{t("uploading_files")}</span>
-										<span>{Math.round(uploadProgress)}%</span>
-									</div>
-									<Progress value={uploadProgress} className="h-2" />
-								</div>
-							</div>
-						)}
-
-						<div className="mt-3 sm:mt-6">
-							<SummaryConfig enabled={shouldSummarize} onEnabledChange={setShouldSummarize} />
-						</div>
-
-						<div className="mt-3 sm:mt-6">
-							<Button
-								className="w-full py-3 sm:py-6 text-xs sm:text-base font-medium"
-								onClick={handleUpload}
-								disabled={isUploading || files.length === 0}
-							>
-								{isUploading ? (
-									<span className="flex items-center gap-2">
-										<Spinner size="sm" />
-										{t("uploading")}
-									</span>
-								) : (
-									<span className="flex items-center gap-2">
-										<CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" />
-										{t("upload_button", { count: files.length })}
-									</span>
-								)}
-							</Button>
-						</div>
-					</CardContent>
-				</Card>
+				</div>
 			)}
 
+			{/* FILES SELECTED */}
+			{files.length > 0 && (
+				<div className="rounded-lg border border-border p-3 space-y-2">
+					<div className="flex items-center justify-between">
+						<p className="text-sm font-medium">
+							{t("selected_files", { count: files.length })} &middot; {formatFileSize(totalFileSize)}
+						</p>
+						<Button
+							variant="ghost"
+							size="sm"
+							className="h-7 text-xs text-muted-foreground hover:text-foreground"
+							onClick={() => setFiles([])}
+							disabled={isUploading}
+						>
+							{t("clear_all")}
+						</Button>
+					</div>
+
+					<div className="max-h-[160px] sm:max-h-[200px] overflow-y-auto -mx-1">
+						{files.map((entry) => (
+							<div
+								key={entry.id}
+								className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-slate-400/5 dark:hover:bg-white/5 group"
+							>
+								<FileType className="h-4 w-4 text-muted-foreground shrink-0" />
+								<span className="text-sm truncate flex-1 min-w-0">{entry.file.name}</span>
+								<span className="text-xs text-muted-foreground shrink-0">
+									{formatFileSize(entry.file.size)}
+								</span>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-6 w-6 shrink-0"
+									onClick={() => setFiles((prev) => prev.filter((e) => e.id !== entry.id))}
+									disabled={isUploading}
+								>
+									<X className="h-3 w-3" />
+								</Button>
+							</div>
+						))}
+					</div>
+
+					{isUploading && (
+						<div className="space-y-1">
+							<div className="flex items-center justify-between text-xs">
+								<span>{t("uploading_files")}</span>
+								<span>{Math.round(uploadProgress)}%</span>
+							</div>
+							<Progress value={uploadProgress} className="h-1.5" />
+						</div>
+					)}
+
+					<div className={toggleRowClass}>
+						<div className="space-y-0.5">
+							<p className="font-medium text-sm">Enable AI Summary</p>
+							<p className="text-xs text-muted-foreground">
+								Improves search quality but adds latency
+							</p>
+						</div>
+						<Switch checked={shouldSummarize} onCheckedChange={setShouldSummarize} />
+					</div>
+
+					<Button
+						className="w-full"
+						onClick={handleUpload}
+						disabled={isUploading || files.length === 0}
+					>
+						{isUploading ? (
+							<span className="flex items-center gap-2">
+								<Spinner size="sm" />
+								{t("uploading")}
+							</span>
+						) : (
+							<span className="flex items-center gap-2">
+								<CheckCircle2 className="h-4 w-4" />
+								{t("upload_button", { count: files.length })}
+							</span>
+						)}
+					</Button>
+				</div>
+			)}
+
+			{/* SUPPORTED FORMATS */}
 			<Accordion
 				type="single"
 				collapsible
 				value={accordionValue}
 				onValueChange={handleAccordionChange}
-				className={`w-full ${cardClass} border border-border rounded-lg mb-0`}
+				className="w-full"
 			>
-				<AccordionItem value="supported-file-types" className="border-0">
-					<AccordionTrigger className="px-3 sm:px-6 py-3 sm:py-4 hover:no-underline !items-center [&>svg]:!translate-y-0">
-						<div className="flex items-center gap-2 flex-1">
-							<div className="text-left min-w-0">
-								<div className="font-semibold text-sm sm:text-base">
-									{t("supported_file_types")}
-								</div>
-								<div className="text-xs sm:text-sm text-muted-foreground font-normal">
-									{t("file_types_desc")}
-								</div>
-							</div>
-						</div>
+				<AccordionItem value="supported-file-types" className="border border-border rounded-lg">
+					<AccordionTrigger className="px-3 py-2.5 hover:no-underline !items-center [&>svg]:!translate-y-0">
+						<span className="text-xs sm:text-sm text-muted-foreground font-normal">
+							{t("supported_file_types")}
+						</span>
 					</AccordionTrigger>
-					<AccordionContent className="px-3 sm:px-6 pb-3 sm:pb-6">
-						<div className="flex flex-wrap gap-2">
+					<AccordionContent className="px-3 pb-3">
+						<div className="flex flex-wrap gap-1">
 							{supportedExtensions.map((ext) => (
-								<Badge key={ext} variant="outline" className="text-xs">
+								<Badge key={ext} variant="outline" className="text-[10px] px-1.5 py-0">
 									{ext}
 								</Badge>
 							))}

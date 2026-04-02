@@ -29,6 +29,7 @@ from app.schemas import (
     DocumentTitleSearchResponse,
     DocumentUpdate,
     DocumentWithChunksRead,
+    FolderRead,
     PaginatedResponse,
 )
 from app.services.task_dispatcher import TaskDispatcher, get_task_dispatcher
@@ -953,15 +954,13 @@ async def get_document_by_chunk_id(
         ) from e
 
 
-@router.get("/documents/watched-folders", response_model=list["FolderRead"])
+@router.get("/documents/watched-folders", response_model=list[FolderRead])
 async def get_watched_folders(
     search_space_id: int,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
     """Return root folders that are marked as watched (metadata->>'watched' = 'true')."""
-    from app.schemas import FolderRead  # noqa: F811
-
     await check_permission(
         session,
         user,

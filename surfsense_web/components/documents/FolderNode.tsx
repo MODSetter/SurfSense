@@ -1,6 +1,7 @@
 "use client";
 
 import {
+	AlertCircle,
 	ChevronDown,
 	ChevronRight,
 	Eye,
@@ -30,6 +31,8 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Spinner } from "@/components/ui/spinner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { FolderSelectionState } from "./FolderTreeView";
 
@@ -55,6 +58,7 @@ interface FolderNodeProps {
 	isRenaming: boolean;
 	childCount: number;
 	selectionState: FolderSelectionState;
+	processingState: "idle" | "processing" | "failed";
 	onToggleSelect: (folderId: number, selectAll: boolean) => void;
 	onToggleExpand: (folderId: number) => void;
 	onRename: (folder: FolderDisplay, newName: string) => void;
@@ -100,6 +104,7 @@ export const FolderNode = React.memo(function FolderNode({
 	isRenaming,
 	childCount,
 	selectionState,
+	processingState,
 	onToggleSelect,
 	onToggleExpand,
 	onRename,
@@ -281,14 +286,41 @@ export const FolderNode = React.memo(function FolderNode({
 						)}
 					</span>
 
-					<Checkbox
-						checked={
-							selectionState === "all" ? true : selectionState === "some" ? "indeterminate" : false
-						}
-						onCheckedChange={handleCheckChange}
-						onClick={(e) => e.stopPropagation()}
-						className="h-3.5 w-3.5 shrink-0"
-					/>
+					{processingState !== "idle" && selectionState === "none" ? (
+						<>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center group-hover:hidden">
+										{processingState === "processing" ? (
+											<Spinner size="xs" className="text-primary" />
+										) : (
+											<AlertCircle className="h-3.5 w-3.5 text-destructive" />
+										)}
+									</span>
+								</TooltipTrigger>
+								<TooltipContent side="top">
+									{processingState === "processing"
+										? "Syncing folder contents"
+										: "Some files failed to process"}
+								</TooltipContent>
+							</Tooltip>
+							<Checkbox
+								checked={false}
+								onCheckedChange={handleCheckChange}
+								onClick={(e) => e.stopPropagation()}
+								className="h-3.5 w-3.5 shrink-0 hidden group-hover:flex"
+							/>
+						</>
+					) : (
+						<Checkbox
+							checked={
+								selectionState === "all" ? true : selectionState === "some" ? "indeterminate" : false
+							}
+							onCheckedChange={handleCheckChange}
+							onClick={(e) => e.stopPropagation()}
+							className="h-3.5 w-3.5 shrink-0"
+						/>
+					)}
 
 					<FolderIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
 

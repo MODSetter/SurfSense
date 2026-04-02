@@ -166,6 +166,35 @@ export function FolderTreeView({
 		return states;
 	}, [folders, docsByFolder, foldersByParent, mentionedDocIds]);
 
+	const folderProcessingStates = useMemo(() => {
+		const states: Record<number, "idle" | "processing" | "failed"> = {};
+
+		function compute(folderId: number): { hasProcessing: boolean; hasFailed: boolean } {
+			const directDocs = docsByFolder[folderId] ?? [];
+			let hasProcessing = directDocs.some(
+				(d) => d.status?.state === "pending" || d.status?.state === "processing"
+			);
+			let hasFailed = directDocs.some((d) => d.status?.state === "failed");
+
+			for (const child of foldersByParent[folderId] ?? []) {
+				const sub = compute(child.id);
+				hasProcessing = hasProcessing || sub.hasProcessing;
+				hasFailed = hasFailed || sub.hasFailed;
+			}
+
+			if (hasProcessing) states[folderId] = "processing";
+			else if (hasFailed) states[folderId] = "failed";
+			else states[folderId] = "idle";
+
+			return { hasProcessing, hasFailed };
+		}
+
+		for (const f of folders) {
+			if (states[f.id] === undefined) compute(f.id);
+		}
+		return states;
+	}, [folders, docsByFolder, foldersByParent]);
+
 	function renderLevel(parentId: number | null, depth: number): React.ReactNode[] {
 		const key = parentId ?? "root";
 		const childFolders = (foldersByParent[key] ?? [])
@@ -199,6 +228,7 @@ export function FolderTreeView({
 					isRenaming={renamingFolderId === f.id}
 					childCount={folderChildCounts[f.id] ?? 0}
 					selectionState={folderSelectionStates[f.id] ?? "none"}
+					processingState={folderProcessingStates[f.id] ?? "idle"}
 					onToggleSelect={onToggleFolderSelect}
 					onToggleExpand={onToggleExpand}
 					onRename={onRenameFolder}
