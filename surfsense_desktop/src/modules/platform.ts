@@ -19,20 +19,6 @@ export function getFrontmostApp(): string {
   return '';
 }
 
-export function getSelectedText(): string {
-  try {
-    if (process.platform === 'darwin') {
-      return execSync(
-        'osascript -e \'tell application "System Events" to get value of attribute "AXSelectedText" of focused UI element of first application process whose frontmost is true\''
-      ).toString().trim();
-    }
-    // Windows: no reliable accessibility API for selected text across apps
-  } catch {
-    return '';
-  }
-  return '';
-}
-
 export function simulateCopy(): void {
   if (process.platform === 'darwin') {
     execSync('osascript -e \'tell application "System Events" to keystroke "c" using command down\'');
@@ -57,39 +43,4 @@ export function checkAccessibilityPermission(): boolean {
 export function hasAccessibilityPermission(): boolean {
   if (process.platform !== 'darwin') return true;
   return systemPreferences.isTrustedAccessibilityClient(false);
-}
-
-export interface FieldContent {
-  text: string;
-  cursorPosition: number;
-}
-
-export function getFieldContent(): FieldContent | null {
-  if (process.platform !== 'darwin') return null;
-
-  try {
-    const text = execSync(
-      'osascript -e \'tell application "System Events" to get value of attribute "AXValue" of focused UI element of first application process whose frontmost is true\'',
-      { timeout: 500 }
-    ).toString().trim();
-
-    let cursorPosition = text.length;
-    try {
-      const rangeStr = execSync(
-        'osascript -e \'tell application "System Events" to get value of attribute "AXSelectedTextRange" of focused UI element of first application process whose frontmost is true\'',
-        { timeout: 500 }
-      ).toString().trim();
-
-      const locationMatch = rangeStr.match(/location[:\s]*(\d+)/i);
-      if (locationMatch) {
-        cursorPosition = parseInt(locationMatch[1], 10);
-      }
-    } catch {
-      // Fall back to end of text
-    }
-
-    return { text, cursorPosition };
-  } catch {
-    return null;
-  }
 }

@@ -1,20 +1,19 @@
-import { BrowserWindow, clipboard, ipcMain, screen, shell } from 'electron';
-import path from 'path';
-import { IPC_CHANNELS } from '../ipc/channels';
-import { allPermissionsGranted } from './permissions';
-import { getFieldContent, getFrontmostApp, hasAccessibilityPermission, simulatePaste } from './platform';
-import { getServerPort } from './server';
-import { getMainWindow } from './window';
+import { clipboard, ipcMain, screen } from 'electron';
+import { IPC_CHANNELS } from '../../ipc/channels';
+import { getFrontmostApp, hasAccessibilityPermission, simulatePaste } from '../platform';
+import { getMainWindow } from '../window';
+import {
+  appendToBuffer, buildKeycodeMap, getBuffer, getBufferTrimmed,
+  getLastTrackedApp, removeLastChar, resetBuffer, resolveChar, setLastTrackedApp,
+} from './keystroke-buffer';
+import { createSuggestionWindow, destroySuggestion, getSuggestionWindow } from './suggestion-window';
 
 const DEBOUNCE_MS = 600;
-const TOOLTIP_WIDTH = 420;
-const TOOLTIP_HEIGHT = 140;
 
 let uIOhook: any = null;
 let UiohookKey: any = {};
 let IGNORED_KEYCODES: Set<number> = new Set();
 
-let suggestionWindow: BrowserWindow | null = null;
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 let hookStarted = false;
 let autocompleteEnabled = true;
@@ -38,82 +37,14 @@ function loadUiohook(): boolean {
       UiohookKey.F5, UiohookKey.F6, UiohookKey.F7, UiohookKey.F8,
       UiohookKey.F9, UiohookKey.F10, UiohookKey.F11, UiohookKey.F12,
       UiohookKey.PrintScreen,
-      UiohookKey.Insert, UiohookKey.Delete,
-      UiohookKey.Home, UiohookKey.End,
-      UiohookKey.PageUp, UiohookKey.PageDown,
-      UiohookKey.ArrowUp, UiohookKey.ArrowDown,
-      UiohookKey.ArrowLeft, UiohookKey.ArrowRight,
     ]);
+    buildKeycodeMap();
     console.log('[autocomplete] uiohook-napi loaded');
     return true;
   } catch (err) {
     console.error('[autocomplete] Failed to load uiohook-napi:', err);
     return false;
   }
-}
-
-function destroySuggestion(): void {
-  if (suggestionWindow && !suggestionWindow.isDestroyed()) {
-    suggestionWindow.close();
-  }
-  suggestionWindow = null;
-}
-
-function clampToScreen(x: number, y: number, w: number, h: number): { x: number; y: number } {
-  const display = screen.getDisplayNearestPoint({ x, y });
-  const { x: dx, y: dy, width: dw, height: dh } = display.workArea;
-  return {
-    x: Math.max(dx, Math.min(x, dx + dw - w)),
-    y: Math.max(dy, Math.min(y, dy + dh - h)),
-  };
-}
-
-function createSuggestionWindow(x: number, y: number): BrowserWindow {
-  destroySuggestion();
-
-  const pos = clampToScreen(x, y + 20, TOOLTIP_WIDTH, TOOLTIP_HEIGHT);
-
-  suggestionWindow = new BrowserWindow({
-    width: TOOLTIP_WIDTH,
-    height: TOOLTIP_HEIGHT,
-    x: pos.x,
-    y: pos.y,
-    frame: false,
-    transparent: true,
-    focusable: false,
-    alwaysOnTop: true,
-    skipTaskbar: true,
-    resizable: false,
-    hasShadow: true,
-    type: 'panel',
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-    },
-    show: false,
-  });
-
-  suggestionWindow.loadURL(`http://localhost:${getServerPort()}/desktop/suggestion?t=${Date.now()}`);
-
-  suggestionWindow.once('ready-to-show', () => {
-    suggestionWindow?.showInactive();
-  });
-
-  suggestionWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('http://localhost')) {
-      return { action: 'allow' };
-    }
-    shell.openExternal(url);
-    return { action: 'deny' };
-  });
-
-  suggestionWindow.on('closed', () => {
-    suggestionWindow = null;
-  });
-
-  return suggestionWindow;
 }
 
 function clearDebounce(): void {
@@ -128,10 +59,24 @@ function isSurfSenseWindow(): boolean {
   return app === 'Electron' || app === 'SurfSense' || app === 'surfsense-desktop';
 }
 
-function onKeyDown(event: { keycode: number; ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean }): void {
+function onKeyDown(event: {
+  keycode: number;
+  shiftKey?: boolean;
+  ctrlKey?: boolean;
+  metaKey?: boolean;
+  altKey?: boolean;
+}): void {
   if (!autocompleteEnabled) return;
 
-  if (event.keycode === UiohookKey.Tab && suggestionWindow && !suggestionWindow.isDestroyed()) {
+  const currentApp = getFrontmostApp();
+  if (currentApp !== getLastTrackedApp()) {
+    resetBuffer();
+    setLastTrackedApp(currentApp);
+  }
+
+  const win = getSuggestionWindow();
+
+  if (event.keycode === UiohookKey.Tab && win && !win.isDestroyed()) {
     if (pendingSuggestionText) {
       acceptAndInject(pendingSuggestionText);
     }
@@ -139,7 +84,7 @@ function onKeyDown(event: { keycode: number; ctrlKey?: boolean; metaKey?: boolea
   }
 
   if (event.keycode === UiohookKey.Escape) {
-    if (suggestionWindow && !suggestionWindow.isDestroyed()) {
+    if (win && !win.isDestroyed()) {
       destroySuggestion();
       pendingSuggestionText = '';
     }
@@ -147,11 +92,41 @@ function onKeyDown(event: { keycode: number; ctrlKey?: boolean; metaKey?: boolea
     return;
   }
 
-  if (IGNORED_KEYCODES.has(event.keycode)) return;
-  if (event.ctrlKey || event.metaKey || event.altKey) return;
-  if (isSurfSenseWindow()) return;
+  if (currentApp === 'Electron' || currentApp === 'SurfSense' || currentApp === 'surfsense-desktop') {
+    return;
+  }
 
-  if (suggestionWindow && !suggestionWindow.isDestroyed()) {
+  if (event.ctrlKey || event.metaKey || event.altKey) {
+    resetBuffer();
+    clearDebounce();
+    return;
+  }
+
+  if (event.keycode === UiohookKey.Backspace) {
+    removeLastChar();
+  } else if (event.keycode === UiohookKey.Delete) {
+    // forward delete doesn't affect our trailing buffer
+  } else if (event.keycode === UiohookKey.Enter) {
+    appendToBuffer('\n');
+  } else if (event.keycode === UiohookKey.Space) {
+    appendToBuffer(' ');
+  } else if (
+    event.keycode === UiohookKey.ArrowLeft || event.keycode === UiohookKey.ArrowRight ||
+    event.keycode === UiohookKey.ArrowUp || event.keycode === UiohookKey.ArrowDown ||
+    event.keycode === UiohookKey.Home || event.keycode === UiohookKey.End ||
+    event.keycode === UiohookKey.PageUp || event.keycode === UiohookKey.PageDown
+  ) {
+    resetBuffer();
+    clearDebounce();
+    return;
+  } else if (IGNORED_KEYCODES.has(event.keycode)) {
+    return;
+  } else {
+    const ch = resolveChar(event.keycode, !!event.shiftKey);
+    if (ch) appendToBuffer(ch);
+  }
+
+  if (win && !win.isDestroyed()) {
     destroySuggestion();
   }
 
@@ -161,13 +136,16 @@ function onKeyDown(event: { keycode: number; ctrlKey?: boolean; metaKey?: boolea
   }, DEBOUNCE_MS);
 }
 
+function onMouseClick(): void {
+  resetBuffer();
+}
+
 async function triggerAutocomplete(): Promise<void> {
   if (!hasAccessibilityPermission()) return;
   if (isSurfSenseWindow()) return;
 
-  const fieldContent = getFieldContent();
-  if (!fieldContent || !fieldContent.text.trim()) return;
-  if (fieldContent.text.trim().length < 5) return;
+  const text = getBufferTrimmed();
+  if (!text || text.length < 5) return;
 
   sourceApp = getFrontmostApp();
   savedClipboard = clipboard.readText();
@@ -186,13 +164,16 @@ async function triggerAutocomplete(): Promise<void> {
   }
 
   win.webContents.once('did-finish-load', () => {
-    if (suggestionWindow && !suggestionWindow.isDestroyed()) {
-      suggestionWindow.webContents.send(IPC_CHANNELS.AUTOCOMPLETE_CONTEXT, {
-        text: fieldContent.text,
-        cursorPosition: fieldContent.cursorPosition,
-        searchSpaceId,
-      });
-    }
+    const sw = getSuggestionWindow();
+    setTimeout(() => {
+      if (sw && !sw.isDestroyed()) {
+        sw.webContents.send(IPC_CHANNELS.AUTOCOMPLETE_CONTEXT, {
+          text: getBuffer(),
+          cursorPosition: getBuffer().length,
+          searchSpaceId,
+        });
+      }
+    }, 300);
   });
 }
 
@@ -209,6 +190,7 @@ async function acceptAndInject(text: string): Promise<void> {
     simulatePaste();
     await new Promise((r) => setTimeout(r, 100));
     clipboard.writeText(savedClipboard);
+    appendToBuffer(text);
   } catch {
     clipboard.writeText(savedClipboard);
   }
@@ -238,21 +220,16 @@ function registerIpcHandlers(): void {
 export function registerAutocomplete(): void {
   registerIpcHandlers();
 
-  if (!allPermissionsGranted()) {
-    console.log('[autocomplete] Permissions not granted — hook not started');
-    return;
-  }
-
   if (!loadUiohook()) {
     console.error('[autocomplete] Cannot start: uiohook-napi failed to load');
     return;
   }
 
   uIOhook.on('keydown', onKeyDown);
+  uIOhook.on('click', onMouseClick);
   try {
     uIOhook.start();
     hookStarted = true;
-    console.log('[autocomplete] uIOhook started');
   } catch (err) {
     console.error('[autocomplete] uIOhook.start() failed:', err);
   }

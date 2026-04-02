@@ -169,11 +169,14 @@ export default function DesktopPermissionsPage() {
 										>
 											Open System Settings
 										</Button>
-										{status === "denied" && (
-											<p className="text-xs text-amber-700 dark:text-amber-400">
-												Toggle SurfSense on in System Settings to continue.
-											</p>
-										)}
+									{status === "denied" && (
+										<p className="text-xs text-amber-700 dark:text-amber-400">
+											Toggle SurfSense on in System Settings to continue.
+										</p>
+									)}
+									<p className="text-xs text-muted-foreground">
+										If SurfSense doesn&apos;t appear in the list, click <strong>+</strong> and select it from Applications.
+									</p>
 									</div>
 								)}
 							</div>

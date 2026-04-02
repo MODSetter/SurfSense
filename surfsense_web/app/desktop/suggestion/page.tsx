@@ -151,9 +151,9 @@ export default function SuggestionPage() {
 		<div className="suggestion-tooltip">
 			<p className="suggestion-text">{suggestion}</p>
 			<div className="suggestion-hint">
-				<span className="suggestion-key">Tab</span> accept
-				<span className="suggestion-separator">·</span>
-				<span className="suggestion-key">Esc</span> dismiss
+				<kbd>Tab</kbd> accept
+				<span className="suggestion-separator" />
+				<kbd>Esc</kbd> dismiss
 			</div>
 		</div>
 	);

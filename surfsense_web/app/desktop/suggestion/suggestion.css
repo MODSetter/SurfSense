@@ -1,8 +1,16 @@
+html, body {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  overflow: hidden !important;
+  height: auto !important;
+  width: 100% !important;
+}
+
 .suggestion-body {
   margin: 0;
   padding: 0;
   background: transparent;
-  overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   user-select: none;
@@ -10,69 +18,73 @@
 }
 
 .suggestion-tooltip {
-  background: rgba(30, 30, 30, 0.95);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  padding: 10px 14px;
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  border-radius: 8px;
+  padding: 8px 12px;
   margin: 4px;
   max-width: 400px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4),
-              0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
 
 .suggestion-text {
-  color: rgba(255, 255, 255, 0.9);
+  color: #d4d4d4;
   font-size: 13px;
-  line-height: 1.5;
-  margin: 0 0 8px 0;
+  line-height: 1.45;
+  margin: 0 0 6px 0;
   word-wrap: break-word;
   white-space: pre-wrap;
 }
 
 .suggestion-hint {
-  color: rgba(255, 255, 255, 0.4);
+  color: #666;
   font-size: 11px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  border-top: 1px solid #2a2a2a;
+  padding-top: 6px;
 }
 
-.suggestion-key {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+.suggestion-hint kbd {
+  background: #2a2a2a;
+  border: 1px solid #3c3c3c;
   border-radius: 3px;
-  padding: 1px 5px;
+  padding: 0 4px;
+  font-family: inherit;
   font-size: 10px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.6);
+  font-weight: 600;
+  color: #999;
+  line-height: 18px;
 }
 
 .suggestion-separator {
-  margin: 0 2px;
+  width: 1px;
+  height: 10px;
+  background: #333;
 }
 
 .suggestion-error {
-  border-color: rgba(255, 80, 80, 0.3);
+  border-color: #5c2626;
 }
 
 .suggestion-error-text {
-  color: rgba(255, 120, 120, 0.9);
+  color: #f48771;
   font-size: 12px;
 }
 
 .suggestion-loading {
   display: flex;
-  gap: 4px;
-  padding: 4px 0;
+  gap: 5px;
+  padding: 2px 0;
+  justify-content: center;
 }
 
 .suggestion-dot {
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.4);
+  background: #666;
   animation: suggestion-pulse 1.2s infinite ease-in-out;
 }
 
@@ -91,6 +103,6 @@
   }
   40% {
     opacity: 1;
-    transform: scale(1);
+    transform: scale(1.1);
   }
 }

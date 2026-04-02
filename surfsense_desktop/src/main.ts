@@ -19,7 +19,8 @@ if (!setupDeepLinks()) {
 registerIpcHandlers();
 
 function getInitialPath(): string {
-  if (process.platform === 'darwin' && !allPermissionsGranted()) {
+  const granted = allPermissionsGranted();
+  if (process.platform === 'darwin' && !granted) {
     return '/desktop/permissions';
   }
   return '/dashboard';
