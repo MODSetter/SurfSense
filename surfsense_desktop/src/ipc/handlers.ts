@@ -9,6 +9,8 @@ import {
   pauseWatcher,
   resumeWatcher,
   markRendererReady,
+  browseFileOrFolder,
+  readLocalFiles,
 } from '../modules/folder-watcher';
 
 export function registerIpcHandlers(): void {
@@ -49,4 +51,10 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.FOLDER_SYNC_RENDERER_READY, () => {
     markRendererReady();
   });
+
+  ipcMain.handle(IPC_CHANNELS.BROWSE_FILE_OR_FOLDER, () => browseFileOrFolder());
+
+  ipcMain.handle(IPC_CHANNELS.READ_LOCAL_FILES, (_event, paths: string[]) =>
+    readLocalFiles(paths)
+  );
 }

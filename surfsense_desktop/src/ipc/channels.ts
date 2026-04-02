@@ -17,4 +17,6 @@ export const IPC_CHANNELS = {
   FOLDER_SYNC_PAUSE: 'folder-sync:pause',
   FOLDER_SYNC_RESUME: 'folder-sync:resume',
   FOLDER_SYNC_RENDERER_READY: 'folder-sync:renderer-ready',
+  BROWSE_FILE_OR_FOLDER: 'browse:file-or-folder',
+  READ_LOCAL_FILES: 'browse:read-local-files',
 } as const;

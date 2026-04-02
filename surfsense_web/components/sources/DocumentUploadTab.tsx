@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtom } from "jotai";
-import { CheckCircle2, FileType, Info, Upload, X } from "lucide-react";
+import { CheckCircle2, FileType, FolderOpen, Info, Upload, X } from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -19,15 +19,23 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
+import { documentsApiService } from "@/lib/apis/documents-api.service";
 import {
 	trackDocumentUploadFailure,
 	trackDocumentUploadStarted,
 	trackDocumentUploadSuccess,
 } from "@/lib/posthog/events";
 import { GridPattern } from "./GridPattern";
+
+interface SelectedFolder {
+	path: string;
+	name: string;
+}
 
 interface DocumentUploadTabProps {
 	searchSpaceId: string;
@@ -135,6 +143,11 @@ export function DocumentUploadTab({
 	const { mutate: uploadDocuments, isPending: isUploading } = uploadDocumentMutation;
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
+	const [selectedFolder, setSelectedFolder] = useState<SelectedFolder | null>(null);
+	const [watchFolder, setWatchFolder] = useState(true);
+	const [folderSubmitting, setFolderSubmitting] = useState(false);
+	const isElectron = typeof window !== "undefined" && !!window.electronAPI?.browseFileOrFolder;
+
 	const acceptedFileTypes = useMemo(() => {
 		const etlService = process.env.NEXT_PUBLIC_ETL_SERVICE;
 		return FILE_TYPE_CONFIG[etlService || "default"] || FILE_TYPE_CONFIG.default;
@@ -147,6 +160,7 @@ export function DocumentUploadTab({
 
 	const onDrop = useCallback(
 		(acceptedFiles: File[]) => {
+			setSelectedFolder(null);
 			setFiles((prev) => {
 				const newEntries = acceptedFiles.map((f) => ({
 					id: crypto.randomUUID?.() ?? `file-${Date.now()}-${Math.random().toString(36)}`,
@@ -179,14 +193,59 @@ export function DocumentUploadTab({
 		onDrop,
 		accept: acceptedFileTypes,
 		maxSize: 50 * 1024 * 1024, // 50MB per file
-		noClick: false,
+		noClick: !isElectron,
 		disabled: files.length >= MAX_FILES,
 	});
 
-	// Handle file input click to prevent event bubbling that might reopen dialog
 	const handleFileInputClick = useCallback((e: React.MouseEvent<HTMLInputElement>) => {
 		e.stopPropagation();
 	}, []);
+
+	const handleBrowse = useCallback(async (e: React.MouseEvent) => {
+		e.stopPropagation();
+		e.preventDefault();
+
+		const api = window.electronAPI;
+		if (!api?.browseFileOrFolder) {
+			fileInputRef.current?.click();
+			return;
+		}
+
+		const result = await api.browseFileOrFolder();
+		if (!result) return;
+
+		if (result.type === "folder") {
+			const folderPath = result.paths[0];
+			const folderName = folderPath.split("/").pop() || folderPath.split("\\").pop() || folderPath;
+			setFiles([]);
+			setSelectedFolder({ path: folderPath, name: folderName });
+			setWatchFolder(true);
+		} else {
+			setSelectedFolder(null);
+			const fileDataList = await api.readLocalFiles(result.paths);
+			const newFiles: FileWithId[] = fileDataList.map((fd) => ({
+				id: crypto.randomUUID?.() ?? `file-${Date.now()}-${Math.random().toString(36)}`,
+				file: new File([fd.data], fd.name, { type: fd.mimeType }),
+			}));
+			setFiles((prev) => {
+				const merged = [...prev, ...newFiles];
+				if (merged.length > MAX_FILES) {
+					toast.error(t("max_files_exceeded"), {
+						description: t("max_files_exceeded_desc", { max: MAX_FILES }),
+					});
+					return prev;
+				}
+				const totalSize = merged.reduce((sum, e) => sum + e.file.size, 0);
+				if (totalSize > MAX_TOTAL_SIZE_BYTES) {
+					toast.error(t("max_size_exceeded"), {
+						description: t("max_size_exceeded_desc", { max: MAX_TOTAL_SIZE_MB }),
+					});
+					return prev;
+				}
+				return merged;
+			});
+		}
+	}, [t]);
 
 	const formatFileSize = (bytes: number) => {
 		if (bytes === 0) return "0 Bytes";
@@ -198,7 +257,6 @@ export function DocumentUploadTab({
 
 	const totalFileSize = files.reduce((total, entry) => total + entry.file.size, 0);
 
-	// Check if limits are reached
 	const isFileCountLimitReached = files.length >= MAX_FILES;
 	const isSizeLimitReached = totalFileSize >= MAX_TOTAL_SIZE_BYTES;
 	const remainingFiles = MAX_FILES - files.length;
@@ -207,7 +265,6 @@ export function DocumentUploadTab({
 		(MAX_TOTAL_SIZE_BYTES - totalFileSize) / (1024 * 1024)
 	).toFixed(1);
 
-	// Track accordion state changes
 	const handleAccordionChange = useCallback(
 		(value: string) => {
 			setAccordionValue(value);
@@ -215,6 +272,46 @@ export function DocumentUploadTab({
 		},
 		[onAccordionStateChange]
 	);
+
+	const handleFolderSubmit = useCallback(async () => {
+		if (!selectedFolder) return;
+		const api = window.electronAPI;
+		if (!api) return;
+
+		setFolderSubmitting(true);
+		try {
+			const result = await documentsApiService.folderIndex(Number(searchSpaceId), {
+				folder_path: selectedFolder.path,
+				folder_name: selectedFolder.name,
+				search_space_id: searchSpaceId,
+				enable_summary: shouldSummarize,
+			});
+
+			const rootFolderId = (result as { root_folder_id?: number })?.root_folder_id ?? null;
+
+			if (watchFolder) {
+				await api.addWatchedFolder({
+					path: selectedFolder.path,
+					name: selectedFolder.name,
+					excludePatterns: [".git", "node_modules", "__pycache__", ".DS_Store", ".obsidian", ".trash"],
+					fileExtensions: null,
+					rootFolderId,
+					searchSpaceId: Number(searchSpaceId),
+					active: true,
+				});
+				toast.success(`Watching folder: ${selectedFolder.name}`);
+			} else {
+				toast.success(`Indexing folder: ${selectedFolder.name}`);
+			}
+
+			setSelectedFolder(null);
+			onSuccess?.();
+		} catch (err) {
+			toast.error((err as Error)?.message || "Failed to process folder");
+		} finally {
+			setFolderSubmitting(false);
+		}
+	}, [selectedFolder, watchFolder, searchSpaceId, shouldSummarize, onSuccess]);
 
 	const handleUpload = async () => {
 		setUploadProgress(0);
@@ -262,58 +359,68 @@ export function DocumentUploadTab({
 				</AlertDescription>
 			</Alert>
 
-			<Card className={`relative overflow-hidden ${cardClass}`}>
-				<div className="absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,white,transparent)] opacity-30">
-					<GridPattern />
-				</div>
-				<CardContent className="p-4 sm:p-10 relative z-10">
-					<div
-						{...getRootProps()}
-						className={`flex flex-col items-center justify-center min-h-[200px] sm:min-h-[300px] border-2 border-dashed rounded-lg transition-colors ${
-							isFileCountLimitReached || isSizeLimitReached
-								? "border-destructive/50 bg-destructive/5 cursor-not-allowed"
-								: "border-border hover:border-primary/50 cursor-pointer"
-						}`}
-					>
-						<input
-							{...getInputProps()}
-							ref={fileInputRef}
-							className="hidden"
-							onClick={handleFileInputClick}
-						/>
-						{isFileCountLimitReached ? (
-							<div className="flex flex-col items-center gap-2 sm:gap-4 text-center px-4">
-								<Upload className="h-8 w-8 sm:h-12 sm:w-12 text-destructive/70" />
-								<div>
-									<p className="text-sm sm:text-lg font-medium text-destructive">
-										{t("file_limit_reached")}
-									</p>
-									<p className="text-xs sm:text-sm text-muted-foreground mt-1">
-										{t("file_limit_reached_desc", { max: MAX_FILES })}
-									</p>
-								</div>
+		<Card className={`relative overflow-hidden ${cardClass}`}>
+			<div className="absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,white,transparent)] opacity-30">
+				<GridPattern />
+			</div>
+			<CardContent className="p-4 sm:p-10 relative z-10">
+				<div
+					{...getRootProps()}
+					className={`flex flex-col items-center justify-center min-h-[200px] sm:min-h-[300px] border-2 border-dashed rounded-lg transition-colors ${
+						isFileCountLimitReached || isSizeLimitReached
+							? "border-destructive/50 bg-destructive/5 cursor-not-allowed"
+							: "border-border hover:border-primary/50 cursor-pointer"
+					}`}
+				>
+					<input
+						{...getInputProps()}
+						ref={fileInputRef}
+						className="hidden"
+						onClick={handleFileInputClick}
+					/>
+					{isFileCountLimitReached ? (
+						<div className="flex flex-col items-center gap-2 sm:gap-4 text-center px-4">
+							<Upload className="h-8 w-8 sm:h-12 sm:w-12 text-destructive/70" />
+							<div>
+								<p className="text-sm sm:text-lg font-medium text-destructive">
+									{t("file_limit_reached")}
+								</p>
+								<p className="text-xs sm:text-sm text-muted-foreground mt-1">
+									{t("file_limit_reached_desc", { max: MAX_FILES })}
+								</p>
 							</div>
-						) : isDragActive ? (
-							<div className="flex flex-col items-center gap-2 sm:gap-4">
-								<Upload className="h-8 w-8 sm:h-12 sm:w-12 text-primary" />
-								<p className="text-sm sm:text-lg font-medium text-primary">{t("drop_files")}</p>
+						</div>
+					) : isDragActive ? (
+						<div className="flex flex-col items-center gap-2 sm:gap-4">
+							<Upload className="h-8 w-8 sm:h-12 sm:w-12 text-primary" />
+							<p className="text-sm sm:text-lg font-medium text-primary">{t("drop_files")}</p>
+						</div>
+					) : (
+						<div className="flex flex-col items-center gap-2 sm:gap-4">
+							<Upload className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground" />
+							<div className="text-center">
+								<p className="text-sm sm:text-lg font-medium">{t("drag_drop")}</p>
+								<p className="text-xs sm:text-sm text-muted-foreground mt-1">{t("or_browse")}</p>
 							</div>
-						) : (
-							<div className="flex flex-col items-center gap-2 sm:gap-4">
-								<Upload className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground" />
-								<div className="text-center">
-									<p className="text-sm sm:text-lg font-medium">{t("drag_drop")}</p>
-									<p className="text-xs sm:text-sm text-muted-foreground mt-1">{t("or_browse")}</p>
-								</div>
-								{files.length > 0 && (
-									<p className="text-xs text-muted-foreground">
-										{t("remaining_capacity", { files: remainingFiles, sizeMB: remainingSizeMB })}
-									</p>
-								)}
-							</div>
-						)}
-						{!isFileCountLimitReached && (
-							<div className="mt-2 sm:mt-4">
+							{files.length > 0 && (
+								<p className="text-xs text-muted-foreground">
+									{t("remaining_capacity", { files: remainingFiles, sizeMB: remainingSizeMB })}
+								</p>
+							)}
+						</div>
+					)}
+					{!isFileCountLimitReached && (
+						<div className="mt-2 sm:mt-4">
+							{isElectron ? (
+								<Button
+									variant="secondary"
+									size="sm"
+									className="text-xs sm:text-sm"
+									onClick={handleBrowse}
+								>
+									{t("browse_files")}
+								</Button>
+							) : (
 								<Button
 									variant="secondary"
 									size="sm"
@@ -326,11 +433,76 @@ export function DocumentUploadTab({
 								>
 									{t("browse_files")}
 								</Button>
+							)}
+						</div>
+					)}
+				</div>
+			</CardContent>
+		</Card>
+
+		{selectedFolder && (
+			<Card className={cardClass}>
+				<CardHeader className="p-4 sm:p-6">
+					<div className="flex items-center justify-between gap-2">
+						<div className="flex items-center gap-3 min-w-0 flex-1">
+							<FolderOpen className="h-5 w-5 text-primary flex-shrink-0" />
+							<div className="min-w-0 flex-1">
+								<CardTitle className="text-base sm:text-lg truncate">
+									{selectedFolder.name}
+								</CardTitle>
+								<CardDescription className="text-xs sm:text-sm truncate">
+									{selectedFolder.path}
+								</CardDescription>
 							</div>
-						)}
+						</div>
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-8 w-8 shrink-0"
+							onClick={() => setSelectedFolder(null)}
+							disabled={folderSubmitting}
+						>
+							<X className="h-4 w-4" />
+						</Button>
 					</div>
+				</CardHeader>
+				<CardContent className="p-4 sm:p-6 pt-0 space-y-4">
+					<div className="flex items-center justify-between rounded-lg border border-border p-3">
+						<Label htmlFor="watch-folder-toggle" className="flex flex-col gap-1 cursor-pointer">
+							<span className="text-sm font-medium">Watch folder</span>
+							<span className="text-xs text-muted-foreground font-normal">
+								Automatically sync changes when files are added, edited, or removed
+							</span>
+						</Label>
+						<Switch
+							id="watch-folder-toggle"
+							checked={watchFolder}
+							onCheckedChange={setWatchFolder}
+						/>
+					</div>
+
+					<SummaryConfig enabled={shouldSummarize} onEnabledChange={setShouldSummarize} />
+
+					<Button
+						className="w-full py-3 sm:py-6 text-xs sm:text-base font-medium"
+						onClick={handleFolderSubmit}
+						disabled={folderSubmitting}
+					>
+						{folderSubmitting ? (
+							<span className="flex items-center gap-2">
+								<Spinner size="sm" />
+								Processing...
+							</span>
+						) : (
+							<span className="flex items-center gap-2">
+								<CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" />
+								{watchFolder ? "Watch & Index Folder" : "Index Folder"}
+							</span>
+						)}
+					</Button>
 				</CardContent>
 			</Card>
+		)}
 
 			{files.length > 0 && (
 				<Card className={cardClass}>

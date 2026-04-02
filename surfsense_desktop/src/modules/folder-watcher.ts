@@ -391,3 +391,71 @@ export async function unregisterFolderWatcher(): Promise<void> {
   }
   watchers.clear();
 }
+
+export interface BrowseResult {
+  type: 'files' | 'folder';
+  paths: string[];
+}
+
+export async function browseFileOrFolder(): Promise<BrowseResult | null> {
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile', 'openDirectory', 'multiSelections'],
+    title: 'Select files or a folder',
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+
+  const stat = fs.statSync(result.filePaths[0]);
+  if (stat.isDirectory()) {
+    return { type: 'folder', paths: [result.filePaths[0]] };
+  }
+  return { type: 'files', paths: result.filePaths };
+}
+
+const MIME_MAP: Record<string, string> = {
+  '.pdf': 'application/pdf',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  '.html': 'text/html', '.htm': 'text/html',
+  '.csv': 'text/csv',
+  '.txt': 'text/plain',
+  '.md': 'text/markdown', '.markdown': 'text/markdown',
+  '.mp3': 'audio/mpeg', '.mpeg': 'audio/mpeg', '.mpga': 'audio/mpeg',
+  '.mp4': 'audio/mp4', '.m4a': 'audio/mp4',
+  '.wav': 'audio/wav',
+  '.webm': 'audio/webm',
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.bmp': 'image/bmp',
+  '.webp': 'image/webp',
+  '.tiff': 'image/tiff',
+  '.doc': 'application/msword',
+  '.rtf': 'application/rtf',
+  '.xml': 'application/xml',
+  '.epub': 'application/epub+zip',
+  '.xls': 'application/vnd.ms-excel',
+  '.ppt': 'application/vnd.ms-powerpoint',
+  '.eml': 'message/rfc822',
+  '.odt': 'application/vnd.oasis.opendocument.text',
+  '.msg': 'application/vnd.ms-outlook',
+};
+
+export interface LocalFileData {
+  name: string;
+  data: ArrayBuffer;
+  mimeType: string;
+  size: number;
+}
+
+export function readLocalFiles(filePaths: string[]): LocalFileData[] {
+  return filePaths.map((p) => {
+    const buf = fs.readFileSync(p);
+    const ext = path.extname(p).toLowerCase();
+    return {
+      name: path.basename(p),
+      data: buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength),
+      mimeType: MIME_MAP[ext] || 'application/octet-stream',
+      size: buf.byteLength,
+    };
+  });
+}

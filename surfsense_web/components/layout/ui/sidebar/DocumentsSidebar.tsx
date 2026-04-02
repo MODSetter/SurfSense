@@ -279,40 +279,6 @@ export function DocumentsSidebar({
 
 	const isElectron = typeof window !== "undefined" && !!window.electronAPI;
 
-	const handleWatchFolder = useCallback(async () => {
-		const api = window.electronAPI;
-		if (!api) return;
-
-		const folderPath = await api.selectFolder();
-		if (!folderPath) return;
-
-		const folderName = folderPath.split("/").pop() || folderPath.split("\\").pop() || folderPath;
-
-		try {
-			const result = await documentsApiService.folderIndex(searchSpaceId, {
-				folder_path: folderPath,
-				folder_name: folderName,
-				search_space_id: searchSpaceId,
-			});
-
-			const rootFolderId = (result as { root_folder_id?: number })?.root_folder_id ?? null;
-
-			await api.addWatchedFolder({
-				path: folderPath,
-				name: folderName,
-				excludePatterns: [".git", "node_modules", "__pycache__", ".DS_Store", ".obsidian", ".trash"],
-				fileExtensions: null,
-				rootFolderId,
-				searchSpaceId,
-				active: true,
-			});
-
-			toast.success(`Watching folder: ${folderName}`);
-		} catch (err) {
-			toast.error((err as Error)?.message || "Failed to watch folder");
-		}
-	}, [searchSpaceId]);
-
 	const handleRescanFolder = useCallback(
 		async (folder: FolderDisplay) => {
 			const api = window.electronAPI;
@@ -795,15 +761,14 @@ export function DocumentsSidebar({
 
 			<div className="flex-1 min-h-0 overflow-x-hidden pt-0 flex flex-col">
 				<div className="px-4 pb-2">
-				<DocumentsFilters
-					typeCounts={typeCounts}
-					onSearch={setSearch}
-					searchValue={search}
-					onToggleType={onToggleType}
-					activeTypes={activeTypes}
-					onCreateFolder={() => handleCreateFolder(null)}
-					onWatchFolder={isElectron ? handleWatchFolder : undefined}
-				/>
+			<DocumentsFilters
+				typeCounts={typeCounts}
+				onSearch={setSearch}
+				searchValue={search}
+				onToggleType={onToggleType}
+				activeTypes={activeTypes}
+				onCreateFolder={() => handleCreateFolder(null)}
+			/>
 				</div>
 
 				{deletableSelectedIds.length > 0 && (

@@ -26,6 +26,18 @@ interface FolderSyncWatcherReadyEvent {
 	folderPath: string;
 }
 
+interface BrowseResult {
+	type: "files" | "folder";
+	paths: string[];
+}
+
+interface LocalFileData {
+	name: string;
+	data: ArrayBuffer;
+	mimeType: string;
+	size: number;
+}
+
 interface ElectronAPI {
 	versions: {
 		electron: string;
@@ -51,6 +63,9 @@ interface ElectronAPI {
 	pauseWatcher: () => Promise<void>;
 	resumeWatcher: () => Promise<void>;
 	signalRendererReady: () => Promise<void>;
+	// Unified browse
+	browseFileOrFolder: () => Promise<BrowseResult | null>;
+	readLocalFiles: (paths: string[]) => Promise<LocalFileData[]>;
 }
 
 declare global {

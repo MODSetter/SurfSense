@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, FolderPlus, ListFilter, Search, Upload, X } from "lucide-react";
+import { FolderPlus, ListFilter, Search, Upload, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
@@ -19,7 +19,6 @@ export function DocumentsFilters({
 	onToggleType,
 	activeTypes,
 	onCreateFolder,
-	onWatchFolder,
 }: {
 	typeCounts: Partial<Record<DocumentTypeEnum, number>>;
 	onSearch: (v: string) => void;
@@ -27,7 +26,6 @@ export function DocumentsFilters({
 	onToggleType: (type: DocumentTypeEnum, checked: boolean) => void;
 	activeTypes: DocumentTypeEnum[];
 	onCreateFolder?: () => void;
-	onWatchFolder?: () => void;
 }) {
 	const t = useTranslations("documents");
 	const id = React.useId();
@@ -216,24 +214,7 @@ export function DocumentsFilters({
 					</Tooltip>
 				)}
 
-			{/* Watch Folder Button (desktop only) */}
-			{onWatchFolder && (
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<Button
-							variant="outline"
-							size="icon"
-							className="h-9 w-9 shrink-0 border-dashed border-sidebar-border text-sidebar-foreground/60 hover:text-sidebar-foreground hover:border-sidebar-border bg-sidebar"
-							onClick={onWatchFolder}
-						>
-							<Eye size={14} />
-						</Button>
-					</TooltipTrigger>
-					<TooltipContent>Watch folder</TooltipContent>
-				</Tooltip>
-			)}
-
-			{/* Upload Button */}
+		{/* Upload Button */}
 			<Button
 				data-joyride="upload-button"
 				onClick={openUploadDialog}
