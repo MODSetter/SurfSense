@@ -48,7 +48,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getPendingFileEvents: () => ipcRenderer.invoke(IPC_CHANNELS.FOLDER_SYNC_GET_PENDING_EVENTS),
   acknowledgeFileEvents: (eventIds: string[]) => ipcRenderer.invoke(IPC_CHANNELS.FOLDER_SYNC_ACK_EVENTS, eventIds),
 
-  // Unified browse (files + folders)
-  browseFileOrFolder: () => ipcRenderer.invoke(IPC_CHANNELS.BROWSE_FILE_OR_FOLDER),
+  // Browse files via native dialog
+  browseFiles: () => ipcRenderer.invoke(IPC_CHANNELS.BROWSE_FILES),
   readLocalFiles: (paths: string[]) => ipcRenderer.invoke(IPC_CHANNELS.READ_LOCAL_FILES, paths),
 });

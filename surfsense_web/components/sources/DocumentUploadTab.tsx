@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtom } from "jotai";
-import { CheckCircle2, FileType, FolderOpen, Info, Upload, X } from "lucide-react";
+import { CheckCircle2, ChevronDown, File as FileIcon, FileType, FolderOpen, Info, Upload, X } from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -19,6 +19,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
@@ -146,7 +152,7 @@ export function DocumentUploadTab({
 	const [selectedFolder, setSelectedFolder] = useState<SelectedFolder | null>(null);
 	const [watchFolder, setWatchFolder] = useState(true);
 	const [folderSubmitting, setFolderSubmitting] = useState(false);
-	const isElectron = typeof window !== "undefined" && !!window.electronAPI?.browseFileOrFolder;
+	const isElectron = typeof window !== "undefined" && !!window.electronAPI?.browseFiles;
 
 	const acceptedFileTypes = useMemo(() => {
 		const etlService = process.env.NEXT_PUBLIC_ETL_SERVICE;
@@ -193,7 +199,7 @@ export function DocumentUploadTab({
 		onDrop,
 		accept: acceptedFileTypes,
 		maxSize: 50 * 1024 * 1024, // 50MB per file
-		noClick: !isElectron,
+		noClick: isElectron,
 		disabled: files.length >= MAX_FILES,
 	});
 
@@ -201,51 +207,50 @@ export function DocumentUploadTab({
 		e.stopPropagation();
 	}, []);
 
-	const handleBrowse = useCallback(async (e: React.MouseEvent) => {
-		e.stopPropagation();
-		e.preventDefault();
-
+	const handleBrowseFiles = useCallback(async () => {
 		const api = window.electronAPI;
-		if (!api?.browseFileOrFolder) {
-			fileInputRef.current?.click();
-			return;
-		}
+		if (!api?.browseFiles) return;
 
-		const result = await api.browseFileOrFolder();
-		if (!result) return;
+		const paths = await api.browseFiles();
+		if (!paths || paths.length === 0) return;
 
-		if (result.type === "folder") {
-			const folderPath = result.paths[0];
-			const folderName = folderPath.split("/").pop() || folderPath.split("\\").pop() || folderPath;
-			setFiles([]);
-			setSelectedFolder({ path: folderPath, name: folderName });
-			setWatchFolder(true);
-		} else {
-			setSelectedFolder(null);
-			const fileDataList = await api.readLocalFiles(result.paths);
-			const newFiles: FileWithId[] = fileDataList.map((fd) => ({
-				id: crypto.randomUUID?.() ?? `file-${Date.now()}-${Math.random().toString(36)}`,
-				file: new File([fd.data], fd.name, { type: fd.mimeType }),
-			}));
-			setFiles((prev) => {
-				const merged = [...prev, ...newFiles];
-				if (merged.length > MAX_FILES) {
-					toast.error(t("max_files_exceeded"), {
-						description: t("max_files_exceeded_desc", { max: MAX_FILES }),
-					});
-					return prev;
-				}
-				const totalSize = merged.reduce((sum, e) => sum + e.file.size, 0);
-				if (totalSize > MAX_TOTAL_SIZE_BYTES) {
-					toast.error(t("max_size_exceeded"), {
-						description: t("max_size_exceeded_desc", { max: MAX_TOTAL_SIZE_MB }),
-					});
-					return prev;
-				}
-				return merged;
-			});
-		}
+		setSelectedFolder(null);
+		const fileDataList = await api.readLocalFiles(paths);
+		const newFiles: FileWithId[] = fileDataList.map((fd) => ({
+			id: crypto.randomUUID?.() ?? `file-${Date.now()}-${Math.random().toString(36)}`,
+			file: new File([fd.data], fd.name, { type: fd.mimeType }),
+		}));
+		setFiles((prev) => {
+			const merged = [...prev, ...newFiles];
+			if (merged.length > MAX_FILES) {
+				toast.error(t("max_files_exceeded"), {
+					description: t("max_files_exceeded_desc", { max: MAX_FILES }),
+				});
+				return prev;
+			}
+			const totalSize = merged.reduce((sum, e) => sum + e.file.size, 0);
+			if (totalSize > MAX_TOTAL_SIZE_BYTES) {
+				toast.error(t("max_size_exceeded"), {
+					description: t("max_size_exceeded_desc", { max: MAX_TOTAL_SIZE_MB }),
+				});
+				return prev;
+			}
+			return merged;
+		});
 	}, [t]);
+
+	const handleBrowseFolder = useCallback(async () => {
+		const api = window.electronAPI;
+		if (!api?.selectFolder) return;
+
+		const folderPath = await api.selectFolder();
+		if (!folderPath) return;
+
+		const folderName = folderPath.split("/").pop() || folderPath.split("\\").pop() || folderPath;
+		setFiles([]);
+		setSelectedFolder({ path: folderPath, name: folderName });
+		setWatchFolder(true);
+	}, []);
 
 	const formatFileSize = (bytes: number) => {
 		if (bytes === 0) return "0 Bytes";
@@ -280,10 +285,11 @@ export function DocumentUploadTab({
 
 		setFolderSubmitting(true);
 		try {
-			const result = await documentsApiService.folderIndex(Number(searchSpaceId), {
+			const numericSpaceId = Number(searchSpaceId);
+			const result = await documentsApiService.folderIndex(numericSpaceId, {
 				folder_path: selectedFolder.path,
 				folder_name: selectedFolder.name,
-				search_space_id: searchSpaceId,
+				search_space_id: numericSpaceId,
 				enable_summary: shouldSummarize,
 			});
 
@@ -409,33 +415,43 @@ export function DocumentUploadTab({
 							)}
 						</div>
 					)}
-					{!isFileCountLimitReached && (
-						<div className="mt-2 sm:mt-4">
-							{isElectron ? (
-								<Button
-									variant="secondary"
-									size="sm"
-									className="text-xs sm:text-sm"
-									onClick={handleBrowse}
-								>
-									{t("browse_files")}
-								</Button>
-							) : (
-								<Button
-									variant="secondary"
-									size="sm"
-									className="text-xs sm:text-sm"
-									onClick={(e) => {
-										e.stopPropagation();
-										e.preventDefault();
-										fileInputRef.current?.click();
-									}}
-								>
-									{t("browse_files")}
-								</Button>
-							)}
-						</div>
-					)}
+				{!isFileCountLimitReached && (
+					<div className="mt-2 sm:mt-4">
+						{isElectron ? (
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+									<Button variant="secondary" size="sm" className="text-xs sm:text-sm gap-1">
+										{t("browse_files")}
+										<ChevronDown className="h-3 w-3 opacity-60" />
+									</Button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align="center" onClick={(e) => e.stopPropagation()}>
+									<DropdownMenuItem onClick={handleBrowseFiles}>
+										<FileIcon className="h-4 w-4 mr-2" />
+										Files
+									</DropdownMenuItem>
+									<DropdownMenuItem onClick={handleBrowseFolder}>
+										<FolderOpen className="h-4 w-4 mr-2" />
+										Folder
+									</DropdownMenuItem>
+								</DropdownMenuContent>
+							</DropdownMenu>
+						) : (
+							<Button
+								variant="secondary"
+								size="sm"
+								className="text-xs sm:text-sm"
+								onClick={(e) => {
+									e.stopPropagation();
+									e.preventDefault();
+									fileInputRef.current?.click();
+								}}
+							>
+								{t("browse_files")}
+							</Button>
+						)}
+					</div>
+				)}
 				</div>
 			</CardContent>
 		</Card>

@@ -277,8 +277,6 @@ export function DocumentsSidebar({
 		[createFolderParentId, searchSpaceId, setExpandedFolderMap]
 	);
 
-	const isElectron = typeof window !== "undefined" && !!window.electronAPI;
-
 	const handleRescanFolder = useCallback(
 		async (folder: FolderDisplay) => {
 			const api = window.electronAPI;

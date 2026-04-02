@@ -475,23 +475,13 @@ export async function unregisterFolderWatcher(): Promise<void> {
   watchers.clear();
 }
 
-export interface BrowseResult {
-  type: 'files' | 'folder';
-  paths: string[];
-}
-
-export async function browseFileOrFolder(): Promise<BrowseResult | null> {
+export async function browseFiles(): Promise<string[] | null> {
   const result = await dialog.showOpenDialog({
-    properties: ['openFile', 'openDirectory', 'multiSelections'],
-    title: 'Select files or a folder',
+    properties: ['openFile', 'multiSelections'],
+    title: 'Select files',
   });
   if (result.canceled || result.filePaths.length === 0) return null;
-
-  const stat = fs.statSync(result.filePaths[0]);
-  if (stat.isDirectory()) {
-    return { type: 'folder', paths: [result.filePaths[0]] };
-  }
-  return { type: 'files', paths: result.filePaths };
+  return result.filePaths;
 }
 
 const MIME_MAP: Record<string, string> = {

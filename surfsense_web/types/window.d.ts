@@ -27,11 +27,6 @@ interface FolderSyncWatcherReadyEvent {
 	folderPath: string;
 }
 
-interface BrowseResult {
-	type: "files" | "folder";
-	paths: string[];
-}
-
 interface LocalFileData {
 	name: string;
 	data: ArrayBuffer;
@@ -66,8 +61,8 @@ interface ElectronAPI {
 	signalRendererReady: () => Promise<void>;
 	getPendingFileEvents: () => Promise<FolderSyncFileChangedEvent[]>;
 	acknowledgeFileEvents: (eventIds: string[]) => Promise<{ acknowledged: number }>;
-	// Unified browse
-	browseFileOrFolder: () => Promise<BrowseResult | null>;
+	// Browse files/folders via native dialogs
+	browseFiles: () => Promise<string[] | null>;
 	readLocalFiles: (paths: string[]) => Promise<LocalFileData[]>;
 }
 

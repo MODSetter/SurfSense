@@ -11,7 +11,7 @@ import {
   pauseWatcher,
   resumeWatcher,
   markRendererReady,
-  browseFileOrFolder,
+  browseFiles,
   readLocalFiles,
 } from '../modules/folder-watcher';
 
@@ -62,7 +62,7 @@ export function registerIpcHandlers(): void {
     acknowledgeFileEvents(eventIds)
   );
 
-  ipcMain.handle(IPC_CHANNELS.BROWSE_FILE_OR_FOLDER, () => browseFileOrFolder());
+  ipcMain.handle(IPC_CHANNELS.BROWSE_FILES, () => browseFiles());
 
   ipcMain.handle(IPC_CHANNELS.READ_LOCAL_FILES, (_event, paths: string[]) =>
     readLocalFiles(paths)
