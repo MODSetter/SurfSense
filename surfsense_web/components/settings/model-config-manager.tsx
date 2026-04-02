@@ -150,7 +150,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 						onClick={openNewDialog}
 						className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
 					>
-						Add LLM Model
+						Add Model
 					</Button>
 				)}
 			</div>
@@ -252,11 +252,11 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 						<div>
 							<Card className="border-0 bg-transparent shadow-none">
 								<CardContent className="flex flex-col items-center justify-center py-10 md:py-16 text-center">
-									<h3 className="text-sm md:text-base font-semibold mb-2">No LLM Models Yet</h3>
+									<h3 className="text-sm md:text-base font-semibold mb-2">No Models Yet</h3>
 									<p className="text-[11px] md:text-xs text-muted-foreground max-w-sm mb-4">
 										{canCreate
-											? "Add your first LLM model to power document summarization, chat, and other agent capabilities"
-											: "No LLM models have been added to this space yet. Contact a space owner to add one"}
+											? "Add your first model to power document summarization, chat, and other agent capabilities"
+											: "No models have been added to this space yet. Contact a space owner to add one"}
 									</p>
 								</CardContent>
 							</Card>
@@ -420,7 +420,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 			>
 				<AlertDialogContent className="select-none">
 					<AlertDialogHeader>
-						<AlertDialogTitle>Delete LLM Model</AlertDialogTitle>
+						<AlertDialogTitle>Delete Model</AlertDialogTitle>
 						<AlertDialogDescription>
 							Are you sure you want to delete{" "}
 							<span className="font-semibold text-foreground">{configToDelete?.name}</span>? This

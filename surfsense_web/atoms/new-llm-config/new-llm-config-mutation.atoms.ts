@@ -34,7 +34,7 @@ export const createNewLLMConfigMutationAtom = atomWithMutation((get) => {
 			});
 		},
 		onError: (error: Error) => {
-			toast.error(error.message || "Failed to create LLM model");
+			toast.error(error.message || "Failed to create model");
 		},
 	};
 });
