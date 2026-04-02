@@ -630,7 +630,7 @@ export function DocumentsTableShell({
 									return (
 										<tr
 											key={doc.id}
-											className={`group border-b border-border/50 transition-colors ${
+											className={`list-item-lazy group border-b border-border/50 transition-colors ${
 												isMentioned ? "bg-primary/5 hover:bg-primary/8" : "hover:bg-muted/30"
 											} ${canInteract && hasChatMode ? "cursor-pointer" : ""}`}
 											onClick={handleRowClick}
@@ -871,7 +871,7 @@ export function DocumentsTableShell({
 						return (
 							<MobileCardWrapper key={doc.id} onLongPress={() => setMobileActionDoc(doc)}>
 								<div
-									className={`relative px-3 py-2 transition-colors ${
+									className={`list-item-lazy relative px-3 py-2 transition-colors ${
 										isMentioned ? "bg-primary/5" : "hover:bg-muted/20"
 									} ${canInteract && hasChatMode ? "cursor-pointer" : ""}`}
 								>

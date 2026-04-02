@@ -919,6 +919,7 @@ export function InboxSidebarContent({
 										"transition-colors cursor-pointer",
 										isMarkingAsRead && "opacity-50 pointer-events-none"
 									)}
+									style={{ contentVisibility: "auto", containIntrinsicSize: "0 80px" }}
 								>
 									{isMobile ? (
 										<button
