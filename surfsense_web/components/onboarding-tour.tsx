@@ -598,11 +598,11 @@ export function OnboardingTour() {
 		};
 
 		window.addEventListener("resize", handleUpdate);
-		window.addEventListener("scroll", handleUpdate, true);
+		window.addEventListener("scroll", handleUpdate, { capture: true, passive: true });
 
 		return () => {
 			window.removeEventListener("resize", handleUpdate);
-			window.removeEventListener("scroll", handleUpdate, true);
+			window.removeEventListener("scroll", handleUpdate, { capture: true });
 		};
 	}, [isActive, targetEl, currentStep?.placement]);
 
