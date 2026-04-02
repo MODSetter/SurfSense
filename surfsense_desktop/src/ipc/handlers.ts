@@ -1,5 +1,11 @@
 import { app, ipcMain, shell } from 'electron';
 import { IPC_CHANNELS } from './channels';
+import {
+  getPermissionsStatus,
+  requestAccessibility,
+  requestInputMonitoring,
+  restartApp,
+} from '../modules/permissions';
 
 export function registerIpcHandlers(): void {
   ipcMain.on(IPC_CHANNELS.OPEN_EXTERNAL, (_event, url: string) => {
@@ -15,5 +21,21 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.GET_APP_VERSION, () => {
     return app.getVersion();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.GET_PERMISSIONS_STATUS, () => {
+    return getPermissionsStatus();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.REQUEST_ACCESSIBILITY, () => {
+    requestAccessibility();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.REQUEST_INPUT_MONITORING, () => {
+    requestInputMonitoring();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.RESTART_APP, () => {
+    restartApp();
   });
 }

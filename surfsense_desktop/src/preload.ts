@@ -21,4 +21,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setQuickAskMode: (mode: string) => ipcRenderer.invoke(IPC_CHANNELS.SET_QUICK_ASK_MODE, mode),
   getQuickAskMode: () => ipcRenderer.invoke(IPC_CHANNELS.GET_QUICK_ASK_MODE),
   replaceText: (text: string) => ipcRenderer.invoke(IPC_CHANNELS.REPLACE_TEXT, text),
+  // Permissions
+  getPermissionsStatus: () => ipcRenderer.invoke(IPC_CHANNELS.GET_PERMISSIONS_STATUS),
+  requestAccessibility: () => ipcRenderer.invoke(IPC_CHANNELS.REQUEST_ACCESSIBILITY),
+  requestInputMonitoring: () => ipcRenderer.invoke(IPC_CHANNELS.REQUEST_INPUT_MONITORING),
+  restartApp: () => ipcRenderer.invoke(IPC_CHANNELS.RESTART_APP),
 });
