@@ -953,6 +953,37 @@ async def get_document_by_chunk_id(
         ) from e
 
 
+@router.get("/documents/watched-folders", response_model=list["FolderRead"])
+async def get_watched_folders(
+    search_space_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Return root folders that are marked as watched (metadata->>'watched' = 'true')."""
+    from app.schemas import FolderRead  # noqa: F811
+
+    await check_permission(
+        session,
+        user,
+        search_space_id,
+        Permission.DOCUMENTS_READ.value,
+        "You don't have permission to read documents in this search space",
+    )
+
+    folders = (
+        await session.execute(
+            select(Folder).where(
+                Folder.search_space_id == search_space_id,
+                Folder.parent_id.is_(None),
+                Folder.folder_metadata.isnot(None),
+                Folder.folder_metadata["watched"].astext == "true",
+            )
+        )
+    ).scalars().all()
+
+    return folders
+
+
 @router.get("/documents/{document_id}", response_model=DocumentRead)
 async def read_document(
     document_id: int,
@@ -1416,32 +1447,3 @@ async def folder_index_file(
     }
 
 
-@router.get("/documents/watched-folders", response_model=list["FolderRead"])
-async def get_watched_folders(
-    search_space_id: int,
-    session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
-):
-    """Return root folders that are marked as watched (metadata->>'watched' = 'true')."""
-    from app.schemas import FolderRead  # noqa: F811
-
-    await check_permission(
-        session,
-        user,
-        search_space_id,
-        Permission.DOCUMENTS_READ.value,
-        "You don't have permission to read documents in this search space",
-    )
-
-    folders = (
-        await session.execute(
-            select(Folder).where(
-                Folder.search_space_id == search_space_id,
-                Folder.parent_id.is_(None),
-                Folder.folder_metadata.isnot(None),
-                Folder.folder_metadata["watched"].astext == "true",
-            )
-        )
-    ).scalars().all()
-
-    return folders
