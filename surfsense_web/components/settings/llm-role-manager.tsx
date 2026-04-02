@@ -360,13 +360,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 																	>
 																		<div className="flex items-center gap-1 md:gap-1.5 flex-wrap min-w-0">
 																			{isAuto ? (
-																				<Badge
-																					variant="outline"
-																					className="text-[9px] md:text-[10px] shrink-0 bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200 dark:border-violet-700"
-																				>
-																					<Shuffle className="size-2 md:size-2.5 mr-0.5" />
-																					AUTO
-																				</Badge>
+																				<Shuffle className="size-3 md:size-3.5 shrink-0 text-muted-foreground" />
 																			) : (
 																				getProviderIcon(config.provider, {
 																					className: "size-3 md:size-3.5 shrink-0",
