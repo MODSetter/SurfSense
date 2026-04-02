@@ -64,6 +64,7 @@ class DocumentType(StrEnum):
     COMPOSIO_GOOGLE_DRIVE_CONNECTOR = "COMPOSIO_GOOGLE_DRIVE_CONNECTOR"
     COMPOSIO_GMAIL_CONNECTOR = "COMPOSIO_GMAIL_CONNECTOR"
     COMPOSIO_GOOGLE_CALENDAR_CONNECTOR = "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR"
+    LOCAL_FOLDER_FILE = "LOCAL_FOLDER_FILE"
 
 
 # Native Google document types → their legacy Composio equivalents.
@@ -109,6 +110,7 @@ class SearchSourceConnectorType(StrEnum):
     COMPOSIO_GOOGLE_DRIVE_CONNECTOR = "COMPOSIO_GOOGLE_DRIVE_CONNECTOR"
     COMPOSIO_GMAIL_CONNECTOR = "COMPOSIO_GMAIL_CONNECTOR"
     COMPOSIO_GOOGLE_CALENDAR_CONNECTOR = "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR"
+    LOCAL_FOLDER_CONNECTOR = "LOCAL_FOLDER_CONNECTOR"
 
 
 class PodcastStatus(StrEnum):
@@ -1037,6 +1039,26 @@ class Document(BaseModel, TimestampMixin):
     chunks = relationship(
         "Chunk", back_populates="document", cascade="all, delete-orphan"
     )
+
+
+class DocumentVersion(BaseModel, TimestampMixin):
+    __tablename__ = "document_versions"
+    __table_args__ = (
+        UniqueConstraint("document_id", "version_number", name="uq_document_version"),
+    )
+
+    document_id = Column(
+        Integer,
+        ForeignKey("documents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    version_number = Column(Integer, nullable=False)
+    source_markdown = Column(Text, nullable=True)
+    content_hash = Column(String, nullable=False)
+    title = Column(String, nullable=True)
+
+    document = relationship("Document", backref="versions")
 
 
 class Chunk(BaseModel, TimestampMixin):

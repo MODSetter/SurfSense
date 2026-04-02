@@ -20,6 +20,7 @@ Non-OAuth connectors (BookStack, GitHub, etc.) are limited to one per search spa
 
 import asyncio
 import logging
+import os
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -55,23 +56,12 @@ from app.schemas import (
 )
 from app.services.composio_service import ComposioService, get_composio_service
 from app.services.notification_service import NotificationService
-from app.tasks.connector_indexers import (
-    index_airtable_records,
-    index_clickup_tasks,
-    index_confluence_pages,
-    index_crawled_urls,
-    index_discord_messages,
-    index_elasticsearch_documents,
-    index_github_repos,
-    index_google_calendar_events,
-    index_google_gmail_messages,
-    index_jira_issues,
-    index_linear_issues,
-    index_luma_events,
-    index_notion_pages,
-    index_slack_messages,
-)
 from app.users import current_active_user
+
+# NOTE: connector indexer functions are imported lazily inside each
+# ``run_*_indexing`` helper to break a circular import cycle:
+#   connector_indexers.__init__ → airtable_indexer → airtable_history
+#   → app.routes.__init__ → this file → connector_indexers (not ready yet)
 from app.utils.connector_naming import ensure_unique_connector_name
 from app.utils.indexing_locks import (
     acquire_connector_indexing_lock,
@@ -1180,6 +1170,24 @@ async def index_connector_content(
             )
             response_message = "Obsidian vault indexing started in the background."
 
+        elif connector.connector_type == SearchSourceConnectorType.LOCAL_FOLDER_CONNECTOR:
+            from app.config import config as app_config
+            from app.tasks.celery_tasks.connector_tasks import index_local_folder_task
+
+            if not app_config.is_self_hosted():
+                raise HTTPException(
+                    status_code=400,
+                    detail="Local folder connector is only available in self-hosted mode",
+                )
+
+            logger.info(
+                f"Triggering local folder indexing for connector {connector_id} into search space {search_space_id}"
+            )
+            index_local_folder_task.delay(
+                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
+            )
+            response_message = "Local folder indexing started in the background."
+
         elif (
             connector.connector_type
             == SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR
@@ -1312,6 +1320,76 @@ async def index_connector_content(
         ) from e
 
 
+class IndexFileRequest(BaseModel):
+    file_path: str = Field(..., description="Absolute path to the file to index")
+
+
+@router.post(
+    "/search-source-connectors/{connector_id}/index-file",
+    response_model=dict[str, Any],
+)
+async def index_single_file(
+    connector_id: int,
+    body: IndexFileRequest,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Index a single file from a local folder connector (chokidar real-time trigger)."""
+    from app.config import config as app_config
+    from app.tasks.celery_tasks.connector_tasks import index_local_folder_task
+
+    if not app_config.is_self_hosted():
+        raise HTTPException(
+            status_code=400,
+            detail="Local folder connector is only available in self-hosted mode",
+        )
+
+    result = await session.execute(
+        select(SearchSourceConnector).filter(
+            SearchSourceConnector.id == connector_id,
+            SearchSourceConnector.connector_type
+            == SearchSourceConnectorType.LOCAL_FOLDER_CONNECTOR,
+        )
+    )
+    connector = result.scalars().first()
+    if not connector:
+        raise HTTPException(status_code=404, detail="Local folder connector not found")
+
+    await check_permission(session, user, connector.search_space_id, Permission.WRITE)
+
+    folder_path = connector.config.get("folder_path", "")
+
+    # Security: resolve symlinks and verify the file is inside folder_path
+    try:
+        resolved_file = os.path.realpath(body.file_path)
+        resolved_folder = os.path.realpath(folder_path)
+        if not resolved_file.startswith(resolved_folder + os.sep) and resolved_file != resolved_folder:
+            raise HTTPException(
+                status_code=403,
+                detail="File path is outside the configured folder",
+            )
+    except (OSError, ValueError):
+        raise HTTPException(
+            status_code=403,
+            detail="Invalid file path",
+        )
+
+    index_local_folder_task.delay(
+        connector_id,
+        connector.search_space_id,
+        str(user.id),
+        None,
+        None,
+        target_file_path=resolved_file,
+    )
+
+    return {
+        "message": "Single file indexing started",
+        "connector_id": connector_id,
+        "file_path": body.file_path,
+    }
+
+
 async def _update_connector_timestamp_by_id(session: AsyncSession, connector_id: int):
     """
     Update the last_indexed_at timestamp for a connector by its ID.
@@ -1378,6 +1456,8 @@ async def run_slack_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_slack_messages
+
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
@@ -1824,6 +1904,8 @@ async def run_notion_indexing_with_new_session(
     Create a new session and run the Notion indexing task.
     This prevents session leaks by creating a dedicated session for the background task.
     """
+    from app.tasks.connector_indexers import index_notion_pages
+
     async with async_session_maker() as session:
         await _run_indexing_with_notifications(
             session=session,
@@ -1858,6 +1940,8 @@ async def run_notion_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_notion_pages
+
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
@@ -1910,6 +1994,8 @@ async def run_github_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_github_repos
+
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
@@ -1961,6 +2047,8 @@ async def run_linear_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_linear_issues
+
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
@@ -2011,6 +2099,8 @@ async def run_discord_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_discord_messages
+
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
@@ -2113,6 +2203,8 @@ async def run_jira_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_jira_issues
+
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
@@ -2166,6 +2258,8 @@ async def run_confluence_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_confluence_pages
+
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
@@ -2217,6 +2311,8 @@ async def run_clickup_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_clickup_tasks
+
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
@@ -2268,6 +2364,8 @@ async def run_airtable_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_airtable_records
+
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
@@ -2321,6 +2419,8 @@ async def run_google_calendar_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_google_calendar_events
+
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
@@ -2370,6 +2470,7 @@ async def run_google_gmail_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_google_gmail_messages
 
     # Create a wrapper function that calls index_google_gmail_messages with max_messages
     async def gmail_indexing_wrapper(
@@ -2836,6 +2937,8 @@ async def run_luma_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_luma_events
+
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
@@ -2888,6 +2991,8 @@ async def run_elasticsearch_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_elasticsearch_documents
+
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
@@ -2938,6 +3043,8 @@ async def run_web_page_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_crawled_urls
+
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
@@ -3054,6 +3161,62 @@ async def run_obsidian_indexing(
         start_date=start_date,
         end_date=end_date,
         indexing_function=index_obsidian_vault,
+        update_timestamp_func=_update_connector_timestamp_by_id,
+        supports_heartbeat_callback=True,
+    )
+
+
+async def run_local_folder_indexing_with_new_session(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+    target_file_path: str | None = None,
+):
+    """Wrapper to run local folder indexing with its own database session."""
+    logger.info(
+        f"Background task started: Indexing local folder connector {connector_id} into space {search_space_id}"
+    )
+    async with async_session_maker() as session:
+        await run_local_folder_indexing(
+            session, connector_id, search_space_id, user_id, start_date, end_date,
+            target_file_path=target_file_path,
+        )
+    logger.info(f"Background task finished: Indexing local folder connector {connector_id}")
+
+
+async def run_local_folder_indexing(
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+    target_file_path: str | None = None,
+):
+    """Background task to run local folder indexing."""
+    from app.tasks.connector_indexers import index_local_folder
+
+    await _run_indexing_with_notifications(
+        session=session,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        indexing_function=lambda session, connector_id, search_space_id, user_id,
+        start_date, end_date, update_last_indexed, on_heartbeat_callback: index_local_folder(
+            session=session,
+            connector_id=connector_id,
+            search_space_id=search_space_id,
+            user_id=user_id,
+            start_date=start_date,
+            end_date=end_date,
+            update_last_indexed=update_last_indexed,
+            on_heartbeat_callback=on_heartbeat_callback,
+            target_file_path=target_file_path,
+        ),
         update_timestamp_func=_update_connector_timestamp_by_id,
         supports_heartbeat_callback=True,
     )

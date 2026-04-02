@@ -10,6 +10,7 @@ from app.db import (
     Chunk,
     Document,
     DocumentType,
+    DocumentVersion,
     Permission,
     SearchSpace,
     SearchSpaceMembership,
@@ -1135,3 +1136,125 @@ async def delete_document(
         raise HTTPException(
             status_code=500, detail=f"Failed to delete document: {e!s}"
         ) from e
+
+
+# ====================================================================
+# Version History Endpoints
+# ====================================================================
+
+
+@router.get("/documents/{document_id}/versions")
+async def list_document_versions(
+    document_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """List all versions for a document, ordered by version_number descending."""
+    document = (
+        await session.execute(select(Document).where(Document.id == document_id))
+    ).scalar_one_or_none()
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    await check_permission(session, user, document.search_space_id, Permission.READ)
+
+    versions = (
+        await session.execute(
+            select(DocumentVersion)
+            .where(DocumentVersion.document_id == document_id)
+            .order_by(DocumentVersion.version_number.desc())
+        )
+    ).scalars().all()
+
+    return [
+        {
+            "version_number": v.version_number,
+            "title": v.title,
+            "content_hash": v.content_hash,
+            "created_at": v.created_at.isoformat() if v.created_at else None,
+        }
+        for v in versions
+    ]
+
+
+@router.get("/documents/{document_id}/versions/{version_number}")
+async def get_document_version(
+    document_id: int,
+    version_number: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Get full version content including source_markdown."""
+    document = (
+        await session.execute(select(Document).where(Document.id == document_id))
+    ).scalar_one_or_none()
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    await check_permission(session, user, document.search_space_id, Permission.READ)
+
+    version = (
+        await session.execute(
+            select(DocumentVersion).where(
+                DocumentVersion.document_id == document_id,
+                DocumentVersion.version_number == version_number,
+            )
+        )
+    ).scalar_one_or_none()
+    if not version:
+        raise HTTPException(status_code=404, detail="Version not found")
+
+    return {
+        "version_number": version.version_number,
+        "title": version.title,
+        "content_hash": version.content_hash,
+        "source_markdown": version.source_markdown,
+        "created_at": version.created_at.isoformat() if version.created_at else None,
+    }
+
+
+@router.post("/documents/{document_id}/versions/{version_number}/restore")
+async def restore_document_version(
+    document_id: int,
+    version_number: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Restore a previous version: snapshot current state, then overwrite document content."""
+    document = (
+        await session.execute(
+            select(Document).where(Document.id == document_id)
+        )
+    ).scalar_one_or_none()
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    await check_permission(session, user, document.search_space_id, Permission.WRITE)
+
+    version = (
+        await session.execute(
+            select(DocumentVersion).where(
+                DocumentVersion.document_id == document_id,
+                DocumentVersion.version_number == version_number,
+            )
+        )
+    ).scalar_one_or_none()
+    if not version:
+        raise HTTPException(status_code=404, detail="Version not found")
+
+    # Snapshot current state before restoring
+    from app.utils.document_versioning import create_version_snapshot
+
+    await create_version_snapshot(session, document)
+
+    # Restore the version's content onto the document
+    document.source_markdown = version.source_markdown
+    document.title = version.title or document.title
+    document.content_needs_reindexing = True
+    await session.commit()
+
+    return {
+        "message": f"Restored version {version_number}",
+        "document_id": document_id,
+        "restored_version": version_number,
+    }
