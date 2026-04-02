@@ -21,4 +21,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setQuickAskMode: (mode: string) => ipcRenderer.invoke(IPC_CHANNELS.SET_QUICK_ASK_MODE, mode),
   getQuickAskMode: () => ipcRenderer.invoke(IPC_CHANNELS.GET_QUICK_ASK_MODE),
   replaceText: (text: string) => ipcRenderer.invoke(IPC_CHANNELS.REPLACE_TEXT, text),
+
+  // Folder sync
+  selectFolder: () => ipcRenderer.invoke(IPC_CHANNELS.FOLDER_SYNC_SELECT_FOLDER),
+  addWatchedFolder: (config: any) => ipcRenderer.invoke(IPC_CHANNELS.FOLDER_SYNC_ADD_FOLDER, config),
+  removeWatchedFolder: (folderPath: string) => ipcRenderer.invoke(IPC_CHANNELS.FOLDER_SYNC_REMOVE_FOLDER, folderPath),
+  getWatchedFolders: () => ipcRenderer.invoke(IPC_CHANNELS.FOLDER_SYNC_GET_FOLDERS),
+  getWatcherStatus: () => ipcRenderer.invoke(IPC_CHANNELS.FOLDER_SYNC_GET_STATUS),
+  onFileChanged: (callback: (data: any) => void) => {
+    const listener = (_event: unknown, data: any) => callback(data);
+    ipcRenderer.on(IPC_CHANNELS.FOLDER_SYNC_FILE_CHANGED, listener);
+    return () => {
+      ipcRenderer.removeListener(IPC_CHANNELS.FOLDER_SYNC_FILE_CHANGED, listener);
+    };
+  },
+  onWatcherReady: (callback: (data: any) => void) => {
+    const listener = (_event: unknown, data: any) => callback(data);
+    ipcRenderer.on(IPC_CHANNELS.FOLDER_SYNC_WATCHER_READY, listener);
+    return () => {
+      ipcRenderer.removeListener(IPC_CHANNELS.FOLDER_SYNC_WATCHER_READY, listener);
+    };
+  },
+  pauseWatcher: () => ipcRenderer.invoke(IPC_CHANNELS.FOLDER_SYNC_PAUSE),
+  resumeWatcher: () => ipcRenderer.invoke(IPC_CHANNELS.FOLDER_SYNC_RESUME),
 });

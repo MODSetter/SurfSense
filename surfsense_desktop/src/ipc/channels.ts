@@ -6,4 +6,14 @@ export const IPC_CHANNELS = {
   SET_QUICK_ASK_MODE: 'set-quick-ask-mode',
   GET_QUICK_ASK_MODE: 'get-quick-ask-mode',
   REPLACE_TEXT: 'replace-text',
+  // Folder sync channels
+  FOLDER_SYNC_SELECT_FOLDER: 'folder-sync:select-folder',
+  FOLDER_SYNC_ADD_FOLDER: 'folder-sync:add-folder',
+  FOLDER_SYNC_REMOVE_FOLDER: 'folder-sync:remove-folder',
+  FOLDER_SYNC_GET_FOLDERS: 'folder-sync:get-folders',
+  FOLDER_SYNC_GET_STATUS: 'folder-sync:get-status',
+  FOLDER_SYNC_FILE_CHANGED: 'folder-sync:file-changed',
+  FOLDER_SYNC_WATCHER_READY: 'folder-sync:watcher-ready',
+  FOLDER_SYNC_PAUSE: 'folder-sync:pause',
+  FOLDER_SYNC_RESUME: 'folder-sync:resume',
 } as const;
