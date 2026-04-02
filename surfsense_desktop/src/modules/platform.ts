@@ -53,3 +53,43 @@ export function checkAccessibilityPermission(): boolean {
   if (process.platform !== 'darwin') return true;
   return systemPreferences.isTrustedAccessibilityClient(true);
 }
+
+export function hasAccessibilityPermission(): boolean {
+  if (process.platform !== 'darwin') return true;
+  return systemPreferences.isTrustedAccessibilityClient(false);
+}
+
+export interface FieldContent {
+  text: string;
+  cursorPosition: number;
+}
+
+export function getFieldContent(): FieldContent | null {
+  if (process.platform !== 'darwin') return null;
+
+  try {
+    const text = execSync(
+      'osascript -e \'tell application "System Events" to get value of attribute "AXValue" of focused UI element of first application process whose frontmost is true\'',
+      { timeout: 500 }
+    ).toString().trim();
+
+    let cursorPosition = text.length;
+    try {
+      const rangeStr = execSync(
+        'osascript -e \'tell application "System Events" to get value of attribute "AXSelectedTextRange" of focused UI element of first application process whose frontmost is true\'',
+        { timeout: 500 }
+      ).toString().trim();
+
+      const locationMatch = rangeStr.match(/location[:\s]*(\d+)/i);
+      if (locationMatch) {
+        cursorPosition = parseInt(locationMatch[1], 10);
+      }
+    } catch {
+      // Fall back to end of text
+    }
+
+    return { text, cursorPosition };
+  } catch {
+    return null;
+  }
+}

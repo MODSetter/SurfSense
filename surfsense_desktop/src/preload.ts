@@ -26,4 +26,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   requestAccessibility: () => ipcRenderer.invoke(IPC_CHANNELS.REQUEST_ACCESSIBILITY),
   requestInputMonitoring: () => ipcRenderer.invoke(IPC_CHANNELS.REQUEST_INPUT_MONITORING),
   restartApp: () => ipcRenderer.invoke(IPC_CHANNELS.RESTART_APP),
+  // Autocomplete
+  onAutocompleteContext: (callback: (data: { text: string; cursorPosition: number; searchSpaceId?: string }) => void) => {
+    const listener = (_event: unknown, data: { text: string; cursorPosition: number; searchSpaceId?: string }) => callback(data);
+    ipcRenderer.on(IPC_CHANNELS.AUTOCOMPLETE_CONTEXT, listener);
+    return () => {
+      ipcRenderer.removeListener(IPC_CHANNELS.AUTOCOMPLETE_CONTEXT, listener);
+    };
+  },
+  acceptSuggestion: (text: string) => ipcRenderer.invoke(IPC_CHANNELS.ACCEPT_SUGGESTION, text),
+  dismissSuggestion: () => ipcRenderer.invoke(IPC_CHANNELS.DISMISS_SUGGESTION),
+  updateSuggestionText: (text: string) => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_SUGGESTION_TEXT, text),
+  setAutocompleteEnabled: (enabled: boolean) => ipcRenderer.invoke(IPC_CHANNELS.SET_AUTOCOMPLETE_ENABLED, enabled),
+  getAutocompleteEnabled: () => ipcRenderer.invoke(IPC_CHANNELS.GET_AUTOCOMPLETE_ENABLED),
 });
