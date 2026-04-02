@@ -111,6 +111,14 @@ export function getConnectorBenefits(connectorType: string): string[] | null {
 			"Incremental sync - only changed files are re-indexed",
 			"Full support for your vault's folder structure",
 		],
+		LOCAL_FOLDER_CONNECTOR: [
+			"Watch local folders for real-time changes via the desktop app",
+			"Automatic change detection — only modified files are re-indexed",
+			"Version history with up to 20 snapshots per document",
+			"Mirrors your folder structure in the SurfSense sidebar",
+			"Supports any text-based file format",
+			"Works as a periodic sync fallback when the desktop app is not running",
+		],
 	};
 
 	return benefits[connectorType] || null;

@@ -1,5 +1,30 @@
 import type { PostHog } from "posthog-js";
 
+interface WatchedFolderConfig {
+	path: string;
+	name: string;
+	excludePatterns: string[];
+	fileExtensions: string[] | null;
+	connectorId: number;
+	searchSpaceId: number;
+	active: boolean;
+}
+
+interface FolderSyncFileChangedEvent {
+	connectorId: number;
+	searchSpaceId: number;
+	folderPath: string;
+	relativePath: string;
+	fullPath: string;
+	action: "add" | "change" | "unlink";
+	timestamp: number;
+}
+
+interface FolderSyncWatcherReadyEvent {
+	connectorId: number;
+	folderPath: string;
+}
+
 interface ElectronAPI {
 	versions: {
 		electron: string;
@@ -14,6 +39,16 @@ interface ElectronAPI {
 	setQuickAskMode: (mode: string) => Promise<void>;
 	getQuickAskMode: () => Promise<string>;
 	replaceText: (text: string) => Promise<void>;
+	// Folder sync
+	selectFolder: () => Promise<string | null>;
+	addWatchedFolder: (config: WatchedFolderConfig) => Promise<WatchedFolderConfig[]>;
+	removeWatchedFolder: (folderPath: string) => Promise<WatchedFolderConfig[]>;
+	getWatchedFolders: () => Promise<WatchedFolderConfig[]>;
+	getWatcherStatus: () => Promise<{ path: string; active: boolean; watching: boolean }[]>;
+	onFileChanged: (callback: (data: FolderSyncFileChangedEvent) => void) => () => void;
+	onWatcherReady: (callback: (data: FolderSyncWatcherReadyEvent) => void) => () => void;
+	pauseWatcher: () => Promise<void>;
+	resumeWatcher: () => Promise<void>;
 }
 
 declare global {

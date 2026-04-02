@@ -379,6 +379,22 @@ class DocumentsApiService {
 		});
 	};
 
+	listDocumentVersions = async (documentId: number) => {
+		return baseApiService.get(`/api/v1/documents/${documentId}/versions`);
+	};
+
+	getDocumentVersion = async (documentId: number, versionNumber: number) => {
+		return baseApiService.get(
+			`/api/v1/documents/${documentId}/versions/${versionNumber}`
+		);
+	};
+
+	restoreDocumentVersion = async (documentId: number, versionNumber: number) => {
+		return baseApiService.post(
+			`/api/v1/documents/${documentId}/versions/${versionNumber}/restore`
+		);
+	};
+
 	/**
 	 * Delete a document
 	 */

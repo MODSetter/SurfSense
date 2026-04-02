@@ -19,6 +19,7 @@ import { JiraConfig } from "./components/jira-config";
 import { LinkupApiConfig } from "./components/linkup-api-config";
 import { LumaConfig } from "./components/luma-config";
 import { MCPConfig } from "./components/mcp-config";
+import { LocalFolderConfig } from "./components/local-folder-config";
 import { ObsidianConfig } from "./components/obsidian-config";
 import { OneDriveConfig } from "./components/onedrive-config";
 import { SlackConfig } from "./components/slack-config";
@@ -82,6 +83,8 @@ export function getConnectorConfigComponent(
 			return MCPConfig;
 		case "OBSIDIAN_CONNECTOR":
 			return ObsidianConfig;
+		case "LOCAL_FOLDER_CONNECTOR":
+			return LocalFolderConfig;
 		case "COMPOSIO_GOOGLE_DRIVE_CONNECTOR":
 			return ComposioDriveConfig;
 		case "COMPOSIO_GMAIL_CONNECTOR":
