@@ -40,6 +40,9 @@ interface FolderTreeViewProps {
 		targetFolderId: number | null
 	) => void;
 	onReorderFolder?: (folderId: number, beforePos: string | null, afterPos: string | null) => void;
+	watchedFolderIds?: Set<number>;
+	onRescanFolder?: (folder: FolderDisplay) => void;
+	onStopWatchingFolder?: (folder: FolderDisplay) => void;
 }
 
 function groupBy<T>(items: T[], keyFn: (item: T) => string | number): Record<string | number, T[]> {
@@ -73,6 +76,9 @@ export function FolderTreeView({
 	searchQuery,
 	onDropIntoFolder,
 	onReorderFolder,
+	watchedFolderIds,
+	onRescanFolder,
+	onStopWatchingFolder,
 }: FolderTreeViewProps) {
 	const foldersByParent = useMemo(() => groupBy(folders, (f) => f.parentId ?? "root"), [folders]);
 
@@ -204,6 +210,9 @@ export function FolderTreeView({
 					siblingPositions={siblingPositions}
 					contextMenuOpen={openContextMenuId === `folder-${f.id}`}
 					onContextMenuOpenChange={(open) => setOpenContextMenuId(open ? `folder-${f.id}` : null)}
+					isWatched={watchedFolderIds?.has(f.id)}
+					onRescan={onRescanFolder}
+					onStopWatching={onStopWatchingFolder}
 				/>
 			);
 

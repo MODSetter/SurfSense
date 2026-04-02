@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { closeEditorPanelAtom, editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
+import { VersionHistoryButton } from "@/components/documents/version-history";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
@@ -180,12 +181,16 @@ export function EditorPanelContent({
 	return (
 		<>
 			<div className="flex items-center justify-between px-4 py-2 shrink-0 border-b">
-				<div className="flex-1 min-w-0">
-					<h2 className="text-sm font-semibold truncate">{displayTitle}</h2>
-					{isEditableType && editedMarkdown !== null && (
-						<p className="text-[10px] text-muted-foreground">Unsaved changes</p>
-					)}
-				</div>
+			<div className="flex-1 min-w-0">
+				<h2 className="text-sm font-semibold truncate">{displayTitle}</h2>
+				{isEditableType && editedMarkdown !== null && (
+					<p className="text-[10px] text-muted-foreground">Unsaved changes</p>
+				)}
+			</div>
+			<div className="flex items-center gap-1 shrink-0">
+				{editorDoc?.document_type && (
+					<VersionHistoryButton documentId={documentId} documentType={editorDoc.document_type} />
+				)}
 				{onClose && (
 					<Button variant="ghost" size="icon" onClick={onClose} className="size-7 shrink-0">
 						<XIcon className="size-4" />
@@ -193,6 +198,7 @@ export function EditorPanelContent({
 					</Button>
 				)}
 			</div>
+		</div>
 
 			<div className="flex-1 overflow-hidden">
 				{isLoading ? (

@@ -586,23 +586,6 @@ export const useConnectorDialog = () => {
 									},
 								});
 
-								// Register folder watcher in Electron for real-time sync
-								if (
-									currentConnectorType === EnumConnectorName.LOCAL_FOLDER_CONNECTOR &&
-									window.electronAPI?.addWatchedFolder
-								) {
-									const cfg = connector.config || {};
-									await window.electronAPI.addWatchedFolder({
-										path: cfg.folder_path as string,
-										name: cfg.folder_name as string,
-										excludePatterns: (cfg.exclude_patterns as string[]) || [],
-										fileExtensions: (cfg.file_extensions as string[] | null) ?? null,
-										connectorId: connector.id,
-										searchSpaceId: Number(searchSpaceId),
-										active: true,
-									});
-								}
-
 								const successMessage =
 									currentConnectorType === "MCP_CONNECTOR"
 										? `${connector.name} added successfully`
@@ -1206,17 +1189,6 @@ export const useConnectorDialog = () => {
 				await deleteConnector({
 					id: editingConnector.id,
 				});
-
-				// Unregister folder watcher in Electron when removing a Local Folder connector
-				if (
-					editingConnector.connector_type === EnumConnectorName.LOCAL_FOLDER_CONNECTOR &&
-					window.electronAPI?.removeWatchedFolder &&
-					editingConnector.config?.folder_path
-				) {
-					await window.electronAPI.removeWatchedFolder(
-						editingConnector.config.folder_path as string
-					);
-				}
 
 				// Track connector deleted event
 				trackConnectorDeleted(
