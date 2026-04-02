@@ -15,13 +15,17 @@ function convertDisplayToData(displayContent: string, mentions: InsertedMention[
 
 	const sortedMentions = [...mentions].sort((a, b) => b.displayName.length - a.displayName.length);
 
-	for (const mention of sortedMentions) {
-		const displayPattern = new RegExp(
+	const mentionPatterns = sortedMentions.map((mention) => ({
+		pattern: new RegExp(
 			`@${escapeRegExp(mention.displayName)}(?=\\s|$|[.,!?;:])`,
 			"g"
-		);
-		const dataFormat = `@[${mention.id}]`;
-		result = result.replace(displayPattern, dataFormat);
+		),
+		dataFormat: `@[${mention.id}]`,
+	}));
+
+	for (const { pattern, dataFormat } of mentionPatterns) {
+		pattern.lastIndex = 0; // reset global regex state
+		result = result.replace(pattern, dataFormat);
 	}
 
 	return result;
