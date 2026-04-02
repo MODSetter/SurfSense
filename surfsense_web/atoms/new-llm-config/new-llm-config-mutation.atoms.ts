@@ -109,10 +109,11 @@ export const updateLLMPreferencesMutationAtom = atomWithMutation((get) => {
 		mutationFn: async (request: UpdateLLMPreferencesRequest) => {
 			return newLLMConfigApiService.updateLLMPreferences(request);
 		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: cacheKeys.newLLMConfigs.preferences(Number(searchSpaceId)),
-			});
+		onSuccess: (_data, request: UpdateLLMPreferencesRequest) => {
+			queryClient.setQueryData(
+				cacheKeys.newLLMConfigs.preferences(Number(searchSpaceId)),
+				(old: Record<string, unknown> | undefined) => ({ ...old, ...request.data })
+			);
 		},
 		onError: (error: Error) => {
 			toast.error(error.message || "Failed to update LLM preferences");
