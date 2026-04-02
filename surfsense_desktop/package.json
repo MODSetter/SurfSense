@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "chokidar": "^5.0.0",
+    "electron-store": "^11.0.2",
     "electron-updater": "^6.8.3",
     "get-port-please": "^3.2.0"
   }
