@@ -10,6 +10,7 @@ from app.config import config
 from app.services.notification_service import NotificationService
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.celery_tasks import get_celery_session_maker
+from app.tasks.connector_indexers.local_folder_indexer import index_local_folder
 from app.tasks.document_processors import (
     add_extension_received_document,
     add_youtube_video_document,
@@ -1243,3 +1244,68 @@ async def _process_circleback_meeting(
                 heartbeat_task.cancel()
             if notification:
                 _stop_heartbeat(notification.id)
+
+
+# ===== Local folder indexing task =====
+
+
+@celery_app.task(name="index_local_folder", bind=True)
+def index_local_folder_task(
+    self,
+    search_space_id: int,
+    user_id: str,
+    folder_path: str,
+    folder_name: str,
+    exclude_patterns: list[str] | None = None,
+    file_extensions: list[str] | None = None,
+    root_folder_id: int | None = None,
+    enable_summary: bool = False,
+    target_file_path: str | None = None,
+):
+    """Celery task to index a local folder. Config is passed directly — no connector row."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    try:
+        loop.run_until_complete(
+            _index_local_folder_async(
+                search_space_id=search_space_id,
+                user_id=user_id,
+                folder_path=folder_path,
+                folder_name=folder_name,
+                exclude_patterns=exclude_patterns,
+                file_extensions=file_extensions,
+                root_folder_id=root_folder_id,
+                enable_summary=enable_summary,
+                target_file_path=target_file_path,
+            )
+        )
+    finally:
+        loop.close()
+
+
+async def _index_local_folder_async(
+    search_space_id: int,
+    user_id: str,
+    folder_path: str,
+    folder_name: str,
+    exclude_patterns: list[str] | None = None,
+    file_extensions: list[str] | None = None,
+    root_folder_id: int | None = None,
+    enable_summary: bool = False,
+    target_file_path: str | None = None,
+):
+    """Run local folder indexing with a fresh DB session."""
+    async with get_celery_session_maker()() as session:
+        await index_local_folder(
+            session=session,
+            search_space_id=search_space_id,
+            user_id=user_id,
+            folder_path=folder_path,
+            folder_name=folder_name,
+            exclude_patterns=exclude_patterns,
+            file_extensions=file_extensions,
+            root_folder_id=root_folder_id,
+            enable_summary=enable_summary,
+            target_file_path=target_file_path,
+        )

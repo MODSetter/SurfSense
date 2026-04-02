@@ -168,22 +168,3 @@ def make_connector_document(db_connector, db_user):
     return _make
 
 
-@pytest_asyncio.fixture
-async def db_local_folder_connector(
-    db_session: AsyncSession, db_user: User, db_search_space: SearchSpace, tmp_path
-) -> SearchSourceConnector:
-    connector = SearchSourceConnector(
-        name="Test Local Folder",
-        connector_type=SearchSourceConnectorType.LOCAL_FOLDER_CONNECTOR,
-        config={
-            "folder_path": str(tmp_path),
-            "folder_name": "test-folder",
-            "exclude_patterns": [],
-            "file_extensions": None,
-        },
-        search_space_id=db_search_space.id,
-        user_id=db_user.id,
-    )
-    db_session.add(connector)
-    await db_session.flush()
-    return connector

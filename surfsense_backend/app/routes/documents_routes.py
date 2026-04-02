@@ -2,6 +2,7 @@
 import asyncio
 
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
+from pydantic import BaseModel as PydanticBaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -11,6 +12,7 @@ from app.db import (
     Document,
     DocumentType,
     DocumentVersion,
+    Folder,
     Permission,
     SearchSpace,
     SearchSpaceMembership,
@@ -1257,4 +1259,145 @@ async def restore_document_version(
         "message": f"Restored version {version_number}",
         "document_id": document_id,
         "restored_version": version_number,
+    }
+
+
+# ===== Local folder indexing endpoints =====
+
+
+class FolderIndexRequest(PydanticBaseModel):
+    folder_path: str
+    folder_name: str
+    search_space_id: int
+    exclude_patterns: list[str] | None = None
+    file_extensions: list[str] | None = None
+    root_folder_id: int | None = None
+    enable_summary: bool = False
+
+
+class FolderIndexFileRequest(PydanticBaseModel):
+    folder_path: str
+    folder_name: str
+    search_space_id: int
+    target_file_path: str
+    enable_summary: bool = False
+
+
+@router.post("/documents/folder-index")
+async def folder_index(
+    request: FolderIndexRequest,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Full-scan index of a local folder. Creates the root Folder row synchronously
+    and dispatches the heavy indexing work to a Celery task.
+    Returns the root_folder_id so the desktop can persist it.
+    """
+    from app.config import config as app_config
+
+    if not app_config.is_self_hosted():
+        raise HTTPException(
+            status_code=400,
+            detail="Local folder indexing is only available in self-hosted mode",
+        )
+
+    await check_permission(
+        session,
+        user,
+        request.search_space_id,
+        Permission.DOCUMENTS_CREATE.value,
+        "You don't have permission to create documents in this search space",
+    )
+
+    root_folder_id = request.root_folder_id
+    if root_folder_id:
+        existing = (
+            await session.execute(
+                select(Folder).where(Folder.id == root_folder_id)
+            )
+        ).scalar_one_or_none()
+        if not existing:
+            root_folder_id = None
+
+    if not root_folder_id:
+        root_folder = Folder(
+            name=request.folder_name,
+            search_space_id=request.search_space_id,
+            created_by_id=str(user.id),
+            position="a0",
+        )
+        session.add(root_folder)
+        await session.flush()
+        root_folder_id = root_folder.id
+        await session.commit()
+
+    from app.tasks.celery_tasks.document_tasks import index_local_folder_task
+
+    index_local_folder_task.delay(
+        search_space_id=request.search_space_id,
+        user_id=str(user.id),
+        folder_path=request.folder_path,
+        folder_name=request.folder_name,
+        exclude_patterns=request.exclude_patterns,
+        file_extensions=request.file_extensions,
+        root_folder_id=root_folder_id,
+        enable_summary=request.enable_summary,
+    )
+
+    return {
+        "message": "Folder indexing started",
+        "status": "processing",
+        "root_folder_id": root_folder_id,
+    }
+
+
+@router.post("/documents/folder-index-file")
+async def folder_index_file(
+    request: FolderIndexFileRequest,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Index a single file within a watched folder (chokidar trigger).
+    Validates that target_file_path is under folder_path.
+    """
+    from app.config import config as app_config
+
+    if not app_config.is_self_hosted():
+        raise HTTPException(
+            status_code=400,
+            detail="Local folder indexing is only available in self-hosted mode",
+        )
+
+    await check_permission(
+        session,
+        user,
+        request.search_space_id,
+        Permission.DOCUMENTS_CREATE.value,
+        "You don't have permission to create documents in this search space",
+    )
+
+    from pathlib import Path
+
+    try:
+        Path(request.target_file_path).relative_to(request.folder_path)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="target_file_path must be inside folder_path",
+        )
+
+    from app.tasks.celery_tasks.document_tasks import index_local_folder_task
+
+    index_local_folder_task.delay(
+        search_space_id=request.search_space_id,
+        user_id=str(user.id),
+        folder_path=request.folder_path,
+        folder_name=request.folder_name,
+        target_file_path=request.target_file_path,
+        enable_summary=request.enable_summary,
+    )
+
+    return {
+        "message": "File indexing started",
+        "status": "processing",
     }

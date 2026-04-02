@@ -1,5 +1,5 @@
 """
-Local folder connector indexer.
+Local folder indexer.
 
 Indexes files from a local folder on disk. Supports:
 - Full-scan mode (startup reconciliation / manual trigger)
@@ -8,7 +8,9 @@ Indexes files from a local folder on disk. Supports:
 - Document versioning via create_version_snapshot
 - ETL-based file parsing for binary formats (PDF, DOCX, images, audio, etc.)
 
-Electron-only: all change detection is driven by chokidar in the desktop app.
+Desktop-only: all change detection is driven by chokidar in the desktop app.
+Config (folder_path, exclude_patterns, etc.) is passed in from the caller —
+no connector row is read.
 """
 
 import os
@@ -17,10 +19,9 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm.attributes import flag_modified
 
 from app.config import config
 from app.db import (
@@ -28,7 +29,6 @@ from app.db import (
     DocumentStatus,
     DocumentType,
     Folder,
-    SearchSourceConnectorType,
 )
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
@@ -45,11 +45,9 @@ from .base import (
     build_document_metadata_string,
     check_document_by_unique_identifier,
     check_duplicate_document_by_hash,
-    get_connector_by_id,
     get_current_timestamp,
     logger,
     safe_set_chunks,
-    update_connector_last_indexed,
 )
 
 PLAINTEXT_EXTENSIONS = frozenset({
@@ -131,12 +129,10 @@ def scan_folder(
     for dirpath, dirnames, filenames in os.walk(root):
         rel_dir = Path(dirpath).relative_to(root)
 
-        # Prune excluded directories in-place so os.walk skips them
         dirnames[:] = [
             d for d in dirnames if d not in exclude_patterns
         ]
 
-        # Check if the current directory itself is excluded
         if any(part in exclude_patterns for part in rel_dir.parts):
             continue
 
@@ -232,20 +228,18 @@ async def _mirror_folder_structure(
     folder_name: str,
     search_space_id: int,
     user_id: str,
-    connector_config: dict,
-    connector,
+    root_folder_id: int | None = None,
     exclude_patterns: list[str] | None = None,
-) -> dict[str, int]:
+) -> tuple[dict[str, int], int]:
     """Mirror the local filesystem directory structure into DB Folder rows.
 
-    Returns a mapping of relative_dir_path -> folder_id.
-    The empty string key ("") maps to the root folder.
+    Returns (mapping, root_folder_id) where mapping is
+    relative_dir_path -> folder_id. The empty string key maps to the root folder.
     """
     root = Path(folder_path)
     if exclude_patterns is None:
         exclude_patterns = []
 
-    # Collect all subdirectory paths relative to root
     subdirs: list[str] = []
     for dirpath, dirnames, _ in os.walk(root):
         dirnames[:] = [d for d in dirnames if d not in exclude_patterns]
@@ -256,13 +250,10 @@ async def _mirror_folder_structure(
         if rel_str:
             subdirs.append(rel_str)
 
-    # Sort by depth so parents are created before children
     subdirs.sort(key=lambda p: p.count(os.sep))
 
     mapping: dict[str, int] = {}
 
-    # Get or create root folder
-    root_folder_id = connector_config.get("root_folder_id")
     if root_folder_id:
         existing = (
             await session.execute(
@@ -284,12 +275,8 @@ async def _mirror_folder_structure(
         session.add(root_folder)
         await session.flush()
         mapping[""] = root_folder.id
-        # Persist root_folder_id into connector config
-        connector_config["root_folder_id"] = root_folder.id
-        connector.config = {**connector.config, "root_folder_id": root_folder.id}
-        flag_modified(connector, "config")
+        root_folder_id = root_folder.id
 
-    # Create/reuse subdirectory Folder rows
     for rel_dir in subdirs:
         dir_parts = Path(rel_dir).parts
         dir_name = dir_parts[-1]
@@ -322,7 +309,7 @@ async def _mirror_folder_structure(
             mapping[rel_dir] = new_folder.id
 
     await session.flush()
-    return mapping
+    return mapping, root_folder_id
 
 
 async def _cleanup_empty_folders(
@@ -332,16 +319,11 @@ async def _cleanup_empty_folders(
     existing_dirs_on_disk: set[str],
     folder_mapping: dict[str, int],
 ) -> None:
-    """Delete Folder rows that are empty (no docs, no children) and no longer on disk.
+    """Delete Folder rows that are empty (no docs, no children) and no longer on disk."""
+    from sqlalchemy import delete as sa_delete
 
-    Queries ALL folders under this search space (not just the current mapping)
-    so that stale folders from previous syncs are also cleaned up.
-    """
-    # Build a reverse mapping from folder_id → rel_dir for known dirs
     id_to_rel: dict[int, str] = {fid: rel for rel, fid in folder_mapping.items() if rel}
 
-    # Also find any folders in the DB that are children of the root but NOT
-    # in the current mapping (stale from a previous sync).
     all_folders = (
         await session.execute(
             select(Folder).where(
@@ -351,7 +333,6 @@ async def _cleanup_empty_folders(
         )
     ).scalars().all()
 
-    # Build candidates: folders not on disk that we might delete
     candidates: list[Folder] = []
     for folder in all_folders:
         rel = id_to_rel.get(folder.id)
@@ -359,8 +340,6 @@ async def _cleanup_empty_folders(
             continue
         candidates.append(folder)
 
-    # Sort deepest first (by name depth heuristic — folders with no children first)
-    # Repeat until no more deletions happen (cascading empty parents)
     changed = True
     while changed:
         changed = False
@@ -384,57 +363,46 @@ async def _cleanup_empty_folders(
                 remaining.append(folder)
                 continue
 
-            await session.execute(delete(Folder).where(Folder.id == folder.id))
+            await session.execute(sa_delete(Folder).where(Folder.id == folder.id))
             changed = True
         candidates = remaining
 
 
 async def index_local_folder(
     session: AsyncSession,
-    connector_id: int,
     search_space_id: int,
     user_id: str,
-    start_date: str | None = None,
-    end_date: str | None = None,
-    update_last_indexed: bool = True,
-    on_heartbeat_callback: HeartbeatCallbackType | None = None,
+    folder_path: str,
+    folder_name: str,
+    exclude_patterns: list[str] | None = None,
+    file_extensions: list[str] | None = None,
+    root_folder_id: int | None = None,
+    enable_summary: bool = False,
     target_file_path: str | None = None,
-) -> tuple[int, int, str | None]:
+    on_heartbeat_callback: HeartbeatCallbackType | None = None,
+) -> tuple[int, int, int | None, str | None]:
     """Index files from a local folder.
 
     Supports two modes:
     - Full scan (target_file_path=None): walks entire folder, handles new/changed/deleted files.
     - Single-file (target_file_path set): processes only that file.
 
-    Returns (indexed_count, skipped_count, error_or_warning_message).
+    Returns (indexed_count, skipped_count, root_folder_id, error_or_warning_message).
     """
     task_logger = TaskLoggingService(session, search_space_id)
 
     log_entry = await task_logger.log_task_start(
         task_name="local_folder_indexing",
-        source="connector_indexing_task",
-        message=f"Starting local folder indexing for connector {connector_id}",
+        source="local_folder_indexing_task",
+        message=f"Starting local folder indexing for {folder_name}",
         metadata={
-            "connector_id": connector_id,
+            "folder_path": folder_path,
             "user_id": str(user_id),
             "target_file_path": target_file_path,
         },
     )
 
     try:
-        connector = await get_connector_by_id(
-            session, connector_id, SearchSourceConnectorType.LOCAL_FOLDER_CONNECTOR
-        )
-        if not connector:
-            await task_logger.log_task_failure(
-                log_entry,
-                f"Connector {connector_id} not found",
-                "Connector not found",
-                {},
-            )
-            return 0, 0, f"Connector {connector_id} not found"
-
-        folder_path = connector.config.get("folder_path")
         if not folder_path or not os.path.exists(folder_path):
             await task_logger.log_task_failure(
                 log_entry,
@@ -442,59 +410,54 @@ async def index_local_folder(
                 "Folder not found",
                 {},
             )
-            return 0, 0, f"Folder path missing or does not exist: {folder_path}"
+            return 0, 0, root_folder_id, f"Folder path missing or does not exist: {folder_path}"
 
-        folder_name = connector.config.get("folder_name") or os.path.basename(folder_path)
-        exclude_patterns = connector.config.get("exclude_patterns", DEFAULT_EXCLUDE_PATTERNS)
-        file_extensions = connector.config.get("file_extensions")  # None = all
+        if exclude_patterns is None:
+            exclude_patterns = DEFAULT_EXCLUDE_PATTERNS
 
         # ====================================================================
         # SINGLE-FILE MODE
         # ====================================================================
         if target_file_path:
-            return await _index_single_file(
+            indexed, skipped, err = await _index_single_file(
                 session=session,
-                connector=connector,
-                connector_id=connector_id,
                 search_space_id=search_space_id,
                 user_id=user_id,
                 folder_path=folder_path,
                 folder_name=folder_name,
                 target_file_path=target_file_path,
+                enable_summary=enable_summary,
                 task_logger=task_logger,
                 log_entry=log_entry,
-                update_last_indexed=update_last_indexed,
             )
+            return indexed, skipped, root_folder_id, err
 
         # ====================================================================
         # FULL-SCAN MODE
         # ====================================================================
 
-        # Phase 0: Mirror folder structure
         await task_logger.log_task_progress(
             log_entry, "Mirroring folder structure", {"stage": "folder_mirror"}
         )
 
-        folder_mapping = await _mirror_folder_structure(
+        folder_mapping, root_folder_id = await _mirror_folder_structure(
             session=session,
             folder_path=folder_path,
             folder_name=folder_name,
             search_space_id=search_space_id,
             user_id=user_id,
-            connector_config=connector.config,
-            connector=connector,
+            root_folder_id=root_folder_id,
             exclude_patterns=exclude_patterns,
         )
         await session.flush()
 
-        # Scan files on disk
         try:
             files = scan_folder(folder_path, file_extensions, exclude_patterns)
         except Exception as e:
             await task_logger.log_task_failure(
                 log_entry, f"Failed to scan folder: {e}", "Scan error", {}
             )
-            return 0, 0, f"Failed to scan folder: {e}"
+            return 0, 0, root_folder_id, f"Failed to scan folder: {e}"
 
         logger.info(f"Found {len(files)} files in folder")
 
@@ -530,7 +493,6 @@ async def index_local_folder(
                 )
 
                 if existing_document:
-                    # Check mtime first (cheap)
                     stored_mtime = (existing_document.document_metadata or {}).get("mtime")
                     current_mtime = file_info["modified_at"].timestamp()
 
@@ -542,7 +504,6 @@ async def index_local_folder(
                         skipped_count += 1
                         continue
 
-                    # mtime differs — read file and check content hash
                     try:
                         content, content_hash = await _compute_file_content_hash(
                             file_path_abs, file_info["relative_path"], search_space_id
@@ -553,7 +514,6 @@ async def index_local_folder(
                         continue
 
                     if existing_document.content_hash == content_hash:
-                        # Content same, just update mtime in metadata
                         meta = dict(existing_document.document_metadata or {})
                         meta["mtime"] = current_mtime
                         existing_document.document_metadata = meta
@@ -564,7 +524,6 @@ async def index_local_folder(
                         skipped_count += 1
                         continue
 
-                    # Content actually changed — snapshot version, queue for re-index
                     await create_version_snapshot(session, existing_document)
 
                     files_to_process.append(
@@ -581,7 +540,6 @@ async def index_local_folder(
                     )
                     continue
 
-                # New document — read content
                 try:
                     content, content_hash = await _compute_file_content_hash(
                         file_path_abs, file_info["relative_path"], search_space_id
@@ -595,7 +553,6 @@ async def index_local_folder(
                     skipped_count += 1
                     continue
 
-                # Check for duplicate content from another connector
                 with session.no_autoflush:
                     dup = await check_duplicate_document_by_hash(session, content_hash)
                 if dup:
@@ -603,7 +560,6 @@ async def index_local_folder(
                     skipped_count += 1
                     continue
 
-                # Determine folder_id for this file
                 parent_dir = str(Path(relative_path).parent)
                 if parent_dir == ".":
                     parent_dir = ""
@@ -616,17 +572,16 @@ async def index_local_folder(
                     document_metadata={
                         "folder_name": folder_name,
                         "file_path": relative_path,
-                        "connector_id": connector_id,
                         "mtime": file_info["modified_at"].timestamp(),
                     },
                     content="Pending...",
-                    content_hash=unique_identifier_hash,  # Temp unique — updated in phase 2
+                    content_hash=unique_identifier_hash,
                     unique_identifier_hash=unique_identifier_hash,
                     embedding=None,
                     status=DocumentStatus.pending(),
                     updated_at=get_current_timestamp(),
                     created_by_id=user_id,
-                    connector_id=connector_id,
+                    connector_id=None,
                     folder_id=folder_id,
                 )
                 session.add(document)
@@ -655,16 +610,17 @@ async def index_local_folder(
         # ================================================================
         # PHASE 1.5: Delete documents no longer on disk
         # ================================================================
-        all_connector_docs = (
+        all_folder_docs = (
             await session.execute(
                 select(Document).where(
-                    Document.connector_id == connector_id,
                     Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
+                    Document.search_space_id == search_space_id,
+                    Document.folder_id.in_(list(folder_mapping.values())),
                 )
             )
         ).scalars().all()
 
-        for doc in all_connector_docs:
+        for doc in all_folder_docs:
             if doc.unique_identifier_hash not in seen_unique_hashes:
                 await session.delete(doc)
 
@@ -709,7 +665,7 @@ async def index_local_folder(
                 document_string = build_document_metadata_string(metadata_sections)
 
                 summary_content = ""
-                if long_context_llm and connector.enable_summary:
+                if long_context_llm and enable_summary:
                     doc_meta = {
                         "folder_name": folder_name,
                         "file_path": relative_path,
@@ -721,7 +677,6 @@ async def index_local_folder(
                 embedding = embed_text(document_string)
                 chunks = await create_document_chunks(document_string)
 
-                # Determine folder_id
                 parent_dir = str(Path(relative_path).parent)
                 if parent_dir == ".":
                     parent_dir = ""
@@ -735,7 +690,6 @@ async def index_local_folder(
                 document.document_metadata = {
                     "folder_name": folder_name,
                     "file_path": relative_path,
-                    "connector_id": connector_id,
                     "summary": summary_content,
                     "mtime": file_info["modified_at"].timestamp(),
                 }
@@ -782,8 +736,6 @@ async def index_local_folder(
                 session, root_fid, search_space_id, existing_dirs, folder_mapping
             )
 
-        await update_connector_last_indexed(session, connector, update_last_indexed)
-
         try:
             await session.commit()
         except Exception as e:
@@ -802,7 +754,7 @@ async def index_local_folder(
 
         await task_logger.log_task_success(
             log_entry,
-            f"Completed local folder indexing for connector {connector_id}",
+            f"Completed local folder indexing for {folder_name}",
             {
                 "indexed": indexed_count,
                 "skipped": skipped_count,
@@ -811,7 +763,7 @@ async def index_local_folder(
             },
         )
 
-        return indexed_count, skipped_count, warning_message
+        return indexed_count, skipped_count, root_folder_id, warning_message
 
     except SQLAlchemyError as e:
         logger.exception(f"Database error during local folder indexing: {e}")
@@ -819,34 +771,31 @@ async def index_local_folder(
         await task_logger.log_task_failure(
             log_entry, f"DB error: {e}", "Database error", {}
         )
-        return 0, 0, f"Database error: {e}"
+        return 0, 0, root_folder_id, f"Database error: {e}"
 
     except Exception as e:
         logger.exception(f"Error during local folder indexing: {e}")
         await task_logger.log_task_failure(
             log_entry, f"Error: {e}", "Unexpected error", {}
         )
-        return 0, 0, str(e)
+        return 0, 0, root_folder_id, str(e)
 
 
 async def _index_single_file(
     session: AsyncSession,
-    connector,
-    connector_id: int,
     search_space_id: int,
     user_id: str,
     folder_path: str,
     folder_name: str,
     target_file_path: str,
+    enable_summary: bool,
     task_logger,
     log_entry,
-    update_last_indexed: bool = True,
 ) -> tuple[int, int, str | None]:
     """Process a single file (chokidar real-time trigger)."""
     try:
         full_path = Path(target_file_path)
         if not full_path.exists():
-            # File was deleted — find and remove the document
             rel = str(full_path.relative_to(folder_path))
             unique_id = f"{folder_name}:{rel}"
             uid_hash = generate_unique_identifier_hash(
@@ -880,7 +829,6 @@ async def _index_single_file(
 
         if existing:
             if existing.content_hash == content_hash:
-                # Update mtime
                 mtime = full_path.stat().st_mtime
                 meta = dict(existing.document_metadata or {})
                 meta["mtime"] = mtime
@@ -888,10 +836,8 @@ async def _index_single_file(
                 await session.commit()
                 return 0, 1, None
 
-            # Content changed — snapshot + re-index
             await create_version_snapshot(session, existing)
 
-        # Get LLM
         long_context_llm = await get_user_long_context_llm(
             session, user_id, search_space_id
         )
@@ -906,7 +852,7 @@ async def _index_single_file(
         document_string = build_document_metadata_string(metadata_sections)
 
         summary_content = ""
-        if long_context_llm and connector.enable_summary:
+        if long_context_llm and enable_summary:
             summary_content, _ = await generate_document_summary(
                 document_string, long_context_llm, {"folder_name": folder_name, "file_path": rel_path}
             )
@@ -917,7 +863,6 @@ async def _index_single_file(
         doc_metadata = {
             "folder_name": folder_name,
             "file_path": rel_path,
-            "connector_id": connector_id,
             "summary": summary_content,
             "mtime": mtime,
         }
@@ -946,16 +891,14 @@ async def _index_single_file(
                 status=DocumentStatus.ready(),
                 updated_at=get_current_timestamp(),
                 created_by_id=user_id,
-                connector_id=connector_id,
+                connector_id=None,
             )
             session.add(document)
-            # Set chunks
             await session.flush()
             for chunk in chunks:
                 chunk.document_id = document.id
             session.add_all(chunks)
 
-        await update_connector_last_indexed(session, connector, update_last_indexed)
         await session.commit()
 
         await task_logger.log_task_success(

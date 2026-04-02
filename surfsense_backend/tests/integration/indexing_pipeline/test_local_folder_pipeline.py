@@ -14,7 +14,6 @@ from app.db import (
     DocumentType,
     DocumentVersion,
     Folder,
-    SearchSourceConnector,
     SearchSpace,
     User,
 )
@@ -72,7 +71,6 @@ class TestFullIndexer:
     async def test_i1_new_file_indexed(
         self,
         db_session: AsyncSession,
-        db_local_folder_connector: SearchSourceConnector,
         db_user: User,
         db_search_space: SearchSpace,
         tmp_path: Path,
@@ -82,11 +80,12 @@ class TestFullIndexer:
 
         (tmp_path / "note.md").write_text("# Hello World\n\nContent here.")
 
-        count, skipped, err = await index_local_folder(
+        count, skipped, root_folder_id, err = await index_local_folder(
             session=db_session,
-            connector_id=db_local_folder_connector.id,
             search_space_id=db_search_space.id,
             user_id=str(db_user.id),
+            folder_path=str(tmp_path),
+            folder_name="test-folder",
         )
 
         assert err is None
@@ -95,7 +94,8 @@ class TestFullIndexer:
         docs = (
             await db_session.execute(
                 select(Document).where(
-                    Document.connector_id == db_local_folder_connector.id
+                    Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
+                    Document.search_space_id == db_search_space.id,
                 )
             )
         ).scalars().all()
@@ -112,7 +112,6 @@ class TestFullIndexer:
     async def test_i2_unchanged_skipped(
         self,
         db_session: AsyncSession,
-        db_local_folder_connector: SearchSourceConnector,
         db_user: User,
         db_search_space: SearchSpace,
         tmp_path: Path,
@@ -122,27 +121,31 @@ class TestFullIndexer:
 
         (tmp_path / "note.md").write_text("# Hello\n\nSame content.")
 
-        count1, _, _ = await index_local_folder(
+        count1, _, root_folder_id, _ = await index_local_folder(
             session=db_session,
-            connector_id=db_local_folder_connector.id,
             search_space_id=db_search_space.id,
             user_id=str(db_user.id),
+            folder_path=str(tmp_path),
+            folder_name="test-folder",
         )
         assert count1 == 1
 
-        # Second run — unchanged
-        count2, _, _ = await index_local_folder(
+        # Second run — unchanged, pass root_folder_id from first run
+        count2, _, _, _ = await index_local_folder(
             session=db_session,
-            connector_id=db_local_folder_connector.id,
             search_space_id=db_search_space.id,
             user_id=str(db_user.id),
+            folder_path=str(tmp_path),
+            folder_name="test-folder",
+            root_folder_id=root_folder_id,
         )
         assert count2 == 0
 
         total = (
             await db_session.execute(
                 select(func.count()).select_from(Document).where(
-                    Document.connector_id == db_local_folder_connector.id
+                    Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
+                    Document.search_space_id == db_search_space.id,
                 )
             )
         ).scalar_one()
@@ -157,7 +160,6 @@ class TestFullIndexer:
     async def test_i3_changed_reindexed(
         self,
         db_session: AsyncSession,
-        db_local_folder_connector: SearchSourceConnector,
         db_user: User,
         db_search_space: SearchSpace,
         tmp_path: Path,
@@ -168,11 +170,12 @@ class TestFullIndexer:
         f = tmp_path / "note.md"
         f.write_text("# Version 1\n\nOriginal.")
 
-        await index_local_folder(
+        _, _, root_folder_id, _ = await index_local_folder(
             session=db_session,
-            connector_id=db_local_folder_connector.id,
             search_space_id=db_search_space.id,
             user_id=str(db_user.id),
+            folder_path=str(tmp_path),
+            folder_name="test-folder",
         )
 
         # Modify
@@ -180,11 +183,13 @@ class TestFullIndexer:
         # Touch mtime to ensure it's detected as different
         os.utime(f, (f.stat().st_atime + 10, f.stat().st_mtime + 10))
 
-        count, _, _ = await index_local_folder(
+        count, _, _, _ = await index_local_folder(
             session=db_session,
-            connector_id=db_local_folder_connector.id,
             search_space_id=db_search_space.id,
             user_id=str(db_user.id),
+            folder_path=str(tmp_path),
+            folder_name="test-folder",
+            root_folder_id=root_folder_id,
         )
         assert count == 1
 
@@ -192,7 +197,8 @@ class TestFullIndexer:
         versions = (
             await db_session.execute(
                 select(DocumentVersion).join(Document).where(
-                    Document.connector_id == db_local_folder_connector.id
+                    Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
+                    Document.search_space_id == db_search_space.id,
                 )
             )
         ).scalars().all()
@@ -207,7 +213,6 @@ class TestFullIndexer:
     async def test_i4_deleted_removed(
         self,
         db_session: AsyncSession,
-        db_local_folder_connector: SearchSourceConnector,
         db_user: User,
         db_search_space: SearchSpace,
         tmp_path: Path,
@@ -218,17 +223,19 @@ class TestFullIndexer:
         f = tmp_path / "to_delete.md"
         f.write_text("# Delete me")
 
-        await index_local_folder(
+        _, _, root_folder_id, _ = await index_local_folder(
             session=db_session,
-            connector_id=db_local_folder_connector.id,
             search_space_id=db_search_space.id,
             user_id=str(db_user.id),
+            folder_path=str(tmp_path),
+            folder_name="test-folder",
         )
 
         docs_before = (
             await db_session.execute(
                 select(func.count()).select_from(Document).where(
-                    Document.connector_id == db_local_folder_connector.id
+                    Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
+                    Document.search_space_id == db_search_space.id,
                 )
             )
         ).scalar_one()
@@ -238,15 +245,18 @@ class TestFullIndexer:
 
         await index_local_folder(
             session=db_session,
-            connector_id=db_local_folder_connector.id,
             search_space_id=db_search_space.id,
             user_id=str(db_user.id),
+            folder_path=str(tmp_path),
+            folder_name="test-folder",
+            root_folder_id=root_folder_id,
         )
 
         docs_after = (
             await db_session.execute(
                 select(func.count()).select_from(Document).where(
-                    Document.connector_id == db_local_folder_connector.id
+                    Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
+                    Document.search_space_id == db_search_space.id,
                 )
             )
         ).scalar_one()
@@ -261,7 +271,6 @@ class TestFullIndexer:
     async def test_i5_single_file_mode(
         self,
         db_session: AsyncSession,
-        db_local_folder_connector: SearchSourceConnector,
         db_user: User,
         db_search_space: SearchSpace,
         tmp_path: Path,
@@ -273,11 +282,12 @@ class TestFullIndexer:
         (tmp_path / "b.md").write_text("File B")
         (tmp_path / "c.md").write_text("File C")
 
-        count, _, _ = await index_local_folder(
+        count, _, _, _ = await index_local_folder(
             session=db_session,
-            connector_id=db_local_folder_connector.id,
             search_space_id=db_search_space.id,
             user_id=str(db_user.id),
+            folder_path=str(tmp_path),
+            folder_name="test-folder",
             target_file_path=str(tmp_path / "b.md"),
         )
         assert count == 1
@@ -285,12 +295,13 @@ class TestFullIndexer:
         docs = (
             await db_session.execute(
                 select(Document).where(
-                    Document.connector_id == db_local_folder_connector.id
+                    Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
+                    Document.search_space_id == db_search_space.id,
                 )
             )
         ).scalars().all()
         assert len(docs) == 1
-        assert docs[0].title == "b"
+        assert docs[0].title == "b.md"
 
 
 # ====================================================================
@@ -309,30 +320,27 @@ class TestFolderMirroring:
     async def test_f1_root_folder_created(
         self,
         db_session: AsyncSession,
-        db_local_folder_connector: SearchSourceConnector,
         db_user: User,
         db_search_space: SearchSpace,
         tmp_path: Path,
     ):
-        """F1: First sync creates a root Folder and stores root_folder_id."""
+        """F1: First sync creates a root Folder and returns root_folder_id."""
         from app.tasks.connector_indexers.local_folder_indexer import index_local_folder
 
         (tmp_path / "root.md").write_text("Root file")
 
-        await index_local_folder(
+        _, _, root_folder_id, _ = await index_local_folder(
             session=db_session,
-            connector_id=db_local_folder_connector.id,
             search_space_id=db_search_space.id,
             user_id=str(db_user.id),
+            folder_path=str(tmp_path),
+            folder_name="test-folder",
         )
 
-        # Refresh connector
-        await db_session.refresh(db_local_folder_connector)
-        root_id = db_local_folder_connector.config.get("root_folder_id")
-        assert root_id is not None
+        assert root_folder_id is not None
 
         root_folder = (
-            await db_session.execute(select(Folder).where(Folder.id == root_id))
+            await db_session.execute(select(Folder).where(Folder.id == root_folder_id))
         ).scalar_one()
         assert root_folder.name == "test-folder"
 
@@ -345,7 +353,6 @@ class TestFolderMirroring:
     async def test_f2_nested_folder_rows(
         self,
         db_session: AsyncSession,
-        db_local_folder_connector: SearchSourceConnector,
         db_user: User,
         db_search_space: SearchSpace,
         tmp_path: Path,
@@ -362,9 +369,10 @@ class TestFolderMirroring:
 
         await index_local_folder(
             session=db_session,
-            connector_id=db_local_folder_connector.id,
             search_space_id=db_search_space.id,
             user_id=str(db_user.id),
+            folder_path=str(tmp_path),
+            folder_name="test-folder",
         )
 
         folders = (
@@ -394,7 +402,6 @@ class TestFolderMirroring:
     async def test_f3_resync_reuses_folders(
         self,
         db_session: AsyncSession,
-        db_local_folder_connector: SearchSourceConnector,
         db_user: User,
         db_search_space: SearchSpace,
         tmp_path: Path,
@@ -406,11 +413,12 @@ class TestFolderMirroring:
         sub.mkdir()
         (sub / "file.md").write_text("content")
 
-        await index_local_folder(
+        _, _, root_folder_id, _ = await index_local_folder(
             session=db_session,
-            connector_id=db_local_folder_connector.id,
             search_space_id=db_search_space.id,
             user_id=str(db_user.id),
+            folder_path=str(tmp_path),
+            folder_name="test-folder",
         )
 
         folders_before = (
@@ -420,12 +428,14 @@ class TestFolderMirroring:
         ).scalars().all()
         ids_before = {f.id for f in folders_before}
 
-        # Re-sync
+        # Re-sync with root_folder_id from first run
         await index_local_folder(
             session=db_session,
-            connector_id=db_local_folder_connector.id,
             search_space_id=db_search_space.id,
             user_id=str(db_user.id),
+            folder_path=str(tmp_path),
+            folder_name="test-folder",
+            root_folder_id=root_folder_id,
         )
 
         folders_after = (
@@ -446,7 +456,6 @@ class TestFolderMirroring:
     async def test_f4_folder_id_assigned(
         self,
         db_session: AsyncSession,
-        db_local_folder_connector: SearchSourceConnector,
         db_user: User,
         db_search_space: SearchSpace,
         tmp_path: Path,
@@ -459,17 +468,19 @@ class TestFolderMirroring:
         (daily / "today.md").write_text("today note")
         (tmp_path / "root.md").write_text("root note")
 
-        await index_local_folder(
+        _, _, root_folder_id, _ = await index_local_folder(
             session=db_session,
-            connector_id=db_local_folder_connector.id,
             search_space_id=db_search_space.id,
             user_id=str(db_user.id),
+            folder_path=str(tmp_path),
+            folder_name="test-folder",
         )
 
         docs = (
             await db_session.execute(
                 select(Document).where(
-                    Document.connector_id == db_local_folder_connector.id
+                    Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
+                    Document.search_space_id == db_search_space.id,
                 )
             )
         ).scalars().all()
@@ -486,9 +497,7 @@ class TestFolderMirroring:
         assert today_doc.folder_id == daily_folder.id
 
         # Root doc should be in the root folder
-        await db_session.refresh(db_local_folder_connector)
-        root_fid = db_local_folder_connector.config.get("root_folder_id")
-        assert root_doc.folder_id == root_fid
+        assert root_doc.folder_id == root_folder_id
 
     @pytest.mark.usefixtures(
         "patched_self_hosted",
@@ -499,7 +508,6 @@ class TestFolderMirroring:
     async def test_f5_empty_folder_cleanup(
         self,
         db_session: AsyncSession,
-        db_local_folder_connector: SearchSourceConnector,
         db_user: User,
         db_search_space: SearchSpace,
         tmp_path: Path,
@@ -515,11 +523,12 @@ class TestFolderMirroring:
         (daily / "today.md").write_text("today")
         (weekly / "review.md").write_text("review")
 
-        await index_local_folder(
+        _, _, root_folder_id, _ = await index_local_folder(
             session=db_session,
-            connector_id=db_local_folder_connector.id,
             search_space_id=db_search_space.id,
             user_id=str(db_user.id),
+            folder_path=str(tmp_path),
+            folder_name="test-folder",
         )
 
         # Verify weekly folder exists
@@ -535,9 +544,11 @@ class TestFolderMirroring:
 
         await index_local_folder(
             session=db_session,
-            connector_id=db_local_folder_connector.id,
             search_space_id=db_search_space.id,
             user_id=str(db_user.id),
+            folder_path=str(tmp_path),
+            folder_name="test-folder",
+            root_folder_id=root_folder_id,
         )
 
         # weekly Folder should be gone (empty, dir removed)
@@ -570,7 +581,6 @@ class TestPipelineIntegration:
     async def test_p1_local_folder_file_through_pipeline(
         self,
         db_session: AsyncSession,
-        db_local_folder_connector: SearchSourceConnector,
         db_user: User,
         db_search_space: SearchSpace,
         mocker,
@@ -585,7 +595,7 @@ class TestPipelineIntegration:
             unique_id="test-folder:test.md",
             document_type=DocumentType.LOCAL_FOLDER_FILE,
             search_space_id=db_search_space.id,
-            connector_id=db_local_folder_connector.id,
+            connector_id=None,
             created_by_id=str(db_user.id),
         )
 

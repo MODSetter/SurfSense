@@ -44,7 +44,6 @@ from .jira_indexer import index_jira_issues
 from .linear_indexer import index_linear_issues
 
 # Documentation and knowledge management
-from .local_folder_indexer import index_local_folder
 from .luma_indexer import index_luma_events
 from .notion_indexer import index_notion_pages
 from .obsidian_indexer import index_obsidian_vault
@@ -75,5 +74,4 @@ __all__ = [  # noqa: RUF022
     # Communication platforms
     "index_slack_messages",
     "index_google_gmail_messages",
-    "index_local_folder",
 ]
