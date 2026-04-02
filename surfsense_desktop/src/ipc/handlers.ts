@@ -8,6 +8,7 @@ import {
   getWatcherStatus,
   pauseWatcher,
   resumeWatcher,
+  markRendererReady,
 } from '../modules/folder-watcher';
 
 export function registerIpcHandlers(): void {
@@ -44,4 +45,8 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.FOLDER_SYNC_PAUSE, () => pauseWatcher());
 
   ipcMain.handle(IPC_CHANNELS.FOLDER_SYNC_RESUME, () => resumeWatcher());
+
+  ipcMain.handle(IPC_CHANNELS.FOLDER_SYNC_RENDERER_READY, () => {
+    markRendererReady();
+  });
 }
