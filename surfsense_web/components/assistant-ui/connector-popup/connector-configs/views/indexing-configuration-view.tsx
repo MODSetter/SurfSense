@@ -164,8 +164,7 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 									config.connectorType !== "DROPBOX_CONNECTOR" &&
 									config.connectorType !== "ONEDRIVE_CONNECTOR" &&
 									config.connectorType !== "WEBCRAWLER_CONNECTOR" &&
-									config.connectorType !== "GITHUB_CONNECTOR" &&
-									config.connectorType !== "LOCAL_FOLDER_CONNECTOR" && (
+									config.connectorType !== "GITHUB_CONNECTOR" && (
 										<DateRangeSelector
 											startDate={startDate}
 											endDate={endDate}
@@ -180,12 +179,10 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 										/>
 									)}
 
-								{/* Periodic sync - not shown for file-based connectors (Drive, Dropbox, OneDrive) or Local Folder in initial setup; configured in edit view instead */}
 								{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" &&
 									config.connectorType !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&
 									config.connectorType !== "DROPBOX_CONNECTOR" &&
-									config.connectorType !== "ONEDRIVE_CONNECTOR" &&
-									config.connectorType !== "LOCAL_FOLDER_CONNECTOR" && (
+									config.connectorType !== "ONEDRIVE_CONNECTOR" && (
 										<PeriodicSyncConfig
 											enabled={periodicEnabled}
 											frequencyMinutes={frequencyMinutes}

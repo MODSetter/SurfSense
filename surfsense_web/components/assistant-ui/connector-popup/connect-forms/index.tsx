@@ -7,7 +7,6 @@ import { GithubConnectForm } from "./components/github-connect-form";
 import { LinkupApiConnectForm } from "./components/linkup-api-connect-form";
 import { LumaConnectForm } from "./components/luma-connect-form";
 import { MCPConnectForm } from "./components/mcp-connect-form";
-import { LocalFolderConnectForm } from "./components/local-folder-connect-form";
 import { ObsidianConnectForm } from "./components/obsidian-connect-form";
 import { TavilyApiConnectForm } from "./components/tavily-api-connect-form";
 
@@ -59,8 +58,6 @@ export function getConnectFormComponent(connectorType: string): ConnectFormCompo
 			return MCPConnectForm;
 		case "OBSIDIAN_CONNECTOR":
 			return ObsidianConnectForm;
-		case "LOCAL_FOLDER_CONNECTOR":
-			return LocalFolderConnectForm;
 		default:
 			return null;
 	}

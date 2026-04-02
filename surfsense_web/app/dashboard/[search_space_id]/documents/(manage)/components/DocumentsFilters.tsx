@@ -1,6 +1,6 @@
 "use client";
 
-import { FolderPlus, ListFilter, Search, Upload, X } from "lucide-react";
+import { Eye, FolderPlus, ListFilter, Search, Upload, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
@@ -19,6 +19,7 @@ export function DocumentsFilters({
 	onToggleType,
 	activeTypes,
 	onCreateFolder,
+	onWatchFolder,
 }: {
 	typeCounts: Partial<Record<DocumentTypeEnum, number>>;
 	onSearch: (v: string) => void;
@@ -26,6 +27,7 @@ export function DocumentsFilters({
 	onToggleType: (type: DocumentTypeEnum, checked: boolean) => void;
 	activeTypes: DocumentTypeEnum[];
 	onCreateFolder?: () => void;
+	onWatchFolder?: () => void;
 }) {
 	const t = useTranslations("documents");
 	const id = React.useId();
@@ -214,17 +216,34 @@ export function DocumentsFilters({
 					</Tooltip>
 				)}
 
-				{/* Upload Button */}
-				<Button
-					data-joyride="upload-button"
-					onClick={openUploadDialog}
-					variant="outline"
-					size="sm"
-					className="h-9 shrink-0 gap-1.5 bg-white text-gray-700 border-white hover:bg-gray-50 dark:bg-white dark:text-gray-800 dark:hover:bg-gray-100"
-				>
-					<Upload size={14} />
-					<span>Upload</span>
-				</Button>
+			{/* Watch Folder Button (desktop only) */}
+			{onWatchFolder && (
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							variant="outline"
+							size="icon"
+							className="h-9 w-9 shrink-0 border-dashed border-sidebar-border text-sidebar-foreground/60 hover:text-sidebar-foreground hover:border-sidebar-border bg-sidebar"
+							onClick={onWatchFolder}
+						>
+							<Eye size={14} />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>Watch folder</TooltipContent>
+				</Tooltip>
+			)}
+
+			{/* Upload Button */}
+			<Button
+				data-joyride="upload-button"
+				onClick={openUploadDialog}
+				variant="outline"
+				size="sm"
+				className="h-9 shrink-0 gap-1.5 bg-white text-gray-700 border-white hover:bg-gray-50 dark:bg-white dark:text-gray-800 dark:hover:bg-gray-100"
+			>
+				<Upload size={14} />
+				<span>Upload</span>
+			</Button>
 			</div>
 		</div>
 	);

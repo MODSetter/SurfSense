@@ -278,8 +278,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 									connector.connector_type !== "DROPBOX_CONNECTOR" &&
 									connector.connector_type !== "ONEDRIVE_CONNECTOR" &&
 									connector.connector_type !== "WEBCRAWLER_CONNECTOR" &&
-									connector.connector_type !== "GITHUB_CONNECTOR" &&
-									connector.connector_type !== "LOCAL_FOLDER_CONNECTOR" && (
+									connector.connector_type !== "GITHUB_CONNECTOR" && (
 										<DateRangeSelector
 											startDate={startDate}
 											endDate={endDate}
@@ -294,9 +293,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 										/>
 									)}
 
-								{/* Periodic sync - shown for all indexable connectors except Local Folder */}
-								{connector.connector_type !== "LOCAL_FOLDER_CONNECTOR" &&
-									(() => {
+								{(() => {
 										const isGoogleDrive = connector.connector_type === "GOOGLE_DRIVE_CONNECTOR";
 										const isComposioGoogleDrive =
 											connector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR";
