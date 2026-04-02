@@ -1,8 +1,7 @@
-"""Integration tests for local folder indexer — Tier 3 (I1-I5), Tier 4 (F1-F5), Tier 5 (P1)."""
+"""Integration tests for local folder indexer — Tier 3 (I1-I5), Tier 4 (F1-F7), Tier 5 (P1)."""
 
 import os
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from sqlalchemy import func, select
@@ -18,41 +17,11 @@ from app.db import (
     User,
 )
 
-import app.tasks.connector_indexers.local_folder_indexer as _lfi_mod
-
 pytestmark = pytest.mark.integration
 
-
-@pytest.fixture
-def patched_self_hosted(monkeypatch):
-    _cfg = type("_Cfg", (), {"is_self_hosted": staticmethod(lambda: True)})()
-    monkeypatch.setattr(_lfi_mod, "config", _cfg)
-
-
-@pytest.fixture
-def patched_embed_for_indexer(monkeypatch):
-    from app.config import config as app_config
-    dim = app_config.embedding_model_instance.dimension
-    mock = MagicMock(return_value=[0.1] * dim)
-    monkeypatch.setattr(_lfi_mod, "embed_text", mock)
-    return mock
-
-
-@pytest.fixture
-def patched_chunks_for_indexer(monkeypatch):
-    from app.db import Chunk
-    from app.config import config as app_config
-    dim = app_config.embedding_model_instance.dimension
-
-    async def mock_create_chunks(text):
-        return [Chunk(content="chunk", embedding=[0.1] * dim)]
-
-    monkeypatch.setattr(_lfi_mod, "create_document_chunks", mock_create_chunks)
-
-
-@pytest.fixture
-def patched_summary_for_indexer(monkeypatch):
-    monkeypatch.setattr(_lfi_mod, "get_user_long_context_llm", AsyncMock(return_value=None))
+UNIFIED_FIXTURES = (
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text",
+)
 
 
 # ====================================================================
@@ -62,12 +31,7 @@ def patched_summary_for_indexer(monkeypatch):
 
 class TestFullIndexer:
 
-    @pytest.mark.usefixtures(
-        "patched_self_hosted",
-        "patched_embed_for_indexer",
-        "patched_chunks_for_indexer",
-        "patched_summary_for_indexer",
-    )
+    @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
     async def test_i1_new_file_indexed(
         self,
         db_session: AsyncSession,
@@ -103,12 +67,7 @@ class TestFullIndexer:
         assert docs[0].document_type == DocumentType.LOCAL_FOLDER_FILE
         assert DocumentStatus.is_state(docs[0].status, DocumentStatus.READY)
 
-    @pytest.mark.usefixtures(
-        "patched_self_hosted",
-        "patched_embed_for_indexer",
-        "patched_chunks_for_indexer",
-        "patched_summary_for_indexer",
-    )
+    @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
     async def test_i2_unchanged_skipped(
         self,
         db_session: AsyncSession,
@@ -130,7 +89,6 @@ class TestFullIndexer:
         )
         assert count1 == 1
 
-        # Second run — unchanged, pass root_folder_id from first run
         count2, _, _, _ = await index_local_folder(
             session=db_session,
             search_space_id=db_search_space.id,
@@ -151,12 +109,7 @@ class TestFullIndexer:
         ).scalar_one()
         assert total == 1
 
-    @pytest.mark.usefixtures(
-        "patched_self_hosted",
-        "patched_embed_for_indexer",
-        "patched_chunks_for_indexer",
-        "patched_summary_for_indexer",
-    )
+    @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
     async def test_i3_changed_reindexed(
         self,
         db_session: AsyncSession,
@@ -178,9 +131,7 @@ class TestFullIndexer:
             folder_name="test-folder",
         )
 
-        # Modify
         f.write_text("# Version 2\n\nUpdated.")
-        # Touch mtime to ensure it's detected as different
         os.utime(f, (f.stat().st_atime + 10, f.stat().st_mtime + 10))
 
         count, _, _, _ = await index_local_folder(
@@ -193,7 +144,6 @@ class TestFullIndexer:
         )
         assert count == 1
 
-        # Should have a version snapshot
         versions = (
             await db_session.execute(
                 select(DocumentVersion).join(Document).where(
@@ -204,12 +154,7 @@ class TestFullIndexer:
         ).scalars().all()
         assert len(versions) >= 1
 
-    @pytest.mark.usefixtures(
-        "patched_self_hosted",
-        "patched_embed_for_indexer",
-        "patched_chunks_for_indexer",
-        "patched_summary_for_indexer",
-    )
+    @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
     async def test_i4_deleted_removed(
         self,
         db_session: AsyncSession,
@@ -262,12 +207,7 @@ class TestFullIndexer:
         ).scalar_one()
         assert docs_after == 0
 
-    @pytest.mark.usefixtures(
-        "patched_self_hosted",
-        "patched_embed_for_indexer",
-        "patched_chunks_for_indexer",
-        "patched_summary_for_indexer",
-    )
+    @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
     async def test_i5_single_file_mode(
         self,
         db_session: AsyncSession,
@@ -305,18 +245,13 @@ class TestFullIndexer:
 
 
 # ====================================================================
-# Tier 4: Folder Mirroring (F1-F5)
+# Tier 4: Folder Mirroring (F1-F7)
 # ====================================================================
 
 
 class TestFolderMirroring:
 
-    @pytest.mark.usefixtures(
-        "patched_self_hosted",
-        "patched_embed_for_indexer",
-        "patched_chunks_for_indexer",
-        "patched_summary_for_indexer",
-    )
+    @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
     async def test_f1_root_folder_created(
         self,
         db_session: AsyncSession,
@@ -344,12 +279,7 @@ class TestFolderMirroring:
         ).scalar_one()
         assert root_folder.name == "test-folder"
 
-    @pytest.mark.usefixtures(
-        "patched_self_hosted",
-        "patched_embed_for_indexer",
-        "patched_chunks_for_indexer",
-        "patched_summary_for_indexer",
-    )
+    @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
     async def test_f2_nested_folder_rows(
         self,
         db_session: AsyncSession,
@@ -393,12 +323,7 @@ class TestFolderMirroring:
         assert daily_folder.parent_id == notes_folder.id
         assert weekly_folder.parent_id == notes_folder.id
 
-    @pytest.mark.usefixtures(
-        "patched_self_hosted",
-        "patched_embed_for_indexer",
-        "patched_chunks_for_indexer",
-        "patched_summary_for_indexer",
-    )
+    @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
     async def test_f3_resync_reuses_folders(
         self,
         db_session: AsyncSession,
@@ -428,7 +353,6 @@ class TestFolderMirroring:
         ).scalars().all()
         ids_before = {f.id for f in folders_before}
 
-        # Re-sync with root_folder_id from first run
         await index_local_folder(
             session=db_session,
             search_space_id=db_search_space.id,
@@ -447,12 +371,7 @@ class TestFolderMirroring:
 
         assert ids_before == ids_after
 
-    @pytest.mark.usefixtures(
-        "patched_self_hosted",
-        "patched_embed_for_indexer",
-        "patched_chunks_for_indexer",
-        "patched_summary_for_indexer",
-    )
+    @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
     async def test_f4_folder_id_assigned(
         self,
         db_session: AsyncSession,
@@ -496,15 +415,9 @@ class TestFolderMirroring:
 
         assert today_doc.folder_id == daily_folder.id
 
-        # Root doc should be in the root folder
         assert root_doc.folder_id == root_folder_id
 
-    @pytest.mark.usefixtures(
-        "patched_self_hosted",
-        "patched_embed_for_indexer",
-        "patched_chunks_for_indexer",
-        "patched_summary_for_indexer",
-    )
+    @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
     async def test_f5_empty_folder_cleanup(
         self,
         db_session: AsyncSession,
@@ -531,7 +444,6 @@ class TestFolderMirroring:
             folder_name="test-folder",
         )
 
-        # Verify weekly folder exists
         weekly_folder = (
             await db_session.execute(
                 select(Folder).where(Folder.name == "weekly")
@@ -539,7 +451,6 @@ class TestFolderMirroring:
         ).scalar_one_or_none()
         assert weekly_folder is not None
 
-        # Delete weekly directory + its file
         shutil.rmtree(weekly)
 
         await index_local_folder(
@@ -551,7 +462,6 @@ class TestFolderMirroring:
             root_folder_id=root_folder_id,
         )
 
-        # weekly Folder should be gone (empty, dir removed)
         weekly_after = (
             await db_session.execute(
                 select(Folder).where(Folder.name == "weekly")
@@ -559,7 +469,6 @@ class TestFolderMirroring:
         ).scalar_one_or_none()
         assert weekly_after is None
 
-        # daily should still exist
         daily_after = (
             await db_session.execute(
                 select(Folder).where(Folder.name == "daily")
@@ -567,12 +476,7 @@ class TestFolderMirroring:
         ).scalar_one_or_none()
         assert daily_after is not None
 
-    @pytest.mark.usefixtures(
-        "patched_self_hosted",
-        "patched_embed_for_indexer",
-        "patched_chunks_for_indexer",
-        "patched_summary_for_indexer",
-    )
+    @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
     async def test_f6_single_file_creates_subfolder(
         self,
         db_session: AsyncSession,
@@ -634,12 +538,7 @@ class TestFolderMirroring:
         assert daily_folder.parent_id == notes_folder.id
         assert notes_folder.parent_id == root_folder_id
 
-    @pytest.mark.usefixtures(
-        "patched_self_hosted",
-        "patched_embed_for_indexer",
-        "patched_chunks_for_indexer",
-        "patched_summary_for_indexer",
-    )
+    @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
     async def test_f7_single_file_delete_cleans_empty_folders(
         self,
         db_session: AsyncSession,
@@ -705,9 +604,7 @@ class TestFolderMirroring:
 
 class TestPipelineIntegration:
 
-    @pytest.mark.usefixtures(
-        "patched_summarize", "patched_embed_texts", "patched_chunk_text"
-    )
+    @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
     async def test_p1_local_folder_file_through_pipeline(
         self,
         db_session: AsyncSession,
