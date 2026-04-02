@@ -11,6 +11,7 @@ interface WatchedFolderConfig {
 }
 
 interface FolderSyncFileChangedEvent {
+	id: string;
 	rootFolderId: number | null;
 	searchSpaceId: number;
 	folderPath: string;
@@ -63,6 +64,8 @@ interface ElectronAPI {
 	pauseWatcher: () => Promise<void>;
 	resumeWatcher: () => Promise<void>;
 	signalRendererReady: () => Promise<void>;
+	getPendingFileEvents: () => Promise<FolderSyncFileChangedEvent[]>;
+	acknowledgeFileEvents: (eventIds: string[]) => Promise<{ acknowledged: number }>;
 	// Unified browse
 	browseFileOrFolder: () => Promise<BrowseResult | null>;
 	readLocalFiles: (paths: string[]) => Promise<LocalFileData[]>;

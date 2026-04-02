@@ -1,5 +1,6 @@
 import { BrowserWindow, dialog } from 'electron';
 import chokidar, { type FSWatcher } from 'chokidar';
+import { randomUUID } from 'crypto';
 import * as path from 'path';
 import * as fs from 'fs';
 import { IPC_CHANNELS } from '../ipc/channels';
@@ -20,12 +21,27 @@ interface WatcherEntry {
 }
 
 type MtimeMap = Record<string, number>;
+type FolderSyncAction = 'add' | 'change' | 'unlink';
+
+export interface FolderSyncFileChangedEvent {
+  id: string;
+  rootFolderId: number | null;
+  searchSpaceId: number;
+  folderPath: string;
+  folderName: string;
+  relativePath: string;
+  fullPath: string;
+  action: FolderSyncAction;
+  timestamp: number;
+}
 
 const STORE_KEY = 'watchedFolders';
+const OUTBOX_STORE_KEY = 'events';
 const MTIME_TOLERANCE_S = 1.0;
 
 let store: any = null;
 let mtimeStore: any = null;
+let outboxStore: any = null;
 let watchers: Map<string, WatcherEntry> = new Map();
 
 /**
@@ -35,22 +51,11 @@ let watchers: Map<string, WatcherEntry> = new Map();
 const mtimeMaps: Map<string, MtimeMap> = new Map();
 
 let rendererReady = false;
-const pendingEvents: any[] = [];
+const outboxEvents: Map<string, FolderSyncFileChangedEvent> = new Map();
+let outboxLoaded = false;
 
 export function markRendererReady() {
   rendererReady = true;
-  for (const event of pendingEvents) {
-    sendToRenderer(IPC_CHANNELS.FOLDER_SYNC_FILE_CHANGED, event);
-  }
-  pendingEvents.length = 0;
-}
-
-function sendFileChangedEvent(data: any) {
-  if (rendererReady) {
-    sendToRenderer(IPC_CHANNELS.FOLDER_SYNC_FILE_CHANGED, data);
-  } else {
-    pendingEvents.push(data);
-  }
 }
 
 async function getStore() {
@@ -75,6 +80,57 @@ async function getMtimeStore() {
     });
   }
   return mtimeStore;
+}
+
+async function getOutboxStore() {
+  if (!outboxStore) {
+    const { default: Store } = await import('electron-store');
+    outboxStore = new Store({
+      name: 'folder-sync-outbox',
+      defaults: {
+        [OUTBOX_STORE_KEY]: [] as FolderSyncFileChangedEvent[],
+      },
+    });
+  }
+  return outboxStore;
+}
+
+function makeEventKey(event: Pick<FolderSyncFileChangedEvent, 'folderPath' | 'relativePath'>): string {
+  return `${event.folderPath}:${event.relativePath}`;
+}
+
+function persistOutbox() {
+  getOutboxStore().then((s) => {
+    s.set(OUTBOX_STORE_KEY, Array.from(outboxEvents.values()));
+  });
+}
+
+async function loadOutbox() {
+  if (outboxLoaded) return;
+  const s = await getOutboxStore();
+  const stored: FolderSyncFileChangedEvent[] = s.get(OUTBOX_STORE_KEY, []);
+  outboxEvents.clear();
+  for (const event of stored) {
+    if (!event?.id || !event.folderPath || !event.relativePath) continue;
+    outboxEvents.set(makeEventKey(event), event);
+  }
+  outboxLoaded = true;
+}
+
+function sendFileChangedEvent(
+  data: Omit<FolderSyncFileChangedEvent, 'id'>
+) {
+  const event: FolderSyncFileChangedEvent = {
+    id: randomUUID(),
+    ...data,
+  };
+
+  outboxEvents.set(makeEventKey(event), event);
+  persistOutbox();
+
+  if (rendererReady) {
+    sendToRenderer(IPC_CHANNELS.FOLDER_SYNC_FILE_CHANGED, event);
+  }
 }
 
 function loadMtimeMap(folderPath: string): MtimeMap {
@@ -235,7 +291,7 @@ async function startWatcher(config: WatchedFolderConfig) {
     });
   });
 
-  const handleFileEvent = (filePath: string, action: string) => {
+  const handleFileEvent = (filePath: string, action: FolderSyncAction) => {
     if (!ready) return;
 
     const relativePath = path.relative(config.path, filePath);
@@ -357,6 +413,32 @@ export async function getWatcherStatus(): Promise<
   }));
 }
 
+export async function getPendingFileEvents(): Promise<FolderSyncFileChangedEvent[]> {
+  await loadOutbox();
+  return Array.from(outboxEvents.values()).sort((a, b) => a.timestamp - b.timestamp);
+}
+
+export async function acknowledgeFileEvents(eventIds: string[]): Promise<{ acknowledged: number }> {
+  if (!eventIds || eventIds.length === 0) return { acknowledged: 0 };
+  await loadOutbox();
+
+  const ackSet = new Set(eventIds);
+  let acknowledged = 0;
+
+  for (const [key, event] of outboxEvents.entries()) {
+    if (ackSet.has(event.id)) {
+      outboxEvents.delete(key);
+      acknowledged += 1;
+    }
+  }
+
+  if (acknowledged > 0) {
+    persistOutbox();
+  }
+
+  return { acknowledged };
+}
+
 export async function pauseWatcher(): Promise<void> {
   for (const [, entry] of watchers) {
     if (entry.watcher) {
@@ -375,6 +457,7 @@ export async function resumeWatcher(): Promise<void> {
 }
 
 export async function registerFolderWatcher(): Promise<void> {
+  await loadOutbox();
   const s = await getStore();
   const folders: WatchedFolderConfig[] = s.get(STORE_KEY, []);
 

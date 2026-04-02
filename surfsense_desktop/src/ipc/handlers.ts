@@ -6,6 +6,8 @@ import {
   removeWatchedFolder,
   getWatchedFolders,
   getWatcherStatus,
+  getPendingFileEvents,
+  acknowledgeFileEvents,
   pauseWatcher,
   resumeWatcher,
   markRendererReady,
@@ -51,6 +53,14 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.FOLDER_SYNC_RENDERER_READY, () => {
     markRendererReady();
   });
+
+  ipcMain.handle(IPC_CHANNELS.FOLDER_SYNC_GET_PENDING_EVENTS, () =>
+    getPendingFileEvents()
+  );
+
+  ipcMain.handle(IPC_CHANNELS.FOLDER_SYNC_ACK_EVENTS, (_event, eventIds: string[]) =>
+    acknowledgeFileEvents(eventIds)
+  );
 
   ipcMain.handle(IPC_CHANNELS.BROWSE_FILE_OR_FOLDER, () => browseFileOrFolder());
 
