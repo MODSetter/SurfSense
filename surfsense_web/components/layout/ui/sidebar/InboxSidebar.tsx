@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
 import { setTargetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
 import { convertRenderedToDisplay } from "@/components/chat-comments/comment-item/comment-item";
@@ -289,15 +289,14 @@ export function InboxSidebarContent({
 		[activeFilter]
 	);
 
+	// Defer non-urgent list updates so the search input stays responsive.
+	// The deferred snapshot lags one render behind the live value intentionally.
+	const deferredTabItems = useDeferredValue(activeSource.items);
+	const deferredSearchItems = useDeferredValue(searchResponse?.items ?? []);
+
 	// Two data paths: search mode (API) or default (per-tab data source)
 	const filteredItems = useMemo(() => {
-		let tabItems: InboxItem[];
-
-		if (isSearchMode) {
-			tabItems = searchResponse?.items ?? [];
-		} else {
-			tabItems = activeSource.items;
-		}
+		const tabItems: InboxItem[] = isSearchMode ? deferredSearchItems : deferredTabItems;
 
 		let result = tabItems;
 		if (activeFilter !== "all") {
@@ -310,8 +309,8 @@ export function InboxSidebarContent({
 		return result;
 	}, [
 		isSearchMode,
-		searchResponse,
-		activeSource.items,
+		deferredSearchItems,
+		deferredTabItems,
 		activeTab,
 		activeFilter,
 		selectedSource,
@@ -920,6 +919,7 @@ export function InboxSidebarContent({
 										"transition-colors cursor-pointer",
 										isMarkingAsRead && "opacity-50 pointer-events-none"
 									)}
+									style={{ contentVisibility: "auto", containIntrinsicSize: "0 80px" }}
 								>
 									{isMobile ? (
 										<button

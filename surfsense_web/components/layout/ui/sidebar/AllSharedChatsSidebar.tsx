@@ -349,7 +349,7 @@ export function AllSharedChatsSidebarContent({
 								<div
 									key={thread.id}
 									className={cn(
-										"group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm",
+										"sidebar-item-lazy group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm",
 										"hover:bg-accent hover:text-accent-foreground",
 										"transition-colors cursor-pointer",
 										isActive && "bg-accent text-accent-foreground",

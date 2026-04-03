@@ -21,9 +21,28 @@
 </div>
 
 # SurfSense
-将任何 LLM 连接到您的内部知识源，并与团队成员实时聊天。NotebookLM、Perplexity 和 Glean 的开源替代方案。
 
-SurfSense 是一个高度可定制的 AI 研究助手，可以连接外部数据源，如搜索引擎（SearxNG、Tavily、LinkUp）、Google Drive、OneDrive、Dropbox、Slack、Microsoft Teams、Linear、Jira、ClickUp、Confluence、BookStack、Gmail、Notion、YouTube、GitHub、Discord、Airtable、Google Calendar、Luma、Circleback、Elasticsearch、Obsidian 等，未来还会支持更多。
+NotebookLM 是目前最好、最实用的 AI 平台之一，但当你开始经常使用它时，你也会感受到它的局限性，总觉得还有不足之处。
+
+1. 一个笔记本中可以添加的来源数量有限制。
+2. 可以拥有的笔记本数量有限制。
+3. 来源不能超过 500,000 个单词和 200MB。
+4. 你被锁定在 Google 服务中（LLM、使用模型等），没有配置选项。
+5. 有限的外部数据源和服务集成。
+6. NotebookLM 代理专门针对学习和研究进行了优化，但你可以用源数据做更多事情。
+7. 缺乏多人协作支持。
+
+...还有更多。
+
+**SurfSense 正是为了解决这些问题而生。** SurfSense 赋予你：
+
+- **控制你的数据流** - 保持数据私密和安全。
+- **无数据限制** - 添加无限数量的来源和笔记本。
+- **无供应商锁定** - 配置任何 LLM、图像、TTS 和 STT 模型。
+- **25+ 外部数据源** - 从 Google Drive、OneDrive、Dropbox、Notion 和许多其他外部服务添加你的来源。
+- **实时多人协作支持** - 在共享笔记本中轻松与团队成员协作。
+
+...更多功能即将推出。
 
 
 
@@ -34,7 +53,7 @@ https://github.com/user-attachments/assets/cc0c84d3-1f2f-4f7a-b519-2ecce22310b1
 ## 视频代理示例
 
 
-https://github.com/user-attachments/assets/cc977e6d-8292-4ffe-abb8-3b0560ef5562
+https://github.com/user-attachments/assets/012a7ffa-6f76-4f06-9dda-7632b470057a
 
 
 
@@ -133,24 +152,29 @@ irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/in
 
    <p align="center"><img src="https://github.com/user-attachments/assets/3b04477d-8f42-4baa-be95-867c1eaeba87" alt="实时评论" /></p>
 
-## 核心功能
+## SurfSense vs Google NotebookLM
 
-| 功能 | 描述 |
-|------|------|
-| 开源替代方案 | 支持实时团队协作的 NotebookLM、Perplexity 和 Glean 替代品 |
-| 50+ 文件格式 | 通过 LlamaCloud、Unstructured 或 Docling（本地）上传文档、图像、视频 |
-| 混合搜索 | 语义搜索 + 全文搜索，结合层次化索引和倒数排名融合 |
-| 引用回答 | 与知识库对话，获得 Perplexity 风格的引用回答 |
-| 深度代理架构 | 基于 [LangChain Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) 构建，支持规划、子代理和文件系统访问 |
-| 通用 LLM 支持 | 100+ LLM、6000+ 嵌入模型、所有主流重排序器，通过 OpenAI spec 和 LiteLLM |
-| 隐私优先 | 完整本地 LLM 支持（vLLM、Ollama），您的数据由您掌控 |
-| 团队协作 | RBAC 角色控制（所有者/管理员/编辑者/查看者），实时聊天和评论线程 |
-| 视频生成 | 生成带有旁白和视觉效果的视频 |
-| 演示文稿生成 | 创建可编辑的幻灯片式演示文稿 |
-| 播客生成 | 20 秒内生成 3 分钟播客；多种 TTS 提供商（OpenAI、Azure、Kokoro） |
-| 浏览器扩展 | 跨浏览器扩展，保存任何网页，包括需要身份验证的页面 |
-| 27+ 连接器 | 搜索引擎、Google Drive、OneDrive、Dropbox、Slack、Teams、Jira、Notion、GitHub、Discord 等[更多](#外部数据源) |
-| 可自托管 | 开源，Docker 一行命令或完整 Docker Compose 用于生产环境 |
+| 功能 | Google NotebookLM | SurfSense |
+|---------|-------------------|-----------|
+| **每个笔记本的来源数** | 50（免费）到 600（Ultra，$249.99/月） | 无限制 |
+| **笔记本数量** | 100（免费）到 500（付费方案） | 无限制 |
+| **来源大小限制** | 500,000 词 / 200MB 每个来源 | 无限制 |
+| **定价** | 免费版可用；Pro $19.99/月，Ultra $249.99/月 | 免费开源，在自己的基础设施上自托管 |
+| **LLM 支持** | 仅 Google Gemini | 100+ LLM，通过 OpenAI spec 和 LiteLLM |
+| **嵌入模型** | 仅 Google | 6,000+ 嵌入模型，所有主流重排序器 |
+| **本地 / 私有 LLM** | 不可用 | 完整支持（vLLM、Ollama）- 您的数据由您掌控 |
+| **可自托管** | 否 | 是 - Docker 一行命令或完整 Docker Compose |
+| **开源** | 否 | 是 |
+| **外部连接器** | Google Drive、YouTube、网站 | 27+ 连接器 - 搜索引擎、Google Drive、OneDrive、Dropbox、Slack、Teams、Jira、Notion、GitHub、Discord 等[更多](#外部数据源) |
+| **文件格式支持** | PDF、Docs、Slides、Sheets、CSV、Word、EPUB、图像、网页 URL、YouTube | 50+ 格式 - 文档、图像、视频，通过 LlamaCloud、Unstructured 或 Docling（本地） |
+| **搜索** | 语义搜索 | 混合搜索 - 语义 + 全文搜索，结合层次化索引和倒数排名融合 |
+| **引用回答** | 是 | 是 - Perplexity 风格的引用回答 |
+| **代理架构** | 否 | 是 - 基于 [LangChain Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) 构建，支持规划、子代理和文件系统访问 |
+| **实时多人协作** | 共享笔记本，支持查看者/编辑者角色（无实时聊天） | RBAC 角色控制（所有者/管理员/编辑者/查看者），实时聊天和评论线程 |
+| **视频生成** | 通过 Veo 3 的电影级视频概览（仅 Ultra） | 可用（NotebookLM 在此方面更好，正在积极改进） |
+| **演示文稿生成** | 更美观的幻灯片但不可编辑 | 创建可编辑的幻灯片式演示文稿 |
+| **播客生成** | 可自定义主持人和语言的音频概览 | 可用，支持多种 TTS 提供商（NotebookLM 在此方面更好，正在积极改进） |
+| **浏览器扩展** | 否 | 跨浏览器扩展，保存任何网页，包括需要身份验证的页面 |
 
 <details>
 <summary><b>外部数据源完整列表</b></summary>

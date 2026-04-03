@@ -4,6 +4,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
 	forwardRef,
 	useCallback,
+	useDeferredValue,
 	useEffect,
 	useImperativeHandle,
 	useMemo,
@@ -81,6 +82,9 @@ export const DocumentMentionPicker = forwardRef<
 	// Debounced search value to minimize API calls and prevent race conditions
 	const search = externalSearch;
 	const debouncedSearch = useDebounced(search, DEBOUNCE_MS);
+	// Deferred snapshot of debouncedSearch — client-side filtering uses this so it
+	// is treated as a non-urgent update, keeping the input responsive.
+	const deferredSearch = useDeferredValue(debouncedSearch);
 	const [highlightedIndex, setHighlightedIndex] = useState(0);
 	const itemRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -245,12 +249,14 @@ export const DocumentMentionPicker = forwardRef<
 	 * Client-side filtering for single character searches.
 	 * Filters cached documents locally for instant feedback without additional API calls.
 	 * Server-side search is reserved for 2+ character queries to leverage database indexing.
+	 * Uses deferredSearch (a deferred snapshot of debouncedSearch) so this memo is treated
+	 * as non-urgent — React can interrupt it to keep the input responsive.
 	 */
 	const clientFilteredDocs = useMemo(() => {
 		if (!isSingleCharSearch) return null;
-		const searchLower = debouncedSearch.trim().toLowerCase();
+		const searchLower = deferredSearch.trim().toLowerCase();
 		return accumulatedDocuments.filter((doc) => doc.title.toLowerCase().includes(searchLower));
-	}, [isSingleCharSearch, debouncedSearch, accumulatedDocuments]);
+	}, [isSingleCharSearch, deferredSearch, accumulatedDocuments]);
 
 	// Select data source based on search length: client-filtered for single char, server results for 2+
 	const actualDocuments = isSingleCharSearch ? (clientFilteredDocs ?? []) : accumulatedDocuments;

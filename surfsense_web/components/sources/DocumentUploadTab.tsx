@@ -1,10 +1,10 @@
 "use client";
 
 import { useAtom } from "jotai";
-import { CheckCircle2, FileType, Info, Upload, X } from "lucide-react";
+import { CheckCircle2, FileType, FolderOpen, Info, Upload, X } from "lucide-react";
 
 import { useTranslations } from "next-intl";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, useCallback, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { uploadDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
@@ -51,6 +51,7 @@ const commonTypes = {
 	"application/vnd.openxmlformats-officedocument.presentationml.presentation": [".pptx"],
 	"text/html": [".html", ".htm"],
 	"text/csv": [".csv"],
+	"text/tab-separated-values": [".tsv"],
 	"image/jpeg": [".jpg", ".jpeg"],
 	"image/png": [".png"],
 	"image/bmp": [".bmp"],
@@ -76,7 +77,6 @@ const FILE_TYPE_CONFIG: Record<string, Record<string, string[]>> = {
 		"application/rtf": [".rtf"],
 		"application/xml": [".xml"],
 		"application/epub+zip": [".epub"],
-		"text/tab-separated-values": [".tsv"],
 		"text/html": [".html", ".htm", ".web"],
 		"image/gif": [".gif"],
 		"image/svg+xml": [".svg"],
@@ -102,7 +102,6 @@ const FILE_TYPE_CONFIG: Record<string, Record<string, string[]>> = {
 		"application/vnd.ms-powerpoint": [".ppt"],
 		"text/x-rst": [".rst"],
 		"application/rtf": [".rtf"],
-		"text/tab-separated-values": [".tsv"],
 		"application/vnd.ms-excel": [".xls"],
 		"application/xml": [".xml"],
 		...audioFileTypes,
@@ -116,10 +115,8 @@ interface FileWithId {
 
 const cardClass = "border border-border bg-slate-400/5 dark:bg-white/5";
 
-// Upload limits — files are sent in batches of 5 to avoid proxy timeouts
-const MAX_FILES = 50;
-const MAX_TOTAL_SIZE_MB = 200;
-const MAX_TOTAL_SIZE_BYTES = MAX_TOTAL_SIZE_MB * 1024 * 1024;
+const MAX_FILE_SIZE_MB = 500;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 export function DocumentUploadTab({
 	searchSpaceId,
@@ -134,6 +131,7 @@ export function DocumentUploadTab({
 	const [uploadDocumentMutation] = useAtom(uploadDocumentMutationAtom);
 	const { mutate: uploadDocuments, isPending: isUploading } = uploadDocumentMutation;
 	const fileInputRef = useRef<HTMLInputElement>(null);
+	const folderInputRef = useRef<HTMLInputElement>(null);
 
 	const acceptedFileTypes = useMemo(() => {
 		const etlService = process.env.NEXT_PUBLIC_ETL_SERVICE;
@@ -145,48 +143,75 @@ export function DocumentUploadTab({
 		[acceptedFileTypes]
 	);
 
-	const onDrop = useCallback(
-		(acceptedFiles: File[]) => {
+	const supportedExtensionsSet = useMemo(
+		() => new Set(supportedExtensions.map((ext) => ext.toLowerCase())),
+		[supportedExtensions]
+	);
+
+	const addFiles = useCallback(
+		(incoming: File[]) => {
+			const oversized = incoming.filter((f) => f.size > MAX_FILE_SIZE_BYTES);
+			if (oversized.length > 0) {
+				toast.error(t("file_too_large"), {
+					description: t("file_too_large_desc", {
+						name: oversized[0].name,
+						maxMB: MAX_FILE_SIZE_MB,
+					}),
+				});
+			}
+			const valid = incoming.filter((f) => f.size <= MAX_FILE_SIZE_BYTES);
+			if (valid.length === 0) return;
+
 			setFiles((prev) => {
-				const newEntries = acceptedFiles.map((f) => ({
+				const newEntries = valid.map((f) => ({
 					id: crypto.randomUUID?.() ?? `file-${Date.now()}-${Math.random().toString(36)}`,
 					file: f,
 				}));
-				const newFiles = [...prev, ...newEntries];
-
-				if (newFiles.length > MAX_FILES) {
-					toast.error(t("max_files_exceeded"), {
-						description: t("max_files_exceeded_desc", { max: MAX_FILES }),
-					});
-					return prev;
-				}
-
-				const newTotalSize = newFiles.reduce((sum, entry) => sum + entry.file.size, 0);
-				if (newTotalSize > MAX_TOTAL_SIZE_BYTES) {
-					toast.error(t("max_size_exceeded"), {
-						description: t("max_size_exceeded_desc", { max: MAX_TOTAL_SIZE_MB }),
-					});
-					return prev;
-				}
-
-				return newFiles;
+				return [...prev, ...newEntries];
 			});
 		},
 		[t]
 	);
 
+	const onDrop = useCallback(
+		(acceptedFiles: File[]) => {
+			addFiles(acceptedFiles);
+		},
+		[addFiles]
+	);
+
 	const { getRootProps, getInputProps, isDragActive } = useDropzone({
 		onDrop,
 		accept: acceptedFileTypes,
-		maxSize: 50 * 1024 * 1024, // 50MB per file
+		maxSize: MAX_FILE_SIZE_BYTES,
 		noClick: false,
-		disabled: files.length >= MAX_FILES,
 	});
 
-	// Handle file input click to prevent event bubbling that might reopen dialog
 	const handleFileInputClick = useCallback((e: React.MouseEvent<HTMLInputElement>) => {
 		e.stopPropagation();
 	}, []);
+
+	const handleFolderChange = useCallback(
+		(e: ChangeEvent<HTMLInputElement>) => {
+			const fileList = e.target.files;
+			if (!fileList || fileList.length === 0) return;
+
+			const folderFiles = Array.from(fileList).filter((f) => {
+				const ext = f.name.includes(".") ? `.${f.name.split(".").pop()?.toLowerCase()}` : "";
+				return ext !== "" && supportedExtensionsSet.has(ext);
+			});
+
+			if (folderFiles.length === 0) {
+				toast.error(t("no_supported_files_in_folder"));
+				e.target.value = "";
+				return;
+			}
+
+			addFiles(folderFiles);
+			e.target.value = "";
+		},
+		[addFiles, supportedExtensionsSet, t]
+	);
 
 	const formatFileSize = (bytes: number) => {
 		if (bytes === 0) return "0 Bytes";
@@ -197,15 +222,6 @@ export function DocumentUploadTab({
 	};
 
 	const totalFileSize = files.reduce((total, entry) => total + entry.file.size, 0);
-
-	// Check if limits are reached
-	const isFileCountLimitReached = files.length >= MAX_FILES;
-	const isSizeLimitReached = totalFileSize >= MAX_TOTAL_SIZE_BYTES;
-	const remainingFiles = MAX_FILES - files.length;
-	const remainingSizeMB = Math.max(
-		0,
-		(MAX_TOTAL_SIZE_BYTES - totalFileSize) / (1024 * 1024)
-	).toFixed(1);
 
 	// Track accordion state changes
 	const handleAccordionChange = useCallback(
@@ -257,10 +273,19 @@ export function DocumentUploadTab({
 			<Alert className="border border-border bg-slate-400/5 dark:bg-white/5">
 				<Info className="h-4 w-4 shrink-0 mt-0.5" />
 				<AlertDescription className="text-xs sm:text-sm leading-relaxed pt-0.5">
-					{t("file_size_limit")}{" "}
-					{t("upload_limits", { maxFiles: MAX_FILES, maxSizeMB: MAX_TOTAL_SIZE_MB })}
+					{t("file_size_limit", { maxMB: MAX_FILE_SIZE_MB })} {t("upload_limits")}
 				</AlertDescription>
 			</Alert>
+
+			{/* Hidden folder input */}
+			<input
+				ref={folderInputRef}
+				type="file"
+				className="hidden"
+				onChange={handleFolderChange}
+				multiple
+				{...({ webkitdirectory: "", directory: "" } as React.InputHTMLAttributes<HTMLInputElement>)}
+			/>
 
 			<Card className={`relative overflow-hidden ${cardClass}`}>
 				<div className="absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,white,transparent)] opacity-30">
@@ -269,11 +294,7 @@ export function DocumentUploadTab({
 				<CardContent className="p-4 sm:p-10 relative z-10">
 					<div
 						{...getRootProps()}
-						className={`flex flex-col items-center justify-center min-h-[200px] sm:min-h-[300px] border-2 border-dashed rounded-lg transition-colors ${
-							isFileCountLimitReached || isSizeLimitReached
-								? "border-destructive/50 bg-destructive/5 cursor-not-allowed"
-								: "border-border hover:border-primary/50 cursor-pointer"
-						}`}
+						className="flex flex-col items-center justify-center min-h-[200px] sm:min-h-[300px] border-2 border-dashed rounded-lg transition-colors border-border hover:border-primary/50 cursor-pointer"
 					>
 						<input
 							{...getInputProps()}
@@ -281,19 +302,7 @@ export function DocumentUploadTab({
 							className="hidden"
 							onClick={handleFileInputClick}
 						/>
-						{isFileCountLimitReached ? (
-							<div className="flex flex-col items-center gap-2 sm:gap-4 text-center px-4">
-								<Upload className="h-8 w-8 sm:h-12 sm:w-12 text-destructive/70" />
-								<div>
-									<p className="text-sm sm:text-lg font-medium text-destructive">
-										{t("file_limit_reached")}
-									</p>
-									<p className="text-xs sm:text-sm text-muted-foreground mt-1">
-										{t("file_limit_reached_desc", { max: MAX_FILES })}
-									</p>
-								</div>
-							</div>
-						) : isDragActive ? (
+						{isDragActive ? (
 							<div className="flex flex-col items-center gap-2 sm:gap-4">
 								<Upload className="h-8 w-8 sm:h-12 sm:w-12 text-primary" />
 								<p className="text-sm sm:text-lg font-medium text-primary">{t("drop_files")}</p>
@@ -305,29 +314,35 @@ export function DocumentUploadTab({
 									<p className="text-sm sm:text-lg font-medium">{t("drag_drop")}</p>
 									<p className="text-xs sm:text-sm text-muted-foreground mt-1">{t("or_browse")}</p>
 								</div>
-								{files.length > 0 && (
-									<p className="text-xs text-muted-foreground">
-										{t("remaining_capacity", { files: remainingFiles, sizeMB: remainingSizeMB })}
-									</p>
-								)}
 							</div>
 						)}
-						{!isFileCountLimitReached && (
-							<div className="mt-2 sm:mt-4">
-								<Button
-									variant="secondary"
-									size="sm"
-									className="text-xs sm:text-sm"
-									onClick={(e) => {
-										e.stopPropagation();
-										e.preventDefault();
-										fileInputRef.current?.click();
-									}}
-								>
-									{t("browse_files")}
-								</Button>
-							</div>
-						)}
+						<div className="mt-2 sm:mt-4 flex gap-2">
+							<Button
+								variant="secondary"
+								size="sm"
+								className="text-xs sm:text-sm"
+								onClick={(e) => {
+									e.stopPropagation();
+									e.preventDefault();
+									fileInputRef.current?.click();
+								}}
+							>
+								{t("browse_files")}
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								className="text-xs sm:text-sm"
+								onClick={(e) => {
+									e.stopPropagation();
+									e.preventDefault();
+									folderInputRef.current?.click();
+								}}
+							>
+								<FolderOpen className="h-4 w-4 mr-1.5" />
+								{t("browse_folder")}
+							</Button>
+						</div>
 					</div>
 				</CardContent>
 			</Card>
