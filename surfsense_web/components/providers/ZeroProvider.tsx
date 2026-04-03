@@ -6,7 +6,7 @@ import {
 	ZeroProvider as ZeroReactProvider,
 } from "@rocicorp/zero/react";
 import { useAtomValue } from "jotai";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { getBearerToken, handleUnauthorized, refreshAccessToken } from "@/lib/auth-utils";
 import { queries } from "@/zero/queries";
@@ -48,14 +48,17 @@ export function ZeroProvider({ children }: { children: React.ReactNode }) {
 	const context = hasUser ? { userId: String(user.id) } : undefined;
 	const auth = hasUser ? getBearerToken() || undefined : undefined;
 
-	const opts = {
-		userID,
-		schema,
-		queries,
-		context,
-		cacheURL,
-		auth,
-	};
+	const opts = useMemo(
+		() => ({
+			userID,
+			schema,
+			queries,
+			context,
+			cacheURL,
+			auth,
+		}),
+		[userID, schema, queries, context, cacheURL, auth],
+	);
 
 	return (
 		<ZeroReactProvider {...opts}>
