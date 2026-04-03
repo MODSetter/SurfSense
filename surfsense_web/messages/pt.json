@@ -376,8 +376,8 @@
 	"upload_documents": {
 		"title": "Enviar documentos",
 		"subtitle": "Envie seus arquivos para torná-los pesquisáveis e acessíveis através de conversas com IA.",
-		"file_size_limit": "Tamanho máximo do arquivo: 50 MB por arquivo.",
-		"upload_limits": "Limite de envio: {maxFiles} arquivos, {maxSizeMB} MB no total.",
+		"file_size_limit": "Tamanho máximo do arquivo: 50 MB por arquivo",
+		"upload_limits": "Limite de envio: {maxFiles} arquivos, {maxSizeMB} MB no total",
 		"drop_files": "Solte os arquivos aqui",
 		"drag_drop": "Arraste e solte arquivos aqui",
 		"or_browse": "ou clique para navegar",

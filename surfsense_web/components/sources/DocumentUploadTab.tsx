@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtom } from "jotai";
-import { CheckCircle2, ChevronDown, File as FileIcon, FileType, FolderOpen, Plus, Upload, X } from "lucide-react";
+import { ChevronDown, Dot, File as FileIcon, FolderOpen, Upload, X } from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -22,7 +22,6 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
@@ -362,12 +361,12 @@ export function DocumentUploadTab({
 			return (
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-						<Button variant="secondary" size="sm" className={`text-xs gap-1 ${sizeClass} ${widthClass}`}>
+						<Button variant="ghost" size="sm" className={`text-xs gap-1 bg-neutral-700/50 hover:bg-neutral-600/50 ${sizeClass} ${widthClass}`}>
 							Browse
 							<ChevronDown className="h-3 w-3 opacity-60" />
 						</Button>
 					</DropdownMenuTrigger>
-					<DropdownMenuContent align="center" onClick={(e) => e.stopPropagation()}>
+					<DropdownMenuContent align="center" className="dark:bg-neutral-800" onClick={(e) => e.stopPropagation()}>
 						<DropdownMenuItem onClick={handleBrowseFiles}>
 							<FileIcon className="h-4 w-4 mr-2" />
 							Files
@@ -416,32 +415,31 @@ export function DocumentUploadTab({
 								{renderBrowseButton({ compact: true, fullWidth: true })}
 							</div>
 						) : (
-							<Button
-								variant="outline"
-								size="sm"
-								className="w-full text-xs h-8 gap-1.5 border-dashed border-muted-foreground/30"
+							<button
+								type="button"
+								className="w-full text-xs h-8 flex items-center justify-center gap-1.5 rounded-md border border-dashed border-muted-foreground/30 text-muted-foreground hover:text-foreground hover:border-foreground/50 transition-colors"
 								onClick={() => fileInputRef.current?.click()}
 							>
-								<Plus className="h-3.5 w-3.5" />
 								Add more files
-							</Button>
+							</button>
 						)
 					)
 				) : (
 					<div
-						className="flex flex-col items-center gap-3 py-6 px-4 cursor-pointer"
+						className="flex flex-col items-center gap-4 py-12 px-4 cursor-pointer"
 						onClick={() => {
 							if (!isElectron) fileInputRef.current?.click();
 						}}
 					>
-						<Upload className="h-7 w-7 text-muted-foreground" />
-						<div className="text-center space-y-1">
-							<p className="text-sm font-medium">
+						<Upload className="h-10 w-10 text-muted-foreground" />
+						<div className="text-center space-y-1.5">
+							<p className="text-base font-medium">
 								{isElectron ? "Select files or folder" : "Tap to select files"}
 							</p>
-							<p className="text-xs text-muted-foreground">
-								{t("file_size_limit")}{" "}
-								{t("upload_limits", { maxFiles: MAX_FILES, maxSizeMB: MAX_TOTAL_SIZE_MB })}
+							<p className="text-sm text-muted-foreground inline-flex items-center flex-wrap justify-center">
+								<span>{t("file_size_limit")}</span>
+								<Dot className="h-4 w-4 shrink-0" />
+								<span>{t("upload_limits", { maxFiles: MAX_FILES, maxSizeMB: MAX_TOTAL_SIZE_MB })}</span>
 							</p>
 						</div>
 						{isElectron && (
@@ -491,9 +489,10 @@ export function DocumentUploadTab({
 					<div className="flex flex-col items-center gap-2">
 						<Upload className="h-8 w-8 text-muted-foreground" />
 						<p className="text-sm font-medium">{t("drag_drop")}</p>
-						<p className="text-xs text-muted-foreground text-center">
-							{t("file_size_limit")}{" "}
-							{t("upload_limits", { maxFiles: MAX_FILES, maxSizeMB: MAX_TOTAL_SIZE_MB })}
+						<p className="text-xs text-muted-foreground text-center inline-flex items-center flex-wrap justify-center">
+							<span>{t("file_size_limit")}</span>
+							<Dot className="h-4 w-4 shrink-0" />
+							<span>{t("upload_limits", { maxFiles: MAX_FILES, maxSizeMB: MAX_TOTAL_SIZE_MB })}</span>
 						</p>
 						<div className="mt-1">{renderBrowseButton()}</div>
 					</div>
@@ -520,28 +519,29 @@ export function DocumentUploadTab({
 						</Button>
 					</div>
 
-					<div className={toggleRowClass}>
-						<Label htmlFor="watch-folder-toggle" className="flex flex-col gap-0.5 cursor-pointer">
-							<span className="text-sm font-medium">Watch folder</span>
-							<span className="text-xs text-muted-foreground font-normal">
-								Auto-sync when files change
-							</span>
-						</Label>
-						<Switch
-							id="watch-folder-toggle"
-							checked={watchFolder}
-							onCheckedChange={setWatchFolder}
-						/>
-					</div>
-
-					<div className={toggleRowClass}>
-						<div className="space-y-0.5">
-							<p className="font-medium text-sm">Enable AI Summary</p>
-							<p className="text-xs text-muted-foreground">
-								Improves search quality but adds latency
-							</p>
+					<div className="rounded-lg bg-slate-400/5 dark:bg-white/5 divide-y divide-border">
+						<div className="flex items-center justify-between p-3">
+							<div className="space-y-0.5">
+								<p className="font-medium text-sm">Watch folder</p>
+								<p className="text-xs text-muted-foreground">
+									Auto-sync when files change
+								</p>
+							</div>
+							<Switch
+								id="watch-folder-toggle"
+								checked={watchFolder}
+								onCheckedChange={setWatchFolder}
+							/>
 						</div>
-						<Switch checked={shouldSummarize} onCheckedChange={setShouldSummarize} />
+						<div className="flex items-center justify-between p-3">
+							<div className="space-y-0.5">
+								<p className="font-medium text-sm">Enable AI Summary</p>
+								<p className="text-xs text-muted-foreground">
+									Improves search quality but adds latency
+								</p>
+							</div>
+							<Switch checked={shouldSummarize} onCheckedChange={setShouldSummarize} />
+						</div>
 					</div>
 
 					<Button
@@ -585,7 +585,9 @@ export function DocumentUploadTab({
 								key={entry.id}
 								className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-slate-400/5 dark:hover:bg-white/5 group"
 							>
-								<FileType className="h-4 w-4 text-muted-foreground shrink-0" />
+								<span className="text-[10px] font-medium uppercase leading-none bg-muted px-1.5 py-0.5 rounded text-muted-foreground shrink-0">
+									{entry.file.name.split(".").pop() || "?"}
+								</span>
 								<span className="text-sm truncate flex-1 min-w-0">{entry.file.name}</span>
 								<span className="text-xs text-muted-foreground shrink-0">
 									{formatFileSize(entry.file.size)}
@@ -635,7 +637,6 @@ export function DocumentUploadTab({
 							</span>
 						) : (
 							<span className="flex items-center gap-2">
-								<CheckCircle2 className="h-4 w-4" />
 								{t("upload_button", { count: files.length })}
 							</span>
 						)}
@@ -649,7 +650,7 @@ export function DocumentUploadTab({
 				collapsible
 				value={accordionValue}
 				onValueChange={handleAccordionChange}
-				className="w-full"
+				className="w-full mt-5"
 			>
 				<AccordionItem value="supported-file-types" className="border border-border rounded-lg">
 					<AccordionTrigger className="px-3 py-2.5 hover:no-underline !items-center [&>svg]:!translate-y-0">
