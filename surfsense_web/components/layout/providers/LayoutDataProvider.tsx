@@ -775,7 +775,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 					<AlertDialogHeader>
 						<AlertDialogTitle>{t("delete_chat")}</AlertDialogTitle>
 						<AlertDialogDescription>
-							{t("delete_chat_confirm")} <span className="font-medium">{chatToDelete?.name}</span>?{" "}
+							{t("delete_chat_confirm")}{" "}
+							<span className="font-medium break-all">{chatToDelete?.name}</span>?{" "}
 							{t("action_cannot_undone")}
 						</AlertDialogDescription>
 					</AlertDialogHeader>
@@ -835,9 +836,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 							<span className={isRenamingChat ? "opacity-0" : ""}>
 								{tSidebar("rename") || "Rename"}
 							</span>
-							{isRenamingChat && (
-								<span className="absolute h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-							)}
+							{isRenamingChat && <Spinner size="sm" className="absolute" />}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
@@ -865,9 +864,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 							className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
 							<span className={isDeletingSearchSpace ? "opacity-0" : ""}>{tCommon("delete")}</span>
-							{isDeletingSearchSpace && (
-								<span className="absolute h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-							)}
+							{isDeletingSearchSpace && <Spinner size="sm" className="absolute" />}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
@@ -895,9 +892,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 							className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
 							<span className={isLeavingSearchSpace ? "opacity-0" : ""}>{t("leave")}</span>
-							{isLeavingSearchSpace && (
-								<span className="absolute h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-							)}
+							{isLeavingSearchSpace && <Spinner size="sm" className="absolute" />}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>

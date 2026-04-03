@@ -374,14 +374,17 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 									<div className="px-4 sm:px-12 py-4 sm:py-8 pb-12 sm:pb-16">
 										{/* LLM Configuration Warning */}
 										{!llmConfigLoading && !hasDocumentSummaryLLM && (
-											<Alert variant="destructive" className="mb-6">
+											<Alert
+												variant="destructive"
+												className="mb-6 bg-muted/50 rounded-xl border-destructive/30"
+											>
 												<AlertTriangle className="h-4 w-4" />
 												<AlertTitle>LLM Configuration Required</AlertTitle>
 												<AlertDescription className="mt-2">
 													<p className="mb-3">
 														{isAutoMode && !hasGlobalConfigs
-															? "Auto mode is selected but no global LLM configurations are available. Please configure a custom LLM in Settings to process and summarize documents from your connected sources."
-															: "You need to configure a Document Summary LLM before adding connectors. This LLM is used to process and summarize documents from your connected sources."}
+															? "Auto mode requires a global LLM configuration. Please add one in Settings"
+															: "A Document Summary LLM is required to process uploads, configure one in Settings"}
 													</p>
 													<Button
 														size="sm"

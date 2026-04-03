@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy, ExternalLink, MessageSquare, Trash2 } from "lucide-react";
+import { Check, Copy, Dot, ExternalLink, MessageSquare, Trash2 } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -153,7 +153,7 @@ export function PublicChatSnapshotRow({
 					<span className="text-[11px] text-muted-foreground/60">{formattedDate}</span>
 					{member && (
 						<>
-							<span className="text-muted-foreground/30">·</span>
+							<Dot className="h-4 w-4 text-muted-foreground/30" />
 							<TooltipProvider>
 								<Tooltip open={isDesktop ? undefined : false}>
 									<TooltipTrigger asChild>

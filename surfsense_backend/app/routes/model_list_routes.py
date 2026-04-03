@@ -1,5 +1,5 @@
 """
-API route for fetching the available LLM models catalogue.
+API route for fetching the available models catalogue.
 
 Serves a dynamically-updated list sourced from the OpenRouter public API,
 with a local JSON fallback when the API is unreachable.
@@ -30,7 +30,7 @@ async def list_available_models(
     user: User = Depends(current_active_user),
 ):
     """
-    Return all available LLM models grouped by provider.
+    Return all available models grouped by provider.
 
     The list is sourced from the OpenRouter public API and cached for 1 hour.
     If the API is unreachable, a local fallback file is used instead.

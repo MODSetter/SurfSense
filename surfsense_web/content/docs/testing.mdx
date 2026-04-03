@@ -10,7 +10,7 @@ SurfSense uses [pytest](https://docs.pytest.org/) with two test layers: **unit**
 
 - **PostgreSQL + pgvector** running locally (database `surfsense_test` will be used)
 - **`REGISTRATION_ENABLED=TRUE`** in your `.env` (this is the default)
-- A working LLM model with a valid API key in `global_llm_config.yaml` (for integration tests)
+- A working model with a valid API key in `global_llm_config.yaml` (for integration tests)
 
 No Redis or Celery is required — integration tests use an inline task dispatcher.
 

@@ -19,7 +19,7 @@ const EditorPanelContent = dynamic(
 		import("@/components/editor-panel/editor-panel").then((m) => ({
 			default: m.EditorPanelContent,
 		})),
-	{ ssr: false, loading: () => <Skeleton className="h-96 w-full" /> }
+	{ ssr: false, loading: () => null }
 );
 
 const HitlEditPanelContent = dynamic(

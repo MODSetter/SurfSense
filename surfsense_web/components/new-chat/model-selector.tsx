@@ -498,7 +498,7 @@ export function ModelSelector({
 										}}
 									>
 										<Plus className="size-4 text-primary" />
-										<span className="text-sm font-medium">Add LLM Model</span>
+										<span className="text-sm font-medium">Add Model</span>
 									</Button>
 								</div>
 							</CommandList>

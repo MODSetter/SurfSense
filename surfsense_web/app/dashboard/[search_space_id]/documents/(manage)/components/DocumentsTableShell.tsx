@@ -749,6 +749,7 @@ export function DocumentsTableShell({
 																	onClick={() =>
 																		onOpenInTab ? onOpenInTab(doc) : handleViewDocument(doc)
 																	}
+																	disabled={isBeingProcessed}
 																>
 																	<Eye className="h-4 w-4" />
 																	Open
@@ -1044,6 +1045,10 @@ export function DocumentsTableShell({
 						<Button
 							variant="secondary"
 							className="justify-start gap-2"
+							disabled={
+								mobileActionDoc?.status?.state === "pending" ||
+								mobileActionDoc?.status?.state === "processing"
+							}
 							onClick={() => {
 								if (mobileActionDoc) handleViewDocument(mobileActionDoc);
 								setMobileActionDoc(null);

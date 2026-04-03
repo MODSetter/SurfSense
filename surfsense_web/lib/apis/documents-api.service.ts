@@ -40,6 +40,7 @@ import {
 	uploadDocumentRequest,
 	uploadDocumentResponse,
 } from "@/contracts/types/document.types";
+import { folderListResponse } from "@/contracts/types/folder.types";
 import { ValidationError } from "../error";
 import { baseApiService } from "./base-api.service";
 
@@ -409,6 +410,54 @@ class DocumentsApiService {
 		return baseApiService.put(`/api/v1/documents/${id}`, updateDocumentResponse, {
 			body: data,
 		});
+	};
+
+	listDocumentVersions = async (documentId: number) => {
+		return baseApiService.get(`/api/v1/documents/${documentId}/versions`);
+	};
+
+	getDocumentVersion = async (documentId: number, versionNumber: number) => {
+		return baseApiService.get(`/api/v1/documents/${documentId}/versions/${versionNumber}`);
+	};
+
+	restoreDocumentVersion = async (documentId: number, versionNumber: number) => {
+		return baseApiService.post(`/api/v1/documents/${documentId}/versions/${versionNumber}/restore`);
+	};
+
+	folderIndex = async (
+		searchSpaceId: number,
+		body: {
+			folder_path: string;
+			folder_name: string;
+			search_space_id: number;
+			exclude_patterns?: string[];
+			file_extensions?: string[];
+			root_folder_id?: number;
+			enable_summary?: boolean;
+		}
+	) => {
+		return baseApiService.post(`/api/v1/documents/folder-index`, undefined, { body });
+	};
+
+	folderIndexFiles = async (
+		searchSpaceId: number,
+		body: {
+			folder_path: string;
+			folder_name: string;
+			search_space_id: number;
+			target_file_paths: string[];
+			root_folder_id?: number | null;
+			enable_summary?: boolean;
+		}
+	) => {
+		return baseApiService.post(`/api/v1/documents/folder-index-files`, undefined, { body });
+	};
+
+	getWatchedFolders = async (searchSpaceId: number) => {
+		return baseApiService.get(
+			`/api/v1/documents/watched-folders?search_space_id=${searchSpaceId}`,
+			folderListResponse
+		);
 	};
 
 	/**

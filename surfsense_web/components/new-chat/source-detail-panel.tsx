@@ -6,6 +6,7 @@ import {
 	ChevronDown,
 	ChevronUp,
 	ExternalLink,
+	FileQuestionMark,
 	FileText,
 	Hash,
 	Loader2,
@@ -475,13 +476,11 @@ export function SourceDetailPanel({
 									animate={{ opacity: 1, scale: 1 }}
 									className="flex flex-col items-center gap-4 text-center px-6"
 								>
-									<div className="w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center">
-										<X className="h-10 w-10 text-destructive" />
+									<div className="w-20 h-20 rounded-full bg-muted/50 flex items-center justify-center">
+										<FileQuestionMark className="h-10 w-10 text-muted-foreground" />
 									</div>
 									<div>
-										<p className="font-semibold text-destructive text-lg">
-											Failed to load document
-										</p>
+										<p className="font-semibold text-foreground text-lg">Document unavailable</p>
 										<p className="text-sm text-muted-foreground mt-2 max-w-md">
 											{documentByChunkFetchingError.message ||
 												"An unexpected error occurred. Please try again."}

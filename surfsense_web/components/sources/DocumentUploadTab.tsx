@@ -1,33 +1,41 @@
 "use client";
 
 import { useAtom } from "jotai";
-import { CheckCircle2, FileType, FolderOpen, Info, Upload, X } from "lucide-react";
+import { ChevronDown, Dot, File as FileIcon, FolderOpen, Upload, X } from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import { type ChangeEvent, useCallback, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { uploadDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
-import { SummaryConfig } from "@/components/assistant-ui/connector-popup/components/summary-config";
 import {
 	Accordion,
 	AccordionContent,
 	AccordionItem,
 	AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
+import { documentsApiService } from "@/lib/apis/documents-api.service";
 import {
 	trackDocumentUploadFailure,
 	trackDocumentUploadStarted,
 	trackDocumentUploadSuccess,
 } from "@/lib/posthog/events";
-import { GridPattern } from "./GridPattern";
+
+interface SelectedFolder {
+	path: string;
+	name: string;
+}
 
 interface DocumentUploadTabProps {
 	searchSpaceId: string;
@@ -113,10 +121,11 @@ interface FileWithId {
 	file: File;
 }
 
-const cardClass = "border border-border bg-slate-400/5 dark:bg-white/5";
-
 const MAX_FILE_SIZE_MB = 500;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
+const toggleRowClass =
+	"flex items-center justify-between rounded-lg bg-slate-400/5 dark:bg-white/5 p-3";
 
 export function DocumentUploadTab({
 	searchSpaceId,
@@ -132,6 +141,11 @@ export function DocumentUploadTab({
 	const { mutate: uploadDocuments, isPending: isUploading } = uploadDocumentMutation;
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const folderInputRef = useRef<HTMLInputElement>(null);
+
+	const [selectedFolder, setSelectedFolder] = useState<SelectedFolder | null>(null);
+	const [watchFolder, setWatchFolder] = useState(true);
+	const [folderSubmitting, setFolderSubmitting] = useState(false);
+	const isElectron = typeof window !== "undefined" && !!window.electronAPI?.browseFiles;
 
 	const acceptedFileTypes = useMemo(() => {
 		const etlService = process.env.NEXT_PUBLIC_ETL_SERVICE;
@@ -175,6 +189,7 @@ export function DocumentUploadTab({
 
 	const onDrop = useCallback(
 		(acceptedFiles: File[]) => {
+			setSelectedFolder(null);
 			addFiles(acceptedFiles);
 		},
 		[addFiles]
@@ -184,11 +199,40 @@ export function DocumentUploadTab({
 		onDrop,
 		accept: acceptedFileTypes,
 		maxSize: MAX_FILE_SIZE_BYTES,
-		noClick: false,
+		noClick: isElectron,
 	});
 
 	const handleFileInputClick = useCallback((e: React.MouseEvent<HTMLInputElement>) => {
 		e.stopPropagation();
+	}, []);
+
+	const handleBrowseFiles = useCallback(async () => {
+		const api = window.electronAPI;
+		if (!api?.browseFiles) return;
+
+		const paths = await api.browseFiles();
+		if (!paths || paths.length === 0) return;
+
+		setSelectedFolder(null);
+		const fileDataList = await api.readLocalFiles(paths);
+		const newFiles: FileWithId[] = fileDataList.map((fd) => ({
+			id: crypto.randomUUID?.() ?? `file-${Date.now()}-${Math.random().toString(36)}`,
+			file: new File([fd.data], fd.name, { type: fd.mimeType }),
+		}));
+		setFiles((prev) => [...prev, ...newFiles]);
+	}, []);
+
+	const handleBrowseFolder = useCallback(async () => {
+		const api = window.electronAPI;
+		if (!api?.selectFolder) return;
+
+		const folderPath = await api.selectFolder();
+		if (!folderPath) return;
+
+		const folderName = folderPath.split("/").pop() || folderPath.split("\\").pop() || folderPath;
+		setFiles([]);
+		setSelectedFolder({ path: folderPath, name: folderName });
+		setWatchFolder(true);
 	}, []);
 
 	const handleFolderChange = useCallback(
@@ -223,7 +267,8 @@ export function DocumentUploadTab({
 
 	const totalFileSize = files.reduce((total, entry) => total + entry.file.size, 0);
 
-	// Track accordion state changes
+	const hasContent = files.length > 0 || selectedFolder !== null;
+
 	const handleAccordionChange = useCallback(
 		(value: string) => {
 			setAccordionValue(value);
@@ -231,6 +276,54 @@ export function DocumentUploadTab({
 		},
 		[onAccordionStateChange]
 	);
+
+	const handleFolderSubmit = useCallback(async () => {
+		if (!selectedFolder) return;
+		const api = window.electronAPI;
+		if (!api) return;
+
+		setFolderSubmitting(true);
+		try {
+			const numericSpaceId = Number(searchSpaceId);
+			const result = await documentsApiService.folderIndex(numericSpaceId, {
+				folder_path: selectedFolder.path,
+				folder_name: selectedFolder.name,
+				search_space_id: numericSpaceId,
+				enable_summary: shouldSummarize,
+			});
+
+			const rootFolderId = (result as { root_folder_id?: number })?.root_folder_id ?? null;
+
+			if (watchFolder) {
+				await api.addWatchedFolder({
+					path: selectedFolder.path,
+					name: selectedFolder.name,
+					excludePatterns: [
+						".git",
+						"node_modules",
+						"__pycache__",
+						".DS_Store",
+						".obsidian",
+						".trash",
+					],
+					fileExtensions: null,
+					rootFolderId,
+					searchSpaceId: Number(searchSpaceId),
+					active: true,
+				});
+				toast.success(`Watching folder: ${selectedFolder.name}`);
+			} else {
+				toast.success(`Syncing folder: ${selectedFolder.name}`);
+			}
+
+			setSelectedFolder(null);
+			onSuccess?.();
+		} catch (err) {
+			toast.error((err as Error)?.message || "Failed to process folder");
+		} finally {
+			setFolderSubmitting(false);
+		}
+	}, [selectedFolder, watchFolder, searchSpaceId, shouldSummarize, onSuccess]);
 
 	const handleUpload = async () => {
 		setUploadProgress(0);
@@ -268,16 +361,83 @@ export function DocumentUploadTab({
 		);
 	};
 
-	return (
-		<div className="space-y-3 sm:space-y-6 max-w-4xl mx-auto pt-0">
-			<Alert className="border border-border bg-slate-400/5 dark:bg-white/5">
-				<Info className="h-4 w-4 shrink-0 mt-0.5" />
-				<AlertDescription className="text-xs sm:text-sm leading-relaxed pt-0.5">
-					{t("file_size_limit", { maxMB: MAX_FILE_SIZE_MB })} {t("upload_limits")}
-				</AlertDescription>
-			</Alert>
+	const renderBrowseButton = (options?: { compact?: boolean; fullWidth?: boolean }) => {
+		const { compact, fullWidth } = options ?? {};
+		const sizeClass = compact ? "h-7" : "h-8";
+		const widthClass = fullWidth ? "w-full" : "";
 
-			{/* Hidden folder input */}
+		if (isElectron) {
+			return (
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+						<Button
+							variant="ghost"
+							size="sm"
+							className={`text-xs gap-1 bg-neutral-700/50 hover:bg-neutral-600/50 ${sizeClass} ${widthClass}`}
+						>
+							Browse
+							<ChevronDown className="h-3 w-3 opacity-60" />
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent
+						align="center"
+						className="dark:bg-neutral-800"
+						onClick={(e) => e.stopPropagation()}
+					>
+						<DropdownMenuItem onClick={handleBrowseFiles}>
+							<FileIcon className="h-4 w-4 mr-2" />
+							Files
+						</DropdownMenuItem>
+						<DropdownMenuItem onClick={handleBrowseFolder}>
+							<FolderOpen className="h-4 w-4 mr-2" />
+							Folder
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			);
+		}
+
+		return (
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+					<Button
+						variant="ghost"
+						size="sm"
+						className={`text-xs gap-1 bg-neutral-700/50 hover:bg-neutral-600/50 ${sizeClass} ${widthClass}`}
+					>
+						Browse
+						<ChevronDown className="h-3 w-3 opacity-60" />
+					</Button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent
+					align="center"
+					className="dark:bg-neutral-800"
+					onClick={(e) => e.stopPropagation()}
+				>
+					<DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+						<FileIcon className="h-4 w-4 mr-2" />
+						{t("browse_files")}
+					</DropdownMenuItem>
+					<DropdownMenuItem onClick={() => folderInputRef.current?.click()}>
+						<FolderOpen className="h-4 w-4 mr-2" />
+						{t("browse_folder")}
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
+		);
+	};
+
+	return (
+		<div className="space-y-2 w-full mx-auto">
+			{/* Hidden file input */}
+			<input
+				{...getInputProps()}
+				ref={fileInputRef}
+				className="hidden"
+				onClick={handleFileInputClick}
+			/>
+
+			{/* Hidden folder input for web folder browsing */}
 			<input
 				ref={folderInputRef}
 				type="file"
@@ -287,187 +447,236 @@ export function DocumentUploadTab({
 				{...({ webkitdirectory: "", directory: "" } as React.InputHTMLAttributes<HTMLInputElement>)}
 			/>
 
-			<Card className={`relative overflow-hidden ${cardClass}`}>
-				<div className="absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,white,transparent)] opacity-30">
-					<GridPattern />
-				</div>
-				<CardContent className="p-4 sm:p-10 relative z-10">
+			{/* MOBILE DROP ZONE */}
+			<div className="sm:hidden">
+				{hasContent ? (
+					!selectedFolder &&
+					(isElectron ? (
+						<div className="w-full">{renderBrowseButton({ compact: true, fullWidth: true })}</div>
+					) : (
+						<button
+							type="button"
+							className="w-full text-xs h-8 flex items-center justify-center gap-1.5 rounded-md border border-dashed border-muted-foreground/30 text-muted-foreground hover:text-foreground hover:border-foreground/50 transition-colors"
+							onClick={() => fileInputRef.current?.click()}
+						>
+							Add more files
+						</button>
+					))
+				) : (
 					<div
-						{...getRootProps()}
-						className="flex flex-col items-center justify-center min-h-[200px] sm:min-h-[300px] border-2 border-dashed rounded-lg transition-colors border-border hover:border-primary/50 cursor-pointer"
+						className="flex flex-col items-center gap-4 py-12 px-4 cursor-pointer"
+						onClick={() => {
+							if (!isElectron) fileInputRef.current?.click();
+						}}
 					>
-						<input
-							{...getInputProps()}
-							ref={fileInputRef}
-							className="hidden"
-							onClick={handleFileInputClick}
-						/>
-						{isDragActive ? (
-							<div className="flex flex-col items-center gap-2 sm:gap-4">
-								<Upload className="h-8 w-8 sm:h-12 sm:w-12 text-primary" />
-								<p className="text-sm sm:text-lg font-medium text-primary">{t("drop_files")}</p>
-							</div>
-						) : (
-							<div className="flex flex-col items-center gap-2 sm:gap-4">
-								<Upload className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground" />
-								<div className="text-center">
-									<p className="text-sm sm:text-lg font-medium">{t("drag_drop")}</p>
-									<p className="text-xs sm:text-sm text-muted-foreground mt-1">{t("or_browse")}</p>
-								</div>
-							</div>
-						)}
-						<div className="mt-2 sm:mt-4 flex gap-2">
-							<Button
-								variant="secondary"
-								size="sm"
-								className="text-xs sm:text-sm"
-								onClick={(e) => {
-									e.stopPropagation();
-									e.preventDefault();
-									fileInputRef.current?.click();
-								}}
-							>
-								{t("browse_files")}
-							</Button>
-							<Button
-								variant="outline"
-								size="sm"
-								className="text-xs sm:text-sm"
-								onClick={(e) => {
-									e.stopPropagation();
-									e.preventDefault();
-									folderInputRef.current?.click();
-								}}
-							>
-								<FolderOpen className="h-4 w-4 mr-1.5" />
-								{t("browse_folder")}
-							</Button>
+						<Upload className="h-10 w-10 text-muted-foreground" />
+						<div className="text-center space-y-1.5">
+							<p className="text-base font-medium">
+								{isElectron ? "Select files or folder" : "Tap to select files or folder"}
+							</p>
+							<p className="text-sm text-muted-foreground">{t("file_size_limit")}</p>
+						</div>
+						<div className="w-full mt-1" onClick={(e) => e.stopPropagation()}>
+							{renderBrowseButton({ fullWidth: true })}
 						</div>
 					</div>
-				</CardContent>
-			</Card>
+				)}
+			</div>
 
-			{files.length > 0 && (
-				<Card className={cardClass}>
-					<CardHeader className="p-4 sm:p-6">
-						<div className="flex items-center justify-between gap-2">
-							<div className="min-w-0 flex-1">
-								<CardTitle className="text-base sm:text-2xl">
-									{t("selected_files", { count: files.length })}
-								</CardTitle>
-								<CardDescription className="text-xs sm:text-sm">
-									{t("total_size")}: {formatFileSize(totalFileSize)}
-								</CardDescription>
-							</div>
-							<Button
-								variant="outline"
-								size="sm"
-								className="text-xs sm:text-sm shrink-0"
-								onClick={() => setFiles([])}
-								disabled={isUploading}
-							>
-								{t("clear_all")}
-							</Button>
-						</div>
-					</CardHeader>
-					<CardContent className="p-4 sm:p-6 pt-0">
-						<div className="space-y-2 sm:space-y-3 max-h-[250px] sm:max-h-[400px] overflow-y-auto">
-							{files.map((entry) => (
-								<div
-									key={entry.id}
-									className={`flex items-center justify-between p-2 sm:p-4 rounded-lg border border-border ${cardClass} hover:bg-slate-400/10 dark:hover:bg-white/10 transition-colors`}
-								>
-									<div className="flex items-center gap-3 flex-1 min-w-0">
-										<FileType className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-										<div className="flex-1 min-w-0">
-											<p className="text-sm sm:text-base font-medium truncate">{entry.file.name}</p>
-											<div className="flex items-center gap-2 mt-1">
-												<Badge variant="secondary" className="text-xs">
-													{formatFileSize(entry.file.size)}
-												</Badge>
-												<Badge variant="outline" className="text-xs">
-													{entry.file.type || "Unknown type"}
-												</Badge>
-											</div>
-										</div>
-									</div>
-									<Button
-										variant="ghost"
-										size="icon"
-										onClick={() => setFiles((prev) => prev.filter((e) => e.id !== entry.id))}
-										disabled={isUploading}
-										className="h-8 w-8"
-									>
-										<X className="h-4 w-4" />
-									</Button>
-								</div>
-							))}
-						</div>
-
-						{isUploading && (
-							<div className="mt-3 sm:mt-6 space-y-2 sm:space-y-3">
-								<Separator className="bg-border" />
-								<div className="space-y-2">
-									<div className="flex items-center justify-between text-xs sm:text-sm">
-										<span>{t("uploading_files")}</span>
-										<span>{Math.round(uploadProgress)}%</span>
-									</div>
-									<Progress value={uploadProgress} className="h-2" />
-								</div>
+			{/* DESKTOP DROP ZONE */}
+			<div
+				{...getRootProps()}
+				className={`hidden sm:block border-2 border-dashed rounded-lg transition-colors border-muted-foreground/30 hover:border-foreground/70 cursor-pointer ${hasContent ? "p-3" : "py-20 px-4"}`}
+			>
+				{hasContent ? (
+					<div className="flex items-center gap-3">
+						<Upload className="h-4 w-4 text-muted-foreground shrink-0" />
+						<span className="text-xs text-muted-foreground flex-1 truncate">
+							{isDragActive ? t("drop_files") : t("drag_drop_more")}
+						</span>
+						{renderBrowseButton({ compact: true })}
+					</div>
+				) : (
+					<div className="relative">
+						{isDragActive && (
+							<div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+								<Upload className="h-8 w-8 text-primary" />
+								<p className="text-sm font-medium text-primary">{t("drop_files")}</p>
 							</div>
 						)}
-
-						<div className="mt-3 sm:mt-6">
-							<SummaryConfig enabled={shouldSummarize} onEnabledChange={setShouldSummarize} />
+						<div className={`flex flex-col items-center gap-2 ${isDragActive ? "invisible" : ""}`}>
+							<Upload className="h-8 w-8 text-muted-foreground" />
+							<p className="text-sm font-medium">{t("drag_drop")}</p>
+							<p className="text-xs text-muted-foreground">{t("file_size_limit")}</p>
+							<div className="mt-1">{renderBrowseButton()}</div>
 						</div>
+					</div>
+				)}
+			</div>
 
-						<div className="mt-3 sm:mt-6">
-							<Button
-								className="w-full py-3 sm:py-6 text-xs sm:text-base font-medium"
-								onClick={handleUpload}
-								disabled={isUploading || files.length === 0}
-							>
-								{isUploading ? (
-									<span className="flex items-center gap-2">
-										<Spinner size="sm" />
-										{t("uploading")}
-									</span>
-								) : (
-									<span className="flex items-center gap-2">
-										<CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" />
-										{t("upload_button", { count: files.length })}
-									</span>
-								)}
-							</Button>
+			{/* FOLDER SELECTED (Electron only — web flattens folder contents into file list) */}
+			{isElectron && selectedFolder && (
+				<div className="rounded-lg border border-border p-3 space-y-2">
+					<div className="flex items-center gap-2 py-1.5 px-2 -mx-1 rounded-md hover:bg-slate-400/5 dark:hover:bg-white/5 group">
+						<FolderOpen className="h-4 w-4 text-primary shrink-0" />
+						<div className="min-w-0 flex-1">
+							<p className="text-sm font-medium truncate">{selectedFolder.name}</p>
+							<p className="text-xs text-muted-foreground truncate">{selectedFolder.path}</p>
 						</div>
-					</CardContent>
-				</Card>
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-7 w-7 shrink-0"
+							onClick={() => setSelectedFolder(null)}
+							disabled={folderSubmitting}
+						>
+							<X className="h-3.5 w-3.5" />
+						</Button>
+					</div>
+
+					<div className="rounded-lg bg-slate-400/5 dark:bg-white/5 divide-y divide-border">
+						<div className="flex items-center justify-between p-3">
+							<div className="space-y-0.5">
+								<p className="font-medium text-sm">Watch folder</p>
+								<p className="text-xs text-muted-foreground">Auto-sync when files change</p>
+							</div>
+							<Switch
+								id="watch-folder-toggle"
+								checked={watchFolder}
+								onCheckedChange={setWatchFolder}
+							/>
+						</div>
+						<div className="flex items-center justify-between p-3">
+							<div className="space-y-0.5">
+								<p className="font-medium text-sm">Enable AI Summary</p>
+								<p className="text-xs text-muted-foreground">
+									Improves search quality but adds latency
+								</p>
+							</div>
+							<Switch checked={shouldSummarize} onCheckedChange={setShouldSummarize} />
+						</div>
+					</div>
+
+					<Button
+						className="w-full relative"
+						onClick={handleFolderSubmit}
+						disabled={folderSubmitting}
+					>
+						<span className={folderSubmitting ? "invisible" : ""}>
+							{watchFolder ? "Sync & Watch for Changes" : "Sync Folder"}
+						</span>
+						{folderSubmitting && (
+							<span className="absolute inset-0 flex items-center justify-center">
+								<Spinner size="sm" />
+							</span>
+						)}
+					</Button>
+				</div>
 			)}
 
+			{/* FILES SELECTED */}
+			{files.length > 0 && (
+				<div className="rounded-lg border border-border p-3 space-y-2">
+					<div className="flex items-center justify-between">
+						<p className="text-sm font-medium">
+							{t("selected_files", { count: files.length })}
+							<Dot className="inline h-4 w-4" />
+							{formatFileSize(totalFileSize)}
+						</p>
+						<Button
+							variant="ghost"
+							size="sm"
+							className="h-7 text-xs text-muted-foreground hover:text-foreground"
+							onClick={() => setFiles([])}
+							disabled={isUploading}
+						>
+							{t("clear_all")}
+						</Button>
+					</div>
+
+					<div className="max-h-[160px] sm:max-h-[200px] overflow-y-auto -mx-1">
+						{files.map((entry) => (
+							<div
+								key={entry.id}
+								className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-slate-400/5 dark:hover:bg-white/5 group"
+							>
+								<span className="text-[10px] font-medium uppercase leading-none bg-muted px-1.5 py-0.5 rounded text-muted-foreground shrink-0">
+									{entry.file.name.split(".").pop() || "?"}
+								</span>
+								<span className="text-sm truncate flex-1 min-w-0">{entry.file.name}</span>
+								<span className="text-xs text-muted-foreground shrink-0">
+									{formatFileSize(entry.file.size)}
+								</span>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-6 w-6 shrink-0"
+									onClick={() => setFiles((prev) => prev.filter((e) => e.id !== entry.id))}
+									disabled={isUploading}
+								>
+									<X className="h-3 w-3" />
+								</Button>
+							</div>
+						))}
+					</div>
+
+					{isUploading && (
+						<div className="space-y-1">
+							<div className="flex items-center justify-between text-xs">
+								<span>{t("uploading_files")}</span>
+								<span>{Math.round(uploadProgress)}%</span>
+							</div>
+							<Progress value={uploadProgress} className="h-1.5" />
+						</div>
+					)}
+
+					<div className={toggleRowClass}>
+						<div className="space-y-0.5">
+							<p className="font-medium text-sm">Enable AI Summary</p>
+							<p className="text-xs text-muted-foreground">
+								Improves search quality but adds latency
+							</p>
+						</div>
+						<Switch checked={shouldSummarize} onCheckedChange={setShouldSummarize} />
+					</div>
+
+					<Button
+						className="w-full"
+						onClick={handleUpload}
+						disabled={isUploading || files.length === 0}
+					>
+						{isUploading ? (
+							<span className="flex items-center gap-2">
+								<Spinner size="sm" />
+								{t("uploading")}
+							</span>
+						) : (
+							<span className="flex items-center gap-2">
+								{t("upload_button", { count: files.length })}
+							</span>
+						)}
+					</Button>
+				</div>
+			)}
+
+			{/* SUPPORTED FORMATS */}
 			<Accordion
 				type="single"
 				collapsible
 				value={accordionValue}
 				onValueChange={handleAccordionChange}
-				className={`w-full ${cardClass} border border-border rounded-lg mb-0`}
+				className="w-full mt-5"
 			>
-				<AccordionItem value="supported-file-types" className="border-0">
-					<AccordionTrigger className="px-3 sm:px-6 py-3 sm:py-4 hover:no-underline !items-center [&>svg]:!translate-y-0">
-						<div className="flex items-center gap-2 flex-1">
-							<div className="text-left min-w-0">
-								<div className="font-semibold text-sm sm:text-base">
-									{t("supported_file_types")}
-								</div>
-								<div className="text-xs sm:text-sm text-muted-foreground font-normal">
-									{t("file_types_desc")}
-								</div>
-							</div>
-						</div>
+				<AccordionItem value="supported-file-types" className="border border-border rounded-lg">
+					<AccordionTrigger className="px-3 py-2.5 hover:no-underline !items-center [&>svg]:!translate-y-0">
+						<span className="text-xs sm:text-sm text-muted-foreground font-normal">
+							{t("supported_file_types")}
+						</span>
 					</AccordionTrigger>
-					<AccordionContent className="px-3 sm:px-6 pb-3 sm:pb-6">
-						<div className="flex flex-wrap gap-2">
+					<AccordionContent className="px-3 pb-3">
+						<div className="flex flex-wrap gap-1">
 							{supportedExtensions.map((ext) => (
-								<Badge key={ext} variant="outline" className="text-xs">
+								<Badge key={ext} variant="outline" className="text-[10px] px-1.5 py-0">
 									{ext}
 								</Badge>
 							))}

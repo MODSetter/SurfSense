@@ -6,6 +6,7 @@ import { setupDeepLinks, handlePendingDeepLink } from './modules/deep-links';
 import { setupAutoUpdater } from './modules/auto-updater';
 import { setupMenu } from './modules/menu';
 import { registerQuickAsk, unregisterQuickAsk } from './modules/quick-ask';
+import { registerFolderWatcher, unregisterFolderWatcher } from './modules/folder-watcher';
 import { registerIpcHandlers } from './ipc/handlers';
 
 registerGlobalErrorHandlers();
@@ -28,6 +29,7 @@ app.whenReady().then(async () => {
   }
   createMainWindow();
   registerQuickAsk();
+  registerFolderWatcher();
   setupAutoUpdater();
 
   handlePendingDeepLink();
@@ -47,4 +49,5 @@ app.on('window-all-closed', () => {
 
 app.on('will-quit', () => {
   unregisterQuickAsk();
+  unregisterFolderWatcher();
 });

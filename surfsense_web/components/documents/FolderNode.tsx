@@ -1,14 +1,18 @@
 "use client";
 
 import {
+	AlertCircle,
 	ChevronDown,
 	ChevronRight,
+	Eye,
+	EyeOff,
 	Folder,
 	FolderOpen,
 	FolderPlus,
 	MoreHorizontal,
 	Move,
 	PenLine,
+	RefreshCw,
 	Trash2,
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -27,6 +31,8 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Spinner } from "@/components/ui/spinner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { FolderSelectionState } from "./FolderTreeView";
 
@@ -52,6 +58,7 @@ interface FolderNodeProps {
 	isRenaming: boolean;
 	childCount: number;
 	selectionState: FolderSelectionState;
+	processingState: "idle" | "processing" | "failed";
 	onToggleSelect: (folderId: number, selectAll: boolean) => void;
 	onToggleExpand: (folderId: number) => void;
 	onRename: (folder: FolderDisplay, newName: string) => void;
@@ -70,6 +77,9 @@ interface FolderNodeProps {
 	disabledDropIds?: Set<number>;
 	contextMenuOpen?: boolean;
 	onContextMenuOpenChange?: (open: boolean) => void;
+	isWatched?: boolean;
+	onRescan?: (folder: FolderDisplay) => void;
+	onStopWatching?: (folder: FolderDisplay) => void;
 }
 
 function getDropZone(
@@ -93,6 +103,7 @@ export const FolderNode = React.memo(function FolderNode({
 	isRenaming,
 	childCount,
 	selectionState,
+	processingState,
 	onToggleSelect,
 	onToggleExpand,
 	onRename,
@@ -107,6 +118,9 @@ export const FolderNode = React.memo(function FolderNode({
 	disabledDropIds,
 	contextMenuOpen,
 	onContextMenuOpenChange,
+	isWatched,
+	onRescan,
+	onStopWatching,
 }: FolderNodeProps) {
 	const [renameValue, setRenameValue] = useState(folder.name);
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -242,7 +256,9 @@ export const FolderNode = React.memo(function FolderNode({
 						isOver && !canDrop && "cursor-not-allowed"
 					)}
 					style={{ paddingLeft: `${depth * 16 + 4}px` }}
-					onClick={() => onToggleExpand(folder.id)}
+					onClick={() => {
+						onToggleExpand(folder.id);
+					}}
 					onKeyDown={(e) => {
 						if (e.key === "Enter" || e.key === " ") {
 							e.preventDefault();
@@ -262,14 +278,45 @@ export const FolderNode = React.memo(function FolderNode({
 						)}
 					</span>
 
-					<Checkbox
-						checked={
-							selectionState === "all" ? true : selectionState === "some" ? "indeterminate" : false
-						}
-						onCheckedChange={handleCheckChange}
-						onClick={(e) => e.stopPropagation()}
-						className="h-3.5 w-3.5 shrink-0"
-					/>
+					{processingState !== "idle" && selectionState === "none" ? (
+						<>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center group-hover:hidden">
+										{processingState === "processing" ? (
+											<Spinner size="xs" className="text-primary" />
+										) : (
+											<AlertCircle className="h-3.5 w-3.5 text-destructive" />
+										)}
+									</span>
+								</TooltipTrigger>
+								<TooltipContent side="top">
+									{processingState === "processing"
+										? "Syncing folder contents"
+										: "Some files failed to process"}
+								</TooltipContent>
+							</Tooltip>
+							<Checkbox
+								checked={false}
+								onCheckedChange={handleCheckChange}
+								onClick={(e) => e.stopPropagation()}
+								className="h-3.5 w-3.5 shrink-0 hidden group-hover:flex"
+							/>
+						</>
+					) : (
+						<Checkbox
+							checked={
+								selectionState === "all"
+									? true
+									: selectionState === "some"
+										? "indeterminate"
+										: false
+							}
+							onCheckedChange={handleCheckChange}
+							onClick={(e) => e.stopPropagation()}
+							className="h-3.5 w-3.5 shrink-0"
+						/>
+					)}
 
 					<FolderIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
 
@@ -308,6 +355,28 @@ export const FolderNode = React.memo(function FolderNode({
 								</Button>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align="end" className="w-40">
+								{isWatched && onRescan && (
+									<DropdownMenuItem
+										onClick={(e) => {
+											e.stopPropagation();
+											onRescan(folder);
+										}}
+									>
+										<RefreshCw className="mr-2 h-4 w-4" />
+										Re-scan
+									</DropdownMenuItem>
+								)}
+								{isWatched && onStopWatching && (
+									<DropdownMenuItem
+										onClick={(e) => {
+											e.stopPropagation();
+											onStopWatching(folder);
+										}}
+									>
+										<EyeOff className="mr-2 h-4 w-4" />
+										Stop watching
+									</DropdownMenuItem>
+								)}
 								<DropdownMenuItem
 									onClick={(e) => {
 										e.stopPropagation();
@@ -353,6 +422,18 @@ export const FolderNode = React.memo(function FolderNode({
 
 			{!isRenaming && contextMenuOpen && (
 				<ContextMenuContent className="w-40">
+					{isWatched && onRescan && (
+						<ContextMenuItem onClick={() => onRescan(folder)}>
+							<RefreshCw className="mr-2 h-4 w-4" />
+							Re-scan
+						</ContextMenuItem>
+					)}
+					{isWatched && onStopWatching && (
+						<ContextMenuItem onClick={() => onStopWatching(folder)}>
+							<EyeOff className="mr-2 h-4 w-4" />
+							Stop watching
+						</ContextMenuItem>
+					)}
 					<ContextMenuItem onClick={() => onCreateSubfolder(folder.id)}>
 						<FolderPlus className="mr-2 h-4 w-4" />
 						New subfolder

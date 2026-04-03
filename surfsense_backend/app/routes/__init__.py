@@ -84,7 +84,7 @@ router.include_router(confluence_add_connector_router)
 router.include_router(clickup_add_connector_router)
 router.include_router(dropbox_add_connector_router)
 router.include_router(new_llm_config_router)  # LLM configs with prompt configuration
-router.include_router(model_list_router)  # Dynamic LLM model catalogue from OpenRouter
+router.include_router(model_list_router)  # Dynamic model catalogue from OpenRouter
 router.include_router(logs_router)
 router.include_router(circleback_webhook_router)  # Circleback meeting webhooks
 router.include_router(surfsense_docs_router)  # Surfsense documentation for citations
