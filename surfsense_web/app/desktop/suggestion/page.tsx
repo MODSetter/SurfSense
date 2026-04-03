@@ -116,11 +116,7 @@ export default function SuggestionPage() {
 							try {
 								const parsed: SSEEvent = JSON.parse(data);
 								if (parsed.type === "text-delta") {
-									setSuggestion((prev) => {
-										const updated = prev + parsed.delta;
-										window.electronAPI?.updateSuggestionText?.(updated);
-										return updated;
-									});
+									setSuggestion((prev) => prev + parsed.delta);
 								} else if (parsed.type === "error") {
 									setError(friendlyError(parsed.errorText));
 								}

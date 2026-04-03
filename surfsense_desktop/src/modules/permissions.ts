@@ -27,11 +27,6 @@ export function getPermissionsStatus(): PermissionsStatus {
   };
 }
 
-export function allPermissionsGranted(): boolean {
-  const status = getPermissionsStatus();
-  return status.accessibility === 'authorized' && status.screenRecording === 'authorized';
-}
-
 export function requestAccessibility(): void {
   if (!isMac()) return;
   const perms = getNodeMacPermissions();

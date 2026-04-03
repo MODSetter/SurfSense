@@ -15,7 +15,6 @@ export const IPC_CHANNELS = {
   AUTOCOMPLETE_CONTEXT: 'autocomplete-context',
   ACCEPT_SUGGESTION: 'accept-suggestion',
   DISMISS_SUGGESTION: 'dismiss-suggestion',
-  UPDATE_SUGGESTION_TEXT: 'update-suggestion-text',
   SET_AUTOCOMPLETE_ENABLED: 'set-autocomplete-enabled',
   GET_AUTOCOMPLETE_ENABLED: 'get-autocomplete-enabled',
 } as const;

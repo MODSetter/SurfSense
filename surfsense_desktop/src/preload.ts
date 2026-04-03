@@ -36,7 +36,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   acceptSuggestion: (text: string) => ipcRenderer.invoke(IPC_CHANNELS.ACCEPT_SUGGESTION, text),
   dismissSuggestion: () => ipcRenderer.invoke(IPC_CHANNELS.DISMISS_SUGGESTION),
-  updateSuggestionText: (text: string) => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_SUGGESTION_TEXT, text),
   setAutocompleteEnabled: (enabled: boolean) => ipcRenderer.invoke(IPC_CHANNELS.SET_AUTOCOMPLETE_ENABLED, enabled),
   getAutocompleteEnabled: () => ipcRenderer.invoke(IPC_CHANNELS.GET_AUTOCOMPLETE_ENABLED),
 });

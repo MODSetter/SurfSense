@@ -11,7 +11,6 @@ const SHORTCUT = 'CommandOrControl+Shift+Space';
 let autocompleteEnabled = true;
 let savedClipboard = '';
 let sourceApp = '';
-let pendingSuggestionText = '';
 
 function isSurfSenseWindow(): boolean {
   const app = getFrontmostApp();
@@ -72,7 +71,6 @@ async function acceptAndInject(text: string): Promise<void> {
 
   clipboard.writeText(text);
   destroySuggestion();
-  pendingSuggestionText = '';
 
   try {
     await new Promise((r) => setTimeout(r, 50));
@@ -90,10 +88,6 @@ function registerIpcHandlers(): void {
   });
   ipcMain.handle(IPC_CHANNELS.DISMISS_SUGGESTION, () => {
     destroySuggestion();
-    pendingSuggestionText = '';
-  });
-  ipcMain.handle(IPC_CHANNELS.UPDATE_SUGGESTION_TEXT, (_event, text: string) => {
-    pendingSuggestionText = text;
   });
   ipcMain.handle(IPC_CHANNELS.SET_AUTOCOMPLETE_ENABLED, (_event, enabled: boolean) => {
     autocompleteEnabled = enabled;
@@ -111,7 +105,6 @@ export function registerAutocomplete(): void {
     const sw = getSuggestionWindow();
     if (sw && !sw.isDestroyed()) {
       destroySuggestion();
-      pendingSuggestionText = '';
       return;
     }
     triggerAutocomplete();
