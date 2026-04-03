@@ -1321,6 +1321,7 @@ async def _index_local_folder_async(
         doc_name = folder_name
 
     notification = None
+    notification_id: int | None = None
     heartbeat_task = None
 
     async with get_celery_session_maker()() as session:
@@ -1334,9 +1335,10 @@ async def _index_local_folder_async(
                     search_space_id=search_space_id,
                 )
             )
-            _start_heartbeat(notification.id)
+            notification_id = notification.id
+            _start_heartbeat(notification_id)
             heartbeat_task = asyncio.create_task(
-                _run_heartbeat_loop(notification.id)
+                _run_heartbeat_loop(notification_id)
             )
         except Exception:
             logger.warning(
@@ -1374,6 +1376,7 @@ async def _index_local_folder_async(
 
             if notification:
                 try:
+                    await session.refresh(notification)
                     if err:
                         await NotificationService.document_processing.notify_processing_completed(
                             session=session,
@@ -1395,6 +1398,7 @@ async def _index_local_folder_async(
             logger.exception(f"Local folder indexing failed: {e}")
             if notification:
                 try:
+                    await session.refresh(notification)
                     await NotificationService.document_processing.notify_processing_completed(
                         session=session,
                         notification=notification,
@@ -1406,5 +1410,5 @@ async def _index_local_folder_async(
         finally:
             if heartbeat_task:
                 heartbeat_task.cancel()
-            if notification:
-                _stop_heartbeat(notification.id)
+            if notification_id is not None:
+                _stop_heartbeat(notification_id)

@@ -5,6 +5,7 @@ import {
 	Clock,
 	Download,
 	Eye,
+	History,
 	MoreHorizontal,
 	Move,
 	PenLine,
@@ -38,6 +39,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { cn } from "@/lib/utils";
+import { isVersionableType } from "./version-history";
 import { DND_TYPES } from "./FolderNode";
 
 const EDITABLE_DOCUMENT_TYPES = new Set(["FILE", "NOTE"]);
@@ -60,6 +62,7 @@ interface DocumentNodeProps {
 	onDelete: (doc: DocumentNodeDoc) => void;
 	onMove: (doc: DocumentNodeDoc) => void;
 	onExport?: (doc: DocumentNodeDoc, format: string) => void;
+	onVersionHistory?: (doc: DocumentNodeDoc) => void;
 	contextMenuOpen?: boolean;
 	onContextMenuOpenChange?: (open: boolean) => void;
 }
@@ -74,6 +77,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 	onDelete,
 	onMove,
 	onExport,
+	onVersionHistory,
 	contextMenuOpen,
 	onContextMenuOpenChange,
 }: DocumentNodeProps) {
@@ -246,6 +250,15 @@ export const DocumentNode = React.memo(function DocumentNode({
 									</DropdownMenuSubContent>
 								</DropdownMenuSub>
 							)}
+							{onVersionHistory && isVersionableType(doc.document_type) && (
+								<DropdownMenuItem
+									disabled={isProcessing}
+									onClick={() => onVersionHistory(doc)}
+								>
+									<History className="mr-2 h-4 w-4" />
+									Versions
+								</DropdownMenuItem>
+							)}
 							<DropdownMenuItem
 								className="text-destructive focus:text-destructive"
 								disabled={isProcessing}
@@ -285,6 +298,15 @@ export const DocumentNode = React.memo(function DocumentNode({
 								<ExportContextItems onExport={handleExport} exporting={exporting} />
 							</ContextMenuSubContent>
 						</ContextMenuSub>
+					)}
+					{onVersionHistory && isVersionableType(doc.document_type) && (
+						<ContextMenuItem
+							disabled={isProcessing}
+							onClick={() => onVersionHistory(doc)}
+						>
+							<History className="mr-2 h-4 w-4" />
+							Versions
+						</ContextMenuItem>
 					)}
 					<ContextMenuItem
 						className="text-destructive focus:text-destructive"

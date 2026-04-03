@@ -32,6 +32,7 @@ interface FolderTreeViewProps {
 	onDeleteDocument: (doc: DocumentNodeDoc) => void;
 	onMoveDocument: (doc: DocumentNodeDoc) => void;
 	onExportDocument?: (doc: DocumentNodeDoc, format: string) => void;
+	onVersionHistory?: (doc: DocumentNodeDoc) => void;
 	activeTypes: DocumentTypeEnum[];
 	searchQuery?: string;
 	onDropIntoFolder?: (
@@ -73,6 +74,7 @@ export function FolderTreeView({
 	onDeleteDocument,
 	onMoveDocument,
 	onExportDocument,
+	onVersionHistory,
 	activeTypes,
 	searchQuery,
 	onDropIntoFolder,
@@ -267,6 +269,7 @@ export function FolderTreeView({
 					onDelete={onDeleteDocument}
 					onMove={onMoveDocument}
 					onExport={onExportDocument}
+					onVersionHistory={onVersionHistory}
 					contextMenuOpen={openContextMenuId === `doc-${d.id}`}
 					onContextMenuOpenChange={(open) => setOpenContextMenuId(open ? `doc-${d.id}` : null)}
 				/>

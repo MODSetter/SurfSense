@@ -21,6 +21,7 @@ import type { DocumentNodeDoc } from "@/components/documents/DocumentNode";
 import type { FolderDisplay } from "@/components/documents/FolderNode";
 import { FolderPickerDialog } from "@/components/documents/FolderPickerDialog";
 import { FolderTreeView } from "@/components/documents/FolderTreeView";
+import { VersionHistoryDialog } from "@/components/documents/version-history";
 import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
 import { EXPORT_FILE_EXTENSIONS } from "@/components/shared/ExportMenuItems";
 import {
@@ -579,6 +580,7 @@ export function DocumentsSidebar({
 
 	const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
 	const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+	const [versionDocId, setVersionDocId] = useState<number | null>(null);
 
 	const handleBulkDeleteSelected = useCallback(async () => {
 		if (deletableSelectedIds.length === 0) return;
@@ -826,6 +828,7 @@ export function DocumentsSidebar({
 				onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
 				onMoveDocument={handleMoveDocument}
 				onExportDocument={handleExportDocument}
+				onVersionHistory={(doc) => setVersionDocId(doc.id)}
 				activeTypes={activeTypes}
 				onDropIntoFolder={handleDropIntoFolder}
 				onReorderFolder={handleReorderFolder}
@@ -849,6 +852,14 @@ export function DocumentsSidebar({
 				}
 			}}
 		/>
+
+		{versionDocId !== null && (
+			<VersionHistoryDialog
+				open
+				onOpenChange={(open) => { if (!open) setVersionDocId(null); }}
+				documentId={versionDocId}
+			/>
+		)}
 
 		<FolderPickerDialog
 				open={folderPickerOpen}
