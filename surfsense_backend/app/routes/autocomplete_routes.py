@@ -14,6 +14,8 @@ router = APIRouter(prefix="/autocomplete", tags=["autocomplete"])
 class VisionAutocompleteRequest(BaseModel):
     screenshot: str
     search_space_id: int
+    app_name: str = ""
+    window_title: str = ""
 
 
 @router.post("/vision/stream")
@@ -23,7 +25,10 @@ async def vision_autocomplete_stream(
     session: AsyncSession = Depends(get_async_session),
 ):
     return StreamingResponse(
-        stream_vision_autocomplete(body.screenshot, body.search_space_id, session),
+        stream_vision_autocomplete(
+            body.screenshot, body.search_space_id, session,
+            app_name=body.app_name, window_title=body.window_title,
+        ),
         media_type="text/event-stream",
         headers={
             **VercelStreamingService.get_response_headers(),

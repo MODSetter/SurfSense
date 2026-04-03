@@ -46,7 +46,7 @@ export default function SuggestionPage() {
 	}, [error]);
 
 	const fetchSuggestion = useCallback(
-		async (screenshot: string, searchSpaceId: string) => {
+		async (screenshot: string, searchSpaceId: string, appName?: string, windowTitle?: string) => {
 			abortRef.current?.abort();
 			const controller = new AbortController();
 			abortRef.current = controller;
@@ -77,6 +77,8 @@ export default function SuggestionPage() {
 						body: JSON.stringify({
 							screenshot,
 							search_space_id: parseInt(searchSpaceId, 10),
+							app_name: appName || "",
+							window_title: windowTitle || "",
 						}),
 						signal: controller.signal,
 					},
@@ -142,7 +144,7 @@ export default function SuggestionPage() {
 		const cleanup = window.electronAPI.onAutocompleteContext((data) => {
 			const searchSpaceId = data.searchSpaceId || "1";
 			if (data.screenshot) {
-				fetchSuggestion(data.screenshot, searchSpaceId);
+				fetchSuggestion(data.screenshot, searchSpaceId, data.appName, data.windowTitle);
 			}
 		});
 

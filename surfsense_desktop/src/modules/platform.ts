@@ -32,6 +32,24 @@ export function checkAccessibilityPermission(): boolean {
   return systemPreferences.isTrustedAccessibilityClient(true);
 }
 
+export function getWindowTitle(): string {
+  try {
+    if (process.platform === 'darwin') {
+      return execSync(
+        'osascript -e \'tell application "System Events" to get title of front window of first application process whose frontmost is true\''
+      ).toString().trim();
+    }
+    if (process.platform === 'win32') {
+      return execSync(
+        'powershell -command "(Get-Process | Where-Object { $_.MainWindowHandle -eq (Add-Type -MemberDefinition \'[DllImport(\\\"user32.dll\\\")] public static extern IntPtr GetForegroundWindow();\' -Name W -PassThru)::GetForegroundWindow() }).MainWindowTitle"'
+      ).toString().trim();
+    }
+  } catch {
+    return '';
+  }
+  return '';
+}
+
 export function hasAccessibilityPermission(): boolean {
   if (process.platform !== 'darwin') return true;
   return systemPreferences.isTrustedAccessibilityClient(false);

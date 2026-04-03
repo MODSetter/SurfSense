@@ -27,8 +27,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   requestScreenRecording: () => ipcRenderer.invoke(IPC_CHANNELS.REQUEST_SCREEN_RECORDING),
   restartApp: () => ipcRenderer.invoke(IPC_CHANNELS.RESTART_APP),
   // Autocomplete
-  onAutocompleteContext: (callback: (data: { screenshot: string; searchSpaceId?: string }) => void) => {
-    const listener = (_event: unknown, data: { screenshot: string; searchSpaceId?: string }) => callback(data);
+  onAutocompleteContext: (callback: (data: { screenshot: string; searchSpaceId?: string; appName?: string; windowTitle?: string }) => void) => {
+    const listener = (_event: unknown, data: { screenshot: string; searchSpaceId?: string; appName?: string; windowTitle?: string }) => callback(data);
     ipcRenderer.on(IPC_CHANNELS.AUTOCOMPLETE_CONTEXT, listener);
     return () => {
       ipcRenderer.removeListener(IPC_CHANNELS.AUTOCOMPLETE_CONTEXT, listener);

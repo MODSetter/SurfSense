@@ -1,6 +1,6 @@
 import { clipboard, globalShortcut, ipcMain, screen } from 'electron';
 import { IPC_CHANNELS } from '../../ipc/channels';
-import { getFrontmostApp, hasAccessibilityPermission, simulatePaste } from '../platform';
+import { getFrontmostApp, getWindowTitle, hasAccessibilityPermission, simulatePaste } from '../platform';
 import { hasScreenRecordingPermission, requestAccessibility, requestScreenRecording } from '../permissions';
 import { getMainWindow } from '../window';
 import { captureScreen } from './screenshot';
@@ -27,6 +27,7 @@ async function triggerAutocomplete(): Promise<void> {
   }
 
   sourceApp = getFrontmostApp();
+  const windowTitle = getWindowTitle();
   savedClipboard = clipboard.readText();
 
   const screenshot = await captureScreen();
@@ -55,6 +56,8 @@ async function triggerAutocomplete(): Promise<void> {
         sw.webContents.send(IPC_CHANNELS.AUTOCOMPLETE_CONTEXT, {
           screenshot,
           searchSpaceId,
+          appName: sourceApp,
+          windowTitle,
         });
       }
     }, 300);
