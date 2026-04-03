@@ -21,7 +21,7 @@ interface ElectronAPI {
 	requestAccessibility: () => Promise<void>;
 	restartApp: () => Promise<void>;
 	// Autocomplete
-	onAutocompleteContext: (callback: (data: { text: string; cursorPosition: number; searchSpaceId?: string }) => void) => () => void;
+	onAutocompleteContext: (callback: (data: { screenshot: string; searchSpaceId?: string }) => void) => () => void;
 	acceptSuggestion: (text: string) => Promise<void>;
 	dismissSuggestion: () => Promise<void>;
 	updateSuggestionText: (text: string) => Promise<void>;

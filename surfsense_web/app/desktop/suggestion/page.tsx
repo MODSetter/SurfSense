@@ -18,7 +18,7 @@ export default function SuggestionPage() {
 	const abortRef = useRef<AbortController | null>(null);
 
 	const fetchSuggestion = useCallback(
-		async (text: string, cursorPosition: number, searchSpaceId: string) => {
+		async (screenshot: string, searchSpaceId: string) => {
 			abortRef.current?.abort();
 			const controller = new AbortController();
 			abortRef.current = controller;
@@ -37,21 +37,19 @@ export default function SuggestionPage() {
 			const backendUrl =
 				process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
 
-			const params = new URLSearchParams({
-				text,
-				cursor_position: String(cursorPosition),
-				search_space_id: searchSpaceId,
-			});
-
 			try {
 				const response = await fetch(
-					`${backendUrl}/api/v1/autocomplete/stream?${params}`,
+					`${backendUrl}/api/v1/autocomplete/vision/stream`,
 					{
 						method: "POST",
 						headers: {
 							Authorization: `Bearer ${token}`,
 							"Content-Type": "application/json",
 						},
+						body: JSON.stringify({
+							screenshot,
+							search_space_id: parseInt(searchSpaceId, 10),
+						}),
 						signal: controller.signal,
 					},
 				);
@@ -119,7 +117,9 @@ export default function SuggestionPage() {
 
 		const cleanup = window.electronAPI.onAutocompleteContext((data) => {
 			const searchSpaceId = data.searchSpaceId || "1";
-			fetchSuggestion(data.text, data.cursorPosition, searchSpaceId);
+			if (data.screenshot) {
+				fetchSuggestion(data.screenshot, searchSpaceId);
+			}
 		});
 
 		return cleanup;
