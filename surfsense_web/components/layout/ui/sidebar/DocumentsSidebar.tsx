@@ -784,12 +784,13 @@ export function DocumentsSidebar({
 			/>
 				</div>
 
+			<div className="relative flex-1 min-h-0 overflow-auto">
 				{deletableSelectedIds.length > 0 && (
-					<div className="shrink-0 flex items-center justify-center px-4 py-1.5 animate-in fade-in duration-150">
+					<div className="absolute inset-x-0 top-0 z-10 flex items-center justify-center px-4 py-1.5 animate-in fade-in duration-150 pointer-events-none">
 						<button
 							type="button"
 							onClick={() => setBulkDeleteConfirmOpen(true)}
-							className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-destructive text-destructive-foreground shadow-sm text-xs font-medium hover:bg-destructive/90 transition-colors"
+							className="pointer-events-auto flex items-center gap-1.5 px-3 py-1 rounded-md bg-destructive text-destructive-foreground shadow-lg text-xs font-medium hover:bg-destructive/90 transition-colors"
 						>
 							<Trash2 size={12} />
 							Delete {deletableSelectedIds.length}{" "}
@@ -798,7 +799,7 @@ export function DocumentsSidebar({
 					</div>
 				)}
 
-				<FolderTreeView
+			<FolderTreeView
 				folders={treeFolders}
 				documents={searchFilteredDocuments}
 				expandedIds={expandedIds}
@@ -837,6 +838,7 @@ export function DocumentsSidebar({
 			onStopWatchingFolder={handleStopWatching}
 			onViewFolderMetadata={handleViewFolderMetadata}
 		/>
+			</div>
 		</div>
 
 		<JsonMetadataViewer
