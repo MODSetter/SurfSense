@@ -4,7 +4,7 @@ import { useAtom } from "jotai";
 import { ChevronDown, Dot, File as FileIcon, FolderOpen, Upload, X } from "lucide-react";
 
 import { useTranslations } from "next-intl";
-import { type ChangeEvent, useCallback, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { uploadDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
@@ -141,6 +141,15 @@ export function DocumentUploadTab({
 	const { mutate: uploadDocuments, isPending: isUploading } = uploadDocumentMutation;
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const folderInputRef = useRef<HTMLInputElement>(null);
+	const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+	useEffect(() => {
+		return () => {
+			if (progressIntervalRef.current) {
+				clearInterval(progressIntervalRef.current);
+			}
+		};
+	}, []);
 
 	const [selectedFolder, setSelectedFolder] = useState<SelectedFolder | null>(null);
 	const [watchFolder, setWatchFolder] = useState(true);
@@ -329,7 +338,7 @@ export function DocumentUploadTab({
 		setUploadProgress(0);
 		trackDocumentUploadStarted(Number(searchSpaceId), files.length, totalFileSize);
 
-		const progressInterval = setInterval(() => {
+		progressIntervalRef.current = setInterval(() => {
 			setUploadProgress((prev) => (prev >= 90 ? prev : prev + Math.random() * 10));
 		}, 200);
 
@@ -342,14 +351,14 @@ export function DocumentUploadTab({
 			},
 			{
 				onSuccess: () => {
-					clearInterval(progressInterval);
+					if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
 					setUploadProgress(100);
 					trackDocumentUploadSuccess(Number(searchSpaceId), files.length);
 					toast(t("upload_initiated"), { description: t("upload_initiated_desc") });
 					onSuccess?.();
 				},
 				onError: (error: unknown) => {
-					clearInterval(progressInterval);
+					if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
 					setUploadProgress(0);
 					const message = error instanceof Error ? error.message : "Upload failed";
 					trackDocumentUploadFailure(Number(searchSpaceId), message);
