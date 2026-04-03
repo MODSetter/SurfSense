@@ -401,15 +401,19 @@ export function DocumentUploadTab({
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
 					<Button
-						variant="secondary"
+						variant="ghost"
 						size="sm"
-						className={`text-xs gap-1 ${sizeClass} ${widthClass}`}
+						className={`text-xs gap-1 bg-neutral-700/50 hover:bg-neutral-600/50 ${sizeClass} ${widthClass}`}
 					>
 						Browse
 						<ChevronDown className="h-3 w-3 opacity-60" />
 					</Button>
 				</DropdownMenuTrigger>
-				<DropdownMenuContent align="center" onClick={(e) => e.stopPropagation()}>
+				<DropdownMenuContent
+					align="center"
+					className="dark:bg-neutral-800"
+					onClick={(e) => e.stopPropagation()}
+				>
 					<DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
 						<FileIcon className="h-4 w-4 mr-2" />
 						{t("browse_files")}
@@ -492,17 +496,20 @@ export function DocumentUploadTab({
 						</span>
 						{renderBrowseButton({ compact: true })}
 					</div>
-				) : isDragActive ? (
-					<div className="flex flex-col items-center gap-2">
-						<Upload className="h-8 w-8 text-primary" />
-						<p className="text-sm font-medium text-primary">{t("drop_files")}</p>
-					</div>
 				) : (
-					<div className="flex flex-col items-center gap-2">
-						<Upload className="h-8 w-8 text-muted-foreground" />
-						<p className="text-sm font-medium">{t("drag_drop")}</p>
-						<p className="text-xs text-muted-foreground">{t("file_size_limit")}</p>
-						<div className="mt-1">{renderBrowseButton()}</div>
+					<div className="relative">
+						{isDragActive && (
+							<div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+								<Upload className="h-8 w-8 text-primary" />
+								<p className="text-sm font-medium text-primary">{t("drop_files")}</p>
+							</div>
+						)}
+						<div className={`flex flex-col items-center gap-2 ${isDragActive ? "invisible" : ""}`}>
+							<Upload className="h-8 w-8 text-muted-foreground" />
+							<p className="text-sm font-medium">{t("drag_drop")}</p>
+							<p className="text-xs text-muted-foreground">{t("file_size_limit")}</p>
+							<div className="mt-1">{renderBrowseButton()}</div>
+						</div>
 					</div>
 				)}
 			</div>
