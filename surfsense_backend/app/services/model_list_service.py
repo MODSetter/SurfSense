@@ -1,5 +1,5 @@
 """
-Service for fetching and caching the available LLM model list.
+Service for fetching and caching the available model list.
 
 Uses the OpenRouter public API as the primary source, with a local
 fallback JSON file when the API is unreachable.

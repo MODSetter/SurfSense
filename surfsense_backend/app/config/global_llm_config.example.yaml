@@ -17,7 +17,7 @@
 # - Configure router_settings below to customize the load balancing behavior
 #
 # Structure matches NewLLMConfig:
-# - LLM model configuration (provider, model_name, api_key, etc.)
+# - Model configuration (provider, model_name, api_key, etc.)
 # - Prompt configuration (system_instructions, citations_enabled)
 
 # Router Settings for Auto Mode

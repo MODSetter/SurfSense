@@ -21,6 +21,7 @@ import type { DocumentNodeDoc } from "@/components/documents/DocumentNode";
 import type { FolderDisplay } from "@/components/documents/FolderNode";
 import { FolderPickerDialog } from "@/components/documents/FolderPickerDialog";
 import { FolderTreeView } from "@/components/documents/FolderTreeView";
+import { VersionHistoryDialog } from "@/components/documents/version-history";
 import { EXPORT_FILE_EXTENSIONS } from "@/components/shared/ExportMenuItems";
 import {
 	AlertDialog,
@@ -40,6 +41,7 @@ import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import { queries } from "@/zero/queries/index";
@@ -92,6 +94,50 @@ export function DocumentsSidebar({
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebouncedValue(search, 250);
 	const [activeTypes, setActiveTypes] = useState<DocumentTypeEnum[]>([]);
+	const [watchedFolderIds, setWatchedFolderIds] = useState<Set<number>>(new Set());
+
+	useEffect(() => {
+		const api = typeof window !== "undefined" ? window.electronAPI : null;
+		if (!api?.getWatchedFolders) return;
+
+		async function loadWatchedIds() {
+			const folders = await api!.getWatchedFolders();
+
+			if (folders.length === 0) {
+				try {
+					const backendFolders = await documentsApiService.getWatchedFolders(searchSpaceId);
+					for (const bf of backendFolders) {
+						const meta = bf.metadata as Record<string, unknown> | null;
+						if (!meta?.watched || !meta.folder_path) continue;
+						await api!.addWatchedFolder({
+							path: meta.folder_path as string,
+							name: bf.name,
+							rootFolderId: bf.id,
+							searchSpaceId: bf.search_space_id,
+							excludePatterns: (meta.exclude_patterns as string[]) ?? [],
+							fileExtensions: (meta.file_extensions as string[] | null) ?? null,
+							active: true,
+						});
+					}
+					const recovered = await api!.getWatchedFolders();
+					const ids = new Set(
+						recovered.filter((f) => f.rootFolderId != null).map((f) => f.rootFolderId as number)
+					);
+					setWatchedFolderIds(ids);
+					return;
+				} catch (err) {
+					console.error("[DocumentsSidebar] Recovery from backend failed:", err);
+				}
+			}
+
+			const ids = new Set(
+				folders.filter((f) => f.rootFolderId != null).map((f) => f.rootFolderId as number)
+			);
+			setWatchedFolderIds(ids);
+		}
+
+		loadWatchedIds();
+	}, [searchSpaceId]);
 	const { mutateAsync: deleteDocumentMutation } = useAtomValue(deleteDocumentMutationAtom);
 
 	const [sidebarDocs, setSidebarDocs] = useAtom(sidebarSelectedDocumentsAtom);
@@ -134,7 +180,12 @@ export function DocumentsSidebar({
 
 	const treeDocuments: DocumentNodeDoc[] = useMemo(() => {
 		const zeroDocs = (zeroAllDocs ?? [])
-			.filter((d) => d.title && d.title.trim() !== "")
+			.filter((d) => {
+				if (!d.title || d.title.trim() === "") return false;
+				const state = (d.status as { state?: string } | undefined)?.state;
+				if (state === "deleting") return false;
+				return true;
+			})
 			.map((d) => ({
 				id: d.id,
 				title: d.title,
@@ -223,6 +274,53 @@ export function DocumentsSidebar({
 		[createFolderParentId, searchSpaceId, setExpandedFolderMap]
 	);
 
+	const handleRescanFolder = useCallback(
+		async (folder: FolderDisplay) => {
+			const api = window.electronAPI;
+			if (!api) return;
+
+			const watchedFolders = await api.getWatchedFolders();
+			const matched = watchedFolders.find((wf) => wf.rootFolderId === folder.id);
+			if (!matched) {
+				toast.error("This folder is not being watched");
+				return;
+			}
+
+			try {
+				await documentsApiService.folderIndex(searchSpaceId, {
+					folder_path: matched.path,
+					folder_name: matched.name,
+					search_space_id: searchSpaceId,
+					root_folder_id: folder.id,
+				});
+				toast.success(`Re-scanning folder: ${matched.name}`);
+			} catch (err) {
+				toast.error((err as Error)?.message || "Failed to re-scan folder");
+			}
+		},
+		[searchSpaceId]
+	);
+
+	const handleStopWatching = useCallback(async (folder: FolderDisplay) => {
+		const api = window.electronAPI;
+		if (!api) return;
+
+		const watchedFolders = await api.getWatchedFolders();
+		const matched = watchedFolders.find((wf) => wf.rootFolderId === folder.id);
+		if (!matched) {
+			toast.error("This folder is not being watched");
+			return;
+		}
+
+		await api.removeWatchedFolder(matched.path);
+		try {
+			await foldersApiService.stopWatching(folder.id);
+		} catch (err) {
+			console.error("[DocumentsSidebar] Failed to clear watched metadata:", err);
+		}
+		toast.success(`Stopped watching: ${matched.name}`);
+	}, []);
+
 	const handleRenameFolder = useCallback(async (folder: FolderDisplay, newName: string) => {
 		try {
 			await foldersApiService.updateFolder(folder.id, { name: newName });
@@ -235,6 +333,14 @@ export function DocumentsSidebar({
 	const handleDeleteFolder = useCallback(async (folder: FolderDisplay) => {
 		if (!confirm(`Delete folder "${folder.name}" and all its contents?`)) return;
 		try {
+			const api = window.electronAPI;
+			if (api) {
+				const watchedFolders = await api.getWatchedFolders();
+				const matched = watchedFolders.find((wf) => wf.rootFolderId === folder.id);
+				if (matched) {
+					await api.removeWatchedFolder(matched.path);
+				}
+			}
 			await foldersApiService.deleteFolder(folder.id);
 			toast.success("Folder deleted");
 		} catch (e: unknown) {
@@ -448,6 +554,7 @@ export function DocumentsSidebar({
 
 	const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
 	const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+	const [versionDocId, setVersionDocId] = useState<number | null>(null);
 
 	const handleBulkDeleteSelected = useCallback(async () => {
 		if (deletableSelectedIds.length === 0) return;
@@ -651,55 +758,71 @@ export function DocumentsSidebar({
 					/>
 				</div>
 
-				{deletableSelectedIds.length > 0 && (
-					<div className="shrink-0 flex items-center justify-center px-4 py-1.5 animate-in fade-in duration-150">
-						<button
-							type="button"
-							onClick={() => setBulkDeleteConfirmOpen(true)}
-							className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-destructive text-destructive-foreground shadow-sm text-xs font-medium hover:bg-destructive/90 transition-colors"
-						>
-							<Trash2 size={12} />
-							Delete {deletableSelectedIds.length}{" "}
-							{deletableSelectedIds.length === 1 ? "item" : "items"}
-						</button>
-					</div>
-				)}
+				<div className="relative flex-1 min-h-0 overflow-auto">
+					{deletableSelectedIds.length > 0 && (
+						<div className="absolute inset-x-0 top-0 z-10 flex items-center justify-center px-4 py-1.5 animate-in fade-in duration-150 pointer-events-none">
+							<button
+								type="button"
+								onClick={() => setBulkDeleteConfirmOpen(true)}
+								className="pointer-events-auto flex items-center gap-1.5 px-3 py-1 rounded-md bg-destructive text-destructive-foreground shadow-lg text-xs font-medium hover:bg-destructive/90 transition-colors"
+							>
+								<Trash2 size={12} />
+								Delete {deletableSelectedIds.length}{" "}
+								{deletableSelectedIds.length === 1 ? "item" : "items"}
+							</button>
+						</div>
+					)}
 
-				<FolderTreeView
-					folders={treeFolders}
-					documents={searchFilteredDocuments}
-					expandedIds={expandedIds}
-					onToggleExpand={toggleFolderExpand}
-					mentionedDocIds={mentionedDocIds}
-					onToggleChatMention={handleToggleChatMention}
-					onToggleFolderSelect={handleToggleFolderSelect}
-					onRenameFolder={handleRenameFolder}
-					onDeleteFolder={handleDeleteFolder}
-					onMoveFolder={handleMoveFolder}
-					onCreateFolder={handleCreateFolder}
-					searchQuery={debouncedSearch.trim() || undefined}
-					onPreviewDocument={(doc) => {
-						openEditorPanel({
-							documentId: doc.id,
-							searchSpaceId,
-							title: doc.title,
-						});
-					}}
-					onEditDocument={(doc) => {
-						openEditorPanel({
-							documentId: doc.id,
-							searchSpaceId,
-							title: doc.title,
-						});
-					}}
-					onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
-					onMoveDocument={handleMoveDocument}
-					onExportDocument={handleExportDocument}
-					activeTypes={activeTypes}
-					onDropIntoFolder={handleDropIntoFolder}
-					onReorderFolder={handleReorderFolder}
-				/>
+					<FolderTreeView
+						folders={treeFolders}
+						documents={searchFilteredDocuments}
+						expandedIds={expandedIds}
+						onToggleExpand={toggleFolderExpand}
+						mentionedDocIds={mentionedDocIds}
+						onToggleChatMention={handleToggleChatMention}
+						onToggleFolderSelect={handleToggleFolderSelect}
+						onRenameFolder={handleRenameFolder}
+						onDeleteFolder={handleDeleteFolder}
+						onMoveFolder={handleMoveFolder}
+						onCreateFolder={handleCreateFolder}
+						searchQuery={debouncedSearch.trim() || undefined}
+						onPreviewDocument={(doc) => {
+							openEditorPanel({
+								documentId: doc.id,
+								searchSpaceId,
+								title: doc.title,
+							});
+						}}
+						onEditDocument={(doc) => {
+							openEditorPanel({
+								documentId: doc.id,
+								searchSpaceId,
+								title: doc.title,
+							});
+						}}
+						onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
+						onMoveDocument={handleMoveDocument}
+						onExportDocument={handleExportDocument}
+						onVersionHistory={(doc) => setVersionDocId(doc.id)}
+						activeTypes={activeTypes}
+						onDropIntoFolder={handleDropIntoFolder}
+						onReorderFolder={handleReorderFolder}
+						watchedFolderIds={watchedFolderIds}
+						onRescanFolder={handleRescanFolder}
+						onStopWatchingFolder={handleStopWatching}
+					/>
+				</div>
 			</div>
+
+			{versionDocId !== null && (
+				<VersionHistoryDialog
+					open
+					onOpenChange={(open) => {
+						if (!open) setVersionDocId(null);
+					}}
+					documentId={versionDocId}
+				/>
+			)}
 
 			<FolderPickerDialog
 				open={folderPickerOpen}

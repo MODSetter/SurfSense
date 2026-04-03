@@ -17,6 +17,7 @@ import { DocumentUploadDialogProvider } from "@/components/assistant-ui/document
 import { LayoutDataProvider } from "@/components/layout";
 import { OnboardingTour } from "@/components/onboarding-tour";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useFolderSync } from "@/hooks/use-folder-sync";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 
 export function DashboardClientLayout({
@@ -158,6 +159,9 @@ export function DashboardClientLayout({
 
 	// Use global loading screen - spinner animation won't reset
 	useGlobalLoadingEffect(shouldShowLoading);
+
+	// Wire desktop app file watcher -> single-file re-index API
+	useFolderSync();
 
 	if (shouldShowLoading) {
 		return null;

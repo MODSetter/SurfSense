@@ -2,6 +2,7 @@
 import asyncio
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, UploadFile
+from pydantic import BaseModel as PydanticBaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -10,6 +11,8 @@ from app.db import (
     Chunk,
     Document,
     DocumentType,
+    DocumentVersion,
+    Folder,
     Permission,
     SearchSpace,
     SearchSpaceMembership,
@@ -27,6 +30,7 @@ from app.schemas import (
     DocumentTitleSearchResponse,
     DocumentUpdate,
     DocumentWithChunksRead,
+    FolderRead,
     PaginatedResponse,
 )
 from app.services.task_dispatcher import TaskDispatcher, get_task_dispatcher
@@ -957,6 +961,39 @@ async def get_document_by_chunk_id(
         ) from e
 
 
+@router.get("/documents/watched-folders", response_model=list[FolderRead])
+async def get_watched_folders(
+    search_space_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Return root folders that are marked as watched (metadata->>'watched' = 'true')."""
+    await check_permission(
+        session,
+        user,
+        search_space_id,
+        Permission.DOCUMENTS_READ.value,
+        "You don't have permission to read documents in this search space",
+    )
+
+    folders = (
+        (
+            await session.execute(
+                select(Folder).where(
+                    Folder.search_space_id == search_space_id,
+                    Folder.parent_id.is_(None),
+                    Folder.folder_metadata.isnot(None),
+                    Folder.folder_metadata["watched"].astext == "true",
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    return folders
+
+
 @router.get(
     "/documents/{document_id}/chunks",
     response_model=PaginatedResponse[ChunkRead],
@@ -1212,3 +1249,297 @@ async def delete_document(
         raise HTTPException(
             status_code=500, detail=f"Failed to delete document: {e!s}"
         ) from e
+
+
+# ====================================================================
+# Version History Endpoints
+# ====================================================================
+
+
+@router.get("/documents/{document_id}/versions")
+async def list_document_versions(
+    document_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """List all versions for a document, ordered by version_number descending."""
+    document = (
+        await session.execute(select(Document).where(Document.id == document_id))
+    ).scalar_one_or_none()
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    await check_permission(
+        session, user, document.search_space_id, Permission.DOCUMENTS_READ.value
+    )
+
+    versions = (
+        (
+            await session.execute(
+                select(DocumentVersion)
+                .where(DocumentVersion.document_id == document_id)
+                .order_by(DocumentVersion.version_number.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    return [
+        {
+            "version_number": v.version_number,
+            "title": v.title,
+            "content_hash": v.content_hash,
+            "created_at": v.created_at.isoformat() if v.created_at else None,
+        }
+        for v in versions
+    ]
+
+
+@router.get("/documents/{document_id}/versions/{version_number}")
+async def get_document_version(
+    document_id: int,
+    version_number: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Get full version content including source_markdown."""
+    document = (
+        await session.execute(select(Document).where(Document.id == document_id))
+    ).scalar_one_or_none()
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    await check_permission(
+        session, user, document.search_space_id, Permission.DOCUMENTS_READ.value
+    )
+
+    version = (
+        await session.execute(
+            select(DocumentVersion).where(
+                DocumentVersion.document_id == document_id,
+                DocumentVersion.version_number == version_number,
+            )
+        )
+    ).scalar_one_or_none()
+    if not version:
+        raise HTTPException(status_code=404, detail="Version not found")
+
+    return {
+        "version_number": version.version_number,
+        "title": version.title,
+        "content_hash": version.content_hash,
+        "source_markdown": version.source_markdown,
+        "created_at": version.created_at.isoformat() if version.created_at else None,
+    }
+
+
+@router.post("/documents/{document_id}/versions/{version_number}/restore")
+async def restore_document_version(
+    document_id: int,
+    version_number: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Restore a previous version: snapshot current state, then overwrite document content."""
+    document = (
+        await session.execute(select(Document).where(Document.id == document_id))
+    ).scalar_one_or_none()
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    await check_permission(
+        session, user, document.search_space_id, Permission.DOCUMENTS_UPDATE.value
+    )
+
+    version = (
+        await session.execute(
+            select(DocumentVersion).where(
+                DocumentVersion.document_id == document_id,
+                DocumentVersion.version_number == version_number,
+            )
+        )
+    ).scalar_one_or_none()
+    if not version:
+        raise HTTPException(status_code=404, detail="Version not found")
+
+    # Snapshot current state before restoring
+    from app.utils.document_versioning import create_version_snapshot
+
+    await create_version_snapshot(session, document)
+
+    # Restore the version's content onto the document
+    document.source_markdown = version.source_markdown
+    document.title = version.title or document.title
+    document.content_needs_reindexing = True
+    await session.commit()
+
+    from app.tasks.celery_tasks.document_reindex_tasks import reindex_document_task
+
+    reindex_document_task.delay(document_id, str(user.id))
+
+    return {
+        "message": f"Restored version {version_number}",
+        "document_id": document_id,
+        "restored_version": version_number,
+    }
+
+
+# ===== Local folder indexing endpoints =====
+
+
+class FolderIndexRequest(PydanticBaseModel):
+    folder_path: str
+    folder_name: str
+    search_space_id: int
+    exclude_patterns: list[str] | None = None
+    file_extensions: list[str] | None = None
+    root_folder_id: int | None = None
+    enable_summary: bool = False
+
+
+class FolderIndexFilesRequest(PydanticBaseModel):
+    folder_path: str
+    folder_name: str
+    search_space_id: int
+    target_file_paths: list[str]
+    root_folder_id: int | None = None
+    enable_summary: bool = False
+
+
+@router.post("/documents/folder-index")
+async def folder_index(
+    request: FolderIndexRequest,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Full-scan index of a local folder. Creates the root Folder row synchronously
+    and dispatches the heavy indexing work to a Celery task.
+    Returns the root_folder_id so the desktop can persist it.
+    """
+    from app.config import config as app_config
+
+    if not app_config.is_self_hosted():
+        raise HTTPException(
+            status_code=400,
+            detail="Local folder indexing is only available in self-hosted mode",
+        )
+
+    await check_permission(
+        session,
+        user,
+        request.search_space_id,
+        Permission.DOCUMENTS_CREATE.value,
+        "You don't have permission to create documents in this search space",
+    )
+
+    watched_metadata = {
+        "watched": True,
+        "folder_path": request.folder_path,
+        "exclude_patterns": request.exclude_patterns,
+        "file_extensions": request.file_extensions,
+    }
+
+    root_folder_id = request.root_folder_id
+    if root_folder_id:
+        existing = (
+            await session.execute(select(Folder).where(Folder.id == root_folder_id))
+        ).scalar_one_or_none()
+        if not existing:
+            root_folder_id = None
+        else:
+            existing.folder_metadata = watched_metadata
+            await session.commit()
+
+    if not root_folder_id:
+        root_folder = Folder(
+            name=request.folder_name,
+            search_space_id=request.search_space_id,
+            created_by_id=str(user.id),
+            position="a0",
+            folder_metadata=watched_metadata,
+        )
+        session.add(root_folder)
+        await session.flush()
+        root_folder_id = root_folder.id
+        await session.commit()
+
+    from app.tasks.celery_tasks.document_tasks import index_local_folder_task
+
+    index_local_folder_task.delay(
+        search_space_id=request.search_space_id,
+        user_id=str(user.id),
+        folder_path=request.folder_path,
+        folder_name=request.folder_name,
+        exclude_patterns=request.exclude_patterns,
+        file_extensions=request.file_extensions,
+        root_folder_id=root_folder_id,
+        enable_summary=request.enable_summary,
+    )
+
+    return {
+        "message": "Folder indexing started",
+        "status": "processing",
+        "root_folder_id": root_folder_id,
+    }
+
+
+@router.post("/documents/folder-index-files")
+async def folder_index_files(
+    request: FolderIndexFilesRequest,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Index multiple files within a watched folder (batched chokidar trigger).
+    Validates that all target_file_paths are under folder_path.
+    Dispatches a single Celery task that processes them in parallel.
+    """
+    from app.config import config as app_config
+
+    if not app_config.is_self_hosted():
+        raise HTTPException(
+            status_code=400,
+            detail="Local folder indexing is only available in self-hosted mode",
+        )
+
+    if not request.target_file_paths:
+        raise HTTPException(
+            status_code=400, detail="target_file_paths must not be empty"
+        )
+
+    await check_permission(
+        session,
+        user,
+        request.search_space_id,
+        Permission.DOCUMENTS_CREATE.value,
+        "You don't have permission to create documents in this search space",
+    )
+
+    from pathlib import Path
+
+    for fp in request.target_file_paths:
+        try:
+            Path(fp).relative_to(request.folder_path)
+        except ValueError as err:
+            raise HTTPException(
+                status_code=400,
+                detail=f"target_file_path {fp} must be inside folder_path",
+            ) from err
+
+    from app.tasks.celery_tasks.document_tasks import index_local_folder_task
+
+    index_local_folder_task.delay(
+        search_space_id=request.search_space_id,
+        user_id=str(user.id),
+        folder_path=request.folder_path,
+        folder_name=request.folder_name,
+        target_file_paths=request.target_file_paths,
+        root_folder_id=request.root_folder_id,
+        enable_summary=request.enable_summary,
+    )
+
+    return {
+        "message": f"Batch indexing started for {len(request.target_file_paths)} file(s)",
+        "status": "processing",
+        "file_count": len(request.target_file_paths),
+    }

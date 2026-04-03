@@ -1,7 +1,7 @@
 """
 Pydantic schemas for the NewLLMConfig API.
 
-NewLLMConfig combines LLM model settings with prompt configuration:
+NewLLMConfig combines model settings with prompt configuration:
 - LLM provider, model, API key, etc.
 - Configurable system instructions
 - Citation toggle
@@ -26,7 +26,7 @@ class NewLLMConfigBase(BaseModel):
         None, max_length=500, description="Optional description"
     )
 
-    # LLM Model Configuration
+    # Model Configuration
     provider: LiteLLMProvider = Field(..., description="LiteLLM provider type")
     custom_provider: str | None = Field(
         None, max_length=100, description="Custom provider name when provider is CUSTOM"
@@ -71,7 +71,7 @@ class NewLLMConfigUpdate(BaseModel):
     name: str | None = Field(None, max_length=100)
     description: str | None = Field(None, max_length=500)
 
-    # LLM Model Configuration
+    # Model Configuration
     provider: LiteLLMProvider | None = None
     custom_provider: str | None = Field(None, max_length=100)
     model_name: str | None = Field(None, max_length=100)
@@ -106,7 +106,7 @@ class NewLLMConfigPublic(BaseModel):
     name: str
     description: str | None = None
 
-    # LLM Model Configuration (no api_key)
+    # Model Configuration (no api_key)
     provider: LiteLLMProvider
     custom_provider: str | None = None
     model_name: str
@@ -149,7 +149,7 @@ class GlobalNewLLMConfigRead(BaseModel):
     name: str
     description: str | None = None
 
-    # LLM Model Configuration (no api_key)
+    # Model Configuration (no api_key)
     provider: str  # String because YAML doesn't enforce enum, "AUTO" for Auto mode
     custom_provider: str | None = None
     model_name: str

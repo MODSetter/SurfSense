@@ -1,11 +1,12 @@
 "use client";
 
 import { useAtomValue, useSetAtom } from "jotai";
-import { AlertCircle, Download, FileText, Loader2, XIcon } from "lucide-react";
+import { Download, FileQuestionMark, FileText, Loader2, RefreshCw, XIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { closeEditorPanelAtom, editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
+import { VersionHistoryButton } from "@/components/documents/version-history";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -79,7 +80,7 @@ export function EditorPanelContent({
 	const isLargeDocument = (editorDoc?.content_size_bytes ?? 0) > LARGE_DOCUMENT_THRESHOLD;
 
 	useEffect(() => {
-		let cancelled = false;
+		const controller = new AbortController();
 		setIsLoading(true);
 		setError(null);
 		setEditorDoc(null);
@@ -87,7 +88,7 @@ export function EditorPanelContent({
 		initialLoadDone.current = false;
 		changeCountRef.current = 0;
 
-		const fetchContent = async () => {
+		const doFetch = async () => {
 			const token = getBearerToken();
 			if (!token) {
 				redirectToLogin();
@@ -95,6 +96,9 @@ export function EditorPanelContent({
 			}
 
 			try {
+				const response = await authenticatedFetch(
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`,
+					{ method: "GET", signal: controller.signal }
 				const url = new URL(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`
 				);
@@ -102,7 +106,7 @@ export function EditorPanelContent({
 
 				const response = await authenticatedFetch(url.toString(), { method: "GET" });
 
-				if (cancelled) return;
+				if (controller.signal.aborted) return;
 
 				if (!response.ok) {
 					const errorData = await response
@@ -126,18 +130,16 @@ export function EditorPanelContent({
 				setEditorDoc(data);
 				initialLoadDone.current = true;
 			} catch (err) {
-				if (cancelled) return;
+				if (controller.signal.aborted) return;
 				console.error("Error fetching document:", err);
 				setError(err instanceof Error ? err.message : "Failed to fetch document");
 			} finally {
-				if (!cancelled) setIsLoading(false);
+				if (!controller.signal.aborted) setIsLoading(false);
 			}
 		};
 
-		fetchContent();
-		return () => {
-			cancelled = true;
-		};
+		doFetch().catch(() => {});
+		return () => controller.abort();
 	}, [documentId, searchSpaceId, title]);
 
 	const handleMarkdownChange = useCallback((md: string) => {
@@ -198,12 +200,17 @@ export function EditorPanelContent({
 						<p className="text-[10px] text-muted-foreground">Unsaved changes</p>
 					)}
 				</div>
-				{onClose && (
-					<Button variant="ghost" size="icon" onClick={onClose} className="size-7 shrink-0">
-						<XIcon className="size-4" />
-						<span className="sr-only">Close editor panel</span>
-					</Button>
-				)}
+				<div className="flex items-center gap-1 shrink-0">
+					{editorDoc?.document_type && (
+						<VersionHistoryButton documentId={documentId} documentType={editorDoc.document_type} />
+					)}
+					{onClose && (
+						<Button variant="ghost" size="icon" onClick={onClose} className="size-7 shrink-0">
+							<XIcon className="size-4" />
+							<span className="sr-only">Close editor panel</span>
+						</Button>
+					)}
+				</div>
 			</div>
 
 			<div className="flex-1 overflow-hidden">
@@ -211,10 +218,24 @@ export function EditorPanelContent({
 					<EditorPanelSkeleton />
 				) : error || !editorDoc ? (
 					<div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-						<AlertCircle className="size-8 text-destructive" />
-						<div>
-							<p className="font-medium text-foreground">Failed to load document</p>
-							<p className="text-sm text-red-500 mt-1">{error || "An unknown error occurred"}</p>
+						{error?.toLowerCase().includes("still being processed") ? (
+							<div className="rounded-full bg-muted/50 p-3">
+								<RefreshCw className="size-6 text-muted-foreground animate-spin" />
+							</div>
+						) : (
+							<div className="rounded-full bg-muted/50 p-3">
+								<FileQuestionMark className="size-6 text-muted-foreground" />
+							</div>
+						)}
+						<div className="space-y-1 max-w-xs">
+							<p className="font-medium text-foreground">
+								{error?.toLowerCase().includes("still being processed")
+									? "Document is processing"
+									: "Document unavailable"}
+							</p>
+							<p className="text-sm text-muted-foreground">
+								{error || "An unknown error occurred"}
+							</p>
 						</div>
 					</div>
 				) : isLargeDocument ? (

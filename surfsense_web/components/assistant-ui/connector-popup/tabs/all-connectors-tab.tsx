@@ -76,29 +76,26 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 }) => {
 	// Check if self-hosted mode (for showing self-hosted only connectors)
 	const selfHosted = isSelfHosted();
+	const isDesktop = typeof window !== "undefined" && !!window.electronAPI;
+
+	const matchesSearch = (title: string, description: string) =>
+		title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+		description.toLowerCase().includes(searchQuery.toLowerCase());
+
+	const passesDeploymentFilter = (c: { selfHostedOnly?: boolean; desktopOnly?: boolean }) =>
+		(!c.selfHostedOnly || selfHosted) && (!c.desktopOnly || isDesktop);
 
 	// Filter connectors based on search and deployment mode
 	const filteredOAuth = OAUTH_CONNECTORS.filter(
-		(c) =>
-			// Filter by search query
-			(c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-				c.description.toLowerCase().includes(searchQuery.toLowerCase())) &&
-			// Filter self-hosted only connectors in cloud mode
-			(!("selfHostedOnly" in c) || !c.selfHostedOnly || selfHosted)
+		(c) => matchesSearch(c.title, c.description) && passesDeploymentFilter(c)
 	);
 
 	const filteredCrawlers = CRAWLERS.filter(
-		(c) =>
-			(c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-				c.description.toLowerCase().includes(searchQuery.toLowerCase())) &&
-			(!("selfHostedOnly" in c) || !c.selfHostedOnly || selfHosted)
+		(c) => matchesSearch(c.title, c.description) && passesDeploymentFilter(c)
 	);
 
 	const filteredOther = OTHER_CONNECTORS.filter(
-		(c) =>
-			(c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-				c.description.toLowerCase().includes(searchQuery.toLowerCase())) &&
-			(!("selfHostedOnly" in c) || !c.selfHostedOnly || selfHosted)
+		(c) => matchesSearch(c.title, c.description) && passesDeploymentFilter(c)
 	);
 
 	// Filter Composio connectors

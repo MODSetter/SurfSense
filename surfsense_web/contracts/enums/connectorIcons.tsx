@@ -126,6 +126,8 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 			return <Microscope {...iconProps} />;
 		case "DEEPEST":
 			return <Telescope {...iconProps} />;
+		case "LOCAL_FOLDER_FILE":
+			return null;
 		default:
 			return <Search {...iconProps} />;
 	}

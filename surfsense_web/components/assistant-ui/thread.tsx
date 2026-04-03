@@ -15,6 +15,7 @@ import {
 	ChevronDown,
 	ChevronUp,
 	Clipboard,
+	Dot,
 	Globe,
 	Plus,
 	Settings2,
@@ -816,12 +817,23 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const isDesktop = useMediaQuery("(min-width: 640px)");
 	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
 	const [toolsScrollPos, setToolsScrollPos] = useState<"top" | "middle" | "bottom">("top");
+	const toolsRafRef = useRef<number>();
 	const handleToolsScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
 		const el = e.currentTarget;
-		const atTop = el.scrollTop <= 2;
-		const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
-		setToolsScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+		if (toolsRafRef.current) return;
+		toolsRafRef.current = requestAnimationFrame(() => {
+			const atTop = el.scrollTop <= 2;
+			const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
+			setToolsScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+			toolsRafRef.current = undefined;
+		});
 	}, []);
+	useEffect(
+		() => () => {
+			if (toolsRafRef.current) cancelAnimationFrame(toolsRafRef.current);
+		},
+		[]
+	);
 	const isComposerTextEmpty = useAuiState(({ composer }) => {
 		const text = composer.text?.trim() || "";
 		return text.length === 0;
@@ -1064,7 +1076,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 						>
 							<div className="sr-only">Manage Tools</div>
 							<div
-								className="max-h-48 sm:max-h-64 overflow-y-auto py-0.5 sm:py-1"
+								className="max-h-48 sm:max-h-64 overflow-y-auto overscroll-none py-0.5 sm:py-1"
 								onScroll={handleToolsScroll}
 								style={{
 									maskImage: `linear-gradient(to bottom, ${toolsScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${toolsScrollPos === "bottom" ? "black" : "transparent"})`,
@@ -1147,7 +1159,11 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 														<TooltipTrigger asChild>{row}</TooltipTrigger>
 														<TooltipContent side="right" className="max-w-72 text-xs">
 															{groupDef?.tooltip ??
-																group.tools.map((t) => t.description).join(" · ")}
+																group.tools.flatMap((t, i) =>
+																	i === 0
+																		? [t.description]
+																		: [<Dot key={i} className="inline h-4 w-4" />, t.description]
+																)}
 														</TooltipContent>
 													</Tooltip>
 												);

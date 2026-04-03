@@ -5,6 +5,7 @@ import {
 	Clock,
 	Download,
 	Eye,
+	History,
 	MoreHorizontal,
 	Move,
 	PenLine,
@@ -39,6 +40,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { cn } from "@/lib/utils";
 import { DND_TYPES } from "./FolderNode";
+import { isVersionableType } from "./version-history";
 
 const EDITABLE_DOCUMENT_TYPES = new Set(["FILE", "NOTE"]);
 
@@ -60,6 +62,7 @@ interface DocumentNodeProps {
 	onDelete: (doc: DocumentNodeDoc) => void;
 	onMove: (doc: DocumentNodeDoc) => void;
 	onExport?: (doc: DocumentNodeDoc, format: string) => void;
+	onVersionHistory?: (doc: DocumentNodeDoc) => void;
 	contextMenuOpen?: boolean;
 	onContextMenuOpenChange?: (open: boolean) => void;
 }
@@ -74,6 +77,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 	onDelete,
 	onMove,
 	onExport,
+	onVersionHistory,
 	contextMenuOpen,
 	onContextMenuOpenChange,
 }: DocumentNodeProps) {
@@ -195,12 +199,17 @@ export const DocumentNode = React.memo(function DocumentNode({
 
 					<span className="flex-1 min-w-0 truncate">{doc.title}</span>
 
-					<span className="shrink-0">
-						{getDocumentTypeIcon(
-							doc.document_type as DocumentTypeEnum,
-							"h-3.5 w-3.5 text-muted-foreground"
-						)}
-					</span>
+					{getDocumentTypeIcon(
+						doc.document_type as DocumentTypeEnum,
+						"h-3.5 w-3.5 text-muted-foreground"
+					) && (
+						<span className="shrink-0">
+							{getDocumentTypeIcon(
+								doc.document_type as DocumentTypeEnum,
+								"h-3.5 w-3.5 text-muted-foreground"
+							)}
+						</span>
+					)}
 
 					<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
 						<DropdownMenuTrigger asChild>
@@ -219,7 +228,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end" className="w-40" onClick={(e) => e.stopPropagation()}>
-							<DropdownMenuItem onClick={() => onPreview(doc)}>
+							<DropdownMenuItem onClick={() => onPreview(doc)} disabled={isProcessing}>
 								<Eye className="mr-2 h-4 w-4" />
 								Open
 							</DropdownMenuItem>
@@ -235,7 +244,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 							</DropdownMenuItem>
 							{onExport && (
 								<DropdownMenuSub>
-									<DropdownMenuSubTrigger>
+									<DropdownMenuSubTrigger disabled={isProcessing}>
 										<Download className="mr-2 h-4 w-4" />
 										Export
 									</DropdownMenuSubTrigger>
@@ -243,6 +252,12 @@ export const DocumentNode = React.memo(function DocumentNode({
 										<ExportDropdownItems onExport={handleExport} exporting={exporting} />
 									</DropdownMenuSubContent>
 								</DropdownMenuSub>
+							)}
+							{onVersionHistory && isVersionableType(doc.document_type) && (
+								<DropdownMenuItem disabled={isProcessing} onClick={() => onVersionHistory(doc)}>
+									<History className="mr-2 h-4 w-4" />
+									Versions
+								</DropdownMenuItem>
 							)}
 							<DropdownMenuItem
 								className="text-destructive focus:text-destructive"
@@ -259,7 +274,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 
 			{contextMenuOpen && (
 				<ContextMenuContent className="w-40" onClick={(e) => e.stopPropagation()}>
-					<ContextMenuItem onClick={() => onPreview(doc)}>
+					<ContextMenuItem onClick={() => onPreview(doc)} disabled={isProcessing}>
 						<Eye className="mr-2 h-4 w-4" />
 						Open
 					</ContextMenuItem>
@@ -275,7 +290,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 					</ContextMenuItem>
 					{onExport && (
 						<ContextMenuSub>
-							<ContextMenuSubTrigger>
+							<ContextMenuSubTrigger disabled={isProcessing}>
 								<Download className="mr-2 h-4 w-4" />
 								Export
 							</ContextMenuSubTrigger>
@@ -283,6 +298,12 @@ export const DocumentNode = React.memo(function DocumentNode({
 								<ExportContextItems onExport={handleExport} exporting={exporting} />
 							</ContextMenuSubContent>
 						</ContextMenuSub>
+					)}
+					{onVersionHistory && isVersionableType(doc.document_type) && (
+						<ContextMenuItem disabled={isProcessing} onClick={() => onVersionHistory(doc)}>
+							<History className="mr-2 h-4 w-4" />
+							Versions
+						</ContextMenuItem>
 					)}
 					<ContextMenuItem
 						className="text-destructive focus:text-destructive"
