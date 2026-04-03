@@ -977,15 +977,19 @@ async def get_watched_folders(
     )
 
     folders = (
-        await session.execute(
-            select(Folder).where(
-                Folder.search_space_id == search_space_id,
-                Folder.parent_id.is_(None),
-                Folder.folder_metadata.isnot(None),
-                Folder.folder_metadata["watched"].astext == "true",
+        (
+            await session.execute(
+                select(Folder).where(
+                    Folder.search_space_id == search_space_id,
+                    Folder.parent_id.is_(None),
+                    Folder.folder_metadata.isnot(None),
+                    Folder.folder_metadata["watched"].astext == "true",
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     return folders
 
@@ -1265,15 +1269,21 @@ async def list_document_versions(
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    await check_permission(session, user, document.search_space_id, Permission.DOCUMENTS_READ.value)
+    await check_permission(
+        session, user, document.search_space_id, Permission.DOCUMENTS_READ.value
+    )
 
     versions = (
-        await session.execute(
-            select(DocumentVersion)
-            .where(DocumentVersion.document_id == document_id)
-            .order_by(DocumentVersion.version_number.desc())
+        (
+            await session.execute(
+                select(DocumentVersion)
+                .where(DocumentVersion.document_id == document_id)
+                .order_by(DocumentVersion.version_number.desc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     return [
         {
@@ -1300,7 +1310,9 @@ async def get_document_version(
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    await check_permission(session, user, document.search_space_id, Permission.DOCUMENTS_READ.value)
+    await check_permission(
+        session, user, document.search_space_id, Permission.DOCUMENTS_READ.value
+    )
 
     version = (
         await session.execute(
@@ -1331,14 +1343,14 @@ async def restore_document_version(
 ):
     """Restore a previous version: snapshot current state, then overwrite document content."""
     document = (
-        await session.execute(
-            select(Document).where(Document.id == document_id)
-        )
+        await session.execute(select(Document).where(Document.id == document_id))
     ).scalar_one_or_none()
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    await check_permission(session, user, document.search_space_id, Permission.DOCUMENTS_UPDATE.value)
+    await check_permission(
+        session, user, document.search_space_id, Permission.DOCUMENTS_UPDATE.value
+    )
 
     version = (
         await session.execute(
@@ -1363,6 +1375,7 @@ async def restore_document_version(
     await session.commit()
 
     from app.tasks.celery_tasks.document_reindex_tasks import reindex_document_task
+
     reindex_document_task.delay(document_id, str(user.id))
 
     return {
@@ -1430,9 +1443,7 @@ async def folder_index(
     root_folder_id = request.root_folder_id
     if root_folder_id:
         existing = (
-            await session.execute(
-                select(Folder).where(Folder.id == root_folder_id)
-            )
+            await session.execute(select(Folder).where(Folder.id == root_folder_id))
         ).scalar_one_or_none()
         if not existing:
             root_folder_id = None
@@ -1492,7 +1503,9 @@ async def folder_index_files(
         )
 
     if not request.target_file_paths:
-        raise HTTPException(status_code=400, detail="target_file_paths must not be empty")
+        raise HTTPException(
+            status_code=400, detail="target_file_paths must not be empty"
+        )
 
     await check_permission(
         session,
@@ -1507,11 +1520,11 @@ async def folder_index_files(
     for fp in request.target_file_paths:
         try:
             Path(fp).relative_to(request.folder_path)
-        except ValueError:
+        except ValueError as err:
             raise HTTPException(
                 status_code=400,
                 detail=f"target_file_path {fp} must be inside folder_path",
-            )
+            ) from err
 
     from app.tasks.celery_tasks.document_tasks import index_local_folder_task
 
@@ -1530,5 +1543,3 @@ async def folder_index_files(
         "status": "processing",
         "file_count": len(request.target_file_paths),
     }
-
-

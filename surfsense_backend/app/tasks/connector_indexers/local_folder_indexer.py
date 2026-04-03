@@ -43,30 +43,110 @@ from .base import (
     logger,
 )
 
-PLAINTEXT_EXTENSIONS = frozenset({
-    ".md", ".markdown", ".txt", ".text", ".csv", ".tsv",
-    ".json", ".jsonl", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf",
-    ".xml", ".html", ".htm", ".css", ".scss", ".less", ".sass",
-    ".py", ".pyw", ".pyi", ".pyx",
-    ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs",
-    ".java", ".kt", ".kts", ".scala", ".groovy",
-    ".c", ".h", ".cpp", ".cxx", ".cc", ".hpp", ".hxx",
-    ".cs", ".fs", ".fsx",
-    ".go", ".rs", ".rb", ".php", ".pl", ".pm", ".lua",
-    ".swift", ".m", ".mm",
-    ".r", ".R", ".jl",
-    ".sh", ".bash", ".zsh", ".fish", ".bat", ".cmd", ".ps1",
-    ".sql", ".graphql", ".gql",
-    ".env", ".gitignore", ".dockerignore", ".editorconfig",
-    ".makefile", ".cmake",
-    ".log", ".rst", ".tex", ".bib", ".org", ".adoc", ".asciidoc",
-    ".vue", ".svelte", ".astro",
-    ".tf", ".hcl", ".proto",
-})
+PLAINTEXT_EXTENSIONS = frozenset(
+    {
+        ".md",
+        ".markdown",
+        ".txt",
+        ".text",
+        ".csv",
+        ".tsv",
+        ".json",
+        ".jsonl",
+        ".yaml",
+        ".yml",
+        ".toml",
+        ".ini",
+        ".cfg",
+        ".conf",
+        ".xml",
+        ".html",
+        ".htm",
+        ".css",
+        ".scss",
+        ".less",
+        ".sass",
+        ".py",
+        ".pyw",
+        ".pyi",
+        ".pyx",
+        ".js",
+        ".jsx",
+        ".ts",
+        ".tsx",
+        ".mjs",
+        ".cjs",
+        ".java",
+        ".kt",
+        ".kts",
+        ".scala",
+        ".groovy",
+        ".c",
+        ".h",
+        ".cpp",
+        ".cxx",
+        ".cc",
+        ".hpp",
+        ".hxx",
+        ".cs",
+        ".fs",
+        ".fsx",
+        ".go",
+        ".rs",
+        ".rb",
+        ".php",
+        ".pl",
+        ".pm",
+        ".lua",
+        ".swift",
+        ".m",
+        ".mm",
+        ".r",
+        ".R",
+        ".jl",
+        ".sh",
+        ".bash",
+        ".zsh",
+        ".fish",
+        ".bat",
+        ".cmd",
+        ".ps1",
+        ".sql",
+        ".graphql",
+        ".gql",
+        ".env",
+        ".gitignore",
+        ".dockerignore",
+        ".editorconfig",
+        ".makefile",
+        ".cmake",
+        ".log",
+        ".rst",
+        ".tex",
+        ".bib",
+        ".org",
+        ".adoc",
+        ".asciidoc",
+        ".vue",
+        ".svelte",
+        ".astro",
+        ".tf",
+        ".hcl",
+        ".proto",
+    }
+)
 
-AUDIO_EXTENSIONS = frozenset({
-    ".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm",
-})
+AUDIO_EXTENSIONS = frozenset(
+    {
+        ".mp3",
+        ".mp4",
+        ".mpeg",
+        ".mpga",
+        ".m4a",
+        ".wav",
+        ".webm",
+    }
+)
 
 
 def _is_plaintext_file(filename: str) -> bool:
@@ -80,6 +160,7 @@ def _is_audio_file(filename: str) -> bool:
 def _needs_etl(filename: str) -> bool:
     """File is not plaintext and not audio — requires ETL service to parse."""
     return not _is_plaintext_file(filename) and not _is_audio_file(filename)
+
 
 HeartbeatCallbackType = Callable[[int], Awaitable[None]]
 
@@ -121,9 +202,7 @@ def scan_folder(
     for dirpath, dirnames, filenames in os.walk(root):
         rel_dir = Path(dirpath).relative_to(root)
 
-        dirnames[:] = [
-            d for d in dirnames if d not in exclude_patterns
-        ]
+        dirnames[:] = [d for d in dirnames if d not in exclude_patterns]
 
         if any(part in exclude_patterns for part in rel_dir.parts):
             continue
@@ -134,9 +213,11 @@ def scan_folder(
 
             full = Path(dirpath) / fname
 
-            if file_extensions is not None:
-                if full.suffix.lower() not in file_extensions:
-                    continue
+            if (
+                file_extensions is not None
+                and full.suffix.lower() not in file_extensions
+            ):
+                continue
 
             try:
                 stat = full.stat()
@@ -209,11 +290,14 @@ def _content_hash(content: str, search_space_id: int) -> str:
     pipeline so that dedup checks are consistent.
     """
     import hashlib
-    return hashlib.sha256(f"{search_space_id}:{content}".encode("utf-8")).hexdigest()
+
+    return hashlib.sha256(f"{search_space_id}:{content}".encode()).hexdigest()
 
 
 async def _compute_file_content_hash(
-    file_path: str, filename: str, search_space_id: int,
+    file_path: str,
+    filename: str,
+    search_space_id: int,
 ) -> tuple[str, str]:
     """Read a file (via ETL if needed) and compute its content hash.
 
@@ -257,9 +341,7 @@ async def _mirror_folder_structure(
 
     if root_folder_id:
         existing = (
-            await session.execute(
-                select(Folder).where(Folder.id == root_folder_id)
-            )
+            await session.execute(select(Folder).where(Folder.id == root_folder_id))
         ).scalar_one_or_none()
         if existing:
             mapping[""] = existing.id
@@ -412,13 +494,17 @@ async def _cleanup_empty_folders(
     id_to_rel: dict[int, str] = {fid: rel for rel, fid in folder_mapping.items() if rel}
 
     all_folders = (
-        await session.execute(
-            select(Folder).where(
-                Folder.search_space_id == search_space_id,
-                Folder.id != root_folder_id,
+        (
+            await session.execute(
+                select(Folder).where(
+                    Folder.search_space_id == search_space_id,
+                    Folder.id != root_folder_id,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     candidates: list[Folder] = []
     for folder in all_folders:
@@ -520,7 +606,9 @@ async def index_local_folder(
         metadata={
             "folder_path": folder_path,
             "user_id": str(user_id),
-            "target_file_paths_count": len(target_file_paths) if target_file_paths else None,
+            "target_file_paths_count": len(target_file_paths)
+            if target_file_paths
+            else None,
         },
     )
 
@@ -532,7 +620,12 @@ async def index_local_folder(
                 "Folder not found",
                 {},
             )
-            return 0, 0, root_folder_id, f"Folder path missing or does not exist: {folder_path}"
+            return (
+                0,
+                0,
+                root_folder_id,
+                f"Folder path missing or does not exist: {folder_path}",
+            )
 
         if exclude_patterns is None:
             exclude_patterns = DEFAULT_EXCLUDE_PATTERNS
@@ -639,7 +732,9 @@ async def index_local_folder(
                 )
 
                 if existing_document:
-                    stored_mtime = (existing_document.document_metadata or {}).get("mtime")
+                    stored_mtime = (existing_document.document_metadata or {}).get(
+                        "mtime"
+                    )
                     current_mtime = file_info["modified_at"].timestamp()
 
                     if stored_mtime and abs(current_mtime - stored_mtime) < 1.0:
@@ -709,23 +804,31 @@ async def index_local_folder(
         # ================================================================
         all_root_folder_ids = set(folder_mapping.values())
         all_db_folders = (
-            await session.execute(
-                select(Folder.id).where(
-                    Folder.search_space_id == search_space_id,
+            (
+                await session.execute(
+                    select(Folder.id).where(
+                        Folder.search_space_id == search_space_id,
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         all_root_folder_ids.update(all_db_folders)
 
         all_folder_docs = (
-            await session.execute(
-                select(Document).where(
-                    Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
-                    Document.search_space_id == search_space_id,
-                    Document.folder_id.in_(list(all_root_folder_ids)),
+            (
+                await session.execute(
+                    select(Document).where(
+                        Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
+                        Document.search_space_id == search_space_id,
+                        Document.folder_id.in_(list(all_root_folder_ids)),
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         for doc in all_folder_docs:
             if doc.unique_identifier_hash not in seen_unique_hashes:
@@ -742,9 +845,7 @@ async def index_local_folder(
             )
 
             pipeline = IndexingPipelineService(session)
-            doc_map = {
-                compute_unique_identifier_hash(cd): cd for cd in connector_docs
-            }
+            doc_map = {compute_unique_identifier_hash(cd): cd for cd in connector_docs}
             documents = await pipeline.prepare_for_indexing(connector_docs)
 
             # Assign folder_id immediately so docs appear in the correct
@@ -1033,7 +1134,9 @@ async def _index_single_file(
         db_doc.document_metadata = doc_meta
         await session.commit()
 
-        indexed = 1 if DocumentStatus.is_state(db_doc.status, DocumentStatus.READY) else 0
+        indexed = (
+            1 if DocumentStatus.is_state(db_doc.status, DocumentStatus.READY) else 0
+        )
         failed_msg = None if indexed else "Indexing failed"
 
         if indexed:

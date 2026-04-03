@@ -242,10 +242,10 @@ export function FolderTreeView({
 					siblingPositions={siblingPositions}
 					contextMenuOpen={openContextMenuId === `folder-${f.id}`}
 					onContextMenuOpenChange={(open) => setOpenContextMenuId(open ? `folder-${f.id}` : null)}
-				isWatched={watchedFolderIds?.has(f.id)}
-				onRescan={onRescanFolder}
-				onStopWatching={onStopWatchingFolder}
-			/>
+					isWatched={watchedFolderIds?.has(f.id)}
+					onRescan={onRescanFolder}
+					onStopWatching={onStopWatchingFolder}
+				/>
 			);
 
 			if (isExpanded) {

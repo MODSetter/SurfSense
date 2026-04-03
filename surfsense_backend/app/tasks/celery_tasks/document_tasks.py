@@ -1,6 +1,7 @@
 """Celery tasks for document processing."""
 
 import asyncio
+import contextlib
 import logging
 import os
 from uuid import UUID
@@ -1337,9 +1338,7 @@ async def _index_local_folder_async(
             )
             notification_id = notification.id
             _start_heartbeat(notification_id)
-            heartbeat_task = asyncio.create_task(
-                _run_heartbeat_loop(notification_id)
-            )
+            heartbeat_task = asyncio.create_task(_run_heartbeat_loop(notification_id))
         except Exception:
             logger.warning(
                 "Failed to create notification for local folder indexing",
@@ -1349,18 +1348,16 @@ async def _index_local_folder_async(
         async def _heartbeat_progress(completed_count: int) -> None:
             """Refresh heartbeat and optionally update notification progress."""
             if notification:
-                try:
+                with contextlib.suppress(Exception):
                     await NotificationService.document_processing.notify_processing_progress(
                         session=session,
                         notification=notification,
                         stage="indexing",
                         stage_message=f"Syncing files ({completed_count}/{file_count or '?'})",
                     )
-                except Exception:
-                    pass
 
         try:
-            indexed, skipped_or_failed, _rfid, err = await index_local_folder(
+            _indexed, _skipped_or_failed, _rfid, err = await index_local_folder(
                 session=session,
                 search_space_id=search_space_id,
                 user_id=user_id,
@@ -1371,7 +1368,9 @@ async def _index_local_folder_async(
                 root_folder_id=root_folder_id,
                 enable_summary=enable_summary,
                 target_file_paths=target_file_paths,
-                on_heartbeat_callback=_heartbeat_progress if (is_batch or is_full_scan) else None,
+                on_heartbeat_callback=_heartbeat_progress
+                if (is_batch or is_full_scan)
+                else None,
             )
 
             if notification:

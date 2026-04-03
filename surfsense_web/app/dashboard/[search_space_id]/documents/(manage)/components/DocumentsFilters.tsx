@@ -214,17 +214,17 @@ export function DocumentsFilters({
 					</Tooltip>
 				)}
 
-		{/* Upload Button */}
-			<Button
-				data-joyride="upload-button"
-				onClick={openUploadDialog}
-				variant="outline"
-				size="sm"
-				className="h-9 shrink-0 gap-1.5 bg-white text-gray-700 border-white hover:bg-gray-50 dark:bg-white dark:text-gray-800 dark:hover:bg-gray-100"
-			>
-				<Upload size={14} />
-				<span>Upload</span>
-			</Button>
+				{/* Upload Button */}
+				<Button
+					data-joyride="upload-button"
+					onClick={openUploadDialog}
+					variant="outline"
+					size="sm"
+					className="h-9 shrink-0 gap-1.5 bg-white text-gray-700 border-white hover:bg-gray-50 dark:bg-white dark:text-gray-800 dark:hover:bg-gray-100"
+				>
+					<Upload size={14} />
+					<span>Upload</span>
+				</Button>
 			</div>
 		</div>
 	);

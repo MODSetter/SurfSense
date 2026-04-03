@@ -185,9 +185,7 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 					<p className="font-semibold text-foreground text-lg">
 						{isProcessing ? "Document is processing" : "Document unavailable"}
 					</p>
-					<p className="text-sm text-muted-foreground">
-						{error || "An unknown error occurred"}
-					</p>
+					<p className="text-sm text-muted-foreground">{error || "An unknown error occurred"}</p>
 				</div>
 				{!isProcessing && (
 					<Button

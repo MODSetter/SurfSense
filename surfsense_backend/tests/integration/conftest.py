@@ -166,5 +166,3 @@ def make_connector_document(db_connector, db_user):
         return ConnectorDocument(**defaults)
 
     return _make
-
-

@@ -134,24 +134,27 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		preferences?.image_generation_config_id,
 	]);
 
-	const handleRoleAssignment = useCallback(async (prefKey: string, configId: string) => {
-		const value = configId === "unassigned" ? "" : parseInt(configId);
+	const handleRoleAssignment = useCallback(
+		async (prefKey: string, configId: string) => {
+			const value = configId === "unassigned" ? "" : parseInt(configId);
 
-		setAssignments((prev) => ({ ...prev, [prefKey]: value }));
-		setSavingRole(prefKey);
-		savingRef.current = true;
+			setAssignments((prev) => ({ ...prev, [prefKey]: value }));
+			setSavingRole(prefKey);
+			savingRef.current = true;
 
-		try {
-			await updatePreferences({
-				search_space_id: searchSpaceId,
-				data: { [prefKey]: value || undefined },
-			});
-			toast.success("Role assignment updated");
-		} finally {
-			setSavingRole(null);
-			savingRef.current = false;
-		}
-	}, [updatePreferences, searchSpaceId]);
+			try {
+				await updatePreferences({
+					search_space_id: searchSpaceId,
+					data: { [prefKey]: value || undefined },
+				});
+				toast.success("Role assignment updated");
+			} finally {
+				setSavingRole(null);
+				savingRef.current = false;
+			}
+		},
+		[updatePreferences, searchSpaceId]
+	);
 
 	// Combine global and custom LLM configs
 	const allLLMConfigs = [
@@ -199,10 +202,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 					Refresh
 				</Button>
 				{isAssignmentComplete && !isLoading && !hasError && (
-					<Badge
-						variant="outline"
-						className="text-xs gap-1.5 text-muted-foreground"
-					>
+					<Badge variant="outline" className="text-xs gap-1.5 text-muted-foreground">
 						<CircleCheck className="h-3 w-3" />
 						All roles assigned
 					</Badge>
@@ -483,7 +483,6 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 					})}
 				</div>
 			)}
-
 		</div>
 	);
 }

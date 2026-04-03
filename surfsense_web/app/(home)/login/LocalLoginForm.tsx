@@ -160,11 +160,11 @@ export function LocalLoginForm() {
 						placeholder="you@example.com"
 						value={username}
 						onChange={(e) => setUsername(e.target.value)}
-					className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-1 bg-background text-foreground transition-all ${
-						error.title
-							? "border-destructive focus:border-destructive focus:ring-destructive/40"
-							: "border-border focus:border-primary focus:ring-primary/40"
-					}`}
+						className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-1 bg-background text-foreground transition-all ${
+							error.title
+								? "border-destructive focus:border-destructive focus:ring-destructive/40"
+								: "border-border focus:border-primary focus:ring-primary/40"
+						}`}
 						disabled={isLoggingIn}
 					/>
 				</div>
@@ -181,11 +181,11 @@ export function LocalLoginForm() {
 							placeholder="Enter your password"
 							value={password}
 							onChange={(e) => setPassword(e.target.value)}
-						className={`mt-1 block w-full rounded-md border pr-10 px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-1 bg-background text-foreground transition-all ${
-							error.title
-								? "border-destructive focus:border-destructive focus:ring-destructive/40"
-								: "border-border focus:border-primary focus:ring-primary/40"
-						}`}
+							className={`mt-1 block w-full rounded-md border pr-10 px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-1 bg-background text-foreground transition-all ${
+								error.title
+									? "border-destructive focus:border-destructive focus:ring-destructive/40"
+									: "border-border focus:border-primary focus:ring-primary/40"
+							}`}
 							disabled={isLoggingIn}
 						/>
 						<button

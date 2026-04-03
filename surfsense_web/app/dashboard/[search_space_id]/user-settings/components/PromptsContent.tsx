@@ -2,7 +2,6 @@
 
 import { useAtomValue } from "jotai";
 import { AlertTriangle, Globe, Lock, PenLine, Sparkles, Trash2 } from "lucide-react";
-import { ShortcutKbd } from "@/components/ui/shortcut-kbd";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -24,6 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ShortcutKbd } from "@/components/ui/shortcut-kbd";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import type { PromptRead } from "@/contracts/types/prompts.types";
@@ -145,9 +145,8 @@ export function PromptsContent() {
 		<div className="space-y-6 min-w-0 overflow-hidden">
 			<div className="flex items-center justify-between">
 				<p className="text-sm text-muted-foreground">
-					Create prompt templates triggered with{" "}
-					<ShortcutKbd keys={["/"]} className="ml-0" /> in the
-					chat composer.
+					Create prompt templates triggered with <ShortcutKbd keys={["/"]} className="ml-0" /> in
+					the chat composer.
 				</p>
 				{!showForm && (
 					<Button

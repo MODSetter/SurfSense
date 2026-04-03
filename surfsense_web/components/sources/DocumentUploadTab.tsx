@@ -128,7 +128,8 @@ const MAX_TOTAL_SIZE_BYTES = MAX_TOTAL_SIZE_MB * 1024 * 1024;
 const MAX_FILE_SIZE_MB = 500;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
-const toggleRowClass = "flex items-center justify-between rounded-lg bg-slate-400/5 dark:bg-white/5 p-3";
+const toggleRowClass =
+	"flex items-center justify-between rounded-lg bg-slate-400/5 dark:bg-white/5 p-3";
 
 export function DocumentUploadTab({
 	searchSpaceId,
@@ -326,7 +327,14 @@ export function DocumentUploadTab({
 				await api.addWatchedFolder({
 					path: selectedFolder.path,
 					name: selectedFolder.name,
-					excludePatterns: [".git", "node_modules", "__pycache__", ".DS_Store", ".obsidian", ".trash"],
+					excludePatterns: [
+						".git",
+						"node_modules",
+						"__pycache__",
+						".DS_Store",
+						".obsidian",
+						".trash",
+					],
 					fileExtensions: null,
 					rootFolderId,
 					searchSpaceId: Number(searchSpaceId),
@@ -393,12 +401,20 @@ export function DocumentUploadTab({
 			return (
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-						<Button variant="ghost" size="sm" className={`text-xs gap-1 bg-neutral-700/50 hover:bg-neutral-600/50 ${sizeClass} ${widthClass}`}>
+						<Button
+							variant="ghost"
+							size="sm"
+							className={`text-xs gap-1 bg-neutral-700/50 hover:bg-neutral-600/50 ${sizeClass} ${widthClass}`}
+						>
 							Browse
 							<ChevronDown className="h-3 w-3 opacity-60" />
 						</Button>
 					</DropdownMenuTrigger>
-					<DropdownMenuContent align="center" className="dark:bg-neutral-800" onClick={(e) => e.stopPropagation()}>
+					<DropdownMenuContent
+						align="center"
+						className="dark:bg-neutral-800"
+						onClick={(e) => e.stopPropagation()}
+					>
 						<DropdownMenuItem onClick={handleBrowseFiles}>
 							<FileIcon className="h-4 w-4 mr-2" />
 							Files
@@ -415,7 +431,11 @@ export function DocumentUploadTab({
 		return (
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-					<Button variant="secondary" size="sm" className={`text-xs gap-1 ${sizeClass} ${widthClass}`}>
+					<Button
+						variant="secondary"
+						size="sm"
+						className={`text-xs gap-1 ${sizeClass} ${widthClass}`}
+					>
 						Browse
 						<ChevronDown className="h-3 w-3 opacity-60" />
 					</Button>
@@ -457,21 +477,19 @@ export function DocumentUploadTab({
 			{/* MOBILE DROP ZONE */}
 			<div className="sm:hidden">
 				{hasContent ? (
-					!selectedFolder && !isFileCountLimitReached && (
-						isElectron ? (
-							<div className="w-full">
-								{renderBrowseButton({ compact: true, fullWidth: true })}
-							</div>
-						) : (
-							<button
-								type="button"
-								className="w-full text-xs h-8 flex items-center justify-center gap-1.5 rounded-md border border-dashed border-muted-foreground/30 text-muted-foreground hover:text-foreground hover:border-foreground/50 transition-colors"
-								onClick={() => fileInputRef.current?.click()}
-							>
-								Add more files
-							</button>
-						)
-					)
+					!selectedFolder &&
+					!isFileCountLimitReached &&
+					(isElectron ? (
+						<div className="w-full">{renderBrowseButton({ compact: true, fullWidth: true })}</div>
+					) : (
+						<button
+							type="button"
+							className="w-full text-xs h-8 flex items-center justify-center gap-1.5 rounded-md border border-dashed border-muted-foreground/30 text-muted-foreground hover:text-foreground hover:border-foreground/50 transition-colors"
+							onClick={() => fileInputRef.current?.click()}
+						>
+							Add more files
+						</button>
+					))
 				) : (
 					<div
 						className="flex flex-col items-center gap-4 py-12 px-4 cursor-pointer"
@@ -487,7 +505,9 @@ export function DocumentUploadTab({
 							<p className="text-sm text-muted-foreground inline-flex items-center flex-wrap justify-center">
 								<span>{t("file_size_limit")}</span>
 								<Dot className="h-4 w-4 shrink-0" />
-								<span>{t("upload_limits", { maxFiles: MAX_FILES, maxSizeMB: MAX_TOTAL_SIZE_MB })}</span>
+								<span>
+									{t("upload_limits", { maxFiles: MAX_FILES, maxSizeMB: MAX_TOTAL_SIZE_MB })}
+								</span>
 							</p>
 						</div>
 						<div className="w-full mt-1" onClick={(e) => e.stopPropagation()}>
@@ -538,7 +558,9 @@ export function DocumentUploadTab({
 						<p className="text-xs text-muted-foreground text-center inline-flex items-center flex-wrap justify-center">
 							<span>{t("file_size_limit")}</span>
 							<Dot className="h-4 w-4 shrink-0" />
-							<span>{t("upload_limits", { maxFiles: MAX_FILES, maxSizeMB: MAX_TOTAL_SIZE_MB })}</span>
+							<span>
+								{t("upload_limits", { maxFiles: MAX_FILES, maxSizeMB: MAX_TOTAL_SIZE_MB })}
+							</span>
 						</p>
 						<div className="mt-1">{renderBrowseButton()}</div>
 					</div>
@@ -569,9 +591,7 @@ export function DocumentUploadTab({
 						<div className="flex items-center justify-between p-3">
 							<div className="space-y-0.5">
 								<p className="font-medium text-sm">Watch folder</p>
-								<p className="text-xs text-muted-foreground">
-									Auto-sync when files change
-								</p>
+								<p className="text-xs text-muted-foreground">Auto-sync when files change</p>
 							</div>
 							<Switch
 								id="watch-folder-toggle"
@@ -612,7 +632,8 @@ export function DocumentUploadTab({
 				<div className="rounded-lg border border-border p-3 space-y-2">
 					<div className="flex items-center justify-between">
 						<p className="text-sm font-medium">
-							{t("selected_files", { count: files.length })} &middot; {formatFileSize(totalFileSize)}
+							{t("selected_files", { count: files.length })} &middot;{" "}
+							{formatFileSize(totalFileSize)}
 						</p>
 						<Button
 							variant="ghost"

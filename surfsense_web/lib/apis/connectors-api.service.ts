@@ -404,7 +404,6 @@ class ConnectorsApiService {
 			listDiscordChannelsResponse
 		);
 	};
-
 }
 
 export type { SlackChannel, DiscordChannel };

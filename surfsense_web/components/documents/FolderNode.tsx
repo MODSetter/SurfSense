@@ -256,15 +256,15 @@ export const FolderNode = React.memo(function FolderNode({
 						isOver && !canDrop && "cursor-not-allowed"
 					)}
 					style={{ paddingLeft: `${depth * 16 + 4}px` }}
-				onClick={() => {
-					onToggleExpand(folder.id);
-				}}
-				onKeyDown={(e) => {
-					if (e.key === "Enter" || e.key === " ") {
-						e.preventDefault();
+					onClick={() => {
 						onToggleExpand(folder.id);
-					}
-				}}
+					}}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
+							onToggleExpand(folder.id);
+						}
+					}}
 					onDoubleClick={(e) => {
 						e.stopPropagation();
 						startRename();
@@ -306,7 +306,11 @@ export const FolderNode = React.memo(function FolderNode({
 					) : (
 						<Checkbox
 							checked={
-								selectionState === "all" ? true : selectionState === "some" ? "indeterminate" : false
+								selectionState === "all"
+									? true
+									: selectionState === "some"
+										? "indeterminate"
+										: false
 							}
 							onCheckedChange={handleCheckChange}
 							onClick={(e) => e.stopPropagation()}
@@ -350,107 +354,107 @@ export const FolderNode = React.memo(function FolderNode({
 									<MoreHorizontal className="h-3.5 w-3.5" />
 								</Button>
 							</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" className="w-40">
-							{isWatched && onRescan && (
+							<DropdownMenuContent align="end" className="w-40">
+								{isWatched && onRescan && (
+									<DropdownMenuItem
+										onClick={(e) => {
+											e.stopPropagation();
+											onRescan(folder);
+										}}
+									>
+										<RefreshCw className="mr-2 h-4 w-4" />
+										Re-scan
+									</DropdownMenuItem>
+								)}
+								{isWatched && onStopWatching && (
+									<DropdownMenuItem
+										onClick={(e) => {
+											e.stopPropagation();
+											onStopWatching(folder);
+										}}
+									>
+										<EyeOff className="mr-2 h-4 w-4" />
+										Stop watching
+									</DropdownMenuItem>
+								)}
 								<DropdownMenuItem
 									onClick={(e) => {
 										e.stopPropagation();
-										onRescan(folder);
+										onCreateSubfolder(folder.id);
 									}}
 								>
-									<RefreshCw className="mr-2 h-4 w-4" />
-									Re-scan
+									<FolderPlus className="mr-2 h-4 w-4" />
+									New subfolder
 								</DropdownMenuItem>
-							)}
-							{isWatched && onStopWatching && (
 								<DropdownMenuItem
 									onClick={(e) => {
 										e.stopPropagation();
-										onStopWatching(folder);
+										startRename();
 									}}
 								>
-									<EyeOff className="mr-2 h-4 w-4" />
-									Stop watching
+									<PenLine className="mr-2 h-4 w-4" />
+									Rename
 								</DropdownMenuItem>
-							)}
-							<DropdownMenuItem
-								onClick={(e) => {
-									e.stopPropagation();
-									onCreateSubfolder(folder.id);
-								}}
-							>
-								<FolderPlus className="mr-2 h-4 w-4" />
-								New subfolder
-							</DropdownMenuItem>
-							<DropdownMenuItem
-								onClick={(e) => {
-									e.stopPropagation();
-									startRename();
-								}}
-							>
-								<PenLine className="mr-2 h-4 w-4" />
-								Rename
-							</DropdownMenuItem>
-							<DropdownMenuItem
-								onClick={(e) => {
-									e.stopPropagation();
-									onMove(folder);
-								}}
-							>
-								<Move className="mr-2 h-4 w-4" />
-								Move to...
-							</DropdownMenuItem>
-							<DropdownMenuItem
-								className="text-destructive focus:text-destructive"
-								onClick={(e) => {
-									e.stopPropagation();
-									onDelete(folder);
-								}}
-							>
-								<Trash2 className="mr-2 h-4 w-4" />
-								Delete
-							</DropdownMenuItem>
-						</DropdownMenuContent>
+								<DropdownMenuItem
+									onClick={(e) => {
+										e.stopPropagation();
+										onMove(folder);
+									}}
+								>
+									<Move className="mr-2 h-4 w-4" />
+									Move to...
+								</DropdownMenuItem>
+								<DropdownMenuItem
+									className="text-destructive focus:text-destructive"
+									onClick={(e) => {
+										e.stopPropagation();
+										onDelete(folder);
+									}}
+								>
+									<Trash2 className="mr-2 h-4 w-4" />
+									Delete
+								</DropdownMenuItem>
+							</DropdownMenuContent>
 						</DropdownMenu>
 					)}
 				</div>
 			</ContextMenuTrigger>
 
-		{!isRenaming && contextMenuOpen && (
-			<ContextMenuContent className="w-40">
-				{isWatched && onRescan && (
-					<ContextMenuItem onClick={() => onRescan(folder)}>
-						<RefreshCw className="mr-2 h-4 w-4" />
-						Re-scan
+			{!isRenaming && contextMenuOpen && (
+				<ContextMenuContent className="w-40">
+					{isWatched && onRescan && (
+						<ContextMenuItem onClick={() => onRescan(folder)}>
+							<RefreshCw className="mr-2 h-4 w-4" />
+							Re-scan
+						</ContextMenuItem>
+					)}
+					{isWatched && onStopWatching && (
+						<ContextMenuItem onClick={() => onStopWatching(folder)}>
+							<EyeOff className="mr-2 h-4 w-4" />
+							Stop watching
+						</ContextMenuItem>
+					)}
+					<ContextMenuItem onClick={() => onCreateSubfolder(folder.id)}>
+						<FolderPlus className="mr-2 h-4 w-4" />
+						New subfolder
 					</ContextMenuItem>
-				)}
-				{isWatched && onStopWatching && (
-					<ContextMenuItem onClick={() => onStopWatching(folder)}>
-						<EyeOff className="mr-2 h-4 w-4" />
-						Stop watching
+					<ContextMenuItem onClick={() => startRename()}>
+						<PenLine className="mr-2 h-4 w-4" />
+						Rename
 					</ContextMenuItem>
-				)}
-				<ContextMenuItem onClick={() => onCreateSubfolder(folder.id)}>
-					<FolderPlus className="mr-2 h-4 w-4" />
-					New subfolder
-				</ContextMenuItem>
-				<ContextMenuItem onClick={() => startRename()}>
-					<PenLine className="mr-2 h-4 w-4" />
-					Rename
-				</ContextMenuItem>
-				<ContextMenuItem onClick={() => onMove(folder)}>
-					<Move className="mr-2 h-4 w-4" />
-					Move to...
-				</ContextMenuItem>
-				<ContextMenuItem
-					className="text-destructive focus:text-destructive"
-					onClick={() => onDelete(folder)}
-				>
-					<Trash2 className="mr-2 h-4 w-4" />
-					Delete
-				</ContextMenuItem>
-			</ContextMenuContent>
-		)}
+					<ContextMenuItem onClick={() => onMove(folder)}>
+						<Move className="mr-2 h-4 w-4" />
+						Move to...
+					</ContextMenuItem>
+					<ContextMenuItem
+						className="text-destructive focus:text-destructive"
+						onClick={() => onDelete(folder)}
+					>
+						<Trash2 className="mr-2 h-4 w-4" />
+						Delete
+					</ContextMenuItem>
+				</ContextMenuContent>
+			)}
 		</ContextMenu>
 	);
 });

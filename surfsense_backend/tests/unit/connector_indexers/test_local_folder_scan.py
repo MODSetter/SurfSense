@@ -51,9 +51,7 @@ class TestScanFolder:
         git.mkdir()
         (git / "config").write_text("gitconfig")
 
-        results = scan_folder(
-            str(tmp_path), exclude_patterns=["node_modules", ".git"]
-        )
+        results = scan_folder(str(tmp_path), exclude_patterns=["node_modules", ".git"])
         names = {r["relative_path"] for r in results}
 
         assert "good.md" in names

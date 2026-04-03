@@ -21,7 +21,9 @@ from app.db import (
 pytestmark = pytest.mark.integration
 
 UNIFIED_FIXTURES = (
-    "patched_summarize", "patched_embed_texts", "patched_chunk_text",
+    "patched_summarize",
+    "patched_embed_texts",
+    "patched_chunk_text",
 )
 
 
@@ -37,6 +39,7 @@ class _FakeSessionMaker:
         @asynccontextmanager
         async def _ctx():
             yield self._session
+
         return _ctx()
 
 
@@ -59,7 +62,6 @@ def patched_batch_sessions(monkeypatch, db_session):
 
 
 class TestFullIndexer:
-
     @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
     async def test_i1_new_file_indexed(
         self,
@@ -73,7 +75,7 @@ class TestFullIndexer:
 
         (tmp_path / "note.md").write_text("# Hello World\n\nContent here.")
 
-        count, skipped, root_folder_id, err = await index_local_folder(
+        count, _skipped, _root_folder_id, err = await index_local_folder(
             session=db_session,
             search_space_id=db_search_space.id,
             user_id=str(db_user.id),
@@ -85,13 +87,17 @@ class TestFullIndexer:
         assert count == 1
 
         docs = (
-            await db_session.execute(
-                select(Document).where(
-                    Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
-                    Document.search_space_id == db_search_space.id,
+            (
+                await db_session.execute(
+                    select(Document).where(
+                        Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
+                        Document.search_space_id == db_search_space.id,
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(docs) == 1
         assert docs[0].document_type == DocumentType.LOCAL_FOLDER_FILE
         assert DocumentStatus.is_state(docs[0].status, DocumentStatus.READY)
@@ -130,7 +136,9 @@ class TestFullIndexer:
 
         total = (
             await db_session.execute(
-                select(func.count()).select_from(Document).where(
+                select(func.count())
+                .select_from(Document)
+                .where(
                     Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
                     Document.search_space_id == db_search_space.id,
                 )
@@ -174,13 +182,19 @@ class TestFullIndexer:
         assert count == 1
 
         versions = (
-            await db_session.execute(
-                select(DocumentVersion).join(Document).where(
-                    Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
-                    Document.search_space_id == db_search_space.id,
+            (
+                await db_session.execute(
+                    select(DocumentVersion)
+                    .join(Document)
+                    .where(
+                        Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
+                        Document.search_space_id == db_search_space.id,
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(versions) >= 1
 
     @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
@@ -207,7 +221,9 @@ class TestFullIndexer:
 
         docs_before = (
             await db_session.execute(
-                select(func.count()).select_from(Document).where(
+                select(func.count())
+                .select_from(Document)
+                .where(
                     Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
                     Document.search_space_id == db_search_space.id,
                 )
@@ -228,7 +244,9 @@ class TestFullIndexer:
 
         docs_after = (
             await db_session.execute(
-                select(func.count()).select_from(Document).where(
+                select(func.count())
+                .select_from(Document)
+                .where(
                     Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
                     Document.search_space_id == db_search_space.id,
                 )
@@ -262,13 +280,17 @@ class TestFullIndexer:
         assert count == 1
 
         docs = (
-            await db_session.execute(
-                select(Document).where(
-                    Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
-                    Document.search_space_id == db_search_space.id,
+            (
+                await db_session.execute(
+                    select(Document).where(
+                        Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
+                        Document.search_space_id == db_search_space.id,
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(docs) == 1
         assert docs[0].title == "b.md"
 
@@ -279,7 +301,6 @@ class TestFullIndexer:
 
 
 class TestFolderMirroring:
-
     @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
     async def test_f1_root_folder_created(
         self,
@@ -335,10 +356,14 @@ class TestFolderMirroring:
         )
 
         folders = (
-            await db_session.execute(
-                select(Folder).where(Folder.search_space_id == db_search_space.id)
+            (
+                await db_session.execute(
+                    select(Folder).where(Folder.search_space_id == db_search_space.id)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         folder_names = {f.name for f in folders}
         assert "notes" in folder_names
@@ -376,10 +401,14 @@ class TestFolderMirroring:
         )
 
         folders_before = (
-            await db_session.execute(
-                select(Folder).where(Folder.search_space_id == db_search_space.id)
+            (
+                await db_session.execute(
+                    select(Folder).where(Folder.search_space_id == db_search_space.id)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         ids_before = {f.id for f in folders_before}
 
         await index_local_folder(
@@ -392,10 +421,14 @@ class TestFolderMirroring:
         )
 
         folders_after = (
-            await db_session.execute(
-                select(Folder).where(Folder.search_space_id == db_search_space.id)
+            (
+                await db_session.execute(
+                    select(Folder).where(Folder.search_space_id == db_search_space.id)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         ids_after = {f.id for f in folders_after}
 
         assert ids_before == ids_after
@@ -425,21 +458,23 @@ class TestFolderMirroring:
         )
 
         docs = (
-            await db_session.execute(
-                select(Document).where(
-                    Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
-                    Document.search_space_id == db_search_space.id,
+            (
+                await db_session.execute(
+                    select(Document).where(
+                        Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
+                        Document.search_space_id == db_search_space.id,
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         today_doc = next(d for d in docs if d.title == "today.md")
         root_doc = next(d for d in docs if d.title == "root.md")
 
         daily_folder = (
-            await db_session.execute(
-                select(Folder).where(Folder.name == "daily")
-            )
+            await db_session.execute(select(Folder).where(Folder.name == "daily"))
         ).scalar_one()
 
         assert today_doc.folder_id == daily_folder.id
@@ -455,8 +490,9 @@ class TestFolderMirroring:
         tmp_path: Path,
     ):
         """F5: Deleted dir's empty Folder row is cleaned up on re-sync."""
-        from app.tasks.connector_indexers.local_folder_indexer import index_local_folder
         import shutil
+
+        from app.tasks.connector_indexers.local_folder_indexer import index_local_folder
 
         daily = tmp_path / "notes" / "daily"
         daily.mkdir(parents=True)
@@ -474,9 +510,7 @@ class TestFolderMirroring:
         )
 
         weekly_folder = (
-            await db_session.execute(
-                select(Folder).where(Folder.name == "weekly")
-            )
+            await db_session.execute(select(Folder).where(Folder.name == "weekly"))
         ).scalar_one_or_none()
         assert weekly_folder is not None
 
@@ -492,16 +526,12 @@ class TestFolderMirroring:
         )
 
         weekly_after = (
-            await db_session.execute(
-                select(Folder).where(Folder.name == "weekly")
-            )
+            await db_session.execute(select(Folder).where(Folder.name == "weekly"))
         ).scalar_one_or_none()
         assert weekly_after is None
 
         daily_after = (
-            await db_session.execute(
-                select(Folder).where(Folder.name == "daily")
-            )
+            await db_session.execute(select(Folder).where(Folder.name == "daily"))
         ).scalar_one_or_none()
         assert daily_after is not None
 
@@ -551,18 +581,14 @@ class TestFolderMirroring:
         ).scalar_one()
 
         daily_folder = (
-            await db_session.execute(
-                select(Folder).where(Folder.name == "daily")
-            )
+            await db_session.execute(select(Folder).where(Folder.name == "daily"))
         ).scalar_one()
 
         assert doc.folder_id == daily_folder.id
         assert daily_folder.parent_id is not None
 
         notes_folder = (
-            await db_session.execute(
-                select(Folder).where(Folder.name == "notes")
-            )
+            await db_session.execute(select(Folder).where(Folder.name == "notes"))
         ).scalar_one()
         assert daily_folder.parent_id == notes_folder.id
         assert notes_folder.parent_id == root_folder_id
@@ -592,9 +618,7 @@ class TestFolderMirroring:
         )
 
         eph_folder = (
-            await db_session.execute(
-                select(Folder).where(Folder.name == "ephemeral")
-            )
+            await db_session.execute(select(Folder).where(Folder.name == "ephemeral"))
         ).scalar_one_or_none()
         assert eph_folder is not None
 
@@ -612,16 +636,12 @@ class TestFolderMirroring:
         )
 
         eph_after = (
-            await db_session.execute(
-                select(Folder).where(Folder.name == "ephemeral")
-            )
+            await db_session.execute(select(Folder).where(Folder.name == "ephemeral"))
         ).scalar_one_or_none()
         assert eph_after is None
 
         notes_after = (
-            await db_session.execute(
-                select(Folder).where(Folder.name == "notes")
-            )
+            await db_session.execute(select(Folder).where(Folder.name == "notes"))
         ).scalar_one_or_none()
         assert notes_after is None
 
@@ -632,7 +652,6 @@ class TestFolderMirroring:
 
 
 class TestBatchMode:
-
     @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
     async def test_b1_batch_indexes_multiple_files(
         self,
@@ -649,7 +668,7 @@ class TestBatchMode:
         (tmp_path / "b.md").write_text("File B content")
         (tmp_path / "c.md").write_text("File C content")
 
-        count, failed, root_folder_id, err = await index_local_folder(
+        count, failed, _root_folder_id, err = await index_local_folder(
             session=db_session,
             search_space_id=db_search_space.id,
             user_id=str(db_user.id),
@@ -667,13 +686,17 @@ class TestBatchMode:
         assert err is None
 
         docs = (
-            await db_session.execute(
-                select(Document).where(
-                    Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
-                    Document.search_space_id == db_search_space.id,
+            (
+                await db_session.execute(
+                    select(Document).where(
+                        Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
+                        Document.search_space_id == db_search_space.id,
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(docs) == 3
         assert {d.title for d in docs} == {"a.md", "b.md", "c.md"}
         assert all(
@@ -714,13 +737,17 @@ class TestBatchMode:
         assert err is not None
 
         docs = (
-            await db_session.execute(
-                select(Document).where(
-                    Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
-                    Document.search_space_id == db_search_space.id,
+            (
+                await db_session.execute(
+                    select(Document).where(
+                        Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
+                        Document.search_space_id == db_search_space.id,
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(docs) == 2
         assert {d.title for d in docs} == {"good1.md", "good2.md"}
 
@@ -731,7 +758,6 @@ class TestBatchMode:
 
 
 class TestPipelineIntegration:
-
     @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
     async def test_p1_local_folder_file_through_pipeline(
         self,
@@ -742,7 +768,9 @@ class TestPipelineIntegration:
     ):
         """P1: LOCAL_FOLDER_FILE ConnectorDocument through prepare+index to READY."""
         from app.indexing_pipeline.connector_document import ConnectorDocument
-        from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
+        from app.indexing_pipeline.indexing_pipeline_service import (
+            IndexingPipelineService,
+        )
 
         doc = ConnectorDocument(
             title="Test Local File",
@@ -763,12 +791,16 @@ class TestPipelineIntegration:
         assert result is not None
 
         docs = (
-            await db_session.execute(
-                select(Document).where(
-                    Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
-                    Document.search_space_id == db_search_space.id,
+            (
+                await db_session.execute(
+                    select(Document).where(
+                        Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
+                        Document.search_space_id == db_search_space.id,
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(docs) == 1
         assert DocumentStatus.is_state(docs[0].status, DocumentStatus.READY)

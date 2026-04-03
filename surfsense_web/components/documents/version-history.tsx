@@ -1,19 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
 import { Check, ChevronRight, Clock, Copy, RotateCcw } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-	Dialog,
-	DialogContent,
-	DialogTitle,
-	DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
-import { cn } from "@/lib/utils";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
-import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface DocumentVersionSummary {
 	version_number: number;
@@ -123,10 +118,9 @@ function VersionHistoryPanel({ documentId }: { documentId: number }) {
 		setSelectedVersion(versionNumber);
 		setContentLoading(true);
 		try {
-			const data = (await documentsApiService.getDocumentVersion(
-				documentId,
-				versionNumber
-			)) as { source_markdown: string };
+			const data = (await documentsApiService.getDocumentVersion(documentId, versionNumber)) as {
+				source_markdown: string;
+			};
 			setVersionContent(data.source_markdown || "");
 		} catch {
 			toast.error("Failed to load version content");
@@ -196,13 +190,11 @@ function VersionHistoryPanel({ documentId }: { documentId: number }) {
 							>
 								<div className="flex-1 min-w-0 space-y-0.5">
 									<p className="text-sm font-medium truncate">
-										{v.created_at ? formatRelativeTime(v.created_at) : `Version ${v.version_number}`}
+										{v.created_at
+											? formatRelativeTime(v.created_at)
+											: `Version ${v.version_number}`}
 									</p>
-									{v.title && (
-										<p className="text-xs text-muted-foreground truncate">
-											{v.title}
-										</p>
-									)}
+									{v.title && <p className="text-xs text-muted-foreground truncate">{v.title}</p>}
 								</div>
 								<ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-50" />
 							</button>
@@ -227,11 +219,7 @@ function VersionHistoryPanel({ documentId }: { documentId: number }) {
 									onClick={handleCopy}
 									disabled={contentLoading || copied}
 								>
-									{copied ? (
-										<Check className="h-3 w-3" />
-									) : (
-										<Copy className="h-3 w-3" />
-									)}
+									{copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
 									{copied ? "Copied" : "Copy"}
 								</Button>
 								<Button
@@ -241,11 +229,7 @@ function VersionHistoryPanel({ documentId }: { documentId: number }) {
 									disabled={restoring || contentLoading}
 									onClick={() => handleRestore(selectedVersion)}
 								>
-									{restoring ? (
-										<Spinner size="xs" />
-									) : (
-										<RotateCcw className="h-3 w-3" />
-									)}
+									{restoring ? <Spinner size="xs" /> : <RotateCcw className="h-3 w-3" />}
 									Restore
 								</Button>
 							</div>

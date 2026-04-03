@@ -294,36 +294,36 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 									)}
 
 								{(() => {
-										const isGoogleDrive = connector.connector_type === "GOOGLE_DRIVE_CONNECTOR";
-										const isComposioGoogleDrive =
-											connector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR";
-										const requiresFolderSelection = isGoogleDrive || isComposioGoogleDrive;
-										const selectedFolders =
-											(connector.config?.selected_folders as
-												| Array<{ id: string; name: string }>
-												| undefined) || [];
-										const selectedFiles =
-											(connector.config?.selected_files as
-												| Array<{ id: string; name: string }>
-												| undefined) || [];
-										const hasItemsSelected = selectedFolders.length > 0 || selectedFiles.length > 0;
-										const isDisabled = requiresFolderSelection && !hasItemsSelected;
+									const isGoogleDrive = connector.connector_type === "GOOGLE_DRIVE_CONNECTOR";
+									const isComposioGoogleDrive =
+										connector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR";
+									const requiresFolderSelection = isGoogleDrive || isComposioGoogleDrive;
+									const selectedFolders =
+										(connector.config?.selected_folders as
+											| Array<{ id: string; name: string }>
+											| undefined) || [];
+									const selectedFiles =
+										(connector.config?.selected_files as
+											| Array<{ id: string; name: string }>
+											| undefined) || [];
+									const hasItemsSelected = selectedFolders.length > 0 || selectedFiles.length > 0;
+									const isDisabled = requiresFolderSelection && !hasItemsSelected;
 
-										return (
-											<PeriodicSyncConfig
-												enabled={periodicEnabled}
-												frequencyMinutes={frequencyMinutes}
-												onEnabledChange={onPeriodicEnabledChange}
-												onFrequencyChange={onFrequencyChange}
-												disabled={isDisabled}
-												disabledMessage={
-													isDisabled
-														? "Select at least one folder or file above to enable periodic sync"
-														: undefined
-												}
-											/>
-										);
-									})()}
+									return (
+										<PeriodicSyncConfig
+											enabled={periodicEnabled}
+											frequencyMinutes={frequencyMinutes}
+											onEnabledChange={onPeriodicEnabledChange}
+											onFrequencyChange={onFrequencyChange}
+											disabled={isDisabled}
+											disabledMessage={
+												isDisabled
+													? "Select at least one folder or file above to enable periodic sync"
+													: undefined
+											}
+										/>
+									);
+								})()}
 							</>
 						)}
 

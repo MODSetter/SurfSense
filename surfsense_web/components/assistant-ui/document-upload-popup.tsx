@@ -143,7 +143,10 @@ const DocumentUploadPopupContent: FC<{
 
 					<div className="px-4 sm:px-6 pb-4 sm:pb-6">
 						{!isLoading && !hasDocumentSummaryLLM ? (
-							<Alert variant="destructive" className="mb-4 bg-muted/50 rounded-xl border-destructive/30">
+							<Alert
+								variant="destructive"
+								className="mb-4 bg-muted/50 rounded-xl border-destructive/30"
+							>
 								<AlertTriangle className="h-4 w-4" />
 								<AlertTitle>LLM Configuration Required</AlertTitle>
 								<AlertDescription className="mt-2">

@@ -480,9 +480,7 @@ export function SourceDetailPanel({
 										<FileQuestionMark className="h-10 w-10 text-muted-foreground" />
 									</div>
 									<div>
-										<p className="font-semibold text-foreground text-lg">
-											Document unavailable
-										</p>
+										<p className="font-semibold text-foreground text-lg">Document unavailable</p>
 										<p className="text-sm text-muted-foreground mt-2 max-w-md">
 											{documentByChunkFetchingError.message ||
 												"An unexpected error occurred. Please try again."}

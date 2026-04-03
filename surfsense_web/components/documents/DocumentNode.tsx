@@ -39,8 +39,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { cn } from "@/lib/utils";
-import { isVersionableType } from "./version-history";
 import { DND_TYPES } from "./FolderNode";
+import { isVersionableType } from "./version-history";
 
 const EDITABLE_DOCUMENT_TYPES = new Set(["FILE", "NOTE"]);
 
@@ -199,7 +199,10 @@ export const DocumentNode = React.memo(function DocumentNode({
 
 					<span className="flex-1 min-w-0 truncate">{doc.title}</span>
 
-					{getDocumentTypeIcon(doc.document_type as DocumentTypeEnum, "h-3.5 w-3.5 text-muted-foreground") && (
+					{getDocumentTypeIcon(
+						doc.document_type as DocumentTypeEnum,
+						"h-3.5 w-3.5 text-muted-foreground"
+					) && (
 						<span className="shrink-0">
 							{getDocumentTypeIcon(
 								doc.document_type as DocumentTypeEnum,
@@ -251,10 +254,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 								</DropdownMenuSub>
 							)}
 							{onVersionHistory && isVersionableType(doc.document_type) && (
-								<DropdownMenuItem
-									disabled={isProcessing}
-									onClick={() => onVersionHistory(doc)}
-								>
+								<DropdownMenuItem disabled={isProcessing} onClick={() => onVersionHistory(doc)}>
 									<History className="mr-2 h-4 w-4" />
 									Versions
 								</DropdownMenuItem>
@@ -300,10 +300,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 						</ContextMenuSub>
 					)}
 					{onVersionHistory && isVersionableType(doc.document_type) && (
-						<ContextMenuItem
-							disabled={isProcessing}
-							onClick={() => onVersionHistory(doc)}
-						>
+						<ContextMenuItem disabled={isProcessing} onClick={() => onVersionHistory(doc)}>
 							<History className="mr-2 h-4 w-4" />
 							Versions
 						</ContextMenuItem>

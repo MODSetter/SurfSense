@@ -83,9 +83,9 @@ async def create_version_snapshot(
     # Cleanup: cap at MAX_VERSIONS_PER_DOCUMENT
     count = (
         await session.execute(
-            select(func.count()).select_from(DocumentVersion).where(
-                DocumentVersion.document_id == document.id
-            )
+            select(func.count())
+            .select_from(DocumentVersion)
+            .where(DocumentVersion.document_id == document.id)
         )
     ).scalar_one()
 

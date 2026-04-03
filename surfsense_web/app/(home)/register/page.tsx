@@ -229,72 +229,66 @@ export default function RegisterPage() {
 						</AnimatePresence>
 
 						<div>
-						<label
-							htmlFor="email"
-							className="block text-sm font-medium text-foreground"
-						>
-							{t("email")}
-						</label>
-						<input
-							id="email"
-							type="email"
-							required
-							placeholder="you@example.com"
-							value={email}
-							onChange={(e) => setEmail(e.target.value)}
-						className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-1 bg-background text-foreground transition-all ${
-							error.title
-								? "border-destructive focus:border-destructive focus:ring-destructive/40"
-								: "border-border focus:border-primary focus:ring-primary/40"
-						}`}
-						disabled={isRegistering}
-					/>
-					</div>
+							<label htmlFor="email" className="block text-sm font-medium text-foreground">
+								{t("email")}
+							</label>
+							<input
+								id="email"
+								type="email"
+								required
+								placeholder="you@example.com"
+								value={email}
+								onChange={(e) => setEmail(e.target.value)}
+								className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-1 bg-background text-foreground transition-all ${
+									error.title
+										? "border-destructive focus:border-destructive focus:ring-destructive/40"
+										: "border-border focus:border-primary focus:ring-primary/40"
+								}`}
+								disabled={isRegistering}
+							/>
+						</div>
 
-					<div>
-						<label
-							htmlFor="password"
-							className="block text-sm font-medium text-foreground"
-						>
-							{t("password")}
-						</label>
-						<input
-							id="password"
-							type="password"
-							required
-							placeholder="Enter your password"
-							value={password}
-							onChange={(e) => setPassword(e.target.value)}
-							className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-1 bg-background text-foreground transition-all ${
-								error.title
-									? "border-destructive focus:border-destructive focus:ring-destructive/40"
-									: "border-border focus:border-primary focus:ring-primary/40"
-							}`}
-							disabled={isRegistering}
-						/>
-					</div>
+						<div>
+							<label htmlFor="password" className="block text-sm font-medium text-foreground">
+								{t("password")}
+							</label>
+							<input
+								id="password"
+								type="password"
+								required
+								placeholder="Enter your password"
+								value={password}
+								onChange={(e) => setPassword(e.target.value)}
+								className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-1 bg-background text-foreground transition-all ${
+									error.title
+										? "border-destructive focus:border-destructive focus:ring-destructive/40"
+										: "border-border focus:border-primary focus:ring-primary/40"
+								}`}
+								disabled={isRegistering}
+							/>
+						</div>
 
-					<div>
-						<label
-							htmlFor="confirmPassword"
-							className="block text-sm font-medium text-foreground"
-						>
-							{t("confirm_password")}
-						</label>
-						<input
-							id="confirmPassword"
-							type="password"
-							required
-							placeholder="Confirm your password"
-							value={confirmPassword}
-							onChange={(e) => setConfirmPassword(e.target.value)}
-							className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-1 bg-background text-foreground transition-all ${
-								error.title
-									? "border-destructive focus:border-destructive focus:ring-destructive/40"
-									: "border-border focus:border-primary focus:ring-primary/40"
-							}`}
-							disabled={isRegistering}
-						/>
+						<div>
+							<label
+								htmlFor="confirmPassword"
+								className="block text-sm font-medium text-foreground"
+							>
+								{t("confirm_password")}
+							</label>
+							<input
+								id="confirmPassword"
+								type="password"
+								required
+								placeholder="Confirm your password"
+								value={confirmPassword}
+								onChange={(e) => setConfirmPassword(e.target.value)}
+								className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-1 bg-background text-foreground transition-all ${
+									error.title
+										? "border-destructive focus:border-destructive focus:ring-destructive/40"
+										: "border-border focus:border-primary focus:ring-primary/40"
+								}`}
+								disabled={isRegistering}
+							/>
 						</div>
 
 						<button
@@ -312,12 +306,9 @@ export default function RegisterPage() {
 					</form>
 
 					<div className="mt-4 text-center text-sm">
-					<p className="text-muted-foreground">
-						{t("already_have_account")}{" "}
-						<Link
-							href="/login"
-							className="font-medium text-primary hover:text-primary/90"
-						>
+						<p className="text-muted-foreground">
+							{t("already_have_account")}{" "}
+							<Link href="/login" className="font-medium text-primary hover:text-primary/90">
 								{t("sign_in")}
 							</Link>
 						</p>

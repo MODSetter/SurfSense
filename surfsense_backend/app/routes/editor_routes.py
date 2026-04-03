@@ -129,7 +129,11 @@ async def get_editor_content(
 
     if not chunk_contents:
         doc_status = document.status or {}
-        state = doc_status.get("state", "ready") if isinstance(doc_status, dict) else "ready"
+        state = (
+            doc_status.get("state", "ready")
+            if isinstance(doc_status, dict)
+            else "ready"
+        )
         if state in ("pending", "processing"):
             raise HTTPException(
                 status_code=409,

@@ -20,7 +20,6 @@ Non-OAuth connectors (BookStack, GitHub, etc.) are limited to one per search spa
 
 import asyncio
 import logging
-import os
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from typing import Any

@@ -374,7 +374,10 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 									<div className="px-4 sm:px-12 py-4 sm:py-8 pb-12 sm:pb-16">
 										{/* LLM Configuration Warning */}
 										{!llmConfigLoading && !hasDocumentSummaryLLM && (
-											<Alert variant="destructive" className="mb-6 bg-muted/50 rounded-xl border-destructive/30">
+											<Alert
+												variant="destructive"
+												className="mb-6 bg-muted/50 rounded-xl border-destructive/30"
+											>
 												<AlertTriangle className="h-4 w-4" />
 												<AlertTitle>LLM Configuration Required</AlertTitle>
 												<AlertDescription className="mt-2">

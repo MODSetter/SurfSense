@@ -34,14 +34,16 @@ async def db_document(
 
 async def _version_count(session: AsyncSession, document_id: int) -> int:
     result = await session.execute(
-        select(func.count()).select_from(DocumentVersion).where(
-            DocumentVersion.document_id == document_id
-        )
+        select(func.count())
+        .select_from(DocumentVersion)
+        .where(DocumentVersion.document_id == document_id)
     )
     return result.scalar_one()
 
 
-async def _get_versions(session: AsyncSession, document_id: int) -> list[DocumentVersion]:
+async def _get_versions(
+    session: AsyncSession, document_id: int
+) -> list[DocumentVersion]:
     result = await session.execute(
         select(DocumentVersion)
         .where(DocumentVersion.document_id == document_id)
@@ -74,18 +76,14 @@ class TestCreateVersionSnapshot:
         from app.utils.document_versioning import create_version_snapshot
 
         t0 = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
-        monkeypatch.setattr(
-            "app.utils.document_versioning._now", lambda: t0
-        )
+        monkeypatch.setattr("app.utils.document_versioning._now", lambda: t0)
         await create_version_snapshot(db_session, db_document)
 
         # Simulate content change and time passing
         db_document.source_markdown = "# Test\n\nUpdated content."
         db_document.content_hash = "def456"
         t1 = t0 + timedelta(minutes=31)
-        monkeypatch.setattr(
-            "app.utils.document_versioning._now", lambda: t1
-        )
+        monkeypatch.setattr("app.utils.document_versioning._now", lambda: t1)
         await create_version_snapshot(db_session, db_document)
 
         versions = await _get_versions(db_session, db_document.id)
@@ -101,9 +99,7 @@ class TestCreateVersionSnapshot:
         from app.utils.document_versioning import create_version_snapshot
 
         t0 = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
-        monkeypatch.setattr(
-            "app.utils.document_versioning._now", lambda: t0
-        )
+        monkeypatch.setattr("app.utils.document_versioning._now", lambda: t0)
         await create_version_snapshot(db_session, db_document)
         count_after_first = await _version_count(db_session, db_document.id)
         assert count_after_first == 1
@@ -112,9 +108,7 @@ class TestCreateVersionSnapshot:
         db_document.source_markdown = "# Test\n\nQuick edit."
         db_document.content_hash = "quick123"
         t1 = t0 + timedelta(minutes=10)
-        monkeypatch.setattr(
-            "app.utils.document_versioning._now", lambda: t1
-        )
+        monkeypatch.setattr("app.utils.document_versioning._now", lambda: t1)
         await create_version_snapshot(db_session, db_document)
 
         count_after_second = await _version_count(db_session, db_document.id)
@@ -134,22 +128,15 @@ class TestCreateVersionSnapshot:
 
         # Create 5 versions spread across time: 3 older than 90 days, 2 recent
         for i in range(5):
-            db_document.source_markdown = f"Content v{i+1}"
-            db_document.content_hash = f"hash_{i+1}"
-            if i < 3:
-                t = base + timedelta(days=i)  # old
-            else:
-                t = base + timedelta(days=100 + i)  # recent
-            monkeypatch.setattr(
-                "app.utils.document_versioning._now", lambda _t=t: _t
-            )
+            db_document.source_markdown = f"Content v{i + 1}"
+            db_document.content_hash = f"hash_{i + 1}"
+            t = base + timedelta(days=i) if i < 3 else base + timedelta(days=100 + i)
+            monkeypatch.setattr("app.utils.document_versioning._now", lambda _t=t: _t)
             await create_version_snapshot(db_session, db_document)
 
         # Now trigger cleanup from a "current" time that makes the first 3 versions > 90 days old
         now = base + timedelta(days=200)
-        monkeypatch.setattr(
-            "app.utils.document_versioning._now", lambda: now
-        )
+        monkeypatch.setattr("app.utils.document_versioning._now", lambda: now)
         db_document.source_markdown = "Content v6"
         db_document.content_hash = "hash_6"
         await create_version_snapshot(db_session, db_document)
@@ -160,9 +147,7 @@ class TestCreateVersionSnapshot:
             age = now - v.created_at.replace(tzinfo=UTC)
             assert age <= timedelta(days=90), f"Version {v.version_number} is too old"
 
-    async def test_v5_cap_at_20_versions(
-        self, db_session, db_document, monkeypatch
-    ):
+    async def test_v5_cap_at_20_versions(self, db_session, db_document, monkeypatch):
         """V5: More than 20 versions triggers cap — oldest gets deleted."""
         from app.utils.document_versioning import create_version_snapshot
 
@@ -170,12 +155,10 @@ class TestCreateVersionSnapshot:
 
         # Create 21 versions (all within 90 days, each 31 min apart)
         for i in range(21):
-            db_document.source_markdown = f"Content v{i+1}"
-            db_document.content_hash = f"hash_{i+1}"
+            db_document.source_markdown = f"Content v{i + 1}"
+            db_document.content_hash = f"hash_{i + 1}"
             t = base + timedelta(minutes=31 * i)
-            monkeypatch.setattr(
-                "app.utils.document_versioning._now", lambda _t=t: _t
-            )
+            monkeypatch.setattr("app.utils.document_versioning._now", lambda _t=t: _t)
             await create_version_snapshot(db_session, db_document)
 
         versions = await _get_versions(db_session, db_document.id)
