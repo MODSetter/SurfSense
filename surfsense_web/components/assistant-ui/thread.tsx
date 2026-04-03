@@ -15,6 +15,7 @@ import {
 	ChevronDown,
 	ChevronUp,
 	Clipboard,
+	Dot,
 	Globe,
 	Plus,
 	Settings2,
@@ -1147,7 +1148,11 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 														<TooltipTrigger asChild>{row}</TooltipTrigger>
 														<TooltipContent side="right" className="max-w-72 text-xs">
 															{groupDef?.tooltip ??
-																group.tools.map((t) => t.description).join(" · ")}
+																group.tools.flatMap((t, i) =>
+																	i === 0
+																		? [t.description]
+																		: [<Dot key={i} className="inline h-4 w-4" />, t.description]
+																)}
 														</TooltipContent>
 													</Tooltip>
 												);

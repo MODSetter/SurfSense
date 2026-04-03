@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { AlertCircle, Edit3, Info, RefreshCw, Trash2, Wand2 } from "lucide-react";
+import { AlertCircle, Dot, Edit3, Info, RefreshCw, Trash2, Wand2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { deleteImageGenConfigMutationAtom } from "@/atoms/image-gen-config/image-gen-config-mutation.atoms";
 import {
@@ -330,7 +330,7 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 													</span>
 													{member && (
 														<>
-															<span className="text-muted-foreground/30">·</span>
+															<Dot className="h-4 w-4 text-muted-foreground/30" />
 															<TooltipProvider>
 																<Tooltip open={isDesktop ? undefined : false}>
 																	<TooltipTrigger asChild>

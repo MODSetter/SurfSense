@@ -3,6 +3,7 @@
 import { useAtomValue } from "jotai";
 import {
 	AlertCircle,
+	Dot,
 	Edit3,
 	FileText,
 	Info,
@@ -364,7 +365,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 													</span>
 													{member && (
 														<>
-															<span className="text-muted-foreground/30">·</span>
+															<Dot className="h-4 w-4 text-muted-foreground/30" />
 															<TooltipProvider>
 																<Tooltip open={isDesktop ? undefined : false}>
 																	<TooltipTrigger asChild>
