@@ -860,7 +860,9 @@ class TestDirectConvert:
         """DC2: TSV file is indexed as a markdown table."""
         from app.tasks.connector_indexers.local_folder_indexer import index_local_folder
 
-        (tmp_path / "data.tsv").write_text("name\tage\tcity\nAlice\t30\tNYC\nBob\t25\tLA\n")
+        (tmp_path / "data.tsv").write_text(
+            "name\tage\tcity\nAlice\t30\tNYC\nBob\t25\tLA\n"
+        )
 
         count, _skipped, _root_folder_id, err = await index_local_folder(
             session=db_session,
@@ -896,9 +898,7 @@ class TestDirectConvert:
         """DC3: HTML file is indexed as clean markdown, not raw HTML."""
         from app.tasks.connector_indexers.local_folder_indexer import index_local_folder
 
-        (tmp_path / "page.html").write_text(
-            "<h1>Title</h1><p>Hello world</p>"
-        )
+        (tmp_path / "page.html").write_text("<h1>Title</h1><p>Hello world</p>")
 
         count, _skipped, _root_folder_id, err = await index_local_folder(
             session=db_session,
