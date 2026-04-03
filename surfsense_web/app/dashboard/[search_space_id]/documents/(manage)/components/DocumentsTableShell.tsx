@@ -329,14 +329,15 @@ export function DocumentsTableShell({
 
 	const handleViewDocument = useCallback(async (doc: Document) => {
 		setViewingDoc(doc);
-		if (doc.content) {
-			setViewingContent(doc.content);
+		const preview = doc.content_preview || doc.content;
+		if (preview) {
+			setViewingContent(preview);
 			return;
 		}
 		setViewingLoading(true);
 		try {
 			const fullDoc = await documentsApiService.getDocument({ id: doc.id });
-			setViewingContent(fullDoc.content);
+			setViewingContent(fullDoc.content_preview || fullDoc.content);
 		} catch (err) {
 			console.error("[DocumentsTableShell] Failed to fetch document content:", err);
 			setViewingContent("Failed to load document content.");
@@ -946,13 +947,36 @@ export function DocumentsTableShell({
 							WebkitMaskImage: `linear-gradient(to bottom, ${previewScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${previewScrollPos === "bottom" ? "black" : "transparent"})`,
 						}}
 					>
-						{viewingLoading ? (
-							<div className="flex items-center justify-center py-12">
-								<Spinner size="lg" className="text-muted-foreground" />
-							</div>
-						) : (
-							<MarkdownViewer content={viewingContent} />
-						)}
+					{viewingLoading ? (
+						<div className="flex items-center justify-center py-12">
+							<Spinner size="lg" className="text-muted-foreground" />
+						</div>
+					) : (
+						<>
+							<MarkdownViewer content={viewingContent} maxLength={50_000} />
+							{viewingDoc && (
+								<div className="mt-4 flex justify-center">
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => {
+											if (viewingDoc) {
+												openEditor({
+													documentId: viewingDoc.id,
+													searchSpaceId: Number(searchSpaceId),
+													title: viewingDoc.title,
+												});
+												handleCloseViewer();
+											}
+										}}
+									>
+										<Eye className="h-3.5 w-3.5 mr-1.5" />
+										View full document
+									</Button>
+								</div>
+							)}
+						</>
+					)}
 					</div>
 				</DrawerContent>
 			</Drawer>

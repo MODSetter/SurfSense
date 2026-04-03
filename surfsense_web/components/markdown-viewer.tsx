@@ -15,6 +15,7 @@ const math = createMathPlugin({
 interface MarkdownViewerProps {
 	content: string;
 	className?: string;
+	maxLength?: number;
 }
 
 /**
@@ -79,8 +80,10 @@ function convertLatexDelimiters(content: string): string {
 	return content;
 }
 
-export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
-	const processedContent = convertLatexDelimiters(stripOuterMarkdownFence(content));
+export function MarkdownViewer({ content, className, maxLength }: MarkdownViewerProps) {
+	const isTruncated = maxLength != null && content.length > maxLength;
+	const displayContent = isTruncated ? content.slice(0, maxLength) : content;
+	const processedContent = convertLatexDelimiters(stripOuterMarkdownFence(displayContent));
 	const components: StreamdownProps["components"] = {
 		p: ({ children, ...props }) => (
 			<p className="my-2" {...props}>
@@ -171,6 +174,11 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
 			>
 				{processedContent}
 			</Streamdown>
+			{isTruncated && (
+				<p className="mt-4 text-sm text-muted-foreground italic">
+					Content truncated ({Math.round(content.length / 1024)}KB total). Showing first {Math.round(maxLength / 1024)}KB.
+				</p>
+			)}
 		</div>
 	);
 }

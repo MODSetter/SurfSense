@@ -6,6 +6,7 @@ import {
 	deleteDocumentRequest,
 	deleteDocumentResponse,
 	type GetDocumentByChunkRequest,
+	type GetDocumentChunksRequest,
 	type GetDocumentRequest,
 	type GetDocumentsRequest,
 	type GetDocumentsStatusRequest,
@@ -13,6 +14,8 @@ import {
 	type GetSurfsenseDocsRequest,
 	getDocumentByChunkRequest,
 	getDocumentByChunkResponse,
+	getDocumentChunksRequest,
+	getDocumentChunksResponse,
 	getDocumentRequest,
 	getDocumentResponse,
 	getDocumentsRequest,
@@ -295,23 +298,52 @@ class DocumentsApiService {
 	};
 
 	/**
-	 * Get document by chunk ID (includes all chunks)
+	 * Get document by chunk ID (includes a window of chunks around the cited one)
 	 */
 	getDocumentByChunk = async (request: GetDocumentByChunkRequest) => {
-		// Validate the request
 		const parsedRequest = getDocumentByChunkRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
 
-			// Format a user friendly error message
 			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
+		const params = new URLSearchParams();
+		if (request.chunk_window != null) {
+			params.set("chunk_window", String(request.chunk_window));
+		}
+		const qs = params.toString();
+		const url = `/api/v1/documents/by-chunk/${request.chunk_id}${qs ? `?${qs}` : ""}`;
+
+		return baseApiService.get(url, getDocumentByChunkResponse);
+	};
+
+	/**
+	 * Get paginated chunks for a document
+	 */
+	getDocumentChunks = async (request: GetDocumentChunksRequest) => {
+		const parsedRequest = getDocumentChunksRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		const params = new URLSearchParams({
+			page: String(parsedRequest.data.page),
+			page_size: String(parsedRequest.data.page_size),
+		});
+		if (parsedRequest.data.start_offset != null) {
+			params.set("start_offset", String(parsedRequest.data.start_offset));
+		}
+
 		return baseApiService.get(
-			`/api/v1/documents/by-chunk/${request.chunk_id}`,
-			getDocumentByChunkResponse
+			`/api/v1/documents/${parsedRequest.data.document_id}/chunks?${params}`,
+			getDocumentChunksResponse
 		);
 	};
 
