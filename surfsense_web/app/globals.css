@@ -246,6 +246,17 @@ button {
 	}
 }
 
+/* content-visibility utilities — skip layout/paint for off-screen list items */
+.list-item-lazy {
+	content-visibility: auto;
+	contain-intrinsic-size: 0 48px;
+}
+
+.sidebar-item-lazy {
+	content-visibility: auto;
+	contain-intrinsic-size: 0 40px;
+}
+
 @source "../node_modules/@llamaindex/chat-ui/**/*.{ts,tsx}";
 @source "../node_modules/streamdown/dist/*.js";
 @source "../node_modules/@streamdown/code/dist/*.js";

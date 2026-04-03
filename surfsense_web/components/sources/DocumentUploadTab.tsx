@@ -4,7 +4,7 @@ import { useAtom } from "jotai";
 import { ChevronDown, Dot, File as FileIcon, FolderOpen, Upload, X } from "lucide-react";
 
 import { useTranslations } from "next-intl";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, useCallback, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { uploadDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
@@ -59,6 +59,7 @@ const commonTypes = {
 	"application/vnd.openxmlformats-officedocument.presentationml.presentation": [".pptx"],
 	"text/html": [".html", ".htm"],
 	"text/csv": [".csv"],
+	"text/tab-separated-values": [".tsv"],
 	"image/jpeg": [".jpg", ".jpeg"],
 	"image/png": [".png"],
 	"image/bmp": [".bmp"],
@@ -84,7 +85,6 @@ const FILE_TYPE_CONFIG: Record<string, Record<string, string[]>> = {
 		"application/rtf": [".rtf"],
 		"application/xml": [".xml"],
 		"application/epub+zip": [".epub"],
-		"text/tab-separated-values": [".tsv"],
 		"text/html": [".html", ".htm", ".web"],
 		"image/gif": [".gif"],
 		"image/svg+xml": [".svg"],
@@ -110,7 +110,6 @@ const FILE_TYPE_CONFIG: Record<string, Record<string, string[]>> = {
 		"application/vnd.ms-powerpoint": [".ppt"],
 		"text/x-rst": [".rst"],
 		"application/rtf": [".rtf"],
-		"text/tab-separated-values": [".tsv"],
 		"application/vnd.ms-excel": [".xls"],
 		"application/xml": [".xml"],
 		...audioFileTypes,
@@ -125,6 +124,9 @@ interface FileWithId {
 const MAX_FILES = 50;
 const MAX_TOTAL_SIZE_MB = 200;
 const MAX_TOTAL_SIZE_BYTES = MAX_TOTAL_SIZE_MB * 1024 * 1024;
+
+const MAX_FILE_SIZE_MB = 500;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 const toggleRowClass = "flex items-center justify-between rounded-lg bg-slate-400/5 dark:bg-white/5 p-3";
 
@@ -141,6 +143,7 @@ export function DocumentUploadTab({
 	const [uploadDocumentMutation] = useAtom(uploadDocumentMutationAtom);
 	const { mutate: uploadDocuments, isPending: isUploading } = uploadDocumentMutation;
 	const fileInputRef = useRef<HTMLInputElement>(null);
+	const folderInputRef = useRef<HTMLInputElement>(null);
 
 	const [selectedFolder, setSelectedFolder] = useState<SelectedFolder | null>(null);
 	const [watchFolder, setWatchFolder] = useState(true);
@@ -157,41 +160,48 @@ export function DocumentUploadTab({
 		[acceptedFileTypes]
 	);
 
-	const onDrop = useCallback(
-		(acceptedFiles: File[]) => {
-			setSelectedFolder(null);
+	const supportedExtensionsSet = useMemo(
+		() => new Set(supportedExtensions.map((ext) => ext.toLowerCase())),
+		[supportedExtensions]
+	);
+
+	const addFiles = useCallback(
+		(incoming: File[]) => {
+			const oversized = incoming.filter((f) => f.size > MAX_FILE_SIZE_BYTES);
+			if (oversized.length > 0) {
+				toast.error(t("file_too_large"), {
+					description: t("file_too_large_desc", {
+						name: oversized[0].name,
+						maxMB: MAX_FILE_SIZE_MB,
+					}),
+				});
+			}
+			const valid = incoming.filter((f) => f.size <= MAX_FILE_SIZE_BYTES);
+			if (valid.length === 0) return;
+
 			setFiles((prev) => {
-				const newEntries = acceptedFiles.map((f) => ({
+				const newEntries = valid.map((f) => ({
 					id: crypto.randomUUID?.() ?? `file-${Date.now()}-${Math.random().toString(36)}`,
 					file: f,
 				}));
-				const newFiles = [...prev, ...newEntries];
-
-				if (newFiles.length > MAX_FILES) {
-					toast.error(t("max_files_exceeded"), {
-						description: t("max_files_exceeded_desc", { max: MAX_FILES }),
-					});
-					return prev;
-				}
-
-				const newTotalSize = newFiles.reduce((sum, entry) => sum + entry.file.size, 0);
-				if (newTotalSize > MAX_TOTAL_SIZE_BYTES) {
-					toast.error(t("max_size_exceeded"), {
-						description: t("max_size_exceeded_desc", { max: MAX_TOTAL_SIZE_MB }),
-					});
-					return prev;
-				}
-
-				return newFiles;
+				return [...prev, ...newEntries];
 			});
 		},
 		[t]
 	);
 
+	const onDrop = useCallback(
+		(acceptedFiles: File[]) => {
+			setSelectedFolder(null);
+			addFiles(acceptedFiles);
+		},
+		[addFiles]
+	);
+
 	const { getRootProps, getInputProps, isDragActive } = useDropzone({
 		onDrop,
 		accept: acceptedFileTypes,
-		maxSize: 50 * 1024 * 1024,
+		maxSize: MAX_FILE_SIZE_BYTES,
 		noClick: isElectron,
 		disabled: files.length >= MAX_FILES,
 	});
@@ -244,6 +254,28 @@ export function DocumentUploadTab({
 		setSelectedFolder({ path: folderPath, name: folderName });
 		setWatchFolder(true);
 	}, []);
+
+	const handleFolderChange = useCallback(
+		(e: ChangeEvent<HTMLInputElement>) => {
+			const fileList = e.target.files;
+			if (!fileList || fileList.length === 0) return;
+
+			const folderFiles = Array.from(fileList).filter((f) => {
+				const ext = f.name.includes(".") ? `.${f.name.split(".").pop()?.toLowerCase()}` : "";
+				return ext !== "" && supportedExtensionsSet.has(ext);
+			});
+
+			if (folderFiles.length === 0) {
+				toast.error(t("no_supported_files_in_folder"));
+				e.target.value = "";
+				return;
+			}
+
+			addFiles(folderFiles);
+			e.target.value = "";
+		},
+		[addFiles, supportedExtensionsSet, t]
+	);
 
 	const formatFileSize = (bytes: number) => {
 		if (bytes === 0) return "0 Bytes";
@@ -398,12 +430,22 @@ export function DocumentUploadTab({
 
 	return (
 		<div className="space-y-2 w-full mx-auto">
-			{/* Hidden file input for mobile browse */}
+			{/* Hidden file input */}
 			<input
 				{...getInputProps()}
 				ref={fileInputRef}
 				className="hidden"
 				onClick={handleFileInputClick}
+			/>
+
+			{/* Hidden folder input for web folder browsing */}
+			<input
+				ref={folderInputRef}
+				type="file"
+				className="hidden"
+				onChange={handleFolderChange}
+				multiple
+				{...({ webkitdirectory: "", directory: "" } as React.InputHTMLAttributes<HTMLInputElement>)}
 			/>
 
 			{/* MOBILE DROP ZONE */}
@@ -445,6 +487,35 @@ export function DocumentUploadTab({
 						{isElectron && (
 							<div className="w-full mt-1" onClick={(e) => e.stopPropagation()}>
 								{renderBrowseButton({ fullWidth: true })}
+							</div>
+						)}
+						{!isElectron && (
+							<div className="mt-2 flex gap-2">
+								<Button
+									variant="secondary"
+									size="sm"
+									className="text-xs"
+									onClick={(e) => {
+										e.stopPropagation();
+										e.preventDefault();
+										fileInputRef.current?.click();
+									}}
+								>
+									{t("browse_files")}
+								</Button>
+								<Button
+									variant="outline"
+									size="sm"
+									className="text-xs"
+									onClick={(e) => {
+										e.stopPropagation();
+										e.preventDefault();
+										folderInputRef.current?.click();
+									}}
+								>
+									<FolderOpen className="h-4 w-4 mr-1.5" />
+									{t("browse_folder")}
+								</Button>
 							</div>
 						)}
 					</div>

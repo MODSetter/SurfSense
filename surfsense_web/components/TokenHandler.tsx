@@ -1,6 +1,5 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 import { getAndClearRedirectPath, setBearerToken, setRefreshToken } from "@/lib/auth-utils";
@@ -26,8 +25,6 @@ const TokenHandler = ({
 	tokenParamName = "token",
 	storageKey = "surfsense_bearer_token",
 }: TokenHandlerProps) => {
-	const searchParams = useSearchParams();
-
 	// Always show loading for this component - spinner animation won't reset
 	useGlobalLoadingEffect(true);
 
@@ -35,9 +32,13 @@ const TokenHandler = ({
 		// Only run on client-side
 		if (typeof window === "undefined") return;
 
-		// Get tokens from URL parameters
-		const token = searchParams.get(tokenParamName);
-		const refreshToken = searchParams.get("refresh_token");
+		// Read tokens from URL at mount time — no subscription needed.
+		// TokenHandler only runs once after an auth redirect, so a stale read
+		// is impossible and useSearchParams() would add a pointless subscription.
+		// (Vercel Best Practice: rerender-defer-reads 5.2)
+		const params = new URLSearchParams(window.location.search);
+		const token = params.get(tokenParamName);
+		const refreshToken = params.get("refresh_token");
 
 		if (token) {
 			try {
@@ -74,7 +75,7 @@ const TokenHandler = ({
 				window.location.href = redirectPath;
 			}
 		}
-	}, [searchParams, tokenParamName, storageKey, redirectPath]);
+	}, [tokenParamName, storageKey, redirectPath]);
 
 	// Return null - the global provider handles the loading UI
 	return null;

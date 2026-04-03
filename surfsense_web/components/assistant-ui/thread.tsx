@@ -834,6 +834,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 
 	const { data: agentTools } = useAtomValue(agentToolsAtom);
 	const disabledTools = useAtomValue(disabledToolsAtom);
+	const disabledToolsSet = useMemo(() => new Set(disabledTools), [disabledTools]);
 	const toggleTool = useSetAtom(toggleToolAtom);
 	const setDisabledTools = useSetAtom(disabledToolsAtom);
 	const hydrateDisabled = useSetAtom(hydrateDisabledToolsAtom);
@@ -846,18 +847,18 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 
 	const toggleToolGroup = useCallback(
 		(toolNames: string[]) => {
-			const allDisabled = toolNames.every((name) => disabledTools.includes(name));
+			const allDisabled = toolNames.every((name) => disabledToolsSet.has(name));
 			if (allDisabled) {
 				setDisabledTools((prev) => prev.filter((t) => !toolNames.includes(t)));
 			} else {
 				setDisabledTools((prev) => [...new Set([...prev, ...toolNames])]);
 			}
 		},
-		[disabledTools, setDisabledTools]
+		[disabledToolsSet, setDisabledTools]
 	);
 
 	const hasWebSearchTool = agentTools?.some((t) => t.name === "web_search") ?? false;
-	const isWebSearchEnabled = hasWebSearchTool && !disabledTools.includes("web_search");
+	const isWebSearchEnabled = hasWebSearchTool && !disabledToolsSet.has("web_search");
 	const filteredTools = useMemo(
 		() => agentTools?.filter((t) => t.name !== "web_search"),
 		[agentTools]
@@ -957,7 +958,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 													{group.label}
 												</div>
 												{group.tools.map((tool) => {
-													const isDisabled = disabledTools.includes(tool.name);
+													const isDisabled = disabledToolsSet.has(tool.name);
 													const ToolIcon = getToolIcon(tool.name);
 													return (
 														<div
@@ -989,7 +990,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 													const iconKey = group.connectorIcon ?? "";
 													const iconInfo = CONNECTOR_TOOL_ICON_PATHS[iconKey];
 													const toolNames = group.tools.map((t) => t.name);
-													const allDisabled = toolNames.every((n) => disabledTools.includes(n));
+													const allDisabled = toolNames.every((n) => disabledToolsSet.has(n));
 													return (
 														<div
 															key={group.label}
@@ -1078,7 +1079,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 												{group.label}
 											</div>
 											{group.tools.map((tool) => {
-												const isDisabled = disabledTools.includes(tool.name);
+												const isDisabled = disabledToolsSet.has(tool.name);
 												const ToolIcon = getToolIcon(tool.name);
 												const row = (
 													<div className="flex w-full items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-1 sm:py-1.5 hover:bg-muted-foreground/10 transition-colors">
@@ -1115,7 +1116,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 												const iconKey = group.connectorIcon ?? "";
 												const iconInfo = CONNECTOR_TOOL_ICON_PATHS[iconKey];
 												const toolNames = group.tools.map((t) => t.name);
-												const allDisabled = toolNames.every((n) => disabledTools.includes(n));
+												const allDisabled = toolNames.every((n) => disabledToolsSet.has(n));
 												const groupDef = TOOL_GROUPS.find((g) => g.label === group.label);
 												const row = (
 													<div className="flex w-full items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-1 sm:py-1.5 hover:bg-muted-foreground/10 transition-colors">
