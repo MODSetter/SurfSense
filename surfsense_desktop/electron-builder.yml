@@ -9,10 +9,6 @@ directories:
 files:
   - dist/**/*
   - "!node_modules"
-  - node_modules/uiohook-napi/**/*
-  - "!node_modules/uiohook-napi/src"
-  - "!node_modules/uiohook-napi/libuiohook"
-  - "!node_modules/uiohook-napi/binding.gyp"
   - node_modules/node-gyp-build/**/*
   - node_modules/bindings/**/*
   - node_modules/file-uri-to-path/**/*
@@ -39,7 +35,6 @@ extraResources:
     filter: ["**/*"]
 asarUnpack:
   - "**/*.node"
-  - "node_modules/uiohook-napi/**/*"
   - "node_modules/node-gyp-build/**/*"
   - "node_modules/bindings/**/*"
   - "node_modules/file-uri-to-path/**/*"
@@ -51,9 +46,8 @@ mac:
   hardenedRuntime: false
   gatekeeperAssess: false
   extendInfo:
-    NSInputMonitoringUsageDescription: "SurfSense uses input monitoring to provide system-wide autocomplete suggestions as you type."
-    NSAccessibilityUsageDescription: "SurfSense uses accessibility features to read text fields and insert suggestions."
-    NSAppleEventsUsageDescription: "SurfSense uses Apple Events to read text from the active application and insert autocomplete suggestions."
+    NSAccessibilityUsageDescription: "SurfSense uses accessibility features to insert suggestions into the active application."
+    NSAppleEventsUsageDescription: "SurfSense uses Apple Events to interact with the active application."
   target:
     - target: dmg
       arch: [x64, arm64]

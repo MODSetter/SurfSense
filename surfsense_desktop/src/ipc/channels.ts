@@ -9,7 +9,6 @@ export const IPC_CHANNELS = {
   // Permissions
   GET_PERMISSIONS_STATUS: 'get-permissions-status',
   REQUEST_ACCESSIBILITY: 'request-accessibility',
-  REQUEST_INPUT_MONITORING: 'request-input-monitoring',
   RESTART_APP: 'restart-app',
   // Autocomplete
   AUTOCOMPLETE_CONTEXT: 'autocomplete-context',

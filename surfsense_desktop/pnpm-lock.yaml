@@ -20,9 +20,6 @@ importers:
       node-mac-permissions:
         specifier: ^2.5.0
         version: 2.5.0
-      uiohook-napi:
-        specifier: ^1.5.5
-        version: 1.5.5
     devDependencies:
       '@electron/rebuild':
         specifier: ^4.0.3
@@ -1128,10 +1125,6 @@ packages:
   node-api-version@0.2.1:
     resolution: {integrity: sha512-2xP/IGGMmmSQpI1+O/k72jF/ykvZ89JeuKX3TLJAYPDVLUalrshrLHkeVcCCZqG/eEa635cr8IBYzgnDvM2O8Q==}
 
-  node-gyp-build@4.8.4:
-    resolution: {integrity: sha512-LA4ZjwlnUblHVgq0oBF3Jl/6h/Nvs5fzBLwdEF4nuxnFdsfajde4WfxtJr3CaiH+F6ewcIB/q4jQ4UzPyid+CQ==}
-    hasBin: true
-
   node-gyp@11.5.0:
     resolution: {integrity: sha512-ra7Kvlhxn5V9Slyus0ygMa2h+UqExPqUIkfk7Pc8QTLT956JLSy51uWFwHtIYy0vI8cB4BDhc/S03+880My/LQ==}
     engines: {node: ^18.17.0 || >=20.5.0}
@@ -1453,10 +1446,6 @@ packages:
     resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
     engines: {node: '>=14.17'}
     hasBin: true
-
-  uiohook-napi@1.5.5:
-    resolution: {integrity: sha512-oSlTdnECw2GBfsJPTbBQBeE4v/EXP0EZmX6BJq5nzH/JgFaBE8JpFwEA/kLhiEP7HxQw28FViWiYgdIZzWuuJQ==}
-    engines: {node: '>= 16'}
 
   undici-types@7.16.0:
     resolution: {integrity: sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw==}
@@ -2785,8 +2774,6 @@ snapshots:
     dependencies:
       semver: 7.7.4
 
-  node-gyp-build@4.8.4: {}
-
   node-gyp@11.5.0:
     dependencies:
       env-paths: 2.2.1
@@ -3112,10 +3099,6 @@ snapshots:
     optional: true
 
   typescript@5.9.3: {}
-
-  uiohook-napi@1.5.5:
-    dependencies:
-      node-gyp-build: 4.8.4
 
   undici-types@7.16.0: {}
 

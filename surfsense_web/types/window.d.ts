@@ -17,10 +17,8 @@ interface ElectronAPI {
 	// Permissions
 	getPermissionsStatus: () => Promise<{
 		accessibility: 'authorized' | 'denied' | 'not determined' | 'restricted' | 'limited';
-		inputMonitoring: 'authorized' | 'denied' | 'not determined' | 'restricted' | 'limited';
 	}>;
 	requestAccessibility: () => Promise<void>;
-	requestInputMonitoring: () => Promise<void>;
 	restartApp: () => Promise<void>;
 	// Autocomplete
 	onAutocompleteContext: (callback: (data: { text: string; cursorPosition: number; searchSpaceId?: string }) => void) => () => void;

@@ -3,7 +3,6 @@ import { IPC_CHANNELS } from './channels';
 import {
   getPermissionsStatus,
   requestAccessibility,
-  requestInputMonitoring,
   restartApp,
 } from '../modules/permissions';
 
@@ -29,10 +28,6 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.REQUEST_ACCESSIBILITY, () => {
     requestAccessibility();
-  });
-
-  ipcMain.handle(IPC_CHANNELS.REQUEST_INPUT_MONITORING, async () => {
-    return await requestInputMonitoring();
   });
 
   ipcMain.handle(IPC_CHANNELS.RESTART_APP, () => {
