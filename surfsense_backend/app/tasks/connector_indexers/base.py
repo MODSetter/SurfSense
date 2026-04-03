@@ -4,7 +4,6 @@ Base functionality and shared imports for connector indexers.
 
 import logging
 from datetime import UTC, datetime, timedelta
-
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
