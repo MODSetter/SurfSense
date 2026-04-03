@@ -394,7 +394,6 @@
 		"upload_error": "Upload Error",
 		"upload_error_desc": "Error uploading files",
 		"supported_file_types": "Supported File Types",
-		"file_types_desc": "These file types are supported based on your current ETL service configuration.",
 		"file_too_large": "File Too Large",
 		"file_too_large_desc": "\"{name}\" exceeds the {maxMB}MB per-file limit.",
 		"no_supported_files_in_folder": "No supported file types found in the selected folder."

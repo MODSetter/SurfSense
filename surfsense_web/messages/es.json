@@ -394,7 +394,6 @@
 		"upload_error": "Error de subida",
 		"upload_error_desc": "Error al subir archivos",
 		"supported_file_types": "Tipos de archivo soportados",
-		"file_types_desc": "Estos tipos de archivo son soportados según la configuración actual de tu servicio ETL.",
 		"file_too_large": "Archivo demasiado grande",
 		"file_too_large_desc": "\"{name}\" excede el límite de {maxMB} MB por archivo.",
 		"no_supported_files_in_folder": "No se encontraron tipos de archivo compatibles en la carpeta seleccionada."

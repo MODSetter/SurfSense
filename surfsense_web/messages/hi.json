@@ -394,7 +394,6 @@
 		"upload_error": "अपलोड त्रुटि",
 		"upload_error_desc": "फ़ाइलें अपलोड करने में त्रुटि",
 		"supported_file_types": "समर्थित फ़ाइल प्रकार",
-		"file_types_desc": "ये फ़ाइल प्रकार आपकी वर्तमान ETL सेवा कॉन्फ़िगरेशन के आधार पर समर्थित हैं।",
 		"file_too_large": "फ़ाइल बहुत बड़ी है",
 		"file_too_large_desc": "\"{name}\" प्रति फ़ाइल {maxMB}MB की सीमा से अधिक है।",
 		"no_supported_files_in_folder": "चयनित फ़ोल्डर में कोई समर्थित फ़ाइल प्रकार नहीं मिला।"

@@ -378,7 +378,6 @@
 		"upload_error": "上传错误",
 		"upload_error_desc": "上传文件时出错",
 		"supported_file_types": "支持的文件类型",
-		"file_types_desc": "根据您当前的 ETL 服务配置支持这些文件类型。",
 		"file_too_large": "文件过大",
 		"file_too_large_desc": "\"{name}\" 超过了每个文件 {maxMB}MB 的限制。",
 		"no_supported_files_in_folder": "所选文件夹中没有找到支持的文件类型。"
