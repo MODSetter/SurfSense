@@ -570,7 +570,7 @@ export function DocumentUploadTab({
 			{/* FOLDER SELECTED (Electron only — web flattens folder contents into file list) */}
 			{isElectron && selectedFolder && (
 				<div className="rounded-lg border border-border p-3 space-y-2">
-					<div className="flex items-center gap-2">
+					<div className="flex items-center gap-2 py-1.5 px-2 -mx-1 rounded-md hover:bg-slate-400/5 dark:hover:bg-white/5 group">
 						<FolderOpen className="h-4 w-4 text-primary shrink-0" />
 						<div className="min-w-0 flex-1">
 							<p className="text-sm font-medium truncate">{selectedFolder.name}</p>
