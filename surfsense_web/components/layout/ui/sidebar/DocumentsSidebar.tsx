@@ -22,7 +22,6 @@ import type { FolderDisplay } from "@/components/documents/FolderNode";
 import { FolderPickerDialog } from "@/components/documents/FolderPickerDialog";
 import { FolderTreeView } from "@/components/documents/FolderTreeView";
 import { VersionHistoryDialog } from "@/components/documents/version-history";
-import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
 import { EXPORT_FILE_EXTENSIONS } from "@/components/shared/ExportMenuItems";
 import {
 	AlertDialog,
@@ -96,10 +95,6 @@ export function DocumentsSidebar({
 	const debouncedSearch = useDebouncedValue(search, 250);
 	const [activeTypes, setActiveTypes] = useState<DocumentTypeEnum[]>([]);
 	const [watchedFolderIds, setWatchedFolderIds] = useState<Set<number>>(new Set());
-
-	const [metadataFolder, setMetadataFolder] = useState<FolderDisplay | null>(null);
-	const [metadataJson, setMetadataJson] = useState<Record<string, unknown> | null>(null);
-	const [metadataLoading, setMetadataLoading] = useState(false);
 
 	useEffect(() => {
 		const api = typeof window !== "undefined" ? window.electronAPI : null;
@@ -332,20 +327,6 @@ export function DocumentsSidebar({
 		},
 		[]
 	);
-
-	const handleViewFolderMetadata = useCallback(async (folder: FolderDisplay) => {
-		setMetadataFolder(folder);
-		setMetadataLoading(true);
-		try {
-			const fullFolder = await foldersApiService.getFolder(folder.id);
-			setMetadataJson((fullFolder.metadata as Record<string, unknown>) ?? {});
-		} catch (err) {
-			console.error("[DocumentsSidebar] Failed to fetch folder metadata:", err);
-			setMetadataJson({ error: "Failed to load folder metadata" });
-		} finally {
-			setMetadataLoading(false);
-		}
-	}, []);
 
 	const handleRenameFolder = useCallback(async (folder: FolderDisplay, newName: string) => {
 		try {
@@ -836,24 +817,9 @@ export function DocumentsSidebar({
 				watchedFolderIds={watchedFolderIds}
 				onRescanFolder={handleRescanFolder}
 			onStopWatchingFolder={handleStopWatching}
-			onViewFolderMetadata={handleViewFolderMetadata}
 		/>
 			</div>
 		</div>
-
-		<JsonMetadataViewer
-			title={metadataFolder?.name ?? "Folder"}
-			metadata={metadataJson}
-			loading={metadataLoading}
-			open={!!metadataFolder}
-			onOpenChange={(open) => {
-				if (!open) {
-					setMetadataFolder(null);
-					setMetadataJson(null);
-					setMetadataLoading(false);
-				}
-			}}
-		/>
 
 		{versionDocId !== null && (
 			<VersionHistoryDialog

@@ -80,7 +80,6 @@ interface FolderNodeProps {
 	isWatched?: boolean;
 	onRescan?: (folder: FolderDisplay) => void;
 	onStopWatching?: (folder: FolderDisplay) => void;
-	onViewMetadata?: (folder: FolderDisplay) => void;
 }
 
 function getDropZone(
@@ -122,7 +121,6 @@ export const FolderNode = React.memo(function FolderNode({
 	isWatched,
 	onRescan,
 	onStopWatching,
-	onViewMetadata,
 }: FolderNodeProps) {
 	const [renameValue, setRenameValue] = useState(folder.name);
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -258,13 +256,7 @@ export const FolderNode = React.memo(function FolderNode({
 						isOver && !canDrop && "cursor-not-allowed"
 					)}
 					style={{ paddingLeft: `${depth * 16 + 4}px` }}
-				onClick={(e) => {
-					if ((e.ctrlKey || e.metaKey) && onViewMetadata) {
-						e.preventDefault();
-						e.stopPropagation();
-						onViewMetadata(folder);
-						return;
-					}
+				onClick={() => {
 					onToggleExpand(folder.id);
 				}}
 				onKeyDown={(e) => {
