@@ -6,6 +6,7 @@ import { ImageIcon, ImageOffIcon } from "lucide-react";
 import { memo, type PropsWithChildren, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
+import NextImage from 'next/image';
 
 const imageVariants = cva("aui-image-root relative overflow-hidden rounded-lg", {
 	variants: {
@@ -86,23 +87,57 @@ function ImagePreview({
 				>
 					<ImageOffIcon className="size-8 text-muted-foreground" />
 				</div>
-			) : (
+			) : isDataOrBlobUrl(src) ? (
+                // biome-ignore lint/performance/noImgElement: data/blob URLs need plain img
+                <img
+                    ref={imgRef}
+                    src={src}
+                    alt={alt}
+                    className={cn("block h-auto w-full object-contain", !loaded && "invisible", className)}
+                    onLoad={(e) => {
+                        if (typeof src === "string") setLoadedSrc(src);
+                        onLoad?.(e);
+                    }}
+                    onError={(e) => {
+                        if (typeof src === "string") setErrorSrc(src);
+                        onError?.(e);
+                    }}
+                    {...props}
+                />
+            ) : (
 				// biome-ignore lint/performance/noImgElement: intentional for dynamic external URLs
-				<img
-					ref={imgRef}
-					src={src}
-					alt={alt}
-					className={cn("block h-auto w-full object-contain", !loaded && "invisible", className)}
-					onLoad={(e) => {
-						if (typeof src === "string") setLoadedSrc(src);
-						onLoad?.(e);
-					}}
-					onError={(e) => {
-						if (typeof src === "string") setErrorSrc(src);
-						onError?.(e);
-					}}
-					{...props}
-				/>
+				// <img
+				// 	ref={imgRef}
+				// 	src={src}
+				// 	alt={alt}
+				// 	className={cn("block h-auto w-full object-contain", !loaded && "invisible", className)}
+				// 	onLoad={(e) => {
+				// 		if (typeof src === "string") setLoadedSrc(src);
+				// 		onLoad?.(e);
+				// 	}}
+				// 	onError={(e) => {
+				// 		if (typeof src === "string") setErrorSrc(src);
+				// 		onError?.(e);
+				// 	}}
+				// 	{...props}
+				// />
+				<NextImage
+				fill
+				src={src || ""}
+				alt={alt}
+				sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 60vw"
+				className={cn("block object-contain", !loaded && "invisible", className)}
+				onLoad={() => {
+					if (typeof src === "string") setLoadedSrc(src);
+					onLoad?.();
+				}}
+				onError={() => {
+					if (typeof src === "string") setErrorSrc(src);
+					onError?.();
+				}}
+				unoptimized={false}
+				{...props}
+			/>
 			)}
 		</div>
 	);
@@ -126,7 +161,10 @@ type ImageZoomProps = PropsWithChildren<{
 	src: string;
 	alt?: string;
 }>;
-
+function isDataOrBlobUrl(src: string | undefined): boolean {
+    if (!src || typeof src !== "string") return false;
+    return src.startsWith("data:") || src.startsWith("blob:");
+}
 function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
 	const [isMounted, setIsMounted] = useState(false);
 	const [isOpen, setIsOpen] = useState(false);
@@ -177,22 +215,39 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
 						aria-label="Close zoomed image"
 					>
 						{/** biome-ignore lint/performance/noImgElement: <explanation> */}
-						<img
-							data-slot="image-zoom-content"
-							src={src}
-							alt={alt}
-							className="aui-image-zoom-content fade-in zoom-in-95 max-h-[90vh] max-w-[90vw] animate-in object-contain duration-200"
-							onClick={(e) => {
-								e.stopPropagation();
-								handleClose();
-							}}
-							onKeyDown={(e) => {
-								if (e.key === "Enter") {
-									e.stopPropagation();
-									handleClose();
-								}
-							}}
-						/>
+						{isDataOrBlobUrl(src) ? (
+                            // biome-ignore lint/performance/noImgElement: data/blob URLs need plain img
+                            <img
+                                data-slot="image-zoom-content"
+                                src={src}
+                                alt={alt}
+                                className="aui-image-zoom-content fade-in zoom-in-95 max-h-[90vh] max-w-[90vw] animate-in object-contain duration-200"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleClose();
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                        e.stopPropagation();
+                                        handleClose();
+                                    }
+                                }}
+                            />
+                        ) : (
+							<NextImage
+                                data-slot="image-zoom-content"
+                                fill
+                                src={src}
+                                alt={alt}
+                                sizes="90vw"
+                                className="aui-image-zoom-content fade-in zoom-in-95 object-contain duration-200"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleClose();
+                                }}
+                                unoptimized={false}
+                            />
+                        )}
 					</button>,
 					document.body
 				)}
