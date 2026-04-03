@@ -123,6 +123,13 @@ export function ReportPanelContent({
 	const [copied, setCopied] = useState(false);
 	const [exporting, setExporting] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
+	const copyTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+	useEffect(() => {
+		return () => {
+			if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+		};
+	}, []);
 
 	// Editor state — tracks the latest markdown from the Plate editor
 	const [editedMarkdown, setEditedMarkdown] = useState<string | null>(null);
@@ -197,7 +204,8 @@ export function ReportPanelContent({
 		try {
 			await navigator.clipboard.writeText(currentMarkdown);
 			setCopied(true);
-			setTimeout(() => setCopied(false), 2000);
+			if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+			copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
 		} catch (err) {
 			console.error("Failed to copy:", err);
 		}
