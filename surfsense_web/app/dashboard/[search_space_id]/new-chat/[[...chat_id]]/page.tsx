@@ -232,7 +232,7 @@ export default function NewChatPage() {
 				const prevById = new Map(prev.map((m) => [m.id, m]));
 
 				return syncedMessages.map((msg) => {
-					const member = msg.author_id ? memberById.get(msg.author_id) ?? null : null;
+					const member = msg.author_id ? (memberById.get(msg.author_id) ?? null) : null;
 
 					// Preserve existing author info if member lookup fails (e.g., cloned chats)
 					const existingMsg = prevById.get(`msg-${msg.id}`);

@@ -947,36 +947,36 @@ export function DocumentsTableShell({
 							WebkitMaskImage: `linear-gradient(to bottom, ${previewScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${previewScrollPos === "bottom" ? "black" : "transparent"})`,
 						}}
 					>
-					{viewingLoading ? (
-						<div className="flex items-center justify-center py-12">
-							<Spinner size="lg" className="text-muted-foreground" />
-						</div>
-					) : (
-						<>
-							<MarkdownViewer content={viewingContent} maxLength={50_000} />
-							{viewingDoc && (
-								<div className="mt-4 flex justify-center">
-									<Button
-										variant="outline"
-										size="sm"
-										onClick={() => {
-											if (viewingDoc) {
-												openEditor({
-													documentId: viewingDoc.id,
-													searchSpaceId: Number(searchSpaceId),
-													title: viewingDoc.title,
-												});
-												handleCloseViewer();
-											}
-										}}
-									>
-										<Eye className="h-3.5 w-3.5 mr-1.5" />
-										View full document
-									</Button>
-								</div>
-							)}
-						</>
-					)}
+						{viewingLoading ? (
+							<div className="flex items-center justify-center py-12">
+								<Spinner size="lg" className="text-muted-foreground" />
+							</div>
+						) : (
+							<>
+								<MarkdownViewer content={viewingContent} maxLength={50_000} />
+								{viewingDoc && (
+									<div className="mt-4 flex justify-center">
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={() => {
+												if (viewingDoc) {
+													openEditor({
+														documentId: viewingDoc.id,
+														searchSpaceId: Number(searchSpaceId),
+														title: viewingDoc.title,
+													});
+													handleCloseViewer();
+												}
+											}}
+										>
+											<Eye className="h-3.5 w-3.5 mr-1.5" />
+											View full document
+										</Button>
+									</div>
+								)}
+							</>
+						)}
 					</div>
 				</DrawerContent>
 			</Drawer>

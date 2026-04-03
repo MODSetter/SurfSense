@@ -176,7 +176,8 @@ export function MarkdownViewer({ content, className, maxLength }: MarkdownViewer
 			</Streamdown>
 			{isTruncated && (
 				<p className="mt-4 text-sm text-muted-foreground italic">
-					Content truncated ({Math.round(content.length / 1024)}KB total). Showing first {Math.round(maxLength / 1024)}KB.
+					Content truncated ({Math.round(content.length / 1024)}KB total). Showing first{" "}
+					{Math.round(maxLength / 1024)}KB.
 				</p>
 			)}
 		</div>

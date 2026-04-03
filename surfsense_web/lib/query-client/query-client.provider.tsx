@@ -1,6 +1,6 @@
 "use client";
-import dynamic from "next/dynamic";
 import { QueryClientAtomProvider } from "jotai-tanstack-query/react";
+import dynamic from "next/dynamic";
 import { queryClient } from "./client";
 
 const ReactQueryDevtools = dynamic(

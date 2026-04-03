@@ -253,7 +253,9 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 								<FileText className="size-4" />
 								<AlertDescription className="flex items-center justify-between gap-4">
 									<span>
-										This document is too large for the editor ({Math.round((doc.content_size_bytes ?? 0) / 1024 / 1024)}MB, {doc.chunk_count ?? 0} chunks). Showing a preview below.
+										This document is too large for the editor (
+										{Math.round((doc.content_size_bytes ?? 0) / 1024 / 1024)}MB,{" "}
+										{doc.chunk_count ?? 0} chunks). Showing a preview below.
 									</span>
 									<Button
 										variant="outline"

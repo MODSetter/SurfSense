@@ -273,8 +273,7 @@ export function DocumentUploadTab({
 			<Alert className="border border-border bg-slate-400/5 dark:bg-white/5">
 				<Info className="h-4 w-4 shrink-0 mt-0.5" />
 				<AlertDescription className="text-xs sm:text-sm leading-relaxed pt-0.5">
-					{t("file_size_limit", { maxMB: MAX_FILE_SIZE_MB })}{" "}
-					{t("upload_limits")}
+					{t("file_size_limit", { maxMB: MAX_FILE_SIZE_MB })} {t("upload_limits")}
 				</AlertDescription>
 			</Alert>
 

@@ -1,7 +1,17 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, ChevronDown, ChevronUp, ExternalLink, FileText, Hash, Loader2, Sparkles, X } from "lucide-react";
+import {
+	BookOpen,
+	ChevronDown,
+	ChevronUp,
+	ExternalLink,
+	FileText,
+	Hash,
+	Loader2,
+	Sparkles,
+	X,
+} from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useTranslations } from "next-intl";
 import type React from "react";
@@ -56,48 +66,52 @@ interface ChunkCardProps {
 }
 
 const ChunkCard = memo(
-	forwardRef<HTMLDivElement, ChunkCardProps>(({ chunk, localIndex, chunkNumber, totalChunks, isCited }, ref) => {
-		return (
-			<div
-				ref={ref}
-				data-chunk-index={localIndex}
-				className={cn(
-					"group relative rounded-2xl border-2 transition-all duration-300",
-					isCited
-						? "bg-linear-to-br from-primary/5 via-primary/10 to-primary/5 border-primary shadow-lg shadow-primary/10"
-						: "bg-card border-border/50 hover:border-border hover:shadow-md"
-				)}
-			>
-				{isCited && <div className="absolute inset-0 rounded-2xl bg-primary/5 blur-xl -z-10" />}
-
-				<div className="flex items-center justify-between px-5 py-4 border-b border-border/50">
-					<div className="flex items-center gap-3">
-						<div
-							className={cn(
-								"flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors",
-								isCited
-									? "bg-primary text-primary-foreground"
-									: "bg-muted text-muted-foreground group-hover:bg-muted/80"
-							)}
-						>
-							{chunkNumber}
-						</div>
-						<span className="text-sm text-muted-foreground">Chunk {chunkNumber} of {totalChunks}</span>
-					</div>
-					{isCited && (
-						<Badge variant="default" className="gap-1.5 px-3 py-1">
-							<Sparkles className="h-3 w-3" />
-							Cited Source
-						</Badge>
+	forwardRef<HTMLDivElement, ChunkCardProps>(
+		({ chunk, localIndex, chunkNumber, totalChunks, isCited }, ref) => {
+			return (
+				<div
+					ref={ref}
+					data-chunk-index={localIndex}
+					className={cn(
+						"group relative rounded-2xl border-2 transition-all duration-300",
+						isCited
+							? "bg-linear-to-br from-primary/5 via-primary/10 to-primary/5 border-primary shadow-lg shadow-primary/10"
+							: "bg-card border-border/50 hover:border-border hover:shadow-md"
 					)}
-				</div>
+				>
+					{isCited && <div className="absolute inset-0 rounded-2xl bg-primary/5 blur-xl -z-10" />}
 
-				<div className="p-5 overflow-hidden">
-					<MarkdownViewer content={chunk.content} maxLength={100_000} />
+					<div className="flex items-center justify-between px-5 py-4 border-b border-border/50">
+						<div className="flex items-center gap-3">
+							<div
+								className={cn(
+									"flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors",
+									isCited
+										? "bg-primary text-primary-foreground"
+										: "bg-muted text-muted-foreground group-hover:bg-muted/80"
+								)}
+							>
+								{chunkNumber}
+							</div>
+							<span className="text-sm text-muted-foreground">
+								Chunk {chunkNumber} of {totalChunks}
+							</span>
+						</div>
+						{isCited && (
+							<Badge variant="default" className="gap-1.5 px-3 py-1">
+								<Sparkles className="h-3 w-3" />
+								Cited Source
+							</Badge>
+						)}
+					</div>
+
+					<div className="p-5 overflow-hidden">
+						<MarkdownViewer content={chunk.content} maxLength={100_000} />
+					</div>
 				</div>
-			</div>
-		);
-	})
+			);
+		}
+	)
 );
 ChunkCard.displayName = "ChunkCard";
 
@@ -142,11 +156,16 @@ export function SourceDetailPanel({
 		staleTime: 5 * 60 * 1000,
 	});
 
-	const totalChunks = (documentData && "total_chunks" in documentData)
-		? (documentData.total_chunks ?? documentData.chunks.length)
-		: (documentData?.chunks?.length ?? 0);
-	const [beforeChunks, setBeforeChunks] = useState<Array<{ id: number; content: string; created_at: string }>>([]);
-	const [afterChunks, setAfterChunks] = useState<Array<{ id: number; content: string; created_at: string }>>([]);
+	const totalChunks =
+		documentData && "total_chunks" in documentData
+			? (documentData.total_chunks ?? documentData.chunks.length)
+			: (documentData?.chunks?.length ?? 0);
+	const [beforeChunks, setBeforeChunks] = useState<
+		Array<{ id: number; content: string; created_at: string }>
+	>([]);
+	const [afterChunks, setAfterChunks] = useState<
+		Array<{ id: number; content: string; created_at: string }>
+	>([]);
 	const [loadingBefore, setLoadingBefore] = useState(false);
 	const [loadingAfter, setLoadingAfter] = useState(false);
 
@@ -155,8 +174,8 @@ export function SourceDetailPanel({
 		setAfterChunks([]);
 	}, [chunkId, open]);
 
-	const chunkStartIndex = (documentData && "chunk_start_index" in documentData)
-		? (documentData.chunk_start_index ?? 0) : 0;
+	const chunkStartIndex =
+		documentData && "chunk_start_index" in documentData ? (documentData.chunk_start_index ?? 0) : 0;
 	const initialChunks = documentData?.chunks ?? [];
 	const allChunks = [...beforeChunks, ...initialChunks, ...afterChunks];
 	const absoluteStart = chunkStartIndex - beforeChunks.length;
@@ -177,11 +196,11 @@ export function SourceDetailPanel({
 				page_size: count,
 				start_offset: absoluteStart - count,
 			});
-			const existingIds = new Set(allChunks.map(c => c.id));
+			const existingIds = new Set(allChunks.map((c) => c.id));
 			const newChunks = result.items
-				.filter(c => !existingIds.has(c.id))
-				.map(c => ({ id: c.id, content: c.content, created_at: c.created_at }));
-			setBeforeChunks(prev => [...newChunks, ...prev]);
+				.filter((c) => !existingIds.has(c.id))
+				.map((c) => ({ id: c.id, content: c.content, created_at: c.created_at }));
+			setBeforeChunks((prev) => [...newChunks, ...prev]);
 		} catch (err) {
 			console.error("Failed to load earlier chunks:", err);
 		} finally {
@@ -199,11 +218,11 @@ export function SourceDetailPanel({
 				page_size: EXPAND_SIZE,
 				start_offset: absoluteEnd,
 			});
-			const existingIds = new Set(allChunks.map(c => c.id));
+			const existingIds = new Set(allChunks.map((c) => c.id));
 			const newChunks = result.items
-				.filter(c => !existingIds.has(c.id))
-				.map(c => ({ id: c.id, content: c.content, created_at: c.created_at }));
-			setAfterChunks(prev => [...prev, ...newChunks]);
+				.filter((c) => !existingIds.has(c.id))
+				.map((c) => ({ id: c.id, content: c.content, created_at: c.created_at }));
+			setAfterChunks((prev) => [...prev, ...newChunks]);
 		} catch (err) {
 			console.error("Failed to load later chunks:", err);
 		} finally {
@@ -400,12 +419,12 @@ export function SourceDetailPanel({
 									{documentData && "document_type" in documentData
 										? formatDocumentType(documentData.document_type)
 										: sourceType && formatDocumentType(sourceType)}
-								{totalChunks > 0 && (
-									<span className="ml-2">
-										• {totalChunks} chunk{totalChunks !== 1 ? "s" : ""}
-										{allChunks.length < totalChunks && ` (showing ${allChunks.length})`}
-									</span>
-								)}
+									{totalChunks > 0 && (
+										<span className="ml-2">
+											• {totalChunks} chunk{totalChunks !== 1 ? "s" : ""}
+											{allChunks.length < totalChunks && ` (showing ${allChunks.length})`}
+										</span>
+									)}
 								</p>
 							</div>
 							<div className="flex items-center gap-3 shrink-0">
