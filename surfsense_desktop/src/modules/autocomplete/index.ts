@@ -2,7 +2,10 @@ import { clipboard, globalShortcut, ipcMain, screen } from 'electron';
 import { IPC_CHANNELS } from '../../ipc/channels';
 import { getFrontmostApp, hasAccessibilityPermission, simulatePaste } from '../platform';
 import { getMainWindow } from '../window';
+import { captureScreen } from './screenshot';
 import { createSuggestionWindow, destroySuggestion, getSuggestionWindow } from './suggestion-window';
+
+const SHORTCUT = 'CommandOrControl+Shift+Space';
 
 let autocompleteEnabled = true;
 let savedClipboard = '';
@@ -15,11 +18,18 @@ function isSurfSenseWindow(): boolean {
 }
 
 async function triggerAutocomplete(): Promise<void> {
+  if (!autocompleteEnabled) return;
   if (!hasAccessibilityPermission()) return;
   if (isSurfSenseWindow()) return;
 
   sourceApp = getFrontmostApp();
   savedClipboard = clipboard.readText();
+
+  const screenshot = await captureScreen();
+  if (!screenshot) {
+    console.error('[autocomplete] Screenshot capture failed');
+    return;
+  }
 
   const cursor = screen.getCursorScreenPoint();
   const win = createSuggestionWindow(cursor.x, cursor.y);
@@ -39,8 +49,7 @@ async function triggerAutocomplete(): Promise<void> {
     setTimeout(() => {
       if (sw && !sw.isDestroyed()) {
         sw.webContents.send(IPC_CHANNELS.AUTOCOMPLETE_CONTEXT, {
-          text: '',
-          cursorPosition: 0,
+          screenshot,
           searchSpaceId,
         });
       }
@@ -89,10 +98,24 @@ function registerIpcHandlers(): void {
 export function registerAutocomplete(): void {
   registerIpcHandlers();
 
-  // TODO: Phase 2 — replace with vision-based trigger (desktopCapturer + globalShortcut)
-  console.log('[autocomplete] IPC handlers registered');
+  const ok = globalShortcut.register(SHORTCUT, () => {
+    const sw = getSuggestionWindow();
+    if (sw && !sw.isDestroyed()) {
+      destroySuggestion();
+      pendingSuggestionText = '';
+      return;
+    }
+    triggerAutocomplete();
+  });
+
+  if (!ok) {
+    console.error(`[autocomplete] Failed to register shortcut ${SHORTCUT}`);
+  } else {
+    console.log(`[autocomplete] Registered shortcut ${SHORTCUT}`);
+  }
 }
 
 export function unregisterAutocomplete(): void {
+  globalShortcut.unregister(SHORTCUT);
   destroySuggestion();
 }
