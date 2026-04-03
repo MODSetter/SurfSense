@@ -11,10 +11,11 @@ to FULL for the old Electric SQL setup (migration 66/75/76).
 With DEFAULT (primary-key) identity, column-list publications
 only need to include the PK — not every column.
 
-After running this migration you MUST:
-  1. Stop zero-cache
-  2. Delete / reset the zero-cache data volume
-  3. Restart zero-cache  (it will do a fresh initial sync)
+IMPORTANT — before AND after running this migration:
+  1. Stop zero-cache  (it holds replication locks that will deadlock DDL)
+  2. Run:  alembic upgrade head
+  3. Delete / reset the zero-cache data volume
+  4. Restart zero-cache  (it will do a fresh initial sync)
 
 Revision ID: 117
 Revises: 116
@@ -62,8 +63,28 @@ CREATE PUBLICATION {PUBLICATION_NAME} FOR TABLE
 """
 
 
+def _terminate_blocked_pids(conn, table: str) -> None:
+    """Kill backends whose locks on *table* would block our AccessExclusiveLock."""
+    conn.execute(
+        sa.text(
+            "SELECT pg_terminate_backend(l.pid) "
+            "FROM pg_locks l "
+            "JOIN pg_class c ON c.oid = l.relation "
+            "WHERE c.relname = :tbl "
+            "  AND l.pid != pg_backend_pid()"
+        ),
+        {"tbl": table},
+    )
+
+
 def upgrade() -> None:
     conn = op.get_bind()
+
+    conn.execute(sa.text("SET lock_timeout = '10s'"))
+
+    for tbl in sorted(TABLES_WITH_FULL_IDENTITY):
+        _terminate_blocked_pids(conn, tbl)
+        conn.execute(sa.text(f'LOCK TABLE "{tbl}" IN ACCESS EXCLUSIVE MODE'))
 
     for tbl in TABLES_WITH_FULL_IDENTITY:
         conn.execute(sa.text(f'ALTER TABLE "{tbl}" REPLICA IDENTITY DEFAULT'))
