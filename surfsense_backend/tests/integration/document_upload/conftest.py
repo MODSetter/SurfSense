@@ -302,6 +302,9 @@ def _mock_redis_heartbeat(monkeypatch):
     )
 
 
+_MOCK_ETL_MARKDOWN = "# Mocked Document\n\nThis is mocked ETL content."
+
+
 @pytest.fixture(autouse=True)
 def _mock_etl_parsing(monkeypatch):
     """Mock ETL parsing services — LlamaParse and Docling are external boundaries.
@@ -309,8 +312,6 @@ def _mock_etl_parsing(monkeypatch):
     Preserves the real contract: empty/corrupt files raise an error just like
     the actual services would, so tests covering failure paths keep working.
     """
-
-    _MOCK_MARKDOWN = "# Mocked Document\n\nThis is mocked ETL content."
 
     def _reject_empty(file_path: str) -> None:
         if os.path.getsize(file_path) == 0:
@@ -324,7 +325,7 @@ def _mock_etl_parsing(monkeypatch):
 
     class _FakeLlamaParseResult:
         async def aget_markdown_documents(self, *, split_by_page=False):
-            return [_FakeMarkdownDoc(_MOCK_MARKDOWN)]
+            return [_FakeMarkdownDoc(_MOCK_ETL_MARKDOWN)]
 
     async def _fake_llamacloud_parse(**kwargs):
         _reject_empty(kwargs["file_path"])
@@ -339,7 +340,7 @@ def _mock_etl_parsing(monkeypatch):
 
     async def _fake_docling_parse(file_path: str, filename: str):
         _reject_empty(file_path)
-        return _MOCK_MARKDOWN
+        return _MOCK_ETL_MARKDOWN
 
     monkeypatch.setattr(
         "app.tasks.document_processors.file_processors.parse_with_docling",
@@ -347,10 +348,12 @@ def _mock_etl_parsing(monkeypatch):
     )
 
     class _FakeDoclingResult:
-        class document:
+        class Document:
             @staticmethod
             def export_to_markdown():
-                return _MOCK_MARKDOWN
+                return _MOCK_ETL_MARKDOWN
+
+        document = Document()
 
     class _FakeDocumentConverter:
         def convert(self, file_path):
