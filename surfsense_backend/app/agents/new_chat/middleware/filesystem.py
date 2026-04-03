@@ -66,6 +66,16 @@ the `<chunk_index>`, identify chunks marked `matched="true"`, then use
 those sections instead of reading the entire file sequentially.
 
 Use `<chunk id='...'>` values as citation IDs in your answers.
+
+## User-Mentioned Documents
+
+When the `ls` output tags a file with `[MENTIONED BY USER — read deeply]`,
+the user **explicitly selected** that document. These files are your highest-
+priority sources:
+1. **Always read them thoroughly** — scan the full `<chunk_index>`, then read
+   all major sections, not just matched chunks.
+2. **Prefer their content** over other search results when answering.
+3. **Cite from them first** whenever applicable.
 """
 
 # =============================================================================
