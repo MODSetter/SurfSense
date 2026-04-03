@@ -400,8 +400,8 @@ class DocumentsApiService {
 		return baseApiService.post(`/api/v1/documents/folder-index`, undefined, { body });
 	};
 
-	folderIndexFile = async (searchSpaceId: number, body: { folder_path: string; folder_name: string; search_space_id: number; target_file_path: string; root_folder_id?: number | null; enable_summary?: boolean }) => {
-		return baseApiService.post(`/api/v1/documents/folder-index-file`, undefined, { body });
+	folderIndexFiles = async (searchSpaceId: number, body: { folder_path: string; folder_name: string; search_space_id: number; target_file_paths: string[]; root_folder_id?: number | null; enable_summary?: boolean }) => {
+		return baseApiService.post(`/api/v1/documents/folder-index-files`, undefined, { body });
 	};
 
 	getWatchedFolders = async (searchSpaceId: number) => {

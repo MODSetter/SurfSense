@@ -16,65 +16,82 @@ interface FileChangedEvent {
 }
 
 const DEBOUNCE_MS = 2000;
-interface QueueItem {
-	event: FileChangedEvent;
+
+interface BatchItem {
+	folderPath: string;
+	folderName: string;
+	searchSpaceId: number;
+	rootFolderId: number | null;
+	filePaths: string[];
 	ackIds: string[];
 }
 
 export function useFolderSync() {
-	const queueRef = useRef<QueueItem[]>([]);
+	const queueRef = useRef<BatchItem[]>([]);
 	const processingRef = useRef(false);
 	const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-	const pendingByKey = useRef<Map<string, QueueItem>>(new Map());
+	const pendingByFolder = useRef<Map<string, BatchItem>>(new Map());
 	const isMountedRef = useRef(false);
 
 	async function processQueue() {
 		if (processingRef.current) return;
 		processingRef.current = true;
 		while (queueRef.current.length > 0) {
-			const item = queueRef.current.shift()!;
+			const batch = queueRef.current.shift()!;
 			try {
-				await documentsApiService.folderIndexFile(item.event.searchSpaceId, {
-					folder_path: item.event.folderPath,
-					folder_name: item.event.folderName,
-					search_space_id: item.event.searchSpaceId,
-					target_file_path: item.event.fullPath,
-					root_folder_id: item.event.rootFolderId,
+				await documentsApiService.folderIndexFiles(batch.searchSpaceId, {
+					folder_path: batch.folderPath,
+					folder_name: batch.folderName,
+					search_space_id: batch.searchSpaceId,
+					target_file_paths: batch.filePaths,
+					root_folder_id: batch.rootFolderId,
 				});
 				const api = typeof window !== "undefined" ? window.electronAPI : null;
-				if (api?.acknowledgeFileEvents && item.ackIds.length > 0) {
-					await api.acknowledgeFileEvents(item.ackIds);
+				if (api?.acknowledgeFileEvents && batch.ackIds.length > 0) {
+					await api.acknowledgeFileEvents(batch.ackIds);
 				}
 			} catch (err) {
-				console.error("[FolderSync] Failed to trigger re-index:", err);
+				console.error("[FolderSync] Failed to trigger batch re-index:", err);
 			}
 		}
 		processingRef.current = false;
 	}
 
 	function enqueueWithDebounce(event: FileChangedEvent) {
-		const key = `${event.folderPath}:${event.relativePath}`;
-		const existing = pendingByKey.current.get(key);
-		const ackSet = new Set(existing?.ackIds ?? []);
-		ackSet.add(event.id);
-		pendingByKey.current.set(key, {
-			event,
-			ackIds: Array.from(ackSet),
-		});
+		const folderKey = event.folderPath;
+		const existing = pendingByFolder.current.get(folderKey);
 
-		const existingTimeout = debounceTimers.current.get(key);
+		if (existing) {
+			const pathSet = new Set(existing.filePaths);
+			pathSet.add(event.fullPath);
+			existing.filePaths = Array.from(pathSet);
+			if (!existing.ackIds.includes(event.id)) {
+				existing.ackIds.push(event.id);
+			}
+		} else {
+			pendingByFolder.current.set(folderKey, {
+				folderPath: event.folderPath,
+				folderName: event.folderName,
+				searchSpaceId: event.searchSpaceId,
+				rootFolderId: event.rootFolderId,
+				filePaths: [event.fullPath],
+				ackIds: [event.id],
+			});
+		}
+
+		const existingTimeout = debounceTimers.current.get(folderKey);
 		if (existingTimeout) clearTimeout(existingTimeout);
 
 		const timeout = setTimeout(() => {
-			debounceTimers.current.delete(key);
-			const pending = pendingByKey.current.get(key);
+			debounceTimers.current.delete(folderKey);
+			const pending = pendingByFolder.current.get(folderKey);
 			if (!pending) return;
-			pendingByKey.current.delete(key);
+			pendingByFolder.current.delete(folderKey);
 			queueRef.current.push(pending);
 			processQueue();
 		}, DEBOUNCE_MS);
 
-		debounceTimers.current.set(key, timeout);
+		debounceTimers.current.set(folderKey, timeout);
 	}
 
 	useEffect(() => {
@@ -108,7 +125,7 @@ export function useFolderSync() {
 				clearTimeout(timeout);
 			}
 			debounceTimers.current.clear();
-			pendingByKey.current.clear();
+			pendingByFolder.current.clear();
 		};
 	}, []);
 }

@@ -1305,11 +1305,11 @@ class FolderIndexRequest(PydanticBaseModel):
     enable_summary: bool = False
 
 
-class FolderIndexFileRequest(PydanticBaseModel):
+class FolderIndexFilesRequest(PydanticBaseModel):
     folder_path: str
     folder_name: str
     search_space_id: int
-    target_file_path: str
+    target_file_paths: list[str]
     root_folder_id: int | None = None
     enable_summary: bool = False
 
@@ -1393,14 +1393,15 @@ async def folder_index(
     }
 
 
-@router.post("/documents/folder-index-file")
-async def folder_index_file(
-    request: FolderIndexFileRequest,
+@router.post("/documents/folder-index-files")
+async def folder_index_files(
+    request: FolderIndexFilesRequest,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """Index a single file within a watched folder (chokidar trigger).
-    Validates that target_file_path is under folder_path.
+    """Index multiple files within a watched folder (batched chokidar trigger).
+    Validates that all target_file_paths are under folder_path.
+    Dispatches a single Celery task that processes them in parallel.
     """
     from app.config import config as app_config
 
@@ -1409,6 +1410,9 @@ async def folder_index_file(
             status_code=400,
             detail="Local folder indexing is only available in self-hosted mode",
         )
+
+    if not request.target_file_paths:
+        raise HTTPException(status_code=400, detail="target_file_paths must not be empty")
 
     await check_permission(
         session,
@@ -1420,13 +1424,14 @@ async def folder_index_file(
 
     from pathlib import Path
 
-    try:
-        Path(request.target_file_path).relative_to(request.folder_path)
-    except ValueError:
-        raise HTTPException(
-            status_code=400,
-            detail="target_file_path must be inside folder_path",
-        )
+    for fp in request.target_file_paths:
+        try:
+            Path(fp).relative_to(request.folder_path)
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"target_file_path {fp} must be inside folder_path",
+            )
 
     from app.tasks.celery_tasks.document_tasks import index_local_folder_task
 
@@ -1435,14 +1440,15 @@ async def folder_index_file(
         user_id=str(user.id),
         folder_path=request.folder_path,
         folder_name=request.folder_name,
-        target_file_path=request.target_file_path,
+        target_file_paths=request.target_file_paths,
         root_folder_id=request.root_folder_id,
         enable_summary=request.enable_summary,
     )
 
     return {
-        "message": "File indexing started",
+        "message": f"Batch indexing started for {len(request.target_file_paths)} file(s)",
         "status": "processing",
+        "file_count": len(request.target_file_paths),
     }
 
 

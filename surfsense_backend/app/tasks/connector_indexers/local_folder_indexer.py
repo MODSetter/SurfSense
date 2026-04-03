@@ -3,7 +3,7 @@ Local folder indexer.
 
 Indexes files from a local folder on disk. Supports:
 - Full-scan mode (startup reconciliation / manual trigger)
-- Single-file mode (chokidar real-time trigger)
+- Batch mode (chokidar real-time trigger, 1..N files)
 - Filesystem folder structure mirroring into DB Folder rows
 - Document versioning via create_version_snapshot
 - ETL-based file parsing for binary formats (PDF, DOCX, images, audio, etc.)
@@ -13,6 +13,7 @@ Config (folder_path, exclude_patterns, etc.) is passed in from the caller —
 no connector row is read.
 """
 
+import asyncio
 import os
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
@@ -34,6 +35,7 @@ from app.indexing_pipeline.document_hashing import compute_identifier_hash
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
+from app.tasks.celery_tasks import get_celery_session_maker
 from app.utils.document_versioning import create_version_snapshot
 
 from .base import (
@@ -497,14 +499,15 @@ async def index_local_folder(
     file_extensions: list[str] | None = None,
     root_folder_id: int | None = None,
     enable_summary: bool = False,
-    target_file_path: str | None = None,
+    target_file_paths: list[str] | None = None,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, int, int | None, str | None]:
     """Index files from a local folder.
 
     Supports two modes:
-    - Full scan (target_file_path=None): walks entire folder, handles new/changed/deleted files.
-    - Single-file (target_file_path set): processes only that file.
+    - Batch (target_file_paths set): processes 1..N files.
+      Single-file uses the caller's session; multi-file fans out with per-file sessions.
+    - Full scan (no target paths): walks entire folder, handles new/changed/deleted files.
 
     Returns (indexed_count, skipped_count, root_folder_id, error_or_warning_message).
     """
@@ -517,7 +520,7 @@ async def index_local_folder(
         metadata={
             "folder_path": folder_path,
             "user_id": str(user_id),
-            "target_file_path": target_file_path,
+            "target_file_paths_count": len(target_file_paths) if target_file_paths else None,
         },
     )
 
@@ -535,22 +538,47 @@ async def index_local_folder(
             exclude_patterns = DEFAULT_EXCLUDE_PATTERNS
 
         # ====================================================================
-        # SINGLE-FILE MODE
+        # BATCH MODE (1..N files)
         # ====================================================================
-        if target_file_path:
-            indexed, skipped, err = await _index_single_file(
-                session=session,
+        if target_file_paths:
+            if len(target_file_paths) == 1:
+                indexed, skipped, err = await _index_single_file(
+                    session=session,
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                    folder_path=folder_path,
+                    folder_name=folder_name,
+                    target_file_path=target_file_paths[0],
+                    enable_summary=enable_summary,
+                    root_folder_id=root_folder_id,
+                    task_logger=task_logger,
+                    log_entry=log_entry,
+                )
+                return indexed, skipped, root_folder_id, err
+
+            indexed, failed, err = await _index_batch_files(
                 search_space_id=search_space_id,
                 user_id=user_id,
                 folder_path=folder_path,
                 folder_name=folder_name,
-                target_file_path=target_file_path,
+                target_file_paths=target_file_paths,
                 enable_summary=enable_summary,
                 root_folder_id=root_folder_id,
-                task_logger=task_logger,
-                log_entry=log_entry,
+                on_progress_callback=on_heartbeat_callback,
             )
-            return indexed, skipped, root_folder_id, err
+            if err:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"Batch indexing: {indexed} indexed, {failed} failed",
+                    {"indexed": indexed, "failed": failed},
+                )
+            else:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"Batch indexing complete: {indexed} indexed",
+                    {"indexed": indexed, "failed": failed},
+                )
+            return indexed, failed, root_folder_id, err
 
         # ====================================================================
         # FULL-SCAN MODE
@@ -820,6 +848,84 @@ async def index_local_folder(
             log_entry, f"Error: {e}", "Unexpected error", {}
         )
         return 0, 0, root_folder_id, str(e)
+
+
+BATCH_CONCURRENCY = 5
+
+
+async def _index_batch_files(
+    search_space_id: int,
+    user_id: str,
+    folder_path: str,
+    folder_name: str,
+    target_file_paths: list[str],
+    enable_summary: bool,
+    root_folder_id: int | None,
+    on_progress_callback: HeartbeatCallbackType | None = None,
+) -> tuple[int, int, str | None]:
+    """Process multiple files in parallel with bounded concurrency.
+
+    Each file gets its own DB session so they can run concurrently.
+    Returns (indexed_count, failed_count, error_summary_or_none).
+    """
+    semaphore = asyncio.Semaphore(BATCH_CONCURRENCY)
+    indexed = 0
+    failed = 0
+    errors: list[str] = []
+    lock = asyncio.Lock()
+    completed = 0
+
+    async def process_one(file_path: str) -> None:
+        nonlocal indexed, failed, completed
+        async with semaphore:
+            try:
+                async with get_celery_session_maker()() as file_session:
+                    task_logger = TaskLoggingService(file_session, search_space_id)
+                    log_entry = await task_logger.log_task_start(
+                        task_name="local_folder_indexing",
+                        source="local_folder_batch_indexing",
+                        message=f"Batch: indexing {Path(file_path).name}",
+                        metadata={"file_path": file_path},
+                    )
+                    ix, _sk, err = await _index_single_file(
+                        session=file_session,
+                        search_space_id=search_space_id,
+                        user_id=user_id,
+                        folder_path=folder_path,
+                        folder_name=folder_name,
+                        target_file_path=file_path,
+                        enable_summary=enable_summary,
+                        root_folder_id=root_folder_id,
+                        task_logger=task_logger,
+                        log_entry=log_entry,
+                    )
+                    async with lock:
+                        indexed += ix
+                        if err:
+                            failed += 1
+                            errors.append(f"{Path(file_path).name}: {err}")
+                        completed += 1
+                        if on_progress_callback and completed % BATCH_CONCURRENCY == 0:
+                            await on_progress_callback(completed)
+            except Exception as exc:
+                logger.exception(f"Batch: error processing {file_path}: {exc}")
+                async with lock:
+                    failed += 1
+                    completed += 1
+                    errors.append(f"{Path(file_path).name}: {exc}")
+
+    await asyncio.gather(*[process_one(fp) for fp in target_file_paths])
+
+    if on_progress_callback:
+        await on_progress_callback(completed)
+
+    error_summary = None
+    if errors:
+        error_summary = f"{failed} file(s) failed: " + "; ".join(errors[:5])
+        if len(errors) > 5:
+            error_summary += f" ... and {len(errors) - 5} more"
+
+    return indexed, failed, error_summary
 
 
 async def _index_single_file(

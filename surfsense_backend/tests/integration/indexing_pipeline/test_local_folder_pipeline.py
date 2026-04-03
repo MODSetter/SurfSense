@@ -215,7 +215,7 @@ class TestFullIndexer:
         db_search_space: SearchSpace,
         tmp_path: Path,
     ):
-        """I5: Single-file mode only processes the specified file."""
+        """I5: Batch mode with a single file only processes that file."""
         from app.tasks.connector_indexers.local_folder_indexer import index_local_folder
 
         (tmp_path / "a.md").write_text("File A")
@@ -228,7 +228,7 @@ class TestFullIndexer:
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
-            target_file_path=str(tmp_path / "b.md"),
+            target_file_paths=[str(tmp_path / "b.md")],
         )
         assert count == 1
 
@@ -507,7 +507,7 @@ class TestFolderMirroring:
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
-            target_file_path=str(sub / "new.md"),
+            target_file_paths=[str(sub / "new.md")],
             root_folder_id=root_folder_id,
         )
         assert count == 1
@@ -546,7 +546,7 @@ class TestFolderMirroring:
         db_search_space: SearchSpace,
         tmp_path: Path,
     ):
-        """F7: Deleting the only file in a subfolder via single-file mode removes empty Folder rows."""
+        """F7: Deleting the only file in a subfolder via batch mode removes empty Folder rows."""
         from app.tasks.connector_indexers.local_folder_indexer import index_local_folder
 
         sub = tmp_path / "notes" / "ephemeral"
@@ -578,7 +578,7 @@ class TestFolderMirroring:
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
-            target_file_path=str(target),
+            target_file_paths=[str(target)],
             root_folder_id=root_folder_id,
         )
 
