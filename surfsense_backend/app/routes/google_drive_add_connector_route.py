@@ -41,7 +41,11 @@ from app.utils.connector_naming import (
     check_duplicate_connector,
     generate_unique_connector_name,
 )
-from app.utils.oauth_security import OAuthStateManager, TokenEncryption, generate_code_verifier
+from app.utils.oauth_security import (
+    OAuthStateManager,
+    TokenEncryption,
+    generate_code_verifier,
+)
 
 # Relax token scope validation for Google OAuth
 os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"

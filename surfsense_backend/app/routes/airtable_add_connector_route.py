@@ -24,7 +24,11 @@ from app.utils.connector_naming import (
     check_duplicate_connector,
     generate_unique_connector_name,
 )
-from app.utils.oauth_security import OAuthStateManager, TokenEncryption, generate_pkce_pair
+from app.utils.oauth_security import (
+    OAuthStateManager,
+    TokenEncryption,
+    generate_pkce_pair,
+)
 
 logger = logging.getLogger(__name__)
 
