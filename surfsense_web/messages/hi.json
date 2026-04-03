@@ -376,11 +376,11 @@
 	"upload_documents": {
 		"title": "दस्तावेज़ अपलोड करें",
 		"subtitle": "AI-संचालित बातचीत के माध्यम से अपनी फ़ाइलों को खोजने योग्य और सुलभ बनाने के लिए अपलोड करें।",
-		"file_size_limit": "अधिकतम फ़ाइल आकार: प्रति फ़ाइल {maxMB}MB",
-		"upload_limits": "फ़ाइलें या पूरे फ़ोल्डर अपलोड करें",
+		"file_size_limit": "अधिकतम फ़ाइल आकार: प्रति फ़ाइल 50MB",
+		"upload_limits": "अपलोड सीमा: {maxFiles} फ़ाइलें, कुल {maxSizeMB}MB",
 		"drop_files": "फ़ाइलें या फ़ोल्डर यहां छोड़ें",
 		"drag_drop": "फ़ाइलें या फ़ोल्डर यहां खींचें और छोड़ें",
-		"or_browse": "या फ़ाइलें और फ़ोल्डर ब्राउज़ करने के लिए क्लिक करें",
+		"or_browse": "या ब्राउज़ करने के लिए क्लिक करें",
 		"browse_files": "फ़ाइलें ब्राउज़ करें",
 		"browse_folder": "फ़ोल्डर ब्राउज़ करें",
 		"selected_files": "चयनित फ़ाइलें ({count})",
@@ -397,7 +397,14 @@
 		"file_types_desc": "ये फ़ाइल प्रकार आपकी वर्तमान ETL सेवा कॉन्फ़िगरेशन के आधार पर समर्थित हैं।",
 		"file_too_large": "फ़ाइल बहुत बड़ी है",
 		"file_too_large_desc": "\"{name}\" प्रति फ़ाइल {maxMB}MB की सीमा से अधिक है।",
-		"no_supported_files_in_folder": "चयनित फ़ोल्डर में कोई समर्थित फ़ाइल प्रकार नहीं मिला।"
+		"no_supported_files_in_folder": "चयनित फ़ोल्डर में कोई समर्थित फ़ाइल प्रकार नहीं मिला।",
+		"remaining_capacity": "{files} फ़ाइलें, {sizeMB}MB शेष",
+		"file_limit_reached": "फ़ाइल सीमा पूरी हो गई",
+		"file_limit_reached_desc": "अधिकतम {max} फ़ाइलें अनुमत हैं",
+		"max_files_exceeded": "बहुत सारी फ़ाइलें",
+		"max_files_exceeded_desc": "आप एक बार में अधिकतम {max} फ़ाइलें अपलोड कर सकते हैं",
+		"max_size_exceeded": "कुल आकार सीमा पार",
+		"max_size_exceeded_desc": "कुल अपलोड आकार {max}MB से अधिक नहीं हो सकता"
 	},
 	"add_webpage": {
 		"title": "क्रॉलिंग के लिए वेबपेज जोड़ें",
