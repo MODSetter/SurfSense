@@ -10,7 +10,25 @@ type PermissionStatus = "authorized" | "denied" | "not determined" | "restricted
 
 interface PermissionsStatus {
 	accessibility: PermissionStatus;
+	screenRecording: PermissionStatus;
 }
+
+const STEPS = [
+	{
+		id: "screen-recording",
+		title: "Screen Recording",
+		description: "Lets SurfSense capture your screen to understand context and provide smart writing suggestions.",
+		action: "requestScreenRecording",
+		field: "screenRecording" as const,
+	},
+	{
+		id: "accessibility",
+		title: "Accessibility",
+		description: "Lets SurfSense insert suggestions seamlessly, right where you\u2019re typing.",
+		action: "requestAccessibility",
+		field: "accessibility" as const,
+	},
+];
 
 function StatusBadge({ status }: { status: PermissionStatus }) {
 	if (status === "authorized") {
@@ -48,11 +66,13 @@ export default function DesktopPermissionsPage() {
 
 		let interval: ReturnType<typeof setInterval> | null = null;
 
+		const isResolved = (s: string) => s === "authorized" || s === "restricted";
+
 		const poll = async () => {
 			const status = await window.electronAPI!.getPermissionsStatus();
 			setPermissions(status);
 
-			if (status.accessibility === "authorized" || status.accessibility === "restricted") {
+			if (isResolved(status.accessibility) && isResolved(status.screenRecording)) {
 				if (interval) clearInterval(interval);
 			}
 		};
@@ -78,10 +98,14 @@ export default function DesktopPermissionsPage() {
 		);
 	}
 
-	const allGranted = permissions.accessibility === "authorized";
+	const allGranted = permissions.accessibility === "authorized" && permissions.screenRecording === "authorized";
 
-	const handleRequest = async () => {
-		await window.electronAPI!.requestAccessibility();
+	const handleRequest = async (action: string) => {
+		if (action === "requestScreenRecording") {
+			await window.electronAPI!.requestScreenRecording();
+		} else if (action === "requestAccessibility") {
+			await window.electronAPI!.requestAccessibility();
+		}
 	};
 
 	const handleContinue = () => {
@@ -103,55 +127,61 @@ export default function DesktopPermissionsPage() {
 					<div className="space-y-1">
 						<h1 className="text-2xl font-semibold tracking-tight">System Permissions</h1>
 						<p className="text-sm text-muted-foreground">
-							SurfSense needs Accessibility permission to insert suggestions into the active application.
+							SurfSense needs two macOS permissions to provide context-aware writing suggestions.
 						</p>
 					</div>
 				</div>
 
-				{/* Permission card */}
+				{/* Steps */}
 				<div className="rounded-xl border bg-background dark:bg-neutral-900 flex-1 min-h-0 overflow-y-auto px-6 py-6 space-y-6">
-					<div
-						className={`rounded-lg border p-4 transition-colors ${
-							allGranted
-								? "border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20"
-								: "border-border"
-						}`}
-					>
-						<div className="flex items-start justify-between gap-3">
-							<div className="flex items-start gap-3">
-								<span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
-									{allGranted ? "\u2713" : "1"}
-								</span>
-								<div className="space-y-1">
-									<h3 className="text-sm font-medium">Accessibility</h3>
-									<p className="text-xs text-muted-foreground">
-										Lets SurfSense insert suggestions seamlessly, right where you&apos;re typing.
-									</p>
+					{STEPS.map((step, index) => {
+						const status = permissions[step.field];
+						const isGranted = status === "authorized";
+
+						return (
+							<div
+								key={step.id}
+								className={`rounded-lg border p-4 transition-colors ${
+									isGranted
+										? "border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20"
+										: "border-border"
+								}`}
+							>
+								<div className="flex items-start justify-between gap-3">
+									<div className="flex items-start gap-3">
+										<span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
+											{isGranted ? "\u2713" : index + 1}
+										</span>
+										<div className="space-y-1">
+											<h3 className="text-sm font-medium">{step.title}</h3>
+											<p className="text-xs text-muted-foreground">{step.description}</p>
+										</div>
+									</div>
+									<StatusBadge status={status} />
 								</div>
-							</div>
-							<StatusBadge status={permissions.accessibility} />
-						</div>
-						{!allGranted && (
-							<div className="mt-3 pl-10 space-y-2">
-								<Button
-									size="sm"
-									variant="outline"
-									onClick={handleRequest}
-									className="text-xs"
-								>
-									Open System Settings
-								</Button>
-								{permissions.accessibility === "denied" && (
-									<p className="text-xs text-amber-700 dark:text-amber-400">
-										Toggle SurfSense on in System Settings to continue.
-									</p>
+								{!isGranted && (
+									<div className="mt-3 pl-10 space-y-2">
+										<Button
+											size="sm"
+											variant="outline"
+											onClick={() => handleRequest(step.action)}
+											className="text-xs"
+										>
+											Open System Settings
+										</Button>
+										{status === "denied" && (
+											<p className="text-xs text-amber-700 dark:text-amber-400">
+												Toggle SurfSense on in System Settings to continue.
+											</p>
+										)}
+										<p className="text-xs text-muted-foreground">
+											If SurfSense doesn&apos;t appear in the list, click <strong>+</strong> and select it from Applications.
+										</p>
+									</div>
 								)}
-								<p className="text-xs text-muted-foreground">
-									If SurfSense doesn&apos;t appear in the list, click <strong>+</strong> and select it from Applications.
-								</p>
 							</div>
-						)}
-					</div>
+						);
+					})}
 				</div>
 
 				{/* Footer */}
@@ -168,7 +198,7 @@ export default function DesktopPermissionsPage() {
 					) : (
 						<>
 							<Button disabled className="text-sm h-9 min-w-[180px]">
-								Grant permission to continue
+								Grant permissions to continue
 							</Button>
 							<button
 								onClick={handleSkip}

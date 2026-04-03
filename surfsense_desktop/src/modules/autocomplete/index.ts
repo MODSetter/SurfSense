@@ -1,6 +1,7 @@
 import { clipboard, globalShortcut, ipcMain, screen } from 'electron';
 import { IPC_CHANNELS } from '../../ipc/channels';
 import { getFrontmostApp, hasAccessibilityPermission, simulatePaste } from '../platform';
+import { hasScreenRecordingPermission, requestAccessibility, requestScreenRecording } from '../permissions';
 import { getMainWindow } from '../window';
 import { captureScreen } from './screenshot';
 import { createSuggestionWindow, destroySuggestion, getSuggestionWindow } from './suggestion-window';
@@ -19,8 +20,12 @@ function isSurfSenseWindow(): boolean {
 
 async function triggerAutocomplete(): Promise<void> {
   if (!autocompleteEnabled) return;
-  if (!hasAccessibilityPermission()) return;
   if (isSurfSenseWindow()) return;
+
+  if (!hasScreenRecordingPermission()) {
+    requestScreenRecording();
+    return;
+  }
 
   sourceApp = getFrontmostApp();
   savedClipboard = clipboard.readText();
@@ -59,7 +64,11 @@ async function triggerAutocomplete(): Promise<void> {
 
 async function acceptAndInject(text: string): Promise<void> {
   if (!sourceApp) return;
-  if (!hasAccessibilityPermission()) return;
+
+  if (!hasAccessibilityPermission()) {
+    requestAccessibility();
+    return;
+  }
 
   clipboard.writeText(text);
   destroySuggestion();

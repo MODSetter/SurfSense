@@ -36,32 +36,44 @@ html, body {
   white-space: pre-wrap;
 }
 
-.suggestion-hint {
-  color: #666;
-  font-size: 11px;
+.suggestion-actions {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  justify-content: flex-end;
+  gap: 4px;
   border-top: 1px solid #2a2a2a;
   padding-top: 6px;
 }
 
-.suggestion-hint kbd {
-  background: #2a2a2a;
-  border: 1px solid #3c3c3c;
+.suggestion-btn {
+  padding: 2px 8px;
   border-radius: 3px;
-  padding: 0 4px;
+  border: 1px solid #3c3c3c;
   font-family: inherit;
   font-size: 10px;
-  font-weight: 600;
-  color: #999;
-  line-height: 18px;
+  font-weight: 500;
+  cursor: pointer;
+  line-height: 16px;
+  transition: background 0.15s, border-color 0.15s;
 }
 
-.suggestion-separator {
-  width: 1px;
-  height: 10px;
+.suggestion-btn-accept {
+  background: #2563eb;
+  border-color: #3b82f6;
+  color: #fff;
+}
+
+.suggestion-btn-accept:hover {
+  background: #1d4ed8;
+}
+
+.suggestion-btn-dismiss {
+  background: #2a2a2a;
+  color: #999;
+}
+
+.suggestion-btn-dismiss:hover {
   background: #333;
+  color: #ccc;
 }
 
 .suggestion-error {

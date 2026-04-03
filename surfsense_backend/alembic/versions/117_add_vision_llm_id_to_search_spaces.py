@@ -25,15 +25,15 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     conn = op.get_bind()
     existing_columns = [
-        col["name"] for col in sa.inspect(conn).get_columns("search_spaces")
+        col["name"] for col in sa.inspect(conn).get_columns("searchspaces")
     ]
 
     if "vision_llm_id" not in existing_columns:
         op.add_column(
-            "search_spaces",
+            "searchspaces",
             sa.Column("vision_llm_id", sa.Integer(), nullable=True, server_default="0"),
         )
 
 
 def downgrade() -> None:
-    op.drop_column("search_spaces", "vision_llm_id")
+    op.drop_column("searchspaces", "vision_llm_id")

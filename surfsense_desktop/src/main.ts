@@ -8,7 +8,6 @@ import { setupMenu } from './modules/menu';
 import { registerQuickAsk, unregisterQuickAsk } from './modules/quick-ask';
 import { registerAutocomplete, unregisterAutocomplete } from './modules/autocomplete';
 import { registerIpcHandlers } from './ipc/handlers';
-import { allPermissionsGranted } from './modules/permissions';
 
 registerGlobalErrorHandlers();
 
@@ -17,14 +16,6 @@ if (!setupDeepLinks()) {
 }
 
 registerIpcHandlers();
-
-function getInitialPath(): string {
-  const granted = allPermissionsGranted();
-  if (process.platform === 'darwin' && !granted) {
-    return '/desktop/permissions';
-  }
-  return '/dashboard';
-}
 
 app.whenReady().then(async () => {
   setupMenu();
@@ -36,8 +27,7 @@ app.whenReady().then(async () => {
     return;
   }
 
-  const initialPath = getInitialPath();
-  createMainWindow(initialPath);
+  createMainWindow('/dashboard');
   registerQuickAsk();
   registerAutocomplete();
   setupAutoUpdater();
@@ -46,7 +36,7 @@ app.whenReady().then(async () => {
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createMainWindow(getInitialPath());
+      createMainWindow('/dashboard');
     }
   });
 });

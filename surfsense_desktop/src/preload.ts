@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Permissions
   getPermissionsStatus: () => ipcRenderer.invoke(IPC_CHANNELS.GET_PERMISSIONS_STATUS),
   requestAccessibility: () => ipcRenderer.invoke(IPC_CHANNELS.REQUEST_ACCESSIBILITY),
+  requestScreenRecording: () => ipcRenderer.invoke(IPC_CHANNELS.REQUEST_SCREEN_RECORDING),
   restartApp: () => ipcRenderer.invoke(IPC_CHANNELS.RESTART_APP),
   // Autocomplete
   onAutocompleteContext: (callback: (data: { screenshot: string; searchSpaceId?: string }) => void) => {

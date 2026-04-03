@@ -11,11 +11,39 @@ type SSEEvent =
 	| { type: "finish" }
 	| { type: "error"; errorText: string };
 
+function friendlyError(raw: string | number): string {
+	if (typeof raw === "number") {
+		if (raw === 401) return "Please sign in to use suggestions.";
+		if (raw === 403) return "You don\u2019t have permission for this.";
+		if (raw === 404) return "Suggestion service not found. Is the backend running?";
+		if (raw >= 500) return "Something went wrong on the server. Try again.";
+		return "Something went wrong. Try again.";
+	}
+	const lower = raw.toLowerCase();
+	if (lower.includes("not authenticated") || lower.includes("unauthorized"))
+		return "Please sign in to use suggestions.";
+	if (lower.includes("no vision llm configured") || lower.includes("no llm configured"))
+		return "No Vision LLM configured. Set one in search space settings.";
+	if (lower.includes("fetch") || lower.includes("network") || lower.includes("econnrefused"))
+		return "Can\u2019t reach the server. Check your connection.";
+	return "Something went wrong. Try again.";
+}
+
+const AUTO_DISMISS_MS = 3000;
+
 export default function SuggestionPage() {
 	const [suggestion, setSuggestion] = useState("");
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const abortRef = useRef<AbortController | null>(null);
+
+	useEffect(() => {
+		if (!error) return;
+		const timer = setTimeout(() => {
+			window.electronAPI?.dismissSuggestion?.();
+		}, AUTO_DISMISS_MS);
+		return () => clearTimeout(timer);
+	}, [error]);
 
 	const fetchSuggestion = useCallback(
 		async (screenshot: string, searchSpaceId: string) => {
@@ -29,7 +57,7 @@ export default function SuggestionPage() {
 
 			const token = getBearerToken();
 			if (!token) {
-				setError("Not authenticated");
+				setError(friendlyError("not authenticated"));
 				setIsLoading(false);
 				return;
 			}
@@ -55,13 +83,13 @@ export default function SuggestionPage() {
 				);
 
 				if (!response.ok) {
-					setError(`Error: ${response.status}`);
+					setError(friendlyError(response.status));
 					setIsLoading(false);
 					return;
 				}
 
 				if (!response.body) {
-					setError("No response body");
+					setError(friendlyError("network error"));
 					setIsLoading(false);
 					return;
 				}
@@ -94,7 +122,7 @@ export default function SuggestionPage() {
 										return updated;
 									});
 								} else if (parsed.type === "error") {
-									setError(parsed.errorText);
+									setError(friendlyError(parsed.errorText));
 								}
 							} catch {
 								continue;
@@ -104,7 +132,7 @@ export default function SuggestionPage() {
 				}
 			} catch (err) {
 				if (err instanceof DOMException && err.name === "AbortError") return;
-				setError("Failed to get suggestion");
+				setError(friendlyError("network error"));
 			} finally {
 				setIsLoading(false);
 			}
@@ -145,15 +173,28 @@ export default function SuggestionPage() {
 		);
 	}
 
+	const handleAccept = () => {
+		if (suggestion) {
+			window.electronAPI?.acceptSuggestion?.(suggestion);
+		}
+	};
+
+	const handleDismiss = () => {
+		window.electronAPI?.dismissSuggestion?.();
+	};
+
 	if (!suggestion) return null;
 
 	return (
 		<div className="suggestion-tooltip">
 			<p className="suggestion-text">{suggestion}</p>
-			<div className="suggestion-hint">
-				<kbd>Tab</kbd> accept
-				<span className="suggestion-separator" />
-				<kbd>Esc</kbd> dismiss
+			<div className="suggestion-actions">
+				<button className="suggestion-btn suggestion-btn-accept" onClick={handleAccept}>
+					Accept
+				</button>
+				<button className="suggestion-btn suggestion-btn-dismiss" onClick={handleDismiss}>
+					Dismiss
+				</button>
 			</div>
 		</div>
 	);

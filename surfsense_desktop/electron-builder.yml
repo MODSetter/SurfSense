@@ -47,6 +47,7 @@ mac:
   gatekeeperAssess: false
   extendInfo:
     NSAccessibilityUsageDescription: "SurfSense uses accessibility features to insert suggestions into the active application."
+    NSScreenCaptureUsageDescription: "SurfSense uses screen capture to analyze your screen and provide context-aware writing suggestions."
     NSAppleEventsUsageDescription: "SurfSense uses Apple Events to interact with the active application."
   target:
     - target: dmg

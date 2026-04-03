@@ -3,6 +3,7 @@ import { IPC_CHANNELS } from './channels';
 import {
   getPermissionsStatus,
   requestAccessibility,
+  requestScreenRecording,
   restartApp,
 } from '../modules/permissions';
 
@@ -28,6 +29,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.REQUEST_ACCESSIBILITY, () => {
     requestAccessibility();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.REQUEST_SCREEN_RECORDING, () => {
+    requestScreenRecording();
   });
 
   ipcMain.handle(IPC_CHANNELS.RESTART_APP, () => {
