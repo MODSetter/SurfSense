@@ -34,6 +34,7 @@ from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.document_hashing import compute_identifier_hash
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
 from app.services.llm_service import get_user_long_context_llm
+from app.services.page_limit_service import PageLimitExceededError, PageLimitService
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.celery_tasks import get_celery_session_maker
 from app.utils.document_versioning import create_version_snapshot
@@ -170,6 +171,39 @@ def _needs_etl(filename: str) -> bool:
 
 
 HeartbeatCallbackType = Callable[[int], Awaitable[None]]
+
+
+def _estimate_pages_safe(page_limit_service: PageLimitService, file_path: str) -> int:
+    """Estimate page count with a file-size fallback."""
+    try:
+        return page_limit_service.estimate_pages_before_processing(file_path)
+    except Exception:
+        file_size = os.path.getsize(file_path)
+        return max(1, file_size // (80 * 1024))
+
+
+async def _check_page_limit_or_skip(
+    page_limit_service: PageLimitService,
+    user_id: str,
+    file_path: str,
+) -> int:
+    """Estimate pages and check the limit; raises PageLimitExceededError if over quota.
+
+    Returns the estimated page count on success.
+    """
+    estimated = _estimate_pages_safe(page_limit_service, file_path)
+    await page_limit_service.check_page_limit(user_id, estimated)
+    return estimated
+
+
+def _compute_final_pages(
+    page_limit_service: PageLimitService,
+    estimated_pages: int,
+    content_length: int,
+) -> int:
+    """Return the final page count as max(estimated, actual)."""
+    actual = page_limit_service.estimate_pages_from_content_length(content_length)
+    return max(estimated_pages, actual)
 
 DEFAULT_EXCLUDE_PATTERNS = [
     ".git",
@@ -720,11 +754,12 @@ async def index_local_folder(
         skipped_count = 0
         failed_count = 0
 
+        page_limit_service = PageLimitService(session)
+
         # ================================================================
         # PHASE 1: Pre-filter files (mtime / content-hash), version changed
         # ================================================================
         connector_docs: list[ConnectorDocument] = []
-        # Maps unique_id -> (relative_path, mtime) for post-pipeline folder_id assignment
         file_meta_map: dict[str, dict] = {}
         seen_unique_hashes: set[str] = set()
 
@@ -760,6 +795,17 @@ async def index_local_folder(
                         continue
 
                     try:
+                        estimated_pages = await _check_page_limit_or_skip(
+                            page_limit_service, user_id, file_path_abs
+                        )
+                    except PageLimitExceededError:
+                        logger.warning(
+                            f"Page limit exceeded, skipping: {file_path_abs}"
+                        )
+                        failed_count += 1
+                        continue
+
+                    try:
                         content, content_hash = await _compute_file_content_hash(
                             file_path_abs, file_info["relative_path"], search_space_id
                         )
@@ -781,6 +827,17 @@ async def index_local_folder(
 
                     await create_version_snapshot(session, existing_document)
                 else:
+                    try:
+                        estimated_pages = await _check_page_limit_or_skip(
+                            page_limit_service, user_id, file_path_abs
+                        )
+                    except PageLimitExceededError:
+                        logger.warning(
+                            f"Page limit exceeded, skipping: {file_path_abs}"
+                        )
+                        failed_count += 1
+                        continue
+
                     try:
                         content, content_hash = await _compute_file_content_hash(
                             file_path_abs, file_info["relative_path"], search_space_id
@@ -807,6 +864,8 @@ async def index_local_folder(
                 file_meta_map[unique_identifier] = {
                     "relative_path": relative_path,
                     "mtime": file_info["modified_at"].timestamp(),
+                    "estimated_pages": estimated_pages,
+                    "content_length": len(content),
                 }
 
             except Exception as e:
@@ -901,6 +960,15 @@ async def index_local_folder(
                     doc_meta = dict(result.document_metadata or {})
                     doc_meta["mtime"] = mtime_info.get("mtime")
                     result.document_metadata = doc_meta
+
+                    est = mtime_info.get("estimated_pages", 1)
+                    content_len = mtime_info.get("content_length", 0)
+                    final_pages = _compute_final_pages(
+                        page_limit_service, est, content_len
+                    )
+                    await page_limit_service.update_page_usage(
+                        user_id, final_pages, allow_exceed=True
+                    )
                 else:
                     failed_count += 1
 
@@ -1084,6 +1152,14 @@ async def _index_single_file(
             DocumentType.LOCAL_FOLDER_FILE.value, unique_id, search_space_id
         )
 
+        page_limit_service = PageLimitService(session)
+        try:
+            estimated_pages = await _check_page_limit_or_skip(
+                page_limit_service, user_id, str(full_path)
+            )
+        except PageLimitExceededError as e:
+            return 0, 1, f"Page limit exceeded: {e}"
+
         try:
             content, content_hash = await _compute_file_content_hash(
                 str(full_path), full_path.name, search_space_id
@@ -1128,8 +1204,6 @@ async def _index_single_file(
 
         db_doc = documents[0]
 
-        # Assign folder_id before indexing so the doc appears in the
-        # correct folder while still pending/processing.
         if root_folder_id:
             try:
                 db_doc.folder_id = await _resolve_folder_for_file(
@@ -1154,10 +1228,16 @@ async def _index_single_file(
         failed_msg = None if indexed else "Indexing failed"
 
         if indexed:
+            final_pages = _compute_final_pages(
+                page_limit_service, estimated_pages, len(content)
+            )
+            await page_limit_service.update_page_usage(
+                user_id, final_pages, allow_exceed=True
+            )
             await task_logger.log_task_success(
                 log_entry,
                 f"Single file indexed: {rel_path}",
-                {"file": rel_path},
+                {"file": rel_path, "pages_processed": final_pages},
             )
         return indexed, 0 if indexed else 1, failed_msg
 
