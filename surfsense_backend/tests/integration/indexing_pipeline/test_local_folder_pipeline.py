@@ -804,3 +804,158 @@ class TestPipelineIntegration:
         )
         assert len(docs) == 1
         assert DocumentStatus.is_state(docs[0].status, DocumentStatus.READY)
+
+
+# ====================================================================
+# Tier 7: Direct Converters (DC1-DC4)
+# ====================================================================
+
+
+class TestDirectConvert:
+    @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
+    async def test_dc1_csv_produces_markdown_table(
+        self,
+        db_session: AsyncSession,
+        db_user: User,
+        db_search_space: SearchSpace,
+        tmp_path: Path,
+    ):
+        """DC1: CSV file is indexed as a markdown table, not raw comma-separated text."""
+        from app.tasks.connector_indexers.local_folder_indexer import index_local_folder
+
+        (tmp_path / "data.csv").write_text("name,age,city\nAlice,30,NYC\nBob,25,LA\n")
+
+        count, _skipped, _root_folder_id, err = await index_local_folder(
+            session=db_session,
+            search_space_id=db_search_space.id,
+            user_id=str(db_user.id),
+            folder_path=str(tmp_path),
+            folder_name="test-folder",
+        )
+
+        assert err is None
+        assert count == 1
+
+        doc = (
+            await db_session.execute(
+                select(Document).where(
+                    Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
+                    Document.search_space_id == db_search_space.id,
+                )
+            )
+        ).scalar_one()
+
+        assert "| name" in doc.source_markdown
+        assert "| Alice" in doc.source_markdown
+        assert "name,age,city" not in doc.source_markdown
+
+    @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
+    async def test_dc2_tsv_produces_markdown_table(
+        self,
+        db_session: AsyncSession,
+        db_user: User,
+        db_search_space: SearchSpace,
+        tmp_path: Path,
+    ):
+        """DC2: TSV file is indexed as a markdown table."""
+        from app.tasks.connector_indexers.local_folder_indexer import index_local_folder
+
+        (tmp_path / "data.tsv").write_text("name\tage\tcity\nAlice\t30\tNYC\nBob\t25\tLA\n")
+
+        count, _skipped, _root_folder_id, err = await index_local_folder(
+            session=db_session,
+            search_space_id=db_search_space.id,
+            user_id=str(db_user.id),
+            folder_path=str(tmp_path),
+            folder_name="test-folder",
+        )
+
+        assert err is None
+        assert count == 1
+
+        doc = (
+            await db_session.execute(
+                select(Document).where(
+                    Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
+                    Document.search_space_id == db_search_space.id,
+                )
+            )
+        ).scalar_one()
+
+        assert "| name" in doc.source_markdown
+        assert "| Alice" in doc.source_markdown
+
+    @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
+    async def test_dc3_html_produces_clean_markdown(
+        self,
+        db_session: AsyncSession,
+        db_user: User,
+        db_search_space: SearchSpace,
+        tmp_path: Path,
+    ):
+        """DC3: HTML file is indexed as clean markdown, not raw HTML."""
+        from app.tasks.connector_indexers.local_folder_indexer import index_local_folder
+
+        (tmp_path / "page.html").write_text(
+            "<h1>Title</h1><p>Hello world</p>"
+        )
+
+        count, _skipped, _root_folder_id, err = await index_local_folder(
+            session=db_session,
+            search_space_id=db_search_space.id,
+            user_id=str(db_user.id),
+            folder_path=str(tmp_path),
+            folder_name="test-folder",
+        )
+
+        assert err is None
+        assert count == 1
+
+        doc = (
+            await db_session.execute(
+                select(Document).where(
+                    Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
+                    Document.search_space_id == db_search_space.id,
+                )
+            )
+        ).scalar_one()
+
+        assert "Title" in doc.source_markdown
+        assert "<h1>" not in doc.source_markdown
+
+    @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
+    async def test_dc4_csv_single_file_mode(
+        self,
+        db_session: AsyncSession,
+        db_user: User,
+        db_search_space: SearchSpace,
+        tmp_path: Path,
+    ):
+        """DC4: CSV via single-file batch mode also produces a markdown table."""
+        from app.tasks.connector_indexers.local_folder_indexer import index_local_folder
+
+        (tmp_path / "data.csv").write_text("name,age,city\nAlice,30,NYC\nBob,25,LA\n")
+
+        count, _skipped, _root_folder_id, err = await index_local_folder(
+            session=db_session,
+            search_space_id=db_search_space.id,
+            user_id=str(db_user.id),
+            folder_path=str(tmp_path),
+            folder_name="test-folder",
+            target_file_paths=[str(tmp_path / "data.csv")],
+        )
+
+        assert err is None
+        assert count == 1
+
+        doc = (
+            await db_session.execute(
+                select(Document).where(
+                    Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
+                    Document.search_space_id == db_search_space.id,
+                )
+            )
+        ).scalar_one()
+
+        assert "| name" in doc.source_markdown
+        assert "name,age,city" not in doc.source_markdown

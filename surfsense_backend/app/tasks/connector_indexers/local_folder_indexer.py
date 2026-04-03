@@ -49,8 +49,6 @@ PLAINTEXT_EXTENSIONS = frozenset(
         ".markdown",
         ".txt",
         ".text",
-        ".csv",
-        ".tsv",
         ".json",
         ".jsonl",
         ".yaml",
@@ -60,8 +58,6 @@ PLAINTEXT_EXTENSIONS = frozenset(
         ".cfg",
         ".conf",
         ".xml",
-        ".html",
-        ".htm",
         ".css",
         ".scss",
         ".less",
@@ -149,6 +145,9 @@ AUDIO_EXTENSIONS = frozenset(
 )
 
 
+DIRECT_CONVERT_EXTENSIONS = frozenset({".csv", ".tsv", ".html", ".htm"})
+
+
 def _is_plaintext_file(filename: str) -> bool:
     return Path(filename).suffix.lower() in PLAINTEXT_EXTENSIONS
 
@@ -157,9 +156,17 @@ def _is_audio_file(filename: str) -> bool:
     return Path(filename).suffix.lower() in AUDIO_EXTENSIONS
 
 
+def _is_direct_convert_file(filename: str) -> bool:
+    return Path(filename).suffix.lower() in DIRECT_CONVERT_EXTENSIONS
+
+
 def _needs_etl(filename: str) -> bool:
-    """File is not plaintext and not audio — requires ETL service to parse."""
-    return not _is_plaintext_file(filename) and not _is_audio_file(filename)
+    """File is not plaintext, not audio, and not direct-convert — requires ETL."""
+    return (
+        not _is_plaintext_file(filename)
+        and not _is_audio_file(filename)
+        and not _is_direct_convert_file(filename)
+    )
 
 
 HeartbeatCallbackType = Callable[[int], Awaitable[None]]
@@ -259,6 +266,13 @@ async def _read_file_content(file_path: str, filename: str) -> str:
     """
     if _is_plaintext_file(filename):
         return _read_plaintext_file(file_path)
+
+    if _is_direct_convert_file(filename):
+        from app.tasks.document_processors._direct_converters import (
+            convert_file_directly,
+        )
+
+        return convert_file_directly(file_path, filename)
 
     if _is_audio_file(filename):
         etl_service = config.ETL_SERVICE if hasattr(config, "ETL_SERVICE") else None
