@@ -6,6 +6,7 @@ import {
 	Bot,
 	CheckCircle,
 	CircleDashed,
+	Eye,
 	FileText,
 	ImageIcon,
 	RefreshCw,
@@ -71,6 +72,15 @@ const ROLE_DESCRIPTIONS = {
 		prefKey: "image_generation_config_id" as const,
 		configType: "image" as const,
 	},
+	vision: {
+		icon: Eye,
+		title: "Vision LLM",
+		description: "Vision-capable model for screenshot analysis and context extraction",
+		color: "text-amber-600 dark:text-amber-400",
+		bgColor: "bg-amber-500/10",
+		prefKey: "vision_llm_id" as const,
+		configType: "llm" as const,
+	},
 };
 
 interface LLMRoleManagerProps {
@@ -116,6 +126,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		agent_llm_id: preferences.agent_llm_id ?? "",
 		document_summary_llm_id: preferences.document_summary_llm_id ?? "",
 		image_generation_config_id: preferences.image_generation_config_id ?? "",
+		vision_llm_id: preferences.vision_llm_id ?? "",
 	}));
 
 	const [hasChanges, setHasChanges] = useState(false);
@@ -126,6 +137,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 			agent_llm_id: preferences.agent_llm_id ?? "",
 			document_summary_llm_id: preferences.document_summary_llm_id ?? "",
 			image_generation_config_id: preferences.image_generation_config_id ?? "",
+			vision_llm_id: preferences.vision_llm_id ?? "",
 		};
 		setAssignments(newAssignments);
 		setHasChanges(false);
@@ -133,6 +145,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		preferences?.agent_llm_id,
 		preferences?.document_summary_llm_id,
 		preferences?.image_generation_config_id,
+		preferences?.vision_llm_id,
 	]);
 
 	const handleRoleAssignment = (prefKey: string, configId: string) => {
@@ -147,6 +160,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 			agent_llm_id: preferences.agent_llm_id ?? "",
 			document_summary_llm_id: preferences.document_summary_llm_id ?? "",
 			image_generation_config_id: preferences.image_generation_config_id ?? "",
+			vision_llm_id: preferences.vision_llm_id ?? "",
 		};
 
 		const hasChangesNow = Object.keys(newAssignments).some(
@@ -168,6 +182,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 			agent_llm_id: toNumericOrUndefined(assignments.agent_llm_id),
 			document_summary_llm_id: toNumericOrUndefined(assignments.document_summary_llm_id),
 			image_generation_config_id: toNumericOrUndefined(assignments.image_generation_config_id),
+			vision_llm_id: toNumericOrUndefined(assignments.vision_llm_id),
 		};
 
 		await updatePreferences({
@@ -186,6 +201,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 			agent_llm_id: preferences.agent_llm_id ?? "",
 			document_summary_llm_id: preferences.document_summary_llm_id ?? "",
 			image_generation_config_id: preferences.image_generation_config_id ?? "",
+			vision_llm_id: preferences.vision_llm_id ?? "",
 		});
 		setHasChanges(false);
 	};
@@ -199,7 +215,10 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		assignments.document_summary_llm_id !== undefined &&
 		assignments.image_generation_config_id !== "" &&
 		assignments.image_generation_config_id !== null &&
-		assignments.image_generation_config_id !== undefined;
+		assignments.image_generation_config_id !== undefined &&
+		assignments.vision_llm_id !== "" &&
+		assignments.vision_llm_id !== null &&
+		assignments.vision_llm_id !== undefined;
 
 	// Combine global and custom LLM configs
 	const allLLMConfigs = [

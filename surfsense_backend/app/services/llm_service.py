@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 class LLMRole:
     AGENT = "agent"  # For agent/chat operations
     DOCUMENT_SUMMARY = "document_summary"  # For document summarization
+    VISION = "vision"  # For vision/screenshot analysis
 
 
 def get_global_llm_config(llm_config_id: int) -> dict | None:
@@ -187,7 +188,7 @@ async def get_search_space_llm_instance(
     Args:
         session: Database session
         search_space_id: Search Space ID
-        role: LLM role ('agent' or 'document_summary')
+        role: LLM role ('agent', 'document_summary', or 'vision')
 
     Returns:
         ChatLiteLLM or ChatLiteLLMRouter instance, or None if not found
@@ -209,6 +210,8 @@ async def get_search_space_llm_instance(
             llm_config_id = search_space.agent_llm_id
         elif role == LLMRole.DOCUMENT_SUMMARY:
             llm_config_id = search_space.document_summary_llm_id
+        elif role == LLMRole.VISION:
+            llm_config_id = search_space.vision_llm_id
         else:
             logger.error(f"Invalid LLM role: {role}")
             return None
@@ -403,6 +406,13 @@ async def get_document_summary_llm(
         LLMRole.DOCUMENT_SUMMARY,
         disable_streaming=disable_streaming,
     )
+
+
+async def get_vision_llm(
+    session: AsyncSession, search_space_id: int
+) -> ChatLiteLLM | ChatLiteLLMRouter | None:
+    """Get the search space's vision LLM instance for screenshot analysis."""
+    return await get_search_space_llm_instance(session, search_space_id, LLMRole.VISION)
 
 
 # Backward-compatible alias (LLM preferences are now per-search-space, not per-user)

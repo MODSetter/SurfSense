@@ -1329,6 +1329,9 @@ class SearchSpace(BaseModel, TimestampMixin):
     image_generation_config_id = Column(
         Integer, nullable=True, default=0
     )  # For image generation, defaults to Auto mode
+    vision_llm_id = Column(
+        Integer, nullable=True, default=0
+    )  # For vision/screenshot analysis, defaults to Auto mode
 
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
