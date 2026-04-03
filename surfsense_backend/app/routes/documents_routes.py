@@ -1285,6 +1285,9 @@ async def restore_document_version(
     document.content_needs_reindexing = True
     await session.commit()
 
+    from app.tasks.celery_tasks.document_reindex_tasks import reindex_document_task
+    reindex_document_task.delay(document_id, str(user.id))
+
     return {
         "message": f"Restored version {version_number}",
         "document_id": document_id,
