@@ -16,6 +16,8 @@ interface FileChangedEvent {
 }
 
 const DEBOUNCE_MS = 2000;
+const MAX_WAIT_MS = 10_000;
+const MAX_BATCH_SIZE = 50;
 
 interface BatchItem {
 	folderPath: string;
@@ -31,6 +33,7 @@ export function useFolderSync() {
 	const processingRef = useRef(false);
 	const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 	const pendingByFolder = useRef<Map<string, BatchItem>>(new Map());
+	const firstEventTime = useRef<Map<string, number>>(new Map());
 	const isMountedRef = useRef(false);
 
 	async function processQueue() {
@@ -57,6 +60,23 @@ export function useFolderSync() {
 		processingRef.current = false;
 	}
 
+	function flushFolder(folderKey: string) {
+		debounceTimers.current.delete(folderKey);
+		firstEventTime.current.delete(folderKey);
+		const pending = pendingByFolder.current.get(folderKey);
+		if (!pending) return;
+		pendingByFolder.current.delete(folderKey);
+
+		for (let i = 0; i < pending.filePaths.length; i += MAX_BATCH_SIZE) {
+			queueRef.current.push({
+				...pending,
+				filePaths: pending.filePaths.slice(i, i + MAX_BATCH_SIZE),
+				ackIds: i === 0 ? pending.ackIds : [],
+			});
+		}
+		processQueue();
+	}
+
 	function enqueueWithDebounce(event: FileChangedEvent) {
 		const folderKey = event.folderPath;
 		const existing = pendingByFolder.current.get(folderKey);
@@ -77,20 +97,21 @@ export function useFolderSync() {
 				filePaths: [event.fullPath],
 				ackIds: [event.id],
 			});
+			firstEventTime.current.set(folderKey, Date.now());
+		}
+
+		const elapsed = Date.now() - (firstEventTime.current.get(folderKey) ?? Date.now());
+		if (elapsed >= MAX_WAIT_MS) {
+			const existingTimeout = debounceTimers.current.get(folderKey);
+			if (existingTimeout) clearTimeout(existingTimeout);
+			flushFolder(folderKey);
+			return;
 		}
 
 		const existingTimeout = debounceTimers.current.get(folderKey);
 		if (existingTimeout) clearTimeout(existingTimeout);
 
-		const timeout = setTimeout(() => {
-			debounceTimers.current.delete(folderKey);
-			const pending = pendingByFolder.current.get(folderKey);
-			if (!pending) return;
-			pendingByFolder.current.delete(folderKey);
-			queueRef.current.push(pending);
-			processQueue();
-		}, DEBOUNCE_MS);
-
+		const timeout = setTimeout(() => flushFolder(folderKey), DEBOUNCE_MS);
 		debounceTimers.current.set(folderKey, timeout);
 	}
 
@@ -126,6 +147,7 @@ export function useFolderSync() {
 			}
 			debounceTimers.current.clear();
 			pendingByFolder.current.clear();
+			firstEventTime.current.clear();
 		};
 	}, []);
 }
