@@ -1,7 +1,7 @@
 """Add LOCAL_FOLDER_FILE document type, folder metadata, and document_versions table
 
-Revision ID: 117
-Revises: 116
+Revision ID: 118
+Revises: 117
 """
 
 from collections.abc import Sequence
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "117"
-down_revision: str | None = "116"
+revision: str = "118"
+down_revision: str | None = "117"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
