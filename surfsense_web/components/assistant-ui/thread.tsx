@@ -817,12 +817,23 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const isDesktop = useMediaQuery("(min-width: 640px)");
 	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
 	const [toolsScrollPos, setToolsScrollPos] = useState<"top" | "middle" | "bottom">("top");
+	const toolsRafRef = useRef<number>();
 	const handleToolsScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
 		const el = e.currentTarget;
-		const atTop = el.scrollTop <= 2;
-		const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
-		setToolsScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+		if (toolsRafRef.current) return;
+		toolsRafRef.current = requestAnimationFrame(() => {
+			const atTop = el.scrollTop <= 2;
+			const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
+			setToolsScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+			toolsRafRef.current = undefined;
+		});
 	}, []);
+	useEffect(
+		() => () => {
+			if (toolsRafRef.current) cancelAnimationFrame(toolsRafRef.current);
+		},
+		[]
+	);
 	const isComposerTextEmpty = useAuiState(({ composer }) => {
 		const text = composer.text?.trim() || "";
 		return text.length === 0;

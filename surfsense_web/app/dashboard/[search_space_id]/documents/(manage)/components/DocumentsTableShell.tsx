@@ -267,12 +267,23 @@ export function DocumentsTableShell({
 	const [metadataJson, setMetadataJson] = useState<Record<string, unknown> | null>(null);
 	const [metadataLoading, setMetadataLoading] = useState(false);
 	const [previewScrollPos, setPreviewScrollPos] = useState<"top" | "middle" | "bottom">("top");
+	const previewRafRef = useRef<number>();
 	const handlePreviewScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
 		const el = e.currentTarget;
-		const atTop = el.scrollTop <= 2;
-		const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
-		setPreviewScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+		if (previewRafRef.current) return;
+		previewRafRef.current = requestAnimationFrame(() => {
+			const atTop = el.scrollTop <= 2;
+			const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
+			setPreviewScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+			previewRafRef.current = undefined;
+		});
 	}, []);
+	useEffect(
+		() => () => {
+			if (previewRafRef.current) cancelAnimationFrame(previewRafRef.current);
+		},
+		[]
+	);
 
 	const [deleteDoc, setDeleteDoc] = useState<Document | null>(null);
 	const [isDeleting, setIsDeleting] = useState(false);

@@ -178,12 +178,23 @@ export function InboxSidebarContent({
 	const [mounted, setMounted] = useState(false);
 	const [openDropdown, setOpenDropdown] = useState<"filter" | null>(null);
 	const [connectorScrollPos, setConnectorScrollPos] = useState<"top" | "middle" | "bottom">("top");
+	const connectorRafRef = useRef<number>();
 	const handleConnectorScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
 		const el = e.currentTarget;
-		const atTop = el.scrollTop <= 2;
-		const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
-		setConnectorScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+		if (connectorRafRef.current) return;
+		connectorRafRef.current = requestAnimationFrame(() => {
+			const atTop = el.scrollTop <= 2;
+			const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
+			setConnectorScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+			connectorRafRef.current = undefined;
+		});
 	}, []);
+	useEffect(
+		() => () => {
+			if (connectorRafRef.current) cancelAnimationFrame(connectorRafRef.current);
+		},
+		[]
+	);
 	const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 	const [markingAsReadId, setMarkingAsReadId] = useState<number | null>(null);
 
