@@ -470,9 +470,7 @@ export function DocumentUploadTab({
 							<p className="text-base font-medium">
 								{isElectron ? "Select files or folder" : "Tap to select files or folder"}
 							</p>
-							<p className="text-sm text-muted-foreground">
-								{t("file_size_limit")}
-							</p>
+							<p className="text-sm text-muted-foreground">{t("file_size_limit")}</p>
 						</div>
 						<div className="w-full mt-1" onClick={(e) => e.stopPropagation()}>
 							{renderBrowseButton({ fullWidth: true })}
@@ -490,9 +488,7 @@ export function DocumentUploadTab({
 					<div className="flex items-center gap-3">
 						<Upload className="h-4 w-4 text-muted-foreground shrink-0" />
 						<span className="text-xs text-muted-foreground flex-1 truncate">
-							{isDragActive
-								? t("drop_files")
-								: t("drag_drop_more")}
+							{isDragActive ? t("drop_files") : t("drag_drop_more")}
 						</span>
 						{renderBrowseButton({ compact: true })}
 					</div>
@@ -505,9 +501,7 @@ export function DocumentUploadTab({
 					<div className="flex flex-col items-center gap-2">
 						<Upload className="h-8 w-8 text-muted-foreground" />
 						<p className="text-sm font-medium">{t("drag_drop")}</p>
-						<p className="text-xs text-muted-foreground">
-							{t("file_size_limit")}
-						</p>
+						<p className="text-xs text-muted-foreground">{t("file_size_limit")}</p>
 						<div className="mt-1">{renderBrowseButton()}</div>
 					</div>
 				)}
@@ -578,7 +572,9 @@ export function DocumentUploadTab({
 				<div className="rounded-lg border border-border p-3 space-y-2">
 					<div className="flex items-center justify-between">
 						<p className="text-sm font-medium">
-							{t("selected_files", { count: files.length })}<Dot className="inline h-4 w-4" />{formatFileSize(totalFileSize)}
+							{t("selected_files", { count: files.length })}
+							<Dot className="inline h-4 w-4" />
+							{formatFileSize(totalFileSize)}
 						</p>
 						<Button
 							variant="ghost"
