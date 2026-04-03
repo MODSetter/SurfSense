@@ -439,8 +439,8 @@ export function OnboardingTour() {
 
 	// Fetch threads data
 	const { data: threadsData } = useQuery({
-		queryKey: ["threads", searchSpaceId, { limit: 1 }],
-		queryFn: () => fetchThreads(Number(searchSpaceId), 1), // Only need to check if any exist
+		queryKey: ["threads", searchSpaceId, { limit: 40 }], // Same key as layout
+		queryFn: () => fetchThreads(Number(searchSpaceId), 40),
 		enabled: !!searchSpaceId,
 	});
 

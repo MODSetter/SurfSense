@@ -109,6 +109,7 @@ export function AllPrivateChatsSidebarContent({
 		queryKey: ["all-threads", searchSpaceId],
 		queryFn: () => fetchThreads(Number(searchSpaceId)),
 		enabled: !!searchSpaceId && !isSearchMode,
+		placeholderData: () => queryClient.getQueryData(["threads", searchSpaceId, { limit: 40 }]),
 	});
 
 	const {
