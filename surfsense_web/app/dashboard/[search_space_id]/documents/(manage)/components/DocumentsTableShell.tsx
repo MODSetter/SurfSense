@@ -267,11 +267,16 @@ export function DocumentsTableShell({
 	const [metadataJson, setMetadataJson] = useState<Record<string, unknown> | null>(null);
 	const [metadataLoading, setMetadataLoading] = useState(false);
 	const [previewScrollPos, setPreviewScrollPos] = useState<"top" | "middle" | "bottom">("top");
+	const previewScrollRafRef = useRef<number | null>(null);
 	const handlePreviewScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
 		const el = e.currentTarget;
-		const atTop = el.scrollTop <= 2;
-		const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
-		setPreviewScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+		if (previewScrollRafRef.current !== null) return;
+		previewScrollRafRef.current = requestAnimationFrame(() => {
+			const atTop = el.scrollTop <= 2;
+			const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
+			setPreviewScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+			previewScrollRafRef.current = null;
+		});
 	}, []);
 
 	const [deleteDoc, setDeleteDoc] = useState<Document | null>(null);
@@ -301,6 +306,14 @@ export function DocumentsTableShell({
 	const mobileSentinelRef = useRef<HTMLDivElement>(null);
 	const desktopScrollRef = useRef<HTMLDivElement>(null);
 	const mobileScrollRef = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		return () => {
+			if (previewScrollRafRef.current !== null) {
+				cancelAnimationFrame(previewScrollRafRef.current);
+			}
+		};
+	}, []);
 
 	useEffect(() => {
 		if (!onLoadMore || !hasMore || loadingMore) return;
