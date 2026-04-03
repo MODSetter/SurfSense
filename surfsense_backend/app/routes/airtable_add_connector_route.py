@@ -1,7 +1,5 @@
 import base64
-import hashlib
 import logging
-import secrets
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -26,7 +24,7 @@ from app.utils.connector_naming import (
     check_duplicate_connector,
     generate_unique_connector_name,
 )
-from app.utils.oauth_security import OAuthStateManager, TokenEncryption
+from app.utils.oauth_security import OAuthStateManager, TokenEncryption, generate_pkce_pair
 
 logger = logging.getLogger(__name__)
 
@@ -73,28 +71,6 @@ def make_basic_auth_header(client_id: str, client_secret: str) -> str:
     credentials = f"{client_id}:{client_secret}".encode()
     b64 = base64.b64encode(credentials).decode("ascii")
     return f"Basic {b64}"
-
-
-def generate_pkce_pair() -> tuple[str, str]:
-    """
-    Generate PKCE code verifier and code challenge.
-
-    Returns:
-        Tuple of (code_verifier, code_challenge)
-    """
-    # Generate code verifier (43-128 characters)
-    code_verifier = (
-        base64.urlsafe_b64encode(secrets.token_bytes(32)).decode("utf-8").rstrip("=")
-    )
-
-    # Generate code challenge (SHA256 hash of verifier, base64url encoded)
-    code_challenge = (
-        base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode("utf-8")).digest())
-        .decode("utf-8")
-        .rstrip("=")
-    )
-
-    return code_verifier, code_challenge
 
 
 @router.get("/auth/airtable/connector/add")

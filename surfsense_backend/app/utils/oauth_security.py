@@ -29,6 +29,17 @@ def generate_code_verifier(length: int = 128) -> str:
     return "".join(_PKCE_RNG.choice(_PKCE_CHARS) for _ in range(length))
 
 
+def generate_pkce_pair(length: int = 128) -> tuple[str, str]:
+    """Generate a PKCE code_verifier and its S256 code_challenge."""
+    verifier = generate_code_verifier(length)
+    challenge = (
+        base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())
+        .decode()
+        .rstrip("=")
+    )
+    return verifier, challenge
+
+
 class OAuthStateManager:
     """Manages secure OAuth state parameters with HMAC signatures."""
 
