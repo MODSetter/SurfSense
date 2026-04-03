@@ -189,7 +189,12 @@ export function InboxSidebarContent({
 			connectorRafRef.current = undefined;
 		});
 	}, []);
-	useEffect(() => () => { if (connectorRafRef.current) cancelAnimationFrame(connectorRafRef.current); }, []);
+	useEffect(
+		() => () => {
+			if (connectorRafRef.current) cancelAnimationFrame(connectorRafRef.current);
+		},
+		[]
+	);
 	const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 	const [markingAsReadId, setMarkingAsReadId] = useState<number | null>(null);
 

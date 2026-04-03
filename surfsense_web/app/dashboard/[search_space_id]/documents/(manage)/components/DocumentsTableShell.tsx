@@ -278,7 +278,12 @@ export function DocumentsTableShell({
 			previewRafRef.current = undefined;
 		});
 	}, []);
-	useEffect(() => () => { if (previewRafRef.current) cancelAnimationFrame(previewRafRef.current); }, []);
+	useEffect(
+		() => () => {
+			if (previewRafRef.current) cancelAnimationFrame(previewRafRef.current);
+		},
+		[]
+	);
 
 	const [deleteDoc, setDeleteDoc] = useState<Document | null>(null);
 	const [isDeleting, setIsDeleting] = useState(false);

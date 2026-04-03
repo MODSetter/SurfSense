@@ -827,7 +827,12 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 			toolsRafRef.current = undefined;
 		});
 	}, []);
-	useEffect(() => () => { if (toolsRafRef.current) cancelAnimationFrame(toolsRafRef.current); }, []);
+	useEffect(
+		() => () => {
+			if (toolsRafRef.current) cancelAnimationFrame(toolsRafRef.current);
+		},
+		[]
+	);
 	const isComposerTextEmpty = useAuiState(({ composer }) => {
 		const text = composer.text?.trim() || "";
 		return text.length === 0;
