@@ -15,6 +15,14 @@ export function useApiKey(): UseApiKeyReturn {
 	const [copied, setCopied] = useState(false);
 	const [isLoading, setIsLoading] = useState(true);
 
+	// Clear copied state after 2 seconds
+	useEffect(() => {
+		if (copied) {
+			const timer = setTimeout(() => setCopied(false), 2000);
+			return () => clearTimeout(timer);
+		}
+	}, [copied]);
+
 	useEffect(() => {
 		// Load API key from localStorage
 		const loadApiKey = () => {
@@ -41,9 +49,6 @@ export function useApiKey(): UseApiKeyReturn {
 		if (success) {
 			setCopied(true);
 			toast.success("API key copied to clipboard");
-			setTimeout(() => {
-				setCopied(false);
-			}, 2000);
 		} else {
 			toast.error("Failed to copy API key");
 		}

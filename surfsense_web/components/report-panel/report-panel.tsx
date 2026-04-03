@@ -140,6 +140,14 @@ export function ReportPanelContent({
 		setActiveReportId(reportId);
 	}, [reportId]);
 
+	// Clear copied state after 2 seconds
+	useEffect(() => {
+		if (copied) {
+			const timer = setTimeout(() => setCopied(false), 2000);
+			return () => clearTimeout(timer);
+		}
+	}, [copied]);
+
 	// Fetch report content (re-runs when activeReportId changes for version switching)
 	useEffect(() => {
 		let cancelled = false;
@@ -197,7 +205,6 @@ export function ReportPanelContent({
 		try {
 			await navigator.clipboard.writeText(currentMarkdown);
 			setCopied(true);
-			setTimeout(() => setCopied(false), 2000);
 		} catch (err) {
 			console.error("Failed to copy:", err);
 		}
