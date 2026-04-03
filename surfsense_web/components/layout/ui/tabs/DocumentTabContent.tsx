@@ -1,18 +1,24 @@
 "use client";
 
-import { AlertCircle, Pencil } from "lucide-react";
+import { AlertCircle, Download, FileText, Loader2, Pencil } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { PlateEditor } from "@/components/editor/plate-editor";
 import { MarkdownViewer } from "@/components/markdown-viewer";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
+
+const LARGE_DOCUMENT_THRESHOLD = 2 * 1024 * 1024; // 2MB
 
 interface DocumentContent {
 	document_id: number;
 	title: string;
 	document_type?: string;
 	source_markdown: string;
+	content_size_bytes?: number;
+	chunk_count?: number;
+	truncated?: boolean;
 }
 
 function DocumentSkeleton() {
@@ -49,10 +55,13 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 	const [error, setError] = useState<string | null>(null);
 	const [isEditing, setIsEditing] = useState(false);
 	const [saving, setSaving] = useState(false);
+	const [downloading, setDownloading] = useState(false);
 	const [editedMarkdown, setEditedMarkdown] = useState<string | null>(null);
 	const markdownRef = useRef<string>("");
 	const initialLoadDone = useRef(false);
 	const changeCountRef = useRef(0);
+
+	const isLargeDocument = (doc?.content_size_bytes ?? 0) > LARGE_DOCUMENT_THRESHOLD;
 
 	useEffect(() => {
 		const controller = new AbortController();
@@ -75,7 +84,12 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 				const response = await authenticatedFetch(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`,
 					{ method: "GET", signal: controller.signal }
+				const url = new URL(
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`
 				);
+				url.searchParams.set("max_length", String(LARGE_DOCUMENT_THRESHOLD));
+
+				const response = await authenticatedFetch(url.toString(), { method: "GET" });
 
 				if (controller.signal.aborted) return;
 
@@ -171,9 +185,9 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 		);
 	}
 
-	const isEditable = EDITABLE_DOCUMENT_TYPES.has(doc.document_type ?? "");
+	const isEditable = EDITABLE_DOCUMENT_TYPES.has(doc.document_type ?? "") && !isLargeDocument;
 
-	if (isEditing) {
+	if (isEditing && !isLargeDocument) {
 		return (
 			<div className="flex flex-col h-full overflow-hidden">
 				<div className="flex items-center justify-between px-6 py-3 border-b shrink-0">
@@ -234,7 +248,62 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 			</div>
 			<div className="flex-1 overflow-auto">
 				<div className="max-w-4xl mx-auto px-6 py-6">
-					<MarkdownViewer content={doc.source_markdown} />
+					{isLargeDocument ? (
+						<>
+							<Alert className="mb-4">
+								<FileText className="size-4" />
+								<AlertDescription className="flex items-center justify-between gap-4">
+									<span>
+										This document is too large for the editor (
+										{Math.round((doc.content_size_bytes ?? 0) / 1024 / 1024)}MB,{" "}
+										{doc.chunk_count ?? 0} chunks). Showing a preview below.
+									</span>
+									<Button
+										variant="outline"
+										size="sm"
+										className="shrink-0 gap-1.5"
+										disabled={downloading}
+										onClick={async () => {
+											setDownloading(true);
+											try {
+												const response = await authenticatedFetch(
+													`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/download-markdown`,
+													{ method: "GET" }
+												);
+												if (!response.ok) throw new Error("Download failed");
+												const blob = await response.blob();
+												const url = URL.createObjectURL(blob);
+												const a = document.createElement("a");
+												a.href = url;
+												const disposition = response.headers.get("content-disposition");
+												const match = disposition?.match(/filename="(.+)"/);
+												a.download = match?.[1] ?? `${doc.title || "document"}.md`;
+												document.body.appendChild(a);
+												a.click();
+												a.remove();
+												URL.revokeObjectURL(url);
+												toast.success("Download started");
+											} catch {
+												toast.error("Failed to download document");
+											} finally {
+												setDownloading(false);
+											}
+										}}
+									>
+										{downloading ? (
+											<Loader2 className="size-3.5 animate-spin" />
+										) : (
+											<Download className="size-3.5" />
+										)}
+										{downloading ? "Preparing..." : "Download .md"}
+									</Button>
+								</AlertDescription>
+							</Alert>
+							<MarkdownViewer content={doc.source_markdown} />
+						</>
+					) : (
+						<MarkdownViewer content={doc.source_markdown} />
+					)}
 				</div>
 			</div>
 		</div>
