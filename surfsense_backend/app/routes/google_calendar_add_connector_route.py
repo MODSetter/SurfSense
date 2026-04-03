@@ -28,7 +28,7 @@ from app.utils.connector_naming import (
     check_duplicate_connector,
     generate_unique_connector_name,
 )
-from app.utils.oauth_security import OAuthStateManager, TokenEncryption
+from app.utils.oauth_security import OAuthStateManager, TokenEncryption, generate_code_verifier
 
 logger = logging.getLogger(__name__)
 
@@ -96,9 +96,14 @@ async def connect_calendar(space_id: int, user: User = Depends(current_active_us
 
         flow = get_google_flow()
 
-        # Generate secure state parameter with HMAC signature
+        code_verifier = generate_code_verifier()
+        flow.code_verifier = code_verifier
+
+        # Generate secure state parameter with HMAC signature (includes PKCE code_verifier)
         state_manager = get_state_manager()
-        state_encoded = state_manager.generate_secure_state(space_id, user.id)
+        state_encoded = state_manager.generate_secure_state(
+            space_id, user.id, code_verifier=code_verifier
+        )
 
         auth_url, _ = flow.authorization_url(
             access_type="offline",
@@ -146,8 +151,11 @@ async def reauth_calendar(
 
         flow = get_google_flow()
 
+        code_verifier = generate_code_verifier()
+        flow.code_verifier = code_verifier
+
         state_manager = get_state_manager()
-        extra: dict = {"connector_id": connector_id}
+        extra: dict = {"connector_id": connector_id, "code_verifier": code_verifier}
         if return_url and return_url.startswith("/"):
             extra["return_url"] = return_url
         state_encoded = state_manager.generate_secure_state(space_id, user.id, **extra)
@@ -225,6 +233,7 @@ async def calendar_callback(
 
         user_id = UUID(data["user_id"])
         space_id = data["space_id"]
+        code_verifier = data.get("code_verifier")
 
         # Validate redirect URI (security: ensure it matches configured value)
         if not config.GOOGLE_CALENDAR_REDIRECT_URI:
@@ -233,6 +242,7 @@ async def calendar_callback(
             )
 
         flow = get_google_flow()
+        flow.code_verifier = code_verifier
         flow.fetch_token(code=code)
 
         creds = flow.credentials
