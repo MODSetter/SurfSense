@@ -55,7 +55,7 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 	const changeCountRef = useRef(0);
 
 	useEffect(() => {
-		let cancelled = false;
+		const controller = new AbortController();
 		setIsLoading(true);
 		setError(null);
 		setDoc(null);
@@ -64,7 +64,7 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 		initialLoadDone.current = false;
 		changeCountRef.current = 0;
 
-		const fetchContent = async () => {
+		const doFetch = async () => {
 			const token = getBearerToken();
 			if (!token) {
 				redirectToLogin();
@@ -74,10 +74,10 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 			try {
 				const response = await authenticatedFetch(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`,
-					{ method: "GET" }
+					{ method: "GET", signal: controller.signal }
 				);
 
-				if (cancelled) return;
+				if (controller.signal.aborted) return;
 
 				if (!response.ok) {
 					const errorData = await response
@@ -98,18 +98,16 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 				setDoc(data);
 				initialLoadDone.current = true;
 			} catch (err) {
-				if (cancelled) return;
+				if (controller.signal.aborted) return;
 				console.error("Error fetching document:", err);
 				setError(err instanceof Error ? err.message : "Failed to fetch document");
 			} finally {
-				if (!cancelled) setIsLoading(false);
+				if (!controller.signal.aborted) setIsLoading(false);
 			}
 		};
 
-		fetchContent();
-		return () => {
-			cancelled = true;
-		};
+		doFetch().catch(() => {});
+		return () => controller.abort();
 	}, [documentId, searchSpaceId]);
 
 	const handleMarkdownChange = useCallback((md: string) => {
