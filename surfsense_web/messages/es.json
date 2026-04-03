@@ -376,14 +376,14 @@
 	"upload_documents": {
 		"title": "Subir documentos",
 		"subtitle": "Sube tus archivos para hacerlos buscables y accesibles a través de conversaciones con IA.",
-		"file_size_limit": "Tamaño máximo de archivo: 50 MB por archivo",
-		"upload_limits": "Límite de subida: {maxFiles} archivos, {maxSizeMB} MB en total",
+		"file_size_limit": "Tamaño máximo de archivo: 500 MB por archivo",
 		"drop_files": "Suelta archivos o carpetas aquí",
 		"drag_drop": "Arrastra y suelta archivos o carpetas aquí",
+		"drag_drop_more": "Suelta o explora para agregar más archivos",
 		"or_browse": "o haz clic para explorar",
 		"browse_files": "Explorar archivos",
 		"browse_folder": "Explorar carpeta",
-		"selected_files": "Archivos seleccionados ({count})",
+		"selected_files": "{count} {count, plural, one {archivo seleccionado} other {archivos seleccionados}}",
 		"total_size": "Tamaño total",
 		"clear_all": "Limpiar todo",
 		"uploading_files": "Subiendo archivos",
@@ -397,14 +397,7 @@
 		"file_types_desc": "Estos tipos de archivo son soportados según la configuración actual de tu servicio ETL.",
 		"file_too_large": "Archivo demasiado grande",
 		"file_too_large_desc": "\"{name}\" excede el límite de {maxMB} MB por archivo.",
-		"no_supported_files_in_folder": "No se encontraron tipos de archivo compatibles en la carpeta seleccionada.",
-		"remaining_capacity": "{files} archivos, {sizeMB}MB restante",
-		"file_limit_reached": "Límite de archivos alcanzado",
-		"file_limit_reached_desc": "Máximo de {max} archivos permitidos",
-		"max_files_exceeded": "Demasiados archivos",
-		"max_files_exceeded_desc": "Puedes subir un máximo de {max} archivos a la vez",
-		"max_size_exceeded": "Tamaño total excedido",
-		"max_size_exceeded_desc": "El tamaño total de subida no puede exceder {max}MB"
+		"no_supported_files_in_folder": "No se encontraron tipos de archivo compatibles en la carpeta seleccionada."
 	},
 	"add_webpage": {
 		"title": "Agregar páginas web para rastreo",

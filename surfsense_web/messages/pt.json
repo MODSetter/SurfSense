@@ -376,14 +376,14 @@
 	"upload_documents": {
 		"title": "Enviar documentos",
 		"subtitle": "Envie seus arquivos para torná-los pesquisáveis e acessíveis através de conversas com IA.",
-		"file_size_limit": "Tamanho máximo do arquivo: 50 MB por arquivo",
-		"upload_limits": "Limite de envio: {maxFiles} arquivos, {maxSizeMB} MB no total",
+		"file_size_limit": "Tamanho máximo do arquivo: 500 MB por arquivo",
 		"drop_files": "Solte arquivos ou pastas aqui",
 		"drag_drop": "Arraste e solte arquivos ou pastas aqui",
+		"drag_drop_more": "Solte ou navegue para adicionar mais arquivos",
 		"or_browse": "ou clique para navegar",
 		"browse_files": "Navegar arquivos",
 		"browse_folder": "Navegar pasta",
-		"selected_files": "Arquivos selecionados ({count})",
+		"selected_files": "{count} {count, plural, one {arquivo selecionado} other {arquivos selecionados}}",
 		"total_size": "Tamanho total",
 		"clear_all": "Limpar tudo",
 		"uploading_files": "Enviando arquivos",
@@ -397,14 +397,7 @@
 		"file_types_desc": "Estes tipos de arquivo são suportados com base na configuração atual do seu serviço ETL.",
 		"file_too_large": "Arquivo muito grande",
 		"file_too_large_desc": "\"{name}\" excede o limite de {maxMB} MB por arquivo.",
-		"no_supported_files_in_folder": "Nenhum tipo de arquivo suportado encontrado na pasta selecionada.",
-		"remaining_capacity": "{files} arquivos, {sizeMB}MB restante",
-		"file_limit_reached": "Limite de arquivos atingido",
-		"file_limit_reached_desc": "Máximo de {max} arquivos permitidos",
-		"max_files_exceeded": "Muitos arquivos",
-		"max_files_exceeded_desc": "Você pode enviar no máximo {max} arquivos de uma vez",
-		"max_size_exceeded": "Tamanho total excedido",
-		"max_size_exceeded_desc": "O tamanho total do envio não pode exceder {max}MB"
+		"no_supported_files_in_folder": "Nenhum tipo de arquivo suportado encontrado na pasta selecionada."
 	},
 	"add_webpage": {
 		"title": "Adicionar páginas web para rastreamento",

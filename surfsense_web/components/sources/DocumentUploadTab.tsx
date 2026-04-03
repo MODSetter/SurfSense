@@ -121,10 +121,6 @@ interface FileWithId {
 	file: File;
 }
 
-const MAX_FILES = 50;
-const MAX_TOTAL_SIZE_MB = 200;
-const MAX_TOTAL_SIZE_BYTES = MAX_TOTAL_SIZE_MB * 1024 * 1024;
-
 const MAX_FILE_SIZE_MB = 500;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
@@ -204,7 +200,6 @@ export function DocumentUploadTab({
 		accept: acceptedFileTypes,
 		maxSize: MAX_FILE_SIZE_BYTES,
 		noClick: isElectron,
-		disabled: files.length >= MAX_FILES,
 	});
 
 	const handleFileInputClick = useCallback((e: React.MouseEvent<HTMLInputElement>) => {
@@ -224,24 +219,8 @@ export function DocumentUploadTab({
 			id: crypto.randomUUID?.() ?? `file-${Date.now()}-${Math.random().toString(36)}`,
 			file: new File([fd.data], fd.name, { type: fd.mimeType }),
 		}));
-		setFiles((prev) => {
-			const merged = [...prev, ...newFiles];
-			if (merged.length > MAX_FILES) {
-				toast.error(t("max_files_exceeded"), {
-					description: t("max_files_exceeded_desc", { max: MAX_FILES }),
-				});
-				return prev;
-			}
-			const totalSize = merged.reduce((sum, e) => sum + e.file.size, 0);
-			if (totalSize > MAX_TOTAL_SIZE_BYTES) {
-				toast.error(t("max_size_exceeded"), {
-					description: t("max_size_exceeded_desc", { max: MAX_TOTAL_SIZE_MB }),
-				});
-				return prev;
-			}
-			return merged;
-		});
-	}, [t]);
+		setFiles((prev) => [...prev, ...newFiles]);
+	}, []);
 
 	const handleBrowseFolder = useCallback(async () => {
 		const api = window.electronAPI;
@@ -287,14 +266,6 @@ export function DocumentUploadTab({
 	};
 
 	const totalFileSize = files.reduce((total, entry) => total + entry.file.size, 0);
-
-	const isFileCountLimitReached = files.length >= MAX_FILES;
-	const isSizeLimitReached = totalFileSize >= MAX_TOTAL_SIZE_BYTES;
-	const remainingFiles = MAX_FILES - files.length;
-	const remainingSizeMB = Math.max(
-		0,
-		(MAX_TOTAL_SIZE_BYTES - totalFileSize) / (1024 * 1024)
-	).toFixed(1);
 
 	const hasContent = files.length > 0 || selectedFolder !== null;
 
@@ -392,8 +363,6 @@ export function DocumentUploadTab({
 
 	const renderBrowseButton = (options?: { compact?: boolean; fullWidth?: boolean }) => {
 		const { compact, fullWidth } = options ?? {};
-		if (isFileCountLimitReached) return null;
-
 		const sizeClass = compact ? "h-7" : "h-8";
 		const widthClass = fullWidth ? "w-full" : "";
 
@@ -478,7 +447,6 @@ export function DocumentUploadTab({
 			<div className="sm:hidden">
 				{hasContent ? (
 					!selectedFolder &&
-					!isFileCountLimitReached &&
 					(isElectron ? (
 						<div className="w-full">{renderBrowseButton({ compact: true, fullWidth: true })}</div>
 					) : (
@@ -502,12 +470,8 @@ export function DocumentUploadTab({
 							<p className="text-base font-medium">
 								{isElectron ? "Select files or folder" : "Tap to select files or folder"}
 							</p>
-							<p className="text-sm text-muted-foreground inline-flex items-center flex-wrap justify-center">
-								<span>{t("file_size_limit")}</span>
-								<Dot className="h-4 w-4 shrink-0" />
-								<span>
-									{t("upload_limits", { maxFiles: MAX_FILES, maxSizeMB: MAX_TOTAL_SIZE_MB })}
-								</span>
+							<p className="text-sm text-muted-foreground">
+								{t("file_size_limit")}
 							</p>
 						</div>
 						<div className="w-full mt-1" onClick={(e) => e.stopPropagation()}>
@@ -520,11 +484,7 @@ export function DocumentUploadTab({
 			{/* DESKTOP DROP ZONE */}
 			<div
 				{...getRootProps()}
-				className={`hidden sm:block border-2 border-dashed rounded-lg transition-colors ${
-					isFileCountLimitReached || isSizeLimitReached
-						? "border-destructive/50 bg-destructive/5 cursor-not-allowed"
-						: "border-muted-foreground/30 hover:border-foreground/70 cursor-pointer"
-				} ${hasContent ? "p-3" : "py-20 px-4"}`}
+				className={`hidden sm:block border-2 border-dashed rounded-lg transition-colors border-muted-foreground/30 hover:border-foreground/70 cursor-pointer ${hasContent ? "p-3" : "py-20 px-4"}`}
 			>
 				{hasContent ? (
 					<div className="flex items-center gap-3">
@@ -532,19 +492,9 @@ export function DocumentUploadTab({
 						<span className="text-xs text-muted-foreground flex-1 truncate">
 							{isDragActive
 								? t("drop_files")
-								: isFileCountLimitReached
-									? t("file_limit_reached")
-									: t("remaining_capacity", { files: remainingFiles, sizeMB: remainingSizeMB })}
+								: t("drag_drop_more")}
 						</span>
 						{renderBrowseButton({ compact: true })}
-					</div>
-				) : isFileCountLimitReached ? (
-					<div className="flex flex-col items-center gap-2 text-center">
-						<Upload className="h-8 w-8 text-destructive/70" />
-						<p className="text-sm font-medium text-destructive">{t("file_limit_reached")}</p>
-						<p className="text-xs text-muted-foreground">
-							{t("file_limit_reached_desc", { max: MAX_FILES })}
-						</p>
 					</div>
 				) : isDragActive ? (
 					<div className="flex flex-col items-center gap-2">
@@ -555,12 +505,8 @@ export function DocumentUploadTab({
 					<div className="flex flex-col items-center gap-2">
 						<Upload className="h-8 w-8 text-muted-foreground" />
 						<p className="text-sm font-medium">{t("drag_drop")}</p>
-						<p className="text-xs text-muted-foreground text-center inline-flex items-center flex-wrap justify-center">
-							<span>{t("file_size_limit")}</span>
-							<Dot className="h-4 w-4 shrink-0" />
-							<span>
-								{t("upload_limits", { maxFiles: MAX_FILES, maxSizeMB: MAX_TOTAL_SIZE_MB })}
-							</span>
+						<p className="text-xs text-muted-foreground">
+							{t("file_size_limit")}
 						</p>
 						<div className="mt-1">{renderBrowseButton()}</div>
 					</div>
@@ -632,8 +578,7 @@ export function DocumentUploadTab({
 				<div className="rounded-lg border border-border p-3 space-y-2">
 					<div className="flex items-center justify-between">
 						<p className="text-sm font-medium">
-							{t("selected_files", { count: files.length })} &middot;{" "}
-							{formatFileSize(totalFileSize)}
+							{t("selected_files", { count: files.length })}<Dot className="inline h-4 w-4" />{formatFileSize(totalFileSize)}
 						</p>
 						<Button
 							variant="ghost"
