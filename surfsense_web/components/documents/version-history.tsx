@@ -165,8 +165,8 @@ function VersionHistoryPanel({ documentId }: { documentId: number }) {
 	if (versions.length === 0) {
 		return (
 			<div className="flex flex-1 flex-col items-center justify-center text-muted-foreground">
-				<p className="text-sm">No version history available yet.</p>
-				<p className="text-xs mt-1">Versions are created when file content changes.</p>
+				<p className="text-sm">No version history available yet</p>
+				<p className="text-xs mt-1">Versions are created when file content changes</p>
 			</div>
 		);
 	}
