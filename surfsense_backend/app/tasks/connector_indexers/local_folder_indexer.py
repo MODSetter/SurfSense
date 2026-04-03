@@ -19,7 +19,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import config
@@ -732,7 +732,12 @@ async def index_local_folder(
                 document.folder_id = folder_mapping.get(
                     parent_dir, folder_mapping.get("")
                 )
-            await session.commit()
+            try:
+                await session.commit()
+            except IntegrityError:
+                await session.rollback()
+                for document in documents:
+                    await session.refresh(document)
 
             llm = await get_user_long_context_llm(session, user_id, search_space_id)
 
@@ -905,10 +910,14 @@ async def _index_single_file(
         # Assign folder_id before indexing so the doc appears in the
         # correct folder while still pending/processing.
         if root_folder_id:
-            db_doc.folder_id = await _resolve_folder_for_file(
-                session, rel_path, root_folder_id, search_space_id, user_id
-            )
-            await session.commit()
+            try:
+                db_doc.folder_id = await _resolve_folder_for_file(
+                    session, rel_path, root_folder_id, search_space_id, user_id
+                )
+                await session.commit()
+            except IntegrityError:
+                await session.rollback()
+                await session.refresh(db_doc)
 
         await pipeline.index(db_doc, connector_doc, llm)
 

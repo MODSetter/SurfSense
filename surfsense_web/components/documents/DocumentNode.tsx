@@ -237,7 +237,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 							</DropdownMenuItem>
 							{onExport && (
 								<DropdownMenuSub>
-									<DropdownMenuSubTrigger>
+									<DropdownMenuSubTrigger disabled={isProcessing}>
 										<Download className="mr-2 h-4 w-4" />
 										Export
 									</DropdownMenuSubTrigger>
@@ -277,7 +277,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 					</ContextMenuItem>
 					{onExport && (
 						<ContextMenuSub>
-							<ContextMenuSubTrigger>
+							<ContextMenuSubTrigger disabled={isProcessing}>
 								<Download className="mr-2 h-4 w-4" />
 								Export
 							</ContextMenuSubTrigger>

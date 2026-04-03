@@ -358,6 +358,14 @@ export function DocumentsSidebar({
 	const handleDeleteFolder = useCallback(async (folder: FolderDisplay) => {
 		if (!confirm(`Delete folder "${folder.name}" and all its contents?`)) return;
 		try {
+			const api = window.electronAPI;
+			if (api) {
+				const watchedFolders = await api.getWatchedFolders();
+				const matched = watchedFolders.find((wf) => wf.rootFolderId === folder.id);
+				if (matched) {
+					await api.removeWatchedFolder(matched.path);
+				}
+			}
 			await foldersApiService.deleteFolder(folder.id);
 			toast.success("Folder deleted");
 		} catch (e: unknown) {
