@@ -5,9 +5,11 @@ import { cn } from "@/lib/utils";
 export const Logo = ({
 	className,
 	disableLink = false,
+	priority = false,
 }: {
 	className?: string;
 	disableLink?: boolean;
+	priority?: boolean;
 }) => {
 	const image = (
 		<Image
@@ -16,6 +18,7 @@ export const Logo = ({
 			alt="logo"
 			width={128}
 			height={128}
+			priority={priority}
 		/>
 	);
 
