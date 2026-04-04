@@ -61,11 +61,21 @@ def _build_system_prompt(app_name: str, window_title: str, kb_context: str) -> s
     return prompt
 
 
+def _is_vision_unsupported_error(e: Exception) -> bool:
+    """Check if an exception indicates the model doesn't support vision/images."""
+    msg = str(e).lower()
+    return "content must be a string" in msg or "does not support image" in msg
+
+
 async def _extract_query_from_screenshot(
     llm, screenshot_data_url: str,
     app_name: str = "", window_title: str = "",
 ) -> str | None:
-    """Ask the Vision LLM to describe what the user is working on."""
+    """Ask the Vision LLM to describe what the user is working on.
+
+    Raises vision-unsupported errors so the caller can return a
+    friendly message immediately instead of retrying with astream.
+    """
     if app_name:
         prompt_text = EXTRACT_QUERY_PROMPT_WITH_APP.format(
             app_name=app_name, window_title=window_title,
@@ -83,6 +93,8 @@ async def _extract_query_from_screenshot(
         query = response.content.strip() if hasattr(response, "content") else ""
         return query if query else None
     except Exception as e:
+        if _is_vision_unsupported_error(e):
+            raise
         logger.warning(f"Failed to extract query from screenshot: {e}")
         return None
 
@@ -140,6 +152,10 @@ async def stream_vision_autocomplete(
     3. Stream the final completion with screenshot + KB + app context
     """
     streaming = VercelStreamingService()
+    vision_error_msg = (
+        "The selected model does not support vision. "
+        "Please set a vision-capable model (e.g. GPT-4o, Gemini) in your search space settings."
+    )
 
     llm = await get_vision_llm(session, search_space_id)
     if not llm:
@@ -149,9 +165,17 @@ async def stream_vision_autocomplete(
         return
 
     kb_context = ""
-    query = await _extract_query_from_screenshot(
-        llm, screenshot_data_url, app_name=app_name, window_title=window_title,
-    )
+    try:
+        query = await _extract_query_from_screenshot(
+            llm, screenshot_data_url, app_name=app_name, window_title=window_title,
+        )
+    except Exception as e:
+        logger.warning(f"Vision autocomplete: selected model does not support vision: {e}")
+        yield streaming.format_message_start()
+        yield streaming.format_error(vision_error_msg)
+        yield streaming.format_done()
+        return
+
     if query:
         kb_context = await _search_knowledge_base(session, search_space_id, query)
 
@@ -171,10 +195,13 @@ async def stream_vision_autocomplete(
         ]),
     ]
 
+    text_started = False
+    text_id = ""
     try:
         yield streaming.format_message_start()
         text_id = streaming.generate_text_id()
         yield streaming.format_text_start(text_id)
+        text_started = True
 
         async for chunk in llm.astream(messages):
             token = chunk.content if hasattr(chunk, "content") else str(chunk)
@@ -186,13 +213,12 @@ async def stream_vision_autocomplete(
         yield streaming.format_done()
 
     except Exception as e:
-        error_str = str(e).lower()
-        if "content must be a string" in error_str or "does not support image" in error_str:
+        if text_started:
+            yield streaming.format_text_end(text_id)
+
+        if _is_vision_unsupported_error(e):
             logger.warning(f"Vision autocomplete: selected model does not support vision: {e}")
-            yield streaming.format_error(
-                "The selected model does not support vision. "
-                "Please set a vision-capable model (e.g. GPT-4o, Gemini) in your search space settings."
-            )
+            yield streaming.format_error(vision_error_msg)
         else:
             logger.error(f"Vision autocomplete streaming error: {e}")
             yield streaming.format_error(str(e))

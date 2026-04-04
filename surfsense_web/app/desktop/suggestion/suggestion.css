@@ -1,4 +1,5 @@
-html, body {
+html:has(.suggestion-body),
+body:has(.suggestion-body) {
   margin: 0 !important;
   padding: 0 !important;
   background: transparent !important;

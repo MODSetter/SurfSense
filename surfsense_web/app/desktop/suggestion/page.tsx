@@ -36,8 +36,16 @@ const AUTO_DISMISS_MS = 3000;
 export default function SuggestionPage() {
 	const [suggestion, setSuggestion] = useState("");
 	const [isLoading, setIsLoading] = useState(true);
+	const [isDesktop, setIsDesktop] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const abortRef = useRef<AbortController | null>(null);
+
+	useEffect(() => {
+		if (!window.electronAPI?.onAutocompleteContext) {
+			setIsDesktop(false);
+			setIsLoading(false);
+		}
+	}, []);
 
 	useEffect(() => {
 		if (!error) return;
@@ -152,6 +160,16 @@ export default function SuggestionPage() {
 
 		return cleanup;
 	}, [fetchSuggestion]);
+
+	if (!isDesktop) {
+		return (
+			<div className="suggestion-tooltip">
+				<span className="suggestion-error-text">
+					This page is only available in the SurfSense desktop app.
+				</span>
+			</div>
+		);
+	}
 
 	if (error) {
 		return (
