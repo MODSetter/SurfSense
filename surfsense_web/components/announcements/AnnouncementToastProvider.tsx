@@ -64,8 +64,9 @@ export function AnnouncementToastProvider() {
 	useEffect(() => {
 		if (hasChecked.current) return;
 		hasChecked.current = true;
+		const timerIds: ReturnType<typeof setTimeout>[] = [];
 
-		const timer = setTimeout(() => {
+		const outerTimer = setTimeout(() => {
 			const authed = isAuthenticated();
 			const active = getActiveAnnouncements(announcements, authed);
 			const importantUntoasted = active.filter(
@@ -74,11 +75,16 @@ export function AnnouncementToastProvider() {
 
 			for (let i = 0; i < importantUntoasted.length; i++) {
 				const announcement = importantUntoasted[i];
-				setTimeout(() => showAnnouncementToast(announcement), i * 800);
+				timerIds.push(
+					setTimeout(() => showAnnouncementToast(announcement), i * 800)
+				);
 			}
 		}, 1500);
 
-		return () => clearTimeout(timer);
+		return () => {
+			clearTimeout(outerTimer);
+			timerIds.forEach(clearTimeout);
+		};
 	}, []);
 
 	return null;
