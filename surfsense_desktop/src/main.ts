@@ -7,6 +7,7 @@ import { setupAutoUpdater } from './modules/auto-updater';
 import { setupMenu } from './modules/menu';
 import { registerQuickAsk, unregisterQuickAsk } from './modules/quick-ask';
 import { registerAutocomplete, unregisterAutocomplete } from './modules/autocomplete';
+import { registerFolderWatcher, unregisterFolderWatcher } from './modules/folder-watcher';
 import { registerIpcHandlers } from './ipc/handlers';
 
 registerGlobalErrorHandlers();
@@ -30,6 +31,7 @@ app.whenReady().then(async () => {
   createMainWindow('/dashboard');
   registerQuickAsk();
   registerAutocomplete();
+  registerFolderWatcher();
   setupAutoUpdater();
 
   handlePendingDeepLink();
@@ -50,4 +52,5 @@ app.on('window-all-closed', () => {
 app.on('will-quit', () => {
   unregisterQuickAsk();
   unregisterAutocomplete();
+  unregisterFolderWatcher();
 });

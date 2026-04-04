@@ -41,14 +41,14 @@ export const liteLLMProviderEnum = z.enum([
 export type LiteLLMProvider = z.infer<typeof liteLLMProviderEnum>;
 
 /**
- * NewLLMConfig - combines LLM model settings with prompt configuration
+ * NewLLMConfig - combines model settings with prompt configuration
  */
 export const newLLMConfig = z.object({
 	id: z.number(),
 	name: z.string().max(100),
 	description: z.string().max(500).nullable().optional(),
 
-	// LLM Model Configuration
+	// Model Configuration
 	provider: liteLLMProviderEnum,
 	custom_provider: z.string().max(100).nullable().optional(),
 	model_name: z.string().max(100),
@@ -148,7 +148,7 @@ export const globalNewLLMConfig = z.object({
 	name: z.string(),
 	description: z.string().nullable().optional(),
 
-	// LLM Model Configuration (no api_key)
+	// Model Configuration (no api_key)
 	provider: z.string(), // String because YAML doesn't enforce enum, "AUTO" for Auto mode
 	custom_provider: z.string().nullable().optional(),
 	model_name: z.string(),

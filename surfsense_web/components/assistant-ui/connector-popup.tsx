@@ -11,7 +11,6 @@ import {
 } from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { searchSpaceSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
-import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -47,7 +46,6 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 	(_props, ref) => {
 		const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 		const setSearchSpaceSettingsDialog = useSetAtom(searchSpaceSettingsDialogAtom);
-		useAtomValue(currentUserAtom);
 		const { data: preferences = {}, isFetching: preferencesLoading } =
 			useAtomValue(llmPreferencesAtom);
 		const { data: globalConfigs = [], isFetching: globalConfigsLoading } =
@@ -376,14 +374,17 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 									<div className="px-4 sm:px-12 py-4 sm:py-8 pb-12 sm:pb-16">
 										{/* LLM Configuration Warning */}
 										{!llmConfigLoading && !hasDocumentSummaryLLM && (
-											<Alert variant="destructive" className="mb-6">
+											<Alert
+												variant="destructive"
+												className="mb-6 bg-muted/50 rounded-xl border-destructive/30"
+											>
 												<AlertTriangle className="h-4 w-4" />
 												<AlertTitle>LLM Configuration Required</AlertTitle>
 												<AlertDescription className="mt-2">
 													<p className="mb-3">
 														{isAutoMode && !hasGlobalConfigs
-															? "Auto mode is selected but no global LLM configurations are available. Please configure a custom LLM in Settings to process and summarize documents from your connected sources."
-															: "You need to configure a Document Summary LLM before adding connectors. This LLM is used to process and summarize documents from your connected sources."}
+															? "Auto mode requires a global LLM configuration. Please add one in Settings"
+															: "A Document Summary LLM is required to process uploads, configure one in Settings"}
 													</p>
 													<Button
 														size="sm"

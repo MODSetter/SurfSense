@@ -7,6 +7,8 @@ import { openSafeNavigationHref, resolveSafeNavigationHref } from "../shared/med
 import { cn, Popover, PopoverContent, PopoverTrigger } from "./_adapter";
 import { Citation } from "./citation";
 import type { CitationType, CitationVariant, SerializableCitation } from "./schema";
+import NextImage from 'next/image';
+
 
 const TYPE_ICONS: Record<CitationType, LucideIcon> = {
 	webpage: Globe,
@@ -253,18 +255,18 @@ function OverflowItem({ citation, onClick }: OverflowItemProps) {
 			className="group hover:bg-muted focus-visible:bg-muted flex w-full cursor-pointer items-center gap-2.5 rounded-md px-2 py-2 text-left transition-colors focus-visible:outline-none"
 		>
 			{citation.favicon ? (
-				// biome-ignore lint/performance/noImgElement: external favicon from arbitrary domain — next/image requires remotePatterns config
-				<img
+				<NextImage
 					src={citation.favicon}
 					alt=""
 					aria-hidden="true"
-					width={16}
-					height={16}
-					className="bg-muted size-4 shrink-0 rounded object-cover"
+					width={18}
+					height={18}
+					className="size-4.5 rounded-full object-cover"
+					unoptimized={true}
 				/>
-			) : (
-				<TypeIcon className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
-			)}
+				) : (
+				<TypeIcon className="text-muted-foreground size-3" aria-hidden="true" />
+				)}
 			<div className="min-w-0 flex-1">
 				<p className="group-hover:decoration-foreground/30 truncate text-sm font-medium group-hover:underline group-hover:underline-offset-2">
 					{citation.title}
@@ -339,18 +341,18 @@ function StackedCitations({ id, citations, className, onNavigate }: StackedCitat
 										style={{ zIndex: maxIcons - index }}
 									>
 										{citation.favicon ? (
-											// biome-ignore lint/performance/noImgElement: external favicon from arbitrary domain — next/image requires remotePatterns config
-											<img
-												src={citation.favicon}
-												alt=""
-												aria-hidden="true"
-												width={18}
-												height={18}
-												className="size-4.5 rounded-full object-cover"
-											/>
-										) : (
-											<TypeIcon className="text-muted-foreground size-3" aria-hidden="true" />
-										)}
+										<NextImage
+											src={citation.favicon}
+											alt=""
+											aria-hidden="true"
+											width={18}
+											height={18}
+											className="size-4.5 rounded-full object-cover"
+											unoptimized={true}
+										/>
+									) : (
+										<TypeIcon className="text-muted-foreground size-3" aria-hidden="true" />
+									)}	
 									</div>
 								);
 							})}

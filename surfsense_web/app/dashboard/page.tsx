@@ -3,7 +3,7 @@
 import { useAtomValue } from "jotai";
 import { AlertCircle, Plus, Search } from "lucide-react";
 import { motion } from "motion/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
@@ -89,7 +89,6 @@ function EmptyState({ onCreateClick }: { onCreateClick: () => void }) {
 
 export default function DashboardPage() {
 	const router = useRouter();
-	const searchParams = useSearchParams();
 	const [showCreateDialog, setShowCreateDialog] = useState(false);
 
 	const t = useTranslations("dashboard");
@@ -99,11 +98,12 @@ export default function DashboardPage() {
 		if (isLoading) return;
 
 		if (searchSpaces.length > 0) {
-			const params = searchParams.toString();
-			const query = params ? `?${params}` : "";
+			// Read the query string at the time of redirect — no subscription needed.
+			// (Vercel Best Practice: rerender-defer-reads 5.2)
+			const query = window.location.search;
 			router.replace(`/dashboard/${searchSpaces[0].id}/new-chat${query}`);
 		}
-	}, [isLoading, searchSpaces, router, searchParams]);
+	}, [isLoading, searchSpaces, router]);
 
 	// Show loading while fetching or while we have spaces and are about to redirect
 	const shouldShowLoading = isLoading || searchSpaces.length > 0;

@@ -157,8 +157,10 @@ export function useInbox(
 						}) as InboxItem
 				);
 
+			const liveById = new Map(recentItems.map((v) => [v.id, v]));
+
 			let updated = prev.map((existing) => {
-				const liveItem = recentItems.find((v) => v.id === existing.id);
+				const liveItem = liveById.get(existing.id);
 				if (liveItem) {
 					return {
 						...existing,

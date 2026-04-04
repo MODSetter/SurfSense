@@ -109,6 +109,7 @@ export function AllPrivateChatsSidebarContent({
 		queryKey: ["all-threads", searchSpaceId],
 		queryFn: () => fetchThreads(Number(searchSpaceId)),
 		enabled: !!searchSpaceId && !isSearchMode,
+		placeholderData: () => queryClient.getQueryData(["threads", searchSpaceId, { limit: 40 }]),
 	});
 
 	const {
@@ -349,7 +350,7 @@ export function AllPrivateChatsSidebarContent({
 								<div
 									key={thread.id}
 									className={cn(
-										"group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm",
+										"sidebar-item-lazy group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm",
 										"hover:bg-accent hover:text-accent-foreground",
 										"transition-colors cursor-pointer",
 										isActive && "bg-accent text-accent-foreground",
