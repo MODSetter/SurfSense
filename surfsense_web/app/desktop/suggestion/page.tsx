@@ -24,6 +24,8 @@ function friendlyError(raw: string | number): string {
 		return "Please sign in to use suggestions.";
 	if (lower.includes("no vision llm configured") || lower.includes("no llm configured"))
 		return "No Vision LLM configured. Set one in search space settings.";
+	if (lower.includes("does not support vision"))
+		return "Selected model doesn\u2019t support vision. Set a vision-capable model in settings.";
 	if (lower.includes("fetch") || lower.includes("network") || lower.includes("econnrefused"))
 		return "Can\u2019t reach the server. Check your connection.";
 	return "Something went wrong. Try again.";

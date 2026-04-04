@@ -186,6 +186,14 @@ async def stream_vision_autocomplete(
         yield streaming.format_done()
 
     except Exception as e:
-        logger.error(f"Vision autocomplete streaming error: {e}")
-        yield streaming.format_error(str(e))
+        error_str = str(e).lower()
+        if "content must be a string" in error_str or "does not support image" in error_str:
+            logger.warning(f"Vision autocomplete: selected model does not support vision: {e}")
+            yield streaming.format_error(
+                "The selected model does not support vision. "
+                "Please set a vision-capable model (e.g. GPT-4o, Gemini) in your search space settings."
+            )
+        else:
+            logger.error(f"Vision autocomplete streaming error: {e}")
+            yield streaming.format_error(str(e))
         yield streaming.format_done()
