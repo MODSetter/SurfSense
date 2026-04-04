@@ -274,6 +274,9 @@ export function SourceDetailPanel({
 		[shouldReduceMotion]
 	);
 
+	// Track stagger scroll timers so they can be cleared on close/unmount
+	const scrollTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
 	// Callback ref for the cited chunk - scrolls when the element mounts
 	const citedChunkRefCallback = useCallback(
 		(node: HTMLDivElement | null) => {
@@ -312,32 +315,41 @@ export function SourceDetailPanel({
 				// Each subsequent scroll will correct for any layout shifts
 				const scrollAttempts = [50, 150, 300, 600, 1000];
 
+				// Track all timeout IDs so they can be cleared on close/unmount
 				scrollAttempts.forEach((delay) => {
-					setTimeout(() => {
+					const id = setTimeout(() => {
 						scrollToCitedChunk();
 					}, delay);
+					scrollTimersRef.current.push(id);
 				});
 
 				// After final attempt, mark state as scrolled
-				setTimeout(
+				const doneTimer = setTimeout(
 					() => {
 						setHasScrolledToCited(true);
 						setActiveChunkIndex(citedChunkIndex);
 					},
 					scrollAttempts[scrollAttempts.length - 1] + 50
 				);
+				scrollTimersRef.current.push(doneTimer);
 			}
 		},
 		[open, citedChunkIndex]
 	);
 
-	// Reset scroll state when panel closes
+	// Clear scroll timers and reset scroll state when panel closes
 	useEffect(() => {
 		if (!open) {
+			scrollTimersRef.current.forEach(clearTimeout);
+			scrollTimersRef.current = [];
 			hasScrolledRef.current = false;
 			setHasScrolledToCited(false);
 			setActiveChunkIndex(null);
 		}
+		return () => {
+			scrollTimersRef.current.forEach(clearTimeout);
+			scrollTimersRef.current = [];
+		};
 	}, [open]);
 
 	// Handle escape key
