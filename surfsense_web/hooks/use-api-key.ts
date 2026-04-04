@@ -17,10 +17,10 @@ export function useApiKey(): UseApiKeyReturn {
 
 	// Clear copied state after 2 seconds
 	useEffect(() => {
-		if (copied) {
-			const timer = setTimeout(() => setCopied(false), 2000);
-			return () => clearTimeout(timer);
-		}
+		if (!copied) return;
+
+		const timer = setTimeout(() => setCopied(false), 2000);
+		return () => clearTimeout(timer);
 	}, [copied]);
 
 	useEffect(() => {
