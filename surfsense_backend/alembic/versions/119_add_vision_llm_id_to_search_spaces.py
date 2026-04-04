@@ -1,7 +1,7 @@
-"""117_add_vision_llm_id_to_search_spaces
+"""119_add_vision_llm_id_to_search_spaces
 
-Revision ID: 117
-Revises: 116
+Revision ID: 119
+Revises: 118
 
 Adds vision_llm_id column to search_spaces for vision/screenshot analysis
 LLM role assignment. Defaults to 0 (Auto mode), same convention as
@@ -16,8 +16,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "117"
-down_revision: str | None = "116"
+revision: str = "119"
+down_revision: str | None = "118"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

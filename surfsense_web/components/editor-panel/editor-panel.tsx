@@ -96,9 +96,6 @@ export function EditorPanelContent({
 			}
 
 			try {
-				const response = await authenticatedFetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`,
-					{ method: "GET", signal: controller.signal }
 				const url = new URL(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`
 				);

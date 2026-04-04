@@ -11,6 +11,7 @@ const SHORTCUT = 'CommandOrControl+Shift+Space';
 let autocompleteEnabled = true;
 let savedClipboard = '';
 let sourceApp = '';
+let lastSearchSpaceId: string | null = null;
 
 function isSurfSenseWindow(): boolean {
   const app = getFrontmostApp();
@@ -36,18 +37,23 @@ async function triggerAutocomplete(): Promise<void> {
     return;
   }
 
-  const cursor = screen.getCursorScreenPoint();
-  const win = createSuggestionWindow(cursor.x, cursor.y);
-
-  let searchSpaceId = '1';
   const mainWin = getMainWindow();
   if (mainWin && !mainWin.isDestroyed()) {
     const mainUrl = mainWin.webContents.getURL();
     const match = mainUrl.match(/\/dashboard\/(\d+)/);
     if (match) {
-      searchSpaceId = match[1];
+      lastSearchSpaceId = match[1];
     }
   }
+
+  if (!lastSearchSpaceId) {
+    console.warn('[autocomplete] No active search space. Open a search space first.');
+    return;
+  }
+
+  const searchSpaceId = lastSearchSpaceId;
+  const cursor = screen.getCursorScreenPoint();
+  const win = createSuggestionWindow(cursor.x, cursor.y);
 
   win.webContents.once('did-finish-load', () => {
     const sw = getSuggestionWindow();

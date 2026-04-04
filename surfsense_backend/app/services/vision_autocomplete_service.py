@@ -220,6 +220,6 @@ async def stream_vision_autocomplete(
             logger.warning(f"Vision autocomplete: selected model does not support vision: {e}")
             yield streaming.format_error(vision_error_msg)
         else:
-            logger.error(f"Vision autocomplete streaming error: {e}")
-            yield streaming.format_error(str(e))
+            logger.error(f"Vision autocomplete streaming error: {e}", exc_info=True)
+            yield streaming.format_error("Autocomplete failed. Please try again.")
         yield streaming.format_done()
