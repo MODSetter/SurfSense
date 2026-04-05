@@ -1,0 +1,49 @@
+from enum import Enum
+from pathlib import PurePosixPath
+
+
+PLAINTEXT_EXTENSIONS = frozenset(
+    {
+        ".md", ".markdown", ".txt", ".text",
+        ".json", ".jsonl", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf", ".xml",
+        ".css", ".scss", ".less", ".sass",
+        ".py", ".pyw", ".pyi", ".pyx",
+        ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs",
+        ".java", ".kt", ".kts", ".scala", ".groovy",
+        ".c", ".h", ".cpp", ".cxx", ".cc", ".hpp", ".hxx",
+        ".cs", ".fs", ".fsx",
+        ".go", ".rs", ".rb", ".php", ".pl", ".pm", ".lua", ".swift",
+        ".m", ".mm", ".r", ".jl",
+        ".sh", ".bash", ".zsh", ".fish", ".bat", ".cmd", ".ps1",
+        ".sql", ".graphql", ".gql",
+        ".env", ".gitignore", ".dockerignore", ".editorconfig",
+        ".makefile", ".cmake",
+        ".log", ".rst", ".tex", ".bib", ".org", ".adoc", ".asciidoc",
+        ".vue", ".svelte", ".astro",
+        ".tf", ".hcl", ".proto",
+    }
+)
+
+AUDIO_EXTENSIONS = frozenset(
+    {".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm"}
+)
+
+DIRECT_CONVERT_EXTENSIONS = frozenset({".csv", ".tsv", ".html", ".htm"})
+
+
+class FileCategory(Enum):
+    PLAINTEXT = "plaintext"
+    AUDIO = "audio"
+    DIRECT_CONVERT = "direct_convert"
+    DOCUMENT = "document"
+
+
+def classify_file(filename: str) -> FileCategory:
+    suffix = PurePosixPath(filename).suffix.lower()
+    if suffix in PLAINTEXT_EXTENSIONS:
+        return FileCategory.PLAINTEXT
+    if suffix in AUDIO_EXTENSIONS:
+        return FileCategory.AUDIO
+    if suffix in DIRECT_CONVERT_EXTENSIONS:
+        return FileCategory.DIRECT_CONVERT
+    return FileCategory.DOCUMENT

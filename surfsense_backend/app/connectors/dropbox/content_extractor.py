@@ -87,9 +87,13 @@ async def download_and_extract_content(
         if error:
             return None, metadata, error
 
-        from app.connectors.onedrive.content_extractor import _parse_file_to_markdown
+        from app.etl_pipeline.etl_document import EtlRequest
+        from app.etl_pipeline.etl_pipeline_service import EtlPipelineService
 
-        markdown = await _parse_file_to_markdown(temp_file_path, file_name)
+        result = await EtlPipelineService().extract(
+            EtlRequest(file_path=temp_file_path, filename=file_name)
+        )
+        markdown = result.markdown_content
         return markdown, metadata, None
 
     except Exception as e:

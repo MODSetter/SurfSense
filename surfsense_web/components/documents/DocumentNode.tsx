@@ -106,7 +106,9 @@ export const DocumentNode = React.memo(function DocumentNode({
 	const isProcessing = statusState === "pending" || statusState === "processing";
 	const [dropdownOpen, setDropdownOpen] = useState(false);
 	const [exporting, setExporting] = useState<string | null>(null);
+	const [titleTooltipOpen, setTitleTooltipOpen] = useState(false);
 	const rowRef = useRef<HTMLDivElement>(null);
+	const titleRef = useRef<HTMLSpanElement>(null);
 
 	const handleExport = useCallback(
 		(format: string) => {
@@ -117,6 +119,14 @@ export const DocumentNode = React.memo(function DocumentNode({
 		},
 		[doc, onExport]
 	);
+
+	const handleTitleTooltipOpenChange = useCallback((open: boolean) => {
+		if (open && titleRef.current) {
+			setTitleTooltipOpen(titleRef.current.scrollWidth > titleRef.current.clientWidth);
+		} else {
+			setTitleTooltipOpen(false);
+		}
+	}, []);
 
 	const attachRef = useCallback(
 		(node: HTMLDivElement | null) => {
@@ -197,7 +207,14 @@ export const DocumentNode = React.memo(function DocumentNode({
 						);
 					})()}
 
-					<span className="flex-1 min-w-0 truncate">{doc.title}</span>
+					<Tooltip delayDuration={600} open={titleTooltipOpen} onOpenChange={handleTitleTooltipOpenChange}>
+						<TooltipTrigger asChild>
+							<span ref={titleRef} className="flex-1 min-w-0 truncate">{doc.title}</span>
+						</TooltipTrigger>
+						<TooltipContent side="bottom" className="max-w-xs break-words">
+							{doc.title}
+						</TooltipContent>
+					</Tooltip>
 
 					{getDocumentTypeIcon(
 						doc.document_type as DocumentTypeEnum,
@@ -260,7 +277,6 @@ export const DocumentNode = React.memo(function DocumentNode({
 								</DropdownMenuItem>
 							)}
 							<DropdownMenuItem
-								className="text-destructive focus:text-destructive"
 								disabled={isProcessing}
 								onClick={() => onDelete(doc)}
 							>
@@ -306,7 +322,6 @@ export const DocumentNode = React.memo(function DocumentNode({
 						</ContextMenuItem>
 					)}
 					<ContextMenuItem
-						className="text-destructive focus:text-destructive"
 						disabled={isProcessing}
 						onClick={() => onDelete(doc)}
 					>
