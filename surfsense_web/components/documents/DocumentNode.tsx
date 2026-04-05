@@ -12,7 +12,6 @@ import {
 	Trash2,
 } from "lucide-react";
 import React, { useCallback, useRef, useState } from "react";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { useDrag } from "react-dnd";
 import { getDocumentTypeIcon } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
 import { ExportContextItems, ExportDropdownItems } from "@/components/shared/ExportMenuItems";
@@ -110,7 +109,6 @@ export const DocumentNode = React.memo(function DocumentNode({
 	const [titleTooltipOpen, setTitleTooltipOpen] = useState(false);
 	const rowRef = useRef<HTMLDivElement>(null);
 	const titleRef = useRef<HTMLSpanElement>(null);
-	const isMobile = useIsMobile();
 
 	const handleExport = useCallback(
 		(format: string) => {
@@ -122,17 +120,13 @@ export const DocumentNode = React.memo(function DocumentNode({
 		[doc, onExport]
 	);
 
-	const handleTitleTooltipOpenChange = useCallback(
-		(open: boolean) => {
-			if (isMobile) return;
-			if (open && titleRef.current) {
-				setTitleTooltipOpen(titleRef.current.scrollWidth > titleRef.current.clientWidth);
-			} else {
-				setTitleTooltipOpen(false);
-			}
-		},
-		[isMobile]
-	);
+	const handleTitleTooltipOpenChange = useCallback((open: boolean) => {
+		if (open && titleRef.current) {
+			setTitleTooltipOpen(titleRef.current.scrollWidth > titleRef.current.clientWidth);
+		} else {
+			setTitleTooltipOpen(false);
+		}
+	}, []);
 
 	const attachRef = useCallback(
 		(node: HTMLDivElement | null) => {

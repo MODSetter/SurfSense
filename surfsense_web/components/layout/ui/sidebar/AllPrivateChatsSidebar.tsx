@@ -375,24 +375,24 @@ export function AllPrivateChatsSidebarContent({
 											<span className="truncate">{thread.title || "New Chat"}</span>
 										</button>
 									) : (
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<button
-													type="button"
-													onClick={() => handleThreadClick(thread.id)}
-													disabled={isBusy}
-													className="flex items-center gap-2 flex-1 min-w-0 text-left overflow-hidden"
-												>
-													<span className="truncate">{thread.title || "New Chat"}</span>
-												</button>
-											</TooltipTrigger>
-											<TooltipContent side="bottom" align="start">
-												<p>
-													{t("updated") || "Updated"}:{" "}
-													{format(new Date(thread.updatedAt), "MMM d, yyyy 'at' h:mm a")}
-												</p>
-											</TooltipContent>
-										</Tooltip>
+									<Tooltip delayDuration={600}>
+										<TooltipTrigger asChild>
+											<button
+												type="button"
+												onClick={() => handleThreadClick(thread.id)}
+												disabled={isBusy}
+												className="flex items-center gap-2 flex-1 min-w-0 text-left overflow-hidden"
+											>
+												<span className="truncate">{thread.title || "New Chat"}</span>
+											</button>
+										</TooltipTrigger>
+										<TooltipContent side="bottom" align="start">
+											<p>
+												{t("updated") || "Updated"}:{" "}
+												{format(new Date(thread.updatedAt), "MMM d, yyyy 'at' h:mm a")}
+											</p>
+										</TooltipContent>
+									</Tooltip>
 									)}
 
 									<DropdownMenu
