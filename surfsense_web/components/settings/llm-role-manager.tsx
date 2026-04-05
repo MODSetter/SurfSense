@@ -6,6 +6,7 @@ import {
 	Bot,
 	CircleCheck,
 	CircleDashed,
+	Eye,
 	FileText,
 	ImageIcon,
 	RefreshCw,
@@ -70,6 +71,15 @@ const ROLE_DESCRIPTIONS = {
 		prefKey: "image_generation_config_id" as const,
 		configType: "image" as const,
 	},
+	vision: {
+		icon: Eye,
+		title: "Vision LLM",
+		description: "Vision-capable model for screenshot analysis and context extraction",
+		color: "text-amber-600 dark:text-amber-400",
+		bgColor: "bg-amber-500/10",
+		prefKey: "vision_llm_id" as const,
+		configType: "llm" as const,
+	},
 };
 
 interface LLMRoleManagerProps {
@@ -115,6 +125,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		agent_llm_id: preferences.agent_llm_id ?? "",
 		document_summary_llm_id: preferences.document_summary_llm_id ?? "",
 		image_generation_config_id: preferences.image_generation_config_id ?? "",
+		vision_llm_id: preferences.vision_llm_id ?? "",
 	}));
 
 	const [savingRole, setSavingRole] = useState<string | null>(null);
@@ -126,12 +137,14 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 				agent_llm_id: preferences.agent_llm_id ?? "",
 				document_summary_llm_id: preferences.document_summary_llm_id ?? "",
 				image_generation_config_id: preferences.image_generation_config_id ?? "",
+				vision_llm_id: preferences.vision_llm_id ?? "",
 			});
 		}
 	}, [
 		preferences?.agent_llm_id,
 		preferences?.document_summary_llm_id,
 		preferences?.image_generation_config_id,
+		preferences?.vision_llm_id,
 	]);
 
 	const handleRoleAssignment = useCallback(

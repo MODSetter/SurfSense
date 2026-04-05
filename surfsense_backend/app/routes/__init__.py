@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from .airtable_add_connector_route import (
     router as airtable_add_connector_router,
 )
+from .autocomplete_routes import router as autocomplete_router
 from .chat_comments_routes import router as chat_comments_router
 from .circleback_webhook_route import router as circleback_webhook_router
 from .clickup_add_connector_route import router as clickup_add_connector_router
@@ -95,3 +96,4 @@ router.include_router(incentive_tasks_router)  # Incentive tasks for earning fre
 router.include_router(stripe_router)  # Stripe checkout for additional page packs
 router.include_router(youtube_router)  # YouTube playlist resolution
 router.include_router(prompts_router)
+router.include_router(autocomplete_router)  # Lightweight autocomplete with KB context

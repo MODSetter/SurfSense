@@ -104,7 +104,7 @@ async function buildElectron() {
     bundle: true,
     platform: 'node',
     target: 'node18',
-    external: ['electron'],
+    external: ['electron', 'node-mac-permissions', 'bindings', 'file-uri-to-path'],
     sourcemap: true,
     minify: false,
     define: {
