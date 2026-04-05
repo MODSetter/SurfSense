@@ -12,6 +12,7 @@ import {
 	Trash2,
 } from "lucide-react";
 import React, { useCallback, useRef, useState } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useDrag } from "react-dnd";
 import { getDocumentTypeIcon } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
 import { ExportContextItems, ExportDropdownItems } from "@/components/shared/ExportMenuItems";
@@ -106,7 +107,10 @@ export const DocumentNode = React.memo(function DocumentNode({
 	const isProcessing = statusState === "pending" || statusState === "processing";
 	const [dropdownOpen, setDropdownOpen] = useState(false);
 	const [exporting, setExporting] = useState<string | null>(null);
+	const [titleTooltipOpen, setTitleTooltipOpen] = useState(false);
 	const rowRef = useRef<HTMLDivElement>(null);
+	const titleRef = useRef<HTMLSpanElement>(null);
+	const isMobile = useIsMobile();
 
 	const handleExport = useCallback(
 		(format: string) => {
@@ -116,6 +120,18 @@ export const DocumentNode = React.memo(function DocumentNode({
 			setTimeout(() => setExporting(null), 2000);
 		},
 		[doc, onExport]
+	);
+
+	const handleTitleTooltipOpenChange = useCallback(
+		(open: boolean) => {
+			if (isMobile) return;
+			if (open && titleRef.current) {
+				setTitleTooltipOpen(titleRef.current.scrollWidth > titleRef.current.clientWidth);
+			} else {
+				setTitleTooltipOpen(false);
+			}
+		},
+		[isMobile]
 	);
 
 	const attachRef = useCallback(
@@ -197,7 +213,14 @@ export const DocumentNode = React.memo(function DocumentNode({
 						);
 					})()}
 
-					<span className="flex-1 min-w-0 truncate">{doc.title}</span>
+					<Tooltip delayDuration={600} open={titleTooltipOpen} onOpenChange={handleTitleTooltipOpenChange}>
+						<TooltipTrigger asChild>
+							<span ref={titleRef} className="flex-1 min-w-0 truncate">{doc.title}</span>
+						</TooltipTrigger>
+						<TooltipContent side="bottom" className="max-w-xs break-words">
+							{doc.title}
+						</TooltipContent>
+					</Tooltip>
 
 					{getDocumentTypeIcon(
 						doc.document_type as DocumentTypeEnum,
