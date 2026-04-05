@@ -260,7 +260,6 @@ export const DocumentNode = React.memo(function DocumentNode({
 								</DropdownMenuItem>
 							)}
 							<DropdownMenuItem
-								className="text-destructive focus:text-destructive"
 								disabled={isProcessing}
 								onClick={() => onDelete(doc)}
 							>
@@ -306,7 +305,6 @@ export const DocumentNode = React.memo(function DocumentNode({
 						</ContextMenuItem>
 					)}
 					<ContextMenuItem
-						className="text-destructive focus:text-destructive"
 						disabled={isProcessing}
 						onClick={() => onDelete(doc)}
 					>
