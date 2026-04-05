@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, Send, X } from "lucide-react";
+import { ArrowUp } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
@@ -300,16 +300,15 @@ export function CommentComposer({
 
 			<div className={cn("flex items-center gap-2", !compact && "justify-end")}>
 				{onCancel && (
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						onClick={onCancel}
-						disabled={isSubmitting}
-					>
-						<X className="mr-1 size-4" />
-						Cancel
-					</Button>
+				<Button
+					type="button"
+					variant="ghost"
+					size="sm"
+					onClick={onCancel}
+					disabled={isSubmitting}
+				>
+					Cancel
+				</Button>
 				)}
 				<Button
 					type="button"
@@ -321,10 +320,7 @@ export function CommentComposer({
 					{compact ? (
 						<ArrowUp className="size-4" />
 					) : (
-						<>
-							<Send className="mr-1 size-4" />
-							{submitLabel}
-						</>
+						submitLabel
 					)}
 				</Button>
 			</div>
