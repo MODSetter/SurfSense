@@ -1015,7 +1015,7 @@ class TestPageLimits:
 
         (tmp_path / "note.md").write_text("# Hello World\n\nContent here.")
 
-        count, _skipped, _root_folder_id, err = await index_local_folder(
+        count, _skipped, _root_folder_id, _err = await index_local_folder(
             session=db_session,
             search_space_id=db_search_space.id,
             user_id=str(db_user.id),
