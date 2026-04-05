@@ -1,14 +1,9 @@
 """
 Unified document save/update logic for file processors.
-
-Replaces the three nearly-identical ``add_received_file_document_using_*``
-functions with a single ``save_file_document`` function plus thin wrappers
-for backward compatibility.
 """
 
 import logging
 
-from langchain_core.documents import Document as LangChainDocument
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -207,79 +202,3 @@ async def save_file_document(
         raise RuntimeError(
             f"Failed to process file document using {etl_service}: {e!s}"
         ) from e
-
-
-# ---------------------------------------------------------------------------
-# Backward-compatible wrapper functions
-# ---------------------------------------------------------------------------
-
-
-async def add_received_file_document_using_unstructured(
-    session: AsyncSession,
-    file_name: str,
-    unstructured_processed_elements: list[LangChainDocument],
-    search_space_id: int,
-    user_id: str,
-    connector: dict | None = None,
-    enable_summary: bool = True,
-) -> Document | None:
-    """Process and store a file document using the Unstructured service."""
-    from app.utils.document_converters import convert_document_to_markdown
-
-    markdown_content = await convert_document_to_markdown(
-        unstructured_processed_elements
-    )
-    return await save_file_document(
-        session,
-        file_name,
-        markdown_content,
-        search_space_id,
-        user_id,
-        "UNSTRUCTURED",
-        connector,
-        enable_summary,
-    )
-
-
-async def add_received_file_document_using_llamacloud(
-    session: AsyncSession,
-    file_name: str,
-    llamacloud_markdown_document: str,
-    search_space_id: int,
-    user_id: str,
-    connector: dict | None = None,
-    enable_summary: bool = True,
-) -> Document | None:
-    """Process and store document content parsed by LlamaCloud."""
-    return await save_file_document(
-        session,
-        file_name,
-        llamacloud_markdown_document,
-        search_space_id,
-        user_id,
-        "LLAMACLOUD",
-        connector,
-        enable_summary,
-    )
-
-
-async def add_received_file_document_using_docling(
-    session: AsyncSession,
-    file_name: str,
-    docling_markdown_document: str,
-    search_space_id: int,
-    user_id: str,
-    connector: dict | None = None,
-    enable_summary: bool = True,
-) -> Document | None:
-    """Process and store document content parsed by Docling."""
-    return await save_file_document(
-        session,
-        file_name,
-        docling_markdown_document,
-        search_space_id,
-        user_id,
-        "DOCLING",
-        connector,
-        enable_summary,
-    )
