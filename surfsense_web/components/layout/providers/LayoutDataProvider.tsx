@@ -347,35 +347,37 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 
 	// Navigation items
 	const navItems: NavItem[] = useMemo(
-		() => [
-			{
-				title: "Inbox",
-				url: "#inbox",
-				icon: Inbox,
-				isActive: isInboxSidebarOpen,
-				badge: totalUnreadCount > 0 ? formatInboxCount(totalUnreadCount) : undefined,
-			},
-			{
-				title: "Documents",
-				url: "#documents",
-				icon: SquareLibrary,
-				isActive: isMobile
-					? isDocumentsSidebarOpen
-					: isDocumentsSidebarOpen && !isRightPanelCollapsed,
-			},
-			{
-				title: "Announcements",
-				url: "#announcements",
-				icon: Megaphone,
-				isActive: isAnnouncementsSidebarOpen,
-				badge: announcementUnreadCount > 0 ? formatInboxCount(announcementUnreadCount) : undefined,
-			},
-		],
+		() =>
+			(
+				[
+					{
+						title: "Inbox",
+						url: "#inbox",
+						icon: Inbox,
+						isActive: isInboxSidebarOpen,
+						badge: totalUnreadCount > 0 ? formatInboxCount(totalUnreadCount) : undefined,
+					},
+					isMobile
+						? {
+								title: "Documents",
+								url: "#documents",
+								icon: SquareLibrary,
+								isActive: isDocumentsSidebarOpen,
+							}
+						: null,
+					{
+						title: "Announcements",
+						url: "#announcements",
+						icon: Megaphone,
+						isActive: isAnnouncementsSidebarOpen,
+						badge: announcementUnreadCount > 0 ? formatInboxCount(announcementUnreadCount) : undefined,
+					},
+				] as (NavItem | null)[]
+			).filter((item): item is NavItem => item !== null),
 		[
 			isMobile,
 			isInboxSidebarOpen,
 			isDocumentsSidebarOpen,
-			isRightPanelCollapsed,
 			totalUnreadCount,
 			isAnnouncementsSidebarOpen,
 			announcementUnreadCount,

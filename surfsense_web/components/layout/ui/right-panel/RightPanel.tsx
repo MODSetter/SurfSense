@@ -78,7 +78,7 @@ export function RightPanelExpandButton() {
 	if (!collapsed || !hasContent) return null;
 
 	return (
-		<div className="flex shrink-0 items-center px-1">
+		<div className="flex shrink-0 items-center px-0.5">
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<Button

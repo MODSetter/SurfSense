@@ -908,27 +908,61 @@ export function InboxSidebarContent({
 									)}
 									style={{ contentVisibility: "auto", containIntrinsicSize: "0 80px" }}
 								>
-									<button
-										type="button"
-										onClick={() => handleItemClick(item)}
-										disabled={isMarkingAsRead}
-										className="flex items-center gap-3 flex-1 min-w-0 text-left overflow-hidden"
-									>
-										<div className="shrink-0">{getStatusIcon(item)}</div>
-										<div className="flex-1 min-w-0 overflow-hidden">
-											<p
-												className={cn(
-													"text-xs font-medium line-clamp-2",
-													!item.read && "font-semibold"
-												)}
-											>
-												{item.title}
-											</p>
-											<p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
-												{convertRenderedToDisplay(item.message)}
-											</p>
-										</div>
-									</button>
+									{activeTab === "status" ? (
+										<Tooltip delayDuration={600}>
+											<TooltipTrigger asChild>
+												<button
+													type="button"
+													onClick={() => handleItemClick(item)}
+													disabled={isMarkingAsRead}
+													className="flex items-center gap-3 flex-1 min-w-0 text-left overflow-hidden"
+												>
+													<div className="shrink-0">{getStatusIcon(item)}</div>
+													<div className="flex-1 min-w-0 overflow-hidden">
+														<p
+															className={cn(
+																"text-xs font-medium line-clamp-2",
+																!item.read && "font-semibold"
+															)}
+														>
+															{item.title}
+														</p>
+														<p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
+															{convertRenderedToDisplay(item.message)}
+														</p>
+													</div>
+												</button>
+											</TooltipTrigger>
+											<TooltipContent side="bottom" align="start" className="max-w-[250px]">
+												<p className="font-medium">{item.title}</p>
+												<p className="text-muted-foreground mt-1">
+													{convertRenderedToDisplay(item.message)}
+												</p>
+											</TooltipContent>
+										</Tooltip>
+									) : (
+										<button
+											type="button"
+											onClick={() => handleItemClick(item)}
+											disabled={isMarkingAsRead}
+											className="flex items-center gap-3 flex-1 min-w-0 text-left overflow-hidden"
+										>
+											<div className="shrink-0">{getStatusIcon(item)}</div>
+											<div className="flex-1 min-w-0 overflow-hidden">
+												<p
+													className={cn(
+														"text-xs font-medium line-clamp-2",
+														!item.read && "font-semibold"
+													)}
+												>
+													{item.title}
+												</p>
+												<p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
+													{convertRenderedToDisplay(item.message)}
+												</p>
+											</div>
+										</button>
+									)}
 
 									<div className="flex items-center justify-end gap-1.5 shrink-0 w-10">
 										<span className="text-[10px] text-muted-foreground">

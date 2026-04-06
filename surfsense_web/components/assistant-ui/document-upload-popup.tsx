@@ -125,7 +125,7 @@ const DocumentUploadPopupContent: FC<{
 				onPointerDownOutside={(e) => e.preventDefault()}
 				onInteractOutside={(e) => e.preventDefault()}
 				onEscapeKeyDown={(e) => e.preventDefault()}
-				className="select-none max-w-2xl w-[95vw] sm:w-[640px] h-[min(440px,75dvh)] sm:h-[min(500px,80vh)] flex flex-col p-0 gap-0 overflow-hidden border border-border ring-0 bg-muted dark:bg-muted text-foreground [&>button]:right-3 sm:[&>button]:right-6 [&>button]:top-3 sm:[&>button]:top-5 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button]:z-[100] [&>button_svg]:size-4 sm:[&>button_svg]:size-5"
+				className="select-none max-w-2xl w-[95vw] sm:w-[640px] h-[min(440px,75dvh)] sm:h-[min(500px,80vh)] flex flex-col p-0 gap-0 overflow-hidden border border-border ring-0 bg-muted dark:bg-muted text-foreground [&>button]:right-3 sm:[&>button]:right-6 [&>button]:top-3 sm:[&>button]:top-5 [&>button]:opacity-80 [&>button]:hover:opacity-100 [&>button]:hover:bg-foreground/10 [&>button]:z-[100] [&>button>svg]:size-4 sm:[&>button>svg]:size-5"
 			>
 				<DialogTitle className="sr-only">Upload Document</DialogTitle>
 
