@@ -10,7 +10,6 @@ import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { closeEditorPanelAtom, editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { rightPanelCollapsedAtom, rightPanelTabAtom } from "@/atoms/layout/right-panel.atom";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DocumentsSidebar } from "../sidebar";
 
@@ -27,7 +26,7 @@ const HitlEditPanelContent = dynamic(
 		import("@/components/hitl-edit-panel/hitl-edit-panel").then((m) => ({
 			default: m.HitlEditPanelContent,
 		})),
-	{ ssr: false, loading: () => <Skeleton className="h-96 w-full" /> }
+	{ ssr: false, loading: () => null }
 );
 
 const ReportPanelContent = dynamic(
@@ -35,7 +34,7 @@ const ReportPanelContent = dynamic(
 		import("@/components/report-panel/report-panel").then((m) => ({
 			default: m.ReportPanelContent,
 		})),
-	{ ssr: false, loading: () => <Skeleton className="h-96 w-full" /> }
+	{ ssr: false, loading: () => null }
 );
 
 interface RightPanelProps {

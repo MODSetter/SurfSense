@@ -86,16 +86,6 @@ export function FolderTreeView({
 
 	const docsByFolder = useMemo(() => groupBy(documents, (d) => d.folderId ?? "root"), [documents]);
 
-	const folderChildCounts = useMemo(() => {
-		const counts: Record<number, number> = {};
-		for (const f of folders) {
-			const children = foldersByParent[f.id] ?? [];
-			const docs = docsByFolder[f.id] ?? [];
-			counts[f.id] = children.length + docs.length;
-		}
-		return counts;
-	}, [folders, foldersByParent, docsByFolder]);
-
 	const [openContextMenuId, setOpenContextMenuId] = useState<string | null>(null);
 
 	// Single subscription for rename state — derived boolean passed to each FolderNode
@@ -226,8 +216,7 @@ export function FolderTreeView({
 					depth={depth}
 					isExpanded={isExpanded}
 					isRenaming={renamingFolderId === f.id}
-					childCount={folderChildCounts[f.id] ?? 0}
-					selectionState={folderSelectionStates[f.id] ?? "none"}
+				selectionState={folderSelectionStates[f.id] ?? "none"}
 					processingState={folderProcessingStates[f.id] ?? "idle"}
 					onToggleSelect={onToggleFolderSelect}
 					onToggleExpand={onToggleExpand}
