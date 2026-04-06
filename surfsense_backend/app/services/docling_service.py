@@ -111,9 +111,7 @@ class DoclingService:
                 pipeline_options=pipeline_options, backend=PyPdfiumDocumentBackend
             )
 
-            # Initialize DocumentConverter with PDF and IMAGE support
             self.converter = DocumentConverter(
-                allowed_formats=[InputFormat.PDF, InputFormat.IMAGE],
                 format_options={InputFormat.PDF: pdf_format_option},
             )
 

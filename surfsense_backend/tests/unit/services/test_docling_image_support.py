@@ -1,4 +1,5 @@
-"""Test that DoclingService registers InputFormat.IMAGE for image processing."""
+"""Test that DoclingService does NOT restrict allowed_formats, letting Docling
+accept all its supported formats (PDF, DOCX, PPTX, XLSX, IMAGE, etc.)."""
 
 from enum import Enum
 from unittest.mock import MagicMock, patch
@@ -11,11 +12,14 @@ pytestmark = pytest.mark.unit
 class _FakeInputFormat(Enum):
     PDF = "pdf"
     IMAGE = "image"
+    DOCX = "docx"
+    PPTX = "pptx"
+    XLSX = "xlsx"
 
 
-def test_docling_service_registers_image_format():
-    """DoclingService should initialise DocumentConverter with InputFormat.IMAGE
-    in allowed_formats so that image files (jpg, png, bmp, tiff) are accepted."""
+def test_docling_service_does_not_restrict_allowed_formats():
+    """DoclingService should NOT pass allowed_formats to DocumentConverter,
+    so Docling defaults to accepting every InputFormat it supports."""
 
     mock_converter_cls = MagicMock()
     mock_backend = MagicMock()
@@ -54,14 +58,10 @@ def test_docling_service_registers_image_format():
     assert call_kwargs is not None, "DocumentConverter was never called"
 
     _, kwargs = call_kwargs
-    allowed = kwargs.get("allowed_formats")
-    format_opts = kwargs.get("format_options", {})
-
-    image_registered = (
-        (allowed is not None and _FakeInputFormat.IMAGE in allowed)
-        or _FakeInputFormat.IMAGE in format_opts
+    assert "allowed_formats" not in kwargs, (
+        f"allowed_formats should not be passed — let Docling accept all formats. "
+        f"Got: {kwargs.get('allowed_formats')}"
     )
-    assert image_registered, (
-        f"InputFormat.IMAGE not registered. "
-        f"allowed_formats={allowed}, format_options keys={list(format_opts.keys())}"
+    assert _FakeInputFormat.PDF in kwargs.get("format_options", {}), (
+        "format_options should still configure PDF pipeline options"
     )
