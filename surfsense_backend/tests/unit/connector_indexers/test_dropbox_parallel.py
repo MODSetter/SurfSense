@@ -272,6 +272,23 @@ def full_scan_mocks(mock_dropbox_client, monkeypatch):
     download_and_index_mock = AsyncMock(return_value=(0, 0))
     monkeypatch.setattr(_mod, "_download_and_index", download_and_index_mock)
 
+    from app.services.page_limit_service import PageLimitService as _RealPLS
+
+    mock_page_limit_instance = MagicMock()
+    mock_page_limit_instance.get_page_usage = AsyncMock(return_value=(0, 999_999))
+    mock_page_limit_instance.update_page_usage = AsyncMock()
+
+    class _MockPageLimitService:
+        estimate_pages_from_metadata = staticmethod(
+            _RealPLS.estimate_pages_from_metadata
+        )
+
+        def __init__(self, session):
+            self.get_page_usage = mock_page_limit_instance.get_page_usage
+            self.update_page_usage = mock_page_limit_instance.update_page_usage
+
+    monkeypatch.setattr(_mod, "PageLimitService", _MockPageLimitService)
+
     return {
         "dropbox_client": mock_dropbox_client,
         "session": mock_session,
@@ -376,6 +393,23 @@ def selected_files_mocks(mock_dropbox_client, monkeypatch):
 
     download_and_index_mock = AsyncMock(return_value=(0, 0))
     monkeypatch.setattr(_mod, "_download_and_index", download_and_index_mock)
+
+    from app.services.page_limit_service import PageLimitService as _RealPLS
+
+    mock_page_limit_instance = MagicMock()
+    mock_page_limit_instance.get_page_usage = AsyncMock(return_value=(0, 999_999))
+    mock_page_limit_instance.update_page_usage = AsyncMock()
+
+    class _MockPageLimitService:
+        estimate_pages_from_metadata = staticmethod(
+            _RealPLS.estimate_pages_from_metadata
+        )
+
+        def __init__(self, session):
+            self.get_page_usage = mock_page_limit_instance.get_page_usage
+            self.update_page_usage = mock_page_limit_instance.update_page_usage
+
+    monkeypatch.setattr(_mod, "PageLimitService", _MockPageLimitService)
 
     return {
         "dropbox_client": mock_dropbox_client,

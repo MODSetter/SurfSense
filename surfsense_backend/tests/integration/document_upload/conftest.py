@@ -319,31 +319,23 @@ def _mock_etl_parsing(monkeypatch):
 
     # -- LlamaParse mock (external API) --------------------------------
 
-    class _FakeMarkdownDoc:
-        def __init__(self, text: str):
-            self.text = text
-
-    class _FakeLlamaParseResult:
-        async def aget_markdown_documents(self, *, split_by_page=False):
-            return [_FakeMarkdownDoc(_MOCK_ETL_MARKDOWN)]
-
-    async def _fake_llamacloud_parse(**kwargs):
-        _reject_empty(kwargs["file_path"])
-        return _FakeLlamaParseResult()
+    async def _fake_llamacloud_parse(file_path: str, estimated_pages: int) -> str:
+        _reject_empty(file_path)
+        return _MOCK_ETL_MARKDOWN
 
     monkeypatch.setattr(
-        "app.tasks.document_processors.file_processors.parse_with_llamacloud_retry",
+        "app.etl_pipeline.parsers.llamacloud.parse_with_llamacloud",
         _fake_llamacloud_parse,
     )
 
     # -- Docling mock (heavy library boundary) -------------------------
 
-    async def _fake_docling_parse(file_path: str, filename: str):
+    async def _fake_docling_parse(file_path: str, filename: str) -> str:
         _reject_empty(file_path)
         return _MOCK_ETL_MARKDOWN
 
     monkeypatch.setattr(
-        "app.tasks.document_processors.file_processors.parse_with_docling",
+        "app.etl_pipeline.parsers.docling.parse_with_docling",
         _fake_docling_parse,
     )
 

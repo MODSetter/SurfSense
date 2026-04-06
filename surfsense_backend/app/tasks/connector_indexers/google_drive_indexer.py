@@ -25,7 +25,10 @@ from app.connectors.google_drive import (
     get_files_in_folder,
     get_start_page_token,
 )
-from app.connectors.google_drive.file_types import should_skip_file as skip_mime
+from app.connectors.google_drive.file_types import (
+    should_skip_by_extension,
+    should_skip_file as skip_mime,
+)
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.document_hashing import compute_identifier_hash
@@ -78,6 +81,8 @@ async def _should_skip_file(
 
     if skip_mime(mime_type):
         return True, "folder/shortcut"
+    if should_skip_by_extension(file_name):
+        return True, "unsupported extension"
     if not file_id:
         return True, "missing file_id"
 
