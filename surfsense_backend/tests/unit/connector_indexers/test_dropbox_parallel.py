@@ -345,7 +345,7 @@ async def test_full_scan_three_phase_counts(full_scan_mocks, monkeypatch):
 
     full_scan_mocks["download_and_index_mock"].return_value = (2, 0)
 
-    indexed, skipped = await _run_full_scan(
+    indexed, skipped, _unsupported = await _run_full_scan(
         full_scan_mocks, monkeypatch, page_files
     )
 
@@ -444,7 +444,7 @@ async def test_selected_files_single_file_indexed(selected_files_mocks):
     )
     selected_files_mocks["download_and_index_mock"].return_value = (1, 0)
 
-    indexed, skipped, errors = await _run_selected(
+    indexed, skipped, _unsupported, errors = await _run_selected(
         selected_files_mocks,
         [("/report.pdf", "report.pdf")],
     )
@@ -466,7 +466,7 @@ async def test_selected_files_fetch_failure_isolation(selected_files_mocks):
     )
     selected_files_mocks["download_and_index_mock"].return_value = (2, 0)
 
-    indexed, skipped, errors = await _run_selected(
+    indexed, skipped, _unsupported, errors = await _run_selected(
         selected_files_mocks,
         [("/first.txt", "first.txt"), ("/mid.txt", "mid.txt"), ("/third.txt", "third.txt")],
     )
@@ -496,7 +496,7 @@ async def test_selected_files_skip_rename_counting(selected_files_mocks):
     )
     selected_files_mocks["download_and_index_mock"].return_value = (2, 0)
 
-    indexed, skipped, errors = await _run_selected(
+    indexed, skipped, _unsupported, errors = await _run_selected(
         selected_files_mocks,
         [
             ("/unchanged.txt", "unchanged.txt"),
@@ -715,10 +715,10 @@ def orchestrator_mocks(monkeypatch):
 
     monkeypatch.setattr(_mod, "update_connector_last_indexed", AsyncMock())
 
-    full_scan_mock = AsyncMock(return_value=(5, 2))
+    full_scan_mock = AsyncMock(return_value=(5, 2, 0))
     monkeypatch.setattr(_mod, "_index_full_scan", full_scan_mock)
 
-    delta_sync_mock = AsyncMock(return_value=(3, 1, "delta-cursor-new"))
+    delta_sync_mock = AsyncMock(return_value=(3, 1, 0, "delta-cursor-new"))
     monkeypatch.setattr(_mod, "_index_with_delta_sync", delta_sync_mock)
 
     mock_client = MagicMock()
@@ -751,7 +751,7 @@ async def test_orchestrator_uses_delta_sync_when_cursor_and_last_indexed(
     mock_session = AsyncMock()
     mock_session.commit = AsyncMock()
 
-    indexed, skipped, error = await index_dropbox_files(
+    indexed, skipped, error, _unsupported = await index_dropbox_files(
         mock_session,
         _CONNECTOR_ID,
         _SEARCH_SPACE_ID,
@@ -779,7 +779,7 @@ async def test_orchestrator_falls_back_to_full_scan_without_cursor(
     mock_session = AsyncMock()
     mock_session.commit = AsyncMock()
 
-    indexed, skipped, error = await index_dropbox_files(
+    indexed, skipped, error, _unsupported = await index_dropbox_files(
         mock_session,
         _CONNECTOR_ID,
         _SEARCH_SPACE_ID,
