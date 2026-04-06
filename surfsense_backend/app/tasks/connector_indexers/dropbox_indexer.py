@@ -51,7 +51,10 @@ async def _should_skip_file(
     file_id = file.get("id", "")
     file_name = file.get("name", "Unknown")
 
-    if skip_item(file):
+    skip, unsup_ext = skip_item(file)
+    if skip:
+        if unsup_ext:
+            return True, f"unsupported:{unsup_ext}"
         return True, "folder/non-downloadable"
     if not file_id:
         return True, "missing file_id"
@@ -287,7 +290,7 @@ async def _index_with_delta_sync(
     max_files: int,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
     enable_summary: bool = True,
-) -> tuple[int, int, str]:
+) -> tuple[int, int, int, str]:
     """Delta sync using Dropbox cursor-based change tracking.
 
     Returns (indexed_count, skipped_count, new_cursor).
@@ -309,12 +312,13 @@ async def _index_with_delta_sync(
 
     if not entries:
         logger.info("No changes detected since last sync")
-        return 0, 0, new_cursor or cursor
+        return 0, 0, 0, new_cursor or cursor
 
     logger.info(f"Processing {len(entries)} change entries")
 
     renamed_count = 0
     skipped = 0
+    unsupported_count = 0
     files_to_download: list[dict] = []
     files_processed = 0
 
@@ -339,7 +343,9 @@ async def _index_with_delta_sync(
 
         skip, msg = await _should_skip_file(session, entry, search_space_id)
         if skip:
-            if msg and "renamed" in msg.lower():
+            if msg and msg.startswith("unsupported:"):
+                unsupported_count += 1
+            elif msg and "renamed" in msg.lower():
                 renamed_count += 1
             else:
                 skipped += 1
@@ -360,9 +366,10 @@ async def _index_with_delta_sync(
 
     indexed = renamed_count + batch_indexed
     logger.info(
-        f"Delta sync complete: {indexed} indexed, {skipped} skipped, {failed} failed"
+        f"Delta sync complete: {indexed} indexed, {skipped} skipped, "
+        f"{unsupported_count} unsupported, {failed} failed"
     )
-    return indexed, skipped, new_cursor or cursor
+    return indexed, skipped, unsupported_count, new_cursor or cursor
 
 
 async def _index_full_scan(
@@ -380,8 +387,11 @@ async def _index_full_scan(
     incremental_sync: bool = True,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
     enable_summary: bool = True,
-) -> tuple[int, int]:
-    """Full scan indexing of a folder."""
+) -> tuple[int, int, int]:
+    """Full scan indexing of a folder.
+
+    Returns (indexed, skipped, unsupported_count).
+    """
     await task_logger.log_task_progress(
         log_entry,
         f"Starting full scan of folder: {folder_name}",
@@ -401,6 +411,7 @@ async def _index_full_scan(
 
     renamed_count = 0
     skipped = 0
+    unsupported_count = 0
     files_to_download: list[dict] = []
 
     all_files, error = await get_files_in_folder(
@@ -420,14 +431,21 @@ async def _index_full_scan(
         if incremental_sync:
             skip, msg = await _should_skip_file(session, file, search_space_id)
             if skip:
-                if msg and "renamed" in msg.lower():
+                if msg and msg.startswith("unsupported:"):
+                    unsupported_count += 1
+                elif msg and "renamed" in msg.lower():
                     renamed_count += 1
                 else:
                     skipped += 1
                 continue
-        elif skip_item(file):
-            skipped += 1
-            continue
+        else:
+            item_skip, item_unsup = skip_item(file)
+            if item_skip:
+                if item_unsup:
+                    unsupported_count += 1
+                else:
+                    skipped += 1
+                continue
 
         file_pages = PageLimitService.estimate_pages_from_metadata(
             file.get("name", ""), file.get("size")
@@ -466,9 +484,10 @@ async def _index_full_scan(
 
     indexed = renamed_count + batch_indexed
     logger.info(
-        f"Full scan complete: {indexed} indexed, {skipped} skipped, {failed} failed"
+        f"Full scan complete: {indexed} indexed, {skipped} skipped, "
+        f"{unsupported_count} unsupported, {failed} failed"
     )
-    return indexed, skipped
+    return indexed, skipped, unsupported_count
 
 
 async def _index_selected_files(
@@ -493,6 +512,7 @@ async def _index_selected_files(
     errors: list[str] = []
     renamed_count = 0
     skipped = 0
+    unsupported_count = 0
 
     for file_path, file_name in file_paths:
         file, error = await get_file_by_path(dropbox_client, file_path)
@@ -504,14 +524,21 @@ async def _index_selected_files(
         if incremental_sync:
             skip, msg = await _should_skip_file(session, file, search_space_id)
             if skip:
-                if msg and "renamed" in msg.lower():
+                if msg and msg.startswith("unsupported:"):
+                    unsupported_count += 1
+                elif msg and "renamed" in msg.lower():
                     renamed_count += 1
                 else:
                     skipped += 1
                 continue
-        elif skip_item(file):
-            skipped += 1
-            continue
+        else:
+            item_skip, item_unsup = skip_item(file)
+            if item_skip:
+                if item_unsup:
+                    unsupported_count += 1
+                else:
+                    skipped += 1
+                continue
 
         file_pages = PageLimitService.estimate_pages_from_metadata(
             file.get("name", ""), file.get("size")
@@ -543,7 +570,7 @@ async def _index_selected_files(
             user_id, pages_to_deduct, allow_exceed=True
         )
 
-    return renamed_count + batch_indexed, skipped, errors
+    return renamed_count + batch_indexed, skipped, unsupported_count, errors
 
 
 async def index_dropbox_files(
@@ -552,7 +579,7 @@ async def index_dropbox_files(
     search_space_id: int,
     user_id: str,
     items_dict: dict,
-) -> tuple[int, int, str | None]:
+) -> tuple[int, int, str | None, int]:
     """Index Dropbox files for a specific connector.
 
     items_dict format:
@@ -583,7 +610,7 @@ async def index_dropbox_files(
             await task_logger.log_task_failure(
                 log_entry, error_msg, None, {"error_type": "ConnectorNotFound"}
             )
-            return 0, 0, error_msg
+            return 0, 0, error_msg, 0
 
         token_encrypted = connector.config.get("_token_encrypted", False)
         if token_encrypted and not config.SECRET_KEY:
@@ -594,7 +621,7 @@ async def index_dropbox_files(
                 "Missing SECRET_KEY",
                 {"error_type": "MissingSecretKey"},
             )
-            return 0, 0, error_msg
+            return 0, 0, error_msg, 0
 
         connector_enable_summary = getattr(connector, "enable_summary", True)
         dropbox_client = DropboxClient(session, connector_id)
@@ -609,6 +636,7 @@ async def index_dropbox_files(
 
         total_indexed = 0
         total_skipped = 0
+        total_unsupported = 0
 
         selected_files = items_dict.get("files", [])
         if selected_files:
@@ -616,7 +644,7 @@ async def index_dropbox_files(
                 (f.get("path", f.get("path_lower", f.get("id", ""))), f.get("name"))
                 for f in selected_files
             ]
-            indexed, skipped, file_errors = await _index_selected_files(
+            indexed, skipped, unsupported, file_errors = await _index_selected_files(
                 dropbox_client,
                 session,
                 file_tuples,
@@ -628,6 +656,7 @@ async def index_dropbox_files(
             )
             total_indexed += indexed
             total_skipped += skipped
+            total_unsupported += unsupported
             if file_errors:
                 logger.warning(
                     f"File indexing errors for connector {connector_id}: {file_errors}"
@@ -649,7 +678,7 @@ async def index_dropbox_files(
 
             if can_use_delta:
                 logger.info(f"Using delta sync for folder {folder_name}")
-                indexed, skipped, new_cursor = await _index_with_delta_sync(
+                indexed, skipped, unsup, new_cursor = await _index_with_delta_sync(
                     dropbox_client,
                     session,
                     connector_id,
@@ -662,9 +691,10 @@ async def index_dropbox_files(
                     enable_summary=connector_enable_summary,
                 )
                 folder_cursors[folder_path] = new_cursor
+                total_unsupported += unsup
             else:
                 logger.info(f"Using full scan for folder {folder_name}")
-                indexed, skipped = await _index_full_scan(
+                indexed, skipped, unsup = await _index_full_scan(
                     dropbox_client,
                     session,
                     connector_id,
@@ -679,6 +709,7 @@ async def index_dropbox_files(
                     incremental_sync=incremental_sync,
                     enable_summary=connector_enable_summary,
                 )
+                total_unsupported += unsup
 
             total_indexed += indexed
             total_skipped += skipped
@@ -708,12 +739,14 @@ async def index_dropbox_files(
         await task_logger.log_task_success(
             log_entry,
             f"Successfully completed Dropbox indexing for connector {connector_id}",
-            {"files_processed": total_indexed, "files_skipped": total_skipped},
+            {"files_processed": total_indexed, "files_skipped": total_skipped, "files_unsupported": total_unsupported},
         )
         logger.info(
-            f"Dropbox indexing completed: {total_indexed} indexed, {total_skipped} skipped"
+            f"Dropbox indexing completed: {total_indexed} indexed, "
+            f"{total_skipped} skipped, {total_unsupported} unsupported"
         )
-        return total_indexed, total_skipped, None
+
+        return total_indexed, total_skipped, None, total_unsupported
 
     except SQLAlchemyError as db_error:
         await session.rollback()
@@ -724,7 +757,7 @@ async def index_dropbox_files(
             {"error_type": "SQLAlchemyError"},
         )
         logger.error(f"Database error: {db_error!s}", exc_info=True)
-        return 0, 0, f"Database error: {db_error!s}"
+        return 0, 0, f"Database error: {db_error!s}", 0
     except Exception as e:
         await session.rollback()
         await task_logger.log_task_failure(
@@ -734,4 +767,4 @@ async def index_dropbox_files(
             {"error_type": type(e).__name__},
         )
         logger.error(f"Failed to index Dropbox files: {e!s}", exc_info=True)
-        return 0, 0, f"Failed to index Dropbox files: {e!s}"
+        return 0, 0, f"Failed to index Dropbox files: {e!s}", 0

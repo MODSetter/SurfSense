@@ -265,7 +265,10 @@ def full_scan_mocks(mock_dropbox_client, monkeypatch):
 
     async def _fake_skip(session, file, search_space_id):
         from app.connectors.dropbox.file_types import should_skip_file as _skip
-        if _skip(file):
+        item_skip, unsup_ext = _skip(file)
+        if item_skip:
+            if unsup_ext:
+                return True, f"unsupported:{unsup_ext}"
             return True, "folder/non-downloadable"
         return skip_results.get(file.get("id", ""), (False, None))
 
@@ -541,7 +544,7 @@ async def test_delta_sync_deletions_call_remove_document(monkeypatch):
     mock_task_logger = MagicMock()
     mock_task_logger.log_task_progress = AsyncMock()
 
-    indexed, skipped, cursor = await _index_with_delta_sync(
+    indexed, skipped, unsupported, cursor = await _index_with_delta_sync(
         mock_client,
         AsyncMock(),
         _CONNECTOR_ID,
@@ -578,7 +581,7 @@ async def test_delta_sync_upserts_filtered_and_downloaded(monkeypatch):
     mock_task_logger = MagicMock()
     mock_task_logger.log_task_progress = AsyncMock()
 
-    indexed, skipped, cursor = await _index_with_delta_sync(
+    indexed, skipped, unsupported, cursor = await _index_with_delta_sync(
         mock_client,
         AsyncMock(),
         _CONNECTOR_ID,
@@ -628,7 +631,7 @@ async def test_delta_sync_mix_deletions_and_upserts(monkeypatch):
     mock_task_logger = MagicMock()
     mock_task_logger.log_task_progress = AsyncMock()
 
-    indexed, skipped, cursor = await _index_with_delta_sync(
+    indexed, skipped, unsupported, cursor = await _index_with_delta_sync(
         mock_client,
         AsyncMock(),
         _CONNECTOR_ID,
@@ -662,7 +665,7 @@ async def test_delta_sync_returns_new_cursor(monkeypatch):
     mock_task_logger = MagicMock()
     mock_task_logger.log_task_progress = AsyncMock()
 
-    indexed, skipped, cursor = await _index_with_delta_sync(
+    indexed, skipped, unsupported, cursor = await _index_with_delta_sync(
         mock_client,
         AsyncMock(),
         _CONNECTOR_ID,

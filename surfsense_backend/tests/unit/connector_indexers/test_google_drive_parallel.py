@@ -497,7 +497,7 @@ async def test_delta_sync_removals_serial_rest_parallel(monkeypatch):
     mock_task_logger = MagicMock()
     mock_task_logger.log_task_progress = AsyncMock()
 
-    indexed, skipped = await _index_with_delta_sync(
+    indexed, skipped, unsupported = await _index_with_delta_sync(
         MagicMock(),
         mock_session,
         MagicMock(),

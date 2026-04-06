@@ -81,8 +81,9 @@ async def _should_skip_file(
 
     if skip_mime(mime_type):
         return True, "folder/shortcut"
-    if should_skip_by_extension(file_name):
-        return True, "unsupported extension"
+    ext_skip, unsup_ext = should_skip_by_extension(file_name)
+    if ext_skip:
+        return True, f"unsupported:{unsup_ext}"
     if not file_id:
         return True, "missing file_id"
 
@@ -490,6 +491,7 @@ async def _index_selected_files(
     errors: list[str] = []
     renamed_count = 0
     skipped = 0
+    unsupported_count = 0
 
     for file_id, file_name in file_ids:
         file, error = await get_file_by_id(drive_client, file_id)
@@ -500,7 +502,9 @@ async def _index_selected_files(
 
         skip, msg = await _should_skip_file(session, file, search_space_id)
         if skip:
-            if msg and "renamed" in msg.lower():
+            if msg and msg.startswith("unsupported:"):
+                unsupported_count += 1
+            elif msg and "renamed" in msg.lower():
                 renamed_count += 1
             else:
                 skipped += 1
@@ -544,7 +548,7 @@ async def _index_selected_files(
             user_id, pages_to_deduct, allow_exceed=True
         )
 
-    return renamed_count + batch_indexed, skipped, errors
+    return renamed_count + batch_indexed, skipped, unsupported_count, errors
 
 
 # ---------------------------------------------------------------------------
@@ -567,8 +571,11 @@ async def _index_full_scan(
     include_subfolders: bool = False,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
     enable_summary: bool = True,
-) -> tuple[int, int]:
-    """Full scan indexing of a folder."""
+) -> tuple[int, int, int]:
+    """Full scan indexing of a folder.
+
+    Returns (indexed, skipped, unsupported_count).
+    """
     await task_logger.log_task_progress(
         log_entry,
         f"Starting full scan of folder: {folder_name} (include_subfolders={include_subfolders})",
@@ -590,6 +597,7 @@ async def _index_full_scan(
 
     renamed_count = 0
     skipped = 0
+    unsupported_count = 0
     files_processed = 0
     files_to_download: list[dict] = []
     folders_to_process = [(folder_id, folder_name)]
@@ -630,7 +638,9 @@ async def _index_full_scan(
 
                 skip, msg = await _should_skip_file(session, file, search_space_id)
                 if skip:
-                    if msg and "renamed" in msg.lower():
+                    if msg and msg.startswith("unsupported:"):
+                        unsupported_count += 1
+                    elif msg and "renamed" in msg.lower():
                         renamed_count += 1
                     else:
                         skipped += 1
@@ -703,9 +713,10 @@ async def _index_full_scan(
 
     indexed = renamed_count + batch_indexed
     logger.info(
-        f"Full scan complete: {indexed} indexed, {skipped} skipped, {failed} failed"
+        f"Full scan complete: {indexed} indexed, {skipped} skipped, "
+        f"{unsupported_count} unsupported, {failed} failed"
     )
-    return indexed, skipped
+    return indexed, skipped, unsupported_count
 
 
 async def _index_with_delta_sync(
@@ -723,8 +734,11 @@ async def _index_with_delta_sync(
     include_subfolders: bool = False,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
     enable_summary: bool = True,
-) -> tuple[int, int]:
-    """Delta sync using change tracking."""
+) -> tuple[int, int, int]:
+    """Delta sync using change tracking.
+
+    Returns (indexed, skipped, unsupported_count).
+    """
     await task_logger.log_task_progress(
         log_entry,
         f"Starting delta sync from token: {start_page_token[:20]}...",
@@ -759,6 +773,7 @@ async def _index_with_delta_sync(
 
     renamed_count = 0
     skipped = 0
+    unsupported_count = 0
     files_to_download: list[dict] = []
     files_processed = 0
 
@@ -780,7 +795,9 @@ async def _index_with_delta_sync(
 
         skip, msg = await _should_skip_file(session, file, search_space_id)
         if skip:
-            if msg and "renamed" in msg.lower():
+            if msg and msg.startswith("unsupported:"):
+                unsupported_count += 1
+            elif msg and "renamed" in msg.lower():
                 renamed_count += 1
             else:
                 skipped += 1
@@ -837,9 +854,10 @@ async def _index_with_delta_sync(
 
     indexed = renamed_count + batch_indexed
     logger.info(
-        f"Delta sync complete: {indexed} indexed, {skipped} skipped, {failed} failed"
+        f"Delta sync complete: {indexed} indexed, {skipped} skipped, "
+        f"{unsupported_count} unsupported, {failed} failed"
     )
-    return indexed, skipped
+    return indexed, skipped, unsupported_count
 
 
 # ---------------------------------------------------------------------------
@@ -859,8 +877,11 @@ async def index_google_drive_files(
     max_files: int = 500,
     include_subfolders: bool = False,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
-) -> tuple[int, int, str | None]:
-    """Index Google Drive files for a specific connector."""
+) -> tuple[int, int, str | None, int]:
+    """Index Google Drive files for a specific connector.
+
+    Returns (indexed, skipped, error_or_none, unsupported_count).
+    """
     task_logger = TaskLoggingService(session, search_space_id)
     log_entry = await task_logger.log_task_start(
         task_name="google_drive_files_indexing",
@@ -886,7 +907,7 @@ async def index_google_drive_files(
             await task_logger.log_task_failure(
                 log_entry, error_msg, None, {"error_type": "ConnectorNotFound"}
             )
-            return 0, 0, error_msg
+            return 0, 0, error_msg, 0
 
         await task_logger.log_task_progress(
             log_entry,
@@ -905,7 +926,7 @@ async def index_google_drive_files(
                     "Missing Composio account",
                     {"error_type": "MissingComposioAccount"},
                 )
-                return 0, 0, error_msg
+                return 0, 0, error_msg, 0
             pre_built_credentials = build_composio_credentials(connected_account_id)
         else:
             token_encrypted = connector.config.get("_token_encrypted", False)
@@ -920,6 +941,7 @@ async def index_google_drive_files(
                     0,
                     0,
                     "SECRET_KEY not configured but credentials are marked as encrypted",
+                    0,
                 )
 
         connector_enable_summary = getattr(connector, "enable_summary", True)
@@ -932,7 +954,7 @@ async def index_google_drive_files(
             await task_logger.log_task_failure(
                 log_entry, error_msg, {"error_type": "MissingParameter"}
             )
-            return 0, 0, error_msg
+            return 0, 0, error_msg, 0
 
         target_folder_id = folder_id
         target_folder_name = folder_name or "Selected Folder"
@@ -943,9 +965,11 @@ async def index_google_drive_files(
             use_delta_sync and start_page_token and connector.last_indexed_at
         )
 
+        documents_unsupported = 0
+
         if can_use_delta:
             logger.info(f"Using delta sync for connector {connector_id}")
-            documents_indexed, documents_skipped = await _index_with_delta_sync(
+            documents_indexed, documents_skipped, du = await _index_with_delta_sync(
                 drive_client,
                 session,
                 connector,
@@ -961,8 +985,9 @@ async def index_google_drive_files(
                 on_heartbeat_callback,
                 connector_enable_summary,
             )
+            documents_unsupported += du
             logger.info("Running reconciliation scan after delta sync")
-            ri, rs = await _index_full_scan(
+            ri, rs, ru = await _index_full_scan(
                 drive_client,
                 session,
                 connector,
@@ -980,9 +1005,10 @@ async def index_google_drive_files(
             )
             documents_indexed += ri
             documents_skipped += rs
+            documents_unsupported += ru
         else:
             logger.info(f"Using full scan for connector {connector_id}")
-            documents_indexed, documents_skipped = await _index_full_scan(
+            documents_indexed, documents_skipped, documents_unsupported = await _index_full_scan(
                 drive_client,
                 session,
                 connector,
@@ -1017,14 +1043,17 @@ async def index_google_drive_files(
             {
                 "files_processed": documents_indexed,
                 "files_skipped": documents_skipped,
+                "files_unsupported": documents_unsupported,
                 "sync_type": "delta" if can_use_delta else "full",
                 "folder": target_folder_name,
             },
         )
         logger.info(
-            f"Google Drive indexing completed: {documents_indexed} indexed, {documents_skipped} skipped"
+            f"Google Drive indexing completed: {documents_indexed} indexed, "
+            f"{documents_skipped} skipped, {documents_unsupported} unsupported"
         )
-        return documents_indexed, documents_skipped, None
+
+        return documents_indexed, documents_skipped, None, documents_unsupported
 
     except SQLAlchemyError as db_error:
         await session.rollback()
@@ -1035,7 +1064,7 @@ async def index_google_drive_files(
             {"error_type": "SQLAlchemyError"},
         )
         logger.error(f"Database error: {db_error!s}", exc_info=True)
-        return 0, 0, f"Database error: {db_error!s}"
+        return 0, 0, f"Database error: {db_error!s}", 0
     except Exception as e:
         await session.rollback()
         await task_logger.log_task_failure(
@@ -1045,7 +1074,7 @@ async def index_google_drive_files(
             {"error_type": type(e).__name__},
         )
         logger.error(f"Failed to index Google Drive files: {e!s}", exc_info=True)
-        return 0, 0, f"Failed to index Google Drive files: {e!s}"
+        return 0, 0, f"Failed to index Google Drive files: {e!s}", 0
 
 
 async def index_google_drive_single_file(
@@ -1247,7 +1276,7 @@ async def index_google_drive_selected_files(
             session, connector_id, credentials=pre_built_credentials
         )
 
-        indexed, skipped, errors = await _index_selected_files(
+        indexed, skipped, unsupported, errors = await _index_selected_files(
             drive_client,
             session,
             files,
@@ -1258,6 +1287,11 @@ async def index_google_drive_selected_files(
             on_heartbeat=on_heartbeat_callback,
         )
 
+        if unsupported > 0:
+            file_text = "file was" if unsupported == 1 else "files were"
+            unsup_msg = f"{unsupported} {file_text} not supported"
+            errors.append(unsup_msg)
+
         await session.commit()
 
         if errors:
@@ -1265,7 +1299,7 @@ async def index_google_drive_selected_files(
                 log_entry,
                 f"Batch file indexing completed with {len(errors)} error(s)",
                 "; ".join(errors),
-                {"indexed": indexed, "skipped": skipped, "error_count": len(errors)},
+                {"indexed": indexed, "skipped": skipped, "unsupported": unsupported, "error_count": len(errors)},
             )
         else:
             await task_logger.log_task_success(

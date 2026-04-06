@@ -14,17 +14,23 @@ pytestmark = pytest.mark.unit
 
 def test_folder_item_is_skipped():
     item = {".tag": "folder", "name": "My Folder"}
-    assert should_skip_file(item) is True
+    skip, ext = should_skip_file(item)
+    assert skip is True
+    assert ext is None
 
 
 def test_paper_file_is_not_skipped():
     item = {".tag": "file", "name": "notes.paper", "is_downloadable": False}
-    assert should_skip_file(item) is False
+    skip, ext = should_skip_file(item)
+    assert skip is False
+    assert ext is None
 
 
 def test_non_downloadable_item_is_skipped():
     item = {".tag": "file", "name": "locked.gdoc", "is_downloadable": False}
-    assert should_skip_file(item) is True
+    skip, ext = should_skip_file(item)
+    assert skip is True
+    assert ext is None
 
 
 # ---------------------------------------------------------------------------
@@ -49,7 +55,9 @@ def test_non_downloadable_item_is_skipped():
 def test_non_parseable_extensions_are_skipped(filename, mocker):
     mocker.patch("app.config.config.ETL_SERVICE", "DOCLING")
     item = {".tag": "file", "name": filename}
-    assert should_skip_file(item) is True, f"{filename} should be skipped"
+    skip, ext = should_skip_file(item)
+    assert skip is True, f"{filename} should be skipped"
+    assert ext is not None
 
 
 @pytest.mark.parametrize(
@@ -65,9 +73,9 @@ def test_parseable_documents_are_not_skipped(filename, mocker):
     for service in ("DOCLING", "LLAMACLOUD", "UNSTRUCTURED"):
         mocker.patch("app.config.config.ETL_SERVICE", service)
         item = {".tag": "file", "name": filename}
-        assert should_skip_file(item) is False, (
-            f"{filename} should NOT be skipped with {service}"
-        )
+        skip, ext = should_skip_file(item)
+        assert skip is False, f"{filename} should NOT be skipped with {service}"
+        assert ext is None
 
 
 @pytest.mark.parametrize(
@@ -79,9 +87,9 @@ def test_universal_images_are_not_skipped(filename, mocker):
     for service in ("DOCLING", "LLAMACLOUD", "UNSTRUCTURED"):
         mocker.patch("app.config.config.ETL_SERVICE", service)
         item = {".tag": "file", "name": filename}
-        assert should_skip_file(item) is False, (
-            f"{filename} should NOT be skipped with {service}"
-        )
+        skip, ext = should_skip_file(item)
+        assert skip is False, f"{filename} should NOT be skipped with {service}"
+        assert ext is None
 
 
 @pytest.mark.parametrize("filename,service,expected_skip", [
@@ -111,6 +119,20 @@ def test_universal_images_are_not_skipped(filename, mocker):
 def test_parser_specific_extensions(filename, service, expected_skip, mocker):
     mocker.patch("app.config.config.ETL_SERVICE", service)
     item = {".tag": "file", "name": filename}
-    assert should_skip_file(item) is expected_skip, (
+    skip, ext = should_skip_file(item)
+    assert skip is expected_skip, (
         f"{filename} with {service}: expected skip={expected_skip}"
     )
+    if expected_skip:
+        assert ext is not None
+    else:
+        assert ext is None
+
+
+def test_returns_unsupported_extension(mocker):
+    """When a file is skipped due to unsupported extension, the ext string is returned."""
+    mocker.patch("app.config.config.ETL_SERVICE", "DOCLING")
+    item = {".tag": "file", "name": "old.doc"}
+    skip, ext = should_skip_file(item)
+    assert skip is True
+    assert ext == ".doc"

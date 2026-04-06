@@ -40,18 +40,28 @@ def is_folder(item: dict) -> bool:
     return ONEDRIVE_FOLDER_FACET in item
 
 
-def should_skip_file(item: dict) -> bool:
-    """Skip folders, OneNote files, remote items (shared links), packages, and unsupported extensions."""
+def should_skip_file(item: dict) -> tuple[bool, str | None]:
+    """Skip folders, OneNote files, remote items, packages, and unsupported extensions.
+
+    Returns (should_skip, unsupported_extension_or_None).
+    The second element is only set when the skip is due to an unsupported extension.
+    """
     if is_folder(item):
-        return True
+        return True, None
     if "remoteItem" in item:
-        return True
+        return True, None
     if "package" in item:
-        return True
+        return True, None
     mime = item.get("file", {}).get("mimeType", "")
     if mime in SKIP_MIME_TYPES:
-        return True
+        return True, None
+
+    from pathlib import PurePosixPath
+
     from app.config import config as app_config
 
     name = item.get("name", "")
-    return should_skip_for_service(name, app_config.ETL_SERVICE)
+    if should_skip_for_service(name, app_config.ETL_SERVICE):
+        ext = PurePosixPath(name).suffix.lower()
+        return True, ext
+    return False, None

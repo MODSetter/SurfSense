@@ -384,7 +384,7 @@ async def test_gdrive_full_scan_skips_over_quota(gdrive_full_scan_mocks, monkeyp
     m["download_mock"].return_value = ([], 0)
     m["batch_mock"].return_value = ([], 2, 0)
 
-    _indexed, skipped = await _run_gdrive_full_scan(m)
+    _indexed, skipped, _unsup = await _run_gdrive_full_scan(m)
 
     call_files = m["download_mock"].call_args[0][1]
     assert len(call_files) == 2
@@ -459,7 +459,7 @@ async def test_gdrive_delta_sync_skips_over_quota(monkeypatch):
     mock_task_logger = MagicMock()
     mock_task_logger.log_task_progress = AsyncMock()
 
-    _indexed, skipped = await _mod._index_with_delta_sync(
+    _indexed, skipped, _unsupported = await _mod._index_with_delta_sync(
         MagicMock(),
         session,
         MagicMock(),

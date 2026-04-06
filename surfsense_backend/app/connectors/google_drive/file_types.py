@@ -48,11 +48,19 @@ def should_skip_file(mime_type: str) -> bool:
     return mime_type in [GOOGLE_FOLDER, GOOGLE_SHORTCUT]
 
 
-def should_skip_by_extension(filename: str) -> bool:
-    """Return True if the file extension is not parseable by the configured ETL service."""
+def should_skip_by_extension(filename: str) -> tuple[bool, str | None]:
+    """Check if the file extension is not parseable by the configured ETL service.
+
+    Returns (should_skip, unsupported_extension_or_None).
+    """
+    from pathlib import PurePosixPath
+
     from app.config import config as app_config
 
-    return should_skip_for_service(filename, app_config.ETL_SERVICE)
+    if should_skip_for_service(filename, app_config.ETL_SERVICE):
+        ext = PurePosixPath(filename).suffix.lower()
+        return True, ext
+    return False, None
 
 
 def get_export_mime_type(mime_type: str) -> str | None:

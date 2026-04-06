@@ -42,18 +42,25 @@ def is_paper_file(item: dict) -> bool:
     return ext == PAPER_EXTENSION
 
 
-def should_skip_file(item: dict) -> bool:
+def should_skip_file(item: dict) -> tuple[bool, str | None]:
     """Skip folders and truly non-indexable files.
 
     Paper docs are non-downloadable but exportable, so they are NOT skipped.
+    Returns (should_skip, unsupported_extension_or_None).
     """
     if is_folder(item):
-        return True
+        return True, None
     if is_paper_file(item):
-        return False
+        return False, None
     if not item.get("is_downloadable", True):
-        return True
+        return True, None
+
+    from pathlib import PurePosixPath
+
     from app.config import config as app_config
 
     name = item.get("name", "")
-    return should_skip_for_service(name, app_config.ETL_SERVICE)
+    if should_skip_for_service(name, app_config.ETL_SERVICE):
+        ext = PurePosixPath(name).suffix.lower()
+        return True, ext
+    return False, None
