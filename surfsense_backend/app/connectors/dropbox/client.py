@@ -225,6 +225,55 @@ class DropboxClient:
 
         return all_items, None
 
+    async def get_latest_cursor(
+        self, path: str = ""
+    ) -> tuple[str | None, str | None]:
+        """Get a cursor representing the current state of a folder.
+
+        Uses /2/files/list_folder/get_latest_cursor so we can later call
+        get_changes to receive only incremental updates.
+        """
+        resp = await self._request(
+            "/2/files/list_folder/get_latest_cursor",
+            {"path": path, "recursive": False, "include_non_downloadable_files": True},
+        )
+        if resp.status_code != 200:
+            return None, f"Failed to get cursor: {resp.status_code} - {resp.text}"
+        return resp.json().get("cursor"), None
+
+    async def get_changes(
+        self, cursor: str
+    ) -> tuple[list[dict[str, Any]], str | None, str | None]:
+        """Fetch incremental changes since the given cursor.
+
+        Calls /2/files/list_folder/continue and handles pagination.
+        Returns (entries, new_cursor, error).
+        """
+        all_entries: list[dict[str, Any]] = []
+
+        resp = await self._request(
+            "/2/files/list_folder/continue", {"cursor": cursor}
+        )
+        if resp.status_code == 401:
+            return [], None, "Dropbox authentication expired (401)"
+        if resp.status_code != 200:
+            return [], None, f"Failed to get changes: {resp.status_code} - {resp.text}"
+
+        data = resp.json()
+        all_entries.extend(data.get("entries", []))
+
+        while data.get("has_more"):
+            cursor = data["cursor"]
+            resp = await self._request(
+                "/2/files/list_folder/continue", {"cursor": cursor}
+            )
+            if resp.status_code != 200:
+                return all_entries, data.get("cursor"), f"Pagination failed: {resp.status_code}"
+            data = resp.json()
+            all_entries.extend(data.get("entries", []))
+
+        return all_entries, data.get("cursor"), None
+
     async def get_metadata(self, path: str) -> tuple[dict[str, Any] | None, str | None]:
         resp = await self._request("/2/files/get_metadata", {"path": path})
         if resp.status_code != 200:

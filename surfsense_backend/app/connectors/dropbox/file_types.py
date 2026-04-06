@@ -2,7 +2,24 @@
 
 PAPER_EXTENSION = ".paper"
 
-SKIP_EXTENSIONS: frozenset[str] = frozenset()
+SKIP_EXTENSIONS: frozenset[str] = frozenset({
+    # Non-universal images (not supported by all 3 ETL pipelines)
+    ".svg", ".gif", ".webp", ".heic", ".ico",
+    ".raw", ".cr2", ".nef", ".arw", ".dng",
+    ".psd", ".ai", ".sketch", ".fig",
+    # Video
+    ".mov", ".avi", ".mkv", ".wmv", ".flv",
+    # Binaries / executables
+    ".exe", ".dll", ".so", ".dylib", ".bin", ".app", ".dmg", ".iso",
+    # Archives
+    ".zip", ".tar", ".gz", ".rar", ".7z", ".bz2",
+    # Fonts
+    ".ttf", ".otf", ".woff", ".woff2",
+    # 3D / CAD
+    ".stl", ".obj", ".fbx", ".blend",
+    # Database
+    ".db", ".sqlite", ".mdb",
+})
 
 MIME_TO_EXTENSION: dict[str, str] = {
     "application/pdf": ".pdf",

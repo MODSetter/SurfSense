@@ -250,6 +250,124 @@ async def _download_and_index(
     return batch_indexed, download_failed + batch_failed
 
 
+async def _remove_document(
+    session: AsyncSession, file_id: str, search_space_id: int
+):
+    """Remove a document that was deleted in Dropbox."""
+    primary_hash = compute_identifier_hash(
+        DocumentType.DROPBOX_FILE.value, file_id, search_space_id
+    )
+    existing = await check_document_by_unique_identifier(session, primary_hash)
+
+    if not existing:
+        result = await session.execute(
+            select(Document).where(
+                Document.search_space_id == search_space_id,
+                Document.document_type == DocumentType.DROPBOX_FILE,
+                cast(Document.document_metadata["dropbox_file_id"], String)
+                == file_id,
+            )
+        )
+        existing = result.scalar_one_or_none()
+
+    if existing:
+        await session.delete(existing)
+
+
+async def _index_with_delta_sync(
+    dropbox_client: DropboxClient,
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    cursor: str,
+    task_logger: TaskLoggingService,
+    log_entry: object,
+    max_files: int,
+    on_heartbeat_callback: HeartbeatCallbackType | None = None,
+    enable_summary: bool = True,
+) -> tuple[int, int, str]:
+    """Delta sync using Dropbox cursor-based change tracking.
+
+    Returns (indexed_count, skipped_count, new_cursor).
+    """
+    await task_logger.log_task_progress(
+        log_entry,
+        f"Starting delta sync from cursor: {cursor[:20]}...",
+        {"stage": "delta_sync", "cursor_prefix": cursor[:20]},
+    )
+
+    entries, new_cursor, error = await dropbox_client.get_changes(cursor)
+    if error:
+        err_lower = error.lower()
+        if "401" in error or "authentication expired" in err_lower:
+            raise Exception(
+                f"Dropbox authentication failed. Please re-authenticate. (Error: {error})"
+            )
+        raise Exception(f"Failed to fetch Dropbox changes: {error}")
+
+    if not entries:
+        logger.info("No changes detected since last sync")
+        return 0, 0, new_cursor or cursor
+
+    logger.info(f"Processing {len(entries)} change entries")
+
+    renamed_count = 0
+    skipped = 0
+    files_to_download: list[dict] = []
+    files_processed = 0
+
+    for entry in entries:
+        if files_processed >= max_files:
+            break
+        files_processed += 1
+
+        tag = entry.get(".tag")
+
+        if tag == "deleted":
+            path_lower = entry.get("path_lower", "")
+            name = entry.get("name", "")
+            file_id = entry.get("id", "")
+            if file_id:
+                await _remove_document(session, file_id, search_space_id)
+            logger.debug(f"Processed deletion: {name or path_lower}")
+            continue
+
+        if tag != "file":
+            continue
+
+        if skip_item(entry):
+            skipped += 1
+            continue
+
+        skip, msg = await _should_skip_file(session, entry, search_space_id)
+        if skip:
+            if msg and "renamed" in msg.lower():
+                renamed_count += 1
+            else:
+                skipped += 1
+            continue
+
+        files_to_download.append(entry)
+
+    batch_indexed, failed = await _download_and_index(
+        dropbox_client,
+        session,
+        files_to_download,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        enable_summary=enable_summary,
+        on_heartbeat=on_heartbeat_callback,
+    )
+
+    indexed = renamed_count + batch_indexed
+    logger.info(
+        f"Delta sync complete: {indexed} indexed, {skipped} skipped, {failed} failed"
+    )
+    return indexed, skipped, new_cursor or cursor
+
+
 async def _index_full_scan(
     dropbox_client: DropboxClient,
     session: AsyncSession,
@@ -437,6 +555,9 @@ async def index_dropbox_files(
         max_files = indexing_options.get("max_files", 500)
         incremental_sync = indexing_options.get("incremental_sync", True)
         include_subfolders = indexing_options.get("include_subfolders", True)
+        use_delta_sync = indexing_options.get("use_delta_sync", True)
+
+        folder_cursors: dict = connector.config.get("folder_cursors", {})
 
         total_indexed = 0
         total_skipped = 0
@@ -471,24 +592,65 @@ async def index_dropbox_files(
             )
             folder_name = folder.get("name", "Root")
 
-            logger.info(f"Using full scan for folder {folder_name}")
-            indexed, skipped = await _index_full_scan(
-                dropbox_client,
-                session,
-                connector_id,
-                search_space_id,
-                user_id,
-                folder_path,
-                folder_name,
-                task_logger,
-                log_entry,
-                max_files,
-                include_subfolders,
-                incremental_sync=incremental_sync,
-                enable_summary=connector_enable_summary,
+            saved_cursor = folder_cursors.get(folder_path)
+            can_use_delta = (
+                use_delta_sync
+                and saved_cursor
+                and connector.last_indexed_at
             )
+
+            if can_use_delta:
+                logger.info(f"Using delta sync for folder {folder_name}")
+                indexed, skipped, new_cursor = await _index_with_delta_sync(
+                    dropbox_client,
+                    session,
+                    connector_id,
+                    search_space_id,
+                    user_id,
+                    saved_cursor,
+                    task_logger,
+                    log_entry,
+                    max_files,
+                    enable_summary=connector_enable_summary,
+                )
+                folder_cursors[folder_path] = new_cursor
+            else:
+                logger.info(f"Using full scan for folder {folder_name}")
+                indexed, skipped = await _index_full_scan(
+                    dropbox_client,
+                    session,
+                    connector_id,
+                    search_space_id,
+                    user_id,
+                    folder_path,
+                    folder_name,
+                    task_logger,
+                    log_entry,
+                    max_files,
+                    include_subfolders,
+                    incremental_sync=incremental_sync,
+                    enable_summary=connector_enable_summary,
+                )
+
             total_indexed += indexed
             total_skipped += skipped
+
+            # Persist latest cursor for this folder
+            try:
+                latest_cursor, cursor_err = await dropbox_client.get_latest_cursor(
+                    folder_path
+                )
+                if latest_cursor and not cursor_err:
+                    folder_cursors[folder_path] = latest_cursor
+            except Exception as e:
+                logger.warning(f"Failed to get latest cursor for {folder_path}: {e}")
+
+        # Persist folder cursors to connector config
+        if folders:
+            cfg = dict(connector.config)
+            cfg["folder_cursors"] = folder_cursors
+            connector.config = cfg
+            flag_modified(connector, "config")
 
         if total_indexed > 0 or folders:
             await update_connector_last_indexed(session, connector, True)
