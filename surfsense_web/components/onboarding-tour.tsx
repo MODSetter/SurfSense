@@ -429,6 +429,7 @@ export function OnboardingTour() {
 	const pathname = usePathname();
 	const retryCountRef = useRef(0);
 	const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const startCheckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const maxRetries = 10;
 	// Track previous user ID to detect user changes
 	const previousUserIdRef = useRef<string | null>(null);
@@ -439,8 +440,8 @@ export function OnboardingTour() {
 
 	// Fetch threads data
 	const { data: threadsData } = useQuery({
-		queryKey: ["threads", searchSpaceId, { limit: 1 }],
-		queryFn: () => fetchThreads(Number(searchSpaceId), 1), // Only need to check if any exist
+		queryKey: ["threads", searchSpaceId, { limit: 40 }], // Same key as layout
+		queryFn: () => fetchThreads(Number(searchSpaceId), 40),
 		enabled: !!searchSpaceId,
 	});
 
@@ -460,6 +461,7 @@ export function OnboardingTour() {
 
 	// Find and track target element with retry logic
 	const updateTarget = useCallback(() => {
+		if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
 		if (!currentStep) return;
 
 		const el = document.querySelector(currentStep.target);
@@ -480,11 +482,13 @@ export function OnboardingTour() {
 				}
 			}, 200);
 		}
+	}, [currentStep]);
 
+	useEffect(() => {
 		return () => {
 			if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
 		};
-	}, [currentStep]);
+	}, []);
 
 	// Check if tour should run: localStorage + data validation with user ID tracking
 	useEffect(() => {
@@ -573,15 +577,15 @@ export function OnboardingTour() {
 				setPosition(calculatePosition(connectorEl, TOUR_STEPS[0].placement));
 			} else {
 				// Retry after delay
-				setTimeout(checkAndStartTour, 200);
+				startCheckTimerRef.current = setTimeout(checkAndStartTour, 200);
 			}
 		};
 
 		// Start checking after initial delay
-		const timer = setTimeout(checkAndStartTour, 500);
+		startCheckTimerRef.current = setTimeout(checkAndStartTour, 500);
 		return () => {
 			cancelled = true;
-			clearTimeout(timer);
+			if (startCheckTimerRef.current) clearTimeout(startCheckTimerRef.current);
 		};
 	}, [mounted, user?.id, searchSpaceId, pathname, threadsData, documentTypeCounts, connectors]);
 
@@ -598,11 +602,11 @@ export function OnboardingTour() {
 		};
 
 		window.addEventListener("resize", handleUpdate);
-		window.addEventListener("scroll", handleUpdate, true);
+		window.addEventListener("scroll", handleUpdate, { capture: true, passive: true });
 
 		return () => {
 			window.removeEventListener("resize", handleUpdate);
-			window.removeEventListener("scroll", handleUpdate, true);
+			window.removeEventListener("scroll", handleUpdate, { capture: true });
 		};
 	}, [isActive, targetEl, currentStep?.placement]);
 

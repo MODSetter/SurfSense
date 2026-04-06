@@ -79,6 +79,7 @@ def _compute_final_pages(
     actual = page_limit_service.estimate_pages_from_content_length(content_length)
     return max(estimated_pages, actual)
 
+
 DEFAULT_EXCLUDE_PATTERNS = [
     ".git",
     "node_modules",

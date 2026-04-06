@@ -1,6 +1,12 @@
 import { app, ipcMain, shell } from 'electron';
 import { IPC_CHANNELS } from './channels';
 import {
+  getPermissionsStatus,
+  requestAccessibility,
+  requestScreenRecording,
+  restartApp,
+} from '../modules/permissions';
+import {
   selectFolder,
   addWatchedFolder,
   removeWatchedFolder,
@@ -29,6 +35,22 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.GET_APP_VERSION, () => {
     return app.getVersion();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.GET_PERMISSIONS_STATUS, () => {
+    return getPermissionsStatus();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.REQUEST_ACCESSIBILITY, () => {
+    requestAccessibility();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.REQUEST_SCREEN_RECORDING, () => {
+    requestScreenRecording();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.RESTART_APP, () => {
+    restartApp();
   });
 
   // Folder sync handlers

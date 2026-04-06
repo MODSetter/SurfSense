@@ -182,6 +182,9 @@ class LLMPreferencesRead(BaseModel):
     image_generation_config_id: int | None = Field(
         None, description="ID of the image generation config to use"
     )
+    vision_llm_id: int | None = Field(
+        None, description="ID of the LLM config to use for vision/screenshot analysis"
+    )
     agent_llm: dict[str, Any] | None = Field(
         None, description="Full config for agent LLM"
     )
@@ -190,6 +193,9 @@ class LLMPreferencesRead(BaseModel):
     )
     image_generation_config: dict[str, Any] | None = Field(
         None, description="Full config for image generation"
+    )
+    vision_llm: dict[str, Any] | None = Field(
+        None, description="Full config for vision LLM"
     )
 
     model_config = ConfigDict(from_attributes=True)
@@ -206,4 +212,7 @@ class LLMPreferencesUpdate(BaseModel):
     )
     image_generation_config_id: int | None = Field(
         None, description="ID of the image generation config to use"
+    )
+    vision_llm_id: int | None = Field(
+        None, description="ID of the LLM config to use for vision/screenshot analysis"
     )

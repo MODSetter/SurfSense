@@ -28,6 +28,7 @@ from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.document_hashing import compute_identifier_hash
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
 from app.services.llm_service import get_user_long_context_llm
+from app.services.page_limit_service import PageLimitService
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.connector_indexers.base import (
     check_document_by_unique_identifier,
@@ -396,6 +397,12 @@ async def _index_full_scan(
         },
     )
 
+    page_limit_service = PageLimitService(session)
+    pages_used, pages_limit = await page_limit_service.get_page_usage(user_id)
+    remaining_quota = pages_limit - pages_used
+    batch_estimated_pages = 0
+    page_limit_reached = False
+
     renamed_count = 0
     skipped = 0
     files_to_download: list[dict] = []
@@ -425,6 +432,21 @@ async def _index_full_scan(
         elif skip_item(file):
             skipped += 1
             continue
+
+        file_pages = PageLimitService.estimate_pages_from_metadata(
+            file.get("name", ""), file.get("size")
+        )
+        if batch_estimated_pages + file_pages > remaining_quota:
+            if not page_limit_reached:
+                logger.warning(
+                    "Page limit reached during Dropbox full scan, "
+                    "skipping remaining files"
+                )
+                page_limit_reached = True
+            skipped += 1
+            continue
+
+        batch_estimated_pages += file_pages
         files_to_download.append(file)
 
     batch_indexed, failed = await _download_and_index(
@@ -437,6 +459,14 @@ async def _index_full_scan(
         enable_summary=enable_summary,
         on_heartbeat=on_heartbeat_callback,
     )
+
+    if batch_indexed > 0 and files_to_download and batch_estimated_pages > 0:
+        pages_to_deduct = max(
+            1, batch_estimated_pages * batch_indexed // len(files_to_download)
+        )
+        await page_limit_service.update_page_usage(
+            user_id, pages_to_deduct, allow_exceed=True
+        )
 
     indexed = renamed_count + batch_indexed
     logger.info(
@@ -458,6 +488,11 @@ async def _index_selected_files(
     on_heartbeat: HeartbeatCallbackType | None = None,
 ) -> tuple[int, int, list[str]]:
     """Index user-selected files using the parallel pipeline."""
+    page_limit_service = PageLimitService(session)
+    pages_used, pages_limit = await page_limit_service.get_page_usage(user_id)
+    remaining_quota = pages_limit - pages_used
+    batch_estimated_pages = 0
+
     files_to_download: list[dict] = []
     errors: list[str] = []
     renamed_count = 0
@@ -482,6 +517,15 @@ async def _index_selected_files(
             skipped += 1
             continue
 
+        file_pages = PageLimitService.estimate_pages_from_metadata(
+            file.get("name", ""), file.get("size")
+        )
+        if batch_estimated_pages + file_pages > remaining_quota:
+            display = file_name or file_path
+            errors.append(f"File '{display}': page limit would be exceeded")
+            continue
+
+        batch_estimated_pages += file_pages
         files_to_download.append(file)
 
     batch_indexed, _failed = await _download_and_index(
@@ -494,6 +538,14 @@ async def _index_selected_files(
         enable_summary=enable_summary,
         on_heartbeat=on_heartbeat,
     )
+
+    if batch_indexed > 0 and files_to_download and batch_estimated_pages > 0:
+        pages_to_deduct = max(
+            1, batch_estimated_pages * batch_indexed // len(files_to_download)
+        )
+        await page_limit_service.update_page_usage(
+            user_id, pages_to_deduct, allow_exceed=True
+        )
 
     return renamed_count + batch_indexed, skipped, errors
 

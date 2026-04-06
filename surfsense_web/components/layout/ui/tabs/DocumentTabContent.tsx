@@ -64,7 +64,7 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 	const isLargeDocument = (doc?.content_size_bytes ?? 0) > LARGE_DOCUMENT_THRESHOLD;
 
 	useEffect(() => {
-		let cancelled = false;
+		const controller = new AbortController();
 		setIsLoading(true);
 		setError(null);
 		setDoc(null);
@@ -73,7 +73,7 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 		initialLoadDone.current = false;
 		changeCountRef.current = 0;
 
-		const fetchContent = async () => {
+		const doFetch = async () => {
 			const token = getBearerToken();
 			if (!token) {
 				redirectToLogin();
@@ -88,7 +88,7 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 
 				const response = await authenticatedFetch(url.toString(), { method: "GET" });
 
-				if (cancelled) return;
+				if (controller.signal.aborted) return;
 
 				if (!response.ok) {
 					const errorData = await response
@@ -109,18 +109,16 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 				setDoc(data);
 				initialLoadDone.current = true;
 			} catch (err) {
-				if (cancelled) return;
+				if (controller.signal.aborted) return;
 				console.error("Error fetching document:", err);
 				setError(err instanceof Error ? err.message : "Failed to fetch document");
 			} finally {
-				if (!cancelled) setIsLoading(false);
+				if (!controller.signal.aborted) setIsLoading(false);
 			}
 		};
 
-		fetchContent();
-		return () => {
-			cancelled = true;
-		};
+		doFetch().catch(() => {});
+		return () => controller.abort();
 	}, [documentId, searchSpaceId]);
 
 	const handleMarkdownChange = useCallback((md: string) => {

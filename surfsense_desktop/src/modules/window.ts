@@ -12,7 +12,7 @@ export function getMainWindow(): BrowserWindow | null {
   return mainWindow;
 }
 
-export function createMainWindow(): BrowserWindow {
+export function createMainWindow(initialPath = '/dashboard'): BrowserWindow {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -33,7 +33,7 @@ export function createMainWindow(): BrowserWindow {
     mainWindow?.show();
   });
 
-  mainWindow.loadURL(`http://localhost:${getServerPort()}/dashboard`);
+  mainWindow.loadURL(`http://localhost:${getServerPort()}${initialPath}`);
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('http://localhost')) {

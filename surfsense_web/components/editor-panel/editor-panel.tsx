@@ -79,7 +79,7 @@ export function EditorPanelContent({
 	const isLargeDocument = (editorDoc?.content_size_bytes ?? 0) > LARGE_DOCUMENT_THRESHOLD;
 
 	useEffect(() => {
-		let cancelled = false;
+		const controller = new AbortController();
 		setIsLoading(true);
 		setError(null);
 		setEditorDoc(null);
@@ -87,7 +87,7 @@ export function EditorPanelContent({
 		initialLoadDone.current = false;
 		changeCountRef.current = 0;
 
-		const fetchContent = async () => {
+		const doFetch = async () => {
 			const token = getBearerToken();
 			if (!token) {
 				redirectToLogin();
@@ -102,7 +102,7 @@ export function EditorPanelContent({
 
 				const response = await authenticatedFetch(url.toString(), { method: "GET" });
 
-				if (cancelled) return;
+				if (controller.signal.aborted) return;
 
 				if (!response.ok) {
 					const errorData = await response
@@ -126,18 +126,16 @@ export function EditorPanelContent({
 				setEditorDoc(data);
 				initialLoadDone.current = true;
 			} catch (err) {
-				if (cancelled) return;
+				if (controller.signal.aborted) return;
 				console.error("Error fetching document:", err);
 				setError(err instanceof Error ? err.message : "Failed to fetch document");
 			} finally {
-				if (!cancelled) setIsLoading(false);
+				if (!controller.signal.aborted) setIsLoading(false);
 			}
 		};
 
-		fetchContent();
-		return () => {
-			cancelled = true;
-		};
+		doFetch().catch(() => {});
+		return () => controller.abort();
 	}, [documentId, searchSpaceId, title]);
 
 	const handleMarkdownChange = useCallback((md: string) => {
