@@ -501,7 +501,7 @@ async def _index_selected_files(
     enable_summary: bool,
     incremental_sync: bool = True,
     on_heartbeat: HeartbeatCallbackType | None = None,
-) -> tuple[int, int, list[str]]:
+) -> tuple[int, int, int, list[str]]:
     """Index user-selected files using the parallel pipeline."""
     page_limit_service = PageLimitService(session)
     pages_used, pages_limit = await page_limit_service.get_page_usage(user_id)
