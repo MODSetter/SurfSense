@@ -65,7 +65,7 @@ export function DocumentsFilters({
 		<div className="flex select-none">
 			<div className="flex items-center gap-2 w-full">
 				{/* Filter + New Folder Toggle Group */}
-				<ToggleGroup type="multiple" variant="outline" value={[]}>
+				<ToggleGroup type="multiple" variant="outline" value={[]} className="overflow-visible">
 					{onCreateFolder && (
 						<Tooltip>
 							<TooltipTrigger asChild>
@@ -90,11 +90,11 @@ export function DocumentsFilters({
 								<PopoverTrigger asChild>
 									<ToggleGroupItem
 										value="filter"
-										className="relative h-9 w-9 shrink-0 border-sidebar-border text-sidebar-foreground/60 hover:text-sidebar-foreground hover:border-sidebar-border bg-sidebar"
+										className="relative h-9 w-9 shrink-0 border-sidebar-border text-sidebar-foreground/60 hover:text-sidebar-foreground hover:border-sidebar-border bg-sidebar overflow-visible"
 									>
 										<ListFilter size={14} />
 										{activeTypes.length > 0 && (
-											<span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] font-medium text-primary-foreground">
+											<span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-sidebar-border text-[9px] font-medium text-sidebar-foreground">
 												{activeTypes.length}
 											</span>
 										)}
@@ -167,22 +167,6 @@ export function DocumentsFilters({
 										))
 									)}
 								</div>
-								{activeTypes.length > 0 && (
-									<div className="px-3 pt-1.5 pb-1.5 border-t border-border dark:border-neutral-700">
-										<Button
-											variant="ghost"
-											size="sm"
-											className="w-full h-7 text-[11px] text-muted-foreground hover:text-foreground hover:bg-neutral-200 dark:hover:bg-neutral-700"
-											onClick={() => {
-												activeTypes.forEach((t) => {
-													onToggleType(t, false);
-												});
-											}}
-										>
-											Clear filters
-										</Button>
-									</div>
-								)}
 							</div>
 						</PopoverContent>
 					</Popover>

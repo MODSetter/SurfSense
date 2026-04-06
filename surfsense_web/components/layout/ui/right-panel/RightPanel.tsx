@@ -84,7 +84,7 @@ export function RightPanelExpandButton() {
 						variant="ghost"
 						size="icon"
 						onClick={() => startTransition(() => setCollapsed(false))}
-						className="h-7 w-7 shrink-0"
+						className="h-8 w-8 shrink-0 -m-0.5"
 					>
 						<PanelRight className="h-4 w-4" />
 						<span className="sr-only">Expand panel</span>

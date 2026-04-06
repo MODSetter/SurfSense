@@ -96,14 +96,21 @@ export function FolderTreeView({
 	);
 	const handleCancelRename = useCallback(() => setRenamingFolderId(null), [setRenamingFolderId]);
 
+	const effectiveActiveTypes = useMemo(() => {
+		if (activeTypes.includes("FILE" as DocumentTypeEnum) && !activeTypes.includes("LOCAL_FOLDER_FILE" as DocumentTypeEnum)) {
+			return [...activeTypes, "LOCAL_FOLDER_FILE" as DocumentTypeEnum];
+		}
+		return activeTypes;
+	}, [activeTypes]);
+
 	const hasDescendantMatch = useMemo(() => {
-		if (activeTypes.length === 0 && !searchQuery) return null;
+		if (effectiveActiveTypes.length === 0 && !searchQuery) return null;
 		const match: Record<number, boolean> = {};
 
 		function check(folderId: number): boolean {
 			if (match[folderId] !== undefined) return match[folderId];
 			const childDocs = (docsByFolder[folderId] ?? []).some(
-				(d) => activeTypes.length === 0 || activeTypes.includes(d.document_type as DocumentTypeEnum)
+				(d) => effectiveActiveTypes.length === 0 || effectiveActiveTypes.includes(d.document_type as DocumentTypeEnum)
 			);
 			if (childDocs) {
 				match[folderId] = true;
@@ -124,7 +131,7 @@ export function FolderTreeView({
 			check(f.id);
 		}
 		return match;
-	}, [folders, docsByFolder, foldersByParent, activeTypes, searchQuery]);
+	}, [folders, docsByFolder, foldersByParent, effectiveActiveTypes, searchQuery]);
 
 	const folderSelectionStates = useMemo(() => {
 		const states: Record<number, FolderSelectionState> = {};
@@ -194,7 +201,7 @@ export function FolderTreeView({
 			? childFolders.filter((f) => hasDescendantMatch[f.id])
 			: childFolders;
 		const childDocs = (docsByFolder[key] ?? []).filter(
-			(d) => activeTypes.length === 0 || activeTypes.includes(d.document_type as DocumentTypeEnum)
+			(d) => effectiveActiveTypes.length === 0 || effectiveActiveTypes.includes(d.document_type as DocumentTypeEnum)
 		);
 
 		const nodes: React.ReactNode[] = [];
@@ -278,7 +285,7 @@ export function FolderTreeView({
 		);
 	}
 
-	if (treeNodes.length === 0 && (activeTypes.length > 0 || searchQuery)) {
+	if (treeNodes.length === 0 && (effectiveActiveTypes.length > 0 || searchQuery)) {
 		return (
 			<div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 py-12 text-muted-foreground">
 				<Search className="h-10 w-10" />
