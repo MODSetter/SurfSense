@@ -1,5 +1,7 @@
 """File type handlers for Microsoft OneDrive."""
 
+from app.etl_pipeline.file_classifier import FileCategory, classify_file
+
 ONEDRIVE_FOLDER_FACET = "folder"
 ONENOTE_MIME = "application/msonenote"
 
@@ -39,7 +41,7 @@ def is_folder(item: dict) -> bool:
 
 
 def should_skip_file(item: dict) -> bool:
-    """Skip folders, OneNote files, remote items (shared links), and packages."""
+    """Skip folders, OneNote files, remote items (shared links), packages, and unsupported extensions."""
     if is_folder(item):
         return True
     if "remoteItem" in item:
@@ -47,4 +49,7 @@ def should_skip_file(item: dict) -> bool:
     if "package" in item:
         return True
     mime = item.get("file", {}).get("mimeType", "")
-    return mime in SKIP_MIME_TYPES
+    if mime in SKIP_MIME_TYPES:
+        return True
+    name = item.get("name", "")
+    return classify_file(name) == FileCategory.UNSUPPORTED

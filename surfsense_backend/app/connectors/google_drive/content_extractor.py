@@ -17,6 +17,7 @@ from .file_types import (
     get_export_mime_type,
     get_extension_from_mime,
     is_google_workspace_file,
+    should_skip_by_extension,
     should_skip_file,
 )
 
@@ -41,6 +42,9 @@ async def download_and_extract_content(
 
     if should_skip_file(mime_type):
         return None, {}, f"Skipping {mime_type}"
+
+    if should_skip_by_extension(file_name):
+        return None, {}, f"Skipping unsupported extension: {file_name}"
 
     logger.info(f"Downloading file for content extraction: {file_name} ({mime_type})")
 
@@ -148,9 +152,11 @@ async def download_and_process_file(
     file_name = file.get("name", "Unknown")
     mime_type = file.get("mimeType", "")
 
-    # Skip folders and shortcuts
     if should_skip_file(mime_type):
         return None, f"Skipping {mime_type}", None
+
+    if should_skip_by_extension(file_name):
+        return None, f"Skipping unsupported extension: {file_name}", None
 
     logger.info(f"Downloading file: {file_name} ({mime_type})")
 

@@ -1,6 +1,6 @@
 from app.config import config as app_config
 from app.etl_pipeline.etl_document import EtlRequest, EtlResult
-from app.etl_pipeline.exceptions import EtlServiceUnavailableError
+from app.etl_pipeline.exceptions import EtlServiceUnavailableError, EtlUnsupportedFileError
 from app.etl_pipeline.file_classifier import FileCategory, classify_file
 from app.etl_pipeline.parsers.audio import transcribe_audio
 from app.etl_pipeline.parsers.direct_convert import convert_file_directly
@@ -12,6 +12,11 @@ class EtlPipelineService:
 
     async def extract(self, request: EtlRequest) -> EtlResult:
         category = classify_file(request.filename)
+
+        if category == FileCategory.UNSUPPORTED:
+            raise EtlUnsupportedFileError(
+                f"File type not supported for parsing: {request.filename}"
+            )
 
         if category == FileCategory.PLAINTEXT:
             content = read_plaintext(request.file_path)

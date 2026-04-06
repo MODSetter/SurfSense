@@ -1,5 +1,7 @@
 """File type handlers for Google Drive."""
 
+from app.etl_pipeline.file_classifier import FileCategory, classify_file
+
 GOOGLE_DOC = "application/vnd.google-apps.document"
 GOOGLE_SHEET = "application/vnd.google-apps.spreadsheet"
 GOOGLE_SLIDE = "application/vnd.google-apps.presentation"
@@ -44,6 +46,11 @@ def is_google_workspace_file(mime_type: str) -> bool:
 def should_skip_file(mime_type: str) -> bool:
     """Check if file should be skipped (folders, shortcuts, etc)."""
     return mime_type in [GOOGLE_FOLDER, GOOGLE_SHORTCUT]
+
+
+def should_skip_by_extension(filename: str) -> bool:
+    """Return True if the file extension is not parseable by any ETL pipeline."""
+    return classify_file(filename) == FileCategory.UNSUPPORTED
 
 
 def get_export_mime_type(mime_type: str) -> str | None:

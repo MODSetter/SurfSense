@@ -356,6 +356,7 @@ async def _extract_file_content(
             FileCategory.PLAINTEXT: "Reading file",
             FileCategory.DIRECT_CONVERT: "Converting file",
             FileCategory.AUDIO: "Transcribing audio",
+            FileCategory.UNSUPPORTED: "Unsupported file type",
             FileCategory.DOCUMENT: "Extracting content",
         }
         await NotificationService.document_processing.notify_processing_progress(

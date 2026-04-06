@@ -1,6 +1,7 @@
 from enum import Enum
 from pathlib import PurePosixPath
 
+from app.utils.file_extensions import DOCUMENT_EXTENSIONS
 
 PLAINTEXT_EXTENSIONS = frozenset(
     {
@@ -35,6 +36,7 @@ class FileCategory(Enum):
     PLAINTEXT = "plaintext"
     AUDIO = "audio"
     DIRECT_CONVERT = "direct_convert"
+    UNSUPPORTED = "unsupported"
     DOCUMENT = "document"
 
 
@@ -46,4 +48,6 @@ def classify_file(filename: str) -> FileCategory:
         return FileCategory.AUDIO
     if suffix in DIRECT_CONVERT_EXTENSIONS:
         return FileCategory.DIRECT_CONVERT
-    return FileCategory.DOCUMENT
+    if suffix in DOCUMENT_EXTENSIONS:
+        return FileCategory.DOCUMENT
+    return FileCategory.UNSUPPORTED

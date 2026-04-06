@@ -257,7 +257,7 @@ async def test_extract_pdf_with_llamacloud(tmp_path, mocker):
 
 
 async def test_unknown_extension_uses_document_etl(tmp_path, mocker):
-    """An unknown extension (e.g. .docx) falls through to the document ETL path."""
+    """An allowlisted document extension (.docx) routes to the document ETL path."""
     docx_file = tmp_path / "doc.docx"
     docx_file.write_bytes(b"PK fake docx")
 
@@ -306,4 +306,74 @@ async def test_unknown_etl_service_raises(tmp_path, mocker):
     with pytest.raises(EtlServiceUnavailableError, match="Unknown ETL_SERVICE"):
         await EtlPipelineService().extract(
             EtlRequest(file_path=str(pdf_file), filename="report.pdf")
+        )
+
+
+# ---------------------------------------------------------------------------
+# Slice 13 – unsupported file types are rejected before reaching any parser
+# ---------------------------------------------------------------------------
+
+
+def test_unknown_extension_classified_as_unsupported():
+    """An unknown extension defaults to UNSUPPORTED (allowlist behaviour)."""
+    from app.etl_pipeline.file_classifier import FileCategory, classify_file
+
+    assert classify_file("random.xyz") == FileCategory.UNSUPPORTED
+
+
+@pytest.mark.parametrize("filename", [
+    "malware.exe", "archive.zip", "video.mov", "font.woff2",
+    "model.blend", "data.parquet", "package.deb", "firmware.bin",
+])
+def test_unsupported_extensions_classified_correctly(filename):
+    """Extensions not in any allowlist are classified as UNSUPPORTED."""
+    from app.etl_pipeline.file_classifier import FileCategory, classify_file
+
+    assert classify_file(filename) == FileCategory.UNSUPPORTED
+
+
+@pytest.mark.parametrize("filename,expected", [
+    ("report.pdf", "document"),
+    ("doc.docx", "document"),
+    ("slides.pptx", "document"),
+    ("sheet.xlsx", "document"),
+    ("photo.png", "document"),
+    ("photo.jpg", "document"),
+    ("book.epub", "document"),
+    ("letter.odt", "document"),
+    ("readme.md", "plaintext"),
+    ("data.csv", "direct_convert"),
+])
+def test_parseable_extensions_classified_correctly(filename, expected):
+    """Parseable files are classified into their correct category."""
+    from app.etl_pipeline.file_classifier import FileCategory, classify_file
+
+    result = classify_file(filename)
+    assert result != FileCategory.UNSUPPORTED
+    assert result.value == expected
+
+
+async def test_extract_unsupported_file_raises_error(tmp_path):
+    """EtlPipelineService.extract() raises EtlUnsupportedFileError for .exe files."""
+    from app.etl_pipeline.exceptions import EtlUnsupportedFileError
+
+    exe_file = tmp_path / "program.exe"
+    exe_file.write_bytes(b"\x00" * 10)
+
+    with pytest.raises(EtlUnsupportedFileError, match="not supported"):
+        await EtlPipelineService().extract(
+            EtlRequest(file_path=str(exe_file), filename="program.exe")
+        )
+
+
+async def test_extract_zip_raises_unsupported_error(tmp_path):
+    """EtlPipelineService.extract() raises EtlUnsupportedFileError for .zip archives."""
+    from app.etl_pipeline.exceptions import EtlUnsupportedFileError
+
+    zip_file = tmp_path / "archive.zip"
+    zip_file.write_bytes(b"PK\x03\x04")
+
+    with pytest.raises(EtlUnsupportedFileError, match="not supported"):
+        await EtlPipelineService().extract(
+            EtlRequest(file_path=str(zip_file), filename="archive.zip")
         )
