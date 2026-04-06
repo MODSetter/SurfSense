@@ -24,7 +24,8 @@ async def download_and_extract_content(
     item_id = file.get("id")
     file_name = file.get("name", "Unknown")
 
-    if should_skip_file(file):
+    skip, _unsup_ext = should_skip_file(file)
+    if skip:
         return None, {}, "Skipping non-indexable item"
 
     file_info = file.get("file", {})

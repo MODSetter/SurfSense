@@ -43,7 +43,8 @@ async def download_and_extract_content(
     if should_skip_file(mime_type):
         return None, {}, f"Skipping {mime_type}"
 
-    if should_skip_by_extension(file_name):
+    ext_skip, _unsup_ext = should_skip_by_extension(file_name)
+    if ext_skip:
         return None, {}, f"Skipping unsupported extension: {file_name}"
 
     logger.info(f"Downloading file for content extraction: {file_name} ({mime_type})")
@@ -155,7 +156,8 @@ async def download_and_process_file(
     if should_skip_file(mime_type):
         return None, f"Skipping {mime_type}", None
 
-    if should_skip_by_extension(file_name):
+    ext_skip, _unsup_ext = should_skip_by_extension(file_name)
+    if ext_skip:
         return None, f"Skipping unsupported extension: {file_name}", None
 
     logger.info(f"Downloading file: {file_name} ({mime_type})")

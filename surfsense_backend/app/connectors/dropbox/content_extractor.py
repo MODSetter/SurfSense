@@ -53,7 +53,8 @@ async def download_and_extract_content(
     file_name = file.get("name", "Unknown")
     file_id = file.get("id", "")
 
-    if should_skip_file(file):
+    skip, _unsup_ext = should_skip_file(file)
+    if skip:
         return None, {}, "Skipping non-indexable item"
 
     logger.info(f"Downloading file for content extraction: {file_name}")
