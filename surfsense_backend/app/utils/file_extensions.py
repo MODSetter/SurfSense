@@ -14,7 +14,7 @@ DOCUMENT_EXTENSIONS: frozenset[str] = frozenset({
     ".pdf",
     # Microsoft Office
     ".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt",
-    # Images (raster -- OCR / vision parsing)
+    # Images (raster: OCR / vision parsing)
     ".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".tif",
     # Rich text / e-book
     ".rtf", ".epub",

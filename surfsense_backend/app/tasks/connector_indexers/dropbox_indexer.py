@@ -337,10 +337,6 @@ async def _index_with_delta_sync(
         if tag != "file":
             continue
 
-        if skip_item(entry):
-            skipped += 1
-            continue
-
         skip, msg = await _should_skip_file(session, entry, search_space_id)
         if skip:
             if msg and "renamed" in msg.lower():
