@@ -1,6 +1,6 @@
 """File type handlers for Dropbox."""
 
-from app.etl_pipeline.file_classifier import FileCategory, classify_file
+from app.etl_pipeline.file_classifier import should_skip_for_service
 
 PAPER_EXTENSION = ".paper"
 
@@ -53,5 +53,7 @@ def should_skip_file(item: dict) -> bool:
         return False
     if not item.get("is_downloadable", True):
         return True
+    from app.config import config as app_config
+
     name = item.get("name", "")
-    return classify_file(name) == FileCategory.UNSUPPORTED
+    return should_skip_for_service(name, app_config.ETL_SERVICE)

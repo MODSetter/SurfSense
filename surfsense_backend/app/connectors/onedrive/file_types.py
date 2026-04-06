@@ -1,6 +1,6 @@
 """File type handlers for Microsoft OneDrive."""
 
-from app.etl_pipeline.file_classifier import FileCategory, classify_file
+from app.etl_pipeline.file_classifier import should_skip_for_service
 
 ONEDRIVE_FOLDER_FACET = "folder"
 ONENOTE_MIME = "application/msonenote"
@@ -51,5 +51,7 @@ def should_skip_file(item: dict) -> bool:
     mime = item.get("file", {}).get("mimeType", "")
     if mime in SKIP_MIME_TYPES:
         return True
+    from app.config import config as app_config
+
     name = item.get("name", "")
-    return classify_file(name) == FileCategory.UNSUPPORTED
+    return should_skip_for_service(name, app_config.ETL_SERVICE)

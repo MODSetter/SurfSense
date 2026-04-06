@@ -377,3 +377,72 @@ async def test_extract_zip_raises_unsupported_error(tmp_path):
         await EtlPipelineService().extract(
             EtlRequest(file_path=str(zip_file), filename="archive.zip")
         )
+
+
+# ---------------------------------------------------------------------------
+# Slice 14 – should_skip_for_service (per-parser document filtering)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("filename,etl_service,expected_skip", [
+    ("file.eml", "DOCLING", True),
+    ("file.eml", "UNSTRUCTURED", False),
+    ("file.docm", "LLAMACLOUD", False),
+    ("file.docm", "DOCLING", True),
+    ("file.txt", "DOCLING", False),
+    ("file.csv", "LLAMACLOUD", False),
+    ("file.mp3", "UNSTRUCTURED", False),
+    ("file.exe", "LLAMACLOUD", True),
+    ("file.pdf", "DOCLING", False),
+    ("file.webp", "DOCLING", False),
+    ("file.webp", "UNSTRUCTURED", True),
+    ("file.gif", "LLAMACLOUD", False),
+    ("file.gif", "DOCLING", True),
+    ("file.heic", "UNSTRUCTURED", False),
+    ("file.heic", "DOCLING", True),
+    ("file.svg", "LLAMACLOUD", False),
+    ("file.svg", "DOCLING", True),
+    ("file.p7s", "UNSTRUCTURED", False),
+    ("file.p7s", "LLAMACLOUD", True),
+])
+def test_should_skip_for_service(filename, etl_service, expected_skip):
+    from app.etl_pipeline.file_classifier import should_skip_for_service
+
+    assert should_skip_for_service(filename, etl_service) is expected_skip, (
+        f"{filename} with {etl_service}: expected skip={expected_skip}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Slice 14b – ETL pipeline rejects per-parser incompatible documents
+# ---------------------------------------------------------------------------
+
+
+async def test_extract_docm_with_docling_raises_unsupported(tmp_path, mocker):
+    """Docling cannot parse .docm -- pipeline should reject before dispatching."""
+    from app.etl_pipeline.exceptions import EtlUnsupportedFileError
+
+    mocker.patch("app.config.config.ETL_SERVICE", "DOCLING")
+
+    docm_file = tmp_path / "macro.docm"
+    docm_file.write_bytes(b"\x00" * 10)
+
+    with pytest.raises(EtlUnsupportedFileError, match="not supported by DOCLING"):
+        await EtlPipelineService().extract(
+            EtlRequest(file_path=str(docm_file), filename="macro.docm")
+        )
+
+
+async def test_extract_eml_with_docling_raises_unsupported(tmp_path, mocker):
+    """Docling cannot parse .eml -- pipeline should reject before dispatching."""
+    from app.etl_pipeline.exceptions import EtlUnsupportedFileError
+
+    mocker.patch("app.config.config.ETL_SERVICE", "DOCLING")
+
+    eml_file = tmp_path / "mail.eml"
+    eml_file.write_bytes(b"From: test@example.com")
+
+    with pytest.raises(EtlUnsupportedFileError, match="not supported by DOCLING"):
+        await EtlPipelineService().extract(
+            EtlRequest(file_path=str(eml_file), filename="mail.eml")
+        )

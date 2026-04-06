@@ -1,6 +1,6 @@
 """File type handlers for Google Drive."""
 
-from app.etl_pipeline.file_classifier import FileCategory, classify_file
+from app.etl_pipeline.file_classifier import should_skip_for_service
 
 GOOGLE_DOC = "application/vnd.google-apps.document"
 GOOGLE_SHEET = "application/vnd.google-apps.spreadsheet"
@@ -49,8 +49,10 @@ def should_skip_file(mime_type: str) -> bool:
 
 
 def should_skip_by_extension(filename: str) -> bool:
-    """Return True if the file extension is not parseable by any ETL pipeline."""
-    return classify_file(filename) == FileCategory.UNSUPPORTED
+    """Return True if the file extension is not parseable by the configured ETL service."""
+    from app.config import config as app_config
+
+    return should_skip_for_service(filename, app_config.ETL_SERVICE)
 
 
 def get_export_mime_type(mime_type: str) -> str | None:

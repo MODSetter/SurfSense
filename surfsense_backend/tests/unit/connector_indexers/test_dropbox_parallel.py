@@ -261,6 +261,8 @@ def full_scan_mocks(mock_dropbox_client, monkeypatch):
 
     skip_results: dict[str, tuple[bool, str | None]] = {}
 
+    monkeypatch.setattr("app.config.config.ETL_SERVICE", "LLAMACLOUD")
+
     async def _fake_skip(session, file, search_space_id):
         from app.connectors.dropbox.file_types import should_skip_file as _skip
         if _skip(file):

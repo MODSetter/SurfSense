@@ -1,7 +1,7 @@
 from enum import Enum
 from pathlib import PurePosixPath
 
-from app.utils.file_extensions import DOCUMENT_EXTENSIONS
+from app.utils.file_extensions import DOCUMENT_EXTENSIONS, get_document_extensions_for_service
 
 PLAINTEXT_EXTENSIONS = frozenset(
     {
@@ -29,7 +29,7 @@ AUDIO_EXTENSIONS = frozenset(
     {".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm"}
 )
 
-DIRECT_CONVERT_EXTENSIONS = frozenset({".csv", ".tsv", ".html", ".htm"})
+DIRECT_CONVERT_EXTENSIONS = frozenset({".csv", ".tsv", ".html", ".htm", ".xhtml"})
 
 
 class FileCategory(Enum):
@@ -51,3 +51,18 @@ def classify_file(filename: str) -> FileCategory:
     if suffix in DOCUMENT_EXTENSIONS:
         return FileCategory.DOCUMENT
     return FileCategory.UNSUPPORTED
+
+
+def should_skip_for_service(filename: str, etl_service: str | None) -> bool:
+    """Return True if *filename* cannot be processed by *etl_service*.
+
+    Plaintext, audio, and direct-convert files are parser-agnostic and never
+    skipped.  Document files are checked against the per-parser extension set.
+    """
+    category = classify_file(filename)
+    if category == FileCategory.UNSUPPORTED:
+        return True
+    if category == FileCategory.DOCUMENT:
+        suffix = PurePosixPath(filename).suffix.lower()
+        return suffix not in get_document_extensions_for_service(etl_service)
+    return False

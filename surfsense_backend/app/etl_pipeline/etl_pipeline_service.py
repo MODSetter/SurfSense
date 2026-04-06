@@ -45,11 +45,22 @@ class EtlPipelineService:
         return await self._extract_document(request)
 
     async def _extract_document(self, request: EtlRequest) -> EtlResult:
+        from pathlib import PurePosixPath
+
+        from app.utils.file_extensions import get_document_extensions_for_service
+
         etl_service = app_config.ETL_SERVICE
         if not etl_service:
             raise EtlServiceUnavailableError(
                 "No ETL_SERVICE configured. "
                 "Set ETL_SERVICE to UNSTRUCTURED, LLAMACLOUD, or DOCLING in your .env"
+            )
+
+        ext = PurePosixPath(request.filename).suffix.lower()
+        supported = get_document_extensions_for_service(etl_service)
+        if ext not in supported:
+            raise EtlUnsupportedFileError(
+                f"File type {ext} is not supported by {etl_service}"
             )
 
         if etl_service == "DOCLING":
