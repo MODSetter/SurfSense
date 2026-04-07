@@ -275,7 +275,7 @@ async def create_autocomplete_agent(
 
 
 # ---------------------------------------------------------------------------
-# JSON suggestion parsing (robust fallback)
+# JSON suggestion parsing (with fallback)
 # ---------------------------------------------------------------------------
 
 
@@ -383,7 +383,6 @@ async def stream_autocomplete_agent(
             input_data, config=config, version="v2"
         ):
             event_type = event.get("event", "")
-
             if event_type == "on_chat_model_stream":
                 if active_tool_depth > 0:
                     continue
@@ -393,6 +392,17 @@ async def stream_autocomplete_agent(
                 if chunk and hasattr(chunk, "content"):
                     content = chunk.content
                     if content and isinstance(content, str):
+                        text_buffer.append(content)
+
+            elif event_type == "on_chat_model_end":
+                if active_tool_depth > 0:
+                    continue
+                if "surfsense:internal" in event.get("tags", []):
+                    continue
+                output = event.get("data", {}).get("output")
+                if output and hasattr(output, "content"):
+                    content = output.content
+                    if content and isinstance(content, str) and not text_buffer:
                         text_buffer.append(content)
 
             elif event_type == "on_tool_start":
