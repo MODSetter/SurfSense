@@ -111,9 +111,8 @@ class DoclingService:
                 pipeline_options=pipeline_options, backend=PyPdfiumDocumentBackend
             )
 
-            # Initialize DocumentConverter
             self.converter = DocumentConverter(
-                format_options={InputFormat.PDF: pdf_format_option}
+                format_options={InputFormat.PDF: pdf_format_option},
             )
 
             acceleration_type = "GPU (WSL2)" if self.use_gpu else "CPU"

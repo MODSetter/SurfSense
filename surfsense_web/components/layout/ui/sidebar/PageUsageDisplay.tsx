@@ -35,7 +35,7 @@ export function PageUsageDisplay({ pagesUsed, pagesLimit }: PageUsageDisplayProp
 				<Progress value={usagePercentage} className="h-1.5" />
 				<Link
 					href={`/dashboard/${searchSpaceId}/more-pages`}
-					className="group flex w-full items-center justify-between rounded-md px-1.5 py-1 -mx-1.5 transition-colors hover:bg-accent"
+					className="group flex w-[calc(100%+0.75rem)] items-center justify-between rounded-md px-1.5 py-1 -mx-1.5 transition-colors hover:bg-accent"
 				>
 					<span className="flex items-center gap-1.5 text-xs text-muted-foreground group-hover:text-accent-foreground">
 						<Zap className="h-3 w-3 shrink-0" />
@@ -48,7 +48,7 @@ export function PageUsageDisplay({ pagesUsed, pagesLimit }: PageUsageDisplayProp
 				{pageBuyingEnabled && (
 					<Link
 						href={`/dashboard/${searchSpaceId}/buy-pages`}
-						className="group flex w-full items-center justify-between rounded-md px-1.5 py-1 -mx-1.5 transition-colors hover:bg-accent"
+						className="group flex w-[calc(100%+0.75rem)] items-center justify-between rounded-md px-1.5 py-1 -mx-1.5 transition-colors hover:bg-accent"
 					>
 						<span className="flex items-center gap-1.5 text-xs text-muted-foreground group-hover:text-accent-foreground">
 							<CreditCard className="h-3 w-3 shrink-0" />

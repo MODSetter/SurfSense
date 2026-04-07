@@ -2477,6 +2477,8 @@ async def run_google_drive_indexing(
                 stage="fetching",
             )
 
+        total_unsupported = 0
+
         # Index each folder with indexing options
         for folder in items.folders:
             try:
@@ -2484,6 +2486,7 @@ async def run_google_drive_indexing(
                     indexed_count,
                     skipped_count,
                     error_message,
+                    unsupported_count,
                 ) = await index_google_drive_files(
                     session,
                     connector_id,
@@ -2497,6 +2500,7 @@ async def run_google_drive_indexing(
                     include_subfolders=indexing_options.include_subfolders,
                 )
                 total_skipped += skipped_count
+                total_unsupported += unsupported_count
                 if error_message:
                     errors.append(f"Folder '{folder.name}': {error_message}")
                 else:
@@ -2572,6 +2576,7 @@ async def run_google_drive_indexing(
                 indexed_count=total_indexed,
                 error_message=error_message,
                 skipped_count=total_skipped,
+                unsupported_count=total_unsupported,
             )
 
     except Exception as e:
@@ -2642,7 +2647,12 @@ async def run_onedrive_indexing(
                 stage="fetching",
             )
 
-        total_indexed, total_skipped, error_message = await index_onedrive_files(
+        (
+            total_indexed,
+            total_skipped,
+            error_message,
+            total_unsupported,
+        ) = await index_onedrive_files(
             session,
             connector_id,
             search_space_id,
@@ -2683,6 +2693,7 @@ async def run_onedrive_indexing(
                 indexed_count=total_indexed,
                 error_message=error_message,
                 skipped_count=total_skipped,
+                unsupported_count=total_unsupported,
             )
 
     except Exception as e:
@@ -2750,7 +2761,12 @@ async def run_dropbox_indexing(
                 stage="fetching",
             )
 
-        total_indexed, total_skipped, error_message = await index_dropbox_files(
+        (
+            total_indexed,
+            total_skipped,
+            error_message,
+            total_unsupported,
+        ) = await index_dropbox_files(
             session,
             connector_id,
             search_space_id,
@@ -2791,6 +2807,7 @@ async def run_dropbox_indexing(
                 indexed_count=total_indexed,
                 error_message=error_message,
                 skipped_count=total_skipped,
+                unsupported_count=total_unsupported,
             )
 
     except Exception as e:

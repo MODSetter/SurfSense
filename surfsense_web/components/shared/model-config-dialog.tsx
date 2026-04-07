@@ -312,7 +312,7 @@ export function ModelConfigDialog({
 							className="relative text-sm h-9 min-w-[120px]"
 						>
 							<span className={isSubmitting ? "opacity-0" : ""}>
-								{mode === "edit" ? "Save Changes" : "Create & Use"}
+								{mode === "edit" ? "Save Changes" : "Add Model"}
 							</span>
 							{isSubmitting && <Spinner size="sm" className="absolute" />}
 						</Button>

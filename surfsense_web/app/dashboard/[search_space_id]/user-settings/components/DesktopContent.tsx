@@ -9,7 +9,6 @@ import {
 } from "@/components/desktop/shortcut-recorder";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Spinner } from "@/components/ui/spinner";
 import { useElectronAPI } from "@/hooks/use-platform";
 
@@ -147,11 +146,7 @@ export function DesktopContent() {
 								Show suggestions while typing in other applications.
 							</p>
 						</div>
-						<Switch
-							id="autocomplete-toggle"
-							checked={enabled}
-							onCheckedChange={handleToggle}
-						/>
+						<Switch id="autocomplete-toggle" checked={enabled} onCheckedChange={handleToggle} />
 					</div>
 				</CardContent>
 			</Card>

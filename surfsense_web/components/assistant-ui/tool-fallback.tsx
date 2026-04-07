@@ -26,7 +26,8 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
 	);
 
 	const serializedResult = useMemo(
-		() => (result !== undefined && typeof result !== "string" ? JSON.stringify(result, null, 2) : null),
+		() =>
+			result !== undefined && typeof result !== "string" ? JSON.stringify(result, null, 2) : null,
 		[result]
 	);
 

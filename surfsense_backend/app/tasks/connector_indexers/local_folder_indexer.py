@@ -23,7 +23,6 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.db import (
     Document,
     DocumentStatus,
@@ -43,132 +42,6 @@ from .base import (
     check_document_by_unique_identifier,
     logger,
 )
-
-PLAINTEXT_EXTENSIONS = frozenset(
-    {
-        ".md",
-        ".markdown",
-        ".txt",
-        ".text",
-        ".json",
-        ".jsonl",
-        ".yaml",
-        ".yml",
-        ".toml",
-        ".ini",
-        ".cfg",
-        ".conf",
-        ".xml",
-        ".css",
-        ".scss",
-        ".less",
-        ".sass",
-        ".py",
-        ".pyw",
-        ".pyi",
-        ".pyx",
-        ".js",
-        ".jsx",
-        ".ts",
-        ".tsx",
-        ".mjs",
-        ".cjs",
-        ".java",
-        ".kt",
-        ".kts",
-        ".scala",
-        ".groovy",
-        ".c",
-        ".h",
-        ".cpp",
-        ".cxx",
-        ".cc",
-        ".hpp",
-        ".hxx",
-        ".cs",
-        ".fs",
-        ".fsx",
-        ".go",
-        ".rs",
-        ".rb",
-        ".php",
-        ".pl",
-        ".pm",
-        ".lua",
-        ".swift",
-        ".m",
-        ".mm",
-        ".r",
-        ".R",
-        ".jl",
-        ".sh",
-        ".bash",
-        ".zsh",
-        ".fish",
-        ".bat",
-        ".cmd",
-        ".ps1",
-        ".sql",
-        ".graphql",
-        ".gql",
-        ".env",
-        ".gitignore",
-        ".dockerignore",
-        ".editorconfig",
-        ".makefile",
-        ".cmake",
-        ".log",
-        ".rst",
-        ".tex",
-        ".bib",
-        ".org",
-        ".adoc",
-        ".asciidoc",
-        ".vue",
-        ".svelte",
-        ".astro",
-        ".tf",
-        ".hcl",
-        ".proto",
-    }
-)
-
-AUDIO_EXTENSIONS = frozenset(
-    {
-        ".mp3",
-        ".mp4",
-        ".mpeg",
-        ".mpga",
-        ".m4a",
-        ".wav",
-        ".webm",
-    }
-)
-
-
-DIRECT_CONVERT_EXTENSIONS = frozenset({".csv", ".tsv", ".html", ".htm"})
-
-
-def _is_plaintext_file(filename: str) -> bool:
-    return Path(filename).suffix.lower() in PLAINTEXT_EXTENSIONS
-
-
-def _is_audio_file(filename: str) -> bool:
-    return Path(filename).suffix.lower() in AUDIO_EXTENSIONS
-
-
-def _is_direct_convert_file(filename: str) -> bool:
-    return Path(filename).suffix.lower() in DIRECT_CONVERT_EXTENSIONS
-
-
-def _needs_etl(filename: str) -> bool:
-    """File is not plaintext, not audio, and not direct-convert — requires ETL."""
-    return (
-        not _is_plaintext_file(filename)
-        and not _is_audio_file(filename)
-        and not _is_direct_convert_file(filename)
-    )
-
 
 HeartbeatCallbackType = Callable[[int], Awaitable[None]]
 
@@ -279,57 +152,19 @@ def scan_folder(
     return files
 
 
-def _read_plaintext_file(file_path: str) -> str:
-    """Read a plaintext/text-based file as UTF-8."""
-    with open(file_path, encoding="utf-8", errors="replace") as f:
-        content = f.read()
-    if "\x00" in content:
-        raise ValueError(
-            f"File contains null bytes — likely a binary file opened as text: {file_path}"
-        )
-    return content
-
-
 async def _read_file_content(file_path: str, filename: str) -> str:
-    """Read file content, using ETL for binary formats.
+    """Read file content via the unified ETL pipeline.
 
-    Plaintext files are read directly. Audio and document files (PDF, DOCX, etc.)
-    are routed through the configured ETL service (same as Google Drive / OneDrive).
-
-    Raises ValueError if the file cannot be parsed (e.g. no ETL service configured
-    for a binary file).
+    All file types (plaintext, audio, direct-convert, document) are handled
+    by ``EtlPipelineService``.
     """
-    if _is_plaintext_file(filename):
-        return _read_plaintext_file(file_path)
+    from app.etl_pipeline.etl_document import EtlRequest
+    from app.etl_pipeline.etl_pipeline_service import EtlPipelineService
 
-    if _is_direct_convert_file(filename):
-        from app.tasks.document_processors._direct_converters import (
-            convert_file_directly,
-        )
-
-        return convert_file_directly(file_path, filename)
-
-    if _is_audio_file(filename):
-        etl_service = config.ETL_SERVICE if hasattr(config, "ETL_SERVICE") else None
-        stt_service_val = config.STT_SERVICE if hasattr(config, "STT_SERVICE") else None
-        if not stt_service_val and not etl_service:
-            raise ValueError(
-                f"No STT_SERVICE configured — cannot transcribe audio file: {filename}"
-            )
-
-    if _needs_etl(filename):
-        etl_service = getattr(config, "ETL_SERVICE", None)
-        if not etl_service:
-            raise ValueError(
-                f"No ETL_SERVICE configured — cannot parse binary file: {filename}. "
-                f"Set ETL_SERVICE to UNSTRUCTURED, LLAMACLOUD, or DOCLING in your .env"
-            )
-
-    from app.connectors.onedrive.content_extractor import (
-        _parse_file_to_markdown,
+    result = await EtlPipelineService().extract(
+        EtlRequest(file_path=file_path, filename=filename)
     )
-
-    return await _parse_file_to_markdown(file_path, filename)
+    return result.markdown_content
 
 
 def _content_hash(content: str, search_space_id: int) -> str:

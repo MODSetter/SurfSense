@@ -103,27 +103,23 @@ export default function SuggestionPage() {
 				return;
 			}
 
-			const backendUrl =
-				process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+			const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
 
 			try {
-				const response = await fetch(
-					`${backendUrl}/api/v1/autocomplete/vision/stream`,
-					{
-						method: "POST",
-						headers: {
-							Authorization: `Bearer ${token}`,
-							"Content-Type": "application/json",
-						},
-						body: JSON.stringify({
-							screenshot,
-							search_space_id: parseInt(searchSpaceId, 10),
-							app_name: appName || "",
-							window_title: windowTitle || "",
-						}),
-						signal: controller.signal,
+				const response = await fetch(`${backendUrl}/api/v1/autocomplete/vision/stream`, {
+					method: "POST",
+					headers: {
+						Authorization: `Bearer ${token}`,
+						"Content-Type": "application/json",
 					},
-				);
+					body: JSON.stringify({
+						screenshot,
+						search_space_id: parseInt(searchSpaceId, 10),
+						app_name: appName || "",
+						window_title: windowTitle || "",
+					}),
+					signal: controller.signal,
+				});
 
 				if (!response.ok) {
 					setError(friendlyError(response.status));
@@ -174,9 +170,7 @@ export default function SuggestionPage() {
 										return [...prev, { id, title, status, items }];
 									});
 								}
-							} catch {
-								continue;
-							}
+							} catch {}
 						}
 					}
 				}
@@ -187,7 +181,7 @@ export default function SuggestionPage() {
 				setIsLoading(false);
 			}
 		},
-		[],
+		[]
 	);
 
 	useEffect(() => {
@@ -269,10 +263,18 @@ export default function SuggestionPage() {
 		<div className="suggestion-tooltip">
 			<p className="suggestion-text">{suggestion}</p>
 			<div className="suggestion-actions">
-				<button className="suggestion-btn suggestion-btn-accept" onClick={handleAccept}>
+				<button
+					type="button"
+					className="suggestion-btn suggestion-btn-accept"
+					onClick={handleAccept}
+				>
 					Accept
 				</button>
-				<button className="suggestion-btn suggestion-btn-dismiss" onClick={handleDismiss}>
+				<button
+					type="button"
+					className="suggestion-btn suggestion-btn-dismiss"
+					onClick={handleDismiss}
+				>
 					Dismiss
 				</button>
 			</div>

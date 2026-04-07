@@ -216,7 +216,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 					onPointerDownOutside={(e) => {
 						if (pickerOpen) e.preventDefault();
 					}}
-					className="max-w-3xl w-[95vw] sm:w-full h-[75vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border ring-0 dark:ring-0 bg-muted dark:bg-muted text-foreground [&>button]:right-4 sm:[&>button]:right-12 [&>button]:top-6 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button_svg]:size-5 select-none"
+					className="max-w-3xl w-[95vw] sm:w-full h-[75vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border ring-0 dark:ring-0 bg-muted dark:bg-muted text-foreground [&>button]:right-4 sm:[&>button]:right-12 [&>button]:top-6 sm:[&>button]:top-10 [&>button]:opacity-80 [&>button]:hover:opacity-100 [&>button]:hover:bg-foreground/10 [&>button>svg]:size-5 select-none"
 				>
 					<DialogTitle className="sr-only">Manage Connectors</DialogTitle>
 					{/* YouTube Crawler View - shown when adding YouTube videos */}

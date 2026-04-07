@@ -2,13 +2,12 @@
 
 import type { LucideIcon } from "lucide-react";
 import { Code2, Database, ExternalLink, File, FileText, Globe, Newspaper } from "lucide-react";
+import NextImage from "next/image";
 import * as React from "react";
 import { openSafeNavigationHref, resolveSafeNavigationHref } from "../shared/media";
 import { cn, Popover, PopoverContent, PopoverTrigger } from "./_adapter";
 import { Citation } from "./citation";
 import type { CitationType, CitationVariant, SerializableCitation } from "./schema";
-import NextImage from 'next/image';
-
 
 const TYPE_ICONS: Record<CitationType, LucideIcon> = {
 	webpage: Globe,
@@ -264,9 +263,9 @@ function OverflowItem({ citation, onClick }: OverflowItemProps) {
 					className="size-4.5 rounded-full object-cover"
 					unoptimized={true}
 				/>
-				) : (
+			) : (
 				<TypeIcon className="text-muted-foreground size-3" aria-hidden="true" />
-				)}
+			)}
 			<div className="min-w-0 flex-1">
 				<p className="group-hover:decoration-foreground/30 truncate text-sm font-medium group-hover:underline group-hover:underline-offset-2">
 					{citation.title}
@@ -341,18 +340,18 @@ function StackedCitations({ id, citations, className, onNavigate }: StackedCitat
 										style={{ zIndex: maxIcons - index }}
 									>
 										{citation.favicon ? (
-										<NextImage
-											src={citation.favicon}
-											alt=""
-											aria-hidden="true"
-											width={18}
-											height={18}
-											className="size-4.5 rounded-full object-cover"
-											unoptimized={true}
-										/>
-									) : (
-										<TypeIcon className="text-muted-foreground size-3" aria-hidden="true" />
-									)}	
+											<NextImage
+												src={citation.favicon}
+												alt=""
+												aria-hidden="true"
+												width={18}
+												height={18}
+												className="size-4.5 rounded-full object-cover"
+												unoptimized={true}
+											/>
+										) : (
+											<TypeIcon className="text-muted-foreground size-3" aria-hidden="true" />
+										)}
 									</div>
 								);
 							})}

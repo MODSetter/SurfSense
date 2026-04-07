@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -18,7 +18,8 @@ const STEPS = [
 	{
 		id: "screen-recording",
 		title: "Screen Recording",
-		description: "Lets SurfSense capture your screen to understand context and provide smart writing suggestions.",
+		description:
+			"Lets SurfSense capture your screen to understand context and provide smart writing suggestions.",
 		action: "requestScreenRecording",
 		field: "screenRecording" as const,
 	},
@@ -98,7 +99,8 @@ export default function DesktopPermissionsPage() {
 		);
 	}
 
-	const allGranted = permissions.accessibility === "authorized" && permissions.screenRecording === "authorized";
+	const allGranted =
+		permissions.accessibility === "authorized" && permissions.screenRecording === "authorized";
 
 	const handleRequest = async (action: string) => {
 		if (action === "requestScreenRecording") {
@@ -175,7 +177,8 @@ export default function DesktopPermissionsPage() {
 											</p>
 										)}
 										<p className="text-xs text-muted-foreground">
-											If SurfSense doesn&apos;t appear in the list, click <strong>+</strong> and select it from Applications.
+											If SurfSense doesn&apos;t appear in the list, click <strong>+</strong> and
+											select it from Applications.
 										</p>
 									</div>
 								)}

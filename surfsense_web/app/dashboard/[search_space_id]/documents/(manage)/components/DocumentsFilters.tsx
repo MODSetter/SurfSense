@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { getDocumentTypeIcon, getDocumentTypeLabel } from "./DocumentTypeIcon";
@@ -63,109 +64,113 @@ export function DocumentsFilters({
 	return (
 		<div className="flex select-none">
 			<div className="flex items-center gap-2 w-full">
-				{/* Type Filter */}
-				<Popover>
-					<PopoverTrigger asChild>
-						<Button
-							variant="outline"
-							size="icon"
-							className="h-9 w-9 shrink-0 border-dashed border-sidebar-border text-sidebar-foreground/60 hover:text-sidebar-foreground hover:border-sidebar-border bg-sidebar"
-						>
-							<ListFilter size={14} />
-							{activeTypes.length > 0 && (
-								<span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] font-medium text-primary-foreground">
-									{activeTypes.length}
-								</span>
-							)}
-						</Button>
-					</PopoverTrigger>
-					<PopoverContent className="w-56 md:w-52 !p-0 overflow-hidden" align="end">
-						<div>
-							{/* Search input */}
-							<div className="p-2">
-								<div className="relative">
-									<Search className="absolute left-0.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-									<Input
-										placeholder="Search types"
-										value={typeSearchQuery}
-										onChange={(e) => setTypeSearchQuery(e.target.value)}
-										className="h-6 pl-6 text-sm bg-transparent border-0 shadow-none"
-									/>
-								</div>
-							</div>
+				{/* Filter + New Folder Toggle Group */}
+				<ToggleGroup type="multiple" variant="outline" value={[]} className="overflow-visible">
+					{onCreateFolder && (
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<ToggleGroupItem
+									value="folder"
+									className="h-9 w-9 shrink-0 border-sidebar-border text-sidebar-foreground/60 hover:text-sidebar-foreground hover:border-sidebar-border bg-sidebar"
+									onClick={(e) => {
+										e.preventDefault();
+										onCreateFolder();
+									}}
+								>
+									<FolderPlus size={14} />
+								</ToggleGroupItem>
+							</TooltipTrigger>
+							<TooltipContent>New folder</TooltipContent>
+						</Tooltip>
+					)}
 
-							<div
-								className="max-h-[300px] overflow-y-auto overflow-x-hidden py-1.5 px-1.5"
-								onScroll={handleScroll}
-								style={{
-									maskImage: `linear-gradient(to bottom, ${scrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${scrollPos === "bottom" ? "black" : "transparent"})`,
-									WebkitMaskImage: `linear-gradient(to bottom, ${scrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${scrollPos === "bottom" ? "black" : "transparent"})`,
-								}}
-							>
-								{filteredTypes.length === 0 ? (
-									<div className="py-6 text-center text-sm text-muted-foreground">
-										No types found
-									</div>
-								) : (
-									filteredTypes.map((value: DocumentTypeEnum, i) => (
-										<div
-											role="option"
-											aria-selected={activeTypes.includes(value)}
-											tabIndex={0}
-											key={value}
-											className="flex w-full items-center gap-2.5 py-2 px-3 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors cursor-pointer text-left"
-											onClick={() => onToggleType(value, !activeTypes.includes(value))}
-											onKeyDown={(e) => {
-												if (e.key === "Enter" || e.key === " ") {
-													e.preventDefault();
-													onToggleType(value, !activeTypes.includes(value));
-												}
-											}}
-										>
-											{/* Icon */}
-											<div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/50 text-foreground/80">
-												{getDocumentTypeIcon(value, "h-4 w-4")}
-											</div>
-											{/* Text content */}
-											<div className="flex flex-col min-w-0 flex-1 gap-0.5">
-												<span className="text-[13px] font-medium text-foreground truncate leading-tight">
-													{getDocumentTypeLabel(value)}
-												</span>
-												<span className="text-[11px] text-muted-foreground leading-tight">
-													{typeCounts.get(value)} document
-													{(typeCounts.get(value) ?? 0) !== 1 ? "s" : ""}
-												</span>
-											</div>
-											{/* Checkbox */}
-											<Checkbox
-												id={`${id}-${i}`}
-												checked={activeTypes.includes(value)}
-												onCheckedChange={(checked: boolean) => onToggleType(value, !!checked)}
-												className="h-4 w-4 shrink-0 rounded border-muted-foreground/30 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-											/>
-										</div>
-									))
-								)}
-							</div>
-							{activeTypes.length > 0 && (
-								<div className="px-3 pt-1.5 pb-1.5 border-t border-border dark:border-neutral-700">
-									<Button
-										variant="ghost"
-										size="sm"
-										className="w-full h-7 text-[11px] text-muted-foreground hover:text-foreground hover:bg-neutral-200 dark:hover:bg-neutral-700"
-										onClick={() => {
-											activeTypes.forEach((t) => {
-												onToggleType(t, false);
-											});
-										}}
+					<Popover>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<PopoverTrigger asChild>
+									<ToggleGroupItem
+										value="filter"
+										className="relative h-9 w-9 shrink-0 border-sidebar-border text-sidebar-foreground/60 hover:text-sidebar-foreground hover:border-sidebar-border bg-sidebar overflow-visible"
 									>
-										Clear filters
-									</Button>
+										<ListFilter size={14} />
+										{activeTypes.length > 0 && (
+											<span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-sidebar-border text-[9px] font-medium text-sidebar-foreground">
+												{activeTypes.length}
+											</span>
+										)}
+									</ToggleGroupItem>
+								</PopoverTrigger>
+							</TooltipTrigger>
+							<TooltipContent>Filter by type</TooltipContent>
+						</Tooltip>
+						<PopoverContent className="w-56 md:w-52 !p-0 overflow-hidden" align="start">
+							<div>
+								<div className="p-2">
+									<div className="relative">
+										<Search className="absolute left-0.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+										<Input
+											placeholder="Search types"
+											value={typeSearchQuery}
+											onChange={(e) => setTypeSearchQuery(e.target.value)}
+											className="h-6 pl-6 text-sm bg-transparent border-0 shadow-none"
+										/>
+									</div>
 								</div>
-							)}
-						</div>
-					</PopoverContent>
-				</Popover>
+
+								<div
+									className="max-h-[300px] overflow-y-auto overflow-x-hidden py-1.5 px-1.5"
+									onScroll={handleScroll}
+									style={{
+										maskImage: `linear-gradient(to bottom, ${scrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${scrollPos === "bottom" ? "black" : "transparent"})`,
+										WebkitMaskImage: `linear-gradient(to bottom, ${scrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${scrollPos === "bottom" ? "black" : "transparent"})`,
+									}}
+								>
+									{filteredTypes.length === 0 ? (
+										<div className="py-6 text-center text-sm text-muted-foreground">
+											No types found
+										</div>
+									) : (
+										filteredTypes.map((value: DocumentTypeEnum, i) => (
+											<div
+												role="option"
+												aria-selected={activeTypes.includes(value)}
+												tabIndex={0}
+												key={value}
+												className="flex w-full items-center gap-2.5 py-2 px-3 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors cursor-pointer text-left"
+												onClick={() => onToggleType(value, !activeTypes.includes(value))}
+												onKeyDown={(e) => {
+													if (e.key === "Enter" || e.key === " ") {
+														e.preventDefault();
+														onToggleType(value, !activeTypes.includes(value));
+													}
+												}}
+											>
+												<div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/50 text-foreground/80">
+													{getDocumentTypeIcon(value, "h-4 w-4")}
+												</div>
+												<div className="flex flex-col min-w-0 flex-1 gap-0.5">
+													<span className="text-[13px] font-medium text-foreground truncate leading-tight">
+														{getDocumentTypeLabel(value)}
+													</span>
+													<span className="text-[11px] text-muted-foreground leading-tight">
+														{typeCounts.get(value)} document
+														{(typeCounts.get(value) ?? 0) !== 1 ? "s" : ""}
+													</span>
+												</div>
+												<Checkbox
+													id={`${id}-${i}`}
+													checked={activeTypes.includes(value)}
+													onCheckedChange={(checked: boolean) => onToggleType(value, !!checked)}
+													className="h-4 w-4 shrink-0 rounded border-muted-foreground/30 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+												/>
+											</div>
+										))
+									)}
+								</div>
+							</div>
+						</PopoverContent>
+					</Popover>
+				</ToggleGroup>
 
 				{/* Search Input */}
 				<div className="relative flex-1 min-w-0">
@@ -196,23 +201,6 @@ export function DocumentsFilters({
 						</button>
 					)}
 				</div>
-
-				{/* New Folder Button */}
-				{onCreateFolder && (
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								variant="outline"
-								size="icon"
-								className="h-9 w-9 shrink-0 border-dashed border-sidebar-border text-sidebar-foreground/60 hover:text-sidebar-foreground hover:border-sidebar-border bg-sidebar"
-								onClick={onCreateFolder}
-							>
-								<FolderPlus size={14} />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>New folder</TooltipContent>
-					</Tooltip>
-				)}
 
 				{/* Upload Button */}
 				<Button

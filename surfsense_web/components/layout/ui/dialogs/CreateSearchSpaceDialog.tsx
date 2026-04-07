@@ -82,7 +82,7 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="max-w-[90vw] sm:max-w-sm p-4 sm:p-5 data-[state=open]:animate-none data-[state=closed]:animate-none">
+			<DialogContent className="max-w-[90vw] sm:max-w-sm p-4 sm:p-5 select-none data-[state=open]:animate-none data-[state=closed]:animate-none">
 				<DialogHeader className="space-y-2 pb-2">
 					<div className="flex items-center gap-2 sm:gap-3">
 						<div className="flex-1 min-w-0">
@@ -107,7 +107,7 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 											placeholder={t("name_placeholder")}
 											{...field}
 											autoFocus
-											className="text-sm h-9 sm:h-10"
+											className="text-sm h-9 sm:h-10 select-text"
 										/>
 									</FormControl>
 									<FormMessage />
@@ -130,7 +130,7 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 										<Input
 											placeholder={t("description_placeholder")}
 											{...field}
-											className="text-sm h-9 sm:h-10"
+											className="text-sm h-9 sm:h-10 select-text"
 										/>
 									</FormControl>
 									<FormMessage />

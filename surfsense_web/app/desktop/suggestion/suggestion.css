@@ -1,21 +1,21 @@
 html:has(.suggestion-body),
 body:has(.suggestion-body) {
-  margin: 0 !important;
-  padding: 0 !important;
-  background: transparent !important;
-  overflow: hidden !important;
-  height: auto !important;
-  width: 100% !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	background: transparent !important;
+	overflow: hidden !important;
+	height: auto !important;
+	width: 100% !important;
 }
 
 .suggestion-body {
-  margin: 0;
-  padding: 0;
-  background: transparent;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  user-select: none;
-  -webkit-app-region: no-drag;
+	margin: 0;
+	padding: 0;
+	background: transparent;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	-webkit-font-smoothing: antialiased;
+	user-select: none;
+	-webkit-app-region: no-drag;
 }
 
 .suggestion-tooltip {
@@ -75,44 +75,46 @@ body:has(.suggestion-body) {
 }
 
 .suggestion-btn {
-  padding: 2px 8px;
-  border-radius: 3px;
-  border: 1px solid #3c3c3c;
-  font-family: inherit;
-  font-size: 10px;
-  font-weight: 500;
-  cursor: pointer;
-  line-height: 16px;
-  transition: background 0.15s, border-color 0.15s;
+	padding: 2px 8px;
+	border-radius: 3px;
+	border: 1px solid #3c3c3c;
+	font-family: inherit;
+	font-size: 10px;
+	font-weight: 500;
+	cursor: pointer;
+	line-height: 16px;
+	transition:
+		background 0.15s,
+		border-color 0.15s;
 }
 
 .suggestion-btn-accept {
-  background: #2563eb;
-  border-color: #3b82f6;
-  color: #fff;
+	background: #2563eb;
+	border-color: #3b82f6;
+	color: #fff;
 }
 
 .suggestion-btn-accept:hover {
-  background: #1d4ed8;
+	background: #1d4ed8;
 }
 
 .suggestion-btn-dismiss {
-  background: #2a2a2a;
-  color: #999;
+	background: #2a2a2a;
+	color: #999;
 }
 
 .suggestion-btn-dismiss:hover {
-  background: #333;
-  color: #ccc;
+	background: #333;
+	color: #ccc;
 }
 
 .suggestion-error {
-  border-color: #5c2626;
+	border-color: #5c2626;
 }
 
 .suggestion-error-text {
-  color: #f48771;
-  font-size: 12px;
+	color: #f48771;
+	font-size: 12px;
 }
 
 /* --- Agent activity indicator --- */

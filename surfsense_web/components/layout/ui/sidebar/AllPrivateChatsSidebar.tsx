@@ -376,7 +376,7 @@ export function AllPrivateChatsSidebarContent({
 											<span className="truncate">{thread.title || "New Chat"}</span>
 										</button>
 									) : (
-										<Tooltip>
+										<Tooltip delayDuration={600}>
 											<TooltipTrigger asChild>
 												<button
 													type="button"

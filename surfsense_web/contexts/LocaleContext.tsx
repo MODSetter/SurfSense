@@ -2,12 +2,12 @@
 
 import type React from "react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { set } from "zod";
 import enMessages from "../messages/en.json";
 import esMessages from "../messages/es.json";
 import hiMessages from "../messages/hi.json";
 import ptMessages from "../messages/pt.json";
 import zhMessages from "../messages/zh.json";
-import { set } from "zod";
 
 type Locale = "en" | "es" | "pt" | "hi" | "zh";
 
@@ -66,13 +66,12 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
 		}
 	}, [locale, mounted]);
 
-	const contextValue = useMemo(() => ({ locale, messages, setLocale }), [locale, messages, setLocale]);
-
-	return (
-		<LocaleContext.Provider value={contextValue}>
-			{children}
-		</LocaleContext.Provider>
+	const contextValue = useMemo(
+		() => ({ locale, messages, setLocale }),
+		[locale, messages, setLocale]
 	);
+
+	return <LocaleContext.Provider value={contextValue}>{children}</LocaleContext.Provider>;
 }
 
 export function useLocaleContext() {
