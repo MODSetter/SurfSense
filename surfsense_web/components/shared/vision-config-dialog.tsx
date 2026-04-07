@@ -1,20 +1,30 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { AlertCircle } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { AlertCircle, Check, ChevronsUpDown } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { updateLLMPreferencesMutationAtom } from "@/atoms/new-llm-config/new-llm-config-mutation.atoms";
 import {
 	createVisionLLMConfigMutationAtom,
 	updateVisionLLMConfigMutationAtom,
 } from "@/atoms/vision-llm-config/vision-llm-config-mutation.atoms";
+import { visionModelListAtom } from "@/atoms/vision-llm-config/vision-llm-config-query.atoms";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+	Command,
+	CommandEmpty,
+	CommandGroup,
+	CommandInput,
+	CommandItem,
+	CommandList,
+} from "@/components/ui/command";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
 	Select,
 	SelectContent,
@@ -30,6 +40,7 @@ import type {
 	VisionLLMConfig,
 	VisionProvider,
 } from "@/contracts/types/new-llm-config.types";
+import { cn } from "@/lib/utils";
 
 interface VisionConfigDialogProps {
 	open: boolean;
@@ -177,6 +188,14 @@ export function VisionConfigDialog({
 		}
 	}, [config, isGlobal, searchSpaceId, updatePreferences, onOpenChange]);
 
+	const { data: dynamicModels } = useAtomValue(visionModelListAtom);
+	const [modelComboboxOpen, setModelComboboxOpen] = useState(false);
+
+	const availableModels = useMemo(
+		() => (dynamicModels ?? []).filter((m) => m.provider === formData.provider),
+		[dynamicModels, formData.provider]
+	);
+
 	const isFormValid = formData.name && formData.provider && formData.model_name && formData.api_key;
 	const selectedProvider = VISION_PROVIDERS.find((p) => p.value === formData.provider);
 
@@ -303,11 +322,92 @@ export function VisionConfigDialog({
 
 							<div className="space-y-2">
 								<Label className="text-sm font-medium">Model Name *</Label>
-								<Input
-									placeholder={selectedProvider?.example?.split(",")[0]?.trim() || "e.g., gpt-4o"}
-									value={formData.model_name}
-									onChange={(e) => setFormData((p) => ({ ...p, model_name: e.target.value }))}
-								/>
+								<Popover open={modelComboboxOpen} onOpenChange={setModelComboboxOpen}>
+									<PopoverTrigger asChild>
+										<Button
+											variant="outline"
+											role="combobox"
+											aria-expanded={modelComboboxOpen}
+											className={cn(
+												"w-full justify-between font-normal bg-transparent",
+												!formData.model_name && "text-muted-foreground"
+											)}
+										>
+											{formData.model_name || "Select a model"}
+											<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+										</Button>
+									</PopoverTrigger>
+									<PopoverContent
+										className="w-full p-0 bg-muted dark:border-neutral-700"
+										align="start"
+									>
+										<Command shouldFilter={false} className="bg-transparent">
+											<CommandInput
+												placeholder={selectedProvider?.example || "Search model name"}
+												value={formData.model_name}
+												onValueChange={(val) =>
+													setFormData((p) => ({ ...p, model_name: val }))
+												}
+											/>
+											<CommandList className="max-h-[300px]">
+												<CommandEmpty>
+													<div className="py-3 text-center text-sm text-muted-foreground">
+														{formData.model_name
+															? `Using: "${formData.model_name}"`
+															: "Type your model name"}
+													</div>
+												</CommandEmpty>
+												{availableModels.length > 0 && (
+													<CommandGroup heading="Suggested Models">
+														{availableModels
+															.filter(
+																(model) =>
+																	!formData.model_name ||
+																	model.value
+																		.toLowerCase()
+																		.includes(formData.model_name.toLowerCase()) ||
+																	model.label
+																		.toLowerCase()
+																		.includes(formData.model_name.toLowerCase())
+															)
+															.slice(0, 50)
+															.map((model) => (
+																<CommandItem
+																	key={model.value}
+																	value={model.value}
+																	onSelect={(value) => {
+																		setFormData((p) => ({
+																			...p,
+																			model_name: value,
+																		}));
+																		setModelComboboxOpen(false);
+																	}}
+																	className="py-2"
+																>
+																	<Check
+																		className={cn(
+																			"mr-2 h-4 w-4",
+																			formData.model_name === model.value
+																				? "opacity-100"
+																				: "opacity-0"
+																		)}
+																	/>
+																	<div>
+																		<div className="font-medium">{model.label}</div>
+																		{model.contextWindow && (
+																			<div className="text-xs text-muted-foreground">
+																				Context: {model.contextWindow}
+																			</div>
+																		)}
+																	</div>
+																</CommandItem>
+															))}
+													</CommandGroup>
+												)}
+											</CommandList>
+										</Command>
+									</PopoverContent>
+								</Popover>
 							</div>
 
 							<div className="space-y-2">
