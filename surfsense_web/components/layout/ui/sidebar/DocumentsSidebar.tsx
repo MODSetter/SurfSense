@@ -20,7 +20,7 @@ import { CreateFolderDialog } from "@/components/documents/CreateFolderDialog";
 import type { DocumentNodeDoc } from "@/components/documents/DocumentNode";
 import type { FolderDisplay } from "@/components/documents/FolderNode";
 import { FolderPickerDialog } from "@/components/documents/FolderPickerDialog";
-import { FolderWatchDialog } from "@/components/sources/FolderWatchDialog";
+import { FolderWatchDialog, type SelectedFolder } from "@/components/sources/FolderWatchDialog";
 import { FolderTreeView } from "@/components/documents/FolderTreeView";
 import { VersionHistoryDialog } from "@/components/documents/version-history";
 import { EXPORT_FILE_EXTENSIONS } from "@/components/shared/ExportMenuItems";
@@ -97,7 +97,21 @@ export function DocumentsSidebar({
 	const [activeTypes, setActiveTypes] = useState<DocumentTypeEnum[]>([]);
 	const [watchedFolderIds, setWatchedFolderIds] = useState<Set<number>>(new Set());
 	const [folderWatchOpen, setFolderWatchOpen] = useState(false);
+	const [watchInitialFolder, setWatchInitialFolder] = useState<SelectedFolder | null>(null);
 	const isElectron = typeof window !== "undefined" && !!window.electronAPI;
+
+	const handleWatchLocalFolder = useCallback(async () => {
+		const api = window.electronAPI;
+		if (!api?.selectFolder) return;
+
+		const folderPath = await api.selectFolder();
+		if (!folderPath) return;
+
+		const folderName =
+			folderPath.split("/").pop() || folderPath.split("\\").pop() || folderPath;
+		setWatchInitialFolder({ path: folderPath, name: folderName });
+		setFolderWatchOpen(true);
+	}, []);
 
 	useEffect(() => {
 		const api = typeof window !== "undefined" ? window.electronAPI : null;
@@ -754,7 +768,7 @@ export function DocumentsSidebar({
 			{isElectron && (
 				<button
 					type="button"
-					onClick={() => setFolderWatchOpen(true)}
+					onClick={handleWatchLocalFolder}
 					className="shrink-0 mx-4 mb-4 flex select-none items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2 transition-colors hover:bg-muted/80"
 				>
 					<FolderClock className="size-4 shrink-0 text-muted-foreground" />
@@ -843,8 +857,12 @@ export function DocumentsSidebar({
 			{isElectron && (
 				<FolderWatchDialog
 					open={folderWatchOpen}
-					onOpenChange={setFolderWatchOpen}
+					onOpenChange={(nextOpen) => {
+						setFolderWatchOpen(nextOpen);
+						if (!nextOpen) setWatchInitialFolder(null);
+					}}
 					searchSpaceId={searchSpaceId}
+					initialFolder={watchInitialFolder}
 				/>
 			)}
 

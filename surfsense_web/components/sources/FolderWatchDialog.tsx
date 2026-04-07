@@ -1,7 +1,7 @@
 "use client";
 
-import { FolderOpen, X } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,7 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { getSupportedExtensionsSet } from "@/lib/supported-extensions";
 
-interface SelectedFolder {
+export interface SelectedFolder {
 	path: string;
 	name: string;
 }
@@ -26,6 +26,7 @@ interface FolderWatchDialogProps {
 	onOpenChange: (open: boolean) => void;
 	searchSpaceId: number;
 	onSuccess?: () => void;
+	initialFolder?: SelectedFolder | null;
 }
 
 const DEFAULT_EXCLUDE_PATTERNS = [
@@ -42,10 +43,17 @@ export function FolderWatchDialog({
 	onOpenChange,
 	searchSpaceId,
 	onSuccess,
+	initialFolder,
 }: FolderWatchDialogProps) {
 	const [selectedFolder, setSelectedFolder] = useState<SelectedFolder | null>(null);
 	const [shouldSummarize, setShouldSummarize] = useState(false);
 	const [submitting, setSubmitting] = useState(false);
+
+	useEffect(() => {
+		if (open && initialFolder) {
+			setSelectedFolder(initialFolder);
+		}
+	}, [open, initialFolder]);
 
 	const supportedExtensions = useMemo(
 		() => Array.from(getSupportedExtensionsSet()),
@@ -117,7 +125,7 @@ export function FolderWatchDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="sm:max-w-md">
+			<DialogContent className="sm:max-w-md select-none">
 				<DialogHeader>
 					<DialogTitle>Watch Local Folder</DialogTitle>
 					<DialogDescription>
@@ -127,13 +135,12 @@ export function FolderWatchDialog({
 
 				<div className="space-y-3 pt-2">
 					{selectedFolder ? (
-						<div className="flex items-center gap-2 py-1.5 px-2 rounded-md bg-slate-400/5 dark:bg-white/5">
-							<FolderOpen className="h-4 w-4 text-primary shrink-0" />
-							<div className="min-w-0 flex-1">
-								<p className="text-sm font-medium truncate">
+						<div className="flex items-center gap-2 py-1.5 pl-4 pr-2 rounded-md bg-slate-400/5 dark:bg-white/5 overflow-hidden">
+							<div className="min-w-0 flex-1 select-text">
+								<p className="text-sm font-medium break-all line-clamp-2">
 									{selectedFolder.name}
 								</p>
-								<p className="text-xs text-muted-foreground truncate">
+								<p className="text-xs text-muted-foreground break-all line-clamp-2">
 									{selectedFolder.path}
 								</p>
 							</div>
@@ -178,7 +185,7 @@ export function FolderWatchDialog({
 								disabled={submitting}
 							>
 								<span className={submitting ? "invisible" : ""}>
-									Sync &amp; Watch for Changes
+									Start Folder Sync
 								</span>
 								{submitting && (
 									<span className="absolute inset-0 flex items-center justify-center">
