@@ -738,6 +738,8 @@
 		"nav_role_assignments_desc": "एजेंट भूमिकाओं को कॉन्फ़िगरेशन असाइन करें",
 		"nav_image_models": "इमेज मॉडल",
 		"nav_image_models_desc": "इमेज जनरेशन मॉडल कॉन्फ़िगर करें",
+		"nav_vision_models": "विज़न मॉडल",
+		"nav_vision_models_desc": "विज़न-सक्षम LLM मॉडल कॉन्फ़िगर करें",
 		"nav_system_instructions": "सिस्टम निर्देश",
 		"nav_system_instructions_desc": "सर्च स्पेस-व्यापी AI निर्देश",
 		"nav_public_links": "सार्वजनिक चैट लिंक",

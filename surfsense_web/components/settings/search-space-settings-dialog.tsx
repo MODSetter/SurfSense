@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtom } from "jotai";
-import { Bot, Brain, FileText, Globe, ImageIcon, MessageSquare, Shield } from "lucide-react";
+import { Bot, Brain, Eye, FileText, Globe, ImageIcon, MessageSquare, Shield } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type React from "react";
 import { searchSpaceSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
@@ -13,6 +13,7 @@ import { ModelConfigManager } from "@/components/settings/model-config-manager";
 import { PromptConfigManager } from "@/components/settings/prompt-config-manager";
 import { RolesManager } from "@/components/settings/roles-manager";
 import { SettingsDialog } from "@/components/settings/settings-dialog";
+import { VisionModelManager } from "@/components/settings/vision-model-manager";
 
 interface SearchSpaceSettingsDialogProps {
 	searchSpaceId: number;
@@ -31,6 +32,11 @@ export function SearchSpaceSettingsDialog({ searchSpaceId }: SearchSpaceSettings
 			label: t("nav_image_models"),
 			icon: <ImageIcon className="h-4 w-4" />,
 		},
+		{
+			value: "vision-models",
+			label: t("nav_vision_models"),
+			icon: <Eye className="h-4 w-4" />,
+		},
 		{ value: "team-roles", label: t("nav_team_roles"), icon: <Shield className="h-4 w-4" /> },
 		{
 			value: "prompts",
@@ -45,6 +51,7 @@ export function SearchSpaceSettingsDialog({ searchSpaceId }: SearchSpaceSettings
 		models: <ModelConfigManager searchSpaceId={searchSpaceId} />,
 		roles: <LLMRoleManager searchSpaceId={searchSpaceId} />,
 		"image-models": <ImageModelManager searchSpaceId={searchSpaceId} />,
+		"vision-models": <VisionModelManager searchSpaceId={searchSpaceId} />,
 		"team-roles": <RolesManager searchSpaceId={searchSpaceId} />,
 		prompts: <PromptConfigManager searchSpaceId={searchSpaceId} />,
 		"public-links": <PublicChatSnapshotsManager searchSpaceId={searchSpaceId} />,
