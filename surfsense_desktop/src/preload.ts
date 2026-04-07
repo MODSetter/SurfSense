@@ -78,4 +78,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getShortcuts: () => ipcRenderer.invoke(IPC_CHANNELS.GET_SHORTCUTS),
   setShortcuts: (config: Record<string, string>) =>
     ipcRenderer.invoke(IPC_CHANNELS.SET_SHORTCUTS, config),
+
+  // Active search space
+  getActiveSearchSpace: () => ipcRenderer.invoke(IPC_CHANNELS.GET_ACTIVE_SEARCH_SPACE),
+  setActiveSearchSpace: (id: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.SET_ACTIVE_SEARCH_SPACE, id),
 });

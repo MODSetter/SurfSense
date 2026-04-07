@@ -21,6 +21,7 @@ import {
   readLocalFiles,
 } from '../modules/folder-watcher';
 import { getShortcuts, setShortcuts, type ShortcutConfig } from '../modules/shortcuts';
+import { getActiveSearchSpaceId, setActiveSearchSpaceId } from '../modules/active-search-space';
 import { reregisterQuickAsk } from '../modules/quick-ask';
 import { reregisterAutocomplete } from '../modules/autocomplete';
 import { reregisterGeneralAssist } from '../modules/tray';
@@ -105,6 +106,12 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(IPC_CHANNELS.GET_SHORTCUTS, () => getShortcuts());
+
+  ipcMain.handle(IPC_CHANNELS.GET_ACTIVE_SEARCH_SPACE, () => getActiveSearchSpaceId());
+
+  ipcMain.handle(IPC_CHANNELS.SET_ACTIVE_SEARCH_SPACE, (_event, id: string) =>
+    setActiveSearchSpaceId(id)
+  );
 
   ipcMain.handle(IPC_CHANNELS.SET_SHORTCUTS, async (_event, config: Partial<ShortcutConfig>) => {
     const updated = await setShortcuts(config);

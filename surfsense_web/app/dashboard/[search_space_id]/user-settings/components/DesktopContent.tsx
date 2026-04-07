@@ -1,14 +1,17 @@
 "use client";
 
 import { BrainCog, Rocket, Zap } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { DEFAULT_SHORTCUTS, ShortcutRecorder } from "@/components/desktop/shortcut-recorder";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { useElectronAPI } from "@/hooks/use-platform";
+import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
+import type { SearchSpace } from "@/contracts/types/search-space.types";
 
 export function DesktopContent() {
 	const api = useElectronAPI();
@@ -17,6 +20,9 @@ export function DesktopContent() {
 
 	const [shortcuts, setShortcuts] = useState(DEFAULT_SHORTCUTS);
 	const [shortcutsLoaded, setShortcutsLoaded] = useState(false);
+
+	const [searchSpaces, setSearchSpaces] = useState<SearchSpace[]>([]);
+	const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
 
 	useEffect(() => {
 		if (!api) {
@@ -27,11 +33,18 @@ export function DesktopContent() {
 
 		let mounted = true;
 
-		Promise.all([api.getAutocompleteEnabled(), api.getShortcuts?.() ?? Promise.resolve(null)])
-			.then(([autoEnabled, config]) => {
+		Promise.all([
+			api.getAutocompleteEnabled(),
+			api.getShortcuts?.() ?? Promise.resolve(null),
+			api.getActiveSearchSpace?.() ?? Promise.resolve(null),
+			searchSpacesApiService.getSearchSpaces(),
+		])
+			.then(([autoEnabled, config, spaceId, spaces]) => {
 				if (!mounted) return;
 				setEnabled(autoEnabled);
 				if (config) setShortcuts(config);
+				setActiveSpaceId(spaceId);
+				if (spaces) setSearchSpaces(spaces);
 				setLoading(false);
 				setShortcutsLoaded(true);
 			})
@@ -84,8 +97,42 @@ export function DesktopContent() {
 		updateShortcut(key, DEFAULT_SHORTCUTS[key]);
 	};
 
+	const handleSearchSpaceChange = (value: string) => {
+		setActiveSpaceId(value);
+		api.setActiveSearchSpace?.(value);
+		toast.success("Default search space updated");
+	};
+
 	return (
 		<div className="space-y-4 md:space-y-6">
+			{/* Default Search Space */}
+			<Card>
+				<CardHeader className="px-3 md:px-6 pt-3 md:pt-6 pb-2 md:pb-3">
+					<CardTitle className="text-base md:text-lg">Default Search Space</CardTitle>
+					<CardDescription className="text-xs md:text-sm">
+						Choose which search space General Assist, Quick Assist, and Extreme Assist operate against.
+					</CardDescription>
+				</CardHeader>
+				<CardContent className="px-3 md:px-6 pb-3 md:pb-6">
+					{searchSpaces.length > 0 ? (
+						<Select value={activeSpaceId ?? undefined} onValueChange={handleSearchSpaceChange}>
+							<SelectTrigger className="w-full">
+								<SelectValue placeholder="Select a search space" />
+							</SelectTrigger>
+							<SelectContent>
+								{searchSpaces.map((space) => (
+									<SelectItem key={space.id} value={String(space.id)}>
+										{space.name}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					) : (
+						<p className="text-sm text-muted-foreground">No search spaces found. Create one first.</p>
+					)}
+				</CardContent>
+			</Card>
+
 			{/* Keyboard Shortcuts */}
 			<Card>
 				<CardHeader className="px-3 md:px-6 pt-3 md:pt-6 pb-2 md:pb-3">

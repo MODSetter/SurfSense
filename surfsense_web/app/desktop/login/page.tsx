@@ -15,6 +15,8 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { useElectronAPI } from "@/hooks/use-platform";
+import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
+import { setBearerToken } from "@/lib/auth-utils";
 import { AUTH_TYPE, BACKEND_URL } from "@/lib/env-config";
 
 const isGoogleAuth = AUTH_TYPE === "GOOGLE";
@@ -71,6 +73,19 @@ export default function DesktopLoginPage() {
 		window.location.href = `${BACKEND_URL}/auth/google/authorize-redirect`;
 	};
 
+	const autoSetSearchSpace = async () => {
+		try {
+			const stored = await api?.getActiveSearchSpace?.();
+			if (stored) return;
+			const spaces = await searchSpacesApiService.getSearchSpaces();
+			if (spaces?.length) {
+				await api?.setActiveSearchSpace?.(String(spaces[0].id));
+			}
+		} catch {
+			// non-critical — dashboard-sync will catch it later
+		}
+	};
+
 	const handleLocalLogin = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setLoginError(null);
@@ -85,6 +100,9 @@ export default function DesktopLoginPage() {
 			if (typeof window !== "undefined") {
 				sessionStorage.setItem("login_success_tracked", "true");
 			}
+
+			setBearerToken(data.access_token);
+			await autoSetSearchSpace();
 
 			setTimeout(() => {
 				router.push(`/auth/callback?token=${data.access_token}`);

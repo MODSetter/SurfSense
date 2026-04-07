@@ -38,4 +38,7 @@ export const IPC_CHANNELS = {
   // Keyboard shortcut configuration
   GET_SHORTCUTS: 'shortcuts:get',
   SET_SHORTCUTS: 'shortcuts:set',
+  // Active search space
+  GET_ACTIVE_SEARCH_SPACE: 'search-space:get-active',
+  SET_ACTIVE_SEARCH_SPACE: 'search-space:set-active',
 } as const;
