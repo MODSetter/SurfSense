@@ -14,7 +14,9 @@ LLM call — the window title is used directly as the KB search query.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import re
 import uuid
 from collections.abc import AsyncGenerator
 from typing import Any
@@ -61,13 +63,21 @@ Key behavior:
 - If the text area already has text, continue it naturally — typically just a sentence or two.
 
 Rules:
-- Output ONLY the text to be inserted. No quotes, no explanations, no meta-commentary.
 - Be CONCISE. Prefer a single paragraph or a few sentences. Autocomplete is a quick assist, not a full draft.
 - Match the tone and formality of the surrounding context.
 - If the screen shows code, write code. If it shows a casual chat, be casual. If it shows a formal email, be formal.
 - Do NOT describe the screenshot or explain your reasoning.
 - Do NOT cite or reference documents explicitly — just let the knowledge inform your writing naturally.
-- If you cannot determine what to write, output nothing.
+- If you cannot determine what to write, output an empty JSON array: []
+
+## Output Format
+
+You MUST provide exactly 3 different suggestion options. Each should be a distinct, plausible completion — vary the tone, detail level, or angle.
+
+Return your suggestions as a JSON array of exactly 3 strings. Output ONLY the JSON array, nothing else — no markdown fences, no explanation, no commentary.
+
+Example format:
+["First suggestion text here.", "Second suggestion — a different take.", "Third option with another approach."]
 
 ## Filesystem Tools `ls`, `read_file`, `write_file`, `edit_file`, `glob`, `grep`
 
@@ -265,6 +275,50 @@ async def create_autocomplete_agent(
 
 
 # ---------------------------------------------------------------------------
+# JSON suggestion parsing (robust fallback)
+# ---------------------------------------------------------------------------
+
+
+def _parse_suggestions(raw: str) -> list[str]:
+    """Extract a list of suggestion strings from the agent's output.
+
+    Tries, in order:
+      1. Direct ``json.loads``
+      2. Extract content between ```json ... ``` fences
+      3. Find the first ``[`` … ``]`` span
+    Falls back to wrapping the raw text as a single suggestion.
+    """
+    text = raw.strip()
+    if not text:
+        return []
+
+    for candidate in _json_candidates(text):
+        try:
+            parsed = json.loads(candidate)
+            if isinstance(parsed, list) and all(isinstance(s, str) for s in parsed):
+                return [s for s in parsed if s.strip()]
+        except (json.JSONDecodeError, ValueError):
+            continue
+
+    return [text]
+
+
+def _json_candidates(text: str) -> list[str]:
+    """Yield candidate JSON strings from raw text."""
+    candidates = [text]
+
+    fence = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
+    if fence:
+        candidates.append(fence.group(1).strip())
+
+    bracket = re.search(r"\[.*]", text, re.DOTALL)
+    if bracket:
+        candidates.append(bracket.group(0))
+
+    return candidates
+
+
+# ---------------------------------------------------------------------------
 # Streaming helper
 # ---------------------------------------------------------------------------
 
@@ -285,7 +339,7 @@ async def stream_autocomplete_agent(
     thread_id = uuid.uuid4().hex
     config = {"configurable": {"thread_id": thread_id}}
 
-    current_text_id: str | None = None
+    text_buffer: list[str] = []
     active_tool_depth = 0
     thinking_step_counter = 0
     tool_step_ids: dict[str, str] = {}
@@ -315,14 +369,12 @@ async def stream_autocomplete_agent(
     if emit_message_start:
         yield streaming_service.format_message_start()
 
-    # Emit an initial "Generating completion" step so the UI immediately
-    # shows activity once the agent starts its first LLM call.
     gen_step_id = next_thinking_step_id()
     last_active_step_id = gen_step_id
-    step_titles[gen_step_id] = "Generating completion"
+    step_titles[gen_step_id] = "Generating suggestions"
     yield streaming_service.format_thinking_step(
         step_id=gen_step_id,
-        title="Generating completion",
+        title="Generating suggestions",
         status="in_progress",
     )
 
@@ -341,25 +393,13 @@ async def stream_autocomplete_agent(
                 if chunk and hasattr(chunk, "content"):
                     content = chunk.content
                     if content and isinstance(content, str):
-                        if current_text_id is None:
-                            step_event = complete_current_step()
-                            if step_event:
-                                yield step_event
-                            current_text_id = streaming_service.generate_text_id()
-                            yield streaming_service.format_text_start(current_text_id)
-                        yield streaming_service.format_text_delta(
-                            current_text_id, content
-                        )
+                        text_buffer.append(content)
 
             elif event_type == "on_tool_start":
                 active_tool_depth += 1
                 tool_name = event.get("name", "unknown_tool")
                 run_id = event.get("run_id", "")
                 tool_input = event.get("data", {}).get("input", {})
-
-                if current_text_id is not None:
-                    yield streaming_service.format_text_end(current_text_id)
-                    current_text_id = None
 
                 step_event = complete_current_step()
                 if step_event:
@@ -393,19 +433,22 @@ async def stream_autocomplete_agent(
                     if last_active_step_id == step_id:
                         last_active_step_id = None
 
-        if current_text_id is not None:
-            yield streaming_service.format_text_end(current_text_id)
         step_event = complete_current_step()
         if step_event:
             yield step_event
+
+        raw_text = "".join(text_buffer)
+        suggestions = _parse_suggestions(raw_text)
+
+        yield streaming_service.format_data(
+            "suggestions", {"options": suggestions}
+        )
 
         yield streaming_service.format_finish()
         yield streaming_service.format_done()
 
     except Exception as e:
         logger.error(f"Autocomplete agent streaming error: {e}", exc_info=True)
-        if current_text_id is not None:
-            yield streaming_service.format_text_end(current_text_id)
         yield streaming_service.format_error("Autocomplete failed. Please try again.")
         yield streaming_service.format_done()
 
