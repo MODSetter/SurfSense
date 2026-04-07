@@ -1,3 +1,5 @@
+import type { LLMModel } from "./llm-models";
+
 export interface VisionProviderInfo {
 	value: string;
 	label: string;
@@ -99,4 +101,28 @@ export const VISION_PROVIDERS: VisionProviderInfo[] = [
 		example: "custom/my-vision-model",
 		description: "Custom OpenAI-compatible vision endpoint",
 	},
+];
+
+export const VISION_MODELS: LLMModel[] = [
+	{ value: "gpt-4o", label: "GPT-4o", provider: "OPENAI", contextWindow: "128K" },
+	{ value: "gpt-4o-mini", label: "GPT-4o Mini", provider: "OPENAI", contextWindow: "128K" },
+	{ value: "gpt-4-turbo", label: "GPT-4 Turbo", provider: "OPENAI", contextWindow: "128K" },
+	{ value: "claude-sonnet-4-20250514", label: "Claude Sonnet 4", provider: "ANTHROPIC", contextWindow: "200K" },
+	{ value: "claude-3-7-sonnet-20250219", label: "Claude 3.7 Sonnet", provider: "ANTHROPIC", contextWindow: "200K" },
+	{ value: "claude-3-5-sonnet-20241022", label: "Claude 3.5 Sonnet", provider: "ANTHROPIC", contextWindow: "200K" },
+	{ value: "claude-3-opus-20240229", label: "Claude 3 Opus", provider: "ANTHROPIC", contextWindow: "200K" },
+	{ value: "claude-3-haiku-20240307", label: "Claude 3 Haiku", provider: "ANTHROPIC", contextWindow: "200K" },
+	{ value: "gemini-2.5-flash", label: "Gemini 2.5 Flash", provider: "GOOGLE", contextWindow: "1M" },
+	{ value: "gemini-2.5-pro", label: "Gemini 2.5 Pro", provider: "GOOGLE", contextWindow: "1M" },
+	{ value: "gemini-2.0-flash", label: "Gemini 2.0 Flash", provider: "GOOGLE", contextWindow: "1M" },
+	{ value: "gemini-1.5-pro", label: "Gemini 1.5 Pro", provider: "GOOGLE", contextWindow: "1M" },
+	{ value: "gemini-1.5-flash", label: "Gemini 1.5 Flash", provider: "GOOGLE", contextWindow: "1M" },
+	{ value: "pixtral-large-latest", label: "Pixtral Large", provider: "MISTRAL", contextWindow: "128K" },
+	{ value: "pixtral-12b-2409", label: "Pixtral 12B", provider: "MISTRAL", contextWindow: "128K" },
+	{ value: "grok-2-vision-1212", label: "Grok 2 Vision", provider: "XAI", contextWindow: "32K" },
+	{ value: "llava", label: "LLaVA", provider: "OLLAMA" },
+	{ value: "bakllava", label: "BakLLaVA", provider: "OLLAMA" },
+	{ value: "llava-llama3", label: "LLaVA Llama 3", provider: "OLLAMA" },
+	{ value: "llama-4-scout-17b-16e-instruct", label: "Llama 4 Scout 17B", provider: "GROQ", contextWindow: "128K" },
+	{ value: "meta-llama/Llama-4-Scout-17B-16E-Instruct", label: "Llama 4 Scout 17B", provider: "TOGETHER_AI", contextWindow: "128K" },
 ];

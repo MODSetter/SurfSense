@@ -43,6 +43,7 @@ export const cacheKeys = {
 		all: (searchSpaceId: number) => ["vision-llm-configs", searchSpaceId] as const,
 		byId: (configId: number) => ["vision-llm-configs", "detail", configId] as const,
 		global: () => ["vision-llm-configs", "global"] as const,
+		modelList: () => ["vision-models", "catalogue"] as const,
 	},
 	auth: {
 		user: ["auth", "user"] as const,
