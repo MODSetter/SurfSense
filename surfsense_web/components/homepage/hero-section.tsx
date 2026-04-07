@@ -180,31 +180,7 @@ function GetStartedButton() {
 const BrowserWindow = () => {
 	const [selectedIndex, setSelectedIndex] = useState(0);
 	const selectedItem = TAB_ITEMS[selectedIndex];
-	const intervalRef = useRef<NodeJS.Timeout | null>(null);
 	const { expanded, open, close } = useExpandedMedia();
-
-	const startInterval = useCallback(() => {
-		if (intervalRef.current) {
-			clearInterval(intervalRef.current);
-		}
-		intervalRef.current = setInterval(() => {
-			setSelectedIndex((prev) => (prev + 1) % TAB_ITEMS.length);
-		}, 10000);
-	}, []);
-
-	useEffect(() => {
-		startInterval();
-		return () => {
-			if (intervalRef.current) {
-				clearInterval(intervalRef.current);
-			}
-		};
-	}, [startInterval]);
-
-	const handleTabClick = (index: number) => {
-		setSelectedIndex(index);
-		startInterval();
-	};
 
 	return (
 		<>
@@ -220,7 +196,7 @@ const BrowserWindow = () => {
 							<React.Fragment key={item.title}>
 							<button
 								type="button"
-								onClick={() => handleTabClick(index)}
+								onClick={() => setSelectedIndex(index)}
 								className={cn(
 									"flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs transition duration-150 hover:bg-white sm:text-sm dark:hover:bg-neutral-950",
 									selectedIndex === index && !item.featured &&
@@ -334,7 +310,7 @@ const TabVideo = memo(function TabVideo({ src }: { src: string }) {
 				ref={videoRef}
 				key={src}
 				src={src}
-				preload="none"
+				preload="auto"
 				loop
 				muted
 				playsInline
