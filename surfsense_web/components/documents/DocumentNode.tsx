@@ -222,11 +222,17 @@ export const DocumentNode = React.memo(function DocumentNode({
 						</TooltipContent>
 					</Tooltip>
 
+				<span className="relative shrink-0 flex items-center justify-center h-6 w-6">
 					{getDocumentTypeIcon(
 						doc.document_type as DocumentTypeEnum,
 						"h-3.5 w-3.5 text-muted-foreground"
 					) && (
-						<span className="shrink-0">
+						<span
+							className={cn(
+								"absolute inset-0 flex items-center justify-center transition-opacity pointer-events-none",
+								dropdownOpen ? "opacity-0" : "group-hover:opacity-0"
+							)}
+						>
 							{getDocumentTypeIcon(
 								doc.document_type as DocumentTypeEnum,
 								"h-3.5 w-3.5 text-muted-foreground"
@@ -247,7 +253,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 								)}
 								onClick={(e) => e.stopPropagation()}
 							>
-								<MoreHorizontal className="h-3.5 w-3.5" />
+								<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end" className="w-40" onClick={(e) => e.stopPropagation()}>
@@ -288,6 +294,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
+				</span>
 				</div>
 			</ContextMenuTrigger>
 
