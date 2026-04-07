@@ -1,14 +1,5 @@
+import dynamic from "next/dynamic";
 import type { FC } from "react";
-import { BaiduSearchApiConnectForm } from "./components/baidu-search-api-connect-form";
-import { BookStackConnectForm } from "./components/bookstack-connect-form";
-import { CirclebackConnectForm } from "./components/circleback-connect-form";
-import { ElasticsearchConnectForm } from "./components/elasticsearch-connect-form";
-import { GithubConnectForm } from "./components/github-connect-form";
-import { LinkupApiConnectForm } from "./components/linkup-api-connect-form";
-import { LumaConnectForm } from "./components/luma-connect-form";
-import { MCPConnectForm } from "./components/mcp-connect-form";
-import { ObsidianConnectForm } from "./components/obsidian-connect-form";
-import { TavilyApiConnectForm } from "./components/tavily-api-connect-form";
 
 export interface ConnectFormProps {
 	onSubmit: (data: {
@@ -33,33 +24,55 @@ export interface ConnectFormProps {
 
 export type ConnectFormComponent = FC<ConnectFormProps>;
 
+const formLoaders: Record<string, () => Promise<{ default: FC<ConnectFormProps> }>> = {
+	TAVILY_API: () =>
+		import("./components/tavily-api-connect-form").then((m) => ({
+			default: m.TavilyApiConnectForm,
+		})),
+	LINKUP_API: () =>
+		import("./components/linkup-api-connect-form").then((m) => ({
+			default: m.LinkupApiConnectForm,
+		})),
+	BAIDU_SEARCH_API: () =>
+		import("./components/baidu-search-api-connect-form").then((m) => ({
+			default: m.BaiduSearchApiConnectForm,
+		})),
+	ELASTICSEARCH_CONNECTOR: () =>
+		import("./components/elasticsearch-connect-form").then((m) => ({
+			default: m.ElasticsearchConnectForm,
+		})),
+	BOOKSTACK_CONNECTOR: () =>
+		import("./components/bookstack-connect-form").then((m) => ({
+			default: m.BookStackConnectForm,
+		})),
+	GITHUB_CONNECTOR: () =>
+		import("./components/github-connect-form").then((m) => ({
+			default: m.GithubConnectForm,
+		})),
+	LUMA_CONNECTOR: () =>
+		import("./components/luma-connect-form").then((m) => ({
+			default: m.LumaConnectForm,
+		})),
+	CIRCLEBACK_CONNECTOR: () =>
+		import("./components/circleback-connect-form").then((m) => ({
+			default: m.CirclebackConnectForm,
+		})),
+	MCP_CONNECTOR: () =>
+		import("./components/mcp-connect-form").then((m) => ({
+			default: m.MCPConnectForm,
+		})),
+	OBSIDIAN_CONNECTOR: () =>
+		import("./components/obsidian-connect-form").then((m) => ({
+			default: m.ObsidianConnectForm,
+		})),
+};
+
 /**
  * Factory function to get the appropriate connect form component for a connector type
  */
 export function getConnectFormComponent(connectorType: string): ConnectFormComponent | null {
-	switch (connectorType) {
-		case "TAVILY_API":
-			return TavilyApiConnectForm;
-		case "LINKUP_API":
-			return LinkupApiConnectForm;
-		case "BAIDU_SEARCH_API":
-			return BaiduSearchApiConnectForm;
-		case "ELASTICSEARCH_CONNECTOR":
-			return ElasticsearchConnectForm;
-		case "BOOKSTACK_CONNECTOR":
-			return BookStackConnectForm;
-		case "GITHUB_CONNECTOR":
-			return GithubConnectForm;
-		case "LUMA_CONNECTOR":
-			return LumaConnectForm;
-		case "CIRCLEBACK_CONNECTOR":
-			return CirclebackConnectForm;
-		case "MCP_CONNECTOR":
-			return MCPConnectForm;
-		case "OBSIDIAN_CONNECTOR":
-			return ObsidianConnectForm;
-		// Add other connector types here as needed
-		default:
-			return null;
-	}
+	const loader = formLoaders[connectorType];
+	if (!loader) return null;
+
+	return dynamic(loader, { ssr: false }) as unknown as ConnectFormComponent;
 }
