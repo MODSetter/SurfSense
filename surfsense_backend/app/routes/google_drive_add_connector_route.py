@@ -41,7 +41,11 @@ from app.utils.connector_naming import (
     check_duplicate_connector,
     generate_unique_connector_name,
 )
-from app.utils.oauth_security import OAuthStateManager, TokenEncryption
+from app.utils.oauth_security import (
+    OAuthStateManager,
+    TokenEncryption,
+    generate_code_verifier,
+)
 
 # Relax token scope validation for Google OAuth
 os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
@@ -127,14 +131,19 @@ async def connect_drive(space_id: int, user: User = Depends(current_active_user)
 
         flow = get_google_flow()
 
-        # Generate secure state parameter with HMAC signature
+        code_verifier = generate_code_verifier()
+        flow.code_verifier = code_verifier
+
+        # Generate secure state parameter with HMAC signature (includes PKCE code_verifier)
         state_manager = get_state_manager()
-        state_encoded = state_manager.generate_secure_state(space_id, user.id)
+        state_encoded = state_manager.generate_secure_state(
+            space_id, user.id, code_verifier=code_verifier
+        )
 
         # Generate authorization URL
         auth_url, _ = flow.authorization_url(
-            access_type="offline",  # Get refresh token
-            prompt="consent",  # Force consent screen to get refresh token
+            access_type="offline",
+            prompt="consent",
             include_granted_scopes="true",
             state=state_encoded,
         )
@@ -193,8 +202,11 @@ async def reauth_drive(
 
         flow = get_google_flow()
 
+        code_verifier = generate_code_verifier()
+        flow.code_verifier = code_verifier
+
         state_manager = get_state_manager()
-        extra: dict = {"connector_id": connector_id}
+        extra: dict = {"connector_id": connector_id, "code_verifier": code_verifier}
         if return_url and return_url.startswith("/"):
             extra["return_url"] = return_url
         state_encoded = state_manager.generate_secure_state(space_id, user.id, **extra)
@@ -285,6 +297,7 @@ async def drive_callback(
         space_id = data["space_id"]
         reauth_connector_id = data.get("connector_id")
         reauth_return_url = data.get("return_url")
+        code_verifier = data.get("code_verifier")
 
         logger.info(
             f"Processing Google Drive callback for user {user_id}, space {space_id}"
@@ -296,8 +309,9 @@ async def drive_callback(
                 status_code=500, detail="GOOGLE_DRIVE_REDIRECT_URI not configured"
             )
 
-        # Exchange authorization code for tokens
+        # Exchange authorization code for tokens (restore PKCE code_verifier from state)
         flow = get_google_flow()
+        flow.code_verifier = code_verifier
         flow.fetch_token(code=code)
 
         creds = flow.credentials

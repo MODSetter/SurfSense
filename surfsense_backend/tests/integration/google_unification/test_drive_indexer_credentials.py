@@ -124,7 +124,7 @@ async def test_composio_connector_without_account_id_returns_error(
 
     maker = make_session_factory(async_engine)
     async with maker() as session:
-        count, _skipped, error = await index_google_drive_files(
+        count, _skipped, error, _unsupported = await index_google_drive_files(
             session=session,
             connector_id=data["connector_id"],
             search_space_id=data["search_space_id"],

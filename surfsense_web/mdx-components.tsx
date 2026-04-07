@@ -15,8 +15,9 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
 		img: ({ className, alt, ...props }: React.ComponentProps<"img">) => (
 			<Image
 				{...(props as ImageProps)}
-				className={cn("rounded-md border", className)}
 				alt={alt ?? ""}
+				sizes="(max-width: 768px) 100vw, 896px"
+				className={cn("rounded-md border", className)}
 			/>
 		),
 		Video: ({ className, ...props }: React.ComponentProps<"video">) => (

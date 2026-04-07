@@ -59,7 +59,7 @@ class PipelineMessages:
 
     LLM_AUTH = "LLM authentication failed. Check your API key."
     LLM_PERMISSION = "LLM request denied. Check your account permissions."
-    LLM_NOT_FOUND = "LLM model not found. Check your model configuration."
+    LLM_NOT_FOUND = "Model not found. Check your model configuration."
     LLM_BAD_REQUEST = "LLM rejected the request. Document content may be invalid."
     LLM_UNPROCESSABLE = (
         "Document exceeds the LLM context window even after optimization."
@@ -67,7 +67,7 @@ class PipelineMessages:
     LLM_RESPONSE = "LLM returned an invalid response."
     LLM_AUTH = "LLM authentication failed. Check your API key."
     LLM_PERMISSION = "LLM request denied. Check your account permissions."
-    LLM_NOT_FOUND = "LLM model not found. Check your model configuration."
+    LLM_NOT_FOUND = "Model not found. Check your model configuration."
     LLM_BAD_REQUEST = "LLM rejected the request. Document content may be invalid."
     LLM_UNPROCESSABLE = (
         "Document exceeds the LLM context window even after optimization."

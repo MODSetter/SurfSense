@@ -1,6 +1,6 @@
 "use client";
 
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, PenLine, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -21,15 +21,15 @@ export function CommentActions({ canEdit, canDelete, onEdit, onDelete }: Comment
 				<Button
 					variant="ghost"
 					size="icon"
-					className="size-7 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+					className="size-7 text-muted-foreground opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
 				>
-					<MoreHorizontal className="size-4 text-muted-foreground" />
+					<MoreHorizontal className="size-4" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end">
 				{canEdit && (
 					<DropdownMenuItem onClick={onEdit}>
-						<Pencil className="mr-2 size-4" />
+						<PenLine className="mr-2 size-4" />
 						Edit
 					</DropdownMenuItem>
 				)}

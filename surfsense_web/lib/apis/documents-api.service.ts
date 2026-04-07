@@ -6,6 +6,7 @@ import {
 	deleteDocumentRequest,
 	deleteDocumentResponse,
 	type GetDocumentByChunkRequest,
+	type GetDocumentChunksRequest,
 	type GetDocumentRequest,
 	type GetDocumentsRequest,
 	type GetDocumentsStatusRequest,
@@ -13,6 +14,8 @@ import {
 	type GetSurfsenseDocsRequest,
 	getDocumentByChunkRequest,
 	getDocumentByChunkResponse,
+	getDocumentChunksRequest,
+	getDocumentChunksResponse,
 	getDocumentRequest,
 	getDocumentResponse,
 	getDocumentsRequest,
@@ -37,6 +40,7 @@ import {
 	uploadDocumentRequest,
 	uploadDocumentResponse,
 } from "@/contracts/types/document.types";
+import { folderListResponse } from "@/contracts/types/folder.types";
 import { ValidationError } from "../error";
 import { baseApiService } from "./base-api.service";
 
@@ -295,23 +299,52 @@ class DocumentsApiService {
 	};
 
 	/**
-	 * Get document by chunk ID (includes all chunks)
+	 * Get document by chunk ID (includes a window of chunks around the cited one)
 	 */
 	getDocumentByChunk = async (request: GetDocumentByChunkRequest) => {
-		// Validate the request
 		const parsedRequest = getDocumentByChunkRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
 
-			// Format a user friendly error message
 			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
+		const params = new URLSearchParams();
+		if (request.chunk_window != null) {
+			params.set("chunk_window", String(request.chunk_window));
+		}
+		const qs = params.toString();
+		const url = `/api/v1/documents/by-chunk/${request.chunk_id}${qs ? `?${qs}` : ""}`;
+
+		return baseApiService.get(url, getDocumentByChunkResponse);
+	};
+
+	/**
+	 * Get paginated chunks for a document
+	 */
+	getDocumentChunks = async (request: GetDocumentChunksRequest) => {
+		const parsedRequest = getDocumentChunksRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		const params = new URLSearchParams({
+			page: String(parsedRequest.data.page),
+			page_size: String(parsedRequest.data.page_size),
+		});
+		if (parsedRequest.data.start_offset != null) {
+			params.set("start_offset", String(parsedRequest.data.start_offset));
+		}
+
 		return baseApiService.get(
-			`/api/v1/documents/by-chunk/${request.chunk_id}`,
-			getDocumentByChunkResponse
+			`/api/v1/documents/${parsedRequest.data.document_id}/chunks?${params}`,
+			getDocumentChunksResponse
 		);
 	};
 
@@ -377,6 +410,54 @@ class DocumentsApiService {
 		return baseApiService.put(`/api/v1/documents/${id}`, updateDocumentResponse, {
 			body: data,
 		});
+	};
+
+	listDocumentVersions = async (documentId: number) => {
+		return baseApiService.get(`/api/v1/documents/${documentId}/versions`);
+	};
+
+	getDocumentVersion = async (documentId: number, versionNumber: number) => {
+		return baseApiService.get(`/api/v1/documents/${documentId}/versions/${versionNumber}`);
+	};
+
+	restoreDocumentVersion = async (documentId: number, versionNumber: number) => {
+		return baseApiService.post(`/api/v1/documents/${documentId}/versions/${versionNumber}/restore`);
+	};
+
+	folderIndex = async (
+		searchSpaceId: number,
+		body: {
+			folder_path: string;
+			folder_name: string;
+			search_space_id: number;
+			exclude_patterns?: string[];
+			file_extensions?: string[];
+			root_folder_id?: number;
+			enable_summary?: boolean;
+		}
+	) => {
+		return baseApiService.post(`/api/v1/documents/folder-index`, undefined, { body });
+	};
+
+	folderIndexFiles = async (
+		searchSpaceId: number,
+		body: {
+			folder_path: string;
+			folder_name: string;
+			search_space_id: number;
+			target_file_paths: string[];
+			root_folder_id?: number | null;
+			enable_summary?: boolean;
+		}
+	) => {
+		return baseApiService.post(`/api/v1/documents/folder-index-files`, undefined, { body });
+	};
+
+	getWatchedFolders = async (searchSpaceId: number) => {
+		return baseApiService.get(
+			`/api/v1/documents/watched-folders?search_space_id=${searchSpaceId}`,
+			folderListResponse
+		);
 	};
 
 	/**

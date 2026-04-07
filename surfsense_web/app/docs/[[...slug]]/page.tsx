@@ -1,8 +1,8 @@
 import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/page";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { source } from "@/lib/source";
 import { getMDXComponents } from "@/mdx-components";
-import { cache } from "react";
 
 const getDocPage = cache((slug?: string[]) => {
 	return source.getPage(slug);

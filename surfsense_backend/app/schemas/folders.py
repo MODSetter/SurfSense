@@ -1,6 +1,7 @@
 """Pydantic schemas for folder CRUD, move, and reorder operations."""
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -34,6 +35,9 @@ class FolderRead(BaseModel):
     created_by_id: UUID | None
     created_at: datetime
     updated_at: datetime
+    metadata: dict[str, Any] | None = Field(
+        default=None, validation_alias="folder_metadata"
+    )
 
     model_config = ConfigDict(from_attributes=True)
 

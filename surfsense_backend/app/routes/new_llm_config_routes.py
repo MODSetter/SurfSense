@@ -1,7 +1,7 @@
 """
 API routes for NewLLMConfig CRUD operations.
 
-NewLLMConfig combines LLM model settings with prompt configuration:
+NewLLMConfig combines model settings with prompt configuration:
 - LLM provider, model, API key, etc.
 - Configurable system instructions
 - Citation toggle

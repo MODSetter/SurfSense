@@ -11,12 +11,33 @@ import hmac
 import json
 import logging
 import time
+from random import SystemRandom
+from string import ascii_letters, digits
 from uuid import UUID
 
 from cryptography.fernet import Fernet
 from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
+
+_PKCE_CHARS = ascii_letters + digits + "-._~"
+_PKCE_RNG = SystemRandom()
+
+
+def generate_code_verifier(length: int = 128) -> str:
+    """Generate a PKCE code_verifier (RFC 7636, 43-128 unreserved chars)."""
+    return "".join(_PKCE_RNG.choice(_PKCE_CHARS) for _ in range(length))
+
+
+def generate_pkce_pair(length: int = 128) -> tuple[str, str]:
+    """Generate a PKCE code_verifier and its S256 code_challenge."""
+    verifier = generate_code_verifier(length)
+    challenge = (
+        base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())
+        .decode()
+        .rstrip("=")
+    )
+    return verifier, challenge
 
 
 class OAuthStateManager:

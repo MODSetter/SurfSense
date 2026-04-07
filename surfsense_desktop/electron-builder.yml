@@ -9,10 +9,19 @@ directories:
 files:
   - dist/**/*
   - "!node_modules"
+  - node_modules/node-gyp-build/**/*
+  - node_modules/bindings/**/*
+  - node_modules/file-uri-to-path/**/*
+  - node_modules/node-mac-permissions/**/*
+  - "!node_modules/node-mac-permissions/src"
+  - "!node_modules/node-mac-permissions/binding.gyp"
   - "!src"
   - "!scripts"
   - "!release"
 extraResources:
+  - from: assets/
+    to: assets/
+    filter: ["*.ico", "*.png", "*.icns"]
   - from: ../surfsense_web/.next/standalone/surfsense_web/
     to: standalone/
     filter:
@@ -29,12 +38,20 @@ extraResources:
     filter: ["**/*"]
 asarUnpack:
   - "**/*.node"
+  - "node_modules/node-gyp-build/**/*"
+  - "node_modules/bindings/**/*"
+  - "node_modules/file-uri-to-path/**/*"
+  - "node_modules/node-mac-permissions/**/*"
 mac:
   icon: assets/icon.icns
   category: public.app-category.productivity
   artifactName: "${productName}-${version}-${arch}.${ext}"
-  hardenedRuntime: true
+  hardenedRuntime: false
   gatekeeperAssess: false
+  extendInfo:
+    NSAccessibilityUsageDescription: "SurfSense uses accessibility features to insert suggestions into the active application."
+    NSScreenCaptureUsageDescription: "SurfSense uses screen capture to analyze your screen and provide context-aware writing suggestions."
+    NSAppleEventsUsageDescription: "SurfSense uses Apple Events to interact with the active application."
   target:
     - target: dmg
       arch: [x64, arm64]
@@ -44,7 +61,7 @@ win:
   icon: assets/icon.ico
   target:
     - target: nsis
-      arch: [x64, arm64]
+      arch: [x64]
 nsis:
   oneClick: false
   perMachine: false
