@@ -14,6 +14,10 @@ type SSEEvent =
 	| {
 			type: "data-thinking-step";
 			data: { id: string; title: string; status: string; items: string[] };
+	  }
+	| {
+			type: "data-suggestions";
+			data: { options: string[] };
 	  };
 
 interface AgentStep {
@@ -70,10 +74,11 @@ function StepIcon({ status }: { status: string }) {
 
 export default function SuggestionPage() {
 	const api = useElectronAPI();
-	const [suggestion, setSuggestion] = useState("");
+	const [options, setOptions] = useState<string[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [steps, setSteps] = useState<AgentStep[]>([]);
+	const [expandedOption, setExpandedOption] = useState<number | null>(null);
 	const abortRef = useRef<AbortController | null>(null);
 
 	const isDesktop = !!api?.onAutocompleteContext;
@@ -99,9 +104,10 @@ export default function SuggestionPage() {
 			abortRef.current = controller;
 
 			setIsLoading(true);
-			setSuggestion("");
+			setOptions([]);
 			setError(null);
 			setSteps([]);
+			setExpandedOption(null);
 
 			let token = getBearerToken();
 			if (!token) {
@@ -165,8 +171,8 @@ export default function SuggestionPage() {
 
 							try {
 								const parsed: SSEEvent = JSON.parse(data);
-								if (parsed.type === "text-delta") {
-									setSuggestion((prev) => prev + parsed.delta);
+								if (parsed.type === "data-suggestions") {
+									setOptions(parsed.data.options);
 								} else if (parsed.type === "error") {
 									setError(friendlyError(parsed.errorText));
 								} else if (parsed.type === "data-thinking-step") {
@@ -226,7 +232,7 @@ export default function SuggestionPage() {
 		);
 	}
 
-	const showLoading = isLoading && !suggestion;
+	const showLoading = isLoading && options.length === 0;
 
 	if (showLoading) {
 		return (
@@ -258,29 +264,55 @@ export default function SuggestionPage() {
 		);
 	}
 
-	const handleAccept = () => {
-		if (suggestion) {
-			api?.acceptSuggestion?.(suggestion);
-		}
+	const handleSelect = (text: string) => {
+		api?.acceptSuggestion?.(text);
 	};
 
 	const handleDismiss = () => {
 		api?.dismissSuggestion?.();
 	};
 
-	if (!suggestion) return null;
+	const TRUNCATE_LENGTH = 120;
+
+	if (options.length === 0) return null;
 
 	return (
 		<div className="suggestion-tooltip">
-			<p className="suggestion-text">{suggestion}</p>
+			<div className="suggestion-options">
+				{options.map((option, index) => {
+					const isExpanded = expandedOption === index;
+					const needsTruncation = option.length > TRUNCATE_LENGTH;
+					const displayText =
+						needsTruncation && !isExpanded
+							? option.slice(0, TRUNCATE_LENGTH) + "…"
+							: option;
+
+					return (
+						<button
+							key={index}
+							type="button"
+							className="suggestion-option"
+							onClick={() => handleSelect(option)}
+						>
+							<span className="option-number">{index + 1}</span>
+							<span className="option-text">{displayText}</span>
+							{needsTruncation && (
+								<button
+									type="button"
+									className="option-expand"
+									onClick={(e) => {
+										e.stopPropagation();
+										setExpandedOption(isExpanded ? null : index);
+									}}
+								>
+									{isExpanded ? "less" : "more"}
+								</button>
+							)}
+						</button>
+					);
+				})}
+			</div>
 			<div className="suggestion-actions">
-				<button
-					type="button"
-					className="suggestion-btn suggestion-btn-accept"
-					onClick={handleAccept}
-				>
-					Accept
-				</button>
 				<button
 					type="button"
 					className="suggestion-btn suggestion-btn-dismiss"
