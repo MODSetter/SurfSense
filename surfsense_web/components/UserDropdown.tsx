@@ -16,7 +16,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
-import { logout } from "@/lib/auth-utils";
+import { getLoginPath, logout } from "@/lib/auth-utils";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
 
 export function UserDropdown({
@@ -35,21 +35,24 @@ export function UserDropdown({
 		if (isLoggingOut) return;
 		setIsLoggingOut(true);
 		try {
-			// Track logout event and reset PostHog identity
 			trackLogout();
 			resetUser();
 
-			// Revoke refresh token on server and clear all tokens from localStorage
 			await logout();
 
 			router.push("/");
 			router.refresh();
+			if (typeof window !== "undefined") {
+				window.location.href = getLoginPath();
+			}
 		} catch (error) {
 			console.error("Error during logout:", error);
-			// Even if there's an error, try to clear tokens and redirect
 			await logout();
 			router.push("/");
 			router.refresh();
+			if (typeof window !== "undefined") {
+				window.location.href = getLoginPath();
+			}
 		}
 	};
 

@@ -1,12 +1,9 @@
 """Content extraction for Google Drive files."""
 
-import asyncio
 import contextlib
 import logging
 import os
 import tempfile
-import threading
-import time
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +17,7 @@ from .file_types import (
     get_export_mime_type,
     get_extension_from_mime,
     is_google_workspace_file,
+    should_skip_by_extension,
     should_skip_file,
 )
 
@@ -44,6 +42,11 @@ async def download_and_extract_content(
 
     if should_skip_file(mime_type):
         return None, {}, f"Skipping {mime_type}"
+
+    if not is_google_workspace_file(mime_type):
+        ext_skip, _unsup_ext = should_skip_by_extension(file_name)
+        if ext_skip:
+            return None, {}, f"Skipping unsupported extension: {file_name}"
 
     logger.info(f"Downloading file for content extraction: {file_name} ({mime_type})")
 
@@ -97,7 +100,10 @@ async def download_and_extract_content(
             if error:
                 return None, drive_metadata, error
 
-        markdown = await _parse_file_to_markdown(temp_file_path, file_name)
+        etl_filename = (
+            file_name + extension if is_google_workspace_file(mime_type) else file_name
+        )
+        markdown = await _parse_file_to_markdown(temp_file_path, etl_filename)
         return markdown, drive_metadata, None
 
     except Exception as e:
@@ -110,99 +116,14 @@ async def download_and_extract_content(
 
 
 async def _parse_file_to_markdown(file_path: str, filename: str) -> str:
-    """Parse a local file to markdown using the configured ETL service."""
-    lower = filename.lower()
+    """Parse a local file to markdown using the unified ETL pipeline."""
+    from app.etl_pipeline.etl_document import EtlRequest
+    from app.etl_pipeline.etl_pipeline_service import EtlPipelineService
 
-    if lower.endswith((".md", ".markdown", ".txt")):
-        with open(file_path, encoding="utf-8") as f:
-            return f.read()
-
-    if lower.endswith((".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm")):
-        from litellm import atranscription
-
-        from app.config import config as app_config
-
-        stt_service_type = (
-            "local"
-            if app_config.STT_SERVICE and app_config.STT_SERVICE.startswith("local/")
-            else "external"
-        )
-        if stt_service_type == "local":
-            from app.services.stt_service import stt_service
-
-            t0 = time.monotonic()
-            logger.info(
-                f"[local-stt] START file={filename} thread={threading.current_thread().name}"
-            )
-            result = await asyncio.to_thread(stt_service.transcribe_file, file_path)
-            logger.info(
-                f"[local-stt] END file={filename} elapsed={time.monotonic() - t0:.2f}s"
-            )
-            text = result.get("text", "")
-        else:
-            with open(file_path, "rb") as audio_file:
-                kwargs: dict[str, Any] = {
-                    "model": app_config.STT_SERVICE,
-                    "file": audio_file,
-                    "api_key": app_config.STT_SERVICE_API_KEY,
-                }
-                if app_config.STT_SERVICE_API_BASE:
-                    kwargs["api_base"] = app_config.STT_SERVICE_API_BASE
-                resp = await atranscription(**kwargs)
-                text = resp.get("text", "")
-
-        if not text:
-            raise ValueError("Transcription returned empty text")
-        return f"# Transcription of {filename}\n\n{text}"
-
-    # Document files -- use configured ETL service
-    from app.config import config as app_config
-
-    if app_config.ETL_SERVICE == "UNSTRUCTURED":
-        from langchain_unstructured import UnstructuredLoader
-
-        from app.utils.document_converters import convert_document_to_markdown
-
-        loader = UnstructuredLoader(
-            file_path,
-            mode="elements",
-            post_processors=[],
-            languages=["eng"],
-            include_orig_elements=False,
-            include_metadata=False,
-            strategy="auto",
-        )
-        docs = await loader.aload()
-        return await convert_document_to_markdown(docs)
-
-    if app_config.ETL_SERVICE == "LLAMACLOUD":
-        from app.tasks.document_processors.file_processors import (
-            parse_with_llamacloud_retry,
-        )
-
-        result = await parse_with_llamacloud_retry(
-            file_path=file_path, estimated_pages=50
-        )
-        markdown_documents = await result.aget_markdown_documents(split_by_page=False)
-        if not markdown_documents:
-            raise RuntimeError(f"LlamaCloud returned no documents for {filename}")
-        return markdown_documents[0].text
-
-    if app_config.ETL_SERVICE == "DOCLING":
-        from docling.document_converter import DocumentConverter
-
-        converter = DocumentConverter()
-        t0 = time.monotonic()
-        logger.info(
-            f"[docling] START file={filename} thread={threading.current_thread().name}"
-        )
-        result = await asyncio.to_thread(converter.convert, file_path)
-        logger.info(
-            f"[docling] END file={filename} elapsed={time.monotonic() - t0:.2f}s"
-        )
-        return result.document.export_to_markdown()
-
-    raise RuntimeError(f"Unknown ETL_SERVICE: {app_config.ETL_SERVICE}")
+    result = await EtlPipelineService().extract(
+        EtlRequest(file_path=file_path, filename=filename)
+    )
+    return result.markdown_content
 
 
 async def download_and_process_file(
@@ -236,9 +157,13 @@ async def download_and_process_file(
     file_name = file.get("name", "Unknown")
     mime_type = file.get("mimeType", "")
 
-    # Skip folders and shortcuts
     if should_skip_file(mime_type):
         return None, f"Skipping {mime_type}", None
+
+    if not is_google_workspace_file(mime_type):
+        ext_skip, _unsup_ext = should_skip_by_extension(file_name)
+        if ext_skip:
+            return None, f"Skipping unsupported extension: {file_name}", None
 
     logger.info(f"Downloading file: {file_name} ({mime_type})")
 
@@ -310,10 +235,13 @@ async def download_and_process_file(
                 "."
             )[-1]
 
+        etl_filename = (
+            file_name + extension if is_google_workspace_file(mime_type) else file_name
+        )
         logger.info(f"Processing {file_name} with Surfsense's file processor")
         await process_file_in_background(
             file_path=temp_file_path,
-            filename=file_name,
+            filename=etl_filename,
             search_space_id=search_space_id,
             user_id=user_id,
             session=session,

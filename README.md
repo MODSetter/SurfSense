@@ -21,9 +21,29 @@
 </div>
 
 # SurfSense
-Connect any LLM to your internal knowledge sources and chat with it in real time alongside your team. OSS alternative to NotebookLM, Perplexity, and Glean.
 
-SurfSense is a highly customizable AI research agent, connected to external sources such as Search Engines (SearxNG, Tavily, LinkUp), Google Drive, OneDrive, Dropbox, Slack, Microsoft Teams, Linear, Jira, ClickUp, Confluence, BookStack, Gmail, Notion, YouTube, GitHub, Discord, Airtable, Google Calendar, Luma, Circleback, Elasticsearch, Obsidian and more to come.
+NotebookLM is one of the best and most useful AI platforms out there, but once you start using it regularly you also feel its limitations leaving something to be desired more.
+
+1. There are limits on the amount of sources you can add in a notebook.
+2. There are limits on the number of notebooks you can have.
+3. You cannot have sources that exceed 500,000 words and are more than 200MB.
+4. You are vendor locked in to Google services (LLMs, usage models, etc.) with no option to configure them.
+5. Limited external data sources and service integrations.
+6. NotebookLM Agent is specifically optimised for just studying and researching, but you can do so much more with the source data.
+7. Lack of multiplayer support.
+
+...and more.
+
+**SurfSense is specifically made to solve these problems.** SurfSense empowers you to:
+
+- **Control Your Data Flow** - Keep your data private and secure.
+- **No Data Limits** - Add an unlimited amount of sources and notebooks.
+- **No Vendor Lock-in** - Configure any LLM, image, TTS, and STT models to use.
+- **25+ External Data Sources** - Add your sources from Google Drive, OneDrive, Dropbox, Notion, and many other external services.
+- **Real-Time Multiplayer Support** - Work easily with your team members in a shared notebook.
+- **Desktop App** - Get AI assistance in any application with Quick Assist, General Assist, and Extreme Assist.
+
+...and more to come.
 
 
 
@@ -112,6 +132,18 @@ The install script sets up [Watchtower](https://github.com/nicholas-fedor/watcht
 
 For Docker Compose, manual installation, and other deployment options, see the [docs](https://www.surfsense.com/docs/).
 
+### Desktop App
+
+SurfSense also ships a desktop app that brings AI assistance to every application on your computer. Download it from the [latest release](https://github.com/MODSetter/SurfSense/releases/latest).
+
+The desktop app includes three powerful features:
+
+- **General Assist** — Launch SurfSense instantly from any application with a global shortcut.
+- **Quick Assist** — Select text anywhere, then ask AI to explain, rewrite, or act on it.
+- **Extreme Assist** — Get inline writing suggestions powered by your knowledge base as you type in any app.
+
+All three features operate against your chosen search space, so your answers are always grounded in your own data.
+
 ### How to Realtime Collaborate (Beta)
 
 1. Go to Manage Members page and create an invite.
@@ -134,24 +166,30 @@ For Docker Compose, manual installation, and other deployment options, see the [
 
    <p align="center"><img src="https://github.com/user-attachments/assets/3b04477d-8f42-4baa-be95-867c1eaeba87" alt="Realtime Comments" /></p>
 
-## Key Features
+## SurfSense vs Google NotebookLM
 
-| Feature | Description |
-|---------|-------------|
-| OSS Alternative | Drop in replacement for NotebookLM, Perplexity, and Glean with real time team collaboration |
-| 50+ File Formats | Upload documents, images, videos via LlamaCloud, Unstructured, or Docling (local) |
-| Hybrid Search | Semantic + Full Text Search with Hierarchical Indices and Reciprocal Rank Fusion |
-| Cited Answers | Chat with your knowledge base and get Perplexity style cited responses |
-| Deep Agent Architecture | Powered by [LangChain Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) planning, subagents, and file system access |
-| Universal LLM Support | 100+ LLMs, 6000+ embedding models, all major rerankers via OpenAI spec & LiteLLM |
-| Privacy First | Full local LLM support (vLLM, Ollama) your data stays yours |
-| Team Collaboration | RBAC with Owner / Admin / Editor / Viewer roles, real time chat & comment threads |
-| Video Generation | Generate videos with narration and visuals |
-| Presentation Generation | Create editable, slide based presentations |
-| Podcast Generation | 3 min podcast in under 20 seconds; multiple TTS providers (OpenAI, Azure, Kokoro) |
-| Browser Extension | Cross browser extension to save any webpage, including auth protected pages |
-| 27+ Connectors | Search Engines, Google Drive, OneDrive, Dropbox, Slack, Teams, Jira, Notion, GitHub, Discord & [more](#external-sources) |
-| Self Hostable | Open source, Docker one liner or full Docker Compose for production |
+| Feature | Google NotebookLM | SurfSense |
+|---------|-------------------|-----------|
+| **Sources per Notebook** | 50 (Free) to 600 (Ultra, $249.99/mo) | Unlimited |
+| **Number of Notebooks** | 100 (Free) to 500 (paid tiers) | Unlimited |
+| **Source Size Limit** | 500,000 words / 200MB per source | No limit |
+| **Pricing** | Free tier available; Pro $19.99/mo, Ultra $249.99/mo | Free and open source, self-host on your own infra |
+| **LLM Support** | Google Gemini only | 100+ LLMs via OpenAI spec & LiteLLM |
+| **Embedding Models** | Google only | 6,000+ embedding models, all major rerankers |
+| **Local / Private LLMs** | Not available | Full support (vLLM, Ollama) - your data stays yours |
+| **Self Hostable** | No | Yes - Docker one-liner or full Docker Compose |
+| **Open Source** | No | Yes |
+| **External Connectors** | Google Drive, YouTube, websites | 27+ connectors - Search Engines, Google Drive, OneDrive, Dropbox, Slack, Teams, Jira, Notion, GitHub, Discord & [more](#external-sources) |
+| **File Format Support** | PDFs, Docs, Slides, Sheets, CSV, Word, EPUB, images, web URLs, YouTube | 50+ formats - documents, images, videos via LlamaCloud, Unstructured, or Docling (local) |
+| **Search** | Semantic search | Hybrid Search - Semantic + Full Text with Hierarchical Indices & Reciprocal Rank Fusion |
+| **Cited Answers** | Yes | Yes - Perplexity-style cited responses |
+| **Agentic Architecture** | No | Yes - powered by [LangChain Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) with planning, subagents, and file system access |
+| **Real-Time Multiplayer** | Shared notebooks with Viewer/Editor roles (no real-time chat) | RBAC with Owner / Admin / Editor / Viewer roles, real-time chat & comment threads |
+| **Video Generation** | Cinematic Video Overviews via Veo 3 (Ultra only) | Available (NotebookLM is better here, actively improving) |
+| **Presentation Generation** | Better looking slides but not editable | Create editable, slide-based presentations |
+| **Podcast Generation** | Audio Overviews with customizable hosts and languages | Available with multiple TTS providers (NotebookLM is better here, actively improving) |
+| **Desktop App** | No | Native app with General Assist, Quick Assist, and Extreme Assist — AI help in any application |
+| **Browser Extension** | No | Cross-browser extension to save any webpage, including auth-protected pages |
 
 <details>
 <summary><b>Full list of External Sources</b></summary>

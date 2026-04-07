@@ -159,6 +159,7 @@ async def create_surfsense_deep_agent(
     additional_tools: Sequence[BaseTool] | None = None,
     firecrawl_api_key: str | None = None,
     thread_visibility: ChatVisibility | None = None,
+    mentioned_document_ids: list[int] | None = None,
 ):
     """
     Create a SurfSense deep agent with configurable tools and prompts.
@@ -451,6 +452,7 @@ async def create_surfsense_deep_agent(
             search_space_id=search_space_id,
             available_connectors=available_connectors,
             available_document_types=available_document_types,
+            mentioned_document_ids=mentioned_document_ids,
         ),
         SurfSenseFilesystemMiddleware(
             search_space_id=search_space_id,

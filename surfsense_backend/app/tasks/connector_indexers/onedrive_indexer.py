@@ -28,6 +28,7 @@ from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.document_hashing import compute_identifier_hash
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
 from app.services.llm_service import get_user_long_context_llm
+from app.services.page_limit_service import PageLimitService
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.connector_indexers.base import (
     check_document_by_unique_identifier,
@@ -55,7 +56,10 @@ async def _should_skip_file(
     file_id = file.get("id")
     file_name = file.get("name", "Unknown")
 
-    if skip_item(file):
+    skip, unsup_ext = skip_item(file)
+    if skip:
+        if unsup_ext:
+            return True, f"unsupported:{unsup_ext}"
         return True, "folder/onenote/remote"
     if not file_id:
         return True, "missing file_id"
@@ -289,12 +293,18 @@ async def _index_selected_files(
     user_id: str,
     enable_summary: bool,
     on_heartbeat: HeartbeatCallbackType | None = None,
-) -> tuple[int, int, list[str]]:
+) -> tuple[int, int, int, list[str]]:
     """Index user-selected files using the parallel pipeline."""
+    page_limit_service = PageLimitService(session)
+    pages_used, pages_limit = await page_limit_service.get_page_usage(user_id)
+    remaining_quota = pages_limit - pages_used
+    batch_estimated_pages = 0
+
     files_to_download: list[dict] = []
     errors: list[str] = []
     renamed_count = 0
     skipped = 0
+    unsupported_count = 0
 
     for file_id, file_name in file_ids:
         file, error = await get_file_by_id(onedrive_client, file_id)
@@ -305,12 +315,23 @@ async def _index_selected_files(
 
         skip, msg = await _should_skip_file(session, file, search_space_id)
         if skip:
-            if msg and "renamed" in msg.lower():
+            if msg and msg.startswith("unsupported:"):
+                unsupported_count += 1
+            elif msg and "renamed" in msg.lower():
                 renamed_count += 1
             else:
                 skipped += 1
             continue
 
+        file_pages = PageLimitService.estimate_pages_from_metadata(
+            file.get("name", ""), file.get("size")
+        )
+        if batch_estimated_pages + file_pages > remaining_quota:
+            display = file_name or file_id
+            errors.append(f"File '{display}': page limit would be exceeded")
+            continue
+
+        batch_estimated_pages += file_pages
         files_to_download.append(file)
 
     batch_indexed, _failed = await _download_and_index(
@@ -324,7 +345,15 @@ async def _index_selected_files(
         on_heartbeat=on_heartbeat,
     )
 
-    return renamed_count + batch_indexed, skipped, errors
+    if batch_indexed > 0 and files_to_download and batch_estimated_pages > 0:
+        pages_to_deduct = max(
+            1, batch_estimated_pages * batch_indexed // len(files_to_download)
+        )
+        await page_limit_service.update_page_usage(
+            user_id, pages_to_deduct, allow_exceed=True
+        )
+
+    return renamed_count + batch_indexed, skipped, unsupported_count, errors
 
 
 # ---------------------------------------------------------------------------
@@ -346,8 +375,11 @@ async def _index_full_scan(
     include_subfolders: bool = True,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
     enable_summary: bool = True,
-) -> tuple[int, int]:
-    """Full scan indexing of a folder."""
+) -> tuple[int, int, int]:
+    """Full scan indexing of a folder.
+
+    Returns (indexed, skipped, unsupported_count).
+    """
     await task_logger.log_task_progress(
         log_entry,
         f"Starting full scan of folder: {folder_name}",
@@ -358,8 +390,15 @@ async def _index_full_scan(
         },
     )
 
+    page_limit_service = PageLimitService(session)
+    pages_used, pages_limit = await page_limit_service.get_page_usage(user_id)
+    remaining_quota = pages_limit - pages_used
+    batch_estimated_pages = 0
+    page_limit_reached = False
+
     renamed_count = 0
     skipped = 0
+    unsupported_count = 0
     files_to_download: list[dict] = []
 
     all_files, error = await get_files_in_folder(
@@ -378,11 +417,28 @@ async def _index_full_scan(
     for file in all_files[:max_files]:
         skip, msg = await _should_skip_file(session, file, search_space_id)
         if skip:
-            if msg and "renamed" in msg.lower():
+            if msg and msg.startswith("unsupported:"):
+                unsupported_count += 1
+            elif msg and "renamed" in msg.lower():
                 renamed_count += 1
             else:
                 skipped += 1
             continue
+
+        file_pages = PageLimitService.estimate_pages_from_metadata(
+            file.get("name", ""), file.get("size")
+        )
+        if batch_estimated_pages + file_pages > remaining_quota:
+            if not page_limit_reached:
+                logger.warning(
+                    "Page limit reached during OneDrive full scan, "
+                    "skipping remaining files"
+                )
+                page_limit_reached = True
+            skipped += 1
+            continue
+
+        batch_estimated_pages += file_pages
         files_to_download.append(file)
 
     batch_indexed, failed = await _download_and_index(
@@ -396,11 +452,20 @@ async def _index_full_scan(
         on_heartbeat=on_heartbeat_callback,
     )
 
+    if batch_indexed > 0 and files_to_download and batch_estimated_pages > 0:
+        pages_to_deduct = max(
+            1, batch_estimated_pages * batch_indexed // len(files_to_download)
+        )
+        await page_limit_service.update_page_usage(
+            user_id, pages_to_deduct, allow_exceed=True
+        )
+
     indexed = renamed_count + batch_indexed
     logger.info(
-        f"Full scan complete: {indexed} indexed, {skipped} skipped, {failed} failed"
+        f"Full scan complete: {indexed} indexed, {skipped} skipped, "
+        f"{unsupported_count} unsupported, {failed} failed"
     )
-    return indexed, skipped
+    return indexed, skipped, unsupported_count
 
 
 async def _index_with_delta_sync(
@@ -416,8 +481,11 @@ async def _index_with_delta_sync(
     max_files: int,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
     enable_summary: bool = True,
-) -> tuple[int, int, str | None]:
-    """Delta sync using OneDrive change tracking. Returns (indexed, skipped, new_delta_link)."""
+) -> tuple[int, int, int, str | None]:
+    """Delta sync using OneDrive change tracking.
+
+    Returns (indexed, skipped, unsupported_count, new_delta_link).
+    """
     await task_logger.log_task_progress(
         log_entry,
         "Starting delta sync",
@@ -437,12 +505,19 @@ async def _index_with_delta_sync(
 
     if not changes:
         logger.info("No changes detected since last sync")
-        return 0, 0, new_delta_link
+        return 0, 0, 0, new_delta_link
 
     logger.info(f"Processing {len(changes)} delta changes")
 
+    page_limit_service = PageLimitService(session)
+    pages_used, pages_limit = await page_limit_service.get_page_usage(user_id)
+    remaining_quota = pages_limit - pages_used
+    batch_estimated_pages = 0
+    page_limit_reached = False
+
     renamed_count = 0
     skipped = 0
+    unsupported_count = 0
     files_to_download: list[dict] = []
     files_processed = 0
 
@@ -465,12 +540,28 @@ async def _index_with_delta_sync(
 
         skip, msg = await _should_skip_file(session, change, search_space_id)
         if skip:
-            if msg and "renamed" in msg.lower():
+            if msg and msg.startswith("unsupported:"):
+                unsupported_count += 1
+            elif msg and "renamed" in msg.lower():
                 renamed_count += 1
             else:
                 skipped += 1
             continue
 
+        file_pages = PageLimitService.estimate_pages_from_metadata(
+            change.get("name", ""), change.get("size")
+        )
+        if batch_estimated_pages + file_pages > remaining_quota:
+            if not page_limit_reached:
+                logger.warning(
+                    "Page limit reached during OneDrive delta sync, "
+                    "skipping remaining files"
+                )
+                page_limit_reached = True
+            skipped += 1
+            continue
+
+        batch_estimated_pages += file_pages
         files_to_download.append(change)
 
     batch_indexed, failed = await _download_and_index(
@@ -484,11 +575,20 @@ async def _index_with_delta_sync(
         on_heartbeat=on_heartbeat_callback,
     )
 
+    if batch_indexed > 0 and files_to_download and batch_estimated_pages > 0:
+        pages_to_deduct = max(
+            1, batch_estimated_pages * batch_indexed // len(files_to_download)
+        )
+        await page_limit_service.update_page_usage(
+            user_id, pages_to_deduct, allow_exceed=True
+        )
+
     indexed = renamed_count + batch_indexed
     logger.info(
-        f"Delta sync complete: {indexed} indexed, {skipped} skipped, {failed} failed"
+        f"Delta sync complete: {indexed} indexed, {skipped} skipped, "
+        f"{unsupported_count} unsupported, {failed} failed"
     )
-    return indexed, skipped, new_delta_link
+    return indexed, skipped, unsupported_count, new_delta_link
 
 
 # ---------------------------------------------------------------------------
@@ -502,7 +602,7 @@ async def index_onedrive_files(
     search_space_id: int,
     user_id: str,
     items_dict: dict,
-) -> tuple[int, int, str | None]:
+) -> tuple[int, int, str | None, int]:
     """Index OneDrive files for a specific connector.
 
     items_dict format:
@@ -529,7 +629,7 @@ async def index_onedrive_files(
             await task_logger.log_task_failure(
                 log_entry, error_msg, None, {"error_type": "ConnectorNotFound"}
             )
-            return 0, 0, error_msg
+            return 0, 0, error_msg, 0
 
         token_encrypted = connector.config.get("_token_encrypted", False)
         if token_encrypted and not config.SECRET_KEY:
@@ -540,7 +640,7 @@ async def index_onedrive_files(
                 "Missing SECRET_KEY",
                 {"error_type": "MissingSecretKey"},
             )
-            return 0, 0, error_msg
+            return 0, 0, error_msg, 0
 
         connector_enable_summary = getattr(connector, "enable_summary", True)
         onedrive_client = OneDriveClient(session, connector_id)
@@ -552,12 +652,13 @@ async def index_onedrive_files(
 
         total_indexed = 0
         total_skipped = 0
+        total_unsupported = 0
 
         # Index selected individual files
         selected_files = items_dict.get("files", [])
         if selected_files:
             file_tuples = [(f["id"], f.get("name")) for f in selected_files]
-            indexed, skipped, _errors = await _index_selected_files(
+            indexed, skipped, unsupported, _errors = await _index_selected_files(
                 onedrive_client,
                 session,
                 file_tuples,
@@ -568,6 +669,7 @@ async def index_onedrive_files(
             )
             total_indexed += indexed
             total_skipped += skipped
+            total_unsupported += unsupported
 
         # Index selected folders
         folders = items_dict.get("folders", [])
@@ -581,7 +683,7 @@ async def index_onedrive_files(
 
             if can_use_delta:
                 logger.info(f"Using delta sync for folder {folder_name}")
-                indexed, skipped, new_delta_link = await _index_with_delta_sync(
+                indexed, skipped, unsup, new_delta_link = await _index_with_delta_sync(
                     onedrive_client,
                     session,
                     connector_id,
@@ -596,6 +698,7 @@ async def index_onedrive_files(
                 )
                 total_indexed += indexed
                 total_skipped += skipped
+                total_unsupported += unsup
 
                 if new_delta_link:
                     await session.refresh(connector)
@@ -605,7 +708,7 @@ async def index_onedrive_files(
                     flag_modified(connector, "config")
 
                 # Reconciliation full scan
-                ri, rs = await _index_full_scan(
+                ri, rs, ru = await _index_full_scan(
                     onedrive_client,
                     session,
                     connector_id,
@@ -621,9 +724,10 @@ async def index_onedrive_files(
                 )
                 total_indexed += ri
                 total_skipped += rs
+                total_unsupported += ru
             else:
                 logger.info(f"Using full scan for folder {folder_name}")
-                indexed, skipped = await _index_full_scan(
+                indexed, skipped, unsup = await _index_full_scan(
                     onedrive_client,
                     session,
                     connector_id,
@@ -639,6 +743,7 @@ async def index_onedrive_files(
                 )
                 total_indexed += indexed
                 total_skipped += skipped
+                total_unsupported += unsup
 
             # Store new delta link for this folder
             _, new_delta_link, _ = await onedrive_client.get_delta(folder_id=folder_id)
@@ -657,12 +762,18 @@ async def index_onedrive_files(
         await task_logger.log_task_success(
             log_entry,
             f"Successfully completed OneDrive indexing for connector {connector_id}",
-            {"files_processed": total_indexed, "files_skipped": total_skipped},
+            {
+                "files_processed": total_indexed,
+                "files_skipped": total_skipped,
+                "files_unsupported": total_unsupported,
+            },
         )
         logger.info(
-            f"OneDrive indexing completed: {total_indexed} indexed, {total_skipped} skipped"
+            f"OneDrive indexing completed: {total_indexed} indexed, "
+            f"{total_skipped} skipped, {total_unsupported} unsupported"
         )
-        return total_indexed, total_skipped, None
+
+        return total_indexed, total_skipped, None, total_unsupported
 
     except SQLAlchemyError as db_error:
         await session.rollback()
@@ -673,7 +784,7 @@ async def index_onedrive_files(
             {"error_type": "SQLAlchemyError"},
         )
         logger.error(f"Database error: {db_error!s}", exc_info=True)
-        return 0, 0, f"Database error: {db_error!s}"
+        return 0, 0, f"Database error: {db_error!s}", 0
     except Exception as e:
         await session.rollback()
         await task_logger.log_task_failure(
@@ -683,4 +794,4 @@ async def index_onedrive_files(
             {"error_type": type(e).__name__},
         )
         logger.error(f"Failed to index OneDrive files: {e!s}", exc_info=True)
-        return 0, 0, f"Failed to index OneDrive files: {e!s}"
+        return 0, 0, f"Failed to index OneDrive files: {e!s}", 0
