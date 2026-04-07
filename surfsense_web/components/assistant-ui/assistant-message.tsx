@@ -465,8 +465,14 @@ const AssistantActionBar: FC = () => {
 	const isLast = useAuiState((s) => s.message.isLast);
 	const aui = useAui();
 	const api = useElectronAPI();
+	const [isQuickAssist, setIsQuickAssist] = useState(false);
 
-	const isQuickAssist = !!api?.replaceText && !!api?.getQuickAskMode;
+	useEffect(() => {
+		if (!api?.getQuickAskMode) return;
+		api.getQuickAskMode().then((mode) => {
+			if (mode) setIsQuickAssist(true);
+		});
+	}, [api]);
 
 	return (
 		<ActionBarPrimitive.Root
