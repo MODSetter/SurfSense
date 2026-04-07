@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -19,6 +19,7 @@ function LoginContent() {
 	const [authType, setAuthType] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [urlError, setUrlError] = useState<{ title: string; message: string } | null>(null);
+	const router = useRouter();
 	const searchParams = useSearchParams();
 
 	useEffect(() => {
@@ -79,7 +80,7 @@ function LoginContent() {
 			if (shouldRetry(error)) {
 				toastOptions.action = {
 					label: "Retry",
-					onClick: () => window.location.reload(),
+					onClick: () => router.refresh(),
 				};
 			}
 
@@ -97,7 +98,7 @@ function LoginContent() {
 		// Get the auth type from centralized config
 		setAuthType(AUTH_TYPE);
 		setIsLoading(false);
-	}, [searchParams, t, tCommon]);
+	}, [router, searchParams, t, tCommon]);
 
 	// Use global loading screen for auth type determination - spinner animation won't reset
 	useGlobalLoadingEffect(isLoading);

@@ -2,6 +2,7 @@
 
 import { BadgeCheck, LogOut } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ export function UserDropdown({
 		avatar: string;
 	};
 }) {
+	const router = useRouter();
 	const [isLoggingOut, setIsLoggingOut] = useState(false);
 
 	const handleLogout = async () => {
@@ -40,16 +42,14 @@ export function UserDropdown({
 			// Revoke refresh token on server and clear all tokens from localStorage
 			await logout();
 
-			if (typeof window !== "undefined") {
-				window.location.href = "/";
-			}
+			router.push("/");
+			router.refresh();
 		} catch (error) {
 			console.error("Error during logout:", error);
 			// Even if there's an error, try to clear tokens and redirect
 			await logout();
-			if (typeof window !== "undefined") {
-				window.location.href = "/";
-			}
+			router.push("/");
+			router.refresh();
 		}
 	};
 
