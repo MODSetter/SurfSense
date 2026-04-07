@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
-// Accelerator ↔ display helpers
+// Accelerator <-> display helpers
 // ---------------------------------------------------------------------------
 
 export function keyEventToAccelerator(e: React.KeyboardEvent): string | null {
@@ -47,13 +47,13 @@ export const DEFAULT_SHORTCUTS = {
 
 export function Kbd({ keys, className }: { keys: string[]; className?: string }) {
 	return (
-		<span className={cn("inline-flex items-center gap-1", className)}>
-			{keys.map((key) => (
+		<span className={cn("inline-flex items-center gap-0.5", className)}>
+			{keys.map((key, i) => (
 				<kbd
-					key={key}
+					key={`${key}-${i}`}
 					className={cn(
-						"inline-flex h-7 min-w-7 items-center justify-center rounded-md border bg-muted px-1.5 font-mono text-xs font-medium text-muted-foreground shadow-sm",
-						key.length > 3 && "px-2"
+						"inline-flex h-6 min-w-6 items-center justify-center rounded border bg-muted px-1 font-mono text-[11px] font-medium text-muted-foreground",
+						key.length > 3 && "px-1.5"
 					)}
 				>
 					{key}
@@ -111,27 +111,29 @@ export function ShortcutRecorder({
 	const isDefault = value === defaultValue;
 
 	return (
-		<div className="flex items-center justify-between gap-4 rounded-lg border bg-background p-3">
-			<div className="flex items-center gap-3 min-w-0">
-				<div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-					<Icon className="size-4" />
-				</div>
-				<div className="min-w-0">
-					<p className="text-sm font-medium leading-none">{label}</p>
-					<p className="mt-1 text-xs text-muted-foreground truncate">{description}</p>
-				</div>
+		<div className="group flex items-center gap-3 rounded-lg border border-border/60 bg-card px-3 py-2.5 transition-colors hover:border-border">
+			{/* Icon */}
+			<div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+				<Icon className="size-4" />
 			</div>
 
-			<div className="flex items-center gap-2 shrink-0">
+			{/* Label + description */}
+			<div className="min-w-0 flex-1">
+				<p className="text-[13px] font-medium leading-none">{label}</p>
+				<p className="mt-1 text-[11px] leading-snug text-muted-foreground">{description}</p>
+			</div>
+
+			{/* Actions */}
+			<div className="flex shrink-0 items-center gap-1">
 				{!isDefault && (
 					<Button
 						variant="ghost"
 						size="icon"
-						className="size-7"
+						className="size-6 opacity-0 group-hover:opacity-100 transition-opacity"
 						onClick={onReset}
 						title="Reset to default"
 					>
-						<RotateCcw />
+						<RotateCcw className="size-3" />
 					</Button>
 				)}
 				<button
@@ -141,14 +143,14 @@ export function ShortcutRecorder({
 					onKeyDown={handleKeyDown}
 					onBlur={() => setRecording(false)}
 					className={cn(
-						"flex h-9 items-center gap-1 rounded-md border px-3 text-sm transition-all focus:outline-none",
+						"flex h-7 items-center gap-0.5 rounded-md border px-2 transition-all focus:outline-none",
 						recording
 							? "border-primary bg-primary/5 ring-2 ring-primary/20"
-							: "border-input bg-muted/50 hover:bg-muted"
+							: "border-input bg-muted/40 hover:bg-muted"
 					)}
 				>
 					{recording ? (
-						<span className="text-xs text-primary animate-pulse">Press keys...</span>
+						<span className="text-[11px] text-primary animate-pulse whitespace-nowrap">Press keys…</span>
 					) : (
 						<Kbd keys={displayKeys} />
 					)}

@@ -4,11 +4,13 @@ import { IPC_CHANNELS } from '../ipc/channels';
 import { checkAccessibilityPermission, getFrontmostApp, simulateCopy, simulatePaste } from './platform';
 import { getServerPort } from './server';
 import { getShortcuts } from './shortcuts';
+import { getActiveSearchSpaceId } from './active-search-space';
 
 let currentShortcut = '';
 let quickAskWindow: BrowserWindow | null = null;
 let pendingText = '';
 let pendingMode = '';
+let pendingSearchSpaceId: string | null = null;
 let sourceApp = '';
 let savedClipboard = '';
 
@@ -53,7 +55,9 @@ function createQuickAskWindow(x: number, y: number): BrowserWindow {
     skipTaskbar: true,
   });
 
-  quickAskWindow.loadURL(`http://localhost:${getServerPort()}/dashboard`);
+  const spaceId = pendingSearchSpaceId;
+  const route = spaceId ? `/dashboard/${spaceId}/new-chat` : '/dashboard';
+  quickAskWindow.loadURL(`http://localhost:${getServerPort()}${route}`);
 
   quickAskWindow.once('ready-to-show', () => {
     quickAskWindow?.show();
@@ -78,8 +82,9 @@ function createQuickAskWindow(x: number, y: number): BrowserWindow {
   return quickAskWindow;
 }
 
-function openQuickAsk(text: string): void {
+async function openQuickAsk(text: string): Promise<void> {
   pendingText = text;
+  pendingSearchSpaceId = await getActiveSearchSpaceId();
   const cursor = screen.getCursorScreenPoint();
   const pos = clampToScreen(cursor.x, cursor.y, 450, 750);
   createQuickAskWindow(pos.x, pos.y);

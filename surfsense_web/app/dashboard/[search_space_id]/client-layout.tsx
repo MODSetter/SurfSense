@@ -19,6 +19,7 @@ import { OnboardingTour } from "@/components/onboarding-tour";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFolderSync } from "@/hooks/use-folder-sync";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
+import { useElectronAPI } from "@/hooks/use-platform";
 
 export function DashboardClientLayout({
 	children,
@@ -139,6 +140,8 @@ export function DashboardClientLayout({
 		refetchPreferences,
 	]);
 
+	const electronAPI = useElectronAPI();
+
 	useEffect(() => {
 		const activeSeacrhSpaceId =
 			typeof search_space_id === "string"
@@ -148,7 +151,16 @@ export function DashboardClientLayout({
 					: "";
 		if (!activeSeacrhSpaceId) return;
 		setActiveSearchSpaceIdState(activeSeacrhSpaceId);
-	}, [search_space_id, setActiveSearchSpaceIdState]);
+
+		// Sync to Electron store if stored value is null (first navigation)
+		if (electronAPI?.setActiveSearchSpace) {
+			electronAPI.getActiveSearchSpace?.().then((stored) => {
+				if (!stored) {
+					electronAPI.setActiveSearchSpace!(activeSeacrhSpaceId);
+				}
+			}).catch(() => {});
+		}
+	}, [search_space_id, setActiveSearchSpaceIdState, electronAPI]);
 
 	// Determine if we should show loading
 	const shouldShowLoading =

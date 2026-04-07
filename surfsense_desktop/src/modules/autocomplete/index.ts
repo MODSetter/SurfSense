@@ -2,16 +2,15 @@ import { clipboard, globalShortcut, ipcMain, screen } from 'electron';
 import { IPC_CHANNELS } from '../../ipc/channels';
 import { getFrontmostApp, getWindowTitle, hasAccessibilityPermission, simulatePaste } from '../platform';
 import { hasScreenRecordingPermission, requestAccessibility, requestScreenRecording } from '../permissions';
-import { getMainWindow } from '../window';
 import { captureScreen } from './screenshot';
 import { createSuggestionWindow, destroySuggestion, getSuggestionWindow } from './suggestion-window';
 import { getShortcuts } from '../shortcuts';
+import { getActiveSearchSpaceId } from '../active-search-space';
 
 let currentShortcut = '';
 let autocompleteEnabled = true;
 let savedClipboard = '';
 let sourceApp = '';
-let lastSearchSpaceId: string | null = null;
 
 function isSurfSenseWindow(): boolean {
   const app = getFrontmostApp();
@@ -37,21 +36,11 @@ async function triggerAutocomplete(): Promise<void> {
     return;
   }
 
-  const mainWin = getMainWindow();
-  if (mainWin && !mainWin.isDestroyed()) {
-    const mainUrl = mainWin.webContents.getURL();
-    const match = mainUrl.match(/\/dashboard\/(\d+)/);
-    if (match) {
-      lastSearchSpaceId = match[1];
-    }
-  }
-
-  if (!lastSearchSpaceId) {
-    console.warn('[autocomplete] No active search space. Open a search space first.');
+  const searchSpaceId = await getActiveSearchSpaceId();
+  if (!searchSpaceId) {
+    console.warn('[autocomplete] No active search space. Select a search space first.');
     return;
   }
-
-  const searchSpaceId = lastSearchSpaceId;
   const cursor = screen.getCursorScreenPoint();
   const win = createSuggestionWindow(cursor.x, cursor.y);
 
