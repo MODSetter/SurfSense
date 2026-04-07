@@ -25,16 +25,20 @@ export function initAnalytics(): void {
 export function trackEvent(event: string, properties?: Record<string, unknown>): void {
   if (!client) return;
 
-  client.capture({
-    distinctId,
-    event,
-    properties: {
-      platform: 'desktop',
-      app_version: app.getVersion(),
-      os: process.platform,
-      ...properties,
-    },
-  });
+  try {
+    client.capture({
+      distinctId,
+      event,
+      properties: {
+        platform: 'desktop',
+        app_version: app.getVersion(),
+        os: process.platform,
+        ...properties,
+      },
+    });
+  } catch {
+    // Analytics should never break the app
+  }
 }
 
 export async function shutdownAnalytics(): Promise<void> {
