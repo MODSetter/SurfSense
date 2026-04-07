@@ -1,6 +1,6 @@
 "use client";
 
-import { AppWindow, Clipboard, Sparkles } from "lucide-react";
+import { BrainCog, Rocket, Zap } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { DEFAULT_SHORTCUTS, ShortcutRecorder } from "@/components/desktop/shortcut-recorder";
@@ -103,27 +103,27 @@ export function DesktopContent() {
 							onReset={() => resetShortcut("generalAssist")}
 							defaultValue={DEFAULT_SHORTCUTS.generalAssist}
 							label="General Assist"
-							description="Open SurfSense from anywhere"
-							icon={AppWindow}
+							description="Launch SurfSense instantly from any application"
+							icon={Rocket}
 						/>
 						<ShortcutRecorder
 							value={shortcuts.quickAsk}
 							onChange={(accel) => updateShortcut("quickAsk", accel)}
 							onReset={() => resetShortcut("quickAsk")}
 							defaultValue={DEFAULT_SHORTCUTS.quickAsk}
-								label="Quick Assist"
-								description="Copy selected text and ask AI about it"
-							icon={Clipboard}
+							label="Quick Assist"
+							description="Select text anywhere, then ask AI to explain, rewrite, or act on it"
+							icon={Zap}
 						/>
-							<ShortcutRecorder
-								value={shortcuts.autocomplete}
-								onChange={(accel) => updateShortcut("autocomplete", accel)}
-								onReset={() => resetShortcut("autocomplete")}
-								defaultValue={DEFAULT_SHORTCUTS.autocomplete}
-								label="Extreme Assist"
-								description="AI writing powered by your screen and knowledge base"
-								icon={Sparkles}
-							/>
+						<ShortcutRecorder
+							value={shortcuts.autocomplete}
+							onChange={(accel) => updateShortcut("autocomplete", accel)}
+							onReset={() => resetShortcut("autocomplete")}
+							defaultValue={DEFAULT_SHORTCUTS.autocomplete}
+							label="Extreme Assist"
+							description="AI drafts text using your screen context and knowledge base"
+							icon={BrainCog}
+						/>
 							<p className="text-[11px] text-muted-foreground">
 								Click a shortcut and press a new key combination to change it.
 							</p>
