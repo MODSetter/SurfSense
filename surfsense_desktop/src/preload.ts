@@ -68,4 +68,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Browse files via native dialog
   browseFiles: () => ipcRenderer.invoke(IPC_CHANNELS.BROWSE_FILES),
   readLocalFiles: (paths: string[]) => ipcRenderer.invoke(IPC_CHANNELS.READ_LOCAL_FILES, paths),
+
+  // Auth token sync across windows
+  getAuthTokens: () => ipcRenderer.invoke(IPC_CHANNELS.GET_AUTH_TOKENS),
+  setAuthTokens: (bearer: string, refresh: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.SET_AUTH_TOKENS, { bearer, refresh }),
+
+  // Keyboard shortcut configuration
+  getShortcuts: () => ipcRenderer.invoke(IPC_CHANNELS.GET_SHORTCUTS),
+  setShortcuts: (config: Record<string, string>) =>
+    ipcRenderer.invoke(IPC_CHANNELS.SET_SHORTCUTS, config),
+
+  // Active search space
+  getActiveSearchSpace: () => ipcRenderer.invoke(IPC_CHANNELS.GET_ACTIVE_SEARCH_SPACE),
+  setActiveSearchSpace: (id: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.SET_ACTIVE_SEARCH_SPACE, id),
 });

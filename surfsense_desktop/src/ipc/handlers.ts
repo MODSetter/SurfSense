@@ -20,6 +20,13 @@ import {
   browseFiles,
   readLocalFiles,
 } from '../modules/folder-watcher';
+import { getShortcuts, setShortcuts, type ShortcutConfig } from '../modules/shortcuts';
+import { getActiveSearchSpaceId, setActiveSearchSpaceId } from '../modules/active-search-space';
+import { reregisterQuickAsk } from '../modules/quick-ask';
+import { reregisterAutocomplete } from '../modules/autocomplete';
+import { reregisterGeneralAssist } from '../modules/tray';
+
+let authTokens: { bearer: string; refresh: string } | null = null;
 
 export function registerIpcHandlers(): void {
   ipcMain.on(IPC_CHANNELS.OPEN_EXTERNAL, (_event, url: string) => {
@@ -89,4 +96,28 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.READ_LOCAL_FILES, (_event, paths: string[]) =>
     readLocalFiles(paths)
   );
+
+  ipcMain.handle(IPC_CHANNELS.SET_AUTH_TOKENS, (_event, tokens: { bearer: string; refresh: string }) => {
+    authTokens = tokens;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.GET_AUTH_TOKENS, () => {
+    return authTokens;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.GET_SHORTCUTS, () => getShortcuts());
+
+  ipcMain.handle(IPC_CHANNELS.GET_ACTIVE_SEARCH_SPACE, () => getActiveSearchSpaceId());
+
+  ipcMain.handle(IPC_CHANNELS.SET_ACTIVE_SEARCH_SPACE, (_event, id: string) =>
+    setActiveSearchSpaceId(id)
+  );
+
+  ipcMain.handle(IPC_CHANNELS.SET_SHORTCUTS, async (_event, config: Partial<ShortcutConfig>) => {
+    const updated = await setShortcuts(config);
+    if (config.generalAssist) await reregisterGeneralAssist();
+    if (config.quickAsk) await reregisterQuickAsk();
+    if (config.autocomplete) await reregisterAutocomplete();
+    return updated;
+  });
 }

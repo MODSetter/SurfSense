@@ -4,7 +4,7 @@
   "description": "SurfSense Desktop App",
   "main": "dist/main.js",
   "scripts": {
-    "dev": "concurrently -k \"pnpm --dir ../surfsense_web dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "dev": "pnpm build && concurrently -k \"pnpm --dir ../surfsense_web dev\" \"wait-on http://localhost:3000 && electron .\"",
     "build": "node scripts/build-electron.mjs",
     "pack:dir": "pnpm build && electron-builder --dir --config electron-builder.yml",
     "dist": "pnpm build && electron-builder --config electron-builder.yml",
@@ -14,7 +14,11 @@
     "typecheck": "tsc --noEmit",
     "postinstall": "electron-rebuild"
   },
-  "author": "MODSetter",
+  "homepage": "https://github.com/MODSetter/SurfSense",
+  "author": {
+    "name": "MODSetter",
+    "email": "rohan@surfsense.com"
+  },
   "license": "MIT",
   "packageManager": "pnpm@10.24.0",
   "devDependencies": {
@@ -34,6 +38,8 @@
     "electron-store": "^11.0.2",
     "electron-updater": "^6.8.3",
     "get-port-please": "^3.2.0",
-    "node-mac-permissions": "^2.5.0"
+    "node-mac-permissions": "^2.5.0",
+    "node-machine-id": "^1.1.12",
+    "posthog-node": "^5.29.0"
   }
 }

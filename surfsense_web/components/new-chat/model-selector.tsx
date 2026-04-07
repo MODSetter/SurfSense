@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { Bot, Check, ChevronDown, Edit3, ImageIcon, Plus, Search, Zap } from "lucide-react";
+import { Bot, Check, ChevronDown, Edit3, Eye, ImageIcon, Plus, Search, Zap } from "lucide-react";
 import { type UIEvent, useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -15,6 +15,10 @@ import {
 	newLLMConfigsAtom,
 } from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import {
+	globalVisionLLMConfigsAtom,
+	visionLLMConfigsAtom,
+} from "@/atoms/vision-llm-config/vision-llm-config-query.atoms";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,8 +36,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type {
 	GlobalImageGenConfig,
 	GlobalNewLLMConfig,
+	GlobalVisionLLMConfig,
 	ImageGenerationConfig,
 	NewLLMConfigPublic,
+	VisionLLMConfig,
 } from "@/contracts/types/new-llm-config.types";
 import { getProviderIcon } from "@/lib/provider-icons";
 import { cn } from "@/lib/utils";
@@ -43,6 +49,8 @@ interface ModelSelectorProps {
 	onAddNewLLM: () => void;
 	onEditImage?: (config: ImageGenerationConfig | GlobalImageGenConfig, isGlobal: boolean) => void;
 	onAddNewImage?: () => void;
+	onEditVision?: (config: VisionLLMConfig | GlobalVisionLLMConfig, isGlobal: boolean) => void;
+	onAddNewVision?: () => void;
 	className?: string;
 }
 
@@ -51,14 +59,18 @@ export function ModelSelector({
 	onAddNewLLM,
 	onEditImage,
 	onAddNewImage,
+	onEditVision,
+	onAddNewVision,
 	className,
 }: ModelSelectorProps) {
 	const [open, setOpen] = useState(false);
-	const [activeTab, setActiveTab] = useState<"llm" | "image">("llm");
+	const [activeTab, setActiveTab] = useState<"llm" | "image" | "vision">("llm");
 	const [llmSearchQuery, setLlmSearchQuery] = useState("");
 	const [imageSearchQuery, setImageSearchQuery] = useState("");
+	const [visionSearchQuery, setVisionSearchQuery] = useState("");
 	const [llmScrollPos, setLlmScrollPos] = useState<"top" | "middle" | "bottom">("top");
 	const [imageScrollPos, setImageScrollPos] = useState<"top" | "middle" | "bottom">("top");
+	const [visionScrollPos, setVisionScrollPos] = useState<"top" | "middle" | "bottom">("top");
 	const handleListScroll = useCallback(
 		(setter: typeof setLlmScrollPos) => (e: UIEvent<HTMLDivElement>) => {
 			const el = e.currentTarget;
@@ -82,8 +94,21 @@ export function ModelSelector({
 		useAtomValue(globalImageGenConfigsAtom);
 	const { data: imageUserConfigs, isLoading: imageUserLoading } = useAtomValue(imageGenConfigsAtom);
 
+	// Vision data
+	const { data: visionGlobalConfigs, isLoading: visionGlobalLoading } = useAtomValue(
+		globalVisionLLMConfigsAtom
+	);
+	const { data: visionUserConfigs, isLoading: visionUserLoading } =
+		useAtomValue(visionLLMConfigsAtom);
+
 	const isLoading =
-		llmUserLoading || llmGlobalLoading || prefsLoading || imageGlobalLoading || imageUserLoading;
+		llmUserLoading ||
+		llmGlobalLoading ||
+		prefsLoading ||
+		imageGlobalLoading ||
+		imageUserLoading ||
+		visionGlobalLoading ||
+		visionUserLoading;
 
 	// ─── LLM current config ───
 	const currentLLMConfig = useMemo(() => {
@@ -115,6 +140,24 @@ export function ModelSelector({
 			currentImageConfig && "is_auto_mode" in currentImageConfig && currentImageConfig.is_auto_mode
 		);
 	}, [currentImageConfig]);
+
+	// ─── Vision current config ───
+	const currentVisionConfig = useMemo(() => {
+		if (!preferences) return null;
+		const id = preferences.vision_llm_config_id;
+		if (id === null || id === undefined) return null;
+		const globalMatch = visionGlobalConfigs?.find((c) => c.id === id);
+		if (globalMatch) return globalMatch;
+		return visionUserConfigs?.find((c) => c.id === id) ?? null;
+	}, [preferences, visionGlobalConfigs, visionUserConfigs]);
+
+	const isVisionAutoMode = useMemo(() => {
+		return (
+			currentVisionConfig &&
+			"is_auto_mode" in currentVisionConfig &&
+			currentVisionConfig.is_auto_mode
+		);
+	}, [currentVisionConfig]);
 
 	// ─── LLM filtering ───
 	const filteredLLMGlobal = useMemo(() => {
@@ -169,6 +212,33 @@ export function ModelSelector({
 	}, [imageUserConfigs, imageSearchQuery]);
 
 	const totalImageModels = (imageGlobalConfigs?.length ?? 0) + (imageUserConfigs?.length ?? 0);
+
+	// ─── Vision filtering ───
+	const filteredVisionGlobal = useMemo(() => {
+		if (!visionGlobalConfigs) return [];
+		if (!visionSearchQuery) return visionGlobalConfigs;
+		const q = visionSearchQuery.toLowerCase();
+		return visionGlobalConfigs.filter(
+			(c) =>
+				c.name.toLowerCase().includes(q) ||
+				c.model_name.toLowerCase().includes(q) ||
+				c.provider.toLowerCase().includes(q)
+		);
+	}, [visionGlobalConfigs, visionSearchQuery]);
+
+	const filteredVisionUser = useMemo(() => {
+		if (!visionUserConfigs) return [];
+		if (!visionSearchQuery) return visionUserConfigs;
+		const q = visionSearchQuery.toLowerCase();
+		return visionUserConfigs.filter(
+			(c) =>
+				c.name.toLowerCase().includes(q) ||
+				c.model_name.toLowerCase().includes(q) ||
+				c.provider.toLowerCase().includes(q)
+		);
+	}, [visionUserConfigs, visionSearchQuery]);
+
+	const totalVisionModels = (visionGlobalConfigs?.length ?? 0) + (visionUserConfigs?.length ?? 0);
 
 	// ─── Handlers ───
 	const handleSelectLLM = useCallback(
@@ -229,6 +299,30 @@ export function ModelSelector({
 		[currentImageConfig, searchSpaceId, updatePreferences]
 	);
 
+	const handleSelectVision = useCallback(
+		async (configId: number) => {
+			if (currentVisionConfig?.id === configId) {
+				setOpen(false);
+				return;
+			}
+			if (!searchSpaceId) {
+				toast.error("No search space selected");
+				return;
+			}
+			try {
+				await updatePreferences({
+					search_space_id: Number(searchSpaceId),
+					data: { vision_llm_config_id: configId },
+				});
+				toast.success("Vision model updated");
+				setOpen(false);
+			} catch {
+				toast.error("Failed to switch vision model");
+			}
+		},
+		[currentVisionConfig, searchSpaceId, updatePreferences]
+	);
+
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
 			<PopoverTrigger asChild>
@@ -282,6 +376,23 @@ export function ModelSelector({
 							) : (
 								<ImageIcon className="size-4 text-muted-foreground" />
 							)}
+
+							{/* Divider */}
+							<div className="h-4 w-px bg-border/60 dark:bg-white/10 mx-0.5" />
+
+							{/* Vision section */}
+							{currentVisionConfig ? (
+								<>
+									{getProviderIcon(currentVisionConfig.provider, {
+										isAutoMode: isVisionAutoMode ?? false,
+									})}
+									<span className="max-w-[80px] md:max-w-[100px] truncate hidden md:inline">
+										{currentVisionConfig.name}
+									</span>
+								</>
+							) : (
+								<Eye className="size-4 text-muted-foreground" />
+							)}
 						</>
 					)}
 					<ChevronDown className="h-3.5 w-3.5 text-muted-foreground ml-1 shrink-0" />
@@ -295,24 +406,31 @@ export function ModelSelector({
 			>
 				<Tabs
 					value={activeTab}
-					onValueChange={(v) => setActiveTab(v as "llm" | "image")}
+					onValueChange={(v) => setActiveTab(v as "llm" | "image" | "vision")}
 					className="w-full"
 				>
 					<div className="border-b border-border/80 dark:border-neutral-800">
-						<TabsList className="w-full grid grid-cols-2 rounded-none rounded-t-lg bg-transparent h-11 p-0 gap-0">
+						<TabsList className="w-full grid grid-cols-3 rounded-none rounded-t-lg bg-transparent h-11 p-0 gap-0">
 							<TabsTrigger
 								value="llm"
-								className="gap-2 text-sm font-medium rounded-none text-muted-foreground transition-all duration-200 h-full bg-transparent data-[state=active]:bg-transparent shadow-none data-[state=active]:shadow-none border-b-[1.5px] border-transparent data-[state=active]:border-foreground dark:data-[state=active]:border-white data-[state=active]:text-foreground"
+								className="gap-1.5 text-sm font-medium rounded-none text-muted-foreground transition-all duration-200 h-full bg-transparent data-[state=active]:bg-transparent shadow-none data-[state=active]:shadow-none border-b-[1.5px] border-transparent data-[state=active]:border-foreground dark:data-[state=active]:border-white data-[state=active]:text-foreground"
 							>
-								<Zap className="size-4" />
+								<Zap className="size-3.5" />
 								LLM
 							</TabsTrigger>
 							<TabsTrigger
 								value="image"
-								className="gap-2 text-sm font-medium rounded-none text-muted-foreground transition-all duration-200 h-full bg-transparent data-[state=active]:bg-transparent shadow-none data-[state=active]:shadow-none border-b-[1.5px] border-transparent data-[state=active]:border-foreground dark:data-[state=active]:border-white data-[state=active]:text-foreground"
+								className="gap-1.5 text-sm font-medium rounded-none text-muted-foreground transition-all duration-200 h-full bg-transparent data-[state=active]:bg-transparent shadow-none data-[state=active]:shadow-none border-b-[1.5px] border-transparent data-[state=active]:border-foreground dark:data-[state=active]:border-white data-[state=active]:text-foreground"
 							>
-								<ImageIcon className="size-4" />
+								<ImageIcon className="size-3.5" />
 								Image
+							</TabsTrigger>
+							<TabsTrigger
+								value="vision"
+								className="gap-1.5 text-sm font-medium rounded-none text-muted-foreground transition-all duration-200 h-full bg-transparent data-[state=active]:bg-transparent shadow-none data-[state=active]:shadow-none border-b-[1.5px] border-transparent data-[state=active]:border-foreground dark:data-[state=active]:border-white data-[state=active]:text-foreground"
+							>
+								<Eye className="size-3.5" />
+								Vision
 							</TabsTrigger>
 						</TabsList>
 					</div>
@@ -670,6 +788,174 @@ export function ModelSelector({
 										>
 											<Plus className="size-4 text-primary" />
 											<span className="text-sm font-medium">Add Image Model</span>
+										</Button>
+									</div>
+								)}
+							</CommandList>
+						</Command>
+					</TabsContent>
+
+					{/* ─── Vision Tab ─── */}
+					<TabsContent value="vision" className="mt-0">
+						<Command
+							shouldFilter={false}
+							className="rounded-none rounded-b-lg dark:bg-neutral-900 [&_[data-slot=command-input-wrapper]]:border-0 [&_[data-slot=command-input-wrapper]]:px-0 [&_[data-slot=command-input-wrapper]]:gap-2"
+						>
+							{totalVisionModels > 3 && (
+								<div className="px-2 md:px-3 py-1.5 md:py-2">
+									<CommandInput
+										placeholder="Search vision models"
+										value={visionSearchQuery}
+										onValueChange={setVisionSearchQuery}
+										className="h-7 md:h-8 w-full text-xs md:text-sm border-0 bg-transparent focus:ring-0 placeholder:text-muted-foreground/60"
+									/>
+								</div>
+							)}
+							<CommandList
+								className="max-h-[300px] md:max-h-[400px] overflow-y-auto"
+								onScroll={handleListScroll(setVisionScrollPos)}
+								style={{
+									maskImage: `linear-gradient(to bottom, ${visionScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${visionScrollPos === "bottom" ? "black" : "transparent"})`,
+									WebkitMaskImage: `linear-gradient(to bottom, ${visionScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${visionScrollPos === "bottom" ? "black" : "transparent"})`,
+								}}
+							>
+								<CommandEmpty className="py-8 text-center">
+									<div className="flex flex-col items-center gap-2">
+										<Search className="size-8 text-muted-foreground" />
+										<p className="text-sm text-muted-foreground">No vision models found</p>
+										<p className="text-xs text-muted-foreground/60">Try a different search term</p>
+									</div>
+								</CommandEmpty>
+
+								{filteredVisionGlobal.length > 0 && (
+									<CommandGroup>
+										<div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground tracking-wider">
+											Global Vision Models
+										</div>
+										{filteredVisionGlobal.map((config) => {
+											const isSelected = currentVisionConfig?.id === config.id;
+											const isAuto = "is_auto_mode" in config && config.is_auto_mode;
+											return (
+												<CommandItem
+													key={`vis-g-${config.id}`}
+													value={`vis-g-${config.id}`}
+													onSelect={() => handleSelectVision(config.id)}
+													className={cn(
+														"mx-2 rounded-lg mb-1 cursor-pointer group transition-all hover:bg-accent/50 dark:hover:bg-white/[0.06]",
+														isSelected && "bg-accent/80 dark:bg-white/[0.06]"
+													)}
+												>
+													<div className="flex items-center gap-3 min-w-0 flex-1">
+														<div className="shrink-0">
+															{getProviderIcon(config.provider, { isAutoMode: isAuto })}
+														</div>
+														<div className="min-w-0 flex-1">
+															<div className="flex items-center gap-2">
+																<span className="font-medium truncate">{config.name}</span>
+																{isAuto && (
+																	<Badge
+																		variant="secondary"
+																		className="text-[9px] px-1 py-0 h-3.5 bg-violet-800 text-white dark:bg-violet-800 dark:text-white border-0"
+																	>
+																		Recommended
+																	</Badge>
+																)}
+																{isSelected && <Check className="size-3.5 text-primary shrink-0" />}
+															</div>
+															<span className="text-xs text-muted-foreground truncate block">
+																{isAuto ? "Auto Mode" : config.model_name}
+															</span>
+														</div>
+														{onEditVision && !isAuto && (
+															<Button
+																variant="ghost"
+																size="icon"
+																className="size-7 shrink-0 rounded-md hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
+																onClick={(e) => {
+																	e.stopPropagation();
+																	setOpen(false);
+																	onEditVision(config as VisionLLMConfig, true);
+																}}
+															>
+																<Edit3 className="size-3.5 text-muted-foreground" />
+															</Button>
+														)}
+													</div>
+												</CommandItem>
+											);
+										})}
+									</CommandGroup>
+								)}
+
+								{filteredVisionUser.length > 0 && (
+									<>
+										{filteredVisionGlobal.length > 0 && (
+											<CommandSeparator className="my-1 mx-4 bg-border/60" />
+										)}
+										<CommandGroup>
+											<div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground tracking-wider">
+												Your Vision Models
+											</div>
+											{filteredVisionUser.map((config) => {
+												const isSelected = currentVisionConfig?.id === config.id;
+												return (
+													<CommandItem
+														key={`vis-u-${config.id}`}
+														value={`vis-u-${config.id}`}
+														onSelect={() => handleSelectVision(config.id)}
+														className={cn(
+															"mx-2 rounded-lg mb-1 cursor-pointer group transition-all hover:bg-accent/50 dark:hover:bg-white/[0.06]",
+															isSelected && "bg-accent/80 dark:bg-white/[0.06]"
+														)}
+													>
+														<div className="flex items-center gap-3 min-w-0 flex-1">
+															<div className="shrink-0">{getProviderIcon(config.provider)}</div>
+															<div className="min-w-0 flex-1">
+																<div className="flex items-center gap-2">
+																	<span className="font-medium truncate">{config.name}</span>
+																	{isSelected && (
+																		<Check className="size-3.5 text-primary shrink-0" />
+																	)}
+																</div>
+																<span className="text-xs text-muted-foreground truncate block">
+																	{config.model_name}
+																</span>
+															</div>
+															{onEditVision && (
+																<Button
+																	variant="ghost"
+																	size="icon"
+																	className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+																	onClick={(e) => {
+																		e.stopPropagation();
+																		setOpen(false);
+																		onEditVision(config, false);
+																	}}
+																>
+																	<Edit3 className="size-3.5 text-muted-foreground" />
+																</Button>
+															)}
+														</div>
+													</CommandItem>
+												);
+											})}
+										</CommandGroup>
+									</>
+								)}
+
+								{onAddNewVision && (
+									<div className="p-2 bg-muted/20 dark:bg-neutral-900">
+										<Button
+											variant="ghost"
+											size="sm"
+											className="w-full justify-start gap-2 h-9 rounded-lg hover:bg-accent/50 dark:hover:bg-white/[0.06]"
+											onClick={() => {
+												setOpen(false);
+												onAddNewVision();
+											}}
+										>
+											<Plus className="size-4 text-primary" />
+											<span className="text-sm font-medium">Add Vision Model</span>
 										</Button>
 									</div>
 								)}

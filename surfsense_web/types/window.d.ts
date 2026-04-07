@@ -85,6 +85,17 @@ interface ElectronAPI {
 	// Browse files/folders via native dialogs
 	browseFiles: () => Promise<string[] | null>;
 	readLocalFiles: (paths: string[]) => Promise<LocalFileData[]>;
+	// Auth token sync across windows
+	getAuthTokens: () => Promise<{ bearer: string; refresh: string } | null>;
+	setAuthTokens: (bearer: string, refresh: string) => Promise<void>;
+	// Keyboard shortcut configuration
+	getShortcuts: () => Promise<{ generalAssist: string; quickAsk: string; autocomplete: string }>;
+	setShortcuts: (
+		config: Partial<{ generalAssist: string; quickAsk: string; autocomplete: string }>
+	) => Promise<{ generalAssist: string; quickAsk: string; autocomplete: string }>;
+	// Active search space
+	getActiveSearchSpace: () => Promise<string | null>;
+	setActiveSearchSpace: (id: string) => Promise<void>;
 }
 
 declare global {

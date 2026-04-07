@@ -49,6 +49,7 @@ from .stripe_routes import router as stripe_router
 from .surfsense_docs_routes import router as surfsense_docs_router
 from .teams_add_connector_route import router as teams_add_connector_router
 from .video_presentations_routes import router as video_presentations_router
+from .vision_llm_routes import router as vision_llm_router
 from .youtube_routes import router as youtube_router
 
 router = APIRouter()
@@ -68,6 +69,7 @@ router.include_router(
 )  # Video presentation status and streaming
 router.include_router(reports_router)  # Report CRUD and multi-format export
 router.include_router(image_generation_router)  # Image generation via litellm
+router.include_router(vision_llm_router)  # Vision LLM configs for screenshot analysis
 router.include_router(search_source_connectors_router)
 router.include_router(google_calendar_add_connector_router)
 router.include_router(google_gmail_add_connector_router)

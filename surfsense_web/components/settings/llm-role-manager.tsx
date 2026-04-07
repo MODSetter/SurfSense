@@ -24,6 +24,10 @@ import {
 	llmPreferencesAtom,
 	newLLMConfigsAtom,
 } from "@/atoms/new-llm-config/new-llm-config-query.atoms";
+import {
+	globalVisionLLMConfigsAtom,
+	visionLLMConfigsAtom,
+} from "@/atoms/vision-llm-config/vision-llm-config-query.atoms";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -77,8 +81,8 @@ const ROLE_DESCRIPTIONS = {
 		description: "Vision-capable model for screenshot analysis and context extraction",
 		color: "text-amber-600 dark:text-amber-400",
 		bgColor: "bg-amber-500/10",
-		prefKey: "vision_llm_id" as const,
-		configType: "llm" as const,
+		prefKey: "vision_llm_config_id" as const,
+		configType: "vision" as const,
 	},
 };
 
@@ -112,6 +116,18 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		error: globalImageConfigsError,
 	} = useAtomValue(globalImageGenConfigsAtom);
 
+	// Vision LLM configs
+	const {
+		data: userVisionConfigs = [],
+		isFetching: visionConfigsLoading,
+		error: visionConfigsError,
+	} = useAtomValue(visionLLMConfigsAtom);
+	const {
+		data: globalVisionConfigs = [],
+		isFetching: globalVisionConfigsLoading,
+		error: globalVisionConfigsError,
+	} = useAtomValue(globalVisionLLMConfigsAtom);
+
 	// Preferences
 	const {
 		data: preferences = {},
@@ -125,7 +141,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		agent_llm_id: preferences.agent_llm_id ?? "",
 		document_summary_llm_id: preferences.document_summary_llm_id ?? "",
 		image_generation_config_id: preferences.image_generation_config_id ?? "",
-		vision_llm_id: preferences.vision_llm_id ?? "",
+		vision_llm_config_id: preferences.vision_llm_config_id ?? "",
 	}));
 
 	const [savingRole, setSavingRole] = useState<string | null>(null);
@@ -137,14 +153,14 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 				agent_llm_id: preferences.agent_llm_id ?? "",
 				document_summary_llm_id: preferences.document_summary_llm_id ?? "",
 				image_generation_config_id: preferences.image_generation_config_id ?? "",
-				vision_llm_id: preferences.vision_llm_id ?? "",
+				vision_llm_config_id: preferences.vision_llm_config_id ?? "",
 			});
 		}
 	}, [
 		preferences?.agent_llm_id,
 		preferences?.document_summary_llm_id,
 		preferences?.image_generation_config_id,
-		preferences?.vision_llm_id,
+		preferences?.vision_llm_config_id,
 	]);
 
 	const handleRoleAssignment = useCallback(
@@ -181,6 +197,14 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		...(userImageConfigs ?? []).filter((config) => config.id && config.id.toString().trim() !== ""),
 	];
 
+	// Combine global and custom vision LLM configs
+	const allVisionConfigs = [
+		...globalVisionConfigs.map((config) => ({ ...config, is_global: true })),
+		...(userVisionConfigs ?? []).filter(
+			(config) => config.id && config.id.toString().trim() !== ""
+		),
+	];
+
 	const isAssignmentComplete =
 		allLLMConfigs.some((c) => c.id === assignments.agent_llm_id) &&
 		allLLMConfigs.some((c) => c.id === assignments.document_summary_llm_id) &&
@@ -191,13 +215,17 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		preferencesLoading ||
 		globalConfigsLoading ||
 		imageConfigsLoading ||
-		globalImageConfigsLoading;
+		globalImageConfigsLoading ||
+		visionConfigsLoading ||
+		globalVisionConfigsLoading;
 	const hasError =
 		configsError ||
 		preferencesError ||
 		globalConfigsError ||
 		imageConfigsError ||
-		globalImageConfigsError;
+		globalImageConfigsError ||
+		visionConfigsError ||
+		globalVisionConfigsError;
 	const hasAnyConfigs = allLLMConfigs.length > 0 || allImageConfigs.length > 0;
 
 	return (
@@ -291,15 +319,27 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 				<div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
 					{Object.entries(ROLE_DESCRIPTIONS).map(([key, role]) => {
 						const IconComponent = role.icon;
-						const isImageRole = role.configType === "image";
 						const currentAssignment = assignments[role.prefKey as keyof typeof assignments];
 
 						// Pick the right config lists based on role type
-						const roleGlobalConfigs = isImageRole ? globalImageConfigs : globalConfigs;
-						const roleUserConfigs = isImageRole
-							? (userImageConfigs ?? []).filter((c) => c.id && c.id.toString().trim() !== "")
-							: newLLMConfigs.filter((c) => c.id && c.id.toString().trim() !== "");
-						const roleAllConfigs = isImageRole ? allImageConfigs : allLLMConfigs;
+						const roleGlobalConfigs =
+							role.configType === "image"
+								? globalImageConfigs
+								: role.configType === "vision"
+									? globalVisionConfigs
+									: globalConfigs;
+						const roleUserConfigs =
+							role.configType === "image"
+								? (userImageConfigs ?? []).filter((c) => c.id && c.id.toString().trim() !== "")
+								: role.configType === "vision"
+									? (userVisionConfigs ?? []).filter((c) => c.id && c.id.toString().trim() !== "")
+									: newLLMConfigs.filter((c) => c.id && c.id.toString().trim() !== "");
+						const roleAllConfigs =
+							role.configType === "image"
+								? allImageConfigs
+								: role.configType === "vision"
+									? allVisionConfigs
+									: allLLMConfigs;
 
 						const assignedConfig = roleAllConfigs.find((config) => config.id === currentAssignment);
 						const isAssigned = !!assignedConfig;

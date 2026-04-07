@@ -42,6 +42,7 @@ import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useElectronAPI } from "@/hooks/use-platform";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
@@ -85,6 +86,7 @@ export function DocumentsSidebar({
 	const tSidebar = useTranslations("sidebar");
 	const params = useParams();
 	const isMobile = !useMediaQuery("(min-width: 640px)");
+	const electronAPI = useElectronAPI();
 	const searchSpaceId = Number(params.search_space_id);
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 	const setRightPanelCollapsed = useSetAtom(rightPanelCollapsedAtom);
@@ -114,11 +116,11 @@ export function DocumentsSidebar({
 	}, []);
 
 	useEffect(() => {
-		const api = typeof window !== "undefined" ? window.electronAPI : null;
-		if (!api?.getWatchedFolders) return;
+		if (!electronAPI?.getWatchedFolders) return;
+		const api = electronAPI;
 
 		async function loadWatchedIds() {
-			const folders = await api!.getWatchedFolders();
+			const folders = await api.getWatchedFolders();
 
 			if (folders.length === 0) {
 				try {
@@ -126,7 +128,7 @@ export function DocumentsSidebar({
 					for (const bf of backendFolders) {
 						const meta = bf.metadata as Record<string, unknown> | null;
 						if (!meta?.watched || !meta.folder_path) continue;
-						await api!.addWatchedFolder({
+						await api.addWatchedFolder({
 							path: meta.folder_path as string,
 							name: bf.name,
 							rootFolderId: bf.id,
@@ -136,7 +138,7 @@ export function DocumentsSidebar({
 							active: true,
 						});
 					}
-					const recovered = await api!.getWatchedFolders();
+					const recovered = await api.getWatchedFolders();
 					const ids = new Set(
 						recovered.filter((f) => f.rootFolderId != null).map((f) => f.rootFolderId as number)
 					);
@@ -154,7 +156,7 @@ export function DocumentsSidebar({
 		}
 
 		loadWatchedIds();
-	}, [searchSpaceId]);
+	}, [searchSpaceId, electronAPI]);
 	const { mutateAsync: deleteDocumentMutation } = useAtomValue(deleteDocumentMutationAtom);
 
 	const [sidebarDocs, setSidebarDocs] = useAtom(sidebarSelectedDocumentsAtom);
@@ -293,10 +295,9 @@ export function DocumentsSidebar({
 
 	const handleRescanFolder = useCallback(
 		async (folder: FolderDisplay) => {
-			const api = window.electronAPI;
-			if (!api) return;
+			if (!electronAPI) return;
 
-			const watchedFolders = await api.getWatchedFolders();
+			const watchedFolders = await electronAPI.getWatchedFolders();
 			const matched = watchedFolders.find((wf) => wf.rootFolderId === folder.id);
 			if (!matched) {
 				toast.error("This folder is not being watched");
@@ -316,28 +317,30 @@ export function DocumentsSidebar({
 				toast.error((err as Error)?.message || "Failed to re-scan folder");
 			}
 		},
-		[searchSpaceId]
+		[searchSpaceId, electronAPI]
 	);
 
-	const handleStopWatching = useCallback(async (folder: FolderDisplay) => {
-		const api = window.electronAPI;
-		if (!api) return;
+	const handleStopWatching = useCallback(
+		async (folder: FolderDisplay) => {
+			if (!electronAPI) return;
 
-		const watchedFolders = await api.getWatchedFolders();
-		const matched = watchedFolders.find((wf) => wf.rootFolderId === folder.id);
-		if (!matched) {
-			toast.error("This folder is not being watched");
-			return;
-		}
+			const watchedFolders = await electronAPI.getWatchedFolders();
+			const matched = watchedFolders.find((wf) => wf.rootFolderId === folder.id);
+			if (!matched) {
+				toast.error("This folder is not being watched");
+				return;
+			}
 
-		await api.removeWatchedFolder(matched.path);
-		try {
-			await foldersApiService.stopWatching(folder.id);
-		} catch (err) {
-			console.error("[DocumentsSidebar] Failed to clear watched metadata:", err);
-		}
-		toast.success(`Stopped watching: ${matched.name}`);
-	}, []);
+			await electronAPI.removeWatchedFolder(matched.path);
+			try {
+				await foldersApiService.stopWatching(folder.id);
+			} catch (err) {
+				console.error("[DocumentsSidebar] Failed to clear watched metadata:", err);
+			}
+			toast.success(`Stopped watching: ${matched.name}`);
+		},
+		[electronAPI]
+	);
 
 	const handleRenameFolder = useCallback(async (folder: FolderDisplay, newName: string) => {
 		try {
@@ -348,23 +351,25 @@ export function DocumentsSidebar({
 		}
 	}, []);
 
-	const handleDeleteFolder = useCallback(async (folder: FolderDisplay) => {
-		if (!confirm(`Delete folder "${folder.name}" and all its contents?`)) return;
-		try {
-			const api = window.electronAPI;
-			if (api) {
-				const watchedFolders = await api.getWatchedFolders();
-				const matched = watchedFolders.find((wf) => wf.rootFolderId === folder.id);
-				if (matched) {
-					await api.removeWatchedFolder(matched.path);
+	const handleDeleteFolder = useCallback(
+		async (folder: FolderDisplay) => {
+			if (!confirm(`Delete folder "${folder.name}" and all its contents?`)) return;
+			try {
+				if (electronAPI) {
+					const watchedFolders = await electronAPI.getWatchedFolders();
+					const matched = watchedFolders.find((wf) => wf.rootFolderId === folder.id);
+					if (matched) {
+						await electronAPI.removeWatchedFolder(matched.path);
+					}
 				}
+				await foldersApiService.deleteFolder(folder.id);
+				toast.success("Folder deleted");
+			} catch (e: unknown) {
+				toast.error((e as Error)?.message || "Failed to delete folder");
 			}
-			await foldersApiService.deleteFolder(folder.id);
-			toast.success("Folder deleted");
-		} catch (e: unknown) {
-			toast.error((e as Error)?.message || "Failed to delete folder");
-		}
-	}, []);
+		},
+		[electronAPI]
+	);
 
 	const handleMoveFolder = useCallback(
 		(folder: FolderDisplay) => {

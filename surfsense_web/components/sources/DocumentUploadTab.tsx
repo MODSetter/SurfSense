@@ -25,6 +25,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
+import { useElectronAPI } from "@/hooks/use-platform";
 import { getAcceptedFileTypes, getSupportedExtensions, getSupportedExtensionsSet } from "@/lib/supported-extensions";
 import {
 	trackDocumentUploadFailure,
@@ -73,7 +74,8 @@ export function DocumentUploadTab({
 		};
 	}, []);
 
-	const isElectron = typeof window !== "undefined" && !!window.electronAPI?.browseFiles;
+	const electronAPI = useElectronAPI();
+	const isElectron = !!electronAPI?.browseFiles;
 
 	const acceptedFileTypes = useMemo(() => getAcceptedFileTypes(), []);
 	const supportedExtensions = useMemo(
@@ -129,14 +131,13 @@ export function DocumentUploadTab({
 	}, []);
 
 	const handleBrowseFiles = useCallback(async () => {
-		const api = window.electronAPI;
-		if (!api?.browseFiles) return;
+		if (!electronAPI?.browseFiles) return;
 
-		const paths = await api.browseFiles();
+		const paths = await electronAPI.browseFiles();
 		if (!paths || paths.length === 0) return;
 
-		const fileDataList = await api.readLocalFiles(paths);
-		const filtered = fileDataList.filter((fd) => {
+		const fileDataList = await electronAPI.readLocalFiles(paths);
+		const filtered = fileDataList.filter((fd: { name: string; data: ArrayBuffer; mimeType: string }) => {
 			const ext = fd.name.includes(".") ? `.${fd.name.split(".").pop()?.toLowerCase()}` : "";
 			return ext !== "" && supportedExtensionsSet.has(ext);
 		});
@@ -146,12 +147,12 @@ export function DocumentUploadTab({
 			return;
 		}
 
-		const newFiles: FileWithId[] = filtered.map((fd) => ({
+		const newFiles: FileWithId[] = filtered.map((fd: { name: string; data: ArrayBuffer; mimeType: string }) => ({
 			id: crypto.randomUUID?.() ?? `file-${Date.now()}-${Math.random().toString(36)}`,
 			file: new File([fd.data], fd.name, { type: fd.mimeType }),
 		}));
 		setFiles((prev) => [...prev, ...newFiles]);
-	}, [supportedExtensionsSet, t]);
+	}, [electronAPI, supportedExtensionsSet, t]);
 
 	const handleFolderChange = useCallback(
 		(e: ChangeEvent<HTMLInputElement>) => {

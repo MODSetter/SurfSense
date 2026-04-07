@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
+import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { getAndClearRedirectPath, setBearerToken, setRefreshToken } from "@/lib/auth-utils";
 import { trackLoginSuccess } from "@/lib/posthog/events";
 
@@ -29,52 +30,54 @@ const TokenHandler = ({
 	useGlobalLoadingEffect(true);
 
 	useEffect(() => {
-		// Only run on client-side
 		if (typeof window === "undefined") return;
 
-		// Read tokens from URL at mount time — no subscription needed.
-		// TokenHandler only runs once after an auth redirect, so a stale read
-		// is impossible and useSearchParams() would add a pointless subscription.
-		// (Vercel Best Practice: rerender-defer-reads 5.2)
-		const params = new URLSearchParams(window.location.search);
-		const token = params.get(tokenParamName);
-		const refreshToken = params.get("refresh_token");
+		const run = async () => {
+			const params = new URLSearchParams(window.location.search);
+			const token = params.get(tokenParamName);
+			const refreshToken = params.get("refresh_token");
 
-		if (token) {
-			try {
-				// Track login success for OAuth flows (e.g., Google)
-				// Local login already tracks success before redirecting here
-				const alreadyTracked = sessionStorage.getItem("login_success_tracked");
-				if (!alreadyTracked) {
-					// This is an OAuth flow (Google login) - track success
-					trackLoginSuccess("google");
+			if (token) {
+				try {
+					const alreadyTracked = sessionStorage.getItem("login_success_tracked");
+					if (!alreadyTracked) {
+						trackLoginSuccess("google");
+					}
+					sessionStorage.removeItem("login_success_tracked");
+
+					localStorage.setItem(storageKey, token);
+					setBearerToken(token);
+
+					if (refreshToken) {
+						setRefreshToken(refreshToken);
+					}
+
+					// Auto-set active search space in desktop if not already set
+					if (window.electronAPI?.getActiveSearchSpace) {
+						try {
+							const stored = await window.electronAPI.getActiveSearchSpace();
+							if (!stored) {
+								const spaces = await searchSpacesApiService.getSearchSpaces();
+								if (spaces?.length) {
+									await window.electronAPI.setActiveSearchSpace?.(String(spaces[0].id));
+								}
+							}
+						} catch {
+							// non-critical
+						}
+					}
+
+					const savedRedirectPath = getAndClearRedirectPath();
+					const finalRedirectPath = savedRedirectPath || redirectPath;
+					window.location.href = finalRedirectPath;
+				} catch (error) {
+					console.error("Error storing token in localStorage:", error);
+					window.location.href = redirectPath;
 				}
-				// Clear the flag for future logins
-				sessionStorage.removeItem("login_success_tracked");
-
-				// Store access token in localStorage using both methods for compatibility
-				localStorage.setItem(storageKey, token);
-				setBearerToken(token);
-
-				// Store refresh token if provided
-				if (refreshToken) {
-					setRefreshToken(refreshToken);
-				}
-
-				// Check if there's a saved redirect path from before the auth flow
-				const savedRedirectPath = getAndClearRedirectPath();
-
-				// Use the saved path if available, otherwise use the default redirectPath
-				const finalRedirectPath = savedRedirectPath || redirectPath;
-
-				// Redirect to the appropriate path
-				window.location.href = finalRedirectPath;
-			} catch (error) {
-				console.error("Error storing token in localStorage:", error);
-				// Even if there's an error, try to redirect to the default path
-				window.location.href = redirectPath;
 			}
-		}
+		};
+
+		run();
 	}, [tokenParamName, storageKey, redirectPath]);
 
 	// Return null - the global provider handles the loading UI

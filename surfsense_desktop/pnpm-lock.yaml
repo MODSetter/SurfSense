@@ -26,6 +26,12 @@ importers:
       node-mac-permissions:
         specifier: ^2.5.0
         version: 2.5.0
+      node-machine-id:
+        specifier: ^1.1.12
+        version: 1.1.12
+      posthog-node:
+        specifier: ^5.29.0
+        version: 5.29.0(rxjs@7.8.2)
     devDependencies:
       '@electron/rebuild':
         specifier: ^4.0.3
@@ -307,6 +313,9 @@ packages:
   '@pkgjs/parseargs@0.11.0':
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
     engines: {node: '>=14'}
+
+  '@posthog/core@1.25.0':
+    resolution: {integrity: sha512-XKaHvRFIIN7Dw84r1eKimV1rl9DS+9XMCPPZ7P3+l8fE+rDsmumebiTFsY+q40bVXflcGW9wB+57LH0lvcGmhw==}
 
   '@sindresorhus/is@4.6.0':
     resolution: {integrity: sha512-t09vSN3MdfsyCHoFcTRCH/iUtG7OJ0CsjzB8cjAmKc/va/kIgeDI/TxsigdncE/4be734m0cvIYwNaV4i2XqAw==}
@@ -1194,6 +1203,9 @@ packages:
     resolution: {integrity: sha512-zR8SVCaN3WqV1xwWd04XVAdzm3UTdjbxciLrZtB0Cc7F2Kd34AJfhPD4hm1HU0YH3oGUZO4X9OBLY5ijSTHsGw==}
     os: [darwin]
 
+  node-machine-id@1.1.12:
+    resolution: {integrity: sha512-QNABxbrPa3qEIfrE6GOJ7BYIuignnJw7iQ2YPbc3Nla1HzRJjXzZOiikfF8m7eAMfichLt3M4VgLOetqgDmgGQ==}
+
   nopt@8.1.0:
     resolution: {integrity: sha512-ieGu42u/Qsa4TFktmaKEwM6MQH0pOWnaB3htzh0JRtx84+Mebc0cbZYN5bC+6WTZ4+77xrL9Pn5m7CV6VIkV7A==}
     engines: {node: ^18.17.0 || >=20.5.0}
@@ -1262,6 +1274,15 @@ packages:
   plist@3.1.0:
     resolution: {integrity: sha512-uysumyrvkUX0rX/dEVqt8gC3sTBzd4zoWfLeS29nb53imdaXVvLINYXTI2GNqzaMuvacNx4uJQ8+b3zXR0pkgQ==}
     engines: {node: '>=10.4.0'}
+
+  posthog-node@5.29.0:
+    resolution: {integrity: sha512-po7N55haSKxV8VOulkBZJja938yILShl6+fFjoUV3iQgOBCg4Muu615/xRg8mpNiz+UASvL0EEiGvIxdhXfj6Q==}
+    engines: {node: ^20.20.0 || >=22.22.0}
+    peerDependencies:
+      rxjs: ^7.0.0
+    peerDependenciesMeta:
+      rxjs:
+        optional: true
 
   postject@1.0.0-alpha.6:
     resolution: {integrity: sha512-b9Eb8h2eVqNE8edvKdwqkrY6O7kAwmI8kcnBv1NScolYJbo59XUF0noFq+lxbC1yN20bmC0WBEbDC5H/7ASb0A==}
@@ -1875,6 +1896,8 @@ snapshots:
 
   '@pkgjs/parseargs@0.11.0':
     optional: true
+
+  '@posthog/core@1.25.0': {}
 
   '@sindresorhus/is@4.6.0': {}
 
@@ -2940,6 +2963,8 @@ snapshots:
       bindings: 1.5.0
       node-addon-api: 7.1.1
 
+  node-machine-id@1.1.12: {}
+
   nopt@8.1.0:
     dependencies:
       abbrev: 3.0.1
@@ -3001,6 +3026,12 @@ snapshots:
       '@xmldom/xmldom': 0.8.11
       base64-js: 1.5.1
       xmlbuilder: 15.1.1
+
+  posthog-node@5.29.0(rxjs@7.8.2):
+    dependencies:
+      '@posthog/core': 1.25.0
+    optionalDependencies:
+      rxjs: 7.8.2
 
   postject@1.0.0-alpha.6:
     dependencies:

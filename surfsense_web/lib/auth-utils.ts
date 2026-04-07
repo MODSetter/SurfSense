@@ -15,6 +15,7 @@ const PUBLIC_ROUTE_PREFIXES = [
 	"/login",
 	"/register",
 	"/auth",
+	"/desktop/login",
 	"/docs",
 	"/public",
 	"/invite",
@@ -32,6 +33,11 @@ const PUBLIC_ROUTE_PREFIXES = [
 export function isPublicRoute(pathname: string): boolean {
 	if (pathname === "/" || pathname === "") return true;
 	return PUBLIC_ROUTE_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+export function getLoginPath(): string {
+	if (typeof window !== "undefined" && window.electronAPI) return "/desktop/login";
+	return "/login";
 }
 
 /**
@@ -55,7 +61,7 @@ export function handleUnauthorized(): void {
 		if (!excludedPaths.includes(pathname)) {
 			localStorage.setItem(REDIRECT_PATH_KEY, currentPath);
 		}
-		window.location.href = "/login";
+		window.location.href = getLoginPath();
 	}
 }
 
@@ -87,6 +93,7 @@ export function getBearerToken(): string | null {
 export function setBearerToken(token: string): void {
 	if (typeof window === "undefined") return;
 	localStorage.setItem(BEARER_TOKEN_KEY, token);
+	syncTokensToElectron();
 }
 
 /**
@@ -111,6 +118,7 @@ export function getRefreshToken(): string | null {
 export function setRefreshToken(token: string): void {
 	if (typeof window === "undefined") return;
 	localStorage.setItem(REFRESH_TOKEN_KEY, token);
+	syncTokensToElectron();
 }
 
 /**
@@ -127,6 +135,44 @@ export function clearRefreshToken(): void {
 export function clearAllTokens(): void {
 	clearBearerToken();
 	clearRefreshToken();
+}
+
+/**
+ * Pushes the current localStorage tokens into the Electron main process
+ * so that other BrowserWindows (Quick Ask, Autocomplete) can access them.
+ */
+function syncTokensToElectron(): void {
+	if (typeof window === "undefined" || !window.electronAPI?.setAuthTokens) return;
+	const bearer = localStorage.getItem(BEARER_TOKEN_KEY) || "";
+	const refresh = localStorage.getItem(REFRESH_TOKEN_KEY) || "";
+	if (bearer) {
+		window.electronAPI.setAuthTokens(bearer, refresh);
+	}
+}
+
+/**
+ * Attempts to pull auth tokens from the Electron main process into localStorage.
+ * Useful for popup windows (Quick Ask, Autocomplete) on platforms where
+ * localStorage is not reliably shared across BrowserWindow instances.
+ * Returns true if tokens were found and written to localStorage.
+ */
+export async function ensureTokensFromElectron(): Promise<boolean> {
+	if (typeof window === "undefined" || !window.electronAPI?.getAuthTokens) return false;
+	if (getBearerToken()) return true;
+
+	try {
+		const tokens = await window.electronAPI.getAuthTokens();
+		if (tokens?.bearer) {
+			localStorage.setItem(BEARER_TOKEN_KEY, tokens.bearer);
+			if (tokens.refresh) {
+				localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refresh);
+			}
+			return true;
+		}
+	} catch {
+		// IPC failure — fall through
+	}
+	return false;
 }
 
 /**
@@ -181,13 +227,12 @@ export function redirectToLogin(): void {
 	const currentPath = window.location.pathname + window.location.search + window.location.hash;
 
 	// Don't save auth-related paths or home page
-	const excludedPaths = ["/auth", "/auth/callback", "/", "/login", "/register"];
+	const excludedPaths = ["/auth", "/auth/callback", "/", "/login", "/register", "/desktop/login"];
 	if (!excludedPaths.includes(window.location.pathname)) {
 		localStorage.setItem(REDIRECT_PATH_KEY, currentPath);
 	}
 
-	// Redirect to login page
-	window.location.href = "/login";
+	window.location.href = getLoginPath();
 }
 
 /**

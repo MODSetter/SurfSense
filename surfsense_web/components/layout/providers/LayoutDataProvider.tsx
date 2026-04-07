@@ -55,7 +55,7 @@ import { useInbox } from "@/hooks/use-inbox";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { notificationsApiService } from "@/lib/apis/notifications-api.service";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
-import { logout } from "@/lib/auth-utils";
+import { getLoginPath, logout } from "@/lib/auth-utils";
 import { deleteThread, fetchThreads, updateThread } from "@/lib/chat/thread-persistence";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
@@ -603,12 +603,12 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			await logout();
 
 			if (typeof window !== "undefined") {
-				router.push("/");
+				router.push(getLoginPath());
 			}
 		} catch (error) {
 			console.error("Error during logout:", error);
 			await logout();
-			router.push("/");
+			router.push(getLoginPath());
 		}
 	}, [router]);
 

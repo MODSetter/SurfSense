@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getBearerToken } from "@/lib/auth-utils";
+import { useElectronAPI } from "@/hooks/use-platform";
+import { ensureTokensFromElectron, getBearerToken } from "@/lib/auth-utils";
 
 type SSEEvent =
 	| { type: "text-delta"; id: string; delta: string }
@@ -9,51 +10,108 @@ type SSEEvent =
 	| { type: "text-end"; id: string }
 	| { type: "start"; messageId: string }
 	| { type: "finish" }
-	| { type: "error"; errorText: string };
+	| { type: "error"; errorText: string }
+	| {
+			type: "data-thinking-step";
+			data: { id: string; title: string; status: string; items: string[] };
+	  }
+	| {
+			type: "data-suggestions";
+			data: { options: string[] };
+	  };
 
-function friendlyError(raw: string | number): string {
+interface AgentStep {
+	id: string;
+	title: string;
+	status: string;
+	items: string[];
+}
+
+type FriendlyError = { message: string; isSetup?: boolean };
+
+function friendlyError(raw: string | number): FriendlyError {
 	if (typeof raw === "number") {
-		if (raw === 401) return "Please sign in to use suggestions.";
-		if (raw === 403) return "You don\u2019t have permission for this.";
-		if (raw === 404) return "Suggestion service not found. Is the backend running?";
-		if (raw >= 500) return "Something went wrong on the server. Try again.";
-		return "Something went wrong. Try again.";
+		if (raw === 401) return { message: "Please sign in to use suggestions." };
+		if (raw === 403) return { message: "You don\u2019t have permission for this." };
+		if (raw === 404) return { message: "Suggestion service not found. Is the backend running?" };
+		if (raw >= 500) return { message: "Something went wrong on the server. Try again." };
+		return { message: "Something went wrong. Try again." };
 	}
 	const lower = raw.toLowerCase();
 	if (lower.includes("not authenticated") || lower.includes("unauthorized"))
-		return "Please sign in to use suggestions.";
+		return { message: "Please sign in to use suggestions." };
 	if (lower.includes("no vision llm configured") || lower.includes("no llm configured"))
-		return "No Vision LLM configured. Set one in search space settings.";
+		return {
+			message: "Configure a vision-capable model (e.g. GPT-4o, Gemini) to enable autocomplete.",
+			isSetup: true,
+		};
 	if (lower.includes("does not support vision"))
-		return "Selected model doesn\u2019t support vision. Set a vision-capable model in settings.";
+		return {
+			message: "The selected model doesn\u2019t support vision. Choose a vision-capable model.",
+			isSetup: true,
+		};
 	if (lower.includes("fetch") || lower.includes("network") || lower.includes("econnrefused"))
-		return "Can\u2019t reach the server. Check your connection.";
-	return "Something went wrong. Try again.";
+		return { message: "Can\u2019t reach the server. Check your connection." };
+	return { message: "Something went wrong. Try again." };
 }
 
 const AUTO_DISMISS_MS = 3000;
 
+function StepIcon({ status }: { status: string }) {
+	if (status === "complete") {
+		return (
+			<svg
+				className="step-icon step-icon-done"
+				viewBox="0 0 16 16"
+				fill="none"
+				aria-label="Step complete"
+			>
+				<circle cx="8" cy="8" r="7" stroke="#4ade80" strokeWidth="1.5" />
+				<path
+					d="M5 8.5l2 2 4-4.5"
+					stroke="#4ade80"
+					strokeWidth="1.5"
+					strokeLinecap="round"
+					strokeLinejoin="round"
+				/>
+			</svg>
+		);
+	}
+	return <span className="step-spinner" />;
+}
+
 export default function SuggestionPage() {
-	const [suggestion, setSuggestion] = useState("");
+	const api = useElectronAPI();
+	const [options, setOptions] = useState<string[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
-	const [isDesktop, setIsDesktop] = useState(true);
-	const [error, setError] = useState<string | null>(null);
+	const [error, setError] = useState<FriendlyError | null>(null);
+	const [steps, setSteps] = useState<AgentStep[]>([]);
+	const [expandedOption, setExpandedOption] = useState<number | null>(null);
 	const abortRef = useRef<AbortController | null>(null);
 
-	useEffect(() => {
-		if (!window.electronAPI?.onAutocompleteContext) {
-			setIsDesktop(false);
-			setIsLoading(false);
-		}
-	}, []);
+	const isDesktop = !!api?.onAutocompleteContext;
 
 	useEffect(() => {
-		if (!error) return;
+		if (!api?.onAutocompleteContext) {
+			setIsLoading(false);
+		}
+	}, [api]);
+
+	useEffect(() => {
+		if (!error || error.isSetup) return;
 		const timer = setTimeout(() => {
-			window.electronAPI?.dismissSuggestion?.();
+			api?.dismissSuggestion?.();
 		}, AUTO_DISMISS_MS);
 		return () => clearTimeout(timer);
-	}, [error]);
+	}, [error, api]);
+
+	useEffect(() => {
+		if (isLoading || error || options.length > 0) return;
+		const timer = setTimeout(() => {
+			api?.dismissSuggestion?.();
+		}, AUTO_DISMISS_MS);
+		return () => clearTimeout(timer);
+	}, [isLoading, error, options, api]);
 
 	const fetchSuggestion = useCallback(
 		async (screenshot: string, searchSpaceId: string, appName?: string, windowTitle?: string) => {
@@ -62,10 +120,16 @@ export default function SuggestionPage() {
 			abortRef.current = controller;
 
 			setIsLoading(true);
-			setSuggestion("");
+			setOptions([]);
 			setError(null);
+			setSteps([]);
+			setExpandedOption(null);
 
-			const token = getBearerToken();
+			let token = getBearerToken();
+			if (!token) {
+				await ensureTokensFromElectron();
+				token = getBearerToken();
+			}
 			if (!token) {
 				setError(friendlyError("not authenticated"));
 				setIsLoading(false);
@@ -123,10 +187,21 @@ export default function SuggestionPage() {
 
 							try {
 								const parsed: SSEEvent = JSON.parse(data);
-								if (parsed.type === "text-delta") {
-									setSuggestion((prev) => prev + parsed.delta);
+								if (parsed.type === "data-suggestions") {
+									setOptions(parsed.data.options);
 								} else if (parsed.type === "error") {
 									setError(friendlyError(parsed.errorText));
+								} else if (parsed.type === "data-thinking-step") {
+									const { id, title, status, items } = parsed.data;
+									setSteps((prev) => {
+										const existing = prev.findIndex((s) => s.id === id);
+										if (existing >= 0) {
+											const updated = [...prev];
+											updated[existing] = { id, title, status, items };
+											return updated;
+										}
+										return [...prev, { id, title, status, items }];
+									});
 								}
 							} catch {}
 						}
@@ -143,9 +218,9 @@ export default function SuggestionPage() {
 	);
 
 	useEffect(() => {
-		if (!window.electronAPI?.onAutocompleteContext) return;
+		if (!api?.onAutocompleteContext) return;
 
-		const cleanup = window.electronAPI.onAutocompleteContext((data) => {
+		const cleanup = api.onAutocompleteContext((data) => {
 			const searchSpaceId = data.searchSpaceId || "1";
 			if (data.screenshot) {
 				fetchSuggestion(data.screenshot, searchSpaceId, data.appName, data.windowTitle);
@@ -153,7 +228,7 @@ export default function SuggestionPage() {
 		});
 
 		return cleanup;
-	}, [fetchSuggestion]);
+	}, [fetchSuggestion, api]);
 
 	if (!isDesktop) {
 		return (
@@ -166,48 +241,140 @@ export default function SuggestionPage() {
 	}
 
 	if (error) {
+		if (error.isSetup) {
+			return (
+				<div className="suggestion-tooltip suggestion-setup">
+					<div className="setup-icon">
+						<svg viewBox="0 0 24 24" fill="none" width="28" height="28" aria-hidden="true">
+							<path
+								d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z"
+								stroke="#a78bfa"
+								strokeWidth="1.5"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							/>
+							<circle
+								cx="12"
+								cy="12"
+								r="3"
+								stroke="#a78bfa"
+								strokeWidth="1.5"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							/>
+						</svg>
+					</div>
+					<div className="setup-content">
+						<span className="setup-title">Vision Model Required</span>
+						<span className="setup-message">{error.message}</span>
+						<span className="setup-hint">Settings → Vision Models</span>
+					</div>
+					<button
+						type="button"
+						className="setup-dismiss"
+						onClick={() => api?.dismissSuggestion?.()}
+					>
+						✕
+					</button>
+				</div>
+			);
+		}
 		return (
 			<div className="suggestion-tooltip suggestion-error">
-				<span className="suggestion-error-text">{error}</span>
+				<span className="suggestion-error-text">{error.message}</span>
 			</div>
 		);
 	}
 
-	if (isLoading && !suggestion) {
+	const showLoading = isLoading && options.length === 0;
+
+	if (showLoading) {
 		return (
 			<div className="suggestion-tooltip">
-				<div className="suggestion-loading">
-					<span className="suggestion-dot" />
-					<span className="suggestion-dot" />
-					<span className="suggestion-dot" />
+				<div className="agent-activity">
+					{steps.length === 0 && (
+						<div className="activity-initial">
+							<span className="step-spinner" />
+							<span className="activity-label">Preparing…</span>
+						</div>
+					)}
+					{steps.length > 0 && (
+						<div className="activity-steps">
+							{steps.map((step) => (
+								<div key={step.id} className="activity-step">
+									<StepIcon status={step.status} />
+									<span className="step-label">
+										{step.title}
+										{step.items.length > 0 && (
+											<span className="step-detail"> · {step.items[0]}</span>
+										)}
+									</span>
+								</div>
+							))}
+						</div>
+					)}
 				</div>
 			</div>
 		);
 	}
 
-	const handleAccept = () => {
-		if (suggestion) {
-			window.electronAPI?.acceptSuggestion?.(suggestion);
-		}
+	const handleSelect = (text: string) => {
+		api?.acceptSuggestion?.(text);
 	};
 
 	const handleDismiss = () => {
-		window.electronAPI?.dismissSuggestion?.();
+		api?.dismissSuggestion?.();
 	};
 
-	if (!suggestion) return null;
+	const TRUNCATE_LENGTH = 120;
+
+	if (options.length === 0) {
+		return (
+			<div className="suggestion-tooltip suggestion-error">
+				<span className="suggestion-error-text">No suggestions available.</span>
+			</div>
+		);
+	}
 
 	return (
 		<div className="suggestion-tooltip">
-			<p className="suggestion-text">{suggestion}</p>
+			<div className="suggestion-options">
+				{options.map((option, index) => {
+					const isExpanded = expandedOption === index;
+					const needsTruncation = option.length > TRUNCATE_LENGTH;
+					const displayText =
+						needsTruncation && !isExpanded ? option.slice(0, TRUNCATE_LENGTH) + "…" : option;
+
+					return (
+						<div
+							key={index}
+							role="button"
+							tabIndex={0}
+							className="suggestion-option"
+							onClick={() => handleSelect(option)}
+							onKeyDown={(e) => {
+								if (e.key === "Enter") handleSelect(option);
+							}}
+						>
+							<span className="option-number">{index + 1}</span>
+							<span className="option-text">{displayText}</span>
+							{needsTruncation && (
+								<button
+									type="button"
+									className="option-expand"
+									onClick={(e) => {
+										e.stopPropagation();
+										setExpandedOption(isExpanded ? null : index);
+									}}
+								>
+									{isExpanded ? "less" : "more"}
+								</button>
+							)}
+						</div>
+					);
+				})}
+			</div>
 			<div className="suggestion-actions">
-				<button
-					type="button"
-					className="suggestion-btn suggestion-btn-accept"
-					onClick={handleAccept}
-				>
-					Accept
-				</button>
 				<button
 					type="button"
 					className="suggestion-btn suggestion-btn-dismiss"

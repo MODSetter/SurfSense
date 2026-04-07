@@ -722,6 +722,8 @@
 		"nav_role_assignments_desc": "为代理角色分配配置",
 		"nav_image_models": "图像模型",
 		"nav_image_models_desc": "配置图像生成模型",
+		"nav_vision_models": "视觉模型",
+		"nav_vision_models_desc": "配置具有视觉能力的LLM模型",
 		"nav_system_instructions": "系统指令",
 		"nav_system_instructions_desc": "搜索空间级别的 AI 指令",
 		"nav_public_links": "公开聊天链接",

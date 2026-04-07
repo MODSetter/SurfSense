@@ -19,6 +19,9 @@ files:
   - "!scripts"
   - "!release"
 extraResources:
+  - from: assets/
+    to: assets/
+    filter: ["*.ico", "*.png", "*.icns"]
   - from: ../surfsense_web/.next/standalone/surfsense_web/
     to: standalone/
     filter:
@@ -58,7 +61,7 @@ win:
   icon: assets/icon.ico
   target:
     - target: nsis
-      arch: [x64, arm64]
+      arch: [x64]
 nsis:
   oneClick: false
   perMachine: false

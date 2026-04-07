@@ -738,6 +738,8 @@
 		"nav_role_assignments_desc": "Assign configs to agent roles",
 		"nav_image_models": "Image Models",
 		"nav_image_models_desc": "Configure image generation models",
+		"nav_vision_models": "Vision Models",
+		"nav_vision_models_desc": "Configure vision-capable LLM models",
 		"nav_system_instructions": "System Instructions",
 		"nav_system_instructions_desc": "SearchSpace-wide AI instructions",
 		"nav_public_links": "Public Chat Links",

@@ -19,13 +19,21 @@ body:has(.suggestion-body) {
 }
 
 .suggestion-tooltip {
+	box-sizing: border-box;
 	background: #1e1e1e;
 	border: 1px solid #3c3c3c;
 	border-radius: 8px;
 	padding: 8px 12px;
 	margin: 4px;
 	max-width: 400px;
+	/* MAX_HEIGHT in suggestion-window.ts is 400px. Subtract 8px for margin
+     (4px * 2) so the tooltip + margin fits within the Electron window.
+     box-sizing: border-box ensures padding + border are included. */
+	max-height: 392px;
 	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
 }
 
 .suggestion-text {
@@ -35,6 +43,26 @@ body:has(.suggestion-body) {
 	margin: 0 0 6px 0;
 	word-wrap: break-word;
 	white-space: pre-wrap;
+	overflow-y: auto;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.suggestion-text::-webkit-scrollbar {
+	width: 5px;
+}
+
+.suggestion-text::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.suggestion-text::-webkit-scrollbar-thumb {
+	background: #555;
+	border-radius: 3px;
+}
+
+.suggestion-text::-webkit-scrollbar-thumb:hover {
+	background: #777;
 }
 
 .suggestion-actions {
@@ -43,6 +71,7 @@ body:has(.suggestion-body) {
 	gap: 4px;
 	border-top: 1px solid #2a2a2a;
 	padding-top: 6px;
+	flex-shrink: 0;
 }
 
 .suggestion-btn {
@@ -88,38 +117,234 @@ body:has(.suggestion-body) {
 	font-size: 12px;
 }
 
-.suggestion-loading {
+/* --- Setup prompt (vision model not configured) --- */
+
+.suggestion-setup {
 	display: flex;
-	gap: 5px;
+	flex-direction: row;
+	align-items: flex-start;
+	gap: 10px;
+	border-color: #3b2d6b;
+	padding: 10px 14px;
+}
+
+.setup-icon {
+	flex-shrink: 0;
+	margin-top: 1px;
+}
+
+.setup-content {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	min-width: 0;
+}
+
+.setup-title {
+	font-size: 13px;
+	font-weight: 600;
+	color: #c4b5fd;
+}
+
+.setup-message {
+	font-size: 11.5px;
+	color: #a1a1aa;
+	line-height: 1.4;
+}
+
+.setup-hint {
+	font-size: 10.5px;
+	color: #7c6dac;
+	margin-top: 2px;
+}
+
+.setup-dismiss {
+	flex-shrink: 0;
+	align-self: flex-start;
+	background: none;
+	border: none;
+	color: #6b6b7b;
+	font-size: 14px;
+	cursor: pointer;
+	padding: 2px 4px;
+	line-height: 1;
+	border-radius: 4px;
+	transition: color 0.15s, background 0.15s;
+}
+
+.setup-dismiss:hover {
+	color: #c4b5fd;
+	background: rgba(124, 109, 172, 0.15);
+}
+
+/* --- Agent activity indicator --- */
+
+.agent-activity {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	overflow-y: auto;
+	max-height: 340px;
+}
+
+.agent-activity::-webkit-scrollbar {
+	display: none;
+}
+
+.activity-initial {
+	display: flex;
+	align-items: center;
+	gap: 8px;
 	padding: 2px 0;
-	justify-content: center;
 }
 
-.suggestion-dot {
-	width: 4px;
-	height: 4px;
+.activity-label {
+	color: #a1a1aa;
+	font-size: 12px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.activity-steps {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.activity-step {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-height: 18px;
+}
+
+.step-label {
+	color: #d4d4d4;
+	font-size: 12px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.step-detail {
+	color: #71717a;
+	font-size: 11px;
+}
+
+/* Spinner (in_progress) */
+.step-spinner {
+	width: 14px;
+	height: 14px;
+	flex-shrink: 0;
+	border: 1.5px solid #3f3f46;
+	border-top-color: #a78bfa;
 	border-radius: 50%;
-	background: #666;
-	animation: suggestion-pulse 1.2s infinite ease-in-out;
+	animation: step-spin 0.7s linear infinite;
 }
 
-.suggestion-dot:nth-child(2) {
-	animation-delay: 0.15s;
+/* Checkmark icon (complete) */
+.step-icon {
+	width: 14px;
+	height: 14px;
+	flex-shrink: 0;
 }
 
-.suggestion-dot:nth-child(3) {
-	animation-delay: 0.3s;
-}
-
-@keyframes suggestion-pulse {
-	0%,
-	80%,
-	100% {
-		opacity: 0.3;
-		transform: scale(0.8);
+@keyframes step-spin {
+	to {
+		transform: rotate(360deg);
 	}
-	40% {
-		opacity: 1;
-		transform: scale(1.1);
-	}
+}
+
+/* --- Suggestion option cards --- */
+
+.suggestion-options {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	overflow-y: auto;
+	flex: 1 1 auto;
+	min-height: 0;
+	margin-bottom: 6px;
+}
+
+.suggestion-options::-webkit-scrollbar {
+	width: 5px;
+}
+
+.suggestion-options::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.suggestion-options::-webkit-scrollbar-thumb {
+	background: #555;
+	border-radius: 3px;
+}
+
+.suggestion-option {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 6px 8px;
+	border-radius: 5px;
+	border: 1px solid #333;
+	background: #262626;
+	cursor: pointer;
+	text-align: left;
+	font-family: inherit;
+	transition:
+		background 0.15s,
+		border-color 0.15s;
+	width: 100%;
+}
+
+.suggestion-option:hover {
+	background: #2a2d3a;
+	border-color: #3b82f6;
+}
+
+.option-number {
+	flex-shrink: 0;
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	background: #3f3f46;
+	color: #d4d4d4;
+	font-size: 10px;
+	font-weight: 600;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-top: 1px;
+}
+
+.suggestion-option:hover .option-number {
+	background: #2563eb;
+	color: #fff;
+}
+
+.option-text {
+	color: #d4d4d4;
+	font-size: 12px;
+	line-height: 1.45;
+	word-wrap: break-word;
+	white-space: pre-wrap;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.option-expand {
+	flex-shrink: 0;
+	background: none;
+	border: none;
+	color: #71717a;
+	font-size: 10px;
+	cursor: pointer;
+	padding: 0 2px;
+	font-family: inherit;
+	margin-top: 1px;
+}
+
+.option-expand:hover {
+	color: #a1a1aa;
 }

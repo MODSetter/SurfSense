@@ -738,6 +738,8 @@
 		"nav_role_assignments_desc": "Asignar configuraciones a roles de agente",
 		"nav_image_models": "Modelos de imagen",
 		"nav_image_models_desc": "Configurar modelos de generación de imágenes",
+		"nav_vision_models": "Modelos de visión",
+		"nav_vision_models_desc": "Configurar modelos LLM con capacidad de visión",
 		"nav_system_instructions": "Instrucciones del sistema",
 		"nav_system_instructions_desc": "Instrucciones de IA a nivel del espacio de búsqueda",
 		"nav_public_links": "Enlaces de chat públicos",

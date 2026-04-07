@@ -10,6 +10,7 @@ import { ZeroProvider } from "@/components/providers/ZeroProvider";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { LocaleProvider } from "@/contexts/LocaleContext";
+import { PlatformProvider } from "@/contexts/platform-context";
 import { ReactQueryClientProvider } from "@/lib/query-client/query-client.provider";
 import { cn } from "@/lib/utils";
 
@@ -139,15 +140,17 @@ export default function RootLayout({
 								disableTransitionOnChange
 								defaultTheme="system"
 							>
-								<RootProvider>
-									<ReactQueryClientProvider>
-										<ZeroProvider>
-											<GlobalLoadingProvider>{children}</GlobalLoadingProvider>
-										</ZeroProvider>
-									</ReactQueryClientProvider>
-									<Toaster />
-									<AnnouncementToastProvider />
-								</RootProvider>
+								<PlatformProvider>
+									<RootProvider>
+										<ReactQueryClientProvider>
+											<ZeroProvider>
+												<GlobalLoadingProvider>{children}</GlobalLoadingProvider>
+											</ZeroProvider>
+										</ReactQueryClientProvider>
+										<Toaster />
+										<AnnouncementToastProvider />
+									</RootProvider>
+								</PlatformProvider>
 							</ThemeProvider>
 						</I18nProvider>
 					</LocaleProvider>

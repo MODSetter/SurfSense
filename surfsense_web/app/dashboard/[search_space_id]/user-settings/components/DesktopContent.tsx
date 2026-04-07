@@ -1,30 +1,71 @@
 "use client";
 
+import { BrainCog, Rocket, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { DEFAULT_SHORTCUTS, ShortcutRecorder } from "@/components/desktop/shortcut-recorder";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
+import type { SearchSpace } from "@/contracts/types/search-space.types";
+import { useElectronAPI } from "@/hooks/use-platform";
+import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 
 export function DesktopContent() {
-	const [isElectron, setIsElectron] = useState(false);
+	const api = useElectronAPI();
 	const [loading, setLoading] = useState(true);
 	const [enabled, setEnabled] = useState(true);
 
+	const [shortcuts, setShortcuts] = useState(DEFAULT_SHORTCUTS);
+	const [shortcutsLoaded, setShortcutsLoaded] = useState(false);
+
+	const [searchSpaces, setSearchSpaces] = useState<SearchSpace[]>([]);
+	const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
+
 	useEffect(() => {
-		if (!window.electronAPI) {
+		if (!api) {
 			setLoading(false);
+			setShortcutsLoaded(true);
 			return;
 		}
-		setIsElectron(true);
 
-		window.electronAPI.getAutocompleteEnabled().then((val) => {
-			setEnabled(val);
-			setLoading(false);
-		});
-	}, []);
+		let mounted = true;
 
-	if (!isElectron) {
+		Promise.all([
+			api.getAutocompleteEnabled(),
+			api.getShortcuts?.() ?? Promise.resolve(null),
+			api.getActiveSearchSpace?.() ?? Promise.resolve(null),
+			searchSpacesApiService.getSearchSpaces(),
+		])
+			.then(([autoEnabled, config, spaceId, spaces]) => {
+				if (!mounted) return;
+				setEnabled(autoEnabled);
+				if (config) setShortcuts(config);
+				setActiveSpaceId(spaceId);
+				if (spaces) setSearchSpaces(spaces);
+				setLoading(false);
+				setShortcutsLoaded(true);
+			})
+			.catch(() => {
+				if (!mounted) return;
+				setLoading(false);
+				setShortcutsLoaded(true);
+			});
+
+		return () => {
+			mounted = false;
+		};
+	}, [api]);
+
+	if (!api) {
 		return (
 			<div className="flex flex-col items-center justify-center py-12 text-center">
 				<p className="text-sm text-muted-foreground">
@@ -44,14 +85,120 @@ export function DesktopContent() {
 
 	const handleToggle = async (checked: boolean) => {
 		setEnabled(checked);
-		await window.electronAPI!.setAutocompleteEnabled(checked);
+		await api.setAutocompleteEnabled(checked);
+	};
+
+	const updateShortcut = (
+		key: "generalAssist" | "quickAsk" | "autocomplete",
+		accelerator: string
+	) => {
+		setShortcuts((prev) => {
+			const updated = { ...prev, [key]: accelerator };
+			api.setShortcuts?.({ [key]: accelerator }).catch(() => {
+				toast.error("Failed to update shortcut");
+			});
+			return updated;
+		});
+		toast.success("Shortcut updated");
+	};
+
+	const resetShortcut = (key: "generalAssist" | "quickAsk" | "autocomplete") => {
+		updateShortcut(key, DEFAULT_SHORTCUTS[key]);
+	};
+
+	const handleSearchSpaceChange = (value: string) => {
+		setActiveSpaceId(value);
+		api.setActiveSearchSpace?.(value);
+		toast.success("Default search space updated");
 	};
 
 	return (
 		<div className="space-y-4 md:space-y-6">
+			{/* Default Search Space */}
 			<Card>
 				<CardHeader className="px-3 md:px-6 pt-3 md:pt-6 pb-2 md:pb-3">
-					<CardTitle className="text-base md:text-lg">Autocomplete</CardTitle>
+					<CardTitle className="text-base md:text-lg">Default Search Space</CardTitle>
+					<CardDescription className="text-xs md:text-sm">
+						Choose which search space General Assist, Quick Assist, and Extreme Assist operate
+						against.
+					</CardDescription>
+				</CardHeader>
+				<CardContent className="px-3 md:px-6 pb-3 md:pb-6">
+					{searchSpaces.length > 0 ? (
+						<Select value={activeSpaceId ?? undefined} onValueChange={handleSearchSpaceChange}>
+							<SelectTrigger className="w-full">
+								<SelectValue placeholder="Select a search space" />
+							</SelectTrigger>
+							<SelectContent>
+								{searchSpaces.map((space) => (
+									<SelectItem key={space.id} value={String(space.id)}>
+										{space.name}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					) : (
+						<p className="text-sm text-muted-foreground">
+							No search spaces found. Create one first.
+						</p>
+					)}
+				</CardContent>
+			</Card>
+
+			{/* Keyboard Shortcuts */}
+			<Card>
+				<CardHeader className="px-3 md:px-6 pt-3 md:pt-6 pb-2 md:pb-3">
+					<CardTitle className="text-base md:text-lg">Keyboard Shortcuts</CardTitle>
+					<CardDescription className="text-xs md:text-sm">
+						Customize the global keyboard shortcuts for desktop features.
+					</CardDescription>
+				</CardHeader>
+				<CardContent className="px-3 md:px-6 pb-3 md:pb-6">
+					{shortcutsLoaded ? (
+						<div className="flex flex-col gap-3">
+							<ShortcutRecorder
+								value={shortcuts.generalAssist}
+								onChange={(accel) => updateShortcut("generalAssist", accel)}
+								onReset={() => resetShortcut("generalAssist")}
+								defaultValue={DEFAULT_SHORTCUTS.generalAssist}
+								label="General Assist"
+								description="Launch SurfSense instantly from any application"
+								icon={Rocket}
+							/>
+							<ShortcutRecorder
+								value={shortcuts.quickAsk}
+								onChange={(accel) => updateShortcut("quickAsk", accel)}
+								onReset={() => resetShortcut("quickAsk")}
+								defaultValue={DEFAULT_SHORTCUTS.quickAsk}
+								label="Quick Assist"
+								description="Select text anywhere, then ask AI to explain, rewrite, or act on it"
+								icon={Zap}
+							/>
+							<ShortcutRecorder
+								value={shortcuts.autocomplete}
+								onChange={(accel) => updateShortcut("autocomplete", accel)}
+								onReset={() => resetShortcut("autocomplete")}
+								defaultValue={DEFAULT_SHORTCUTS.autocomplete}
+								label="Extreme Assist"
+								description="AI drafts text using your screen context and knowledge base"
+								icon={BrainCog}
+							/>
+							<p className="text-[11px] text-muted-foreground">
+								Click a shortcut and press a new key combination to change it.
+							</p>
+						</div>
+					) : (
+						<div className="flex justify-center py-4">
+							<Spinner size="sm" />
+						</div>
+					)}
+				</CardContent>
+			</Card>
+
+			{/* Extreme Assist Toggle */}
+			<Card>
+				<CardHeader className="px-3 md:px-6 pt-3 md:pt-6 pb-2 md:pb-3">
+					<CardTitle className="text-base md:text-lg">Extreme Assist</CardTitle>
 					<CardDescription className="text-xs md:text-sm">
 						Get inline writing suggestions powered by your knowledge base as you type in any app.
 					</CardDescription>
@@ -60,7 +207,7 @@ export function DesktopContent() {
 					<div className="flex items-center justify-between rounded-lg border p-4">
 						<div className="space-y-0.5">
 							<Label htmlFor="autocomplete-toggle" className="text-sm font-medium cursor-pointer">
-								Enable autocomplete
+								Enable Extreme Assist
 							</Label>
 							<p className="text-xs text-muted-foreground">
 								Show suggestions while typing in other applications.
