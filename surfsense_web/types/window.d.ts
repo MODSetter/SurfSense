@@ -78,6 +78,9 @@ interface ElectronAPI {
 	// Browse files/folders via native dialogs
 	browseFiles: () => Promise<string[] | null>;
 	readLocalFiles: (paths: string[]) => Promise<LocalFileData[]>;
+	// Auth token sync across windows
+	getAuthTokens: () => Promise<{ bearer: string; refresh: string } | null>;
+	setAuthTokens: (bearer: string, refresh: string) => Promise<void>;
 }
 
 declare global {

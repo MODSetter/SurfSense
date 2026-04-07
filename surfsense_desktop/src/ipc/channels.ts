@@ -32,4 +32,7 @@ export const IPC_CHANNELS = {
   FOLDER_SYNC_ACK_EVENTS: 'folder-sync:ack-events',
   BROWSE_FILES: 'browse:files',
   READ_LOCAL_FILES: 'browse:read-local-files',
+  // Auth token sync across windows
+  GET_AUTH_TOKENS: 'auth:get-tokens',
+  SET_AUTH_TOKENS: 'auth:set-tokens',
 } as const;

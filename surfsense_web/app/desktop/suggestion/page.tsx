@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getBearerToken } from "@/lib/auth-utils";
+import { getBearerToken, ensureTokensFromElectron } from "@/lib/auth-utils";
 
 type SSEEvent =
 	| { type: "text-delta"; id: string; delta: string }
@@ -65,7 +65,11 @@ export default function SuggestionPage() {
 			setSuggestion("");
 			setError(null);
 
-			const token = getBearerToken();
+			let token = getBearerToken();
+			if (!token) {
+				await ensureTokensFromElectron();
+				token = getBearerToken();
+			}
 			if (!token) {
 				setError(friendlyError("not authenticated"));
 				setIsLoading(false);

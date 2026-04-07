@@ -87,6 +87,7 @@ export function getBearerToken(): string | null {
 export function setBearerToken(token: string): void {
 	if (typeof window === "undefined") return;
 	localStorage.setItem(BEARER_TOKEN_KEY, token);
+	syncTokensToElectron();
 }
 
 /**
@@ -111,6 +112,7 @@ export function getRefreshToken(): string | null {
 export function setRefreshToken(token: string): void {
 	if (typeof window === "undefined") return;
 	localStorage.setItem(REFRESH_TOKEN_KEY, token);
+	syncTokensToElectron();
 }
 
 /**
@@ -127,6 +129,44 @@ export function clearRefreshToken(): void {
 export function clearAllTokens(): void {
 	clearBearerToken();
 	clearRefreshToken();
+}
+
+/**
+ * Pushes the current localStorage tokens into the Electron main process
+ * so that other BrowserWindows (Quick Ask, Autocomplete) can access them.
+ */
+function syncTokensToElectron(): void {
+	if (typeof window === "undefined" || !window.electronAPI?.setAuthTokens) return;
+	const bearer = localStorage.getItem(BEARER_TOKEN_KEY) || "";
+	const refresh = localStorage.getItem(REFRESH_TOKEN_KEY) || "";
+	if (bearer) {
+		window.electronAPI.setAuthTokens(bearer, refresh);
+	}
+}
+
+/**
+ * Attempts to pull auth tokens from the Electron main process into localStorage.
+ * Useful for popup windows (Quick Ask, Autocomplete) on platforms where
+ * localStorage is not reliably shared across BrowserWindow instances.
+ * Returns true if tokens were found and written to localStorage.
+ */
+export async function ensureTokensFromElectron(): Promise<boolean> {
+	if (typeof window === "undefined" || !window.electronAPI?.getAuthTokens) return false;
+	if (getBearerToken()) return true;
+
+	try {
+		const tokens = await window.electronAPI.getAuthTokens();
+		if (tokens?.bearer) {
+			localStorage.setItem(BEARER_TOKEN_KEY, tokens.bearer);
+			if (tokens.refresh) {
+				localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refresh);
+			}
+			return true;
+		}
+	} catch {
+		// IPC failure — fall through
+	}
+	return false;
 }
 
 /**
