@@ -16,7 +16,7 @@ export function initAnalytics(): void {
   }
 
   client = new PostHog(key, {
-    host: process.env.POSTHOG_HOST || 'https://us.i.posthog.com',
+    host: process.env.POSTHOG_HOST || 'https://assets.surfsense.com',
     flushAt: 20,
     flushInterval: 10000,
   });

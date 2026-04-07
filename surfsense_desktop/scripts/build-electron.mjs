@@ -115,7 +115,7 @@ async function buildElectron() {
         process.env.POSTHOG_KEY || desktopEnv.POSTHOG_KEY || ''
       ),
       'process.env.POSTHOG_HOST': JSON.stringify(
-        process.env.POSTHOG_HOST || desktopEnv.POSTHOG_HOST || 'https://us.i.posthog.com'
+        process.env.POSTHOG_HOST || desktopEnv.POSTHOG_HOST || 'https://assets.surfsense.com'
       ),
     },
   };
