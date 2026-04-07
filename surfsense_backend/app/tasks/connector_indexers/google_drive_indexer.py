@@ -26,6 +26,7 @@ from app.connectors.google_drive import (
     get_start_page_token,
 )
 from app.connectors.google_drive.file_types import (
+    is_google_workspace_file,
     should_skip_by_extension,
     should_skip_file as skip_mime,
 )
@@ -81,9 +82,10 @@ async def _should_skip_file(
 
     if skip_mime(mime_type):
         return True, "folder/shortcut"
-    ext_skip, unsup_ext = should_skip_by_extension(file_name)
-    if ext_skip:
-        return True, f"unsupported:{unsup_ext}"
+    if not is_google_workspace_file(mime_type):
+        ext_skip, unsup_ext = should_skip_by_extension(file_name)
+        if ext_skip:
+            return True, f"unsupported:{unsup_ext}"
     if not file_id:
         return True, "missing file_id"
 
