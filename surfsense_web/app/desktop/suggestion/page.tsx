@@ -27,24 +27,32 @@ interface AgentStep {
 	items: string[];
 }
 
-function friendlyError(raw: string | number): string {
+type FriendlyError = { message: string; isSetup?: boolean };
+
+function friendlyError(raw: string | number): FriendlyError {
 	if (typeof raw === "number") {
-		if (raw === 401) return "Please sign in to use suggestions.";
-		if (raw === 403) return "You don\u2019t have permission for this.";
-		if (raw === 404) return "Suggestion service not found. Is the backend running?";
-		if (raw >= 500) return "Something went wrong on the server. Try again.";
-		return "Something went wrong. Try again.";
+		if (raw === 401) return { message: "Please sign in to use suggestions." };
+		if (raw === 403) return { message: "You don\u2019t have permission for this." };
+		if (raw === 404) return { message: "Suggestion service not found. Is the backend running?" };
+		if (raw >= 500) return { message: "Something went wrong on the server. Try again." };
+		return { message: "Something went wrong. Try again." };
 	}
 	const lower = raw.toLowerCase();
 	if (lower.includes("not authenticated") || lower.includes("unauthorized"))
-		return "Please sign in to use suggestions.";
+		return { message: "Please sign in to use suggestions." };
 	if (lower.includes("no vision llm configured") || lower.includes("no llm configured"))
-		return "No Vision LLM configured. Set one in search space settings.";
+		return {
+			message: "Configure a vision-capable model (e.g. GPT-4o, Gemini) to enable autocomplete.",
+			isSetup: true,
+		};
 	if (lower.includes("does not support vision"))
-		return "Selected model doesn\u2019t support vision. Set a vision-capable model in settings.";
+		return {
+			message: "The selected model doesn\u2019t support vision. Choose a vision-capable model.",
+			isSetup: true,
+		};
 	if (lower.includes("fetch") || lower.includes("network") || lower.includes("econnrefused"))
-		return "Can\u2019t reach the server. Check your connection.";
-	return "Something went wrong. Try again.";
+		return { message: "Can\u2019t reach the server. Check your connection." };
+	return { message: "Something went wrong. Try again." };
 }
 
 const AUTO_DISMISS_MS = 3000;
@@ -76,7 +84,7 @@ export default function SuggestionPage() {
 	const api = useElectronAPI();
 	const [options, setOptions] = useState<string[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
+	const [error, setError] = useState<FriendlyError | null>(null);
 	const [steps, setSteps] = useState<AgentStep[]>([]);
 	const [expandedOption, setExpandedOption] = useState<number | null>(null);
 	const abortRef = useRef<AbortController | null>(null);
@@ -90,7 +98,7 @@ export default function SuggestionPage() {
 	}, [api]);
 
 	useEffect(() => {
-		if (!error) return;
+		if (!error || error.isSetup) return;
 		const timer = setTimeout(() => {
 			api?.dismissSuggestion?.();
 		}, AUTO_DISMISS_MS);
@@ -233,9 +241,47 @@ export default function SuggestionPage() {
 	}
 
 	if (error) {
+		if (error.isSetup) {
+			return (
+				<div className="suggestion-tooltip suggestion-setup">
+					<div className="setup-icon">
+						<svg viewBox="0 0 24 24" fill="none" width="28" height="28" aria-hidden="true">
+							<path
+								d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z"
+								stroke="#a78bfa"
+								strokeWidth="1.5"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							/>
+							<circle
+								cx="12"
+								cy="12"
+								r="3"
+								stroke="#a78bfa"
+								strokeWidth="1.5"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							/>
+						</svg>
+					</div>
+					<div className="setup-content">
+						<span className="setup-title">Vision Model Required</span>
+						<span className="setup-message">{error.message}</span>
+						<span className="setup-hint">Settings → Vision Models</span>
+					</div>
+					<button
+						type="button"
+						className="setup-dismiss"
+						onClick={() => api?.dismissSuggestion?.()}
+					>
+						✕
+					</button>
+				</div>
+			);
+		}
 		return (
 			<div className="suggestion-tooltip suggestion-error">
-				<span className="suggestion-error-text">{error}</span>
+				<span className="suggestion-error-text">{error.message}</span>
 			</div>
 		);
 	}

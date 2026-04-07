@@ -117,6 +117,66 @@ body:has(.suggestion-body) {
 	font-size: 12px;
 }
 
+/* --- Setup prompt (vision model not configured) --- */
+
+.suggestion-setup {
+	display: flex;
+	flex-direction: row;
+	align-items: flex-start;
+	gap: 10px;
+	border-color: #3b2d6b;
+	padding: 10px 14px;
+}
+
+.setup-icon {
+	flex-shrink: 0;
+	margin-top: 1px;
+}
+
+.setup-content {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	min-width: 0;
+}
+
+.setup-title {
+	font-size: 13px;
+	font-weight: 600;
+	color: #c4b5fd;
+}
+
+.setup-message {
+	font-size: 11.5px;
+	color: #a1a1aa;
+	line-height: 1.4;
+}
+
+.setup-hint {
+	font-size: 10.5px;
+	color: #7c6dac;
+	margin-top: 2px;
+}
+
+.setup-dismiss {
+	flex-shrink: 0;
+	align-self: flex-start;
+	background: none;
+	border: none;
+	color: #6b6b7b;
+	font-size: 14px;
+	cursor: pointer;
+	padding: 2px 4px;
+	line-height: 1;
+	border-radius: 4px;
+	transition: color 0.15s, background 0.15s;
+}
+
+.setup-dismiss:hover {
+	color: #c4b5fd;
+	background: rgba(124, 109, 172, 0.15);
+}
+
 /* --- Agent activity indicator --- */
 
 .agent-activity {
