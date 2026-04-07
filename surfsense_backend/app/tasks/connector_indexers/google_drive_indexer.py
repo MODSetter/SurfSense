@@ -758,7 +758,7 @@ async def _index_with_delta_sync(
 
     if not changes:
         logger.info("No changes detected since last sync")
-        return 0, 0
+        return 0, 0, 0
 
     logger.info(f"Processing {len(changes)} changes")
 

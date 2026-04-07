@@ -417,14 +417,8 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						disabled={isSaving || isDisconnecting}
 						className="text-xs sm:text-sm flex-1 sm:flex-initial h-12 sm:h-auto py-3 sm:py-2"
 					>
-						{isSaving ? (
-							<>
-								<Spinner size="sm" className="mr-2" />
-								Saving
-							</>
-						) : (
-							"Save Changes"
-						)}
+						{isSaving && <Spinner size="sm" className="mr-2" />}
+						Save Changes
 					</Button>
 				)}
 			</div>
