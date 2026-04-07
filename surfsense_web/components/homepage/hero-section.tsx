@@ -1,5 +1,5 @@
 "use client";
-import { Monitor } from "lucide-react";
+import { Download, Monitor } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import React, { memo, useCallback, useEffect, useRef, useState } from "react";
@@ -40,17 +40,41 @@ const GoogleLogo = ({ className }: { className?: string }) => (
 
 const TAB_ITEMS = [
 	{
-		title: "Connect & Sync",
-		description:
-			"Connect data sources like Notion, Drive and Gmail. Automatically sync to keep them updated.",
-		src: "/homepage/hero_tutorial/ConnectorFlowGif.mp4",
+		title: "General Assist",
+		description: "Launch SurfSense instantly from any application.",
+		src: "/homepage/hero_tutorial/general_assist.mp4",
 		featured: true,
 	},
 	{
-		title: "Upload Documents",
-		description: "Upload documents directly, from images to massive PDFs.",
-		src: "/homepage/hero_tutorial/DocUploadGif.mp4",
+		title: "Quick Assist",
+		description: "Select text anywhere, then ask AI to explain, rewrite, or act on it.",
+		src: "/homepage/hero_tutorial/quick_assist.mp4",
 		featured: true,
+	},
+	{
+		title: "Extreme Assist",
+		description: "Get inline writing suggestions powered by your knowledge base as you type in any app.",
+		src: "/homepage/hero_tutorial/extreme_assist.mp4",
+		featured: true,
+	},
+	// {
+	// 	title: "Connect & Sync",
+	// 	description:
+	// 		"Connect data sources like Notion, Drive and Gmail. Automatically sync to keep them updated.",
+	// 	src: "/homepage/hero_tutorial/ConnectorFlowGif.mp4",
+	// 	featured: true,
+	// },
+	// {
+	// 	title: "Upload Documents",
+	// 	description: "Upload documents directly, from images to massive PDFs.",
+	// 	src: "/homepage/hero_tutorial/DocUploadGif.mp4",
+	// 	featured: true,
+	// },
+	{
+		title: "Video & Presentations",
+		description: "Create short videos and editable presentations with AI-generated visuals and narration from your sources.",
+		src: "/homepage/hero_tutorial/video_gen_surf.mp4",
+		featured: false,
 	},
 	{
 		title: "Search & Citation",
@@ -94,12 +118,6 @@ const TAB_ITEMS = [
 		src: "/homepage/hero_realtime/RealTimeCommentsFlow.mp4",
 		featured: false,
 	},
-	{
-		title: "Video Generation",
-		description: "Create short videos with AI-generated visuals and narration from your sources.",
-		src: "/homepage/hero_tutorial/video_gen_surf.mp4",
-		featured: false,
-	},
 ] as const;
 
 export function HeroSection() {
@@ -125,10 +143,10 @@ export function HeroSection() {
 						</h2>
 
 						<div className="relative mb-4 flex w-full flex-col justify-center gap-y-2 sm:flex-row sm:justify-start sm:space-y-0 sm:space-x-4">
+							<DownloadButton />
 							<GetStartedButton />
 						</div>
 					</div>
-					<DownloadApp />
 				</div>
 				<BrowserWindow />
 			</div>
@@ -164,6 +182,32 @@ function GetStartedButton() {
 		>
 			Get Started
 		</Link>
+	);
+}
+
+function useUserOS() {
+	const [os, setOs] = useState<"macOS" | "Windows" | "Linux">("macOS");
+	useEffect(() => {
+		const ua = navigator.userAgent;
+		if (/Windows/i.test(ua)) setOs("Windows");
+		else if (/Linux/i.test(ua)) setOs("Linux");
+		else setOs("macOS");
+	}, []);
+	return os;
+}
+
+function DownloadButton() {
+	const os = useUserOS();
+	return (
+		<a
+			href={GITHUB_RELEASES_URL}
+			target="_blank"
+			rel="noopener noreferrer"
+			className="flex h-14 w-full items-center justify-center gap-2 rounded-lg border border-neutral-200 bg-white text-center text-base font-medium text-neutral-700 shadow-sm transition duration-150 active:scale-98 hover:bg-neutral-50 sm:w-56 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+		>
+			<Download className="size-4" />
+			Download for {os}
+		</a>
 	);
 }
 
@@ -313,80 +357,3 @@ const TabVideo = memo(function TabVideo({ src }: { src: string }) {
 
 const GITHUB_RELEASES_URL = "https://github.com/MODSetter/SurfSense/releases/latest";
 
-const DownloadApp = memo(function DownloadApp() {
-	return (
-		<div className="flex flex-col items-start justify-start">
-			<p className="mb-4 text-left text-sm text-neutral-500 lg:text-lg dark:text-neutral-400">
-				Download the desktop app
-			</p>
-			<div className="mb-2 flex flex-row flex-wrap items-center gap-3">
-				<a
-					href={GITHUB_RELEASES_URL}
-					target="_blank"
-					rel="noopener noreferrer"
-					className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 shadow-sm transition hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-				>
-					<svg
-						className="size-4"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth="2"
-						strokeLinecap="round"
-						strokeLinejoin="round"
-						aria-label="Download for macOS"
-					>
-						<path d="M12 17V3" />
-						<path d="m6 11 6 6 6-6" />
-						<path d="M19 21H5" />
-					</svg>
-					macOS
-				</a>
-				<a
-					href={GITHUB_RELEASES_URL}
-					target="_blank"
-					rel="noopener noreferrer"
-					className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 shadow-sm transition hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-				>
-					<svg
-						className="size-4"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth="2"
-						strokeLinecap="round"
-						strokeLinejoin="round"
-						aria-label="Download for Windows"
-					>
-						<path d="M12 17V3" />
-						<path d="m6 11 6 6 6-6" />
-						<path d="M19 21H5" />
-					</svg>
-					Windows
-				</a>
-				<a
-					href={GITHUB_RELEASES_URL}
-					target="_blank"
-					rel="noopener noreferrer"
-					className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 shadow-sm transition hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-				>
-					<svg
-						className="size-4"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth="2"
-						strokeLinecap="round"
-						strokeLinejoin="round"
-						aria-label="Download for Linux"
-					>
-						<path d="M12 17V3" />
-						<path d="m6 11 6 6 6-6" />
-						<path d="M19 21H5" />
-					</svg>
-					Linux
-				</a>
-			</div>
-		</div>
-	);
-});
