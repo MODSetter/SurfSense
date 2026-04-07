@@ -102,6 +102,44 @@ def load_global_image_gen_configs():
         return []
 
 
+def load_global_vision_llm_configs():
+    global_config_file = BASE_DIR / "app" / "config" / "global_llm_config.yaml"
+
+    if not global_config_file.exists():
+        return []
+
+    try:
+        with open(global_config_file, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+            return data.get("global_vision_llm_configs", [])
+    except Exception as e:
+        print(f"Warning: Failed to load global vision LLM configs: {e}")
+        return []
+
+
+def load_vision_llm_router_settings():
+    default_settings = {
+        "routing_strategy": "usage-based-routing",
+        "num_retries": 3,
+        "allowed_fails": 3,
+        "cooldown_time": 60,
+    }
+
+    global_config_file = BASE_DIR / "app" / "config" / "global_llm_config.yaml"
+
+    if not global_config_file.exists():
+        return default_settings
+
+    try:
+        with open(global_config_file, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+            settings = data.get("vision_llm_router_settings", {})
+            return {**default_settings, **settings}
+    except Exception as e:
+        print(f"Warning: Failed to load vision LLM router settings: {e}")
+        return default_settings
+
+
 def load_image_gen_router_settings():
     """
     Load router settings for image generation Auto mode from YAML file.
@@ -180,6 +218,29 @@ def initialize_image_gen_router():
         )
     except Exception as e:
         print(f"Warning: Failed to initialize Image Generation Router: {e}")
+
+
+def initialize_vision_llm_router():
+    vision_configs = load_global_vision_llm_configs()
+    router_settings = load_vision_llm_router_settings()
+
+    if not vision_configs:
+        print(
+            "Info: No global vision LLM configs found, "
+            "Vision LLM Auto mode will not be available"
+        )
+        return
+
+    try:
+        from app.services.vision_llm_router_service import VisionLLMRouterService
+
+        VisionLLMRouterService.initialize(vision_configs, router_settings)
+        print(
+            f"Info: Vision LLM Router initialized with {len(vision_configs)} models "
+            f"(strategy: {router_settings.get('routing_strategy', 'usage-based-routing')})"
+        )
+    except Exception as e:
+        print(f"Warning: Failed to initialize Vision LLM Router: {e}")
 
 
 class Config:
@@ -334,6 +395,12 @@ class Config:
 
     # Router settings for Image Generation Auto mode
     IMAGE_GEN_ROUTER_SETTINGS = load_image_gen_router_settings()
+
+    # Global Vision LLM Configurations (optional)
+    GLOBAL_VISION_LLM_CONFIGS = load_global_vision_llm_configs()
+
+    # Router settings for Vision LLM Auto mode
+    VISION_LLM_ROUTER_SETTINGS = load_vision_llm_router_settings()
 
     # Chonkie Configuration | Edit this to your needs
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
