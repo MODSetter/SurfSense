@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import React, { useCallback, useRef, useState } from "react";
 import { useDrag } from "react-dnd";
-import { getDocumentTypeIcon } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
+import { getDocumentTypeIcon } from "@/components/documents/DocumentTypeIcon";
 import { ExportContextItems, ExportDropdownItems } from "@/components/shared/ExportMenuItems";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
