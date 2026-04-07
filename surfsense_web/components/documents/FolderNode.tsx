@@ -77,7 +77,7 @@ interface FolderNodeProps {
 	contextMenuOpen?: boolean;
 	onContextMenuOpenChange?: (open: boolean) => void;
 	isWatched?: boolean;
-	onRescan?: (folder: FolderDisplay) => void;
+	onRescan?: (folder: FolderDisplay) => void | Promise<void>;
 	onStopWatching?: (folder: FolderDisplay) => void;
 }
 
@@ -124,6 +124,17 @@ export const FolderNode = React.memo(function FolderNode({
 	const inputRef = useRef<HTMLInputElement>(null);
 	const rowRef = useRef<HTMLDivElement>(null);
 	const [dropZone, setDropZone] = useState<DropZone | null>(null);
+	const [isRescanning, setIsRescanning] = useState(false);
+
+	const handleRescan = useCallback(async () => {
+		if (isRescanning) return;
+		setIsRescanning(true);
+		try {
+			await onRescan?.(folder);
+		} finally {
+			setIsRescanning(false);
+		}
+	}, [folder, onRescan, isRescanning]);
 
 	const [{ isDragging }, drag] = useDrag(
 		() => ({
@@ -347,17 +358,17 @@ export const FolderNode = React.memo(function FolderNode({
 								</Button>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align="end" className="w-40">
-								{isWatched && onRescan && (
-									<DropdownMenuItem
-										onClick={(e) => {
-											e.stopPropagation();
-											onRescan(folder);
-										}}
-									>
-										<RefreshCw className="mr-2 h-4 w-4" />
-										Re-scan
-									</DropdownMenuItem>
-								)}
+							{isWatched && onRescan && (
+								<DropdownMenuItem
+									onClick={(e) => {
+										e.stopPropagation();
+										handleRescan();
+									}}
+								>
+									<RefreshCw className={cn("mr-2 h-4 w-4", isRescanning && "animate-spin")} />
+									Re-scan
+								</DropdownMenuItem>
+							)}
 								{isWatched && onStopWatching && (
 									<DropdownMenuItem
 										onClick={(e) => {
@@ -396,16 +407,15 @@ export const FolderNode = React.memo(function FolderNode({
 									<Move className="mr-2 h-4 w-4" />
 									Move to...
 								</DropdownMenuItem>
-								<DropdownMenuItem
-									className="text-destructive focus:text-destructive"
-									onClick={(e) => {
-										e.stopPropagation();
-										onDelete(folder);
-									}}
-								>
-									<Trash2 className="mr-2 h-4 w-4" />
-									Delete
-								</DropdownMenuItem>
+							<DropdownMenuItem
+								onClick={(e) => {
+									e.stopPropagation();
+									onDelete(folder);
+								}}
+							>
+								<Trash2 className="mr-2 h-4 w-4" />
+								Delete
+							</DropdownMenuItem>
 							</DropdownMenuContent>
 						</DropdownMenu>
 					)}
@@ -414,12 +424,12 @@ export const FolderNode = React.memo(function FolderNode({
 
 			{!isRenaming && contextMenuOpen && (
 				<ContextMenuContent className="w-40">
-					{isWatched && onRescan && (
-						<ContextMenuItem onClick={() => onRescan(folder)}>
-							<RefreshCw className="mr-2 h-4 w-4" />
-							Re-scan
-						</ContextMenuItem>
-					)}
+				{isWatched && onRescan && (
+					<ContextMenuItem onClick={() => handleRescan()}>
+						<RefreshCw className={cn("mr-2 h-4 w-4", isRescanning && "animate-spin")} />
+						Re-scan
+					</ContextMenuItem>
+				)}
 					{isWatched && onStopWatching && (
 						<ContextMenuItem onClick={() => onStopWatching(folder)}>
 							<EyeOff className="mr-2 h-4 w-4" />
@@ -438,13 +448,10 @@ export const FolderNode = React.memo(function FolderNode({
 						<Move className="mr-2 h-4 w-4" />
 						Move to...
 					</ContextMenuItem>
-					<ContextMenuItem
-						className="text-destructive focus:text-destructive"
-						onClick={() => onDelete(folder)}
-					>
-						<Trash2 className="mr-2 h-4 w-4" />
-						Delete
-					</ContextMenuItem>
+				<ContextMenuItem onClick={() => onDelete(folder)}>
+					<Trash2 className="mr-2 h-4 w-4" />
+					Delete
+				</ContextMenuItem>
 				</ContextMenuContent>
 			)}
 		</ContextMenu>

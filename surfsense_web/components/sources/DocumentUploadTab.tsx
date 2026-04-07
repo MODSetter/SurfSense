@@ -25,95 +25,18 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
-import { documentsApiService } from "@/lib/apis/documents-api.service";
+import { getAcceptedFileTypes, getSupportedExtensions, getSupportedExtensionsSet } from "@/lib/supported-extensions";
 import {
 	trackDocumentUploadFailure,
 	trackDocumentUploadStarted,
 	trackDocumentUploadSuccess,
 } from "@/lib/posthog/events";
 
-interface SelectedFolder {
-	path: string;
-	name: string;
-}
-
 interface DocumentUploadTabProps {
 	searchSpaceId: string;
 	onSuccess?: () => void;
 	onAccordionStateChange?: (isExpanded: boolean) => void;
 }
-
-const audioFileTypes = {
-	"audio/mpeg": [".mp3", ".mpeg", ".mpga"],
-	"audio/mp4": [".mp4", ".m4a"],
-	"audio/wav": [".wav"],
-	"audio/webm": [".webm"],
-	"text/markdown": [".md", ".markdown"],
-	"text/plain": [".txt"],
-};
-
-const commonTypes = {
-	"application/pdf": [".pdf"],
-	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
-	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
-	"application/vnd.openxmlformats-officedocument.presentationml.presentation": [".pptx"],
-	"text/html": [".html", ".htm"],
-	"text/csv": [".csv"],
-	"text/tab-separated-values": [".tsv"],
-	"image/jpeg": [".jpg", ".jpeg"],
-	"image/png": [".png"],
-	"image/bmp": [".bmp"],
-	"image/webp": [".webp"],
-	"image/tiff": [".tiff"],
-};
-
-const FILE_TYPE_CONFIG: Record<string, Record<string, string[]>> = {
-	LLAMACLOUD: {
-		...commonTypes,
-		"application/msword": [".doc"],
-		"application/vnd.ms-word.document.macroEnabled.12": [".docm"],
-		"application/msword-template": [".dot"],
-		"application/vnd.ms-word.template.macroEnabled.12": [".dotm"],
-		"application/vnd.ms-powerpoint": [".ppt"],
-		"application/vnd.ms-powerpoint.template.macroEnabled.12": [".pptm"],
-		"application/vnd.ms-powerpoint.template": [".pot"],
-		"application/vnd.openxmlformats-officedocument.presentationml.template": [".potx"],
-		"application/vnd.ms-excel": [".xls"],
-		"application/vnd.ms-excel.sheet.macroEnabled.12": [".xlsm"],
-		"application/vnd.ms-excel.sheet.binary.macroEnabled.12": [".xlsb"],
-		"application/vnd.ms-excel.workspace": [".xlw"],
-		"application/rtf": [".rtf"],
-		"application/xml": [".xml"],
-		"application/epub+zip": [".epub"],
-		"image/gif": [".gif"],
-		"image/svg+xml": [".svg"],
-		...audioFileTypes,
-	},
-	DOCLING: {
-		...commonTypes,
-		"text/asciidoc": [".adoc", ".asciidoc"],
-		"text/html": [".html", ".htm", ".xhtml"],
-		"image/tiff": [".tiff", ".tif"],
-		...audioFileTypes,
-	},
-	default: {
-		...commonTypes,
-		"application/msword": [".doc"],
-		"message/rfc822": [".eml"],
-		"application/epub+zip": [".epub"],
-		"image/heic": [".heic"],
-		"application/vnd.ms-outlook": [".msg"],
-		"application/vnd.oasis.opendocument.text": [".odt"],
-		"text/x-org": [".org"],
-		"application/pkcs7-signature": [".p7s"],
-		"application/vnd.ms-powerpoint": [".ppt"],
-		"text/x-rst": [".rst"],
-		"application/rtf": [".rtf"],
-		"application/vnd.ms-excel": [".xls"],
-		"application/xml": [".xml"],
-		...audioFileTypes,
-	},
-};
 
 interface FileWithId {
 	id: string;
@@ -150,24 +73,16 @@ export function DocumentUploadTab({
 		};
 	}, []);
 
-	const [selectedFolder, setSelectedFolder] = useState<SelectedFolder | null>(null);
-	const [watchFolder, setWatchFolder] = useState(true);
-	const [folderSubmitting, setFolderSubmitting] = useState(false);
 	const isElectron = typeof window !== "undefined" && !!window.electronAPI?.browseFiles;
 
-	const acceptedFileTypes = useMemo(() => {
-		const etlService = process.env.NEXT_PUBLIC_ETL_SERVICE;
-		return FILE_TYPE_CONFIG[etlService || "default"] || FILE_TYPE_CONFIG.default;
-	}, []);
-
+	const acceptedFileTypes = useMemo(() => getAcceptedFileTypes(), []);
 	const supportedExtensions = useMemo(
-		() => Array.from(new Set(Object.values(acceptedFileTypes).flat())).sort(),
+		() => getSupportedExtensions(acceptedFileTypes),
 		[acceptedFileTypes]
 	);
-
 	const supportedExtensionsSet = useMemo(
-		() => new Set(supportedExtensions.map((ext) => ext.toLowerCase())),
-		[supportedExtensions]
+		() => getSupportedExtensionsSet(acceptedFileTypes),
+		[acceptedFileTypes]
 	);
 
 	const addFiles = useCallback(
@@ -197,7 +112,6 @@ export function DocumentUploadTab({
 
 	const onDrop = useCallback(
 		(acceptedFiles: File[]) => {
-			setSelectedFolder(null);
 			addFiles(acceptedFiles);
 		},
 		[addFiles]
@@ -221,27 +135,23 @@ export function DocumentUploadTab({
 		const paths = await api.browseFiles();
 		if (!paths || paths.length === 0) return;
 
-		setSelectedFolder(null);
 		const fileDataList = await api.readLocalFiles(paths);
-		const newFiles: FileWithId[] = fileDataList.map((fd) => ({
+		const filtered = fileDataList.filter((fd) => {
+			const ext = fd.name.includes(".") ? `.${fd.name.split(".").pop()?.toLowerCase()}` : "";
+			return ext !== "" && supportedExtensionsSet.has(ext);
+		});
+
+		if (filtered.length === 0) {
+			toast.error(t("no_supported_files_in_folder"));
+			return;
+		}
+
+		const newFiles: FileWithId[] = filtered.map((fd) => ({
 			id: crypto.randomUUID?.() ?? `file-${Date.now()}-${Math.random().toString(36)}`,
 			file: new File([fd.data], fd.name, { type: fd.mimeType }),
 		}));
 		setFiles((prev) => [...prev, ...newFiles]);
-	}, []);
-
-	const handleBrowseFolder = useCallback(async () => {
-		const api = window.electronAPI;
-		if (!api?.selectFolder) return;
-
-		const folderPath = await api.selectFolder();
-		if (!folderPath) return;
-
-		const folderName = folderPath.split("/").pop() || folderPath.split("\\").pop() || folderPath;
-		setFiles([]);
-		setSelectedFolder({ path: folderPath, name: folderName });
-		setWatchFolder(true);
-	}, []);
+	}, [supportedExtensionsSet, t]);
 
 	const handleFolderChange = useCallback(
 		(e: ChangeEvent<HTMLInputElement>) => {
@@ -275,7 +185,7 @@ export function DocumentUploadTab({
 
 	const totalFileSize = files.reduce((total, entry) => total + entry.file.size, 0);
 
-	const hasContent = files.length > 0 || selectedFolder !== null;
+	const hasContent = files.length > 0;
 
 	const handleAccordionChange = useCallback(
 		(value: string) => {
@@ -284,54 +194,6 @@ export function DocumentUploadTab({
 		},
 		[onAccordionStateChange]
 	);
-
-	const handleFolderSubmit = useCallback(async () => {
-		if (!selectedFolder) return;
-		const api = window.electronAPI;
-		if (!api) return;
-
-		setFolderSubmitting(true);
-		try {
-			const numericSpaceId = Number(searchSpaceId);
-			const result = await documentsApiService.folderIndex(numericSpaceId, {
-				folder_path: selectedFolder.path,
-				folder_name: selectedFolder.name,
-				search_space_id: numericSpaceId,
-				enable_summary: shouldSummarize,
-			});
-
-			const rootFolderId = (result as { root_folder_id?: number })?.root_folder_id ?? null;
-
-			if (watchFolder) {
-				await api.addWatchedFolder({
-					path: selectedFolder.path,
-					name: selectedFolder.name,
-					excludePatterns: [
-						".git",
-						"node_modules",
-						"__pycache__",
-						".DS_Store",
-						".obsidian",
-						".trash",
-					],
-					fileExtensions: null,
-					rootFolderId,
-					searchSpaceId: Number(searchSpaceId),
-					active: true,
-				});
-				toast.success(`Watching folder: ${selectedFolder.name}`);
-			} else {
-				toast.success(`Syncing folder: ${selectedFolder.name}`);
-			}
-
-			setSelectedFolder(null);
-			onSuccess?.();
-		} catch (err) {
-			toast.error((err as Error)?.message || "Failed to process folder");
-		} finally {
-			setFolderSubmitting(false);
-		}
-	}, [selectedFolder, watchFolder, searchSpaceId, shouldSummarize, onSuccess]);
 
 	const handleUpload = async () => {
 		setUploadProgress(0);
@@ -392,14 +254,14 @@ export function DocumentUploadTab({
 						className="dark:bg-neutral-800"
 						onClick={(e) => e.stopPropagation()}
 					>
-						<DropdownMenuItem onClick={handleBrowseFiles}>
-							<FileIcon className="h-4 w-4 mr-2" />
-							Files
-						</DropdownMenuItem>
-						<DropdownMenuItem onClick={handleBrowseFolder}>
-							<FolderOpen className="h-4 w-4 mr-2" />
-							Folder
-						</DropdownMenuItem>
+					<DropdownMenuItem onClick={handleBrowseFiles}>
+						<FileIcon className="h-4 w-4 mr-2" />
+						Files
+					</DropdownMenuItem>
+					<DropdownMenuItem onClick={() => folderInputRef.current?.click()}>
+						<FolderOpen className="h-4 w-4 mr-2" />
+						Folder
+					</DropdownMenuItem>
 					</DropdownMenuContent>
 				</DropdownMenu>
 			);
@@ -457,9 +319,8 @@ export function DocumentUploadTab({
 
 			{/* MOBILE DROP ZONE */}
 			<div className="sm:hidden">
-				{hasContent ? (
-					!selectedFolder &&
-					(isElectron ? (
+			{hasContent ? (
+				isElectron ? (
 						<div className="w-full">{renderBrowseButton({ compact: true, fullWidth: true })}</div>
 					) : (
 						<button
@@ -469,7 +330,7 @@ export function DocumentUploadTab({
 						>
 							Add more files
 						</button>
-					))
+					)
 				) : (
 					<button
 						type="button"
@@ -528,66 +389,6 @@ export function DocumentUploadTab({
 					</div>
 				)}
 			</div>
-
-			{/* FOLDER SELECTED (Electron only — web flattens folder contents into file list) */}
-			{isElectron && selectedFolder && (
-				<div className="rounded-lg border border-border p-3 space-y-2">
-					<div className="flex items-center gap-2 py-1.5 px-2 -mx-1 rounded-md hover:bg-slate-400/5 dark:hover:bg-white/5 group">
-						<FolderOpen className="h-4 w-4 text-primary shrink-0" />
-						<div className="min-w-0 flex-1">
-							<p className="text-sm font-medium truncate">{selectedFolder.name}</p>
-							<p className="text-xs text-muted-foreground truncate">{selectedFolder.path}</p>
-						</div>
-						<Button
-							variant="ghost"
-							size="icon"
-							className="h-7 w-7 shrink-0"
-							onClick={() => setSelectedFolder(null)}
-							disabled={folderSubmitting}
-						>
-							<X className="h-3.5 w-3.5" />
-						</Button>
-					</div>
-
-					<div className="rounded-lg bg-slate-400/5 dark:bg-white/5 divide-y divide-border">
-						<div className="flex items-center justify-between p-3">
-							<div className="space-y-0.5">
-								<p className="font-medium text-sm">Watch folder</p>
-								<p className="text-xs text-muted-foreground">Auto-sync when files change</p>
-							</div>
-							<Switch
-								id="watch-folder-toggle"
-								checked={watchFolder}
-								onCheckedChange={setWatchFolder}
-							/>
-						</div>
-						<div className="flex items-center justify-between p-3">
-							<div className="space-y-0.5">
-								<p className="font-medium text-sm">Enable AI Summary</p>
-								<p className="text-xs text-muted-foreground">
-									Improves search quality but adds latency
-								</p>
-							</div>
-							<Switch checked={shouldSummarize} onCheckedChange={setShouldSummarize} />
-						</div>
-					</div>
-
-					<Button
-						className="w-full relative"
-						onClick={handleFolderSubmit}
-						disabled={folderSubmitting}
-					>
-						<span className={folderSubmitting ? "invisible" : ""}>
-							{watchFolder ? "Sync & Watch for Changes" : "Sync Folder"}
-						</span>
-						{folderSubmitting && (
-							<span className="absolute inset-0 flex items-center justify-center">
-								<Spinner size="sm" />
-							</span>
-						)}
-					</Button>
-				</div>
-			)}
 
 			{/* FILES SELECTED */}
 			{files.length > 0 && (

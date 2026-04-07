@@ -2,7 +2,7 @@
 
 import { useQuery } from "@rocicorp/zero/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { ChevronLeft, ChevronRight, Trash2, Unplug } from "lucide-react";
+import { ChevronLeft, ChevronRight, FolderOpen, Trash2, Unplug } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -20,6 +20,7 @@ import { CreateFolderDialog } from "@/components/documents/CreateFolderDialog";
 import type { DocumentNodeDoc } from "@/components/documents/DocumentNode";
 import type { FolderDisplay } from "@/components/documents/FolderNode";
 import { FolderPickerDialog } from "@/components/documents/FolderPickerDialog";
+import { FolderWatchDialog } from "@/components/sources/FolderWatchDialog";
 import { FolderTreeView } from "@/components/documents/FolderTreeView";
 import { VersionHistoryDialog } from "@/components/documents/version-history";
 import { EXPORT_FILE_EXTENSIONS } from "@/components/shared/ExportMenuItems";
@@ -95,6 +96,8 @@ export function DocumentsSidebar({
 	const debouncedSearch = useDebouncedValue(search, 250);
 	const [activeTypes, setActiveTypes] = useState<DocumentTypeEnum[]>([]);
 	const [watchedFolderIds, setWatchedFolderIds] = useState<Set<number>>(new Set());
+	const [folderWatchOpen, setFolderWatchOpen] = useState(false);
+	const isElectron = typeof window !== "undefined" && !!window.electronAPI;
 
 	useEffect(() => {
 		const api = typeof window !== "undefined" ? window.electronAPI : null;
@@ -292,6 +295,7 @@ export function DocumentsSidebar({
 					folder_name: matched.name,
 					search_space_id: searchSpaceId,
 					root_folder_id: folder.id,
+					file_extensions: matched.fileExtensions ?? undefined,
 				});
 				toast.success(`Re-scanning folder: ${matched.name}`);
 			} catch (err) {
@@ -747,6 +751,17 @@ export function DocumentsSidebar({
 				</button>
 			</div>
 
+			{isElectron && (
+				<button
+					type="button"
+					onClick={() => setFolderWatchOpen(true)}
+					className="shrink-0 mx-4 mb-4 flex select-none items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2 transition-colors hover:bg-muted/80"
+				>
+					<FolderOpen className="size-4 shrink-0 text-muted-foreground" />
+					<span className="truncate text-xs text-muted-foreground">Watch local folder</span>
+				</button>
+			)}
+
 			<div className="flex-1 min-h-0 pt-0 flex flex-col">
 				<div className="px-4 pb-2">
 					<DocumentsFilters
@@ -822,6 +837,14 @@ export function DocumentsSidebar({
 						if (!open) setVersionDocId(null);
 					}}
 					documentId={versionDocId}
+				/>
+			)}
+
+			{isElectron && (
+				<FolderWatchDialog
+					open={folderWatchOpen}
+					onOpenChange={setFolderWatchOpen}
+					searchSpaceId={searchSpaceId}
 				/>
 			)}
 
