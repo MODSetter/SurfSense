@@ -335,16 +335,12 @@ export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({ searchSpaceId,
 				<Button
 					onClick={handleSubmit}
 					disabled={isSubmitting || isFetchingPlaylist || videoTags.length === 0}
-					className="text-xs sm:text-sm min-w-[140px] disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
+					className="relative text-xs sm:text-sm min-w-[140px] disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
 				>
-					{isSubmitting ? (
-						<>
-							<Spinner size="sm" className="mr-2" />
-							{t("processing")}
-						</>
-					) : (
-						t("submit")
-					)}
+					<span className={isSubmitting ? "opacity-0" : ""}>
+						{t("submit")}
+					</span>
+					{isSubmitting && <Spinner size="sm" className="absolute" />}
 				</Button>
 			</div>
 		</div>

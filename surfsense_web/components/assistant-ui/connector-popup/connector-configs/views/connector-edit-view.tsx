@@ -369,16 +369,10 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 								size="sm"
 								onClick={handleDisconnectConfirm}
 								disabled={isDisconnecting}
-								className="text-xs sm:text-sm flex-1 sm:flex-initial h-10 sm:h-auto py-2 sm:py-2"
+								className="relative text-xs sm:text-sm flex-1 sm:flex-initial h-10 sm:h-auto py-2 sm:py-2"
 							>
-								{isDisconnecting ? (
-									<>
-										<Spinner size="sm" className="mr-2" />
-										Disconnecting
-									</>
-								) : (
-									"Confirm Disconnect"
-								)}
+								<span className={isDisconnecting ? "opacity-0" : ""}>Confirm Disconnect</span>
+								{isDisconnecting && <Spinner size="sm" className="absolute" />}
 							</Button>
 							<Button
 								variant="ghost"
@@ -415,10 +409,10 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 					<Button
 						onClick={onSave}
 						disabled={isSaving || isDisconnecting}
-						className="text-xs sm:text-sm flex-1 sm:flex-initial h-12 sm:h-auto py-3 sm:py-2"
+						className="relative text-xs sm:text-sm flex-1 sm:flex-initial h-12 sm:h-auto py-3 sm:py-2"
 					>
-						{isSaving && <Spinner size="sm" className="mr-2" />}
-						Save Changes
+						<span className={isSaving ? "opacity-0" : ""}>Save Changes</span>
+						{isSaving && <Spinner size="sm" className="absolute" />}
 					</Button>
 				)}
 			</div>
