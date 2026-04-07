@@ -297,9 +297,7 @@ export default function SuggestionPage() {
 					const isExpanded = expandedOption === index;
 					const needsTruncation = option.length > TRUNCATE_LENGTH;
 					const displayText =
-						needsTruncation && !isExpanded
-							? option.slice(0, TRUNCATE_LENGTH) + "…"
-							: option;
+						needsTruncation && !isExpanded ? option.slice(0, TRUNCATE_LENGTH) + "…" : option;
 
 					return (
 						<div

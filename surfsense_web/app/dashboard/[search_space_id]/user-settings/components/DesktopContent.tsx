@@ -6,12 +6,18 @@ import { toast } from "sonner";
 import { DEFAULT_SHORTCUTS, ShortcutRecorder } from "@/components/desktop/shortcut-recorder";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
+import type { SearchSpace } from "@/contracts/types/search-space.types";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
-import type { SearchSpace } from "@/contracts/types/search-space.types";
 
 export function DesktopContent() {
 	const api = useElectronAPI();
@@ -82,7 +88,10 @@ export function DesktopContent() {
 		await api.setAutocompleteEnabled(checked);
 	};
 
-	const updateShortcut = (key: "generalAssist" | "quickAsk" | "autocomplete", accelerator: string) => {
+	const updateShortcut = (
+		key: "generalAssist" | "quickAsk" | "autocomplete",
+		accelerator: string
+	) => {
 		setShortcuts((prev) => {
 			const updated = { ...prev, [key]: accelerator };
 			api.setShortcuts?.({ [key]: accelerator }).catch(() => {
@@ -110,7 +119,8 @@ export function DesktopContent() {
 				<CardHeader className="px-3 md:px-6 pt-3 md:pt-6 pb-2 md:pb-3">
 					<CardTitle className="text-base md:text-lg">Default Search Space</CardTitle>
 					<CardDescription className="text-xs md:text-sm">
-						Choose which search space General Assist, Quick Assist, and Extreme Assist operate against.
+						Choose which search space General Assist, Quick Assist, and Extreme Assist operate
+						against.
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="px-3 md:px-6 pb-3 md:pb-6">
@@ -128,7 +138,9 @@ export function DesktopContent() {
 							</SelectContent>
 						</Select>
 					) : (
-						<p className="text-sm text-muted-foreground">No search spaces found. Create one first.</p>
+						<p className="text-sm text-muted-foreground">
+							No search spaces found. Create one first.
+						</p>
 					)}
 				</CardContent>
 			</Card>
@@ -143,34 +155,34 @@ export function DesktopContent() {
 				</CardHeader>
 				<CardContent className="px-3 md:px-6 pb-3 md:pb-6">
 					{shortcutsLoaded ? (
-					<div className="flex flex-col gap-3">
-						<ShortcutRecorder
-							value={shortcuts.generalAssist}
-							onChange={(accel) => updateShortcut("generalAssist", accel)}
-							onReset={() => resetShortcut("generalAssist")}
-							defaultValue={DEFAULT_SHORTCUTS.generalAssist}
-							label="General Assist"
-							description="Launch SurfSense instantly from any application"
-							icon={Rocket}
-						/>
-						<ShortcutRecorder
-							value={shortcuts.quickAsk}
-							onChange={(accel) => updateShortcut("quickAsk", accel)}
-							onReset={() => resetShortcut("quickAsk")}
-							defaultValue={DEFAULT_SHORTCUTS.quickAsk}
-							label="Quick Assist"
-							description="Select text anywhere, then ask AI to explain, rewrite, or act on it"
-							icon={Zap}
-						/>
-						<ShortcutRecorder
-							value={shortcuts.autocomplete}
-							onChange={(accel) => updateShortcut("autocomplete", accel)}
-							onReset={() => resetShortcut("autocomplete")}
-							defaultValue={DEFAULT_SHORTCUTS.autocomplete}
-							label="Extreme Assist"
-							description="AI drafts text using your screen context and knowledge base"
-							icon={BrainCog}
-						/>
+						<div className="flex flex-col gap-3">
+							<ShortcutRecorder
+								value={shortcuts.generalAssist}
+								onChange={(accel) => updateShortcut("generalAssist", accel)}
+								onReset={() => resetShortcut("generalAssist")}
+								defaultValue={DEFAULT_SHORTCUTS.generalAssist}
+								label="General Assist"
+								description="Launch SurfSense instantly from any application"
+								icon={Rocket}
+							/>
+							<ShortcutRecorder
+								value={shortcuts.quickAsk}
+								onChange={(accel) => updateShortcut("quickAsk", accel)}
+								onReset={() => resetShortcut("quickAsk")}
+								defaultValue={DEFAULT_SHORTCUTS.quickAsk}
+								label="Quick Assist"
+								description="Select text anywhere, then ask AI to explain, rewrite, or act on it"
+								icon={Zap}
+							/>
+							<ShortcutRecorder
+								value={shortcuts.autocomplete}
+								onChange={(accel) => updateShortcut("autocomplete", accel)}
+								onReset={() => resetShortcut("autocomplete")}
+								defaultValue={DEFAULT_SHORTCUTS.autocomplete}
+								label="Extreme Assist"
+								description="AI drafts text using your screen context and knowledge base"
+								icon={BrainCog}
+							/>
 							<p className="text-[11px] text-muted-foreground">
 								Click a shortcut and press a new key combination to change it.
 							</p>

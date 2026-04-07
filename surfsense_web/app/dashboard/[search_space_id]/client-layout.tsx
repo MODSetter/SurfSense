@@ -154,11 +154,14 @@ export function DashboardClientLayout({
 
 		// Sync to Electron store if stored value is null (first navigation)
 		if (electronAPI?.setActiveSearchSpace) {
-			electronAPI.getActiveSearchSpace?.().then((stored) => {
-				if (!stored) {
-					electronAPI.setActiveSearchSpace!(activeSeacrhSpaceId);
-				}
-			}).catch(() => {});
+			electronAPI
+				.getActiveSearchSpace?.()
+				.then((stored) => {
+					if (!stored) {
+						electronAPI.setActiveSearchSpace!(activeSeacrhSpaceId);
+					}
+				})
+				.catch(() => {});
 		}
 	}, [search_space_id, setActiveSearchSpaceIdState, electronAPI]);
 

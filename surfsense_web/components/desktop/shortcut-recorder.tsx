@@ -150,7 +150,9 @@ export function ShortcutRecorder({
 					)}
 				>
 					{recording ? (
-						<span className="text-[11px] text-primary animate-pulse whitespace-nowrap">Press keys…</span>
+						<span className="text-[11px] text-primary animate-pulse whitespace-nowrap">
+							Press keys…
+						</span>
 					) : (
 						<Kbd keys={displayKeys} />
 					)}
