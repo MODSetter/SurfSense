@@ -169,7 +169,9 @@ body:has(.suggestion-body) {
 	padding: 2px 4px;
 	line-height: 1;
 	border-radius: 4px;
-	transition: color 0.15s, background 0.15s;
+	transition:
+		color 0.15s,
+		background 0.15s;
 }
 
 .setup-dismiss:hover {

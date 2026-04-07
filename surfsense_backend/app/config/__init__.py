@@ -461,8 +461,10 @@ class Config:
         UNSTRUCTURED_API_KEY = os.getenv("UNSTRUCTURED_API_KEY")
 
     elif ETL_SERVICE == "LLAMACLOUD":
-        # LlamaCloud API Key
         LLAMA_CLOUD_API_KEY = os.getenv("LLAMA_CLOUD_API_KEY")
+        # Optional: Azure Document Intelligence accelerator for supported file types
+        AZURE_DI_ENDPOINT = os.getenv("AZURE_DI_ENDPOINT")
+        AZURE_DI_KEY = os.getenv("AZURE_DI_KEY")
 
     # Residential Proxy Configuration (anonymous-proxies.net)
     # Used for web crawling and YouTube transcript fetching to avoid IP bans.

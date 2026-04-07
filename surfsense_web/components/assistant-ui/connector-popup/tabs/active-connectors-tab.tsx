@@ -2,7 +2,7 @@
 
 import { Search, Unplug } from "lucide-react";
 import type { FC } from "react";
-import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
+import { getDocumentTypeLabel } from "@/components/documents/DocumentTypeIcon";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TabsContent } from "@/components/ui/tabs";

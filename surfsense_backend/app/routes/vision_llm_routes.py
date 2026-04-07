@@ -180,9 +180,7 @@ async def list_vision_llm_configs(
         ) from e
 
 
-@router.get(
-    "/vision-llm-configs/{config_id}", response_model=VisionLLMConfigRead
-)
+@router.get("/vision-llm-configs/{config_id}", response_model=VisionLLMConfigRead)
 async def get_vision_llm_config(
     config_id: int,
     session: AsyncSession = Depends(get_async_session),
@@ -214,9 +212,7 @@ async def get_vision_llm_config(
         ) from e
 
 
-@router.put(
-    "/vision-llm-configs/{config_id}", response_model=VisionLLMConfigRead
-)
+@router.put("/vision-llm-configs/{config_id}", response_model=VisionLLMConfigRead)
 async def update_vision_llm_config(
     config_id: int,
     update_data: VisionLLMConfigUpdate,
