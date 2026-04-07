@@ -39,6 +39,11 @@ export const cacheKeys = {
 		byId: (configId: number) => ["image-gen-configs", "detail", configId] as const,
 		global: () => ["image-gen-configs", "global"] as const,
 	},
+	visionLLMConfigs: {
+		all: (searchSpaceId: number) => ["vision-llm-configs", searchSpaceId] as const,
+		byId: (configId: number) => ["vision-llm-configs", "detail", configId] as const,
+		global: () => ["vision-llm-configs", "global"] as const,
+	},
 	auth: {
 		user: ["auth", "user"] as const,
 	},

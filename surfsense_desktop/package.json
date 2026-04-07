@@ -34,6 +34,8 @@
     "electron-store": "^11.0.2",
     "electron-updater": "^6.8.3",
     "get-port-please": "^3.2.0",
-    "node-mac-permissions": "^2.5.0"
+    "node-mac-permissions": "^2.5.0",
+    "node-machine-id": "^1.1.12",
+    "posthog-node": "^5.29.0"
   }
 }

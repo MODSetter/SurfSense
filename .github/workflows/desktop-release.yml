@@ -60,6 +60,7 @@ jobs:
           NEXT_PUBLIC_ZERO_CACHE_URL: ${{ vars.NEXT_PUBLIC_ZERO_CACHE_URL }}
           NEXT_PUBLIC_DEPLOYMENT_MODE: ${{ vars.NEXT_PUBLIC_DEPLOYMENT_MODE }}
           NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE: ${{ vars.NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE }}
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
 
       - name: Install desktop dependencies
         run: pnpm install
@@ -70,6 +71,8 @@ jobs:
         working-directory: surfsense_desktop
         env:
           HOSTED_FRONTEND_URL: ${{ vars.HOSTED_FRONTEND_URL }}
+          POSTHOG_KEY: ${{ secrets.POSTHOG_KEY }}
+          POSTHOG_HOST: ${{ vars.POSTHOG_HOST }}
 
       - name: Package & Publish
         run: pnpm exec electron-builder ${{ matrix.platform }} --config electron-builder.yml --publish always -c.extraMetadata.version=${{ steps.version.outputs.VERSION }}

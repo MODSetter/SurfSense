@@ -2,8 +2,8 @@
 
 import { useEffect } from "react";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
-import { getAndClearRedirectPath, setBearerToken, setRefreshToken } from "@/lib/auth-utils";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
+import { getAndClearRedirectPath, setBearerToken, setRefreshToken } from "@/lib/auth-utils";
 import { trackLoginSuccess } from "@/lib/posthog/events";
 
 interface TokenHandlerProps {

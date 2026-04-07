@@ -6,6 +6,7 @@ import { captureScreen } from './screenshot';
 import { createSuggestionWindow, destroySuggestion, getSuggestionWindow } from './suggestion-window';
 import { getShortcuts } from '../shortcuts';
 import { getActiveSearchSpaceId } from '../active-search-space';
+import { trackEvent } from '../analytics';
 
 let currentShortcut = '';
 let autocompleteEnabled = true;
@@ -41,6 +42,7 @@ async function triggerAutocomplete(): Promise<void> {
     console.warn('[autocomplete] No active search space. Select a search space first.');
     return;
   }
+  trackEvent('desktop_autocomplete_triggered', { search_space_id: searchSpaceId });
   const cursor = screen.getCursorScreenPoint();
   const win = createSuggestionWindow(cursor.x, cursor.y);
 
@@ -87,9 +89,11 @@ function registerIpcHandlers(): void {
   ipcRegistered = true;
 
   ipcMain.handle(IPC_CHANNELS.ACCEPT_SUGGESTION, async (_event, text: string) => {
+    trackEvent('desktop_autocomplete_accepted');
     await acceptAndInject(text);
   });
   ipcMain.handle(IPC_CHANNELS.DISMISS_SUGGESTION, () => {
+    trackEvent('desktop_autocomplete_dismissed');
     destroySuggestion();
   });
   ipcMain.handle(IPC_CHANNELS.SET_AUTOCOMPLETE_ENABLED, (_event, enabled: boolean) => {

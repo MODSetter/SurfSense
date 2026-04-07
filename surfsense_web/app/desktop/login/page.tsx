@@ -139,9 +139,7 @@ export default function DesktopLoginPage() {
 						height={48}
 						priority
 					/>
-					<h1 className="text-lg font-semibold tracking-tight">
-						Welcome to SurfSense Desktop
-					</h1>
+					<h1 className="text-lg font-semibold tracking-tight">Welcome to SurfSense Desktop</h1>
 					<p className="mt-1 text-sm text-muted-foreground">
 						Configure shortcuts, then sign in to get started.
 					</p>
