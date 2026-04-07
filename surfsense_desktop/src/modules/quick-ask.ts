@@ -114,7 +114,7 @@ async function quickAskHandler(): Promise<void> {
   const text = selected || savedClipboard.trim();
 
   sourceApp = getFrontmostApp();
-  console.log('[quick-ask] Source app:', sourceApp, '| Opening Quick Ask with', text.length, 'chars', selected ? '(selected)' : text ? '(clipboard fallback)' : '(empty)');
+  console.log('[quick-ask] Source app:', sourceApp, '| Opening Quick Assist with', text.length, 'chars', selected ? '(selected)' : text ? '(clipboard fallback)' : '(empty)');
   openQuickAsk(text);
 }
 

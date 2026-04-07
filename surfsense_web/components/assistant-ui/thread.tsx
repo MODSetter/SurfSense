@@ -364,7 +364,6 @@ const Composer: FC = () => {
 		electronAPI.getQuickAskText().then((text) => {
 			if (text) {
 				setClipboardInitialText(text);
-				setShowPromptPicker(true);
 			}
 		});
 	}, [electronAPI]);

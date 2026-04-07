@@ -2,7 +2,7 @@
 
 import { IconBrandGoogleFilled } from "@tabler/icons-react";
 import { useAtom } from "jotai";
-import { Clipboard, Eye, EyeOff, Keyboard, Sparkles } from "lucide-react";
+import { AppWindow, Clipboard, Eye, EyeOff, Keyboard, Sparkles } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -48,7 +48,7 @@ export default function DesktopLoginPage() {
 	}, [api]);
 
 	const updateShortcut = useCallback(
-		(key: "quickAsk" | "autocomplete", accelerator: string) => {
+		(key: "generalAssist" | "quickAsk" | "autocomplete", accelerator: string) => {
 			setShortcuts((prev) => {
 				const updated = { ...prev, [key]: accelerator };
 				api?.setShortcuts?.({ [key]: accelerator }).catch(() => {
@@ -62,7 +62,7 @@ export default function DesktopLoginPage() {
 	);
 
 	const resetShortcut = useCallback(
-		(key: "quickAsk" | "autocomplete") => {
+		(key: "generalAssist" | "quickAsk" | "autocomplete") => {
 			updateShortcut(key, DEFAULT_SHORTCUTS[key]);
 		},
 		[updateShortcut]
@@ -133,11 +133,20 @@ export default function DesktopLoginPage() {
 								Keyboard Shortcuts
 							</div>
 							<ShortcutRecorder
+								value={shortcuts.generalAssist}
+								onChange={(accel) => updateShortcut("generalAssist", accel)}
+								onReset={() => resetShortcut("generalAssist")}
+								defaultValue={DEFAULT_SHORTCUTS.generalAssist}
+								label="General Assist"
+								description="Open SurfSense from anywhere"
+								icon={AppWindow}
+							/>
+							<ShortcutRecorder
 								value={shortcuts.quickAsk}
 								onChange={(accel) => updateShortcut("quickAsk", accel)}
 								onReset={() => resetShortcut("quickAsk")}
 								defaultValue={DEFAULT_SHORTCUTS.quickAsk}
-								label="Quick Ask"
+								label="Quick Assist"
 								description="Copy selected text and ask AI about it"
 								icon={Clipboard}
 							/>
@@ -146,8 +155,8 @@ export default function DesktopLoginPage() {
 								onChange={(accel) => updateShortcut("autocomplete", accel)}
 								onReset={() => resetShortcut("autocomplete")}
 								defaultValue={DEFAULT_SHORTCUTS.autocomplete}
-								label="Autocomplete"
-								description="Get AI writing suggestions from a screenshot"
+								label="Extreme Assist"
+								description="AI writing powered by your screen and knowledge base"
 								icon={Sparkles}
 							/>
 							<p className="text-[11px] text-muted-foreground text-center">
