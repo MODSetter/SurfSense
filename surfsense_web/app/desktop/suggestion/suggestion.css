@@ -127,6 +127,10 @@ body:has(.suggestion-body) {
 	max-height: 340px;
 }
 
+.agent-activity::-webkit-scrollbar {
+	display: none;
+}
+
 .activity-initial {
 	display: flex;
 	align-items: center;
