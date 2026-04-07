@@ -167,7 +167,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 											<Clock className="h-3.5 w-3.5 text-muted-foreground/60" />
 										</span>
 									</TooltipTrigger>
-									<TooltipContent side="top">Pending — waiting to be synced</TooltipContent>
+									<TooltipContent side="top">Pending: waiting to be synced</TooltipContent>
 								</Tooltip>
 							);
 						}
@@ -191,9 +191,9 @@ export const DocumentNode = React.memo(function DocumentNode({
 											<AlertCircle className="h-3.5 w-3.5 text-destructive" />
 										</span>
 									</TooltipTrigger>
-									<TooltipContent side="top" className="max-w-xs">
-										{doc.status?.reason || "Processing failed"}
-									</TooltipContent>
+								<TooltipContent side="top">
+									{doc.status?.reason || "Processing failed"}
+								</TooltipContent>
 								</Tooltip>
 							);
 						}
