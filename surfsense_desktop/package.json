@@ -14,7 +14,11 @@
     "typecheck": "tsc --noEmit",
     "postinstall": "electron-rebuild"
   },
-  "author": "MODSetter",
+  "homepage": "https://github.com/MODSetter/SurfSense",
+  "author": {
+    "name": "MODSetter",
+    "email": "rohan@surfsense.com"
+  },
   "license": "MIT",
   "packageManager": "pnpm@10.24.0",
   "devDependencies": {

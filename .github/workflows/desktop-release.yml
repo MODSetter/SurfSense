@@ -93,6 +93,7 @@ jobs:
           POSTHOG_HOST: ${{ vars.POSTHOG_HOST }}
 
       - name: Package & Publish
+        shell: bash
         run: pnpm exec electron-builder ${{ matrix.platform }} --config electron-builder.yml --publish ${{ inputs.publish || 'always' }} -c.extraMetadata.version=${{ steps.version.outputs.VERSION }}
         working-directory: surfsense_desktop
         env:
