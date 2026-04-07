@@ -32,7 +32,6 @@ logger = logging.getLogger(__name__)
 class LLMRole:
     AGENT = "agent"  # For agent/chat operations
     DOCUMENT_SUMMARY = "document_summary"  # For document summarization
-    VISION = "vision"  # For vision/screenshot analysis
 
 
 def get_global_llm_config(llm_config_id: int) -> dict | None:
@@ -188,7 +187,7 @@ async def get_search_space_llm_instance(
     Args:
         session: Database session
         search_space_id: Search Space ID
-        role: LLM role ('agent', 'document_summary', or 'vision')
+        role: LLM role ('agent' or 'document_summary')
 
     Returns:
         ChatLiteLLM or ChatLiteLLMRouter instance, or None if not found
@@ -210,8 +209,6 @@ async def get_search_space_llm_instance(
             llm_config_id = search_space.agent_llm_id
         elif role == LLMRole.DOCUMENT_SUMMARY:
             llm_config_id = search_space.document_summary_llm_id
-        elif role == LLMRole.VISION:
-            llm_config_id = search_space.vision_llm_id
         else:
             logger.error(f"Invalid LLM role: {role}")
             return None
@@ -411,8 +408,118 @@ async def get_document_summary_llm(
 async def get_vision_llm(
     session: AsyncSession, search_space_id: int
 ) -> ChatLiteLLM | ChatLiteLLMRouter | None:
-    """Get the search space's vision LLM instance for screenshot analysis."""
-    return await get_search_space_llm_instance(session, search_space_id, LLMRole.VISION)
+    """Get the search space's vision LLM instance for screenshot analysis.
+
+    Resolves from the dedicated VisionLLMConfig system:
+    - Auto mode (ID 0): VisionLLMRouterService
+    - Global (negative ID): YAML configs
+    - DB (positive ID): VisionLLMConfig table
+    """
+    from app.db import VisionLLMConfig
+    from app.services.vision_llm_router_service import (
+        VISION_PROVIDER_MAP,
+        VisionLLMRouterService,
+        get_global_vision_llm_config,
+        is_vision_auto_mode,
+    )
+
+    try:
+        result = await session.execute(
+            select(SearchSpace).where(SearchSpace.id == search_space_id)
+        )
+        search_space = result.scalars().first()
+        if not search_space:
+            logger.error(f"Search space {search_space_id} not found")
+            return None
+
+        config_id = search_space.vision_llm_config_id
+        if config_id is None:
+            logger.error(
+                f"No vision LLM configured for search space {search_space_id}"
+            )
+            return None
+
+        if is_vision_auto_mode(config_id):
+            if not VisionLLMRouterService.is_initialized():
+                logger.error(
+                    "Vision Auto mode requested but Vision LLM Router not initialized"
+                )
+                return None
+            try:
+                return ChatLiteLLMRouter(
+                    router=VisionLLMRouterService.get_router(),
+                    streaming=True,
+                )
+            except Exception as e:
+                logger.error(f"Failed to create vision ChatLiteLLMRouter: {e}")
+                return None
+
+        if config_id < 0:
+            global_cfg = get_global_vision_llm_config(config_id)
+            if not global_cfg:
+                logger.error(f"Global vision LLM config {config_id} not found")
+                return None
+
+            if global_cfg.get("custom_provider"):
+                model_string = (
+                    f"{global_cfg['custom_provider']}/{global_cfg['model_name']}"
+                )
+            else:
+                prefix = VISION_PROVIDER_MAP.get(
+                    global_cfg["provider"].upper(),
+                    global_cfg["provider"].lower(),
+                )
+                model_string = f"{prefix}/{global_cfg['model_name']}"
+
+            litellm_kwargs = {
+                "model": model_string,
+                "api_key": global_cfg["api_key"],
+            }
+            if global_cfg.get("api_base"):
+                litellm_kwargs["api_base"] = global_cfg["api_base"]
+            if global_cfg.get("litellm_params"):
+                litellm_kwargs.update(global_cfg["litellm_params"])
+
+            return ChatLiteLLM(**litellm_kwargs)
+
+        result = await session.execute(
+            select(VisionLLMConfig).where(
+                VisionLLMConfig.id == config_id,
+                VisionLLMConfig.search_space_id == search_space_id,
+            )
+        )
+        vision_cfg = result.scalars().first()
+        if not vision_cfg:
+            logger.error(
+                f"Vision LLM config {config_id} not found in search space {search_space_id}"
+            )
+            return None
+
+        if vision_cfg.custom_provider:
+            model_string = f"{vision_cfg.custom_provider}/{vision_cfg.model_name}"
+        else:
+            prefix = VISION_PROVIDER_MAP.get(
+                vision_cfg.provider.value.upper(),
+                vision_cfg.provider.value.lower(),
+            )
+            model_string = f"{prefix}/{vision_cfg.model_name}"
+
+        litellm_kwargs = {
+            "model": model_string,
+            "api_key": vision_cfg.api_key,
+        }
+        if vision_cfg.api_base:
+            litellm_kwargs["api_base"] = vision_cfg.api_base
+        if vision_cfg.litellm_params:
+            litellm_kwargs.update(vision_cfg.litellm_params)
+
+        return ChatLiteLLM(**litellm_kwargs)
+
+    except Exception as e:
+        logger.error(
+            f"Error getting vision LLM for search space {search_space_id}: {e!s}"
+        )
+        return None
 
 
 # Backward-compatible alias (LLM preferences are now per-search-space, not per-user)
