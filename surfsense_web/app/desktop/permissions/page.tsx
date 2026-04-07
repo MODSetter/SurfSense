@@ -80,7 +80,9 @@ export default function DesktopPermissionsPage() {
 
 		poll();
 		interval = setInterval(poll, 2000);
-		return () => { if (interval) clearInterval(interval); };
+		return () => {
+			if (interval) clearInterval(interval);
+		};
 	}, [api]);
 
 	if (!api) {
@@ -204,6 +206,7 @@ export default function DesktopPermissionsPage() {
 								Grant permissions to continue
 							</Button>
 							<button
+								type="button"
 								onClick={handleSkip}
 								className="block mx-auto text-xs text-muted-foreground hover:text-foreground transition-colors"
 							>

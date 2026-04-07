@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, type ReactNode, useEffect, useState } from "react";
 
 export interface PlatformContextValue {
 	isDesktop: boolean;
@@ -25,7 +25,5 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
 		setValue({ isDesktop, isWeb: !isDesktop, electronAPI: api });
 	}, []);
 
-	return (
-		<PlatformContext.Provider value={value}>{children}</PlatformContext.Provider>
-	);
+	return <PlatformContext.Provider value={value}>{children}</PlatformContext.Provider>;
 }

@@ -2,30 +2,15 @@
 
 import { IconBrandGoogleFilled } from "@tabler/icons-react";
 import { useAtom } from "jotai";
-import {
-	Eye,
-	EyeOff,
-	Keyboard,
-	Clipboard,
-	Sparkles,
-} from "lucide-react";
+import { Clipboard, Eye, EyeOff, Keyboard, Sparkles } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { loginMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
-import {
-	DEFAULT_SHORTCUTS,
-	ShortcutRecorder,
-} from "@/components/desktop/shortcut-recorder";
+import { DEFAULT_SHORTCUTS, ShortcutRecorder } from "@/components/desktop/shortcut-recorder";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -38,8 +23,7 @@ const isGoogleAuth = AUTH_TYPE === "GOOGLE";
 export default function DesktopLoginPage() {
 	const router = useRouter();
 	const api = useElectronAPI();
-	const [{ mutateAsync: login, isPending: isLoggingIn }] =
-		useAtom(loginMutationAtom);
+	const [{ mutateAsync: login, isPending: isLoggingIn }] = useAtom(loginMutationAtom);
 
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
@@ -54,10 +38,13 @@ export default function DesktopLoginPage() {
 			setShortcutsLoaded(true);
 			return;
 		}
-		api.getShortcuts().then((config) => {
-			if (config) setShortcuts(config);
-			setShortcutsLoaded(true);
-		}).catch(() => setShortcutsLoaded(true));
+		api
+			.getShortcuts()
+			.then((config) => {
+				if (config) setShortcuts(config);
+				setShortcutsLoaded(true);
+			})
+			.catch(() => setShortcutsLoaded(true));
 	}, [api]);
 
 	const updateShortcut = useCallback(
@@ -118,8 +105,7 @@ export default function DesktopLoginPage() {
 				<div
 					className="absolute -top-1/2 left-1/2 size-[800px] -translate-x-1/2 rounded-full opacity-[0.03]"
 					style={{
-						background:
-							"radial-gradient(circle, hsl(var(--primary)) 0%, transparent 70%)",
+						background: "radial-gradient(circle, hsl(var(--primary)) 0%, transparent 70%)",
 					}}
 				/>
 			</div>
@@ -135,9 +121,7 @@ export default function DesktopLoginPage() {
 						priority
 					/>
 					<CardTitle className="text-xl">Welcome to SurfSense Desktop App</CardTitle>
-					<CardDescription>
-						Configure your shortcuts, then sign in to get started.
-					</CardDescription>
+					<CardDescription>Configure your shortcuts, then sign in to get started.</CardDescription>
 				</CardHeader>
 
 				<CardContent className="flex flex-col gap-6">
@@ -181,11 +165,7 @@ export default function DesktopLoginPage() {
 
 					{/* ---- Auth Section (second) ---- */}
 					{isGoogleAuth ? (
-						<Button
-							variant="outline"
-							className="w-full gap-2 py-5"
-							onClick={handleGoogleLogin}
-						>
+						<Button variant="outline" className="w-full gap-2 py-5" onClick={handleGoogleLogin}>
 							<IconBrandGoogleFilled className="size-5" />
 							Continue with Google
 						</Button>
@@ -230,11 +210,7 @@ export default function DesktopLoginPage() {
 										className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
 										tabIndex={-1}
 									>
-										{showPassword ? (
-											<EyeOff className="size-4" />
-										) : (
-											<Eye className="size-4" />
-										)}
+										{showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
 									</button>
 								</div>
 							</div>

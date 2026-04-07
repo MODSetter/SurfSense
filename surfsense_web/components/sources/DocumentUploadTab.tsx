@@ -25,8 +25,8 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
-import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { useElectronAPI } from "@/hooks/use-platform";
+import { documentsApiService } from "@/lib/apis/documents-api.service";
 import {
 	trackDocumentUploadFailure,
 	trackDocumentUploadStarted,

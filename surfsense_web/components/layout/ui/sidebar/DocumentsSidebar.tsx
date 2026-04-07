@@ -302,24 +302,27 @@ export function DocumentsSidebar({
 		[searchSpaceId, electronAPI]
 	);
 
-	const handleStopWatching = useCallback(async (folder: FolderDisplay) => {
-		if (!electronAPI) return;
+	const handleStopWatching = useCallback(
+		async (folder: FolderDisplay) => {
+			if (!electronAPI) return;
 
-		const watchedFolders = await electronAPI.getWatchedFolders();
-		const matched = watchedFolders.find((wf) => wf.rootFolderId === folder.id);
-		if (!matched) {
-			toast.error("This folder is not being watched");
-			return;
-		}
+			const watchedFolders = await electronAPI.getWatchedFolders();
+			const matched = watchedFolders.find((wf) => wf.rootFolderId === folder.id);
+			if (!matched) {
+				toast.error("This folder is not being watched");
+				return;
+			}
 
-		await electronAPI.removeWatchedFolder(matched.path);
-		try {
-			await foldersApiService.stopWatching(folder.id);
-		} catch (err) {
-			console.error("[DocumentsSidebar] Failed to clear watched metadata:", err);
-		}
-		toast.success(`Stopped watching: ${matched.name}`);
-	}, [electronAPI]);
+			await electronAPI.removeWatchedFolder(matched.path);
+			try {
+				await foldersApiService.stopWatching(folder.id);
+			} catch (err) {
+				console.error("[DocumentsSidebar] Failed to clear watched metadata:", err);
+			}
+			toast.success(`Stopped watching: ${matched.name}`);
+		},
+		[electronAPI]
+	);
 
 	const handleRenameFolder = useCallback(async (folder: FolderDisplay, newName: string) => {
 		try {
@@ -330,22 +333,25 @@ export function DocumentsSidebar({
 		}
 	}, []);
 
-	const handleDeleteFolder = useCallback(async (folder: FolderDisplay) => {
-		if (!confirm(`Delete folder "${folder.name}" and all its contents?`)) return;
-		try {
-			if (electronAPI) {
-				const watchedFolders = await electronAPI.getWatchedFolders();
-				const matched = watchedFolders.find((wf) => wf.rootFolderId === folder.id);
-				if (matched) {
-					await electronAPI.removeWatchedFolder(matched.path);
+	const handleDeleteFolder = useCallback(
+		async (folder: FolderDisplay) => {
+			if (!confirm(`Delete folder "${folder.name}" and all its contents?`)) return;
+			try {
+				if (electronAPI) {
+					const watchedFolders = await electronAPI.getWatchedFolders();
+					const matched = watchedFolders.find((wf) => wf.rootFolderId === folder.id);
+					if (matched) {
+						await electronAPI.removeWatchedFolder(matched.path);
+					}
 				}
+				await foldersApiService.deleteFolder(folder.id);
+				toast.success("Folder deleted");
+			} catch (e: unknown) {
+				toast.error((e as Error)?.message || "Failed to delete folder");
 			}
-			await foldersApiService.deleteFolder(folder.id);
-			toast.success("Folder deleted");
-		} catch (e: unknown) {
-			toast.error((e as Error)?.message || "Failed to delete folder");
-		}
-	}, [electronAPI]);
+		},
+		[electronAPI]
+	);
 
 	const handleMoveFolder = useCallback(
 		(folder: FolderDisplay) => {

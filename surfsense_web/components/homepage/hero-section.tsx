@@ -1,21 +1,14 @@
 "use client";
-import { AnimatePresence, motion } from "motion/react";
 import { Monitor } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
-import React, { useCallback, useEffect, useRef, useState, memo } from "react";
+import React, { memo, useCallback, useEffect, useRef, useState } from "react";
 import Balancer from "react-wrap-balancer";
+import { ExpandedMediaOverlay, useExpandedMedia } from "@/components/ui/expanded-gif-overlay";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AUTH_TYPE, BACKEND_URL } from "@/lib/env-config";
 import { trackLoginAttempt } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
-import {
-	ExpandedMediaOverlay,
-	useExpandedMedia,
-} from "@/components/ui/expanded-gif-overlay";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 const GoogleLogo = ({ className }: { className?: string }) => (
 	<svg
@@ -61,8 +54,7 @@ const TAB_ITEMS = [
 	},
 	{
 		title: "Search & Citation",
-		description:
-			"Ask questions and get cited responses from your knowledge base.",
+		description: "Ask questions and get cited responses from your knowledge base.",
 		src: "/homepage/hero_tutorial/BSNCGif.mp4",
 		featured: false,
 	},
@@ -86,15 +78,13 @@ const TAB_ITEMS = [
 	},
 	{
 		title: "Image Generation",
-		description:
-			"Generate high-quality images easily from your conversations.",
+		description: "Generate high-quality images easily from your conversations.",
 		src: "/homepage/hero_tutorial/ImageGenGif.mp4",
 		featured: false,
 	},
 	{
 		title: "Collaborative Chat",
-		description:
-			"Collaborate on AI-powered conversations in realtime with your team.",
+		description: "Collaborate on AI-powered conversations in realtime with your team.",
 		src: "/homepage/hero_realtime/RealTimeChatGif.mp4",
 		featured: false,
 	},
@@ -106,8 +96,7 @@ const TAB_ITEMS = [
 	},
 	{
 		title: "Video Generation",
-		description:
-			"Create short videos with AI-generated visuals and narration from your sources.",
+		description: "Create short videos with AI-generated visuals and narration from your sources.",
 		src: "/homepage/hero_tutorial/video_gen_surf.mp4",
 		featured: false,
 	},
@@ -119,7 +108,7 @@ export function HeroSection() {
 			<div className="mt-4 flex w-full min-w-0 flex-col items-start px-2 md:px-8 xl:px-0">
 				<h1
 					className={cn(
-						"relative mt-4 max-w-7xl text-left text-4xl font-bold tracking-tight text-balance text-neutral-900 sm:text-5xl md:text-6xl xl:text-8xl dark:text-neutral-50",
+						"relative mt-4 max-w-7xl text-left text-4xl font-bold tracking-tight text-balance text-neutral-900 sm:text-5xl md:text-6xl xl:text-8xl dark:text-neutral-50"
 					)}
 				>
 					<Balancer>NotebookLM for Teams</Balancer>
@@ -128,10 +117,11 @@ export function HeroSection() {
 					<div>
 						<h2
 							className={cn(
-								"relative mb-8 max-w-2xl text-left text-sm tracking-wide text-neutral-600 antialiased sm:text-base md:text-xl dark:text-neutral-400",
+								"relative mb-8 max-w-2xl text-left text-sm tracking-wide text-neutral-600 antialiased sm:text-base md:text-xl dark:text-neutral-400"
 							)}
 						>
-							An open source, privacy focused alternative to NotebookLM for teams with no data limits.
+							An open source, privacy focused alternative to NotebookLM for teams with no data
+							limits.
 						</h2>
 
 						<div className="relative mb-4 flex w-full flex-col justify-center gap-y-2 sm:flex-row sm:justify-start sm:space-y-0 sm:space-x-4">
@@ -194,33 +184,34 @@ const BrowserWindow = () => {
 					<div className="no-visible-scrollbar flex min-w-0 shrink flex-row items-center justify-start gap-2 overflow-x-auto mask-l-from-98% py-0.5 pr-2 pl-2 md:pl-4">
 						{TAB_ITEMS.map((item, index) => (
 							<React.Fragment key={item.title}>
-							<button
-								type="button"
-								onClick={() => setSelectedIndex(index)}
-								className={cn(
-									"flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs transition duration-150 hover:bg-white sm:text-sm dark:hover:bg-neutral-950",
-									selectedIndex === index && !item.featured &&
-										"bg-white shadow ring-1 shadow-black/10 ring-black/10 dark:bg-neutral-900",
-									selectedIndex === index && item.featured &&
-										"bg-amber-50 shadow ring-1 shadow-amber-200/50 ring-amber-400/60 dark:bg-amber-950/40 dark:shadow-amber-900/30 dark:ring-amber-500/50",
-									item.featured && selectedIndex !== index &&
-										"hover:bg-amber-50 dark:hover:bg-amber-950/30",
-								)}
-							>
+								<button
+									type="button"
+									onClick={() => setSelectedIndex(index)}
+									className={cn(
+										"flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs transition duration-150 hover:bg-white sm:text-sm dark:hover:bg-neutral-950",
+										selectedIndex === index &&
+											!item.featured &&
+											"bg-white shadow ring-1 shadow-black/10 ring-black/10 dark:bg-neutral-900",
+										selectedIndex === index &&
+											item.featured &&
+											"bg-amber-50 shadow ring-1 shadow-amber-200/50 ring-amber-400/60 dark:bg-amber-950/40 dark:shadow-amber-900/30 dark:ring-amber-500/50",
+										item.featured &&
+											selectedIndex !== index &&
+											"hover:bg-amber-50 dark:hover:bg-amber-950/30"
+									)}
+								>
 									{item.title}
-								{item.featured && (
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<span className="inline-flex shrink-0 items-center justify-center rounded border border-amber-300 bg-amber-100 p-0.5 text-amber-700 dark:border-amber-700 dark:bg-amber-900/50 dark:text-amber-400">
-												<Monitor className="size-3" />
-											</span>
-										</TooltipTrigger>
-										<TooltipContent side="bottom">
-											Desktop app only
-										</TooltipContent>
-									</Tooltip>
-								)}
-							</button>
+									{item.featured && (
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<span className="inline-flex shrink-0 items-center justify-center rounded border border-amber-300 bg-amber-100 p-0.5 text-amber-700 dark:border-amber-700 dark:bg-amber-900/50 dark:text-amber-400">
+													<Monitor className="size-3" />
+												</span>
+											</TooltipTrigger>
+											<TooltipContent side="bottom">Desktop app only</TooltipContent>
+										</Tooltip>
+									)}
+								</button>
 								{index !== TAB_ITEMS.length - 1 && (
 									<div className="h-4 w-px shrink-0 rounded-full bg-neutral-300 dark:bg-neutral-700" />
 								)}
@@ -263,13 +254,13 @@ const BrowserWindow = () => {
 									</p>
 								</div>
 							</div>
-							{/* biome-ignore lint/a11y/useKeyWithClickEvents: wrapper for video expand */}
-							<div
-								className="cursor-pointer bg-neutral-50 p-2 sm:p-3 dark:bg-neutral-950"
+							<button
+								type="button"
+								className="cursor-pointer bg-neutral-50 p-2 sm:p-3 dark:bg-neutral-950 w-full"
 								onClick={open}
 							>
 								<TabVideo src={selectedItem.src} />
-							</div>
+							</button>
 						</motion.div>
 					</AnimatePresence>
 				</div>
@@ -277,11 +268,7 @@ const BrowserWindow = () => {
 
 			<AnimatePresence>
 				{expanded && (
-					<ExpandedMediaOverlay
-						src={selectedItem.src}
-						alt={selectedItem.title}
-						onClose={close}
-					/>
+					<ExpandedMediaOverlay src={selectedItem.src} alt={selectedItem.title} onClose={close} />
 				)}
 			</AnimatePresence>
 		</>
@@ -297,7 +284,7 @@ const TabVideo = memo(function TabVideo({ src }: { src: string }) {
 		const video = videoRef.current;
 		if (!video) return;
 		video.currentTime = 0;
-		video.play().catch(() => { });
+		video.play().catch(() => {});
 	}, [src]);
 
 	const handleCanPlay = useCallback(() => {
@@ -324,8 +311,7 @@ const TabVideo = memo(function TabVideo({ src }: { src: string }) {
 	);
 });
 
-const GITHUB_RELEASES_URL =
-	"https://github.com/MODSetter/SurfSense/releases/latest";
+const GITHUB_RELEASES_URL = "https://github.com/MODSetter/SurfSense/releases/latest";
 
 const DownloadApp = memo(function DownloadApp() {
 	return (
@@ -340,7 +326,16 @@ const DownloadApp = memo(function DownloadApp() {
 					rel="noopener noreferrer"
 					className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 shadow-sm transition hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
 				>
-					<svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+					<svg
+						className="size-4"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="2"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						aria-label="Download for macOS"
+					>
 						<path d="M12 17V3" />
 						<path d="m6 11 6 6 6-6" />
 						<path d="M19 21H5" />
@@ -353,7 +348,16 @@ const DownloadApp = memo(function DownloadApp() {
 					rel="noopener noreferrer"
 					className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 shadow-sm transition hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
 				>
-					<svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+					<svg
+						className="size-4"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="2"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						aria-label="Download for Windows"
+					>
 						<path d="M12 17V3" />
 						<path d="m6 11 6 6 6-6" />
 						<path d="M19 21H5" />
@@ -366,7 +370,16 @@ const DownloadApp = memo(function DownloadApp() {
 					rel="noopener noreferrer"
 					className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 shadow-sm transition hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
 				>
-					<svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+					<svg
+						className="size-4"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="2"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						aria-label="Download for Linux"
+					>
 						<path d="M12 17V3" />
 						<path d="m6 11 6 6 6-6" />
 						<path d="M19 21H5" />

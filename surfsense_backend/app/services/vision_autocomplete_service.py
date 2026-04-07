@@ -98,7 +98,9 @@ async def stream_vision_autocomplete(
         step_id=PREP_STEP_ID,
         title="Searching knowledge base",
         status="complete",
-        items=[f"Found {doc_count} document{'s' if doc_count != 1 else ''}"] if kb_query else ["Skipped"],
+        items=[f"Found {doc_count} document{'s' if doc_count != 1 else ''}"]
+        if kb_query
+        else ["Skipped"],
     )
 
     # Build agent input with pre-computed KB as initial state
@@ -116,24 +118,33 @@ async def stream_vision_autocomplete(
             "for the active text area based on what you see."
         )
 
-    user_message = HumanMessage(content=[
-        {"type": "text", "text": instruction},
-        {"type": "image_url", "image_url": {"url": screenshot_data_url}},
-    ])
+    user_message = HumanMessage(
+        content=[
+            {"type": "text", "text": instruction},
+            {"type": "image_url", "image_url": {"url": screenshot_data_url}},
+        ]
+    )
 
     input_data: dict = {"messages": [user_message]}
 
     if has_kb:
         input_data["files"] = kb.files
         input_data["messages"] = [kb.ls_ai_msg, kb.ls_tool_msg, user_message]
-        logger.info("Autocomplete: injected %d KB files into agent initial state", doc_count)
+        logger.info(
+            "Autocomplete: injected %d KB files into agent initial state", doc_count
+        )
     else:
-        logger.info("Autocomplete: no KB documents found, proceeding with screenshot only")
+        logger.info(
+            "Autocomplete: no KB documents found, proceeding with screenshot only"
+        )
 
     # Stream the agent (message_start already sent above)
     try:
         async for sse in stream_autocomplete_agent(
-            agent, input_data, streaming, emit_message_start=False,
+            agent,
+            input_data,
+            streaming,
+            emit_message_start=False,
         ):
             yield sse
     except Exception as e:

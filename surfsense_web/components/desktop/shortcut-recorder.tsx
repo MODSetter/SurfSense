@@ -44,13 +44,7 @@ export const DEFAULT_SHORTCUTS = {
 // Kbd pill component
 // ---------------------------------------------------------------------------
 
-export function Kbd({
-	keys,
-	className,
-}: {
-	keys: string[];
-	className?: string;
-}) {
+export function Kbd({ keys, className }: { keys: string[]; className?: string }) {
 	return (
 		<span className={cn("inline-flex items-center gap-1", className)}>
 			{keys.map((key) => (
@@ -123,9 +117,7 @@ export function ShortcutRecorder({
 				</div>
 				<div className="min-w-0">
 					<p className="text-sm font-medium leading-none">{label}</p>
-					<p className="mt-1 text-xs text-muted-foreground truncate">
-						{description}
-					</p>
+					<p className="mt-1 text-xs text-muted-foreground truncate">{description}</p>
 				</div>
 			</div>
 
@@ -155,9 +147,7 @@ export function ShortcutRecorder({
 					)}
 				>
 					{recording ? (
-						<span className="text-xs text-primary animate-pulse">
-							Press keys...
-						</span>
+						<span className="text-xs text-primary animate-pulse">Press keys...</span>
 					) : (
 						<Kbd keys={displayKeys} />
 					)}

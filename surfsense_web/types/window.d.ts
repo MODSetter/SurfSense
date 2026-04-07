@@ -90,7 +90,9 @@ interface ElectronAPI {
 	setAuthTokens: (bearer: string, refresh: string) => Promise<void>;
 	// Keyboard shortcut configuration
 	getShortcuts: () => Promise<{ quickAsk: string; autocomplete: string }>;
-	setShortcuts: (config: Partial<{ quickAsk: string; autocomplete: string }>) => Promise<{ quickAsk: string; autocomplete: string }>;
+	setShortcuts: (
+		config: Partial<{ quickAsk: string; autocomplete: string }>
+	) => Promise<{ quickAsk: string; autocomplete: string }>;
 }
 
 declare global {

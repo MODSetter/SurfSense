@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { USER_QUERY_KEY } from "@/atoms/user/user-query.atoms";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
-import { getBearerToken, ensureTokensFromElectron, redirectToLogin } from "@/lib/auth-utils";
+import { ensureTokensFromElectron, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 import { queryClient } from "@/lib/query-client/client";
 
 interface DashboardLayoutProps {

@@ -3,10 +3,7 @@
 import { Clipboard, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import {
-	DEFAULT_SHORTCUTS,
-	ShortcutRecorder,
-} from "@/components/desktop/shortcut-recorder";
+import { DEFAULT_SHORTCUTS, ShortcutRecorder } from "@/components/desktop/shortcut-recorder";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
@@ -29,22 +26,23 @@ export function DesktopContent() {
 
 		let mounted = true;
 
-		Promise.all([
-			api.getAutocompleteEnabled(),
-			api.getShortcuts?.() ?? Promise.resolve(null),
-		]).then(([autoEnabled, config]) => {
-			if (!mounted) return;
-			setEnabled(autoEnabled);
-			if (config) setShortcuts(config);
-			setLoading(false);
-			setShortcutsLoaded(true);
-		}).catch(() => {
-			if (!mounted) return;
-			setLoading(false);
-			setShortcutsLoaded(true);
-		});
+		Promise.all([api.getAutocompleteEnabled(), api.getShortcuts?.() ?? Promise.resolve(null)])
+			.then(([autoEnabled, config]) => {
+				if (!mounted) return;
+				setEnabled(autoEnabled);
+				if (config) setShortcuts(config);
+				setLoading(false);
+				setShortcutsLoaded(true);
+			})
+			.catch(() => {
+				if (!mounted) return;
+				setLoading(false);
+				setShortcutsLoaded(true);
+			});
 
-		return () => { mounted = false; };
+		return () => {
+			mounted = false;
+		};
 	}, [api]);
 
 	if (!api) {

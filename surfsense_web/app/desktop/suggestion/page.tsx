@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useElectronAPI } from "@/hooks/use-platform";
-import { getBearerToken, ensureTokensFromElectron } from "@/lib/auth-utils";
+import { ensureTokensFromElectron, getBearerToken } from "@/lib/auth-utils";
 
 type SSEEvent =
 	| { type: "text-delta"; id: string; delta: string }
@@ -48,9 +48,20 @@ const AUTO_DISMISS_MS = 3000;
 function StepIcon({ status }: { status: string }) {
 	if (status === "complete") {
 		return (
-			<svg className="step-icon step-icon-done" viewBox="0 0 16 16" fill="none">
+			<svg
+				className="step-icon step-icon-done"
+				viewBox="0 0 16 16"
+				fill="none"
+				aria-label="Step complete"
+			>
 				<circle cx="8" cy="8" r="7" stroke="#4ade80" strokeWidth="1.5" />
-				<path d="M5 8.5l2 2 4-4.5" stroke="#4ade80" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+				<path
+					d="M5 8.5l2 2 4-4.5"
+					stroke="#4ade80"
+					strokeWidth="1.5"
+					strokeLinecap="round"
+					strokeLinejoin="round"
+				/>
 			</svg>
 		);
 	}

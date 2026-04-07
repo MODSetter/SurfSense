@@ -16,7 +16,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
 from deepagents.graph import BASE_AGENT_PROMPT
 from deepagents.middleware.patch_tool_calls import PatchToolCallsMiddleware
@@ -122,6 +123,7 @@ def _build_autocomplete_system_prompt(app_name: str, window_title: str) -> str:
 
 class _KBResult:
     """Container for pre-computed KB filesystem results."""
+
     __slots__ = ("files", "ls_ai_msg", "ls_tool_msg")
 
     def __init__(
@@ -171,13 +173,16 @@ async def precompute_kb_filesystem(
             return _KBResult()
 
         doc_paths = [
-            p for p, v in new_files.items()
+            p
+            for p, v in new_files.items()
             if p.startswith("/documents/") and v is not None
         ]
         tool_call_id = f"auto_ls_{uuid.uuid4().hex[:12]}"
         ai_msg = AIMessage(
             content="",
-            tool_calls=[{"name": "ls", "args": {"path": "/documents"}, "id": tool_call_id}],
+            tool_calls=[
+                {"name": "ls", "args": {"path": "/documents"}, "id": tool_call_id}
+            ],
         )
         tool_msg = ToolMessage(
             content=str(doc_paths) if doc_paths else "No documents found.",
@@ -186,7 +191,9 @@ async def precompute_kb_filesystem(
         return _KBResult(files=new_files, ls_ai_msg=ai_msg, ls_tool_msg=tool_msg)
 
     except Exception:
-        logger.warning("KB pre-computation failed, proceeding without KB", exc_info=True)
+        logger.warning(
+            "KB pre-computation failed, proceeding without KB", exc_info=True
+        )
         return _KBResult()
 
 
@@ -320,7 +327,9 @@ async def stream_autocomplete_agent(
     )
 
     try:
-        async for event in agent.astream_events(input_data, config=config, version="v2"):
+        async for event in agent.astream_events(
+            input_data, config=config, version="v2"
+        ):
             event_type = event.get("event", "")
 
             if event_type == "on_chat_model_stream":
@@ -338,7 +347,9 @@ async def stream_autocomplete_agent(
                                 yield step_event
                             current_text_id = streaming_service.generate_text_id()
                             yield streaming_service.format_text_start(current_text_id)
-                        yield streaming_service.format_text_delta(current_text_id, content)
+                        yield streaming_service.format_text_delta(
+                            current_text_id, content
+                        )
 
             elif event_type == "on_tool_start":
                 active_tool_depth += 1
@@ -425,5 +436,7 @@ def _describe_tool_call(tool_name: str, tool_input: Any) -> tuple[str, list[str]
         pat = inp.get("pattern", "")
         path = inp.get("path", "")
         display_pat = pat[:60] + ("…" if len(pat) > 60 else "")
-        return "Searching content", [f'"{display_pat}"' + (f" in {path}" if path else "")]
+        return "Searching content", [
+            f'"{display_pat}"' + (f" in {path}" if path else "")
+        ]
     return f"Using {tool_name}", []
