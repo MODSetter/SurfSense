@@ -274,7 +274,13 @@ export default function SuggestionPage() {
 
 	const TRUNCATE_LENGTH = 120;
 
-	if (options.length === 0) return null;
+	if (options.length === 0) {
+		return (
+			<div className="suggestion-tooltip suggestion-error">
+				<span className="suggestion-error-text">No suggestions available.</span>
+			</div>
+		);
+	}
 
 	return (
 		<div className="suggestion-tooltip">
@@ -288,11 +294,15 @@ export default function SuggestionPage() {
 							: option;
 
 					return (
-						<button
+						<div
 							key={index}
-							type="button"
+							role="button"
+							tabIndex={0}
 							className="suggestion-option"
 							onClick={() => handleSelect(option)}
+							onKeyDown={(e) => {
+								if (e.key === "Enter") handleSelect(option);
+							}}
 						>
 							<span className="option-number">{index + 1}</span>
 							<span className="option-text">{displayText}</span>
@@ -308,7 +318,7 @@ export default function SuggestionPage() {
 									{isExpanded ? "less" : "more"}
 								</button>
 							)}
-						</button>
+						</div>
 					);
 				})}
 			</div>

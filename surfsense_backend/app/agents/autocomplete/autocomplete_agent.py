@@ -401,6 +401,8 @@ async def stream_autocomplete_agent(
                     continue
                 output = event.get("data", {}).get("output")
                 if output and hasattr(output, "content"):
+                    if getattr(output, "tool_calls", None):
+                        continue
                     content = output.content
                     if content and isinstance(content, str) and not text_buffer:
                         text_buffer.append(content)
