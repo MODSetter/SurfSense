@@ -55,7 +55,7 @@ import { useInbox } from "@/hooks/use-inbox";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { notificationsApiService } from "@/lib/apis/notifications-api.service";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
-import { logout } from "@/lib/auth-utils";
+import { getLoginPath, logout } from "@/lib/auth-utils";
 import { deleteThread, fetchThreads, updateThread } from "@/lib/chat/thread-persistence";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
@@ -347,35 +347,38 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 
 	// Navigation items
 	const navItems: NavItem[] = useMemo(
-		() => [
-			{
-				title: "Inbox",
-				url: "#inbox",
-				icon: Inbox,
-				isActive: isInboxSidebarOpen,
-				badge: totalUnreadCount > 0 ? formatInboxCount(totalUnreadCount) : undefined,
-			},
-			{
-				title: "Documents",
-				url: "#documents",
-				icon: SquareLibrary,
-				isActive: isMobile
-					? isDocumentsSidebarOpen
-					: isDocumentsSidebarOpen && !isRightPanelCollapsed,
-			},
-			{
-				title: "Announcements",
-				url: "#announcements",
-				icon: Megaphone,
-				isActive: isAnnouncementsSidebarOpen,
-				badge: announcementUnreadCount > 0 ? formatInboxCount(announcementUnreadCount) : undefined,
-			},
-		],
+		() =>
+			(
+				[
+					{
+						title: "Inbox",
+						url: "#inbox",
+						icon: Inbox,
+						isActive: isInboxSidebarOpen,
+						badge: totalUnreadCount > 0 ? formatInboxCount(totalUnreadCount) : undefined,
+					},
+					isMobile
+						? {
+								title: "Documents",
+								url: "#documents",
+								icon: SquareLibrary,
+								isActive: isDocumentsSidebarOpen,
+							}
+						: null,
+					{
+						title: "Announcements",
+						url: "#announcements",
+						icon: Megaphone,
+						isActive: isAnnouncementsSidebarOpen,
+						badge:
+							announcementUnreadCount > 0 ? formatInboxCount(announcementUnreadCount) : undefined,
+					},
+				] as (NavItem | null)[]
+			).filter((item): item is NavItem => item !== null),
 		[
 			isMobile,
 			isInboxSidebarOpen,
 			isDocumentsSidebarOpen,
-			isRightPanelCollapsed,
 			totalUnreadCount,
 			isAnnouncementsSidebarOpen,
 			announcementUnreadCount,
@@ -600,12 +603,12 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			await logout();
 
 			if (typeof window !== "undefined") {
-				router.push("/");
+				router.push(getLoginPath());
 			}
 		} catch (error) {
 			console.error("Error during logout:", error);
 			await logout();
-			router.push("/");
+			router.push(getLoginPath());
 		}
 	}, [router]);
 
@@ -775,7 +778,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 					<AlertDialogHeader>
 						<AlertDialogTitle>{t("delete_chat")}</AlertDialogTitle>
 						<AlertDialogDescription>
-							{t("delete_chat_confirm")} <span className="font-medium">{chatToDelete?.name}</span>?{" "}
+							{t("delete_chat_confirm")}{" "}
+							<span className="font-medium break-all">{chatToDelete?.name}</span>?{" "}
 							{t("action_cannot_undone")}
 						</AlertDialogDescription>
 					</AlertDialogHeader>
@@ -835,9 +839,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 							<span className={isRenamingChat ? "opacity-0" : ""}>
 								{tSidebar("rename") || "Rename"}
 							</span>
-							{isRenamingChat && (
-								<span className="absolute h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-							)}
+							{isRenamingChat && <Spinner size="sm" className="absolute" />}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
@@ -865,9 +867,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 							className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
 							<span className={isDeletingSearchSpace ? "opacity-0" : ""}>{tCommon("delete")}</span>
-							{isDeletingSearchSpace && (
-								<span className="absolute h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-							)}
+							{isDeletingSearchSpace && <Spinner size="sm" className="absolute" />}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
@@ -895,9 +895,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 							className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
 							<span className={isLeavingSearchSpace ? "opacity-0" : ""}>{t("leave")}</span>
-							{isLeavingSearchSpace && (
-								<span className="absolute h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-							)}
+							{isLeavingSearchSpace && <Spinner size="sm" className="absolute" />}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>

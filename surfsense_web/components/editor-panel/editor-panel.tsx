@@ -1,28 +1,34 @@
 "use client";
 
 import { useAtomValue, useSetAtom } from "jotai";
-import { AlertCircle, XIcon } from "lucide-react";
+import { Download, FileQuestionMark, FileText, Loader2, RefreshCw, XIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { closeEditorPanelAtom, editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
+import { VersionHistoryButton } from "@/components/documents/version-history";
 import { MarkdownViewer } from "@/components/markdown-viewer";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 
 const PlateEditor = dynamic(
 	() => import("@/components/editor/plate-editor").then((m) => ({ default: m.PlateEditor })),
-	{ ssr: false, loading: () => <Skeleton className="h-64 w-full" /> }
+	{ ssr: false, loading: () => <EditorPanelSkeleton /> }
 );
+
+const LARGE_DOCUMENT_THRESHOLD = 2 * 1024 * 1024; // 2MB
 
 interface EditorContent {
 	document_id: number;
 	title: string;
 	document_type?: string;
 	source_markdown: string;
+	content_size_bytes?: number;
+	chunk_count?: number;
+	truncated?: boolean;
 }
 
 const EDITABLE_DOCUMENT_TYPES = new Set(["FILE", "NOTE"]);
@@ -62,6 +68,7 @@ export function EditorPanelContent({
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
+	const [downloading, setDownloading] = useState(false);
 
 	const [editedMarkdown, setEditedMarkdown] = useState<string | null>(null);
 	const markdownRef = useRef<string>("");
@@ -69,8 +76,10 @@ export function EditorPanelContent({
 	const changeCountRef = useRef(0);
 	const [displayTitle, setDisplayTitle] = useState(title || "Untitled");
 
+	const isLargeDocument = (editorDoc?.content_size_bytes ?? 0) > LARGE_DOCUMENT_THRESHOLD;
+
 	useEffect(() => {
-		let cancelled = false;
+		const controller = new AbortController();
 		setIsLoading(true);
 		setError(null);
 		setEditorDoc(null);
@@ -78,7 +87,7 @@ export function EditorPanelContent({
 		initialLoadDone.current = false;
 		changeCountRef.current = 0;
 
-		const fetchContent = async () => {
+		const doFetch = async () => {
 			const token = getBearerToken();
 			if (!token) {
 				redirectToLogin();
@@ -86,12 +95,14 @@ export function EditorPanelContent({
 			}
 
 			try {
-				const response = await authenticatedFetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`,
-					{ method: "GET" }
+				const url = new URL(
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`
 				);
+				url.searchParams.set("max_length", String(LARGE_DOCUMENT_THRESHOLD));
 
-				if (cancelled) return;
+				const response = await authenticatedFetch(url.toString(), { method: "GET" });
+
+				if (controller.signal.aborted) return;
 
 				if (!response.ok) {
 					const errorData = await response
@@ -115,18 +126,16 @@ export function EditorPanelContent({
 				setEditorDoc(data);
 				initialLoadDone.current = true;
 			} catch (err) {
-				if (cancelled) return;
+				if (controller.signal.aborted) return;
 				console.error("Error fetching document:", err);
 				setError(err instanceof Error ? err.message : "Failed to fetch document");
 			} finally {
-				if (!cancelled) setIsLoading(false);
+				if (!controller.signal.aborted) setIsLoading(false);
 			}
 		};
 
-		fetchContent();
-		return () => {
-			cancelled = true;
-		};
+		doFetch().catch(() => {});
+		return () => controller.abort();
 	}, [documentId, searchSpaceId, title]);
 
 	const handleMarkdownChange = useCallback((md: string) => {
@@ -175,7 +184,7 @@ export function EditorPanelContent({
 	}, [documentId, searchSpaceId]);
 
 	const isEditableType = editorDoc
-		? EDITABLE_DOCUMENT_TYPES.has(editorDoc.document_type ?? "")
+		? EDITABLE_DOCUMENT_TYPES.has(editorDoc.document_type ?? "") && !isLargeDocument
 		: false;
 
 	return (
@@ -187,12 +196,17 @@ export function EditorPanelContent({
 						<p className="text-[10px] text-muted-foreground">Unsaved changes</p>
 					)}
 				</div>
-				{onClose && (
-					<Button variant="ghost" size="icon" onClick={onClose} className="size-7 shrink-0">
-						<XIcon className="size-4" />
-						<span className="sr-only">Close editor panel</span>
-					</Button>
-				)}
+				<div className="flex items-center gap-1 shrink-0">
+					{editorDoc?.document_type && (
+						<VersionHistoryButton documentId={documentId} documentType={editorDoc.document_type} />
+					)}
+					{onClose && (
+						<Button variant="ghost" size="icon" onClick={onClose} className="size-7 shrink-0">
+							<XIcon className="size-4" />
+							<span className="sr-only">Close editor panel</span>
+						</Button>
+					)}
+				</div>
 			</div>
 
 			<div className="flex-1 overflow-hidden">
@@ -200,11 +214,78 @@ export function EditorPanelContent({
 					<EditorPanelSkeleton />
 				) : error || !editorDoc ? (
 					<div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-						<AlertCircle className="size-8 text-destructive" />
-						<div>
-							<p className="font-medium text-foreground">Failed to load document</p>
-							<p className="text-sm text-red-500 mt-1">{error || "An unknown error occurred"}</p>
+						{error?.toLowerCase().includes("still being processed") ? (
+							<div className="rounded-full bg-muted/50 p-3">
+								<RefreshCw className="size-6 text-muted-foreground animate-spin" />
+							</div>
+						) : (
+							<div className="rounded-full bg-muted/50 p-3">
+								<FileQuestionMark className="size-6 text-muted-foreground" />
+							</div>
+						)}
+						<div className="space-y-1 max-w-xs">
+							<p className="font-medium text-foreground">
+								{error?.toLowerCase().includes("still being processed")
+									? "Document is processing"
+									: "Document unavailable"}
+							</p>
+							<p className="text-sm text-muted-foreground">
+								{error || "An unknown error occurred"}
+							</p>
 						</div>
+					</div>
+				) : isLargeDocument ? (
+					<div className="h-full overflow-y-auto px-5 py-4">
+						<Alert className="mb-4">
+							<FileText className="size-4" />
+							<AlertDescription className="flex items-center justify-between gap-4">
+								<span>
+									This document is too large for the editor (
+									{Math.round((editorDoc.content_size_bytes ?? 0) / 1024 / 1024)}MB,{" "}
+									{editorDoc.chunk_count ?? 0} chunks). Showing a preview below.
+								</span>
+								<Button
+									variant="outline"
+									size="sm"
+									className="shrink-0 gap-1.5"
+									disabled={downloading}
+									onClick={async () => {
+										setDownloading(true);
+										try {
+											const response = await authenticatedFetch(
+												`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/download-markdown`,
+												{ method: "GET" }
+											);
+											if (!response.ok) throw new Error("Download failed");
+											const blob = await response.blob();
+											const url = URL.createObjectURL(blob);
+											const a = document.createElement("a");
+											a.href = url;
+											const disposition = response.headers.get("content-disposition");
+											const match = disposition?.match(/filename="(.+)"/);
+											a.download = match?.[1] ?? `${editorDoc.title || "document"}.md`;
+											document.body.appendChild(a);
+											a.click();
+											a.remove();
+											URL.revokeObjectURL(url);
+											toast.success("Download started");
+										} catch {
+											toast.error("Failed to download document");
+										} finally {
+											setDownloading(false);
+										}
+									}}
+								>
+									{downloading ? (
+										<Loader2 className="size-3.5 animate-spin" />
+									) : (
+										<Download className="size-3.5" />
+									)}
+									{downloading ? "Preparing..." : "Download .md"}
+								</Button>
+							</AlertDescription>
+						</Alert>
+						<MarkdownViewer content={editorDoc.source_markdown} />
 					</div>
 				) : isEditableType ? (
 					<PlateEditor

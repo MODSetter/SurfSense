@@ -53,7 +53,8 @@ async def download_and_extract_content(
     file_name = file.get("name", "Unknown")
     file_id = file.get("id", "")
 
-    if should_skip_file(file):
+    skip, _unsup_ext = should_skip_file(file)
+    if skip:
         return None, {}, "Skipping non-indexable item"
 
     logger.info(f"Downloading file for content extraction: {file_name}")
@@ -87,9 +88,13 @@ async def download_and_extract_content(
         if error:
             return None, metadata, error
 
-        from app.connectors.onedrive.content_extractor import _parse_file_to_markdown
+        from app.etl_pipeline.etl_document import EtlRequest
+        from app.etl_pipeline.etl_pipeline_service import EtlPipelineService
 
-        markdown = await _parse_file_to_markdown(temp_file_path, file_name)
+        result = await EtlPipelineService().extract(
+            EtlRequest(file_path=temp_file_path, filename=file_name)
+        )
+        markdown = result.markdown_content
         return markdown, metadata, None
 
     except Exception as e:

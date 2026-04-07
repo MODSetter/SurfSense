@@ -1,9 +1,26 @@
 "use client";
 
-import { Tooltip as TooltipPrimitive } from "radix-ui";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type * as React from "react";
+import { useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
+
+const MOBILE_BREAKPOINT = 768;
+
+function useIsTouchDevice() {
+	const [isTouch, setIsTouch] = useState(false);
+
+	useEffect(() => {
+		const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
+		const update = () => setIsTouch(mql.matches);
+		update();
+		mql.addEventListener("change", update);
+		return () => mql.removeEventListener("change", update);
+	}, []);
+
+	return isTouch;
+}
 
 function TooltipProvider({
 	delayDuration = 0,
@@ -20,10 +37,21 @@ function TooltipProvider({
 	);
 }
 
-function Tooltip({ ...props }: React.ComponentProps<typeof TooltipPrimitive.Root>) {
+function Tooltip({
+	open,
+	onOpenChange,
+	...props
+}: React.ComponentProps<typeof TooltipPrimitive.Root>) {
+	const isMobile = useIsTouchDevice();
+
 	return (
 		<TooltipProvider>
-			<TooltipPrimitive.Root data-slot="tooltip" {...props} />
+			<TooltipPrimitive.Root
+				data-slot="tooltip"
+				open={isMobile ? false : open}
+				onOpenChange={isMobile ? undefined : onOpenChange}
+				{...props}
+			/>
 		</TooltipProvider>
 	);
 }

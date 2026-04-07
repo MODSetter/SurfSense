@@ -267,12 +267,23 @@ export function DocumentsTableShell({
 	const [metadataJson, setMetadataJson] = useState<Record<string, unknown> | null>(null);
 	const [metadataLoading, setMetadataLoading] = useState(false);
 	const [previewScrollPos, setPreviewScrollPos] = useState<"top" | "middle" | "bottom">("top");
+	const previewRafRef = useRef<number>();
 	const handlePreviewScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
 		const el = e.currentTarget;
-		const atTop = el.scrollTop <= 2;
-		const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
-		setPreviewScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+		if (previewRafRef.current) return;
+		previewRafRef.current = requestAnimationFrame(() => {
+			const atTop = el.scrollTop <= 2;
+			const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
+			setPreviewScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+			previewRafRef.current = undefined;
+		});
 	}, []);
+	useEffect(
+		() => () => {
+			if (previewRafRef.current) cancelAnimationFrame(previewRafRef.current);
+		},
+		[]
+	);
 
 	const [deleteDoc, setDeleteDoc] = useState<Document | null>(null);
 	const [isDeleting, setIsDeleting] = useState(false);
@@ -329,14 +340,15 @@ export function DocumentsTableShell({
 
 	const handleViewDocument = useCallback(async (doc: Document) => {
 		setViewingDoc(doc);
-		if (doc.content) {
-			setViewingContent(doc.content);
+		const preview = doc.content_preview || doc.content;
+		if (preview) {
+			setViewingContent(preview);
 			return;
 		}
 		setViewingLoading(true);
 		try {
 			const fullDoc = await documentsApiService.getDocument({ id: doc.id });
-			setViewingContent(fullDoc.content);
+			setViewingContent(fullDoc.content_preview || fullDoc.content);
 		} catch (err) {
 			console.error("[DocumentsTableShell] Failed to fetch document content:", err);
 			setViewingContent("Failed to load document content.");
@@ -630,7 +642,7 @@ export function DocumentsTableShell({
 									return (
 										<tr
 											key={doc.id}
-											className={`group border-b border-border/50 transition-colors ${
+											className={`list-item-lazy group border-b border-border/50 transition-colors ${
 												isMentioned ? "bg-primary/5 hover:bg-primary/8" : "hover:bg-muted/30"
 											} ${canInteract && hasChatMode ? "cursor-pointer" : ""}`}
 											onClick={handleRowClick}
@@ -748,6 +760,7 @@ export function DocumentsTableShell({
 																	onClick={() =>
 																		onOpenInTab ? onOpenInTab(doc) : handleViewDocument(doc)
 																	}
+																	disabled={isBeingProcessed}
 																>
 																	<Eye className="h-4 w-4" />
 																	Open
@@ -871,7 +884,7 @@ export function DocumentsTableShell({
 						return (
 							<MobileCardWrapper key={doc.id} onLongPress={() => setMobileActionDoc(doc)}>
 								<div
-									className={`relative px-3 py-2 transition-colors ${
+									className={`list-item-lazy relative px-3 py-2 transition-colors ${
 										isMentioned ? "bg-primary/5" : "hover:bg-muted/20"
 									} ${canInteract && hasChatMode ? "cursor-pointer" : ""}`}
 								>
@@ -951,7 +964,30 @@ export function DocumentsTableShell({
 								<Spinner size="lg" className="text-muted-foreground" />
 							</div>
 						) : (
-							<MarkdownViewer content={viewingContent} />
+							<>
+								<MarkdownViewer content={viewingContent} maxLength={50_000} />
+								{viewingDoc && (
+									<div className="mt-4 flex justify-center">
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={() => {
+												if (viewingDoc) {
+													openEditor({
+														documentId: viewingDoc.id,
+														searchSpaceId: Number(searchSpaceId),
+														title: viewingDoc.title,
+													});
+													handleCloseViewer();
+												}
+											}}
+										>
+											<Eye className="h-3.5 w-3.5 mr-1.5" />
+											View full document
+										</Button>
+									</div>
+								)}
+							</>
 						)}
 					</div>
 				</DrawerContent>
@@ -1020,6 +1056,10 @@ export function DocumentsTableShell({
 						<Button
 							variant="secondary"
 							className="justify-start gap-2"
+							disabled={
+								mobileActionDoc?.status?.state === "pending" ||
+								mobileActionDoc?.status?.state === "processing"
+							}
 							onClick={() => {
 								if (mobileActionDoc) handleViewDocument(mobileActionDoc);
 								setMobileActionDoc(null);

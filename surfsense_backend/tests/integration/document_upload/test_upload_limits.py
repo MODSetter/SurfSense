@@ -2,12 +2,11 @@
 Integration tests for backend file upload limit enforcement.
 
 These tests verify that the API rejects uploads that exceed:
-  - Max files per upload (10)
-  - Max per-file size (50 MB)
-  - Max total upload size (200 MB)
+  - Max per-file size (500 MB)
 
-The limits mirror the frontend's DocumentUploadTab.tsx constants and are
-enforced server-side to protect against direct API calls.
+No file count or total size limits are enforced — the frontend batches
+uploads in groups of 5 and there is no cap on how many files a user can
+upload in a single session.
 
 Prerequisites:
   - PostgreSQL + pgvector
@@ -24,60 +23,12 @@ pytestmark = pytest.mark.integration
 
 
 # ---------------------------------------------------------------------------
-# Test A: File count limit
-# ---------------------------------------------------------------------------
-
-
-class TestFileCountLimit:
-    """Uploading more than 10 files in a single request should be rejected."""
-
-    async def test_11_files_returns_413(
-        self,
-        client: httpx.AsyncClient,
-        headers: dict[str, str],
-        search_space_id: int,
-    ):
-        files = [
-            ("files", (f"file_{i}.txt", io.BytesIO(b"test content"), "text/plain"))
-            for i in range(11)
-        ]
-        resp = await client.post(
-            "/api/v1/documents/fileupload",
-            headers=headers,
-            files=files,
-            data={"search_space_id": str(search_space_id)},
-        )
-        assert resp.status_code == 413
-        assert "too many files" in resp.json()["detail"].lower()
-
-    async def test_10_files_accepted(
-        self,
-        client: httpx.AsyncClient,
-        headers: dict[str, str],
-        search_space_id: int,
-        cleanup_doc_ids: list[int],
-    ):
-        files = [
-            ("files", (f"file_{i}.txt", io.BytesIO(b"test content"), "text/plain"))
-            for i in range(10)
-        ]
-        resp = await client.post(
-            "/api/v1/documents/fileupload",
-            headers=headers,
-            files=files,
-            data={"search_space_id": str(search_space_id)},
-        )
-        assert resp.status_code == 200
-        cleanup_doc_ids.extend(resp.json().get("document_ids", []))
-
-
-# ---------------------------------------------------------------------------
-# Test B: Per-file size limit
+# Test: Per-file size limit (500 MB)
 # ---------------------------------------------------------------------------
 
 
 class TestPerFileSizeLimit:
-    """A single file exceeding 50 MB should be rejected."""
+    """A single file exceeding 500 MB should be rejected."""
 
     async def test_oversized_file_returns_413(
         self,
@@ -85,7 +36,7 @@ class TestPerFileSizeLimit:
         headers: dict[str, str],
         search_space_id: int,
     ):
-        oversized = io.BytesIO(b"\x00" * (50 * 1024 * 1024 + 1))
+        oversized = io.BytesIO(b"\x00" * (500 * 1024 * 1024 + 1))
         resp = await client.post(
             "/api/v1/documents/fileupload",
             headers=headers,
@@ -102,11 +53,11 @@ class TestPerFileSizeLimit:
         search_space_id: int,
         cleanup_doc_ids: list[int],
     ):
-        at_limit = io.BytesIO(b"\x00" * (50 * 1024 * 1024))
+        at_limit = io.BytesIO(b"\x00" * (500 * 1024 * 1024))
         resp = await client.post(
             "/api/v1/documents/fileupload",
             headers=headers,
-            files=[("files", ("exact50mb.txt", at_limit, "text/plain"))],
+            files=[("files", ("exact500mb.txt", at_limit, "text/plain"))],
             data={"search_space_id": str(search_space_id)},
         )
         assert resp.status_code == 200
@@ -114,26 +65,23 @@ class TestPerFileSizeLimit:
 
 
 # ---------------------------------------------------------------------------
-# Test C: Total upload size limit
+# Test: Multiple files accepted without count limit
 # ---------------------------------------------------------------------------
 
 
-class TestTotalSizeLimit:
-    """Multiple files whose combined size exceeds 200 MB should be rejected."""
+class TestNoFileCountLimit:
+    """Many files in a single request should be accepted."""
 
-    async def test_total_size_over_200mb_returns_413(
+    async def test_many_files_accepted(
         self,
         client: httpx.AsyncClient,
         headers: dict[str, str],
         search_space_id: int,
+        cleanup_doc_ids: list[int],
     ):
-        chunk_size = 45 * 1024 * 1024  # 45 MB each
         files = [
-            (
-                "files",
-                (f"chunk_{i}.txt", io.BytesIO(b"\x00" * chunk_size), "text/plain"),
-            )
-            for i in range(5)  # 5 x 45 MB = 225 MB > 200 MB
+            ("files", (f"file_{i}.txt", io.BytesIO(b"test content"), "text/plain"))
+            for i in range(20)
         ]
         resp = await client.post(
             "/api/v1/documents/fileupload",
@@ -141,5 +89,5 @@ class TestTotalSizeLimit:
             files=files,
             data={"search_space_id": str(search_space_id)},
         )
-        assert resp.status_code == 413
-        assert "total upload size" in resp.json()["detail"].lower()
+        assert resp.status_code == 200
+        cleanup_doc_ids.extend(resp.json().get("document_ids", []))

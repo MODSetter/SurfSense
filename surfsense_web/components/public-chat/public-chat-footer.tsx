@@ -1,7 +1,7 @@
 "use client";
 
 import { Copy } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,6 @@ interface PublicChatFooterProps {
 
 export function PublicChatFooter({ shareToken }: PublicChatFooterProps) {
 	const router = useRouter();
-	const searchParams = useSearchParams();
 	const [isCloning, setIsCloning] = useState(false);
 	const hasAutoCloned = useRef(false);
 
@@ -36,9 +35,11 @@ export function PublicChatFooter({ shareToken }: PublicChatFooterProps) {
 		}
 	}, [shareToken, router]);
 
-	// Auto-trigger clone if user just logged in with action=clone
+	// Auto-trigger clone if user just logged in with action=clone.
+	// Read from window.location.search on mount — no subscription needed since
+	// this is a one-time post-login check. (Vercel Best Practice: rerender-defer-reads 5.2)
 	useEffect(() => {
-		const action = searchParams.get("action");
+		const action = new URLSearchParams(window.location.search).get("action");
 		const token = getBearerToken();
 
 		// Only auto-clone once, if authenticated and action=clone is present
@@ -46,7 +47,7 @@ export function PublicChatFooter({ shareToken }: PublicChatFooterProps) {
 			hasAutoCloned.current = true;
 			triggerClone();
 		}
-	}, [searchParams, isCloning, triggerClone]);
+	}, [isCloning, triggerClone]);
 
 	const handleCopyAndContinue = async () => {
 		const token = getBearerToken();

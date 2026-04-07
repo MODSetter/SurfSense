@@ -1,5 +1,7 @@
 """File type handlers for Google Drive."""
 
+from app.etl_pipeline.file_classifier import should_skip_for_service
+
 GOOGLE_DOC = "application/vnd.google-apps.document"
 GOOGLE_SHEET = "application/vnd.google-apps.spreadsheet"
 GOOGLE_SLIDE = "application/vnd.google-apps.presentation"
@@ -44,6 +46,21 @@ def is_google_workspace_file(mime_type: str) -> bool:
 def should_skip_file(mime_type: str) -> bool:
     """Check if file should be skipped (folders, shortcuts, etc)."""
     return mime_type in [GOOGLE_FOLDER, GOOGLE_SHORTCUT]
+
+
+def should_skip_by_extension(filename: str) -> tuple[bool, str | None]:
+    """Check if the file extension is not parseable by the configured ETL service.
+
+    Returns (should_skip, unsupported_extension_or_None).
+    """
+    from pathlib import PurePosixPath
+
+    from app.config import config as app_config
+
+    if should_skip_for_service(filename, app_config.ETL_SERVICE):
+        ext = PurePosixPath(filename).suffix.lower()
+        return True, ext
+    return False, None
 
 
 def get_export_mime_type(mime_type: str) -> str | None:

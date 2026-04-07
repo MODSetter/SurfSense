@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
+import Image from "next/image";
 import { ExpandedGifOverlay, useExpandedGif } from "@/components/ui/expanded-gif-overlay";
 
 const useCases = [
@@ -81,6 +82,15 @@ function UseCaseCard({
 						alt={title}
 						className="w-full rounded-xl object-cover transition-transform duration-500 group-hover:scale-[1.02]"
 					/>
+					<div className="relative w-full h-48">
+						<Image
+							src={src}
+							alt={title}
+							fill
+							className="rounded-xl object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+							unoptimized={src.endsWith(".gif")}
+						/>
+					</div>
 				</div>
 				<div className="px-5 py-4">
 					<h3 className="text-base font-semibold text-neutral-900 dark:text-white">{title}</h3>
