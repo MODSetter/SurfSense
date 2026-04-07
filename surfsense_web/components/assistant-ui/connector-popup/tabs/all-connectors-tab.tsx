@@ -3,6 +3,7 @@
 import type { FC } from "react";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+import { usePlatform } from "@/hooks/use-platform";
 import { isSelfHosted } from "@/lib/env-config";
 import { ConnectorCard } from "../components/connector-card";
 import {
@@ -74,9 +75,8 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 	onManage,
 	onViewAccountsList,
 }) => {
-	// Check if self-hosted mode (for showing self-hosted only connectors)
 	const selfHosted = isSelfHosted();
-	const isDesktop = typeof window !== "undefined" && !!window.electronAPI;
+	const { isDesktop } = usePlatform();
 
 	const matchesSearch = (title: string, description: string) =>
 		title.toLowerCase().includes(searchQuery.toLowerCase()) ||

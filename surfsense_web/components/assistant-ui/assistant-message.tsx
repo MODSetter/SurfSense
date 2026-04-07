@@ -87,6 +87,7 @@ import {
 } from "@/components/ui/drawer";
 import { useComments } from "@/hooks/use-comments";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useElectronAPI } from "@/hooks/use-platform";
 import { cn } from "@/lib/utils";
 
 // Dynamically import video presentation tool to avoid loading Babel and Remotion in main bundle
@@ -463,16 +464,17 @@ export const AssistantMessage: FC = () => {
 const AssistantActionBar: FC = () => {
 	const isLast = useAuiState((s) => s.message.isLast);
 	const aui = useAui();
+	const api = useElectronAPI();
 	const [quickAskMode, setQuickAskMode] = useState("");
 
 	useEffect(() => {
-		if (!isLast || !window.electronAPI?.getQuickAskMode) return;
-		window.electronAPI.getQuickAskMode().then((mode) => {
+		if (!isLast || !api?.getQuickAskMode) return;
+		api.getQuickAskMode().then((mode) => {
 			if (mode) setQuickAskMode(mode);
 		});
-	}, [isLast]);
+	}, [isLast, api]);
 
-	const isTransform = isLast && !!window.electronAPI?.replaceText && quickAskMode === "transform";
+	const isTransform = isLast && !!api?.replaceText && quickAskMode === "transform";
 
 	return (
 		<ActionBarPrimitive.Root
@@ -508,7 +510,7 @@ const AssistantActionBar: FC = () => {
 					type="button"
 					onClick={() => {
 						const text = aui.message().getCopyText();
-						window.electronAPI?.replaceText(text);
+						api?.replaceText(text);
 					}}
 					className="ml-1 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
 				>

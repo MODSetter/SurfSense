@@ -3,6 +3,7 @@
 import { useAtom } from "jotai";
 import { Globe, KeyRound, Monitor, Receipt, Sparkles, User } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useMemo } from "react";
 import { ApiKeyContent } from "@/app/dashboard/[search_space_id]/user-settings/components/ApiKeyContent";
 import { CommunityPromptsContent } from "@/app/dashboard/[search_space_id]/user-settings/components/CommunityPromptsContent";
 import { ProfileContent } from "@/app/dashboard/[search_space_id]/user-settings/components/ProfileContent";
@@ -11,37 +12,42 @@ import { PurchaseHistoryContent } from "@/app/dashboard/[search_space_id]/user-s
 import { DesktopContent } from "@/app/dashboard/[search_space_id]/user-settings/components/DesktopContent";
 import { userSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
 import { SettingsDialog } from "@/components/settings/settings-dialog";
+import { usePlatform } from "@/hooks/use-platform";
 
 export function UserSettingsDialog() {
 	const t = useTranslations("userSettings");
 	const [state, setState] = useAtom(userSettingsDialogAtom);
+	const { isDesktop } = usePlatform();
 
-	const navItems = [
-		{ value: "profile", label: t("profile_nav_label"), icon: <User className="h-4 w-4" /> },
-		{
-			value: "api-key",
-			label: t("api_key_nav_label"),
-			icon: <KeyRound className="h-4 w-4" />,
-		},
-		{
-			value: "prompts",
-			label: "My Prompts",
-			icon: <Sparkles className="h-4 w-4" />,
-		},
-		{
-			value: "community-prompts",
-			label: "Community Prompts",
-			icon: <Globe className="h-4 w-4" />,
-		},
-		{
-			value: "purchases",
-			label: "Purchase History",
-			icon: <Receipt className="h-4 w-4" />,
-		},
-		...(typeof window !== "undefined" && window.electronAPI
-			? [{ value: "desktop", label: "Desktop", icon: <Monitor className="h-4 w-4" /> }]
-			: []),
-	];
+	const navItems = useMemo(
+		() => [
+			{ value: "profile", label: t("profile_nav_label"), icon: <User className="h-4 w-4" /> },
+			{
+				value: "api-key",
+				label: t("api_key_nav_label"),
+				icon: <KeyRound className="h-4 w-4" />,
+			},
+			{
+				value: "prompts",
+				label: "My Prompts",
+				icon: <Sparkles className="h-4 w-4" />,
+			},
+			{
+				value: "community-prompts",
+				label: "Community Prompts",
+				icon: <Globe className="h-4 w-4" />,
+			},
+			{
+				value: "purchases",
+				label: "Purchase History",
+				icon: <Receipt className="h-4 w-4" />,
+			},
+			...(isDesktop
+				? [{ value: "desktop", label: "Desktop", icon: <Monitor className="h-4 w-4" /> }]
+				: []),
+		],
+		[t, isDesktop]
+	);
 
 	return (
 		<SettingsDialog

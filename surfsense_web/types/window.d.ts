@@ -81,6 +81,9 @@ interface ElectronAPI {
 	// Auth token sync across windows
 	getAuthTokens: () => Promise<{ bearer: string; refresh: string } | null>;
 	setAuthTokens: (bearer: string, refresh: string) => Promise<void>;
+	// Keyboard shortcut configuration
+	getShortcuts: () => Promise<{ quickAsk: string; autocomplete: string }>;
+	setShortcuts: (config: Partial<{ quickAsk: string; autocomplete: string }>) => Promise<{ quickAsk: string; autocomplete: string }>;
 }
 
 declare global {

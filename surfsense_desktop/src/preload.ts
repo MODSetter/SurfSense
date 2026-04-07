@@ -73,4 +73,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAuthTokens: () => ipcRenderer.invoke(IPC_CHANNELS.GET_AUTH_TOKENS),
   setAuthTokens: (bearer: string, refresh: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.SET_AUTH_TOKENS, { bearer, refresh }),
+
+  // Keyboard shortcut configuration
+  getShortcuts: () => ipcRenderer.invoke(IPC_CHANNELS.GET_SHORTCUTS),
+  setShortcuts: (config: Record<string, string>) =>
+    ipcRenderer.invoke(IPC_CHANNELS.SET_SHORTCUTS, config),
 });

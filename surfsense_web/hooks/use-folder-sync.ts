@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useElectronAPI } from "@/hooks/use-platform";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 
 interface FileChangedEvent {
@@ -29,6 +30,7 @@ interface BatchItem {
 }
 
 export function useFolderSync() {
+	const electronAPI = useElectronAPI();
 	const queueRef = useRef<BatchItem[]>([]);
 	const processingRef = useRef(false);
 	const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
@@ -49,9 +51,8 @@ export function useFolderSync() {
 					target_file_paths: batch.filePaths,
 					root_folder_id: batch.rootFolderId,
 				});
-				const api = typeof window !== "undefined" ? window.electronAPI : null;
-				if (api?.acknowledgeFileEvents && batch.ackIds.length > 0) {
-					await api.acknowledgeFileEvents(batch.ackIds);
+				if (electronAPI?.acknowledgeFileEvents && batch.ackIds.length > 0) {
+					await electronAPI.acknowledgeFileEvents(batch.ackIds);
 				}
 			} catch (err) {
 				console.error("[FolderSync] Failed to trigger batch re-index:", err);
@@ -117,25 +118,22 @@ export function useFolderSync() {
 
 	useEffect(() => {
 		isMountedRef.current = true;
-		const api = typeof window !== "undefined" ? window.electronAPI : null;
-		if (!api?.onFileChanged) {
+		if (!electronAPI?.onFileChanged) {
 			return () => {
 				isMountedRef.current = false;
 			};
 		}
 
-		// Signal to main process that the renderer is ready to receive events
-		api.signalRendererReady?.();
+		electronAPI.signalRendererReady?.();
 
-		// Drain durable outbox first so events survive renderer startup gaps and restarts
-		void api.getPendingFileEvents?.().then((pendingEvents) => {
+		void electronAPI.getPendingFileEvents?.().then((pendingEvents) => {
 			if (!isMountedRef.current || !pendingEvents?.length) return;
 			for (const event of pendingEvents) {
 				enqueueWithDebounce(event);
 			}
 		});
 
-		const cleanup = api.onFileChanged((event: FileChangedEvent) => {
+		const cleanup = electronAPI.onFileChanged((event: FileChangedEvent) => {
 			enqueueWithDebounce(event);
 		});
 
@@ -149,5 +147,5 @@ export function useFolderSync() {
 			pendingByFolder.current.clear();
 			firstEventTime.current.clear();
 		};
-	}, []);
+	}, [electronAPI]);
 }

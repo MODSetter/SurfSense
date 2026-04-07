@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useElectronAPI } from "@/hooks/use-platform";
 import { getBearerToken, ensureTokensFromElectron } from "@/lib/auth-utils";
 
 type SSEEvent =
@@ -34,26 +35,27 @@ function friendlyError(raw: string | number): string {
 const AUTO_DISMISS_MS = 3000;
 
 export default function SuggestionPage() {
+	const api = useElectronAPI();
 	const [suggestion, setSuggestion] = useState("");
 	const [isLoading, setIsLoading] = useState(true);
-	const [isDesktop, setIsDesktop] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const abortRef = useRef<AbortController | null>(null);
 
+	const isDesktop = !!api?.onAutocompleteContext;
+
 	useEffect(() => {
-		if (!window.electronAPI?.onAutocompleteContext) {
-			setIsDesktop(false);
+		if (!api?.onAutocompleteContext) {
 			setIsLoading(false);
 		}
-	}, []);
+	}, [api]);
 
 	useEffect(() => {
 		if (!error) return;
 		const timer = setTimeout(() => {
-			window.electronAPI?.dismissSuggestion?.();
+			api?.dismissSuggestion?.();
 		}, AUTO_DISMISS_MS);
 		return () => clearTimeout(timer);
-	}, [error]);
+	}, [error, api]);
 
 	const fetchSuggestion = useCallback(
 		async (screenshot: string, searchSpaceId: string, appName?: string, windowTitle?: string) => {
@@ -153,9 +155,9 @@ export default function SuggestionPage() {
 	);
 
 	useEffect(() => {
-		if (!window.electronAPI?.onAutocompleteContext) return;
+		if (!api?.onAutocompleteContext) return;
 
-		const cleanup = window.electronAPI.onAutocompleteContext((data) => {
+		const cleanup = api.onAutocompleteContext((data) => {
 			const searchSpaceId = data.searchSpaceId || "1";
 			if (data.screenshot) {
 				fetchSuggestion(data.screenshot, searchSpaceId, data.appName, data.windowTitle);
@@ -163,7 +165,7 @@ export default function SuggestionPage() {
 		});
 
 		return cleanup;
-	}, [fetchSuggestion]);
+	}, [fetchSuggestion, api]);
 
 	if (!isDesktop) {
 		return (
@@ -197,12 +199,12 @@ export default function SuggestionPage() {
 
 	const handleAccept = () => {
 		if (suggestion) {
-			window.electronAPI?.acceptSuggestion?.(suggestion);
+			api?.acceptSuggestion?.(suggestion);
 		}
 	};
 
 	const handleDismiss = () => {
-		window.electronAPI?.dismissSuggestion?.();
+		api?.dismissSuggestion?.();
 	};
 
 	if (!suggestion) return null;

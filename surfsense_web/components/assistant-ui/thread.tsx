@@ -89,6 +89,7 @@ import type { Document } from "@/contracts/types/document.types";
 import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsSync } from "@/hooks/use-comments-sync";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useElectronAPI } from "@/hooks/use-platform";
 import { cn } from "@/lib/utils";
 
 /** Placeholder texts that cycle in new chats when input is empty */
@@ -362,18 +363,19 @@ const Composer: FC = () => {
 		};
 	}, []);
 
+	const electronAPI = useElectronAPI();
 	const [clipboardInitialText, setClipboardInitialText] = useState<string | undefined>();
 	const clipboardLoadedRef = useRef(false);
 	useEffect(() => {
-		if (!window.electronAPI || clipboardLoadedRef.current) return;
+		if (!electronAPI || clipboardLoadedRef.current) return;
 		clipboardLoadedRef.current = true;
-		window.electronAPI.getQuickAskText().then((text) => {
+		electronAPI.getQuickAskText().then((text) => {
 			if (text) {
 				setClipboardInitialText(text);
 				setShowPromptPicker(true);
 			}
 		});
-	}, []);
+	}, [electronAPI]);
 
 	const isThreadEmpty = useAuiState(({ thread }) => thread.isEmpty);
 	const isThreadRunning = useAuiState(({ thread }) => thread.isRunning);
@@ -504,34 +506,28 @@ const Composer: FC = () => {
 				: userText
 					? `${action.prompt}\n\n${userText}`
 					: action.prompt;
+			editorRef.current?.setText(finalPrompt);
 			aui.composer().setText(finalPrompt);
-			aui.composer().send();
-			editorRef.current?.clear();
 			setShowPromptPicker(false);
 			setActionQuery("");
-			setMentionedDocuments([]);
-			setSidebarDocs([]);
 		},
-		[actionQuery, aui, setMentionedDocuments, setSidebarDocs]
+		[actionQuery, aui]
 	);
 
 	const handleQuickAskSelect = useCallback(
 		(action: { name: string; prompt: string; mode: "transform" | "explore" }) => {
 			if (!clipboardInitialText) return;
-			window.electronAPI?.setQuickAskMode(action.mode);
+			electronAPI?.setQuickAskMode(action.mode);
 			const finalPrompt = action.prompt.includes("{selection}")
 				? action.prompt.replace("{selection}", () => clipboardInitialText)
 				: `${action.prompt}\n\n${clipboardInitialText}`;
+			editorRef.current?.setText(finalPrompt);
 			aui.composer().setText(finalPrompt);
-			aui.composer().send();
-			editorRef.current?.clear();
 			setShowPromptPicker(false);
 			setActionQuery("");
 			setClipboardInitialText(undefined);
-			setMentionedDocuments([]);
-			setSidebarDocs([]);
 		},
-		[clipboardInitialText, aui, setMentionedDocuments, setSidebarDocs]
+		[clipboardInitialText, electronAPI, aui]
 	);
 
 	// Keyboard navigation for document/action picker (arrow keys, Enter, Escape)

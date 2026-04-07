@@ -35,4 +35,7 @@ export const IPC_CHANNELS = {
   // Auth token sync across windows
   GET_AUTH_TOKENS: 'auth:get-tokens',
   SET_AUTH_TOKENS: 'auth:set-tokens',
+  // Keyboard shortcut configuration
+  GET_SHORTCUTS: 'shortcuts:get',
+  SET_SHORTCUTS: 'shortcuts:set',
 } as const;

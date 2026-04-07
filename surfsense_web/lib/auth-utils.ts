@@ -15,6 +15,7 @@ const PUBLIC_ROUTE_PREFIXES = [
 	"/login",
 	"/register",
 	"/auth",
+	"/desktop/login",
 	"/docs",
 	"/public",
 	"/invite",
@@ -32,6 +33,11 @@ const PUBLIC_ROUTE_PREFIXES = [
 export function isPublicRoute(pathname: string): boolean {
 	if (pathname === "/" || pathname === "") return true;
 	return PUBLIC_ROUTE_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+export function getLoginPath(): string {
+	if (typeof window !== "undefined" && window.electronAPI) return "/desktop/login";
+	return "/login";
 }
 
 /**
@@ -55,7 +61,7 @@ export function handleUnauthorized(): void {
 		if (!excludedPaths.includes(pathname)) {
 			localStorage.setItem(REDIRECT_PATH_KEY, currentPath);
 		}
-		window.location.href = "/login";
+		window.location.href = getLoginPath();
 	}
 }
 
@@ -221,13 +227,12 @@ export function redirectToLogin(): void {
 	const currentPath = window.location.pathname + window.location.search + window.location.hash;
 
 	// Don't save auth-related paths or home page
-	const excludedPaths = ["/auth", "/auth/callback", "/", "/login", "/register"];
+	const excludedPaths = ["/auth", "/auth/callback", "/", "/login", "/register", "/desktop/login"];
 	if (!excludedPaths.includes(window.location.pathname)) {
 		localStorage.setItem(REDIRECT_PATH_KEY, currentPath);
 	}
 
-	// Redirect to login page
-	window.location.href = "/login";
+	window.location.href = getLoginPath();
 }
 
 /**

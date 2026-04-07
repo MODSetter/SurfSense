@@ -20,6 +20,9 @@ import {
   browseFiles,
   readLocalFiles,
 } from '../modules/folder-watcher';
+import { getShortcuts, setShortcuts, type ShortcutConfig } from '../modules/shortcuts';
+import { reregisterQuickAsk } from '../modules/quick-ask';
+import { reregisterAutocomplete } from '../modules/autocomplete';
 
 let authTokens: { bearer: string; refresh: string } | null = null;
 
@@ -98,5 +101,14 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.GET_AUTH_TOKENS, () => {
     return authTokens;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.GET_SHORTCUTS, () => getShortcuts());
+
+  ipcMain.handle(IPC_CHANNELS.SET_SHORTCUTS, async (_event, config: Partial<ShortcutConfig>) => {
+    const updated = await setShortcuts(config);
+    if (config.quickAsk) await reregisterQuickAsk();
+    if (config.autocomplete) await reregisterAutocomplete();
+    return updated;
   });
 }
