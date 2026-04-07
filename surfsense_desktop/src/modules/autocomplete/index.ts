@@ -5,9 +5,9 @@ import { hasScreenRecordingPermission, requestAccessibility, requestScreenRecord
 import { getMainWindow } from '../window';
 import { captureScreen } from './screenshot';
 import { createSuggestionWindow, destroySuggestion, getSuggestionWindow } from './suggestion-window';
+import { getShortcuts } from '../shortcuts';
 
-const SHORTCUT = 'CommandOrControl+Shift+Space';
-
+let currentShortcut = '';
 let autocompleteEnabled = true;
 let savedClipboard = '';
 let sourceApp = '';
@@ -91,7 +91,12 @@ async function acceptAndInject(text: string): Promise<void> {
   }
 }
 
+let ipcRegistered = false;
+
 function registerIpcHandlers(): void {
+  if (ipcRegistered) return;
+  ipcRegistered = true;
+
   ipcMain.handle(IPC_CHANNELS.ACCEPT_SUGGESTION, async (_event, text: string) => {
     await acceptAndInject(text);
   });
@@ -107,26 +112,39 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.GET_AUTOCOMPLETE_ENABLED, () => autocompleteEnabled);
 }
 
-export function registerAutocomplete(): void {
-  registerIpcHandlers();
+function autocompleteHandler(): void {
+  const sw = getSuggestionWindow();
+  if (sw && !sw.isDestroyed()) {
+    destroySuggestion();
+    return;
+  }
+  triggerAutocomplete();
+}
 
-  const ok = globalShortcut.register(SHORTCUT, () => {
-    const sw = getSuggestionWindow();
-    if (sw && !sw.isDestroyed()) {
-      destroySuggestion();
-      return;
-    }
-    triggerAutocomplete();
-  });
+async function registerShortcut(): Promise<void> {
+  const shortcuts = await getShortcuts();
+  currentShortcut = shortcuts.autocomplete;
+
+  const ok = globalShortcut.register(currentShortcut, autocompleteHandler);
 
   if (!ok) {
-    console.error(`[autocomplete] Failed to register shortcut ${SHORTCUT}`);
+    console.error(`[autocomplete] Failed to register shortcut ${currentShortcut}`);
   } else {
-    console.log(`[autocomplete] Registered shortcut ${SHORTCUT}`);
+    console.log(`[autocomplete] Registered shortcut ${currentShortcut}`);
   }
 }
 
+export async function registerAutocomplete(): Promise<void> {
+  registerIpcHandlers();
+  await registerShortcut();
+}
+
 export function unregisterAutocomplete(): void {
-  globalShortcut.unregister(SHORTCUT);
+  if (currentShortcut) globalShortcut.unregister(currentShortcut);
   destroySuggestion();
+}
+
+export async function reregisterAutocomplete(): Promise<void> {
+  unregisterAutocomplete();
+  await registerShortcut();
 }

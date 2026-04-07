@@ -25,6 +25,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
+import { useElectronAPI } from "@/hooks/use-platform";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import {
 	trackDocumentUploadFailure,
@@ -150,10 +151,11 @@ export function DocumentUploadTab({
 		};
 	}, []);
 
+	const electronAPI = useElectronAPI();
 	const [selectedFolder, setSelectedFolder] = useState<SelectedFolder | null>(null);
 	const [watchFolder, setWatchFolder] = useState(true);
 	const [folderSubmitting, setFolderSubmitting] = useState(false);
-	const isElectron = typeof window !== "undefined" && !!window.electronAPI?.browseFiles;
+	const isElectron = !!electronAPI?.browseFiles;
 
 	const acceptedFileTypes = useMemo(() => {
 		const etlService = process.env.NEXT_PUBLIC_ETL_SERVICE;
@@ -215,33 +217,31 @@ export function DocumentUploadTab({
 	}, []);
 
 	const handleBrowseFiles = useCallback(async () => {
-		const api = window.electronAPI;
-		if (!api?.browseFiles) return;
+		if (!electronAPI?.browseFiles) return;
 
-		const paths = await api.browseFiles();
+		const paths = await electronAPI.browseFiles();
 		if (!paths || paths.length === 0) return;
 
 		setSelectedFolder(null);
-		const fileDataList = await api.readLocalFiles(paths);
+		const fileDataList = await electronAPI.readLocalFiles(paths);
 		const newFiles: FileWithId[] = fileDataList.map((fd) => ({
 			id: crypto.randomUUID?.() ?? `file-${Date.now()}-${Math.random().toString(36)}`,
 			file: new File([fd.data], fd.name, { type: fd.mimeType }),
 		}));
 		setFiles((prev) => [...prev, ...newFiles]);
-	}, []);
+	}, [electronAPI]);
 
 	const handleBrowseFolder = useCallback(async () => {
-		const api = window.electronAPI;
-		if (!api?.selectFolder) return;
+		if (!electronAPI?.selectFolder) return;
 
-		const folderPath = await api.selectFolder();
+		const folderPath = await electronAPI.selectFolder();
 		if (!folderPath) return;
 
 		const folderName = folderPath.split("/").pop() || folderPath.split("\\").pop() || folderPath;
 		setFiles([]);
 		setSelectedFolder({ path: folderPath, name: folderName });
 		setWatchFolder(true);
-	}, []);
+	}, [electronAPI]);
 
 	const handleFolderChange = useCallback(
 		(e: ChangeEvent<HTMLInputElement>) => {
@@ -286,9 +286,7 @@ export function DocumentUploadTab({
 	);
 
 	const handleFolderSubmit = useCallback(async () => {
-		if (!selectedFolder) return;
-		const api = window.electronAPI;
-		if (!api) return;
+		if (!selectedFolder || !electronAPI) return;
 
 		setFolderSubmitting(true);
 		try {
@@ -303,7 +301,7 @@ export function DocumentUploadTab({
 			const rootFolderId = (result as { root_folder_id?: number })?.root_folder_id ?? null;
 
 			if (watchFolder) {
-				await api.addWatchedFolder({
+				await electronAPI.addWatchedFolder({
 					path: selectedFolder.path,
 					name: selectedFolder.name,
 					excludePatterns: [
@@ -331,7 +329,7 @@ export function DocumentUploadTab({
 		} finally {
 			setFolderSubmitting(false);
 		}
-	}, [selectedFolder, watchFolder, searchSpaceId, shouldSummarize, onSuccess]);
+	}, [selectedFolder, watchFolder, searchSpaceId, shouldSummarize, onSuccess, electronAPI]);
 
 	const handleUpload = async () => {
 		setUploadProgress(0);

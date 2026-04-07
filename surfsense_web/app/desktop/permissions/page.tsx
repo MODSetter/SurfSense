@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { useElectronAPI } from "@/hooks/use-platform";
 
 type PermissionStatus = "authorized" | "denied" | "not determined" | "restricted" | "limited";
 
@@ -58,19 +59,18 @@ function StatusBadge({ status }: { status: PermissionStatus }) {
 
 export default function DesktopPermissionsPage() {
 	const router = useRouter();
+	const api = useElectronAPI();
 	const [permissions, setPermissions] = useState<PermissionsStatus | null>(null);
-	const [isElectron, setIsElectron] = useState(false);
 
 	useEffect(() => {
-		if (!window.electronAPI) return;
-		setIsElectron(true);
+		if (!api) return;
 
 		let interval: ReturnType<typeof setInterval> | null = null;
 
 		const isResolved = (s: string) => s === "authorized" || s === "restricted";
 
 		const poll = async () => {
-			const status = await window.electronAPI!.getPermissionsStatus();
+			const status = await api.getPermissionsStatus();
 			setPermissions(status);
 
 			if (isResolved(status.accessibility) && isResolved(status.screenRecording)) {
@@ -83,9 +83,9 @@ export default function DesktopPermissionsPage() {
 		return () => {
 			if (interval) clearInterval(interval);
 		};
-	}, []);
+	}, [api]);
 
-	if (!isElectron) {
+	if (!api) {
 		return (
 			<div className="h-screen flex items-center justify-center bg-background">
 				<p className="text-muted-foreground">This page is only available in the desktop app.</p>
@@ -106,15 +106,15 @@ export default function DesktopPermissionsPage() {
 
 	const handleRequest = async (action: string) => {
 		if (action === "requestScreenRecording") {
-			await window.electronAPI!.requestScreenRecording();
+			await api.requestScreenRecording();
 		} else if (action === "requestAccessibility") {
-			await window.electronAPI!.requestAccessibility();
+			await api.requestAccessibility();
 		}
 	};
 
 	const handleContinue = () => {
 		if (allGranted) {
-			window.electronAPI!.restartApp();
+			api.restartApp();
 		}
 	};
 
@@ -206,6 +206,7 @@ export default function DesktopPermissionsPage() {
 								Grant permissions to continue
 							</Button>
 							<button
+								type="button"
 								onClick={handleSkip}
 								className="block mx-auto text-xs text-muted-foreground hover:text-foreground transition-colors"
 							>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getBearerToken } from "@/lib/auth-utils";
+import { useElectronAPI } from "@/hooks/use-platform";
+import { ensureTokensFromElectron, getBearerToken } from "@/lib/auth-utils";
 
 type SSEEvent =
 	| { type: "text-delta"; id: string; delta: string }
@@ -9,7 +10,18 @@ type SSEEvent =
 	| { type: "text-end"; id: string }
 	| { type: "start"; messageId: string }
 	| { type: "finish" }
-	| { type: "error"; errorText: string };
+	| { type: "error"; errorText: string }
+	| {
+			type: "data-thinking-step";
+			data: { id: string; title: string; status: string; items: string[] };
+	  };
+
+interface AgentStep {
+	id: string;
+	title: string;
+	status: string;
+	items: string[];
+}
 
 function friendlyError(raw: string | number): string {
 	if (typeof raw === "number") {
@@ -33,27 +45,52 @@ function friendlyError(raw: string | number): string {
 
 const AUTO_DISMISS_MS = 3000;
 
+function StepIcon({ status }: { status: string }) {
+	if (status === "complete") {
+		return (
+			<svg
+				className="step-icon step-icon-done"
+				viewBox="0 0 16 16"
+				fill="none"
+				aria-label="Step complete"
+			>
+				<circle cx="8" cy="8" r="7" stroke="#4ade80" strokeWidth="1.5" />
+				<path
+					d="M5 8.5l2 2 4-4.5"
+					stroke="#4ade80"
+					strokeWidth="1.5"
+					strokeLinecap="round"
+					strokeLinejoin="round"
+				/>
+			</svg>
+		);
+	}
+	return <span className="step-spinner" />;
+}
+
 export default function SuggestionPage() {
+	const api = useElectronAPI();
 	const [suggestion, setSuggestion] = useState("");
 	const [isLoading, setIsLoading] = useState(true);
-	const [isDesktop, setIsDesktop] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const [steps, setSteps] = useState<AgentStep[]>([]);
 	const abortRef = useRef<AbortController | null>(null);
 
+	const isDesktop = !!api?.onAutocompleteContext;
+
 	useEffect(() => {
-		if (!window.electronAPI?.onAutocompleteContext) {
-			setIsDesktop(false);
+		if (!api?.onAutocompleteContext) {
 			setIsLoading(false);
 		}
-	}, []);
+	}, [api]);
 
 	useEffect(() => {
 		if (!error) return;
 		const timer = setTimeout(() => {
-			window.electronAPI?.dismissSuggestion?.();
+			api?.dismissSuggestion?.();
 		}, AUTO_DISMISS_MS);
 		return () => clearTimeout(timer);
-	}, [error]);
+	}, [error, api]);
 
 	const fetchSuggestion = useCallback(
 		async (screenshot: string, searchSpaceId: string, appName?: string, windowTitle?: string) => {
@@ -64,8 +101,13 @@ export default function SuggestionPage() {
 			setIsLoading(true);
 			setSuggestion("");
 			setError(null);
+			setSteps([]);
 
-			const token = getBearerToken();
+			let token = getBearerToken();
+			if (!token) {
+				await ensureTokensFromElectron();
+				token = getBearerToken();
+			}
 			if (!token) {
 				setError(friendlyError("not authenticated"));
 				setIsLoading(false);
@@ -127,6 +169,17 @@ export default function SuggestionPage() {
 									setSuggestion((prev) => prev + parsed.delta);
 								} else if (parsed.type === "error") {
 									setError(friendlyError(parsed.errorText));
+								} else if (parsed.type === "data-thinking-step") {
+									const { id, title, status, items } = parsed.data;
+									setSteps((prev) => {
+										const existing = prev.findIndex((s) => s.id === id);
+										if (existing >= 0) {
+											const updated = [...prev];
+											updated[existing] = { id, title, status, items };
+											return updated;
+										}
+										return [...prev, { id, title, status, items }];
+									});
 								}
 							} catch {}
 						}
@@ -143,9 +196,9 @@ export default function SuggestionPage() {
 	);
 
 	useEffect(() => {
-		if (!window.electronAPI?.onAutocompleteContext) return;
+		if (!api?.onAutocompleteContext) return;
 
-		const cleanup = window.electronAPI.onAutocompleteContext((data) => {
+		const cleanup = api.onAutocompleteContext((data) => {
 			const searchSpaceId = data.searchSpaceId || "1";
 			if (data.screenshot) {
 				fetchSuggestion(data.screenshot, searchSpaceId, data.appName, data.windowTitle);
@@ -153,7 +206,7 @@ export default function SuggestionPage() {
 		});
 
 		return cleanup;
-	}, [fetchSuggestion]);
+	}, [fetchSuggestion, api]);
 
 	if (!isDesktop) {
 		return (
@@ -173,13 +226,33 @@ export default function SuggestionPage() {
 		);
 	}
 
-	if (isLoading && !suggestion) {
+	const showLoading = isLoading && !suggestion;
+
+	if (showLoading) {
 		return (
 			<div className="suggestion-tooltip">
-				<div className="suggestion-loading">
-					<span className="suggestion-dot" />
-					<span className="suggestion-dot" />
-					<span className="suggestion-dot" />
+				<div className="agent-activity">
+					{steps.length === 0 && (
+						<div className="activity-initial">
+							<span className="step-spinner" />
+							<span className="activity-label">Preparing…</span>
+						</div>
+					)}
+					{steps.length > 0 && (
+						<div className="activity-steps">
+							{steps.map((step) => (
+								<div key={step.id} className="activity-step">
+									<StepIcon status={step.status} />
+									<span className="step-label">
+										{step.title}
+										{step.items.length > 0 && (
+											<span className="step-detail"> · {step.items[0]}</span>
+										)}
+									</span>
+								</div>
+							))}
+						</div>
+					)}
 				</div>
 			</div>
 		);
@@ -187,12 +260,12 @@ export default function SuggestionPage() {
 
 	const handleAccept = () => {
 		if (suggestion) {
-			window.electronAPI?.acceptSuggestion?.(suggestion);
+			api?.acceptSuggestion?.(suggestion);
 		}
 	};
 
 	const handleDismiss = () => {
-		window.electronAPI?.dismissSuggestion?.();
+		api?.dismissSuggestion?.();
 	};
 
 	if (!suggestion) return null;
