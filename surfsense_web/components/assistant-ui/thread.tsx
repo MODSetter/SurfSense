@@ -92,15 +92,7 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { cn } from "@/lib/utils";
 
-/** Placeholder texts that cycle in new chats when input is empty */
-const CYCLING_PLACEHOLDERS = [
-	"Ask SurfSense anything or @mention docs",
-	"Generate a podcast from my vacation ideas in Notion",
-	"Sum up last week's meeting notes from Drive in a bulleted list",
-	"Give me a brief overview of the most urgent tickets in Jira and Linear",
-	"Briefly, what are today's top ten important emails and calendar events?",
-	"Check if this week's Slack messages reference any GitHub issues",
-];
+const COMPOSER_PLACEHOLDER = "Ask anything · Type / for prompts · Type @ to mention docs";
 
 export const Thread: FC = () => {
 	return <ThreadContent />;
@@ -380,29 +372,7 @@ const Composer: FC = () => {
 	const isThreadEmpty = useAuiState(({ thread }) => thread.isEmpty);
 	const isThreadRunning = useAuiState(({ thread }) => thread.isRunning);
 
-	// Cycling placeholder state - only cycles in new chats
-	const [placeholderIndex, setPlaceholderIndex] = useState(0);
-
-	// Cycle through placeholders every 4 seconds when thread is empty (new chat)
-	useEffect(() => {
-		// Only cycle when thread is empty (new chat)
-		if (!isThreadEmpty) {
-			// Reset to first placeholder when chat becomes active
-			setPlaceholderIndex(0);
-			return;
-		}
-
-		const intervalId = setInterval(() => {
-			setPlaceholderIndex((prev) => (prev + 1) % CYCLING_PLACEHOLDERS.length);
-		}, 6000);
-
-		return () => clearInterval(intervalId);
-	}, [isThreadEmpty]);
-
-	// Compute current placeholder - only cycle in new chats
-	const currentPlaceholder = isThreadEmpty
-		? CYCLING_PLACEHOLDERS[placeholderIndex]
-		: CYCLING_PLACEHOLDERS[0];
+	const currentPlaceholder = COMPOSER_PLACEHOLDER;
 
 	// Live collaboration state
 	const { data: currentUser } = useAtomValue(currentUserAtom);

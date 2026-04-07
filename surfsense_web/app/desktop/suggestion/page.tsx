@@ -10,7 +10,18 @@ type SSEEvent =
 	| { type: "text-end"; id: string }
 	| { type: "start"; messageId: string }
 	| { type: "finish" }
-	| { type: "error"; errorText: string };
+	| { type: "error"; errorText: string }
+	| {
+			type: "data-thinking-step";
+			data: { id: string; title: string; status: string; items: string[] };
+	  };
+
+interface AgentStep {
+	id: string;
+	title: string;
+	status: string;
+	items: string[];
+}
 
 function friendlyError(raw: string | number): string {
 	if (typeof raw === "number") {
@@ -34,11 +45,24 @@ function friendlyError(raw: string | number): string {
 
 const AUTO_DISMISS_MS = 3000;
 
+function StepIcon({ status }: { status: string }) {
+	if (status === "complete") {
+		return (
+			<svg className="step-icon step-icon-done" viewBox="0 0 16 16" fill="none">
+				<circle cx="8" cy="8" r="7" stroke="#4ade80" strokeWidth="1.5" />
+				<path d="M5 8.5l2 2 4-4.5" stroke="#4ade80" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+			</svg>
+		);
+	}
+	return <span className="step-spinner" />;
+}
+
 export default function SuggestionPage() {
 	const api = useElectronAPI();
 	const [suggestion, setSuggestion] = useState("");
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const [steps, setSteps] = useState<AgentStep[]>([]);
 	const abortRef = useRef<AbortController | null>(null);
 
 	const isDesktop = !!api?.onAutocompleteContext;
@@ -66,6 +90,7 @@ export default function SuggestionPage() {
 			setIsLoading(true);
 			setSuggestion("");
 			setError(null);
+			setSteps([]);
 
 			let token = getBearerToken();
 			if (!token) {
@@ -137,6 +162,17 @@ export default function SuggestionPage() {
 									setSuggestion((prev) => prev + parsed.delta);
 								} else if (parsed.type === "error") {
 									setError(friendlyError(parsed.errorText));
+								} else if (parsed.type === "data-thinking-step") {
+									const { id, title, status, items } = parsed.data;
+									setSteps((prev) => {
+										const existing = prev.findIndex((s) => s.id === id);
+										if (existing >= 0) {
+											const updated = [...prev];
+											updated[existing] = { id, title, status, items };
+											return updated;
+										}
+										return [...prev, { id, title, status, items }];
+									});
 								}
 							} catch {
 								continue;
@@ -185,13 +221,33 @@ export default function SuggestionPage() {
 		);
 	}
 
-	if (isLoading && !suggestion) {
+	const showLoading = isLoading && !suggestion;
+
+	if (showLoading) {
 		return (
 			<div className="suggestion-tooltip">
-				<div className="suggestion-loading">
-					<span className="suggestion-dot" />
-					<span className="suggestion-dot" />
-					<span className="suggestion-dot" />
+				<div className="agent-activity">
+					{steps.length === 0 && (
+						<div className="activity-initial">
+							<span className="step-spinner" />
+							<span className="activity-label">Preparing…</span>
+						</div>
+					)}
+					{steps.length > 0 && (
+						<div className="activity-steps">
+							{steps.map((step) => (
+								<div key={step.id} className="activity-step">
+									<StepIcon status={step.status} />
+									<span className="step-label">
+										{step.title}
+										{step.items.length > 0 && (
+											<span className="step-detail"> · {step.items[0]}</span>
+										)}
+									</span>
+								</div>
+							))}
+						</div>
+					)}
 				</div>
 			</div>
 		);

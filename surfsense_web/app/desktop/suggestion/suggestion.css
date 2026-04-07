@@ -19,13 +19,21 @@ body:has(.suggestion-body) {
 }
 
 .suggestion-tooltip {
+  box-sizing: border-box;
   background: #1e1e1e;
   border: 1px solid #3c3c3c;
   border-radius: 8px;
   padding: 8px 12px;
   margin: 4px;
   max-width: 400px;
+  /* MAX_HEIGHT in suggestion-window.ts is 400px. Subtract 8px for margin
+     (4px * 2) so the tooltip + margin fits within the Electron window.
+     box-sizing: border-box ensures padding + border are included. */
+  max-height: 392px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .suggestion-text {
@@ -35,6 +43,26 @@ body:has(.suggestion-body) {
   margin: 0 0 6px 0;
   word-wrap: break-word;
   white-space: pre-wrap;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.suggestion-text::-webkit-scrollbar {
+  width: 5px;
+}
+
+.suggestion-text::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.suggestion-text::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 3px;
+}
+
+.suggestion-text::-webkit-scrollbar-thumb:hover {
+  background: #777;
 }
 
 .suggestion-actions {
@@ -43,6 +71,7 @@ body:has(.suggestion-body) {
   gap: 4px;
   border-top: 1px solid #2a2a2a;
   padding-top: 6px;
+  flex-shrink: 0;
 }
 
 .suggestion-btn {
@@ -86,36 +115,77 @@ body:has(.suggestion-body) {
   font-size: 12px;
 }
 
-.suggestion-loading {
+/* --- Agent activity indicator --- */
+
+.agent-activity {
   display: flex;
-  gap: 5px;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  max-height: 340px;
+}
+
+.activity-initial {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 2px 0;
-  justify-content: center;
 }
 
-.suggestion-dot {
-  width: 4px;
-  height: 4px;
+.activity-label {
+  color: #a1a1aa;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.activity-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.activity-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 18px;
+}
+
+.step-label {
+  color: #d4d4d4;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.step-detail {
+  color: #71717a;
+  font-size: 11px;
+}
+
+/* Spinner (in_progress) */
+.step-spinner {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border: 1.5px solid #3f3f46;
+  border-top-color: #a78bfa;
   border-radius: 50%;
-  background: #666;
-  animation: suggestion-pulse 1.2s infinite ease-in-out;
+  animation: step-spin 0.7s linear infinite;
 }
 
-.suggestion-dot:nth-child(2) {
-  animation-delay: 0.15s;
+/* Checkmark icon (complete) */
+.step-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
-.suggestion-dot:nth-child(3) {
-  animation-delay: 0.3s;
-}
-
-@keyframes suggestion-pulse {
-  0%, 80%, 100% {
-    opacity: 0.3;
-    transform: scale(0.8);
-  }
-  40% {
-    opacity: 1;
-    transform: scale(1.1);
+@keyframes step-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
