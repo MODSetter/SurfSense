@@ -41,6 +41,7 @@ NotebookLM es una de las mejores y más útiles plataformas de IA que existen, p
 - **Sin Dependencia de Proveedores** - Configura cualquier modelo LLM, de imagen, TTS y STT.
 - **25+ Fuentes de Datos Externas** - Agrega tus fuentes desde Google Drive, OneDrive, Dropbox, Notion y muchos otros servicios externos.
 - **Soporte Multijugador en Tiempo Real** - Trabaja fácilmente con los miembros de tu equipo en un notebook compartido.
+- **Aplicación de Escritorio** - Obtén asistencia de IA en cualquier aplicación con Quick Assist, General Assist y Extreme Assist.
 
 ...y más por venir.
 
@@ -130,6 +131,18 @@ El script de instalación configura [Watchtower](https://github.com/nicholas-fed
 
 Para Docker Compose, instalación manual y otras opciones de despliegue, consulta la [documentación](https://www.surfsense.com/docs/).
 
+### Aplicación de Escritorio
+
+SurfSense también ofrece una aplicación de escritorio que lleva la asistencia de IA a cada aplicación en tu computadora. Descárgala desde la [última versión](https://github.com/MODSetter/SurfSense/releases/latest).
+
+La aplicación de escritorio incluye tres potentes funciones:
+
+- **General Assist** — Lanza SurfSense al instante desde cualquier aplicación con un atajo global.
+- **Quick Assist** — Selecciona texto en cualquier lugar, luego pide a la IA que lo explique, reescriba o actúe sobre él.
+- **Extreme Assist** — Obtén sugerencias de escritura en línea impulsadas por tu base de conocimiento mientras escribes en cualquier aplicación.
+
+Las tres funciones operan contra tu espacio de búsqueda elegido, por lo que tus respuestas siempre están basadas en tus propios datos.
+
 ### Cómo Colaborar en Tiempo Real (Beta)
 
 1. Ve a la página de Gestión de Miembros y crea una invitación.
@@ -174,6 +187,7 @@ Para Docker Compose, instalación manual y otras opciones de despliegue, consult
 | **Generación de Videos** | Resúmenes en video cinemáticos vía Veo 3 (solo Ultra) | Disponible (NotebookLM es mejor aquí, mejorando activamente) |
 | **Generación de Presentaciones** | Diapositivas más atractivas pero no editables | Crea presentaciones editables basadas en diapositivas |
 | **Generación de Podcasts** | Resúmenes de audio con hosts e idiomas personalizables | Disponible con múltiples proveedores TTS (NotebookLM es mejor aquí, mejorando activamente) |
+| **Aplicación de Escritorio** | No | Aplicación nativa con General Assist, Quick Assist y Extreme Assist — asistencia de IA en cualquier aplicación |
 | **Extensión de Navegador** | No | Extensión multi-navegador para guardar cualquier página web, incluyendo páginas protegidas por autenticación |
 
 <details>

@@ -41,6 +41,7 @@ O NotebookLM é uma das melhores e mais úteis plataformas de IA disponíveis, m
 - **Sem Dependência de Fornecedor** - Configure qualquer modelo LLM, de imagem, TTS e STT.
 - **25+ Fontes de Dados Externas** - Adicione suas fontes do Google Drive, OneDrive, Dropbox, Notion e muitos outros serviços externos.
 - **Suporte Multiplayer em Tempo Real** - Trabalhe facilmente com os membros da sua equipe em um notebook compartilhado.
+- **Aplicativo Desktop** - Obtenha assistência de IA em qualquer aplicativo com Quick Assist, General Assist e Extreme Assist.
 
 ...e mais por vir.
 
@@ -130,6 +131,18 @@ O script de instalação configura o [Watchtower](https://github.com/nicholas-fe
 
 Para Docker Compose, instalação manual e outras opções de implantação, consulte a [documentação](https://www.surfsense.com/docs/).
 
+### Aplicativo Desktop
+
+O SurfSense também oferece um aplicativo desktop que traz assistência de IA para cada aplicativo no seu computador. Baixe-o na [última versão](https://github.com/MODSetter/SurfSense/releases/latest).
+
+O aplicativo desktop inclui três recursos poderosos:
+
+- **General Assist** — Abra o SurfSense instantaneamente de qualquer aplicativo com um atalho global.
+- **Quick Assist** — Selecione texto em qualquer lugar, depois peça à IA para explicar, reescrever ou agir sobre ele.
+- **Extreme Assist** — Receba sugestões de escrita em linha alimentadas pela sua base de conhecimento enquanto digita em qualquer aplicativo.
+
+Os três recursos operam no espaço de busca escolhido, para que suas respostas sejam sempre baseadas nos seus próprios dados.
+
 ### Como Colaborar em Tempo Real (Beta)
 
 1. Acesse a página de Gerenciar Membros e crie um convite.
@@ -174,6 +187,7 @@ Para Docker Compose, instalação manual e outras opções de implantação, con
 | **Geração de Vídeos** | Visões gerais cinemáticas via Veo 3 (apenas Ultra) | Disponível (NotebookLM é melhor aqui, melhorando ativamente) |
 | **Geração de Apresentações** | Slides mais bonitos mas não editáveis | Cria apresentações editáveis baseadas em slides |
 | **Geração de Podcasts** | Visões gerais em áudio com hosts e idiomas personalizáveis | Disponível com múltiplos provedores TTS (NotebookLM é melhor aqui, melhorando ativamente) |
+| **Aplicativo Desktop** | Não | Aplicativo nativo com General Assist, Quick Assist e Extreme Assist — assistência de IA em qualquer aplicativo |
 | **Extensão de Navegador** | Não | Extensão multi-navegador para salvar qualquer página web, incluindo páginas protegidas por autenticação |
 
 <details>

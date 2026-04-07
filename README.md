@@ -41,6 +41,7 @@ NotebookLM is one of the best and most useful AI platforms out there, but once y
 - **No Vendor Lock-in** - Configure any LLM, image, TTS, and STT models to use.
 - **25+ External Data Sources** - Add your sources from Google Drive, OneDrive, Dropbox, Notion, and many other external services.
 - **Real-Time Multiplayer Support** - Work easily with your team members in a shared notebook.
+- **Desktop App** - Get AI assistance in any application with Quick Assist, General Assist, and Extreme Assist.
 
 ...and more to come.
 
@@ -131,6 +132,18 @@ The install script sets up [Watchtower](https://github.com/nicholas-fedor/watcht
 
 For Docker Compose, manual installation, and other deployment options, see the [docs](https://www.surfsense.com/docs/).
 
+### Desktop App
+
+SurfSense also ships a desktop app that brings AI assistance to every application on your computer. Download it from the [latest release](https://github.com/MODSetter/SurfSense/releases/latest).
+
+The desktop app includes three powerful features:
+
+- **General Assist** — Launch SurfSense instantly from any application with a global shortcut.
+- **Quick Assist** — Select text anywhere, then ask AI to explain, rewrite, or act on it.
+- **Extreme Assist** — Get inline writing suggestions powered by your knowledge base as you type in any app.
+
+All three features operate against your chosen search space, so your answers are always grounded in your own data.
+
 ### How to Realtime Collaborate (Beta)
 
 1. Go to Manage Members page and create an invite.
@@ -175,6 +188,7 @@ For Docker Compose, manual installation, and other deployment options, see the [
 | **Video Generation** | Cinematic Video Overviews via Veo 3 (Ultra only) | Available (NotebookLM is better here, actively improving) |
 | **Presentation Generation** | Better looking slides but not editable | Create editable, slide-based presentations |
 | **Podcast Generation** | Audio Overviews with customizable hosts and languages | Available with multiple TTS providers (NotebookLM is better here, actively improving) |
+| **Desktop App** | No | Native app with General Assist, Quick Assist, and Extreme Assist — AI help in any application |
 | **Browser Extension** | No | Cross-browser extension to save any webpage, including auth-protected pages |
 
 <details>
