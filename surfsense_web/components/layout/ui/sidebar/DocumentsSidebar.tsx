@@ -2,7 +2,7 @@
 
 import { useQuery } from "@rocicorp/zero/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { ChevronLeft, ChevronRight, FolderOpen, Trash2, Unplug } from "lucide-react";
+import { ChevronLeft, ChevronRight, FolderClock, Trash2, Unplug } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -757,7 +757,7 @@ export function DocumentsSidebar({
 					onClick={() => setFolderWatchOpen(true)}
 					className="shrink-0 mx-4 mb-4 flex select-none items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2 transition-colors hover:bg-muted/80"
 				>
-					<FolderOpen className="size-4 shrink-0 text-muted-foreground" />
+					<FolderClock className="size-4 shrink-0 text-muted-foreground" />
 					<span className="truncate text-xs text-muted-foreground">Watch local folder</span>
 				</button>
 			)}

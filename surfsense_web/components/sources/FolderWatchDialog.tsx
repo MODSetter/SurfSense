@@ -153,8 +153,7 @@ export function FolderWatchDialog({
 							onClick={handleSelectFolder}
 							className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/30 py-8 text-sm text-muted-foreground transition-colors hover:border-foreground/50 hover:text-foreground"
 						>
-							<FolderOpen className="h-5 w-5" />
-							Select folder
+							Browse for a folder
 						</button>
 					)}
 
