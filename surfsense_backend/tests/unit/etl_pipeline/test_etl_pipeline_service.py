@@ -250,6 +250,110 @@ async def test_extract_pdf_with_llamacloud(tmp_path, mocker):
 
 
 # ---------------------------------------------------------------------------
+# Slice 9b - AZURE_DI document parsing
+# ---------------------------------------------------------------------------
+
+
+async def test_extract_pdf_with_azure_di(tmp_path, mocker):
+    """A .pdf file with ETL_SERVICE=AZURE_DI returns parsed markdown."""
+    pdf_file = tmp_path / "report.pdf"
+    pdf_file.write_bytes(b"%PDF-1.4 fake content " * 10)
+
+    mocker.patch("app.config.config.ETL_SERVICE", "AZURE_DI")
+    mocker.patch("app.config.config.AZURE_DI_ENDPOINT", "https://fake.cognitiveservices.azure.com/", create=True)
+    mocker.patch("app.config.config.AZURE_DI_KEY", "fake-key", create=True)
+
+    class FakeResult:
+        content = "# Azure DI parsed"
+
+    fake_poller = mocker.AsyncMock()
+    fake_poller.result.return_value = FakeResult()
+
+    fake_client = mocker.AsyncMock()
+    fake_client.begin_analyze_document.return_value = fake_poller
+    fake_client.__aenter__ = mocker.AsyncMock(return_value=fake_client)
+    fake_client.__aexit__ = mocker.AsyncMock(return_value=False)
+
+    mocker.patch(
+        "azure.ai.documentintelligence.aio.DocumentIntelligenceClient",
+        return_value=fake_client,
+    )
+    mocker.patch(
+        "azure.ai.documentintelligence.models.DocumentContentFormat",
+        mocker.MagicMock(MARKDOWN="markdown"),
+    )
+    mocker.patch(
+        "azure.core.credentials.AzureKeyCredential",
+        return_value=mocker.MagicMock(),
+    )
+
+    result = await EtlPipelineService().extract(
+        EtlRequest(file_path=str(pdf_file), filename="report.pdf")
+    )
+
+    assert result.markdown_content == "# Azure DI parsed"
+    assert result.etl_service == "AZURE_DI"
+    assert result.content_type == "document"
+
+
+async def test_extract_docx_with_azure_di(tmp_path, mocker):
+    """A .docx file with ETL_SERVICE=AZURE_DI routes correctly."""
+    docx_file = tmp_path / "doc.docx"
+    docx_file.write_bytes(b"PK fake docx")
+
+    mocker.patch("app.config.config.ETL_SERVICE", "AZURE_DI")
+    mocker.patch("app.config.config.AZURE_DI_ENDPOINT", "https://fake.cognitiveservices.azure.com/", create=True)
+    mocker.patch("app.config.config.AZURE_DI_KEY", "fake-key", create=True)
+
+    class FakeResult:
+        content = "Docx content from Azure"
+
+    fake_poller = mocker.AsyncMock()
+    fake_poller.result.return_value = FakeResult()
+
+    fake_client = mocker.AsyncMock()
+    fake_client.begin_analyze_document.return_value = fake_poller
+    fake_client.__aenter__ = mocker.AsyncMock(return_value=fake_client)
+    fake_client.__aexit__ = mocker.AsyncMock(return_value=False)
+
+    mocker.patch(
+        "azure.ai.documentintelligence.aio.DocumentIntelligenceClient",
+        return_value=fake_client,
+    )
+    mocker.patch(
+        "azure.ai.documentintelligence.models.DocumentContentFormat",
+        mocker.MagicMock(MARKDOWN="markdown"),
+    )
+    mocker.patch(
+        "azure.core.credentials.AzureKeyCredential",
+        return_value=mocker.MagicMock(),
+    )
+
+    result = await EtlPipelineService().extract(
+        EtlRequest(file_path=str(docx_file), filename="doc.docx")
+    )
+
+    assert result.markdown_content == "Docx content from Azure"
+    assert result.etl_service == "AZURE_DI"
+    assert result.content_type == "document"
+
+
+async def test_extract_unsupported_ext_with_azure_di_raises(tmp_path, mocker):
+    """AZURE_DI rejects extensions it doesn't support (e.g. .epub)."""
+    from app.etl_pipeline.exceptions import EtlUnsupportedFileError
+
+    mocker.patch("app.config.config.ETL_SERVICE", "AZURE_DI")
+
+    epub_file = tmp_path / "book.epub"
+    epub_file.write_bytes(b"\x00" * 10)
+
+    with pytest.raises(EtlUnsupportedFileError, match="not supported by AZURE_DI"):
+        await EtlPipelineService().extract(
+            EtlRequest(file_path=str(epub_file), filename="book.epub")
+        )
+
+
+# ---------------------------------------------------------------------------
 # Slice 10 - unknown extension falls through to document ETL
 # ---------------------------------------------------------------------------
 
@@ -416,6 +520,13 @@ async def test_extract_zip_raises_unsupported_error(tmp_path):
         ("file.svg", "DOCLING", True),
         ("file.p7s", "UNSTRUCTURED", False),
         ("file.p7s", "LLAMACLOUD", True),
+        ("file.pdf", "AZURE_DI", False),
+        ("file.docx", "AZURE_DI", False),
+        ("file.heif", "AZURE_DI", False),
+        ("file.epub", "AZURE_DI", True),
+        ("file.doc", "AZURE_DI", True),
+        ("file.rtf", "AZURE_DI", True),
+        ("file.svg", "AZURE_DI", True),
     ],
 )
 def test_should_skip_for_service(filename, etl_service, expected_skip):

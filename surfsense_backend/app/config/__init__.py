@@ -397,6 +397,10 @@ class Config:
         # LlamaCloud API Key
         LLAMA_CLOUD_API_KEY = os.getenv("LLAMA_CLOUD_API_KEY")
 
+    elif ETL_SERVICE == "AZURE_DI":
+        AZURE_DI_ENDPOINT = os.getenv("AZURE_DI_ENDPOINT")
+        AZURE_DI_KEY = os.getenv("AZURE_DI_KEY")
+
     # Residential Proxy Configuration (anonymous-proxies.net)
     # Used for web crawling and YouTube transcript fetching to avoid IP bans.
     RESIDENTIAL_PROXY_USERNAME = os.getenv("RESIDENTIAL_PROXY_USERNAME")

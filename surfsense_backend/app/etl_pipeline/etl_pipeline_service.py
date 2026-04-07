@@ -56,7 +56,7 @@ class EtlPipelineService:
         if not etl_service:
             raise EtlServiceUnavailableError(
                 "No ETL_SERVICE configured. "
-                "Set ETL_SERVICE to UNSTRUCTURED, LLAMACLOUD, or DOCLING in your .env"
+                "Set ETL_SERVICE to UNSTRUCTURED, LLAMACLOUD, DOCLING, or AZURE_DI in your .env"
             )
 
         ext = PurePosixPath(request.filename).suffix.lower()
@@ -80,6 +80,12 @@ class EtlPipelineService:
             content = await parse_with_llamacloud(
                 request.file_path, request.estimated_pages
             )
+        elif etl_service == "AZURE_DI":
+            from app.etl_pipeline.parsers.azure_doc_intelligence import (
+                parse_with_azure_doc_intelligence,
+            )
+
+            content = await parse_with_azure_doc_intelligence(request.file_path)
         else:
             raise EtlServiceUnavailableError(f"Unknown ETL_SERVICE: {etl_service}")
 

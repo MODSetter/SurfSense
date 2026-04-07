@@ -93,6 +93,22 @@ UNSTRUCTURED_DOCUMENT_EXTENSIONS: frozenset[str] = frozenset(
     }
 )
 
+AZURE_DI_DOCUMENT_EXTENSIONS: frozenset[str] = frozenset(
+    {
+        ".pdf",
+        ".docx",
+        ".xlsx",
+        ".pptx",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".bmp",
+        ".tiff",
+        ".tif",
+        ".heif",
+    }
+)
+
 # ---------------------------------------------------------------------------
 # Union (used by classify_file for routing) + service lookup
 # ---------------------------------------------------------------------------
@@ -101,12 +117,14 @@ DOCUMENT_EXTENSIONS: frozenset[str] = (
     DOCLING_DOCUMENT_EXTENSIONS
     | LLAMAPARSE_DOCUMENT_EXTENSIONS
     | UNSTRUCTURED_DOCUMENT_EXTENSIONS
+    | AZURE_DI_DOCUMENT_EXTENSIONS
 )
 
 _SERVICE_MAP: dict[str, frozenset[str]] = {
     "DOCLING": DOCLING_DOCUMENT_EXTENSIONS,
     "LLAMACLOUD": LLAMAPARSE_DOCUMENT_EXTENSIONS,
     "UNSTRUCTURED": UNSTRUCTURED_DOCUMENT_EXTENSIONS,
+    "AZURE_DI": AZURE_DI_DOCUMENT_EXTENSIONS,
 }
 
 
