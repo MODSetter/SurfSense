@@ -85,7 +85,6 @@ const FILE_TYPE_CONFIG: Record<string, Record<string, string[]>> = {
 		"application/rtf": [".rtf"],
 		"application/xml": [".xml"],
 		"application/epub+zip": [".epub"],
-		"text/html": [".html", ".htm", ".web"],
 		"image/gif": [".gif"],
 		"image/svg+xml": [".svg"],
 		...audioFileTypes,
@@ -472,8 +471,9 @@ export function DocumentUploadTab({
 						</button>
 					))
 				) : (
-					<div
-						className="flex flex-col items-center gap-4 py-12 px-4 cursor-pointer"
+					<button
+						type="button"
+						className="flex flex-col items-center gap-4 py-12 px-4 cursor-pointer w-full bg-transparent border-none"
 						onClick={() => {
 							if (!isElectron) fileInputRef.current?.click();
 						}}
@@ -485,10 +485,16 @@ export function DocumentUploadTab({
 							</p>
 							<p className="text-sm text-muted-foreground">{t("file_size_limit")}</p>
 						</div>
-						<div className="w-full mt-1" onClick={(e) => e.stopPropagation()}>
+						{/* biome-ignore lint/a11y/useSemanticElements: wrapper to stop click propagation to parent button */}
+						<div
+							className="w-full mt-1"
+							onClick={(e) => e.stopPropagation()}
+							onKeyDown={(e) => e.stopPropagation()}
+							role="group"
+						>
 							{renderBrowseButton({ fullWidth: true })}
 						</div>
-					</div>
+					</button>
 				)}
 			</div>
 
@@ -683,9 +689,13 @@ export function DocumentUploadTab({
 						</span>
 					</AccordionTrigger>
 					<AccordionContent className="px-3 pb-3">
-						<div className="flex flex-wrap gap-1">
+						<div className="flex flex-wrap gap-1.5">
 							{supportedExtensions.map((ext) => (
-								<Badge key={ext} variant="outline" className="text-[10px] px-1.5 py-0">
+								<Badge
+									key={ext}
+									variant="secondary"
+									className="rounded border-0 bg-neutral-200/80 dark:bg-neutral-700/60 text-muted-foreground text-[10px] px-2 py-0.5 font-normal"
+								>
 									{ext}
 								</Badge>
 							))}

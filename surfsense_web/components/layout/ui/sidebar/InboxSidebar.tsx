@@ -790,36 +790,23 @@ export function InboxSidebarContent({
 								</DropdownMenuContent>
 							</DropdownMenu>
 						)}
-						{isMobile ? (
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-7 w-7 rounded-full"
-								onClick={handleMarkAllAsRead}
-								disabled={totalUnreadCount === 0}
-							>
-								<CheckCheck className="h-4 w-4 text-muted-foreground" />
-								<span className="sr-only">{t("mark_all_read") || "Mark all as read"}</span>
-							</Button>
-						) : (
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-7 w-7 rounded-full"
-										onClick={handleMarkAllAsRead}
-										disabled={totalUnreadCount === 0}
-									>
-										<CheckCheck className="h-4 w-4 text-muted-foreground" />
-										<span className="sr-only">{t("mark_all_read") || "Mark all as read"}</span>
-									</Button>
-								</TooltipTrigger>
-								<TooltipContent className="z-80">
-									{t("mark_all_read") || "Mark all as read"}
-								</TooltipContent>
-							</Tooltip>
-						)}
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-7 w-7 rounded-full"
+									onClick={handleMarkAllAsRead}
+									disabled={totalUnreadCount === 0}
+								>
+									<CheckCheck className="h-4 w-4 text-muted-foreground" />
+									<span className="sr-only">{t("mark_all_read") || "Mark all as read"}</span>
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent className="z-80">
+								{t("mark_all_read") || "Mark all as read"}
+							</TooltipContent>
+						</Tooltip>
 					</div>
 				</div>
 
@@ -932,30 +919,8 @@ export function InboxSidebarContent({
 									)}
 									style={{ contentVisibility: "auto", containIntrinsicSize: "0 80px" }}
 								>
-									{isMobile ? (
-										<button
-											type="button"
-											onClick={() => handleItemClick(item)}
-											disabled={isMarkingAsRead}
-											className="flex items-center gap-3 flex-1 min-w-0 text-left overflow-hidden"
-										>
-											<div className="shrink-0">{getStatusIcon(item)}</div>
-											<div className="flex-1 min-w-0 overflow-hidden">
-												<p
-													className={cn(
-														"text-xs font-medium line-clamp-2",
-														!item.read && "font-semibold"
-													)}
-												>
-													{item.title}
-												</p>
-												<p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
-													{convertRenderedToDisplay(item.message)}
-												</p>
-											</div>
-										</button>
-									) : (
-										<Tooltip>
+									{activeTab === "status" ? (
+										<Tooltip delayDuration={600}>
 											<TooltipTrigger asChild>
 												<button
 													type="button"
@@ -986,6 +951,28 @@ export function InboxSidebarContent({
 												</p>
 											</TooltipContent>
 										</Tooltip>
+									) : (
+										<button
+											type="button"
+											onClick={() => handleItemClick(item)}
+											disabled={isMarkingAsRead}
+											className="flex items-center gap-3 flex-1 min-w-0 text-left overflow-hidden"
+										>
+											<div className="shrink-0">{getStatusIcon(item)}</div>
+											<div className="flex-1 min-w-0 overflow-hidden">
+												<p
+													className={cn(
+														"text-xs font-medium line-clamp-2",
+														!item.read && "font-semibold"
+													)}
+												>
+													{item.title}
+												</p>
+												<p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
+													{convertRenderedToDisplay(item.message)}
+												</p>
+											</div>
+										</button>
 									)}
 
 									<div className="flex items-center justify-end gap-1.5 shrink-0 w-10">

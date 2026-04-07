@@ -366,7 +366,7 @@ async def test_full_scan_three_phase_counts(full_scan_mocks, monkeypatch):
     full_scan_mocks["download_mock"].return_value = (mock_docs, 0)
     full_scan_mocks["batch_mock"].return_value = ([], 2, 0)
 
-    indexed, skipped = await _run_full_scan(full_scan_mocks)
+    indexed, skipped, _unsupported = await _run_full_scan(full_scan_mocks)
 
     assert indexed == 3  # 1 renamed + 2 from batch
     assert skipped == 1  # 1 unchanged
@@ -497,7 +497,7 @@ async def test_delta_sync_removals_serial_rest_parallel(monkeypatch):
     mock_task_logger = MagicMock()
     mock_task_logger.log_task_progress = AsyncMock()
 
-    indexed, skipped = await _index_with_delta_sync(
+    indexed, skipped, _unsupported = await _index_with_delta_sync(
         MagicMock(),
         mock_session,
         MagicMock(),
@@ -589,7 +589,7 @@ async def test_selected_files_single_file_indexed(selected_files_mocks):
     )
     selected_files_mocks["download_and_index_mock"].return_value = (1, 0)
 
-    indexed, skipped, errors = await _run_selected(
+    indexed, skipped, _unsup, errors = await _run_selected(
         selected_files_mocks,
         [("f1", "report.pdf")],
     )
@@ -613,7 +613,7 @@ async def test_selected_files_fetch_failure_isolation(selected_files_mocks):
     )
     selected_files_mocks["download_and_index_mock"].return_value = (2, 0)
 
-    indexed, skipped, errors = await _run_selected(
+    indexed, skipped, _unsup, errors = await _run_selected(
         selected_files_mocks,
         [("f1", "first.txt"), ("f2", "mid.txt"), ("f3", "third.txt")],
     )
@@ -647,7 +647,7 @@ async def test_selected_files_skip_rename_counting(selected_files_mocks):
 
     selected_files_mocks["download_and_index_mock"].return_value = (2, 0)
 
-    indexed, skipped, errors = await _run_selected(
+    indexed, skipped, _unsup, errors = await _run_selected(
         selected_files_mocks,
         [
             ("s1", "unchanged.txt"),

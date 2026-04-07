@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { Bot, Check, ChevronDown, Edit3, ImageIcon, Plus, Zap } from "lucide-react";
+import { Bot, Check, ChevronDown, Edit3, ImageIcon, Plus, Search, Zap } from "lucide-react";
 import { type UIEvent, useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -344,7 +344,7 @@ export function ModelSelector({
 							>
 								<CommandEmpty className="py-8 text-center">
 									<div className="flex flex-col items-center gap-2">
-										<Bot className="size-8 text-muted-foreground" />
+										<Search className="size-8 text-muted-foreground" />
 										<p className="text-sm text-muted-foreground">No models found</p>
 										<p className="text-xs text-muted-foreground/60">Try a different search term</p>
 									</div>
@@ -531,8 +531,9 @@ export function ModelSelector({
 							>
 								<CommandEmpty className="py-8 text-center">
 									<div className="flex flex-col items-center gap-2">
-										<ImageIcon className="size-8 text-muted-foreground" />
+										<Search className="size-8 text-muted-foreground" />
 										<p className="text-sm text-muted-foreground">No image models found</p>
+										<p className="text-xs text-muted-foreground/60">Try a different search term</p>
 									</div>
 								</CommandEmpty>
 

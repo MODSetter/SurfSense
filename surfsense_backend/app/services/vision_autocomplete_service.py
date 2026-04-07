@@ -1,5 +1,5 @@
 import logging
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -68,8 +68,10 @@ def _is_vision_unsupported_error(e: Exception) -> bool:
 
 
 async def _extract_query_from_screenshot(
-    llm, screenshot_data_url: str,
-    app_name: str = "", window_title: str = "",
+    llm,
+    screenshot_data_url: str,
+    app_name: str = "",
+    window_title: str = "",
 ) -> str | None:
     """Ask the Vision LLM to describe what the user is working on.
 
@@ -78,18 +80,26 @@ async def _extract_query_from_screenshot(
     """
     if app_name:
         prompt_text = EXTRACT_QUERY_PROMPT_WITH_APP.format(
-            app_name=app_name, window_title=window_title,
+            app_name=app_name,
+            window_title=window_title,
         )
     else:
         prompt_text = EXTRACT_QUERY_PROMPT
 
     try:
-        response = await llm.ainvoke([
-            HumanMessage(content=[
-                {"type": "text", "text": prompt_text},
-                {"type": "image_url", "image_url": {"url": screenshot_data_url}},
-            ]),
-        ])
+        response = await llm.ainvoke(
+            [
+                HumanMessage(
+                    content=[
+                        {"type": "text", "text": prompt_text},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": screenshot_data_url},
+                        },
+                    ]
+                ),
+            ]
+        )
         query = response.content.strip() if hasattr(response, "content") else ""
         return query if query else None
     except Exception as e:
@@ -167,10 +177,15 @@ async def stream_vision_autocomplete(
     kb_context = ""
     try:
         query = await _extract_query_from_screenshot(
-            llm, screenshot_data_url, app_name=app_name, window_title=window_title,
+            llm,
+            screenshot_data_url,
+            app_name=app_name,
+            window_title=window_title,
         )
     except Exception as e:
-        logger.warning(f"Vision autocomplete: selected model does not support vision: {e}")
+        logger.warning(
+            f"Vision autocomplete: selected model does not support vision: {e}"
+        )
         yield streaming.format_message_start()
         yield streaming.format_error(vision_error_msg)
         yield streaming.format_done()
@@ -183,16 +198,18 @@ async def stream_vision_autocomplete(
 
     messages = [
         SystemMessage(content=system_prompt),
-        HumanMessage(content=[
-            {
-                "type": "text",
-                "text": "Analyze this screenshot. Understand the full context of what the user is working on, then generate the text they most likely want to write in the active text area.",
-            },
-            {
-                "type": "image_url",
-                "image_url": {"url": screenshot_data_url},
-            },
-        ]),
+        HumanMessage(
+            content=[
+                {
+                    "type": "text",
+                    "text": "Analyze this screenshot. Understand the full context of what the user is working on, then generate the text they most likely want to write in the active text area.",
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {"url": screenshot_data_url},
+                },
+            ]
+        ),
     ]
 
     text_started = False
@@ -217,7 +234,9 @@ async def stream_vision_autocomplete(
             yield streaming.format_text_end(text_id)
 
         if _is_vision_unsupported_error(e):
-            logger.warning(f"Vision autocomplete: selected model does not support vision: {e}")
+            logger.warning(
+                f"Vision autocomplete: selected model does not support vision: {e}"
+            )
             yield streaming.format_error(vision_error_msg)
         else:
             logger.error(f"Vision autocomplete streaming error: {e}", exc_info=True)

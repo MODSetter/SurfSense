@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,8 +31,11 @@ async def vision_autocomplete_stream(
 
     return StreamingResponse(
         stream_vision_autocomplete(
-            body.screenshot, body.search_space_id, session,
-            app_name=body.app_name, window_title=body.window_title,
+            body.screenshot,
+            body.search_space_id,
+            session,
+            app_name=body.app_name,
+            window_title=body.window_title,
         ),
         media_type="text/event-stream",
         headers={

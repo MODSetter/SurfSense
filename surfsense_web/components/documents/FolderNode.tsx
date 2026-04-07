@@ -56,7 +56,6 @@ interface FolderNodeProps {
 	depth: number;
 	isExpanded: boolean;
 	isRenaming: boolean;
-	childCount: number;
 	selectionState: FolderSelectionState;
 	processingState: "idle" | "processing" | "failed";
 	onToggleSelect: (folderId: number, selectAll: boolean) => void;
@@ -101,7 +100,6 @@ export const FolderNode = React.memo(function FolderNode({
 	depth,
 	isExpanded,
 	isRenaming,
-	childCount,
 	selectionState,
 	processingState,
 	onToggleSelect,
@@ -334,12 +332,6 @@ export const FolderNode = React.memo(function FolderNode({
 						/>
 					) : (
 						<span className="flex-1 min-w-0 truncate">{folder.name}</span>
-					)}
-
-					{!isRenaming && childCount > 0 && (
-						<span className="shrink-0 text-[10px] text-muted-foreground tabular-nums">
-							{childCount}
-						</span>
 					)}
 
 					{!isRenaming && (

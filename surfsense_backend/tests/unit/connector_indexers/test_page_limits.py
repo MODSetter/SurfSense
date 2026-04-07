@@ -198,7 +198,7 @@ async def test_gdrive_files_within_quota_are_downloaded(gdrive_selected_mocks):
         )
     m["download_and_index_mock"].return_value = (3, 0)
 
-    indexed, _skipped, errors = await _run_gdrive_selected(
+    indexed, _skipped, _unsup, errors = await _run_gdrive_selected(
         m, [("f1", "f1.xyz"), ("f2", "f2.xyz"), ("f3", "f3.xyz")]
     )
 
@@ -219,7 +219,9 @@ async def test_gdrive_files_exceeding_quota_rejected(gdrive_selected_mocks):
         None,
     )
 
-    indexed, _skipped, errors = await _run_gdrive_selected(m, [("big", "huge.pdf")])
+    indexed, _skipped, _unsup, errors = await _run_gdrive_selected(
+        m, [("big", "huge.pdf")]
+    )
 
     assert indexed == 0
     assert len(errors) == 1
@@ -239,7 +241,7 @@ async def test_gdrive_quota_mix_partial_indexing(gdrive_selected_mocks):
         )
     m["download_and_index_mock"].return_value = (2, 0)
 
-    indexed, _skipped, errors = await _run_gdrive_selected(
+    indexed, _skipped, _unsup, errors = await _run_gdrive_selected(
         m, [("f1", "f1.xyz"), ("f2", "f2.xyz"), ("f3", "f3.xyz")]
     )
 
@@ -299,7 +301,7 @@ async def test_gdrive_zero_quota_rejects_all(gdrive_selected_mocks):
             None,
         )
 
-    indexed, _skipped, errors = await _run_gdrive_selected(
+    indexed, _skipped, _unsup, errors = await _run_gdrive_selected(
         m, [("f1", "f1.xyz"), ("f2", "f2.xyz")]
     )
 
@@ -384,7 +386,7 @@ async def test_gdrive_full_scan_skips_over_quota(gdrive_full_scan_mocks, monkeyp
     m["download_mock"].return_value = ([], 0)
     m["batch_mock"].return_value = ([], 2, 0)
 
-    _indexed, skipped = await _run_gdrive_full_scan(m)
+    _indexed, skipped, _unsup = await _run_gdrive_full_scan(m)
 
     call_files = m["download_mock"].call_args[0][1]
     assert len(call_files) == 2
@@ -459,7 +461,7 @@ async def test_gdrive_delta_sync_skips_over_quota(monkeypatch):
     mock_task_logger = MagicMock()
     mock_task_logger.log_task_progress = AsyncMock()
 
-    _indexed, skipped = await _mod._index_with_delta_sync(
+    _indexed, skipped, _unsupported = await _mod._index_with_delta_sync(
         MagicMock(),
         session,
         MagicMock(),
@@ -552,7 +554,9 @@ async def test_onedrive_over_quota_rejected(onedrive_selected_mocks):
         None,
     )
 
-    indexed, _skipped, errors = await _run_onedrive_selected(m, [("big", "huge.pdf")])
+    indexed, _skipped, _unsup, errors = await _run_onedrive_selected(
+        m, [("big", "huge.pdf")]
+    )
 
     assert indexed == 0
     assert len(errors) == 1
@@ -652,7 +656,7 @@ async def test_dropbox_over_quota_rejected(dropbox_selected_mocks):
         None,
     )
 
-    indexed, _skipped, errors = await _run_dropbox_selected(
+    indexed, _skipped, _unsup, errors = await _run_dropbox_selected(
         m, [("/huge.pdf", "huge.pdf")]
     )
 

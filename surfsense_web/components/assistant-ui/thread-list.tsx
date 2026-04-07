@@ -241,9 +241,7 @@ const ThreadListItemComponent = memo(function ThreadListItemComponent({
 			<MessageSquareIcon className="size-4 shrink-0 text-muted-foreground" />
 			<div className="flex-1 min-w-0">
 				<p className="truncate text-sm font-medium">{thread.title || "New Chat"}</p>
-				<p className="truncate text-xs text-muted-foreground">
-					{relativeTime}
-				</p>
+				<p className="truncate text-xs text-muted-foreground">{relativeTime}</p>
 			</div>
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>

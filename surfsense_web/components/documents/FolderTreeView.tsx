@@ -86,16 +86,6 @@ export function FolderTreeView({
 
 	const docsByFolder = useMemo(() => groupBy(documents, (d) => d.folderId ?? "root"), [documents]);
 
-	const folderChildCounts = useMemo(() => {
-		const counts: Record<number, number> = {};
-		for (const f of folders) {
-			const children = foldersByParent[f.id] ?? [];
-			const docs = docsByFolder[f.id] ?? [];
-			counts[f.id] = children.length + docs.length;
-		}
-		return counts;
-	}, [folders, foldersByParent, docsByFolder]);
-
 	const [openContextMenuId, setOpenContextMenuId] = useState<string | null>(null);
 
 	// Single subscription for rename state — derived boolean passed to each FolderNode
@@ -106,14 +96,26 @@ export function FolderTreeView({
 	);
 	const handleCancelRename = useCallback(() => setRenamingFolderId(null), [setRenamingFolderId]);
 
+	const effectiveActiveTypes = useMemo(() => {
+		if (
+			activeTypes.includes("FILE" as DocumentTypeEnum) &&
+			!activeTypes.includes("LOCAL_FOLDER_FILE" as DocumentTypeEnum)
+		) {
+			return [...activeTypes, "LOCAL_FOLDER_FILE" as DocumentTypeEnum];
+		}
+		return activeTypes;
+	}, [activeTypes]);
+
 	const hasDescendantMatch = useMemo(() => {
-		if (activeTypes.length === 0 && !searchQuery) return null;
+		if (effectiveActiveTypes.length === 0 && !searchQuery) return null;
 		const match: Record<number, boolean> = {};
 
 		function check(folderId: number): boolean {
 			if (match[folderId] !== undefined) return match[folderId];
 			const childDocs = (docsByFolder[folderId] ?? []).some(
-				(d) => activeTypes.length === 0 || activeTypes.includes(d.document_type as DocumentTypeEnum)
+				(d) =>
+					effectiveActiveTypes.length === 0 ||
+					effectiveActiveTypes.includes(d.document_type as DocumentTypeEnum)
 			);
 			if (childDocs) {
 				match[folderId] = true;
@@ -134,7 +136,7 @@ export function FolderTreeView({
 			check(f.id);
 		}
 		return match;
-	}, [folders, docsByFolder, foldersByParent, activeTypes, searchQuery]);
+	}, [folders, docsByFolder, foldersByParent, effectiveActiveTypes, searchQuery]);
 
 	const folderSelectionStates = useMemo(() => {
 		const states: Record<number, FolderSelectionState> = {};
@@ -204,7 +206,9 @@ export function FolderTreeView({
 			? childFolders.filter((f) => hasDescendantMatch[f.id])
 			: childFolders;
 		const childDocs = (docsByFolder[key] ?? []).filter(
-			(d) => activeTypes.length === 0 || activeTypes.includes(d.document_type as DocumentTypeEnum)
+			(d) =>
+				effectiveActiveTypes.length === 0 ||
+				effectiveActiveTypes.includes(d.document_type as DocumentTypeEnum)
 		);
 
 		const nodes: React.ReactNode[] = [];
@@ -226,7 +230,6 @@ export function FolderTreeView({
 					depth={depth}
 					isExpanded={isExpanded}
 					isRenaming={renamingFolderId === f.id}
-					childCount={folderChildCounts[f.id] ?? 0}
 					selectionState={folderSelectionStates[f.id] ?? "none"}
 					processingState={folderProcessingStates[f.id] ?? "idle"}
 					onToggleSelect={onToggleFolderSelect}
@@ -289,7 +292,7 @@ export function FolderTreeView({
 		);
 	}
 
-	if (treeNodes.length === 0 && (activeTypes.length > 0 || searchQuery)) {
+	if (treeNodes.length === 0 && (effectiveActiveTypes.length > 0 || searchQuery)) {
 		return (
 			<div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 py-12 text-muted-foreground">
 				<Search className="h-10 w-10" />

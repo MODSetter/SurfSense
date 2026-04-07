@@ -531,7 +531,8 @@ export function DocumentsSidebar({
 	const typeCounts = useMemo(() => {
 		const counts: Partial<Record<string, number>> = {};
 		for (const d of treeDocuments) {
-			counts[d.document_type] = (counts[d.document_type] || 0) + 1;
+			const displayType = d.document_type === "LOCAL_FOLDER_FILE" ? "FILE" : d.document_type;
+			counts[displayType] = (counts[displayType] || 0) + 1;
 		}
 		return counts;
 	}, [treeDocuments]);
@@ -746,7 +747,7 @@ export function DocumentsSidebar({
 				</button>
 			</div>
 
-			<div className="flex-1 min-h-0 overflow-x-hidden pt-0 flex flex-col">
+			<div className="flex-1 min-h-0 pt-0 flex flex-col">
 				<div className="px-4 pb-2">
 					<DocumentsFilters
 						typeCounts={typeCounts}

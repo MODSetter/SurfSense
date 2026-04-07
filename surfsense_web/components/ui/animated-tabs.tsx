@@ -202,7 +202,10 @@ const Tabs = forwardRef<
 		},
 		[onValueChange, value]
 	);
-	const contextValue = useMemo(() => ({ activeValue, onValueChange: handleValueChange }), [activeValue, handleValueChange]);
+	const contextValue = useMemo(
+		() => ({ activeValue, onValueChange: handleValueChange }),
+		[activeValue, handleValueChange]
+	);
 	return (
 		<TabsContext.Provider value={contextValue}>
 			<div ref={ref} className={cn("tabs-container", className)} {...props}>

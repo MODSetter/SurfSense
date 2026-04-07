@@ -2,9 +2,9 @@ import { createCodePlugin } from "@streamdown/code";
 import { createMathPlugin } from "@streamdown/math";
 import { Streamdown, type StreamdownProps } from "streamdown";
 import "katex/dist/katex.min.css";
-import { cn } from "@/lib/utils";
-import Image from 'next/image';
 import { is } from "drizzle-orm";
+import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 const code = createCodePlugin({
 	themes: ["nord", "nord"],
@@ -130,30 +130,31 @@ export function MarkdownViewer({ content, className, maxLength }: MarkdownViewer
 		),
 		hr: ({ ...props }) => <hr className="my-4 border-muted" {...props} />,
 		img: ({ src, alt, width: _w, height: _h, ...props }) => {
-    	const isDataOrUnknownUrl = typeof src === "string" && (src.startsWith("data:") || !src.startsWith("http"));
+			const isDataOrUnknownUrl =
+				typeof src === "string" && (src.startsWith("data:") || !src.startsWith("http"));
 
-    return isDataOrUnknownUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-            className="max-w-full h-auto my-4 rounded"
-            alt={alt || "markdown image"}
-            src={src}
-            loading="lazy"
-            {...props}
-        />
-    ) : (
-        <Image
-            className="max-w-full h-auto my-4 rounded"
-            alt={alt || "markdown image"}
-            src={typeof src === "string" ? src : ""}
-            width={_w || 800}
-            height={_h || 600}
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 75vw, 60vw"
-            unoptimized={isDataOrUnknownUrl}
-            {...props}
-        />
-    );
-},
+			return isDataOrUnknownUrl ? (
+				// eslint-disable-next-line @next/next/no-img-element
+				<img
+					className="max-w-full h-auto my-4 rounded"
+					alt={alt || "markdown image"}
+					src={src}
+					loading="lazy"
+					{...props}
+				/>
+			) : (
+				<Image
+					className="max-w-full h-auto my-4 rounded"
+					alt={alt || "markdown image"}
+					src={typeof src === "string" ? src : ""}
+					width={_w || 800}
+					height={_h || 600}
+					sizes="(max-width: 768px) 100vw, (max-width: 1200px) 75vw, 60vw"
+					unoptimized={isDataOrUnknownUrl}
+					{...props}
+				/>
+			);
+		},
 		table: ({ ...props }) => (
 			<div className="overflow-x-auto my-4 rounded-lg border border-border w-full">
 				<table className="w-full divide-y divide-border" {...props} />

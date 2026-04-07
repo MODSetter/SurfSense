@@ -125,18 +125,16 @@ const DocumentUploadPopupContent: FC<{
 				onPointerDownOutside={(e) => e.preventDefault()}
 				onInteractOutside={(e) => e.preventDefault()}
 				onEscapeKeyDown={(e) => e.preventDefault()}
-				className="select-none max-w-2xl w-[95vw] sm:w-[640px] h-[min(440px,75dvh)] sm:h-[min(500px,80vh)] flex flex-col p-0 gap-0 overflow-hidden border border-border ring-0 bg-muted dark:bg-muted text-foreground [&>button]:right-3 sm:[&>button]:right-6 [&>button]:top-3 sm:[&>button]:top-5 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button]:z-[100] [&>button_svg]:size-4 sm:[&>button_svg]:size-5"
+				className="select-none max-w-2xl w-[95vw] sm:w-[640px] h-[min(440px,75dvh)] sm:h-[min(520px,80vh)] flex flex-col p-0 gap-0 overflow-hidden border border-border ring-0 bg-muted dark:bg-muted text-foreground [&>button]:right-3 sm:[&>button]:right-6 [&>button]:top-5 sm:[&>button]:top-8 [&>button]:opacity-80 [&>button]:hover:opacity-100 [&>button]:hover:bg-foreground/10 [&>button]:z-[100] [&>button>svg]:size-4 sm:[&>button>svg]:size-5"
 			>
 				<DialogTitle className="sr-only">Upload Document</DialogTitle>
 
 				<div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
-					<div className="sticky top-0 z-20 bg-muted px-4 sm:px-6 pt-4 sm:pt-5 pb-10">
+					<div className="sticky top-0 z-20 bg-muted px-4 sm:px-6 pt-6 sm:pt-8 pb-10">
 						<div className="flex items-center gap-2 mb-1 pr-8 sm:pr-0">
-							<h2 className="text-base sm:text-lg font-semibold tracking-tight">
-								Upload Documents
-							</h2>
+							<h2 className="text-xl sm:text-3xl font-semibold tracking-tight">Upload Documents</h2>
 						</div>
-						<p className="text-xs sm:text-sm text-muted-foreground line-clamp-1">
+						<p className="text-xs sm:text-base text-muted-foreground/80 line-clamp-1">
 							Upload and sync your documents to your search space
 						</p>
 					</div>
