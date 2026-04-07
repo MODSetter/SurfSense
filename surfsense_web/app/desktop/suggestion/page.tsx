@@ -97,6 +97,14 @@ export default function SuggestionPage() {
 		return () => clearTimeout(timer);
 	}, [error, api]);
 
+	useEffect(() => {
+		if (isLoading || error || options.length > 0) return;
+		const timer = setTimeout(() => {
+			api?.dismissSuggestion?.();
+		}, AUTO_DISMISS_MS);
+		return () => clearTimeout(timer);
+	}, [isLoading, error, options, api]);
+
 	const fetchSuggestion = useCallback(
 		async (screenshot: string, searchSpaceId: string, appName?: string, windowTitle?: string) => {
 			abortRef.current?.abort();
