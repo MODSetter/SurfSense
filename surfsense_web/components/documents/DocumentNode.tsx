@@ -191,9 +191,9 @@ export const DocumentNode = React.memo(function DocumentNode({
 											<AlertCircle className="h-3.5 w-3.5 text-destructive" />
 										</span>
 									</TooltipTrigger>
-								<TooltipContent side="top">
-									{doc.status?.reason || "Processing failed"}
-								</TooltipContent>
+									<TooltipContent side="top">
+										{doc.status?.reason || "Processing failed"}
+									</TooltipContent>
 								</Tooltip>
 							);
 						}
@@ -222,79 +222,83 @@ export const DocumentNode = React.memo(function DocumentNode({
 						</TooltipContent>
 					</Tooltip>
 
-				<span className="relative shrink-0 flex items-center justify-center h-6 w-6">
-					{getDocumentTypeIcon(
-						doc.document_type as DocumentTypeEnum,
-						"h-3.5 w-3.5 text-muted-foreground"
-					) && (
-						<span
-							className={cn(
-								"absolute inset-0 flex items-center justify-center transition-opacity pointer-events-none",
-								dropdownOpen ? "opacity-0" : "group-hover:opacity-0"
-							)}
-						>
-							{getDocumentTypeIcon(
-								doc.document_type as DocumentTypeEnum,
-								"h-3.5 w-3.5 text-muted-foreground"
-							)}
-						</span>
-					)}
-
-					<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-						<DropdownMenuTrigger asChild>
-							<Button
-								variant="ghost"
-								size="icon"
+					<span className="relative shrink-0 flex items-center justify-center h-6 w-6">
+						{getDocumentTypeIcon(
+							doc.document_type as DocumentTypeEnum,
+							"h-3.5 w-3.5 text-muted-foreground"
+						) && (
+							<span
 								className={cn(
-									"hidden sm:inline-flex h-6 w-6 shrink-0 hover:bg-transparent",
-									dropdownOpen
-										? "opacity-100 bg-accent hover:bg-accent"
-										: "opacity-0 group-hover:opacity-100"
+									"absolute inset-0 flex items-center justify-center transition-opacity pointer-events-none",
+									dropdownOpen ? "opacity-0" : "group-hover:opacity-0"
 								)}
+							>
+								{getDocumentTypeIcon(
+									doc.document_type as DocumentTypeEnum,
+									"h-3.5 w-3.5 text-muted-foreground"
+								)}
+							</span>
+						)}
+
+						<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+							<DropdownMenuTrigger asChild>
+								<Button
+									variant="ghost"
+									size="icon"
+									className={cn(
+										"hidden sm:inline-flex h-6 w-6 shrink-0 hover:bg-transparent",
+										dropdownOpen
+											? "opacity-100 bg-accent hover:bg-accent"
+											: "opacity-0 group-hover:opacity-100"
+									)}
+									onClick={(e) => e.stopPropagation()}
+								>
+									<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent
+								align="end"
+								className="w-40"
 								onClick={(e) => e.stopPropagation()}
 							>
-								<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" className="w-40" onClick={(e) => e.stopPropagation()}>
-							<DropdownMenuItem onClick={() => onPreview(doc)} disabled={isProcessing}>
-								<Eye className="mr-2 h-4 w-4" />
-								Open
-							</DropdownMenuItem>
-							{isEditable && (
-								<DropdownMenuItem onClick={() => onEdit(doc)}>
-									<PenLine className="mr-2 h-4 w-4" />
-									Edit
+								<DropdownMenuItem onClick={() => onPreview(doc)} disabled={isProcessing}>
+									<Eye className="mr-2 h-4 w-4" />
+									Open
 								</DropdownMenuItem>
-							)}
-							<DropdownMenuItem onClick={() => onMove(doc)}>
-								<Move className="mr-2 h-4 w-4" />
-								Move to...
-							</DropdownMenuItem>
-							{onExport && (
-								<DropdownMenuSub>
-									<DropdownMenuSubTrigger disabled={isProcessing}>
-										<Download className="mr-2 h-4 w-4" />
-										Export
-									</DropdownMenuSubTrigger>
-									<DropdownMenuSubContent className="min-w-[180px]">
-										<ExportDropdownItems onExport={handleExport} exporting={exporting} />
-									</DropdownMenuSubContent>
-								</DropdownMenuSub>
-							)}
-							{onVersionHistory && isVersionableType(doc.document_type) && (
-								<DropdownMenuItem disabled={isProcessing} onClick={() => onVersionHistory(doc)}>
-									<History className="mr-2 h-4 w-4" />
-									Versions
+								{isEditable && (
+									<DropdownMenuItem onClick={() => onEdit(doc)}>
+										<PenLine className="mr-2 h-4 w-4" />
+										Edit
+									</DropdownMenuItem>
+								)}
+								<DropdownMenuItem onClick={() => onMove(doc)}>
+									<Move className="mr-2 h-4 w-4" />
+									Move to...
 								</DropdownMenuItem>
-							)}
-							<DropdownMenuItem disabled={isProcessing} onClick={() => onDelete(doc)}>
-								<Trash2 className="mr-2 h-4 w-4" />
-								Delete
-							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
-				</span>
+								{onExport && (
+									<DropdownMenuSub>
+										<DropdownMenuSubTrigger disabled={isProcessing}>
+											<Download className="mr-2 h-4 w-4" />
+											Export
+										</DropdownMenuSubTrigger>
+										<DropdownMenuSubContent className="min-w-[180px]">
+											<ExportDropdownItems onExport={handleExport} exporting={exporting} />
+										</DropdownMenuSubContent>
+									</DropdownMenuSub>
+								)}
+								{onVersionHistory && isVersionableType(doc.document_type) && (
+									<DropdownMenuItem disabled={isProcessing} onClick={() => onVersionHistory(doc)}>
+										<History className="mr-2 h-4 w-4" />
+										Versions
+									</DropdownMenuItem>
+								)}
+								<DropdownMenuItem disabled={isProcessing} onClick={() => onDelete(doc)}>
+									<Trash2 className="mr-2 h-4 w-4" />
+									Delete
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					</span>
 				</div>
 			</ContextMenuTrigger>
 

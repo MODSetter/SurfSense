@@ -26,12 +26,16 @@ import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { useElectronAPI } from "@/hooks/use-platform";
-import { getAcceptedFileTypes, getSupportedExtensions, getSupportedExtensionsSet } from "@/lib/supported-extensions";
 import {
 	trackDocumentUploadFailure,
 	trackDocumentUploadStarted,
 	trackDocumentUploadSuccess,
 } from "@/lib/posthog/events";
+import {
+	getAcceptedFileTypes,
+	getSupportedExtensions,
+	getSupportedExtensionsSet,
+} from "@/lib/supported-extensions";
 
 interface DocumentUploadTabProps {
 	searchSpaceId: string;
@@ -137,20 +141,24 @@ export function DocumentUploadTab({
 		if (!paths || paths.length === 0) return;
 
 		const fileDataList = await electronAPI.readLocalFiles(paths);
-		const filtered = fileDataList.filter((fd: { name: string; data: ArrayBuffer; mimeType: string }) => {
-			const ext = fd.name.includes(".") ? `.${fd.name.split(".").pop()?.toLowerCase()}` : "";
-			return ext !== "" && supportedExtensionsSet.has(ext);
-		});
+		const filtered = fileDataList.filter(
+			(fd: { name: string; data: ArrayBuffer; mimeType: string }) => {
+				const ext = fd.name.includes(".") ? `.${fd.name.split(".").pop()?.toLowerCase()}` : "";
+				return ext !== "" && supportedExtensionsSet.has(ext);
+			}
+		);
 
 		if (filtered.length === 0) {
 			toast.error(t("no_supported_files_in_folder"));
 			return;
 		}
 
-		const newFiles: FileWithId[] = filtered.map((fd: { name: string; data: ArrayBuffer; mimeType: string }) => ({
-			id: crypto.randomUUID?.() ?? `file-${Date.now()}-${Math.random().toString(36)}`,
-			file: new File([fd.data], fd.name, { type: fd.mimeType }),
-		}));
+		const newFiles: FileWithId[] = filtered.map(
+			(fd: { name: string; data: ArrayBuffer; mimeType: string }) => ({
+				id: crypto.randomUUID?.() ?? `file-${Date.now()}-${Math.random().toString(36)}`,
+				file: new File([fd.data], fd.name, { type: fd.mimeType }),
+			})
+		);
 		setFiles((prev) => [...prev, ...newFiles]);
 	}, [electronAPI, supportedExtensionsSet, t]);
 
@@ -255,14 +263,14 @@ export function DocumentUploadTab({
 						className="dark:bg-neutral-800"
 						onClick={(e) => e.stopPropagation()}
 					>
-					<DropdownMenuItem onClick={handleBrowseFiles}>
-						<FileIcon className="h-4 w-4 mr-2" />
-						Files
-					</DropdownMenuItem>
-					<DropdownMenuItem onClick={() => folderInputRef.current?.click()}>
-						<FolderOpen className="h-4 w-4 mr-2" />
-						Folder
-					</DropdownMenuItem>
+						<DropdownMenuItem onClick={handleBrowseFiles}>
+							<FileIcon className="h-4 w-4 mr-2" />
+							Files
+						</DropdownMenuItem>
+						<DropdownMenuItem onClick={() => folderInputRef.current?.click()}>
+							<FolderOpen className="h-4 w-4 mr-2" />
+							Folder
+						</DropdownMenuItem>
 					</DropdownMenuContent>
 				</DropdownMenu>
 			);
@@ -320,8 +328,8 @@ export function DocumentUploadTab({
 
 			{/* MOBILE DROP ZONE */}
 			<div className="sm:hidden">
-			{hasContent ? (
-				isElectron ? (
+				{hasContent ? (
+					isElectron ? (
 						<div className="w-full">{renderBrowseButton({ compact: true, fullWidth: true })}</div>
 					) : (
 						<button

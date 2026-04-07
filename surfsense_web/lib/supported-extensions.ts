@@ -80,9 +80,7 @@ export function getAcceptedFileTypes(): Record<string, string[]> {
 	return FILE_TYPE_CONFIG[etlService || "default"] || FILE_TYPE_CONFIG.default;
 }
 
-export function getSupportedExtensions(
-	acceptedFileTypes?: Record<string, string[]>
-): string[] {
+export function getSupportedExtensions(acceptedFileTypes?: Record<string, string[]>): string[] {
 	const types = acceptedFileTypes ?? getAcceptedFileTypes();
 	return Array.from(new Set(Object.values(types).flat())).sort();
 }

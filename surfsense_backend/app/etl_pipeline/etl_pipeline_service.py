@@ -122,6 +122,4 @@ class EtlPipelineService:
 
         from app.etl_pipeline.parsers.llamacloud import parse_with_llamacloud
 
-        return await parse_with_llamacloud(
-            request.file_path, request.estimated_pages
-        )
+        return await parse_with_llamacloud(request.file_path, request.estimated_pages)

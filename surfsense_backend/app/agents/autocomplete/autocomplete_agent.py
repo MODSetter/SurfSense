@@ -452,9 +452,7 @@ async def stream_autocomplete_agent(
         raw_text = "".join(text_buffer)
         suggestions = _parse_suggestions(raw_text)
 
-        yield streaming_service.format_data(
-            "suggestions", {"options": suggestions}
-        )
+        yield streaming_service.format_data("suggestions", {"options": suggestions})
 
         yield streaming_service.format_finish()
         yield streaming_service.format_done()

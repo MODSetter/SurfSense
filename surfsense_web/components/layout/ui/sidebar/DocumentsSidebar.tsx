@@ -7,7 +7,6 @@ import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { DocumentsFilters } from "@/components/documents/DocumentsFilters";
 import { sidebarSelectedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
@@ -18,12 +17,13 @@ import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { CreateFolderDialog } from "@/components/documents/CreateFolderDialog";
 import type { DocumentNodeDoc } from "@/components/documents/DocumentNode";
+import { DocumentsFilters } from "@/components/documents/DocumentsFilters";
 import type { FolderDisplay } from "@/components/documents/FolderNode";
 import { FolderPickerDialog } from "@/components/documents/FolderPickerDialog";
-import { FolderWatchDialog, type SelectedFolder } from "@/components/sources/FolderWatchDialog";
 import { FolderTreeView } from "@/components/documents/FolderTreeView";
 import { VersionHistoryDialog } from "@/components/documents/version-history";
 import { EXPORT_FILE_EXTENSIONS } from "@/components/shared/ExportMenuItems";
+import { FolderWatchDialog, type SelectedFolder } from "@/components/sources/FolderWatchDialog";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -109,8 +109,7 @@ export function DocumentsSidebar({
 		const folderPath = await api.selectFolder();
 		if (!folderPath) return;
 
-		const folderName =
-			folderPath.split("/").pop() || folderPath.split("\\").pop() || folderPath;
+		const folderName = folderPath.split("/").pop() || folderPath.split("\\").pop() || folderPath;
 		setWatchInitialFolder({ path: folderPath, name: folderName });
 		setFolderWatchOpen(true);
 	}, []);

@@ -319,7 +319,11 @@ async def test_llamacloud_with_azure_di_uses_azure_for_pdf(tmp_path, mocker):
 
     mocker.patch("app.config.config.ETL_SERVICE", "LLAMACLOUD")
     mocker.patch("app.config.config.LLAMA_CLOUD_API_KEY", "fake-key", create=True)
-    mocker.patch("app.config.config.AZURE_DI_ENDPOINT", "https://fake.cognitiveservices.azure.com/", create=True)
+    mocker.patch(
+        "app.config.config.AZURE_DI_ENDPOINT",
+        "https://fake.cognitiveservices.azure.com/",
+        create=True,
+    )
     mocker.patch("app.config.config.AZURE_DI_KEY", "fake-key", create=True)
 
     fake_client = _mock_azure_di(mocker, "# Azure DI parsed")
@@ -343,7 +347,11 @@ async def test_llamacloud_azure_di_fallback_on_failure(tmp_path, mocker):
 
     mocker.patch("app.config.config.ETL_SERVICE", "LLAMACLOUD")
     mocker.patch("app.config.config.LLAMA_CLOUD_API_KEY", "fake-key", create=True)
-    mocker.patch("app.config.config.AZURE_DI_ENDPOINT", "https://fake.cognitiveservices.azure.com/", create=True)
+    mocker.patch(
+        "app.config.config.AZURE_DI_ENDPOINT",
+        "https://fake.cognitiveservices.azure.com/",
+        create=True,
+    )
     mocker.patch("app.config.config.AZURE_DI_KEY", "fake-key", create=True)
 
     mocker.patch(
@@ -369,7 +377,11 @@ async def test_llamacloud_skips_azure_di_for_unsupported_ext(tmp_path, mocker):
 
     mocker.patch("app.config.config.ETL_SERVICE", "LLAMACLOUD")
     mocker.patch("app.config.config.LLAMA_CLOUD_API_KEY", "fake-key", create=True)
-    mocker.patch("app.config.config.AZURE_DI_ENDPOINT", "https://fake.cognitiveservices.azure.com/", create=True)
+    mocker.patch(
+        "app.config.config.AZURE_DI_ENDPOINT",
+        "https://fake.cognitiveservices.azure.com/",
+        create=True,
+    )
     mocker.patch("app.config.config.AZURE_DI_KEY", "fake-key", create=True)
 
     fake_client = _mock_azure_di(mocker)
@@ -424,7 +436,10 @@ async def test_llamacloud_heif_accepted_only_with_azure_di(tmp_path, mocker):
             EtlRequest(file_path=str(heif_file), filename="photo.heif")
         )
 
-    mocker.patch("app.config.config.AZURE_DI_ENDPOINT", "https://fake.cognitiveservices.azure.com/")
+    mocker.patch(
+        "app.config.config.AZURE_DI_ENDPOINT",
+        "https://fake.cognitiveservices.azure.com/",
+    )
     mocker.patch("app.config.config.AZURE_DI_KEY", "fake-key")
 
     fake_client = _mock_azure_di(mocker, "# HEIF from Azure DI")

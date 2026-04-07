@@ -1310,9 +1310,7 @@ class VisionLLMConfig(BaseModel, TimestampMixin):
     search_space_id = Column(
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
     )
-    search_space = relationship(
-        "SearchSpace", back_populates="vision_llm_configs"
-    )
+    search_space = relationship("SearchSpace", back_populates="vision_llm_configs")
 
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False

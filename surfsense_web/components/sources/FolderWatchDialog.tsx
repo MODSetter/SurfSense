@@ -55,10 +55,7 @@ export function FolderWatchDialog({
 		}
 	}, [open, initialFolder]);
 
-	const supportedExtensions = useMemo(
-		() => Array.from(getSupportedExtensionsSet()),
-		[]
-	);
+	const supportedExtensions = useMemo(() => Array.from(getSupportedExtensionsSet()), []);
 
 	const handleSelectFolder = useCallback(async () => {
 		const api = window.electronAPI;
@@ -67,8 +64,7 @@ export function FolderWatchDialog({
 		const folderPath = await api.selectFolder();
 		if (!folderPath) return;
 
-		const folderName =
-			folderPath.split("/").pop() || folderPath.split("\\").pop() || folderPath;
+		const folderName = folderPath.split("/").pop() || folderPath.split("\\").pop() || folderPath;
 		setSelectedFolder({ path: folderPath, name: folderName });
 	}, []);
 
@@ -87,8 +83,7 @@ export function FolderWatchDialog({
 				file_extensions: supportedExtensions,
 			});
 
-			const rootFolderId =
-				(result as { root_folder_id?: number })?.root_folder_id ?? null;
+			const rootFolderId = (result as { root_folder_id?: number })?.root_folder_id ?? null;
 
 			await api.addWatchedFolder({
 				path: selectedFolder.path,
@@ -110,7 +105,14 @@ export function FolderWatchDialog({
 		} finally {
 			setSubmitting(false);
 		}
-	}, [selectedFolder, searchSpaceId, shouldSummarize, supportedExtensions, onOpenChange, onSuccess]);
+	}, [
+		selectedFolder,
+		searchSpaceId,
+		shouldSummarize,
+		supportedExtensions,
+		onOpenChange,
+		onSuccess,
+	]);
 
 	const handleOpenChange = useCallback(
 		(nextOpen: boolean) => {
@@ -128,18 +130,14 @@ export function FolderWatchDialog({
 			<DialogContent className="sm:max-w-md select-none">
 				<DialogHeader>
 					<DialogTitle>Watch Local Folder</DialogTitle>
-					<DialogDescription>
-						Select a folder to sync and watch for changes.
-					</DialogDescription>
+					<DialogDescription>Select a folder to sync and watch for changes.</DialogDescription>
 				</DialogHeader>
 
 				<div className="space-y-3 pt-2">
 					{selectedFolder ? (
 						<div className="flex items-center gap-2 py-1.5 pl-4 pr-2 rounded-md bg-slate-400/5 dark:bg-white/5 overflow-hidden">
 							<div className="min-w-0 flex-1 select-text">
-								<p className="text-sm font-medium break-all line-clamp-2">
-									{selectedFolder.name}
-								</p>
+								<p className="text-sm font-medium break-all line-clamp-2">{selectedFolder.name}</p>
 								<p className="text-xs text-muted-foreground break-all line-clamp-2">
 									{selectedFolder.path}
 								</p>
@@ -173,20 +171,11 @@ export function FolderWatchDialog({
 										Improves search quality but adds latency
 									</p>
 								</div>
-								<Switch
-									checked={shouldSummarize}
-									onCheckedChange={setShouldSummarize}
-								/>
+								<Switch checked={shouldSummarize} onCheckedChange={setShouldSummarize} />
 							</div>
 
-							<Button
-								className="w-full relative"
-								onClick={handleSubmit}
-								disabled={submitting}
-							>
-								<span className={submitting ? "invisible" : ""}>
-									Start Folder Sync
-								</span>
+							<Button className="w-full relative" onClick={handleSubmit} disabled={submitting}>
+								<span className={submitting ? "invisible" : ""}>Start Folder Sync</span>
 								{submitting && (
 									<span className="absolute inset-0 flex items-center justify-center">
 										<Spinner size="sm" />

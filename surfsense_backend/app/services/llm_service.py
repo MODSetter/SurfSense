@@ -434,9 +434,7 @@ async def get_vision_llm(
 
         config_id = search_space.vision_llm_config_id
         if config_id is None:
-            logger.error(
-                f"No vision LLM configured for search space {search_space_id}"
-            )
+            logger.error(f"No vision LLM configured for search space {search_space_id}")
             return None
 
         if is_vision_auto_mode(config_id):

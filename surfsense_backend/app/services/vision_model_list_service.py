@@ -15,7 +15,9 @@ import httpx
 logger = logging.getLogger(__name__)
 
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/models"
-FALLBACK_FILE = Path(__file__).parent.parent / "config" / "vision_model_list_fallback.json"
+FALLBACK_FILE = (
+    Path(__file__).parent.parent / "config" / "vision_model_list_fallback.json"
+)
 CACHE_TTL_SECONDS = 86400  # 24 hours
 
 _cache: list[dict] | None = None
