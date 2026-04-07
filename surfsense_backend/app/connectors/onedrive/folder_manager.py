@@ -71,8 +71,10 @@ async def get_files_in_folder(
                         )
                         continue
                     files.extend(sub_files)
-            elif not should_skip_file(item):
-                files.append(item)
+            else:
+                skip, _unsup_ext = should_skip_file(item)
+                if not skip:
+                    files.append(item)
 
         return files, None
 

@@ -248,7 +248,7 @@ class TestKnowledgeBaseSearchMiddlewarePlanner:
             return []
 
         async def fake_build_scoped_filesystem(**kwargs):
-            return {}
+            return {}, {}
 
         monkeypatch.setattr(
             "app.agents.new_chat.middleware.knowledge_search.search_knowledge_base",
@@ -298,7 +298,7 @@ class TestKnowledgeBaseSearchMiddlewarePlanner:
             return []
 
         async def fake_build_scoped_filesystem(**kwargs):
-            return {}
+            return {}, {}
 
         monkeypatch.setattr(
             "app.agents.new_chat.middleware.knowledge_search.search_knowledge_base",
@@ -334,7 +334,7 @@ class TestKnowledgeBaseSearchMiddlewarePlanner:
             return []
 
         async def fake_build_scoped_filesystem(**kwargs):
-            return {}
+            return {}, {}
 
         monkeypatch.setattr(
             "app.agents.new_chat.middleware.knowledge_search.search_knowledge_base",

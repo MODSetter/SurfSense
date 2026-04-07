@@ -144,18 +144,14 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 					type="button"
 					onClick={handleFormSubmit}
 					disabled={isSubmitting}
-					className="text-xs sm:text-sm min-w-[140px] disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
+					className="relative text-xs sm:text-sm min-w-[140px] disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
 				>
-					{isSubmitting ? (
-						<>
-							<Spinner size="sm" className="mr-2" />
-							Connecting
-						</>
-					) : connectorType === "MCP_CONNECTOR" ? (
-						"Connect"
-					) : (
-						`Connect ${getConnectorTypeDisplay(connectorType)}`
-					)}
+					<span className={isSubmitting ? "opacity-0" : ""}>
+						{connectorType === "MCP_CONNECTOR"
+							? "Connect"
+							: `Connect ${getConnectorTypeDisplay(connectorType)}`}
+					</span>
+					{isSubmitting && <Spinner size="sm" className="absolute" />}
 				</Button>
 			</div>
 		</div>

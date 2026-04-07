@@ -14,86 +14,17 @@ from app.utils.document_converters import (
     create_document_chunks,
     generate_content_hash,
     generate_document_summary,
-    generate_unique_identifier_hash,
 )
 
+from ._helpers import (
+    find_existing_document_with_migration,
+    get_google_drive_unique_identifier,
+)
 from .base import (
-    check_document_by_unique_identifier,
     check_duplicate_document,
     get_current_timestamp,
     safe_set_chunks,
 )
-
-
-def _get_google_drive_unique_identifier(
-    connector: dict | None,
-    filename: str,
-    search_space_id: int,
-) -> tuple[str, str | None]:
-    """
-    Get unique identifier hash for a file, with special handling for Google Drive.
-
-    For Google Drive files, uses file_id as the unique identifier (doesn't change on rename).
-    For other files, uses filename.
-
-    Args:
-        connector: Optional connector info dict with type and metadata
-        filename: The filename (used for non-Google Drive files or as fallback)
-        search_space_id: The search space ID
-
-    Returns:
-        Tuple of (primary_hash, legacy_hash or None)
-    """
-    if connector and connector.get("type") == DocumentType.GOOGLE_DRIVE_FILE:
-        metadata = connector.get("metadata", {})
-        file_id = metadata.get("google_drive_file_id")
-
-        if file_id:
-            primary_hash = generate_unique_identifier_hash(
-                DocumentType.GOOGLE_DRIVE_FILE, file_id, search_space_id
-            )
-            legacy_hash = generate_unique_identifier_hash(
-                DocumentType.GOOGLE_DRIVE_FILE, filename, search_space_id
-            )
-            return primary_hash, legacy_hash
-
-    primary_hash = generate_unique_identifier_hash(
-        DocumentType.FILE, filename, search_space_id
-    )
-    return primary_hash, None
-
-
-async def _find_existing_document_with_migration(
-    session: AsyncSession,
-    primary_hash: str,
-    legacy_hash: str | None,
-    content_hash: str | None = None,
-) -> Document | None:
-    """
-    Find existing document, checking both new hash and legacy hash for migration,
-    with fallback to content_hash for cross-source deduplication.
-    """
-    existing_document = await check_document_by_unique_identifier(session, primary_hash)
-
-    if not existing_document and legacy_hash:
-        existing_document = await check_document_by_unique_identifier(
-            session, legacy_hash
-        )
-        if existing_document:
-            logging.info(
-                "Found legacy document (filename-based hash), will migrate to file_id-based hash"
-            )
-
-    # Fallback: check by content_hash to catch duplicates from different sources
-    if not existing_document and content_hash:
-        existing_document = await check_duplicate_document(session, content_hash)
-        if existing_document:
-            logging.info(
-                f"Found duplicate content from different source (content_hash match). "
-                f"Original document ID: {existing_document.id}, type: {existing_document.document_type}"
-            )
-
-    return existing_document
 
 
 async def _handle_existing_document_update(
@@ -224,7 +155,7 @@ async def add_received_markdown_file_document(
 
     try:
         # Generate unique identifier hash (uses file_id for Google Drive, filename for others)
-        primary_hash, legacy_hash = _get_google_drive_unique_identifier(
+        primary_hash, legacy_hash = get_google_drive_unique_identifier(
             connector, file_name, search_space_id
         )
 
@@ -232,7 +163,7 @@ async def add_received_markdown_file_document(
         content_hash = generate_content_hash(file_in_markdown, search_space_id)
 
         # Check if document exists (with migration support for Google Drive and content_hash fallback)
-        existing_document = await _find_existing_document_with_migration(
+        existing_document = await find_existing_document_with_migration(
             session, primary_hash, legacy_hash, content_hash
         )
 

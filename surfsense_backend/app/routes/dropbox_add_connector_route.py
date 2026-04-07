@@ -311,9 +311,11 @@ async def dropbox_callback(
                 )
 
             existing_cursor = db_connector.config.get("cursor")
+            existing_folder_cursors = db_connector.config.get("folder_cursors")
             db_connector.config = {
                 **connector_config,
                 "cursor": existing_cursor,
+                "folder_cursors": existing_folder_cursors,
                 "auth_expired": False,
             }
             flag_modified(db_connector, "config")

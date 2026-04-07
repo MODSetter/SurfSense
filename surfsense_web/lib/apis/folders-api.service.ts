@@ -85,6 +85,10 @@ class FoldersApiService {
 		return baseApiService.delete(`/api/v1/folders/${folderId}`, folderDeleteResponse);
 	};
 
+	stopWatching = async (folderId: number) => {
+		return baseApiService.patch(`/api/v1/folders/${folderId}/watched`, undefined);
+	};
+
 	moveDocument = async (documentId: number, request: DocumentMoveRequest) => {
 		const parsed = documentMoveRequest.safeParse(request);
 		if (!parsed.success) {

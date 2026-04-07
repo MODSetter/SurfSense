@@ -104,12 +104,18 @@ async function buildElectron() {
     bundle: true,
     platform: 'node',
     target: 'node18',
-    external: ['electron'],
+    external: ['electron', 'node-mac-permissions', 'bindings', 'file-uri-to-path'],
     sourcemap: true,
     minify: false,
     define: {
       'process.env.HOSTED_FRONTEND_URL': JSON.stringify(
         process.env.HOSTED_FRONTEND_URL || desktopEnv.HOSTED_FRONTEND_URL || 'https://surfsense.net'
+      ),
+      'process.env.POSTHOG_KEY': JSON.stringify(
+        process.env.POSTHOG_KEY || desktopEnv.POSTHOG_KEY || ''
+      ),
+      'process.env.POSTHOG_HOST': JSON.stringify(
+        process.env.POSTHOG_HOST || desktopEnv.POSTHOG_HOST || 'https://assets.surfsense.com'
       ),
     },
   };

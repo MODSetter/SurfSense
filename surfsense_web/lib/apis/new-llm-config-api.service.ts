@@ -147,7 +147,7 @@ class NewLLMConfigApiService {
 	};
 
 	/**
-	 * Get the dynamic LLM model catalogue (sourced from OpenRouter API)
+	 * Get the dynamic model catalogue (sourced from OpenRouter API)
 	 */
 	getModels = async () => {
 		return baseApiService.get(`/api/v1/models`, getModelListResponse);

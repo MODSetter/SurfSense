@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from .airtable_add_connector_route import (
     router as airtable_add_connector_router,
 )
+from .autocomplete_routes import router as autocomplete_router
 from .chat_comments_routes import router as chat_comments_router
 from .circleback_webhook_route import router as circleback_webhook_router
 from .clickup_add_connector_route import router as clickup_add_connector_router
@@ -48,6 +49,7 @@ from .stripe_routes import router as stripe_router
 from .surfsense_docs_routes import router as surfsense_docs_router
 from .teams_add_connector_route import router as teams_add_connector_router
 from .video_presentations_routes import router as video_presentations_router
+from .vision_llm_routes import router as vision_llm_router
 from .youtube_routes import router as youtube_router
 
 router = APIRouter()
@@ -67,6 +69,7 @@ router.include_router(
 )  # Video presentation status and streaming
 router.include_router(reports_router)  # Report CRUD and multi-format export
 router.include_router(image_generation_router)  # Image generation via litellm
+router.include_router(vision_llm_router)  # Vision LLM configs for screenshot analysis
 router.include_router(search_source_connectors_router)
 router.include_router(google_calendar_add_connector_router)
 router.include_router(google_gmail_add_connector_router)
@@ -84,7 +87,7 @@ router.include_router(confluence_add_connector_router)
 router.include_router(clickup_add_connector_router)
 router.include_router(dropbox_add_connector_router)
 router.include_router(new_llm_config_router)  # LLM configs with prompt configuration
-router.include_router(model_list_router)  # Dynamic LLM model catalogue from OpenRouter
+router.include_router(model_list_router)  # Dynamic model catalogue from OpenRouter
 router.include_router(logs_router)
 router.include_router(circleback_webhook_router)  # Circleback meeting webhooks
 router.include_router(surfsense_docs_router)  # Surfsense documentation for citations
@@ -95,3 +98,4 @@ router.include_router(incentive_tasks_router)  # Incentive tasks for earning fre
 router.include_router(stripe_router)  # Stripe checkout for additional page packs
 router.include_router(youtube_router)  # YouTube playlist resolution
 router.include_router(prompts_router)
+router.include_router(autocomplete_router)  # Lightweight autocomplete with KB context

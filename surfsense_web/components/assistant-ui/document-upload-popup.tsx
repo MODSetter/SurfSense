@@ -125,38 +125,33 @@ const DocumentUploadPopupContent: FC<{
 				onPointerDownOutside={(e) => e.preventDefault()}
 				onInteractOutside={(e) => e.preventDefault()}
 				onEscapeKeyDown={(e) => e.preventDefault()}
-				className="select-none max-w-4xl w-[95vw] sm:w-full h-[calc(100dvh-2rem)] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border ring-0 bg-muted dark:bg-muted text-foreground [&>button]:right-3 sm:[&>button]:right-12 [&>button]:top-3 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button]:z-[100] [&>button_svg]:size-4 sm:[&>button_svg]:size-5"
+				className="select-none max-w-2xl w-[95vw] sm:w-[640px] h-[min(440px,75dvh)] sm:h-[min(520px,80vh)] flex flex-col p-0 gap-0 overflow-hidden border border-border ring-0 bg-muted dark:bg-muted text-foreground [&>button]:right-3 sm:[&>button]:right-6 [&>button]:top-5 sm:[&>button]:top-8 [&>button]:opacity-80 [&>button]:hover:opacity-100 [&>button]:hover:bg-foreground/10 [&>button]:z-[100] [&>button>svg]:size-4 sm:[&>button>svg]:size-5"
 			>
 				<DialogTitle className="sr-only">Upload Document</DialogTitle>
 
-				{/* Scrollable container for mobile */}
 				<div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
-					{/* Header - scrolls with content on mobile */}
-					<div className="sticky top-0 z-20 bg-muted px-4 sm:px-12 pt-4 sm:pt-10 pb-2 sm:pb-0">
-						{/* Upload header */}
-						<div className="flex items-center gap-2 sm:gap-4 mb-2 sm:mb-6">
-							<div className="flex-1 min-w-0 pr-8 sm:pr-0">
-								<h2 className="text-base sm:text-2xl font-semibold tracking-tight">
-									Upload Documents
-								</h2>
-								<p className="text-xs sm:text-base text-muted-foreground mt-0.5 sm:mt-1 line-clamp-1 sm:line-clamp-none">
-									Upload and sync your documents to your search space
-								</p>
-							</div>
+					<div className="sticky top-0 z-20 bg-muted px-4 sm:px-6 pt-6 sm:pt-8 pb-10">
+						<div className="flex items-center gap-2 mb-1 pr-8 sm:pr-0">
+							<h2 className="text-xl sm:text-3xl font-semibold tracking-tight">Upload Documents</h2>
 						</div>
+						<p className="text-xs sm:text-base text-muted-foreground/80 line-clamp-1">
+							Upload and sync your documents to your search space
+						</p>
 					</div>
 
-					{/* Content */}
-					<div className="px-4 sm:px-12 pb-4 sm:pb-16">
+					<div className="px-4 sm:px-6 pb-4 sm:pb-6">
 						{!isLoading && !hasDocumentSummaryLLM ? (
-							<Alert variant="destructive" className="mb-4">
+							<Alert
+								variant="destructive"
+								className="mb-4 bg-muted/50 rounded-xl border-destructive/30"
+							>
 								<AlertTriangle className="h-4 w-4" />
 								<AlertTitle>LLM Configuration Required</AlertTitle>
 								<AlertDescription className="mt-2">
 									<p className="mb-3">
 										{isAutoMode && !hasGlobalConfigs
-											? "Auto mode is selected but no global LLM configurations are available. Please configure a custom LLM in Settings to process and summarize your uploaded documents."
-											: "You need to configure a Document Summary LLM before uploading files. This LLM is used to process and summarize your uploaded documents."}
+											? "Auto mode requires a global LLM configuration. Please add one in Settings"
+											: "A Document Summary LLM is required to process uploads, configure one in Settings"}
 									</p>
 									<Button
 										size="sm"
@@ -179,9 +174,6 @@ const DocumentUploadPopupContent: FC<{
 						)}
 					</div>
 				</div>
-
-				{/* Bottom fade shadow - hidden on very small screens */}
-				<div className="hidden sm:block absolute bottom-0 left-0 right-0 h-7 bg-gradient-to-t from-muted via-muted/80 to-transparent pointer-events-none z-10" />
 			</DialogContent>
 		</Dialog>
 	);

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { USER_QUERY_KEY } from "@/atoms/user/user-query.atoms";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
-import { getBearerToken, redirectToLogin } from "@/lib/auth-utils";
+import { ensureTokensFromElectron, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 import { queryClient } from "@/lib/query-client/client";
 
 interface DashboardLayoutProps {
@@ -17,15 +17,20 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 	useGlobalLoadingEffect(isCheckingAuth);
 
 	useEffect(() => {
-		// Check if user is authenticated
-		const token = getBearerToken();
-		if (!token) {
-			// Save current path and redirect to login
-			redirectToLogin();
-			return;
+		async function checkAuth() {
+			let token = getBearerToken();
+			if (!token) {
+				const synced = await ensureTokensFromElectron();
+				if (synced) token = getBearerToken();
+			}
+			if (!token) {
+				redirectToLogin();
+				return;
+			}
+			queryClient.invalidateQueries({ queryKey: [...USER_QUERY_KEY] });
+			setIsCheckingAuth(false);
 		}
-		queryClient.invalidateQueries({ queryKey: [...USER_QUERY_KEY] });
-		setIsCheckingAuth(false);
+		checkAuth();
 	}, []);
 
 	// Return null while loading - the global provider handles the loading UI

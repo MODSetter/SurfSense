@@ -2,6 +2,7 @@
 
 import type { LucideIcon } from "lucide-react";
 import { Code2, Database, ExternalLink, File, FileText, Globe, Newspaper } from "lucide-react";
+import NextImage from "next/image";
 import * as React from "react";
 import { openSafeNavigationHref, sanitizeHref } from "../shared/media";
 import { cn, Popover, PopoverContent, PopoverTrigger } from "./_adapter";
@@ -114,14 +115,14 @@ export function Citation(props: CitationProps) {
 	};
 
 	const iconElement = favicon ? (
-		// biome-ignore lint/performance/noImgElement: external favicon from arbitrary domain — next/image requires remotePatterns config
-		<img
+		<NextImage
 			src={favicon}
 			alt=""
 			aria-hidden="true"
-			width={14}
-			height={14}
+			width={16}
+			height={16}
 			className="bg-muted size-3.5 shrink-0 rounded object-cover"
+			unoptimized={true}
 		/>
 	) : (
 		<TypeIcon className="size-3.5 shrink-0 opacity-60" aria-hidden="true" />

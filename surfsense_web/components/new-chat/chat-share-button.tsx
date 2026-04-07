@@ -163,21 +163,16 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 			)}
 
 			<Popover open={open} onOpenChange={setOpen}>
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<PopoverTrigger asChild>
-							<Button
-								variant="outline"
-								size="icon"
-								className="h-8 w-8 md:w-auto md:px-3 md:gap-2 relative bg-muted hover:bg-muted/80 border-0 select-none"
-							>
-								<CurrentIcon className="h-4 w-4" />
-								<span className="hidden md:inline text-sm">{buttonLabel}</span>
-							</Button>
-						</PopoverTrigger>
-					</TooltipTrigger>
-					<TooltipContent>Share settings</TooltipContent>
-				</Tooltip>
+				<PopoverTrigger asChild>
+					<Button
+						variant="outline"
+						size="icon"
+						className="h-8 w-8 md:w-auto md:px-3 md:gap-2 relative bg-muted hover:bg-muted/80 border-0 select-none"
+					>
+						<CurrentIcon className="h-4 w-4" />
+						<span className="hidden md:inline text-sm">{buttonLabel}</span>
+					</Button>
+				</PopoverTrigger>
 
 				<PopoverContent
 					className="w-[280px] md:w-[320px] p-0 rounded-lg shadow-lg border-border/60 dark:bg-neutral-900 dark:border dark:border-white/5 select-none"

@@ -198,7 +198,7 @@ export function CommentItem({
 						<CommentComposer
 							members={members}
 							membersLoading={membersLoading}
-							placeholder="Edit your comment..."
+							placeholder="Edit your comment"
 							submitLabel="Save"
 							isSubmitting={isSubmitting}
 							onSubmit={handleEditSubmit}

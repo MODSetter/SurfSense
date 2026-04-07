@@ -21,9 +21,28 @@
 </div>
 
 # SurfSense
-Conecte qualquer LLM às suas fontes de conhecimento internas e converse com ele em tempo real junto com sua equipe. Alternativa de código aberto ao NotebookLM, Perplexity e Glean.
 
-SurfSense é um agente de pesquisa de IA altamente personalizável, conectado a fontes externas como mecanismos de busca (SearxNG, Tavily, LinkUp), Google Drive, OneDrive, Dropbox, Slack, Microsoft Teams, Linear, Jira, ClickUp, Confluence, BookStack, Gmail, Notion, YouTube, GitHub, Discord, Airtable, Google Calendar, Luma, Circleback, Elasticsearch, Obsidian e mais por vir.
+O NotebookLM é uma das melhores e mais úteis plataformas de IA disponíveis, mas quando você começa a usá-lo regularmente também sente suas limitações deixando algo a desejar.
+
+1. Há limites na quantidade de fontes que você pode adicionar em um notebook.
+2. Há limites no número de notebooks que você pode ter.
+3. Você não pode ter fontes que excedam 500.000 palavras e mais de 200MB.
+4. Você fica preso aos serviços do Google (LLMs, modelos de uso, etc.) sem opção de configurá-los.
+5. Fontes de dados externas e integrações de serviços limitadas.
+6. O agente do NotebookLM é especificamente otimizado apenas para estudar e pesquisar, mas você pode fazer muito mais com os dados de origem.
+7. Falta de suporte multiplayer.
+
+...e mais.
+
+**O SurfSense foi feito especificamente para resolver esses problemas.** O SurfSense permite que você:
+
+- **Controle Seu Fluxo de Dados** - Mantenha seus dados privados e seguros.
+- **Sem Limites de Dados** - Adicione uma quantidade ilimitada de fontes e notebooks.
+- **Sem Dependência de Fornecedor** - Configure qualquer modelo LLM, de imagem, TTS e STT.
+- **25+ Fontes de Dados Externas** - Adicione suas fontes do Google Drive, OneDrive, Dropbox, Notion e muitos outros serviços externos.
+- **Suporte Multiplayer em Tempo Real** - Trabalhe facilmente com os membros da sua equipe em um notebook compartilhado.
+
+...e mais por vir.
 
 
 
@@ -34,7 +53,7 @@ https://github.com/user-attachments/assets/cc0c84d3-1f2f-4f7a-b519-2ecce22310b1
 ## Exemplo de Agente de Vídeo
 
 
-https://github.com/user-attachments/assets/cc977e6d-8292-4ffe-abb8-3b0560ef5562
+https://github.com/user-attachments/assets/012a7ffa-6f76-4f06-9dda-7632b470057a
 
 
 
@@ -133,24 +152,29 @@ Para Docker Compose, instalação manual e outras opções de implantação, con
 
    <p align="center"><img src="https://github.com/user-attachments/assets/3b04477d-8f42-4baa-be95-867c1eaeba87" alt="Comentários em Tempo Real" /></p>
 
-## Funcionalidades Principais
+## SurfSense vs Google NotebookLM
 
-| Funcionalidade | Descrição |
-|----------------|-----------|
-| Alternativa OSS | Substituto direto do NotebookLM, Perplexity e Glean com colaboração em equipe em tempo real |
-| 50+ Formatos de Arquivo | Faça upload de documentos, imagens, vídeos via LlamaCloud, Unstructured ou Docling (local) |
-| Busca Híbrida | Semântica + Texto completo com Índices Hierárquicos e Reciprocal Rank Fusion |
-| Respostas com Citações | Converse com sua base de conhecimento e obtenha respostas citadas no estilo Perplexity |
-| Arquitetura de Agentes Profundos | Alimentado por [LangChain Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) com planejamento, subagentes e acesso ao sistema de arquivos |
-| Suporte Universal de LLM | 100+ LLMs, 6000+ modelos de embeddings, todos os principais rerankers via OpenAI spec e LiteLLM |
-| Privacidade em Primeiro Lugar | Suporte completo a LLM local (vLLM, Ollama) seus dados ficam com você |
-| Colaboração em Equipe | RBAC com papéis de Proprietário / Admin / Editor / Visualizador, chat em tempo real e threads de comentários |
-| Geração de Vídeos | Gera vídeos com narração e visuais |
-| Geração de Apresentações | Cria apresentações editáveis baseadas em slides |
-| Geração de Podcasts | Podcast de 3 min em menos de 20 segundos; múltiplos provedores TTS (OpenAI, Azure, Kokoro) |
-| Extensão de Navegador | Extensão multi-navegador para salvar qualquer página web, incluindo páginas protegidas por autenticação |
-| 27+ Conectores | Mecanismos de busca, Google Drive, OneDrive, Dropbox, Slack, Teams, Jira, Notion, GitHub, Discord e [mais](#fontes-externas) |
-| Auto-Hospedável | Código aberto, Docker em um único comando ou Docker Compose completo para produção |
+| Recurso | Google NotebookLM | SurfSense |
+|---------|-------------------|-----------|
+| **Fontes por Notebook** | 50 (Grátis) a 600 (Ultra, $249.99/mês) | Ilimitadas |
+| **Número de Notebooks** | 100 (Grátis) a 500 (planos pagos) | Ilimitados |
+| **Limite de Tamanho da Fonte** | 500.000 palavras / 200MB por fonte | Sem limite |
+| **Preços** | Nível gratuito disponível; Pro $19.99/mês, Ultra $249.99/mês | Gratuito e de código aberto, auto-hospedável na sua própria infra |
+| **Suporte a LLM** | Apenas Google Gemini | 100+ LLMs via OpenAI spec e LiteLLM |
+| **Modelos de Embeddings** | Apenas Google | 6.000+ modelos de embeddings, todos os principais rerankers |
+| **LLMs Locais / Privados** | Não disponível | Suporte completo (vLLM, Ollama) - seus dados ficam com você |
+| **Auto-Hospedável** | Não | Sim - Docker em um único comando ou Docker Compose completo |
+| **Código Aberto** | Não | Sim |
+| **Conectores Externos** | Google Drive, YouTube, sites | 27+ conectores - Mecanismos de busca, Google Drive, OneDrive, Dropbox, Slack, Teams, Jira, Notion, GitHub, Discord e [mais](#fontes-externas) |
+| **Suporte a Formatos de Arquivo** | PDFs, Docs, Slides, Sheets, CSV, Word, EPUB, imagens, URLs web, YouTube | 50+ formatos - documentos, imagens, vídeos via LlamaCloud, Unstructured ou Docling (local) |
+| **Busca** | Busca semântica | Busca Híbrida - Semântica + Texto completo com Índices Hierárquicos e Reciprocal Rank Fusion |
+| **Respostas com Citações** | Sim | Sim - Respostas citadas no estilo Perplexity |
+| **Arquitetura de Agentes** | Não | Sim - alimentado por [LangChain Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) com planejamento, subagentes e acesso ao sistema de arquivos |
+| **Multiplayer em Tempo Real** | Notebooks compartilhados com papéis de Visualizador/Editor (sem chat em tempo real) | RBAC com papéis de Proprietário / Admin / Editor / Visualizador, chat em tempo real e threads de comentários |
+| **Geração de Vídeos** | Visões gerais cinemáticas via Veo 3 (apenas Ultra) | Disponível (NotebookLM é melhor aqui, melhorando ativamente) |
+| **Geração de Apresentações** | Slides mais bonitos mas não editáveis | Cria apresentações editáveis baseadas em slides |
+| **Geração de Podcasts** | Visões gerais em áudio com hosts e idiomas personalizáveis | Disponível com múltiplos provedores TTS (NotebookLM é melhor aqui, melhorando ativamente) |
+| **Extensão de Navegador** | Não | Extensão multi-navegador para salvar qualquer página web, incluindo páginas protegidas por autenticação |
 
 <details>
 <summary><b>Lista completa de Fontes Externas</b></summary>
