@@ -23,6 +23,7 @@ import {
 import { getShortcuts, setShortcuts, type ShortcutConfig } from '../modules/shortcuts';
 import { reregisterQuickAsk } from '../modules/quick-ask';
 import { reregisterAutocomplete } from '../modules/autocomplete';
+import { reregisterGeneralAssist } from '../modules/tray';
 
 let authTokens: { bearer: string; refresh: string } | null = null;
 
@@ -107,6 +108,7 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.SET_SHORTCUTS, async (_event, config: Partial<ShortcutConfig>) => {
     const updated = await setShortcuts(config);
+    if (config.generalAssist) await reregisterGeneralAssist();
     if (config.quickAsk) await reregisterQuickAsk();
     if (config.autocomplete) await reregisterAutocomplete();
     return updated;

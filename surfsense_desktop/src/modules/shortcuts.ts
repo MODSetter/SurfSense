@@ -1,9 +1,11 @@
 export interface ShortcutConfig {
+  generalAssist: string;
   quickAsk: string;
   autocomplete: string;
 }
 
 const DEFAULTS: ShortcutConfig = {
+  generalAssist: 'CommandOrControl+Shift+S',
   quickAsk: 'CommandOrControl+Alt+S',
   autocomplete: 'CommandOrControl+Shift+Space',
 };

@@ -1,12 +1,13 @@
 "use client";
 
-import { Clipboard, Sparkles } from "lucide-react";
+import { AppWindow, Clipboard, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { DEFAULT_SHORTCUTS, ShortcutRecorder } from "@/components/desktop/shortcut-recorder";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 import { useElectronAPI } from "@/hooks/use-platform";
 
 export function DesktopContent() {
@@ -68,7 +69,7 @@ export function DesktopContent() {
 		await api.setAutocompleteEnabled(checked);
 	};
 
-	const updateShortcut = (key: "quickAsk" | "autocomplete", accelerator: string) => {
+	const updateShortcut = (key: "generalAssist" | "quickAsk" | "autocomplete", accelerator: string) => {
 		setShortcuts((prev) => {
 			const updated = { ...prev, [key]: accelerator };
 			api.setShortcuts?.({ [key]: accelerator }).catch(() => {
@@ -79,7 +80,7 @@ export function DesktopContent() {
 		toast.success("Shortcut updated");
 	};
 
-	const resetShortcut = (key: "quickAsk" | "autocomplete") => {
+	const resetShortcut = (key: "generalAssist" | "quickAsk" | "autocomplete") => {
 		updateShortcut(key, DEFAULT_SHORTCUTS[key]);
 	};
 
@@ -95,23 +96,32 @@ export function DesktopContent() {
 				</CardHeader>
 				<CardContent className="px-3 md:px-6 pb-3 md:pb-6">
 					{shortcutsLoaded ? (
-						<div className="flex flex-col gap-3">
-							<ShortcutRecorder
-								value={shortcuts.quickAsk}
-								onChange={(accel) => updateShortcut("quickAsk", accel)}
-								onReset={() => resetShortcut("quickAsk")}
-								defaultValue={DEFAULT_SHORTCUTS.quickAsk}
-								label="Quick Ask"
+					<div className="flex flex-col gap-3">
+						<ShortcutRecorder
+							value={shortcuts.generalAssist}
+							onChange={(accel) => updateShortcut("generalAssist", accel)}
+							onReset={() => resetShortcut("generalAssist")}
+							defaultValue={DEFAULT_SHORTCUTS.generalAssist}
+							label="General Assist"
+							description="Open SurfSense from anywhere"
+							icon={AppWindow}
+						/>
+						<ShortcutRecorder
+							value={shortcuts.quickAsk}
+							onChange={(accel) => updateShortcut("quickAsk", accel)}
+							onReset={() => resetShortcut("quickAsk")}
+							defaultValue={DEFAULT_SHORTCUTS.quickAsk}
+								label="Quick Assist"
 								description="Copy selected text and ask AI about it"
-								icon={Clipboard}
-							/>
+							icon={Clipboard}
+						/>
 							<ShortcutRecorder
 								value={shortcuts.autocomplete}
 								onChange={(accel) => updateShortcut("autocomplete", accel)}
 								onReset={() => resetShortcut("autocomplete")}
 								defaultValue={DEFAULT_SHORTCUTS.autocomplete}
-								label="Autocomplete"
-								description="Get AI writing suggestions from a screenshot"
+								label="Extreme Assist"
+								description="AI writing powered by your screen and knowledge base"
 								icon={Sparkles}
 							/>
 							<p className="text-[11px] text-muted-foreground">
@@ -126,10 +136,10 @@ export function DesktopContent() {
 				</CardContent>
 			</Card>
 
-			{/* Autocomplete Toggle */}
+			{/* Extreme Assist Toggle */}
 			<Card>
 				<CardHeader className="px-3 md:px-6 pt-3 md:pt-6 pb-2 md:pb-3">
-					<CardTitle className="text-base md:text-lg">Autocomplete</CardTitle>
+					<CardTitle className="text-base md:text-lg">Extreme Assist</CardTitle>
 					<CardDescription className="text-xs md:text-sm">
 						Get inline writing suggestions powered by your knowledge base as you type in any app.
 					</CardDescription>
@@ -138,7 +148,7 @@ export function DesktopContent() {
 					<div className="flex items-center justify-between rounded-lg border p-4">
 						<div className="space-y-0.5">
 							<Label htmlFor="autocomplete-toggle" className="text-sm font-medium cursor-pointer">
-								Enable autocomplete
+								Enable Extreme Assist
 							</Label>
 							<p className="text-xs text-muted-foreground">
 								Show suggestions while typing in other applications.
