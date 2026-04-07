@@ -609,12 +609,27 @@ async def test_extract_zip_raises_unsupported_error(tmp_path):
         ("file.heif", "UNSTRUCTURED", True),
     ],
 )
-def test_should_skip_for_service(filename, etl_service, expected_skip):
+def test_should_skip_for_service(filename, etl_service, expected_skip, monkeypatch):
+    monkeypatch.setattr("app.config.config.AZURE_DI_ENDPOINT", None, raising=False)
+    monkeypatch.setattr("app.config.config.AZURE_DI_KEY", None, raising=False)
     from app.etl_pipeline.file_classifier import should_skip_for_service
 
     assert should_skip_for_service(filename, etl_service) is expected_skip, (
         f"{filename} with {etl_service}: expected skip={expected_skip}"
     )
+
+
+def test_heif_not_skipped_for_llamacloud_when_azure_di_configured(monkeypatch):
+    """With Azure DI credentials, .heif is accepted by LLAMACLOUD."""
+    monkeypatch.setattr(
+        "app.config.config.AZURE_DI_ENDPOINT",
+        "https://fake.cognitiveservices.azure.com/",
+        raising=False,
+    )
+    monkeypatch.setattr("app.config.config.AZURE_DI_KEY", "fake-key", raising=False)
+    from app.etl_pipeline.file_classifier import should_skip_for_service
+
+    assert should_skip_for_service("file.heif", "LLAMACLOUD") is False
 
 
 # ---------------------------------------------------------------------------
