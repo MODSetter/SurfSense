@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * Maps SearchSourceConnectorType to DocumentType for fetching document counts
  *
