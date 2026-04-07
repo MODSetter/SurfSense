@@ -465,16 +465,8 @@ const AssistantActionBar: FC = () => {
 	const isLast = useAuiState((s) => s.message.isLast);
 	const aui = useAui();
 	const api = useElectronAPI();
-	const [quickAskMode, setQuickAskMode] = useState("");
 
-	useEffect(() => {
-		if (!isLast || !api?.getQuickAskMode) return;
-		api.getQuickAskMode().then((mode) => {
-			if (mode) setQuickAskMode(mode);
-		});
-	}, [isLast, api]);
-
-	const isTransform = isLast && !!api?.replaceText && quickAskMode === "transform";
+	const isQuickAssist = !!api?.replaceText && !!api?.getQuickAskMode;
 
 	return (
 		<ActionBarPrimitive.Root
@@ -484,7 +476,7 @@ const AssistantActionBar: FC = () => {
 			className="aui-assistant-action-bar-root -ml-1 col-start-3 row-start-2 flex gap-1 text-muted-foreground md:data-floating:absolute md:data-floating:rounded-md md:data-floating:p-1 [&>button]:opacity-100 md:[&>button]:opacity-[var(--aui-button-opacity,1)]"
 		>
 			<ActionBarPrimitive.Copy asChild>
-				<TooltipIconButton tooltip="Copy">
+				<TooltipIconButton tooltip="Copy to clipboard">
 					<AuiIf condition={({ message }) => message.isCopied}>
 						<CheckIcon />
 					</AuiIf>
@@ -494,29 +486,27 @@ const AssistantActionBar: FC = () => {
 				</TooltipIconButton>
 			</ActionBarPrimitive.Copy>
 			<ActionBarPrimitive.ExportMarkdown asChild>
-				<TooltipIconButton tooltip="Download">
+				<TooltipIconButton tooltip="Download as Markdown">
 					<DownloadIcon />
 				</TooltipIconButton>
 			</ActionBarPrimitive.ExportMarkdown>
 			{isLast && (
 				<ActionBarPrimitive.Reload asChild>
-					<TooltipIconButton tooltip="Refresh">
+					<TooltipIconButton tooltip="Regenerate response">
 						<RefreshCwIcon />
 					</TooltipIconButton>
 				</ActionBarPrimitive.Reload>
 			)}
-			{isTransform && (
-				<button
-					type="button"
+			{isQuickAssist && (
+				<TooltipIconButton
+					tooltip="Paste back into source app"
 					onClick={() => {
 						const text = aui.message().getCopyText();
 						api?.replaceText(text);
 					}}
-					className="ml-1 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
 				>
-					<ClipboardPaste className="size-3.5" />
-					Paste back
-				</button>
+					<ClipboardPaste />
+				</TooltipIconButton>
 			)}
 		</ActionBarPrimitive.Root>
 	);
