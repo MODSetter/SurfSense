@@ -75,6 +75,7 @@ dependencies = [
     "langchain-community>=0.4.1",
     "deepagents>=0.4.12",
     "stripe>=15.0.0",
+    "azure-ai-documentintelligence>=1.0.2",
 ]
 
 [dependency-groups]
