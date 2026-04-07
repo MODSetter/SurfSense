@@ -5,6 +5,7 @@ import {
 	Clock,
 	Download,
 	Eye,
+	History,
 	MoreHorizontal,
 	Move,
 	PenLine,
@@ -39,6 +40,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { cn } from "@/lib/utils";
 import { DND_TYPES } from "./FolderNode";
+import { isVersionableType } from "./version-history";
 
 const EDITABLE_DOCUMENT_TYPES = new Set(["FILE", "NOTE"]);
 
@@ -60,6 +62,7 @@ interface DocumentNodeProps {
 	onDelete: (doc: DocumentNodeDoc) => void;
 	onMove: (doc: DocumentNodeDoc) => void;
 	onExport?: (doc: DocumentNodeDoc, format: string) => void;
+	onVersionHistory?: (doc: DocumentNodeDoc) => void;
 	contextMenuOpen?: boolean;
 	onContextMenuOpenChange?: (open: boolean) => void;
 }
@@ -74,6 +77,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 	onDelete,
 	onMove,
 	onExport,
+	onVersionHistory,
 	contextMenuOpen,
 	onContextMenuOpenChange,
 }: DocumentNodeProps) {
@@ -102,7 +106,9 @@ export const DocumentNode = React.memo(function DocumentNode({
 	const isProcessing = statusState === "pending" || statusState === "processing";
 	const [dropdownOpen, setDropdownOpen] = useState(false);
 	const [exporting, setExporting] = useState<string | null>(null);
+	const [titleTooltipOpen, setTitleTooltipOpen] = useState(false);
 	const rowRef = useRef<HTMLDivElement>(null);
+	const titleRef = useRef<HTMLSpanElement>(null);
 
 	const handleExport = useCallback(
 		(format: string) => {
@@ -113,6 +119,14 @@ export const DocumentNode = React.memo(function DocumentNode({
 		},
 		[doc, onExport]
 	);
+
+	const handleTitleTooltipOpenChange = useCallback((open: boolean) => {
+		if (open && titleRef.current) {
+			setTitleTooltipOpen(titleRef.current.scrollWidth > titleRef.current.clientWidth);
+		} else {
+			setTitleTooltipOpen(false);
+		}
+	}, []);
 
 	const attachRef = useCallback(
 		(node: HTMLDivElement | null) => {
@@ -193,14 +207,32 @@ export const DocumentNode = React.memo(function DocumentNode({
 						);
 					})()}
 
-					<span className="flex-1 min-w-0 truncate">{doc.title}</span>
+					<Tooltip
+						delayDuration={600}
+						open={titleTooltipOpen}
+						onOpenChange={handleTitleTooltipOpenChange}
+					>
+						<TooltipTrigger asChild>
+							<span ref={titleRef} className="flex-1 min-w-0 truncate">
+								{doc.title}
+							</span>
+						</TooltipTrigger>
+						<TooltipContent side="bottom" className="max-w-xs break-words">
+							{doc.title}
+						</TooltipContent>
+					</Tooltip>
 
-					<span className="shrink-0">
-						{getDocumentTypeIcon(
-							doc.document_type as DocumentTypeEnum,
-							"h-3.5 w-3.5 text-muted-foreground"
-						)}
-					</span>
+					{getDocumentTypeIcon(
+						doc.document_type as DocumentTypeEnum,
+						"h-3.5 w-3.5 text-muted-foreground"
+					) && (
+						<span className="shrink-0">
+							{getDocumentTypeIcon(
+								doc.document_type as DocumentTypeEnum,
+								"h-3.5 w-3.5 text-muted-foreground"
+							)}
+						</span>
+					)}
 
 					<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
 						<DropdownMenuTrigger asChild>
@@ -219,7 +251,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end" className="w-40" onClick={(e) => e.stopPropagation()}>
-							<DropdownMenuItem onClick={() => onPreview(doc)}>
+							<DropdownMenuItem onClick={() => onPreview(doc)} disabled={isProcessing}>
 								<Eye className="mr-2 h-4 w-4" />
 								Open
 							</DropdownMenuItem>
@@ -235,7 +267,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 							</DropdownMenuItem>
 							{onExport && (
 								<DropdownMenuSub>
-									<DropdownMenuSubTrigger>
+									<DropdownMenuSubTrigger disabled={isProcessing}>
 										<Download className="mr-2 h-4 w-4" />
 										Export
 									</DropdownMenuSubTrigger>
@@ -244,11 +276,13 @@ export const DocumentNode = React.memo(function DocumentNode({
 									</DropdownMenuSubContent>
 								</DropdownMenuSub>
 							)}
-							<DropdownMenuItem
-								className="text-destructive focus:text-destructive"
-								disabled={isProcessing}
-								onClick={() => onDelete(doc)}
-							>
+							{onVersionHistory && isVersionableType(doc.document_type) && (
+								<DropdownMenuItem disabled={isProcessing} onClick={() => onVersionHistory(doc)}>
+									<History className="mr-2 h-4 w-4" />
+									Versions
+								</DropdownMenuItem>
+							)}
+							<DropdownMenuItem disabled={isProcessing} onClick={() => onDelete(doc)}>
 								<Trash2 className="mr-2 h-4 w-4" />
 								Delete
 							</DropdownMenuItem>
@@ -259,7 +293,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 
 			{contextMenuOpen && (
 				<ContextMenuContent className="w-40" onClick={(e) => e.stopPropagation()}>
-					<ContextMenuItem onClick={() => onPreview(doc)}>
+					<ContextMenuItem onClick={() => onPreview(doc)} disabled={isProcessing}>
 						<Eye className="mr-2 h-4 w-4" />
 						Open
 					</ContextMenuItem>
@@ -275,7 +309,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 					</ContextMenuItem>
 					{onExport && (
 						<ContextMenuSub>
-							<ContextMenuSubTrigger>
+							<ContextMenuSubTrigger disabled={isProcessing}>
 								<Download className="mr-2 h-4 w-4" />
 								Export
 							</ContextMenuSubTrigger>
@@ -284,11 +318,13 @@ export const DocumentNode = React.memo(function DocumentNode({
 							</ContextMenuSubContent>
 						</ContextMenuSub>
 					)}
-					<ContextMenuItem
-						className="text-destructive focus:text-destructive"
-						disabled={isProcessing}
-						onClick={() => onDelete(doc)}
-					>
+					{onVersionHistory && isVersionableType(doc.document_type) && (
+						<ContextMenuItem disabled={isProcessing} onClick={() => onVersionHistory(doc)}>
+							<History className="mr-2 h-4 w-4" />
+							Versions
+						</ContextMenuItem>
+					)}
+					<ContextMenuItem disabled={isProcessing} onClick={() => onDelete(doc)}>
 						<Trash2 className="mr-2 h-4 w-4" />
 						Delete
 					</ContextMenuItem>

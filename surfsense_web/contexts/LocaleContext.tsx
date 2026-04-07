@@ -1,7 +1,8 @@
 "use client";
 
 import type React from "react";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { set } from "zod";
 import enMessages from "../messages/en.json";
 import esMessages from "../messages/es.json";
 import hiMessages from "../messages/hi.json";
@@ -49,14 +50,14 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
 	}, []);
 
 	// Update locale and persist to localStorage
-	const setLocale = (newLocale: Locale) => {
+	const setLocale = useCallback((newLocale: Locale) => {
 		setLocaleState(newLocale);
 		if (typeof window !== "undefined") {
 			localStorage.setItem(LOCALE_STORAGE_KEY, newLocale);
 			// Update HTML lang attribute
 			document.documentElement.lang = newLocale;
 		}
-	};
+	}, []);
 
 	// Set HTML lang attribute when locale changes
 	useEffect(() => {
@@ -65,11 +66,12 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
 		}
 	}, [locale, mounted]);
 
-	return (
-		<LocaleContext.Provider value={{ locale, messages, setLocale }}>
-			{children}
-		</LocaleContext.Provider>
+	const contextValue = useMemo(
+		() => ({ locale, messages, setLocale }),
+		[locale, messages, setLocale]
 	);
+
+	return <LocaleContext.Provider value={contextValue}>{children}</LocaleContext.Provider>;
 }
 
 export function useLocaleContext() {

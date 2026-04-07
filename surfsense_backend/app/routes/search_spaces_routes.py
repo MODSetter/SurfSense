@@ -14,6 +14,7 @@ from app.db import (
     SearchSpaceMembership,
     SearchSpaceRole,
     User,
+    VisionLLMConfig,
     get_async_session,
     get_default_roles_config,
 )
@@ -483,6 +484,63 @@ async def _get_image_gen_config_by_id(
     return None
 
 
+async def _get_vision_llm_config_by_id(
+    session: AsyncSession, config_id: int | None
+) -> dict | None:
+    if config_id is None:
+        return None
+
+    if config_id == 0:
+        return {
+            "id": 0,
+            "name": "Auto (Fastest)",
+            "description": "Automatically routes requests across available vision LLM providers",
+            "provider": "AUTO",
+            "model_name": "auto",
+            "is_global": True,
+            "is_auto_mode": True,
+        }
+
+    if config_id < 0:
+        for cfg in config.GLOBAL_VISION_LLM_CONFIGS:
+            if cfg.get("id") == config_id:
+                return {
+                    "id": cfg.get("id"),
+                    "name": cfg.get("name"),
+                    "description": cfg.get("description"),
+                    "provider": cfg.get("provider"),
+                    "custom_provider": cfg.get("custom_provider"),
+                    "model_name": cfg.get("model_name"),
+                    "api_base": cfg.get("api_base") or None,
+                    "api_version": cfg.get("api_version") or None,
+                    "litellm_params": cfg.get("litellm_params", {}),
+                    "is_global": True,
+                }
+        return None
+
+    result = await session.execute(
+        select(VisionLLMConfig).filter(VisionLLMConfig.id == config_id)
+    )
+    db_config = result.scalars().first()
+    if db_config:
+        return {
+            "id": db_config.id,
+            "name": db_config.name,
+            "description": db_config.description,
+            "provider": db_config.provider.value if db_config.provider else None,
+            "custom_provider": db_config.custom_provider,
+            "model_name": db_config.model_name,
+            "api_base": db_config.api_base,
+            "api_version": db_config.api_version,
+            "litellm_params": db_config.litellm_params or {},
+            "created_at": db_config.created_at.isoformat()
+            if db_config.created_at
+            else None,
+            "search_space_id": db_config.search_space_id,
+        }
+    return None
+
+
 @router.get(
     "/search-spaces/{search_space_id}/llm-preferences",
     response_model=LLMPreferencesRead,
@@ -522,14 +580,19 @@ async def get_llm_preferences(
         image_generation_config = await _get_image_gen_config_by_id(
             session, search_space.image_generation_config_id
         )
+        vision_llm_config = await _get_vision_llm_config_by_id(
+            session, search_space.vision_llm_config_id
+        )
 
         return LLMPreferencesRead(
             agent_llm_id=search_space.agent_llm_id,
             document_summary_llm_id=search_space.document_summary_llm_id,
             image_generation_config_id=search_space.image_generation_config_id,
+            vision_llm_config_id=search_space.vision_llm_config_id,
             agent_llm=agent_llm,
             document_summary_llm=document_summary_llm,
             image_generation_config=image_generation_config,
+            vision_llm_config=vision_llm_config,
         )
 
     except HTTPException:
@@ -589,14 +652,19 @@ async def update_llm_preferences(
         image_generation_config = await _get_image_gen_config_by_id(
             session, search_space.image_generation_config_id
         )
+        vision_llm_config = await _get_vision_llm_config_by_id(
+            session, search_space.vision_llm_config_id
+        )
 
         return LLMPreferencesRead(
             agent_llm_id=search_space.agent_llm_id,
             document_summary_llm_id=search_space.document_summary_llm_id,
             image_generation_config_id=search_space.image_generation_config_id,
+            vision_llm_config_id=search_space.vision_llm_config_id,
             agent_llm=agent_llm,
             document_summary_llm=document_summary_llm,
             image_generation_config=image_generation_config,
+            vision_llm_config=vision_llm_config,
         )
 
     except HTTPException:

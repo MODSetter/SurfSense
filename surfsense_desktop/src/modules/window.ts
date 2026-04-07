@@ -2,6 +2,7 @@ import { app, BrowserWindow, shell, session } from 'electron';
 import path from 'path';
 import { showErrorDialog } from './errors';
 import { getServerPort } from './server';
+import { setActiveSearchSpaceId } from './active-search-space';
 
 const isDev = !app.isPackaged;
 const HOSTED_FRONTEND_URL = process.env.HOSTED_FRONTEND_URL as string;
@@ -12,7 +13,7 @@ export function getMainWindow(): BrowserWindow | null {
   return mainWindow;
 }
 
-export function createMainWindow(): BrowserWindow {
+export function createMainWindow(initialPath = '/dashboard'): BrowserWindow {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -33,7 +34,7 @@ export function createMainWindow(): BrowserWindow {
     mainWindow?.show();
   });
 
-  mainWindow.loadURL(`http://localhost:${getServerPort()}/dashboard`);
+  mainWindow.loadURL(`http://localhost:${getServerPort()}${initialPath}`);
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('http://localhost')) {
@@ -54,6 +55,16 @@ export function createMainWindow(): BrowserWindow {
     if (errorCode === -3) return;
     showErrorDialog('Page failed to load', new Error(`${errorDescription} (${errorCode})\n${validatedURL}`));
   });
+
+  // Auto-sync active search space from URL navigation
+  const syncSearchSpace = (url: string) => {
+    const match = url.match(/\/dashboard\/(\d+)/);
+    if (match) {
+      setActiveSearchSpaceId(match[1]);
+    }
+  };
+  mainWindow.webContents.on('did-navigate', (_event, url) => syncSearchSpace(url));
+  mainWindow.webContents.on('did-navigate-in-page', (_event, url) => syncSearchSpace(url));
 
   if (isDev) {
     mainWindow.webContents.openDevTools();

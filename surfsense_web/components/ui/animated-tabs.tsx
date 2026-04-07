@@ -7,6 +7,7 @@ import React, {
 	useCallback,
 	useContext,
 	useEffect,
+	useMemo,
 	useRef,
 	useState,
 } from "react";
@@ -201,9 +202,12 @@ const Tabs = forwardRef<
 		},
 		[onValueChange, value]
 	);
-
+	const contextValue = useMemo(
+		() => ({ activeValue, onValueChange: handleValueChange }),
+		[activeValue, handleValueChange]
+	);
 	return (
-		<TabsContext.Provider value={{ activeValue, onValueChange: handleValueChange }}>
+		<TabsContext.Provider value={contextValue}>
 			<div ref={ref} className={cn("tabs-container", className)} {...props}>
 				{children}
 			</div>

@@ -1,8 +1,10 @@
 "use client";
 
+import { Search } from "lucide-react";
 import type { FC } from "react";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+import { usePlatform } from "@/hooks/use-platform";
 import { isSelfHosted } from "@/lib/env-config";
 import { ConnectorCard } from "../components/connector-card";
 import {
@@ -74,31 +76,27 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 	onManage,
 	onViewAccountsList,
 }) => {
-	// Check if self-hosted mode (for showing self-hosted only connectors)
 	const selfHosted = isSelfHosted();
+	const { isDesktop } = usePlatform();
+
+	const matchesSearch = (title: string, description: string) =>
+		title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+		description.toLowerCase().includes(searchQuery.toLowerCase());
+
+	const passesDeploymentFilter = (c: { selfHostedOnly?: boolean; desktopOnly?: boolean }) =>
+		(!c.selfHostedOnly || selfHosted) && (!c.desktopOnly || isDesktop);
 
 	// Filter connectors based on search and deployment mode
 	const filteredOAuth = OAUTH_CONNECTORS.filter(
-		(c) =>
-			// Filter by search query
-			(c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-				c.description.toLowerCase().includes(searchQuery.toLowerCase())) &&
-			// Filter self-hosted only connectors in cloud mode
-			(!("selfHostedOnly" in c) || !c.selfHostedOnly || selfHosted)
+		(c) => matchesSearch(c.title, c.description) && passesDeploymentFilter(c)
 	);
 
 	const filteredCrawlers = CRAWLERS.filter(
-		(c) =>
-			(c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-				c.description.toLowerCase().includes(searchQuery.toLowerCase())) &&
-			(!("selfHostedOnly" in c) || !c.selfHostedOnly || selfHosted)
+		(c) => matchesSearch(c.title, c.description) && passesDeploymentFilter(c)
 	);
 
 	const filteredOther = OTHER_CONNECTORS.filter(
-		(c) =>
-			(c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-				c.description.toLowerCase().includes(searchQuery.toLowerCase())) &&
-			(!("selfHostedOnly" in c) || !c.selfHostedOnly || selfHosted)
+		(c) => matchesSearch(c.title, c.description) && passesDeploymentFilter(c)
 	);
 
 	// Filter Composio connectors
@@ -289,6 +287,18 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 		moreIntegrationsOAuth.length > 0 ||
 		moreIntegrationsOther.length > 0 ||
 		moreIntegrationsCrawlers.length > 0;
+
+	const hasAnyResults = hasDocumentFileConnectors || hasMoreIntegrations;
+
+	if (!hasAnyResults && searchQuery) {
+		return (
+			<div className="flex flex-col items-center justify-center py-20 text-center">
+				<Search className="size-8 text-muted-foreground mb-3" />
+				<p className="text-sm text-muted-foreground">No connectors found</p>
+				<p className="text-xs text-muted-foreground/60 mt-1">Try a different search term</p>
+			</div>
+		);
+	}
 
 	return (
 		<div className="space-y-8">

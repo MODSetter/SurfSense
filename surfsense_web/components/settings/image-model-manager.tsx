@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { AlertCircle, Edit3, Info, Plus, RefreshCw, Trash2, Wand2 } from "lucide-react";
+import { AlertCircle, Dot, Edit3, Info, RefreshCw, Trash2, Wand2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { deleteImageGenConfigMutationAtom } from "@/atoms/image-gen-config/image-gen-config-mutation.atoms";
 import {
@@ -240,27 +240,14 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 			{!isLoading && (
 				<div className="space-y-4 md:space-y-6">
 					{(userConfigs?.length ?? 0) === 0 ? (
-						<Card className="border-dashed border-2 border-muted-foreground/25">
+						<Card className="border-0 bg-transparent shadow-none">
 							<CardContent className="flex flex-col items-center justify-center py-10 md:py-16 text-center">
-								<div className="rounded-full bg-gradient-to-br from-teal-500/10 to-cyan-500/10 p-4 md:p-6 mb-4">
-									<Wand2 className="h-8 w-8 md:h-12 md:w-12 text-teal-600 dark:text-teal-400" />
-								</div>
-								<h3 className="text-lg font-semibold mb-2">No Image Models Yet</h3>
-								<p className="text-xs md:text-sm text-muted-foreground max-w-sm mb-4">
+								<h3 className="text-sm md:text-base font-semibold mb-2">No Image Models Yet</h3>
+								<p className="text-[11px] md:text-xs text-muted-foreground max-w-sm mb-4">
 									{canCreate
 										? "Add your own image generation model (DALL-E 3, GPT Image 1, etc.)"
 										: "No image models have been added to this space yet. Contact a space owner to add one."}
 								</p>
-								{canCreate && (
-									<Button
-										onClick={openNewDialog}
-										size="lg"
-										className="gap-2 text-xs md:text-sm h-9 md:h-10"
-									>
-										<Plus className="h-3 w-3 md:h-4 md:w-4" />
-										Add First Image Model
-									</Button>
-								)}
 							</CardContent>
 						</Card>
 					) : (
@@ -343,7 +330,7 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 													</span>
 													{member && (
 														<>
-															<span className="text-muted-foreground/30">·</span>
+															<Dot className="h-4 w-4 text-muted-foreground/30" />
 															<TooltipProvider>
 																<Tooltip open={isDesktop ? undefined : false}>
 																	<TooltipTrigger asChild>

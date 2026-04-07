@@ -1,0 +1,350 @@
+html:has(.suggestion-body),
+body:has(.suggestion-body) {
+	margin: 0 !important;
+	padding: 0 !important;
+	background: transparent !important;
+	overflow: hidden !important;
+	height: auto !important;
+	width: 100% !important;
+}
+
+.suggestion-body {
+	margin: 0;
+	padding: 0;
+	background: transparent;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	-webkit-font-smoothing: antialiased;
+	user-select: none;
+	-webkit-app-region: no-drag;
+}
+
+.suggestion-tooltip {
+	box-sizing: border-box;
+	background: #1e1e1e;
+	border: 1px solid #3c3c3c;
+	border-radius: 8px;
+	padding: 8px 12px;
+	margin: 4px;
+	max-width: 400px;
+	/* MAX_HEIGHT in suggestion-window.ts is 400px. Subtract 8px for margin
+     (4px * 2) so the tooltip + margin fits within the Electron window.
+     box-sizing: border-box ensures padding + border are included. */
+	max-height: 392px;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.suggestion-text {
+	color: #d4d4d4;
+	font-size: 13px;
+	line-height: 1.45;
+	margin: 0 0 6px 0;
+	word-wrap: break-word;
+	white-space: pre-wrap;
+	overflow-y: auto;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.suggestion-text::-webkit-scrollbar {
+	width: 5px;
+}
+
+.suggestion-text::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.suggestion-text::-webkit-scrollbar-thumb {
+	background: #555;
+	border-radius: 3px;
+}
+
+.suggestion-text::-webkit-scrollbar-thumb:hover {
+	background: #777;
+}
+
+.suggestion-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 4px;
+	border-top: 1px solid #2a2a2a;
+	padding-top: 6px;
+	flex-shrink: 0;
+}
+
+.suggestion-btn {
+	padding: 2px 8px;
+	border-radius: 3px;
+	border: 1px solid #3c3c3c;
+	font-family: inherit;
+	font-size: 10px;
+	font-weight: 500;
+	cursor: pointer;
+	line-height: 16px;
+	transition:
+		background 0.15s,
+		border-color 0.15s;
+}
+
+.suggestion-btn-accept {
+	background: #2563eb;
+	border-color: #3b82f6;
+	color: #fff;
+}
+
+.suggestion-btn-accept:hover {
+	background: #1d4ed8;
+}
+
+.suggestion-btn-dismiss {
+	background: #2a2a2a;
+	color: #999;
+}
+
+.suggestion-btn-dismiss:hover {
+	background: #333;
+	color: #ccc;
+}
+
+.suggestion-error {
+	border-color: #5c2626;
+}
+
+.suggestion-error-text {
+	color: #f48771;
+	font-size: 12px;
+}
+
+/* --- Setup prompt (vision model not configured) --- */
+
+.suggestion-setup {
+	display: flex;
+	flex-direction: row;
+	align-items: flex-start;
+	gap: 10px;
+	border-color: #3b2d6b;
+	padding: 10px 14px;
+}
+
+.setup-icon {
+	flex-shrink: 0;
+	margin-top: 1px;
+}
+
+.setup-content {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	min-width: 0;
+}
+
+.setup-title {
+	font-size: 13px;
+	font-weight: 600;
+	color: #c4b5fd;
+}
+
+.setup-message {
+	font-size: 11.5px;
+	color: #a1a1aa;
+	line-height: 1.4;
+}
+
+.setup-hint {
+	font-size: 10.5px;
+	color: #7c6dac;
+	margin-top: 2px;
+}
+
+.setup-dismiss {
+	flex-shrink: 0;
+	align-self: flex-start;
+	background: none;
+	border: none;
+	color: #6b6b7b;
+	font-size: 14px;
+	cursor: pointer;
+	padding: 2px 4px;
+	line-height: 1;
+	border-radius: 4px;
+	transition: color 0.15s, background 0.15s;
+}
+
+.setup-dismiss:hover {
+	color: #c4b5fd;
+	background: rgba(124, 109, 172, 0.15);
+}
+
+/* --- Agent activity indicator --- */
+
+.agent-activity {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	overflow-y: auto;
+	max-height: 340px;
+}
+
+.agent-activity::-webkit-scrollbar {
+	display: none;
+}
+
+.activity-initial {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 2px 0;
+}
+
+.activity-label {
+	color: #a1a1aa;
+	font-size: 12px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.activity-steps {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.activity-step {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-height: 18px;
+}
+
+.step-label {
+	color: #d4d4d4;
+	font-size: 12px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.step-detail {
+	color: #71717a;
+	font-size: 11px;
+}
+
+/* Spinner (in_progress) */
+.step-spinner {
+	width: 14px;
+	height: 14px;
+	flex-shrink: 0;
+	border: 1.5px solid #3f3f46;
+	border-top-color: #a78bfa;
+	border-radius: 50%;
+	animation: step-spin 0.7s linear infinite;
+}
+
+/* Checkmark icon (complete) */
+.step-icon {
+	width: 14px;
+	height: 14px;
+	flex-shrink: 0;
+}
+
+@keyframes step-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* --- Suggestion option cards --- */
+
+.suggestion-options {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	overflow-y: auto;
+	flex: 1 1 auto;
+	min-height: 0;
+	margin-bottom: 6px;
+}
+
+.suggestion-options::-webkit-scrollbar {
+	width: 5px;
+}
+
+.suggestion-options::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.suggestion-options::-webkit-scrollbar-thumb {
+	background: #555;
+	border-radius: 3px;
+}
+
+.suggestion-option {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 6px 8px;
+	border-radius: 5px;
+	border: 1px solid #333;
+	background: #262626;
+	cursor: pointer;
+	text-align: left;
+	font-family: inherit;
+	transition:
+		background 0.15s,
+		border-color 0.15s;
+	width: 100%;
+}
+
+.suggestion-option:hover {
+	background: #2a2d3a;
+	border-color: #3b82f6;
+}
+
+.option-number {
+	flex-shrink: 0;
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	background: #3f3f46;
+	color: #d4d4d4;
+	font-size: 10px;
+	font-weight: 600;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-top: 1px;
+}
+
+.suggestion-option:hover .option-number {
+	background: #2563eb;
+	color: #fff;
+}
+
+.option-text {
+	color: #d4d4d4;
+	font-size: 12px;
+	line-height: 1.45;
+	word-wrap: break-word;
+	white-space: pre-wrap;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.option-expand {
+	flex-shrink: 0;
+	background: none;
+	border: none;
+	color: #71717a;
+	font-size: 10px;
+	cursor: pointer;
+	padding: 0 2px;
+	font-family: inherit;
+	margin-top: 1px;
+}
+
+.option-expand:hover {
+	color: #a1a1aa;
+}

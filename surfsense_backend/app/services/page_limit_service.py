@@ -3,7 +3,7 @@ Service for managing user page limits for ETL services.
 """
 
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -223,10 +223,155 @@ class PageLimitService:
         # Estimate ~2000 characters per page
         return max(1, content_length // 2000)
 
+    @staticmethod
+    def estimate_pages_from_metadata(
+        file_name_or_ext: str, file_size: int | str | None = None
+    ) -> int:
+        """Size-based page estimation from file name/extension and byte size.
+
+        Pure function — no file I/O, no database access.  Used by cloud
+        connectors (which only have API metadata) and as the internal
+        fallback for :meth:`estimate_pages_before_processing`.
+
+        ``file_name_or_ext`` can be a full filename (``"report.pdf"``) or
+        a bare extension (``".pdf"``).  ``file_size`` may be an int, a
+        stringified int from a cloud API, or *None*.
+        """
+        if file_size is not None:
+            try:
+                file_size = int(file_size)
+            except (ValueError, TypeError):
+                file_size = 0
+        else:
+            file_size = 0
+
+        if file_size <= 0:
+            return 1
+
+        ext = PurePosixPath(file_name_or_ext).suffix.lower() if file_name_or_ext else ""
+        if not ext and file_name_or_ext.startswith("."):
+            ext = file_name_or_ext.lower()
+        file_ext = ext
+
+        if file_ext == ".pdf":
+            return max(1, file_size // (100 * 1024))
+
+        if file_ext in {
+            ".doc",
+            ".docx",
+            ".docm",
+            ".dot",
+            ".dotm",
+            ".odt",
+            ".ott",
+            ".sxw",
+            ".stw",
+            ".uot",
+            ".rtf",
+            ".pages",
+            ".wpd",
+            ".wps",
+            ".abw",
+            ".zabw",
+            ".cwk",
+            ".hwp",
+            ".lwp",
+            ".mcw",
+            ".mw",
+            ".sdw",
+            ".vor",
+        }:
+            return max(1, file_size // (50 * 1024))
+
+        if file_ext in {
+            ".ppt",
+            ".pptx",
+            ".pptm",
+            ".pot",
+            ".potx",
+            ".odp",
+            ".otp",
+            ".sxi",
+            ".sti",
+            ".uop",
+            ".key",
+            ".sda",
+            ".sdd",
+            ".sdp",
+        }:
+            return max(1, file_size // (200 * 1024))
+
+        if file_ext in {
+            ".xls",
+            ".xlsx",
+            ".xlsm",
+            ".xlsb",
+            ".xlw",
+            ".xlr",
+            ".ods",
+            ".ots",
+            ".fods",
+            ".numbers",
+            ".123",
+            ".wk1",
+            ".wk2",
+            ".wk3",
+            ".wk4",
+            ".wks",
+            ".wb1",
+            ".wb2",
+            ".wb3",
+            ".wq1",
+            ".wq2",
+            ".csv",
+            ".tsv",
+            ".slk",
+            ".sylk",
+            ".dif",
+            ".dbf",
+            ".prn",
+            ".qpw",
+            ".602",
+            ".et",
+            ".eth",
+        }:
+            return max(1, file_size // (100 * 1024))
+
+        if file_ext in {".epub"}:
+            return max(1, file_size // (50 * 1024))
+
+        if file_ext in {".txt", ".log", ".md", ".markdown", ".htm", ".html", ".xml"}:
+            return max(1, file_size // 3000)
+
+        if file_ext in {
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".gif",
+            ".bmp",
+            ".tiff",
+            ".webp",
+            ".svg",
+            ".cgm",
+            ".odg",
+            ".pbd",
+        }:
+            return 1
+
+        if file_ext in {".mp3", ".m4a", ".wav", ".mpga"}:
+            return max(1, file_size // (1024 * 1024))
+
+        if file_ext in {".mp4", ".mpeg", ".webm"}:
+            return max(1, file_size // (5 * 1024 * 1024))
+
+        return max(1, file_size // (80 * 1024))
+
     def estimate_pages_before_processing(self, file_path: str) -> int:
         """
-        Estimate page count from file before processing (to avoid unnecessary API calls).
-        This is called BEFORE sending to ETL services to prevent cost on rejected files.
+        Estimate page count from a local file before processing.
+
+        For PDFs, attempts to read the actual page count via pypdf.
+        For everything else, delegates to :meth:`estimate_pages_from_metadata`.
 
         Args:
             file_path: Path to the file
@@ -240,7 +385,6 @@ class PageLimitService:
         file_ext = Path(file_path).suffix.lower()
         file_size = os.path.getsize(file_path)
 
-        # PDF files - try to get actual page count
         if file_ext == ".pdf":
             try:
                 import pypdf
@@ -249,153 +393,6 @@ class PageLimitService:
                     pdf_reader = pypdf.PdfReader(f)
                     return len(pdf_reader.pages)
             except Exception:
-                # If PDF reading fails, fall back to size estimation
-                # Typical PDF: ~100KB per page (conservative estimate)
-                return max(1, file_size // (100 * 1024))
+                pass  # fall through to size-based estimation
 
-        # Word Processing Documents
-        # Microsoft Word, LibreOffice Writer, WordPerfect, Pages, etc.
-        elif file_ext in [
-            ".doc",
-            ".docx",
-            ".docm",
-            ".dot",
-            ".dotm",  # Microsoft Word
-            ".odt",
-            ".ott",
-            ".sxw",
-            ".stw",
-            ".uot",  # OpenDocument/StarOffice Writer
-            ".rtf",  # Rich Text Format
-            ".pages",  # Apple Pages
-            ".wpd",
-            ".wps",  # WordPerfect, Microsoft Works
-            ".abw",
-            ".zabw",  # AbiWord
-            ".cwk",
-            ".hwp",
-            ".lwp",
-            ".mcw",
-            ".mw",
-            ".sdw",
-            ".vor",  # Other word processors
-        ]:
-            # Typical word document: ~50KB per page (conservative)
-            return max(1, file_size // (50 * 1024))
-
-        # Presentation Documents
-        # PowerPoint, Impress, Keynote, etc.
-        elif file_ext in [
-            ".ppt",
-            ".pptx",
-            ".pptm",
-            ".pot",
-            ".potx",  # Microsoft PowerPoint
-            ".odp",
-            ".otp",
-            ".sxi",
-            ".sti",
-            ".uop",  # OpenDocument/StarOffice Impress
-            ".key",  # Apple Keynote
-            ".sda",
-            ".sdd",
-            ".sdp",  # StarOffice Draw/Impress
-        ]:
-            # Typical presentation: ~200KB per slide (conservative)
-            return max(1, file_size // (200 * 1024))
-
-        # Spreadsheet Documents
-        # Excel, Calc, Numbers, Lotus, etc.
-        elif file_ext in [
-            ".xls",
-            ".xlsx",
-            ".xlsm",
-            ".xlsb",
-            ".xlw",
-            ".xlr",  # Microsoft Excel
-            ".ods",
-            ".ots",
-            ".fods",  # OpenDocument Spreadsheet
-            ".numbers",  # Apple Numbers
-            ".123",
-            ".wk1",
-            ".wk2",
-            ".wk3",
-            ".wk4",
-            ".wks",  # Lotus 1-2-3
-            ".wb1",
-            ".wb2",
-            ".wb3",
-            ".wq1",
-            ".wq2",  # Quattro Pro
-            ".csv",
-            ".tsv",
-            ".slk",
-            ".sylk",
-            ".dif",
-            ".dbf",
-            ".prn",
-            ".qpw",  # Data formats
-            ".602",
-            ".et",
-            ".eth",  # Other spreadsheets
-        ]:
-            # Spreadsheets typically have 1 sheet = 1 page for ETL
-            # Conservative: ~100KB per sheet
-            return max(1, file_size // (100 * 1024))
-
-        # E-books
-        elif file_ext in [".epub"]:
-            # E-books vary widely, estimate by size
-            # Typical e-book: ~50KB per page
-            return max(1, file_size // (50 * 1024))
-
-        # Plain Text and Markup Files
-        elif file_ext in [
-            ".txt",
-            ".log",  # Plain text
-            ".md",
-            ".markdown",  # Markdown
-            ".htm",
-            ".html",
-            ".xml",  # Markup
-        ]:
-            # Plain text: ~3000 bytes per page
-            return max(1, file_size // 3000)
-
-        # Image Files
-        # Each image is typically processed as 1 page
-        elif file_ext in [
-            ".jpg",
-            ".jpeg",  # JPEG
-            ".png",  # PNG
-            ".gif",  # GIF
-            ".bmp",  # Bitmap
-            ".tiff",  # TIFF
-            ".webp",  # WebP
-            ".svg",  # SVG
-            ".cgm",  # Computer Graphics Metafile
-            ".odg",
-            ".pbd",  # OpenDocument Graphics
-        ]:
-            # Each image = 1 page
-            return 1
-
-        # Audio Files (transcription = typically 1 page per minute)
-        # Note: These should be handled by audio transcription flow, not ETL
-        elif file_ext in [".mp3", ".m4a", ".wav", ".mpga"]:
-            # Audio files: estimate based on duration
-            # Fallback: ~1MB per minute of audio, 1 page per minute transcript
-            return max(1, file_size // (1024 * 1024))
-
-        # Video Files (typically not processed for pages, but just in case)
-        elif file_ext in [".mp4", ".mpeg", ".webm"]:
-            # Video files: very rough estimate
-            # Typically wouldn't be page-based, but use conservative estimate
-            return max(1, file_size // (5 * 1024 * 1024))
-
-        # Other/Unknown Document Types
-        else:
-            # Conservative estimate: ~80KB per page
-            # This catches: .sgl, .sxg, .uof, .uos1, .uos2, .web, and any future formats
-            return max(1, file_size // (80 * 1024))
+        return self.estimate_pages_from_metadata(file_ext, file_size)

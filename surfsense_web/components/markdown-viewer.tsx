@@ -2,6 +2,8 @@ import { createCodePlugin } from "@streamdown/code";
 import { createMathPlugin } from "@streamdown/math";
 import { Streamdown, type StreamdownProps } from "streamdown";
 import "katex/dist/katex.min.css";
+import { is } from "drizzle-orm";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 const code = createCodePlugin({
@@ -15,6 +17,7 @@ const math = createMathPlugin({
 interface MarkdownViewerProps {
 	content: string;
 	className?: string;
+	maxLength?: number;
 }
 
 /**
@@ -79,8 +82,10 @@ function convertLatexDelimiters(content: string): string {
 	return content;
 }
 
-export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
-	const processedContent = convertLatexDelimiters(stripOuterMarkdownFence(content));
+export function MarkdownViewer({ content, className, maxLength }: MarkdownViewerProps) {
+	const isTruncated = maxLength != null && content.length > maxLength;
+	const displayContent = isTruncated ? content.slice(0, maxLength) : content;
+	const processedContent = convertLatexDelimiters(stripOuterMarkdownFence(displayContent));
 	const components: StreamdownProps["components"] = {
 		p: ({ children, ...props }) => (
 			<p className="my-2" {...props}>
@@ -124,16 +129,32 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
 			<blockquote className="border-l-4 border-muted pl-4 italic my-2" {...props} />
 		),
 		hr: ({ ...props }) => <hr className="my-4 border-muted" {...props} />,
-		img: ({ src, alt, width: _w, height: _h, ...props }) => (
-			// eslint-disable-next-line @next/next/no-img-element
-			<img
-				className="max-w-full h-auto my-4 rounded"
-				alt={alt || "markdown image"}
-				src={typeof src === "string" ? src : ""}
-				loading="lazy"
-				{...props}
-			/>
-		),
+		img: ({ src, alt, width: _w, height: _h, ...props }) => {
+			const isDataOrUnknownUrl =
+				typeof src === "string" && (src.startsWith("data:") || !src.startsWith("http"));
+
+			return isDataOrUnknownUrl ? (
+				// eslint-disable-next-line @next/next/no-img-element
+				<img
+					className="max-w-full h-auto my-4 rounded"
+					alt={alt || "markdown image"}
+					src={src}
+					loading="lazy"
+					{...props}
+				/>
+			) : (
+				<Image
+					className="max-w-full h-auto my-4 rounded"
+					alt={alt || "markdown image"}
+					src={typeof src === "string" ? src : ""}
+					width={_w || 800}
+					height={_h || 600}
+					sizes="(max-width: 768px) 100vw, (max-width: 1200px) 75vw, 60vw"
+					unoptimized={isDataOrUnknownUrl}
+					{...props}
+				/>
+			);
+		},
 		table: ({ ...props }) => (
 			<div className="overflow-x-auto my-4 rounded-lg border border-border w-full">
 				<table className="w-full divide-y divide-border" {...props} />
@@ -171,6 +192,12 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
 			>
 				{processedContent}
 			</Streamdown>
+			{isTruncated && (
+				<p className="mt-4 text-sm text-muted-foreground italic">
+					Content truncated ({Math.round(content.length / 1024)}KB total). Showing first{" "}
+					{Math.round(maxLength / 1024)}KB.
+				</p>
+			)}
 		</div>
 	);
 }

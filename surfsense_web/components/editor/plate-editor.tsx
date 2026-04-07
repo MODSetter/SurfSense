@@ -158,15 +158,18 @@ export function PlateEditor({
 	// When not forced read-only, the user can toggle between editing/viewing.
 	const canToggleMode = !readOnly;
 
+	const contextProviderValue = useMemo(
+		() => ({
+			onSave,
+			hasUnsavedChanges,
+			isSaving,
+			canToggleMode,
+		}),
+		[onSave, hasUnsavedChanges, isSaving, canToggleMode]
+	);
+
 	return (
-		<EditorSaveContext.Provider
-			value={{
-				onSave,
-				hasUnsavedChanges,
-				isSaving,
-				canToggleMode,
-			}}
-		>
+		<EditorSaveContext.Provider value={contextProviderValue}>
 			<Plate
 				editor={editor}
 				// Only pass readOnly as a controlled prop when forced (permanently read-only).

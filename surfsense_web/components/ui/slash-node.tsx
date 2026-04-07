@@ -176,7 +176,7 @@ export function SlashInputElement({ children, ...props }: PlateElementProps) {
 			<InlineCombobox element={props.element} trigger="/">
 				<InlineComboboxInput />
 
-				<InlineComboboxContent className="dark:bg-neutral-900 dark:border dark:border-white/5">
+				<InlineComboboxContent>
 					<InlineComboboxEmpty>No results found.</InlineComboboxEmpty>
 
 					{slashCommandGroups.map(({ heading, items }) => (

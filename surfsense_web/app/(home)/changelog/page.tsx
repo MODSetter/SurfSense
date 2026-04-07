@@ -29,7 +29,7 @@ interface ChangelogPageItem {
 
 export default async function ChangelogPage() {
 	const allPages = source.getPages() as ChangelogPageItem[];
-	const sortedChangelogs = allPages.sort((a, b) => {
+	const sortedChangelogs = allPages.toSorted((a, b) => {
 		const dateA = new Date(a.data.date).getTime();
 		const dateB = new Date(b.data.date).getTime();
 		return dateB - dateA;

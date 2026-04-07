@@ -5,7 +5,7 @@ export interface LLMModel {
 	contextWindow?: string;
 }
 
-// Comprehensive LLM models database organized by provider
+// Comprehensive models database organized by provider
 export const LLM_MODELS: LLMModel[] = [
 	// OpenAI
 	{
