@@ -58,7 +58,7 @@ function createQuickAskWindow(x: number, y: number): BrowserWindow {
 
   const spaceId = pendingSearchSpaceId;
   const route = spaceId ? `/dashboard/${spaceId}/new-chat` : '/dashboard';
-  quickAskWindow.loadURL(`http://localhost:${getServerPort()}${route}`);
+  quickAskWindow.loadURL(`http://localhost:${getServerPort()}${route}?quickAssist=true`);
 
   quickAskWindow.once('ready-to-show', () => {
     quickAskWindow?.show();
@@ -85,6 +85,7 @@ function createQuickAskWindow(x: number, y: number): BrowserWindow {
 
 async function openQuickAsk(text: string): Promise<void> {
   pendingText = text;
+  pendingMode = 'quick-assist';
   pendingSearchSpaceId = await getActiveSearchSpaceId();
   const cursor = screen.getCursorScreenPoint();
   const pos = clampToScreen(cursor.x, cursor.y, 450, 750);

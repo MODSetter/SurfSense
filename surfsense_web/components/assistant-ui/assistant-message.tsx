@@ -90,6 +90,11 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { cn } from "@/lib/utils";
 
+// Captured once at module load — survives client-side navigations that strip the query param.
+const IS_QUICK_ASSIST_WINDOW =
+	typeof window !== "undefined" &&
+	new URLSearchParams(window.location.search).get("quickAssist") === "true";
+
 // Dynamically import video presentation tool to avoid loading Babel and Remotion in main bundle
 const GenerateVideoPresentationToolUI = dynamic(
 	() =>
@@ -465,14 +470,8 @@ const AssistantActionBar: FC = () => {
 	const isLast = useAuiState((s) => s.message.isLast);
 	const aui = useAui();
 	const api = useElectronAPI();
-	const [isQuickAssist, setIsQuickAssist] = useState(false);
 
-	useEffect(() => {
-		if (!api?.getQuickAskMode) return;
-		api.getQuickAskMode().then((mode) => {
-			if (mode) setIsQuickAssist(true);
-		});
-	}, [api]);
+	const isQuickAssist = !!api?.replaceText && IS_QUICK_ASSIST_WINDOW;
 
 	return (
 		<ActionBarPrimitive.Root
