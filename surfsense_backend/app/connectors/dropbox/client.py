@@ -225,9 +225,7 @@ class DropboxClient:
 
         return all_items, None
 
-    async def get_latest_cursor(
-        self, path: str = ""
-    ) -> tuple[str | None, str | None]:
+    async def get_latest_cursor(self, path: str = "") -> tuple[str | None, str | None]:
         """Get a cursor representing the current state of a folder.
 
         Uses /2/files/list_folder/get_latest_cursor so we can later call
@@ -251,9 +249,7 @@ class DropboxClient:
         """
         all_entries: list[dict[str, Any]] = []
 
-        resp = await self._request(
-            "/2/files/list_folder/continue", {"cursor": cursor}
-        )
+        resp = await self._request("/2/files/list_folder/continue", {"cursor": cursor})
         if resp.status_code == 401:
             return [], None, "Dropbox authentication expired (401)"
         if resp.status_code != 200:
@@ -268,7 +264,11 @@ class DropboxClient:
                 "/2/files/list_folder/continue", {"cursor": cursor}
             )
             if resp.status_code != 200:
-                return all_entries, data.get("cursor"), f"Pagination failed: {resp.status_code}"
+                return (
+                    all_entries,
+                    data.get("cursor"),
+                    f"Pagination failed: {resp.status_code}",
+                )
             data = resp.json()
             all_entries.extend(data.get("entries", []))
 

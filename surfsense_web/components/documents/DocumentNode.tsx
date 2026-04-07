@@ -207,9 +207,15 @@ export const DocumentNode = React.memo(function DocumentNode({
 						);
 					})()}
 
-					<Tooltip delayDuration={600} open={titleTooltipOpen} onOpenChange={handleTitleTooltipOpenChange}>
+					<Tooltip
+						delayDuration={600}
+						open={titleTooltipOpen}
+						onOpenChange={handleTitleTooltipOpenChange}
+					>
 						<TooltipTrigger asChild>
-							<span ref={titleRef} className="flex-1 min-w-0 truncate">{doc.title}</span>
+							<span ref={titleRef} className="flex-1 min-w-0 truncate">
+								{doc.title}
+							</span>
 						</TooltipTrigger>
 						<TooltipContent side="bottom" className="max-w-xs break-words">
 							{doc.title}
@@ -276,10 +282,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 									Versions
 								</DropdownMenuItem>
 							)}
-							<DropdownMenuItem
-								disabled={isProcessing}
-								onClick={() => onDelete(doc)}
-							>
+							<DropdownMenuItem disabled={isProcessing} onClick={() => onDelete(doc)}>
 								<Trash2 className="mr-2 h-4 w-4" />
 								Delete
 							</DropdownMenuItem>
@@ -321,10 +324,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 							Versions
 						</ContextMenuItem>
 					)}
-					<ContextMenuItem
-						disabled={isProcessing}
-						onClick={() => onDelete(doc)}
-					>
+					<ContextMenuItem disabled={isProcessing} onClick={() => onDelete(doc)}>
 						<Trash2 className="mr-2 h-4 w-4" />
 						Delete
 					</ContextMenuItem>

@@ -19,6 +19,7 @@ def _make_client() -> DropboxClient:
 
 # ---------- C1: get_latest_cursor ----------
 
+
 async def test_get_latest_cursor_returns_cursor_string(monkeypatch):
     client = _make_client()
 
@@ -34,11 +35,16 @@ async def test_get_latest_cursor_returns_cursor_string(monkeypatch):
     assert error is None
     client._request.assert_called_once_with(
         "/2/files/list_folder/get_latest_cursor",
-        {"path": "/my-folder", "recursive": False, "include_non_downloadable_files": True},
+        {
+            "path": "/my-folder",
+            "recursive": False,
+            "include_non_downloadable_files": True,
+        },
     )
 
 
 # ---------- C2: get_changes returns entries and new cursor ----------
+
 
 async def test_get_changes_returns_entries_and_cursor(monkeypatch):
     client = _make_client()
@@ -65,6 +71,7 @@ async def test_get_changes_returns_entries_and_cursor(monkeypatch):
 
 
 # ---------- C3: get_changes handles pagination ----------
+
 
 async def test_get_changes_handles_pagination(monkeypatch):
     client = _make_client()
@@ -97,6 +104,7 @@ async def test_get_changes_handles_pagination(monkeypatch):
 
 
 # ---------- C4: get_changes raises on 401 ----------
+
 
 async def test_get_changes_returns_error_on_401(monkeypatch):
     client = _make_client()

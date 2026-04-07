@@ -370,7 +370,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						url: "#announcements",
 						icon: Megaphone,
 						isActive: isAnnouncementsSidebarOpen,
-						badge: announcementUnreadCount > 0 ? formatInboxCount(announcementUnreadCount) : undefined,
+						badge:
+							announcementUnreadCount > 0 ? formatInboxCount(announcementUnreadCount) : undefined,
 					},
 				] as (NavItem | null)[]
 			).filter((item): item is NavItem => item !== null),

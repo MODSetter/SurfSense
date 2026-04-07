@@ -30,26 +30,29 @@ def test_docling_service_does_not_restrict_allowed_formats():
 
     fake_pdf_format_option_cls = MagicMock()
 
-    with patch.dict("sys.modules", {
-        "docling": MagicMock(),
-        "docling.backend": MagicMock(),
-        "docling.backend.pypdfium2_backend": MagicMock(
-            PyPdfiumDocumentBackend=mock_backend
-        ),
-        "docling.datamodel": MagicMock(),
-        "docling.datamodel.base_models": MagicMock(
-            InputFormat=_FakeInputFormat
-        ),
-        "docling.datamodel.pipeline_options": MagicMock(
-            PdfPipelineOptions=fake_pipeline_options_cls
-        ),
-        "docling.document_converter": MagicMock(
-            DocumentConverter=mock_converter_cls,
-            PdfFormatOption=fake_pdf_format_option_cls,
-        ),
-    }):
-        import app.services.docling_service as mod
+    with patch.dict(
+        "sys.modules",
+        {
+            "docling": MagicMock(),
+            "docling.backend": MagicMock(),
+            "docling.backend.pypdfium2_backend": MagicMock(
+                PyPdfiumDocumentBackend=mock_backend
+            ),
+            "docling.datamodel": MagicMock(),
+            "docling.datamodel.base_models": MagicMock(InputFormat=_FakeInputFormat),
+            "docling.datamodel.pipeline_options": MagicMock(
+                PdfPipelineOptions=fake_pipeline_options_cls
+            ),
+            "docling.document_converter": MagicMock(
+                DocumentConverter=mock_converter_cls,
+                PdfFormatOption=fake_pdf_format_option_cls,
+            ),
+        },
+    ):
         from importlib import reload
+
+        import app.services.docling_service as mod
+
         reload(mod)
 
         mod.DoclingService()

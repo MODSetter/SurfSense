@@ -24,6 +24,4 @@ def _stub_package(dotted: str, fs_dir: Path) -> None:
 
 _stub_package("app", _BACKEND / "app")
 _stub_package("app.etl_pipeline", _BACKEND / "app" / "etl_pipeline")
-_stub_package(
-    "app.etl_pipeline.parsers", _BACKEND / "app" / "etl_pipeline" / "parsers"
-)
+_stub_package("app.etl_pipeline.parsers", _BACKEND / "app" / "etl_pipeline" / "parsers")

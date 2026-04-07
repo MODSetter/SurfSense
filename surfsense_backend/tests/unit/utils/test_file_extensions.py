@@ -17,36 +17,74 @@ def test_exe_is_not_supported_document():
     assert is_supported_document_extension("malware.exe") is False
 
 
-@pytest.mark.parametrize("filename", [
-    "report.pdf", "doc.docx", "old.doc",
-    "sheet.xlsx", "legacy.xls",
-    "slides.pptx", "deck.ppt",
-    "macro.docm", "macro.xlsm", "macro.pptm",
-    "photo.png", "photo.jpg", "photo.jpeg", "scan.bmp", "scan.tiff", "scan.tif",
-    "photo.webp", "anim.gif", "iphone.heic",
-    "manual.rtf", "book.epub",
-    "letter.odt", "data.ods", "presentation.odp",
-    "inbox.eml", "outlook.msg",
-    "korean.hwpx", "korean.hwp",
-    "template.dot", "template.dotm",
-    "template.pot", "template.potx",
-    "binary.xlsb", "workspace.xlw",
-    "vector.svg", "signature.p7s",
-])
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "report.pdf",
+        "doc.docx",
+        "old.doc",
+        "sheet.xlsx",
+        "legacy.xls",
+        "slides.pptx",
+        "deck.ppt",
+        "macro.docm",
+        "macro.xlsm",
+        "macro.pptm",
+        "photo.png",
+        "photo.jpg",
+        "photo.jpeg",
+        "scan.bmp",
+        "scan.tiff",
+        "scan.tif",
+        "photo.webp",
+        "anim.gif",
+        "iphone.heic",
+        "manual.rtf",
+        "book.epub",
+        "letter.odt",
+        "data.ods",
+        "presentation.odp",
+        "inbox.eml",
+        "outlook.msg",
+        "korean.hwpx",
+        "korean.hwp",
+        "template.dot",
+        "template.dotm",
+        "template.pot",
+        "template.potx",
+        "binary.xlsb",
+        "workspace.xlw",
+        "vector.svg",
+        "signature.p7s",
+    ],
+)
 def test_document_extensions_are_supported(filename):
     from app.utils.file_extensions import is_supported_document_extension
 
-    assert is_supported_document_extension(filename) is True, f"{filename} should be supported"
+    assert is_supported_document_extension(filename) is True, (
+        f"{filename} should be supported"
+    )
 
 
-@pytest.mark.parametrize("filename", [
-    "malware.exe", "archive.zip", "video.mov", "font.woff2",
-    "model.blend", "random.xyz", "data.parquet", "package.deb",
-])
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "malware.exe",
+        "archive.zip",
+        "video.mov",
+        "font.woff2",
+        "model.blend",
+        "random.xyz",
+        "data.parquet",
+        "package.deb",
+    ],
+)
 def test_non_document_extensions_are_not_supported(filename):
     from app.utils.file_extensions import is_supported_document_extension
 
-    assert is_supported_document_extension(filename) is False, f"{filename} should NOT be supported"
+    assert is_supported_document_extension(filename) is False, (
+        f"{filename} should NOT be supported"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -67,7 +105,7 @@ def test_union_equals_all_three_sets():
         | LLAMAPARSE_DOCUMENT_EXTENSIONS
         | UNSTRUCTURED_DOCUMENT_EXTENSIONS
     )
-    assert DOCUMENT_EXTENSIONS == expected
+    assert expected == DOCUMENT_EXTENSIONS
 
 
 def test_get_extensions_for_docling():

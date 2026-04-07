@@ -1010,7 +1010,11 @@ async def index_google_drive_files(
             documents_unsupported += ru
         else:
             logger.info(f"Using full scan for connector {connector_id}")
-            documents_indexed, documents_skipped, documents_unsupported = await _index_full_scan(
+            (
+                documents_indexed,
+                documents_skipped,
+                documents_unsupported,
+            ) = await _index_full_scan(
                 drive_client,
                 session,
                 connector,
@@ -1301,7 +1305,12 @@ async def index_google_drive_selected_files(
                 log_entry,
                 f"Batch file indexing completed with {len(errors)} error(s)",
                 "; ".join(errors),
-                {"indexed": indexed, "skipped": skipped, "unsupported": unsupported, "error_count": len(errors)},
+                {
+                    "indexed": indexed,
+                    "skipped": skipped,
+                    "unsupported": unsupported,
+                    "error_count": len(errors),
+                },
             )
         else:
             await task_logger.log_task_success(

@@ -15,30 +15,83 @@ from pathlib import PurePosixPath
 # Per-parser document extension sets (from official documentation)
 # ---------------------------------------------------------------------------
 
-DOCLING_DOCUMENT_EXTENSIONS: frozenset[str] = frozenset({
-    ".pdf",
-    ".docx", ".xlsx", ".pptx",
-    ".png", ".jpg", ".jpeg", ".tiff", ".tif", ".bmp", ".webp",
-})
+DOCLING_DOCUMENT_EXTENSIONS: frozenset[str] = frozenset(
+    {
+        ".pdf",
+        ".docx",
+        ".xlsx",
+        ".pptx",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".tiff",
+        ".tif",
+        ".bmp",
+        ".webp",
+    }
+)
 
-LLAMAPARSE_DOCUMENT_EXTENSIONS: frozenset[str] = frozenset({
-    ".pdf",
-    ".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt",
-    ".docm", ".dot", ".dotm", ".pptm", ".pot", ".potx",
-    ".xlsm", ".xlsb", ".xlw",
-    ".rtf", ".epub",
-    ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".tif", ".webp", ".svg",
-    ".odt", ".ods", ".odp",
-    ".hwp", ".hwpx",
-})
+LLAMAPARSE_DOCUMENT_EXTENSIONS: frozenset[str] = frozenset(
+    {
+        ".pdf",
+        ".docx",
+        ".doc",
+        ".xlsx",
+        ".xls",
+        ".pptx",
+        ".ppt",
+        ".docm",
+        ".dot",
+        ".dotm",
+        ".pptm",
+        ".pot",
+        ".potx",
+        ".xlsm",
+        ".xlsb",
+        ".xlw",
+        ".rtf",
+        ".epub",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".bmp",
+        ".tiff",
+        ".tif",
+        ".webp",
+        ".svg",
+        ".odt",
+        ".ods",
+        ".odp",
+        ".hwp",
+        ".hwpx",
+    }
+)
 
-UNSTRUCTURED_DOCUMENT_EXTENSIONS: frozenset[str] = frozenset({
-    ".pdf",
-    ".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt",
-    ".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".tif", ".heic",
-    ".rtf", ".epub", ".odt",
-    ".eml", ".msg", ".p7s",
-})
+UNSTRUCTURED_DOCUMENT_EXTENSIONS: frozenset[str] = frozenset(
+    {
+        ".pdf",
+        ".docx",
+        ".doc",
+        ".xlsx",
+        ".xls",
+        ".pptx",
+        ".ppt",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".bmp",
+        ".tiff",
+        ".tif",
+        ".heic",
+        ".rtf",
+        ".epub",
+        ".odt",
+        ".eml",
+        ".msg",
+        ".p7s",
+    }
+)
 
 # ---------------------------------------------------------------------------
 # Union (used by classify_file for routing) + service lookup

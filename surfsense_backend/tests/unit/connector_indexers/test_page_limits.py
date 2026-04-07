@@ -219,7 +219,9 @@ async def test_gdrive_files_exceeding_quota_rejected(gdrive_selected_mocks):
         None,
     )
 
-    indexed, _skipped, _unsup, errors = await _run_gdrive_selected(m, [("big", "huge.pdf")])
+    indexed, _skipped, _unsup, errors = await _run_gdrive_selected(
+        m, [("big", "huge.pdf")]
+    )
 
     assert indexed == 0
     assert len(errors) == 1
@@ -552,7 +554,9 @@ async def test_onedrive_over_quota_rejected(onedrive_selected_mocks):
         None,
     )
 
-    indexed, _skipped, _unsup, errors = await _run_onedrive_selected(m, [("big", "huge.pdf")])
+    indexed, _skipped, _unsup, errors = await _run_onedrive_selected(
+        m, [("big", "huge.pdf")]
+    )
 
     assert indexed == 0
     assert len(errors) == 1

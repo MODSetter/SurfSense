@@ -6,7 +6,6 @@ real so we know the full path from "cloud gives us bytes" to "we get markdown
 back" actually works.
 """
 
-import os
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -20,6 +19,7 @@ _CSV_CONTENT = "name,age\nAlice,30\nBob,25\n"
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 async def _write_file(dest_path: str, content: str) -> None:
     """Simulate a cloud client writing downloaded bytes to disk."""
@@ -43,8 +43,8 @@ def _make_download_side_effect(content: str):
 # Google Drive
 # ===================================================================
 
-class TestGoogleDriveContentExtraction:
 
+class TestGoogleDriveContentExtraction:
     async def test_txt_file_returns_markdown(self):
         from app.connectors.google_drive.content_extractor import (
             download_and_extract_content,
@@ -76,7 +76,7 @@ class TestGoogleDriveContentExtraction:
 
         file = {"id": "f2", "name": "data.csv", "mimeType": "text/csv"}
 
-        markdown, metadata, error = await download_and_extract_content(client, file)
+        markdown, _metadata, error = await download_and_extract_content(client, file)
 
         assert error is None
         assert "Alice" in markdown
@@ -93,7 +93,7 @@ class TestGoogleDriveContentExtraction:
 
         file = {"id": "f3", "name": "doc.txt", "mimeType": "text/plain"}
 
-        markdown, metadata, error = await download_and_extract_content(client, file)
+        markdown, _metadata, error = await download_and_extract_content(client, file)
 
         assert markdown is None
         assert error == "Network timeout"
@@ -103,8 +103,8 @@ class TestGoogleDriveContentExtraction:
 # OneDrive
 # ===================================================================
 
-class TestOneDriveContentExtraction:
 
+class TestOneDriveContentExtraction:
     async def test_txt_file_returns_markdown(self):
         from app.connectors.onedrive.content_extractor import (
             download_and_extract_content,
@@ -144,7 +144,7 @@ class TestOneDriveContentExtraction:
             "file": {"mimeType": "text/csv"},
         }
 
-        markdown, metadata, error = await download_and_extract_content(client, file)
+        markdown, _metadata, error = await download_and_extract_content(client, file)
 
         assert error is None
         assert "Alice" in markdown
@@ -164,7 +164,7 @@ class TestOneDriveContentExtraction:
             "file": {"mimeType": "text/plain"},
         }
 
-        markdown, metadata, error = await download_and_extract_content(client, file)
+        markdown, _metadata, error = await download_and_extract_content(client, file)
 
         assert markdown is None
         assert error == "403 Forbidden"
@@ -174,8 +174,8 @@ class TestOneDriveContentExtraction:
 # Dropbox
 # ===================================================================
 
-class TestDropboxContentExtraction:
 
+class TestDropboxContentExtraction:
     async def test_txt_file_returns_markdown(self):
         from app.connectors.dropbox.content_extractor import (
             download_and_extract_content,
@@ -217,7 +217,7 @@ class TestDropboxContentExtraction:
             "path_lower": "/data.csv",
         }
 
-        markdown, metadata, error = await download_and_extract_content(client, file)
+        markdown, _metadata, error = await download_and_extract_content(client, file)
 
         assert error is None
         assert "Alice" in markdown
@@ -238,7 +238,7 @@ class TestDropboxContentExtraction:
             "path_lower": "/big.txt",
         }
 
-        markdown, metadata, error = await download_and_extract_content(client, file)
+        markdown, _metadata, error = await download_and_extract_content(client, file)
 
         assert markdown is None
         assert error == "Rate limited"

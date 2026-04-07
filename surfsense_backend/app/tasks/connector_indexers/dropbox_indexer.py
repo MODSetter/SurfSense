@@ -254,9 +254,7 @@ async def _download_and_index(
     return batch_indexed, download_failed + batch_failed
 
 
-async def _remove_document(
-    session: AsyncSession, file_id: str, search_space_id: int
-):
+async def _remove_document(session: AsyncSession, file_id: str, search_space_id: int):
     """Remove a document that was deleted in Dropbox."""
     primary_hash = compute_identifier_hash(
         DocumentType.DROPBOX_FILE.value, file_id, search_space_id
@@ -268,8 +266,7 @@ async def _remove_document(
             select(Document).where(
                 Document.search_space_id == search_space_id,
                 Document.document_type == DocumentType.DROPBOX_FILE,
-                cast(Document.document_metadata["dropbox_file_id"], String)
-                == file_id,
+                cast(Document.document_metadata["dropbox_file_id"], String) == file_id,
             )
         )
         existing = result.scalar_one_or_none()
@@ -671,9 +668,7 @@ async def index_dropbox_files(
 
             saved_cursor = folder_cursors.get(folder_path)
             can_use_delta = (
-                use_delta_sync
-                and saved_cursor
-                and connector.last_indexed_at
+                use_delta_sync and saved_cursor and connector.last_indexed_at
             )
 
             if can_use_delta:
@@ -739,7 +734,11 @@ async def index_dropbox_files(
         await task_logger.log_task_success(
             log_entry,
             f"Successfully completed Dropbox indexing for connector {connector_id}",
-            {"files_processed": total_indexed, "files_skipped": total_skipped, "files_unsupported": total_unsupported},
+            {
+                "files_processed": total_indexed,
+                "files_skipped": total_skipped,
+                "files_unsupported": total_unsupported,
+            },
         )
         logger.info(
             f"Dropbox indexing completed: {total_indexed} indexed, "

@@ -66,16 +66,12 @@ async def parse_with_llamacloud(file_path: str, estimated_pages: int) -> str:
                     )
 
                 if hasattr(result, "get_markdown_documents"):
-                    markdown_docs = result.get_markdown_documents(
-                        split_by_page=False
-                    )
+                    markdown_docs = result.get_markdown_documents(split_by_page=False)
                     if markdown_docs and hasattr(markdown_docs[0], "text"):
                         return markdown_docs[0].text
                     if hasattr(result, "pages") and result.pages:
                         return "\n\n".join(
-                            p.md
-                            for p in result.pages
-                            if hasattr(p, "md") and p.md
+                            p.md for p in result.pages if hasattr(p, "md") and p.md
                         )
                     return str(result)
 
@@ -83,9 +79,7 @@ async def parse_with_llamacloud(file_path: str, estimated_pages: int) -> str:
                     if result and hasattr(result[0], "text"):
                         return result[0].text
                     return "\n\n".join(
-                        doc.page_content
-                        if hasattr(doc, "page_content")
-                        else str(doc)
+                        doc.page_content if hasattr(doc, "page_content") else str(doc)
                         for doc in result
                     )
 

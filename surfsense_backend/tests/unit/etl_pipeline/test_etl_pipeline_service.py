@@ -144,7 +144,7 @@ async def test_extract_mp3_returns_transcription(tmp_path, mocker):
 
 
 # ---------------------------------------------------------------------------
-# Slice 7 – DOCLING document parsing
+# Slice 7 - DOCLING document parsing
 # ---------------------------------------------------------------------------
 
 
@@ -172,7 +172,7 @@ async def test_extract_pdf_with_docling(tmp_path, mocker):
 
 
 # ---------------------------------------------------------------------------
-# Slice 8 – UNSTRUCTURED document parsing
+# Slice 8 - UNSTRUCTURED document parsing
 # ---------------------------------------------------------------------------
 
 
@@ -208,7 +208,7 @@ async def test_extract_pdf_with_unstructured(tmp_path, mocker):
 
 
 # ---------------------------------------------------------------------------
-# Slice 9 – LLAMACLOUD document parsing
+# Slice 9 - LLAMACLOUD document parsing
 # ---------------------------------------------------------------------------
 
 
@@ -241,9 +241,7 @@ async def test_extract_pdf_with_llamacloud(tmp_path, mocker):
     )
 
     result = await EtlPipelineService().extract(
-        EtlRequest(
-            file_path=str(pdf_file), filename="report.pdf", estimated_pages=5
-        )
+        EtlRequest(file_path=str(pdf_file), filename="report.pdf", estimated_pages=5)
     )
 
     assert result.markdown_content == "# LlamaCloud parsed"
@@ -252,7 +250,7 @@ async def test_extract_pdf_with_llamacloud(tmp_path, mocker):
 
 
 # ---------------------------------------------------------------------------
-# Slice 10 – unknown extension falls through to document ETL
+# Slice 10 - unknown extension falls through to document ETL
 # ---------------------------------------------------------------------------
 
 
@@ -279,18 +277,18 @@ async def test_unknown_extension_uses_document_etl(tmp_path, mocker):
 
 
 # ---------------------------------------------------------------------------
-# Slice 11 – EtlRequest validation
+# Slice 11 - EtlRequest validation
 # ---------------------------------------------------------------------------
 
 
 def test_etl_request_requires_filename():
     """EtlRequest rejects missing filename."""
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError, match="filename must not be empty"):
         EtlRequest(file_path="/tmp/some.txt", filename="")
 
 
 # ---------------------------------------------------------------------------
-# Slice 12 – unknown ETL_SERVICE raises EtlServiceUnavailableError
+# Slice 12 - unknown ETL_SERVICE raises EtlServiceUnavailableError
 # ---------------------------------------------------------------------------
 
 
@@ -310,7 +308,7 @@ async def test_unknown_etl_service_raises(tmp_path, mocker):
 
 
 # ---------------------------------------------------------------------------
-# Slice 13 – unsupported file types are rejected before reaching any parser
+# Slice 13 - unsupported file types are rejected before reaching any parser
 # ---------------------------------------------------------------------------
 
 
@@ -321,10 +319,19 @@ def test_unknown_extension_classified_as_unsupported():
     assert classify_file("random.xyz") == FileCategory.UNSUPPORTED
 
 
-@pytest.mark.parametrize("filename", [
-    "malware.exe", "archive.zip", "video.mov", "font.woff2",
-    "model.blend", "data.parquet", "package.deb", "firmware.bin",
-])
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "malware.exe",
+        "archive.zip",
+        "video.mov",
+        "font.woff2",
+        "model.blend",
+        "data.parquet",
+        "package.deb",
+        "firmware.bin",
+    ],
+)
 def test_unsupported_extensions_classified_correctly(filename):
     """Extensions not in any allowlist are classified as UNSUPPORTED."""
     from app.etl_pipeline.file_classifier import FileCategory, classify_file
@@ -332,18 +339,21 @@ def test_unsupported_extensions_classified_correctly(filename):
     assert classify_file(filename) == FileCategory.UNSUPPORTED
 
 
-@pytest.mark.parametrize("filename,expected", [
-    ("report.pdf", "document"),
-    ("doc.docx", "document"),
-    ("slides.pptx", "document"),
-    ("sheet.xlsx", "document"),
-    ("photo.png", "document"),
-    ("photo.jpg", "document"),
-    ("book.epub", "document"),
-    ("letter.odt", "document"),
-    ("readme.md", "plaintext"),
-    ("data.csv", "direct_convert"),
-])
+@pytest.mark.parametrize(
+    "filename,expected",
+    [
+        ("report.pdf", "document"),
+        ("doc.docx", "document"),
+        ("slides.pptx", "document"),
+        ("sheet.xlsx", "document"),
+        ("photo.png", "document"),
+        ("photo.jpg", "document"),
+        ("book.epub", "document"),
+        ("letter.odt", "document"),
+        ("readme.md", "plaintext"),
+        ("data.csv", "direct_convert"),
+    ],
+)
 def test_parseable_extensions_classified_correctly(filename, expected):
     """Parseable files are classified into their correct category."""
     from app.etl_pipeline.file_classifier import FileCategory, classify_file
@@ -380,31 +390,34 @@ async def test_extract_zip_raises_unsupported_error(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Slice 14 – should_skip_for_service (per-parser document filtering)
+# Slice 14 - should_skip_for_service (per-parser document filtering)
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("filename,etl_service,expected_skip", [
-    ("file.eml", "DOCLING", True),
-    ("file.eml", "UNSTRUCTURED", False),
-    ("file.docm", "LLAMACLOUD", False),
-    ("file.docm", "DOCLING", True),
-    ("file.txt", "DOCLING", False),
-    ("file.csv", "LLAMACLOUD", False),
-    ("file.mp3", "UNSTRUCTURED", False),
-    ("file.exe", "LLAMACLOUD", True),
-    ("file.pdf", "DOCLING", False),
-    ("file.webp", "DOCLING", False),
-    ("file.webp", "UNSTRUCTURED", True),
-    ("file.gif", "LLAMACLOUD", False),
-    ("file.gif", "DOCLING", True),
-    ("file.heic", "UNSTRUCTURED", False),
-    ("file.heic", "DOCLING", True),
-    ("file.svg", "LLAMACLOUD", False),
-    ("file.svg", "DOCLING", True),
-    ("file.p7s", "UNSTRUCTURED", False),
-    ("file.p7s", "LLAMACLOUD", True),
-])
+@pytest.mark.parametrize(
+    "filename,etl_service,expected_skip",
+    [
+        ("file.eml", "DOCLING", True),
+        ("file.eml", "UNSTRUCTURED", False),
+        ("file.docm", "LLAMACLOUD", False),
+        ("file.docm", "DOCLING", True),
+        ("file.txt", "DOCLING", False),
+        ("file.csv", "LLAMACLOUD", False),
+        ("file.mp3", "UNSTRUCTURED", False),
+        ("file.exe", "LLAMACLOUD", True),
+        ("file.pdf", "DOCLING", False),
+        ("file.webp", "DOCLING", False),
+        ("file.webp", "UNSTRUCTURED", True),
+        ("file.gif", "LLAMACLOUD", False),
+        ("file.gif", "DOCLING", True),
+        ("file.heic", "UNSTRUCTURED", False),
+        ("file.heic", "DOCLING", True),
+        ("file.svg", "LLAMACLOUD", False),
+        ("file.svg", "DOCLING", True),
+        ("file.p7s", "UNSTRUCTURED", False),
+        ("file.p7s", "LLAMACLOUD", True),
+    ],
+)
 def test_should_skip_for_service(filename, etl_service, expected_skip):
     from app.etl_pipeline.file_classifier import should_skip_for_service
 
@@ -414,7 +427,7 @@ def test_should_skip_for_service(filename, etl_service, expected_skip):
 
 
 # ---------------------------------------------------------------------------
-# Slice 14b – ETL pipeline rejects per-parser incompatible documents
+# Slice 14b - ETL pipeline rejects per-parser incompatible documents
 # ---------------------------------------------------------------------------
 
 

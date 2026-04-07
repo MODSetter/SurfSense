@@ -132,9 +132,7 @@ const DocumentUploadPopupContent: FC<{
 				<div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
 					<div className="sticky top-0 z-20 bg-muted px-4 sm:px-6 pt-6 sm:pt-8 pb-10">
 						<div className="flex items-center gap-2 mb-1 pr-8 sm:pr-0">
-							<h2 className="text-xl sm:text-3xl font-semibold tracking-tight">
-								Upload Documents
-							</h2>
+							<h2 className="text-xl sm:text-3xl font-semibold tracking-tight">Upload Documents</h2>
 						</div>
 						<p className="text-xs sm:text-base text-muted-foreground/80 line-clamp-1">
 							Upload and sync your documents to your search space

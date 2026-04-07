@@ -2,11 +2,11 @@
 
 import type { LucideIcon } from "lucide-react";
 import { Code2, Database, ExternalLink, File, FileText, Globe, Newspaper } from "lucide-react";
+import NextImage from "next/image";
 import * as React from "react";
 import { openSafeNavigationHref, sanitizeHref } from "../shared/media";
 import { cn, Popover, PopoverContent, PopoverTrigger } from "./_adapter";
 import type { CitationType, CitationVariant, SerializableCitation } from "./schema";
-import NextImage from 'next/image';
 
 const FALLBACK_LOCALE = "en-US";
 
@@ -115,18 +115,18 @@ export function Citation(props: CitationProps) {
 	};
 
 	const iconElement = favicon ? (
-    <NextImage
-        src={favicon}
-        alt=""
-        aria-hidden="true"
-        width={16}
-        height={16}
-        className="bg-muted size-3.5 shrink-0 rounded object-cover"
-        unoptimized={true}
-    />
-) : (
-    <TypeIcon className="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
-);
+		<NextImage
+			src={favicon}
+			alt=""
+			aria-hidden="true"
+			width={16}
+			height={16}
+			className="bg-muted size-3.5 shrink-0 rounded object-cover"
+			unoptimized={true}
+		/>
+	) : (
+		<TypeIcon className="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
+	);
 
 	const { open, handleMouseEnter, handleMouseLeave } = useHoverPopover();
 

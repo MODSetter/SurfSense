@@ -762,7 +762,11 @@ async def index_onedrive_files(
         await task_logger.log_task_success(
             log_entry,
             f"Successfully completed OneDrive indexing for connector {connector_id}",
-            {"files_processed": total_indexed, "files_skipped": total_skipped, "files_unsupported": total_unsupported},
+            {
+                "files_processed": total_indexed,
+                "files_skipped": total_skipped,
+                "files_unsupported": total_unsupported,
+            },
         )
         logger.info(
             f"OneDrive indexing completed: {total_indexed} indexed, "

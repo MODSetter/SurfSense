@@ -300,15 +300,15 @@ export function CommentComposer({
 
 			<div className={cn("flex items-center gap-2", !compact && "justify-end")}>
 				{onCancel && (
-				<Button
-					type="button"
-					variant="ghost"
-					size="sm"
-					onClick={onCancel}
-					disabled={isSubmitting}
-				>
-					Cancel
-				</Button>
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						onClick={onCancel}
+						disabled={isSubmitting}
+					>
+						Cancel
+					</Button>
 				)}
 				<Button
 					type="button"
@@ -317,11 +317,7 @@ export function CommentComposer({
 					disabled={!canSubmit}
 					className={cn(!canSubmit && "opacity-50", compact && "size-8 shrink-0 rounded-full")}
 				>
-					{compact ? (
-						<ArrowUp className="size-4" />
-					) : (
-						submitLabel
-					)}
+					{compact ? <ArrowUp className="size-4" /> : submitLabel}
 				</Button>
 			</div>
 		</div>

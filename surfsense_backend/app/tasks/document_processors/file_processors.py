@@ -292,8 +292,10 @@ async def process_file_in_background(
     )
 
     try:
-        from app.etl_pipeline.file_classifier import FileCategory as EtlFileCategory
-        from app.etl_pipeline.file_classifier import classify_file as etl_classify
+        from app.etl_pipeline.file_classifier import (
+            FileCategory as EtlFileCategory,
+            classify_file as etl_classify,
+        )
 
         category = etl_classify(filename)
 
@@ -345,8 +347,10 @@ async def _extract_file_content(
     """
     from app.etl_pipeline.etl_document import EtlRequest
     from app.etl_pipeline.etl_pipeline_service import EtlPipelineService
-    from app.etl_pipeline.file_classifier import FileCategory
-    from app.etl_pipeline.file_classifier import classify_file as etl_classify
+    from app.etl_pipeline.file_classifier import (
+        FileCategory,
+        classify_file as etl_classify,
+    )
 
     category = etl_classify(filename)
     estimated_pages = 0

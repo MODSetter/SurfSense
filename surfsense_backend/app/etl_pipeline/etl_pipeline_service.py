@@ -1,6 +1,9 @@
 from app.config import config as app_config
 from app.etl_pipeline.etl_document import EtlRequest, EtlResult
-from app.etl_pipeline.exceptions import EtlServiceUnavailableError, EtlUnsupportedFileError
+from app.etl_pipeline.exceptions import (
+    EtlServiceUnavailableError,
+    EtlUnsupportedFileError,
+)
 from app.etl_pipeline.file_classifier import FileCategory, classify_file
 from app.etl_pipeline.parsers.audio import transcribe_audio
 from app.etl_pipeline.parsers.direct_convert import convert_file_directly
@@ -78,9 +81,7 @@ class EtlPipelineService:
                 request.file_path, request.estimated_pages
             )
         else:
-            raise EtlServiceUnavailableError(
-                f"Unknown ETL_SERVICE: {etl_service}"
-            )
+            raise EtlServiceUnavailableError(f"Unknown ETL_SERVICE: {etl_service}")
 
         return EtlResult(
             markdown_content=content,

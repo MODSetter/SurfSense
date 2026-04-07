@@ -23,7 +23,6 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.db import (
     Document,
     DocumentStatus,
@@ -151,8 +150,6 @@ def scan_folder(
                 logger.warning(f"Could not stat file {full}: {e}")
 
     return files
-
-
 
 
 async def _read_file_content(file_path: str, filename: str) -> str:

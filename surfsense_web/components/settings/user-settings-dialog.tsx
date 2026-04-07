@@ -5,10 +5,10 @@ import { Globe, KeyRound, Monitor, Receipt, Sparkles, User } from "lucide-react"
 import { useTranslations } from "next-intl";
 import { ApiKeyContent } from "@/app/dashboard/[search_space_id]/user-settings/components/ApiKeyContent";
 import { CommunityPromptsContent } from "@/app/dashboard/[search_space_id]/user-settings/components/CommunityPromptsContent";
+import { DesktopContent } from "@/app/dashboard/[search_space_id]/user-settings/components/DesktopContent";
 import { ProfileContent } from "@/app/dashboard/[search_space_id]/user-settings/components/ProfileContent";
 import { PromptsContent } from "@/app/dashboard/[search_space_id]/user-settings/components/PromptsContent";
 import { PurchaseHistoryContent } from "@/app/dashboard/[search_space_id]/user-settings/components/PurchaseHistoryContent";
-import { DesktopContent } from "@/app/dashboard/[search_space_id]/user-settings/components/DesktopContent";
 import { userSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
 import { SettingsDialog } from "@/components/settings/settings-dialog";
 

@@ -100,7 +100,9 @@ async def download_and_extract_content(
             if error:
                 return None, drive_metadata, error
 
-        etl_filename = file_name + extension if is_google_workspace_file(mime_type) else file_name
+        etl_filename = (
+            file_name + extension if is_google_workspace_file(mime_type) else file_name
+        )
         markdown = await _parse_file_to_markdown(temp_file_path, etl_filename)
         return markdown, drive_metadata, None
 
@@ -233,7 +235,9 @@ async def download_and_process_file(
                 "."
             )[-1]
 
-        etl_filename = file_name + extension if is_google_workspace_file(mime_type) else file_name
+        etl_filename = (
+            file_name + extension if is_google_workspace_file(mime_type) else file_name
+        )
         logger.info(f"Processing {file_name} with Surfsense's file processor")
         await process_file_in_background(
             file_path=temp_file_path,

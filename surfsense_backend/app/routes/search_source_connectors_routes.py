@@ -2647,7 +2647,12 @@ async def run_onedrive_indexing(
                 stage="fetching",
             )
 
-        total_indexed, total_skipped, error_message, total_unsupported = await index_onedrive_files(
+        (
+            total_indexed,
+            total_skipped,
+            error_message,
+            total_unsupported,
+        ) = await index_onedrive_files(
             session,
             connector_id,
             search_space_id,
@@ -2756,7 +2761,12 @@ async def run_dropbox_indexing(
                 stage="fetching",
             )
 
-        total_indexed, total_skipped, error_message, total_unsupported = await index_dropbox_files(
+        (
+            total_indexed,
+            total_skipped,
+            error_message,
+            total_unsupported,
+        ) = await index_dropbox_files(
             session,
             connector_id,
             search_space_id,

@@ -265,6 +265,7 @@ def full_scan_mocks(mock_dropbox_client, monkeypatch):
 
     async def _fake_skip(session, file, search_space_id):
         from app.connectors.dropbox.file_types import should_skip_file as _skip
+
         item_skip, unsup_ext = _skip(file)
         if item_skip:
             if unsup_ext:
@@ -468,7 +469,11 @@ async def test_selected_files_fetch_failure_isolation(selected_files_mocks):
 
     indexed, skipped, _unsupported, errors = await _run_selected(
         selected_files_mocks,
-        [("/first.txt", "first.txt"), ("/mid.txt", "mid.txt"), ("/third.txt", "third.txt")],
+        [
+            ("/first.txt", "first.txt"),
+            ("/mid.txt", "mid.txt"),
+            ("/third.txt", "third.txt"),
+        ],
     )
 
     assert indexed == 2
@@ -526,8 +531,18 @@ async def test_delta_sync_deletions_call_remove_document(monkeypatch):
     import app.tasks.connector_indexers.dropbox_indexer as _mod
 
     entries = [
-        {".tag": "deleted", "name": "gone.txt", "path_lower": "/gone.txt", "id": "id:del1"},
-        {".tag": "deleted", "name": "also_gone.pdf", "path_lower": "/also_gone.pdf", "id": "id:del2"},
+        {
+            ".tag": "deleted",
+            "name": "gone.txt",
+            "path_lower": "/gone.txt",
+            "id": "id:del1",
+        },
+        {
+            ".tag": "deleted",
+            "name": "also_gone.pdf",
+            "path_lower": "/also_gone.pdf",
+            "id": "id:del2",
+        },
     ]
 
     mock_client = MagicMock()
@@ -544,7 +559,7 @@ async def test_delta_sync_deletions_call_remove_document(monkeypatch):
     mock_task_logger = MagicMock()
     mock_task_logger.log_task_progress = AsyncMock()
 
-    indexed, skipped, unsupported, cursor = await _index_with_delta_sync(
+    _indexed, _skipped, _unsupported, cursor = await _index_with_delta_sync(
         mock_client,
         AsyncMock(),
         _CONNECTOR_ID,
@@ -573,7 +588,9 @@ async def test_delta_sync_upserts_filtered_and_downloaded(monkeypatch):
     mock_client = MagicMock()
     mock_client.get_changes = AsyncMock(return_value=(entries, "cursor-v2", None))
 
-    monkeypatch.setattr(_mod, "_should_skip_file", AsyncMock(return_value=(False, None)))
+    monkeypatch.setattr(
+        _mod, "_should_skip_file", AsyncMock(return_value=(False, None))
+    )
 
     download_mock = AsyncMock(return_value=(2, 0))
     monkeypatch.setattr(_mod, "_download_and_index", download_mock)
@@ -581,7 +598,7 @@ async def test_delta_sync_upserts_filtered_and_downloaded(monkeypatch):
     mock_task_logger = MagicMock()
     mock_task_logger.log_task_progress = AsyncMock()
 
-    indexed, skipped, unsupported, cursor = await _index_with_delta_sync(
+    indexed, skipped, _unsupported, cursor = await _index_with_delta_sync(
         mock_client,
         AsyncMock(),
         _CONNECTOR_ID,
@@ -608,8 +625,18 @@ async def test_delta_sync_mix_deletions_and_upserts(monkeypatch):
     import app.tasks.connector_indexers.dropbox_indexer as _mod
 
     entries = [
-        {".tag": "deleted", "name": "removed.txt", "path_lower": "/removed.txt", "id": "id:del1"},
-        {".tag": "deleted", "name": "trashed.pdf", "path_lower": "/trashed.pdf", "id": "id:del2"},
+        {
+            ".tag": "deleted",
+            "name": "removed.txt",
+            "path_lower": "/removed.txt",
+            "id": "id:del1",
+        },
+        {
+            ".tag": "deleted",
+            "name": "trashed.pdf",
+            "path_lower": "/trashed.pdf",
+            "id": "id:del2",
+        },
         _make_file_dict("mod1", "updated.txt"),
         _make_file_dict("new1", "brandnew.docx"),
     ]
@@ -623,7 +650,9 @@ async def test_delta_sync_mix_deletions_and_upserts(monkeypatch):
         remove_calls.append(file_id)
 
     monkeypatch.setattr(_mod, "_remove_document", _fake_remove)
-    monkeypatch.setattr(_mod, "_should_skip_file", AsyncMock(return_value=(False, None)))
+    monkeypatch.setattr(
+        _mod, "_should_skip_file", AsyncMock(return_value=(False, None))
+    )
 
     download_mock = AsyncMock(return_value=(2, 0))
     monkeypatch.setattr(_mod, "_download_and_index", download_mock)
@@ -631,7 +660,7 @@ async def test_delta_sync_mix_deletions_and_upserts(monkeypatch):
     mock_task_logger = MagicMock()
     mock_task_logger.log_task_progress = AsyncMock()
 
-    indexed, skipped, unsupported, cursor = await _index_with_delta_sync(
+    indexed, skipped, _unsupported, cursor = await _index_with_delta_sync(
         mock_client,
         AsyncMock(),
         _CONNECTOR_ID,
@@ -665,7 +694,7 @@ async def test_delta_sync_returns_new_cursor(monkeypatch):
     mock_task_logger = MagicMock()
     mock_task_logger.log_task_progress = AsyncMock()
 
-    indexed, skipped, unsupported, cursor = await _index_with_delta_sync(
+    indexed, skipped, _unsupported, cursor = await _index_with_delta_sync(
         mock_client,
         AsyncMock(),
         _CONNECTOR_ID,
@@ -723,9 +752,7 @@ def orchestrator_mocks(monkeypatch):
 
     mock_client = MagicMock()
     mock_client.get_latest_cursor = AsyncMock(return_value=("latest-cursor-abc", None))
-    monkeypatch.setattr(
-        _mod, "DropboxClient", MagicMock(return_value=mock_client)
-    )
+    monkeypatch.setattr(_mod, "DropboxClient", MagicMock(return_value=mock_client))
 
     return {
         "connector": mock_connector,
@@ -751,7 +778,7 @@ async def test_orchestrator_uses_delta_sync_when_cursor_and_last_indexed(
     mock_session = AsyncMock()
     mock_session.commit = AsyncMock()
 
-    indexed, skipped, error, _unsupported = await index_dropbox_files(
+    _indexed, _skipped, error, _unsupported = await index_dropbox_files(
         mock_session,
         _CONNECTOR_ID,
         _SEARCH_SPACE_ID,
@@ -779,7 +806,7 @@ async def test_orchestrator_falls_back_to_full_scan_without_cursor(
     mock_session = AsyncMock()
     mock_session.commit = AsyncMock()
 
-    indexed, skipped, error, _unsupported = await index_dropbox_files(
+    _indexed, _skipped, error, _unsupported = await index_dropbox_files(
         mock_session,
         _CONNECTOR_ID,
         _SEARCH_SPACE_ID,
