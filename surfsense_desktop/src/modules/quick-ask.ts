@@ -5,6 +5,7 @@ import { checkAccessibilityPermission, getFrontmostApp, simulateCopy, simulatePa
 import { getServerPort } from './server';
 import { getShortcuts } from './shortcuts';
 import { getActiveSearchSpaceId } from './active-search-space';
+import { trackEvent } from './analytics';
 
 let currentShortcut = '';
 let quickAskWindow: BrowserWindow | null = null;
@@ -120,6 +121,7 @@ async function quickAskHandler(): Promise<void> {
 
   sourceApp = getFrontmostApp();
   console.log('[quick-ask] Source app:', sourceApp, '| Opening Quick Assist with', text.length, 'chars', selected ? '(selected)' : text ? '(clipboard fallback)' : '(empty)');
+  trackEvent('desktop_quick_ask_opened', { has_selected_text: !!selected });
   openQuickAsk(text);
 }
 
@@ -151,6 +153,7 @@ function registerIpcHandlers(): void {
 
     if (!checkAccessibilityPermission()) return;
 
+    trackEvent('desktop_quick_ask_replaced');
     clipboard.writeText(text);
     destroyQuickAsk();
 

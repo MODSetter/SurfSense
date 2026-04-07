@@ -111,6 +111,12 @@ async function buildElectron() {
       'process.env.HOSTED_FRONTEND_URL': JSON.stringify(
         process.env.HOSTED_FRONTEND_URL || desktopEnv.HOSTED_FRONTEND_URL || 'https://surfsense.net'
       ),
+      'process.env.POSTHOG_KEY': JSON.stringify(
+        process.env.POSTHOG_KEY || desktopEnv.POSTHOG_KEY || ''
+      ),
+      'process.env.POSTHOG_HOST': JSON.stringify(
+        process.env.POSTHOG_HOST || desktopEnv.POSTHOG_HOST || 'https://us.i.posthog.com'
+      ),
     },
   };
 
