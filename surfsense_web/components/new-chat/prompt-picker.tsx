@@ -5,6 +5,7 @@ import { Plus, Zap } from "lucide-react";
 import {
 	forwardRef,
 	useCallback,
+	useDeferredValue,
 	useEffect,
 	useImperativeHandle,
 	useMemo,
@@ -41,15 +42,19 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 	const shouldScrollRef = useRef(false);
 	const itemRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
 
+	// Defer the search value so filtering is non-urgent and the input stays responsive
+	const deferredSearch = useDeferredValue(externalSearch);
+
 	const filtered = useMemo(() => {
 		const list = prompts ?? [];
-		if (!externalSearch) return list;
-		return list.filter((a) => a.name.toLowerCase().includes(externalSearch.toLowerCase()));
-	}, [prompts, externalSearch]);
+		if (!deferredSearch) return list;
+		return list.filter((a) => a.name.toLowerCase().includes(deferredSearch.toLowerCase()));
+	}, [prompts, deferredSearch]);
 
-	const prevSearchRef = useRef(externalSearch);
-	if (prevSearchRef.current !== externalSearch) {
-		prevSearchRef.current = externalSearch;
+	// Reset highlight when the deferred (filtered) search changes
+	const prevSearchRef = useRef(deferredSearch);
+	if (prevSearchRef.current !== deferredSearch) {
+		prevSearchRef.current = deferredSearch;
 		if (highlightedIndex !== 0) {
 			setHighlightedIndex(0);
 		}

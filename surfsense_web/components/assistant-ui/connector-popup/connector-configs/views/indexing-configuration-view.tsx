@@ -158,7 +158,7 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 								{/* AI Summary toggle */}
 								<SummaryConfig enabled={enableSummary} onEnabledChange={onEnableSummaryChange} />
 
-								{/* Date range selector - not shown for file-based connectors (Drive, Dropbox, OneDrive), Webcrawler, or GitHub (indexes full repo snapshots) */}
+								{/* Date range selector - not shown for file-based connectors (Drive, Dropbox, OneDrive), Webcrawler, GitHub, or Local Folder */}
 								{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" &&
 									config.connectorType !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&
 									config.connectorType !== "DROPBOX_CONNECTOR" &&
@@ -179,9 +179,10 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 										/>
 									)}
 
-								{/* Periodic sync - not shown for Google Drive (regular and Composio) */}
 								{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" &&
-									config.connectorType !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" && (
+									config.connectorType !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&
+									config.connectorType !== "DROPBOX_CONNECTOR" &&
+									config.connectorType !== "ONEDRIVE_CONNECTOR" && (
 										<PeriodicSyncConfig
 											enabled={periodicEnabled}
 											frequencyMinutes={frequencyMinutes}

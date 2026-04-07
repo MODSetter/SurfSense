@@ -42,9 +42,7 @@ def upgrade() -> None:
     if not exists:
         table_list = ", ".join(TABLES)
         conn.execute(
-            sa.text(
-                f"CREATE PUBLICATION {PUBLICATION_NAME} FOR TABLE {table_list}"
-            )
+            sa.text(f"CREATE PUBLICATION {PUBLICATION_NAME} FOR TABLE {table_list}")
         )
 
 

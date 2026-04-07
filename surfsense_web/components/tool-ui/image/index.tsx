@@ -307,6 +307,7 @@ export function Image({
 							src={src}
 							alt={alt}
 							fill
+							sizes="(max-width: 512px) 100vw, 512px"
 							className={cn(
 								"transition-transform duration-300",
 								fit === "cover" ? "object-cover" : "object-contain",

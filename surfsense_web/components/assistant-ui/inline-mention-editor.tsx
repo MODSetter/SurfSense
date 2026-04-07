@@ -24,6 +24,7 @@ export interface MentionedDocument {
 export interface InlineMentionEditorRef {
 	focus: () => void;
 	clear: () => void;
+	setText: (text: string) => void;
 	getText: () => string;
 	getMentionedDocuments: () => MentionedDocument[];
 	insertDocumentChip: (doc: Pick<Document, "id" | "title" | "document_type">) => void;
@@ -397,6 +398,19 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			}
 		}, []);
 
+		// Replace editor content with plain text and place cursor at end
+		const setText = useCallback(
+			(text: string) => {
+				if (!editorRef.current) return;
+				editorRef.current.innerText = text;
+				const empty = text.length === 0;
+				setIsEmpty(empty);
+				onChange?.(text, Array.from(mentionedDocs.values()));
+				focusAtEnd();
+			},
+			[focusAtEnd, onChange, mentionedDocs]
+		);
+
 		const setDocumentChipStatus = useCallback(
 			(
 				docId: number,
@@ -469,6 +483,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 		useImperativeHandle(ref, () => ({
 			focus: () => editorRef.current?.focus(),
 			clear,
+			setText,
 			getText,
 			getMentionedDocuments,
 			insertDocumentChip,

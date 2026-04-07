@@ -17,10 +17,10 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """
-    Add the new_llm_configs table that combines LLM model settings with prompt configuration.
+    Add the new_llm_configs table that combines model settings with prompt configuration.
 
     This table includes:
-    - LLM model configuration (provider, model_name, api_key, etc.)
+    - Model configuration (provider, model_name, api_key, etc.)
     - Configurable system instructions
     - Citation toggle
     """
@@ -41,7 +41,7 @@ def upgrade() -> None:
                     name VARCHAR(100) NOT NULL,
                     description VARCHAR(500),
                     
-                    -- LLM Model Configuration (same as llm_configs, excluding language)
+                    -- Model Configuration (same as llm_configs, excluding language)
                     provider litellmprovider NOT NULL,
                     custom_provider VARCHAR(100),
                     model_name VARCHAR(100) NOT NULL,

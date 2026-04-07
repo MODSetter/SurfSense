@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtom } from "jotai";
-import { CirclePlus } from "lucide-react";
+import { Search } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -32,6 +32,7 @@ interface FolderTreeViewProps {
 	onDeleteDocument: (doc: DocumentNodeDoc) => void;
 	onMoveDocument: (doc: DocumentNodeDoc) => void;
 	onExportDocument?: (doc: DocumentNodeDoc, format: string) => void;
+	onVersionHistory?: (doc: DocumentNodeDoc) => void;
 	activeTypes: DocumentTypeEnum[];
 	searchQuery?: string;
 	onDropIntoFolder?: (
@@ -40,6 +41,9 @@ interface FolderTreeViewProps {
 		targetFolderId: number | null
 	) => void;
 	onReorderFolder?: (folderId: number, beforePos: string | null, afterPos: string | null) => void;
+	watchedFolderIds?: Set<number>;
+	onRescanFolder?: (folder: FolderDisplay) => void;
+	onStopWatchingFolder?: (folder: FolderDisplay) => void;
 }
 
 function groupBy<T>(items: T[], keyFn: (item: T) => string | number): Record<string | number, T[]> {
@@ -69,24 +73,18 @@ export function FolderTreeView({
 	onDeleteDocument,
 	onMoveDocument,
 	onExportDocument,
+	onVersionHistory,
 	activeTypes,
 	searchQuery,
 	onDropIntoFolder,
 	onReorderFolder,
+	watchedFolderIds,
+	onRescanFolder,
+	onStopWatchingFolder,
 }: FolderTreeViewProps) {
 	const foldersByParent = useMemo(() => groupBy(folders, (f) => f.parentId ?? "root"), [folders]);
 
 	const docsByFolder = useMemo(() => groupBy(documents, (d) => d.folderId ?? "root"), [documents]);
-
-	const folderChildCounts = useMemo(() => {
-		const counts: Record<number, number> = {};
-		for (const f of folders) {
-			const children = foldersByParent[f.id] ?? [];
-			const docs = docsByFolder[f.id] ?? [];
-			counts[f.id] = children.length + docs.length;
-		}
-		return counts;
-	}, [folders, foldersByParent, docsByFolder]);
 
 	const [openContextMenuId, setOpenContextMenuId] = useState<string | null>(null);
 
@@ -98,14 +96,26 @@ export function FolderTreeView({
 	);
 	const handleCancelRename = useCallback(() => setRenamingFolderId(null), [setRenamingFolderId]);
 
+	const effectiveActiveTypes = useMemo(() => {
+		if (
+			activeTypes.includes("FILE" as DocumentTypeEnum) &&
+			!activeTypes.includes("LOCAL_FOLDER_FILE" as DocumentTypeEnum)
+		) {
+			return [...activeTypes, "LOCAL_FOLDER_FILE" as DocumentTypeEnum];
+		}
+		return activeTypes;
+	}, [activeTypes]);
+
 	const hasDescendantMatch = useMemo(() => {
-		if (activeTypes.length === 0 && !searchQuery) return null;
+		if (effectiveActiveTypes.length === 0 && !searchQuery) return null;
 		const match: Record<number, boolean> = {};
 
 		function check(folderId: number): boolean {
 			if (match[folderId] !== undefined) return match[folderId];
 			const childDocs = (docsByFolder[folderId] ?? []).some(
-				(d) => activeTypes.length === 0 || activeTypes.includes(d.document_type as DocumentTypeEnum)
+				(d) =>
+					effectiveActiveTypes.length === 0 ||
+					effectiveActiveTypes.includes(d.document_type as DocumentTypeEnum)
 			);
 			if (childDocs) {
 				match[folderId] = true;
@@ -126,7 +136,7 @@ export function FolderTreeView({
 			check(f.id);
 		}
 		return match;
-	}, [folders, docsByFolder, foldersByParent, activeTypes, searchQuery]);
+	}, [folders, docsByFolder, foldersByParent, effectiveActiveTypes, searchQuery]);
 
 	const folderSelectionStates = useMemo(() => {
 		const states: Record<number, FolderSelectionState> = {};
@@ -158,6 +168,35 @@ export function FolderTreeView({
 		return states;
 	}, [folders, docsByFolder, foldersByParent, mentionedDocIds]);
 
+	const folderProcessingStates = useMemo(() => {
+		const states: Record<number, "idle" | "processing" | "failed"> = {};
+
+		function compute(folderId: number): { hasProcessing: boolean; hasFailed: boolean } {
+			const directDocs = docsByFolder[folderId] ?? [];
+			let hasProcessing = directDocs.some(
+				(d) => d.status?.state === "pending" || d.status?.state === "processing"
+			);
+			let hasFailed = directDocs.some((d) => d.status?.state === "failed");
+
+			for (const child of foldersByParent[folderId] ?? []) {
+				const sub = compute(child.id);
+				hasProcessing = hasProcessing || sub.hasProcessing;
+				hasFailed = hasFailed || sub.hasFailed;
+			}
+
+			if (hasProcessing) states[folderId] = "processing";
+			else if (hasFailed) states[folderId] = "failed";
+			else states[folderId] = "idle";
+
+			return { hasProcessing, hasFailed };
+		}
+
+		for (const f of folders) {
+			if (states[f.id] === undefined) compute(f.id);
+		}
+		return states;
+	}, [folders, docsByFolder, foldersByParent]);
+
 	function renderLevel(parentId: number | null, depth: number): React.ReactNode[] {
 		const key = parentId ?? "root";
 		const childFolders = (foldersByParent[key] ?? [])
@@ -167,7 +206,9 @@ export function FolderTreeView({
 			? childFolders.filter((f) => hasDescendantMatch[f.id])
 			: childFolders;
 		const childDocs = (docsByFolder[key] ?? []).filter(
-			(d) => activeTypes.length === 0 || activeTypes.includes(d.document_type as DocumentTypeEnum)
+			(d) =>
+				effectiveActiveTypes.length === 0 ||
+				effectiveActiveTypes.includes(d.document_type as DocumentTypeEnum)
 		);
 
 		const nodes: React.ReactNode[] = [];
@@ -189,8 +230,8 @@ export function FolderTreeView({
 					depth={depth}
 					isExpanded={isExpanded}
 					isRenaming={renamingFolderId === f.id}
-					childCount={folderChildCounts[f.id] ?? 0}
 					selectionState={folderSelectionStates[f.id] ?? "none"}
+					processingState={folderProcessingStates[f.id] ?? "idle"}
 					onToggleSelect={onToggleFolderSelect}
 					onToggleExpand={onToggleExpand}
 					onRename={onRenameFolder}
@@ -204,6 +245,9 @@ export function FolderTreeView({
 					siblingPositions={siblingPositions}
 					contextMenuOpen={openContextMenuId === `folder-${f.id}`}
 					onContextMenuOpenChange={(open) => setOpenContextMenuId(open ? `folder-${f.id}` : null)}
+					isWatched={watchedFolderIds?.has(f.id)}
+					onRescan={onRescanFolder}
+					onStopWatching={onStopWatchingFolder}
 				/>
 			);
 
@@ -225,6 +269,7 @@ export function FolderTreeView({
 					onDelete={onDeleteDocument}
 					onMove={onMoveDocument}
 					onExport={onExportDocument}
+					onVersionHistory={onVersionHistory}
 					contextMenuOpen={openContextMenuId === `doc-${d.id}`}
 					onContextMenuOpenChange={(open) => setOpenContextMenuId(open ? `doc-${d.id}` : null)}
 				/>
@@ -247,11 +292,12 @@ export function FolderTreeView({
 		);
 	}
 
-	if (treeNodes.length === 0 && (activeTypes.length > 0 || searchQuery)) {
+	if (treeNodes.length === 0 && (effectiveActiveTypes.length > 0 || searchQuery)) {
 		return (
 			<div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 py-12 text-muted-foreground">
-				<CirclePlus className="h-10 w-10 rotate-45" />
-				<p className="text-sm">No matching documents</p>
+				<Search className="h-10 w-10" />
+				<p className="text-sm text-muted-foreground">No matching documents</p>
+				<p className="text-xs text-muted-foreground/70 mt-1">Try a different search term</p>
 			</div>
 		);
 	}
