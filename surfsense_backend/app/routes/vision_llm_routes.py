@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,11 +18,38 @@ from app.schemas import (
     VisionLLMConfigRead,
     VisionLLMConfigUpdate,
 )
+from app.services.vision_model_list_service import get_vision_model_list
 from app.users import current_active_user
 from app.utils.rbac import check_permission
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# Vision Model Catalogue (from OpenRouter, filtered for image-input models)
+# =============================================================================
+
+
+class VisionModelListItem(BaseModel):
+    value: str
+    label: str
+    provider: str
+    context_window: str | None = None
+
+
+@router.get("/vision-models", response_model=list[VisionModelListItem])
+async def list_vision_models(
+    user: User = Depends(current_active_user),
+):
+    """Return vision-capable models sourced from OpenRouter (filtered by image input)."""
+    try:
+        return await get_vision_model_list()
+    except Exception as e:
+        logger.exception("Failed to fetch vision model list")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch vision model list: {e!s}"
+        ) from e
 
 
 # =============================================================================

@@ -4,6 +4,7 @@ import {
 	createVisionLLMConfigResponse,
 	deleteVisionLLMConfigResponse,
 	getGlobalVisionLLMConfigsResponse,
+	getModelListResponse,
 	getVisionLLMConfigsResponse,
 	type UpdateVisionLLMConfigRequest,
 	updateVisionLLMConfigRequest,
@@ -13,6 +14,10 @@ import { ValidationError } from "../error";
 import { baseApiService } from "./base-api.service";
 
 class VisionLLMConfigApiService {
+	getModels = async () => {
+		return baseApiService.get(`/api/v1/vision-models`, getModelListResponse);
+	};
+
 	getGlobalConfigs = async () => {
 		return baseApiService.get(
 			`/api/v1/global-vision-llm-configs`,
