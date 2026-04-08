@@ -861,8 +861,12 @@ async def index_local_folder(
 
         root_fid = folder_mapping.get("")
         if root_fid:
+            from app.services.folder_service import get_folder_subtree_ids
+
+            subtree_ids = await get_folder_subtree_ids(session, root_fid)
             await _cleanup_empty_folders(
-                session, root_fid, search_space_id, existing_dirs, folder_mapping
+                session, root_fid, search_space_id, existing_dirs, folder_mapping,
+                subtree_ids=subtree_ids,
             )
 
         try:

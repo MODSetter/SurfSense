@@ -170,7 +170,7 @@ export function FolderWatchDialog({
 					<DialogDescription>Select a folder to sync and watch for changes.</DialogDescription>
 				</DialogHeader>
 
-				<div className="space-y-3 pt-2">
+				<div className="space-y-3 pt-2 min-h-[13rem]">
 					{selectedFolder ? (
 						<div className="flex items-center gap-2 py-1.5 pl-4 pr-2 rounded-md bg-slate-400/5 dark:bg-white/5 overflow-hidden">
 							<div className="min-w-0 flex-1 select-text">
