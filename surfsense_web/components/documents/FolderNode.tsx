@@ -49,6 +49,7 @@ export interface FolderDisplay {
 	position: string;
 	parentId: number | null;
 	searchSpaceId: number;
+	metadata?: Record<string, unknown> | null;
 }
 
 interface FolderNodeProps {

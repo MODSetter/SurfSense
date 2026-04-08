@@ -168,6 +168,12 @@ export function FolderTreeView({
 		return states;
 	}, [folders, docsByFolder, foldersByParent, mentionedDocIds]);
 
+	const folderMap = useMemo(() => {
+		const map: Record<number, FolderDisplay> = {};
+		for (const f of folders) map[f.id] = f;
+		return map;
+	}, [folders]);
+
 	const folderProcessingStates = useMemo(() => {
 		const states: Record<number, "idle" | "processing" | "failed"> = {};
 
@@ -177,6 +183,11 @@ export function FolderTreeView({
 				(d) => d.status?.state === "pending" || d.status?.state === "processing"
 			);
 			let hasFailed = directDocs.some((d) => d.status?.state === "failed");
+
+			const folder = folderMap[folderId];
+			if (folder?.metadata?.indexing_in_progress) {
+				hasProcessing = true;
+			}
 
 			for (const child of foldersByParent[folderId] ?? []) {
 				const sub = compute(child.id);
@@ -195,7 +206,7 @@ export function FolderTreeView({
 			if (states[f.id] === undefined) compute(f.id);
 		}
 		return states;
-	}, [folders, docsByFolder, foldersByParent]);
+	}, [folders, docsByFolder, foldersByParent, folderMap]);
 
 	function renderLevel(parentId: number | null, depth: number): React.ReactNode[] {
 		const key = parentId ?? "root";

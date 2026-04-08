@@ -194,6 +194,7 @@ export function DocumentsSidebar({
 				position: f.position,
 				parentId: f.parentId ?? null,
 				searchSpaceId: f.searchSpaceId,
+				metadata: f.metadata as Record<string, unknown> | null | undefined,
 			})),
 		[zeroFolders]
 	);

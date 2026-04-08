@@ -66,7 +66,7 @@ export function FolderWatchDialog({
 		const folderPath = await api.selectFolder();
 		if (!folderPath) return;
 
-		const folderName = folderPath.split("/").pop() || folderPath.split("\\").pop() || folderPath;
+		const folderName = folderPath.split(/[/\\]/).pop() || folderPath;
 		setSelectedFolder({ path: folderPath, name: folderName });
 	}, []);
 

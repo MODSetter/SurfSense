@@ -1276,6 +1276,13 @@ async def index_uploaded_files(
         )
         await session.flush()
 
+        root_folder = await session.get(Folder, root_folder_id)
+        if root_folder:
+            meta = dict(root_folder.folder_metadata or {})
+            meta["indexing_in_progress"] = True
+            root_folder.folder_metadata = meta
+            await session.commit()
+
         page_limit_service = PageLimitService(session)
         pipeline = IndexingPipelineService(session)
         llm = await get_user_long_context_llm(session, user_id, search_space_id)
@@ -1454,3 +1461,14 @@ async def index_uploaded_files(
             log_entry, f"Error: {e}", "Unexpected error", {}
         )
         return 0, 0, str(e)
+
+    finally:
+        try:
+            root_folder = await session.get(Folder, root_folder_id)
+            if root_folder:
+                meta = dict(root_folder.folder_metadata or {})
+                meta.pop("indexing_in_progress", None)
+                root_folder.folder_metadata = meta
+                await session.commit()
+        except Exception:
+            pass
