@@ -1392,6 +1392,8 @@ class SearchSpace(BaseModel, TimestampMixin):
         Text, nullable=True, default=""
     )  # User's custom instructions
 
+    shared_memory_md = Column(Text, nullable=True, server_default="")
+
     # Search space-level LLM preferences (shared by all members)
     # Note: ID values:
     #   - 0: Auto mode (uses LiteLLM Router for load balancing) - default for new search spaces
@@ -2063,6 +2065,8 @@ if config.AUTH_TYPE == "GOOGLE":
 
         last_login = Column(TIMESTAMP(timezone=True), nullable=True)
 
+        memory_md = Column(Text, nullable=True, server_default="")
+
         # Refresh tokens for this user
         refresh_tokens = relationship(
             "RefreshToken",
@@ -2182,6 +2186,8 @@ else:
         avatar_url = Column(String, nullable=True)
 
         last_login = Column(TIMESTAMP(timezone=True), nullable=True)
+
+        memory_md = Column(Text, nullable=True, server_default="")
 
         # Refresh tokens for this user
         refresh_tokens = relationship(
