@@ -410,7 +410,7 @@ export function LayoutShell({
 							pageUsage={pageUsage}
 							theme={theme}
 							setTheme={setTheme}
-						className={cn(
+							className={cn(
 								"flex shrink-0 transition-[border-radius] duration-200",
 								anySlideOutOpen ? "rounded-l-xl delay-0" : "rounded-xl delay-150"
 							)}

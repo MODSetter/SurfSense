@@ -13,8 +13,8 @@ import {
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
-import { getSupportedExtensionsSet } from "@/lib/supported-extensions";
 import { type FolderSyncProgress, uploadFolderScan } from "@/lib/folder-sync-upload";
+import { getSupportedExtensionsSet } from "@/lib/supported-extensions";
 
 export interface SelectedFolder {
 	path: string;
@@ -166,8 +166,12 @@ export function FolderWatchDialog({
 		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogContent className="sm:max-w-md select-none p-0 gap-0 overflow-hidden bg-muted dark:bg-muted border border-border [&>button]:opacity-80 [&>button]:hover:opacity-100 [&>button]:hover:bg-foreground/10">
 				<DialogHeader className="px-4 sm:px-6 pt-5 sm:pt-6 pb-3">
-					<DialogTitle className="text-lg sm:text-xl font-semibold tracking-tight">Watch Local Folder</DialogTitle>
-					<DialogDescription className="text-xs sm:text-sm text-muted-foreground/80">Select a folder to sync and watch for changes</DialogDescription>
+					<DialogTitle className="text-lg sm:text-xl font-semibold tracking-tight">
+						Watch Local Folder
+					</DialogTitle>
+					<DialogDescription className="text-xs sm:text-sm text-muted-foreground/80">
+						Select a folder to sync and watch for changes
+					</DialogDescription>
 				</DialogHeader>
 
 				<div className="flex flex-col gap-3 px-4 sm:px-6 pb-4 sm:pb-6 min-h-[17rem]">
@@ -218,7 +222,9 @@ export function FolderWatchDialog({
 										<div className="mt-1.5 h-1.5 w-full rounded-full bg-muted overflow-hidden">
 											<div
 												className="h-full bg-primary rounded-full transition-[width] duration-300"
-												style={{ width: `${Math.round((progress.uploaded / progress.total) * 100)}%` }}
+												style={{
+													width: `${Math.round((progress.uploaded / progress.total) * 100)}%`,
+												}}
 											/>
 										</div>
 									)}

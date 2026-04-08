@@ -23,9 +23,11 @@ import { FolderPickerDialog } from "@/components/documents/FolderPickerDialog";
 import { FolderTreeView } from "@/components/documents/FolderTreeView";
 import { VersionHistoryDialog } from "@/components/documents/version-history";
 import { EXPORT_FILE_EXTENSIONS } from "@/components/shared/ExportMenuItems";
-import { DEFAULT_EXCLUDE_PATTERNS, FolderWatchDialog, type SelectedFolder } from "@/components/sources/FolderWatchDialog";
-import { uploadFolderScan } from "@/lib/folder-sync-upload";
-import { getSupportedExtensionsSet } from "@/lib/supported-extensions";
+import {
+	DEFAULT_EXCLUDE_PATTERNS,
+	FolderWatchDialog,
+	type SelectedFolder,
+} from "@/components/sources/FolderWatchDialog";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -48,6 +50,8 @@ import { useElectronAPI } from "@/hooks/use-platform";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
+import { uploadFolderScan } from "@/lib/folder-sync-upload";
+import { getSupportedExtensionsSet } from "@/lib/supported-extensions";
 import { queries } from "@/zero/queries/index";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 

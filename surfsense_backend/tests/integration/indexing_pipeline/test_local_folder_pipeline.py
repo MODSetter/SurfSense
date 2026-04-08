@@ -1265,7 +1265,9 @@ class TestIndexingProgressFlag:
 
         (tmp_path / "note.md").write_text("# Check flag\n\nDuring indexing.")
 
-        from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
+        from app.indexing_pipeline.indexing_pipeline_service import (
+            IndexingPipelineService,
+        )
 
         original_index = IndexingPipelineService.index
         flag_observed = []

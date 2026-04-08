@@ -429,7 +429,9 @@ class DocumentsApiService {
 		search_space_id: number;
 		files: { relative_path: string; mtime: number }[];
 	}): Promise<{ files_to_upload: string[] }> => {
-		return baseApiService.post(`/api/v1/documents/folder-mtime-check`, undefined, { body }) as unknown as { files_to_upload: string[] };
+		return baseApiService.post(`/api/v1/documents/folder-mtime-check`, undefined, {
+			body,
+		}) as unknown as { files_to_upload: string[] };
 	};
 
 	folderUploadFiles = async (
@@ -441,7 +443,7 @@ class DocumentsApiService {
 			root_folder_id?: number | null;
 			enable_summary?: boolean;
 		},
-		signal?: AbortSignal,
+		signal?: AbortSignal
 	): Promise<{ message: string; status: string; root_folder_id: number; file_count: number }> => {
 		const formData = new FormData();
 		for (const file of files) {
@@ -466,11 +468,10 @@ class DocumentsApiService {
 		}
 
 		try {
-			return await baseApiService.postFormData(
-				`/api/v1/documents/folder-upload`,
-				undefined,
-				{ body: formData, signal: controller.signal },
-			) as { message: string; status: string; root_folder_id: number; file_count: number };
+			return (await baseApiService.postFormData(`/api/v1/documents/folder-upload`, undefined, {
+				body: formData,
+				signal: controller.signal,
+			})) as { message: string; status: string; root_folder_id: number; file_count: number };
 		} finally {
 			clearTimeout(timeoutId);
 		}
@@ -482,7 +483,9 @@ class DocumentsApiService {
 		root_folder_id: number | null;
 		relative_paths: string[];
 	}): Promise<{ deleted_count: number }> => {
-		return baseApiService.post(`/api/v1/documents/folder-unlink`, undefined, { body }) as unknown as { deleted_count: number };
+		return baseApiService.post(`/api/v1/documents/folder-unlink`, undefined, {
+			body,
+		}) as unknown as { deleted_count: number };
 	};
 
 	folderSyncFinalize = async (body: {
@@ -491,7 +494,9 @@ class DocumentsApiService {
 		root_folder_id: number | null;
 		all_relative_paths: string[];
 	}): Promise<{ deleted_count: number }> => {
-		return baseApiService.post(`/api/v1/documents/folder-sync-finalize`, undefined, { body }) as unknown as { deleted_count: number };
+		return baseApiService.post(`/api/v1/documents/folder-sync-finalize`, undefined, {
+			body,
+		}) as unknown as { deleted_count: number };
 	};
 
 	getWatchedFolders = async (searchSpaceId: number) => {

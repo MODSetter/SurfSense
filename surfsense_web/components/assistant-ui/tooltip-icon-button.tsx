@@ -20,7 +20,10 @@ export const TooltipIconButton = forwardRef<HTMLButtonElement, TooltipIconButton
 		const [tooltipOpen, setTooltipOpen] = useState(false);
 
 		return (
-			<Tooltip open={suppressTooltip ? false : tooltipOpen} onOpenChange={suppressTooltip ? undefined : setTooltipOpen}>
+			<Tooltip
+				open={suppressTooltip ? false : tooltipOpen}
+				onOpenChange={suppressTooltip ? undefined : setTooltipOpen}
+			>
 				<TooltipTrigger asChild>
 					<Button
 						variant="ghost"

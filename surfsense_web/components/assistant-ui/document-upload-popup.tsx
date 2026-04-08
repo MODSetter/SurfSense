@@ -20,7 +20,13 @@ import { searchSpaceSettingsDialogAtom } from "@/atoms/settings/settings-dialog.
 import { DocumentUploadTab } from "@/components/sources/DocumentUploadTab";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 
 // Context for opening the dialog from anywhere
 interface DocumentUploadDialogContextType {
@@ -129,7 +135,9 @@ const DocumentUploadPopupContent: FC<{
 			>
 				<div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
 					<DialogHeader className="sticky top-0 z-20 bg-muted px-4 sm:px-6 pt-6 sm:pt-8 pb-10">
-						<DialogTitle className="text-xl sm:text-3xl font-semibold tracking-tight pr-8 sm:pr-0">Upload Documents</DialogTitle>
+						<DialogTitle className="text-xl sm:text-3xl font-semibold tracking-tight pr-8 sm:pr-0">
+							Upload Documents
+						</DialogTitle>
 						<DialogDescription className="text-xs sm:text-base text-muted-foreground/80 line-clamp-1">
 							Upload and sync your documents to your search space
 						</DialogDescription>

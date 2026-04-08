@@ -50,7 +50,9 @@ export function useFolderSync() {
 		while (queueRef.current.length > 0) {
 			const batch = queueRef.current.shift()!;
 			try {
-				const addChangeFiles = batch.files.filter((f) => f.action === "add" || f.action === "change");
+				const addChangeFiles = batch.files.filter(
+					(f) => f.action === "add" || f.action === "change"
+				);
 				const unlinkFiles = batch.files.filter((f) => f.action === "unlink");
 
 				if (addChangeFiles.length > 0 && electronAPI?.readLocalFiles) {
@@ -128,11 +130,13 @@ export function useFolderSync() {
 				folderName: event.folderName,
 				searchSpaceId: event.searchSpaceId,
 				rootFolderId: event.rootFolderId,
-				files: [{
-					fullPath: event.fullPath,
-					relativePath: event.relativePath,
-					action: event.action,
-				}],
+				files: [
+					{
+						fullPath: event.fullPath,
+						relativePath: event.relativePath,
+						action: event.action,
+					},
+				],
 				ackIds: [event.id],
 			});
 			firstEventTime.current.set(folderKey, Date.now());

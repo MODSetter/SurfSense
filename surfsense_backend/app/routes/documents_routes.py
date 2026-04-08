@@ -1459,7 +1459,7 @@ async def folder_mtime_check(
 
     existing_by_hash = {doc.unique_identifier_hash: doc for doc in existing_docs}
 
-    MTIME_TOLERANCE = 1.0
+    mtime_tolerance = 1.0
     files_to_upload: list[str] = []
 
     for uid_hash, file_info in uid_hashes.items():
@@ -1473,7 +1473,7 @@ async def folder_mtime_check(
             files_to_upload.append(file_info.relative_path)
             continue
 
-        if abs(file_info.mtime - stored_mtime) >= MTIME_TOLERANCE:
+        if abs(file_info.mtime - stored_mtime) >= mtime_tolerance:
             files_to_upload.append(file_info.relative_path)
 
     return {"files_to_upload": files_to_upload}
@@ -1641,9 +1641,7 @@ async def folder_unlink(
 
         existing = (
             await session.execute(
-                select(Document).where(
-                    Document.unique_identifier_hash == uid_hash
-                )
+                select(Document).where(Document.unique_identifier_hash == uid_hash)
             )
         ).scalar_one_or_none()
 

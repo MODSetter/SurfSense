@@ -22,9 +22,7 @@ export interface FolderSyncParams {
 	signal?: AbortSignal;
 }
 
-function buildBatches(
-	entries: FolderFileEntry[],
-): FolderFileEntry[][] {
+function buildBatches(entries: FolderFileEntry[]): FolderFileEntry[][] {
 	const batches: FolderFileEntry[][] = [];
 	let currentBatch: FolderFileEntry[] = [];
 	let currentSize = 0;
@@ -40,10 +38,7 @@ function buildBatches(
 			continue;
 		}
 
-		if (
-			currentBatch.length >= MAX_BATCH_FILES ||
-			currentSize + entry.size > MAX_BATCH_SIZE_BYTES
-		) {
+		if (currentBatch.length >= MAX_BATCH_FILES || currentSize + entry.size > MAX_BATCH_SIZE_BYTES) {
 			batches.push(currentBatch);
 			currentBatch = [];
 			currentSize = 0;
@@ -69,7 +64,7 @@ async function uploadBatchesWithConcurrency(
 		enableSummary: boolean;
 		signal?: AbortSignal;
 		onBatchComplete?: (filesInBatch: number) => void;
-	},
+	}
 ): Promise<number | null> {
 	const api = window.electronAPI;
 	if (!api) throw new Error("Electron API not available");
@@ -105,7 +100,7 @@ async function uploadBatchesWithConcurrency(
 						root_folder_id: resolvedRootFolderId,
 						enable_summary: params.enableSummary,
 					},
-					params.signal,
+					params.signal
 				);
 
 				if (result.root_folder_id && !resolvedRootFolderId) {
@@ -121,7 +116,9 @@ async function uploadBatchesWithConcurrency(
 		}
 	}
 
-	const workers = Array.from({ length: Math.min(UPLOAD_CONCURRENCY, batches.length) }, () => processNext());
+	const workers = Array.from({ length: Math.min(UPLOAD_CONCURRENCY, batches.length) }, () =>
+		processNext()
+	);
 	await Promise.all(workers);
 
 	if (errors.length > 0 && !params.signal?.aborted) {
@@ -141,7 +138,15 @@ export async function uploadFolderScan(params: FolderSyncParams): Promise<number
 	const api = window.electronAPI;
 	if (!api) throw new Error("Electron API not available");
 
-	const { folderPath, folderName, searchSpaceId, excludePatterns, fileExtensions, enableSummary, signal } = params;
+	const {
+		folderPath,
+		folderName,
+		searchSpaceId,
+		excludePatterns,
+		fileExtensions,
+		enableSummary,
+		signal,
+	} = params;
 	let rootFolderId = params.rootFolderId ?? null;
 
 	params.onProgress?.({ phase: "listing", uploaded: 0, total: 0 });
@@ -201,7 +206,11 @@ export async function uploadFolderScan(params: FolderSyncParams): Promise<number
 
 	if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
-	params.onProgress?.({ phase: "finalizing", uploaded: entriesToUpload.length, total: entriesToUpload.length });
+	params.onProgress?.({
+		phase: "finalizing",
+		uploaded: entriesToUpload.length,
+		total: entriesToUpload.length,
+	});
 
 	await documentsApiService.folderSyncFinalize({
 		folder_name: folderName,
@@ -210,7 +219,11 @@ export async function uploadFolderScan(params: FolderSyncParams): Promise<number
 		all_relative_paths: allFiles.map((f) => f.relativePath),
 	});
 
-	params.onProgress?.({ phase: "done", uploaded: entriesToUpload.length, total: entriesToUpload.length });
+	params.onProgress?.({
+		phase: "done",
+		uploaded: entriesToUpload.length,
+		total: entriesToUpload.length,
+	});
 
 	// Seed the Electron mtime store so the reconciliation scan in
 	// startWatcher won't re-emit events for files we just indexed.

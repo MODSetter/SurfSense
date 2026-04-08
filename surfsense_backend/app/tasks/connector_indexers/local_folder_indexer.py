@@ -14,13 +14,14 @@ no connector row is read.
 """
 
 import asyncio
+import contextlib
 import os
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import (
@@ -676,9 +677,9 @@ async def index_local_folder(
                         _compute_raw_file_hash, file_path_abs
                     )
 
-                    stored_raw_hash = (
-                        existing_document.document_metadata or {}
-                    ).get("raw_file_hash")
+                    stored_raw_hash = (existing_document.document_metadata or {}).get(
+                        "raw_file_hash"
+                    )
                     if stored_raw_hash and stored_raw_hash == raw_hash:
                         meta = dict(existing_document.document_metadata or {})
                         meta["mtime"] = current_mtime
@@ -824,9 +825,7 @@ async def index_local_folder(
                 parent_dir = str(Path(rel_path).parent) if rel_path else ""
                 if parent_dir == ".":
                     parent_dir = ""
-                cd.folder_id = folder_mapping.get(
-                    parent_dir, folder_mapping.get("")
-                )
+                cd.folder_id = folder_mapping.get(parent_dir, folder_mapping.get(""))
 
             pipeline = IndexingPipelineService(session)
             doc_map = {compute_unique_identifier_hash(cd): cd for cd in connector_docs}
@@ -883,7 +882,11 @@ async def index_local_folder(
 
             subtree_ids = await get_folder_subtree_ids(session, root_fid)
             await _cleanup_empty_folders(
-                session, root_fid, search_space_id, existing_dirs, folder_mapping,
+                session,
+                root_fid,
+                search_space_id,
+                existing_dirs,
+                folder_mapping,
                 subtree_ids=subtree_ids,
             )
 
@@ -1058,17 +1061,13 @@ async def _index_single_file(
         existing = await check_document_by_unique_identifier(session, uid_hash)
 
         if existing:
-            stored_raw_hash = (existing.document_metadata or {}).get(
-                "raw_file_hash"
-            )
+            stored_raw_hash = (existing.document_metadata or {}).get("raw_file_hash")
             if stored_raw_hash and stored_raw_hash == raw_hash:
                 mtime = full_path.stat().st_mtime
                 meta = dict(existing.document_metadata or {})
                 meta["mtime"] = mtime
                 existing.document_metadata = meta
-                if not DocumentStatus.is_state(
-                    existing.status, DocumentStatus.READY
-                ):
+                if not DocumentStatus.is_state(existing.status, DocumentStatus.READY):
                     existing.status = DocumentStatus.ready()
                 await session.commit()
                 return 0, 0, None
@@ -1285,7 +1284,7 @@ async def index_uploaded_files(
 
     try:
         all_relative_paths = [m["relative_path"] for m in file_mappings]
-        folder_mapping, root_folder_id = await _mirror_folder_structure_from_paths(
+        _folder_mapping, root_folder_id = await _mirror_folder_structure_from_paths(
             session=session,
             relative_paths=all_relative_paths,
             folder_name=folder_name,
@@ -1318,13 +1317,9 @@ async def index_uploaded_files(
                     search_space_id,
                 )
 
-                raw_hash = await asyncio.to_thread(
-                    _compute_raw_file_hash, temp_path
-                )
+                raw_hash = await asyncio.to_thread(_compute_raw_file_hash, temp_path)
 
-                existing = await check_document_by_unique_identifier(
-                    session, uid_hash
-                )
+                existing = await check_document_by_unique_identifier(session, uid_hash)
 
                 if existing:
                     stored_raw_hash = (existing.document_metadata or {}).get(
@@ -1428,23 +1423,17 @@ async def index_uploaded_files(
                     await on_heartbeat_callback(i + 1)
 
             except Exception as e:
-                logger.exception(
-                    f"Error indexing uploaded file {relative_path}: {e}"
-                )
+                logger.exception(f"Error indexing uploaded file {relative_path}: {e}")
                 await session.rollback()
                 failed_count += 1
                 errors.append(f"{filename}: {e}")
             finally:
-                try:
+                with contextlib.suppress(OSError):
                     os.unlink(temp_path)
-                except OSError:
-                    pass
 
         error_summary = None
         if errors:
-            error_summary = (
-                f"{failed_count} file(s) failed: " + "; ".join(errors[:5])
-            )
+            error_summary = f"{failed_count} file(s) failed: " + "; ".join(errors[:5])
             if len(errors) > 5:
                 error_summary += f" ... and {len(errors) - 5} more"
 
