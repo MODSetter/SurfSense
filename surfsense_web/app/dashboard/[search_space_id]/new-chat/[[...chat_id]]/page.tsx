@@ -82,10 +82,6 @@ const MobileEditorPanel = dynamic(
 		import("@/components/editor-panel/editor-panel").then((m) => ({
 			default: m.MobileEditorPanel,
 		})),
-	() =>
-		import("@/components/editor-panel/editor-panel").then((m) => ({
-			default: m.MobileEditorPanel,
-		})),
 	{ ssr: false }
 );
 const MobileHitlEditPanel = dynamic(
@@ -93,17 +89,9 @@ const MobileHitlEditPanel = dynamic(
 		import("@/components/hitl-edit-panel/hitl-edit-panel").then((m) => ({
 			default: m.MobileHitlEditPanel,
 		})),
-	() =>
-		import("@/components/hitl-edit-panel/hitl-edit-panel").then((m) => ({
-			default: m.MobileHitlEditPanel,
-		})),
 	{ ssr: false }
 );
 const MobileReportPanel = dynamic(
-	() =>
-		import("@/components/report-panel/report-panel").then((m) => ({
-			default: m.MobileReportPanel,
-		})),
 	() =>
 		import("@/components/report-panel/report-panel").then((m) => ({
 			default: m.MobileReportPanel,
