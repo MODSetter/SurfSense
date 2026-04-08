@@ -19,6 +19,8 @@ import {
   markRendererReady,
   browseFiles,
   readLocalFiles,
+  listFolderFiles,
+  type WatchedFolderConfig,
 } from '../modules/folder-watcher';
 import { getShortcuts, setShortcuts, type ShortcutConfig } from '../modules/shortcuts';
 import { getActiveSearchSpaceId, setActiveSearchSpaceId } from '../modules/active-search-space';
@@ -89,6 +91,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.FOLDER_SYNC_ACK_EVENTS, (_event, eventIds: string[]) =>
     acknowledgeFileEvents(eventIds)
+  );
+
+  ipcMain.handle(IPC_CHANNELS.FOLDER_SYNC_LIST_FILES, (_event, config: WatchedFolderConfig) =>
+    listFolderFiles(config)
   );
 
   ipcMain.handle(IPC_CHANNELS.BROWSE_FILES, () => browseFiles());

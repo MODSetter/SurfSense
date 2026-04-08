@@ -1081,3 +1081,294 @@ async def _index_single_file(
         logger.exception(f"Error indexing single file {target_file_path}: {e}")
         await session.rollback()
         return 0, 0, str(e)
+
+
+# ========================================================================
+# Upload-based folder indexing (works for all deployment modes)
+# ========================================================================
+
+
+async def _mirror_folder_structure_from_paths(
+    session: AsyncSession,
+    relative_paths: list[str],
+    folder_name: str,
+    search_space_id: int,
+    user_id: str,
+    root_folder_id: int | None = None,
+) -> tuple[dict[str, int], int]:
+    """Create DB Folder rows from a list of relative file paths.
+
+    Unlike ``_mirror_folder_structure`` this does not walk the filesystem;
+    it derives the directory tree from the paths provided by the client.
+
+    Returns (mapping, root_folder_id) where mapping is
+    relative_dir_path -> folder_id.  The empty-string key maps to root.
+    """
+    dir_set: set[str] = set()
+    for rp in relative_paths:
+        parent = str(Path(rp).parent)
+        if parent == ".":
+            continue
+        parts = Path(parent).parts
+        for i in range(len(parts)):
+            dir_set.add(str(Path(*parts[: i + 1])))
+
+    subdirs = sorted(dir_set, key=lambda p: p.count(os.sep))
+
+    mapping: dict[str, int] = {}
+
+    if root_folder_id:
+        existing = (
+            await session.execute(select(Folder).where(Folder.id == root_folder_id))
+        ).scalar_one_or_none()
+        if existing:
+            mapping[""] = existing.id
+        else:
+            root_folder_id = None
+
+    if not root_folder_id:
+        root_folder = Folder(
+            name=folder_name,
+            search_space_id=search_space_id,
+            created_by_id=user_id,
+            position="a0",
+        )
+        session.add(root_folder)
+        await session.flush()
+        mapping[""] = root_folder.id
+        root_folder_id = root_folder.id
+
+    for rel_dir in subdirs:
+        dir_parts = Path(rel_dir).parts
+        dir_name = dir_parts[-1]
+        parent_rel = str(Path(*dir_parts[:-1])) if len(dir_parts) > 1 else ""
+
+        parent_id = mapping.get(parent_rel, mapping[""])
+
+        existing_folder = (
+            await session.execute(
+                select(Folder).where(
+                    Folder.name == dir_name,
+                    Folder.parent_id == parent_id,
+                    Folder.search_space_id == search_space_id,
+                )
+            )
+        ).scalar_one_or_none()
+
+        if existing_folder:
+            mapping[rel_dir] = existing_folder.id
+        else:
+            new_folder = Folder(
+                name=dir_name,
+                parent_id=parent_id,
+                search_space_id=search_space_id,
+                created_by_id=user_id,
+                position="a0",
+            )
+            session.add(new_folder)
+            await session.flush()
+            mapping[rel_dir] = new_folder.id
+
+    await session.flush()
+    return mapping, root_folder_id
+
+
+UPLOAD_BATCH_CONCURRENCY = 5
+
+
+async def index_uploaded_files(
+    session: AsyncSession,
+    search_space_id: int,
+    user_id: str,
+    folder_name: str,
+    root_folder_id: int,
+    enable_summary: bool,
+    file_mappings: list[dict],
+    on_heartbeat_callback: HeartbeatCallbackType | None = None,
+) -> tuple[int, int, str | None]:
+    """Index files uploaded from the desktop app via temp paths.
+
+    Each entry in *file_mappings* is ``{temp_path, relative_path, filename}``.
+    This function mirrors the folder structure from the provided relative
+    paths, then indexes each file exactly like ``_index_single_file`` but
+    reads from the temp path.  Temp files are cleaned up after processing.
+
+    Returns ``(indexed_count, failed_count, error_summary_or_none)``.
+    """
+    task_logger = TaskLoggingService(session, search_space_id)
+    log_entry = await task_logger.log_task_start(
+        task_name="local_folder_indexing",
+        source="uploaded_folder_indexing",
+        message=f"Indexing {len(file_mappings)} uploaded file(s) for {folder_name}",
+        metadata={"file_count": len(file_mappings)},
+    )
+
+    try:
+        all_relative_paths = [m["relative_path"] for m in file_mappings]
+        folder_mapping, root_folder_id = await _mirror_folder_structure_from_paths(
+            session=session,
+            relative_paths=all_relative_paths,
+            folder_name=folder_name,
+            search_space_id=search_space_id,
+            user_id=user_id,
+            root_folder_id=root_folder_id,
+        )
+        await session.flush()
+
+        page_limit_service = PageLimitService(session)
+        pipeline = IndexingPipelineService(session)
+        llm = await get_user_long_context_llm(session, user_id, search_space_id)
+
+        indexed_count = 0
+        failed_count = 0
+        errors: list[str] = []
+
+        for i, mapping in enumerate(file_mappings):
+            temp_path = mapping["temp_path"]
+            relative_path = mapping["relative_path"]
+            filename = mapping["filename"]
+
+            try:
+                unique_id = f"{folder_name}:{relative_path}"
+                uid_hash = compute_identifier_hash(
+                    DocumentType.LOCAL_FOLDER_FILE.value,
+                    unique_id,
+                    search_space_id,
+                )
+
+                try:
+                    estimated_pages = await _check_page_limit_or_skip(
+                        page_limit_service, user_id, temp_path
+                    )
+                except PageLimitExceededError:
+                    logger.warning(f"Page limit exceeded, skipping: {relative_path}")
+                    failed_count += 1
+                    continue
+
+                try:
+                    content, content_hash = await _compute_file_content_hash(
+                        temp_path, filename, search_space_id
+                    )
+                except Exception as e:
+                    logger.warning(f"Could not read {relative_path}: {e}")
+                    failed_count += 1
+                    errors.append(f"{filename}: {e}")
+                    continue
+
+                if not content.strip():
+                    failed_count += 1
+                    continue
+
+                existing = await check_document_by_unique_identifier(
+                    session, uid_hash
+                )
+
+                if existing:
+                    if existing.content_hash == content_hash:
+                        meta = dict(existing.document_metadata or {})
+                        meta["mtime"] = datetime.now(UTC).timestamp()
+                        existing.document_metadata = meta
+                        if not DocumentStatus.is_state(
+                            existing.status, DocumentStatus.READY
+                        ):
+                            existing.status = DocumentStatus.ready()
+                        await session.commit()
+                        continue
+
+                    await create_version_snapshot(session, existing)
+
+                connector_doc = _build_connector_doc(
+                    title=filename,
+                    content=content,
+                    relative_path=relative_path,
+                    folder_name=folder_name,
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                    enable_summary=enable_summary,
+                )
+
+                documents = await pipeline.prepare_for_indexing([connector_doc])
+                if not documents:
+                    failed_count += 1
+                    continue
+
+                db_doc = documents[0]
+
+                try:
+                    db_doc.folder_id = await _resolve_folder_for_file(
+                        session,
+                        relative_path,
+                        root_folder_id,
+                        search_space_id,
+                        user_id,
+                    )
+                    await session.commit()
+                except IntegrityError:
+                    await session.rollback()
+                    await session.refresh(db_doc)
+
+                await pipeline.index(db_doc, connector_doc, llm)
+
+                await session.refresh(db_doc)
+                doc_meta = dict(db_doc.document_metadata or {})
+                doc_meta["mtime"] = datetime.now(UTC).timestamp()
+                db_doc.document_metadata = doc_meta
+                await session.commit()
+
+                if DocumentStatus.is_state(db_doc.status, DocumentStatus.READY):
+                    indexed_count += 1
+                    final_pages = _compute_final_pages(
+                        page_limit_service, estimated_pages, len(content)
+                    )
+                    await page_limit_service.update_page_usage(
+                        user_id, final_pages, allow_exceed=True
+                    )
+                else:
+                    failed_count += 1
+
+                if on_heartbeat_callback and (i + 1) % 5 == 0:
+                    await on_heartbeat_callback(i + 1)
+
+            except Exception as e:
+                logger.exception(
+                    f"Error indexing uploaded file {relative_path}: {e}"
+                )
+                await session.rollback()
+                failed_count += 1
+                errors.append(f"{filename}: {e}")
+            finally:
+                try:
+                    os.unlink(temp_path)
+                except OSError:
+                    pass
+
+        error_summary = None
+        if errors:
+            error_summary = (
+                f"{failed_count} file(s) failed: " + "; ".join(errors[:5])
+            )
+            if len(errors) > 5:
+                error_summary += f" ... and {len(errors) - 5} more"
+
+        await task_logger.log_task_success(
+            log_entry,
+            f"Upload indexing complete: {indexed_count} indexed, {failed_count} failed",
+            {"indexed": indexed_count, "failed": failed_count},
+        )
+
+        return indexed_count, failed_count, error_summary
+
+    except SQLAlchemyError as e:
+        logger.exception(f"Database error during uploaded file indexing: {e}")
+        await session.rollback()
+        await task_logger.log_task_failure(
+            log_entry, f"DB error: {e}", "Database error", {}
+        )
+        return 0, 0, f"Database error: {e}"
+
+    except Exception as e:
+        logger.exception(f"Error during uploaded file indexing: {e}")
+        await task_logger.log_task_failure(
+            log_entry, f"Error: {e}", "Unexpected error", {}
+        )
+        return 0, 0, str(e)

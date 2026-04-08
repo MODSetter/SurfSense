@@ -23,7 +23,9 @@ import { FolderPickerDialog } from "@/components/documents/FolderPickerDialog";
 import { FolderTreeView } from "@/components/documents/FolderTreeView";
 import { VersionHistoryDialog } from "@/components/documents/version-history";
 import { EXPORT_FILE_EXTENSIONS } from "@/components/shared/ExportMenuItems";
-import { FolderWatchDialog, type SelectedFolder } from "@/components/sources/FolderWatchDialog";
+import { DEFAULT_EXCLUDE_PATTERNS, FolderWatchDialog, type SelectedFolder } from "@/components/sources/FolderWatchDialog";
+import { uploadFolderScan } from "@/lib/folder-sync-upload";
+import { getSupportedExtensionsSet } from "@/lib/supported-extensions";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -304,14 +306,17 @@ export function DocumentsSidebar({
 			}
 
 			try {
-				await documentsApiService.folderIndex(searchSpaceId, {
-					folder_path: matched.path,
-					folder_name: matched.name,
-					search_space_id: searchSpaceId,
-					root_folder_id: folder.id,
-					file_extensions: matched.fileExtensions ?? undefined,
+				toast.info(`Re-scanning folder: ${matched.name}`);
+				await uploadFolderScan({
+					folderPath: matched.path,
+					folderName: matched.name,
+					searchSpaceId,
+					excludePatterns: matched.excludePatterns ?? DEFAULT_EXCLUDE_PATTERNS,
+					fileExtensions: matched.fileExtensions ?? Array.from(getSupportedExtensionsSet()),
+					enableSummary: false,
+					rootFolderId: folder.id,
 				});
-				toast.success(`Re-scanning folder: ${matched.name}`);
+				toast.success(`Re-scan complete: ${matched.name}`);
 			} catch (err) {
 				toast.error((err as Error)?.message || "Failed to re-scan folder");
 			}

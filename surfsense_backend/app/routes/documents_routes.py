@@ -1543,3 +1543,379 @@ async def folder_index_files(
         "status": "processing",
         "file_count": len(request.target_file_paths),
     }
+
+
+# ===== Upload-based local folder indexing endpoints =====
+# These work for ALL deployment modes (cloud, self-hosted remote, self-hosted local).
+# The desktop app reads files locally and uploads them here.
+
+
+class FolderMtimeCheckFile(PydanticBaseModel):
+    relative_path: str
+    mtime: float
+
+
+class FolderMtimeCheckRequest(PydanticBaseModel):
+    folder_name: str
+    search_space_id: int
+    files: list[FolderMtimeCheckFile]
+
+
+class FolderUnlinkRequest(PydanticBaseModel):
+    folder_name: str
+    search_space_id: int
+    root_folder_id: int | None = None
+    relative_paths: list[str]
+
+
+class FolderSyncFinalizeRequest(PydanticBaseModel):
+    folder_name: str
+    search_space_id: int
+    root_folder_id: int | None = None
+    all_relative_paths: list[str]
+
+
+@router.post("/documents/folder-mtime-check")
+async def folder_mtime_check(
+    request: FolderMtimeCheckRequest,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Pre-upload optimization: check which files need uploading based on mtime.
+
+    Returns the subset of relative paths where the file is new or has a
+    different mtime, so the client can skip reading/uploading unchanged files.
+    """
+    from app.indexing_pipeline.document_hashing import compute_identifier_hash
+
+    await check_permission(
+        session,
+        user,
+        request.search_space_id,
+        Permission.DOCUMENTS_CREATE.value,
+        "You don't have permission to create documents in this search space",
+    )
+
+    uid_hashes = {}
+    for f in request.files:
+        uid = f"{request.folder_name}:{f.relative_path}"
+        uid_hash = compute_identifier_hash(
+            DocumentType.LOCAL_FOLDER_FILE.value, uid, request.search_space_id
+        )
+        uid_hashes[uid_hash] = f
+
+    existing_docs = (
+        (
+            await session.execute(
+                select(Document).where(
+                    Document.unique_identifier_hash.in_(list(uid_hashes.keys())),
+                    Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    existing_by_hash = {doc.unique_identifier_hash: doc for doc in existing_docs}
+
+    MTIME_TOLERANCE = 1.0
+    files_to_upload: list[str] = []
+
+    for uid_hash, file_info in uid_hashes.items():
+        doc = existing_by_hash.get(uid_hash)
+        if doc is None:
+            files_to_upload.append(file_info.relative_path)
+            continue
+
+        stored_mtime = (doc.document_metadata or {}).get("mtime")
+        if stored_mtime is None:
+            files_to_upload.append(file_info.relative_path)
+            continue
+
+        if abs(file_info.mtime - stored_mtime) >= MTIME_TOLERANCE:
+            files_to_upload.append(file_info.relative_path)
+
+    return {"files_to_upload": files_to_upload}
+
+
+@router.post("/documents/folder-upload")
+async def folder_upload(
+    files: list[UploadFile],
+    folder_name: str = Form(...),
+    search_space_id: int = Form(...),
+    relative_paths: str = Form(...),
+    root_folder_id: int | None = Form(None),
+    enable_summary: bool = Form(False),
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Upload files from the desktop app for folder indexing.
+
+    Files are written to temp storage and dispatched to a Celery task.
+    Works for all deployment modes (no is_self_hosted guard).
+    """
+    import json
+    import tempfile
+
+    await check_permission(
+        session,
+        user,
+        search_space_id,
+        Permission.DOCUMENTS_CREATE.value,
+        "You don't have permission to create documents in this search space",
+    )
+
+    if not files:
+        raise HTTPException(status_code=400, detail="No files provided")
+
+    try:
+        rel_paths: list[str] = json.loads(relative_paths)
+    except (json.JSONDecodeError, TypeError) as e:
+        raise HTTPException(
+            status_code=400, detail=f"Invalid relative_paths JSON: {e}"
+        ) from e
+
+    if len(rel_paths) != len(files):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Mismatch: {len(files)} files but {len(rel_paths)} relative_paths",
+        )
+
+    for file in files:
+        file_size = file.size or 0
+        if file_size > MAX_FILE_SIZE_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File '{file.filename}' ({file_size / (1024 * 1024):.1f} MB) "
+                f"exceeds the {MAX_FILE_SIZE_BYTES // (1024 * 1024)} MB per-file limit.",
+            )
+
+    if not root_folder_id:
+        watched_metadata = {
+            "watched": True,
+            "folder_path": folder_name,
+        }
+        existing_root = (
+            await session.execute(
+                select(Folder).where(
+                    Folder.name == folder_name,
+                    Folder.parent_id.is_(None),
+                    Folder.search_space_id == search_space_id,
+                )
+            )
+        ).scalar_one_or_none()
+
+        if existing_root:
+            root_folder_id = existing_root.id
+            existing_root.folder_metadata = watched_metadata
+        else:
+            root_folder = Folder(
+                name=folder_name,
+                search_space_id=search_space_id,
+                created_by_id=str(user.id),
+                position="a0",
+                folder_metadata=watched_metadata,
+            )
+            session.add(root_folder)
+            await session.flush()
+            root_folder_id = root_folder.id
+
+        await session.commit()
+
+    async def _read_and_save(file: UploadFile, idx: int) -> dict:
+        content = await file.read()
+        filename = file.filename or rel_paths[idx].split("/")[-1]
+
+        def _write_temp() -> str:
+            with tempfile.NamedTemporaryFile(
+                delete=False, suffix=os.path.splitext(filename)[1]
+            ) as tmp:
+                tmp.write(content)
+                return tmp.name
+
+        temp_path = await asyncio.to_thread(_write_temp)
+        return {
+            "temp_path": temp_path,
+            "relative_path": rel_paths[idx],
+            "filename": filename,
+        }
+
+    file_mappings = await asyncio.gather(
+        *(_read_and_save(f, i) for i, f in enumerate(files))
+    )
+
+    from app.tasks.celery_tasks.document_tasks import (
+        index_uploaded_folder_files_task,
+    )
+
+    index_uploaded_folder_files_task.delay(
+        search_space_id=search_space_id,
+        user_id=str(user.id),
+        folder_name=folder_name,
+        root_folder_id=root_folder_id,
+        enable_summary=enable_summary,
+        file_mappings=list(file_mappings),
+    )
+
+    return {
+        "message": f"Folder upload started for {len(files)} file(s)",
+        "status": "processing",
+        "root_folder_id": root_folder_id,
+        "file_count": len(files),
+    }
+
+
+@router.post("/documents/folder-unlink")
+async def folder_unlink(
+    request: FolderUnlinkRequest,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Handle file deletion events from the desktop watcher.
+
+    For each relative path, find the matching document and delete it.
+    """
+    from app.indexing_pipeline.document_hashing import compute_identifier_hash
+    from app.tasks.connector_indexers.local_folder_indexer import (
+        _cleanup_empty_folder_chain,
+    )
+
+    await check_permission(
+        session,
+        user,
+        request.search_space_id,
+        Permission.DOCUMENTS_DELETE.value,
+        "You don't have permission to delete documents in this search space",
+    )
+
+    deleted_count = 0
+
+    for rel_path in request.relative_paths:
+        unique_id = f"{request.folder_name}:{rel_path}"
+        uid_hash = compute_identifier_hash(
+            DocumentType.LOCAL_FOLDER_FILE.value,
+            unique_id,
+            request.search_space_id,
+        )
+
+        existing = (
+            await session.execute(
+                select(Document).where(
+                    Document.unique_identifier_hash == uid_hash
+                )
+            )
+        ).scalar_one_or_none()
+
+        if existing:
+            deleted_folder_id = existing.folder_id
+            await session.delete(existing)
+            await session.flush()
+
+            if deleted_folder_id and request.root_folder_id:
+                await _cleanup_empty_folder_chain(
+                    session, deleted_folder_id, request.root_folder_id
+                )
+            deleted_count += 1
+
+    await session.commit()
+    return {"deleted_count": deleted_count}
+
+
+@router.post("/documents/folder-sync-finalize")
+async def folder_sync_finalize(
+    request: FolderSyncFinalizeRequest,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Finalize a full folder scan by deleting orphaned documents.
+
+    The client sends the complete list of relative paths currently in the
+    folder. Any document in the DB for this folder that is NOT in the list
+    gets deleted.
+    """
+    from app.indexing_pipeline.document_hashing import compute_identifier_hash
+    from app.tasks.connector_indexers.local_folder_indexer import (
+        _cleanup_empty_folders,
+    )
+
+    await check_permission(
+        session,
+        user,
+        request.search_space_id,
+        Permission.DOCUMENTS_DELETE.value,
+        "You don't have permission to delete documents in this search space",
+    )
+
+    seen_hashes: set[str] = set()
+    for rel_path in request.all_relative_paths:
+        unique_id = f"{request.folder_name}:{rel_path}"
+        uid_hash = compute_identifier_hash(
+            DocumentType.LOCAL_FOLDER_FILE.value,
+            unique_id,
+            request.search_space_id,
+        )
+        seen_hashes.add(uid_hash)
+
+    all_root_folder_ids: set[int] = set()
+    if request.root_folder_id:
+        all_root_folder_ids.add(request.root_folder_id)
+
+        all_db_folders = (
+            (
+                await session.execute(
+                    select(Folder.id).where(
+                        Folder.search_space_id == request.search_space_id,
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        all_root_folder_ids.update(all_db_folders)
+
+    all_folder_docs = (
+        (
+            await session.execute(
+                select(Document).where(
+                    Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
+                    Document.search_space_id == request.search_space_id,
+                    Document.folder_id.in_(list(all_root_folder_ids))
+                    if all_root_folder_ids
+                    else True,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    deleted_count = 0
+    for doc in all_folder_docs:
+        if doc.unique_identifier_hash not in seen_hashes:
+            await session.delete(doc)
+            deleted_count += 1
+
+    await session.flush()
+
+    if request.root_folder_id:
+        existing_dirs: set[str] = set()
+        for rel_path in request.all_relative_paths:
+            parent = str(os.path.dirname(rel_path))
+            if parent and parent != ".":
+                existing_dirs.add(parent)
+
+        folder_mapping: dict[str, int] = {}
+        if request.root_folder_id:
+            folder_mapping[""] = request.root_folder_id
+
+        await _cleanup_empty_folders(
+            session,
+            request.root_folder_id,
+            request.search_space_id,
+            existing_dirs,
+            folder_mapping,
+        )
+
+    await session.commit()
+    return {"deleted_count": deleted_count}

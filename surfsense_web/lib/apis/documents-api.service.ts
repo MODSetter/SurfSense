@@ -453,6 +453,76 @@ class DocumentsApiService {
 		return baseApiService.post(`/api/v1/documents/folder-index-files`, undefined, { body });
 	};
 
+	folderMtimeCheck = async (body: {
+		folder_name: string;
+		search_space_id: number;
+		files: { relative_path: string; mtime: number }[];
+	}): Promise<{ files_to_upload: string[] }> => {
+		return baseApiService.post(`/api/v1/documents/folder-mtime-check`, undefined, { body }) as unknown as { files_to_upload: string[] };
+	};
+
+	folderUploadFiles = async (
+		files: File[],
+		metadata: {
+			folder_name: string;
+			search_space_id: number;
+			relative_paths: string[];
+			root_folder_id?: number | null;
+			enable_summary?: boolean;
+		},
+		signal?: AbortSignal,
+	): Promise<{ message: string; status: string; root_folder_id: number; file_count: number }> => {
+		const formData = new FormData();
+		for (const file of files) {
+			formData.append("files", file);
+		}
+		formData.append("folder_name", metadata.folder_name);
+		formData.append("search_space_id", String(metadata.search_space_id));
+		formData.append("relative_paths", JSON.stringify(metadata.relative_paths));
+		if (metadata.root_folder_id != null) {
+			formData.append("root_folder_id", String(metadata.root_folder_id));
+		}
+		formData.append("enable_summary", String(metadata.enable_summary ?? false));
+
+		const totalSize = files.reduce((acc, f) => acc + f.size, 0);
+		const timeoutMs = Math.min(Math.max((totalSize / (1024 * 1024)) * 5000, 30_000), 600_000);
+
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+		if (signal) {
+			signal.addEventListener("abort", () => controller.abort(), { once: true });
+		}
+
+		try {
+			return await baseApiService.postFormData(
+				`/api/v1/documents/folder-upload`,
+				undefined,
+				{ body: formData, signal: controller.signal },
+			) as { message: string; status: string; root_folder_id: number; file_count: number };
+		} finally {
+			clearTimeout(timeoutId);
+		}
+	};
+
+	folderNotifyUnlinked = async (body: {
+		folder_name: string;
+		search_space_id: number;
+		root_folder_id: number | null;
+		relative_paths: string[];
+	}): Promise<{ deleted_count: number }> => {
+		return baseApiService.post(`/api/v1/documents/folder-unlink`, undefined, { body }) as unknown as { deleted_count: number };
+	};
+
+	folderSyncFinalize = async (body: {
+		folder_name: string;
+		search_space_id: number;
+		root_folder_id: number | null;
+		all_relative_paths: string[];
+	}): Promise<{ deleted_count: number }> => {
+		return baseApiService.post(`/api/v1/documents/folder-sync-finalize`, undefined, { body }) as unknown as { deleted_count: number };
+	};
+
 	getWatchedFolders = async (searchSpaceId: number) => {
 		return baseApiService.get(
 			`/api/v1/documents/watched-folders?search_space_id=${searchSpaceId}`,

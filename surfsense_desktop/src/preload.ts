@@ -64,6 +64,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   signalRendererReady: () => ipcRenderer.invoke(IPC_CHANNELS.FOLDER_SYNC_RENDERER_READY),
   getPendingFileEvents: () => ipcRenderer.invoke(IPC_CHANNELS.FOLDER_SYNC_GET_PENDING_EVENTS),
   acknowledgeFileEvents: (eventIds: string[]) => ipcRenderer.invoke(IPC_CHANNELS.FOLDER_SYNC_ACK_EVENTS, eventIds),
+  listFolderFiles: (config: any) => ipcRenderer.invoke(IPC_CHANNELS.FOLDER_SYNC_LIST_FILES, config),
 
   // Browse files via native dialog
   browseFiles: () => ipcRenderer.invoke(IPC_CHANNELS.BROWSE_FILES),

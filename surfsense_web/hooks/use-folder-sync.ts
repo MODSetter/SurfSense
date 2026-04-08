@@ -20,12 +20,18 @@ const DEBOUNCE_MS = 2000;
 const MAX_WAIT_MS = 10_000;
 const MAX_BATCH_SIZE = 50;
 
+interface FileEntry {
+	fullPath: string;
+	relativePath: string;
+	action: string;
+}
+
 interface BatchItem {
 	folderPath: string;
 	folderName: string;
 	searchSpaceId: number;
 	rootFolderId: number | null;
-	filePaths: string[];
+	files: FileEntry[];
 	ackIds: string[];
 }
 
@@ -44,18 +50,40 @@ export function useFolderSync() {
 		while (queueRef.current.length > 0) {
 			const batch = queueRef.current.shift()!;
 			try {
-				await documentsApiService.folderIndexFiles(batch.searchSpaceId, {
-					folder_path: batch.folderPath,
-					folder_name: batch.folderName,
-					search_space_id: batch.searchSpaceId,
-					target_file_paths: batch.filePaths,
-					root_folder_id: batch.rootFolderId,
-				});
+				const addChangeFiles = batch.files.filter((f) => f.action === "add" || f.action === "change");
+				const unlinkFiles = batch.files.filter((f) => f.action === "unlink");
+
+				if (addChangeFiles.length > 0 && electronAPI?.readLocalFiles) {
+					const fullPaths = addChangeFiles.map((f) => f.fullPath);
+					const fileDataArr = await electronAPI.readLocalFiles(fullPaths);
+
+					const files: File[] = fileDataArr.map((fd) => {
+						const blob = new Blob([fd.data], { type: fd.mimeType || "application/octet-stream" });
+						return new File([blob], fd.name, { type: blob.type });
+					});
+
+					await documentsApiService.folderUploadFiles(files, {
+						folder_name: batch.folderName,
+						search_space_id: batch.searchSpaceId,
+						relative_paths: addChangeFiles.map((f) => f.relativePath),
+						root_folder_id: batch.rootFolderId,
+					});
+				}
+
+				if (unlinkFiles.length > 0) {
+					await documentsApiService.folderNotifyUnlinked({
+						folder_name: batch.folderName,
+						search_space_id: batch.searchSpaceId,
+						root_folder_id: batch.rootFolderId,
+						relative_paths: unlinkFiles.map((f) => f.relativePath),
+					});
+				}
+
 				if (electronAPI?.acknowledgeFileEvents && batch.ackIds.length > 0) {
 					await electronAPI.acknowledgeFileEvents(batch.ackIds);
 				}
 			} catch (err) {
-				console.error("[FolderSync] Failed to trigger batch re-index:", err);
+				console.error("[FolderSync] Failed to process batch:", err);
 			}
 		}
 		processingRef.current = false;
@@ -68,10 +96,10 @@ export function useFolderSync() {
 		if (!pending) return;
 		pendingByFolder.current.delete(folderKey);
 
-		for (let i = 0; i < pending.filePaths.length; i += MAX_BATCH_SIZE) {
+		for (let i = 0; i < pending.files.length; i += MAX_BATCH_SIZE) {
 			queueRef.current.push({
 				...pending,
-				filePaths: pending.filePaths.slice(i, i + MAX_BATCH_SIZE),
+				files: pending.files.slice(i, i + MAX_BATCH_SIZE),
 				ackIds: i === 0 ? pending.ackIds : [],
 			});
 		}
@@ -83,9 +111,14 @@ export function useFolderSync() {
 		const existing = pendingByFolder.current.get(folderKey);
 
 		if (existing) {
-			const pathSet = new Set(existing.filePaths);
-			pathSet.add(event.fullPath);
-			existing.filePaths = Array.from(pathSet);
+			const pathSet = new Set(existing.files.map((f) => f.fullPath));
+			if (!pathSet.has(event.fullPath)) {
+				existing.files.push({
+					fullPath: event.fullPath,
+					relativePath: event.relativePath,
+					action: event.action,
+				});
+			}
 			if (!existing.ackIds.includes(event.id)) {
 				existing.ackIds.push(event.id);
 			}
@@ -95,7 +128,11 @@ export function useFolderSync() {
 				folderName: event.folderName,
 				searchSpaceId: event.searchSpaceId,
 				rootFolderId: event.rootFolderId,
-				filePaths: [event.fullPath],
+				files: [{
+					fullPath: event.fullPath,
+					relativePath: event.relativePath,
+					action: event.action,
+				}],
 				ackIds: [event.id],
 			});
 			firstEventTime.current.set(folderKey, Date.now());
