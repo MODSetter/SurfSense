@@ -1,6 +1,7 @@
 "use client";
 
 import { Download, FileQuestionMark, FileText, Loader2, PenLine, RefreshCw } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { PlateEditor } from "@/components/editor/plate-editor";
@@ -60,6 +61,7 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 	const markdownRef = useRef<string>("");
 	const initialLoadDone = useRef(false);
 	const changeCountRef = useRef(0);
+	const router = useRouter();
 
 	const isLargeDocument = (doc?.content_size_bytes ?? 0) > LARGE_DOCUMENT_THRESHOLD;
 
@@ -190,7 +192,7 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 						variant="outline"
 						size="sm"
 						className="mt-1 gap-1.5"
-						onClick={() => window.location.reload()}
+						onClick={() => router.refresh()}
 					>
 						<RefreshCw className="size-3.5" />
 						Retry

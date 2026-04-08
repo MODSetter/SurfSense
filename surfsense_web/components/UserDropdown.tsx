@@ -40,19 +40,13 @@ export function UserDropdown({
 
 			await logout();
 
-			router.push("/");
+			router.push(getLoginPath());
 			router.refresh();
-			if (typeof window !== "undefined") {
-				window.location.href = getLoginPath();
-			}
 		} catch (error) {
 			console.error("Error during logout:", error);
 			await logout();
-			router.push("/");
+			router.push(getLoginPath());
 			router.refresh();
-			if (typeof window !== "undefined") {
-				window.location.href = getLoginPath();
-			}
 		}
 	};
 
