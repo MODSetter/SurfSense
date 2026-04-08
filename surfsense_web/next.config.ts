@@ -1,3 +1,4 @@
+import path from "node:path";
 import { createMDX } from "fumadocs-mdx/next";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
@@ -5,8 +6,12 @@ import createNextIntlPlugin from "next-intl/plugin";
 // Create the next-intl plugin
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
+// TODO: Separate app routes (/login, /dashboard) from marketing routes
+// (landing page, /contact, /pricing, /docs) so the desktop build only
+// ships what desktop users actually need.
 const nextConfig: NextConfig = {
 	output: "standalone",
+	outputFileTracingRoot: path.join(__dirname, ".."),
 	reactStrictMode: false,
 	typescript: {
 		ignoreBuildErrors: true,
@@ -17,6 +22,16 @@ const nextConfig: NextConfig = {
 				protocol: "https",
 				hostname: "**",
 			},
+		],
+	},
+	experimental: {
+		optimizePackageImports: [
+			"lucide-react",
+			"@tabler/icons-react",
+			"date-fns",
+			"@assistant-ui/react",
+			"@assistant-ui/react-markdown",
+			"motion",
 		],
 	},
 	// Turbopack config (used during `next dev --turbopack`)
@@ -32,7 +47,9 @@ const nextConfig: NextConfig = {
 	// Configure webpack (SVGR)
 	webpack: (config) => {
 		// SVGR: import *.svg as React components
-		const fileLoaderRule = config.module.rules.find((rule: any) => rule.test?.test?.(".svg"));
+		const fileLoaderRule = config.module.rules.find(
+			(rule: { test?: { test?: (s: string) => boolean } }) => rule.test?.test?.(".svg")
+		);
 		config.module.rules.push(
 			// Re-apply the existing file loader for *.svg?url imports
 			{
@@ -52,27 +69,6 @@ const nextConfig: NextConfig = {
 
 		return config;
 	},
-
-	// PostHog reverse proxy configuration
-	// This helps bypass ad blockers by routing requests through your domain
-	async rewrites() {
-		return [
-			{
-				source: "/ingest/static/:path*",
-				destination: "https://us-assets.i.posthog.com/static/:path*",
-			},
-			{
-				source: "/ingest/:path*",
-				destination: "https://us.i.posthog.com/:path*",
-			},
-			{
-				source: "/ingest/decide",
-				destination: "https://us.i.posthog.com/decide",
-			},
-		];
-	},
-	// Required for PostHog reverse proxy to work correctly
-	skipTrailingSlashRedirect: true,
 };
 
 // Wrap the config with MDX and next-intl plugins

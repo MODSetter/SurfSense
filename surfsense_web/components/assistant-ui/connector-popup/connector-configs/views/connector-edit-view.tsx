@@ -1,17 +1,35 @@
 "use client";
 
+import { useAtomValue } from "jotai";
 import { ArrowLeft, Info, RefreshCw, Trash2 } from "lucide-react";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+import { authenticatedFetch } from "@/lib/auth-utils";
 import { cn } from "@/lib/utils";
 import { DateRangeSelector } from "../../components/date-range-selector";
 import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
 import { SummaryConfig } from "../../components/summary-config";
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
 import { getConnectorConfigComponent } from "../index";
+
+const REAUTH_ENDPOINTS: Partial<Record<string, string>> = {
+	[EnumConnectorName.LINEAR_CONNECTOR]: "/api/v1/auth/linear/connector/reauth",
+	[EnumConnectorName.NOTION_CONNECTOR]: "/api/v1/auth/notion/connector/reauth",
+	[EnumConnectorName.GOOGLE_DRIVE_CONNECTOR]: "/api/v1/auth/google/drive/connector/reauth",
+	[EnumConnectorName.GOOGLE_GMAIL_CONNECTOR]: "/api/v1/auth/google/gmail/connector/reauth",
+	[EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR]: "/api/v1/auth/google/calendar/connector/reauth",
+	[EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
+	[EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
+	[EnumConnectorName.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
+	[EnumConnectorName.ONEDRIVE_CONNECTOR]: "/api/v1/auth/onedrive/connector/reauth",
+	[EnumConnectorName.DROPBOX_CONNECTOR]: "/api/v1/auth/dropbox/connector/reauth",
+};
 
 interface ConnectorEditViewProps {
 	connector: SearchSourceConnector;
@@ -60,6 +78,41 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	onConfigChange,
 	onNameChange,
 }) => {
+	const searchSpaceIdAtom = useAtomValue(activeSearchSpaceIdAtom);
+	const isAuthExpired = connector.config?.auth_expired === true;
+	const reauthEndpoint = REAUTH_ENDPOINTS[connector.connector_type];
+	const [reauthing, setReauthing] = useState(false);
+
+	const handleReauth = useCallback(async () => {
+		const spaceId = searchSpaceId ?? searchSpaceIdAtom;
+		if (!spaceId || !reauthEndpoint) return;
+		setReauthing(true);
+		try {
+			const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+			const url = new URL(`${backendUrl}${reauthEndpoint}`);
+			url.searchParams.set("connector_id", String(connector.id));
+			url.searchParams.set("space_id", String(spaceId));
+			url.searchParams.set("return_url", window.location.pathname);
+			const response = await authenticatedFetch(url.toString());
+			if (!response.ok) {
+				const data = await response.json().catch(() => ({}));
+				toast.error(data.detail ?? "Failed to initiate re-authentication.");
+				return;
+			}
+			const data = await response.json();
+			if (data.auth_url) {
+				window.location.href = data.auth_url;
+			} else if (data.success) {
+				toast.success(data.message ?? "Authentication refreshed successfully.");
+				window.location.reload();
+			}
+		} catch {
+			toast.error("Failed to initiate re-authentication.");
+		} finally {
+			setReauthing(false);
+		}
+	}, [searchSpaceId, searchSpaceIdAtom, reauthEndpoint, connector.id]);
+
 	// Get connector-specific config component
 	const ConnectorConfigComponent = useMemo(
 		() => getConnectorConfigComponent(connector.connector_type),
@@ -169,30 +222,28 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 							</p>
 						</div>
 					</div>
-					{/* Quick Index Button - only show for indexable connectors, but not for Google Drive (requires folder selection) */}
-					{connector.is_indexable &&
-						onQuickIndex &&
-						connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" && (
-							<Button
-								variant="secondary"
-								size="sm"
-								onClick={handleQuickIndex}
-								disabled={isQuickIndexing || isIndexing || isSaving || isDisconnecting}
-								className="text-xs sm:text-sm bg-slate-400/10 dark:bg-white/10 hover:bg-slate-400/20 dark:hover:bg-white/20 border-slate-400/20 dark:border-white/20 w-full sm:w-auto"
-							>
-								{isQuickIndexing || isIndexing ? (
-									<>
-										<RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-										Syncing
-									</>
-								) : (
-									<>
-										<RefreshCw className="mr-2 h-4 w-4" />
-										Quick Index
-									</>
-								)}
-							</Button>
-						)}
+					{/* Quick Index Button - hidden when auth is expired */}
+					{connector.is_indexable && onQuickIndex && !isAuthExpired && (
+						<Button
+							variant="secondary"
+							size="sm"
+							onClick={handleQuickIndex}
+							disabled={isQuickIndexing || isIndexing || isSaving || isDisconnecting}
+							className="text-xs sm:text-sm bg-slate-400/10 dark:bg-white/10 hover:bg-slate-400/20 dark:hover:bg-white/20 border-slate-400/20 dark:border-white/20 w-full sm:w-auto"
+						>
+							{isQuickIndexing || isIndexing ? (
+								<>
+									<RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+									Syncing
+								</>
+							) : (
+								<>
+									<RefreshCw className="mr-2 h-4 w-4" />
+									Quick Index
+								</>
+							)}
+						</Button>
+					)}
 				</div>
 			</div>
 
@@ -207,6 +258,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						{/* Connector-specific configuration */}
 						{ConnectorConfigComponent && (
 							<ConnectorConfigComponent
+								key={connector.id}
 								connector={connector}
 								onConfigChange={onConfigChange}
 								onNameChange={onNameChange}
@@ -220,9 +272,11 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 								{/* AI Summary toggle */}
 								<SummaryConfig enabled={enableSummary} onEnabledChange={onEnableSummaryChange} />
 
-								{/* Date range selector - not shown for Google Drive (regular and Composio), Webcrawler, or GitHub (indexes full repo snapshots) */}
+								{/* Date range selector - not shown for file-based connectors (Drive, Dropbox, OneDrive), Webcrawler, GitHub, or Local Folder */}
 								{connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" &&
 									connector.connector_type !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&
+									connector.connector_type !== "DROPBOX_CONNECTOR" &&
+									connector.connector_type !== "ONEDRIVE_CONNECTOR" &&
 									connector.connector_type !== "WEBCRAWLER_CONNECTOR" &&
 									connector.connector_type !== "GITHUB_CONNECTOR" && (
 										<DateRangeSelector
@@ -239,9 +293,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 										/>
 									)}
 
-								{/* Periodic sync - shown for all indexable connectors */}
 								{(() => {
-									// Check if Google Drive (regular or Composio) has folders/files selected
 									const isGoogleDrive = connector.connector_type === "GOOGLE_DRIVE_CONNECTOR";
 									const isComposioGoogleDrive =
 										connector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR";
@@ -317,16 +369,10 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 								size="sm"
 								onClick={handleDisconnectConfirm}
 								disabled={isDisconnecting}
-								className="text-xs sm:text-sm flex-1 sm:flex-initial h-10 sm:h-auto py-2 sm:py-2"
+								className="relative text-xs sm:text-sm flex-1 sm:flex-initial h-10 sm:h-auto py-2 sm:py-2"
 							>
-								{isDisconnecting ? (
-									<>
-										<Spinner size="sm" className="mr-2" />
-										Disconnecting
-									</>
-								) : (
-									"Confirm Disconnect"
-								)}
+								<span className={isDisconnecting ? "opacity-0" : ""}>Confirm Disconnect</span>
+								{isDisconnecting && <Spinner size="sm" className="absolute" />}
 							</Button>
 							<Button
 								variant="ghost"
@@ -350,20 +396,25 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						Disconnect
 					</Button>
 				)}
-				<Button
-					onClick={onSave}
-					disabled={isSaving || isDisconnecting}
-					className="text-xs sm:text-sm flex-1 sm:flex-initial h-12 sm:h-auto py-3 sm:py-2"
-				>
-					{isSaving ? (
-						<>
-							<Spinner size="sm" className="mr-2" />
-							Saving
-						</>
-					) : (
-						"Save Changes"
-					)}
-				</Button>
+				{isAuthExpired && reauthEndpoint ? (
+					<Button
+						onClick={handleReauth}
+						disabled={reauthing || isDisconnecting}
+						className="text-xs sm:text-sm flex-1 sm:flex-initial h-12 sm:h-auto py-3 sm:py-2 bg-amber-600 hover:bg-amber-700 text-white"
+					>
+						<RefreshCw className={cn("size-3.5", reauthing && "animate-spin")} />
+						Re-authenticate
+					</Button>
+				) : (
+					<Button
+						onClick={onSave}
+						disabled={isSaving || isDisconnecting}
+						className="relative text-xs sm:text-sm flex-1 sm:flex-initial h-12 sm:h-auto py-3 sm:py-2"
+					>
+						<span className={isSaving ? "opacity-0" : ""}>Save Changes</span>
+						{isSaving && <Spinner size="sm" className="absolute" />}
+					</Button>
+				)}
 			</div>
 		</div>
 	);

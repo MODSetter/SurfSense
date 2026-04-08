@@ -2,13 +2,14 @@
 
 import { useAtomValue, useSetAtom } from "jotai";
 import { ChevronDownIcon, XIcon } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { closeReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
-import { PlateEditor } from "@/components/editor/plate-editor";
 import { MarkdownViewer } from "@/components/markdown-viewer";
+import { EXPORT_FILE_EXTENSIONS, ExportDropdownItems } from "@/components/shared/ExportMenuItems";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
 import {
@@ -17,9 +18,15 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
+
+const PlateEditor = dynamic(
+	() => import("@/components/editor/plate-editor").then((m) => ({ default: m.PlateEditor })),
+	{ ssr: false, loading: () => <Skeleton className="h-64 w-full" /> }
+);
 
 /**
  * Zod schema for a single version entry
@@ -93,9 +100,9 @@ function ReportPanelSkeleton() {
 }
 
 /**
- * Inner content component used by both desktop panel and mobile drawer
+ * Inner content component used by desktop panel, mobile drawer, and the layout right panel
  */
-function ReportPanelContent({
+export function ReportPanelContent({
 	reportId,
 	title,
 	onClose,
@@ -114,8 +121,15 @@ function ReportPanelContent({
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [copied, setCopied] = useState(false);
-	const [exporting, setExporting] = useState<"pdf" | "docx" | "md" | null>(null);
+	const [exporting, setExporting] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
+	const copyTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+	useEffect(() => {
+		return () => {
+			if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+		};
+	}, []);
 
 	// Editor state — tracks the latest markdown from the Plate editor
 	const [editedMarkdown, setEditedMarkdown] = useState<string | null>(null);
@@ -190,24 +204,24 @@ function ReportPanelContent({
 		try {
 			await navigator.clipboard.writeText(currentMarkdown);
 			setCopied(true);
-			setTimeout(() => setCopied(false), 2000);
+			if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+			copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
 		} catch (err) {
 			console.error("Failed to copy:", err);
 		}
 	}, [currentMarkdown]);
 
-	// Export report
 	const handleExport = useCallback(
-		async (format: "pdf" | "docx" | "md") => {
+		async (format: string) => {
 			setExporting(format);
 			const safeTitle =
 				title
 					.replace(/[^a-zA-Z0-9 _-]/g, "_")
 					.trim()
 					.slice(0, 80) || "report";
+			const ext = EXPORT_FILE_EXTENSIONS[format] ?? format;
 			try {
 				if (format === "md") {
-					// Download markdown content directly as a .md file (uses latest editor content)
 					if (!currentMarkdown) return;
 					const blob = new Blob([currentMarkdown], {
 						type: "text/markdown;charset=utf-8",
@@ -215,7 +229,7 @@ function ReportPanelContent({
 					const url = URL.createObjectURL(blob);
 					const a = document.createElement("a");
 					a.href = url;
-					a.download = `${safeTitle}.md`;
+					a.download = `${safeTitle}.${ext}`;
 					document.body.appendChild(a);
 					a.click();
 					document.body.removeChild(a);
@@ -234,7 +248,7 @@ function ReportPanelContent({
 					const url = URL.createObjectURL(blob);
 					const a = document.createElement("a");
 					a.href = url;
-					a.download = `${safeTitle}.${format}`;
+					a.download = `${safeTitle}.${ext}`;
 					document.body.appendChild(a);
 					a.click();
 					document.body.removeChild(a);
@@ -280,32 +294,11 @@ function ReportPanelContent({
 		}
 	}, [activeReportId, currentMarkdown]);
 
-	// Show full-page skeleton only on initial load (no data loaded yet).
-	// Once we have versions/content from a prior fetch, keep the action bar visible.
-	const hasLoadedBefore = versions.length > 0 || reportContent !== null;
-
-	if (isLoading && !hasLoadedBefore) {
-		return (
-			<>
-				{/* Minimal top bar with close button even during initial load */}
-				<div className="flex items-center justify-end px-4 py-2 shrink-0">
-					{onClose && (
-						<Button variant="ghost" size="icon" onClick={onClose} className="size-7 shrink-0">
-							<XIcon className="size-4" />
-							<span className="sr-only">Close report panel</span>
-						</Button>
-					)}
-				</div>
-				<ReportPanelSkeleton />
-			</>
-		);
-	}
-
 	const activeVersionIndex = versions.findIndex((v) => v.id === activeReportId);
 
 	return (
 		<>
-			{/* Action bar — always visible after initial load */}
+			{/* Action bar — always visible; buttons are disabled while loading */}
 			<div className="flex items-center justify-between px-4 py-2 shrink-0">
 				<div className="flex items-center gap-2">
 					{/* Copy button */}
@@ -314,7 +307,7 @@ function ReportPanelContent({
 						size="sm"
 						onClick={handleCopy}
 						disabled={isLoading || !reportContent?.content}
-						className="h-8 min-w-[80px] px-3.5 py-4 text-[15px]"
+						className="h-8 min-w-[80px] px-3.5 py-4 text-[15px] bg-sidebar select-none"
 					>
 						{copied ? "Copied" : "Copy"}
 					</Button>
@@ -326,7 +319,7 @@ function ReportPanelContent({
 								variant="outline"
 								size="sm"
 								disabled={isLoading || !reportContent?.content}
-								className="h-8 px-3.5 py-4 text-[15px] gap-1.5"
+								className="h-8 px-3.5 py-4 text-[15px] gap-1.5 bg-sidebar select-none"
 							>
 								Export
 								<ChevronDownIcon className="size-3" />
@@ -334,29 +327,13 @@ function ReportPanelContent({
 						</DropdownMenuTrigger>
 						<DropdownMenuContent
 							align="start"
-							className={`min-w-[180px] dark:bg-neutral-900 dark:border dark:border-white/5${insideDrawer ? " z-[100]" : ""}`}
+							className={`min-w-[200px] select-none${insideDrawer ? " z-[100]" : ""}`}
 						>
-							<DropdownMenuItem onClick={() => handleExport("md")}>
-								Download Markdown
-							</DropdownMenuItem>
-							{/* PDF/DOCX export requires server-side conversion via authenticated endpoint.
-						    Hide for public viewers who have no auth token. */}
-							{!shareToken && (
-								<>
-									<DropdownMenuItem
-										onClick={() => handleExport("pdf")}
-										disabled={exporting !== null}
-									>
-										Download PDF
-									</DropdownMenuItem>
-									<DropdownMenuItem
-										onClick={() => handleExport("docx")}
-										disabled={exporting !== null}
-									>
-										Download DOCX
-									</DropdownMenuItem>
-								</>
-							)}
+							<ExportDropdownItems
+								onExport={handleExport}
+								exporting={exporting}
+								showAllFormats={!shareToken}
+							/>
 						</DropdownMenuContent>
 					</DropdownMenu>
 
@@ -364,14 +341,18 @@ function ReportPanelContent({
 					{versions.length > 1 && (
 						<DropdownMenu modal={insideDrawer ? false : undefined}>
 							<DropdownMenuTrigger asChild>
-								<Button variant="outline" size="sm" className="h-8 px-3.5 py-4 text-[15px] gap-1.5">
+								<Button
+									variant="outline"
+									size="sm"
+									className="h-8 px-3.5 py-4 text-[15px] gap-1.5 bg-sidebar select-none"
+								>
 									v{activeVersionIndex + 1}
 									<ChevronDownIcon className="size-3" />
 								</Button>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent
 								align="start"
-								className={`min-w-[120px] dark:bg-neutral-900 dark:border dark:border-white/5${insideDrawer ? " z-[100]" : ""}`}
+								className={`min-w-[120px] select-none${insideDrawer ? " z-[100]" : ""}`}
 							>
 								{versions.map((v, i) => (
 									<DropdownMenuItem
@@ -421,6 +402,7 @@ function ReportPanelContent({
 							onSave={handleSave}
 							hasUnsavedChanges={editedMarkdown !== null}
 							isSaving={saving}
+							className="[&_[role=toolbar]]:!bg-sidebar"
 						/>
 					)
 				) : (
@@ -457,7 +439,7 @@ function DesktopReportPanel() {
 	return (
 		<div
 			ref={panelRef}
-			className="flex w-[50%] max-w-[700px] min-w-[380px] flex-col border-l bg-background animate-in slide-in-from-right-4 duration-300 ease-out"
+			className="flex w-[50%] max-w-[700px] min-w-[380px] flex-col border-l bg-sidebar text-sidebar-foreground animate-in slide-in-from-right-4 duration-300 ease-out"
 		>
 			<ReportPanelContent
 				reportId={panelState.reportId}
@@ -487,7 +469,7 @@ function MobileReportDrawer() {
 			shouldScaleBackground={false}
 		>
 			<DrawerContent
-				className="h-[90vh] max-h-[90vh] z-80 !rounded-none border-none"
+				className="h-[90vh] max-h-[90vh] z-80 bg-sidebar overflow-hidden"
 				overlayClassName="z-80"
 			>
 				<DrawerHandle />
@@ -510,9 +492,6 @@ function MobileReportDrawer() {
  *
  * On desktop (lg+): Renders as a right-side split panel (flex sibling to the chat thread)
  * On mobile/tablet: Renders as a Vaul bottom drawer
- *
- * When open on desktop, the comments gutter is automatically suppressed
- * (handled via showCommentsGutterAtom in current-thread.atom.ts)
  */
 export function ReportPanel() {
 	const panelState = useAtomValue(reportPanelAtom);
@@ -524,6 +503,21 @@ export function ReportPanel() {
 	if (isDesktop) {
 		return <DesktopReportPanel />;
 	}
+
+	return <MobileReportDrawer />;
+}
+
+/**
+ * MobileReportPanel — mobile-only report drawer
+ *
+ * Used in the dashboard chat page where the desktop report is handled
+ * by the layout-level RightPanel instead.
+ */
+export function MobileReportPanel() {
+	const panelState = useAtomValue(reportPanelAtom);
+	const isDesktop = useMediaQuery("(min-width: 1024px)");
+
+	if (isDesktop || !panelState.isOpen || !panelState.reportId) return null;
 
 	return <MobileReportDrawer />;
 }

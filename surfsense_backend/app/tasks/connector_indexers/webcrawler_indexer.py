@@ -410,7 +410,7 @@ async def index_crawled_urls(
                     "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "connector_id": connector_id,
                 }
-                safe_set_chunks(document, chunks)
+                await safe_set_chunks(session, document, chunks)
                 document.status = DocumentStatus.ready()  # READY status
                 document.updated_at = get_current_timestamp()
 
@@ -444,7 +444,7 @@ async def index_crawled_urls(
 
         total_processed = documents_indexed + documents_updated
 
-        # CRITICAL: Always update timestamp (even if 0 documents indexed) so Electric SQL syncs
+        # CRITICAL: Always update timestamp (even if 0 documents indexed) so Zero syncs
         await update_connector_last_indexed(session, connector, update_last_indexed)
 
         # Final commit for any remaining documents not yet committed in batches

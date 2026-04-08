@@ -227,7 +227,7 @@ async def add_circleback_meeting_document(
         if summary_embedding is not None:
             document.embedding = summary_embedding
         document.document_metadata = document_metadata
-        safe_set_chunks(document, chunks)
+        await safe_set_chunks(session, document, chunks)
         document.source_markdown = markdown_content
         document.content_needs_reindexing = False
         document.updated_at = get_current_timestamp()

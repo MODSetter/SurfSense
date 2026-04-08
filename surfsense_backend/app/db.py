@@ -1,3 +1,4 @@
+import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -15,6 +16,7 @@ from sqlalchemy import (
     Column,
     Enum as SQLAlchemyEnum,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -39,6 +41,7 @@ class DocumentType(StrEnum):
     FILE = "FILE"
     SLACK_CONNECTOR = "SLACK_CONNECTOR"
     TEAMS_CONNECTOR = "TEAMS_CONNECTOR"
+    ONEDRIVE_FILE = "ONEDRIVE_FILE"
     NOTION_CONNECTOR = "NOTION_CONNECTOR"
     YOUTUBE_VIDEO = "YOUTUBE_VIDEO"
     GITHUB_CONNECTOR = "GITHUB_CONNECTOR"
@@ -57,9 +60,21 @@ class DocumentType(StrEnum):
     CIRCLEBACK = "CIRCLEBACK"
     OBSIDIAN_CONNECTOR = "OBSIDIAN_CONNECTOR"
     NOTE = "NOTE"
+    DROPBOX_FILE = "DROPBOX_FILE"
     COMPOSIO_GOOGLE_DRIVE_CONNECTOR = "COMPOSIO_GOOGLE_DRIVE_CONNECTOR"
     COMPOSIO_GMAIL_CONNECTOR = "COMPOSIO_GMAIL_CONNECTOR"
     COMPOSIO_GOOGLE_CALENDAR_CONNECTOR = "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR"
+    LOCAL_FOLDER_FILE = "LOCAL_FOLDER_FILE"
+
+
+# Native Google document types → their legacy Composio equivalents.
+# Old documents may still carry the Composio type until they are re-indexed;
+# search, browse, and indexing must transparently handle both.
+NATIVE_TO_LEGACY_DOCTYPE: dict[str, str] = {
+    "GOOGLE_DRIVE_FILE": "COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
+    "GOOGLE_GMAIL_CONNECTOR": "COMPOSIO_GMAIL_CONNECTOR",
+    "GOOGLE_CALENDAR_CONNECTOR": "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
+}
 
 
 class SearchSourceConnectorType(StrEnum):
@@ -70,6 +85,7 @@ class SearchSourceConnectorType(StrEnum):
     BAIDU_SEARCH_API = "BAIDU_SEARCH_API"  # Baidu AI Search API for Chinese web search
     SLACK_CONNECTOR = "SLACK_CONNECTOR"
     TEAMS_CONNECTOR = "TEAMS_CONNECTOR"
+    ONEDRIVE_CONNECTOR = "ONEDRIVE_CONNECTOR"
     NOTION_CONNECTOR = "NOTION_CONNECTOR"
     GITHUB_CONNECTOR = "GITHUB_CONNECTOR"
     LINEAR_CONNECTOR = "LINEAR_CONNECTOR"
@@ -90,12 +106,20 @@ class SearchSourceConnectorType(StrEnum):
         "OBSIDIAN_CONNECTOR"  # Self-hosted only - Local Obsidian vault indexing
     )
     MCP_CONNECTOR = "MCP_CONNECTOR"  # Model Context Protocol - User-defined API tools
+    DROPBOX_CONNECTOR = "DROPBOX_CONNECTOR"
     COMPOSIO_GOOGLE_DRIVE_CONNECTOR = "COMPOSIO_GOOGLE_DRIVE_CONNECTOR"
     COMPOSIO_GMAIL_CONNECTOR = "COMPOSIO_GMAIL_CONNECTOR"
     COMPOSIO_GOOGLE_CALENDAR_CONNECTOR = "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR"
 
 
 class PodcastStatus(StrEnum):
+    PENDING = "pending"
+    GENERATING = "generating"
+    READY = "ready"
+    FAILED = "failed"
+
+
+class VideoPresentationStatus(StrEnum):
     PENDING = "pending"
     GENERATING = "generating"
     READY = "ready"
@@ -214,6 +238,7 @@ class LiteLLMProvider(StrEnum):
     COMETAPI = "COMETAPI"
     HUGGINGFACE = "HUGGINGFACE"
     GITHUB_MODELS = "GITHUB_MODELS"
+    MINIMAX = "MINIMAX"
     CUSTOM = "CUSTOM"
 
 
@@ -233,6 +258,24 @@ class ImageGenProvider(StrEnum):
     OPENROUTER = "OPENROUTER"
     XINFERENCE = "XINFERENCE"
     NSCALE = "NSCALE"
+
+
+class VisionProvider(StrEnum):
+    OPENAI = "OPENAI"
+    ANTHROPIC = "ANTHROPIC"
+    GOOGLE = "GOOGLE"
+    AZURE_OPENAI = "AZURE_OPENAI"
+    VERTEX_AI = "VERTEX_AI"
+    BEDROCK = "BEDROCK"
+    XAI = "XAI"
+    OPENROUTER = "OPENROUTER"
+    OLLAMA = "OLLAMA"
+    GROQ = "GROQ"
+    TOGETHER_AI = "TOGETHER_AI"
+    FIREWORKS_AI = "FIREWORKS_AI"
+    DEEPSEEK = "DEEPSEEK"
+    MISTRAL = "MISTRAL"
+    CUSTOM = "CUSTOM"
 
 
 class LogLevel(StrEnum):
@@ -267,6 +310,12 @@ class IncentiveTaskType(StrEnum):
     # GITHUB_ISSUE = "GITHUB_ISSUE"
     # SOCIAL_SHARE = "SOCIAL_SHARE"
     # REFER_FRIEND = "REFER_FRIEND"
+
+
+class PagePurchaseStatus(StrEnum):
+    PENDING = "pending"
+    COMPLETED = "completed"
+    FAILED = "failed"
 
 
 # Centralized configuration for incentive tasks
@@ -335,10 +384,21 @@ class Permission(StrEnum):
     PODCASTS_UPDATE = "podcasts:update"
     PODCASTS_DELETE = "podcasts:delete"
 
+    # Video Presentations
+    VIDEO_PRESENTATIONS_CREATE = "video_presentations:create"
+    VIDEO_PRESENTATIONS_READ = "video_presentations:read"
+    VIDEO_PRESENTATIONS_UPDATE = "video_presentations:update"
+    VIDEO_PRESENTATIONS_DELETE = "video_presentations:delete"
+
     # Image Generations
     IMAGE_GENERATIONS_CREATE = "image_generations:create"
     IMAGE_GENERATIONS_READ = "image_generations:read"
     IMAGE_GENERATIONS_DELETE = "image_generations:delete"
+
+    # Vision LLM Configs
+    VISION_CONFIGS_CREATE = "vision_configs:create"
+    VISION_CONFIGS_READ = "vision_configs:read"
+    VISION_CONFIGS_DELETE = "vision_configs:delete"
 
     # Connectors
     CONNECTORS_CREATE = "connectors:create"
@@ -401,9 +461,16 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.PODCASTS_CREATE.value,
         Permission.PODCASTS_READ.value,
         Permission.PODCASTS_UPDATE.value,
+        # Video Presentations (no delete)
+        Permission.VIDEO_PRESENTATIONS_CREATE.value,
+        Permission.VIDEO_PRESENTATIONS_READ.value,
+        Permission.VIDEO_PRESENTATIONS_UPDATE.value,
         # Image Generations (create and read, no delete)
         Permission.IMAGE_GENERATIONS_CREATE.value,
         Permission.IMAGE_GENERATIONS_READ.value,
+        # Vision Configs (create and read, no delete)
+        Permission.VISION_CONFIGS_CREATE.value,
+        Permission.VISION_CONFIGS_READ.value,
         # Connectors (no delete)
         Permission.CONNECTORS_CREATE.value,
         Permission.CONNECTORS_READ.value,
@@ -433,8 +500,12 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.LLM_CONFIGS_READ.value,
         # Podcasts (read only)
         Permission.PODCASTS_READ.value,
+        # Video Presentations (read only)
+        Permission.VIDEO_PRESENTATIONS_READ.value,
         # Image Generations (read only)
         Permission.IMAGE_GENERATIONS_READ.value,
+        # Vision Configs (read only)
+        Permission.VISION_CONFIGS_READ.value,
         # Connectors (read only)
         Permission.CONNECTORS_READ.value,
         # Logs (read only)
@@ -691,7 +762,7 @@ class ChatComment(BaseModel, TimestampMixin):
         nullable=False,
         index=True,
     )
-    # Denormalized thread_id for efficient Electric SQL subscriptions (one per thread)
+    # Denormalized thread_id for efficient Zero subscriptions (one per thread)
     thread_id = Column(
         Integer,
         ForeignKey("new_chat_threads.id", ondelete="CASCADE"),
@@ -761,7 +832,7 @@ class ChatCommentMention(BaseModel, TimestampMixin):
 class ChatSessionState(BaseModel):
     """
     Tracks real-time session state for shared chat collaboration.
-    One record per thread, synced via Electric SQL.
+    One record per thread, synced via Zero.
     """
 
     __tablename__ = "chat_session_state"
@@ -883,6 +954,44 @@ class SharedMemory(BaseModel, TimestampMixin):
     created_by = relationship("User")
 
 
+class Folder(BaseModel, TimestampMixin):
+    __tablename__ = "folders"
+
+    name = Column(String(255), nullable=False, index=True)
+    position = Column(String(50), nullable=False, index=True)
+    parent_id = Column(
+        Integer,
+        ForeignKey("folders.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    search_space_id = Column(
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    created_by_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        index=True,
+    )
+    folder_metadata = Column("metadata", JSONB, nullable=True)
+
+    parent = relationship("Folder", remote_side="Folder.id", backref="children")
+    search_space = relationship("SearchSpace", back_populates="folders")
+    created_by = relationship("User", back_populates="folders")
+    documents = relationship("Document", back_populates="folder", passive_deletes=True)
+
+
 class Document(BaseModel, TimestampMixin):
     __tablename__ = "documents"
 
@@ -916,6 +1025,13 @@ class Document(BaseModel, TimestampMixin):
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
     )
 
+    folder_id = Column(
+        Integer,
+        ForeignKey("folders.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     # Track who created/uploaded this document
     created_by_id = Column(
         UUID(as_uuid=True),
@@ -945,11 +1061,32 @@ class Document(BaseModel, TimestampMixin):
 
     # Relationships
     search_space = relationship("SearchSpace", back_populates="documents")
+    folder = relationship("Folder", back_populates="documents")
     created_by = relationship("User", back_populates="documents")
     connector = relationship("SearchSourceConnector", back_populates="documents")
     chunks = relationship(
         "Chunk", back_populates="document", cascade="all, delete-orphan"
     )
+
+
+class DocumentVersion(BaseModel, TimestampMixin):
+    __tablename__ = "document_versions"
+    __table_args__ = (
+        UniqueConstraint("document_id", "version_number", name="uq_document_version"),
+    )
+
+    document_id = Column(
+        Integer,
+        ForeignKey("documents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    version_number = Column(Integer, nullable=False)
+    source_markdown = Column(Text, nullable=True)
+    content_hash = Column(String, nullable=False)
+    title = Column(String, nullable=True)
+
+    document = relationship("Document", backref="versions")
 
 
 class Chunk(BaseModel, TimestampMixin):
@@ -959,7 +1096,10 @@ class Chunk(BaseModel, TimestampMixin):
     embedding = Column(Vector(config.embedding_model_instance.dimension))
 
     document_id = Column(
-        Integer, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
+        Integer,
+        ForeignKey("documents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     document = relationship("Document", back_populates="chunks")
 
@@ -1029,6 +1169,46 @@ class Podcast(BaseModel, TimestampMixin):
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
     )
     search_space = relationship("SearchSpace", back_populates="podcasts")
+
+    thread_id = Column(
+        Integer,
+        ForeignKey("new_chat_threads.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    thread = relationship("NewChatThread")
+
+
+class VideoPresentation(BaseModel, TimestampMixin):
+    """Video presentation model for storing AI-generated video presentations.
+
+    The slides JSONB stores per-slide data including Remotion component code,
+    audio file paths, and durations. The frontend compiles the code and renders
+    the video using Remotion Player.
+    """
+
+    __tablename__ = "video_presentations"
+
+    title = Column(String(500), nullable=False)
+    slides = Column(JSONB, nullable=True)
+    scene_codes = Column(JSONB, nullable=True)
+    status = Column(
+        SQLAlchemyEnum(
+            VideoPresentationStatus,
+            name="video_presentation_status",
+            create_type=False,
+            values_callable=lambda x: [e.value for e in x],
+        ),
+        nullable=False,
+        default=VideoPresentationStatus.READY,
+        server_default="ready",
+        index=True,
+    )
+
+    search_space_id = Column(
+        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    )
+    search_space = relationship("SearchSpace", back_populates="video_presentations")
 
     thread_id = Column(
         Integer,
@@ -1109,6 +1289,33 @@ class ImageGenerationConfig(BaseModel, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
     )
     user = relationship("User", back_populates="image_generation_configs")
+
+
+class VisionLLMConfig(BaseModel, TimestampMixin):
+    __tablename__ = "vision_llm_configs"
+
+    name = Column(String(100), nullable=False, index=True)
+    description = Column(String(500), nullable=True)
+
+    provider = Column(SQLAlchemyEnum(VisionProvider), nullable=False)
+    custom_provider = Column(String(100), nullable=True)
+    model_name = Column(String(100), nullable=False)
+
+    api_key = Column(String, nullable=False)
+    api_base = Column(String(500), nullable=True)
+    api_version = Column(String(50), nullable=True)
+
+    litellm_params = Column(JSON, nullable=True, default={})
+
+    search_space_id = Column(
+        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    )
+    search_space = relationship("SearchSpace", back_populates="vision_llm_configs")
+
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
+    )
+    user = relationship("User", back_populates="vision_llm_configs")
 
 
 class ImageGeneration(BaseModel, TimestampMixin):
@@ -1199,12 +1406,21 @@ class SearchSpace(BaseModel, TimestampMixin):
     image_generation_config_id = Column(
         Integer, nullable=True, default=0
     )  # For image generation, defaults to Auto mode
+    vision_llm_config_id = Column(
+        Integer, nullable=True, default=0
+    )  # For vision/screenshot analysis, defaults to Auto mode
 
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
     )
     user = relationship("User", back_populates="search_spaces")
 
+    folders = relationship(
+        "Folder",
+        back_populates="search_space",
+        order_by="Folder.position",
+        cascade="all, delete-orphan",
+    )
     documents = relationship(
         "Document",
         back_populates="search_space",
@@ -1221,6 +1437,12 @@ class SearchSpace(BaseModel, TimestampMixin):
         "Podcast",
         back_populates="search_space",
         order_by="Podcast.id.desc()",
+        cascade="all, delete-orphan",
+    )
+    video_presentations = relationship(
+        "VideoPresentation",
+        back_populates="search_space",
+        order_by="VideoPresentation.id.desc()",
         cascade="all, delete-orphan",
     )
     reports = relationship(
@@ -1263,6 +1485,12 @@ class SearchSpace(BaseModel, TimestampMixin):
         "ImageGenerationConfig",
         back_populates="search_space",
         order_by="ImageGenerationConfig.id",
+        cascade="all, delete-orphan",
+    )
+    vision_llm_configs = relationship(
+        "VisionLLMConfig",
+        back_populates="search_space",
+        order_by="VisionLLMConfig.id",
         cascade="all, delete-orphan",
     )
 
@@ -1423,6 +1651,24 @@ class Log(BaseModel, TimestampMixin):
 
 class Notification(BaseModel, TimestampMixin):
     __tablename__ = "notifications"
+    __table_args__ = (
+        # Composite index for unread-count queries that filter by
+        # (user_id, read, type) and order by created_at.
+        Index(
+            "ix_notifications_user_read_type_created",
+            "user_id",
+            "read",
+            "type",
+            "created_at",
+        ),
+        # Covers the common list query: user_id + search_space_id + created_at DESC
+        Index(
+            "ix_notifications_user_space_created",
+            "user_id",
+            "search_space_id",
+            "created_at",
+        ),
+    )
 
     user_id = Column(
         UUID(as_uuid=True),
@@ -1431,10 +1677,13 @@ class Notification(BaseModel, TimestampMixin):
         index=True,
     )
     search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=True
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
     )
     type = Column(
-        String(50), nullable=False
+        String(50), nullable=False, index=True
     )  # 'connector_indexing', 'document_processing', etc.
     title = Column(String(200), nullable=False)
     message = Column(Text, nullable=False)
@@ -1485,6 +1734,39 @@ class UserIncentiveTask(BaseModel, TimestampMixin):
     )
 
     user = relationship("User", back_populates="incentive_tasks")
+
+
+class PagePurchase(Base, TimestampMixin):
+    """Tracks Stripe checkout sessions used to grant additional page credits."""
+
+    __tablename__ = "page_purchases"
+    __allow_unmapped__ = True
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    stripe_checkout_session_id = Column(
+        String(255), nullable=False, unique=True, index=True
+    )
+    stripe_payment_intent_id = Column(String(255), nullable=True, index=True)
+    quantity = Column(Integer, nullable=False)
+    pages_granted = Column(Integer, nullable=False)
+    amount_total = Column(Integer, nullable=True)
+    currency = Column(String(10), nullable=True)
+    status = Column(
+        SQLAlchemyEnum(PagePurchaseStatus),
+        nullable=False,
+        default=PagePurchaseStatus.PENDING,
+        server_default=text("'PENDING'::pagepurchasestatus"),
+        index=True,
+    )
+    completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+    user = relationship("User", back_populates="page_purchases")
 
 
 class SearchSpaceRole(BaseModel, TimestampMixin):
@@ -1621,6 +1903,47 @@ class SearchSpaceInvite(BaseModel, TimestampMixin):
     )
 
 
+class PromptMode(StrEnum):
+    transform = "transform"
+    explore = "explore"
+
+
+class Prompt(BaseModel, TimestampMixin):
+    __tablename__ = "prompts"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "default_prompt_slug",
+            name="uq_prompt_user_default_slug",
+        ),
+    )
+
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    search_space_id = Column(
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    default_prompt_slug = Column(String(100), nullable=True, index=True)
+    name = Column(String(200), nullable=False)
+    prompt = Column(Text, nullable=False)
+    mode = Column(
+        SQLAlchemyEnum(PromptMode, name="prompt_mode", create_type=False),
+        nullable=False,
+    )
+    version = Column(Integer, nullable=False, default=1)
+    is_public = Column(Boolean, nullable=False, default=False)
+
+    user = relationship("User")
+    search_space = relationship("SearchSpace")
+
+
 if config.AUTH_TYPE == "GOOGLE":
 
     class OAuthAccount(SQLAlchemyBaseOAuthAccountTableUUID, Base):
@@ -1664,6 +1987,13 @@ if config.AUTH_TYPE == "GOOGLE":
             passive_deletes=True,
         )
 
+        # Folders created by this user
+        folders = relationship(
+            "Folder",
+            back_populates="created_by",
+            passive_deletes=True,
+        )
+
         # Image generations created by this user
         image_generations = relationship(
             "ImageGeneration",
@@ -1692,6 +2022,12 @@ if config.AUTH_TYPE == "GOOGLE":
             passive_deletes=True,
         )
 
+        vision_llm_configs = relationship(
+            "VisionLLMConfig",
+            back_populates="user",
+            passive_deletes=True,
+        )
+
         # User memories for personalized AI responses
         memories = relationship(
             "UserMemory",
@@ -1703,6 +2039,11 @@ if config.AUTH_TYPE == "GOOGLE":
         # Incentive tasks completed by this user
         incentive_tasks = relationship(
             "UserIncentiveTask",
+            back_populates="user",
+            cascade="all, delete-orphan",
+        )
+        page_purchases = relationship(
+            "PagePurchase",
             back_populates="user",
             cascade="all, delete-orphan",
         )
@@ -1766,6 +2107,13 @@ else:
             passive_deletes=True,
         )
 
+        # Folders created by this user
+        folders = relationship(
+            "Folder",
+            back_populates="created_by",
+            passive_deletes=True,
+        )
+
         # Image generations created by this user
         image_generations = relationship(
             "ImageGeneration",
@@ -1794,6 +2142,12 @@ else:
             passive_deletes=True,
         )
 
+        vision_llm_configs = relationship(
+            "VisionLLMConfig",
+            back_populates="user",
+            passive_deletes=True,
+        )
+
         # User memories for personalized AI responses
         memories = relationship(
             "UserMemory",
@@ -1805,6 +2159,11 @@ else:
         # Incentive tasks completed by this user
         incentive_tasks = relationship(
             "UserIncentiveTask",
+            back_populates="user",
+            cascade="all, delete-orphan",
+        )
+        page_purchases = relationship(
+            "PagePurchase",
             back_populates="user",
             cascade="all, delete-orphan",
         )

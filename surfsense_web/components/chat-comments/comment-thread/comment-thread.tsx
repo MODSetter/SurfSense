@@ -93,7 +93,7 @@ export function CommentThread({
 								variant="ghost"
 								size="sm"
 								className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
-								onClick={() => setIsRepliesExpanded(!isRepliesExpanded)}
+								onClick={() => setIsRepliesExpanded((prev) => !prev)}
 							>
 								{isRepliesExpanded ? (
 									<ChevronDown className="mr-1 size-3" />
@@ -138,6 +138,7 @@ export function CommentThread({
 									onSubmit={handleReplySubmit}
 									onCancel={handleReplyCancel}
 									autoFocus
+									compact
 								/>
 							</div>
 						) : (

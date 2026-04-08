@@ -167,14 +167,23 @@ class JiraConnector:
             # Use direct base URL (works for both OAuth and legacy)
             url = f"{self.base_url}/rest/api/{self.api_version}/{endpoint}"
 
-        if method.upper() == "POST":
+        method_upper = method.upper()
+        if method_upper == "POST":
             response = requests.post(
                 url, headers=headers, json=json_payload, timeout=500
             )
+        elif method_upper == "PUT":
+            response = requests.put(
+                url, headers=headers, json=json_payload, timeout=500
+            )
+        elif method_upper == "DELETE":
+            response = requests.delete(url, headers=headers, params=params, timeout=500)
         else:
             response = requests.get(url, headers=headers, params=params, timeout=500)
 
-        if response.status_code == 200:
+        if response.status_code in (200, 201, 204):
+            if response.status_code == 204 or not response.text:
+                return {"status": "success"}
             return response.json()
         else:
             raise Exception(
@@ -351,6 +360,91 @@ class JiraConnector:
 
         except Exception as e:
             return [], f"Error fetching issues: {e!s}"
+
+    def get_myself(self) -> dict[str, Any]:
+        """Fetch the current user's profile (health check)."""
+        return self.make_api_request("myself")
+
+    def get_projects(self) -> list[dict[str, Any]]:
+        """Fetch all projects the user has access to."""
+        result = self.make_api_request("project/search")
+        return result.get("values", [])
+
+    def get_issue_types(self) -> list[dict[str, Any]]:
+        """Fetch all issue types."""
+        return self.make_api_request("issuetype")
+
+    def get_priorities(self) -> list[dict[str, Any]]:
+        """Fetch all priority levels."""
+        return self.make_api_request("priority")
+
+    def get_issue(self, issue_id_or_key: str) -> dict[str, Any]:
+        """Fetch a single issue by ID or key."""
+        return self.make_api_request(f"issue/{issue_id_or_key}")
+
+    def create_issue(
+        self,
+        project_key: str,
+        summary: str,
+        issue_type: str = "Task",
+        description: str | None = None,
+        priority: str | None = None,
+        assignee_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Create a new Jira issue."""
+        fields: dict[str, Any] = {
+            "project": {"key": project_key},
+            "summary": summary,
+            "issuetype": {"name": issue_type},
+        }
+        if description:
+            fields["description"] = {
+                "type": "doc",
+                "version": 1,
+                "content": [
+                    {
+                        "type": "paragraph",
+                        "content": [{"type": "text", "text": description}],
+                    }
+                ],
+            }
+        if priority:
+            fields["priority"] = {"name": priority}
+        if assignee_id:
+            fields["assignee"] = {"accountId": assignee_id}
+
+        return self.make_api_request(
+            "issue", method="POST", json_payload={"fields": fields}
+        )
+
+    def update_issue(
+        self, issue_id_or_key: str, fields: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Update an existing Jira issue fields."""
+        return self.make_api_request(
+            f"issue/{issue_id_or_key}",
+            method="PUT",
+            json_payload={"fields": fields},
+        )
+
+    def delete_issue(self, issue_id_or_key: str) -> dict[str, Any]:
+        """Delete a Jira issue."""
+        return self.make_api_request(f"issue/{issue_id_or_key}", method="DELETE")
+
+    def get_transitions(self, issue_id_or_key: str) -> list[dict[str, Any]]:
+        """Get available transitions for an issue (for status changes)."""
+        result = self.make_api_request(f"issue/{issue_id_or_key}/transitions")
+        return result.get("transitions", [])
+
+    def transition_issue(
+        self, issue_id_or_key: str, transition_id: str
+    ) -> dict[str, Any]:
+        """Transition an issue to a new status."""
+        return self.make_api_request(
+            f"issue/{issue_id_or_key}/transitions",
+            method="POST",
+            json_payload={"transition": {"id": transition_id}},
+        )
 
     def format_issue(self, issue: dict[str, Any]) -> dict[str, Any]:
         """

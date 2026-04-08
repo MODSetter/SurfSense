@@ -1,7 +1,8 @@
 "use client";
 
 import { MarkdownPlugin, remarkMdx } from "@platejs/markdown";
-import type { AnyPluginConfig } from "platejs";
+import { slateToHtml } from "@slate-serializers/html";
+import type { AnyPluginConfig, Descendant, Value } from "platejs";
 import { createPlatePlugin, Key, Plate, usePlateEditor } from "platejs/react";
 import { useEffect, useMemo, useRef } from "react";
 import remarkGfm from "remark-gfm";
@@ -14,8 +15,12 @@ import { Editor, EditorContainer } from "@/components/ui/editor";
 export interface PlateEditorProps {
 	/** Markdown string to load as initial content */
 	markdown?: string;
+	/** HTML string to load as initial content. Takes precedence over `markdown`. */
+	html?: string;
 	/** Called when the editor content changes, with serialized markdown */
 	onMarkdownChange?: (markdown: string) => void;
+	/** Called when the editor content changes, with serialized HTML. Use with the `html` prop. */
+	onHtmlChange?: (html: string) => void;
 	/**
 	 * Force permanent read-only mode (e.g. public/shared view).
 	 * When true, the editor cannot be toggled to editing mode.
@@ -57,7 +62,9 @@ export interface PlateEditorProps {
 
 export function PlateEditor({
 	markdown,
+	html,
 	onMarkdownChange,
+	onHtmlChange,
 	readOnly = false,
 	placeholder = "Type...",
 	variant = "default",
@@ -71,6 +78,7 @@ export function PlateEditor({
 	extraPlugins = [],
 }: PlateEditorProps) {
 	const lastMarkdownRef = useRef(markdown);
+	const lastHtmlRef = useRef(html);
 
 	// Keep a stable ref to the latest onSave callback so the plugin shortcut
 	// always calls the most recent version without re-creating the editor.
@@ -79,15 +87,13 @@ export function PlateEditor({
 		onSaveRef.current = onSave;
 	}, [onSave]);
 
-	// Stable Plate plugin for ⌘+S / Ctrl+S save shortcut.
-	// Only included when onSave is provided.
 	const SaveShortcutPlugin = useMemo(
 		() =>
 			createPlatePlugin({
 				key: "save-shortcut",
 				shortcuts: {
 					save: {
-						keys: [[Key.Mod, "s"]],
+						keys: [[Key.Mod, Key.Shift, "s"]],
 						handler: () => {
 							onSaveRef.current?.();
 						},
@@ -118,17 +124,28 @@ export function PlateEditor({
 				},
 			}),
 		],
-		// Use markdown deserialization for initial value if provided
-		value: markdown
-			? (editor) =>
-					editor.getApi(MarkdownPlugin).markdown.deserialize(escapeMdxExpressions(markdown))
-			: undefined,
+		value: html
+			? (editor) => editor.api.html.deserialize({ element: html }) as Value
+			: markdown
+				? (editor) =>
+						editor.getApi(MarkdownPlugin).markdown.deserialize(escapeMdxExpressions(markdown))
+				: undefined,
 	});
+
+	// Update editor content when html prop changes externally
+	useEffect(() => {
+		if (html !== undefined && html !== lastHtmlRef.current) {
+			lastHtmlRef.current = html;
+			const newValue = editor.api.html.deserialize({ element: html });
+			editor.tf.reset();
+			editor.tf.setValue(newValue);
+		}
+	}, [html, editor]);
 
 	// Update editor content when markdown prop changes externally
 	// (e.g., version switching in report panel)
 	useEffect(() => {
-		if (markdown !== undefined && markdown !== lastMarkdownRef.current) {
+		if (!html && markdown !== undefined && markdown !== lastMarkdownRef.current) {
 			lastMarkdownRef.current = markdown;
 			const newValue = editor
 				.getApi(MarkdownPlugin)
@@ -136,20 +153,23 @@ export function PlateEditor({
 			editor.tf.reset();
 			editor.tf.setValue(newValue);
 		}
-	}, [markdown, editor]);
+	}, [html, markdown, editor]);
 
 	// When not forced read-only, the user can toggle between editing/viewing.
 	const canToggleMode = !readOnly;
 
+	const contextProviderValue = useMemo(
+		() => ({
+			onSave,
+			hasUnsavedChanges,
+			isSaving,
+			canToggleMode,
+		}),
+		[onSave, hasUnsavedChanges, isSaving, canToggleMode]
+	);
+
 	return (
-		<EditorSaveContext.Provider
-			value={{
-				onSave,
-				hasUnsavedChanges,
-				isSaving,
-				canToggleMode,
-			}}
-		>
+		<EditorSaveContext.Provider value={contextProviderValue}>
 			<Plate
 				editor={editor}
 				// Only pass readOnly as a controlled prop when forced (permanently read-only).
@@ -157,7 +177,10 @@ export function PlateEditor({
 				// (initialized to true via usePlateEditor, toggled via ModeToolbarButton).
 				{...(readOnly ? { readOnly: true } : {})}
 				onChange={({ value }) => {
-					if (onMarkdownChange) {
+					if (onHtmlChange && html) {
+						const serialized = slateToHtml(value as Descendant[]);
+						onHtmlChange(serialized);
+					} else if (onMarkdownChange) {
 						const md = editor.getApi(MarkdownPlugin).markdown.serialize({ value });
 						lastMarkdownRef.current = md;
 						onMarkdownChange(md);

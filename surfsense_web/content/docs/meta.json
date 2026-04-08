@@ -5,12 +5,14 @@
 	"pages": [
 		"---Guides---",
 		"index",
+		"prerequisites",
 		"installation",
-		"docker-installation",
 		"manual-installation",
+		"docker-installation",
 		"connectors",
 		"how-to",
-		"---Development---",
-		"testing"
+		"---Developers---",
+		"testing",
+		"code-of-conduct"
 	]
 }

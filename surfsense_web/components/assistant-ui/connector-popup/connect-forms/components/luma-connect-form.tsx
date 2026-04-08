@@ -88,22 +88,20 @@ export const LumaConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting }
 
 	return (
 		<div className="space-y-6 pb-6">
-			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3 flex items-center [&>svg]:relative [&>svg]:left-0 [&>svg]:top-0 [&>svg+div]:translate-y-0">
-				<Info className="h-3 w-3 sm:h-4 sm:w-4 shrink-0 ml-1" />
-				<div className="-ml-1">
-					<AlertTitle className="text-xs sm:text-sm">API Key Required</AlertTitle>
-					<AlertDescription className="text-[10px] sm:text-xs !pl-0">
-						You'll need a Luma API Key to use this connector. You can create one from{" "}
-						<a
-							href="https://lu.ma/api"
-							target="_blank"
-							rel="noopener noreferrer"
-							className="font-medium underline underline-offset-4"
-						>
-							Luma API Settings
-						</a>
-					</AlertDescription>
-				</div>
+			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3">
+				<Info className="size-4 shrink-0" />
+				<AlertTitle className="text-xs sm:text-sm">API Key Required</AlertTitle>
+				<AlertDescription className="text-[10px] sm:text-xs">
+					You'll need a Luma API Key to use this connector. You can create one from{" "}
+					<a
+						href="https://lu.ma/api"
+						target="_blank"
+						rel="noopener noreferrer"
+						className="font-medium underline underline-offset-4"
+					>
+						Luma API Settings
+					</a>
+				</AlertDescription>
 			</Alert>
 
 			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">

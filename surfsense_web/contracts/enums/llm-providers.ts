@@ -182,6 +182,13 @@ export const LLM_PROVIDERS: LLMProvider[] = [
 		apiBase: "https://models.github.ai/inference",
 	},
 	{
+		value: "MINIMAX",
+		label: "MiniMax",
+		example: "MiniMax-M2.5, MiniMax-M2.5-highspeed",
+		description: "High-performance models with 204K context",
+		apiBase: "https://api.minimax.io/v1",
+	},
+	{
 		value: "CUSTOM",
 		label: "Custom Provider",
 		example: "your-custom-model",

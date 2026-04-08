@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
+import Image from "next/image";
 import { ExpandedGifOverlay, useExpandedGif } from "@/components/ui/expanded-gif-overlay";
 
 const useCases = [
@@ -63,15 +64,33 @@ function UseCaseCard({
 				transition={{ duration: 0.5, ease: "easeOut" }}
 				className={`group overflow-hidden rounded-2xl border border-neutral-200/60 bg-white shadow-sm transition-shadow duration-300 hover:shadow-xl dark:border-neutral-700/60 dark:bg-neutral-900 ${className ?? ""}`}
 			>
+				{/* biome-ignore lint/a11y/useSemanticElements: div wraps img, button would break layout */}
 				<div
+					role="button"
+					tabIndex={0}
 					className="cursor-pointer overflow-hidden bg-neutral-50 p-2 dark:bg-neutral-950"
 					onClick={open}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
+							open();
+						}
+					}}
 				>
 					<img
 						src={src}
 						alt={title}
 						className="w-full rounded-xl object-cover transition-transform duration-500 group-hover:scale-[1.02]"
 					/>
+					<div className="relative w-full h-48">
+						<Image
+							src={src}
+							alt={title}
+							fill
+							className="rounded-xl object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+							unoptimized={src.endsWith(".gif")}
+						/>
+					</div>
 				</div>
 				<div className="px-5 py-4">
 					<h3 className="text-base font-semibold text-neutral-900 dark:text-white">{title}</h3>

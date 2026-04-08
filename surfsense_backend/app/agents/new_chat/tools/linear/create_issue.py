@@ -38,11 +38,13 @@ def create_create_linear_issue_tool(
         """Create a new issue in Linear.
 
         Use this tool when the user explicitly asks to create, add, or file
-        a new issue / ticket / task in Linear.
+        a new issue / ticket / task in Linear. The user MUST describe the issue
+        before you call this tool. If the request is vague, ask what the issue
+        should be about. Never call this tool without a clear topic from the user.
 
         Args:
-            title: Short, descriptive issue title.
-            description: Optional markdown body for the issue.
+            title: Short, descriptive issue title. Infer from the user's request.
+            description: Optional markdown body for the issue. Generate from context.
 
         Returns:
             Dictionary with:
@@ -57,9 +59,9 @@ def create_create_linear_issue_tool(
             and move on. Do NOT retry, troubleshoot, or suggest alternatives.
 
         Examples:
-            - "Create a Linear issue titled 'Fix login bug'"
-            - "Add a ticket for the payment timeout problem"
-            - "File an issue about the broken search feature"
+            - "Create a Linear issue for the login bug"
+            - "File a ticket about the payment timeout problem"
+            - "Add an issue for the broken search feature"
         """
         logger.info(f"create_linear_issue called: title='{title}'")
 
@@ -81,6 +83,15 @@ def create_create_linear_issue_tool(
             if "error" in context:
                 logger.error(f"Failed to fetch creation context: {context['error']}")
                 return {"status": "error", "message": context["error"]}
+
+            workspaces = context.get("workspaces", [])
+            if workspaces and all(w.get("auth_expired") for w in workspaces):
+                logger.warning("All Linear accounts have expired authentication")
+                return {
+                    "status": "auth_error",
+                    "message": "All connected Linear accounts need re-authentication. Please re-authenticate in your connector settings.",
+                    "connector_type": "linear",
+                }
 
             logger.info(f"Requesting approval for creating Linear issue: '{title}'")
             approval = interrupt(
@@ -215,12 +226,36 @@ def create_create_linear_issue_tool(
             logger.info(
                 f"Linear issue created: {result.get('identifier')} - {result.get('title')}"
             )
+
+            kb_message_suffix = ""
+            try:
+                from app.services.linear import LinearKBSyncService
+
+                kb_service = LinearKBSyncService(db_session)
+                kb_result = await kb_service.sync_after_create(
+                    issue_id=result.get("id"),
+                    issue_identifier=result.get("identifier", ""),
+                    issue_title=result.get("title", final_title),
+                    issue_url=result.get("url"),
+                    description=final_description,
+                    connector_id=actual_connector_id,
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                )
+                if kb_result["status"] == "success":
+                    kb_message_suffix = " Your knowledge base has also been updated."
+                else:
+                    kb_message_suffix = " This issue will be added to your knowledge base in the next scheduled sync."
+            except Exception as kb_err:
+                logger.warning(f"KB sync after create failed: {kb_err}")
+                kb_message_suffix = " This issue will be added to your knowledge base in the next scheduled sync."
+
             return {
                 "status": "success",
                 "issue_id": result.get("id"),
                 "identifier": result.get("identifier"),
                 "url": result.get("url"),
-                "message": result.get("message"),
+                "message": (result.get("message", "") + kb_message_suffix),
             }
 
         except Exception as e:

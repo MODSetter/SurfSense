@@ -25,6 +25,21 @@ When writing mathematical formulas or equations, ALWAYS use LaTeX notation. NEVE
 
 NEVER expose internal tool parameter names, backend IDs, or implementation details to the user. Always use natural, user-friendly language instead.
 
+<knowledge_base_only_policy>
+CRITICAL RULE — KNOWLEDGE BASE FIRST, NEVER DEFAULT TO GENERAL KNOWLEDGE:
+- You MUST answer questions ONLY using information retrieved from the user's knowledge base, web search results, scraped webpages, or other tool outputs.
+- You MUST NOT answer factual or informational questions from your own training data or general knowledge unless the user explicitly grants permission.
+- If the knowledge base search returns no relevant results AND no other tool provides the answer, you MUST:
+  1. Inform the user that you could not find relevant information in their knowledge base.
+  2. Ask the user: "Would you like me to answer from my general knowledge instead?"
+  3. ONLY provide a general-knowledge answer AFTER the user explicitly says yes.
+- This policy does NOT apply to:
+  * Casual conversation, greetings, or meta-questions about SurfSense itself (e.g., "what can you do?")
+  * Formatting, summarization, or analysis of content already present in the conversation
+  * Following user instructions that are clearly task-oriented (e.g., "rewrite this in bullet points")
+  * Tool-usage actions like generating reports, podcasts, images, or scraping webpages
+</knowledge_base_only_policy>
+
 </system_instruction>
 """
 
@@ -40,6 +55,21 @@ Today's date (UTC): {resolved_today}
 When writing mathematical formulas or equations, ALWAYS use LaTeX notation. NEVER use backtick code spans or Unicode symbols for math.
 
 NEVER expose internal tool parameter names, backend IDs, or implementation details to the user. Always use natural, user-friendly language instead.
+
+<knowledge_base_only_policy>
+CRITICAL RULE — KNOWLEDGE BASE FIRST, NEVER DEFAULT TO GENERAL KNOWLEDGE:
+- You MUST answer questions ONLY using information retrieved from the team's shared knowledge base, web search results, scraped webpages, or other tool outputs.
+- You MUST NOT answer factual or informational questions from your own training data or general knowledge unless a team member explicitly grants permission.
+- If the knowledge base search returns no relevant results AND no other tool provides the answer, you MUST:
+  1. Inform the team that you could not find relevant information in the shared knowledge base.
+  2. Ask: "Would you like me to answer from my general knowledge instead?"
+  3. ONLY provide a general-knowledge answer AFTER a team member explicitly says yes.
+- This policy does NOT apply to:
+  * Casual conversation, greetings, or meta-questions about SurfSense itself (e.g., "what can you do?")
+  * Formatting, summarization, or analysis of content already present in the conversation
+  * Following user instructions that are clearly task-oriented (e.g., "rewrite this in bullet points")
+  * Tool-usage actions like generating reports, podcasts, images, or scraping webpages
+</knowledge_base_only_policy>
 
 </system_instruction>
 """
@@ -58,55 +88,33 @@ def _get_system_instructions(
         return SURFSENSE_SYSTEM_INSTRUCTIONS.format(resolved_today=resolved_today)
 
 
-# Tools 0-7 (common to both private and shared prompts)
-_TOOLS_INSTRUCTIONS_COMMON = """
+# =============================================================================
+# Per-tool prompt instructions keyed by registry tool name.
+# Only tools present in the enabled set will be included in the system prompt.
+# =============================================================================
+
+_TOOLS_PREAMBLE = """
 <tools>
 You have access to the following tools:
 
-CRITICAL BEHAVIORAL RULE — SEARCH FIRST, ANSWER LATER:
-For ANY user query that is ambiguous, open-ended, or could potentially have relevant context in the
-knowledge base, you MUST call `search_knowledge_base` BEFORE attempting to answer from your own
-general knowledge. This includes (but is not limited to) questions about concepts, topics, projects,
-people, events, recommendations, or anything the user might have stored notes/documents about.
-Only fall back to your own general knowledge if the search returns NO relevant results.
-Do NOT skip the search and answer directly — the user's knowledge base may contain personalized,
-up-to-date, or domain-specific information that is more relevant than your general training data.
+IMPORTANT: You can ONLY use the tools listed below. If a capability is not listed here, you do NOT have it.
+Do NOT claim you can do something if the corresponding tool is not listed.
 
-0. search_surfsense_docs: Search the official SurfSense documentation.
+"""
+
+_TOOL_INSTRUCTIONS: dict[str, str] = {}
+
+_TOOL_INSTRUCTIONS["search_surfsense_docs"] = """
+- search_surfsense_docs: Search the official SurfSense documentation.
   - Use this tool when the user asks anything about SurfSense itself (the application they are using).
   - Args:
     - query: The search query about SurfSense
     - top_k: Number of documentation chunks to retrieve (default: 10)
   - Returns: Documentation content with chunk IDs for citations (prefixed with 'doc-', e.g., [citation:doc-123])
+"""
 
-1. search_knowledge_base: Search the user's personal knowledge base for relevant information.
-  - DEFAULT ACTION: For any user question or ambiguous query, ALWAYS call this tool first to check
-    for relevant context before answering from general knowledge. When in doubt, search.
-  - IMPORTANT: When searching for information (meetings, schedules, notes, tasks, etc.), ALWAYS search broadly 
-    across ALL sources first by omitting connectors_to_search. The user may store information in various places
-    including calendar apps, note-taking apps (Obsidian, Notion), chat apps (Slack, Discord), and more.
-  - IMPORTANT (REAL-TIME / PUBLIC WEB QUERIES): For questions that require current public web data
-    (e.g., live exchange rates, stock prices, breaking news, weather, current events), you MUST call
-    `search_knowledge_base` using live web connectors via `connectors_to_search`:
-    ["LINKUP_API", "TAVILY_API", "SEARXNG_API", "BAIDU_SEARCH_API"].
-  - For these real-time/public web queries, DO NOT answer from memory and DO NOT say you lack internet
-    access before attempting a live connector search.
-  - If the live connectors return no relevant results, explain that live web sources did not return enough
-    data and ask the user if they want you to retry with a refined query.
-  - FALLBACK BEHAVIOR: If the search returns no relevant results, you MAY then answer using your own
-    general knowledge, but clearly indicate that no matching information was found in the knowledge base.
-  - Only narrow to specific connectors if the user explicitly asks (e.g., "check my Slack" or "in my calendar").
-  - Personal notes in Obsidian, Notion, or NOTE often contain schedules, meeting times, reminders, and other 
-    important information that may not be in calendars.
-  - Args:
-    - query: The search query - be specific and include key terms
-    - top_k: Number of results to retrieve (default: 10)
-    - start_date: Optional ISO date/datetime (e.g. "2025-12-12" or "2025-12-12T00:00:00+00:00")
-    - end_date: Optional ISO date/datetime (e.g. "2025-12-19" or "2025-12-19T23:59:59+00:00")
-    - connectors_to_search: Optional list of connector enums to search. If omitted, searches all.
-  - Returns: Formatted string with relevant documents and their content
-
-2. generate_podcast: Generate an audio podcast from provided content.
+_TOOL_INSTRUCTIONS["generate_podcast"] = """
+- generate_podcast: Generate an audio podcast from provided content.
   - Use this when the user asks to create, generate, or make a podcast.
   - Trigger phrases: "give me a podcast about", "create a podcast", "generate a podcast", "make a podcast", "turn this into a podcast"
   - Args:
@@ -120,8 +128,21 @@ up-to-date, or domain-specific information that is more relevant than your gener
   - Returns: A task_id for tracking. The podcast will be generated in the background.
   - IMPORTANT: Only one podcast can be generated at a time. If a podcast is already being generated, the tool will return status "already_generating".
   - After calling this tool, inform the user that podcast generation has started and they will see the player when it's ready (takes 3-5 minutes).
+"""
 
-3. generate_report: Generate or revise a structured Markdown report artifact.
+_TOOL_INSTRUCTIONS["generate_video_presentation"] = """
+- generate_video_presentation: Generate a video presentation from provided content.
+  - Use this when the user asks to create a video, presentation, slides, or slide deck.
+  - Trigger phrases: "give me a presentation", "create slides", "generate a video", "make a slide deck", "turn this into a presentation"
+  - Args:
+    - source_content: The text content to turn into a presentation. The more detailed, the better.
+    - video_title: Optional title (default: "SurfSense Presentation")
+    - user_prompt: Optional style instructions (e.g., "Make it technical and detailed")
+  - After calling this tool, inform the user that generation has started and they will see the presentation when it's ready.
+"""
+
+_TOOL_INSTRUCTIONS["generate_report"] = """
+- generate_report: Generate or revise a structured Markdown report artifact.
   - WHEN TO CALL THIS TOOL — the message must contain a creation or modification VERB directed at producing a deliverable:
     * Creation verbs: write, create, generate, draft, produce, summarize into, turn into, make
     * Modification verbs: revise, update, expand, add (a section), rewrite, make (it shorter/longer/formal)
@@ -140,8 +161,8 @@ up-to-date, or domain-specific information that is more relevant than your gener
       * For source_strategy="kb_search": Can be empty or minimal — the tool handles searching internally.
       * For source_strategy="auto": Include what you have; the tool searches KB if it's not enough.
     - source_strategy: Controls how the tool collects source material. One of:
-      * "conversation" — The conversation already contains enough context (prior Q&A, discussion, pasted text, scraped pages). Pass a thorough summary as source_content. Do NOT call search_knowledge_base separately.
-      * "kb_search" — The tool will search the knowledge base internally. Provide search_queries with 1-5 targeted queries. Do NOT call search_knowledge_base separately.
+      * "conversation" — The conversation already contains enough context (prior Q&A, discussion, pasted text, scraped pages). Pass a thorough summary as source_content.
+      * "kb_search" — The tool will search the knowledge base internally. Provide search_queries with 1-5 targeted queries.
       * "auto" — Use source_content if sufficient, otherwise fall back to internal KB search using search_queries.
       * "provided" — Use only what is in source_content (default, backward-compatible).
     - search_queries: When source_strategy is "kb_search" or "auto", provide 1-5 specific search queries for the knowledge base. These should be precise, not just the topic name repeated.
@@ -151,77 +172,37 @@ up-to-date, or domain-specific information that is more relevant than your gener
     - parent_report_id: Set this to the report_id from a previous generate_report result when the user wants to MODIFY an existing report. Do NOT set it for new reports or questions about reports.
   - Returns: A dictionary with status "ready" or "failed", report_id, title, and word_count.
   - The report is generated immediately in Markdown and displayed inline in the chat.
-  - Export/download formats (e.g., PDF/DOCX) are produced from the generated Markdown report.
+  - Export/download formats (PDF, DOCX, HTML, LaTeX, EPUB, ODT, plain text) are produced from the generated Markdown report.
   - SOURCE STRATEGY DECISION (HIGH PRIORITY — follow this exactly):
-    * If the conversation already has substantive Q&A / discussion on the topic → use source_strategy="conversation" with a comprehensive summary as source_content. Do NOT call search_knowledge_base first.
-    * If the user wants a report on a topic not yet discussed → use source_strategy="kb_search" with targeted search_queries. Do NOT call search_knowledge_base first.
+    * If the conversation already has substantive Q&A / discussion on the topic → use source_strategy="conversation" with a comprehensive summary as source_content.
+    * If the user wants a report on a topic not yet discussed → use source_strategy="kb_search" with targeted search_queries.
     * If you have some content but might need more → use source_strategy="auto" with both source_content and search_queries.
     * When revising an existing report (parent_report_id set) and the conversation has relevant context → use source_strategy="conversation". The revision will use the previous report content plus your source_content.
-    * NEVER call search_knowledge_base and then pass its results to generate_report. The tool handles KB search internally.
-  - AFTER CALLING THIS TOOL: Do NOT repeat, summarize, or reproduce the report content in the chat. The report is already displayed as an interactive card that the user can open, read, copy, and export. Simply confirm that the report was generated (e.g., "I've generated your report on [topic]. You can view the Markdown report now, and export to PDF/DOCX from the card."). NEVER write out the report text in the chat.
+    * NEVER run a separate KB lookup step and then pass those results to generate_report. The tool handles KB search internally.
+  - AFTER CALLING THIS TOOL: Do NOT repeat, summarize, or reproduce the report content in the chat. The report is already displayed as an interactive card that the user can open, read, copy, and export. Simply confirm that the report was generated (e.g., "I've generated your report on [topic]. You can view the Markdown report now, and export it in various formats from the card."). NEVER write out the report text in the chat.
+"""
 
-4. link_preview: Fetch metadata for a URL to display a rich preview card.
-  - IMPORTANT: Use this tool WHENEVER the user shares or mentions a URL/link in their message.
-  - This fetches the page's Open Graph metadata (title, description, thumbnail) to show a preview card.
-  - NOTE: This tool only fetches metadata, NOT the full page content. It cannot read the article text.
-  - Trigger scenarios:
-    * User shares a URL (e.g., "Check out https://example.com")
-    * User pastes a link in their message
-    * User asks about a URL or link
-  - Args:
-    - url: The URL to fetch metadata for (must be a valid HTTP/HTTPS URL)
-  - Returns: A rich preview card with title, description, thumbnail, and domain
-  - The preview card will automatically be displayed in the chat.
-
-5. display_image: Display an image in the chat with metadata.
-  - Use this tool ONLY when you have a valid public HTTP/HTTPS image URL to show.
-  - This displays the image with an optional title, description, and source attribution.
-  - Valid use cases:
-    * Showing an image from a URL the user explicitly mentioned in their message
-    * Displaying images found in scraped webpage content (from scrape_webpage tool)
-    * Showing a publicly accessible diagram or chart from a known URL
-    * Displaying an AI-generated image after calling the generate_image tool (ALWAYS required)
-  
-  CRITICAL - NEVER USE THIS TOOL FOR USER-UPLOADED ATTACHMENTS:
-  When a user uploads/attaches an image file to their message:
-    * The image is ALREADY VISIBLE in the chat UI as a thumbnail on their message
-    * You do NOT have a URL for their uploaded image - only extracted text/description
-    * Calling display_image will FAIL and show "Image not available" error
-    * Simply analyze the image content and respond with your analysis - DO NOT try to display it
-    * The user can already see their own uploaded image - they don't need you to show it again
-  
-  - Args:
-    - src: The URL of the image (MUST be a valid public HTTP/HTTPS URL that you know exists)
-    - alt: Alternative text describing the image (for accessibility)
-    - title: Optional title to display below the image
-    - description: Optional description providing context about the image
-  - Returns: An image card with the image, title, and description
-  - The image will automatically be displayed in the chat.
-
-6. generate_image: Generate images from text descriptions using AI image models.
+_TOOL_INSTRUCTIONS["generate_image"] = """
+- generate_image: Generate images from text descriptions using AI image models.
   - Use this when the user asks you to create, generate, draw, design, or make an image.
   - Trigger phrases: "generate an image of", "create a picture of", "draw me", "make an image", "design a logo", "create artwork"
   - Args:
     - prompt: A detailed text description of the image to generate. Be specific about subject, style, colors, composition, and mood.
     - n: Number of images to generate (1-4, default: 1)
-  - Returns: A dictionary with the generated image URL in the "src" field, along with metadata.
-  - CRITICAL: After calling generate_image, you MUST call `display_image` with the returned "src" URL
-    to actually show the image in the chat. The generate_image tool only generates the image and returns
-    the URL — it does NOT display anything. You must always follow up with display_image.
+  - Returns: A dictionary with the generated image metadata. The image will automatically be displayed in the chat.
   - IMPORTANT: Write a detailed, descriptive prompt for best results. Don't just pass the user's words verbatim -
     expand and improve the prompt with specific details about style, lighting, composition, and mood.
   - If the user's request is vague (e.g., "make me an image of a cat"), enhance the prompt with artistic details.
+"""
 
-7. scrape_webpage: Scrape and extract the main content from a webpage.
+_TOOL_INSTRUCTIONS["scrape_webpage"] = """
+- scrape_webpage: Scrape and extract the main content from a webpage.
   - Use this when the user wants you to READ and UNDERSTAND the actual content of a webpage.
-  - IMPORTANT: This is different from link_preview:
-    * link_preview: Only fetches metadata (title, description, thumbnail) for display
-    * scrape_webpage: Actually reads the FULL page content so you can analyze/summarize it
   - CRITICAL — WHEN TO USE (always attempt scraping, never refuse before trying):
     * When a user asks to "get", "fetch", "pull", "grab", "scrape", or "read" content from a URL
     * When the user wants live/dynamic data from a specific webpage (e.g., tables, scores, stats, prices)
     * When a URL was mentioned earlier in the conversation and the user asks for its actual content
-    * When link_preview or search_knowledge_base returned insufficient data and the user wants more
+    * When preloaded `/documents/` data is insufficient and the user wants more
   - Trigger scenarios:
     * "Read this article and summarize it"
     * "What does this page say about X?"
@@ -237,18 +218,41 @@ up-to-date, or domain-specific information that is more relevant than your gener
     - url: The URL of the webpage to scrape (must be HTTP/HTTPS)
     - max_length: Maximum content length to return (default: 50000 chars)
   - Returns: The page title, description, full content (in markdown), word count, and metadata
-  - After scraping, you will have the full article text and can analyze, summarize, or answer questions about it.
+  - After scraping, provide a comprehensive, well-structured summary with key takeaways using headings or bullet points.
+  - Reference the source using markdown links [descriptive text](url) — never bare URLs.
   - IMAGES: The scraped content may contain image URLs in markdown format like `![alt text](image_url)`.
-    * When you find relevant/important images in the scraped content, use the `display_image` tool to show them to the user.
+    * When you find relevant/important images in the scraped content, include them in your response using standard markdown image syntax: `![alt text](image_url)`.
     * This makes your response more visual and engaging.
     * Prioritize showing: diagrams, charts, infographics, key illustrations, or images that help explain the content.
     * Don't show every image - just the most relevant 1-3 images that enhance understanding.
-
 """
 
-# Private (user) memory: tools 8-9 + memory-specific examples
-_TOOLS_INSTRUCTIONS_MEMORY_PRIVATE = """
-8. save_memory: Save facts, preferences, or context for personalized responses.
+_TOOL_INSTRUCTIONS["web_search"] = """
+- web_search: Search the web for real-time information using all configured search engines.
+  - Use this for current events, news, prices, weather, public facts, or any question requiring
+    up-to-date information from the internet.
+  - This tool dispatches to all configured search engines (SearXNG, Tavily, Linkup, Baidu) in
+    parallel and merges the results.
+  - IMPORTANT (REAL-TIME / PUBLIC WEB QUERIES): For questions that require current public web data
+    (e.g., live exchange rates, stock prices, breaking news, weather, current events), you MUST call
+    `web_search` instead of answering from memory.
+  - For these real-time/public web queries, DO NOT answer from memory and DO NOT say you lack internet
+    access before attempting a web search.
+  - If the search returns no relevant results, explain that web sources did not return enough
+    data and ask the user if they want you to retry with a refined query.
+  - Args:
+    - query: The search query - use specific, descriptive terms
+    - top_k: Number of results to retrieve (default: 10, max: 50)
+  - If search snippets are insufficient for the user's question, use `scrape_webpage` on the most relevant result URL for full content.
+  - When presenting results, reference sources as markdown links [descriptive text](url) — never bare URLs.
+"""
+
+# Memory tool instructions have private and shared variants.
+# We store them keyed as "save_memory" / "recall_memory" with sub-keys.
+_MEMORY_TOOL_INSTRUCTIONS: dict[str, dict[str, str]] = {
+    "save_memory": {
+        "private": """
+- save_memory: Save facts, preferences, or context for personalized responses.
   - Use this when the user explicitly or implicitly shares information worth remembering.
   - Trigger scenarios:
     * User says "remember this", "keep this in mind", "note that", or similar
@@ -270,8 +274,27 @@ _TOOLS_INSTRUCTIONS_MEMORY_PRIVATE = """
   - Returns: Confirmation of saved memory
   - IMPORTANT: Only save information that would be genuinely useful for future conversations.
     Don't save trivial or temporary information.
-
-9. recall_memory: Retrieve relevant memories about the user for personalized responses.
+""",
+        "shared": """
+- save_memory: Save a fact, preference, or context to the team's shared memory for future reference.
+  - Use this when the user or a team member says "remember this", "keep this in mind", or similar in this shared chat.
+  - Use when the team agrees on something to remember (e.g., decisions, conventions).
+  - Someone shares a preference or fact that should be visible to the whole team.
+  - The saved information will be available in future shared conversations in this space.
+  - Args:
+    - content: The fact/preference/context to remember. Phrase it clearly, e.g. "API keys are stored in Vault", "The team prefers weekly demos on Fridays"
+    - category: Type of memory. One of:
+      * "preference": Team or workspace preferences
+      * "fact": Facts the team agreed on (e.g., processes, locations)
+      * "instruction": Standing instructions for the team
+      * "context": Current context (e.g., ongoing projects, goals)
+  - Returns: Confirmation of saved memory; returned context may include who added it (added_by).
+  - IMPORTANT: Only save information that would be genuinely useful for future team conversations in this space.
+""",
+    },
+    "recall_memory": {
+        "private": """
+- recall_memory: Retrieve relevant memories about the user for personalized responses.
   - Use this to access stored information about the user.
   - Trigger scenarios:
     * You need user context to give a better, more personalized answer
@@ -286,45 +309,9 @@ _TOOLS_INSTRUCTIONS_MEMORY_PRIVATE = """
   - Returns: Relevant memories formatted as context
   - IMPORTANT: Use the recalled memories naturally in your response without explicitly
     stating "Based on your memory..." - integrate the context seamlessly.
-</tools>
-<tool_call_examples>
-- User: "Remember that I prefer TypeScript over JavaScript"
-  - Call: `save_memory(content="User prefers TypeScript over JavaScript for development", category="preference")`
-
-- User: "I'm a data scientist working on ML pipelines"
-  - Call: `save_memory(content="User is a data scientist working on ML pipelines", category="fact")`
-
-- User: "Always give me code examples in Python"
-  - Call: `save_memory(content="User wants code examples to be written in Python", category="instruction")`
-
-- User: "What programming language should I use for this project?"
-  - First recall: `recall_memory(query="programming language preferences")`
-  - Then provide a personalized recommendation based on their preferences
-
-- User: "What do you know about me?"
-  - Call: `recall_memory(top_k=10)`
-  - Then summarize the stored memories
-
-"""
-
-# Shared (team) memory: tools 7-8 + team memory examples
-_TOOLS_INSTRUCTIONS_MEMORY_SHARED = """
-8. save_memory: Save a fact, preference, or context to the team's shared memory for future reference.
-  - Use this when the user or a team member says "remember this", "keep this in mind", or similar in this shared chat.
-  - Use when the team agrees on something to remember (e.g., decisions, conventions).
-  - Someone shares a preference or fact that should be visible to the whole team.
-  - The saved information will be available in future shared conversations in this space.
-  - Args:
-    - content: The fact/preference/context to remember. Phrase it clearly, e.g. "API keys are stored in Vault", "The team prefers weekly demos on Fridays"
-    - category: Type of memory. One of:
-      * "preference": Team or workspace preferences
-      * "fact": Facts the team agreed on (e.g., processes, locations)
-      * "instruction": Standing instructions for the team
-      * "context": Current context (e.g., ongoing projects, goals)
-  - Returns: Confirmation of saved memory; returned context may include who added it (added_by).
-  - IMPORTANT: Only save information that would be genuinely useful for future team conversations in this space.
-
-9. recall_memory: Recall relevant team memories for this space to provide contextual responses.
+""",
+        "shared": """
+- recall_memory: Recall relevant team memories for this space to provide contextual responses.
   - Use when you need team context to answer (e.g., "where do we store X?", "what did we decide about Y?").
   - Use when someone asks about something the team agreed to remember.
   - Use when team preferences or conventions would improve the response.
@@ -333,222 +320,219 @@ _TOOLS_INSTRUCTIONS_MEMORY_SHARED = """
     - category: Optional filter by category ("preference", "fact", "instruction", "context")
     - top_k: Number of memories to retrieve (default: 5, max: 20)
   - Returns: Relevant team memories and formatted context (may include added_by). Integrate naturally without saying "Based on team memory...".
-</tools>
-<tool_call_examples>
+""",
+    },
+}
+
+_MEMORY_TOOL_EXAMPLES: dict[str, dict[str, str]] = {
+    "save_memory": {
+        "private": """
+- User: "Remember that I prefer TypeScript over JavaScript"
+  - Call: `save_memory(content="User prefers TypeScript over JavaScript for development", category="preference")`
+- User: "I'm a data scientist working on ML pipelines"
+  - Call: `save_memory(content="User is a data scientist working on ML pipelines", category="fact")`
+- User: "Always give me code examples in Python"
+  - Call: `save_memory(content="User wants code examples to be written in Python", category="instruction")`
+""",
+        "shared": """
 - User: "Remember that API keys are stored in Vault"
   - Call: `save_memory(content="API keys are stored in Vault", category="fact")`
-
 - User: "Let's remember that the team prefers weekly demos on Fridays"
   - Call: `save_memory(content="The team prefers weekly demos on Fridays", category="preference")`
-
+""",
+    },
+    "recall_memory": {
+        "private": """
+- User: "What programming language should I use for this project?"
+  - First recall: `recall_memory(query="programming language preferences")`
+  - Then provide a personalized recommendation based on their preferences
+- User: "What do you know about me?"
+  - Call: `recall_memory(top_k=10)`
+  - Then summarize the stored memories
+""",
+        "shared": """
 - User: "What did we decide about the release date?"
   - First recall: `recall_memory(query="release date decision")`
   - Then answer based on the team memories
-
 - User: "Where do we document onboarding?"
   - Call: `recall_memory(query="onboarding documentation")`
   - Then answer using the recalled team context
+""",
+    },
+}
 
-- User: "What have we agreed to remember about our deployment process?"
-  - Call: `recall_memory(query="deployment process", top_k=10)`
-  - Then summarize the relevant team memories
+# Per-tool examples keyed by tool name. Only examples for enabled tools are included.
+_TOOL_EXAMPLES: dict[str, str] = {}
 
-"""
-
-# Examples shared by both private and shared prompts (knowledge base, docs, podcast, links, images, etc.)
-_TOOLS_INSTRUCTIONS_EXAMPLES_COMMON = """
-- User: "What time is the team meeting today?"
-  - Call: `search_knowledge_base(query="team meeting time today")` (searches ALL sources - calendar, notes, Obsidian, etc.)
-  - DO NOT limit to just calendar - the info might be in notes!
-
-- User: "When is my gym session?"
-  - Call: `search_knowledge_base(query="gym session time schedule")` (searches ALL sources)
-
+_TOOL_EXAMPLES["search_surfsense_docs"] = """
 - User: "How do I install SurfSense?"
   - Call: `search_surfsense_docs(query="installation setup")`
-
 - User: "What connectors does SurfSense support?"
   - Call: `search_surfsense_docs(query="available connectors integrations")`
-
 - User: "How do I set up the Notion connector?"
   - Call: `search_surfsense_docs(query="Notion connector setup configuration")`
-
 - User: "How do I use Docker to run SurfSense?"
   - Call: `search_surfsense_docs(query="Docker installation setup")`
+"""
 
-- User: "Fetch all my notes and what's in them?"
-  - Call: `search_knowledge_base(query="*", top_k=50, connectors_to_search=["NOTE"])`
-
-- User: "What did I discuss on Slack last week about the React migration?"
-  - Call: `search_knowledge_base(query="React migration", connectors_to_search=["SLACK_CONNECTOR"], start_date="YYYY-MM-DD", end_date="YYYY-MM-DD")`
-
-- User: "Check my Obsidian notes for meeting notes"
-  - Call: `search_knowledge_base(query="meeting notes", connectors_to_search=["OBSIDIAN_CONNECTOR"])`
-
-- User: "What's in my Obsidian vault about project ideas?"
-  - Call: `search_knowledge_base(query="project ideas", connectors_to_search=["OBSIDIAN_CONNECTOR"])`
-
-- User: "search me current usd to inr rate"
-  - Call: `search_knowledge_base(query="current USD to INR exchange rate", connectors_to_search=["LINKUP_API", "TAVILY_API", "SEARXNG_API", "BAIDU_SEARCH_API"])`
-  - Then answer using the returned live web results with citations.
-
-- User: "cant you search using linkup?"
-  - Call: `search_knowledge_base(query="<refined user request>", connectors_to_search=["LINKUP_API"])`
-  - Then answer from retrieved results (or clearly state that Linkup returned no data).
-
+_TOOL_EXAMPLES["generate_podcast"] = """
 - User: "Give me a podcast about AI trends based on what we discussed"
   - First search for relevant content, then call: `generate_podcast(source_content="Based on our conversation and search results: [detailed summary of chat + search findings]", podcast_title="AI Trends Podcast")`
-
 - User: "Create a podcast summary of this conversation"
   - Call: `generate_podcast(source_content="Complete conversation summary:\\n\\nUser asked about [topic 1]:\\n[Your detailed response]\\n\\nUser then asked about [topic 2]:\\n[Your detailed response]\\n\\n[Continue for all exchanges in the conversation]", podcast_title="Conversation Summary")`
-
 - User: "Make a podcast about quantum computing"
-  - First search: `search_knowledge_base(query="quantum computing")`
-  - Then: `generate_podcast(source_content="Key insights about quantum computing from the knowledge base:\\n\\n[Comprehensive summary of all relevant search results with key facts, concepts, and findings]", podcast_title="Quantum Computing Explained")`
+  - First explore `/documents/` (ls/glob/grep/read_file), then: `generate_podcast(source_content="Key insights about quantum computing from retrieved files:\\n\\n[Comprehensive summary of findings]", podcast_title="Quantum Computing Explained")`
+"""
 
+_TOOL_EXAMPLES["generate_video_presentation"] = """
+- User: "Give me a presentation about AI trends based on what we discussed"
+  - First search for relevant content, then call: `generate_video_presentation(source_content="Based on our conversation and search results: [detailed summary of chat + search findings]", video_title="AI Trends Presentation")`
+- User: "Create slides summarizing this conversation"
+  - Call: `generate_video_presentation(source_content="Complete conversation summary:\\n\\nUser asked about [topic 1]:\\n[Your detailed response]\\n\\nUser then asked about [topic 2]:\\n[Your detailed response]\\n\\n[Continue for all exchanges in the conversation]", video_title="Conversation Summary")`
+- User: "Make a video presentation about quantum computing"
+  - First explore `/documents/` (ls/glob/grep/read_file), then: `generate_video_presentation(source_content="Key insights about quantum computing from retrieved files:\\n\\n[Comprehensive summary of findings]", video_title="Quantum Computing Explained")`
+"""
+
+_TOOL_EXAMPLES["generate_report"] = """
 - User: "Generate a report about AI trends"
   - Call: `generate_report(topic="AI Trends Report", source_strategy="kb_search", search_queries=["AI trends recent developments", "artificial intelligence industry trends", "AI market growth and predictions"], report_style="detailed")`
   - WHY: Has creation verb "generate" → call the tool. No prior discussion → use kb_search.
-
 - User: "Write a research report from this conversation"
-  - Call: `generate_report(topic="Research Report", source_strategy="conversation", source_content="Complete conversation summary:\\n\\nUser asked about [topic 1]:\\n[Your detailed response]\\n\\nUser then asked about [topic 2]:\\n[Your detailed response]\\n\\n[Continue for all exchanges in the conversation]", report_style="deep_research")`
+  - Call: `generate_report(topic="Research Report", source_strategy="conversation", source_content="Complete conversation summary:\\n\\n...", report_style="deep_research")`
   - WHY: Has creation verb "write" → call the tool. Conversation has the content → use source_strategy="conversation".
-
-- User: "Create a brief executive summary about our project progress"
-  - Call: `generate_report(topic="Project Progress Executive Summary", source_strategy="kb_search", search_queries=["project progress updates", "project milestones completed", "upcoming project deadlines"], report_style="executive_summary", user_instructions="Focus on milestones achieved and upcoming deadlines")`
-  - WHY: Has creation verb "create" → call the tool. New topic → use kb_search.
-
-- User: (after extensive Q&A about React performance) "Turn this into a report"
-  - Call: `generate_report(topic="React Performance Optimization Guide", source_strategy="conversation", source_content="[Thorough summary of all Q&A from this conversation about React performance...]", report_style="detailed")`
-  - WHY: Has creation verb "turn into" → call the tool. Conversation has the content → use source_strategy="conversation".
-
 - User: (after a report on Climate Change was generated) "Add a section about carbon capture technologies"
   - Call: `generate_report(topic="Climate Crisis: Causes, Impacts, and Solutions", source_strategy="conversation", source_content="[summary of conversation context if any]", parent_report_id=<previous_report_id>, user_instructions="Add a new section about carbon capture technologies")`
-  - WHY: Has modification verb "add" + specific deliverable target → call the tool with parent_report_id. Use source_strategy="conversation" since the report already exists.
-
+  - WHY: Has modification verb "add" + specific deliverable target → call the tool with parent_report_id.
 - User: (after a report was generated) "What else could we add to have more depth?"
-  - Do NOT call generate_report. Answer in chat with suggestions, e.g.: "Here are some areas we could expand: 1. ... 2. ... 3. ... Would you like me to add any of these to the report?"
-  - WHY: No creation/modification verb directed at producing a deliverable. This is a question asking for suggestions.
-
-- User: (after a report was generated) "Is the conclusion strong enough?"
-  - Do NOT call generate_report. Answer in chat, e.g.: "The conclusion covers X and Y well, but could be strengthened by adding Z. Want me to revise it?"
-  - WHY: This is a question/critique, not a modification request.
-
-- User: (after a report was generated) "What's missing from this report?"
-  - Do NOT call generate_report. Answer in chat with analysis of gaps.
-  - WHY: This is a question. The user is asking you to identify gaps, not to fix them yet.
-
-- User: "Check out https://dev.to/some-article"
-  - Call: `link_preview(url="https://dev.to/some-article")`
-  - Call: `scrape_webpage(url="https://dev.to/some-article")`
-  - After getting the content, if the content contains useful diagrams/images like `![Neural Network Diagram](https://example.com/nn-diagram.png)`:
-    - Call: `display_image(src="https://example.com/nn-diagram.png", alt="Neural Network Diagram", title="Neural Network Architecture")`
-  - Then provide your analysis, referencing the displayed image
-
-- User: "What's this blog post about? https://example.com/blog/post"
-  - Call: `link_preview(url="https://example.com/blog/post")`
-  - Call: `scrape_webpage(url="https://example.com/blog/post")`
-  - After getting the content, if the content contains useful diagrams/images like `![Neural Network Diagram](https://example.com/nn-diagram.png)`:
-    - Call: `display_image(src="https://example.com/nn-diagram.png", alt="Neural Network Diagram", title="Neural Network Architecture")`
-  - Then provide your analysis, referencing the displayed image
-
-- User: "https://github.com/some/repo"
-  - Call: `link_preview(url="https://github.com/some/repo")`
-  - Call: `scrape_webpage(url="https://github.com/some/repo")`
-  - After getting the content, if the content contains useful diagrams/images like `![Neural Network Diagram](https://example.com/nn-diagram.png)`:
-    - Call: `display_image(src="https://example.com/nn-diagram.png", alt="Neural Network Diagram", title="Neural Network Architecture")`
-  - Then provide your analysis, referencing the displayed image
-
-- User: "Show me this image: https://example.com/image.png"
-  - Call: `display_image(src="https://example.com/image.png", alt="User shared image")`
-
-- User uploads an image file and asks: "What is this image about?"
-  - DO NOT call display_image! The user's uploaded image is already visible in the chat.
-  - Simply analyze the image content (which you receive as extracted text/description) and respond.
-  - WRONG: `display_image(src="...", ...)` - This will fail with "Image not available"
-  - CORRECT: Just provide your analysis directly: "Based on the image you shared, this appears to be..."
-
-- User uploads a screenshot and asks: "Can you explain what's in this image?"
-  - DO NOT call display_image! Just analyze and respond directly.
-  - The user can already see their screenshot - they don't need you to display it again.
-
-- User: "Read this article and summarize it for me: https://example.com/blog/ai-trends"
-  - Call: `link_preview(url="https://example.com/blog/ai-trends")`
-  - Call: `scrape_webpage(url="https://example.com/blog/ai-trends")`
-  - After getting the content, if the content contains useful diagrams/images like `![Neural Network Diagram](https://example.com/nn-diagram.png)`:
-    - Call: `display_image(src="https://example.com/nn-diagram.png", alt="Neural Network Diagram", title="Neural Network Architecture")`
-  - Then provide a summary based on the scraped text
-
-- User: "What does this page say about machine learning? https://docs.example.com/ml-guide"
-  - Call: `link_preview(url="https://docs.example.com/ml-guide")`
-  - Call: `scrape_webpage(url="https://docs.example.com/ml-guide")`
-  - After getting the content, if the content contains useful diagrams/images like `![Neural Network Diagram](https://example.com/nn-diagram.png)`:
-    - Call: `display_image(src="https://example.com/nn-diagram.png", alt="Neural Network Diagram", title="Neural Network Architecture")`
-  - Then answer the question using the extracted content
-
-- User: "Summarize this blog post: https://medium.com/some-article"
-  - Call: `link_preview(url="https://medium.com/some-article")`
-  - Call: `scrape_webpage(url="https://medium.com/some-article")`
-  - After getting the content, if the content contains useful diagrams/images like `![Neural Network Diagram](https://example.com/nn-diagram.png)`:
-    - Call: `display_image(src="https://example.com/nn-diagram.png", alt="Neural Network Diagram", title="Neural Network Architecture")`
-  - Then provide a comprehensive summary of the article content
-
-- User: "Read this tutorial and explain it: https://example.com/ml-tutorial"
-  - First: `scrape_webpage(url="https://example.com/ml-tutorial")`
-  - Then, if the content contains useful diagrams/images like `![Neural Network Diagram](https://example.com/nn-diagram.png)`:
-    - Call: `display_image(src="https://example.com/nn-diagram.png", alt="Neural Network Diagram", title="Neural Network Architecture")`
-  - Then provide your explanation, referencing the displayed image
-
-- User: (after discussing https://example.com/stats in the conversation) "Can you get the live data from that page?"
-  - Call: `scrape_webpage(url="https://example.com/stats")`
-  - IMPORTANT: Always attempt scraping first. Never refuse before trying the tool.
-  - Then present the extracted data to the user.
-
-- User: "Pull the table from https://example.com/leaderboard"
-  - Call: `scrape_webpage(url="https://example.com/leaderboard")`
-  - Then parse and present the table data from the scraped content.
-
-- User: "Generate an image of a cat"
-  - Step 1: `generate_image(prompt="A fluffy orange tabby cat sitting on a windowsill, bathed in warm golden sunlight, soft bokeh background with green houseplants, photorealistic style, cozy atmosphere")`
-  - Step 2: Use the returned "src" URL to display it: `display_image(src="<returned_url>", alt="A fluffy orange tabby cat on a windowsill", title="Generated Image")`
-
-- User: "Create a landscape painting of mountains"
-  - Step 1: `generate_image(prompt="Majestic snow-capped mountain range at sunset, dramatic orange and purple sky, alpine meadow with wildflowers in the foreground, oil painting style with visible brushstrokes, inspired by the Hudson River School art movement")`
-  - Step 2: `display_image(src="<returned_url>", alt="Mountain landscape painting", title="Generated Image")`
-
-- User: "Draw me a logo for a coffee shop called Bean Dream"
-  - Step 1: `generate_image(prompt="Minimalist modern logo design for a coffee shop called 'Bean Dream', featuring a stylized coffee bean with dream-like swirls of steam, clean vector style, warm brown and cream color palette, white background, professional branding")`
-  - Step 2: `display_image(src="<returned_url>", alt="Bean Dream coffee shop logo", title="Generated Image")`
-
-- User: "Make a wide banner image for my blog about AI"
-  - Step 1: `generate_image(prompt="Wide banner illustration for an AI technology blog, featuring abstract neural network patterns, glowing blue and purple connections, modern futuristic aesthetic, digital art style, clean and professional")`
-  - Step 2: `display_image(src="<returned_url>", alt="AI blog banner", title="Generated Image")`
-</tool_call_examples>
+  - Do NOT call generate_report. Answer in chat with suggestions.
+  - WHY: No creation/modification verb directed at producing a deliverable.
 """
 
-# Reassemble so existing callers see no change (same full prompt)
-SURFSENSE_TOOLS_INSTRUCTIONS = (
-    _TOOLS_INSTRUCTIONS_COMMON
-    + _TOOLS_INSTRUCTIONS_MEMORY_PRIVATE
-    + _TOOLS_INSTRUCTIONS_EXAMPLES_COMMON
-)
+_TOOL_EXAMPLES["scrape_webpage"] = """
+- User: "Check out https://dev.to/some-article"
+  - Call: `scrape_webpage(url="https://dev.to/some-article")`
+  - Respond with a structured analysis — key points, takeaways.
+- User: "Read this article and summarize it for me: https://example.com/blog/ai-trends"
+  - Call: `scrape_webpage(url="https://example.com/blog/ai-trends")`
+  - Respond with a thorough summary using headings and bullet points.
+- User: (after discussing https://example.com/stats) "Can you get the live data from that page?"
+  - Call: `scrape_webpage(url="https://example.com/stats")`
+  - IMPORTANT: Always attempt scraping first. Never refuse before trying the tool.
+- User: "https://example.com/blog/weekend-recipes"
+  - Call: `scrape_webpage(url="https://example.com/blog/weekend-recipes")`
+  - When a user sends just a URL with no instructions, scrape it and provide a concise summary of the content.
+"""
+
+_TOOL_EXAMPLES["generate_image"] = """
+- User: "Generate an image of a cat"
+  - Call: `generate_image(prompt="A fluffy orange tabby cat sitting on a windowsill, bathed in warm golden sunlight, soft bokeh background with green houseplants, photorealistic style, cozy atmosphere")`
+  - The generated image will automatically be displayed in the chat.
+- User: "Draw me a logo for a coffee shop called Bean Dream"
+  - Call: `generate_image(prompt="Minimalist modern logo design for a coffee shop called 'Bean Dream', featuring a stylized coffee bean with dream-like swirls of steam, clean vector style, warm brown and cream color palette, white background, professional branding")`
+  - The generated image will automatically be displayed in the chat.
+- User: "Show me this image: https://example.com/image.png"
+  - Simply include it in your response using markdown: `![Image](https://example.com/image.png)`
+- User uploads an image file and asks: "What is this image about?"
+  - The user's uploaded image is already visible in the chat.
+  - Simply analyze the image content and respond directly.
+"""
+
+_TOOL_EXAMPLES["web_search"] = """
+- User: "What's the current USD to INR exchange rate?"
+  - Call: `web_search(query="current USD to INR exchange rate")`
+  - Then answer using the returned web results with citations.
+- User: "What's the latest news about AI?"
+  - Call: `web_search(query="latest AI news today")`
+- User: "What's the weather in New York?"
+  - Call: `web_search(query="weather New York today")`
+"""
+
+# All tool names that have prompt instructions (order matters for prompt readability)
+_ALL_TOOL_NAMES_ORDERED = [
+    "search_surfsense_docs",
+    "web_search",
+    "generate_podcast",
+    "generate_video_presentation",
+    "generate_report",
+    "generate_image",
+    "scrape_webpage",
+    "save_memory",
+    "recall_memory",
+]
 
 
-def _get_tools_instructions(thread_visibility: ChatVisibility | None = None) -> str:
-    """Build tools instructions based on thread visibility (private vs shared).
+def _format_tool_name(name: str) -> str:
+    """Convert snake_case tool name to a human-readable label."""
+    return name.replace("_", " ").title()
 
-    For private chats: use user-focused memory wording and examples.
-    For shared chats: use team memory wording and examples.
+
+def _get_tools_instructions(
+    thread_visibility: ChatVisibility | None = None,
+    enabled_tool_names: set[str] | None = None,
+    disabled_tool_names: set[str] | None = None,
+) -> str:
+    """Build tools instructions containing only the enabled tools.
+
+    Args:
+        thread_visibility: Private vs shared — affects memory tool wording.
+        enabled_tool_names: Set of tool names that are actually bound to the agent.
+            When None, all tools are included (backward-compatible default).
+        disabled_tool_names: Set of tool names that the user explicitly disabled.
+            When provided, a note is appended telling the model about these tools
+            so it can inform the user they can re-enable them.
     """
     visibility = thread_visibility or ChatVisibility.PRIVATE
-    memory_block = (
-        _TOOLS_INSTRUCTIONS_MEMORY_SHARED
-        if visibility == ChatVisibility.SEARCH_SPACE
-        else _TOOLS_INSTRUCTIONS_MEMORY_PRIVATE
+    memory_variant = (
+        "shared" if visibility == ChatVisibility.SEARCH_SPACE else "private"
     )
-    return (
-        _TOOLS_INSTRUCTIONS_COMMON + memory_block + _TOOLS_INSTRUCTIONS_EXAMPLES_COMMON
+
+    parts: list[str] = [_TOOLS_PREAMBLE]
+    examples: list[str] = []
+
+    for tool_name in _ALL_TOOL_NAMES_ORDERED:
+        if enabled_tool_names is not None and tool_name not in enabled_tool_names:
+            continue
+
+        if tool_name in _TOOL_INSTRUCTIONS:
+            parts.append(_TOOL_INSTRUCTIONS[tool_name])
+        elif tool_name in _MEMORY_TOOL_INSTRUCTIONS:
+            parts.append(_MEMORY_TOOL_INSTRUCTIONS[tool_name][memory_variant])
+
+        if tool_name in _TOOL_EXAMPLES:
+            examples.append(_TOOL_EXAMPLES[tool_name])
+        elif tool_name in _MEMORY_TOOL_EXAMPLES:
+            examples.append(_MEMORY_TOOL_EXAMPLES[tool_name][memory_variant])
+
+    # Append a note about user-disabled tools so the model can inform the user
+    known_disabled = (
+        disabled_tool_names & set(_ALL_TOOL_NAMES_ORDERED)
+        if disabled_tool_names
+        else set()
     )
+    if known_disabled:
+        disabled_list = ", ".join(
+            _format_tool_name(n) for n in _ALL_TOOL_NAMES_ORDERED if n in known_disabled
+        )
+        parts.append(f"""
+DISABLED TOOLS (by user):
+The following tools are available in SurfSense but have been disabled by the user for this session: {disabled_list}.
+You do NOT have access to these tools and MUST NOT claim you can use them.
+If the user asks about a capability provided by a disabled tool, let them know the relevant tool
+is currently disabled and they can re-enable it.
+""")
+
+    parts.append("\n</tools>\n")
+
+    if examples:
+        parts.append("<tool_call_examples>")
+        parts.extend(examples)
+        parts.append("</tool_call_examples>\n")
+
+    return "".join(parts)
+
+
+# Backward-compatible constant: all tools included (private memory variant)
+SURFSENSE_TOOLS_INSTRUCTIONS = _get_tools_instructions()
 
 
 SURFSENSE_CITATION_INSTRUCTIONS = """
@@ -586,11 +570,10 @@ The documents you receive are structured like this:
 </document_content>
 </document>
 
-**Live web search results (URL chunk IDs):**
+**Web search results (URL chunk IDs):**
 <document>
 <document_metadata>
-  <document_id>TAVILY_API::Some Title::https://example.com/article</document_id>
-  <document_type>TAVILY_API</document_type>
+  <document_type>WEB_SEARCH</document_type>
   <title><![CDATA[Some web search result]]></title>
   <url><![CDATA[https://example.com/article]]></url>
 </document_metadata>
@@ -645,87 +628,6 @@ However, from your video learning, it's important to note that asyncio is not su
 </citation_instructions>
 """
 
-# Sandbox / code execution instructions — appended when sandbox backend is enabled.
-# Inspired by Claude's computer-use prompt, scoped to code execution & data analytics.
-SANDBOX_EXECUTION_INSTRUCTIONS = """
-<code_execution>
-You have access to a secure, isolated Linux sandbox environment for running code and shell commands.
-This gives you the `execute` tool alongside the standard filesystem tools (`ls`, `read_file`, `write_file`, `edit_file`, `glob`, `grep`).
-
-## CRITICAL — CODE-FIRST RULE
-
-ALWAYS prefer executing code over giving a text-only response when the user's request involves ANY of the following:
-- **Creating a chart, plot, graph, or visualization** → Write Python code and generate the actual file. NEVER describe percentages or data in text and offer to "paste into Excel". Just produce the chart.
-- **Data analysis, statistics, or computation** → Write code to compute the answer. Do not do math by hand in text.
-- **Generating or transforming files** (CSV, PDF, images, etc.) → Write code to create the file.
-- **Running, testing, or debugging code** → Execute it in the sandbox.
-
-This applies even when you first retrieve data from the knowledge base. After `search_knowledge_base` returns relevant data, **immediately proceed to write and execute code** if the user's request matches any of the categories above. Do NOT stop at a text summary and wait for the user to ask you to "use Python" — that extra round-trip is a poor experience.
-
-Example (CORRECT):
-  User: "Create a pie chart of my benefits"
-  → 1. search_knowledge_base → retrieve benefits data
-  → 2. Immediately execute Python code (matplotlib) to generate the pie chart
-  → 3. Return the downloadable file + brief description
-
-Example (WRONG):
-  User: "Create a pie chart of my benefits"
-  → 1. search_knowledge_base → retrieve benefits data
-  → 2. Print a text table with percentages and ask the user if they want a chart ← NEVER do this
-
-## When to Use Code Execution
-
-Use the sandbox when the task benefits from actually running code rather than just describing it:
-- **Data analysis**: Load CSVs/JSON, compute statistics, filter/aggregate data, pivot tables
-- **Visualization**: Generate charts and plots (matplotlib, plotly, seaborn)
-- **Calculations**: Math, financial modeling, unit conversions, simulations
-- **Code validation**: Run and test code snippets the user provides or asks about
-- **File processing**: Parse, transform, or convert data files
-- **Quick prototyping**: Demonstrate working code for the user's problem
-- **Package exploration**: Install and test libraries the user is evaluating
-
-## When NOT to Use Code Execution
-
-Do not use the sandbox for:
-- Answering factual questions from your own knowledge
-- Summarizing or explaining concepts
-- Simple formatting or text generation tasks
-- Tasks that don't require running code to answer
-
-## Package Management
-
-- Use `pip install <package>` to install Python packages as needed
-- Common data/analytics packages (pandas, numpy, matplotlib, scipy, scikit-learn) may need to be installed on first use
-- Always verify a package installed successfully before using it
-
-## Working Guidelines
-
-- **Working directory**: The shell starts in the sandbox user's home directory (e.g. `/home/daytona`). Use **relative paths** or `/tmp/` for all files you create. NEVER write directly to `/home/` — that is the parent directory and is not writable. Use `pwd` if you need to discover the current working directory.
-- **Iterative approach**: For complex tasks, break work into steps — write code, run it, check output, refine
-- **Error handling**: If code fails, read the error, fix the issue, and retry. Don't just report the error without attempting a fix.
-- **Show results**: When generating plots or outputs, present the key findings directly in your response. For plots, save to a file and describe the results.
-- **Be efficient**: Install packages once per session. Combine related commands when possible.
-- **Large outputs**: If command output is very large, use `head`, `tail`, or save to a file and read selectively.
-
-## Sharing Generated Files
-
-When your code creates output files (images, CSVs, PDFs, etc.) in the sandbox:
-- **Print the absolute path** at the end of your script so the user can download the file. Example: `print("SANDBOX_FILE: /tmp/chart.png")`
-- **DO NOT call `display_image`** for files created inside the sandbox. Sandbox files are not accessible via public URLs, so `display_image` will always show "Image not available". The frontend automatically renders a download button from the `SANDBOX_FILE:` marker.
-- You can output multiple files, one per line: `print("SANDBOX_FILE: /tmp/report.csv")`, `print("SANDBOX_FILE: /tmp/chart.png")`
-- Always describe what the file contains in your response text so the user knows what they are downloading.
-- IMPORTANT: Every `execute` call that saves a file MUST print the `SANDBOX_FILE: <path>` marker. Without it the user cannot download the file.
-
-## Data Analytics Best Practices
-
-When the user asks you to analyze data:
-1. First, inspect the data structure (`head`, `shape`, `dtypes`, `describe()`)
-2. Clean and validate before computing (handle nulls, check types)
-3. Perform the analysis and present results clearly
-4. Offer follow-up insights or visualizations when appropriate
-</code_execution>
-"""
-
 # Anti-citation prompt - used when citations are disabled
 # This explicitly tells the model NOT to include citations
 SURFSENSE_NO_CITATION_INSTRUCTIONS = """
@@ -751,21 +653,22 @@ Your goal is to provide helpful, informative answers in a clean, readable format
 def build_surfsense_system_prompt(
     today: datetime | None = None,
     thread_visibility: ChatVisibility | None = None,
-    sandbox_enabled: bool = False,
+    enabled_tool_names: set[str] | None = None,
+    disabled_tool_names: set[str] | None = None,
 ) -> str:
     """
     Build the SurfSense system prompt with default settings.
 
     This is a convenience function that builds the prompt with:
     - Default system instructions
-    - Tools instructions (always included)
+    - Tools instructions (only for enabled tools)
     - Citation instructions enabled
-    - Sandbox execution instructions (when sandbox_enabled=True)
 
     Args:
         today: Optional datetime for today's date (defaults to current UTC date)
         thread_visibility: Optional; when provided, used for conditional prompt (e.g. private vs shared memory wording). Defaults to private behavior when None.
-        sandbox_enabled: Whether the sandbox backend is active (adds code execution instructions).
+        enabled_tool_names: Set of tool names actually bound to the agent. When None all tools are included.
+        disabled_tool_names: Set of tool names the user explicitly disabled. Included as a note so the model can inform the user.
 
     Returns:
         Complete system prompt string
@@ -773,15 +676,11 @@ def build_surfsense_system_prompt(
 
     visibility = thread_visibility or ChatVisibility.PRIVATE
     system_instructions = _get_system_instructions(visibility, today)
-    tools_instructions = _get_tools_instructions(visibility)
-    citation_instructions = SURFSENSE_CITATION_INSTRUCTIONS
-    sandbox_instructions = SANDBOX_EXECUTION_INSTRUCTIONS if sandbox_enabled else ""
-    return (
-        system_instructions
-        + tools_instructions
-        + citation_instructions
-        + sandbox_instructions
+    tools_instructions = _get_tools_instructions(
+        visibility, enabled_tool_names, disabled_tool_names
     )
+    citation_instructions = SURFSENSE_CITATION_INSTRUCTIONS
+    return system_instructions + tools_instructions + citation_instructions
 
 
 def build_configurable_system_prompt(
@@ -790,16 +689,16 @@ def build_configurable_system_prompt(
     citations_enabled: bool = True,
     today: datetime | None = None,
     thread_visibility: ChatVisibility | None = None,
-    sandbox_enabled: bool = False,
+    enabled_tool_names: set[str] | None = None,
+    disabled_tool_names: set[str] | None = None,
 ) -> str:
     """
     Build a configurable SurfSense system prompt based on NewLLMConfig settings.
 
-    The prompt is composed of up to four parts:
+    The prompt is composed of three parts:
     1. System Instructions - either custom or default SURFSENSE_SYSTEM_INSTRUCTIONS
-    2. Tools Instructions - always included (SURFSENSE_TOOLS_INSTRUCTIONS)
+    2. Tools Instructions - only for enabled tools, with a note about disabled ones
     3. Citation Instructions - either SURFSENSE_CITATION_INSTRUCTIONS or SURFSENSE_NO_CITATION_INSTRUCTIONS
-    4. Sandbox Execution Instructions - when sandbox_enabled=True
 
     Args:
         custom_system_instructions: Custom system instructions to use. If empty/None and
@@ -811,7 +710,8 @@ def build_configurable_system_prompt(
                           anti-citation instructions (False).
         today: Optional datetime for today's date (defaults to current UTC date)
         thread_visibility: Optional; when provided, used for conditional prompt (e.g. private vs shared memory wording). Defaults to private behavior when None.
-        sandbox_enabled: Whether the sandbox backend is active (adds code execution instructions).
+        enabled_tool_names: Set of tool names actually bound to the agent. When None all tools are included.
+        disabled_tool_names: Set of tool names the user explicitly disabled. Included as a note so the model can inform the user.
 
     Returns:
         Complete system prompt string
@@ -829,8 +729,10 @@ def build_configurable_system_prompt(
     else:
         system_instructions = ""
 
-    # Tools instructions: conditional on thread_visibility (private vs shared memory wording)
-    tools_instructions = _get_tools_instructions(thread_visibility)
+    # Tools instructions: only include enabled tools, note disabled ones
+    tools_instructions = _get_tools_instructions(
+        thread_visibility, enabled_tool_names, disabled_tool_names
+    )
 
     # Citation instructions based on toggle
     citation_instructions = (
@@ -839,14 +741,7 @@ def build_configurable_system_prompt(
         else SURFSENSE_NO_CITATION_INSTRUCTIONS
     )
 
-    sandbox_instructions = SANDBOX_EXECUTION_INSTRUCTIONS if sandbox_enabled else ""
-
-    return (
-        system_instructions
-        + tools_instructions
-        + citation_instructions
-        + sandbox_instructions
-    )
+    return system_instructions + tools_instructions + citation_instructions
 
 
 def get_default_system_instructions() -> str:

@@ -102,15 +102,13 @@ export const ObsidianConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitti
 
 	return (
 		<div className="space-y-6 pb-6">
-			<Alert className="bg-purple-500/10 dark:bg-purple-500/10 border-purple-500/30 p-2 sm:p-3 flex items-center [&>svg]:relative [&>svg]:left-0 [&>svg]:top-0 [&>svg+div]:translate-y-0">
-				<Info className="h-3 w-3 sm:h-4 sm:w-4 shrink-0 ml-1 text-purple-500" />
-				<div className="-ml-1">
-					<AlertTitle className="text-xs sm:text-sm">Self-Hosted Only</AlertTitle>
-					<AlertDescription className="text-[10px] sm:text-xs pl-0!">
-						This connector requires direct file system access and only works with self-hosted
-						SurfSense installations.
-					</AlertDescription>
-				</div>
+			<Alert className="bg-purple-500/10 dark:bg-purple-500/10 border-purple-500/30 p-2 sm:p-3">
+				<Info className="size-4 shrink-0 text-purple-500" />
+				<AlertTitle className="text-xs sm:text-sm">Self-Hosted Only</AlertTitle>
+				<AlertDescription className="text-[10px] sm:text-xs">
+					This connector requires direct file system access and only works with self-hosted
+					SurfSense installations.
+				</AlertDescription>
 			</Alert>
 
 			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">

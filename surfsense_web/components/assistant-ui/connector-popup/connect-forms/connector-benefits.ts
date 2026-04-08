@@ -23,11 +23,6 @@ export function getConnectorBenefits(connectorType: string): string[] | null {
 			"Real-time information from the web",
 			"Enhanced search capabilities for your projects",
 		],
-		SEARXNG_API: [
-			"Privacy-focused meta-search across multiple engines",
-			"Self-hosted search instance for full control",
-			"Real-time web search results from multiple sources",
-		],
 		LINKUP_API: [
 			"AI-powered search results tailored to your queries",
 			"Real-time information from the web",

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { authenticatedFetch, getBearerToken, handleUnauthorized } from "@/lib/auth-utils";
+import { authenticatedFetch } from "@/lib/auth-utils";
 
 export interface SearchSourceConnector {
 	id: number;
@@ -7,7 +7,7 @@ export interface SearchSourceConnector {
 	connector_type: string;
 	is_indexable: boolean;
 	last_indexed_at: string | null;
-	config: Record<string, any>;
+	config: Record<string, unknown>;
 	search_space_id: number;
 	user_id?: string;
 	created_at?: string;
@@ -20,7 +20,7 @@ export interface ConnectorSourceItem {
 	id: number;
 	name: string;
 	type: string;
-	sources: any[];
+	sources: unknown[];
 }
 
 /**
@@ -59,6 +59,44 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 			sources: [],
 		},
 	]);
+
+	const updateConnectorSourceItems = useCallback((currentConnectors: SearchSourceConnector[]) => {
+		const defaultConnectors: ConnectorSourceItem[] = [
+			{
+				id: 1,
+				name: "Crawled URL",
+				type: "CRAWLED_URL",
+				sources: [],
+			},
+			{
+				id: 2,
+				name: "File",
+				type: "FILE",
+				sources: [],
+			},
+			{
+				id: 3,
+				name: "Extension",
+				type: "EXTENSION",
+				sources: [],
+			},
+			{
+				id: 4,
+				name: "Youtube Video",
+				type: "YOUTUBE_VIDEO",
+				sources: [],
+			},
+		];
+
+		const apiConnectors: ConnectorSourceItem[] = currentConnectors.map((connector, index) => ({
+			id: 1000 + index,
+			name: connector.name,
+			type: connector.connector_type,
+			sources: [],
+		}));
+
+		setConnectorSourceItems([...defaultConnectors, ...apiConnectors]);
+	}, []);
 
 	const fetchConnectors = useCallback(
 		async (spaceId?: number) => {
@@ -100,7 +138,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 				setIsLoading(false);
 			}
 		},
-		[isLoaded, lazy]
+		[isLoaded, lazy, updateConnectorSourceItems]
 	);
 
 	useEffect(() => {
@@ -119,47 +157,6 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 		},
 		[fetchConnectors, searchSpaceId]
 	);
-
-	// Update connector source items when connectors change
-	const updateConnectorSourceItems = (currentConnectors: SearchSourceConnector[]) => {
-		// Start with the default hardcoded connectors
-		const defaultConnectors: ConnectorSourceItem[] = [
-			{
-				id: 1,
-				name: "Crawled URL",
-				type: "CRAWLED_URL",
-				sources: [],
-			},
-			{
-				id: 2,
-				name: "File",
-				type: "FILE",
-				sources: [],
-			},
-			{
-				id: 3,
-				name: "Extension",
-				type: "EXTENSION",
-				sources: [],
-			},
-			{
-				id: 4,
-				name: "Youtube Video",
-				type: "YOUTUBE_VIDEO",
-				sources: [],
-			},
-		];
-
-		// Add the API connectors
-		const apiConnectors: ConnectorSourceItem[] = currentConnectors.map((connector, index) => ({
-			id: 1000 + index, // Use a high ID to avoid conflicts with hardcoded IDs
-			name: connector.name,
-			type: connector.connector_type,
-			sources: [],
-		}));
-
-		setConnectorSourceItems([...defaultConnectors, ...apiConnectors]);
-	};
 
 	/**
 	 * Create a new search source connector
@@ -188,9 +185,11 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 			}
 
 			const newConnector = await response.json();
-			const updatedConnectors = [...connectors, newConnector];
-			setConnectors(updatedConnectors);
-			updateConnectorSourceItems(updatedConnectors);
+			setConnectors((prev) => {
+				const updated = [...prev, newConnector];
+				updateConnectorSourceItems(updated);
+				return updated;
+			});
 			return newConnector;
 		} catch (err) {
 			console.error("Error creating search source connector:", err);
@@ -222,11 +221,11 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 			}
 
 			const updatedConnector = await response.json();
-			const updatedConnectors = connectors.map((connector) =>
-				connector.id === connectorId ? updatedConnector : connector
-			);
-			setConnectors(updatedConnectors);
-			updateConnectorSourceItems(updatedConnectors);
+			setConnectors((prev) => {
+				const updated = prev.map((c) => (c.id === connectorId ? updatedConnector : c));
+				updateConnectorSourceItems(updated);
+				return updated;
+			});
 			return updatedConnector;
 		} catch (err) {
 			console.error("Error updating search source connector:", err);
@@ -251,9 +250,11 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 				throw new Error(`Failed to delete connector: ${response.statusText}`);
 			}
 
-			const updatedConnectors = connectors.filter((connector) => connector.id !== connectorId);
-			setConnectors(updatedConnectors);
-			updateConnectorSourceItems(updatedConnectors);
+			setConnectors((prev) => {
+				const updated = prev.filter((c) => c.id !== connectorId);
+				updateConnectorSourceItems(updated);
+				return updated;
+			});
 		} catch (err) {
 			console.error("Error deleting search source connector:", err);
 			throw err;
@@ -298,15 +299,11 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 			const result = await response.json();
 
 			// Update the connector's last_indexed_at timestamp
-			const updatedConnectors = connectors.map((connector) =>
-				connector.id === connectorId
-					? {
-							...connector,
-							last_indexed_at: new Date().toISOString(),
-						}
-					: connector
+			setConnectors((prev) =>
+				prev.map((c) =>
+					c.id === connectorId ? { ...c, last_indexed_at: new Date().toISOString() } : c
+				)
 			);
-			setConnectors(updatedConnectors);
 
 			return result;
 		} catch (err) {

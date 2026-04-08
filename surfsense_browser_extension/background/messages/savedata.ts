@@ -2,6 +2,7 @@ import type { PlasmoMessaging } from "@plasmohq/messaging";
 import { Storage } from "@plasmohq/storage";
 
 import { emptyArr, webhistoryToLangChainDocument } from "~utils/commons";
+import { buildBackendUrl } from "~utils/backend-url";
 
 const clearMemory = async () => {
 	try {
@@ -130,10 +131,7 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
 				body: JSON.stringify(toSend),
 			};
 
-			const response = await fetch(
-				`${process.env.PLASMO_PUBLIC_BACKEND_URL}/api/v1/documents`,
-				requestOptions
-			);
+			const response = await fetch(await buildBackendUrl("/api/v1/documents"), requestOptions);
 			const resp = await response.json();
 			if (resp) {
 				await clearMemory();

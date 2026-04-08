@@ -7,6 +7,8 @@ export const documentTypeEnum = z.enum([
 	"FILE",
 	"SLACK_CONNECTOR",
 	"TEAMS_CONNECTOR",
+	"ONEDRIVE_FILE",
+	"DROPBOX_FILE",
 	"NOTION_CONNECTOR",
 	"YOUTUBE_VIDEO",
 	"GITHUB_CONNECTOR",
@@ -24,6 +26,7 @@ export const documentTypeEnum = z.enum([
 	"BOOKSTACK_CONNECTOR",
 	"CIRCLEBACK",
 	"OBSIDIAN_CONNECTOR",
+	"LOCAL_FOLDER_FILE",
 	"SURFSENSE_DOCS",
 	"NOTE",
 	"COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
@@ -37,6 +40,7 @@ export const document = z.object({
 	document_type: documentTypeEnum,
 	document_metadata: z.record(z.string(), z.any()),
 	content: z.string(),
+	content_preview: z.string().optional().default(""),
 	content_hash: z.string(),
 	unique_identifier_hash: z.string().nullable(),
 	created_at: z.string(),
@@ -67,6 +71,8 @@ export const documentWithChunks = document.extend({
 			created_at: z.string(),
 		})
 	),
+	total_chunks: z.number().optional().default(0),
+	chunk_start_index: z.number().optional().default(0),
 });
 
 /**
@@ -131,7 +137,8 @@ export const createDocumentRequest = document
 	});
 
 export const createDocumentResponse = z.object({
-	message: z.literal("Documents created successfully"),
+	message: z.literal("Documents queued for background processing"),
+	status: z.literal("queued"),
 });
 
 /**
@@ -240,9 +247,35 @@ export const getDocumentTypeCountsResponse = z.record(z.string(), z.number());
  */
 export const getDocumentByChunkRequest = z.object({
 	chunk_id: z.number(),
+	chunk_window: z.number().optional(),
 });
 
 export const getDocumentByChunkResponse = documentWithChunks;
+
+/**
+ * Get paginated chunks for a document
+ */
+export const getDocumentChunksRequest = z.object({
+	document_id: z.number(),
+	page: z.number().optional().default(0),
+	page_size: z.number().optional().default(20),
+	start_offset: z.number().optional(),
+});
+
+export const chunkRead = z.object({
+	id: z.number(),
+	content: z.string(),
+	document_id: z.number(),
+	created_at: z.string(),
+});
+
+export const getDocumentChunksResponse = z.object({
+	items: z.array(chunkRead),
+	total: z.number(),
+	page: z.number(),
+	page_size: z.number(),
+	has_more: z.boolean(),
+});
 
 /**
  * Get Surfsense docs by chunk
@@ -325,3 +358,6 @@ export type GetSurfsenseDocsByChunkRequest = z.infer<typeof getSurfsenseDocsByCh
 export type GetSurfsenseDocsByChunkResponse = z.infer<typeof getSurfsenseDocsByChunkResponse>;
 export type GetSurfsenseDocsRequest = z.infer<typeof getSurfsenseDocsRequest>;
 export type GetSurfsenseDocsResponse = z.infer<typeof getSurfsenseDocsResponse>;
+export type GetDocumentChunksRequest = z.infer<typeof getDocumentChunksRequest>;
+export type GetDocumentChunksResponse = z.infer<typeof getDocumentChunksResponse>;
+export type ChunkRead = z.infer<typeof chunkRead>;

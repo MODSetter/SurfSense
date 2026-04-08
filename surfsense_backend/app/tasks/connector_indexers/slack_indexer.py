@@ -256,7 +256,7 @@ async def index_slack_messages(
                 f"No Slack channels found for connector {connector_id}",
                 {"channels_found": 0},
             )
-            # CRITICAL: Update timestamp even when no channels found so Electric SQL syncs
+            # CRITICAL: Update timestamp even when no channels found so Zero syncs
             await update_connector_last_indexed(session, connector, update_last_indexed)
             await session.commit()
             return 0, None  # Return None (not error) when no channels found
@@ -564,7 +564,7 @@ async def index_slack_messages(
                     "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "connector_id": connector_id,
                 }
-                safe_set_chunks(document, chunks)
+                await safe_set_chunks(session, document, chunks)
                 document.updated_at = get_current_timestamp()
                 document.status = DocumentStatus.ready()
 
@@ -593,7 +593,7 @@ async def index_slack_messages(
                 documents_failed += 1
                 continue
 
-        # CRITICAL: Always update timestamp (even if 0 documents indexed) so Electric SQL syncs
+        # CRITICAL: Always update timestamp (even if 0 documents indexed) so Zero syncs
         await update_connector_last_indexed(session, connector, update_last_indexed)
 
         # Final commit for any remaining documents not yet committed in batches

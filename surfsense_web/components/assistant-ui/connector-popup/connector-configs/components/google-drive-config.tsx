@@ -10,8 +10,7 @@ import {
 	X,
 } from "lucide-react";
 import type { FC } from "react";
-import { useEffect, useState } from "react";
-import { GoogleDriveFolderTree } from "@/components/connectors/google-drive-folder-tree";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -21,10 +20,12 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
+import { type PickerResult, useGooglePicker } from "@/hooks/use-google-picker";
 import type { ConnectorConfigProps } from "../index";
 
-interface SelectedFolder {
+interface SelectedItem {
 	id: string;
 	name: string;
 }
@@ -41,27 +42,23 @@ const DEFAULT_INDEXING_OPTIONS: IndexingOptions = {
 	include_subfolders: true,
 };
 
-// Helper to get appropriate icon for file type based on file name
 function getFileIconFromName(fileName: string, className: string = "size-3.5 shrink-0") {
 	const lowerName = fileName.toLowerCase();
-	// Spreadsheets
 	if (
 		lowerName.endsWith(".xlsx") ||
 		lowerName.endsWith(".xls") ||
 		lowerName.endsWith(".csv") ||
 		lowerName.includes("spreadsheet")
 	) {
-		return <FileSpreadsheet className={`${className} text-green-500`} />;
+		return <FileSpreadsheet className={`${className} text-muted-foreground`} />;
 	}
-	// Presentations
 	if (
 		lowerName.endsWith(".pptx") ||
 		lowerName.endsWith(".ppt") ||
 		lowerName.includes("presentation")
 	) {
-		return <Presentation className={`${className} text-orange-500`} />;
+		return <Presentation className={`${className} text-muted-foreground`} />;
 	}
-	// Documents (word, text only - not PDF)
 	if (
 		lowerName.endsWith(".docx") ||
 		lowerName.endsWith(".doc") ||
@@ -70,9 +67,8 @@ function getFileIconFromName(fileName: string, className: string = "size-3.5 shr
 		lowerName.includes("word") ||
 		lowerName.includes("text")
 	) {
-		return <FileText className={`${className} text-gray-500`} />;
+		return <FileText className={`${className} text-muted-foreground`} />;
 	}
-	// Images
 	if (
 		lowerName.endsWith(".png") ||
 		lowerName.endsWith(".jpg") ||
@@ -81,40 +77,24 @@ function getFileIconFromName(fileName: string, className: string = "size-3.5 shr
 		lowerName.endsWith(".webp") ||
 		lowerName.endsWith(".svg")
 	) {
-		return <Image className={`${className} text-purple-500`} />;
+		return <Image className={`${className} text-muted-foreground`} />;
 	}
-	// Default (including PDF)
-	return <File className={`${className} text-gray-500`} />;
+	return <File className={`${className} text-muted-foreground`} />;
 }
 
 export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigChange }) => {
-	// Initialize with existing selected folders and files from connector config
-	const existingFolders =
-		(connector.config?.selected_folders as SelectedFolder[] | undefined) || [];
-	const existingFiles = (connector.config?.selected_files as SelectedFolder[] | undefined) || [];
+	const existingFolders = (connector.config?.selected_folders as SelectedItem[] | undefined) || [];
+	const existingFiles = (connector.config?.selected_files as SelectedItem[] | undefined) || [];
 	const existingIndexingOptions =
 		(connector.config?.indexing_options as IndexingOptions | undefined) || DEFAULT_INDEXING_OPTIONS;
 
-	const [selectedFolders, setSelectedFolders] = useState<SelectedFolder[]>(existingFolders);
-	const [selectedFiles, setSelectedFiles] = useState<SelectedFolder[]>(existingFiles);
-	const [showFolderSelector, setShowFolderSelector] = useState(false);
+	const [selectedFolders, setSelectedFolders] = useState<SelectedItem[]>(existingFolders);
+	const [selectedFiles, setSelectedFiles] = useState<SelectedItem[]>(existingFiles);
 	const [indexingOptions, setIndexingOptions] = useState<IndexingOptions>(existingIndexingOptions);
 
-	// Update selected folders and files when connector config changes
-	useEffect(() => {
-		const folders = (connector.config?.selected_folders as SelectedFolder[] | undefined) || [];
-		const files = (connector.config?.selected_files as SelectedFolder[] | undefined) || [];
-		const options =
-			(connector.config?.indexing_options as IndexingOptions | undefined) ||
-			DEFAULT_INDEXING_OPTIONS;
-		setSelectedFolders(folders);
-		setSelectedFiles(files);
-		setIndexingOptions(options);
-	}, [connector.config]);
-
 	const updateConfig = (
-		folders: SelectedFolder[],
-		files: SelectedFolder[],
+		folders: SelectedItem[],
+		files: SelectedItem[],
 		options: IndexingOptions
 	) => {
 		if (onConfigChange) {
@@ -127,15 +107,30 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 		}
 	};
 
-	const handleSelectFolders = (folders: SelectedFolder[]) => {
-		setSelectedFolders(folders);
-		updateConfig(folders, selectedFiles, indexingOptions);
-	};
+	const handlePicked = useCallback(
+		(result: PickerResult) => {
+			const folders = result.folders.map((f) => ({ id: f.id, name: f.name }));
+			const files = result.files.map((f) => ({ id: f.id, name: f.name }));
+			setSelectedFolders(folders);
+			setSelectedFiles(files);
+			updateConfig(folders, files, indexingOptions);
+		},
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[indexingOptions, connector.config]
+	);
 
-	const handleSelectFiles = (files: SelectedFolder[]) => {
-		setSelectedFiles(files);
-		updateConfig(selectedFolders, files, indexingOptions);
-	};
+	const {
+		openPicker,
+		loading: pickerLoading,
+		error: pickerError,
+	} = useGooglePicker({
+		connectorId: connector.id,
+		onPicked: handlePicked,
+	});
+
+	const isAuthExpired =
+		connector.config?.auth_expired === true ||
+		(!!pickerError && pickerError.toLowerCase().includes("authentication expired"));
 
 	const handleIndexingOptionChange = (key: keyof IndexingOptions, value: number | boolean) => {
 		const newOptions = { ...indexingOptions, [key]: value };
@@ -144,13 +139,13 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 	};
 
 	const handleRemoveFolder = (folderId: string) => {
-		const newFolders = selectedFolders.filter((folder) => folder.id !== folderId);
+		const newFolders = selectedFolders.filter((f) => f.id !== folderId);
 		setSelectedFolders(newFolders);
 		updateConfig(newFolders, selectedFiles, indexingOptions);
 	};
 
 	const handleRemoveFile = (fileId: string) => {
-		const newFiles = selectedFiles.filter((file) => file.id !== fileId);
+		const newFiles = selectedFiles.filter((f) => f.id !== fileId);
 		setSelectedFiles(newFiles);
 		updateConfig(selectedFolders, newFiles, indexingOptions);
 	};
@@ -191,7 +186,7 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 									className="text-xs sm:text-sm text-muted-foreground truncate flex items-center gap-1.5"
 									title={folder.name}
 								>
-									<FolderClosed className="size-3.5 shrink-0 text-gray-500" />
+									<FolderClosed className="size-3.5 shrink-0 text-muted-foreground" />
 									<span className="flex-1 truncate">{folder.name}</span>
 									<button
 										type="button"
@@ -225,34 +220,22 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 					</div>
 				)}
 
-				{showFolderSelector ? (
-					<div className="space-y-2 sm:space-y-3">
-						<GoogleDriveFolderTree
-							connectorId={connector.id}
-							selectedFolders={selectedFolders}
-							onSelectFolders={handleSelectFolders}
-							selectedFiles={selectedFiles}
-							onSelectFiles={handleSelectFiles}
-						/>
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							onClick={() => setShowFolderSelector(false)}
-							className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-white/10 text-xs sm:text-sm h-8 sm:h-9"
-						>
-							Done Selecting
-						</Button>
-					</div>
-				) : (
-					<Button
-						type="button"
-						variant="outline"
-						onClick={() => setShowFolderSelector(true)}
-						className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-white/10 text-xs sm:text-sm h-8 sm:h-9"
-					>
-						{totalSelected > 0 ? "Change Selection" : "Select Folders & Files"}
-					</Button>
+				<Button
+					type="button"
+					variant="outline"
+					onClick={openPicker}
+					disabled={pickerLoading || isAuthExpired}
+					className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-white/10 text-xs sm:text-sm h-8 sm:h-9"
+				>
+					{pickerLoading && <Spinner size="xs" className="mr-1.5" />}
+					{totalSelected > 0 ? "Change Selection" : "Select from Google Drive"}
+				</Button>
+
+				{isAuthExpired && (
+					<p className="text-xs text-amber-600 dark:text-amber-500">
+						Your Google Drive authentication has expired. Please re-authenticate using the button
+						below.
+					</p>
 				)}
 			</div>
 

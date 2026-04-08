@@ -15,13 +15,10 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgresql.conf:/etc/postgresql/postgresql.conf:ro
-      - ./scripts/init-electric-user.sh:/docker-entrypoint-initdb.d/init-electric-user.sh:ro
     environment:
       POSTGRES_USER: ${DB_USER:-surfsense}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-surfsense}
       POSTGRES_DB: ${DB_NAME:-surfsense}
-      ELECTRIC_DB_USER: ${ELECTRIC_DB_USER:-electric}
-      ELECTRIC_DB_PASSWORD: ${ELECTRIC_DB_PASSWORD:-electric_password}
     command: postgres -c config_file=/etc/postgresql/postgresql.conf
     restart: unless-stopped
     healthcheck:
@@ -42,10 +39,23 @@ services:
       timeout: 5s
       retries: 5
 
+  searxng:
+    image: searxng/searxng:2026.3.13-3c1f68c59
+    volumes:
+      - ./searxng:/etc/searxng
+    environment:
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-surfsense-searxng-secret}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     image: ghcr.io/modsetter/surfsense-backend:${SURFSENSE_VERSION:-latest}
     ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      - "${BACKEND_PORT:-8929}:8000"
     volumes:
       - shared_temp:/shared_tmp
     env_file:
@@ -59,9 +69,8 @@ services:
       PYTHONPATH: /app
       UVICORN_LOOP: asyncio
       UNSTRUCTURED_HAS_PATCHED_LOOP: "1"
-      ELECTRIC_DB_USER: ${ELECTRIC_DB_USER:-electric}
-      ELECTRIC_DB_PASSWORD: ${ELECTRIC_DB_PASSWORD:-electric_password}
-      NEXT_FRONTEND_URL: ${NEXT_FRONTEND_URL:-http://localhost:${FRONTEND_PORT:-3000}}
+      NEXT_FRONTEND_URL: ${NEXT_FRONTEND_URL:-http://localhost:${FRONTEND_PORT:-3929}}
+      SEARXNG_DEFAULT_HOST: ${SEARXNG_DEFAULT_HOST:-http://searxng:8080}
       # Daytona Sandbox – uncomment and set credentials to enable cloud code execution
       # DAYTONA_SANDBOX_ENABLED: "TRUE"
       # DAYTONA_API_KEY: ${DAYTONA_API_KEY:-}
@@ -74,6 +83,8 @@ services:
       db:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      searxng:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -96,8 +107,7 @@ services:
       REDIS_APP_URL: ${REDIS_URL:-redis://redis:6379/0}
       CELERY_TASK_DEFAULT_QUEUE: surfsense
       PYTHONPATH: /app
-      ELECTRIC_DB_USER: ${ELECTRIC_DB_USER:-electric}
-      ELECTRIC_DB_PASSWORD: ${ELECTRIC_DB_PASSWORD:-electric_password}
+      SEARXNG_DEFAULT_HOST: ${SEARXNG_DEFAULT_HOST:-http://searxng:8080}
       SERVICE_ROLE: worker
     depends_on:
       db:
@@ -148,20 +158,32 @@ services:
   #     - celery_worker
   #   restart: unless-stopped
 
-  electric:
-    image: electricsql/electric:1.4.10
+  zero-cache:
+    image: rocicorp/zero:0.26.2
     ports:
-      - "${ELECTRIC_PORT:-5133}:3000"
+      - "${ZERO_CACHE_PORT:-5929}:4848"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
-      DATABASE_URL: ${ELECTRIC_DATABASE_URL:-postgresql://${ELECTRIC_DB_USER:-electric}:${ELECTRIC_DB_PASSWORD:-electric_password}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}?sslmode=${DB_SSLMODE:-disable}}
-      ELECTRIC_INSECURE: "true"
-      ELECTRIC_WRITE_TO_PG_MODE: direct
+      ZERO_UPSTREAM_DB: ${ZERO_UPSTREAM_DB:-postgresql://${DB_USER:-surfsense}:${DB_PASSWORD:-surfsense}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}?sslmode=${DB_SSLMODE:-disable}}
+      ZERO_CVR_DB: ${ZERO_CVR_DB:-postgresql://${DB_USER:-surfsense}:${DB_PASSWORD:-surfsense}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}?sslmode=${DB_SSLMODE:-disable}}
+      ZERO_CHANGE_DB: ${ZERO_CHANGE_DB:-postgresql://${DB_USER:-surfsense}:${DB_PASSWORD:-surfsense}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}?sslmode=${DB_SSLMODE:-disable}}
+      ZERO_REPLICA_FILE: /data/zero.db
+      ZERO_ADMIN_PASSWORD: ${ZERO_ADMIN_PASSWORD:-surfsense-zero-admin}
+      ZERO_APP_PUBLICATIONS: ${ZERO_APP_PUBLICATIONS:-zero_publication}
+      ZERO_NUM_SYNC_WORKERS: ${ZERO_NUM_SYNC_WORKERS:-4}
+      ZERO_UPSTREAM_MAX_CONNS: ${ZERO_UPSTREAM_MAX_CONNS:-20}
+      ZERO_CVR_MAX_CONNS: ${ZERO_CVR_MAX_CONNS:-30}
+      ZERO_QUERY_URL: ${ZERO_QUERY_URL:-http://frontend:3000/api/zero/query}
+      ZERO_MUTATE_URL: ${ZERO_MUTATE_URL:-http://frontend:3000/api/zero/mutate}
+    volumes:
+      - zero_cache_data:/data
     restart: unless-stopped
     depends_on:
-      db:
+      backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/v1/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:4848/keepalive"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -169,20 +191,19 @@ services:
   frontend:
     image: ghcr.io/modsetter/surfsense-web:${SURFSENSE_VERSION:-latest}
     ports:
-      - "${FRONTEND_PORT:-3000}:3000"
+      - "${FRONTEND_PORT:-3929}:3000"
     environment:
-      NEXT_PUBLIC_FASTAPI_BACKEND_URL: ${NEXT_PUBLIC_FASTAPI_BACKEND_URL:-http://localhost:${BACKEND_PORT:-8000}}
-      NEXT_PUBLIC_ELECTRIC_URL: ${NEXT_PUBLIC_ELECTRIC_URL:-http://localhost:${ELECTRIC_PORT:-5133}}
+      NEXT_PUBLIC_FASTAPI_BACKEND_URL: ${NEXT_PUBLIC_FASTAPI_BACKEND_URL:-http://localhost:${BACKEND_PORT:-8929}}
+      NEXT_PUBLIC_ZERO_CACHE_URL: ${NEXT_PUBLIC_ZERO_CACHE_URL:-http://localhost:${ZERO_CACHE_PORT:-5929}}
       NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE: ${AUTH_TYPE:-LOCAL}
       NEXT_PUBLIC_ETL_SERVICE: ${ETL_SERVICE:-DOCLING}
       NEXT_PUBLIC_DEPLOYMENT_MODE: ${DEPLOYMENT_MODE:-self-hosted}
-      NEXT_PUBLIC_ELECTRIC_AUTH_MODE: ${NEXT_PUBLIC_ELECTRIC_AUTH_MODE:-insecure}
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     depends_on:
       backend:
         condition: service_healthy
-      electric:
+      zero-cache:
         condition: service_healthy
     restart: unless-stopped
 
@@ -193,3 +214,5 @@ volumes:
     name: surfsense-redis
   shared_temp:
     name: surfsense-shared-temp
+  zero_cache_data:
+    name: surfsense-zero-cache

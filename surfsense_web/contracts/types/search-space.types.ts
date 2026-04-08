@@ -49,7 +49,12 @@ export const getSearchSpaceResponse = searchSpace.omit({ member_count: true, is_
 export const updateSearchSpaceRequest = z.object({
 	id: z.number(),
 	data: searchSpace
-		.pick({ name: true, description: true, citations_enabled: true, qna_custom_instructions: true })
+		.pick({
+			name: true,
+			description: true,
+			citations_enabled: true,
+			qna_custom_instructions: true,
+		})
 		.partial(),
 });
 

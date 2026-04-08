@@ -2,7 +2,7 @@
 
 import { Info, KeyRound } from "lucide-react";
 import type { FC } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ConnectorConfigProps } from "../index";
@@ -27,19 +27,6 @@ export const ConfluenceConfig: FC<ConfluenceConfigProps> = ({
 		(connector.config?.CONFLUENCE_API_TOKEN as string) || ""
 	);
 	const [name, setName] = useState<string>(connector.name || "");
-
-	// Update values when connector changes (only for legacy connectors)
-	useEffect(() => {
-		if (!isOAuth) {
-			const url = (connector.config?.CONFLUENCE_BASE_URL as string) || "";
-			const emailVal = (connector.config?.CONFLUENCE_EMAIL as string) || "";
-			const token = (connector.config?.CONFLUENCE_API_TOKEN as string) || "";
-			setBaseUrl(url);
-			setEmail(emailVal);
-			setApiToken(token);
-		}
-		setName(connector.name || "");
-	}, [connector.config, connector.name, isOAuth]);
 
 	const handleBaseUrlChange = (value: string) => {
 		setBaseUrl(value);

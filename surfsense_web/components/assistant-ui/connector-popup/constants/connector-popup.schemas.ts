@@ -2,24 +2,6 @@ import { z } from "zod";
 import { searchSourceConnectorTypeEnum } from "@/contracts/types/connector.types";
 
 /**
- * Schema for URL query parameters used by the connector popup
- */
-export const connectorPopupQueryParamsSchema = z.object({
-	modal: z.enum(["connectors"]).optional(),
-	tab: z.enum(["all", "active"]).optional(),
-	view: z
-		.enum(["configure", "edit", "connect", "youtube", "accounts", "mcp-list", "composio"])
-		.optional(),
-	connector: z.string().optional(),
-	connectorId: z.string().optional(),
-	connectorType: z.string().optional(),
-	success: z.enum(["true", "false"]).optional(),
-	error: z.string().optional(),
-});
-
-export type ConnectorPopupQueryParams = z.infer<typeof connectorPopupQueryParamsSchema>;
-
-/**
  * Schema for OAuth API response (auth_url)
  */
 export const oauthAuthResponseSchema = z.object({
@@ -72,30 +54,9 @@ export const dateRangeSchema = z
 export type DateRange = z.infer<typeof dateRangeSchema>;
 
 /**
- * Schema for connector ID validation (used in URL params)
+ * Schema for connector ID validation
  */
 export const connectorIdSchema = z.string().min(1, "Connector ID is required");
-
-/**
- * Helper function to safely parse query params
- */
-export function parseConnectorPopupQueryParams(
-	params: URLSearchParams | Record<string, string | null>
-): ConnectorPopupQueryParams {
-	const obj: Record<string, string | undefined> = {};
-
-	if (params instanceof URLSearchParams) {
-		params.forEach((value, key) => {
-			obj[key] = value || undefined;
-		});
-	} else {
-		Object.entries(params).forEach(([key, value]) => {
-			obj[key] = value || undefined;
-		});
-	}
-
-	return connectorPopupQueryParamsSchema.parse(obj);
-}
 
 /**
  * Helper function to safely parse OAuth response

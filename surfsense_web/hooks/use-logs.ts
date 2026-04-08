@@ -13,7 +13,7 @@ export interface Log {
 	status: LogStatus;
 	message: string;
 	source?: string;
-	log_metadata?: Record<string, any>;
+	log_metadata?: Record<string, unknown>;
 	created_at: string;
 	search_space_id: number;
 }
@@ -52,8 +52,9 @@ export interface LogSummary {
 }
 
 export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
-	// Memoize filters to prevent infinite re-renders
-	const memoizedFilters = useMemo(() => filters, [JSON.stringify(filters)]);
+	const filtersKey = JSON.stringify(filters);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: stable serialized key used intentionally
+	const memoizedFilters = useMemo(() => filters, [filtersKey]);
 
 	const buildQueryParams = useCallback(
 		(customFilters: LogFilters = {}) => {
@@ -62,22 +63,22 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 			const allFilters = { ...memoizedFilters, ...customFilters };
 
 			if (allFilters.search_space_id) {
-				params["search_space_id"] = allFilters.search_space_id.toString();
+				params.search_space_id = allFilters.search_space_id.toString();
 			}
 			if (allFilters.level) {
-				params["level"] = allFilters.level;
+				params.level = allFilters.level;
 			}
 			if (allFilters.status) {
-				params["status"] = allFilters.status;
+				params.status = allFilters.status;
 			}
 			if (allFilters.source) {
-				params["source"] = allFilters.source;
+				params.source = allFilters.source;
 			}
 			if (allFilters.start_date) {
-				params["start_date"] = allFilters.start_date;
+				params.start_date = allFilters.start_date;
 			}
 			if (allFilters.end_date) {
-				params["end_date"] = allFilters.end_date;
+				params.end_date = allFilters.end_date;
 			}
 
 			return params;

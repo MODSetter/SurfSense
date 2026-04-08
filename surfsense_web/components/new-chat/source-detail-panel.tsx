@@ -1,16 +1,26 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, ChevronDown, ExternalLink, FileText, Hash, Sparkles, X } from "lucide-react";
+import {
+	BookOpen,
+	ChevronDown,
+	ChevronUp,
+	ExternalLink,
+	FileQuestionMark,
+	FileText,
+	Hash,
+	Loader2,
+	Sparkles,
+	X,
+} from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useTranslations } from "next-intl";
 import type React from "react";
-import { forwardRef, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { forwardRef, memo, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 import type {
@@ -48,59 +58,61 @@ const formatDocumentType = (type: string) => {
 // which break auto-scroll functionality
 interface ChunkCardProps {
 	chunk: { id: number; content: string };
-	index: number;
+	localIndex: number;
+	chunkNumber: number;
 	totalChunks: number;
 	isCited: boolean;
 	isActive: boolean;
 	disableLayoutAnimation?: boolean;
 }
 
-const ChunkCard = forwardRef<HTMLDivElement, ChunkCardProps>(
-	({ chunk, index, totalChunks, isCited }, ref) => {
-		return (
-			<div
-				ref={ref}
-				data-chunk-index={index}
-				className={cn(
-					"group relative rounded-2xl border-2 transition-all duration-300",
-					isCited
-						? "bg-linear-to-br from-primary/5 via-primary/10 to-primary/5 border-primary shadow-lg shadow-primary/10"
-						: "bg-card border-border/50 hover:border-border hover:shadow-md"
-				)}
-			>
-				{/* Cited indicator glow effect */}
-				{isCited && <div className="absolute inset-0 rounded-2xl bg-primary/5 blur-xl -z-10" />}
-
-				{/* Header */}
-				<div className="flex items-center justify-between px-5 py-4 border-b border-border/50">
-					<div className="flex items-center gap-3">
-						<div
-							className={cn(
-								"flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors",
-								isCited
-									? "bg-primary text-primary-foreground"
-									: "bg-muted text-muted-foreground group-hover:bg-muted/80"
-							)}
-						>
-							{index + 1}
-						</div>
-						<span className="text-sm text-muted-foreground">of {totalChunks} chunks</span>
-					</div>
-					{isCited && (
-						<Badge variant="default" className="gap-1.5 px-3 py-1">
-							<Sparkles className="h-3 w-3" />
-							Cited Source
-						</Badge>
+const ChunkCard = memo(
+	forwardRef<HTMLDivElement, ChunkCardProps>(
+		({ chunk, localIndex, chunkNumber, totalChunks, isCited }, ref) => {
+			return (
+				<div
+					ref={ref}
+					data-chunk-index={localIndex}
+					className={cn(
+						"group relative rounded-2xl border-2 transition-all duration-300",
+						isCited
+							? "bg-linear-to-br from-primary/5 via-primary/10 to-primary/5 border-primary shadow-lg shadow-primary/10"
+							: "bg-card border-border/50 hover:border-border hover:shadow-md"
 					)}
-				</div>
+				>
+					{isCited && <div className="absolute inset-0 rounded-2xl bg-primary/5 blur-xl -z-10" />}
 
-				{/* Content */}
-				<div className="p-5 overflow-hidden">
-					<MarkdownViewer content={chunk.content} />
+					<div className="flex items-center justify-between px-5 py-4 border-b border-border/50">
+						<div className="flex items-center gap-3">
+							<div
+								className={cn(
+									"flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors",
+									isCited
+										? "bg-primary text-primary-foreground"
+										: "bg-muted text-muted-foreground group-hover:bg-muted/80"
+								)}
+							>
+								{chunkNumber}
+							</div>
+							<span className="text-sm text-muted-foreground">
+								Chunk {chunkNumber} of {totalChunks}
+							</span>
+						</div>
+						{isCited && (
+							<Badge variant="default" className="gap-1.5 px-3 py-1">
+								<Sparkles className="h-3 w-3" />
+								Cited Source
+							</Badge>
+						)}
+					</div>
+
+					<div className="p-5 overflow-hidden">
+						<MarkdownViewer content={chunk.content} maxLength={100_000} />
+					</div>
 				</div>
-			</div>
-		);
-	}
+			);
+		}
+	)
 );
 ChunkCard.displayName = "ChunkCard";
 
@@ -118,7 +130,6 @@ export function SourceDetailPanel({
 	const t = useTranslations("dashboard");
 	const scrollAreaRef = useRef<HTMLDivElement>(null);
 	const hasScrolledRef = useRef(false); // Use ref to avoid stale closures
-	const [summaryOpen, setSummaryOpen] = useState(false);
 	const [activeChunkIndex, setActiveChunkIndex] = useState<number | null>(null);
 	const [mounted, setMounted] = useState(false);
 	const [_hasScrolledToCited, setHasScrolledToCited] = useState(false);
@@ -140,11 +151,85 @@ export function SourceDetailPanel({
 			if (isDocsChunk) {
 				return documentsApiService.getSurfsenseDocByChunk(chunkId);
 			}
-			return documentsApiService.getDocumentByChunk({ chunk_id: chunkId });
+			return documentsApiService.getDocumentByChunk({ chunk_id: chunkId, chunk_window: 5 });
 		},
 		enabled: !!chunkId && open,
 		staleTime: 5 * 60 * 1000,
 	});
+
+	const totalChunks =
+		documentData && "total_chunks" in documentData
+			? (documentData.total_chunks ?? documentData.chunks.length)
+			: (documentData?.chunks?.length ?? 0);
+	const [beforeChunks, setBeforeChunks] = useState<
+		Array<{ id: number; content: string; created_at: string }>
+	>([]);
+	const [afterChunks, setAfterChunks] = useState<
+		Array<{ id: number; content: string; created_at: string }>
+	>([]);
+	const [loadingBefore, setLoadingBefore] = useState(false);
+	const [loadingAfter, setLoadingAfter] = useState(false);
+
+	useEffect(() => {
+		setBeforeChunks([]);
+		setAfterChunks([]);
+	}, [chunkId, open]);
+
+	const chunkStartIndex =
+		documentData && "chunk_start_index" in documentData ? (documentData.chunk_start_index ?? 0) : 0;
+	const initialChunks = documentData?.chunks ?? [];
+	const allChunks = [...beforeChunks, ...initialChunks, ...afterChunks];
+	const absoluteStart = chunkStartIndex - beforeChunks.length;
+	const absoluteEnd = chunkStartIndex + initialChunks.length + afterChunks.length;
+	const canLoadBefore = absoluteStart > 0;
+	const canLoadAfter = absoluteEnd < totalChunks;
+
+	const EXPAND_SIZE = 10;
+
+	const loadBefore = useCallback(async () => {
+		if (!documentData || !("search_space_id" in documentData) || !canLoadBefore) return;
+		setLoadingBefore(true);
+		try {
+			const count = Math.min(EXPAND_SIZE, absoluteStart);
+			const result = await documentsApiService.getDocumentChunks({
+				document_id: documentData.id,
+				page: 0,
+				page_size: count,
+				start_offset: absoluteStart - count,
+			});
+			const existingIds = new Set(allChunks.map((c) => c.id));
+			const newChunks = result.items
+				.filter((c) => !existingIds.has(c.id))
+				.map((c) => ({ id: c.id, content: c.content, created_at: c.created_at }));
+			setBeforeChunks((prev) => [...newChunks, ...prev]);
+		} catch (err) {
+			console.error("Failed to load earlier chunks:", err);
+		} finally {
+			setLoadingBefore(false);
+		}
+	}, [documentData, absoluteStart, canLoadBefore, allChunks]);
+
+	const loadAfter = useCallback(async () => {
+		if (!documentData || !("search_space_id" in documentData) || !canLoadAfter) return;
+		setLoadingAfter(true);
+		try {
+			const result = await documentsApiService.getDocumentChunks({
+				document_id: documentData.id,
+				page: 0,
+				page_size: EXPAND_SIZE,
+				start_offset: absoluteEnd,
+			});
+			const existingIds = new Set(allChunks.map((c) => c.id));
+			const newChunks = result.items
+				.filter((c) => !existingIds.has(c.id))
+				.map((c) => ({ id: c.id, content: c.content, created_at: c.created_at }));
+			setAfterChunks((prev) => [...prev, ...newChunks]);
+		} catch (err) {
+			console.error("Failed to load later chunks:", err);
+		} finally {
+			setLoadingAfter(false);
+		}
+	}, [documentData, absoluteEnd, canLoadAfter, allChunks]);
 
 	const isDirectRenderSource =
 		sourceType === "TAVILY_API" ||
@@ -152,8 +237,7 @@ export function SourceDetailPanel({
 		sourceType === "SEARXNG_API" ||
 		sourceType === "BAIDU_SEARCH_API";
 
-	// Find cited chunk index
-	const citedChunkIndex = documentData?.chunks?.findIndex((chunk) => chunk.id === chunkId) ?? -1;
+	const citedChunkIndex = allChunks.findIndex((chunk) => chunk.id === chunkId);
 
 	// Simple scroll function that scrolls to a chunk by index
 	const scrollToChunkByIndex = useCallback(
@@ -336,10 +420,10 @@ export function SourceDetailPanel({
 									{documentData && "document_type" in documentData
 										? formatDocumentType(documentData.document_type)
 										: sourceType && formatDocumentType(sourceType)}
-									{documentData?.chunks && (
+									{totalChunks > 0 && (
 										<span className="ml-2">
-											• {documentData.chunks.length} chunk
-											{documentData.chunks.length !== 1 ? "s" : ""}
+											• {totalChunks} chunk{totalChunks !== 1 ? "s" : ""}
+											{allChunks.length < totalChunks && ` (showing ${allChunks.length})`}
 										</span>
 									)}
 								</p>
@@ -392,13 +476,11 @@ export function SourceDetailPanel({
 									animate={{ opacity: 1, scale: 1 }}
 									className="flex flex-col items-center gap-4 text-center px-6"
 								>
-									<div className="w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center">
-										<X className="h-10 w-10 text-destructive" />
+									<div className="w-20 h-20 rounded-full bg-muted/50 flex items-center justify-center">
+										<FileQuestionMark className="h-10 w-10 text-muted-foreground" />
 									</div>
 									<div>
-										<p className="font-semibold text-destructive text-lg">
-											Failed to load document
-										</p>
+										<p className="font-semibold text-foreground text-lg">Document unavailable</p>
 										<p className="text-sm text-muted-foreground mt-2 max-w-md">
 											{documentByChunkFetchingError.message ||
 												"An unexpected error occurred. Please try again."}
@@ -450,7 +532,7 @@ export function SourceDetailPanel({
 						{!isDirectRenderSource && documentData && (
 							<div className="flex-1 flex overflow-hidden">
 								{/* Chunk Navigation Sidebar */}
-								{documentData.chunks.length > 1 && (
+								{allChunks.length > 1 && (
 									<motion.div
 										initial={{ opacity: 0, x: -20 }}
 										animate={{ opacity: 1, x: 0 }}
@@ -459,7 +541,8 @@ export function SourceDetailPanel({
 									>
 										<ScrollArea className="flex-1 h-full">
 											<div className="p-2 pt-3 flex flex-col gap-1.5">
-												{documentData.chunks.map((chunk, idx) => {
+												{allChunks.map((chunk, idx) => {
+													const absNum = absoluteStart + idx + 1;
 													const isCited = chunk.id === chunkId;
 													const isActive = activeChunkIndex === idx;
 													return (
@@ -478,9 +561,9 @@ export function SourceDetailPanel({
 																		? "bg-muted text-foreground"
 																		: "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
 															)}
-															title={isCited ? `Chunk ${idx + 1} (Cited)` : `Chunk ${idx + 1}`}
+															title={isCited ? `Chunk ${absNum} (Cited)` : `Chunk ${absNum}`}
 														>
-															{idx + 1}
+															{absNum}
 															{isCited && (
 																<span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 bg-primary rounded-full border-2 border-background shadow-sm">
 																	<Sparkles className="h-2.5 w-2.5 text-primary-foreground" />
@@ -524,44 +607,11 @@ export function SourceDetailPanel({
 												</motion.div>
 											)}
 
-										{/* Summary Collapsible */}
-										{documentData.content && (
-											<motion.div
-												initial={{ opacity: 0, y: 10 }}
-												animate={{ opacity: 1, y: 0 }}
-												transition={{ delay: 0.15 }}
-											>
-												<Collapsible open={summaryOpen} onOpenChange={setSummaryOpen}>
-													<CollapsibleTrigger className="w-full flex items-center justify-between p-5 rounded-2xl bg-linear-to-r from-muted/50 to-muted/30 border hover:from-muted/70 hover:to-muted/50 transition-all duration-200">
-														<span className="font-semibold flex items-center gap-2">
-															<BookOpen className="h-4 w-4" />
-															Document Summary
-														</span>
-														<motion.div
-															animate={{ rotate: summaryOpen ? 180 : 0 }}
-															transition={{ duration: 0.2 }}
-														>
-															<ChevronDown className="h-5 w-5 text-muted-foreground" />
-														</motion.div>
-													</CollapsibleTrigger>
-													<CollapsibleContent>
-														<motion.div
-															initial={{ opacity: 0 }}
-															animate={{ opacity: 1 }}
-															className="mt-3 p-5 bg-muted/20 rounded-2xl border"
-														>
-															<MarkdownViewer content={documentData.content} />
-														</motion.div>
-													</CollapsibleContent>
-												</Collapsible>
-											</motion.div>
-										)}
-
 										{/* Chunks Header */}
-										<div className="flex items-center justify-between pt-4">
+										<div className="flex items-center justify-between pt-2">
 											<h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
 												<Hash className="h-4 w-4" />
-												Content Chunks
+												Chunks {absoluteStart + 1}–{absoluteEnd} of {totalChunks}
 											</h3>
 											{citedChunkIndex !== -1 && (
 												<Button
@@ -576,24 +626,70 @@ export function SourceDetailPanel({
 											)}
 										</div>
 
+										{/* Load Earlier */}
+										{canLoadBefore && (
+											<div className="flex items-center justify-center">
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={loadBefore}
+													disabled={loadingBefore}
+													className="gap-2"
+												>
+													{loadingBefore ? (
+														<Loader2 className="h-3.5 w-3.5 animate-spin" />
+													) : (
+														<ChevronUp className="h-3.5 w-3.5" />
+													)}
+													{loadingBefore
+														? "Loading..."
+														: `Load ${Math.min(EXPAND_SIZE, absoluteStart)} earlier chunks`}
+												</Button>
+											</div>
+										)}
+
 										{/* Chunks */}
 										<div className="space-y-4">
-											{documentData.chunks.map((chunk, idx) => {
+											{allChunks.map((chunk, idx) => {
 												const isCited = chunk.id === chunkId;
+												const chunkNumber = absoluteStart + idx + 1;
 												return (
 													<ChunkCard
 														key={chunk.id}
 														ref={isCited ? citedChunkRefCallback : undefined}
 														chunk={chunk}
-														index={idx}
-														totalChunks={documentData.chunks.length}
+														localIndex={idx}
+														chunkNumber={chunkNumber}
+														totalChunks={totalChunks}
 														isCited={isCited}
 														isActive={activeChunkIndex === idx}
-														disableLayoutAnimation={documentData.chunks.length > 30}
+														disableLayoutAnimation={allChunks.length > 30}
 													/>
 												);
 											})}
 										</div>
+
+										{/* Load Later */}
+										{canLoadAfter && (
+											<div className="flex items-center justify-center py-3">
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={loadAfter}
+													disabled={loadingAfter}
+													className="gap-2"
+												>
+													{loadingAfter ? (
+														<Loader2 className="h-3.5 w-3.5 animate-spin" />
+													) : (
+														<ChevronDown className="h-3.5 w-3.5" />
+													)}
+													{loadingAfter
+														? "Loading..."
+														: `Load ${Math.min(EXPAND_SIZE, totalChunks - absoluteEnd)} later chunks`}
+												</Button>
+											</div>
+										)}
 									</div>
 								</ScrollArea>
 							</div>

@@ -7,6 +7,7 @@ import React, {
 	useCallback,
 	useContext,
 	useEffect,
+	useMemo,
 	useRef,
 	useState,
 } from "react";
@@ -49,9 +50,9 @@ const VARIANT_CLASSES = {
 } as const;
 
 const ACTIVE_INDICATOR_CLASSES = {
-	default: "h-[4px] bg-primary dark:bg-primary",
+	default: "h-[2px] bg-primary dark:bg-primary",
 	pills: "hidden",
-	underlined: "h-[4px] bg-primary dark:bg-primary",
+	underlined: "h-[2px] bg-primary dark:bg-primary",
 } as const;
 
 const HOVER_INDICATOR_CLASSES = {
@@ -77,14 +78,14 @@ const XScrollable = forwardRef<
 	const dragging = useRef(false);
 	const startX = useRef(0);
 	const startScrollLeft = useRef(0);
-	const [scrollPos, setScrollPos] = useState<"start" | "middle" | "end">("start");
+	const [scrollPos, setScrollPos] = useState<"start" | "middle" | "end" | "none">("none");
 
 	const updateScrollPos = useCallback(() => {
 		const el = scrollRef.current;
 		if (!el) return;
 		const canScroll = el.scrollWidth > el.clientWidth + 1;
 		if (!canScroll) {
-			setScrollPos("start");
+			setScrollPos("none");
 			return;
 		}
 		const atStart = el.scrollLeft <= 2;
@@ -130,9 +131,12 @@ const XScrollable = forwardRef<
 		updateScrollPos();
 	}, [updateScrollPos]);
 
-	const maskStart = scrollPos === "start" ? "black" : "transparent";
-	const maskEnd = scrollPos === "end" ? "black" : "transparent";
-	const maskImage = `linear-gradient(to right, ${maskStart}, black 24px, black calc(100% - 24px), ${maskEnd})`;
+	const needsMask = scrollPos !== "none";
+	const maskStart = scrollPos === "start" || scrollPos === "none" ? "black" : "transparent";
+	const maskEnd = scrollPos === "end" || scrollPos === "none" ? "black" : "transparent";
+	const maskImage = needsMask
+		? `linear-gradient(to right, ${maskStart}, black 24px, black calc(100% - 24px), ${maskEnd})`
+		: undefined;
 
 	return (
 		// biome-ignore lint/a11y/noStaticElementInteractions: drag-scroll container needs mouse events
@@ -198,9 +202,12 @@ const Tabs = forwardRef<
 		},
 		[onValueChange, value]
 	);
-
+	const contextValue = useMemo(
+		() => ({ activeValue, onValueChange: handleValueChange }),
+		[activeValue, handleValueChange]
+	);
 	return (
-		<TabsContext.Provider value={{ activeValue, onValueChange: handleValueChange }}>
+		<TabsContext.Provider value={contextValue}>
 			<div ref={ref} className={cn("tabs-container", className)} {...props}>
 				{children}
 			</div>
@@ -362,7 +369,7 @@ const TabsList = forwardRef<
 						{showHoverEffect && (
 							<div
 								className={cn(
-									"absolute transition-all duration-300 ease-out flex items-center z-0",
+									"absolute transition-[left,width,opacity] duration-300 ease-out flex items-center z-0",
 									SIZE_CLASSES[size],
 									HOVER_INDICATOR_CLASSES[variant],
 									hoverIndicatorClassName
@@ -457,7 +464,7 @@ const TabsList = forwardRef<
 						{showActiveIndicator && variant !== "pills" && activeIndex >= 0 && (
 							<div
 								className={cn(
-									"absolute transition-all duration-300 ease-out z-10",
+									"absolute transition-[left,width,bottom,top] duration-300 ease-out z-10",
 									ACTIVE_INDICATOR_CLASSES[variant],
 									activeIndicatorPosition === "top" ? "top-[-1px]" : "bottom-[-1px]",
 									activeIndicatorClassName

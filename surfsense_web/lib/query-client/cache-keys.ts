@@ -17,7 +17,6 @@ export const cacheKeys = {
 		withQueryParams: (queries: GetDocumentsRequest["queryParams"]) =>
 			["documents-with-queries", ...(queries ? Object.values(queries) : [])] as const,
 		document: (documentId: string) => ["document", documentId] as const,
-		typeCounts: (searchSpaceId?: string) => ["documents", "type-counts", searchSpaceId] as const,
 		byChunk: (chunkId: string) => ["documents", "by-chunk", chunkId] as const,
 	},
 	logs: {
@@ -39,6 +38,12 @@ export const cacheKeys = {
 		all: (searchSpaceId: number) => ["image-gen-configs", searchSpaceId] as const,
 		byId: (configId: number) => ["image-gen-configs", "detail", configId] as const,
 		global: () => ["image-gen-configs", "global"] as const,
+	},
+	visionLLMConfigs: {
+		all: (searchSpaceId: number) => ["vision-llm-configs", searchSpaceId] as const,
+		byId: (configId: number) => ["vision-llm-configs", "detail", configId] as const,
+		global: () => ["vision-llm-configs", "global"] as const,
+		modelList: () => ["vision-models", "catalogue"] as const,
 	},
 	auth: {
 		user: ["auth", "user"] as const,
@@ -67,6 +72,9 @@ export const cacheKeys = {
 		all: (searchSpaceId: string) => ["invites", searchSpaceId] as const,
 		info: (inviteCode: string) => ["invites", "info", inviteCode] as const,
 	},
+	agentTools: {
+		all: () => ["agent-tools"] as const,
+	},
 	connectors: {
 		all: (searchSpaceId: string) => ["connectors", searchSpaceId] as const,
 		withQueryParams: (queries: GetConnectorsRequest["queryParams"]) =>
@@ -76,10 +84,6 @@ export const cacheKeys = {
 		googleDrive: {
 			folders: (connectorId: number, parentId?: string) =>
 				["connectors", "google-drive", connectorId, "folders", parentId] as const,
-		},
-		composioDrive: {
-			folders: (connectorId: number, parentId?: string) =>
-				["connectors", "composio-drive", connectorId, "folders", parentId] as const,
 		},
 	},
 	comments: {
@@ -93,10 +97,16 @@ export const cacheKeys = {
 		bySearchSpace: (searchSpaceId: number) =>
 			["public-chat-snapshots", "search-space", searchSpaceId] as const,
 	},
+	prompts: {
+		all: () => ["prompts"] as const,
+		public: () => ["prompts", "public"] as const,
+	},
 	notifications: {
 		search: (searchSpaceId: number | null, search: string, tab: string) =>
 			["notifications", "search", searchSpaceId, search, tab] as const,
 		sourceTypes: (searchSpaceId: number | null) =>
 			["notifications", "source-types", searchSpaceId] as const,
+		batchUnreadCounts: (searchSpaceId: number | null) =>
+			["notifications", "unread-counts-batch", searchSpaceId] as const,
 	},
 };

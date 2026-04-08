@@ -266,6 +266,43 @@ class ConnectorsApiService {
 		);
 	};
 
+	/**
+	 * Get Google Picker token (access_token + client_id + picker_api_key) for a Drive connector
+	 */
+	getDrivePickerToken = async (connectorId: number) => {
+		return baseApiService.get<{
+			access_token: string;
+			client_id: string;
+			picker_api_key: string | null;
+		}>(`/api/v1/connectors/${connectorId}/drive-picker-token`);
+	};
+
+	/**
+	 * List OneDrive folders and files
+	 */
+	listOneDriveFolders = async (request: { connector_id: number; parent_id?: string }) => {
+		const queryParams = request.parent_id
+			? `?parent_id=${encodeURIComponent(request.parent_id)}`
+			: "";
+		return baseApiService.get(
+			`/api/v1/connectors/${request.connector_id}/onedrive/folders${queryParams}`,
+			listGoogleDriveFoldersResponse
+		);
+	};
+
+	/**
+	 * List Dropbox folders and files
+	 */
+	listDropboxFolders = async (request: { connector_id: number; parent_path?: string }) => {
+		const queryParams = request.parent_path
+			? `?parent_path=${encodeURIComponent(request.parent_path)}`
+			: "";
+		return baseApiService.get(
+			`/api/v1/connectors/${request.connector_id}/dropbox/folders${queryParams}`,
+			listGoogleDriveFoldersResponse
+		);
+	};
+
 	// =============================================================================
 	// MCP Connector Methods
 	// =============================================================================

@@ -1,0 +1,98 @@
+---
+title: Real-Time Sync with Zero
+description: How SurfSense uses Rocicorp Zero for instant real-time data synchronization
+---
+
+# Real-Time Sync with Zero
+
+SurfSense uses [Rocicorp Zero](https://zero.rocicorp.dev/) for real-time data synchronization. Zero continuously replicates data from PostgreSQL to a local cache on each client, enabling instant UI updates for notifications, documents, connectors, chat messages, and comments.
+
+## How It Works
+
+Zero runs a **zero-cache** server that sits between PostgreSQL and the browser:
+
+1. **zero-cache** replicates data from PostgreSQL into a local SQLite replica using logical replication
+2. The browser connects to zero-cache via WebSocket and syncs relevant data locally
+3. When data changes in PostgreSQL (e.g., a new notification), zero-cache pushes the update to all connected clients instantly
+4. Queries run against local data first for instant results, then update when server data arrives
+
+## Architecture
+
+| Component | Role |
+|-----------|------|
+| **PostgreSQL** | Source of truth (with `wal_level=logical`) |
+| **zero-cache** | Replicates Postgres → SQLite, serves client sync via WebSocket |
+| **Browser** | Stores synced data locally, runs queries against local cache |
+
+## Configuration
+
+### Docker Deployment
+
+zero-cache is included in the Docker Compose setup. The key environment variables are:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZERO_CACHE_PORT` | Port for the zero-cache service | `5929` (prod) / `4848` (dev) |
+| `ZERO_ADMIN_PASSWORD` | Password for the zero-cache admin UI and `/statz` endpoint | `surfsense-zero-admin` |
+| `ZERO_UPSTREAM_DB` | PostgreSQL connection URL for replication | Built from `DB_*` vars |
+| `NEXT_PUBLIC_ZERO_CACHE_URL` | URL the frontend uses to connect to zero-cache | `http://localhost:<ZERO_CACHE_PORT>` |
+| `ZERO_APP_PUBLICATIONS` | PostgreSQL publication restricting which tables are replicated | `zero_publication` |
+| `ZERO_NUM_SYNC_WORKERS` | Number of view-sync worker processes. Must be ≤ `ZERO_UPSTREAM_MAX_CONNS` and ≤ `ZERO_CVR_MAX_CONNS` | `4` |
+| `ZERO_UPSTREAM_MAX_CONNS` | Max connections to upstream PostgreSQL for mutations | `20` |
+| `ZERO_CVR_MAX_CONNS` | Max connections to the CVR database | `30` |
+
+### Manual / Local Development
+
+If running the frontend outside Docker (e.g., `pnpm dev`), you need:
+
+1. A running zero-cache instance pointing at your PostgreSQL database
+2. `NEXT_PUBLIC_ZERO_CACHE_URL` set in your `.env` file (default: `http://localhost:4848`)
+
+### Custom Domain / Reverse Proxy
+
+When deploying behind a reverse proxy, set `NEXT_PUBLIC_ZERO_CACHE_URL` to your public zero-cache URL (e.g., `https://zero.yourdomain.com`). The zero-cache service must be accessible via WebSocket from the browser.
+
+### Database Requirements
+
+zero-cache connects to PostgreSQL using logical replication. The database must meet these requirements:
+
+1. **`wal_level = logical`** — already configured in the bundled `postgresql.conf`
+2. **The database user must have `REPLICATION` privilege** — required for creating logical replication slots
+
+In the default Docker setup, the `surfsense` user is a PostgreSQL superuser and has all required privileges automatically.
+
+**For managed databases** (RDS, Supabase, Cloud SQL, etc.) where the app user may not be a superuser, you need to grant replication privileges:
+
+```sql
+ALTER USER surfsense WITH REPLICATION;
+GRANT CREATE ON DATABASE surfsense TO surfsense;
+```
+
+The `REPLICATION` privilege allows zero-cache to create a logical replication slot for streaming changes. The `CREATE` privilege allows zero-cache to create internal schemas (`zero`, `zero_0`) for its metadata.
+
+## Synced Tables
+
+Zero syncs the following tables for real-time features:
+
+| Table | Used By |
+|-------|---------|
+| `notifications` | Inbox (comments, document processing, connector status) |
+| `documents` | Document list, processing status indicators |
+| `folders` | Nested folder tree for organizing documents |
+| `search_source_connectors` | Connector status, indexing progress |
+| `new_chat_messages` | Live chat message sync for shared chats |
+| `chat_comments` | Real-time comment threads on AI responses |
+| `chat_session_state` | Collaboration indicators (who is typing) |
+
+## Troubleshooting
+
+- **zero-cache not starting**: Check `docker compose logs zero-cache`. Ensure PostgreSQL has `wal_level=logical` (configured in `postgresql.conf`).
+- **"Insufficient upstream connections" error**: zero-cache defaults `ZERO_NUM_SYNC_WORKERS` to the number of CPU cores, which can exceed connection pool limits on high-core machines. Lower `ZERO_NUM_SYNC_WORKERS` or raise `ZERO_UPSTREAM_MAX_CONNS` / `ZERO_CVR_MAX_CONNS` in your `.env`.
+- **Frontend not syncing**: Open DevTools → Console and check for WebSocket connection errors. Verify `NEXT_PUBLIC_ZERO_CACHE_URL` matches the running zero-cache address.
+- **Stale data after restart**: zero-cache rebuilds its SQLite replica from PostgreSQL on startup. This may take a moment for large databases.
+
+## Learn More
+
+- [Rocicorp Zero Documentation](https://zero.rocicorp.dev/docs)
+- [Zero Schema Reference](https://zero.rocicorp.dev/docs/schema)
+- [Zero Deployment Guide](https://zero.rocicorp.dev/docs/deployment)

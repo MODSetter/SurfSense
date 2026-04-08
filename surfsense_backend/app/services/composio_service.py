@@ -36,32 +36,14 @@ TOOLKIT_TO_CONNECTOR_TYPE = {
 }
 
 # Mapping of toolkit IDs to document types
-TOOLKIT_TO_DOCUMENT_TYPE = {
-    "googledrive": "COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
-    "gmail": "COMPOSIO_GMAIL_CONNECTOR",
-    "googlecalendar": "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
-}
+# Google Drive, Gmail, Calendar use unified native indexers - not in this registry
+TOOLKIT_TO_DOCUMENT_TYPE: dict[str, str] = {}
 
 # Mapping of toolkit IDs to their indexer functions
 # Format: toolkit_id -> (module_path, function_name, supports_date_filter)
 # supports_date_filter: True if the indexer accepts start_date/end_date params
-TOOLKIT_TO_INDEXER = {
-    "googledrive": (
-        "app.connectors.composio_google_drive_connector",
-        "index_composio_google_drive",
-        False,  # Google Drive doesn't use date filtering
-    ),
-    "gmail": (
-        "app.connectors.composio_gmail_connector",
-        "index_composio_gmail",
-        True,  # Gmail uses date filtering
-    ),
-    "googlecalendar": (
-        "app.connectors.composio_google_calendar_connector",
-        "index_composio_google_calendar",
-        True,  # Calendar uses date filtering
-    ),
-}
+# Google Drive, Gmail, Calendar use unified native indexers - not in this registry
+TOOLKIT_TO_INDEXER: dict[str, tuple[str, str, bool]] = {}
 
 
 class ComposioService:
@@ -246,6 +228,87 @@ class ComposioService:
                 f"Failed to delete Composio connected account {connected_account_id}: {e!s}"
             )
             return False
+
+    def refresh_connected_account(
+        self,
+        connected_account_id: str,
+        redirect_url: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Refresh an expired Composio connected account.
+
+        For OAuth flows this returns a redirect_url the user must visit to
+        re-authorise.  The same connected_account_id stays valid afterwards.
+
+        Args:
+            connected_account_id: The Composio connected account nanoid.
+            redirect_url: Where Composio should redirect after re-auth.
+
+        Returns:
+            Dict with id, status, and redirect_url (None when no redirect needed).
+        """
+        kwargs: dict[str, Any] = {}
+        if redirect_url is not None:
+            kwargs["body_redirect_url"] = redirect_url
+        result = self.client.connected_accounts.refresh(
+            nanoid=connected_account_id,
+            **kwargs,
+        )
+        return {
+            "id": result.id,
+            "status": result.status,
+            "redirect_url": result.redirect_url,
+        }
+
+    def wait_for_connection(
+        self,
+        connected_account_id: str,
+        timeout: float = 30.0,
+    ) -> str:
+        """
+        Poll Composio until the connected account reaches ACTIVE status.
+
+        Must be called after refresh() / initiate() to ensure Composio has
+        finished exchanging the authorization code for valid tokens.
+
+        Returns:
+            The final account status string (should be "ACTIVE").
+
+        Raises:
+            TimeoutError: If the account does not become ACTIVE within *timeout*.
+        """
+        try:
+            account = self.client.connected_accounts.wait_for_connection(
+                id=connected_account_id,
+                timeout=timeout,
+            )
+            status = getattr(account, "status", "UNKNOWN")
+            logger.info(f"Composio account {connected_account_id} is now {status}")
+            return status
+        except Exception as e:
+            logger.error(
+                f"Timeout/error waiting for Composio account {connected_account_id}: {e!s}"
+            )
+            raise
+
+    def get_access_token(self, connected_account_id: str) -> str:
+        """Retrieve the raw OAuth access token for a Composio connected account."""
+        account = self.client.connected_accounts.get(nanoid=connected_account_id)
+        token = getattr(getattr(account, "state", None), "val", None)
+        if token is None:
+            raise ValueError(
+                f"No state.val on connected account {connected_account_id}"
+            )
+        access_token = getattr(token, "access_token", None)
+        if not access_token:
+            raise ValueError(f"No access_token in state.val for {connected_account_id}")
+        if len(access_token) < 20:
+            raise ValueError(
+                f"Composio returned a masked access_token ({len(access_token)} chars) "
+                f"for account {connected_account_id}. Disable 'Mask Connected Account "
+                f"Secrets' in Composio dashboard: Settings → Project Settings."
+            )
+        return access_token
 
     async def execute_tool(
         self,

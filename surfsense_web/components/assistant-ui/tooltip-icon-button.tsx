@@ -4,17 +4,22 @@ import { Slottable } from "@radix-ui/react-slot";
 import { type ComponentPropsWithRef, forwardRef, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 
 export type TooltipIconButtonProps = ComponentPropsWithRef<typeof Button> & {
 	tooltip: ReactNode;
 	side?: "top" | "bottom" | "left" | "right";
+	disableTooltip?: boolean;
 };
 
 export const TooltipIconButton = forwardRef<HTMLButtonElement, TooltipIconButtonProps>(
-	({ children, tooltip, side = "bottom", className, ...rest }, ref) => {
+	({ children, tooltip, side = "bottom", className, disableTooltip, ...rest }, ref) => {
+		const isTouchDevice = useMediaQuery("(pointer: coarse)");
+		const suppressTooltip = disableTooltip || isTouchDevice;
+
 		return (
-			<Tooltip>
+			<Tooltip open={suppressTooltip ? false : undefined}>
 				<TooltipTrigger asChild>
 					<Button
 						variant="ghost"

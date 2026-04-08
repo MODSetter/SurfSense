@@ -235,55 +235,51 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 							) : (
 								<XCircle className="h-4 w-4 text-red-600" />
 							)}
-							<div className="flex-1">
-								<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
-									<AlertTitle className="text-sm">
-										{testResult.status === "success"
-											? "Connection Successful"
-											: "Connection Failed"}
-									</AlertTitle>
-									{testResult.tools.length > 0 && (
-										<Button
-											type="button"
-											variant="ghost"
-											size="sm"
-											className="h-6 px-2 self-start sm:self-auto text-xs"
-											onClick={(e) => {
-												e.preventDefault();
-												e.stopPropagation();
-												setShowDetails(!showDetails);
-											}}
-										>
-											{showDetails ? (
-												<>
-													<ChevronUp className="h-3 w-3 mr-1" />
-													<span className="hidden sm:inline">Hide Details</span>
-													<span className="sm:hidden">Hide</span>
-												</>
-											) : (
-												<>
-													<ChevronDown className="h-3 w-3 mr-1" />
-													<span className="hidden sm:inline">Show Details</span>
-													<span className="sm:hidden">Show</span>
-												</>
-											)}
-										</Button>
-									)}
-								</div>
-								<AlertDescription className="text-xs mt-1">
-									{testResult.message}
-									{showDetails && testResult.tools.length > 0 && (
-										<div className="mt-3 pt-3 border-t border-green-500/20">
-											<p className="font-semibold mb-2">Available tools:</p>
-											<ul className="list-disc list-inside text-xs space-y-0.5">
-												{testResult.tools.map((tool) => (
-													<li key={tool.name}>{tool.name}</li>
-												))}
-											</ul>
-										</div>
-									)}
-								</AlertDescription>
+							<div className="col-start-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+								<AlertTitle className="text-sm">
+									{testResult.status === "success" ? "Connection Successful" : "Connection Failed"}
+								</AlertTitle>
+								{testResult.tools.length > 0 && (
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										className="h-6 px-2 self-start sm:self-auto text-xs"
+										onClick={(e) => {
+											e.preventDefault();
+											e.stopPropagation();
+											setShowDetails((prev) => !prev);
+										}}
+									>
+										{showDetails ? (
+											<>
+												<ChevronUp className="h-3 w-3 mr-1" />
+												<span className="hidden sm:inline">Hide Details</span>
+												<span className="sm:hidden">Hide</span>
+											</>
+										) : (
+											<>
+												<ChevronDown className="h-3 w-3 mr-1" />
+												<span className="hidden sm:inline">Show Details</span>
+												<span className="sm:hidden">Show</span>
+											</>
+										)}
+									</Button>
+								)}
 							</div>
+							<AlertDescription className="text-xs mt-1">
+								{testResult.message}
+								{showDetails && testResult.tools.length > 0 && (
+									<div className="mt-3 pt-3 border-t border-green-500/20">
+										<p className="font-semibold mb-2">Available tools:</p>
+										<ul className="list-disc list-inside text-xs space-y-0.5">
+											{testResult.tools.map((tool) => (
+												<li key={tool.name}>{tool.name}</li>
+											))}
+										</ul>
+									</div>
+								)}
+							</AlertDescription>
 						</Alert>
 					)}
 				</div>

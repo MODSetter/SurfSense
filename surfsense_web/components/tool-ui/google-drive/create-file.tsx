@@ -1,20 +1,13 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
-import {
-	AlertTriangleIcon,
-	CheckIcon,
-	FileIcon,
-	Loader2Icon,
-	Pen,
-	RefreshCwIcon,
-	XIcon,
-} from "lucide-react";
-import { useParams } from "next/navigation";
-import { useMemo, useState } from "react";
-import { toast } from "sonner";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
+import { useSetAtom } from "jotai";
+import { CornerDownLeftIcon, FileIcon, Pen } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
+import { PlateEditor } from "@/components/editor/plate-editor";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
 	Select,
 	SelectContent,
@@ -22,17 +15,18 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { authenticatedFetch } from "@/lib/auth-utils";
+import { useHitlPhase } from "@/hooks/use-hitl-phase";
 
 interface GoogleDriveAccount {
 	id: number;
 	name: string;
+	auth_expired?: boolean;
 }
 
 interface InterruptResult {
 	__interrupt__: true;
 	__decided__?: "approve" | "reject" | "edit";
+	__completed__?: boolean;
 	action_requests: Array<{
 		name: string;
 		args: Record<string, unknown>;
@@ -44,6 +38,7 @@ interface InterruptResult {
 	context?: {
 		accounts?: GoogleDriveAccount[];
 		supported_types?: string[];
+		parent_folders?: Record<number, Array<{ folder_id: string; name: string }>>;
 		error?: string;
 	};
 }
@@ -67,11 +62,18 @@ interface InsufficientPermissionsResult {
 	message: string;
 }
 
+interface AuthErrorResult {
+	status: "auth_error";
+	message: string;
+	connector_type?: string;
+}
+
 type CreateGoogleDriveFileResult =
 	| InterruptResult
 	| SuccessResult
 	| ErrorResult
-	| InsufficientPermissionsResult;
+	| InsufficientPermissionsResult
+	| AuthErrorResult;
 
 function isInterruptResult(result: unknown): result is InterruptResult {
 	return (
@@ -100,6 +102,15 @@ function isInsufficientPermissionsResult(result: unknown): result is Insufficien
 	);
 }
 
+function isAuthErrorResult(result: unknown): result is AuthErrorResult {
+	return (
+		typeof result === "object" &&
+		result !== null &&
+		"status" in result &&
+		(result as AuthErrorResult).status === "auth_error"
+	);
+}
+
 const FILE_TYPE_LABELS: Record<string, string> = {
 	google_doc: "Google Doc",
 	google_sheet: "Google Sheet",
@@ -118,364 +129,303 @@ function ApprovalCard({
 		edited_action?: { name: string; args: Record<string, unknown> };
 	}) => void;
 }) {
-	const [decided, setDecided] = useState<"approve" | "reject" | "edit" | null>(
-		interruptData.__decided__ ?? null
-	);
-	const [isEditing, setIsEditing] = useState(false);
-	const [editedName, setEditedName] = useState(args.name ?? "");
-	const [editedContent, setEditedContent] = useState(args.content ?? "");
-	const [committedArgs, setCommittedArgs] = useState<{
-		name: string;
-		file_type: string;
-		content?: string | null;
-	} | null>(null);
+	const { phase, setProcessing, setRejected } = useHitlPhase(interruptData);
+	const [isPanelOpen, setIsPanelOpen] = useState(false);
+	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
+	const [pendingEdits, setPendingEdits] = useState<{ name: string; content: string } | null>(null);
 
 	const accounts = interruptData.context?.accounts ?? [];
+	const validAccounts = accounts.filter((a) => !a.auth_expired);
+	const expiredAccounts = accounts.filter((a) => a.auth_expired);
 
 	const defaultAccountId = useMemo(() => {
-		if (accounts.length === 1) return String(accounts[0].id);
+		if (validAccounts.length === 1) return String(validAccounts[0].id);
 		return "";
-	}, [accounts]);
+	}, [validAccounts]);
 
 	const [selectedAccountId, setSelectedAccountId] = useState<string>(defaultAccountId);
 	const [selectedFileType, setSelectedFileType] = useState<string>(args.file_type ?? "google_doc");
-	const [parentFolderId, setParentFolderId] = useState<string>("");
+	const [parentFolderId, setParentFolderId] = useState<string>("__root__");
 
-	const isNameValid = useMemo(
-		() => (isEditing ? editedName.trim().length > 0 : args.name?.trim().length > 0),
-		[isEditing, editedName, args.name]
-	);
+	const parentFolders = interruptData.context?.parent_folders ?? {};
+	const availableParentFolders = useMemo(() => {
+		if (!selectedAccountId) return [];
+		return parentFolders[Number(selectedAccountId)] ?? [];
+	}, [selectedAccountId, parentFolders]);
+
+	const handleAccountChange = useCallback((value: string) => {
+		setSelectedAccountId(value);
+		setParentFolderId("__root__");
+	}, []);
+
+	const fileTypeLabel =
+		FILE_TYPE_LABELS[selectedFileType] ?? FILE_TYPE_LABELS[args.file_type] ?? "Google Drive File";
+
+	const isNameValid = useMemo(() => {
+		const name = pendingEdits?.name ?? args.name;
+		return name && typeof name === "string" && name.trim().length > 0;
+	}, [pendingEdits?.name, args.name]);
 
 	const canApprove = !!selectedAccountId && isNameValid;
 
-	const reviewConfig = interruptData.review_configs[0];
+	const reviewConfig = interruptData.review_configs?.[0];
 	const allowedDecisions = reviewConfig?.allowed_decisions ?? ["approve", "reject"];
 	const canEdit = allowedDecisions.includes("edit");
 
-	function buildFinalArgs() {
-		return {
-			name: isEditing ? editedName : args.name,
-			file_type: selectedFileType,
-			content: isEditing ? editedContent || null : (args.content ?? null),
-			connector_id: selectedAccountId ? Number(selectedAccountId) : null,
-			parent_folder_id: parentFolderId.trim() || null,
+	const handleApprove = useCallback(() => {
+		if (phase !== "pending") return;
+		if (isPanelOpen || !canApprove) return;
+		if (!allowedDecisions.includes("approve")) return;
+		const isEdited = pendingEdits !== null;
+		setProcessing();
+		onDecision({
+			type: isEdited ? "edit" : "approve",
+			edited_action: {
+				name: interruptData.action_requests[0].name,
+				args: {
+					...args,
+					...(pendingEdits && { name: pendingEdits.name, content: pendingEdits.content }),
+					file_type: selectedFileType,
+					connector_id: selectedAccountId ? Number(selectedAccountId) : null,
+					parent_folder_id: parentFolderId === "__root__" ? null : parentFolderId,
+				},
+			},
+		});
+	}, [
+		phase,
+		setProcessing,
+		isPanelOpen,
+		canApprove,
+		allowedDecisions,
+		onDecision,
+		interruptData,
+		args,
+		selectedFileType,
+		selectedAccountId,
+		parentFolderId,
+		pendingEdits,
+	]);
+
+	useEffect(() => {
+		const handler = (e: KeyboardEvent) => {
+			if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+				handleApprove();
+			}
 		};
-	}
+		window.addEventListener("keydown", handler);
+		return () => window.removeEventListener("keydown", handler);
+	}, [handleApprove]);
 
 	return (
-		<div
-			className={`my-4 max-w-full overflow-hidden rounded-xl transition-all duration-300 ${
-				decided
-					? "border border-border bg-card shadow-sm"
-					: "border-2 border-foreground/20 bg-muted/30 dark:bg-muted/10 shadow-lg animate-pulse-subtle"
-			}`}
-		>
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-[box-shadow] duration-300">
 			{/* Header */}
-			<div
-				className={`flex items-center gap-3 border-b ${
-					decided ? "border-border bg-card" : "border-foreground/15 bg-muted/40 dark:bg-muted/20"
-				} px-4 py-3`}
-			>
-				<div
-					className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
-						decided ? "bg-muted" : "bg-muted animate-pulse"
-					}`}
-				>
-					<AlertTriangleIcon
-						className={`size-4 ${decided ? "text-muted-foreground" : "text-foreground"}`}
-					/>
-				</div>
-				<div className="min-w-0 flex-1">
-					<p className="text-sm font-medium text-foreground">Create Google Drive File</p>
-					<p className="truncate text-xs text-muted-foreground">
-						{isEditing ? "You can edit the arguments below" : "Requires your approval to proceed"}
+			<div className="flex items-start justify-between px-5 pt-5 pb-4 select-none">
+				<div>
+					<p className="text-sm font-semibold text-foreground">
+						{phase === "rejected"
+							? `${fileTypeLabel} Rejected`
+							: phase === "processing" || phase === "complete"
+								? `${fileTypeLabel} Approved`
+								: `Create ${fileTypeLabel}`}
 					</p>
+					{phase === "processing" ? (
+						<TextShimmerLoader
+							text={pendingEdits ? "Creating file with your changes" : "Creating file"}
+							size="sm"
+						/>
+					) : phase === "complete" ? (
+						<p className="text-xs text-muted-foreground mt-0.5">
+							{pendingEdits ? "File created with your changes" : "File created"}
+						</p>
+					) : phase === "rejected" ? (
+						<p className="text-xs text-muted-foreground mt-0.5">File creation was cancelled</p>
+					) : (
+						<p className="text-xs text-muted-foreground mt-0.5">
+							Requires your approval to proceed
+						</p>
+					)}
 				</div>
+				{phase === "pending" && canEdit && (
+					<Button
+						size="sm"
+						variant="ghost"
+						className="rounded-lg text-muted-foreground -mt-1 -mr-2"
+						onClick={() => {
+							setIsPanelOpen(true);
+							openHitlEditPanel({
+								title: pendingEdits?.name ?? args.name ?? "",
+								content: pendingEdits?.content ?? args.content ?? "",
+								toolName: fileTypeLabel,
+								onSave: (newName, newContent) => {
+									setIsPanelOpen(false);
+									setPendingEdits({ name: newName, content: newContent });
+								},
+								onClose: () => setIsPanelOpen(false),
+							});
+						}}
+					>
+						<Pen className="size-3.5" />
+						Edit
+					</Button>
+				)}
 			</div>
 
-			{/* Context section */}
-			{!decided && interruptData.context && (
-				<div className="border-b border-border px-4 py-3 bg-muted/30 space-y-3">
-					{interruptData.context.error ? (
-						<p className="text-sm text-destructive">{interruptData.context.error}</p>
-					) : (
-						<>
-							{accounts.length > 0 && (
-								<div className="space-y-1.5">
-									<div className="text-xs font-medium text-muted-foreground">
-										Google Drive Account <span className="text-destructive">*</span>
+			{/* Context section — real pickers in pending */}
+			{phase === "pending" && interruptData.context && (
+				<>
+					<div className="mx-5 h-px bg-border/50" />
+					<div className="px-5 py-4 space-y-4 select-none">
+						{interruptData.context.error ? (
+							<p className="text-sm text-destructive">{interruptData.context.error}</p>
+						) : (
+							<>
+								{accounts.length > 0 && (
+									<div className="space-y-2">
+										<p className="text-xs font-medium text-muted-foreground">
+											Google Drive Account <span className="text-destructive">*</span>
+										</p>
+										<Select value={selectedAccountId} onValueChange={handleAccountChange}>
+											<SelectTrigger className="w-full">
+												<SelectValue placeholder="Select an account" />
+											</SelectTrigger>
+											<SelectContent>
+												{validAccounts.map((account) => (
+													<SelectItem key={account.id} value={String(account.id)}>
+														{account.name}
+													</SelectItem>
+												))}
+												{expiredAccounts.map((a) => (
+													<div
+														key={a.id}
+														className="relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 px-2 text-sm select-none opacity-50 pointer-events-none"
+													>
+														{a.name} (expired, retry after re-auth)
+													</div>
+												))}
+											</SelectContent>
+										</Select>
 									</div>
-									<Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+								)}
+
+								<div className="space-y-2">
+									<p className="text-xs font-medium text-muted-foreground">
+										File Type <span className="text-destructive">*</span>
+									</p>
+									<Select value={selectedFileType} onValueChange={setSelectedFileType}>
 										<SelectTrigger className="w-full">
-											<SelectValue placeholder="Select an account" />
+											<SelectValue />
 										</SelectTrigger>
 										<SelectContent>
-											{accounts.map((account) => (
-												<SelectItem key={account.id} value={String(account.id)}>
-													{account.name}
-												</SelectItem>
-											))}
+											<SelectItem value="google_doc">Google Doc</SelectItem>
+											<SelectItem value="google_sheet">Google Sheet</SelectItem>
 										</SelectContent>
 									</Select>
 								</div>
-							)}
 
-							<div className="space-y-1.5">
-								<div className="text-xs font-medium text-muted-foreground">
-									File Type <span className="text-destructive">*</span>
-								</div>
-								<Select value={selectedFileType} onValueChange={setSelectedFileType}>
-									<SelectTrigger className="w-full">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="google_doc">Google Doc</SelectItem>
-										<SelectItem value="google_sheet">Google Sheet</SelectItem>
-									</SelectContent>
-								</Select>
-							</div>
-
-							<div className="space-y-1.5">
-								<div className="text-xs font-medium text-muted-foreground">
-									Parent Folder ID (optional)
-								</div>
-								<Input
-									value={parentFolderId}
-									onChange={(e) => setParentFolderId(e.target.value)}
-									placeholder="Leave blank to create at Drive root"
-								/>
-								<p className="text-xs text-muted-foreground">
-									Paste a Google Drive folder ID to place the file in a specific folder.
-								</p>
-							</div>
-						</>
-					)}
-				</div>
-			)}
-
-			{/* Display mode */}
-			{!isEditing && (
-				<div className="space-y-2 px-4 py-3 bg-card">
-					<div>
-						<p className="text-xs font-medium text-muted-foreground">Name</p>
-						<p className="text-sm text-foreground">{committedArgs?.name ?? args.name}</p>
-					</div>
-					<div>
-						<p className="text-xs font-medium text-muted-foreground">Type</p>
-						<p className="text-sm text-foreground">
-							{FILE_TYPE_LABELS[committedArgs?.file_type ?? args.file_type] ??
-								committedArgs?.file_type ??
-								args.file_type}
-						</p>
-					</div>
-					{(committedArgs?.content ?? args.content) && (
-						<div>
-							<p className="text-xs font-medium text-muted-foreground">Content</p>
-							<p className="line-clamp-4 text-sm whitespace-pre-wrap text-foreground">
-								{committedArgs?.content ?? args.content}
-							</p>
-						</div>
-					)}
-				</div>
-			)}
-
-			{/* Edit mode */}
-			{isEditing && !decided && (
-				<div className="space-y-3 px-4 py-3 bg-card">
-					<div>
-						<label
-							htmlFor="gdrive-name"
-							className="text-xs font-medium text-muted-foreground mb-1.5 block"
-						>
-							Name <span className="text-destructive">*</span>
-						</label>
-						<Input
-							id="gdrive-name"
-							value={editedName}
-							onChange={(e) => setEditedName(e.target.value)}
-							placeholder="Enter file name"
-							className={!isNameValid ? "border-destructive" : ""}
-						/>
-						{!isNameValid && <p className="text-xs text-destructive mt-1">Name is required</p>}
-					</div>
-					<div>
-						<label
-							htmlFor="gdrive-content"
-							className="text-xs font-medium text-muted-foreground mb-1.5 block"
-						>
-							{selectedFileType === "google_sheet" ? "Content (CSV)" : "Content (Markdown)"}
-						</label>
-						<Textarea
-							id="gdrive-content"
-							value={editedContent}
-							onChange={(e) => setEditedContent(e.target.value)}
-							placeholder={
-								selectedFileType === "google_sheet"
-									? "Column A,Column B\nValue 1,Value 2"
-									: "# Heading\n\nYour content here..."
-							}
-							rows={6}
-							className="resize-none font-mono text-xs"
-						/>
-					</div>
-				</div>
-			)}
-
-			{/* Action buttons */}
-			<div
-				className={`flex items-center gap-2 border-t ${
-					decided ? "border-border bg-card" : "border-foreground/15 bg-muted/20 dark:bg-muted/10"
-				} px-4 py-3`}
-			>
-				{decided ? (
-					<p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-						{decided === "approve" || decided === "edit" ? (
-							<>
-								<CheckIcon className="size-3.5 text-green-500" />
-								{decided === "edit" ? "Approved with Changes" : "Approved"}
-							</>
-						) : (
-							<>
-								<XIcon className="size-3.5 text-destructive" />
-								Rejected
+								{selectedAccountId && (
+									<div className="space-y-2">
+										<p className="text-xs font-medium text-muted-foreground">Parent Folder</p>
+										<Select value={parentFolderId} onValueChange={setParentFolderId}>
+											<SelectTrigger className="w-full">
+												<SelectValue placeholder="Drive Root" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="__root__">Drive Root</SelectItem>
+												{availableParentFolders.map((folder) => (
+													<SelectItem key={folder.folder_id} value={folder.folder_id}>
+														{folder.name}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+										{availableParentFolders.length === 0 && (
+											<p className="text-xs text-muted-foreground">
+												No folders found. File will be created at Drive root.
+											</p>
+										)}
+									</div>
+								)}
 							</>
 						)}
+					</div>
+				</>
+			)}
+
+			{/* Content preview */}
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 pt-3">
+				{(pendingEdits?.name ?? args.name) != null && (
+					<p className="text-sm font-medium text-foreground">
+						{String(pendingEdits?.name ?? args.name)}
 					</p>
-				) : isEditing ? (
-					<>
-						<Button
-							size="sm"
-							onClick={() => {
-								const finalArgs = buildFinalArgs();
-								setCommittedArgs(finalArgs);
-								setDecided("edit");
-								setIsEditing(false);
-								onDecision({
-									type: "edit",
-									edited_action: {
-										name: interruptData.action_requests[0].name,
-										args: finalArgs,
-									},
-								});
-							}}
-							disabled={!canApprove}
-						>
-							<CheckIcon />
-							Approve with Changes
-						</Button>
-						<Button
-							size="sm"
-							variant="outline"
-							onClick={() => {
-								setIsEditing(false);
-								setEditedName(args.name ?? "");
-								setEditedContent(args.content ?? "");
-							}}
-						>
-							Cancel
-						</Button>
-					</>
-				) : (
-					<>
+				)}
+				{(pendingEdits?.content ?? args.content) != null && (
+					<div
+						className="mt-2 max-h-[7rem] overflow-hidden text-sm"
+						style={{
+							maskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
+							WebkitMaskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
+						}}
+					>
+						<PlateEditor
+							markdown={String(pendingEdits?.content ?? args.content)}
+							readOnly
+							preset="readonly"
+							editorVariant="none"
+							className="h-auto [&_[data-slate-editor]]:!min-h-0 [&_[data-slate-editor]>*:first-child]:!mt-0"
+						/>
+					</div>
+				)}
+			</div>
+
+			{/* Action buttons - only shown when pending */}
+			{phase === "pending" && (
+				<>
+					<div className="mx-5 h-px bg-border/50" />
+					<div className="px-5 py-4 flex items-center gap-2 select-none">
 						{allowedDecisions.includes("approve") && (
 							<Button
 								size="sm"
-								onClick={() => {
-									const finalArgs = buildFinalArgs();
-									setCommittedArgs(finalArgs);
-									setDecided("approve");
-									onDecision({
-										type: "approve",
-										edited_action: {
-											name: interruptData.action_requests[0].name,
-											args: finalArgs,
-										},
-									});
-								}}
-								disabled={!canApprove}
+								className="rounded-lg gap-1.5"
+								onClick={handleApprove}
+								disabled={!canApprove || isPanelOpen}
 							>
-								<CheckIcon />
 								Approve
-							</Button>
-						)}
-						{canEdit && (
-							<Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>
-								<Pen />
-								Edit
+								<CornerDownLeftIcon className="size-3 opacity-60" />
 							</Button>
 						)}
 						{allowedDecisions.includes("reject") && (
 							<Button
 								size="sm"
-								variant="outline"
+								variant="ghost"
+								className="rounded-lg text-muted-foreground"
+								disabled={isPanelOpen}
 								onClick={() => {
-									setDecided("reject");
+									setRejected();
 									onDecision({ type: "reject", message: "User rejected the action." });
 								}}
 							>
-								<XIcon />
 								Reject
 							</Button>
 						)}
-					</>
-				)}
-			</div>
+					</div>
+				</>
+			)}
 		</div>
 	);
 }
 
 function InsufficientPermissionsCard({ result }: { result: InsufficientPermissionsResult }) {
-	const params = useParams();
-	const searchSpaceId = params.search_space_id as string;
-	const [loading, setLoading] = useState(false);
-
-	async function handleReauth() {
-		setLoading(true);
-		try {
-			const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
-			const url = new URL(`${backendUrl}/api/v1/auth/google/drive/connector/reauth`);
-			url.searchParams.set("connector_id", String(result.connector_id));
-			url.searchParams.set("space_id", searchSpaceId);
-			url.searchParams.set("return_url", window.location.pathname);
-			const response = await authenticatedFetch(url.toString());
-			if (!response.ok) {
-				const data = await response.json().catch(() => ({}));
-				toast.error(data.detail ?? "Failed to initiate re-authentication. Please try again.");
-				return;
-			}
-			const data = await response.json();
-			if (data.auth_url) {
-				window.location.href = data.auth_url;
-			}
-		} catch {
-			toast.error("Failed to initiate re-authentication. Please try again.");
-		} finally {
-			setLoading(false);
-		}
-	}
-
 	return (
-		<div className="my-4 max-w-md overflow-hidden rounded-xl border border-amber-500/50 bg-card">
-			<div className="flex items-center gap-3 border-b border-amber-500/50 px-4 py-3">
-				<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
-					<AlertTriangleIcon className="size-4 text-amber-500" />
-				</div>
-				<div className="min-w-0 flex-1">
-					<p className="text-sm font-medium text-amber-600 dark:text-amber-400">
-						Additional permissions required
-					</p>
-				</div>
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-destructive">
+					Additional Google Drive permissions required
+				</p>
 			</div>
-			<div className="space-y-3 px-4 py-3">
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 py-4">
 				<p className="text-sm text-muted-foreground">{result.message}</p>
-				<Button size="sm" onClick={handleReauth} disabled={loading}>
-					{loading ? (
-						<Loader2Icon className="size-4 animate-spin" />
-					) : (
-						<RefreshCwIcon className="size-4" />
-					)}
-					Re-authenticate Google Drive
-				</Button>
 			</div>
 		</div>
 	);
@@ -483,16 +433,28 @@ function InsufficientPermissionsCard({ result }: { result: InsufficientPermissio
 
 function ErrorCard({ result }: { result: ErrorResult }) {
 	return (
-		<div className="my-4 max-w-md overflow-hidden rounded-xl border border-destructive/50 bg-card">
-			<div className="flex items-center gap-3 border-b border-destructive/50 px-4 py-3">
-				<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
-					<XIcon className="size-4 text-destructive" />
-				</div>
-				<div className="min-w-0 flex-1">
-					<p className="text-sm font-medium text-destructive">Failed to create Google Drive file</p>
-				</div>
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-destructive">Failed to create Google Drive file</p>
 			</div>
-			<div className="px-4 py-3">
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 py-4">
+				<p className="text-sm text-muted-foreground">{result.message}</p>
+			</div>
+		</div>
+	);
+}
+
+function AuthErrorCard({ result }: { result: AuthErrorResult }) {
+	return (
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-destructive">
+					Google Drive authentication expired
+				</p>
+			</div>
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 py-4">
 				<p className="text-sm text-muted-foreground">{result.message}</p>
 			</div>
 		</div>
@@ -501,18 +463,14 @@ function ErrorCard({ result }: { result: ErrorResult }) {
 
 function SuccessCard({ result }: { result: SuccessResult }) {
 	return (
-		<div className="my-4 max-w-md overflow-hidden rounded-xl border border-border bg-card">
-			<div className="flex items-center gap-3 border-b border-border px-4 py-3">
-				<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-green-500/10">
-					<CheckIcon className="size-4 text-green-500" />
-				</div>
-				<div className="min-w-0 flex-1">
-					<p className="text-[.8rem] text-muted-foreground">
-						{result.message || "Google Drive file created successfully"}
-					</p>
-				</div>
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-foreground">
+					{result.message || "Google Drive file created successfully"}
+				</p>
 			</div>
-			<div className="space-y-2 px-4 py-3 text-xs">
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 py-4 space-y-2 text-xs">
 				<div className="flex items-center gap-1.5">
 					<FileIcon className="size-3.5 text-muted-foreground" />
 					<span className="font-medium">{result.name}</span>
@@ -534,51 +492,44 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 	);
 }
 
-export const CreateGoogleDriveFileToolUI = makeAssistantToolUI<
+export const CreateGoogleDriveFileToolUI = ({
+	args,
+	result,
+}: ToolCallMessagePartProps<
 	{ name: string; file_type: string; content?: string },
 	CreateGoogleDriveFileResult
->({
-	toolName: "create_google_drive_file",
-	render: function CreateGoogleDriveFileUI({ args, result, status }) {
-		if (status.type === "running") {
-			return (
-				<div className="my-4 flex max-w-md items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
-					<Loader2Icon className="size-4 animate-spin text-muted-foreground" />
-					<p className="text-sm text-muted-foreground">Preparing Google Drive file...</p>
-				</div>
-			);
-		}
+>) => {
+	if (!result) return null;
 
-		if (!result) return null;
+	if (isInterruptResult(result)) {
+		return (
+			<ApprovalCard
+				args={args}
+				interruptData={result}
+				onDecision={(decision) => {
+					window.dispatchEvent(
+						new CustomEvent("hitl-decision", { detail: { decisions: [decision] } })
+					);
+				}}
+			/>
+		);
+	}
 
-		if (isInterruptResult(result)) {
-			return (
-				<ApprovalCard
-					args={args}
-					interruptData={result}
-					onDecision={(decision) => {
-						window.dispatchEvent(
-							new CustomEvent("hitl-decision", { detail: { decisions: [decision] } })
-						);
-					}}
-				/>
-			);
-		}
+	if (
+		typeof result === "object" &&
+		result !== null &&
+		"status" in result &&
+		(result as { status: string }).status === "rejected"
+	) {
+		return null;
+	}
 
-		if (
-			typeof result === "object" &&
-			result !== null &&
-			"status" in result &&
-			(result as { status: string }).status === "rejected"
-		) {
-			return null;
-		}
+	if (isAuthErrorResult(result)) return <AuthErrorCard result={result} />;
 
-		if (isInsufficientPermissionsResult(result))
-			return <InsufficientPermissionsCard result={result} />;
+	if (isInsufficientPermissionsResult(result))
+		return <InsufficientPermissionsCard result={result} />;
 
-		if (isErrorResult(result)) return <ErrorCard result={result} />;
+	if (isErrorResult(result)) return <ErrorCard result={result} />;
 
-		return <SuccessCard result={result as SuccessResult} />;
-	},
-});
+	return <SuccessCard result={result as SuccessResult} />;
+};

@@ -15,7 +15,7 @@ export type RequestOptions = {
 	headers?: Record<string, string>;
 	contentType?: "application/json" | "application/x-www-form-urlencoded";
 	signal?: AbortSignal;
-	body?: any;
+	body?: unknown;
 	responseType?: ResponseType;
 	_isRetry?: boolean; // Internal flag to prevent infinite retry loops
 	// Add more options as needed
@@ -90,7 +90,8 @@ class BaseApiService {
 			// Validate the bearer token
 			const isNoAuthEndpoint =
 				this.noAuthEndpoints.includes(url) ||
-				this.noAuthPrefixes.some((prefix) => url.startsWith(prefix));
+				this.noAuthPrefixes.some((prefix) => url.startsWith(prefix)) ||
+				/^\/api\/v1\/invites\/[^/]+\/info$/.test(url);
 			if (!this.bearerToken && !isNoAuthEndpoint) {
 				throw new AuthenticationError("You are not authenticated. Please login again.");
 			}
@@ -231,6 +232,23 @@ class BaseApiService {
 			return data;
 		} catch (error) {
 			console.error("Request failed:", JSON.stringify(error));
+			if (!(error instanceof AuthenticationError)) {
+				import("posthog-js")
+					.then(({ default: posthog }) => {
+						posthog.captureException(error, {
+							api_url: url,
+							api_method: options?.method ?? "GET",
+							...(error instanceof AppError && {
+								status_code: error.status,
+								status_text: error.statusText,
+							}),
+						});
+					})
+					.catch(() => {
+						// PostHog is not available in the current environment
+						console.error("Failed to capture exception in PostHog");
+					});
+			}
 			throw error;
 		}
 	}

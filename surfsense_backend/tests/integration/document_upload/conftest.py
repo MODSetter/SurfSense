@@ -3,6 +3,7 @@
 Prerequisites: PostgreSQL + pgvector only.
 
 External system boundaries are mocked:
+  - ETL parsing — LlamaParse (external API) and Docling (heavy library)
   - LLM summarization, text embedding, text chunking (external APIs)
   - Redis heartbeat (external infrastructure)
   - Task dispatch is swapped via DI (InlineTaskDispatcher)
@@ -11,6 +12,7 @@ External system boundaries are mocked:
 from __future__ import annotations
 
 import contextlib
+import os
 from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock
 
@@ -183,7 +185,7 @@ async def _cleanup_documents(
     for doc_id in cleanup_doc_ids:
         try:
             resp = await delete_document(client, headers, doc_id)
-            if resp.status_code == 409:
+            if resp.status_code != 200:
                 remaining_ids.append(doc_id)
         except Exception:
             remaining_ids.append(doc_id)
@@ -265,12 +267,21 @@ def _mock_external_apis(monkeypatch):
         AsyncMock(return_value="Mocked summary."),
     )
     monkeypatch.setattr(
-        "app.indexing_pipeline.indexing_pipeline_service.embed_text",
-        MagicMock(return_value=[0.1] * _EMBEDDING_DIM),
+        "app.indexing_pipeline.indexing_pipeline_service.embed_texts",
+        MagicMock(side_effect=lambda texts: [[0.1] * _EMBEDDING_DIM for _ in texts]),
     )
     monkeypatch.setattr(
         "app.indexing_pipeline.indexing_pipeline_service.chunk_text",
         MagicMock(return_value=["Test chunk content."]),
+    )
+
+
+@pytest.fixture(autouse=True)
+def _mock_celery_delete_task(monkeypatch):
+    """Mock Celery delete dispatch — no broker is available in CI."""
+    monkeypatch.setattr(
+        "app.tasks.celery_tasks.document_tasks.delete_document_task.delay",
+        lambda *args, **kwargs: None,
     )
 
 
@@ -288,4 +299,60 @@ def _mock_redis_heartbeat(monkeypatch):
     monkeypatch.setattr(
         "app.tasks.celery_tasks.document_tasks._run_heartbeat_loop",
         AsyncMock(),
+    )
+
+
+_MOCK_ETL_MARKDOWN = "# Mocked Document\n\nThis is mocked ETL content."
+
+
+@pytest.fixture(autouse=True)
+def _mock_etl_parsing(monkeypatch):
+    """Mock ETL parsing services — LlamaParse and Docling are external boundaries.
+
+    Preserves the real contract: empty/corrupt files raise an error just like
+    the actual services would, so tests covering failure paths keep working.
+    """
+
+    def _reject_empty(file_path: str) -> None:
+        if os.path.getsize(file_path) == 0:
+            raise RuntimeError(f"Cannot parse empty file: {file_path}")
+
+    # -- LlamaParse mock (external API) --------------------------------
+
+    async def _fake_llamacloud_parse(file_path: str, estimated_pages: int) -> str:
+        _reject_empty(file_path)
+        return _MOCK_ETL_MARKDOWN
+
+    monkeypatch.setattr(
+        "app.etl_pipeline.parsers.llamacloud.parse_with_llamacloud",
+        _fake_llamacloud_parse,
+    )
+
+    # -- Docling mock (heavy library boundary) -------------------------
+
+    async def _fake_docling_parse(file_path: str, filename: str) -> str:
+        _reject_empty(file_path)
+        return _MOCK_ETL_MARKDOWN
+
+    monkeypatch.setattr(
+        "app.etl_pipeline.parsers.docling.parse_with_docling",
+        _fake_docling_parse,
+    )
+
+    class _FakeDoclingResult:
+        class Document:
+            @staticmethod
+            def export_to_markdown():
+                return _MOCK_ETL_MARKDOWN
+
+        document = Document()
+
+    class _FakeDocumentConverter:
+        def convert(self, file_path):
+            _reject_empty(file_path)
+            return _FakeDoclingResult()
+
+    monkeypatch.setattr(
+        "docling.document_converter.DocumentConverter",
+        _FakeDocumentConverter,
     )

@@ -1,21 +1,27 @@
 ---
 title: Installation
-description: Current ways to use SurfSense
+description: How to install SurfSense - Docker or from source
 icon: Download
 ---
 
-# Installing SurfSense
+import { Card, Cards } from 'fumadocs-ui/components/card';
+import { Container, Wrench } from 'lucide-react';
 
-There are two ways to install SurfSense, but both require the repository to be cloned first. Clone [SurfSense](https://github.com/MODSetter/SurfSense) and then:
+SurfSense runs as a Python backend + Next.js frontend. You can either spin it up with Docker or set everything up yourself.
 
-## Docker Installation 
+**Not sure which to pick?** Docker gets you up and running fastest. Go manual if you want to build SurfSense with us or need full control over the stack.
 
-This method provides a containerized environment with all dependencies pre-configured. Less Customization.
-
-[Learn more about Docker installation](/docs/docker-installation)
-
-## Manual Installation (Preferred)
-
-For users who prefer more control over the installation process or need to customize their setup, we also provide manual installation instructions.
-
-[Learn more about Manual installation](/docs/manual-installation)
+<Cards>
+  <Card
+    icon={<Container />}
+    title="Docker Installation"
+    description="All dependencies pre-configured, up and running in minutes"
+    href="/docs/docker-installation"
+  />
+  <Card
+    icon={<Wrench />}
+    title="Manual Installation"
+    description="Set up each component yourself for full control"
+    href="/docs/manual-installation"
+  />
+</Cards>

@@ -9,8 +9,8 @@ import {
 	Laptop,
 	LogOut,
 	Moon,
-	Settings,
 	Sun,
+	UserCog,
 } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
@@ -122,7 +122,7 @@ function UserAvatar({
 				alt="User avatar"
 				width={32}
 				height={32}
-				className="h-8 w-8 shrink-0 rounded-lg object-cover"
+				className="h-8 w-8 shrink-0 rounded-lg object-cover select-none"
 				referrerPolicy="no-referrer"
 				unoptimized
 			/>
@@ -206,7 +206,7 @@ export function SidebarUserProfile({
 						<DropdownMenuSeparator className="dark:bg-neutral-700" />
 
 						<DropdownMenuItem onClick={onUserSettings}>
-							<Settings className="h-4 w-4" />
+							<UserCog className="h-4 w-4" />
 							{t("user_settings")}
 						</DropdownMenuItem>
 
@@ -351,7 +351,7 @@ export function SidebarUserProfile({
 					<DropdownMenuSeparator className="dark:bg-neutral-700" />
 
 					<DropdownMenuItem onClick={onUserSettings}>
-						<Settings className="h-4 w-4" />
+						<UserCog className="h-4 w-4" />
 						{t("user_settings")}
 					</DropdownMenuItem>
 

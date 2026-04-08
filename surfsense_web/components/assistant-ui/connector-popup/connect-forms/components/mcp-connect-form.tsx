@@ -136,7 +136,7 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 
 	return (
 		<div className="space-y-6 pb-6">
-			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3 [&>svg]:top-2 sm:[&>svg]:top-3">
+			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3">
 				<Server className="h-4 w-4 shrink-0" />
 				<AlertDescription className="text-[10px] sm:text-xs">
 					Connect to an MCP (Model Context Protocol) server. Each MCP server is added as a separate
@@ -230,55 +230,51 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 							) : (
 								<XCircle className="h-4 w-4 text-red-600" />
 							)}
-							<div className="flex-1">
-								<div className="flex items-center justify-between">
-									<AlertTitle className="text-sm">
-										{testResult.status === "success"
-											? "Connection Successful"
-											: "Connection Failed"}
-									</AlertTitle>
-									{testResult.tools.length > 0 && (
-										<Button
-											type="button"
-											variant="ghost"
-											size="sm"
-											className="h-6 px-2 self-start sm:self-auto text-xs"
-											onClick={(e) => {
-												e.preventDefault();
-												e.stopPropagation();
-												setShowDetails(!showDetails);
-											}}
-										>
-											{showDetails ? (
-												<>
-													<ChevronUp className="h-3 w-3 mr-1" />
-													<span className="hidden sm:inline">Hide Details</span>
-													<span className="sm:hidden">Hide</span>
-												</>
-											) : (
-												<>
-													<ChevronDown className="h-3 w-3 mr-1" />
-													<span className="hidden sm:inline">Show Details</span>
-													<span className="sm:hidden">Show</span>
-												</>
-											)}
-										</Button>
-									)}
-								</div>
-								<AlertDescription className="text-[10px] sm:text-xs mt-1">
-									{testResult.message}
-									{showDetails && testResult.tools.length > 0 && (
-										<div className="mt-3 pt-3 border-t border-green-500/20">
-											<p className="font-semibold mb-2">Available tools:</p>
-											<ul className="list-disc list-inside text-xs space-y-0.5">
-												{testResult.tools.map((tool, i) => (
-													<li key={i}>{tool.name}</li>
-												))}
-											</ul>
-										</div>
-									)}
-								</AlertDescription>
+							<div className="col-start-2 flex items-center justify-between">
+								<AlertTitle className="text-sm">
+									{testResult.status === "success" ? "Connection Successful" : "Connection Failed"}
+								</AlertTitle>
+								{testResult.tools.length > 0 && (
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										className="h-6 px-2 self-start sm:self-auto text-xs"
+										onClick={(e) => {
+											e.preventDefault();
+											e.stopPropagation();
+											setShowDetails((prev) => !prev);
+										}}
+									>
+										{showDetails ? (
+											<>
+												<ChevronUp className="h-3 w-3 mr-1" />
+												<span className="hidden sm:inline">Hide Details</span>
+												<span className="sm:hidden">Hide</span>
+											</>
+										) : (
+											<>
+												<ChevronDown className="h-3 w-3 mr-1" />
+												<span className="hidden sm:inline">Show Details</span>
+												<span className="sm:hidden">Show</span>
+											</>
+										)}
+									</Button>
+								)}
 							</div>
+							<AlertDescription className="text-[10px] sm:text-xs mt-1">
+								{testResult.message}
+								{showDetails && testResult.tools.length > 0 && (
+									<div className="mt-3 pt-3 border-t border-green-500/20">
+										<p className="font-semibold mb-2">Available tools:</p>
+										<ul className="list-disc list-inside text-xs space-y-0.5">
+											{testResult.tools.map((tool, i) => (
+												<li key={i}>{tool.name}</li>
+											))}
+										</ul>
+									</div>
+								)}
+							</AlertDescription>
 						</Alert>
 					)}
 				</div>

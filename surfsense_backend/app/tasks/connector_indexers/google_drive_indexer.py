@@ -1,44 +1,870 @@
-"""Google Drive indexer using Surfsense file processors.
+"""Google Drive indexer using the shared IndexingPipelineService.
 
-Implements 2-phase document status updates for real-time UI feedback:
-- Phase 1: Create all documents with 'pending' status (visible in UI immediately)
-- Phase 2: Process each document: pending → processing → ready/failed
+File-level pre-filter (_should_skip_file) handles md5/modifiedTime
+checks and rename-only detection.  download_and_extract_content()
+returns markdown which is fed into ConnectorDocument -> pipeline.
 """
 
+import asyncio
 import logging
 import time
 from collections.abc import Awaitable, Callable
 
+from sqlalchemy import String, cast, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.config import config
 from app.connectors.google_drive import (
     GoogleDriveClient,
     categorize_change,
-    download_and_process_file,
+    download_and_extract_content,
     fetch_all_changes,
     get_file_by_id,
     get_files_in_folder,
     get_start_page_token,
 )
+from app.connectors.google_drive.file_types import (
+    is_google_workspace_file,
+    should_skip_by_extension,
+    should_skip_file as skip_mime,
+)
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
+from app.indexing_pipeline.connector_document import ConnectorDocument
+from app.indexing_pipeline.document_hashing import compute_identifier_hash
+from app.indexing_pipeline.indexing_pipeline_service import (
+    IndexingPipelineService,
+    PlaceholderInfo,
+)
+from app.services.llm_service import get_user_long_context_llm
+from app.services.page_limit_service import PageLimitService
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.connector_indexers.base import (
     check_document_by_unique_identifier,
     get_connector_by_id,
-    get_current_timestamp,
     update_connector_last_indexed,
 )
-from app.utils.document_converters import generate_unique_identifier_hash
+from app.utils.google_credentials import (
+    COMPOSIO_GOOGLE_CONNECTOR_TYPES,
+    build_composio_credentials,
+)
 
-# Type hint for heartbeat callback
+ACCEPTED_DRIVE_CONNECTOR_TYPES = {
+    SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR,
+    SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+}
+
 HeartbeatCallbackType = Callable[[int], Awaitable[None]]
-
-# Heartbeat interval in seconds
 HEARTBEAT_INTERVAL_SECONDS = 30
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+async def _should_skip_file(
+    session: AsyncSession,
+    file: dict,
+    search_space_id: int,
+) -> tuple[bool, str | None]:
+    """Pre-filter: detect unchanged / rename-only files.
+
+    Returns (should_skip, message).
+    Side-effects: migrates legacy Composio hashes, updates renames in-place.
+    """
+    file_id = file.get("id")
+    file_name = file.get("name", "Unknown")
+    mime_type = file.get("mimeType", "")
+
+    if skip_mime(mime_type):
+        return True, "folder/shortcut"
+    if not is_google_workspace_file(mime_type):
+        ext_skip, unsup_ext = should_skip_by_extension(file_name)
+        if ext_skip:
+            return True, f"unsupported:{unsup_ext}"
+    if not file_id:
+        return True, "missing file_id"
+
+    # --- locate existing document ---
+    primary_hash = compute_identifier_hash(
+        DocumentType.GOOGLE_DRIVE_FILE.value, file_id, search_space_id
+    )
+    existing = await check_document_by_unique_identifier(session, primary_hash)
+
+    if not existing:
+        legacy_hash = compute_identifier_hash(
+            DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR.value, file_id, search_space_id
+        )
+        existing = await check_document_by_unique_identifier(session, legacy_hash)
+        if existing:
+            existing.unique_identifier_hash = primary_hash
+            if existing.document_type == DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR:
+                existing.document_type = DocumentType.GOOGLE_DRIVE_FILE
+            logger.info(f"Migrated legacy Composio Drive document: {file_id}")
+
+    if not existing:
+        result = await session.execute(
+            select(Document).where(
+                Document.search_space_id == search_space_id,
+                Document.document_type.in_(
+                    [
+                        DocumentType.GOOGLE_DRIVE_FILE,
+                        DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+                    ]
+                ),
+                cast(Document.document_metadata["google_drive_file_id"], String)
+                == file_id,
+            )
+        )
+        existing = result.scalar_one_or_none()
+        if existing:
+            existing.unique_identifier_hash = primary_hash
+            if existing.document_type == DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR:
+                existing.document_type = DocumentType.GOOGLE_DRIVE_FILE
+            logger.debug(f"Found legacy doc by metadata for file_id: {file_id}")
+
+    if not existing:
+        return False, None
+
+    # --- content-change check via md5 / modifiedTime ---
+    incoming_md5 = file.get("md5Checksum")
+    incoming_mtime = file.get("modifiedTime")
+    meta = existing.document_metadata or {}
+    stored_md5 = meta.get("md5_checksum")
+    stored_mtime = meta.get("modified_time")
+
+    content_unchanged = False
+    if incoming_md5 and stored_md5:
+        content_unchanged = incoming_md5 == stored_md5
+    elif incoming_md5 and not stored_md5:
+        return False, None
+    elif not incoming_md5 and incoming_mtime and stored_mtime:
+        content_unchanged = incoming_mtime == stored_mtime
+    elif not incoming_md5:
+        return False, None
+
+    if not content_unchanged:
+        return False, None
+
+    # --- rename-only detection ---
+    old_name = meta.get("FILE_NAME") or meta.get("google_drive_file_name")
+    if old_name and old_name != file_name:
+        existing.title = file_name
+        if not existing.document_metadata:
+            existing.document_metadata = {}
+        existing.document_metadata["FILE_NAME"] = file_name
+        existing.document_metadata["google_drive_file_name"] = file_name
+        if incoming_mtime:
+            existing.document_metadata["modified_time"] = incoming_mtime
+        flag_modified(existing, "document_metadata")
+        await session.commit()
+        logger.info(f"Rename-only update: '{old_name}' → '{file_name}'")
+        return True, f"File renamed: '{old_name}' → '{file_name}'"
+
+    if not DocumentStatus.is_state(existing.status, DocumentStatus.READY):
+        return True, "skipped (previously failed)"
+    return True, "unchanged"
+
+
+def _build_connector_doc(
+    file: dict,
+    markdown: str,
+    drive_metadata: dict,
+    *,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    enable_summary: bool,
+) -> ConnectorDocument:
+    """Build a ConnectorDocument from Drive file metadata + extracted markdown."""
+    file_id = file.get("id", "")
+    file_name = file.get("name", "Unknown")
+
+    metadata = {
+        **drive_metadata,
+        "connector_id": connector_id,
+        "document_type": "Google Drive File",
+        "connector_type": "Google Drive",
+    }
+
+    fallback_summary = f"File: {file_name}\n\n{markdown[:4000]}"
+
+    return ConnectorDocument(
+        title=file_name,
+        source_markdown=markdown,
+        unique_id=file_id,
+        document_type=DocumentType.GOOGLE_DRIVE_FILE,
+        search_space_id=search_space_id,
+        connector_id=connector_id,
+        created_by_id=user_id,
+        should_summarize=enable_summary,
+        fallback_summary=fallback_summary,
+        metadata=metadata,
+    )
+
+
+async def _create_drive_placeholders(
+    session: AsyncSession,
+    files: list[dict],
+    *,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+) -> None:
+    """Create placeholder document rows for discovered Drive files.
+
+    Called immediately after file discovery (Phase 1) so documents appear
+    in the UI via Zero sync before the slow download/ETL phase begins.
+    """
+    if not files:
+        return
+
+    placeholders = []
+    for file in files:
+        file_id = file.get("id")
+        file_name = file.get("name", "Unknown")
+        if not file_id:
+            continue
+        placeholders.append(
+            PlaceholderInfo(
+                title=file_name,
+                document_type=DocumentType.GOOGLE_DRIVE_FILE,
+                unique_id=file_id,
+                search_space_id=search_space_id,
+                connector_id=connector_id,
+                created_by_id=user_id,
+                metadata={
+                    "google_drive_file_id": file_id,
+                    "FILE_NAME": file_name,
+                    "connector_id": connector_id,
+                    "connector_type": "Google Drive",
+                },
+            )
+        )
+
+    if placeholders:
+        pipeline = IndexingPipelineService(session)
+        await pipeline.create_placeholder_documents(placeholders)
+
+
+async def _download_files_parallel(
+    drive_client: GoogleDriveClient,
+    files: list[dict],
+    *,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    enable_summary: bool,
+    max_concurrency: int = 3,
+    on_heartbeat: HeartbeatCallbackType | None = None,
+) -> tuple[list[ConnectorDocument], int]:
+    """Download and ETL files in parallel, returning ConnectorDocuments.
+
+    Returns (connector_docs, download_failed_count).
+    """
+    results: list[ConnectorDocument] = []
+    sem = asyncio.Semaphore(max_concurrency)
+    last_heartbeat = time.time()
+    completed_count = 0
+    hb_lock = asyncio.Lock()
+
+    async def _download_one(file: dict) -> ConnectorDocument | None:
+        nonlocal last_heartbeat, completed_count
+        async with sem:
+            markdown, drive_metadata, error = await download_and_extract_content(
+                drive_client, file
+            )
+            if error or not markdown:
+                file_name = file.get("name", "Unknown")
+                reason = error or "empty content"
+                logger.warning(f"Download/ETL failed for {file_name}: {reason}")
+                return None
+            doc = _build_connector_doc(
+                file,
+                markdown,
+                drive_metadata,
+                connector_id=connector_id,
+                search_space_id=search_space_id,
+                user_id=user_id,
+                enable_summary=enable_summary,
+            )
+            async with hb_lock:
+                completed_count += 1
+                if on_heartbeat:
+                    now = time.time()
+                    if now - last_heartbeat >= HEARTBEAT_INTERVAL_SECONDS:
+                        await on_heartbeat(completed_count)
+                        last_heartbeat = now
+            return doc
+
+    tasks = [_download_one(f) for f in files]
+    outcomes = await asyncio.gather(*tasks, return_exceptions=True)
+
+    failed = 0
+    for outcome in outcomes:
+        if isinstance(outcome, Exception) or outcome is None:
+            failed += 1
+        else:
+            results.append(outcome)
+
+    return results, failed
+
+
+async def _process_single_file(
+    drive_client: GoogleDriveClient,
+    session: AsyncSession,
+    file: dict,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    enable_summary: bool = True,
+) -> tuple[int, int, int]:
+    """Download, extract, and index a single Drive file via the pipeline.
+
+    Returns (indexed, skipped, failed).
+    """
+    file_name = file.get("name", "Unknown")
+
+    try:
+        skip, msg = await _should_skip_file(session, file, search_space_id)
+        if skip:
+            if msg and "renamed" in msg.lower():
+                return 1, 0, 0
+            return 0, 1, 0
+
+        page_limit_service = PageLimitService(session)
+        estimated_pages = PageLimitService.estimate_pages_from_metadata(
+            file_name, file.get("size")
+        )
+        await page_limit_service.check_page_limit(user_id, estimated_pages)
+
+        markdown, drive_metadata, error = await download_and_extract_content(
+            drive_client, file
+        )
+        if error or not markdown:
+            logger.warning(f"ETL failed for {file_name}: {error}")
+            return 0, 1, 0
+
+        doc = _build_connector_doc(
+            file,
+            markdown,
+            drive_metadata,
+            connector_id=connector_id,
+            search_space_id=search_space_id,
+            user_id=user_id,
+            enable_summary=enable_summary,
+        )
+
+        pipeline = IndexingPipelineService(session)
+        documents = await pipeline.prepare_for_indexing([doc])
+        if not documents:
+            return 0, 1, 0
+
+        from app.indexing_pipeline.document_hashing import (
+            compute_unique_identifier_hash,
+        )
+
+        doc_map = {compute_unique_identifier_hash(doc): doc}
+        for document in documents:
+            connector_doc = doc_map.get(document.unique_identifier_hash)
+            if not connector_doc:
+                continue
+            user_llm = await get_user_long_context_llm(
+                session, user_id, search_space_id
+            )
+            await pipeline.index(document, connector_doc, user_llm)
+
+        await page_limit_service.update_page_usage(
+            user_id, estimated_pages, allow_exceed=True
+        )
+        logger.info(f"Successfully indexed Google Drive file: {file_name}")
+        return 1, 0, 0
+
+    except Exception as e:
+        logger.error(f"Error processing file {file_name}: {e!s}", exc_info=True)
+        return 0, 0, 1
+
+
+async def _remove_document(session: AsyncSession, file_id: str, search_space_id: int):
+    """Remove a document that was deleted in Drive."""
+    primary_hash = compute_identifier_hash(
+        DocumentType.GOOGLE_DRIVE_FILE.value, file_id, search_space_id
+    )
+    existing = await check_document_by_unique_identifier(session, primary_hash)
+
+    if not existing:
+        legacy_hash = compute_identifier_hash(
+            DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR.value, file_id, search_space_id
+        )
+        existing = await check_document_by_unique_identifier(session, legacy_hash)
+
+    if not existing:
+        result = await session.execute(
+            select(Document).where(
+                Document.search_space_id == search_space_id,
+                Document.document_type.in_(
+                    [
+                        DocumentType.GOOGLE_DRIVE_FILE,
+                        DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+                    ]
+                ),
+                cast(Document.document_metadata["google_drive_file_id"], String)
+                == file_id,
+            )
+        )
+        existing = result.scalar_one_or_none()
+
+    if existing:
+        await session.delete(existing)
+        logger.info(f"Removed deleted file document: {file_id}")
+
+
+async def _download_and_index(
+    drive_client: GoogleDriveClient,
+    session: AsyncSession,
+    files: list[dict],
+    *,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    enable_summary: bool,
+    on_heartbeat: HeartbeatCallbackType | None = None,
+) -> tuple[int, int]:
+    """Phase 2+3: parallel download then parallel indexing.
+
+    Returns (batch_indexed, total_failed).
+    """
+    connector_docs, download_failed = await _download_files_parallel(
+        drive_client,
+        files,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        enable_summary=enable_summary,
+        on_heartbeat=on_heartbeat,
+    )
+
+    batch_indexed = 0
+    batch_failed = 0
+    if connector_docs:
+        pipeline = IndexingPipelineService(session)
+
+        async def _get_llm(s):
+            return await get_user_long_context_llm(s, user_id, search_space_id)
+
+        _, batch_indexed, batch_failed = await pipeline.index_batch_parallel(
+            connector_docs,
+            _get_llm,
+            max_concurrency=3,
+            on_heartbeat=on_heartbeat,
+        )
+
+    return batch_indexed, download_failed + batch_failed
+
+
+async def _index_selected_files(
+    drive_client: GoogleDriveClient,
+    session: AsyncSession,
+    file_ids: list[tuple[str, str | None]],
+    *,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    enable_summary: bool,
+    on_heartbeat: HeartbeatCallbackType | None = None,
+) -> tuple[int, int, int, list[str]]:
+    """Index user-selected files using the parallel pipeline.
+
+    Phase 1 (serial): fetch metadata + skip checks.
+    Phase 2+3 (parallel): download, ETL, index via _download_and_index.
+
+    Returns (indexed_count, skipped_count, unsupported_count, errors).
+    """
+    page_limit_service = PageLimitService(session)
+    pages_used, pages_limit = await page_limit_service.get_page_usage(user_id)
+    remaining_quota = pages_limit - pages_used
+    batch_estimated_pages = 0
+
+    files_to_download: list[dict] = []
+    errors: list[str] = []
+    renamed_count = 0
+    skipped = 0
+    unsupported_count = 0
+
+    for file_id, file_name in file_ids:
+        file, error = await get_file_by_id(drive_client, file_id)
+        if error or not file:
+            display = file_name or file_id
+            errors.append(f"File '{display}': {error or 'File not found'}")
+            continue
+
+        skip, msg = await _should_skip_file(session, file, search_space_id)
+        if skip:
+            if msg and msg.startswith("unsupported:"):
+                unsupported_count += 1
+            elif msg and "renamed" in msg.lower():
+                renamed_count += 1
+            else:
+                skipped += 1
+            continue
+
+        file_pages = PageLimitService.estimate_pages_from_metadata(
+            file.get("name", ""), file.get("size")
+        )
+        if batch_estimated_pages + file_pages > remaining_quota:
+            display = file_name or file_id
+            errors.append(f"File '{display}': page limit would be exceeded")
+            continue
+
+        batch_estimated_pages += file_pages
+        files_to_download.append(file)
+
+    await _create_drive_placeholders(
+        session,
+        files_to_download,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+    )
+
+    batch_indexed, _failed = await _download_and_index(
+        drive_client,
+        session,
+        files_to_download,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        enable_summary=enable_summary,
+        on_heartbeat=on_heartbeat,
+    )
+
+    if batch_indexed > 0 and files_to_download and batch_estimated_pages > 0:
+        pages_to_deduct = max(
+            1, batch_estimated_pages * batch_indexed // len(files_to_download)
+        )
+        await page_limit_service.update_page_usage(
+            user_id, pages_to_deduct, allow_exceed=True
+        )
+
+    return renamed_count + batch_indexed, skipped, unsupported_count, errors
+
+
+# ---------------------------------------------------------------------------
+# Scan strategies
+# ---------------------------------------------------------------------------
+
+
+async def _index_full_scan(
+    drive_client: GoogleDriveClient,
+    session: AsyncSession,
+    connector: object,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    folder_id: str | None,
+    folder_name: str,
+    task_logger: TaskLoggingService,
+    log_entry: object,
+    max_files: int,
+    include_subfolders: bool = False,
+    on_heartbeat_callback: HeartbeatCallbackType | None = None,
+    enable_summary: bool = True,
+) -> tuple[int, int, int]:
+    """Full scan indexing of a folder.
+
+    Returns (indexed, skipped, unsupported_count).
+    """
+    await task_logger.log_task_progress(
+        log_entry,
+        f"Starting full scan of folder: {folder_name} (include_subfolders={include_subfolders})",
+        {
+            "stage": "full_scan",
+            "folder_id": folder_id,
+            "include_subfolders": include_subfolders,
+        },
+    )
+
+    # ------------------------------------------------------------------
+    # Phase 1 (serial): collect files, run skip checks, track renames
+    # ------------------------------------------------------------------
+    page_limit_service = PageLimitService(session)
+    pages_used, pages_limit = await page_limit_service.get_page_usage(user_id)
+    remaining_quota = pages_limit - pages_used
+    batch_estimated_pages = 0
+    page_limit_reached = False
+
+    renamed_count = 0
+    skipped = 0
+    unsupported_count = 0
+    files_processed = 0
+    files_to_download: list[dict] = []
+    folders_to_process = [(folder_id, folder_name)]
+    first_error: str | None = None
+
+    while folders_to_process and files_processed < max_files:
+        cur_id, cur_name = folders_to_process.pop(0)
+        page_token = None
+
+        while files_processed < max_files:
+            files, next_token, error = await get_files_in_folder(
+                drive_client,
+                cur_id,
+                include_subfolders=True,
+                page_token=page_token,
+            )
+            if error:
+                logger.error(f"Error listing files in {cur_name}: {error}")
+                if first_error is None:
+                    first_error = error
+                break
+            if not files:
+                break
+
+            for file in files:
+                if files_processed >= max_files:
+                    break
+
+                mime = file.get("mimeType", "")
+                if mime == "application/vnd.google-apps.folder":
+                    if include_subfolders:
+                        folders_to_process.append(
+                            (file["id"], file.get("name", "Unknown"))
+                        )
+                    continue
+
+                files_processed += 1
+
+                skip, msg = await _should_skip_file(session, file, search_space_id)
+                if skip:
+                    if msg and msg.startswith("unsupported:"):
+                        unsupported_count += 1
+                    elif msg and "renamed" in msg.lower():
+                        renamed_count += 1
+                    else:
+                        skipped += 1
+                    continue
+
+                file_pages = PageLimitService.estimate_pages_from_metadata(
+                    file.get("name", ""), file.get("size")
+                )
+                if batch_estimated_pages + file_pages > remaining_quota:
+                    if not page_limit_reached:
+                        logger.warning(
+                            "Page limit reached during Google Drive full scan, "
+                            "skipping remaining files"
+                        )
+                        page_limit_reached = True
+                    skipped += 1
+                    continue
+
+                batch_estimated_pages += file_pages
+                files_to_download.append(file)
+
+            page_token = next_token
+            if not page_token:
+                break
+
+    if not files_processed and first_error:
+        err_lower = first_error.lower()
+        if (
+            "401" in first_error
+            or "invalid credentials" in err_lower
+            or "authError" in first_error
+        ):
+            raise Exception(
+                f"Google Drive authentication failed. Please re-authenticate. (Error: {first_error})"
+            )
+        raise Exception(f"Failed to list Google Drive files: {first_error}")
+
+    # ------------------------------------------------------------------
+    # Phase 1.5: create placeholders for instant UI feedback
+    # ------------------------------------------------------------------
+    await _create_drive_placeholders(
+        session,
+        files_to_download,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+    )
+
+    # ------------------------------------------------------------------
+    # Phase 2+3 (parallel): download, ETL, index
+    # ------------------------------------------------------------------
+    batch_indexed, failed = await _download_and_index(
+        drive_client,
+        session,
+        files_to_download,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        enable_summary=enable_summary,
+        on_heartbeat=on_heartbeat_callback,
+    )
+
+    if batch_indexed > 0 and files_to_download and batch_estimated_pages > 0:
+        pages_to_deduct = max(
+            1, batch_estimated_pages * batch_indexed // len(files_to_download)
+        )
+        await page_limit_service.update_page_usage(
+            user_id, pages_to_deduct, allow_exceed=True
+        )
+
+    indexed = renamed_count + batch_indexed
+    logger.info(
+        f"Full scan complete: {indexed} indexed, {skipped} skipped, "
+        f"{unsupported_count} unsupported, {failed} failed"
+    )
+    return indexed, skipped, unsupported_count
+
+
+async def _index_with_delta_sync(
+    drive_client: GoogleDriveClient,
+    session: AsyncSession,
+    connector: object,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    folder_id: str | None,
+    start_page_token: str,
+    task_logger: TaskLoggingService,
+    log_entry: object,
+    max_files: int,
+    include_subfolders: bool = False,
+    on_heartbeat_callback: HeartbeatCallbackType | None = None,
+    enable_summary: bool = True,
+) -> tuple[int, int, int]:
+    """Delta sync using change tracking.
+
+    Returns (indexed, skipped, unsupported_count).
+    """
+    await task_logger.log_task_progress(
+        log_entry,
+        f"Starting delta sync from token: {start_page_token[:20]}...",
+        {"stage": "delta_sync", "start_token": start_page_token},
+    )
+
+    changes, _final_token, error = await fetch_all_changes(
+        drive_client, start_page_token, folder_id
+    )
+    if error:
+        err_lower = error.lower()
+        if "401" in error or "invalid credentials" in err_lower or "authError" in error:
+            raise Exception(
+                f"Google Drive authentication failed. Please re-authenticate. (Error: {error})"
+            )
+        raise Exception(f"Failed to fetch Google Drive changes: {error}")
+
+    if not changes:
+        logger.info("No changes detected since last sync")
+        return 0, 0, 0
+
+    logger.info(f"Processing {len(changes)} changes")
+
+    # ------------------------------------------------------------------
+    # Phase 1 (serial): handle removals, collect files for download
+    # ------------------------------------------------------------------
+    page_limit_service = PageLimitService(session)
+    pages_used, pages_limit = await page_limit_service.get_page_usage(user_id)
+    remaining_quota = pages_limit - pages_used
+    batch_estimated_pages = 0
+    page_limit_reached = False
+
+    renamed_count = 0
+    skipped = 0
+    unsupported_count = 0
+    files_to_download: list[dict] = []
+    files_processed = 0
+
+    for change in changes:
+        if files_processed >= max_files:
+            break
+        files_processed += 1
+        change_type = categorize_change(change)
+
+        if change_type in ["removed", "trashed"]:
+            fid = change.get("fileId")
+            if fid:
+                await _remove_document(session, fid, search_space_id)
+            continue
+
+        file = change.get("file")
+        if not file:
+            continue
+
+        skip, msg = await _should_skip_file(session, file, search_space_id)
+        if skip:
+            if msg and msg.startswith("unsupported:"):
+                unsupported_count += 1
+            elif msg and "renamed" in msg.lower():
+                renamed_count += 1
+            else:
+                skipped += 1
+            continue
+
+        file_pages = PageLimitService.estimate_pages_from_metadata(
+            file.get("name", ""), file.get("size")
+        )
+        if batch_estimated_pages + file_pages > remaining_quota:
+            if not page_limit_reached:
+                logger.warning(
+                    "Page limit reached during Google Drive delta sync, "
+                    "skipping remaining files"
+                )
+                page_limit_reached = True
+            skipped += 1
+            continue
+
+        batch_estimated_pages += file_pages
+        files_to_download.append(file)
+
+    # ------------------------------------------------------------------
+    # Phase 1.5: create placeholders for instant UI feedback
+    # ------------------------------------------------------------------
+    await _create_drive_placeholders(
+        session,
+        files_to_download,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+    )
+
+    # ------------------------------------------------------------------
+    # Phase 2+3 (parallel): download, ETL, index
+    # ------------------------------------------------------------------
+    batch_indexed, failed = await _download_and_index(
+        drive_client,
+        session,
+        files_to_download,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        enable_summary=enable_summary,
+        on_heartbeat=on_heartbeat_callback,
+    )
+
+    if batch_indexed > 0 and files_to_download and batch_estimated_pages > 0:
+        pages_to_deduct = max(
+            1, batch_estimated_pages * batch_indexed // len(files_to_download)
+        )
+        await page_limit_service.update_page_usage(
+            user_id, pages_to_deduct, allow_exceed=True
+        )
+
+    indexed = renamed_count + batch_indexed
+    logger.info(
+        f"Delta sync complete: {indexed} indexed, {skipped} skipped, "
+        f"{unsupported_count} unsupported, {failed} failed"
+    )
+    return indexed, skipped, unsupported_count
+
+
+# ---------------------------------------------------------------------------
+# Public entry points
+# ---------------------------------------------------------------------------
 
 
 async def index_google_drive_files(
@@ -53,28 +879,12 @@ async def index_google_drive_files(
     max_files: int = 500,
     include_subfolders: bool = False,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
-) -> tuple[int, str | None]:
-    """
-    Index Google Drive files for a specific connector.
+) -> tuple[int, int, str | None, int]:
+    """Index Google Drive files for a specific connector.
 
-    Args:
-        session: Database session
-        connector_id: ID of the Drive connector
-        search_space_id: ID of the search space
-        user_id: ID of the user
-        folder_id: Specific folder to index (from UI/request, takes precedence)
-        folder_name: Folder name for display (from UI/request)
-        use_delta_sync: Whether to use change tracking for incremental sync
-        update_last_indexed: Whether to update last_indexed_at timestamp
-        max_files: Maximum number of files to index
-        include_subfolders: Whether to recursively index files in subfolders
-        on_heartbeat_callback: Optional callback to update notification during long-running indexing.
-
-    Returns:
-        Tuple of (number_of_indexed_files, error_message)
+    Returns (indexed, skipped, error_or_none, unsupported_count).
     """
     task_logger = TaskLoggingService(session, search_space_id)
-
     log_entry = await task_logger.log_task_start(
         task_name="google_drive_files_indexing",
         source="connector_indexing_task",
@@ -89,16 +899,17 @@ async def index_google_drive_files(
     )
 
     try:
-        connector = await get_connector_by_id(
-            session, connector_id, SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR
-        )
-
+        connector = None
+        for ct in ACCEPTED_DRIVE_CONNECTOR_TYPES:
+            connector = await get_connector_by_id(session, connector_id, ct)
+            if connector:
+                break
         if not connector:
             error_msg = f"Google Drive connector with ID {connector_id} not found"
             await task_logger.log_task_failure(
-                log_entry, error_msg, {"error_type": "ConnectorNotFound"}
+                log_entry, error_msg, None, {"error_type": "ConnectorNotFound"}
             )
-            return 0, error_msg
+            return 0, 0, error_msg, 0
 
         await task_logger.log_task_progress(
             log_entry,
@@ -106,102 +917,131 @@ async def index_google_drive_files(
             {"stage": "client_initialization"},
         )
 
-        # Check if credentials are encrypted (only when explicitly marked)
-        token_encrypted = connector.config.get("_token_encrypted", False)
-        if token_encrypted:
-            # Credentials are explicitly marked as encrypted, will be decrypted during client initialization
-            if not config.SECRET_KEY:
+        pre_built_credentials = None
+        if connector.connector_type in COMPOSIO_GOOGLE_CONNECTOR_TYPES:
+            connected_account_id = connector.config.get("composio_connected_account_id")
+            if not connected_account_id:
+                error_msg = f"Composio connected_account_id not found for connector {connector_id}"
                 await task_logger.log_task_failure(
                     log_entry,
-                    f"SECRET_KEY not configured but credentials are marked as encrypted for connector {connector_id}",
-                    "Missing SECRET_KEY for token decryption",
+                    error_msg,
+                    "Missing Composio account",
+                    {"error_type": "MissingComposioAccount"},
+                )
+                return 0, 0, error_msg, 0
+            pre_built_credentials = build_composio_credentials(connected_account_id)
+        else:
+            token_encrypted = connector.config.get("_token_encrypted", False)
+            if token_encrypted and not config.SECRET_KEY:
+                await task_logger.log_task_failure(
+                    log_entry,
+                    "SECRET_KEY not configured but credentials are encrypted",
+                    "Missing SECRET_KEY",
                     {"error_type": "MissingSecretKey"},
                 )
                 return (
                     0,
+                    0,
                     "SECRET_KEY not configured but credentials are marked as encrypted",
+                    0,
                 )
-            logger.info(
-                f"Google Drive credentials are encrypted for connector {connector_id}, will decrypt during client initialization"
-            )
-        # If _token_encrypted is False or not set, treat credentials as plaintext
 
-        drive_client = GoogleDriveClient(session, connector_id)
+        connector_enable_summary = getattr(connector, "enable_summary", True)
+        drive_client = GoogleDriveClient(
+            session, connector_id, credentials=pre_built_credentials
+        )
 
         if not folder_id:
             error_msg = "folder_id is required for Google Drive indexing"
             await task_logger.log_task_failure(
                 log_entry, error_msg, {"error_type": "MissingParameter"}
             )
-            return 0, error_msg
+            return 0, 0, error_msg, 0
 
         target_folder_id = folder_id
         target_folder_name = folder_name or "Selected Folder"
 
-        logger.info(
-            f"Indexing Google Drive folder: {target_folder_name} ({target_folder_id})"
-        )
-
         folder_tokens = connector.config.get("folder_tokens", {})
         start_page_token = folder_tokens.get(target_folder_id)
-        can_use_delta_sync = (
+        can_use_delta = (
             use_delta_sync and start_page_token and connector.last_indexed_at
         )
 
-        if can_use_delta_sync:
+        documents_unsupported = 0
+
+        if can_use_delta:
             logger.info(f"Using delta sync for connector {connector_id}")
-            result = await _index_with_delta_sync(
-                drive_client=drive_client,
-                session=session,
-                connector=connector,
-                connector_id=connector_id,
-                search_space_id=search_space_id,
-                user_id=user_id,
-                folder_id=target_folder_id,
-                start_page_token=start_page_token,
-                task_logger=task_logger,
-                log_entry=log_entry,
-                max_files=max_files,
-                include_subfolders=include_subfolders,
-                on_heartbeat_callback=on_heartbeat_callback,
+            documents_indexed, documents_skipped, du = await _index_with_delta_sync(
+                drive_client,
+                session,
+                connector,
+                connector_id,
+                search_space_id,
+                user_id,
+                target_folder_id,
+                start_page_token,
+                task_logger,
+                log_entry,
+                max_files,
+                include_subfolders,
+                on_heartbeat_callback,
+                connector_enable_summary,
             )
+            documents_unsupported += du
+            logger.info("Running reconciliation scan after delta sync")
+            ri, rs, ru = await _index_full_scan(
+                drive_client,
+                session,
+                connector,
+                connector_id,
+                search_space_id,
+                user_id,
+                target_folder_id,
+                target_folder_name,
+                task_logger,
+                log_entry,
+                max_files,
+                include_subfolders,
+                on_heartbeat_callback,
+                connector_enable_summary,
+            )
+            documents_indexed += ri
+            documents_skipped += rs
+            documents_unsupported += ru
         else:
             logger.info(f"Using full scan for connector {connector_id}")
-            result = await _index_full_scan(
-                drive_client=drive_client,
-                session=session,
-                connector=connector,
-                connector_id=connector_id,
-                search_space_id=search_space_id,
-                user_id=user_id,
-                folder_id=target_folder_id,
-                folder_name=target_folder_name,
-                task_logger=task_logger,
-                log_entry=log_entry,
-                max_files=max_files,
-                include_subfolders=include_subfolders,
-                on_heartbeat_callback=on_heartbeat_callback,
+            (
+                documents_indexed,
+                documents_skipped,
+                documents_unsupported,
+            ) = await _index_full_scan(
+                drive_client,
+                session,
+                connector,
+                connector_id,
+                search_space_id,
+                user_id,
+                target_folder_id,
+                target_folder_name,
+                task_logger,
+                log_entry,
+                max_files,
+                include_subfolders,
+                on_heartbeat_callback,
+                connector_enable_summary,
             )
 
-        documents_indexed, documents_skipped = result
-
-        if documents_indexed > 0 or can_use_delta_sync:
+        if documents_indexed > 0 or can_use_delta:
             new_token, token_error = await get_start_page_token(drive_client)
             if new_token and not token_error:
-                from sqlalchemy.orm.attributes import flag_modified
-
-                # Refresh connector to reload attributes that may have been expired by earlier commits
                 await session.refresh(connector)
-
                 if "folder_tokens" not in connector.config:
                     connector.config["folder_tokens"] = {}
                 connector.config["folder_tokens"][target_folder_id] = new_token
                 flag_modified(connector, "config")
-
             await update_connector_last_indexed(session, connector, update_last_indexed)
 
         await session.commit()
-        logger.info("Successfully committed Google Drive indexing changes to database")
 
         await task_logger.log_task_success(
             log_entry,
@@ -209,15 +1049,17 @@ async def index_google_drive_files(
             {
                 "files_processed": documents_indexed,
                 "files_skipped": documents_skipped,
-                "sync_type": "delta" if can_use_delta_sync else "full",
+                "files_unsupported": documents_unsupported,
+                "sync_type": "delta" if can_use_delta else "full",
                 "folder": target_folder_name,
             },
         )
-
         logger.info(
-            f"Google Drive indexing completed: {documents_indexed} files indexed, {documents_skipped} skipped"
+            f"Google Drive indexing completed: {documents_indexed} indexed, "
+            f"{documents_skipped} skipped, {documents_unsupported} unsupported"
         )
-        return documents_indexed, None
+
+        return documents_indexed, documents_skipped, None, documents_unsupported
 
     except SQLAlchemyError as db_error:
         await session.rollback()
@@ -228,7 +1070,7 @@ async def index_google_drive_files(
             {"error_type": "SQLAlchemyError"},
         )
         logger.error(f"Database error: {db_error!s}", exc_info=True)
-        return 0, f"Database error: {db_error!s}"
+        return 0, 0, f"Database error: {db_error!s}", 0
     except Exception as e:
         await session.rollback()
         await task_logger.log_task_failure(
@@ -238,7 +1080,7 @@ async def index_google_drive_files(
             {"error_type": type(e).__name__},
         )
         logger.error(f"Failed to index Google Drive files: {e!s}", exc_info=True)
-        return 0, f"Failed to index Google Drive files: {e!s}"
+        return 0, 0, f"Failed to index Google Drive files: {e!s}", 0
 
 
 async def index_google_drive_single_file(
@@ -249,22 +1091,8 @@ async def index_google_drive_single_file(
     file_id: str,
     file_name: str | None = None,
 ) -> tuple[int, str | None]:
-    """
-    Index a single Google Drive file by its ID.
-
-    Args:
-        session: Database session
-        connector_id: ID of the Drive connector
-        search_space_id: ID of the search space
-        user_id: ID of the user
-        file_id: Specific file ID to index
-        file_name: File name for display (optional)
-
-    Returns:
-        Tuple of (number_of_indexed_files, error_message)
-    """
+    """Index a single Google Drive file by its ID."""
     task_logger = TaskLoggingService(session, search_space_id)
-
     log_entry = await task_logger.log_task_start(
         task_name="google_drive_single_file_indexing",
         source="connector_indexing_task",
@@ -278,48 +1106,51 @@ async def index_google_drive_single_file(
     )
 
     try:
-        connector = await get_connector_by_id(
-            session, connector_id, SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR
-        )
-
+        connector = None
+        for ct in ACCEPTED_DRIVE_CONNECTOR_TYPES:
+            connector = await get_connector_by_id(session, connector_id, ct)
+            if connector:
+                break
         if not connector:
             error_msg = f"Google Drive connector with ID {connector_id} not found"
             await task_logger.log_task_failure(
-                log_entry, error_msg, {"error_type": "ConnectorNotFound"}
+                log_entry, error_msg, None, {"error_type": "ConnectorNotFound"}
             )
             return 0, error_msg
 
-        await task_logger.log_task_progress(
-            log_entry,
-            f"Initializing Google Drive client for connector {connector_id}",
-            {"stage": "client_initialization"},
-        )
-
-        # Check if credentials are encrypted (only when explicitly marked)
-        token_encrypted = connector.config.get("_token_encrypted", False)
-        if token_encrypted:
-            # Credentials are explicitly marked as encrypted, will be decrypted during client initialization
-            if not config.SECRET_KEY:
+        pre_built_credentials = None
+        if connector.connector_type in COMPOSIO_GOOGLE_CONNECTOR_TYPES:
+            connected_account_id = connector.config.get("composio_connected_account_id")
+            if not connected_account_id:
+                error_msg = f"Composio connected_account_id not found for connector {connector_id}"
                 await task_logger.log_task_failure(
                     log_entry,
-                    f"SECRET_KEY not configured but credentials are marked as encrypted for connector {connector_id}",
-                    "Missing SECRET_KEY for token decryption",
+                    error_msg,
+                    "Missing Composio account",
+                    {"error_type": "MissingComposioAccount"},
+                )
+                return 0, error_msg
+            pre_built_credentials = build_composio_credentials(connected_account_id)
+        else:
+            token_encrypted = connector.config.get("_token_encrypted", False)
+            if token_encrypted and not config.SECRET_KEY:
+                await task_logger.log_task_failure(
+                    log_entry,
+                    "SECRET_KEY not configured but credentials are encrypted",
+                    "Missing SECRET_KEY",
                     {"error_type": "MissingSecretKey"},
                 )
                 return (
                     0,
                     "SECRET_KEY not configured but credentials are marked as encrypted",
                 )
-            logger.info(
-                f"Google Drive credentials are encrypted for connector {connector_id}, will decrypt during client initialization"
-            )
-        # If _token_encrypted is False or not set, treat credentials as plaintext
 
-        drive_client = GoogleDriveClient(session, connector_id)
+        connector_enable_summary = getattr(connector, "enable_summary", True)
+        drive_client = GoogleDriveClient(
+            session, connector_id, credentials=pre_built_credentials
+        )
 
-        # Fetch the file metadata
         file, error = await get_file_by_id(drive_client, file_id)
-
         if error or not file:
             error_msg = f"Failed to fetch file {file_id}: {error or 'File not found'}"
             await task_logger.log_task_failure(
@@ -328,53 +1159,22 @@ async def index_google_drive_single_file(
             return 0, error_msg
 
         display_name = file_name or file.get("name", "Unknown")
-        logger.info(f"Indexing Google Drive file: {display_name} ({file_id})")
 
-        # Create pending document for status visibility
-        pending_doc, should_skip = await _create_pending_document_for_file(
-            session=session,
-            file=file,
-            connector_id=connector_id,
-            search_space_id=search_space_id,
-            user_id=user_id,
-        )
-
-        if should_skip:
-            await task_logger.log_task_progress(
-                log_entry,
-                f"File {display_name} is unchanged or not indexable",
-                {"status": "skipped"},
-            )
-            return 0, None
-
-        # Commit pending document so it appears in UI
-        if pending_doc and pending_doc.id is None:
-            await session.commit()
-
-        # Process the file
         indexed, _skipped, failed = await _process_single_file(
-            drive_client=drive_client,
-            session=session,
-            file=file,
-            connector_id=connector_id,
-            search_space_id=search_space_id,
-            user_id=user_id,
-            task_logger=task_logger,
-            log_entry=log_entry,
-            pending_document=pending_doc,
+            drive_client,
+            session,
+            file,
+            connector_id,
+            search_space_id,
+            user_id,
+            connector_enable_summary,
         )
-
         await session.commit()
-        logger.info(
-            "Successfully committed Google Drive file indexing changes to database"
-        )
 
         if failed > 0:
             error_msg = f"Failed to index file {display_name}"
             await task_logger.log_task_failure(
-                log_entry,
-                error_msg,
-                {"file_name": display_name, "file_id": file_id},
+                log_entry, error_msg, {"file_name": display_name, "file_id": file_id}
             )
             return 0, error_msg
 
@@ -382,20 +1182,11 @@ async def index_google_drive_single_file(
             await task_logger.log_task_success(
                 log_entry,
                 f"Successfully indexed file {display_name}",
-                {
-                    "file_name": display_name,
-                    "file_id": file_id,
-                },
+                {"file_name": display_name, "file_id": file_id},
             )
-            logger.info(f"Google Drive file indexing completed: {display_name}")
             return 1, None
-        else:
-            await task_logger.log_task_progress(
-                log_entry,
-                f"File {display_name} was skipped",
-                {"status": "skipped"},
-            )
-            return 0, None
+
+        return 0, None
 
     except SQLAlchemyError as db_error:
         await session.rollback()
@@ -419,689 +1210,133 @@ async def index_google_drive_single_file(
         return 0, f"Failed to index Google Drive file: {e!s}"
 
 
-async def _index_full_scan(
-    drive_client: GoogleDriveClient,
+async def index_google_drive_selected_files(
     session: AsyncSession,
-    connector: any,
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    folder_id: str | None,
-    folder_name: str,
-    task_logger: TaskLoggingService,
-    log_entry: any,
-    max_files: int,
-    include_subfolders: bool = False,
+    files: list[tuple[str, str | None]],
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
-) -> tuple[int, int]:
-    """Perform full scan indexing of a folder.
+) -> tuple[int, int, list[str]]:
+    """Index multiple user-selected Google Drive files in parallel.
 
-    Implements 2-phase document status updates for real-time UI feedback:
-    - Phase 1: Collect all files and create pending documents (visible in UI immediately)
-    - Phase 2: Process each file: pending → processing → ready/failed
+    Sets up the connector/credentials once, then delegates to
+    _index_selected_files for the three-phase parallel pipeline.
+
+    Returns (indexed_count, skipped_count, errors).
     """
-    await task_logger.log_task_progress(
-        log_entry,
-        f"Starting full scan of folder: {folder_name} (include_subfolders={include_subfolders})",
-        {
-            "stage": "full_scan",
-            "folder_id": folder_id,
-            "include_subfolders": include_subfolders,
-        },
-    )
-
-    documents_indexed = 0
-    documents_skipped = 0
-    documents_failed = 0
-    files_processed = 0
-
-    # Heartbeat tracking - update notification periodically to prevent appearing stuck
-    last_heartbeat_time = time.time()
-
-    # =======================================================================
-    # PHASE 1: Collect all files and create pending documents
-    # This makes ALL documents visible in the UI immediately with pending status
-    # =======================================================================
-    files_to_process = []  # List of (file, pending_document or None)
-    new_documents_created = False
-
-    # Queue of folders to process: (folder_id, folder_name)
-    folders_to_process = [(folder_id, folder_name)]
-
-    logger.info("Phase 1: Collecting files and creating pending documents")
-
-    while folders_to_process and files_processed < max_files:
-        current_folder_id, current_folder_name = folders_to_process.pop(0)
-        logger.info(f"Scanning folder: {current_folder_name} ({current_folder_id})")
-        page_token = None
-
-        while files_processed < max_files:
-            # Get files and folders in current folder
-            files, next_token, error = await get_files_in_folder(
-                drive_client,
-                current_folder_id,
-                include_subfolders=True,
-                page_token=page_token,
-            )
-
-            if error:
-                logger.error(f"Error listing files in {current_folder_name}: {error}")
-                break
-
-            if not files:
-                break
-
-            for file in files:
-                if files_processed >= max_files:
-                    break
-
-                mime_type = file.get("mimeType", "")
-
-                # If this is a folder and include_subfolders is enabled, queue it for processing
-                if mime_type == "application/vnd.google-apps.folder":
-                    if include_subfolders:
-                        folders_to_process.append(
-                            (file["id"], file.get("name", "Unknown"))
-                        )
-                        logger.debug(f"Queued subfolder: {file.get('name', 'Unknown')}")
-                    continue
-
-                files_processed += 1
-
-                # Create pending document for this file
-                pending_doc, should_skip = await _create_pending_document_for_file(
-                    session=session,
-                    file=file,
-                    connector_id=connector_id,
-                    search_space_id=search_space_id,
-                    user_id=user_id,
-                )
-
-                if should_skip:
-                    documents_skipped += 1
-                    continue
-
-                if pending_doc and pending_doc.id is None:
-                    # New document was created
-                    new_documents_created = True
-
-                files_to_process.append((file, pending_doc))
-
-            page_token = next_token
-            if not page_token:
-                break
-
-    # Commit all pending documents - they all appear in UI now
-    if new_documents_created:
-        logger.info(
-            f"Phase 1: Committing {len([f for f in files_to_process if f[1] and f[1].id is None])} pending documents"
-        )
-        await session.commit()
-
-    # =======================================================================
-    # PHASE 2: Process each file one by one
-    # Each document transitions: pending → processing → ready/failed
-    # =======================================================================
-    logger.info(f"Phase 2: Processing {len(files_to_process)} files")
-
-    for file, pending_doc in files_to_process:
-        # Check if it's time for a heartbeat update
-        if on_heartbeat_callback:
-            current_time = time.time()
-            if current_time - last_heartbeat_time >= HEARTBEAT_INTERVAL_SECONDS:
-                await on_heartbeat_callback(documents_indexed)
-                last_heartbeat_time = current_time
-
-        indexed, skipped, failed = await _process_single_file(
-            drive_client=drive_client,
-            session=session,
-            file=file,
-            connector_id=connector_id,
-            search_space_id=search_space_id,
-            user_id=user_id,
-            task_logger=task_logger,
-            log_entry=log_entry,
-            pending_document=pending_doc,
-        )
-
-        documents_indexed += indexed
-        documents_skipped += skipped
-        documents_failed += failed
-
-        if documents_indexed % 10 == 0 and documents_indexed > 0:
-            await session.commit()
-            logger.info(f"Committed batch: {documents_indexed} files indexed so far")
-
-    logger.info(
-        f"Full scan complete: {documents_indexed} indexed, {documents_skipped} skipped, {documents_failed} failed"
-    )
-    return documents_indexed, documents_skipped
-
-
-async def _index_with_delta_sync(
-    drive_client: GoogleDriveClient,
-    session: AsyncSession,
-    connector: any,
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    folder_id: str | None,
-    start_page_token: str,
-    task_logger: TaskLoggingService,
-    log_entry: any,
-    max_files: int,
-    include_subfolders: bool = False,
-    on_heartbeat_callback: HeartbeatCallbackType | None = None,
-) -> tuple[int, int]:
-    """Perform delta sync indexing using change tracking.
-
-    Note: include_subfolders is accepted for API consistency but delta sync
-    automatically tracks changes across all folders including subfolders.
-
-    Implements 2-phase document status updates for real-time UI feedback:
-    - Phase 1: Collect all changes and create pending documents (visible in UI immediately)
-    - Phase 2: Process each file: pending → processing → ready/failed
-    """
-    await task_logger.log_task_progress(
-        log_entry,
-        f"Starting delta sync from token: {start_page_token[:20]}...",
-        {"stage": "delta_sync", "start_token": start_page_token},
-    )
-
-    changes, _final_token, error = await fetch_all_changes(
-        drive_client, start_page_token, folder_id
-    )
-
-    if error:
-        logger.error(f"Error fetching changes: {error}")
-        return 0, 0
-
-    if not changes:
-        logger.info("No changes detected since last sync")
-        return 0, 0
-
-    logger.info(f"Processing {len(changes)} changes")
-
-    documents_indexed = 0
-    documents_skipped = 0
-    documents_failed = 0
-    files_processed = 0
-
-    # Heartbeat tracking - update notification periodically to prevent appearing stuck
-    last_heartbeat_time = time.time()
-
-    # =======================================================================
-    # PHASE 1: Analyze changes and create pending documents for new/modified files
-    # =======================================================================
-    changes_to_process = []  # List of (change, file, pending_document or None)
-    new_documents_created = False
-
-    logger.info("Phase 1: Analyzing changes and creating pending documents")
-
-    for change in changes:
-        if files_processed >= max_files:
-            break
-
-        files_processed += 1
-        change_type = categorize_change(change)
-
-        if change_type in ["removed", "trashed"]:
-            file_id = change.get("fileId")
-            if file_id:
-                await _remove_document(session, file_id, search_space_id)
-            continue
-
-        file = change.get("file")
-        if not file:
-            continue
-
-        # Create pending document for this file
-        pending_doc, should_skip = await _create_pending_document_for_file(
-            session=session,
-            file=file,
-            connector_id=connector_id,
-            search_space_id=search_space_id,
-            user_id=user_id,
-        )
-
-        if should_skip:
-            documents_skipped += 1
-            continue
-
-        if pending_doc and pending_doc.id is None:
-            # New document was created
-            new_documents_created = True
-
-        changes_to_process.append((change, file, pending_doc))
-
-    # Commit all pending documents - they all appear in UI now
-    if new_documents_created:
-        logger.info("Phase 1: Committing pending documents")
-        await session.commit()
-
-    # =======================================================================
-    # PHASE 2: Process each file one by one
-    # Each document transitions: pending → processing → ready/failed
-    # =======================================================================
-    logger.info(f"Phase 2: Processing {len(changes_to_process)} changes")
-
-    for _, file, pending_doc in changes_to_process:
-        # Check if it's time for a heartbeat update
-        if on_heartbeat_callback:
-            current_time = time.time()
-            if current_time - last_heartbeat_time >= HEARTBEAT_INTERVAL_SECONDS:
-                await on_heartbeat_callback(documents_indexed)
-                last_heartbeat_time = current_time
-
-        indexed, skipped, failed = await _process_single_file(
-            drive_client=drive_client,
-            session=session,
-            file=file,
-            connector_id=connector_id,
-            search_space_id=search_space_id,
-            user_id=user_id,
-            task_logger=task_logger,
-            log_entry=log_entry,
-            pending_document=pending_doc,
-        )
-
-        documents_indexed += indexed
-        documents_skipped += skipped
-        documents_failed += failed
-
-        if documents_indexed % 10 == 0 and documents_indexed > 0:
-            await session.commit()
-            logger.info(f"Committed batch: {documents_indexed} changes processed")
-
-    logger.info(
-        f"Delta sync complete: {documents_indexed} indexed, {documents_skipped} skipped, {documents_failed} failed"
-    )
-    return documents_indexed, documents_skipped
-
-
-async def _create_pending_document_for_file(
-    session: AsyncSession,
-    file: dict,
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-) -> tuple[Document | None, bool]:
-    """
-    Create a pending document for a Google Drive file if it doesn't exist.
-
-    This is Phase 1 of the 2-phase document status update pattern.
-    Creates documents with 'pending' status so they appear in UI immediately.
-
-    Args:
-        session: Database session
-        file: File metadata from Google Drive API
-        connector_id: ID of the Drive connector
-        search_space_id: ID of the search space
-        user_id: ID of the user
-
-    Returns:
-        Tuple of (document, should_skip):
-        - (existing_doc, False): Existing document that needs update
-        - (new_pending_doc, False): New pending document created
-        - (None, True): File should be skipped (unchanged, rename-only, or folder)
-    """
-    from app.connectors.google_drive.file_types import should_skip_file
-
-    file_id = file.get("id")
-    file_name = file.get("name", "Unknown")
-    mime_type = file.get("mimeType", "")
-
-    # Skip folders and shortcuts
-    if should_skip_file(mime_type):
-        return None, True
-
-    if not file_id:
-        return None, True
-
-    # Generate unique identifier hash for this file
-    unique_identifier_hash = generate_unique_identifier_hash(
-        DocumentType.GOOGLE_DRIVE_FILE, file_id, search_space_id
-    )
-
-    # Check if document exists
-    existing_document = await check_document_by_unique_identifier(
-        session, unique_identifier_hash
-    )
-
-    if existing_document:
-        # Check if this is a rename-only update (content unchanged)
-        incoming_md5 = file.get("md5Checksum")
-        incoming_modified_time = file.get("modifiedTime")
-        doc_metadata = existing_document.document_metadata or {}
-        stored_md5 = doc_metadata.get("md5_checksum")
-        stored_modified_time = doc_metadata.get("modified_time")
-
-        # Determine if content changed
-        content_unchanged = False
-        if incoming_md5 and stored_md5:
-            content_unchanged = incoming_md5 == stored_md5
-        elif not incoming_md5 and incoming_modified_time and stored_modified_time:
-            # Google Workspace file - use modifiedTime as fallback
-            content_unchanged = incoming_modified_time == stored_modified_time
-
-        if content_unchanged:
-            # Ensure status is ready (might have been stuck in processing/pending)
-            if not DocumentStatus.is_state(
-                existing_document.status, DocumentStatus.READY
-            ):
-                existing_document.status = DocumentStatus.ready()
-            return None, True
-
-        # Content changed - return existing document for update
-        return existing_document, False
-
-    # Create new pending document
-    document = Document(
-        search_space_id=search_space_id,
-        title=file_name,
-        document_type=DocumentType.GOOGLE_DRIVE_FILE,
-        document_metadata={
-            "google_drive_file_id": file_id,
-            "google_drive_file_name": file_name,
-            "google_drive_mime_type": mime_type,
+    task_logger = TaskLoggingService(session, search_space_id)
+    log_entry = await task_logger.log_task_start(
+        task_name="google_drive_selected_files_indexing",
+        source="connector_indexing_task",
+        message=f"Starting Google Drive batch file indexing for {len(files)} files",
+        metadata={
             "connector_id": connector_id,
+            "user_id": str(user_id),
+            "file_count": len(files),
         },
-        content="Pending...",  # Placeholder until processed
-        content_hash=unique_identifier_hash,  # Temporary unique value - updated when ready
-        unique_identifier_hash=unique_identifier_hash,
-        embedding=None,
-        chunks=[],  # Empty at creation
-        status=DocumentStatus.pending(),  # Pending until processing starts
-        updated_at=get_current_timestamp(),
-        created_by_id=user_id,
-        connector_id=connector_id,
     )
-    session.add(document)
-
-    return document, False
-
-
-async def _check_rename_only_update(
-    session: AsyncSession,
-    file: dict,
-    search_space_id: int,
-) -> tuple[bool, str | None]:
-    """
-    Check if a file only needs a rename update (no content change).
-
-    Uses md5Checksum comparison (preferred) or modifiedTime (fallback for Google Workspace files)
-    to detect if content has changed. This optimization prevents unnecessary ETL API calls
-    (Docling/LlamaCloud) for rename-only operations.
-
-    Args:
-        session: Database session
-        file: File metadata from Google Drive API
-        search_space_id: ID of the search space
-
-    Returns:
-        Tuple of (is_rename_only, message)
-        - (True, message): Only filename changed, document was updated
-        - (False, None): Content changed or new file, needs full processing
-    """
-    from sqlalchemy import String, cast, select
-    from sqlalchemy.orm.attributes import flag_modified
-
-    from app.db import Document
-
-    file_id = file.get("id")
-    file_name = file.get("name", "Unknown")
-    incoming_md5 = file.get("md5Checksum")  # None for Google Workspace files
-    incoming_modified_time = file.get("modifiedTime")
-
-    if not file_id:
-        return False, None
-
-    # Try to find existing document by file_id-based hash (primary method)
-    primary_hash = generate_unique_identifier_hash(
-        DocumentType.GOOGLE_DRIVE_FILE, file_id, search_space_id
-    )
-    existing_document = await check_document_by_unique_identifier(session, primary_hash)
-
-    # If not found by primary hash, try searching by metadata (for legacy documents)
-    if not existing_document:
-        result = await session.execute(
-            select(Document).where(
-                Document.search_space_id == search_space_id,
-                Document.document_type == DocumentType.GOOGLE_DRIVE_FILE,
-                cast(Document.document_metadata["google_drive_file_id"], String)
-                == file_id,
-            )
-        )
-        existing_document = result.scalar_one_or_none()
-        if existing_document:
-            logger.debug(f"Found legacy document by metadata for file_id: {file_id}")
-
-    if not existing_document:
-        # New file, needs full processing
-        return False, None
-
-    # Get stored checksums/timestamps from document metadata
-    doc_metadata = existing_document.document_metadata or {}
-    stored_md5 = doc_metadata.get("md5_checksum")
-    stored_modified_time = doc_metadata.get("modified_time")
-
-    # Determine if content changed using md5Checksum (preferred) or modifiedTime (fallback)
-    content_unchanged = False
-
-    if incoming_md5 and stored_md5:
-        # Best case: Compare md5 checksums (only changes when content changes, not on rename)
-        content_unchanged = incoming_md5 == stored_md5
-        logger.debug(f"MD5 comparison for {file_name}: unchanged={content_unchanged}")
-    elif incoming_md5 and not stored_md5:
-        # Have incoming md5 but no stored md5 (legacy doc) - need to reprocess to store it
-        logger.debug(
-            f"No stored md5 for {file_name}, will reprocess to store md5_checksum"
-        )
-        return False, None
-    elif not incoming_md5:
-        # Google Workspace file (no md5Checksum available) - fall back to modifiedTime
-        # Note: modifiedTime is less reliable as it changes on rename too, but it's the best we have
-        if incoming_modified_time and stored_modified_time:
-            content_unchanged = incoming_modified_time == stored_modified_time
-            logger.debug(
-                f"ModifiedTime fallback for Google Workspace file {file_name}: unchanged={content_unchanged}"
-            )
-        else:
-            # No stored modifiedTime (legacy) - reprocess to store it
-            return False, None
-
-    if content_unchanged:
-        # Content hasn't changed - check if filename changed
-        old_name = doc_metadata.get("FILE_NAME") or doc_metadata.get(
-            "google_drive_file_name"
-        )
-
-        if old_name and old_name != file_name:
-            # Rename-only update - update the document without re-processing
-            existing_document.title = file_name
-            if not existing_document.document_metadata:
-                existing_document.document_metadata = {}
-            existing_document.document_metadata["FILE_NAME"] = file_name
-            existing_document.document_metadata["google_drive_file_name"] = file_name
-            # Also update modified_time for Google Workspace files (since it changed on rename)
-            if incoming_modified_time:
-                existing_document.document_metadata["modified_time"] = (
-                    incoming_modified_time
-                )
-            flag_modified(existing_document, "document_metadata")
-            await session.commit()
-
-            logger.info(
-                f"Rename-only update: '{old_name}' → '{file_name}' (skipped ETL)"
-            )
-            return (
-                True,
-                f"File renamed: '{old_name}' → '{file_name}' (no content change)",
-            )
-        else:
-            # Neither content nor name changed
-            logger.debug(f"File unchanged: {file_name}")
-            return True, "File unchanged (same content and name)"
-
-    # Content changed - needs full processing
-    return False, None
-
-
-async def _process_single_file(
-    drive_client: GoogleDriveClient,
-    session: AsyncSession,
-    file: dict,
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    task_logger: TaskLoggingService,
-    log_entry: any,
-    pending_document: Document | None = None,
-) -> tuple[int, int, int]:
-    """
-    Process a single file by downloading and using Surfsense's file processor.
-
-    Implements Phase 2 of the 2-phase document status update pattern.
-    Updates document status: pending → processing → ready/failed
-
-    Args:
-        drive_client: Google Drive client
-        session: Database session
-        file: File metadata from Google Drive API
-        connector_id: ID of the connector
-        search_space_id: ID of the search space
-        user_id: ID of the user
-        task_logger: Task logging service
-        log_entry: Log entry for tracking
-        pending_document: Optional pending document created in Phase 1
-
-    Returns:
-        Tuple of (indexed_count, skipped_count, failed_count)
-    """
-    file_name = file.get("name", "Unknown")
-    mime_type = file.get("mimeType", "")
-    file_id = file.get("id")
 
     try:
-        logger.info(f"Processing file: {file_name} ({mime_type})")
+        connector = None
+        for ct in ACCEPTED_DRIVE_CONNECTOR_TYPES:
+            connector = await get_connector_by_id(session, connector_id, ct)
+            if connector:
+                break
+        if not connector:
+            error_msg = f"Google Drive connector with ID {connector_id} not found"
+            await task_logger.log_task_failure(
+                log_entry, error_msg, None, {"error_type": "ConnectorNotFound"}
+            )
+            return 0, 0, [error_msg]
 
-        # Early check: Is this a rename-only update?
-        # This optimization prevents downloading and ETL processing for files
-        # where only the name changed but content is the same.
-        is_rename_only, rename_message = await _check_rename_only_update(
-            session=session,
-            file=file,
-            search_space_id=search_space_id,
+        pre_built_credentials = None
+        if connector.connector_type in COMPOSIO_GOOGLE_CONNECTOR_TYPES:
+            connected_account_id = connector.config.get("composio_connected_account_id")
+            if not connected_account_id:
+                error_msg = f"Composio connected_account_id not found for connector {connector_id}"
+                await task_logger.log_task_failure(
+                    log_entry,
+                    error_msg,
+                    "Missing Composio account",
+                    {"error_type": "MissingComposioAccount"},
+                )
+                return 0, 0, [error_msg]
+            pre_built_credentials = build_composio_credentials(connected_account_id)
+        else:
+            token_encrypted = connector.config.get("_token_encrypted", False)
+            if token_encrypted and not config.SECRET_KEY:
+                error_msg = (
+                    "SECRET_KEY not configured but credentials are marked as encrypted"
+                )
+                await task_logger.log_task_failure(
+                    log_entry,
+                    error_msg,
+                    "Missing SECRET_KEY",
+                    {"error_type": "MissingSecretKey"},
+                )
+                return 0, 0, [error_msg]
+
+        connector_enable_summary = getattr(connector, "enable_summary", True)
+        drive_client = GoogleDriveClient(
+            session, connector_id, credentials=pre_built_credentials
         )
 
-        if is_rename_only:
-            await task_logger.log_task_progress(
-                log_entry,
-                f"Skipped ETL for {file_name}: {rename_message}",
-                {"status": "rename_only", "reason": rename_message},
-            )
-            # Return 1 for renamed files (they are "indexed" in the sense that they're updated)
-            # Return 0 for unchanged files
-            if "renamed" in (rename_message or "").lower():
-                return 1, 0, 0
-            return 0, 1, 0
-
-        # Set document to PROCESSING status if we have a pending document
-        if pending_document:
-            pending_document.status = DocumentStatus.processing()
-            await session.commit()
-
-        _, error, _metadata = await download_and_process_file(
-            client=drive_client,
-            file=file,
+        indexed, skipped, unsupported, errors = await _index_selected_files(
+            drive_client,
+            session,
+            files,
+            connector_id=connector_id,
             search_space_id=search_space_id,
             user_id=user_id,
-            session=session,
-            task_logger=task_logger,
-            log_entry=log_entry,
-            connector_id=connector_id,
+            enable_summary=connector_enable_summary,
+            on_heartbeat=on_heartbeat_callback,
         )
 
-        if error:
-            await task_logger.log_task_progress(
+        if unsupported > 0:
+            file_text = "file was" if unsupported == 1 else "files were"
+            unsup_msg = f"{unsupported} {file_text} not supported"
+            errors.append(unsup_msg)
+
+        await session.commit()
+
+        if errors:
+            await task_logger.log_task_failure(
                 log_entry,
-                f"Skipped {file_name}: {error}",
-                {"status": "skipped", "reason": error},
+                f"Batch file indexing completed with {len(errors)} error(s)",
+                "; ".join(errors),
+                {
+                    "indexed": indexed,
+                    "skipped": skipped,
+                    "unsupported": unsupported,
+                    "error_count": len(errors),
+                },
             )
-            # Mark pending document as failed if it exists
-            if pending_document:
-                pending_document.status = DocumentStatus.failed(error)
-                pending_document.updated_at = get_current_timestamp()
-                await session.commit()
-            return 0, 1, 0
-
-        # The document was created/updated by download_and_process_file
-        # Find the document and ensure it has READY status
-        if file_id:
-            unique_identifier_hash = generate_unique_identifier_hash(
-                DocumentType.GOOGLE_DRIVE_FILE, file_id, search_space_id
+        else:
+            await task_logger.log_task_success(
+                log_entry,
+                f"Successfully indexed {indexed} files ({skipped} skipped)",
+                {"indexed": indexed, "skipped": skipped},
             )
-            processed_doc = await check_document_by_unique_identifier(
-                session, unique_identifier_hash
-            )
-            # Ensure status is READY
-            if processed_doc and not DocumentStatus.is_state(
-                processed_doc.status, DocumentStatus.READY
-            ):
-                processed_doc.status = DocumentStatus.ready()
-                processed_doc.updated_at = get_current_timestamp()
-                await session.commit()
 
-        logger.info(f"Successfully indexed Google Drive file: {file_name}")
-        return 1, 0, 0
-
-    except Exception as e:
-        logger.error(f"Error processing file {file_name}: {e!s}", exc_info=True)
-        # Mark pending document as failed if it exists
-        if pending_document:
-            try:
-                pending_document.status = DocumentStatus.failed(str(e))
-                pending_document.updated_at = get_current_timestamp()
-                await session.commit()
-            except Exception as status_error:
-                logger.error(
-                    f"Failed to update document status to failed: {status_error}"
-                )
-        return 0, 0, 1
-
-
-async def _remove_document(session: AsyncSession, file_id: str, search_space_id: int):
-    """Remove a document that was deleted in Drive.
-
-    Handles both new (file_id-based) and legacy (filename-based) hash schemes.
-    """
-    from sqlalchemy import String, cast, select
-
-    from app.db import Document
-
-    # First try with file_id-based hash (new method)
-    unique_identifier_hash = generate_unique_identifier_hash(
-        DocumentType.GOOGLE_DRIVE_FILE, file_id, search_space_id
-    )
-
-    existing_document = await check_document_by_unique_identifier(
-        session, unique_identifier_hash
-    )
-
-    # If not found, search by metadata (for legacy documents with filename-based hash)
-    if not existing_document:
-        result = await session.execute(
-            select(Document).where(
-                Document.search_space_id == search_space_id,
-                Document.document_type == DocumentType.GOOGLE_DRIVE_FILE,
-                cast(Document.document_metadata["google_drive_file_id"], String)
-                == file_id,
-            )
+        logger.info(
+            f"Selected files indexing: {indexed} indexed, {skipped} skipped, {len(errors)} errors"
         )
-        existing_document = result.scalar_one_or_none()
-        if existing_document:
-            logger.info(f"Found legacy document by metadata for file_id: {file_id}")
+        return indexed, skipped, errors
 
-    if existing_document:
-        await session.delete(existing_document)
-        logger.info(f"Removed deleted file document: {file_id}")
+    except SQLAlchemyError as db_error:
+        await session.rollback()
+        error_msg = f"Database error: {db_error!s}"
+        await task_logger.log_task_failure(
+            log_entry, error_msg, str(db_error), {"error_type": "SQLAlchemyError"}
+        )
+        logger.error(error_msg, exc_info=True)
+        return 0, 0, [error_msg]
+    except Exception as e:
+        await session.rollback()
+        error_msg = f"Failed to index Google Drive files: {e!s}"
+        await task_logger.log_task_failure(
+            log_entry, error_msg, str(e), {"error_type": type(e).__name__}
+        )
+        logger.error(error_msg, exc_info=True)
+        return 0, 0, [error_msg]

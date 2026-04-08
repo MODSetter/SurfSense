@@ -98,7 +98,10 @@ export default function DashboardPage() {
 		if (isLoading) return;
 
 		if (searchSpaces.length > 0) {
-			router.replace(`/dashboard/${searchSpaces[0].id}/new-chat`);
+			// Read the query string at the time of redirect — no subscription needed.
+			// (Vercel Best Practice: rerender-defer-reads 5.2)
+			const query = window.location.search;
+			router.replace(`/dashboard/${searchSpaces[0].id}/new-chat${query}`);
 		}
 	}, [isLoading, searchSpaces, router]);
 

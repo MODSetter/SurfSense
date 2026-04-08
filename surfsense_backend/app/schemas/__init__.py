@@ -22,6 +22,16 @@ from .documents import (
     ExtensionDocumentMetadata,
     PaginatedResponse,
 )
+from .folders import (
+    BulkDocumentMove,
+    DocumentMove,
+    FolderBreadcrumb,
+    FolderCreate,
+    FolderMove,
+    FolderRead,
+    FolderReorder,
+    FolderUpdate,
+)
 from .google_drive import DriveItem, GoogleDriveIndexingOptions, GoogleDriveIndexRequest
 from .image_generation import (
     GlobalImageGenConfigRead,
@@ -100,9 +110,32 @@ from .search_space import (
     SearchSpaceUpdate,
     SearchSpaceWithStats,
 )
+from .stripe import (
+    CreateCheckoutSessionRequest,
+    CreateCheckoutSessionResponse,
+    PagePurchaseHistoryResponse,
+    PagePurchaseRead,
+    StripeStatusResponse,
+    StripeWebhookResponse,
+)
 from .users import UserCreate, UserRead, UserUpdate
+from .video_presentations import (
+    VideoPresentationBase,
+    VideoPresentationCreate,
+    VideoPresentationRead,
+    VideoPresentationUpdate,
+)
+from .vision_llm import (
+    GlobalVisionLLMConfigRead,
+    VisionLLMConfigCreate,
+    VisionLLMConfigPublic,
+    VisionLLMConfigRead,
+    VisionLLMConfigUpdate,
+)
 
 __all__ = [
+    # Folder schemas
+    "BulkDocumentMove",
     # Chat schemas (assistant-ui integration)
     "ChatMessage",
     # Chunk schemas
@@ -110,9 +143,12 @@ __all__ = [
     "ChunkCreate",
     "ChunkRead",
     "ChunkUpdate",
+    "CreateCheckoutSessionRequest",
+    "CreateCheckoutSessionResponse",
     "DefaultSystemInstructionsResponse",
     # Document schemas
     "DocumentBase",
+    "DocumentMove",
     "DocumentRead",
     "DocumentStatusBatchResponse",
     "DocumentStatusItemRead",
@@ -126,8 +162,16 @@ __all__ = [
     "DriveItem",
     "ExtensionDocumentContent",
     "ExtensionDocumentMetadata",
+    "FolderBreadcrumb",
+    "FolderCreate",
+    "FolderMove",
+    "FolderRead",
+    "FolderReorder",
+    "FolderUpdate",
     "GlobalImageGenConfigRead",
     "GlobalNewLLMConfigRead",
+    # Vision LLM Config schemas
+    "GlobalVisionLLMConfigRead",
     "GoogleDriveIndexRequest",
     "GoogleDriveIndexingOptions",
     # Base schemas
@@ -182,6 +226,8 @@ __all__ = [
     "NewLLMConfigPublic",
     "NewLLMConfigRead",
     "NewLLMConfigUpdate",
+    "PagePurchaseHistoryResponse",
+    "PagePurchaseRead",
     "PaginatedResponse",
     "PermissionInfo",
     "PermissionsListResponse",
@@ -211,6 +257,8 @@ __all__ = [
     "SearchSpaceRead",
     "SearchSpaceUpdate",
     "SearchSpaceWithStats",
+    "StripeStatusResponse",
+    "StripeWebhookResponse",
     "ThreadHistoryLoadResponse",
     "ThreadListItem",
     "ThreadListResponse",
@@ -220,4 +268,13 @@ __all__ = [
     "UserRead",
     "UserSearchSpaceAccess",
     "UserUpdate",
+    # Video Presentation schemas
+    "VideoPresentationBase",
+    "VideoPresentationCreate",
+    "VideoPresentationRead",
+    "VideoPresentationUpdate",
+    "VisionLLMConfigCreate",
+    "VisionLLMConfigPublic",
+    "VisionLLMConfigRead",
+    "VisionLLMConfigUpdate",
 ]

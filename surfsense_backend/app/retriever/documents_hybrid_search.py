@@ -1,9 +1,10 @@
+import contextlib
 import time
 from datetime import datetime
 
 from app.utils.perf import get_perf_logger
 
-_MAX_FETCH_CHUNKS_PER_DOC = 30
+_MAX_FETCH_CHUNKS_PER_DOC = 20
 
 
 class DocumentHybridSearchRetriever:
@@ -149,7 +150,7 @@ class DocumentHybridSearchRetriever:
         query_text: str,
         top_k: int,
         search_space_id: int,
-        document_type: str | None = None,
+        document_type: str | list[str] | None = None,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
         query_embedding: list | None = None,
@@ -190,21 +191,31 @@ class DocumentHybridSearchRetriever:
         tsvector = func.to_tsvector("english", Document.content)
         tsquery = func.plainto_tsquery("english", query_text)
 
-        # Base conditions for document filtering - search space is required
-        base_conditions = [Document.search_space_id == search_space_id]
+        # Base conditions for document filtering - search space is required.
+        # Exclude documents in "deleting" state (background deletion in progress).
+        base_conditions = [
+            Document.search_space_id == search_space_id,
+            func.coalesce(Document.status["state"].astext, "ready") != "deleting",
+        ]
 
-        # Add document type filter if provided
+        # Add document type filter if provided (single string or list of strings)
         if document_type is not None:
-            # Convert string to enum value if needed
-            if isinstance(document_type, str):
-                try:
-                    doc_type_enum = DocumentType[document_type]
-                    base_conditions.append(Document.document_type == doc_type_enum)
-                except KeyError:
-                    # If the document type doesn't exist in the enum, return empty results
-                    return []
+            type_list = (
+                document_type if isinstance(document_type, list) else [document_type]
+            )
+            doc_type_enums = []
+            for dt in type_list:
+                if isinstance(dt, str):
+                    with contextlib.suppress(KeyError):
+                        doc_type_enums.append(DocumentType[dt])
+                else:
+                    doc_type_enums.append(dt)
+            if not doc_type_enums:
+                return []
+            if len(doc_type_enums) == 1:
+                base_conditions.append(Document.document_type == doc_type_enums[0])
             else:
-                base_conditions.append(Document.document_type == document_type)
+                base_conditions.append(Document.document_type.in_(doc_type_enums))
 
         # Add time-based filtering if provided
         if start_date is not None:
@@ -278,57 +289,77 @@ class DocumentHybridSearchRetriever:
         if not documents_with_scores:
             return []
 
-        # Collect document IDs for chunk fetching
+        # Collect document IDs and pre-cache metadata from the small RRF
+        # result set so the bulk chunk fetch can skip joinedload entirely.
         doc_ids: list[int] = [doc.id for doc, _score in documents_with_scores]
-
-        # Fetch chunks for these documents, capped per document to avoid
-        # loading hundreds of chunks for a single large file.
-        chunks_query = (
-            select(Chunk)
-            .options(joinedload(Chunk.document))
-            .where(Chunk.document_id.in_(doc_ids))
-            .order_by(Chunk.document_id, Chunk.id)
-        )
-        chunks_result = await self.db_session.execute(chunks_query)
-        raw_chunks = chunks_result.scalars().all()
-
-        doc_chunk_counts: dict[int, int] = {}
-        chunks: list = []
-        for chunk in raw_chunks:
-            did = chunk.document_id
-            count = doc_chunk_counts.get(did, 0)
-            if count < _MAX_FETCH_CHUNKS_PER_DOC:
-                chunks.append(chunk)
-                doc_chunk_counts[did] = count + 1
-
-        # Assemble doc-grouped results
-        doc_map: dict[int, dict] = {
-            doc.id: {
-                "document_id": doc.id,
-                "content": "",
-                "score": float(score),
-                "chunks": [],
-                "document": {
-                    "id": doc.id,
-                    "title": doc.title,
-                    "document_type": doc.document_type.value
-                    if getattr(doc, "document_type", None)
-                    else None,
-                    "metadata": doc.document_metadata or {},
-                },
-                "source": doc.document_type.value
+        doc_meta_cache: dict[int, dict] = {}
+        doc_score_cache: dict[int, float] = {}
+        doc_source_cache: dict[int, str | None] = {}
+        for doc, score in documents_with_scores:
+            doc_meta_cache[doc.id] = {
+                "id": doc.id,
+                "title": doc.title,
+                "document_type": doc.document_type.value
                 if getattr(doc, "document_type", None)
                 else None,
+                "metadata": doc.document_metadata or {},
             }
-            for doc, score in documents_with_scores
+            doc_score_cache[doc.id] = float(score)
+            doc_source_cache[doc.id] = (
+                doc.document_type.value if getattr(doc, "document_type", None) else None
+            )
+
+        # SQL-level per-document chunk limit using ROW_NUMBER().
+        # Avoids loading hundreds of chunks per large document only to
+        # discard them in Python.
+        numbered = (
+            select(
+                Chunk.id.label("chunk_id"),
+                func.row_number()
+                .over(partition_by=Chunk.document_id, order_by=Chunk.id)
+                .label("rn"),
+            )
+            .where(Chunk.document_id.in_(doc_ids))
+            .subquery("numbered")
+        )
+
+        # Select only the columns we need (skip Chunk.embedding ~12KB/row).
+        chunks_query = (
+            select(Chunk.id, Chunk.content, Chunk.document_id)
+            .join(numbered, Chunk.id == numbered.c.chunk_id)
+            .where(numbered.c.rn <= _MAX_FETCH_CHUNKS_PER_DOC)
+            .order_by(Chunk.document_id, Chunk.id)
+        )
+
+        t_fetch = time.perf_counter()
+        chunks_result = await self.db_session.execute(chunks_query)
+        fetched_chunks = chunks_result.all()
+        perf.debug(
+            "[doc_search] chunk fetch in %.3fs rows=%d",
+            time.perf_counter() - t_fetch,
+            len(fetched_chunks),
+        )
+
+        # Assemble doc-grouped results using pre-cached metadata.
+        doc_map: dict[int, dict] = {
+            doc_id: {
+                "document_id": doc_id,
+                "content": "",
+                "score": doc_score_cache.get(doc_id, 0.0),
+                "chunks": [],
+                "matched_chunk_ids": [],
+                "document": doc_meta_cache.get(doc_id, {}),
+                "source": doc_source_cache.get(doc_id),
+            }
+            for doc_id in doc_ids
         }
 
-        for chunk in chunks:
-            doc_id = chunk.document_id
+        for row in fetched_chunks:
+            doc_id = row.document_id
             if doc_id not in doc_map:
                 continue
             doc_map[doc_id]["chunks"].append(
-                {"chunk_id": chunk.id, "content": chunk.content}
+                {"chunk_id": row.id, "content": row.content}
             )
 
         # Fill concatenated content (useful for reranking)

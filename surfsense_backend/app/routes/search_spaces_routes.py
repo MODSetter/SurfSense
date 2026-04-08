@@ -14,6 +14,7 @@ from app.db import (
     SearchSpaceMembership,
     SearchSpaceRole,
     User,
+    VisionLLMConfig,
     get_async_session,
     get_default_roles_config,
 )
@@ -125,11 +126,14 @@ async def read_search_spaces(
                    If False (default), return all search spaces the user has access to.
     """
     try:
+        # Exclude spaces that are pending background deletion
+        not_deleting = ~SearchSpace.name.startswith("[DELETING] ")
+
         if owned_only:
             # Return only search spaces where user is the original creator (user_id)
             result = await session.execute(
                 select(SearchSpace)
-                .filter(SearchSpace.user_id == user.id)
+                .filter(SearchSpace.user_id == user.id, not_deleting)
                 .order_by(SearchSpace.id.asc())
                 .offset(skip)
                 .limit(limit)
@@ -139,7 +143,7 @@ async def read_search_spaces(
             result = await session.execute(
                 select(SearchSpace)
                 .join(SearchSpaceMembership)
-                .filter(SearchSpaceMembership.user_id == user.id)
+                .filter(SearchSpaceMembership.user_id == user.id, not_deleting)
                 .order_by(SearchSpace.id.asc())
                 .offset(skip)
                 .limit(limit)
@@ -274,6 +278,9 @@ async def delete_search_space(
     """
     Delete a search space.
     Requires SETTINGS_DELETE permission (only owners have this by default).
+
+    Heavy cascade deletion (documents, chunks, threads, etc.) is dispatched
+    to Celery so the response is immediate and durable across API restarts.
     """
     try:
         # Check permission - only those with SETTINGS_DELETE can delete
@@ -293,8 +300,34 @@ async def delete_search_space(
         if not db_search_space:
             raise HTTPException(status_code=404, detail="Search space not found")
 
-        await session.delete(db_search_space)
+        if (db_search_space.name or "").startswith("[DELETING] "):
+            raise HTTPException(
+                status_code=409,
+                detail="Search space is already being deleted.",
+            )
+
+        # Soft-delete marker (length-safe for String(100)) so users see pending state.
+        prefix = "[DELETING] "
+        max_len = 100
+        available = max_len - len(prefix)
+        base_name = db_search_space.name or ""
+        db_search_space.name = f"{prefix}{base_name[:available]}"
         await session.commit()
+
+        # Dispatch durable background deletion via Celery.
+        # If queue dispatch fails, revert name to avoid stuck "[DELETING]" state.
+        try:
+            from app.tasks.celery_tasks.document_tasks import delete_search_space_task
+
+            delete_search_space_task.delay(search_space_id)
+        except Exception as dispatch_error:
+            db_search_space.name = base_name
+            await session.commit()
+            raise HTTPException(
+                status_code=503,
+                detail="Failed to queue background deletion. Please try again.",
+            ) from dispatch_error
+
         return {"message": "Search space deleted successfully"}
     except HTTPException:
         raise
@@ -451,6 +484,63 @@ async def _get_image_gen_config_by_id(
     return None
 
 
+async def _get_vision_llm_config_by_id(
+    session: AsyncSession, config_id: int | None
+) -> dict | None:
+    if config_id is None:
+        return None
+
+    if config_id == 0:
+        return {
+            "id": 0,
+            "name": "Auto (Fastest)",
+            "description": "Automatically routes requests across available vision LLM providers",
+            "provider": "AUTO",
+            "model_name": "auto",
+            "is_global": True,
+            "is_auto_mode": True,
+        }
+
+    if config_id < 0:
+        for cfg in config.GLOBAL_VISION_LLM_CONFIGS:
+            if cfg.get("id") == config_id:
+                return {
+                    "id": cfg.get("id"),
+                    "name": cfg.get("name"),
+                    "description": cfg.get("description"),
+                    "provider": cfg.get("provider"),
+                    "custom_provider": cfg.get("custom_provider"),
+                    "model_name": cfg.get("model_name"),
+                    "api_base": cfg.get("api_base") or None,
+                    "api_version": cfg.get("api_version") or None,
+                    "litellm_params": cfg.get("litellm_params", {}),
+                    "is_global": True,
+                }
+        return None
+
+    result = await session.execute(
+        select(VisionLLMConfig).filter(VisionLLMConfig.id == config_id)
+    )
+    db_config = result.scalars().first()
+    if db_config:
+        return {
+            "id": db_config.id,
+            "name": db_config.name,
+            "description": db_config.description,
+            "provider": db_config.provider.value if db_config.provider else None,
+            "custom_provider": db_config.custom_provider,
+            "model_name": db_config.model_name,
+            "api_base": db_config.api_base,
+            "api_version": db_config.api_version,
+            "litellm_params": db_config.litellm_params or {},
+            "created_at": db_config.created_at.isoformat()
+            if db_config.created_at
+            else None,
+            "search_space_id": db_config.search_space_id,
+        }
+    return None
+
+
 @router.get(
     "/search-spaces/{search_space_id}/llm-preferences",
     response_model=LLMPreferencesRead,
@@ -490,14 +580,19 @@ async def get_llm_preferences(
         image_generation_config = await _get_image_gen_config_by_id(
             session, search_space.image_generation_config_id
         )
+        vision_llm_config = await _get_vision_llm_config_by_id(
+            session, search_space.vision_llm_config_id
+        )
 
         return LLMPreferencesRead(
             agent_llm_id=search_space.agent_llm_id,
             document_summary_llm_id=search_space.document_summary_llm_id,
             image_generation_config_id=search_space.image_generation_config_id,
+            vision_llm_config_id=search_space.vision_llm_config_id,
             agent_llm=agent_llm,
             document_summary_llm=document_summary_llm,
             image_generation_config=image_generation_config,
+            vision_llm_config=vision_llm_config,
         )
 
     except HTTPException:
@@ -557,14 +652,19 @@ async def update_llm_preferences(
         image_generation_config = await _get_image_gen_config_by_id(
             session, search_space.image_generation_config_id
         )
+        vision_llm_config = await _get_vision_llm_config_by_id(
+            session, search_space.vision_llm_config_id
+        )
 
         return LLMPreferencesRead(
             agent_llm_id=search_space.agent_llm_id,
             document_summary_llm_id=search_space.document_summary_llm_id,
             image_generation_config_id=search_space.image_generation_config_id,
+            vision_llm_config_id=search_space.vision_llm_config_id,
             agent_llm=agent_llm,
             document_summary_llm=document_summary_llm,
             image_generation_config=image_generation_config,
+            vision_llm_config=vision_llm_config,
         )
 
     except HTTPException:

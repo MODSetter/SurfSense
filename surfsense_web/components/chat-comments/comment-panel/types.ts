@@ -12,6 +12,6 @@ export interface CommentPanelProps {
 	onDeleteComment: (commentId: number) => void;
 	isSubmitting?: boolean;
 	maxHeight?: number;
-	/** Variant for responsive styling - desktop shows border/bg, mobile is plain */
-	variant?: "desktop" | "mobile";
+	/** Variant for responsive styling - desktop shows border/bg, mobile is plain, inline fits within message width */
+	variant?: "desktop" | "mobile" | "inline";
 }

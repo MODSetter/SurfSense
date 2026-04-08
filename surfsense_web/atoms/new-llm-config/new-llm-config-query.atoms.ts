@@ -66,7 +66,7 @@ export const defaultSystemInstructionsAtom = atomWithQuery(() => {
 });
 
 /**
- * Query atom for the dynamic LLM model catalogue.
+ * Query atom for the dynamic model catalogue.
  * Fetched from the backend (which proxies OpenRouter's public API).
  * Falls back to the static hardcoded list on error.
  */

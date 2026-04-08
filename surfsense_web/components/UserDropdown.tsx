@@ -1,6 +1,7 @@
 "use client";
 
 import { BadgeCheck, LogOut } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -15,8 +16,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
-import { logout } from "@/lib/auth-utils";
-import { cleanupElectric } from "@/lib/electric/client";
+import { getLoginPath, logout } from "@/lib/auth-utils";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
 
 export function UserDropdown({
@@ -35,30 +35,23 @@ export function UserDropdown({
 		if (isLoggingOut) return;
 		setIsLoggingOut(true);
 		try {
-			// Track logout event and reset PostHog identity
 			trackLogout();
 			resetUser();
 
-			// Best-effort cleanup of Electric SQL / PGlite
-			// Even if this fails, login-time cleanup will handle it
-			try {
-				await cleanupElectric();
-			} catch (err) {
-				console.warn("[Logout] Electric cleanup failed (will be handled on next login):", err);
-			}
-
-			// Revoke refresh token on server and clear all tokens from localStorage
 			await logout();
 
+			router.push("/");
+			router.refresh();
 			if (typeof window !== "undefined") {
-				window.location.href = "/";
+				window.location.href = getLoginPath();
 			}
 		} catch (error) {
 			console.error("Error during logout:", error);
-			// Even if there's an error, try to clear tokens and redirect
 			await logout();
+			router.push("/");
+			router.refresh();
 			if (typeof window !== "undefined") {
-				window.location.href = "/";
+				window.location.href = getLoginPath();
 			}
 		}
 	};
@@ -73,7 +66,7 @@ export function UserDropdown({
 					</Avatar>
 				</Button>
 			</DropdownMenuTrigger>
-			<DropdownMenuContent className="w-44 md:w-56" align="end" forceMount>
+			<DropdownMenuContent className="w-44 md:w-56" align="end">
 				<DropdownMenuLabel className="font-normal p-2 md:p-3">
 					<div className="flex flex-col space-y-1">
 						<p className="text-xs md:text-sm font-medium leading-none">{user.name}</p>
@@ -84,12 +77,11 @@ export function UserDropdown({
 				</DropdownMenuLabel>
 				<DropdownMenuSeparator />
 				<DropdownMenuGroup>
-					<DropdownMenuItem
-						onClick={() => router.push(`/dashboard/api-key`)}
-						className="text-xs md:text-sm"
-					>
-						<BadgeCheck className="mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
-						API Key
+					<DropdownMenuItem asChild className="text-xs md:text-sm">
+						<Link href="/dashboard/api-key">
+							<BadgeCheck className="mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
+							API Key
+						</Link>
 					</DropdownMenuItem>
 				</DropdownMenuGroup>
 				<DropdownMenuSeparator />

@@ -144,7 +144,7 @@ export function FixedToolbarButtons() {
 								isSaving ? (
 									"Saving..."
 								) : (
-									<TooltipWithShortcut label="Save" keys={shortcutKeys("Mod", "S")} />
+									<TooltipWithShortcut label="Save" keys={shortcutKeys("Mod", "Shift", "S")} />
 								)
 							}
 							onClick={onSave}

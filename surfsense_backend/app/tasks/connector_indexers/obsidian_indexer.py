@@ -571,7 +571,7 @@ async def index_obsidian_vault(
                 document.content_hash = content_hash
                 document.embedding = embedding
                 document.document_metadata = document_metadata
-                safe_set_chunks(document, chunks)
+                await safe_set_chunks(session, document, chunks)
                 document.updated_at = get_current_timestamp()
                 document.status = DocumentStatus.ready()
 
@@ -599,7 +599,7 @@ async def index_obsidian_vault(
                 failed_count += 1
                 continue
 
-        # CRITICAL: Always update timestamp (even if 0 documents indexed) so Electric SQL syncs
+        # CRITICAL: Always update timestamp (even if 0 documents indexed) so Zero syncs
         await update_connector_last_indexed(session, connector, update_last_indexed)
 
         # Final commit for any remaining documents not yet committed in batches

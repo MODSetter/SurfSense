@@ -2,7 +2,7 @@
 
 import { KeyRound } from "lucide-react";
 import type { FC } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,9 +33,6 @@ export const GithubConfig: FC<GithubConfigProps> = ({
 	onConfigChange,
 	onNameChange,
 }) => {
-	// Track internal changes to prevent useEffect from overwriting user input
-	const isInternalChange = useRef(false);
-
 	const [githubPat, setGithubPat] = useState<string>(
 		(connector.config?.GITHUB_PAT as string) || ""
 	);
@@ -44,22 +41,7 @@ export const GithubConfig: FC<GithubConfigProps> = ({
 	);
 	const [name, setName] = useState<string>(connector.name || "");
 
-	// Update values when connector changes externally (not from our own input)
-	useEffect(() => {
-		// Skip if this is our own internal change
-		if (isInternalChange.current) {
-			isInternalChange.current = false;
-			return;
-		}
-		const pat = (connector.config?.GITHUB_PAT as string) || "";
-		const repos = arrayToString(stringToArray(connector.config?.repo_full_names));
-		setGithubPat(pat);
-		setRepoFullNames(repos);
-		setName(connector.name || "");
-	}, [connector.config, connector.name]);
-
 	const handleGithubPatChange = (value: string) => {
-		isInternalChange.current = true;
 		setGithubPat(value);
 		if (onConfigChange) {
 			onConfigChange({
@@ -70,7 +52,6 @@ export const GithubConfig: FC<GithubConfigProps> = ({
 	};
 
 	const handleRepoFullNamesChange = (value: string) => {
-		isInternalChange.current = true;
 		setRepoFullNames(value);
 		const repoList = stringToArray(value);
 		if (onConfigChange) {
@@ -82,7 +63,6 @@ export const GithubConfig: FC<GithubConfigProps> = ({
 	};
 
 	const handleNameChange = (value: string) => {
-		isInternalChange.current = true;
 		setName(value);
 		if (onNameChange) {
 			onNameChange(value);

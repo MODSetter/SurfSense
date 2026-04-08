@@ -5,8 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { useState } from "react";
 import { loginMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
 import { Spinner } from "@/components/ui/spinner";
 import { getAuthErrorDetails, isNetworkError } from "@/lib/auth-errors";
@@ -26,14 +25,9 @@ export function LocalLoginForm() {
 		title: null,
 		message: null,
 	});
-	const [authType, setAuthType] = useState<string | null>(null);
+	const authType = AUTH_TYPE;
 	const router = useRouter();
 	const [{ mutateAsync: login, isPending: isLoggingIn }] = useAtom(loginMutationAtom);
-
-	useEffect(() => {
-		// Get the auth type from centralized config
-		setAuthType(AUTH_TYPE);
-	}, []);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -102,7 +96,7 @@ export function LocalLoginForm() {
 							animate={{ opacity: 1, y: 0, scale: 1 }}
 							exit={{ opacity: 0, y: -10, scale: 0.95 }}
 							transition={{ duration: 0.3 }}
-							className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-900 shadow-sm dark:border-red-900/30 dark:bg-red-900/20 dark:text-red-200"
+							className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-destructive shadow-sm"
 						>
 							<div className="flex items-start gap-3">
 								<svg
@@ -115,7 +109,7 @@ export function LocalLoginForm() {
 									strokeWidth="2"
 									strokeLinecap="round"
 									strokeLinejoin="round"
-									className="flex-shrink-0 mt-0.5 text-red-500 dark:text-red-400"
+									className="flex-shrink-0 mt-0.5 text-destructive"
 								>
 									<title>Error Icon</title>
 									<circle cx="12" cy="12" r="10" />
@@ -124,13 +118,13 @@ export function LocalLoginForm() {
 								</svg>
 								<div className="flex-1 min-w-0">
 									<p className="text-sm font-semibold mb-1">{error.title}</p>
-									<p className="text-sm text-red-700 dark:text-red-300">{error.message}</p>
+									<p className="text-sm text-destructive">{error.message}</p>
 								</div>
 								<button
 									onClick={() => {
 										setError({ title: null, message: null });
 									}}
-									className="flex-shrink-0 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200 transition-colors"
+									className="flex-shrink-0 text-destructive hover:text-destructive/90 transition-colors"
 									aria-label="Dismiss error"
 									type="button"
 								>
@@ -156,52 +150,50 @@ export function LocalLoginForm() {
 				</AnimatePresence>
 
 				<div>
-					<label
-						htmlFor="email"
-						className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-					>
+					<label htmlFor="email" className="block text-sm font-medium text-foreground">
 						{t("email")}
 					</label>
 					<input
 						id="email"
 						type="email"
+						autoComplete="username"
 						required
+						placeholder="you@example.com"
 						value={username}
 						onChange={(e) => setUsername(e.target.value)}
-						className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:bg-gray-800 dark:text-white transition-all ${
+						className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-1 bg-background text-foreground transition-all ${
 							error.title
-								? "border-red-300 focus:border-red-500 focus:ring-red-500 dark:border-red-700"
-								: "border-gray-300 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700"
+								? "border-destructive focus:border-destructive focus:ring-destructive/40"
+								: "border-border focus:border-primary focus:ring-primary/40"
 						}`}
 						disabled={isLoggingIn}
 					/>
 				</div>
 
 				<div>
-					<label
-						htmlFor="password"
-						className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-					>
+					<label htmlFor="password" className="block text-sm font-medium text-foreground">
 						{t("password")}
 					</label>
 					<div className="relative">
 						<input
 							id="password"
 							type={showPassword ? "text" : "password"}
+							autoComplete="current-password"
 							required
+							placeholder="Enter your password"
 							value={password}
 							onChange={(e) => setPassword(e.target.value)}
-							className={`mt-1 block w-full rounded-md border pr-10 px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:bg-gray-800 dark:text-white transition-all ${
+							className={`mt-1 block w-full rounded-md border pr-10 px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-1 bg-background text-foreground transition-all ${
 								error.title
-									? "border-red-300 focus:border-red-500 focus:ring-red-500 dark:border-red-700"
-									: "border-gray-300 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700"
+									? "border-destructive focus:border-destructive focus:ring-destructive/40"
+									: "border-border focus:border-primary focus:ring-primary/40"
 							}`}
 							disabled={isLoggingIn}
 						/>
 						<button
 							type="button"
 							onClick={() => setShowPassword((prev) => !prev)}
-							className="absolute inset-y-0 right-0 flex items-center pr-3 mt-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+							className="absolute inset-y-0 right-0 flex items-center pr-3 mt-1 text-muted-foreground hover:text-foreground"
 							aria-label={showPassword ? t("hide_password") : t("show_password")}
 						>
 							{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -212,27 +204,22 @@ export function LocalLoginForm() {
 				<button
 					type="submit"
 					disabled={isLoggingIn}
-					className="w-full rounded-md bg-blue-600 px-4 py-1.5 md:py-2 text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all text-sm md:text-base flex items-center justify-center gap-2"
+					className="relative w-full rounded-md bg-primary px-4 py-1.5 md:py-2 text-primary-foreground shadow-sm hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all text-sm md:text-base flex items-center justify-center gap-2"
 				>
-					{isLoggingIn ? (
-						<>
-							<Spinner size="sm" className="text-white" />
-							<span>{t("signing_in")}</span>
-						</>
-					) : (
-						t("sign_in")
+					<span className={isLoggingIn ? "invisible" : ""}>{t("sign_in")}</span>
+					{isLoggingIn && (
+						<span className="absolute inset-0 flex items-center justify-center">
+							<Spinner size="sm" className="text-primary-foreground" />
+						</span>
 					)}
 				</button>
 			</form>
 
 			{authType === "LOCAL" && (
 				<div className="mt-4 text-center text-sm">
-					<p className="text-gray-600 dark:text-gray-400">
+					<p className="text-muted-foreground">
 						{t("dont_have_account")}{" "}
-						<Link
-							href="/register"
-							className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
-						>
+						<Link href="/register" className="font-medium text-primary hover:text-primary/90">
 							{t("sign_up")}
 						</Link>
 					</p>

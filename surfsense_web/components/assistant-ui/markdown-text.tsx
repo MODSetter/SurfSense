@@ -3,20 +3,57 @@
 import "@assistant-ui/react-markdown/styles/dot.css";
 
 import {
-	type CodeHeaderProps,
 	MarkdownTextPrimitive,
 	unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
 	useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
-import { CheckIcon, CopyIcon } from "lucide-react";
-import { type FC, memo, type ReactNode, useState } from "react";
+import { ExternalLinkIcon } from "lucide-react";
+import dynamic from "next/dynamic";
+import { useTheme } from "next-themes";
+import { memo, type ReactNode } from "react";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
+import { ImagePreview, ImageRoot, ImageZoom } from "@/components/assistant-ui/image";
 import "katex/dist/katex.min.css";
 import { InlineCitation, UrlCitation } from "@/components/assistant-ui/inline-citation";
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+
+function MarkdownCodeBlockSkeleton() {
+	return (
+		<div
+			className="mt-4 overflow-hidden rounded-2xl border"
+			style={{ background: "var(--syntax-bg)" }}
+		>
+			<div className="flex items-center justify-between gap-4 border-b px-4 py-2">
+				<Skeleton className="h-3 w-16" />
+				<Skeleton className="h-8 w-8 rounded-md" />
+			</div>
+			<div className="space-y-2 p-4">
+				<Skeleton className="h-4 w-11/12" />
+				<Skeleton className="h-4 w-10/12" />
+				<Skeleton className="h-4 w-8/12" />
+				<Skeleton className="h-4 w-9/12" />
+			</div>
+		</div>
+	);
+}
+
+const LazyMarkdownCodeBlock = dynamic(
+	() => import("./markdown-code-block").then((mod) => mod.MarkdownCodeBlock),
+	{
+		loading: () => <MarkdownCodeBlockSkeleton />,
+	}
+);
 
 // Storage for URL citations replaced during preprocess to avoid GFM autolink interference.
 // Populated in preprocessMarkdown, consumed in parseTextWithCitations.
@@ -138,6 +175,7 @@ function parseTextWithCitations(text: string): ReactNode[] {
 const MarkdownTextImpl = () => {
 	return (
 		<MarkdownTextPrimitive
+			smooth={false}
 			remarkPlugins={[remarkGfm, remarkMath]}
 			rehypePlugins={[rehypeKatex]}
 			className="aui-md"
@@ -149,56 +187,23 @@ const MarkdownTextImpl = () => {
 
 export const MarkdownText = memo(MarkdownTextImpl);
 
-const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
-	const { isCopied, copyToClipboard } = useCopyToClipboard();
-	const onCopy = () => {
-		if (!code || isCopied) return;
-		copyToClipboard(code);
-	};
-
-	return (
-		<div className="aui-code-header-root mt-4 flex items-center justify-between gap-4 rounded-t-lg bg-muted-foreground/15 px-4 py-2 font-semibold text-foreground text-sm dark:bg-muted-foreground/20">
-			<span className="aui-code-header-language lowercase [&>span]:text-xs">{language}</span>
-			<TooltipIconButton tooltip="Copy" onClick={onCopy}>
-				{!isCopied && <CopyIcon />}
-				{isCopied && <CheckIcon />}
-			</TooltipIconButton>
-		</div>
-	);
-};
-
-const useCopyToClipboard = ({ copiedDuration = 3000 }: { copiedDuration?: number } = {}) => {
-	const [isCopied, setIsCopied] = useState<boolean>(false);
-
-	const copyToClipboard = (value: string) => {
-		if (!value) return;
-
-		navigator.clipboard.writeText(value).then(() => {
-			setIsCopied(true);
-			setTimeout(() => setIsCopied(false), copiedDuration);
-		});
-	};
-
-	return { isCopied, copyToClipboard };
-};
-
 /**
  * Helper to process children and replace citation patterns with components
  */
 function processChildrenWithCitations(children: ReactNode): ReactNode {
 	if (typeof children === "string") {
 		const parsed = parseTextWithCitations(children);
-		return parsed.length === 1 && typeof parsed[0] === "string" ? children : <>{parsed}</>;
+		return parsed.length === 1 && typeof parsed[0] === "string" ? children : parsed;
 	}
 
 	if (Array.isArray(children)) {
-		return children.map((child, index) => {
+		return children.map((child) => {
 			if (typeof child === "string") {
 				const parsed = parseTextWithCitations(child);
 				return parsed.length === 1 && typeof parsed[0] === "string" ? (
 					child
 				) : (
-					<span key={index}>{parsed}</span>
+					<span key={child}>{parsed}</span>
 				);
 			}
 			return child;
@@ -206,6 +211,54 @@ function processChildrenWithCitations(children: ReactNode): ReactNode {
 	}
 
 	return children;
+}
+
+function extractDomain(url: string): string {
+	try {
+		const parsed = new URL(url);
+		return parsed.hostname.replace(/^www\./, "");
+	} catch {
+		return "";
+	}
+}
+
+function MarkdownImage({ src, alt }: { src?: string; alt?: string }) {
+	if (!src) return null;
+
+	const domain = extractDomain(src);
+
+	return (
+		<div className="my-4 w-fit max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+			<ImageRoot variant="ghost" size="full">
+				<ImageZoom src={src} alt={alt || "Image"}>
+					<ImagePreview
+						src={src}
+						alt={alt || "Image"}
+						className="max-h-[20rem] w-auto max-w-full object-contain"
+					/>
+				</ImageZoom>
+			</ImageRoot>
+
+			<div className="flex items-center justify-between px-5 py-3">
+				<div className="min-w-0 flex-1">
+					{alt && alt !== "Image" && (
+						<p className="text-sm font-semibold text-foreground line-clamp-2">{alt}</p>
+					)}
+					{domain && <p className="text-xs text-muted-foreground mt-0.5 truncate">{domain}</p>}
+				</div>
+				<a
+					href={src}
+					target="_blank"
+					rel="noopener noreferrer"
+					className="ml-3 shrink-0 inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+					onClick={(e) => e.stopPropagation()}
+				>
+					Open
+					<ExternalLinkIcon className="size-3" />
+				</a>
+			</div>
+		</div>
+	);
 }
 
 const defaultComponents = memoizeMarkdownComponents({
@@ -299,65 +352,67 @@ const defaultComponents = memoizeMarkdownComponents({
 		<hr className={cn("aui-md-hr my-5 border-b", className)} {...props} />
 	),
 	table: ({ className, ...props }) => (
-		<div className="aui-md-table-wrapper my-5 w-full overflow-x-auto">
-			<table
-				className={cn("aui-md-table w-full min-w-max border-separate border-spacing-0", className)}
-				{...props}
-			/>
+		<div className="aui-md-table-wrapper my-5 overflow-hidden rounded-2xl border">
+			<Table className={cn("aui-md-table", className)} {...props} />
 		</div>
 	),
+	thead: ({ className, ...props }) => (
+		<TableHeader className={cn("aui-md-thead", className)} {...props} />
+	),
+	tbody: ({ className, ...props }) => (
+		<TableBody className={cn("aui-md-tbody", className)} {...props} />
+	),
 	th: ({ className, children, ...props }) => (
-		<th
+		<TableHead
 			className={cn(
-				"aui-md-th bg-muted px-4 py-2 text-left font-bold first:rounded-tl-lg last:rounded-tr-lg [[align=center]]:text-center [[align=right]]:text-right",
+				"aui-md-th bg-muted/50 whitespace-normal [[align=center]]:text-center [[align=right]]:text-right",
 				className
 			)}
 			{...props}
 		>
 			{processChildrenWithCitations(children)}
-		</th>
+		</TableHead>
 	),
 	td: ({ className, children, ...props }) => (
-		<td
+		<TableCell
 			className={cn(
-				"aui-md-td border-b border-l px-4 py-2 text-left last:border-r [[align=center]]:text-center [[align=right]]:text-right",
+				"aui-md-td whitespace-normal [[align=center]]:text-center [[align=right]]:text-right",
 				className
 			)}
 			{...props}
 		>
 			{processChildrenWithCitations(children)}
-		</td>
+		</TableCell>
 	),
-	tr: ({ className, ...props }) => (
-		<tr
-			className={cn(
-				"aui-md-tr m-0 border-b p-0 first:border-t [&:last-child>td:first-child]:rounded-bl-lg [&:last-child>td:last-child]:rounded-br-lg",
-				className
-			)}
-			{...props}
-		/>
-	),
+	tr: ({ className, ...props }) => <TableRow className={cn("aui-md-tr", className)} {...props} />,
 	sup: ({ className, ...props }) => (
 		<sup className={cn("aui-md-sup [&>a]:text-xs [&>a]:no-underline", className)} {...props} />
 	),
-	pre: ({ className, ...props }) => (
-		<pre
-			className={cn(
-				"aui-md-pre overflow-x-auto rounded-t-none! rounded-b-lg bg-black p-4 text-white",
-				className
-			)}
-			{...props}
-		/>
-	),
-	code: function Code({ className, ...props }) {
+	pre: ({ children }) => <>{children}</>,
+	code: function Code({ className, children, ...props }) {
 		const isCodeBlock = useIsMarkdownCodeBlock();
+		const { resolvedTheme } = useTheme();
+		if (!isCodeBlock) {
+			return (
+				<code
+					className={cn(
+						"aui-md-inline-code rounded-md border bg-muted px-1.5 py-0.5 font-mono text-[0.9em] font-normal",
+						className
+					)}
+					{...props}
+				>
+					{children}
+				</code>
+			);
+		}
+		const language = /language-(\w+)/.exec(className || "")?.[1] ?? "text";
+		const codeString = String(children).replace(/\n$/, "");
 		return (
-			<code
-				className={cn(
-					!isCodeBlock && "aui-md-inline-code rounded border bg-muted font-semibold",
-					className
-				)}
-				{...props}
+			<LazyMarkdownCodeBlock
+				className={className}
+				language={language}
+				codeText={codeString}
+				isDarkMode={resolvedTheme === "dark"}
 			/>
 		);
 	},
@@ -371,5 +426,8 @@ const defaultComponents = memoizeMarkdownComponents({
 			{processChildrenWithCitations(children)}
 		</em>
 	),
-	CodeHeader,
+	img: ({ src, alt }) => (
+		<MarkdownImage src={typeof src === "string" ? src : undefined} alt={alt} />
+	),
+	CodeHeader: () => null,
 });

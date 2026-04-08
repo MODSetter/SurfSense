@@ -1,6 +1,7 @@
 """Celery tasks for document processing."""
 
 import asyncio
+import contextlib
 import logging
 import os
 from uuid import UUID
@@ -10,6 +11,7 @@ from app.config import config
 from app.services.notification_service import NotificationService
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.celery_tasks import get_celery_session_maker
+from app.tasks.connector_indexers.local_folder_indexer import index_local_folder
 from app.tasks.document_processors import (
     add_extension_received_document,
     add_youtube_video_document,
@@ -87,6 +89,168 @@ async def _run_heartbeat_loop(notification_id: int):
                 )
     except asyncio.CancelledError:
         pass  # Normal cancellation when task completes
+
+
+@celery_app.task(
+    name="delete_document_background",
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_backoff_max=300,
+    max_retries=5,
+)
+def delete_document_task(self, document_id: int):
+    """Celery task to delete a document and its chunks in batches."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(_delete_document_background(document_id))
+    finally:
+        loop.close()
+
+
+async def _delete_document_background(document_id: int) -> None:
+    """Delete chunks in batches first, then remove the document row."""
+    from sqlalchemy import delete as sa_delete, select
+
+    from app.db import Chunk, Document
+
+    async with get_celery_session_maker()() as session:
+        batch_size = 500
+        while True:
+            chunk_ids_result = await session.execute(
+                select(Chunk.id)
+                .where(Chunk.document_id == document_id)
+                .limit(batch_size)
+            )
+            chunk_ids = chunk_ids_result.scalars().all()
+            if not chunk_ids:
+                break
+            await session.execute(sa_delete(Chunk).where(Chunk.id.in_(chunk_ids)))
+            await session.commit()
+
+        doc = await session.get(Document, document_id)
+        if doc:
+            await session.delete(doc)
+            await session.commit()
+
+
+@celery_app.task(
+    name="delete_folder_documents_background",
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_backoff_max=300,
+    max_retries=5,
+)
+def delete_folder_documents_task(
+    self,
+    document_ids: list[int],
+    folder_subtree_ids: list[int] | None = None,
+):
+    """Celery task to delete documents first, then the folder rows."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(
+            _delete_folder_documents(document_ids, folder_subtree_ids)
+        )
+    finally:
+        loop.close()
+
+
+async def _delete_folder_documents(
+    document_ids: list[int],
+    folder_subtree_ids: list[int] | None = None,
+) -> None:
+    """Delete chunks in batches, then document rows, then folder rows."""
+    from sqlalchemy import delete as sa_delete, select
+
+    from app.db import Chunk, Document, Folder
+
+    async with get_celery_session_maker()() as session:
+        batch_size = 500
+        for doc_id in document_ids:
+            while True:
+                chunk_ids_result = await session.execute(
+                    select(Chunk.id)
+                    .where(Chunk.document_id == doc_id)
+                    .limit(batch_size)
+                )
+                chunk_ids = chunk_ids_result.scalars().all()
+                if not chunk_ids:
+                    break
+                await session.execute(sa_delete(Chunk).where(Chunk.id.in_(chunk_ids)))
+                await session.commit()
+
+            doc = await session.get(Document, doc_id)
+            if doc:
+                await session.delete(doc)
+                await session.commit()
+
+        if folder_subtree_ids:
+            await session.execute(
+                sa_delete(Folder).where(Folder.id.in_(folder_subtree_ids))
+            )
+            await session.commit()
+
+
+@celery_app.task(
+    name="delete_search_space_background",
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_backoff_max=300,
+    max_retries=5,
+)
+def delete_search_space_task(self, search_space_id: int):
+    """Celery task to delete a search space and heavy child rows in batches."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(_delete_search_space_background(search_space_id))
+    finally:
+        loop.close()
+
+
+async def _delete_search_space_background(search_space_id: int) -> None:
+    """Delete chunks/docs in batches first, then delete the search space."""
+    from sqlalchemy import delete as sa_delete, select
+
+    from app.db import Chunk, Document, SearchSpace
+
+    async with get_celery_session_maker()() as session:
+        batch_size = 500
+
+        while True:
+            chunk_ids_result = await session.execute(
+                select(Chunk.id)
+                .join(Document, Chunk.document_id == Document.id)
+                .where(Document.search_space_id == search_space_id)
+                .limit(batch_size)
+            )
+            chunk_ids = chunk_ids_result.scalars().all()
+            if not chunk_ids:
+                break
+            await session.execute(sa_delete(Chunk).where(Chunk.id.in_(chunk_ids)))
+            await session.commit()
+
+        while True:
+            doc_ids_result = await session.execute(
+                select(Document.id)
+                .where(Document.search_space_id == search_space_id)
+                .limit(batch_size)
+            )
+            doc_ids = doc_ids_result.scalars().all()
+            if not doc_ids:
+                break
+            await session.execute(sa_delete(Document).where(Document.id.in_(doc_ids)))
+            await session.commit()
+
+        space = await session.get(SearchSpace, search_space_id)
+        if space:
+            await session.delete(space)
+            await session.commit()
 
 
 @celery_app.task(name="process_extension_document", bind=True)
@@ -785,7 +949,7 @@ async def _process_file_with_document(
         )
 
         try:
-            # Set status to PROCESSING (shows spinner in UI via ElectricSQL)
+            # Set status to PROCESSING (shows spinner in UI via Zero)
             document.status = DocumentStatus.processing()
             await session.commit()
             logger.info(
@@ -849,7 +1013,7 @@ async def _process_file_with_document(
             ):
                 page_limit_error = e.__cause__
 
-            # Mark document as failed (shows error in UI via ElectricSQL)
+            # Mark document as failed (shows error in UI via Zero)
             error_message = str(e)[:500]
             document.status = DocumentStatus.failed(error_message)
             document.updated_at = get_current_timestamp()
@@ -1096,3 +1260,154 @@ async def _process_circleback_meeting(
                 heartbeat_task.cancel()
             if notification:
                 _stop_heartbeat(notification.id)
+
+
+# ===== Local folder indexing task =====
+
+
+@celery_app.task(name="index_local_folder", bind=True)
+def index_local_folder_task(
+    self,
+    search_space_id: int,
+    user_id: str,
+    folder_path: str,
+    folder_name: str,
+    exclude_patterns: list[str] | None = None,
+    file_extensions: list[str] | None = None,
+    root_folder_id: int | None = None,
+    enable_summary: bool = False,
+    target_file_paths: list[str] | None = None,
+):
+    """Celery task to index a local folder. Config is passed directly — no connector row."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    try:
+        loop.run_until_complete(
+            _index_local_folder_async(
+                search_space_id=search_space_id,
+                user_id=user_id,
+                folder_path=folder_path,
+                folder_name=folder_name,
+                exclude_patterns=exclude_patterns,
+                file_extensions=file_extensions,
+                root_folder_id=root_folder_id,
+                enable_summary=enable_summary,
+                target_file_paths=target_file_paths,
+            )
+        )
+    finally:
+        loop.close()
+
+
+async def _index_local_folder_async(
+    search_space_id: int,
+    user_id: str,
+    folder_path: str,
+    folder_name: str,
+    exclude_patterns: list[str] | None = None,
+    file_extensions: list[str] | None = None,
+    root_folder_id: int | None = None,
+    enable_summary: bool = False,
+    target_file_paths: list[str] | None = None,
+):
+    """Run local folder indexing with notification + heartbeat."""
+    is_batch = bool(target_file_paths)
+    is_full_scan = not target_file_paths
+    file_count = len(target_file_paths) if target_file_paths else None
+
+    if is_batch:
+        doc_name = f"{folder_name} ({file_count} file{'s' if file_count != 1 else ''})"
+    else:
+        doc_name = folder_name
+
+    notification = None
+    notification_id: int | None = None
+    heartbeat_task = None
+
+    async with get_celery_session_maker()() as session:
+        try:
+            notification = (
+                await NotificationService.document_processing.notify_processing_started(
+                    session=session,
+                    user_id=UUID(user_id),
+                    document_type="LOCAL_FOLDER_FILE",
+                    document_name=doc_name,
+                    search_space_id=search_space_id,
+                )
+            )
+            notification_id = notification.id
+            _start_heartbeat(notification_id)
+            heartbeat_task = asyncio.create_task(_run_heartbeat_loop(notification_id))
+        except Exception:
+            logger.warning(
+                "Failed to create notification for local folder indexing",
+                exc_info=True,
+            )
+
+        async def _heartbeat_progress(completed_count: int) -> None:
+            """Refresh heartbeat and optionally update notification progress."""
+            if notification:
+                with contextlib.suppress(Exception):
+                    await NotificationService.document_processing.notify_processing_progress(
+                        session=session,
+                        notification=notification,
+                        stage="indexing",
+                        stage_message=f"Syncing files ({completed_count}/{file_count or '?'})",
+                    )
+
+        try:
+            _indexed, _skipped_or_failed, _rfid, err = await index_local_folder(
+                session=session,
+                search_space_id=search_space_id,
+                user_id=user_id,
+                folder_path=folder_path,
+                folder_name=folder_name,
+                exclude_patterns=exclude_patterns,
+                file_extensions=file_extensions,
+                root_folder_id=root_folder_id,
+                enable_summary=enable_summary,
+                target_file_paths=target_file_paths,
+                on_heartbeat_callback=_heartbeat_progress
+                if (is_batch or is_full_scan)
+                else None,
+            )
+
+            if notification:
+                try:
+                    await session.refresh(notification)
+                    if err:
+                        await NotificationService.document_processing.notify_processing_completed(
+                            session=session,
+                            notification=notification,
+                            error_message=err,
+                        )
+                    else:
+                        await NotificationService.document_processing.notify_processing_completed(
+                            session=session,
+                            notification=notification,
+                        )
+                except Exception:
+                    logger.warning(
+                        "Failed to update notification after local folder indexing",
+                        exc_info=True,
+                    )
+
+        except Exception as e:
+            logger.exception(f"Local folder indexing failed: {e}")
+            if notification:
+                try:
+                    await session.refresh(notification)
+                    await NotificationService.document_processing.notify_processing_completed(
+                        session=session,
+                        notification=notification,
+                        error_message=str(e)[:200],
+                    )
+                except Exception:
+                    pass
+            raise
+        finally:
+            if heartbeat_task:
+                heartbeat_task.cancel()
+            if notification_id is not None:
+                _stop_heartbeat(notification_id)

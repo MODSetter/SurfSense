@@ -1,20 +1,17 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
-import {
-	AlertTriangleIcon,
-	CheckIcon,
-	InfoIcon,
-	Loader2Icon,
-	TriangleAlertIcon,
-	XIcon,
-} from "lucide-react";
-import { useState } from "react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
+import { CornerDownLeftIcon } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useHitlPhase } from "@/hooks/use-hitl-phase";
 
 interface InterruptResult {
 	__interrupt__: true;
 	__decided__?: "approve" | "reject";
+	__completed__?: boolean;
 	action_requests: Array<{
 		name: string;
 		args: Record<string, unknown>;
@@ -60,12 +57,20 @@ interface WarningResult {
 	message?: string;
 }
 
+interface AuthErrorResult {
+	status: "auth_error";
+	message: string;
+	connector_id?: number;
+	connector_type: string;
+}
+
 type DeleteLinearIssueResult =
 	| InterruptResult
 	| SuccessResult
 	| ErrorResult
 	| NotFoundResult
-	| WarningResult;
+	| WarningResult
+	| AuthErrorResult;
 
 function isInterruptResult(result: unknown): result is InterruptResult {
 	return (
@@ -105,6 +110,15 @@ function isWarningResult(result: unknown): result is WarningResult {
 	);
 }
 
+function isAuthErrorResult(result: unknown): result is AuthErrorResult {
+	return (
+		typeof result === "object" &&
+		result !== null &&
+		"status" in result &&
+		(result as AuthErrorResult).status === "auth_error"
+	);
+}
+
 function ApprovalCard({
 	interruptData,
 	onDecision,
@@ -116,157 +130,168 @@ function ApprovalCard({
 		edited_action?: { name: string; args: Record<string, unknown> };
 	}) => void;
 }) {
-	const actionArgs = interruptData.action_requests[0]?.args ?? {};
+	const { phase, setProcessing, setRejected } = useHitlPhase(interruptData);
+	const [deleteFromKb, setDeleteFromKb] = useState(false);
+
 	const context = interruptData.context;
 	const issue = context?.issue;
 
-	const [decided, setDecided] = useState<"approve" | "reject" | null>(
-		interruptData.__decided__ ?? null
-	);
-	const [deleteFromKb, setDeleteFromKb] = useState(
-		typeof actionArgs.delete_from_kb === "boolean" ? actionArgs.delete_from_kb : false
-	);
+	const handleApprove = useCallback(() => {
+		if (phase !== "pending") return;
+		setProcessing();
+		onDecision({
+			type: "approve",
+			edited_action: {
+				name: interruptData.action_requests[0].name,
+				args: {
+					issue_id: issue?.id,
+					connector_id: context?.workspace?.id,
+					delete_from_kb: deleteFromKb,
+				},
+			},
+		});
+	}, [
+		phase,
+		setProcessing,
+		onDecision,
+		interruptData,
+		issue?.id,
+		context?.workspace?.id,
+		deleteFromKb,
+	]);
+
+	useEffect(() => {
+		const handler = (e: KeyboardEvent) => {
+			if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+				handleApprove();
+			}
+		};
+		window.addEventListener("keydown", handler);
+		return () => window.removeEventListener("keydown", handler);
+	}, [handleApprove]);
 
 	return (
-		<div
-			className={`my-4 max-w-full overflow-hidden rounded-xl transition-all duration-300 ${
-				decided
-					? "border border-border bg-card shadow-sm"
-					: "border-2 border-foreground/20 bg-muted/30 dark:bg-muted/10 shadow-lg animate-pulse-subtle"
-			}`}
-		>
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-[box-shadow] duration-300">
 			{/* Header */}
-			<div
-				className={`flex items-center gap-3 border-b ${
-					decided ? "border-border bg-card" : "border-foreground/15 bg-muted/40 dark:bg-muted/20"
-				} px-4 py-3`}
-			>
-				<div
-					className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
-						decided ? "bg-muted" : "bg-muted animate-pulse"
-					}`}
-				>
-					<AlertTriangleIcon
-						className={`size-4 ${decided ? "text-muted-foreground" : "text-foreground"}`}
-					/>
-				</div>
-				<div className="min-w-0 flex-1">
-					<p className="text-sm font-medium text-foreground">Delete Linear Issue</p>
-					<p className="truncate text-xs text-muted-foreground">
-						Requires your approval to proceed
+			<div className="flex items-start justify-between px-5 pt-5 pb-4 select-none">
+				<div>
+					<p className="text-sm font-semibold text-foreground">
+						{phase === "rejected"
+							? "Linear Issue Deletion Rejected"
+							: phase === "processing" || phase === "complete"
+								? "Linear Issue Deletion Approved"
+								: "Delete Linear Issue"}
 					</p>
+					{phase === "processing" ? (
+						<TextShimmerLoader text="Deleting issue" size="sm" />
+					) : phase === "complete" ? (
+						<p className="text-xs text-muted-foreground mt-0.5">Issue deleted</p>
+					) : phase === "rejected" ? (
+						<p className="text-xs text-muted-foreground mt-0.5">Issue deletion was cancelled</p>
+					) : (
+						<p className="text-xs text-muted-foreground mt-0.5">
+							Requires your approval to proceed
+						</p>
+					)}
 				</div>
 			</div>
 
-			{/* Context section — workspace + issue info (read-only) */}
-			{!decided && (
-				<div className="border-b border-border px-4 py-3 bg-muted/30 space-y-3">
-					{context?.error ? (
-						<p className="text-sm text-destructive">{context.error}</p>
-					) : (
-						<>
-							{context?.workspace && (
-								<div className="space-y-1">
-									<div className="text-xs font-medium text-muted-foreground">Linear Account</div>
-									<div className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm">
-										{context.workspace.organization_name}
-									</div>
-								</div>
-							)}
-
-							{issue && (
-								<div className="space-y-1">
-									<div className="text-xs font-medium text-muted-foreground">Issue to Archive</div>
-									<div className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm space-y-1">
-										<div className="font-medium">
-											{issue.identifier}: {issue.title}
+			{/* Context section — workspace + issue info (visible in pending, processing, complete) */}
+			{phase !== "rejected" && context && (
+				<>
+					<div className="mx-5 h-px bg-border/50" />
+					<div className="px-5 py-4 space-y-4 select-none">
+						{context.error ? (
+							<p className="text-sm text-destructive">{context.error}</p>
+						) : (
+							<>
+								{context.workspace && (
+									<div className="space-y-2">
+										<p className="text-xs font-medium text-muted-foreground">Linear Account</p>
+										<div className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm">
+											{context.workspace.organization_name}
 										</div>
-										{issue.state && (
-											<div className="text-xs text-muted-foreground">{issue.state}</div>
-										)}
 									</div>
-								</div>
-							)}
-						</>
-					)}
-				</div>
+								)}
+
+								{issue && (
+									<div className="space-y-2">
+										<p className="text-xs font-medium text-muted-foreground">Issue to Archive</p>
+										<div className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm space-y-1">
+											<div className="font-medium">
+												{issue.identifier}: {issue.title}
+											</div>
+											{issue.state && (
+												<div className="text-xs text-muted-foreground">{issue.state}</div>
+											)}
+										</div>
+									</div>
+								)}
+							</>
+						)}
+					</div>
+				</>
 			)}
 
 			{/* delete_from_kb toggle */}
-			{!decided && (
-				<div className="px-4 py-3 border-b border-border bg-muted/20">
-					<label className="flex items-start gap-2 cursor-pointer">
-						<input
-							type="checkbox"
-							checked={deleteFromKb}
-							onChange={(e) => setDeleteFromKb(e.target.checked)}
-							className="mt-0.5"
-						/>
-						<div className="flex-1">
-							<span className="text-sm text-foreground">Also remove from knowledge base</span>
-							<p className="text-xs text-muted-foreground mt-1">
-								⚠️ This will permanently delete the issue from your knowledge base (cannot be undone)
-							</p>
+			{phase === "pending" && (
+				<>
+					<div className="mx-5 h-px bg-border/50" />
+					<div className="px-5 py-4 select-none">
+						<div className="flex items-center gap-2.5">
+							<Checkbox
+								id="linear-delete-from-kb"
+								checked={deleteFromKb}
+								onCheckedChange={(v) => setDeleteFromKb(v === true)}
+								className="shrink-0"
+							/>
+							<label htmlFor="linear-delete-from-kb" className="flex-1 cursor-pointer">
+								<span className="text-sm text-foreground">Also remove from knowledge base</span>
+								<p className="text-xs text-muted-foreground mt-0.5">
+									This will permanently delete the issue from your knowledge base (cannot be undone)
+								</p>
+							</label>
 						</div>
-					</label>
-				</div>
+					</div>
+				</>
 			)}
 
-			{/* Action buttons */}
-			<div
-				className={`flex items-center gap-2 border-t ${
-					decided ? "border-border bg-card" : "border-foreground/15 bg-muted/20 dark:bg-muted/10"
-				} px-4 py-3`}
-			>
-				{decided ? (
-					<p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-						{decided === "approve" ? (
-							<>
-								<CheckIcon className="size-3.5 text-green-500" />
-								Approved
-							</>
-						) : (
-							<>
-								<XIcon className="size-3.5 text-destructive" />
-								Rejected
-							</>
-						)}
-					</p>
-				) : (
-					<>
-						<Button
-							size="sm"
-							onClick={() => {
-								setDecided("approve");
-								onDecision({
-									type: "approve",
-									edited_action: {
-										name: interruptData.action_requests[0].name,
-										args: {
-											issue_id: issue?.id,
-											connector_id: context?.workspace?.id,
-											delete_from_kb: deleteFromKb,
-										},
-									},
-								});
-							}}
-						>
-							<CheckIcon />
+			{/* Action buttons - only shown when pending */}
+			{phase === "pending" && (
+				<>
+					<div className="mx-5 h-px bg-border/50" />
+					<div className="px-5 py-4 flex items-center gap-2 select-none">
+						<Button size="sm" className="rounded-lg gap-1.5" onClick={handleApprove}>
 							Approve
+							<CornerDownLeftIcon className="size-3 opacity-60" />
 						</Button>
 						<Button
 							size="sm"
-							variant="outline"
+							variant="ghost"
+							className="rounded-lg text-muted-foreground"
 							onClick={() => {
-								setDecided("reject");
+								setRejected();
 								onDecision({ type: "reject", message: "User rejected the action." });
 							}}
 						>
-							<XIcon />
 							Reject
 						</Button>
-					</>
-				)}
+					</div>
+				</>
+			)}
+		</div>
+	);
+}
+
+function AuthErrorCard({ result }: { result: AuthErrorResult }) {
+	return (
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-destructive">Linear authentication expired</p>
+			</div>
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 py-4">
+				<p className="text-sm text-muted-foreground">{result.message}</p>
 			</div>
 		</div>
 	);
@@ -274,16 +299,12 @@ function ApprovalCard({
 
 function ErrorCard({ result }: { result: ErrorResult }) {
 	return (
-		<div className="my-4 max-w-md overflow-hidden rounded-xl border border-destructive/50 bg-card">
-			<div className="flex items-center gap-3 border-b border-destructive/50 px-4 py-3">
-				<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
-					<XIcon className="size-4 text-destructive" />
-				</div>
-				<div className="min-w-0 flex-1">
-					<p className="text-sm font-medium text-destructive">Failed to delete Linear issue</p>
-				</div>
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-destructive">Failed to delete Linear issue</p>
 			</div>
-			<div className="px-4 py-3">
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 py-4">
 				<p className="text-sm text-muted-foreground">{result.message}</p>
 			</div>
 		</div>
@@ -292,14 +313,13 @@ function ErrorCard({ result }: { result: ErrorResult }) {
 
 function NotFoundCard({ result }: { result: NotFoundResult }) {
 	return (
-		<div className="my-4 max-w-md overflow-hidden rounded-xl border border-amber-500/50 bg-card">
-			<div className="flex items-start gap-3 px-4 py-3">
-				<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
-					<InfoIcon className="size-4 text-amber-500" />
-				</div>
-				<div className="min-w-0 flex-1 pt-2">
-					<p className="text-sm text-muted-foreground">{result.message}</p>
-				</div>
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-amber-600 dark:text-amber-400">Issue not found</p>
+			</div>
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 py-4">
+				<p className="text-sm text-muted-foreground">{result.message}</p>
 			</div>
 		</div>
 	);
@@ -307,16 +327,11 @@ function NotFoundCard({ result }: { result: NotFoundResult }) {
 
 function WarningCard({ result }: { result: WarningResult }) {
 	return (
-		<div className="my-4 max-w-md overflow-hidden rounded-xl border border-amber-500/50 bg-card">
-			<div className="flex items-center gap-3 border-b border-amber-500/50 px-4 py-3">
-				<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
-					<TriangleAlertIcon className="size-4 text-amber-500" />
-				</div>
-				<div className="min-w-0 flex-1">
-					<p className="text-sm font-medium text-amber-600 dark:text-amber-500">Partial success</p>
-				</div>
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+			<div className="flex items-start gap-3 border-b px-5 py-4">
+				<p className="text-sm font-medium text-amber-600 dark:text-amber-500">Partial success</p>
 			</div>
-			<div className="px-4 py-3">
+			<div className="px-5 py-4">
 				<p className="text-sm text-muted-foreground">{result.warning}</p>
 			</div>
 		</div>
@@ -325,71 +340,61 @@ function WarningCard({ result }: { result: WarningResult }) {
 
 function SuccessCard({ result }: { result: SuccessResult }) {
 	return (
-		<div className="my-4 max-w-md overflow-hidden rounded-xl border border-border bg-card">
-			<div className="flex items-center gap-3 border-b border-border px-4 py-3">
-				<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-green-500/10">
-					<CheckIcon className="size-4 text-green-500" />
-				</div>
-				<div className="min-w-0 flex-1">
-					<p className="text-[.8rem] text-muted-foreground">
-						{result.message || "Linear issue archived successfully"}
-					</p>
-				</div>
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-foreground">
+					{result.message || "Linear issue archived successfully"}
+				</p>
 			</div>
 			{result.deleted_from_kb && (
-				<div className="px-4 py-3 text-xs">
-					<span className="text-green-600 dark:text-green-500">
-						✓ Also removed from knowledge base
-					</span>
-				</div>
+				<>
+					<div className="mx-5 h-px bg-border/50" />
+					<div className="px-5 py-4 text-xs">
+						<span className="text-green-600 dark:text-green-500">
+							Also removed from knowledge base
+						</span>
+					</div>
+				</>
 			)}
 		</div>
 	);
 }
 
-export const DeleteLinearIssueToolUI = makeAssistantToolUI<
+export const DeleteLinearIssueToolUI = ({
+	result,
+}: ToolCallMessagePartProps<
 	{ issue_ref: string; delete_from_kb?: boolean },
 	DeleteLinearIssueResult
->({
-	toolName: "delete_linear_issue",
-	render: function DeleteLinearIssueUI({ result, status }) {
-		if (status.type === "running") {
-			return (
-				<div className="my-4 flex max-w-md items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
-					<Loader2Icon className="size-4 animate-spin text-muted-foreground" />
-					<p className="text-sm text-muted-foreground">Preparing Linear issue deletion...</p>
-				</div>
-			);
-		}
+>) => {
+	if (!result) return null;
 
-		if (!result) return null;
+	if (isInterruptResult(result)) {
+		return (
+			<ApprovalCard
+				interruptData={result}
+				onDecision={(decision) => {
+					const event = new CustomEvent("hitl-decision", {
+						detail: { decisions: [decision] },
+					});
+					window.dispatchEvent(event);
+				}}
+			/>
+		);
+	}
 
-		if (isInterruptResult(result)) {
-			return (
-				<ApprovalCard
-					interruptData={result}
-					onDecision={(decision) => {
-						window.dispatchEvent(
-							new CustomEvent("hitl-decision", { detail: { decisions: [decision] } })
-						);
-					}}
-				/>
-			);
-		}
+	if (
+		typeof result === "object" &&
+		result !== null &&
+		"status" in result &&
+		(result as { status: string }).status === "rejected"
+	) {
+		return null;
+	}
 
-		if (
-			typeof result === "object" &&
-			result !== null &&
-			"status" in result &&
-			(result as { status: string }).status === "rejected"
-		) {
-			return null;
-		}
+	if (isNotFoundResult(result)) return <NotFoundCard result={result} />;
+	if (isAuthErrorResult(result)) return <AuthErrorCard result={result} />;
+	if (isWarningResult(result)) return <WarningCard result={result} />;
+	if (isErrorResult(result)) return <ErrorCard result={result} />;
 
-		if (isNotFoundResult(result)) return <NotFoundCard result={result} />;
-		if (isWarningResult(result)) return <WarningCard result={result} />;
-		if (isErrorResult(result)) return <ErrorCard result={result} />;
-
-		return <SuccessCard result={result as SuccessResult} />;
-	},
-});
+	return <SuccessCard result={result as SuccessResult} />;
+};

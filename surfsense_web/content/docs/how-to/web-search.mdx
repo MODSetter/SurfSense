@@ -1,0 +1,173 @@
+---
+title: Web Search
+description: How SurfSense web search works and how to configure it for production with residential proxies
+---
+
+# Web Search
+
+SurfSense uses [SearXNG](https://docs.searxng.org/) as a bundled meta-search engine to provide web search across all search spaces. SearXNG aggregates results from multiple search engines (Google, DuckDuckGo, Brave, Bing, and more) without requiring any API keys.
+
+## How It Works
+
+When a user triggers a web search in SurfSense:
+
+1. The backend sends a query to the bundled SearXNG instance via its JSON API
+2. SearXNG fans out the query to all enabled search engines simultaneously
+3. Results are aggregated, deduplicated, and ranked by engine weight
+4. The backend receives merged results and presents them to the user
+
+SearXNG runs as a Docker container alongside the backend. It is never exposed to the internet. Only the backend communicates with it over the internal Docker network.
+
+## Docker Setup
+
+SearXNG is included in both `docker-compose.yml` and `docker-compose.dev.yml` and works out of the box with no configuration needed.
+
+The backend connects to SearXNG automatically via the `SEARXNG_DEFAULT_HOST` environment variable (defaults to `http://searxng:8080`).
+
+### Disabling SearXNG
+
+If you don't need web search, you can skip the SearXNG container entirely:
+
+```bash
+docker compose up --scale searxng=0
+```
+
+### Using Your Own SearXNG Instance
+
+To point SurfSense at an external SearXNG instance instead of the bundled one, set in your `docker/.env`:
+
+```bash
+SEARXNG_DEFAULT_HOST=http://your-searxng:8080
+```
+
+## Configuration
+
+SearXNG is configured via `docker/searxng/settings.yml`. The key sections are:
+
+### Engines
+
+SearXNG queries multiple search engines in parallel. Each engine has a **weight** that influences how its results rank in the merged output:
+
+| Engine | Weight | Notes |
+|--------|--------|-------|
+| Google | 1.2 | Highest priority, best general results |
+| DuckDuckGo | 1.1 | Strong privacy-focused alternative |
+| Brave | 1.0 | Independent search index |
+| Bing | 0.9 | Different index from Google |
+| Wikipedia | 0.8 | Encyclopedic results |
+| StackOverflow | 0.7 | Technical/programming results |
+| Yahoo | 0.7 | Powered by Bing's index |
+| Wikidata | 0.6 | Structured data results |
+| Currency | default | Currency conversion |
+| DDG Definitions | default | Instant answers from DuckDuckGo |
+
+All engines are free. SearXNG scrapes public search pages, no API keys required.
+
+### Engine Suspension
+
+When a search engine returns an error (CAPTCHA, rate limit, access denied), SearXNG suspends it for a configurable duration. After the suspension expires, the engine is automatically retried.
+
+The default suspension times are tuned for use with rotating residential proxies (shorter bans since each retry goes through a different IP):
+
+| Error Type | Suspension | Default (without override) |
+|------------|-----------|---------------------------|
+| Access Denied (403) | 1 hour | 24 hours |
+| CAPTCHA | 1 hour | 24 hours |
+| Too Many Requests (429) | 10 minutes | 1 hour |
+| Cloudflare CAPTCHA | 2 hours | 15 days |
+| Cloudflare Access Denied | 1 hour | 24 hours |
+| reCAPTCHA | 2 hours | 7 days |
+
+### Timeouts
+
+| Setting | Value | Description |
+|---------|-------|-------------|
+| `request_timeout` | 12s | Default timeout per engine request |
+| `max_request_timeout` | 20s | Maximum allowed timeout (must be ≥ `request_timeout`) |
+| `extra_proxy_timeout` | 10s | Extra seconds added when using a proxy |
+| `retries` | 1 | Retries on HTTP error (uses a different proxy IP per retry) |
+
+## Production: Residential Proxies
+
+In production, search engines may rate-limit or block your server's IP. To avoid this, configure a residential proxy so SearXNG's outgoing requests appear to come from rotating residential IPs.
+
+### Step 1: Build the Proxy URL
+
+SurfSense uses [anonymous-proxies.net](https://anonymous-proxies.net/) style residential proxies where the password is a base64-encoded JSON object. Build the URL using your proxy credentials:
+
+```bash
+# Encode the password (replace with your actual values)
+echo -n '{"p": "YOUR_PASSWORD", "l": "LOCATION", "t": PROXY_TYPE}' | base64
+```
+
+The full proxy URL format is:
+
+```
+http://<username>:<base64_password>@<hostname>:<port>/
+```
+
+### Step 2: Add to SearXNG Settings
+
+In `docker/searxng/settings.yml`, add the proxy URL under `outgoing.proxies`:
+
+```yaml
+outgoing:
+  proxies:
+    all://:
+      - http://username:base64password@proxy-host:port/
+```
+
+The `all://:` key routes both HTTP and HTTPS requests through the proxy. If you have multiple proxy endpoints, list them and SearXNG will round-robin between them:
+
+```yaml
+  proxies:
+    all://:
+      - http://user:pass@proxy1:port/
+      - http://user:pass@proxy2:port/
+```
+
+### Step 3: Restart SearXNG
+
+```bash
+docker compose restart searxng
+```
+
+### Verify
+
+Check that SearXNG is healthy:
+
+```bash
+curl http://localhost:8888/healthz
+```
+
+## Troubleshooting
+
+### SearXNG Fails to Start
+
+**`ValueError: Invalid settings.yml`** - Check the error line above the traceback. Common causes:
+- `extra_proxy_timeout` must be an integer (use `10`, not `10.0`)
+- `KeyError: 'engine_name'` means an engine was removed but other engines reference its network. Remove all variants (e.g., removing `qwant` also requires removing `qwant news`, `qwant images`, `qwant videos`)
+
+### Engines Getting Suspended
+
+If an engine is suspended (visible in SearXNG logs as `suspended_time=N`), it will automatically recover after the suspension period. With residential proxies, the next request after recovery goes through a different IP and typically succeeds.
+
+### No Web Search Results
+
+1. Check SearXNG health: `curl http://localhost:8888/healthz`
+2. Check SearXNG logs: `docker compose logs searxng`
+3. Verify the backend can reach SearXNG: the `SEARXNG_DEFAULT_HOST` env var should point to `http://searxng:8080` (Docker) or `http://localhost:8888` (local dev)
+
+### Proxy Not Working
+
+- Verify the base64 password is correctly encoded
+- Check that `extra_proxy_timeout` is set (proxies add latency)
+- Ensure `max_request_timeout` is high enough to accommodate `request_timeout + extra_proxy_timeout`
+
+## Environment Variables Reference
+
+| Variable | Location | Description | Default |
+|----------|----------|-------------|---------|
+| `SEARXNG_DEFAULT_HOST` | `docker/.env` | URL of the SearXNG instance | `http://searxng:8080` |
+| `SEARXNG_SECRET` | `docker/.env` | Secret key for SearXNG | `surfsense-searxng-secret` |
+| `SEARXNG_PORT` | `docker/.env` | Port to expose SearXNG UI on the host | `8888` |

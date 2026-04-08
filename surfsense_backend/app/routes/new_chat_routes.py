@@ -35,7 +35,7 @@ from app.db import (
     shielded_async_session,
 )
 from app.schemas.new_chat import (
-    NewChatMessageAppend,
+    AgentToolInfo,
     NewChatMessageRead,
     NewChatRequest,
     NewChatThreadCreate,
@@ -891,8 +891,16 @@ async def append_message(
                 status_code=400, detail="Missing required field: content"
             )
 
-        # Create message object manually
-        message = NewChatMessageAppend(role=role, content=content)
+        # Validate role early (before any DB work)
+        role_str = role.lower() if isinstance(role, str) else role
+        try:
+            message_role = NewChatMessageRole(role_str)
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid role: {role}. Must be 'user', 'assistant', or 'system'.",
+            ) from None
+
         # Get thread
         result = await session.execute(
             select(NewChatThread).filter(NewChatThread.id == thread_id)
@@ -913,23 +921,11 @@ async def append_message(
         # Check thread-level access based on visibility
         await check_thread_access(session, thread, user)
 
-        # Convert string role to enum
-        role_str = (
-            message.role.lower() if isinstance(message.role, str) else message.role
-        )
-        try:
-            message_role = NewChatMessageRole(role_str)
-        except ValueError:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid role: {message.role}. Must be 'user', 'assistant', or 'system'.",
-            ) from None
-
         # Create message
         db_message = NewChatMessage(
             thread_id=thread_id,
             role=message_role,
-            content=message.content,
+            content=content,
             author_id=user.id,
         )
         session.add(db_message)
@@ -937,11 +933,12 @@ async def append_message(
         # Update thread's updated_at timestamp
         thread.updated_at = datetime.now(UTC)
 
-        # Note: Title generation now happens in stream_new_chat.py after the first response
-        # using LLM to generate a descriptive title (with truncation as fallback)
-
+        # flush assigns the PK/defaults without a round-trip SELECT
+        await session.flush()
         await session.commit()
-        await session.refresh(db_message)
+
+        # Return the in-memory object (already has id from flush) instead of
+        # doing an extra refresh() SELECT.
         return db_message
 
     except HTTPException:
@@ -1029,6 +1026,32 @@ async def list_messages(
 
 
 # =============================================================================
+# Agent Tools Endpoint
+# =============================================================================
+
+
+@router.get("/agent/tools", response_model=list[AgentToolInfo])
+async def list_agent_tools(
+    _user: User = Depends(current_active_user),
+):
+    """Return the list of built-in agent tools with their metadata.
+
+    Hidden (WIP) tools are excluded from the response.
+    """
+    from app.agents.new_chat.tools.registry import BUILTIN_TOOLS
+
+    return [
+        AgentToolInfo(
+            name=t.name,
+            description=t.description,
+            enabled_by_default=t.enabled_by_default,
+        )
+        for t in BUILTIN_TOOLS
+        if not t.hidden
+    ]
+
+
+# =============================================================================
 # Chat Streaming Endpoint
 # =============================================================================
 
@@ -1112,6 +1135,7 @@ async def handle_new_chat(
                 needs_history_bootstrap=thread.needs_history_bootstrap,
                 thread_visibility=thread.visibility,
                 current_user_display_name=user.display_name or "A team member",
+                disabled_tools=request.disabled_tools,
             ),
             media_type="text/event-stream",
             headers={
@@ -1348,6 +1372,7 @@ async def regenerate_response(
                     needs_history_bootstrap=thread.needs_history_bootstrap,
                     thread_visibility=thread.visibility,
                     current_user_display_name=user.display_name or "A team member",
+                    disabled_tools=request.disabled_tools,
                 ):
                     yield chunk
                 streaming_completed = True

@@ -17,7 +17,7 @@
 # - Configure router_settings below to customize the load balancing behavior
 #
 # Structure matches NewLLMConfig:
-# - LLM model configuration (provider, model_name, api_key, etc.)
+# - Model configuration (provider, model_name, api_key, etc.)
 # - Prompt configuration (system_instructions, citations_enabled)
 
 # Router Settings for Auto Mode
@@ -183,6 +183,23 @@ global_llm_configs:
     use_default_system_instructions: true
     citations_enabled: true
 
+  # Example: MiniMax M2.5 - High-performance with 204K context window
+  - id: -8
+    name: "Global MiniMax M2.5"
+    description: "MiniMax M2.5 with 204K context window and competitive pricing"
+    provider: "MINIMAX"
+    model_name: "MiniMax-M2.5"
+    api_key: "your-minimax-api-key-here"
+    api_base: "https://api.minimax.io/v1"
+    rpm: 60
+    tpm: 100000
+    litellm_params:
+      temperature: 1.0  # MiniMax requires temperature in (0.0, 1.0], cannot be 0
+      max_tokens: 4000
+    system_instructions: ""
+    use_default_system_instructions: true
+    citations_enabled: true
+
 # =============================================================================
 # Image Generation Configuration
 # =============================================================================
@@ -246,6 +263,82 @@ global_image_generation_configs:
   #   rpm: 30
   #   litellm_params: {}
 
+# =============================================================================
+# Vision LLM Configuration
+# =============================================================================
+# These configurations power the vision autocomplete feature (screenshot analysis).
+# Only vision-capable models should be used here (e.g. GPT-4o, Gemini Pro, Claude 3).
+# Supported providers: OpenAI, Anthropic, Google, Azure OpenAI, Vertex AI, Bedrock,
+# xAI, OpenRouter, Ollama, Groq, Together AI, Fireworks AI, DeepSeek, Mistral, Custom
+#
+# Auto mode (ID 0) uses LiteLLM Router for load balancing across all vision configs.
+
+# Router Settings for Vision LLM Auto Mode
+vision_llm_router_settings:
+  routing_strategy: "usage-based-routing"
+  num_retries: 3
+  allowed_fails: 3
+  cooldown_time: 60
+
+global_vision_llm_configs:
+  # Example: OpenAI GPT-4o (recommended for vision)
+  - id: -1
+    name: "Global GPT-4o Vision"
+    description: "OpenAI's GPT-4o with strong vision capabilities"
+    provider: "OPENAI"
+    model_name: "gpt-4o"
+    api_key: "sk-your-openai-api-key-here"
+    api_base: ""
+    rpm: 500
+    tpm: 100000
+    litellm_params:
+      temperature: 0.3
+      max_tokens: 1000
+
+  # Example: Google Gemini 2.0 Flash
+  - id: -2
+    name: "Global Gemini 2.0 Flash"
+    description: "Google's fast vision model with large context"
+    provider: "GOOGLE"
+    model_name: "gemini-2.0-flash"
+    api_key: "your-google-ai-api-key-here"
+    api_base: ""
+    rpm: 1000
+    tpm: 200000
+    litellm_params:
+      temperature: 0.3
+      max_tokens: 1000
+
+  # Example: Anthropic Claude 3.5 Sonnet
+  - id: -3
+    name: "Global Claude 3.5 Sonnet Vision"
+    description: "Anthropic's Claude 3.5 Sonnet with vision support"
+    provider: "ANTHROPIC"
+    model_name: "claude-3-5-sonnet-20241022"
+    api_key: "sk-ant-your-anthropic-api-key-here"
+    api_base: ""
+    rpm: 1000
+    tpm: 100000
+    litellm_params:
+      temperature: 0.3
+      max_tokens: 1000
+
+  # Example: Azure OpenAI GPT-4o
+  # - id: -4
+  #   name: "Global Azure GPT-4o Vision"
+  #   description: "Azure-hosted GPT-4o for vision analysis"
+  #   provider: "AZURE_OPENAI"
+  #   model_name: "azure/gpt-4o-deployment"
+  #   api_key: "your-azure-api-key-here"
+  #   api_base: "https://your-resource.openai.azure.com"
+  #   api_version: "2024-02-15-preview"
+  #   rpm: 500
+  #   tpm: 100000
+  #   litellm_params:
+  #     temperature: 0.3
+  #     max_tokens: 1000
+  #     base_model: "gpt-4o"
+
 # Notes:
 # - ID 0 is reserved for "Auto" mode - uses LiteLLM Router for load balancing
 # - Use negative IDs to distinguish global configs from user configs (NewLLMConfig in DB)
@@ -266,3 +359,9 @@ global_image_generation_configs:
 # - The router uses litellm.aimage_generation() for async image generation
 # - Only RPM (requests per minute) is relevant for image generation rate limiting.
 #   TPM (tokens per minute) does not apply since image APIs are billed/rate-limited per request, not per token.
+#
+# VISION LLM NOTES:
+# - Vision configs use the same ID scheme (negative for global, positive for user DB)
+# - Only use vision-capable models (GPT-4o, Gemini, Claude 3, etc.)
+# - Lower temperature (0.3) is recommended for accurate screenshot analysis
+# - Lower max_tokens (1000) is sufficient since autocomplete produces short suggestions

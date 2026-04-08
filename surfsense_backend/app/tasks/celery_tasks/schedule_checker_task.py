@@ -55,7 +55,6 @@ async def _check_and_trigger_schedules():
             from app.tasks.celery_tasks.connector_tasks import (
                 index_airtable_records_task,
                 index_clickup_tasks_task,
-                index_composio_connector_task,
                 index_confluence_pages_task,
                 index_crawled_urls_task,
                 index_discord_messages_task,
@@ -88,10 +87,10 @@ async def _check_and_trigger_schedules():
                 SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR: index_elasticsearch_documents_task,
                 SearchSourceConnectorType.WEBCRAWLER_CONNECTOR: index_crawled_urls_task,
                 SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR: index_google_drive_files_task,
-                # Composio connector types
-                SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR: index_composio_connector_task,
-                SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR: index_composio_connector_task,
-                SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR: index_composio_connector_task,
+                # Composio connector types (unified with native Google tasks)
+                SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR: index_google_drive_files_task,
+                SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR: index_google_gmail_messages_task,
+                SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR: index_google_calendar_events_task,
             }
 
             # Trigger indexing for each due connector
@@ -129,11 +128,11 @@ async def _check_and_trigger_schedules():
                         f"({connector.connector_type.value})"
                     )
 
-                    # Special handling for Google Drive - uses config for folder/file selection
-                    if (
-                        connector.connector_type
-                        == SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR
-                    ):
+                    # Special handling for Google Drive (native and Composio) - uses config for folder/file selection
+                    if connector.connector_type in [
+                        SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR,
+                        SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+                    ]:
                         connector_config = connector.config or {}
                         selected_folders = connector_config.get("selected_folders", [])
                         selected_files = connector_config.get("selected_files", [])

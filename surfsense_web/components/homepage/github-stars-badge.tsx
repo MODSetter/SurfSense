@@ -1,49 +1,10 @@
 "use client";
 
 import { IconBrandGithub } from "@tabler/icons-react";
-import type { HTMLMotionProps, UseInViewOptions } from "motion/react";
-import { motion, useInView, useMotionValue, useSpring } from "motion/react";
+import { motion, useMotionValue, useSpring } from "motion/react";
 import * as React from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-
-// ---------------------------------------------------------------------------
-// Utilities
-// ---------------------------------------------------------------------------
-function getStrictContext<T>(name?: string) {
-	const Context = React.createContext<T | undefined>(undefined);
-	const Provider = ({ value, children }: { value: T; children?: React.ReactNode }) => (
-		<Context.Provider value={value}>{children}</Context.Provider>
-	);
-	const useSafeContext = () => {
-		const ctx = React.useContext(Context);
-		if (ctx === undefined) {
-			throw new Error(`useContext must be used within ${name ?? "a Provider"}`);
-		}
-		return ctx;
-	};
-	return [Provider, useSafeContext] as const;
-}
-
-interface UseIsInViewOptions {
-	inView?: boolean;
-	inViewOnce?: boolean;
-	inViewMargin?: UseInViewOptions["margin"];
-}
-
-function useIsInView<T extends HTMLElement = HTMLElement>(
-	ref: React.Ref<T>,
-	options: UseIsInViewOptions = {}
-) {
-	const { inView, inViewOnce = false, inViewMargin = "0px" } = options;
-	const localRef = React.useRef<T>(null);
-	React.useImperativeHandle(ref, () => localRef.current as T);
-	const inViewResult = useInView(localRef, {
-		once: inViewOnce,
-		margin: inViewMargin,
-	});
-	const isInView = !inView || inViewResult;
-	return { ref: localRef, isInView };
-}
 
 // ---------------------------------------------------------------------------
 // Per-digit scrolling wheel
@@ -79,7 +40,7 @@ function DigitWheel({
 
 		const seq = Array.from({ length: cycles * 10 }, (_, i) => ({
 			id: `s${i}`,
-			value: Math.floor(Math.random() * 10),
+			value: (i * 7 + 3) % 10,
 		}));
 		const target = { id: "target", value: digit };
 		if (reverse) {
@@ -93,7 +54,7 @@ function DigitWheel({
 	const maxOffset = (sequence.length - 1) * itemSize;
 	const endY = reverse ? 0 : -maxOffset;
 
-	const rollingStartItem = React.useRef(Math.floor(Math.random() * 10));
+	const rollingStartItem = React.useRef(0);
 	const startOffset = rollingStartItem.current * itemSize;
 
 	const y = useMotionValue(
@@ -193,41 +154,17 @@ function AnimatedStarCount({
 	value,
 	itemSize = 22,
 	isRolling = false,
-	animated = true,
 	className,
 	onComplete,
 }: {
 	value: number;
 	itemSize?: number;
 	isRolling?: boolean;
-	animated?: boolean;
 	className?: string;
 	onComplete?: () => void;
 }) {
 	const formatted = numberFormatter.format(value);
 	const chars = formatted.split("");
-
-	if (!animated) {
-		return (
-			<div className="flex items-center">
-				{chars.map((char, idx) => (
-					<div
-						key={`static-${idx}-${char}`}
-						className={className}
-						style={{
-							height: itemSize,
-							display: "flex",
-							alignItems: "center",
-							justifyContent: "center",
-							width: char >= "0" && char <= "9" ? undefined : "0.3em",
-						}}
-					>
-						{char}
-					</div>
-				))}
-			</div>
-		);
-	}
 
 	let totalDigits = 0;
 	for (const c of chars) {
@@ -307,13 +244,8 @@ function NavbarGitHubStars({
 	href = "https://github.com/MODSetter/SurfSense",
 	className,
 }: NavbarGitHubStarsProps) {
-	const [hasMounted, setHasMounted] = React.useState(false);
 	const [stars, setStars] = React.useState(0);
 	const [isLoading, setIsLoading] = React.useState(true);
-
-	React.useEffect(() => {
-		setHasMounted(true);
-	}, []);
 
 	React.useEffect(() => {
 		const abortController = new AbortController();
@@ -341,21 +273,21 @@ function NavbarGitHubStars({
 			target="_blank"
 			rel="noopener noreferrer"
 			className={cn(
-				"group inline-flex items-center rounded-full border border-neutral-200 bg-white/80 px-3 py-1.5 text-sm backdrop-blur-sm transition-colors dark:border-neutral-800 dark:bg-neutral-950/80",
-				"hover:bg-neutral-100 dark:hover:bg-neutral-900",
+				"group flex items-center gap-1 rounded-lg px-2 py-1 hover:bg-gray-100 dark:hover:bg-neutral-800/50 transition-colors",
 				className
 			)}
 		>
-			<IconBrandGithub className="h-5 w-5 shrink-0 text-neutral-600 transition-colors dark:text-neutral-300 group-hover:text-neutral-800 dark:group-hover:text-neutral-100" />
-			<div className="ml-2 flex items-center text-neutral-500 transition-colors dark:text-neutral-400 group-hover:text-neutral-800 dark:group-hover:text-neutral-200">
+			<IconBrandGithub className="h-5 w-5 text-neutral-700 dark:text-neutral-300 shrink-0" />
+			{isLoading ? (
+				<Skeleton className="h-4 w-10" />
+			) : (
 				<AnimatedStarCount
-					value={isLoading ? 10000 : stars}
+					value={stars}
 					itemSize={ITEM_SIZE}
-					isRolling={hasMounted && isLoading}
-					animated={hasMounted}
-					className="text-sm font-semibold tabular-nums text-neutral-500 dark:text-neutral-400 group-hover:text-neutral-800 dark:group-hover:text-neutral-200 transition-colors"
+					isRolling={false}
+					className="text-sm font-semibold tabular-nums text-neutral-700 dark:text-neutral-300 group-hover:text-neutral-900 dark:group-hover:text-neutral-100 transition-colors"
 				/>
-			</div>
+			)}
 		</a>
 	);
 }

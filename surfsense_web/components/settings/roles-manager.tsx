@@ -14,13 +14,11 @@ import {
 	Mic,
 	MoreHorizontal,
 	Plug,
-	Plus,
 	Settings,
 	Shield,
 	Trash2,
 	Users,
 } from "lucide-react";
-import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { myAccessAtom } from "@/atoms/members/members-query.atoms";
@@ -477,12 +475,7 @@ function RolesContent({
 	const editingRole = editingRoleId !== null ? roles.find((r) => r.id === editingRoleId) : null;
 
 	return (
-		<motion.div
-			initial={{ opacity: 0, y: 10 }}
-			animate={{ opacity: 1, y: 0 }}
-			exit={{ opacity: 0, y: -10 }}
-			className="space-y-6"
-		>
+		<div className="space-y-6">
 			{canCreate && (
 				<div className="flex justify-end">
 					<Button
@@ -490,7 +483,6 @@ function RolesContent({
 						onClick={() => setShowCreateRole(true)}
 						className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
 					>
-						<Plus className="h-4 w-4" />
 						Create Custom Role
 					</Button>
 				</div>
@@ -516,104 +508,93 @@ function RolesContent({
 			)}
 
 			<div className="space-y-3">
-				{roles.map((role, index) => (
-					<motion.div
-						key={role.id}
-						initial={{ opacity: 0, y: 6 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ delay: index * 0.04 }}
-					>
-						<RolePermissionsDialog permissions={role.permissions} roleName={role.name}>
-							<button
-								type="button"
-								className="w-full text-left relative flex items-center gap-4 rounded-lg border border-border/60 p-4 transition-colors hover:bg-muted/30 cursor-pointer"
-							>
-								<div className="flex-1 min-w-0">
-									<div className="flex items-center gap-2">
-										<span className="font-medium text-sm">{role.name}</span>
-										{role.is_system_role && (
-											<span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
-												System
-											</span>
+				{roles.map((role) => (
+					<div key={role.id}>
+						<div className="w-full text-left relative flex items-center gap-4 rounded-lg border border-border/60 p-4 transition-colors hover:bg-muted/30">
+							<div className="flex-1 min-w-0">
+								<RolePermissionsDialog permissions={role.permissions} roleName={role.name}>
+									<button type="button" className="w-full text-left cursor-pointer">
+										<div className="flex items-center gap-2">
+											<span className="font-medium text-sm">{role.name}</span>
+											{role.is_system_role && (
+												<span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+													System
+												</span>
+											)}
+											{role.is_default && (
+												<span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+													Default
+												</span>
+											)}
+										</div>
+										{role.description && (
+											<p className="text-xs text-muted-foreground mt-0.5 truncate">
+												{role.description}
+											</p>
 										)}
-										{role.is_default && (
-											<span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
-												Default
-											</span>
-										)}
-									</div>
-									{role.description && (
-										<p className="text-xs text-muted-foreground mt-0.5 truncate">
-											{role.description}
-										</p>
-									)}
-								</div>
+									</button>
+								</RolePermissionsDialog>
+							</div>
 
-								<div className="shrink-0">
-									<PermissionsBadge permissions={role.permissions} />
-								</div>
+							<div className="shrink-0">
+								<PermissionsBadge permissions={role.permissions} />
+							</div>
 
-								{!role.is_system_role && (
-									<div
-										className="shrink-0"
-										role="none"
-										onClick={(e) => e.stopPropagation()}
-										onKeyDown={(e) => e.stopPropagation()}
-									>
-										<DropdownMenu>
-											<DropdownMenuTrigger asChild>
-												<Button variant="ghost" size="icon" className="h-8 w-8">
-													<MoreHorizontal className="h-4 w-4" />
-												</Button>
-											</DropdownMenuTrigger>
-											<DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
-												{canUpdate && (
-													<DropdownMenuItem onClick={() => setEditingRoleId(role.id)}>
-														<Edit2 className="h-4 w-4 mr-2" />
-														Edit Role
-													</DropdownMenuItem>
-												)}
-												{canDelete && (
-													<>
-														<DropdownMenuSeparator />
-														<AlertDialog>
-															<AlertDialogTrigger asChild>
-																<DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-																	<Trash2 className="h-4 w-4 mr-2" />
-																	Delete Role
-																</DropdownMenuItem>
-															</AlertDialogTrigger>
-															<AlertDialogContent>
-																<AlertDialogHeader>
-																	<AlertDialogTitle>Delete role?</AlertDialogTitle>
-																	<AlertDialogDescription>
-																		This will permanently delete the &quot;{role.name}&quot; role.
-																		Members with this role will lose their permissions.
-																	</AlertDialogDescription>
-																</AlertDialogHeader>
-																<AlertDialogFooter>
-																	<AlertDialogCancel>Cancel</AlertDialogCancel>
-																	<AlertDialogAction
-																		onClick={() => onDeleteRole(role.id)}
-																		className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-																	>
-																		Delete
-																	</AlertDialogAction>
-																</AlertDialogFooter>
-															</AlertDialogContent>
-														</AlertDialog>
-													</>
-												)}
-											</DropdownMenuContent>
-										</DropdownMenu>
-									</div>
-								)}
-							</button>
-						</RolePermissionsDialog>
-					</motion.div>
+							{!role.is_system_role && (
+								<div className="shrink-0" role="none">
+									<DropdownMenu>
+										<DropdownMenuTrigger asChild>
+											<Button variant="ghost" size="icon" className="h-8 w-8">
+												<MoreHorizontal className="h-4 w-4" />
+											</Button>
+										</DropdownMenuTrigger>
+										<DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
+											{canUpdate && (
+												<DropdownMenuItem onClick={() => setEditingRoleId(role.id)}>
+													<Edit2 className="h-4 w-4 mr-2" />
+													Edit Role
+												</DropdownMenuItem>
+											)}
+											{canDelete && (
+												<>
+													<DropdownMenuSeparator />
+													<AlertDialog>
+														<AlertDialogTrigger asChild>
+															<DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+																<Trash2 className="h-4 w-4 mr-2" />
+																Delete Role
+															</DropdownMenuItem>
+														</AlertDialogTrigger>
+														<AlertDialogContent>
+															<AlertDialogHeader>
+																<AlertDialogTitle>Delete role?</AlertDialogTitle>
+																<AlertDialogDescription>
+																	This will permanently delete the &quot;{role.name}&quot; role.
+																	Members with this role will lose their permissions.
+																</AlertDialogDescription>
+															</AlertDialogHeader>
+															<AlertDialogFooter>
+																<AlertDialogCancel>Cancel</AlertDialogCancel>
+																<AlertDialogAction
+																	onClick={() => onDeleteRole(role.id)}
+																	className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+																>
+																	Delete
+																</AlertDialogAction>
+															</AlertDialogFooter>
+														</AlertDialogContent>
+													</AlertDialog>
+												</>
+											)}
+										</DropdownMenuContent>
+									</DropdownMenu>
+								</div>
+							)}
+						</div>
+					</div>
 				))}
 			</div>
-		</motion.div>
+		</div>
 	);
 }
 
@@ -714,9 +695,8 @@ function PermissionsEditor({
 										onClick={(e) => e.stopPropagation()}
 										aria-label={`Select all ${config.label} permissions`}
 									/>
-									<motion.div
-										animate={{ rotate: isExpanded ? 180 : 0 }}
-										transition={{ duration: 0.2 }}
+									<div
+										className={cn("transition-transform duration-200", isExpanded && "rotate-180")}
 									>
 										<svg
 											className="h-4 w-4 text-muted-foreground"
@@ -733,18 +713,12 @@ function PermissionsEditor({
 												d="M19 9l-7 7-7-7"
 											/>
 										</svg>
-									</motion.div>
+									</div>
 								</div>
 							</button>
 
 							{isExpanded && (
-								<motion.div
-									initial={{ height: 0, opacity: 0 }}
-									animate={{ height: "auto", opacity: 1 }}
-									exit={{ height: 0, opacity: 0 }}
-									transition={{ duration: 0.2 }}
-									className="border-t border-border/60"
-								>
+								<div className="border-t border-border/60">
 									<div className="p-2 space-y-0.5">
 										{perms.map((perm) => {
 											const action = perm.value.split(":")[1];
@@ -777,7 +751,7 @@ function PermissionsEditor({
 											);
 										})}
 									</div>
-								</motion.div>
+								</div>
 							)}
 						</div>
 					);
@@ -951,7 +925,7 @@ function CreateRoleDialog({
 					</div>
 				</div>
 				<div className="flex items-center justify-end gap-3 px-5 py-3 shrink-0">
-					<Button variant="outline" onClick={handleClose}>
+					<Button variant="secondary" onClick={handleClose}>
 						Cancel
 					</Button>
 					<Button onClick={handleCreate} disabled={creating || !name.trim()}>
@@ -1109,7 +1083,7 @@ function EditRoleDialog({
 					</div>
 				</div>
 				<div className="flex items-center justify-end gap-3 px-5 py-3 border-t shrink-0">
-					<Button variant="outline" onClick={() => onOpenChange(false)}>
+					<Button variant="secondary" onClick={() => onOpenChange(false)}>
 						Cancel
 					</Button>
 					<Button onClick={handleSave} disabled={saving || !name.trim()}>

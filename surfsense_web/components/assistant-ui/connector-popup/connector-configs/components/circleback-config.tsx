@@ -34,14 +34,12 @@ export const CirclebackConfig: FC<CirclebackConfigProps> = ({ connector, onNameC
 	const [isLoading, setIsLoading] = useState(true);
 	const [copied, setCopied] = useState(false);
 
-	// Update name when connector changes
-	useEffect(() => {
-		setName(connector.name || "");
-	}, [connector.name]);
-
+	// Fetch webhook info
 	// Fetch webhook info
 	useEffect(() => {
-		const fetchWebhookInfo = async () => {
+		const controller = new AbortController();
+
+		const doFetch = async () => {
 			if (!connector.search_space_id) return;
 
 			const baseUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL;
@@ -54,8 +52,11 @@ export const CirclebackConfig: FC<CirclebackConfigProps> = ({ connector, onNameC
 			setIsLoading(true);
 			try {
 				const response = await authenticatedFetch(
-					`${baseUrl}/api/v1/webhooks/circleback/${connector.search_space_id}/info`
+					`${baseUrl}/api/v1/webhooks/circleback/${connector.search_space_id}/info`,
+					{ signal: controller.signal }
 				);
+				if (controller.signal.aborted) return;
+
 				if (response.ok) {
 					const data: unknown = await response.json();
 					// Runtime validation with zod schema
@@ -64,16 +65,18 @@ export const CirclebackConfig: FC<CirclebackConfigProps> = ({ connector, onNameC
 					setWebhookUrl(validatedData.webhook_url);
 				}
 			} catch (error) {
+				if (controller.signal.aborted) return;
 				console.error("Failed to fetch webhook info:", error);
 				// Reset state on error
 				setWebhookInfo(null);
 				setWebhookUrl("");
 			} finally {
-				setIsLoading(false);
+				if (!controller.signal.aborted) setIsLoading(false);
 			}
 		};
 
-		fetchWebhookInfo();
+		doFetch().catch(() => {});
+		return () => controller.abort();
 	}, [connector.search_space_id]);
 
 	const handleNameChange = (value: string) => {
@@ -166,7 +169,7 @@ export const CirclebackConfig: FC<CirclebackConfigProps> = ({ connector, onNameC
 					<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20">
 						<Info className="h-3 w-3 sm:h-4 sm:w-4" />
 						<AlertTitle className="text-xs sm:text-sm">Configuration Instructions</AlertTitle>
-						<AlertDescription className="text-[10px] sm:text-xs !pl-0 mt-1">
+						<AlertDescription className="text-[10px] sm:text-xs mt-1">
 							Configure this URL in Circleback Settings → Automations → Create automation → Send
 							webhook request. The webhook will automatically send meeting notes, transcripts, and
 							action items to this search space.

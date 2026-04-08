@@ -1,0 +1,41 @@
+---
+title: One-Line Install Script
+description: One-command installation of SurfSense using Docker
+---
+
+Downloads the compose files, generates a `SECRET_KEY`, starts all services, and sets up [Watchtower](https://github.com/nicholas-fedor/watchtower) for automatic daily updates.
+
+**Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) must be installed and running.
+
+### For Linux/macOS users:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
+```
+
+### For Windows users (PowerShell):
+
+```powershell
+irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex
+```
+
+This creates a `./surfsense/` directory with `docker-compose.yml` and `.env`, then runs `docker compose up -d`.
+
+To skip Watchtower (e.g. in production where you manage updates yourself):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash -s -- --no-watchtower
+```
+
+To customise the check interval (default 24h), use `--watchtower-interval=SECONDS`.
+
+---
+
+## Access SurfSense
+
+After starting, access SurfSense at:
+
+- **Frontend**: [http://localhost:3929](http://localhost:3929)
+- **Backend API**: [http://localhost:8929](http://localhost:8929)
+- **API Docs**: [http://localhost:8929/docs](http://localhost:8929/docs)
+- **Zero-cache**: [http://localhost:5929](http://localhost:5929)

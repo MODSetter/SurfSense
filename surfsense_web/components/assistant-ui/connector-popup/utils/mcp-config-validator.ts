@@ -33,6 +33,8 @@ import { z } from "zod";
 import type { MCPServerConfig, MCPToolDefinition } from "@/contracts/types/mcp.types";
 import { connectorsApiService } from "@/lib/apis/connectors-api.service";
 
+const IS_DEV = process.env.NODE_ENV === "development";
+
 /**
  * Zod schema for MCP server configuration
  * Supports both stdio (local process) and HTTP (remote server) transports
@@ -102,11 +104,11 @@ export const parseMCPConfig = (configJson: string): MCPConfigValidationResult =>
 	// Check cache first
 	const cached = configCache.get(configJson);
 	if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-		console.log("[MCP Validator] ✅ Using cached config");
+		if (IS_DEV) console.log("[MCP Validator] ✅ Using cached config");
 		return { config: cached.config, error: null };
 	}
 
-	console.log("[MCP Validator] 🔍 Parsing new config...");
+	if (IS_DEV) console.log("[MCP Validator] 🔍 Parsing new config...");
 
 	// Clean up expired cache entries periodically
 	if (configCache.size > 100) {
@@ -176,7 +178,7 @@ export const parseMCPConfig = (configJson: string): MCPConfigValidationResult =>
 			timestamp: Date.now(),
 		});
 
-		console.log("[MCP Validator] ✅ Config parsed successfully:", config);
+		if (IS_DEV) console.log("[MCP Validator] ✅ Config parsed successfully:", config);
 
 		return {
 			config,

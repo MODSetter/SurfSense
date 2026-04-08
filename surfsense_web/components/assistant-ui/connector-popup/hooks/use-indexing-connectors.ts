@@ -48,13 +48,13 @@ function isTaskTimedOut(startedAt: string | null | undefined): boolean {
  *
  * This provides a better UX than polling by:
  * 1. Setting indexing state immediately when user triggers indexing (optimistic)
- * 2. Detecting in_progress notifications from Electric SQL to restore state after remounts
+ * 2. Detecting in_progress notifications to restore state after remounts
  * 3. Clearing indexing state when notifications become completed or failed
- * 4. Clearing indexing state when Electric SQL detects last_indexed_at changed
+ * 4. Clearing indexing state when real-time sync detects last_indexed_at changed
  * 5. Detecting stale/stuck tasks that haven't updated in 15+ minutes
  * 6. Detecting hard timeout (8h) - tasks that definitely cannot still be running
  *
- * The actual `last_indexed_at` value comes from Electric SQL/PGlite, not local state.
+ * The actual `last_indexed_at` value comes from real-time sync, not local state.
  */
 export function useIndexingConnectors(
 	connectors: SearchSourceConnector[],
@@ -66,7 +66,7 @@ export function useIndexingConnectors(
 	// Track previous last_indexed_at values to detect changes
 	const previousLastIndexedAtRef = useRef<Map<number, string | null>>(new Map());
 
-	// Detect when last_indexed_at changes (indexing completed) via Electric SQL
+	// Detect when last_indexed_at changes (indexing completed) via real-time sync
 	useEffect(() => {
 		const previousValues = previousLastIndexedAtRef.current;
 

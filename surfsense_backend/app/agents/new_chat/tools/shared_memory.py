@@ -1,5 +1,6 @@
 """Shared (team) memory backend for search-space-scoped AI context."""
 
+import asyncio
 import logging
 from typing import Any
 from uuid import UUID
@@ -64,7 +65,7 @@ async def save_shared_memory(
         count = await get_shared_memory_count(db_session, search_space_id)
         if count >= MAX_MEMORIES_PER_SEARCH_SPACE:
             await delete_oldest_shared_memory(db_session, search_space_id)
-        embedding = embed_text(content)
+        embedding = await asyncio.to_thread(embed_text, content)
         row = SharedMemory(
             search_space_id=search_space_id,
             created_by_id=_to_uuid(created_by_id),
@@ -108,7 +109,7 @@ async def recall_shared_memory(
         if category and category in valid_categories:
             stmt = stmt.where(SharedMemory.category == MemoryCategory(category))
         if query:
-            query_embedding = embed_text(query)
+            query_embedding = await asyncio.to_thread(embed_text, query)
             stmt = stmt.order_by(
                 SharedMemory.embedding.op("<=>")(query_embedding)
             ).limit(top_k)

@@ -2,7 +2,6 @@ import asyncio
 import time
 from datetime import datetime
 from typing import Any
-from urllib.parse import urljoin
 
 import httpx
 from linkup import LinkupClient
@@ -12,6 +11,7 @@ from sqlalchemy.future import select
 from tavily import TavilyClient
 
 from app.db import (
+    NATIVE_TO_LEGACY_DOCTYPE,
     Chunk,
     Document,
     SearchSourceConnector,
@@ -220,7 +220,7 @@ class ConnectorService:
         self,
         query_text: str,
         search_space_id: int,
-        document_type: str,
+        document_type: str | list[str],
         top_k: int = 20,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -242,7 +242,8 @@ class ConnectorService:
         Args:
             query_text: The search query text
             search_space_id: The search space ID to search within
-            document_type: Document type to filter (e.g., "FILE", "CRAWLED_URL")
+            document_type: Document type(s) to filter (e.g., "FILE", "CRAWLED_URL",
+                           or a list for multi-type queries)
             top_k: Number of results to return
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
@@ -255,6 +256,16 @@ class ConnectorService:
         perf = get_perf_logger()
         t0 = time.perf_counter()
 
+        # Expand native Google types to include legacy Composio equivalents
+        # so old documents remain searchable until re-indexed.
+        if isinstance(document_type, str) and document_type in NATIVE_TO_LEGACY_DOCTYPE:
+            resolved_type: str | list[str] = [
+                document_type,
+                NATIVE_TO_LEGACY_DOCTYPE[document_type],
+            ]
+        else:
+            resolved_type = document_type
+
         # RRF constant
         k = 60
 
@@ -264,7 +275,9 @@ class ConnectorService:
         # Reuse caller-provided embedding or compute once for both retrievers.
         if query_embedding is None:
             t_embed = time.perf_counter()
-            query_embedding = config.embedding_model_instance.embed(query_text)
+            query_embedding = await asyncio.to_thread(
+                config.embedding_model_instance.embed, query_text
+            )
             perf.info(
                 "[connector_svc] _combined_rrf embedding in %.3fs type=%s",
                 time.perf_counter() - t_embed,
@@ -275,7 +288,7 @@ class ConnectorService:
             "query_text": query_text,
             "top_k": retriever_top_k,
             "search_space_id": search_space_id,
-            "document_type": document_type,
+            "document_type": resolved_type,
             "start_date": start_date,
             "end_date": end_date,
             "query_embedding": query_embedding,
@@ -305,6 +318,9 @@ class ConnectorService:
             len(doc_results),
             document_type,
         )
+
+        if not chunk_results and not doc_results:
+            return []
 
         # Helper to extract document_id from our doc-grouped result
         def _doc_id(item: dict[str, Any]) -> int | None:
@@ -572,184 +588,26 @@ class ConnectorService:
         search_space_id: int,
         top_k: int = 20,
     ) -> tuple:
+        """Search using the platform SearXNG instance.
+
+        Delegates to ``WebSearchService`` which handles caching, circuit
+        breaking, and retries.  SearXNG configuration comes from the
+        docker/searxng/settings.yml file.
         """
-        Search using a configured SearxNG instance and return both sources and documents.
-        """
-        searx_connector = await self.get_connector_by_type(
-            SearchSourceConnectorType.SEARXNG_API, search_space_id
+        from app.services import web_search_service
+
+        if not web_search_service.is_available():
+            return {
+                "id": 11,
+                "name": "Web Search",
+                "type": "SEARXNG_API",
+                "sources": [],
+            }, []
+
+        return await web_search_service.search(
+            query=user_query,
+            top_k=top_k,
         )
-
-        if not searx_connector:
-            return {
-                "id": 11,
-                "name": "SearxNG Search",
-                "type": "SEARXNG_API",
-                "sources": [],
-            }, []
-
-        config = searx_connector.config or {}
-        host = config.get("SEARXNG_HOST")
-
-        if not host:
-            print("SearxNG connector is missing SEARXNG_HOST configuration")
-            return {
-                "id": 11,
-                "name": "SearxNG Search",
-                "type": "SEARXNG_API",
-                "sources": [],
-            }, []
-
-        api_key = config.get("SEARXNG_API_KEY")
-        engines = config.get("SEARXNG_ENGINES")
-        categories = config.get("SEARXNG_CATEGORIES")
-        language = config.get("SEARXNG_LANGUAGE")
-        safesearch = config.get("SEARXNG_SAFESEARCH")
-
-        def _parse_bool(value: Any, default: bool = True) -> bool:
-            if isinstance(value, bool):
-                return value
-            if isinstance(value, str):
-                lowered = value.strip().lower()
-                if lowered in {"true", "1", "yes", "on"}:
-                    return True
-                if lowered in {"false", "0", "no", "off"}:
-                    return False
-            return default
-
-        verify_ssl = _parse_bool(config.get("SEARXNG_VERIFY_SSL", True))
-
-        safesearch_value: int | None = None
-        if isinstance(safesearch, str):
-            safesearch_clean = safesearch.strip()
-            if safesearch_clean.isdigit():
-                safesearch_value = int(safesearch_clean)
-        elif isinstance(safesearch, int | float):
-            safesearch_value = int(safesearch)
-
-        if safesearch_value is not None and not (0 <= safesearch_value <= 2):
-            safesearch_value = None
-
-        def _format_list(value: Any) -> str | None:
-            if value is None:
-                return None
-            if isinstance(value, str):
-                value = value.strip()
-                return value or None
-            if isinstance(value, list | tuple | set):
-                cleaned = [str(item).strip() for item in value if str(item).strip()]
-                return ",".join(cleaned) if cleaned else None
-            return str(value)
-
-        params: dict[str, Any] = {
-            "q": user_query,
-            "format": "json",
-            "language": language or "",
-            "limit": max(1, min(top_k, 50)),
-        }
-
-        engines_param = _format_list(engines)
-        if engines_param:
-            params["engines"] = engines_param
-
-        categories_param = _format_list(categories)
-        if categories_param:
-            params["categories"] = categories_param
-
-        if safesearch_value is not None:
-            params["safesearch"] = safesearch_value
-
-        if not params.get("language"):
-            params.pop("language")
-
-        headers = {"Accept": "application/json"}
-        if api_key:
-            headers["X-API-KEY"] = api_key
-
-        searx_endpoint = urljoin(host if host.endswith("/") else f"{host}/", "search")
-
-        try:
-            async with httpx.AsyncClient(timeout=20.0, verify=verify_ssl) as client:
-                response = await client.get(
-                    searx_endpoint,
-                    params=params,
-                    headers=headers,
-                )
-                response.raise_for_status()
-        except httpx.HTTPError as exc:
-            print(f"Error searching with SearxNG: {exc!s}")
-            return {
-                "id": 11,
-                "name": "SearxNG Search",
-                "type": "SEARXNG_API",
-                "sources": [],
-            }, []
-
-        try:
-            data = response.json()
-        except ValueError:
-            print("Failed to decode JSON response from SearxNG")
-            return {
-                "id": 11,
-                "name": "SearxNG Search",
-                "type": "SEARXNG_API",
-                "sources": [],
-            }, []
-
-        searx_results = data.get("results", [])
-        if not searx_results:
-            return {
-                "id": 11,
-                "name": "SearxNG Search",
-                "type": "SEARXNG_API",
-                "sources": [],
-            }, []
-
-        sources_list: list[dict[str, Any]] = []
-        documents: list[dict[str, Any]] = []
-
-        async with self.counter_lock:
-            for result in searx_results:
-                description = result.get("content") or result.get("snippet") or ""
-                if len(description) > 160:
-                    description = f"{description}"
-
-                source = {
-                    "id": self.source_id_counter,
-                    "title": result.get("title", "SearxNG Result"),
-                    "description": description,
-                    "url": result.get("url", ""),
-                }
-                sources_list.append(source)
-
-                metadata = {
-                    "url": result.get("url", ""),
-                    "engines": result.get("engines", []),
-                    "category": result.get("category"),
-                    "source": "SEARXNG_API",
-                }
-
-                document = {
-                    "chunk_id": self.source_id_counter,
-                    "content": description or result.get("content", ""),
-                    "score": result.get("score", 0.0),
-                    "document": {
-                        "id": self.source_id_counter,
-                        "title": result.get("title", "SearxNG Result"),
-                        "document_type": "SEARXNG_API",
-                        "metadata": metadata,
-                    },
-                }
-                documents.append(document)
-                self.source_id_counter += 1
-
-        result_object = {
-            "id": 11,
-            "name": "SearxNG Search",
-            "type": "SEARXNG_API",
-            "sources": sources_list,
-        }
-
-        return result_object, documents
 
     async def search_baidu(
         self,
@@ -2899,299 +2757,6 @@ class ConnectorService:
         }
 
         return result_object, obsidian_docs
-
-    # =========================================================================
-    # Composio Connector Search Methods
-    # =========================================================================
-
-    async def search_composio_google_drive(
-        self,
-        user_query: str,
-        search_space_id: int,
-        top_k: int = 20,
-        start_date: datetime | None = None,
-        end_date: datetime | None = None,
-    ) -> tuple:
-        """
-        Search for Composio Google Drive files and return both the source information
-        and langchain documents.
-
-        Uses combined chunk-level and document-level hybrid search with RRF fusion.
-
-        Args:
-            user_query: The user's query
-            search_space_id: The search space ID to search in
-            top_k: Maximum number of results to return
-            start_date: Optional start date for filtering documents by updated_at
-            end_date: Optional end date for filtering documents by updated_at
-
-        Returns:
-            tuple: (sources_info, langchain_documents)
-        """
-        composio_drive_docs = await self._combined_rrf_search(
-            query_text=user_query,
-            search_space_id=search_space_id,
-            document_type="COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
-            top_k=top_k,
-            start_date=start_date,
-            end_date=end_date,
-        )
-
-        # Early return if no results
-        if not composio_drive_docs:
-            return {
-                "id": 54,
-                "name": "Google Drive (Composio)",
-                "type": "COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
-                "sources": [],
-            }, []
-
-        def _title_fn(doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
-            return (
-                doc_info.get("title")
-                or metadata.get("title")
-                or metadata.get("file_name")
-                or "Untitled Document"
-            )
-
-        def _url_fn(_doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
-            return metadata.get("url") or metadata.get("web_view_link") or ""
-
-        def _description_fn(
-            chunk: dict[str, Any], _doc_info: dict[str, Any], metadata: dict[str, Any]
-        ) -> str:
-            description = self._chunk_preview(chunk.get("content", ""), limit=200)
-            info_parts = []
-            mime_type = metadata.get("mime_type")
-            modified_time = metadata.get("modified_time")
-            if mime_type:
-                info_parts.append(f"Type: {mime_type}")
-            if modified_time:
-                info_parts.append(f"Modified: {modified_time}")
-            if info_parts:
-                description = (description + " | " + " | ".join(info_parts)).strip(" |")
-            return description
-
-        def _extra_fields_fn(
-            _chunk: dict[str, Any], _doc_info: dict[str, Any], metadata: dict[str, Any]
-        ) -> dict[str, Any]:
-            return {
-                "mime_type": metadata.get("mime_type", ""),
-                "file_id": metadata.get("file_id", ""),
-                "modified_time": metadata.get("modified_time", ""),
-            }
-
-        sources_list = self._build_chunk_sources_from_documents(
-            composio_drive_docs,
-            title_fn=_title_fn,
-            url_fn=_url_fn,
-            description_fn=_description_fn,
-            extra_fields_fn=_extra_fields_fn,
-        )
-
-        # Create result object
-        result_object = {
-            "id": 54,
-            "name": "Google Drive (Composio)",
-            "type": "COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
-            "sources": sources_list,
-        }
-
-        return result_object, composio_drive_docs
-
-    async def search_composio_gmail(
-        self,
-        user_query: str,
-        search_space_id: int,
-        top_k: int = 20,
-        start_date: datetime | None = None,
-        end_date: datetime | None = None,
-    ) -> tuple:
-        """
-        Search for Composio Gmail messages and return both the source information
-        and langchain documents.
-
-        Uses combined chunk-level and document-level hybrid search with RRF fusion.
-
-        Args:
-            user_query: The user's query
-            search_space_id: The search space ID to search in
-            top_k: Maximum number of results to return
-            start_date: Optional start date for filtering documents by updated_at
-            end_date: Optional end date for filtering documents by updated_at
-
-        Returns:
-            tuple: (sources_info, langchain_documents)
-        """
-        composio_gmail_docs = await self._combined_rrf_search(
-            query_text=user_query,
-            search_space_id=search_space_id,
-            document_type="COMPOSIO_GMAIL_CONNECTOR",
-            top_k=top_k,
-            start_date=start_date,
-            end_date=end_date,
-        )
-
-        # Early return if no results
-        if not composio_gmail_docs:
-            return {
-                "id": 55,
-                "name": "Gmail (Composio)",
-                "type": "COMPOSIO_GMAIL_CONNECTOR",
-                "sources": [],
-            }, []
-
-        def _title_fn(doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
-            return (
-                doc_info.get("title")
-                or metadata.get("subject")
-                or metadata.get("title")
-                or "Untitled Email"
-            )
-
-        def _url_fn(_doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
-            return metadata.get("url") or ""
-
-        def _description_fn(
-            chunk: dict[str, Any], _doc_info: dict[str, Any], metadata: dict[str, Any]
-        ) -> str:
-            description = self._chunk_preview(chunk.get("content", ""), limit=200)
-            info_parts = []
-            sender = metadata.get("from") or metadata.get("sender")
-            date = metadata.get("date") or metadata.get("received_at")
-            if sender:
-                info_parts.append(f"From: {sender}")
-            if date:
-                info_parts.append(f"Date: {date}")
-            if info_parts:
-                description = (description + " | " + " | ".join(info_parts)).strip(" |")
-            return description
-
-        def _extra_fields_fn(
-            _chunk: dict[str, Any], _doc_info: dict[str, Any], metadata: dict[str, Any]
-        ) -> dict[str, Any]:
-            return {
-                "message_id": metadata.get("message_id", ""),
-                "thread_id": metadata.get("thread_id", ""),
-                "from": metadata.get("from", ""),
-                "to": metadata.get("to", ""),
-                "date": metadata.get("date", ""),
-            }
-
-        sources_list = self._build_chunk_sources_from_documents(
-            composio_gmail_docs,
-            title_fn=_title_fn,
-            url_fn=_url_fn,
-            description_fn=_description_fn,
-            extra_fields_fn=_extra_fields_fn,
-        )
-
-        # Create result object
-        result_object = {
-            "id": 55,
-            "name": "Gmail (Composio)",
-            "type": "COMPOSIO_GMAIL_CONNECTOR",
-            "sources": sources_list,
-        }
-
-        return result_object, composio_gmail_docs
-
-    async def search_composio_google_calendar(
-        self,
-        user_query: str,
-        search_space_id: int,
-        top_k: int = 20,
-        start_date: datetime | None = None,
-        end_date: datetime | None = None,
-    ) -> tuple:
-        """
-        Search for Composio Google Calendar events and return both the source information
-        and langchain documents.
-
-        Uses combined chunk-level and document-level hybrid search with RRF fusion.
-
-        Args:
-            user_query: The user's query
-            search_space_id: The search space ID to search in
-            top_k: Maximum number of results to return
-            start_date: Optional start date for filtering documents by updated_at
-            end_date: Optional end date for filtering documents by updated_at
-
-        Returns:
-            tuple: (sources_info, langchain_documents)
-        """
-        composio_calendar_docs = await self._combined_rrf_search(
-            query_text=user_query,
-            search_space_id=search_space_id,
-            document_type="COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
-            top_k=top_k,
-            start_date=start_date,
-            end_date=end_date,
-        )
-
-        # Early return if no results
-        if not composio_calendar_docs:
-            return {
-                "id": 56,
-                "name": "Google Calendar (Composio)",
-                "type": "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
-                "sources": [],
-            }, []
-
-        def _title_fn(doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
-            return (
-                doc_info.get("title")
-                or metadata.get("summary")
-                or metadata.get("title")
-                or "Untitled Event"
-            )
-
-        def _url_fn(_doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
-            return metadata.get("url") or metadata.get("html_link") or ""
-
-        def _description_fn(
-            chunk: dict[str, Any], _doc_info: dict[str, Any], metadata: dict[str, Any]
-        ) -> str:
-            description = self._chunk_preview(chunk.get("content", ""), limit=200)
-            info_parts = []
-            start_time = metadata.get("start_time") or metadata.get("start")
-            end_time = metadata.get("end_time") or metadata.get("end")
-            if start_time:
-                info_parts.append(f"Start: {start_time}")
-            if end_time:
-                info_parts.append(f"End: {end_time}")
-            if info_parts:
-                description = (description + " | " + " | ".join(info_parts)).strip(" |")
-            return description
-
-        def _extra_fields_fn(
-            _chunk: dict[str, Any], _doc_info: dict[str, Any], metadata: dict[str, Any]
-        ) -> dict[str, Any]:
-            return {
-                "event_id": metadata.get("event_id", ""),
-                "calendar_id": metadata.get("calendar_id", ""),
-                "start_time": metadata.get("start_time", ""),
-                "end_time": metadata.get("end_time", ""),
-                "location": metadata.get("location", ""),
-            }
-
-        sources_list = self._build_chunk_sources_from_documents(
-            composio_calendar_docs,
-            title_fn=_title_fn,
-            url_fn=_url_fn,
-            description_fn=_description_fn,
-            extra_fields_fn=_extra_fields_fn,
-        )
-
-        # Create result object
-        result_object = {
-            "id": 56,
-            "name": "Google Calendar (Composio)",
-            "type": "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
-            "sources": sources_list,
-        }
-
-        return result_object, composio_calendar_docs
 
     # =========================================================================
     # Utility Methods for Connector Discovery

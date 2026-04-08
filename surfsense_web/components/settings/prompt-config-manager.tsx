@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Info, RotateCcw, Save } from "lucide-react";
+import { AlertTriangle, Info } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
+import { Spinner } from "../ui/spinner";
 
 interface PromptConfigManagerProps {
 	searchSpaceId: number;
@@ -31,24 +32,17 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 
 	const [customInstructions, setCustomInstructions] = useState("");
 	const [saving, setSaving] = useState(false);
-	const [hasChanges, setHasChanges] = useState(false);
 
 	// Initialize state from fetched search space
 	useEffect(() => {
 		if (searchSpace) {
 			setCustomInstructions(searchSpace.qna_custom_instructions || "");
-			setHasChanges(false);
 		}
-	}, [searchSpace]);
+	}, [searchSpace?.qna_custom_instructions]);
 
-	// Track changes
-	useEffect(() => {
-		if (searchSpace) {
-			const currentCustom = searchSpace.qna_custom_instructions || "";
-			const changed = currentCustom !== customInstructions;
-			setHasChanges(changed);
-		}
-	}, [searchSpace, customInstructions]);
+	// Derive hasChanges during render
+	const hasChanges =
+		!!searchSpace && (searchSpace.qna_custom_instructions || "") !== customInstructions;
 
 	const handleSave = async () => {
 		try {
@@ -73,7 +67,7 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 			}
 
 			toast.success("System instructions saved successfully");
-			setHasChanges(false);
+
 			await fetchSearchSpace();
 		} catch (error: any) {
 			console.error("Error saving system instructions:", error);
@@ -83,11 +77,9 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 		}
 	};
 
-	const handleReset = () => {
-		if (searchSpace) {
-			setCustomInstructions(searchSpace.qna_custom_instructions || "");
-			setHasChanges(false);
-		}
+	const onSubmit = (e: React.FormEvent) => {
+		e.preventDefault();
+		handleSave();
 	};
 
 	if (loading) {
@@ -131,90 +123,73 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 			</Alert>
 
 			{/* System Instructions Card */}
-			<Card>
-				<CardHeader className="px-3 md:px-6 pt-3 md:pt-6 pb-2 md:pb-3">
-					<CardTitle className="text-base md:text-lg">Custom System Instructions</CardTitle>
-					<CardDescription className="text-xs md:text-sm">
-						Provide specific guidelines for how you want the AI to respond. These instructions will
-						be applied to all answers in this search space.
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="space-y-3 md:space-y-4 px-3 md:px-6 pb-3 md:pb-6">
-					<div className="space-y-1.5 md:space-y-2">
-						<Label
-							htmlFor="custom-instructions-settings"
-							className="text-sm md:text-base font-medium"
-						>
-							Your Instructions
-						</Label>
-						<Textarea
-							id="custom-instructions-settings"
-							placeholder="E.g., Always provide practical examples, be concise, focus on technical details, use simple language, respond in a specific format..."
-							value={customInstructions}
-							onChange={(e) => setCustomInstructions(e.target.value)}
-							rows={10}
-							className="resize-none font-mono text-xs md:text-sm"
-						/>
-						<div className="flex items-center justify-between">
-							<p className="text-[10px] md:text-xs text-muted-foreground">
-								{customInstructions.length} characters
-							</p>
-							{customInstructions.length > 0 && (
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={() => setCustomInstructions("")}
-									className="h-auto py-0.5 md:py-1 px-1.5 md:px-2 text-[10px] md:text-xs"
-								>
-									Clear
-								</Button>
-							)}
+			<form onSubmit={onSubmit} className="space-y-4 md:space-y-6">
+				<Card>
+					<CardHeader className="px-3 md:px-6 pt-3 md:pt-6 pb-2 md:pb-3">
+						<CardTitle className="text-base md:text-lg">Custom System Instructions</CardTitle>
+						<CardDescription className="text-xs md:text-sm">
+							Provide specific guidelines for how you want the AI to respond. These instructions
+							will be applied to all answers in this search space.
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-3 md:space-y-4 px-3 md:px-6 pb-3 md:pb-6">
+						<div className="space-y-1.5 md:space-y-2">
+							<Label
+								htmlFor="custom-instructions-settings"
+								className="text-sm md:text-base font-medium"
+							>
+								Your Instructions
+							</Label>
+							<Textarea
+								id="custom-instructions-settings"
+								placeholder="E.g., Always provide practical examples, be concise, focus on technical details, use simple language, respond in a specific format..."
+								value={customInstructions}
+								onChange={(e) => setCustomInstructions(e.target.value)}
+								rows={10}
+								className="resize-none font-mono text-xs md:text-sm"
+							/>
+							<div className="flex items-center justify-between">
+								<p className="text-[10px] md:text-xs text-muted-foreground">
+									{customInstructions.length} characters
+								</p>
+								{customInstructions.length > 0 && (
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										onClick={() => setCustomInstructions("")}
+										className="h-auto py-0.5 md:py-1 px-1.5 md:px-2 text-[10px] md:text-xs"
+									>
+										Clear
+									</Button>
+								)}
+							</div>
 						</div>
-					</div>
 
-					{customInstructions.trim().length === 0 && (
-						<Alert className="py-2 md:py-3">
-							<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
-							<AlertDescription className="text-xs md:text-sm">
-								No system instructions are currently set. The AI will use default behavior.
-							</AlertDescription>
-						</Alert>
-					)}
-				</CardContent>
-			</Card>
+						{customInstructions.trim().length === 0 && (
+							<Alert className="py-2 md:py-3">
+								<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
+								<AlertDescription className="text-xs md:text-sm">
+									No system instructions are currently set. The AI will use default behavior.
+								</AlertDescription>
+							</Alert>
+						)}
+					</CardContent>
+				</Card>
 
-			{/* Action Buttons */}
-			<div className="flex items-center justify-between pt-3 md:pt-4 gap-2">
-				<Button
-					variant="outline"
-					onClick={handleReset}
-					disabled={!hasChanges || saving}
-					className="flex items-center gap-2 text-xs md:text-sm h-9 md:h-10"
-				>
-					<RotateCcw className="h-3.5 w-3.5 md:h-4 md:w-4" />
-					Reset Changes
-				</Button>
-				<Button
-					onClick={handleSave}
-					disabled={!hasChanges || saving}
-					className="flex items-center gap-2 text-xs md:text-sm h-9 md:h-10"
-				>
-					<Save className="h-3.5 w-3.5 md:h-4 md:w-4" />
-					{saving ? "Saving" : "Save Instructions"}
-				</Button>
-			</div>
-
-			{hasChanges && (
-				<Alert
-					variant="default"
-					className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 py-3 md:py-4"
-				>
-					<Info className="h-3 w-3 md:h-4 md:w-4 text-blue-600 dark:text-blue-500 shrink-0" />
-					<AlertDescription className="text-blue-800 dark:text-blue-300 text-xs md:text-sm">
-						You have unsaved changes. Click "Save Instructions" to apply them.
-					</AlertDescription>
-				</Alert>
-			)}
+				{/* Action Buttons */}
+				<div className="flex justify-end pt-3 md:pt-4">
+					<Button
+						type="submit"
+						variant="outline"
+						disabled={!hasChanges || saving}
+						className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+					>
+						{saving ? <Spinner size="sm" /> : null}
+						{saving ? "Saving" : "Save Instructions"}
+					</Button>
+				</div>
+			</form>
 		</div>
 	);
 }

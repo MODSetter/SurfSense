@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtomValue } from "jotai";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -43,6 +44,7 @@ interface CreateSearchSpaceDialogProps {
 export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpaceDialogProps) {
 	const t = useTranslations("searchSpace");
 	const tCommon = useTranslations("common");
+	const router = useRouter();
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	const { mutateAsync: createSearchSpace } = useAtomValue(createSearchSpaceMutationAtom);
@@ -65,8 +67,7 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 
 			trackSearchSpaceCreated(result.id, values.name);
 
-			// Hard redirect to ensure fresh state
-			window.location.href = `/dashboard/${result.id}/onboard`;
+			router.push(`/dashboard/${result.id}/onboard`);
 		} catch (error) {
 			console.error("Failed to create search space:", error);
 			setIsSubmitting(false);
@@ -82,7 +83,7 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="max-w-[90vw] sm:max-w-sm p-4 sm:p-5 data-[state=open]:animate-none data-[state=closed]:animate-none">
+			<DialogContent className="max-w-[90vw] sm:max-w-sm p-4 sm:p-5 select-none data-[state=open]:animate-none data-[state=closed]:animate-none">
 				<DialogHeader className="space-y-2 pb-2">
 					<div className="flex items-center gap-2 sm:gap-3">
 						<div className="flex-1 min-w-0">
@@ -107,7 +108,7 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 											placeholder={t("name_placeholder")}
 											{...field}
 											autoFocus
-											className="text-sm h-9 sm:h-10"
+											className="text-sm h-9 sm:h-10 select-text"
 										/>
 									</FormControl>
 									<FormMessage />
@@ -130,7 +131,7 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 										<Input
 											placeholder={t("description_placeholder")}
 											{...field}
-											className="text-sm h-9 sm:h-10"
+											className="text-sm h-9 sm:h-10 select-text"
 										/>
 									</FormControl>
 									<FormMessage />
@@ -138,7 +139,7 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 							)}
 						/>
 
-						<DialogFooter className="flex-row justify-end gap-2 pt-2 sm:pt-3">
+						<DialogFooter className="flex-row justify-end pt-2 sm:pt-3">
 							<Button
 								type="button"
 								variant="secondary"

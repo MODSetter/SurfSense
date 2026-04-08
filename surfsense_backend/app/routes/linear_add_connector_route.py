@@ -12,8 +12,10 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.config import config
 from app.connectors.linear_connector import fetch_linear_organization_name
@@ -127,6 +129,70 @@ async def connect_linear(space_id: int, user: User = Depends(current_active_user
         ) from e
 
 
+@router.get("/auth/linear/connector/reauth")
+async def reauth_linear(
+    space_id: int,
+    connector_id: int,
+    return_url: str | None = None,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Initiate Linear re-authentication for an existing connector."""
+    try:
+        result = await session.execute(
+            select(SearchSourceConnector).filter(
+                SearchSourceConnector.id == connector_id,
+                SearchSourceConnector.user_id == user.id,
+                SearchSourceConnector.search_space_id == space_id,
+                SearchSourceConnector.connector_type
+                == SearchSourceConnectorType.LINEAR_CONNECTOR,
+            )
+        )
+        connector = result.scalars().first()
+        if not connector:
+            raise HTTPException(
+                status_code=404,
+                detail="Linear connector not found or access denied",
+            )
+
+        if not config.LINEAR_CLIENT_ID:
+            raise HTTPException(status_code=500, detail="Linear OAuth not configured.")
+        if not config.SECRET_KEY:
+            raise HTTPException(
+                status_code=500, detail="SECRET_KEY not configured for OAuth security."
+            )
+
+        state_manager = get_state_manager()
+        extra: dict = {"connector_id": connector_id}
+        if return_url and return_url.startswith("/"):
+            extra["return_url"] = return_url
+        state_encoded = state_manager.generate_secure_state(space_id, user.id, **extra)
+
+        from urllib.parse import urlencode
+
+        auth_params = {
+            "client_id": config.LINEAR_CLIENT_ID,
+            "response_type": "code",
+            "redirect_uri": config.LINEAR_REDIRECT_URI,
+            "scope": " ".join(SCOPES),
+            "state": state_encoded,
+        }
+        auth_url = f"{AUTHORIZATION_URL}?{urlencode(auth_params)}"
+
+        logger.info(
+            f"Initiating Linear re-auth for user {user.id}, connector {connector_id}"
+        )
+        return {"auth_url": auth_url}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to initiate Linear re-auth: {e!s}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to initiate Linear re-auth: {e!s}"
+        ) from e
+
+
 @router.get("/auth/linear/connector/callback")
 async def linear_callback(
     request: Request,
@@ -166,7 +232,7 @@ async def linear_callback(
             # Redirect to frontend with error parameter
             if space_id:
                 return RedirectResponse(
-                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=linear_oauth_denied"
+                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=linear_oauth_denied"
                 )
             else:
                 return RedirectResponse(
@@ -267,6 +333,43 @@ async def linear_callback(
             "_token_encrypted": True,
         }
 
+        reauth_connector_id = data.get("connector_id")
+        reauth_return_url = data.get("return_url")
+
+        if reauth_connector_id:
+            result = await session.execute(
+                select(SearchSourceConnector).filter(
+                    SearchSourceConnector.id == reauth_connector_id,
+                    SearchSourceConnector.user_id == user_id,
+                    SearchSourceConnector.search_space_id == space_id,
+                    SearchSourceConnector.connector_type
+                    == SearchSourceConnectorType.LINEAR_CONNECTOR,
+                )
+            )
+            db_connector = result.scalars().first()
+            if not db_connector:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Connector not found or access denied during re-auth",
+                )
+
+            connector_config["organization_name"] = org_name
+            db_connector.config = connector_config
+            flag_modified(db_connector, "config")
+            await session.commit()
+            await session.refresh(db_connector)
+
+            logger.info(
+                f"Re-authenticated Linear connector {db_connector.id} for user {user_id}"
+            )
+            if reauth_return_url and reauth_return_url.startswith("/"):
+                return RedirectResponse(
+                    url=f"{config.NEXT_FRONTEND_URL}{reauth_return_url}"
+                )
+            return RedirectResponse(
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?success=true&connector=linear-connector&connectorId={db_connector.id}"
+            )
+
         # Check for duplicate connector (same organization already connected)
         is_duplicate = await check_duplicate_connector(
             session,
@@ -280,7 +383,7 @@ async def linear_callback(
                 f"Duplicate Linear connector detected for user {user_id} with org {org_name}"
             )
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=duplicate_account&connector=linear-connector"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=duplicate_account&connector=linear-connector"
             )
 
         # Generate a unique, user-friendly connector name
@@ -292,6 +395,7 @@ async def linear_callback(
             org_name,
         )
         # Create new connector
+        connector_config["organization_name"] = org_name
         new_connector = SearchSourceConnector(
             name=connector_name,
             connector_type=SearchSourceConnectorType.LINEAR_CONNECTOR,
@@ -311,7 +415,7 @@ async def linear_callback(
 
             # Redirect to the frontend with success params
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=linear-connector&connectorId={new_connector.id}"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?success=true&connector=linear-connector&connectorId={new_connector.id}"
             )
 
         except ValidationError as e:
@@ -340,6 +444,22 @@ async def linear_callback(
         raise HTTPException(
             status_code=500, detail=f"Failed to complete Linear OAuth: {e!s}"
         ) from e
+
+
+async def _mark_connector_auth_expired(
+    session: AsyncSession, connector: SearchSourceConnector
+) -> None:
+    """Persist auth_expired flag in the connector config so the frontend can show a re-auth prompt."""
+    try:
+        connector.config = {**connector.config, "auth_expired": True}
+        flag_modified(connector, "config")
+        await session.commit()
+        await session.refresh(connector)
+    except Exception:
+        logger.warning(
+            f"Failed to persist auth_expired flag for connector {connector.id}",
+            exc_info=True,
+        )
 
 
 async def refresh_linear_token(
@@ -375,6 +495,7 @@ async def refresh_linear_token(
                 ) from e
 
         if not refresh_token:
+            await _mark_connector_auth_expired(session, connector)
             raise HTTPException(
                 status_code=400,
                 detail="No refresh token available. Please re-authenticate.",
@@ -417,6 +538,7 @@ async def refresh_linear_token(
                 or "expired" in error_lower
                 or "revoked" in error_lower
             ):
+                await _mark_connector_auth_expired(session, connector)
                 raise HTTPException(
                     status_code=401,
                     detail="Linear authentication failed. Please re-authenticate.",
@@ -453,10 +575,16 @@ async def refresh_linear_token(
         credentials.expires_at = expires_at
         credentials.scope = token_json.get("scope")
 
-        # Update connector config with encrypted tokens
+        # Update connector config with encrypted tokens, preserving non-credential fields
         credentials_dict = credentials.to_dict()
         credentials_dict["_token_encrypted"] = True
+        if connector.config.get("organization_name"):
+            credentials_dict["organization_name"] = connector.config[
+                "organization_name"
+            ]
+        credentials_dict.pop("auth_expired", None)
         connector.config = credentials_dict
+        flag_modified(connector, "config")
         await session.commit()
         await session.refresh(connector)
 

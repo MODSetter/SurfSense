@@ -7,10 +7,10 @@ import { useTheme } from "next-themes";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
-import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useZeroDocumentTypeCounts } from "@/hooks/use-zero-document-type-counts";
 import { fetchThreads } from "@/lib/chat/thread-persistence";
 
 interface TourStep {
@@ -23,15 +23,15 @@ interface TourStep {
 const TOUR_STEPS: TourStep[] = [
 	{
 		target: '[data-joyride="connector-icon"]',
-		title: "Connect your data sources",
-		content: "Connect and sync data from Gmail, Drive, Slack, Notion, Jira, Confluence, and more.",
+		title: "Manage your tools",
+		content: "Enable or disable AI tools and configure capabilities.",
 		placement: "bottom",
 	},
 	{
-		target: '[data-joyride="documents-sidebar"]',
-		title: "Manage your documents",
-		content: "Access and manage all your uploaded documents.",
-		placement: "right",
+		target: '[data-joyride="upload-button"]',
+		title: "Upload documents",
+		content: "Upload files to your search space.",
+		placement: "left",
 	},
 	{
 		target: '[data-joyride="inbox-sidebar"]',
@@ -100,7 +100,7 @@ function Spotlight({
 }) {
 	const rect = targetEl.getBoundingClientRect();
 	const padding = 6;
-	const shadowColor = isDarkMode ? "#172554" : "#3b82f6";
+	const shadowColor = isDarkMode ? "#3f3f46" : "#3b82f6";
 
 	// Check if this is the connector icon step - verify both the selector matches AND the element matches
 	// This prevents the shape from changing before targetEl updates
@@ -160,6 +160,8 @@ function TourTooltip({
 	onPrev,
 	onSkip,
 	isDarkMode,
+	shouldAnimate,
+	onAnimationEnd,
 }: {
 	step: TourStep;
 	stepIndex: number;
@@ -170,24 +172,13 @@ function TourTooltip({
 	onPrev: () => void;
 	onSkip: () => void;
 	isDarkMode: boolean;
+	shouldAnimate: boolean;
+	onAnimationEnd: () => void;
 }) {
-	const [contentKey, setContentKey] = useState(stepIndex);
-	const [shouldAnimate, setShouldAnimate] = useState(false);
-	const prevStepIndexRef = useRef(stepIndex);
 	const isLastStep = stepIndex === totalSteps - 1;
 	const isFirstStep = stepIndex === 0;
 
-	// Update content key when step changes to trigger animation
-	// Only animate if stepIndex actually changes (not on initial mount)
-	useEffect(() => {
-		if (prevStepIndexRef.current !== stepIndex) {
-			setShouldAnimate(true);
-			setContentKey(stepIndex);
-			prevStepIndexRef.current = stepIndex;
-		}
-	}, [stepIndex]);
-
-	const bgColor = isDarkMode ? "#18181b" : "#ffffff";
+	const bgColor = isDarkMode ? "#27272a" : "#ffffff";
 	const textColor = isDarkMode ? "#ffffff" : "#18181b";
 	const mutedTextColor = isDarkMode ? "#a1a1aa" : "#71717a";
 
@@ -195,15 +186,24 @@ function TourTooltip({
 	const getPointerStyles = (): React.CSSProperties => {
 		const lineLength = 16;
 		const dotSize = 6;
-		// Check if this is the documents step (stepIndex === 1) or inbox step (stepIndex === 2)
-		const isDocumentsStep = stepIndex === 1;
+		const isUploadStep = stepIndex === 1;
 		const isInboxStep = stepIndex === 2;
 
 		if (position.pointerPosition === "left") {
 			return {
 				position: "absolute",
 				left: -lineLength - dotSize,
-				top: isDocumentsStep || isInboxStep ? "calc(50% - 8px)" : "50%",
+				top: isInboxStep ? "calc(50% - 8px)" : "50%",
+				transform: "translateY(-50%)",
+				display: "flex",
+				alignItems: "center",
+			};
+		}
+		if (position.pointerPosition === "right") {
+			return {
+				position: "absolute",
+				right: -lineLength - dotSize,
+				top: isUploadStep ? "calc(50% - 12px)" : "50%",
 				transform: "translateY(-50%)",
 				display: "flex",
 				alignItems: "center",
@@ -224,7 +224,7 @@ function TourTooltip({
 	};
 
 	const renderPointer = () => {
-		const lineColor = isDarkMode ? "#18181B" : "#ffffff";
+		const lineColor = isDarkMode ? "#27272a" : "#ffffff";
 
 		if (position.pointerPosition === "left") {
 			return (
@@ -241,6 +241,27 @@ function TourTooltip({
 						style={{
 							width: 16,
 							height: 2,
+							backgroundColor: lineColor,
+						}}
+					/>
+				</div>
+			);
+		}
+		if (position.pointerPosition === "right") {
+			return (
+				<div style={getPointerStyles()}>
+					<div
+						style={{
+							width: 16,
+							height: 2,
+							backgroundColor: lineColor,
+						}}
+					/>
+					<div
+						style={{
+							width: 6,
+							height: 6,
+							borderRadius: "50%",
 							backgroundColor: lineColor,
 						}}
 					/>
@@ -328,11 +349,11 @@ function TourTooltip({
 			>
 				{/* Content */}
 				<div
-					key={contentKey}
+					key={stepIndex}
 					style={{
 						animation: shouldAnimate ? "fadeInSlide 0.3s ease-out" : "none",
 					}}
-					onAnimationEnd={() => setShouldAnimate(false)}
+					onAnimationEnd={onAnimationEnd}
 				>
 					<h3 id="tour-title" className="text-sm font-semibold mb-1.5" style={{ color: textColor }}>
 						{step.title}
@@ -397,6 +418,7 @@ export function OnboardingTour() {
 	const isMobile = useIsMobile();
 	const [isActive, setIsActive] = useState(false);
 	const [stepIndex, setStepIndex] = useState(0);
+	const [shouldAnimate, setShouldAnimate] = useState(false);
 	const [targetEl, setTargetEl] = useState<Element | null>(null);
 	const [spotlightTargetEl, setSpotlightTargetEl] = useState<Element | null>(null);
 	const [spotlightStepTarget, setSpotlightStepTarget] = useState<string | null>(null);
@@ -406,6 +428,8 @@ export function OnboardingTour() {
 	const { resolvedTheme } = useTheme();
 	const pathname = usePathname();
 	const retryCountRef = useRef(0);
+	const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const startCheckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const maxRetries = 10;
 	// Track previous user ID to detect user changes
 	const previousUserIdRef = useRef<string | null>(null);
@@ -416,13 +440,13 @@ export function OnboardingTour() {
 
 	// Fetch threads data
 	const { data: threadsData } = useQuery({
-		queryKey: ["threads", searchSpaceId, { limit: 1 }],
-		queryFn: () => fetchThreads(Number(searchSpaceId), 1), // Only need to check if any exist
+		queryKey: ["threads", searchSpaceId, { limit: 40 }], // Same key as layout
+		queryFn: () => fetchThreads(Number(searchSpaceId), 40),
 		enabled: !!searchSpaceId,
 	});
 
-	// Get document type counts
-	const { data: documentTypeCounts } = useAtomValue(documentTypeCountsAtom);
+	// Real-time document type counts via Zero
+	const documentTypeCounts = useZeroDocumentTypeCounts(searchSpaceId);
 
 	// Get connectors
 	const { data: connectors = [] } = useAtomValue(connectorsAtom);
@@ -437,6 +461,7 @@ export function OnboardingTour() {
 
 	// Find and track target element with retry logic
 	const updateTarget = useCallback(() => {
+		if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
 		if (!currentStep) return;
 
 		const el = document.querySelector(currentStep.target);
@@ -447,7 +472,7 @@ export function OnboardingTour() {
 			retryCountRef.current = 0;
 		} else if (retryCountRef.current < maxRetries) {
 			retryCountRef.current++;
-			setTimeout(() => {
+			retryTimerRef.current = setTimeout(() => {
 				const retryEl = document.querySelector(currentStep.target);
 				if (retryEl) {
 					setTargetEl(retryEl);
@@ -458,6 +483,12 @@ export function OnboardingTour() {
 			}, 200);
 		}
 	}, [currentStep]);
+
+	useEffect(() => {
+		return () => {
+			if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+		};
+	}, []);
 
 	// Check if tour should run: localStorage + data validation with user ID tracking
 	useEffect(() => {
@@ -526,7 +557,11 @@ export function OnboardingTour() {
 		}
 
 		// User is new and hasn't seen tour - wait for DOM elements and start tour
+		let cancelled = false;
+
 		const checkAndStartTour = () => {
+			if (cancelled) return;
+
 			// Check if all required elements exist
 			const connectorEl = document.querySelector(TOUR_STEPS[0].target);
 			const documentsEl = document.querySelector(TOUR_STEPS[1].target);
@@ -542,13 +577,16 @@ export function OnboardingTour() {
 				setPosition(calculatePosition(connectorEl, TOUR_STEPS[0].placement));
 			} else {
 				// Retry after delay
-				setTimeout(checkAndStartTour, 200);
+				startCheckTimerRef.current = setTimeout(checkAndStartTour, 200);
 			}
 		};
 
 		// Start checking after initial delay
-		const timer = setTimeout(checkAndStartTour, 500);
-		return () => clearTimeout(timer);
+		startCheckTimerRef.current = setTimeout(checkAndStartTour, 500);
+		return () => {
+			cancelled = true;
+			if (startCheckTimerRef.current) clearTimeout(startCheckTimerRef.current);
+		};
 	}, [mounted, user?.id, searchSpaceId, pathname, threadsData, documentTypeCounts, connectors]);
 
 	// Update position on resize/scroll
@@ -564,11 +602,11 @@ export function OnboardingTour() {
 		};
 
 		window.addEventListener("resize", handleUpdate);
-		window.addEventListener("scroll", handleUpdate, true);
+		window.addEventListener("scroll", handleUpdate, { capture: true, passive: true });
 
 		return () => {
 			window.removeEventListener("resize", handleUpdate);
-			window.removeEventListener("scroll", handleUpdate, true);
+			window.removeEventListener("scroll", handleUpdate, { capture: true });
 		};
 	}, [isActive, targetEl, currentStep?.placement]);
 
@@ -632,25 +670,33 @@ export function OnboardingTour() {
 	}, [targetEl, isActive]);
 
 	const handleNext = useCallback(() => {
-		if (stepIndex < TOUR_STEPS.length - 1) {
-			retryCountRef.current = 0;
-			setStepIndex(stepIndex + 1);
-		} else {
-			// Tour completed - save to localStorage
-			if (user?.id) {
-				const tourKey = `surfsense-tour-${user.id}`;
-				localStorage.setItem(tourKey, "true");
+		retryCountRef.current = 0;
+		setShouldAnimate(true);
+		setStepIndex((prev) => {
+			if (prev < TOUR_STEPS.length - 1) {
+				return prev + 1;
+			} else {
+				// Tour completed - save to localStorage
+				if (user?.id) {
+					const tourKey = `surfsense-tour-${user.id}`;
+					localStorage.setItem(tourKey, "true");
+				}
+				setIsActive(false);
+				return prev;
 			}
-			setIsActive(false);
-		}
-	}, [stepIndex, user?.id]);
+		});
+	}, [user?.id]);
 
 	const handlePrev = useCallback(() => {
-		if (stepIndex > 0) {
-			retryCountRef.current = 0;
-			setStepIndex(stepIndex - 1);
-		}
-	}, [stepIndex]);
+		retryCountRef.current = 0;
+		setShouldAnimate(true);
+		setStepIndex((prev) => {
+			if (prev > 0) {
+				return prev - 1;
+			}
+			return prev;
+		});
+	}, []);
 
 	const handleSkip = useCallback(() => {
 		// Tour skipped - save to localStorage
@@ -670,6 +716,10 @@ export function OnboardingTour() {
 		}
 		setIsActive(false);
 	}, [user?.id]);
+
+	const handleAnimationEnd = useCallback(() => {
+		setShouldAnimate(false);
+	}, []);
 
 	// Handle escape key
 	useEffect(() => {
@@ -742,6 +792,8 @@ export function OnboardingTour() {
 							onPrev={handlePrev}
 							onSkip={handleSkip}
 							isDarkMode={isDarkMode}
+							shouldAnimate={shouldAnimate}
+							onAnimationEnd={handleAnimationEnd}
 						/>
 					</>
 				)}

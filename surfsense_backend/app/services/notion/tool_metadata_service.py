@@ -1,15 +1,20 @@
+import logging
 from dataclasses import dataclass
 
 from sqlalchemy import and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm.attributes import flag_modified
 
+from app.connectors.notion_history import NotionHistoryConnector
 from app.db import (
     Document,
     DocumentType,
     SearchSourceConnector,
     SearchSourceConnectorType,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -83,8 +88,37 @@ class NotionToolMetadataService:
             search_space_id, accounts
         )
 
+        accounts_with_status = []
+        for acc in accounts:
+            acc_dict = acc.to_dict()
+            auth_expired = await self._check_account_health(acc.id)
+            acc_dict["auth_expired"] = auth_expired
+            if auth_expired:
+                try:
+                    result = await self._db_session.execute(
+                        select(SearchSourceConnector).where(
+                            SearchSourceConnector.id == acc.id
+                        )
+                    )
+                    db_connector = result.scalar_one_or_none()
+                    if db_connector and not db_connector.config.get("auth_expired"):
+                        db_connector.config = {
+                            **db_connector.config,
+                            "auth_expired": True,
+                        }
+                        flag_modified(db_connector, "config")
+                        await self._db_session.commit()
+                        await self._db_session.refresh(db_connector)
+                except Exception:
+                    logger.warning(
+                        "Failed to persist auth_expired for connector %s",
+                        acc.id,
+                        exc_info=True,
+                    )
+            accounts_with_status.append(acc_dict)
+
         return {
-            "accounts": [acc.to_dict() for acc in accounts],
+            "accounts": accounts_with_status,
             "parent_pages": parent_pages,
         }
 
@@ -104,13 +138,15 @@ class NotionToolMetadataService:
                     SearchSourceConnector.user_id == user_id,
                 )
             )
+            .order_by(Document.updated_at.desc().nullslast())
+            .limit(1)
         )
         document = result.scalars().first()
 
         if not document:
             return {
-                "error": f"Page '{page_title}' not found in your indexed Notion pages. "
-                "This could mean: (1) the page doesn't exist, (2) it hasn't been indexed yet, "
+                "error": f"Page '{page_title}' not found in your synced Notion pages. "
+                "This could mean: (1) the page doesn't exist, (2) it hasn't been synced yet, "
                 "or (3) the page title is different. Please check the exact page title in Notion."
             }
 
@@ -136,12 +172,33 @@ class NotionToolMetadataService:
         if not page_id:
             return {"error": "Page ID not found in document metadata"}
 
+        current_title = document.title
+        document_id = document.id
+        indexed_at = document.document_metadata.get("indexed_at")
+
+        acc_dict = account.to_dict()
+        auth_expired = await self._check_account_health(connector.id)
+        acc_dict["auth_expired"] = auth_expired
+        if auth_expired:
+            try:
+                if not connector.config.get("auth_expired"):
+                    connector.config = {**connector.config, "auth_expired": True}
+                    flag_modified(connector, "config")
+                    await self._db_session.commit()
+                    await self._db_session.refresh(connector)
+            except Exception:
+                logger.warning(
+                    "Failed to persist auth_expired for connector %s",
+                    connector.id,
+                    exc_info=True,
+                )
+
         return {
-            "account": account.to_dict(),
+            "account": acc_dict,
             "page_id": page_id,
-            "current_title": document.title,
-            "document_id": document.id,
-            "indexed_at": document.document_metadata.get("indexed_at"),
+            "current_title": current_title,
+            "document_id": document_id,
+            "indexed_at": indexed_at,
         }
 
     async def get_delete_context(
@@ -166,6 +223,26 @@ class NotionToolMetadataService:
         )
         connectors = result.scalars().all()
         return [NotionAccount.from_connector(conn) for conn in connectors]
+
+    async def _check_account_health(self, connector_id: int) -> bool:
+        """Check if a Notion connector's token is still valid.
+
+        Uses a lightweight ``users.me()`` call to verify the token.
+
+        Returns True if the token is expired/invalid, False if healthy.
+        """
+        try:
+            connector = NotionHistoryConnector(
+                session=self._db_session, connector_id=connector_id
+            )
+            client = await connector._get_client()
+            await client.users.me()
+            return False
+        except Exception as e:
+            logger.warning(
+                "Notion connector %s health check failed: %s", connector_id, e
+            )
+            return True
 
     async def _get_parent_pages_by_account(
         self, search_space_id: int, accounts: list[NotionAccount]

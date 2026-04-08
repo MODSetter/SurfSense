@@ -1,12 +1,10 @@
 """
 Google Gmail connector indexer.
 
-Implements 2-phase document status updates for real-time UI feedback:
-- Phase 1: Create all documents with 'pending' status (visible in UI immediately)
-- Phase 2: Process each document: pending → processing → ready/failed
+Uses the shared IndexingPipelineService for document deduplication,
+summarization, chunking, and embedding.
 """
 
-import time
 from collections.abc import Awaitable, Callable
 from datetime import datetime
 
@@ -15,38 +13,95 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.connectors.google_gmail_connector import GoogleGmailConnector
-from app.db import (
-    Document,
-    DocumentStatus,
-    DocumentType,
-    SearchSourceConnectorType,
+from app.db import DocumentType, SearchSourceConnectorType
+from app.indexing_pipeline.connector_document import ConnectorDocument
+from app.indexing_pipeline.document_hashing import compute_content_hash
+from app.indexing_pipeline.indexing_pipeline_service import (
+    IndexingPipelineService,
+    PlaceholderInfo,
 )
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
-from app.utils.document_converters import (
-    create_document_chunks,
-    embed_text,
-    generate_content_hash,
-    generate_document_summary,
-    generate_unique_identifier_hash,
+from app.utils.google_credentials import (
+    COMPOSIO_GOOGLE_CONNECTOR_TYPES,
+    build_composio_credentials,
 )
 
 from .base import (
     calculate_date_range,
-    check_document_by_unique_identifier,
     check_duplicate_document_by_hash,
     get_connector_by_id,
-    get_current_timestamp,
     logger,
-    safe_set_chunks,
     update_connector_last_indexed,
 )
 
-# Type hint for heartbeat callback
-HeartbeatCallbackType = Callable[[int], Awaitable[None]]
+ACCEPTED_GMAIL_CONNECTOR_TYPES = {
+    SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
+    SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
+}
 
-# Heartbeat interval in seconds
+HeartbeatCallbackType = Callable[[int], Awaitable[None]]
 HEARTBEAT_INTERVAL_SECONDS = 30
+
+
+def _build_connector_doc(
+    message: dict,
+    markdown_content: str,
+    *,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    enable_summary: bool,
+) -> ConnectorDocument:
+    """Map a raw Gmail API message dict to a ConnectorDocument."""
+    message_id = message.get("id", "")
+    thread_id = message.get("threadId", "")
+    payload = message.get("payload", {})
+    headers = payload.get("headers", [])
+
+    subject = "No Subject"
+    sender = "Unknown Sender"
+    date_str = "Unknown Date"
+
+    for header in headers:
+        name = header.get("name", "").lower()
+        value = header.get("value", "")
+        if name == "subject":
+            subject = value
+        elif name == "from":
+            sender = value
+        elif name == "date":
+            date_str = value
+
+    metadata = {
+        "message_id": message_id,
+        "thread_id": thread_id,
+        "subject": subject,
+        "sender": sender,
+        "date": date_str,
+        "connector_id": connector_id,
+        "document_type": "Gmail Message",
+        "connector_type": "Google Gmail",
+    }
+
+    fallback_summary = (
+        f"Google Gmail Message: {subject}\n\n"
+        f"From: {sender}\nDate: {date_str}\n\n"
+        f"{markdown_content}"
+    )
+
+    return ConnectorDocument(
+        title=subject,
+        source_markdown=markdown_content,
+        unique_id=message_id,
+        document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
+        search_space_id=search_space_id,
+        connector_id=connector_id,
+        created_by_id=user_id,
+        should_summarize=enable_summary,
+        fallback_summary=fallback_summary,
+        metadata=metadata,
+    )
 
 
 async def index_google_gmail_messages(
@@ -59,7 +114,7 @@ async def index_google_gmail_messages(
     update_last_indexed: bool = True,
     max_messages: int = 1000,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
-) -> tuple[int, str]:
+) -> tuple[int, int, str | None]:
     """
     Index Gmail messages for a specific connector.
 
@@ -71,15 +126,14 @@ async def index_google_gmail_messages(
         start_date: Start date for filtering messages (YYYY-MM-DD format)
         end_date: End date for filtering messages (YYYY-MM-DD format)
         update_last_indexed: Whether to update the last_indexed_at timestamp (default: True)
-        max_messages: Maximum number of messages to fetch (default: 100)
+        max_messages: Maximum number of messages to fetch (default: 1000)
         on_heartbeat_callback: Optional callback to update notification during long-running indexing.
 
     Returns:
-        Tuple of (number_of_indexed_messages, status_message)
+        Tuple of (number_of_indexed_messages, number_of_skipped_messages, status_message)
     """
     task_logger = TaskLoggingService(session, search_space_id)
 
-    # Log task start
     log_entry = await task_logger.log_task_start(
         task_name="google_gmail_messages_indexing",
         source="connector_indexing_task",
@@ -94,102 +148,108 @@ async def index_google_gmail_messages(
     )
 
     try:
-        # Get connector by id
-        connector = await get_connector_by_id(
-            session, connector_id, SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR
-        )
+        # ── Connector lookup ──────────────────────────────────────────
+        connector = None
+        for ct in ACCEPTED_GMAIL_CONNECTOR_TYPES:
+            connector = await get_connector_by_id(session, connector_id, ct)
+            if connector:
+                break
 
         if not connector:
             error_msg = f"Gmail connector with ID {connector_id} not found"
             await task_logger.log_task_failure(
-                log_entry, error_msg, {"error_type": "ConnectorNotFound"}
+                log_entry, error_msg, None, {"error_type": "ConnectorNotFound"}
             )
-            return 0, error_msg
+            return 0, 0, error_msg
 
-        # Get the Google Gmail credentials from the connector config
-        config_data = connector.config
-
-        # Decrypt sensitive credentials if encrypted (for backward compatibility)
-        from app.config import config
-        from app.utils.oauth_security import TokenEncryption
-
-        token_encrypted = config_data.get("_token_encrypted", False)
-        if token_encrypted and config.SECRET_KEY:
-            try:
-                token_encryption = TokenEncryption(config.SECRET_KEY)
-
-                # Decrypt sensitive fields
-                if config_data.get("token"):
-                    config_data["token"] = token_encryption.decrypt_token(
-                        config_data["token"]
-                    )
-                if config_data.get("refresh_token"):
-                    config_data["refresh_token"] = token_encryption.decrypt_token(
-                        config_data["refresh_token"]
-                    )
-                if config_data.get("client_secret"):
-                    config_data["client_secret"] = token_encryption.decrypt_token(
-                        config_data["client_secret"]
-                    )
-
-                logger.info(
-                    f"Decrypted Google Gmail credentials for connector {connector_id}"
-                )
-            except Exception as e:
+        # ── Credential building ───────────────────────────────────────
+        if connector.connector_type in COMPOSIO_GOOGLE_CONNECTOR_TYPES:
+            connected_account_id = connector.config.get("composio_connected_account_id")
+            if not connected_account_id:
                 await task_logger.log_task_failure(
                     log_entry,
-                    f"Failed to decrypt Google Gmail credentials for connector {connector_id}: {e!s}",
-                    "Credential decryption failed",
-                    {"error_type": "CredentialDecryptionError"},
+                    f"Composio connected_account_id not found for connector {connector_id}",
+                    "Missing Composio account",
+                    {"error_type": "MissingComposioAccount"},
                 )
-                return 0, f"Failed to decrypt Google Gmail credentials: {e!s}"
+                return 0, 0, "Composio connected_account_id not found"
+            credentials = build_composio_credentials(connected_account_id)
+        else:
+            config_data = connector.config
 
-        exp = config_data.get("expiry", "")
-        if exp:
-            exp = exp.replace("Z", "")
-        credentials = Credentials(
-            token=config_data.get("token"),
-            refresh_token=config_data.get("refresh_token"),
-            token_uri=config_data.get("token_uri"),
-            client_id=config_data.get("client_id"),
-            client_secret=config_data.get("client_secret"),
-            scopes=config_data.get("scopes", []),
-            expiry=datetime.fromisoformat(exp) if exp else None,
-        )
+            from app.config import config
+            from app.utils.oauth_security import TokenEncryption
 
-        if (
-            not credentials.client_id
-            or not credentials.client_secret
-            or not credentials.refresh_token
-        ):
-            await task_logger.log_task_failure(
-                log_entry,
-                f"Google gmail credentials not found in connector config for connector {connector_id}",
-                "Missing Google gmail credentials",
-                {"error_type": "MissingCredentials"},
+            token_encrypted = config_data.get("_token_encrypted", False)
+            if token_encrypted and config.SECRET_KEY:
+                try:
+                    token_encryption = TokenEncryption(config.SECRET_KEY)
+                    if config_data.get("token"):
+                        config_data["token"] = token_encryption.decrypt_token(
+                            config_data["token"]
+                        )
+                    if config_data.get("refresh_token"):
+                        config_data["refresh_token"] = token_encryption.decrypt_token(
+                            config_data["refresh_token"]
+                        )
+                    if config_data.get("client_secret"):
+                        config_data["client_secret"] = token_encryption.decrypt_token(
+                            config_data["client_secret"]
+                        )
+                    logger.info(
+                        f"Decrypted Google Gmail credentials for connector {connector_id}"
+                    )
+                except Exception as e:
+                    await task_logger.log_task_failure(
+                        log_entry,
+                        f"Failed to decrypt Google Gmail credentials for connector {connector_id}: {e!s}",
+                        "Credential decryption failed",
+                        {"error_type": "CredentialDecryptionError"},
+                    )
+                    return 0, 0, f"Failed to decrypt Google Gmail credentials: {e!s}"
+
+            exp = config_data.get("expiry", "")
+            if exp:
+                exp = exp.replace("Z", "")
+            credentials = Credentials(
+                token=config_data.get("token"),
+                refresh_token=config_data.get("refresh_token"),
+                token_uri=config_data.get("token_uri"),
+                client_id=config_data.get("client_id"),
+                client_secret=config_data.get("client_secret"),
+                scopes=config_data.get("scopes", []),
+                expiry=datetime.fromisoformat(exp) if exp else None,
             )
-            return 0, "Google gmail credentials not found in connector config"
 
-        # Initialize Google gmail client
+            if (
+                not credentials.client_id
+                or not credentials.client_secret
+                or not credentials.refresh_token
+            ):
+                await task_logger.log_task_failure(
+                    log_entry,
+                    f"Google gmail credentials not found in connector config for connector {connector_id}",
+                    "Missing Google gmail credentials",
+                    {"error_type": "MissingCredentials"},
+                )
+                return 0, 0, "Google gmail credentials not found in connector config"
+
+        # ── Gmail client init ─────────────────────────────────────────
         await task_logger.log_task_progress(
             log_entry,
             f"Initializing Google gmail client for connector {connector_id}",
             {"stage": "client_initialization"},
         )
 
-        # Initialize Google gmail connector
         gmail_connector = GoogleGmailConnector(
             credentials, session, user_id, connector_id
         )
 
-        # Calculate date range using last_indexed_at if dates not provided
-        # This ensures Gmail uses the same date logic as other connectors
-        # (uses last_indexed_at → now, or 365 days back for first-time indexing)
         calculated_start_date, calculated_end_date = calculate_date_range(
             connector, start_date, end_date, default_days_back=365
         )
 
-        # Fetch recent Google gmail messages
+        # ── Fetch messages ────────────────────────────────────────────
         logger.info(
             f"Fetching emails for connector {connector_id} "
             f"from {calculated_start_date} to {calculated_end_date}"
@@ -201,7 +261,6 @@ async def index_google_gmail_messages(
         )
 
         if error:
-            # Check if this is an authentication error that requires re-authentication
             error_message = error
             error_type = "APIError"
             if (
@@ -215,272 +274,114 @@ async def index_google_gmail_messages(
             await task_logger.log_task_failure(
                 log_entry, error_message, error, {"error_type": error_type}
             )
-            return 0, error_message
+            return 0, 0, error_message
 
         if not messages:
             success_msg = "No Google gmail messages found in the specified date range"
             await task_logger.log_task_success(
                 log_entry, success_msg, {"messages_count": 0}
             )
-            return 0, success_msg
+            return 0, 0, success_msg
 
         logger.info(f"Found {len(messages)} Google gmail messages to index")
 
-        documents_indexed = 0
+        # ── Create placeholders for instant UI feedback ───────────────
+        pipeline = IndexingPipelineService(session)
+
+        def _gmail_subject(msg: dict) -> str:
+            for h in msg.get("payload", {}).get("headers", []):
+                if h.get("name", "").lower() == "subject":
+                    return h.get("value", "No Subject")
+            return "No Subject"
+
+        placeholders = [
+            PlaceholderInfo(
+                title=_gmail_subject(msg),
+                document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
+                unique_id=msg.get("id", ""),
+                search_space_id=search_space_id,
+                connector_id=connector_id,
+                created_by_id=user_id,
+                metadata={
+                    "message_id": msg.get("id", ""),
+                    "connector_id": connector_id,
+                    "connector_type": "Google Gmail",
+                },
+            )
+            for msg in messages
+            if msg.get("id")
+        ]
+        await pipeline.create_placeholder_documents(placeholders)
+
+        # ── Build ConnectorDocuments ──────────────────────────────────
+        connector_docs: list[ConnectorDocument] = []
         documents_skipped = 0
-        documents_failed = 0  # Track messages that failed processing
-        duplicate_content_count = (
-            0  # Track messages skipped due to duplicate content_hash
-        )
-
-        # Heartbeat tracking - update notification periodically to prevent appearing stuck
-        last_heartbeat_time = time.time()
-
-        # =======================================================================
-        # PHASE 1: Analyze all messages, create pending documents
-        # This makes ALL documents visible in the UI immediately with pending status
-        # =======================================================================
-        messages_to_process = []  # List of dicts with document and message data
-        new_documents_created = False
+        duplicate_content_count = 0
 
         for message in messages:
             try:
-                # Extract message information
                 message_id = message.get("id", "")
-                thread_id = message.get("threadId", "")
-
-                # Extract headers for subject and sender
-                payload = message.get("payload", {})
-                headers = payload.get("headers", [])
-
-                subject = "No Subject"
-                sender = "Unknown Sender"
-                date_str = "Unknown Date"
-
-                for header in headers:
-                    name = header.get("name", "").lower()
-                    value = header.get("value", "")
-                    if name == "subject":
-                        subject = value
-                    elif name == "from":
-                        sender = value
-                    elif name == "date":
-                        date_str = value
-
                 if not message_id:
-                    logger.warning(f"Skipping message with missing ID: {subject}")
+                    logger.warning("Skipping message with missing ID")
                     documents_skipped += 1
                     continue
 
-                # Format message to markdown
                 markdown_content = gmail_connector.format_message_to_markdown(message)
-
                 if not markdown_content.strip():
-                    logger.warning(f"Skipping message with no content: {subject}")
+                    logger.warning(f"Skipping message with no content: {message_id}")
                     documents_skipped += 1
                     continue
 
-                # Generate unique identifier hash for this Gmail message
-                unique_identifier_hash = generate_unique_identifier_hash(
-                    DocumentType.GOOGLE_GMAIL_CONNECTOR, message_id, search_space_id
+                doc = _build_connector_doc(
+                    message,
+                    markdown_content,
+                    connector_id=connector_id,
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                    enable_summary=connector.enable_summary,
                 )
 
-                # Generate content hash
-                content_hash = generate_content_hash(markdown_content, search_space_id)
-
-                # Check if document with this unique identifier already exists
-                existing_document = await check_document_by_unique_identifier(
-                    session, unique_identifier_hash
-                )
-
-                if existing_document:
-                    # Document exists - check if content has changed
-                    if existing_document.content_hash == content_hash:
-                        # Ensure status is ready (might have been stuck in processing/pending)
-                        if not DocumentStatus.is_state(
-                            existing_document.status, DocumentStatus.READY
-                        ):
-                            existing_document.status = DocumentStatus.ready()
-                        documents_skipped += 1
-                        continue
-
-                    # Queue existing document for update (will be set to processing in Phase 2)
-                    messages_to_process.append(
-                        {
-                            "document": existing_document,
-                            "is_new": False,
-                            "markdown_content": markdown_content,
-                            "content_hash": content_hash,
-                            "message_id": message_id,
-                            "thread_id": thread_id,
-                            "subject": subject,
-                            "sender": sender,
-                            "date_str": date_str,
-                        }
-                    )
-                    continue
-
-                # Document doesn't exist by unique_identifier_hash
-                # Check if a document with the same content_hash exists (from another connector)
                 with session.no_autoflush:
-                    duplicate_by_content = await check_duplicate_document_by_hash(
-                        session, content_hash
+                    duplicate = await check_duplicate_document_by_hash(
+                        session, compute_content_hash(doc)
                     )
-
-                if duplicate_by_content:
+                if duplicate:
                     logger.info(
-                        f"Gmail message {subject} already indexed by another connector "
-                        f"(existing document ID: {duplicate_by_content.id}, "
-                        f"type: {duplicate_by_content.document_type}). Skipping."
+                        f"Gmail message {doc.title} already indexed by another connector "
+                        f"(existing document ID: {duplicate.id}, "
+                        f"type: {duplicate.document_type}). Skipping."
                     )
                     duplicate_content_count += 1
                     documents_skipped += 1
                     continue
 
-                # Create new document with PENDING status (visible in UI immediately)
-                document = Document(
-                    search_space_id=search_space_id,
-                    title=subject,
-                    document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
-                    document_metadata={
-                        "message_id": message_id,
-                        "thread_id": thread_id,
-                        "subject": subject,
-                        "sender": sender,
-                        "date": date_str,
-                        "connector_id": connector_id,
-                    },
-                    content="Pending...",  # Placeholder until processed
-                    content_hash=unique_identifier_hash,  # Temporary unique value - updated when ready
-                    unique_identifier_hash=unique_identifier_hash,
-                    embedding=None,
-                    chunks=[],  # Empty at creation - safe for async
-                    status=DocumentStatus.pending(),  # Pending until processing starts
-                    updated_at=get_current_timestamp(),
-                    created_by_id=user_id,
-                    connector_id=connector_id,
-                )
-                session.add(document)
-                new_documents_created = True
-
-                messages_to_process.append(
-                    {
-                        "document": document,
-                        "is_new": True,
-                        "markdown_content": markdown_content,
-                        "content_hash": content_hash,
-                        "message_id": message_id,
-                        "thread_id": thread_id,
-                        "subject": subject,
-                        "sender": sender,
-                        "date_str": date_str,
-                    }
-                )
+                connector_docs.append(doc)
 
             except Exception as e:
-                logger.error(f"Error in Phase 1 for message: {e!s}", exc_info=True)
-                documents_failed += 1
-                continue
-
-        # Commit all pending documents - they all appear in UI now
-        if new_documents_created:
-            logger.info(
-                f"Phase 1: Committing {len([m for m in messages_to_process if m['is_new']])} pending documents"
-            )
-            await session.commit()
-
-        # =======================================================================
-        # PHASE 2: Process each document one by one
-        # Each document transitions: pending → processing → ready/failed
-        # =======================================================================
-        logger.info(f"Phase 2: Processing {len(messages_to_process)} documents")
-
-        for item in messages_to_process:
-            # Send heartbeat periodically
-            if on_heartbeat_callback:
-                current_time = time.time()
-                if current_time - last_heartbeat_time >= HEARTBEAT_INTERVAL_SECONDS:
-                    await on_heartbeat_callback(documents_indexed)
-                    last_heartbeat_time = current_time
-
-            document = item["document"]
-            try:
-                # Set to PROCESSING and commit - shows "processing" in UI for THIS document only
-                document.status = DocumentStatus.processing()
-                await session.commit()
-
-                # Heavy processing (LLM, embeddings, chunks)
-                user_llm = await get_user_long_context_llm(
-                    session, user_id, search_space_id
+                logger.error(
+                    f"Error building ConnectorDocument for message: {e!s}",
+                    exc_info=True,
                 )
-
-                if user_llm and connector.enable_summary:
-                    document_metadata_for_summary = {
-                        "message_id": item["message_id"],
-                        "thread_id": item["thread_id"],
-                        "subject": item["subject"],
-                        "sender": item["sender"],
-                        "date": item["date_str"],
-                        "document_type": "Gmail Message",
-                        "connector_type": "Google Gmail",
-                    }
-                    (
-                        summary_content,
-                        summary_embedding,
-                    ) = await generate_document_summary(
-                        item["markdown_content"],
-                        user_llm,
-                        document_metadata_for_summary,
-                    )
-                else:
-                    summary_content = f"Google Gmail Message: {item['subject']}\n\nFrom: {item['sender']}\nDate: {item['date_str']}\n\n{item['markdown_content']}"
-                    summary_embedding = embed_text(summary_content)
-
-                chunks = await create_document_chunks(item["markdown_content"])
-
-                # Update document to READY with actual content
-                document.title = item["subject"]
-                document.content = summary_content
-                document.content_hash = item["content_hash"]
-                document.embedding = summary_embedding
-                document.document_metadata = {
-                    "message_id": item["message_id"],
-                    "thread_id": item["thread_id"],
-                    "subject": item["subject"],
-                    "sender": item["sender"],
-                    "date": item["date_str"],
-                    "connector_id": connector_id,
-                }
-                safe_set_chunks(document, chunks)
-                document.updated_at = get_current_timestamp()
-                document.status = DocumentStatus.ready()
-
-                documents_indexed += 1
-
-                # Batch commit every 10 documents (for ready status updates)
-                if documents_indexed % 10 == 0:
-                    logger.info(
-                        f"Committing batch: {documents_indexed} Gmail messages processed so far"
-                    )
-                    await session.commit()
-
-            except Exception as e:
-                logger.error(f"Error processing Gmail message: {e!s}", exc_info=True)
-                # Mark document as failed with reason (visible in UI)
-                try:
-                    document.status = DocumentStatus.failed(str(e))
-                    document.updated_at = get_current_timestamp()
-                except Exception as status_error:
-                    logger.error(
-                        f"Failed to update document status to failed: {status_error}"
-                    )
-                documents_failed += 1
+                documents_skipped += 1
                 continue
 
-        # CRITICAL: Always update timestamp (even if 0 documents indexed) so Electric SQL syncs
+        # ── Pipeline: migrate legacy docs + parallel index ─────────────
+        await pipeline.migrate_legacy_docs(connector_docs)
+
+        async def _get_llm(s):
+            return await get_user_long_context_llm(s, user_id, search_space_id)
+
+        _, documents_indexed, documents_failed = await pipeline.index_batch_parallel(
+            connector_docs,
+            _get_llm,
+            max_concurrency=3,
+            on_heartbeat=on_heartbeat_callback,
+            heartbeat_interval=HEARTBEAT_INTERVAL_SECONDS,
+        )
+
+        # ── Finalize ──────────────────────────────────────────────────
         await update_connector_last_indexed(session, connector, update_last_indexed)
 
-        # Final commit for any remaining documents not yet committed in batches
         logger.info(f"Final commit: Total {documents_indexed} Gmail messages processed")
         try:
             await session.commit()
@@ -488,22 +389,18 @@ async def index_google_gmail_messages(
                 "Successfully committed all Google Gmail document changes to database"
             )
         except Exception as e:
-            # Handle any remaining integrity errors gracefully (race conditions, etc.)
             if (
                 "duplicate key value violates unique constraint" in str(e).lower()
                 or "uniqueviolationerror" in str(e).lower()
             ):
                 logger.warning(
                     f"Duplicate content_hash detected during final commit. "
-                    f"This may occur if the same message was indexed by multiple connectors. "
                     f"Rolling back and continuing. Error: {e!s}"
                 )
                 await session.rollback()
-                # Don't fail the entire task - some documents may have been successfully indexed
             else:
                 raise
 
-        # Build warning message if there were issues
         warning_parts = []
         if duplicate_content_count > 0:
             warning_parts.append(f"{duplicate_content_count} duplicate")
@@ -513,7 +410,6 @@ async def index_google_gmail_messages(
 
         total_processed = documents_indexed
 
-        # Log success
         await task_logger.log_task_success(
             log_entry,
             f"Successfully completed Google Gmail indexing for connector {connector_id}",
@@ -531,10 +427,7 @@ async def index_google_gmail_messages(
             f"{documents_skipped} skipped, {documents_failed} failed "
             f"({duplicate_content_count} duplicate content)"
         )
-        return (
-            total_processed,
-            warning_message,
-        )  # Return warning_message (None on success)
+        return total_processed, documents_skipped, warning_message
 
     except SQLAlchemyError as db_error:
         await session.rollback()
@@ -545,7 +438,7 @@ async def index_google_gmail_messages(
             {"error_type": "SQLAlchemyError"},
         )
         logger.error(f"Database error: {db_error!s}", exc_info=True)
-        return 0, f"Database error: {db_error!s}"
+        return 0, 0, f"Database error: {db_error!s}"
     except Exception as e:
         await session.rollback()
         await task_logger.log_task_failure(
@@ -555,4 +448,4 @@ async def index_google_gmail_messages(
             {"error_type": type(e).__name__},
         )
         logger.error(f"Failed to index Google gmail emails: {e!s}", exc_info=True)
-        return 0, f"Failed to index Google gmail emails: {e!s}"
+        return 0, 0, f"Failed to index Google gmail emails: {e!s}"

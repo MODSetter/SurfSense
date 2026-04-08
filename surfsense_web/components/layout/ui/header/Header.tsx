@@ -4,9 +4,12 @@ import { useAtomValue } from "jotai";
 import { usePathname } from "next/navigation";
 import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { activeTabAtom, tabsAtom } from "@/atoms/tabs/tabs.atom";
 import { ChatHeader } from "@/components/new-chat/chat-header";
 import { ChatShareButton } from "@/components/new-chat/chat-share-button";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type { ChatVisibility, ThreadRecord } from "@/lib/chat/thread-persistence";
+import { RightPanelExpandButton } from "../right-panel/RightPanel";
 
 interface HeaderProps {
 	mobileMenuTrigger?: React.ReactNode;
@@ -15,12 +18,17 @@ interface HeaderProps {
 export function Header({ mobileMenuTrigger }: HeaderProps) {
 	const pathname = usePathname();
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const isMobile = useIsMobile();
+	const activeTab = useAtomValue(activeTabAtom);
+	const tabs = useAtomValue(tabsAtom);
 
 	const isChatPage = pathname?.includes("/new-chat") ?? false;
+	const isDocumentTab = activeTab?.type === "document";
+	const hasTabBar = tabs.length > 1;
 
 	const currentThreadState = useAtomValue(currentThreadAtom);
 
-	const hasThread = isChatPage && currentThreadState.id !== null;
+	const hasThread = isChatPage && !isDocumentTab && currentThreadState.id !== null;
 
 	const threadForButton: ThreadRecord | null =
 		hasThread && currentThreadState.id !== null
@@ -39,20 +47,21 @@ export function Header({ mobileMenuTrigger }: HeaderProps) {
 	const handleVisibilityChange = (_visibility: ChatVisibility) => {};
 
 	return (
-		<header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 px-4">
+		<header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 bg-main-panel/95 backdrop-blur supports-backdrop-filter:bg-main-panel/60 px-4">
 			{/* Left side - Mobile menu trigger + Model selector */}
 			<div className="flex flex-1 items-center gap-2 min-w-0">
 				{mobileMenuTrigger}
-				{isChatPage && searchSpaceId && (
+				{isChatPage && !isDocumentTab && searchSpaceId && (
 					<ChatHeader searchSpaceId={Number(searchSpaceId)} className="md:h-9 md:px-4 md:text-sm" />
 				)}
 			</div>
 
 			{/* Right side - Actions */}
-			<div className="flex items-center gap-4">
+			<div className="ml-auto flex items-center gap-2">
 				{hasThread && (
 					<ChatShareButton thread={threadForButton} onVisibilityChange={handleVisibilityChange} />
 				)}
+				{!isMobile && !hasTabBar && <RightPanelExpandButton />}
 			</div>
 		</header>
 	);

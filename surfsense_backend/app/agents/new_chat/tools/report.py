@@ -584,8 +584,8 @@ def create_generate_report_tool(
         search_space_id: The user's search space ID
         thread_id: The chat thread ID for associating the report
         connector_service: Optional connector service for internal KB search.
-            When provided, the tool can search the knowledge base without the
-            agent having to call search_knowledge_base separately.
+            When provided, the tool can search the knowledge base internally
+            (used by the "kb_search" and "auto" source strategies).
         available_connectors: Optional list of connector types available in the
             search space (used to scope internal KB searches).
 
@@ -639,12 +639,13 @@ def create_generate_report_tool(
 
         SOURCE STRATEGY (how to collect source material):
         - source_strategy="conversation" — The conversation already has
-          enough context (prior Q&A, pasted text, uploaded files, scraped
-          webpages). Pass a thorough summary as source_content.
-          NEVER call search_knowledge_base separately first.
+          enough context (prior Q&A, filesystem exploration, pasted text,
+          uploaded files, scraped webpages). Pass a thorough summary as
+          source_content.
         - source_strategy="kb_search" — Search the knowledge base
           internally. Provide 1-5 targeted search_queries. The tool
-          handles searching — do NOT call search_knowledge_base first.
+          handles searching internally — do NOT manually read and dump
+          /documents/ files into source_content.
         - source_strategy="provided" — Use only what is in source_content
           (default, backward-compatible).
         - source_strategy="auto" — Use source_content if it has enough
@@ -1064,6 +1065,7 @@ def create_generate_report_tool(
                 "title": topic,
                 "word_count": metadata.get("word_count", 0),
                 "is_revision": bool(parent_report_content),
+                "report_markdown": report_content,
                 "message": f"Report generated successfully: {topic}",
             }
 

@@ -439,7 +439,7 @@ async def index_clickup_tasks(
                     "connector_id": connector_id,
                     "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 }
-                safe_set_chunks(document, chunks)
+                await safe_set_chunks(session, document, chunks)
                 document.updated_at = get_current_timestamp()
                 document.status = DocumentStatus.ready()
 
@@ -470,7 +470,7 @@ async def index_clickup_tasks(
 
         total_processed = documents_indexed
 
-        # CRITICAL: Always update timestamp (even if 0 documents indexed) so Electric SQL syncs
+        # CRITICAL: Always update timestamp (even if 0 documents indexed) so Zero syncs
         # This ensures the UI shows "Last indexed" instead of "Never indexed"
         await update_connector_last_indexed(session, connector, update_last_indexed)
 

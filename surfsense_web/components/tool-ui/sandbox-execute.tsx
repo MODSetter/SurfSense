@@ -1,6 +1,6 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import {
 	AlertCircleIcon,
 	CheckCircle2Icon,
@@ -67,13 +67,14 @@ const SANDBOX_FILE_RE = /^SANDBOX_FILE:\s*(.+)$/gm;
 
 function extractSandboxFiles(text: string): SandboxFile[] {
 	const files: SandboxFile[] = [];
-	let match: RegExpExecArray | null;
-	while ((match = SANDBOX_FILE_RE.exec(text)) !== null) {
+	let match: RegExpExecArray | null = SANDBOX_FILE_RE.exec(text);
+	while (match !== null) {
 		const filePath = match[1].trim();
 		if (filePath) {
 			const name = filePath.includes("/") ? filePath.split("/").pop() || filePath : filePath;
 			files.push({ path: filePath, name });
 		}
+		match = SANDBOX_FILE_RE.exec(text);
 	}
 	SANDBOX_FILE_RE.lastIndex = 0;
 	return files;
@@ -148,7 +149,7 @@ function parseExecuteResult(result: ExecuteResult): ParsedOutput {
 
 function truncateCommand(command: string, maxLen = 80): string {
 	if (command.length <= maxLen) return command;
-	return command.slice(0, maxLen) + "…";
+	return `${command.slice(0, maxLen)}…`;
 }
 
 // ============================================================================
@@ -380,41 +381,42 @@ function ExecuteCompleted({
 // Tool UI
 // ============================================================================
 
-export const SandboxExecuteToolUI = makeAssistantToolUI<ExecuteArgs, ExecuteResult>({
-	toolName: "execute",
-	render: function SandboxExecuteUI({ args, result, status }) {
-		const command = args.command || "…";
+export const SandboxExecuteToolUI = ({
+	args,
+	result,
+	status,
+}: ToolCallMessagePartProps<ExecuteArgs, ExecuteResult>) => {
+	const command = args.command || "…";
 
-		if (status.type === "running" || status.type === "requires-action") {
-			return <ExecuteLoading command={command} />;
+	if (status.type === "running" || status.type === "requires-action") {
+		return <ExecuteLoading command={command} />;
+	}
+
+	if (status.type === "incomplete") {
+		if (status.reason === "cancelled") {
+			return <ExecuteCancelledState command={command} />;
 		}
-
-		if (status.type === "incomplete") {
-			if (status.reason === "cancelled") {
-				return <ExecuteCancelledState command={command} />;
-			}
-			if (status.reason === "error") {
-				return (
-					<ExecuteErrorState
-						command={command}
-						error={typeof status.error === "string" ? status.error : "An error occurred"}
-					/>
-				);
-			}
+		if (status.reason === "error") {
+			return (
+				<ExecuteErrorState
+					command={command}
+					error={typeof status.error === "string" ? status.error : "An error occurred"}
+				/>
+			);
 		}
+	}
 
-		if (!result) {
-			return <ExecuteLoading command={command} />;
-		}
+	if (!result) {
+		return <ExecuteLoading command={command} />;
+	}
 
-		if (result.error && !result.result && !result.output) {
-			return <ExecuteErrorState command={command} error={result.error} />;
-		}
+	if (result.error && !result.result && !result.output) {
+		return <ExecuteErrorState command={command} error={result.error} />;
+	}
 
-		const parsed = parseExecuteResult(result);
-		const threadId = result.thread_id || null;
-		return <ExecuteCompleted command={command} parsed={parsed} threadId={threadId} />;
-	},
-});
+	const parsed = parseExecuteResult(result);
+	const threadId = result.thread_id || null;
+	return <ExecuteCompleted command={command} parsed={parsed} threadId={threadId} />;
+};
 
 export { ExecuteArgsSchema, ExecuteResultSchema, type ExecuteArgs, type ExecuteResult };

@@ -53,24 +53,26 @@ class DocumentRead(BaseModel):
     title: str
     document_type: DocumentType
     document_metadata: dict
-    content: str  # Changed to string to match frontend
+    content: str = ""
+    content_preview: str = ""
     content_hash: str
     unique_identifier_hash: str | None
     created_at: datetime
     updated_at: datetime | None
     search_space_id: int
-    created_by_id: UUID | None = None  # User who created/uploaded this document
+    folder_id: int | None = None
+    created_by_id: UUID | None = None
     created_by_name: str | None = None
     created_by_email: str | None = None
-    status: DocumentStatusSchema | None = (
-        None  # Processing status (ready, processing, failed)
-    )
+    status: DocumentStatusSchema | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class DocumentWithChunksRead(DocumentRead):
     chunks: list[ChunkRead] = []
+    total_chunks: int = 0
+    chunk_start_index: int = 0
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -89,6 +91,7 @@ class DocumentTitleRead(BaseModel):
     id: int
     title: str
     document_type: DocumentType
+    folder_id: int | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -24,6 +24,7 @@ export interface MentionedDocument {
 export interface InlineMentionEditorRef {
 	focus: () => void;
 	clear: () => void;
+	setText: (text: string) => void;
 	getText: () => string;
 	getMentionedDocuments: () => MentionedDocument[];
 	insertDocumentChip: (doc: Pick<Document, "id" | "title" | "document_type">) => void;
@@ -40,6 +41,8 @@ interface InlineMentionEditorProps {
 	placeholder?: string;
 	onMentionTrigger?: (query: string) => void;
 	onMentionClose?: () => void;
+	onActionTrigger?: (query: string) => void;
+	onActionClose?: () => void;
 	onSubmit?: () => void;
 	onChange?: (text: string, docs: MentionedDocument[]) => void;
 	onDocumentRemove?: (docId: number, docType?: string) => void;
@@ -47,6 +50,7 @@ interface InlineMentionEditorProps {
 	disabled?: boolean;
 	className?: string;
 	initialDocuments?: MentionedDocument[];
+	initialText?: string;
 }
 
 // Unique data attribute to identify chip elements
@@ -89,6 +93,8 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			placeholder = "Type @ to mention documents...",
 			onMentionTrigger,
 			onMentionClose,
+			onActionTrigger,
+			onActionClose,
 			onSubmit,
 			onChange,
 			onDocumentRemove,
@@ -96,6 +102,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			disabled = false,
 			className,
 			initialDocuments = [],
+			initialText,
 		},
 		ref
 	) => {
@@ -114,6 +121,26 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				);
 			}
 		}, [initialDocuments]);
+
+		useEffect(() => {
+			if (!initialText || !editorRef.current) return;
+			editorRef.current.innerText = initialText;
+			editorRef.current.appendChild(document.createElement("br"));
+			editorRef.current.appendChild(document.createElement("br"));
+			setIsEmpty(false);
+			onChange?.(initialText, Array.from(mentionedDocs.values()));
+			editorRef.current.focus();
+			const sel = window.getSelection();
+			const range = document.createRange();
+			range.selectNodeContents(editorRef.current);
+			range.collapse(false);
+			sel?.removeAllRanges();
+			sel?.addRange(range);
+			const anchor = document.createElement("span");
+			range.insertNode(anchor);
+			anchor.scrollIntoView({ block: "end" });
+			anchor.remove();
+		}, [initialText]); // eslint-disable-line react-hooks/exhaustive-deps
 
 		// Focus at the end of the editor
 		const focusAtEnd = useCallback(() => {
@@ -371,6 +398,19 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			}
 		}, []);
 
+		// Replace editor content with plain text and place cursor at end
+		const setText = useCallback(
+			(text: string) => {
+				if (!editorRef.current) return;
+				editorRef.current.innerText = text;
+				const empty = text.length === 0;
+				setIsEmpty(empty);
+				onChange?.(text, Array.from(mentionedDocs.values()));
+				focusAtEnd();
+			},
+			[focusAtEnd, onChange, mentionedDocs]
+		);
+
 		const setDocumentChipStatus = useCallback(
 			(
 				docId: number,
@@ -443,6 +483,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 		useImperativeHandle(ref, () => ({
 			focus: () => editorRef.current?.focus(),
 			clear,
+			setText,
 			getText,
 			getMentionedDocuments,
 			insertDocumentChip,
@@ -495,6 +536,44 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				}
 			}
 
+			// Check for / actions (same pattern as @)
+			let shouldTriggerAction = false;
+			let actionQuery = "";
+
+			if (!shouldTriggerMention && selection && selection.rangeCount > 0) {
+				const range = selection.getRangeAt(0);
+				const textNode = range.startContainer;
+
+				if (textNode.nodeType === Node.TEXT_NODE) {
+					const textContent = textNode.textContent || "";
+					const cursorPos = range.startOffset;
+
+					let slashIndex = -1;
+					for (let i = cursorPos - 1; i >= 0; i--) {
+						if (textContent[i] === "/") {
+							slashIndex = i;
+							break;
+						}
+						if (textContent[i] === " " || textContent[i] === "\n") {
+							break;
+						}
+					}
+
+					if (
+						slashIndex !== -1 &&
+						(slashIndex === 0 ||
+							textContent[slashIndex - 1] === " " ||
+							textContent[slashIndex - 1] === "\n")
+					) {
+						const query = textContent.slice(slashIndex + 1, cursorPos);
+						if (!query.startsWith(" ")) {
+							shouldTriggerAction = true;
+							actionQuery = query;
+						}
+					}
+				}
+			}
+
 			// If no @ found before cursor, check if text contains @ at all
 			// If text is empty or doesn't contain @, close the mention
 			if (!shouldTriggerMention) {
@@ -508,9 +587,23 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				onMentionTrigger?.(mentionQuery);
 			}
 
+			if (!shouldTriggerAction) {
+				onActionClose?.();
+			} else {
+				onActionTrigger?.(actionQuery);
+			}
+
 			// Notify parent of change
 			onChange?.(text, Array.from(mentionedDocs.values()));
-		}, [getText, mentionedDocs, onChange, onMentionTrigger, onMentionClose]);
+		}, [
+			getText,
+			mentionedDocs,
+			onChange,
+			onMentionTrigger,
+			onMentionClose,
+			onActionTrigger,
+			onActionClose,
+		]);
 
 		// Handle keydown
 		const handleKeyDown = useCallback(

@@ -39,8 +39,12 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 			return <Image src="/connectors/slack.svg" alt="Slack" {...imgProps} />;
 		case EnumConnectorName.TEAMS_CONNECTOR:
 			return <Image src="/connectors/microsoft-teams.svg" alt="Microsoft Teams" {...imgProps} />;
+		case EnumConnectorName.ONEDRIVE_CONNECTOR:
+			return <Image src="/connectors/onedrive.svg" alt="OneDrive" {...imgProps} />;
 		case EnumConnectorName.NOTION_CONNECTOR:
 			return <Image src="/connectors/notion.svg" alt="Notion" {...imgProps} />;
+		case EnumConnectorName.DROPBOX_CONNECTOR:
+			return <Image src="/connectors/dropbox.svg" alt="Dropbox" {...imgProps} />;
 		case EnumConnectorName.DISCORD_CONNECTOR:
 			return <Image src="/connectors/discord.svg" alt="Discord" {...imgProps} />;
 		case EnumConnectorName.JIRA_CONNECTOR:
@@ -98,6 +102,12 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 			return <File {...iconProps} />;
 		case "GOOGLE_DRIVE_FILE":
 			return <Image src="/connectors/google-drive.svg" alt="Google Drive" {...imgProps} />;
+		case "DROPBOX_FILE":
+		case "DROPBOX_CONNECTOR":
+			return <Image src="/connectors/dropbox.svg" alt="Dropbox" {...imgProps} />;
+		case "ONEDRIVE_FILE":
+		case "ONEDRIVE_CONNECTOR":
+			return <Image src="/connectors/onedrive.svg" alt="OneDrive" {...imgProps} />;
 		case "COMPOSIO_GOOGLE_DRIVE_CONNECTOR":
 			return <Image src="/connectors/google-drive.svg" alt="Google Drive" {...imgProps} />;
 		case "COMPOSIO_GMAIL_CONNECTOR":
@@ -116,6 +126,8 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 			return <Microscope {...iconProps} />;
 		case "DEEPEST":
 			return <Telescope {...iconProps} />;
+		case "LOCAL_FOLDER_FILE":
+			return <File {...iconProps} />;
 		default:
 			return <Search {...iconProps} />;
 	}

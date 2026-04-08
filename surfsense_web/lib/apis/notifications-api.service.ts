@@ -1,8 +1,10 @@
 import {
+	type GetBatchUnreadCountResponse,
 	type GetNotificationsRequest,
 	type GetNotificationsResponse,
 	type GetSourceTypesResponse,
 	type GetUnreadCountResponse,
+	getBatchUnreadCountResponse,
 	getNotificationsRequest,
 	getNotificationsResponse,
 	getSourceTypesResponse,
@@ -147,6 +149,23 @@ class NotificationsApiService {
 		return baseApiService.get(
 			`/api/v1/notifications/unread-count${queryString ? `?${queryString}` : ""}`,
 			getUnreadCountResponse
+		);
+	};
+
+	/**
+	 * Get unread counts for all categories in a single request.
+	 * Replaces 2 separate getUnreadCount calls (comments + status).
+	 */
+	getBatchUnreadCounts = async (searchSpaceId?: number): Promise<GetBatchUnreadCountResponse> => {
+		const params = new URLSearchParams();
+		if (searchSpaceId !== undefined) {
+			params.append("search_space_id", String(searchSpaceId));
+		}
+		const queryString = params.toString();
+
+		return baseApiService.get(
+			`/api/v1/notifications/unread-counts-batch${queryString ? `?${queryString}` : ""}`,
+			getBatchUnreadCountResponse
 		);
 	};
 }

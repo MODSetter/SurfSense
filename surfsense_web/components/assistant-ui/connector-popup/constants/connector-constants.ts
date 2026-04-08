@@ -2,28 +2,30 @@ import { EnumConnectorName } from "@/contracts/enums/connector";
 
 // OAuth Connectors (Quick Connect)
 export const OAUTH_CONNECTORS = [
-	// // Uncomment for managed Google Connections
-	// {
-	// 	id: "google-drive-connector",
-	// 	title: "Google Drive",
-	// 	description: "Search your Drive files",
-	// 	connectorType: EnumConnectorName.GOOGLE_DRIVE_CONNECTOR,
-	// 	authEndpoint: "/api/v1/auth/google/drive/connector/add/",
-	// },
-	// {
-	// 	id: "google-gmail-connector",
-	// 	title: "Gmail",
-	// 	description: "Search through your emails",
-	// 	connectorType: EnumConnectorName.GOOGLE_GMAIL_CONNECTOR,
-	// 	authEndpoint: "/api/v1/auth/google/gmail/connector/add/",
-	// },
-	// {
-	// 	id: "google-calendar-connector",
-	// 	title: "Google Calendar",
-	// 	description: "Search through your events",
-	// 	connectorType: EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR,
-	// 	authEndpoint: "/api/v1/auth/google/calendar/connector/add/",
-	// },
+	{
+		id: "google-drive-connector",
+		title: "Google Drive",
+		description: "Search your Drive files",
+		connectorType: EnumConnectorName.GOOGLE_DRIVE_CONNECTOR,
+		authEndpoint: "/api/v1/auth/google/drive/connector/add/",
+		selfHostedOnly: true,
+	},
+	{
+		id: "google-gmail-connector",
+		title: "Gmail",
+		description: "Search through your emails",
+		connectorType: EnumConnectorName.GOOGLE_GMAIL_CONNECTOR,
+		authEndpoint: "/api/v1/auth/google/gmail/connector/add/",
+		selfHostedOnly: true,
+	},
+	{
+		id: "google-calendar-connector",
+		title: "Google Calendar",
+		description: "Search through your events",
+		connectorType: EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR,
+		authEndpoint: "/api/v1/auth/google/calendar/connector/add/",
+		selfHostedOnly: true,
+	},
 	{
 		id: "airtable-connector",
 		title: "Airtable",
@@ -58,6 +60,20 @@ export const OAUTH_CONNECTORS = [
 		description: "Search Teams messages",
 		connectorType: EnumConnectorName.TEAMS_CONNECTOR,
 		authEndpoint: "/api/v1/auth/teams/connector/add/",
+	},
+	{
+		id: "onedrive-connector",
+		title: "OneDrive",
+		description: "Search your OneDrive files",
+		connectorType: EnumConnectorName.ONEDRIVE_CONNECTOR,
+		authEndpoint: "/api/v1/auth/onedrive/connector/add/",
+	},
+	{
+		id: "dropbox-connector",
+		title: "Dropbox",
+		description: "Search your Dropbox files",
+		connectorType: EnumConnectorName.DROPBOX_CONNECTOR,
+		authEndpoint: "/api/v1/auth/dropbox/connector/add/",
 	},
 	{
 		id: "discord-connector",
@@ -100,7 +116,7 @@ export const CRAWLERS = [
 	{
 		id: "webcrawler-connector",
 		title: "Web Pages",
-		description: "Crawl web content",
+		description: "Index and periodically sync web content",
 		connectorType: EnumConnectorName.WEBCRAWLER_CONNECTOR,
 	},
 ] as const;
@@ -136,12 +152,6 @@ export const OTHER_CONNECTORS = [
 		title: "Tavily AI",
 		description: "Search with Tavily",
 		connectorType: EnumConnectorName.TAVILY_API,
-	},
-	{
-		id: "searxng",
-		title: "SearxNG",
-		description: "Search with SearxNG",
-		connectorType: EnumConnectorName.SEARXNG_API,
 	},
 	{
 		id: "linkup-api",
@@ -240,6 +250,96 @@ export const COMPOSIO_TOOLKITS = [
 		isIndexable: false,
 	},
 ] as const;
+
+export interface AutoIndexConfig {
+	daysBack: number;
+	daysForward: number;
+	frequencyMinutes: number;
+	syncDescription: string;
+}
+
+export const AUTO_INDEX_DEFAULTS: Record<string, AutoIndexConfig> = {
+	[EnumConnectorName.GOOGLE_GMAIL_CONNECTOR]: {
+		daysBack: 30,
+		daysForward: 0,
+		frequencyMinutes: 1440,
+		syncDescription: "Syncing your last 30 days of emails.",
+	},
+	[EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR]: {
+		daysBack: 30,
+		daysForward: 0,
+		frequencyMinutes: 1440,
+		syncDescription: "Syncing your last 30 days of emails.",
+	},
+	[EnumConnectorName.SLACK_CONNECTOR]: {
+		daysBack: 30,
+		daysForward: 0,
+		frequencyMinutes: 1440,
+		syncDescription: "Syncing your last 30 days of messages.",
+	},
+	[EnumConnectorName.DISCORD_CONNECTOR]: {
+		daysBack: 30,
+		daysForward: 0,
+		frequencyMinutes: 1440,
+		syncDescription: "Syncing your last 30 days of messages.",
+	},
+	[EnumConnectorName.TEAMS_CONNECTOR]: {
+		daysBack: 30,
+		daysForward: 0,
+		frequencyMinutes: 1440,
+		syncDescription: "Syncing your last 30 days of messages.",
+	},
+	[EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR]: {
+		daysBack: 90,
+		daysForward: 90,
+		frequencyMinutes: 1440,
+		syncDescription: "Syncing 90 days of past and upcoming events.",
+	},
+	[EnumConnectorName.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR]: {
+		daysBack: 90,
+		daysForward: 90,
+		frequencyMinutes: 1440,
+		syncDescription: "Syncing 90 days of past and upcoming events.",
+	},
+	[EnumConnectorName.LINEAR_CONNECTOR]: {
+		daysBack: 90,
+		daysForward: 0,
+		frequencyMinutes: 1440,
+		syncDescription: "Syncing your last 90 days of issues.",
+	},
+	[EnumConnectorName.JIRA_CONNECTOR]: {
+		daysBack: 90,
+		daysForward: 0,
+		frequencyMinutes: 1440,
+		syncDescription: "Syncing your last 90 days of issues.",
+	},
+	[EnumConnectorName.CLICKUP_CONNECTOR]: {
+		daysBack: 90,
+		daysForward: 0,
+		frequencyMinutes: 1440,
+		syncDescription: "Syncing your last 90 days of tasks.",
+	},
+	[EnumConnectorName.NOTION_CONNECTOR]: {
+		daysBack: 365,
+		daysForward: 0,
+		frequencyMinutes: 1440,
+		syncDescription: "Syncing your pages.",
+	},
+	[EnumConnectorName.CONFLUENCE_CONNECTOR]: {
+		daysBack: 365,
+		daysForward: 0,
+		frequencyMinutes: 1440,
+		syncDescription: "Syncing your documentation.",
+	},
+	[EnumConnectorName.AIRTABLE_CONNECTOR]: {
+		daysBack: 365,
+		daysForward: 0,
+		frequencyMinutes: 1440,
+		syncDescription: "Syncing your bases.",
+	},
+};
+
+export const AUTO_INDEX_CONNECTOR_TYPES = new Set<string>(Object.keys(AUTO_INDEX_DEFAULTS));
 
 // Re-export IndexingConfigState from schemas for backward compatibility
 export type { IndexingConfigState } from "./connector-popup.schemas";

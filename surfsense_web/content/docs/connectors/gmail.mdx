@@ -37,9 +37,15 @@ This guide walks you through setting up a Google OAuth 2.0 integration for SurfS
 
 1. Click **Add or Remove Scopes**
 2. Add the following scopes:
-   - `https://www.googleapis.com/auth/gmail.readonly` - Read Gmail messages
+   - `https://www.googleapis.com/auth/gmail.modify` - Read, compose, send, and permanently delete Gmail messages
    - `https://www.googleapis.com/auth/userinfo.email` - View user email address
+   - `https://www.googleapis.com/auth/userinfo.profile` - View user profile info
+   - `openid` - OpenID Connect authentication
 3. Click **Update** and then **Save and Continue**
+
+<Callout type="info">
+  The `gmail.modify` scope is required for HITL (Human-in-the-Loop) tools like sending emails, creating drafts, and trashing messages. If you only need read access, you can use `gmail.readonly` instead, but HITL tools will not work.
+</Callout>
 
 ## Step 4: Create OAuth Client ID
 
@@ -70,7 +76,7 @@ This guide walks you through setting up a Google OAuth 2.0 integration for SurfS
 
 ## Running SurfSense with Gmail Connector
 
-Add the Google OAuth credentials to your `.env` file (created during [Docker installation](/docs/docker-installation)):
+Add the Google OAuth credentials to your `.env` file (created during [Docker installation](/docs/docker-installation/docker-compose)):
 
 ```bash
 GOOGLE_OAUTH_CLIENT_ID=your_google_client_id

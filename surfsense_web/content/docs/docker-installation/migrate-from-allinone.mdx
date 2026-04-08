@@ -1,0 +1,114 @@
+---
+title: Migrate from the All-in-One Container
+description: How to migrate your data from the legacy surfsense all-in-one Docker image to the current multi-container setup
+---
+
+The original SurfSense all-in-one image (`ghcr.io/modsetter/surfsense:latest`, run via `docker-compose.quickstart.yml`) stored all data — PostgreSQL, Redis, and configuration — in a single Docker volume named `surfsense-data`. The current setup uses separate named volumes and has upgraded PostgreSQL from **version 14 to 17**.
+
+Because PostgreSQL data files are not compatible between major versions, a **logical dump and restore** is required. This is a one-time migration.
+
+<Callout type="warn">
+This guide only applies to users who ran the legacy `docker-compose.quickstart.yml` (the all-in-one `surfsense` container). If you were already using `docker/docker-compose.yml`, you do not need to migrate.
+</Callout>
+
+---
+
+## Option A — One command (recommended)
+
+`install.sh` detects the legacy `surfsense-data` volume and handles the full migration automatically — no separate migration script needed. Just run the same install command you would use for a fresh install:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
+```
+
+**What it does automatically:**
+
+1. Downloads all SurfSense files (including `migrate-database.sh`) into `./surfsense/`
+2. Detects the `surfsense-data` volume and enters migration mode
+3. Stops the old all-in-one container if it is still running
+4. Starts a temporary PostgreSQL 14 container and dumps your database
+5. Recovers your `SECRET_KEY` from the old volume
+6. Starts PostgreSQL 17, restores the dump, runs a smoke test
+7. Starts all services
+
+Your original `surfsense-data` volume is **never deleted** — you remove it manually after verifying.
+
+### After it completes
+
+1. Open [http://localhost:3000](http://localhost:3000) and confirm your data is intact.
+2. Once satisfied, remove the old volume (irreversible):
+   ```bash
+   docker volume rm surfsense-data
+   ```
+3. Delete the dump file once you no longer need it as a backup:
+   ```bash
+   rm ./surfsense_migration_backup.sql
+   ```
+
+### If the migration fails mid-way
+
+The dump file is saved to `./surfsense_migration_backup.sql` as a checkpoint. Simply re-run `install.sh` — it will detect the existing dump and skip straight to the restore step without re-extracting.
+
+---
+
+## Option B — Manual migration script (custom credentials)
+
+If you launched the old all-in-one container with custom database credentials (`POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` environment variables), the automatic path will use wrong credentials. Run `migrate-database.sh` manually first:
+
+```bash
+# 1. Extract data with your custom credentials
+bash ./surfsense/scripts/migrate-database.sh --db-user myuser --db-password mypass --db-name mydb
+
+# 2. Install and restore (detects the dump automatically)
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
+```
+
+Or download and run if you haven't run `install.sh` yet:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/migrate-database.sh -o migrate-database.sh
+bash migrate-database.sh --db-user myuser --db-password mypass --db-name mydb
+```
+
+### Migration script options
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--db-user USER` | Old PostgreSQL username | `surfsense` |
+| `--db-password PASS` | Old PostgreSQL password | `surfsense` |
+| `--db-name NAME` | Old PostgreSQL database | `surfsense` |
+| `--yes` / `-y` | Skip confirmation prompts (used automatically by `install.sh`) | — |
+
+---
+
+## Troubleshooting
+
+### `install.sh` runs normally with a blank database (no migration happened)
+
+The legacy volume was not detected. Confirm it exists:
+
+```bash
+docker volume ls | grep surfsense-data
+```
+
+If it doesn't appear, the old container may have used a different volume name. Check with:
+
+```bash
+docker volume ls | grep -i surfsense
+```
+
+### Extraction fails with permission errors
+
+The script detects the UID of the data files and runs the temporary PG14 container as that user. If you see permission errors in `./surfsense-migration.log`, run `migrate-database.sh` manually and check the log for details.
+
+### Cannot find `/data/.secret_key`
+
+The all-in-one entrypoint always writes the key to `/data/.secret_key` unless you explicitly set `SECRET_KEY=` as an environment variable. If the key is missing, the migration script auto-generates a new one (with a warning). You can update it manually in `./surfsense/.env` afterwards. Note that a new key invalidates all existing browser sessions — users will need to log in again.
+
+### Restore errors after re-running `install.sh`
+
+If `surfsense-postgres` volume already exists from a previous partial run, remove it before retrying:
+
+```bash
+docker volume rm surfsense-postgres
+```

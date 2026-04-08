@@ -6,11 +6,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { type ExternalToast, toast } from "sonner";
 import { registerMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
 import { Logo } from "@/components/Logo";
 import { Spinner } from "@/components/ui/spinner";
 import { getAuthErrorDetails, isNetworkError, shouldRetry } from "@/lib/auth-errors";
+import { getBearerToken } from "@/lib/auth-utils";
 import { AUTH_TYPE } from "@/lib/env-config";
 import { AppError, ValidationError } from "@/lib/error";
 import {
@@ -38,14 +39,21 @@ export default function RegisterPage() {
 
 	// Check authentication type and redirect if not LOCAL
 	useEffect(() => {
+		if (getBearerToken()) {
+			router.replace("/dashboard");
+			return;
+		}
 		if (AUTH_TYPE !== "LOCAL") {
 			router.push("/login");
 		}
 	}, [router]);
 
-	const handleSubmit = async (e: React.FormEvent) => {
+	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
+		submitForm();
+	};
 
+	const submitForm = async () => {
 		// Form validation
 		if (password !== confirmPassword) {
 			setError({ title: t("password_mismatch"), message: t("passwords_no_match_desc") });
@@ -131,7 +139,7 @@ export default function RegisterPage() {
 			setError({ title: errorDetails.title, message: errorDetails.description });
 
 			// Show error toast with conditional retry action
-			const toastOptions: any = {
+			const toastOptions: ExternalToast = {
 				description: errorDetails.description,
 				duration: 6000,
 			};
@@ -140,7 +148,7 @@ export default function RegisterPage() {
 			if (shouldRetry(errorCode)) {
 				toastOptions.action = {
 					label: tCommon("retry"),
-					onClick: () => handleSubmit(e),
+					onClick: () => submitForm(),
 				};
 			}
 
@@ -152,7 +160,7 @@ export default function RegisterPage() {
 		<div className="relative w-full overflow-hidden">
 			<AmbientBackground />
 			<div className="mx-auto flex h-screen max-w-lg flex-col items-center justify-center px-6 md:px-0">
-				<Logo className="h-16 w-16 md:h-32 md:w-32 rounded-md transition-all" />
+				<Logo priority className="h-16 w-16 md:h-32 md:w-32 rounded-md transition-all" />
 				<h1 className="mt-4 mb-6 text-xl font-bold text-neutral-800 dark:text-neutral-100 md:mt-8 md:mb-8 md:text-3xl lg:text-4xl transition-all">
 					{t("create_account")}
 				</h1>
@@ -221,44 +229,42 @@ export default function RegisterPage() {
 						</AnimatePresence>
 
 						<div>
-							<label
-								htmlFor="email"
-								className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-							>
+							<label htmlFor="email" className="block text-sm font-medium text-foreground">
 								{t("email")}
 							</label>
 							<input
 								id="email"
 								type="email"
+								autoComplete="email"
 								required
+								placeholder="you@example.com"
 								value={email}
 								onChange={(e) => setEmail(e.target.value)}
-								className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:bg-gray-800 dark:text-white transition-all ${
+								className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-1 bg-background text-foreground transition-all ${
 									error.title
-										? "border-red-300 focus:border-red-500 focus:ring-red-500 dark:border-red-700"
-										: "border-gray-300 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700"
+										? "border-destructive focus:border-destructive focus:ring-destructive/40"
+										: "border-border focus:border-primary focus:ring-primary/40"
 								}`}
 								disabled={isRegistering}
 							/>
 						</div>
 
 						<div>
-							<label
-								htmlFor="password"
-								className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-							>
+							<label htmlFor="password" className="block text-sm font-medium text-foreground">
 								{t("password")}
 							</label>
 							<input
 								id="password"
 								type="password"
+								autoComplete="new-password"
 								required
+								placeholder="Enter your password"
 								value={password}
 								onChange={(e) => setPassword(e.target.value)}
-								className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:bg-gray-800 dark:text-white transition-all ${
+								className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-1 bg-background text-foreground transition-all ${
 									error.title
-										? "border-red-300 focus:border-red-500 focus:ring-red-500 dark:border-red-700"
-										: "border-gray-300 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700"
+										? "border-destructive focus:border-destructive focus:ring-destructive/40"
+										: "border-border focus:border-primary focus:ring-primary/40"
 								}`}
 								disabled={isRegistering}
 							/>
@@ -267,20 +273,22 @@ export default function RegisterPage() {
 						<div>
 							<label
 								htmlFor="confirmPassword"
-								className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+								className="block text-sm font-medium text-foreground"
 							>
 								{t("confirm_password")}
 							</label>
 							<input
 								id="confirmPassword"
 								type="password"
+								autoComplete="new-password"
 								required
+								placeholder="Confirm your password"
 								value={confirmPassword}
 								onChange={(e) => setConfirmPassword(e.target.value)}
-								className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:bg-gray-800 dark:text-white transition-all ${
+								className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-1 bg-background text-foreground transition-all ${
 									error.title
-										? "border-red-300 focus:border-red-500 focus:ring-red-500 dark:border-red-700"
-										: "border-gray-300 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700"
+										? "border-destructive focus:border-destructive focus:ring-destructive/40"
+										: "border-border focus:border-primary focus:ring-primary/40"
 								}`}
 								disabled={isRegistering}
 							/>
@@ -289,26 +297,21 @@ export default function RegisterPage() {
 						<button
 							type="submit"
 							disabled={isRegistering}
-							className="w-full rounded-md bg-blue-600 px-4 py-1.5 md:py-2 text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all text-sm md:text-base flex items-center justify-center gap-2"
+							className="relative w-full rounded-md bg-primary px-4 py-1.5 md:py-2 text-primary-foreground shadow-sm hover:bg-primary/90 focus:outline-none focus:ring-1 focus:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50 transition-all text-sm md:text-base flex items-center justify-center gap-2"
 						>
-							{isRegistering ? (
-								<>
+							<span className={isRegistering ? "invisible" : ""}>{t("register")}</span>
+							{isRegistering && (
+								<span className="absolute inset-0 flex items-center justify-center gap-2">
 									<Spinner size="sm" className="text-white" />
-									<span>{t("creating_account_btn")}</span>
-								</>
-							) : (
-								t("register")
+								</span>
 							)}
 						</button>
 					</form>
 
 					<div className="mt-4 text-center text-sm">
-						<p className="text-gray-600 dark:text-gray-400">
+						<p className="text-muted-foreground">
 							{t("already_have_account")}{" "}
-							<Link
-								href="/login"
-								className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
-							>
+							<Link href="/login" className="font-medium text-primary hover:text-primary/90">
 								{t("sign_in")}
 							</Link>
 						</p>

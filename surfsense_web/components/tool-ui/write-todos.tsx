@@ -1,6 +1,6 @@
 "use client";
 
-import { makeAssistantToolUI, useAssistantState } from "@assistant-ui/react";
+import { type ToolCallMessagePartProps, useAuiState } from "@assistant-ui/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useMemo } from "react";
 import { z } from "zod";
@@ -63,96 +63,98 @@ function WriteTodosLoading() {
  * only the FIRST component renders. Subsequent updates just update the
  * shared state, and the first component reads from it.
  */
-export const WriteTodosToolUI = makeAssistantToolUI<WriteTodosData, WriteTodosData>({
-	toolName: "write_todos",
-	render: function WriteTodosUI({ args, result, status, toolCallId }) {
-		const updatePlanState = useSetAtom(updatePlanStateAtom);
-		const planStates = useAtomValue(planStatesAtom);
+export const WriteTodosToolUI = ({
+	args,
+	result,
+	status,
+	toolCallId,
+}: ToolCallMessagePartProps<WriteTodosData, WriteTodosData>) => {
+	const updatePlanState = useSetAtom(updatePlanStateAtom);
+	const planStates = useAtomValue(planStatesAtom);
 
-		// Check if the THREAD is running
-		const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
+	// Check if the THREAD is running
+	const isThreadRunning = useAuiState(({ thread }) => thread.isRunning);
 
-		// Use result if available, otherwise args (for streaming)
-		const data = result || args;
-		const hasTodos = data?.todos && data.todos.length > 0;
+	// Use result if available, otherwise args (for streaming)
+	const data = result || args;
+	const hasTodos = data?.todos && data.todos.length > 0;
 
-		// Fixed title for all plans in conversation
-		const planTitle = "Plan";
+	// Fixed title for all plans in conversation
+	const planTitle = "Plan";
 
-		// SYNCHRONOUS ownership check
-		const isOwner = useMemo(() => {
-			return registerPlanOwner(planTitle, toolCallId);
-		}, [planTitle, toolCallId]);
+	// SYNCHRONOUS ownership check
+	const isOwner = useMemo(() => {
+		return registerPlanOwner(planTitle, toolCallId);
+	}, [planTitle, toolCallId]);
 
-		// Get canonical title
-		const canonicalTitle = useMemo(() => getCanonicalPlanTitle(planTitle), [planTitle]);
+	// Get canonical title
+	const canonicalTitle = useMemo(() => getCanonicalPlanTitle(planTitle), [planTitle]);
 
-		// Register/update the plan state
-		useEffect(() => {
-			if (hasTodos) {
-				const normalizedPlan = parseSerializablePlan({ todos: data.todos });
-				updatePlanState({
-					id: normalizedPlan.id,
-					title: canonicalTitle,
-					todos: normalizedPlan.todos,
-					toolCallId,
-				});
-			}
-		}, [data, hasTodos, canonicalTitle, updatePlanState, toolCallId]);
-
-		// Get the current plan state
-		const currentPlanState = planStates.get(canonicalTitle);
-
-		// If we're NOT the owner, render nothing
-		if (!isOwner) {
-			return null;
+	// Register/update the plan state
+	useEffect(() => {
+		if (hasTodos) {
+			const normalizedPlan = parseSerializablePlan({ todos: data.todos });
+			updatePlanState({
+				id: normalizedPlan.id,
+				title: canonicalTitle,
+				todos: normalizedPlan.todos,
+				toolCallId,
+			});
 		}
+	}, [data, hasTodos, canonicalTitle, updatePlanState, toolCallId]);
 
-		// Loading state
-		if (status.type === "running" || status.type === "requires-action") {
-			if (hasTodos) {
-				const plan = parseSerializablePlan({ todos: data.todos });
-				return (
-					<div className="my-4">
-						<PlanErrorBoundary>
-							<Plan {...plan} showProgress={true} isStreaming={isThreadRunning} />
-						</PlanErrorBoundary>
-					</div>
-				);
-			}
-			return <WriteTodosLoading />;
+	// Get the current plan state
+	const currentPlanState = planStates.get(canonicalTitle);
+
+	// If we're NOT the owner, render nothing
+	if (!isOwner) {
+		return null;
+	}
+
+	// Loading state
+	if (status.type === "running" || status.type === "requires-action") {
+		if (hasTodos) {
+			const plan = parseSerializablePlan({ todos: data.todos });
+			return (
+				<div className="my-4">
+					<PlanErrorBoundary>
+						<Plan {...plan} showProgress={true} isStreaming={isThreadRunning} />
+					</PlanErrorBoundary>
+				</div>
+			);
 		}
+		return <WriteTodosLoading />;
+	}
 
-		// Incomplete/cancelled state
-		if (status.type === "incomplete") {
-			if (currentPlanState || hasTodos) {
-				const plan = currentPlanState || parseSerializablePlan({ todos: data?.todos || [] });
-				return (
-					<div className="my-4">
-						<PlanErrorBoundary>
-							<Plan {...plan} showProgress={true} isStreaming={isThreadRunning} />
-						</PlanErrorBoundary>
-					</div>
-				);
-			}
-			return null;
+	// Incomplete/cancelled state
+	if (status.type === "incomplete") {
+		if (currentPlanState || hasTodos) {
+			const plan = currentPlanState || parseSerializablePlan({ todos: data?.todos || [] });
+			return (
+				<div className="my-4">
+					<PlanErrorBoundary>
+						<Plan {...plan} showProgress={true} isStreaming={isThreadRunning} />
+					</PlanErrorBoundary>
+				</div>
+			);
 		}
+		return null;
+	}
 
-		// Success - render the plan
-		const planToRender =
-			currentPlanState || (hasTodos ? parseSerializablePlan({ todos: data.todos }) : null);
-		if (!planToRender) {
-			return <WriteTodosLoading />;
-		}
+	// Success - render the plan
+	const planToRender =
+		currentPlanState || (hasTodos ? parseSerializablePlan({ todos: data.todos }) : null);
+	if (!planToRender) {
+		return <WriteTodosLoading />;
+	}
 
-		return (
-			<div className="my-4">
-				<PlanErrorBoundary>
-					<Plan {...planToRender} showProgress={true} isStreaming={isThreadRunning} />
-				</PlanErrorBoundary>
-			</div>
-		);
-	},
-});
+	return (
+		<div className="my-4">
+			<PlanErrorBoundary>
+				<Plan {...planToRender} showProgress={true} isStreaming={isThreadRunning} />
+			</PlanErrorBoundary>
+		</div>
+	);
+};
 
 export { WriteTodosSchema, type WriteTodosData };

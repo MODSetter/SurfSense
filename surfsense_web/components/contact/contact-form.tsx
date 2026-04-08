@@ -161,7 +161,7 @@ export const FeatureIconContainer = ({
 	);
 };
 
-export const Grid = ({ pattern, size }: { pattern?: number[][]; size?: number }) => {
+export const Grid = ({ pattern, size }: { pattern?: [number, number][]; size?: number }) => {
 	const p = pattern ?? [
 		[9, 3],
 		[8, 5],
@@ -185,7 +185,20 @@ export const Grid = ({ pattern, size }: { pattern?: number[][]; size?: number })
 	);
 };
 
-export function GridPattern({ width, height, x, y, squares, ...props }: any) {
+export function GridPattern({
+	width,
+	height,
+	x,
+	y,
+	squares,
+	...props
+}: React.ComponentProps<"svg"> & {
+	width: number;
+	height: number;
+	x: string | number;
+	y: string | number;
+	squares?: [number, number][];
+}) {
 	const patternId = useId();
 
 	return (
@@ -205,7 +218,7 @@ export function GridPattern({ width, height, x, y, squares, ...props }: any) {
 			<rect width="100%" height="100%" strokeWidth={0} fill={`url(#${patternId})`} />
 			{squares && (
 				<svg aria-hidden="true" x={x} y={y} className="overflow-visible">
-					{squares.map(([x, y]: any, idx: number) => (
+					{squares.map(([x, y]: [number, number], idx: number) => (
 						<rect
 							strokeWidth="0"
 							key={`${x}-${y}-${idx}`}

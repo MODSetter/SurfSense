@@ -37,8 +37,12 @@ This guide walks you through setting up a Google OAuth 2.0 integration for SurfS
 
 1. Click **Add or Remove Scopes**
 2. Add the following scope:
-   - `https://www.googleapis.com/auth/calendar.readonly` - Read Google Calendar events
+   - `https://www.googleapis.com/auth/calendar.events` - Read, create, update, and delete Google Calendar events
 3. Click **Update** and then **Save and Continue**
+
+<Callout type="info">
+  The `calendar.events` scope is required for HITL (Human-in-the-Loop) tools like creating, updating, and deleting calendar events. If you only need read access, you can use `calendar.readonly` instead, but HITL tools will not work.
+</Callout>
 
 ## Step 4: Create OAuth Client ID
 
@@ -69,7 +73,7 @@ This guide walks you through setting up a Google OAuth 2.0 integration for SurfS
 
 ## Running SurfSense with Google Calendar Connector
 
-Add the Google OAuth credentials to your `.env` file (created during [Docker installation](/docs/docker-installation)):
+Add the Google OAuth credentials to your `.env` file (created during [Docker installation](/docs/docker-installation/docker-compose)):
 
 ```bash
 GOOGLE_OAUTH_CLIENT_ID=your_google_client_id

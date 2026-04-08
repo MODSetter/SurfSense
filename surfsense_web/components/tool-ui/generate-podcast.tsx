@@ -1,12 +1,17 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
-import { AlertCircleIcon, MicIcon } from "lucide-react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { useParams, usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Audio } from "@/components/tool-ui/audio";
-import { Spinner } from "@/components/ui/spinner";
+import {
+	Accordion,
+	AccordionContent,
+	AccordionItem,
+	AccordionTrigger,
+} from "@/components/ui/accordion";
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import { clearActivePodcastTaskId, setActivePodcastTaskId } from "@/lib/chat/podcast-state";
@@ -92,82 +97,38 @@ function parsePodcastDetails(data: unknown): { podcast_transcript?: PodcastTrans
 	};
 }
 
-/**
- * Loading state component shown while podcast is being generated
- */
 function PodcastGeneratingState({ title }: { title: string }) {
 	return (
-		<div className="my-4 overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 p-4 sm:p-6">
-			<div className="flex items-center gap-3 sm:gap-4">
-				<div className="relative shrink-0">
-					<div className="flex size-12 sm:size-16 items-center justify-center rounded-full bg-primary/20">
-						<MicIcon className="size-6 sm:size-8 text-primary" />
-					</div>
-					{/* Animated rings */}
-					<div className="absolute inset-1 animate-ping rounded-full bg-primary/20" />
-				</div>
-				<div className="flex-1 min-w-0">
-					<h3 className="font-semibold text-foreground text-sm sm:text-lg leading-tight">
-						{title}
-					</h3>
-					<div className="mt-1.5 sm:mt-2 flex items-center gap-1.5 sm:gap-2 text-muted-foreground">
-						<Spinner size="sm" className="size-3 sm:size-4" />
-						<span className="text-xs sm:text-sm">
-							Generating podcast. This may take a few minutes.
-						</span>
-					</div>
-					<div className="mt-2 sm:mt-3">
-						<div className="h-1 sm:h-1.5 w-full overflow-hidden rounded-full bg-primary/10">
-							<div className="h-full w-1/3 animate-pulse rounded-full bg-primary" />
-						</div>
-					</div>
-				</div>
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-foreground line-clamp-2">{title}</p>
+				<TextShimmerLoader text="Generating podcast" size="sm" />
 			</div>
 		</div>
 	);
 }
 
-/**
- * Error state component shown when podcast generation fails
- */
 function PodcastErrorState({ title, error }: { title: string; error: string }) {
 	return (
-		<div className="my-4 overflow-hidden rounded-xl border border-destructive/20 bg-destructive/5 p-4 sm:p-6">
-			<div className="flex items-center gap-3 sm:gap-4">
-				<div className="flex size-12 sm:size-16 shrink-0 items-center justify-center rounded-full bg-destructive/10">
-					<AlertCircleIcon className="size-6 sm:size-8 text-destructive" />
-				</div>
-				<div className="flex-1 min-w-0">
-					<h3 className="font-semibold text-foreground text-sm sm:text-base leading-tight">
-						{title}
-					</h3>
-					<p className="mt-1 text-destructive text-xs sm:text-sm">Failed to generate podcast</p>
-					<p className="mt-1.5 sm:mt-2 text-muted-foreground text-xs sm:text-sm">{error}</p>
-				</div>
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-destructive">Podcast Generation Failed</p>
+			</div>
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 py-4">
+				<p className="text-sm font-medium text-foreground line-clamp-2">{title}</p>
+				<p className="text-sm text-muted-foreground mt-1">{error}</p>
 			</div>
 		</div>
 	);
 }
 
-/**
- * Audio loading state component
- */
 function AudioLoadingState({ title }: { title: string }) {
 	return (
-		<div className="my-4 overflow-hidden rounded-xl border bg-muted/30 p-4 sm:p-6">
-			<div className="flex items-center gap-3 sm:gap-4">
-				<div className="flex size-12 sm:size-16 shrink-0 items-center justify-center rounded-full bg-primary/10">
-					<MicIcon className="size-6 sm:size-8 text-primary/50" />
-				</div>
-				<div className="flex-1 min-w-0">
-					<h3 className="font-semibold text-foreground text-sm sm:text-base leading-tight">
-						{title}
-					</h3>
-					<div className="mt-1.5 sm:mt-2 flex items-center gap-1.5 sm:gap-2 text-muted-foreground">
-						<Spinner size="sm" className="size-3 sm:size-4" />
-						<span className="text-xs sm:text-sm">Loading audio...</span>
-					</div>
-				</div>
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-foreground line-clamp-2">{title}</p>
+				<TextShimmerLoader text="Loading audio" size="sm" />
 			</div>
 		</div>
 	);
@@ -176,12 +137,10 @@ function AudioLoadingState({ title }: { title: string }) {
 function PodcastPlayer({
 	podcastId,
 	title,
-	description,
 	durationMs,
 }: {
 	podcastId: number;
 	title: string;
-	description: string;
 	durationMs?: number;
 }) {
 	const params = useParams();
@@ -289,31 +248,40 @@ function PodcastPlayer({
 		return <PodcastErrorState title={title} error={error || "Failed to load audio"} />;
 	}
 
+	const hasTranscript = transcript && transcript.length > 0;
+
 	return (
 		<div className="my-4">
 			<Audio
 				id={`podcast-${podcastId}`}
 				src={audioSrc}
 				title={title}
-				description={description}
 				durationMs={durationMs}
-				className="w-full"
+				className={hasTranscript ? "rounded-b-none border-b-0" : undefined}
 			/>
-			{/* Transcript section */}
-			{transcript && transcript.length > 0 && (
-				<details className="mt-2 sm:mt-3 rounded-lg border bg-muted/30 p-2.5 sm:p-3">
-					<summary className="cursor-pointer font-medium text-muted-foreground text-xs sm:text-sm hover:text-foreground">
-						View transcript ({transcript.length} entries)
-					</summary>
-					<div className="mt-2 sm:mt-3 space-y-2 sm:space-y-3 max-h-64 sm:max-h-96 overflow-y-auto">
-						{transcript.map((entry, idx) => (
-							<div key={`${idx}-${entry.speaker_id}`} className="text-xs sm:text-sm">
-								<span className="font-medium text-primary">Speaker {entry.speaker_id + 1}:</span>{" "}
-								<span className="text-muted-foreground">{entry.dialog}</span>
-							</div>
-						))}
-					</div>
-				</details>
+			{hasTranscript && (
+				<div className="max-w-lg overflow-hidden rounded-b-2xl border border-t-0 bg-muted/30 select-none">
+					<div className="mx-5 h-px bg-border/50" />
+					<Accordion type="single" collapsible className="px-5">
+						<AccordionItem value="transcript" className="border-b-0">
+							<AccordionTrigger className="py-3 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground hover:no-underline">
+								View transcript
+							</AccordionTrigger>
+							<AccordionContent className="pb-0">
+								<div className="space-y-2 max-h-64 sm:max-h-96 overflow-y-auto select-text">
+									{transcript.map((entry, idx) => (
+										<div key={`${idx}-${entry.speaker_id}`} className="text-xs sm:text-sm">
+											<span className="font-medium text-primary">
+												Speaker {entry.speaker_id + 1}:
+											</span>{" "}
+											<span className="text-muted-foreground">{entry.dialog}</span>
+										</div>
+									))}
+								</div>
+							</AccordionContent>
+						</AccordionItem>
+					</Accordion>
+				</div>
 			)}
 		</div>
 	);
@@ -389,17 +357,7 @@ function PodcastStatusPoller({ podcastId, title }: { podcastId: number; title: s
 
 	// Show player when ready
 	if (podcastStatus.status === "ready") {
-		return (
-			<PodcastPlayer
-				podcastId={podcastStatus.id}
-				title={podcastStatus.title || title}
-				description={
-					podcastStatus.transcript_entries
-						? `${podcastStatus.transcript_entries} dialogue entries`
-						: "SurfSense AI-generated podcast"
-				}
-			/>
-		);
+		return <PodcastPlayer podcastId={podcastStatus.id} title={podcastStatus.title || title} />;
 	}
 
 	// Fallback
@@ -414,117 +372,91 @@ function PodcastStatusPoller({ podcastId, title }: { podcastId: number; title: s
  *
  * It polls for task completion and auto-updates when the podcast is ready.
  */
-export const GeneratePodcastToolUI = makeAssistantToolUI<
-	GeneratePodcastArgs,
-	GeneratePodcastResult
->({
-	toolName: "generate_podcast",
-	render: function GeneratePodcastUI({ args, result, status }) {
-		const title = args.podcast_title || "SurfSense Podcast";
+export const GeneratePodcastToolUI = ({
+	args,
+	result,
+	status,
+}: ToolCallMessagePartProps<GeneratePodcastArgs, GeneratePodcastResult>) => {
+	const title = args.podcast_title || "SurfSense Podcast";
 
-		// Loading state - tool is still running (agent processing)
-		if (status.type === "running" || status.type === "requires-action") {
-			return <PodcastGeneratingState title={title} />;
-		}
+	// Loading state - tool is still running (agent processing)
+	if (status.type === "running" || status.type === "requires-action") {
+		return <PodcastGeneratingState title={title} />;
+	}
 
-		// Incomplete/cancelled state
-		if (status.type === "incomplete") {
-			if (status.reason === "cancelled") {
-				return (
-					<div className="my-4 rounded-xl border border-muted p-3 sm:p-4 text-muted-foreground">
-						<p className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
-							<MicIcon className="size-3.5 sm:size-4" />
-							<span className="line-through">Podcast generation cancelled</span>
-						</p>
-					</div>
-				);
-			}
-			if (status.reason === "error") {
-				return (
-					<PodcastErrorState
-						title={title}
-						error={typeof status.error === "string" ? status.error : "An error occurred"}
-					/>
-				);
-			}
-		}
-
-		// No result yet
-		if (!result) {
-			return <PodcastGeneratingState title={title} />;
-		}
-
-		// Failed result (new: "failed", legacy: "error")
-		if (result.status === "failed" || result.status === "error") {
-			return <PodcastErrorState title={title} error={result.error || "Generation failed"} />;
-		}
-
-		// Already generating - show simple warning, don't create another poller
-		// The FIRST tool call will display the podcast when ready
-		// (new: "generating", legacy: "already_generating")
-		if (result.status === "generating" || result.status === "already_generating") {
+	// Incomplete/cancelled state
+	if (status.type === "incomplete") {
+		if (status.reason === "cancelled") {
 			return (
-				<div className="my-4 overflow-hidden rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 sm:p-4">
-					<div className="flex items-center gap-2.5 sm:gap-3">
-						<div className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full bg-amber-500/20">
-							<MicIcon className="size-4 sm:size-5 text-amber-500" />
-						</div>
-						<div className="min-w-0">
-							<p className="text-amber-600 dark:text-amber-400 text-xs sm:text-sm font-medium">
-								Podcast already in progress
-							</p>
-							<p className="text-muted-foreground text-[10px] sm:text-xs mt-0.5">
-								Please wait for the current podcast to complete.
-							</p>
-						</div>
+				<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+					<div className="px-5 pt-5 pb-4">
+						<p className="text-sm font-semibold text-muted-foreground">Podcast Cancelled</p>
+						<p className="text-xs text-muted-foreground mt-0.5">Podcast generation was cancelled</p>
 					</div>
 				</div>
 			);
 		}
-
-		// Pending - poll for completion (new: "pending" with podcast_id)
-		if (result.status === "pending" && result.podcast_id) {
-			return <PodcastStatusPoller podcastId={result.podcast_id} title={result.title || title} />;
-		}
-
-		// Ready with podcast_id (new: "ready", legacy: "success")
-		if ((result.status === "ready" || result.status === "success") && result.podcast_id) {
+		if (status.reason === "error") {
 			return (
-				<PodcastPlayer
-					podcastId={result.podcast_id}
-					title={result.title || title}
-					description={
-						result.transcript_entries
-							? `${result.transcript_entries} dialogue entries`
-							: "SurfSense AI-generated podcast"
-					}
+				<PodcastErrorState
+					title={title}
+					error={typeof status.error === "string" ? status.error : "An error occurred"}
 				/>
 			);
 		}
+	}
 
-		// Legacy: old chats with Celery task_id (status: "processing" or "success" without podcast_id)
-		// These can't be recovered since the old task polling endpoint no longer exists
-		if (result.task_id && !result.podcast_id) {
-			return (
-				<div className="my-4 overflow-hidden rounded-xl border border-muted p-4">
-					<div className="flex items-center gap-3">
-						<div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
-							<MicIcon className="size-5 text-muted-foreground" />
-						</div>
-						<div>
-							<p className="text-muted-foreground text-sm">
-								This podcast was generated with an older version and cannot be displayed.
-							</p>
-							<p className="text-muted-foreground text-xs mt-0.5">
-								Please generate a new podcast to listen.
-							</p>
-						</div>
-					</div>
+	// No result yet
+	if (!result) {
+		return <PodcastGeneratingState title={title} />;
+	}
+
+	// Failed result (new: "failed", legacy: "error")
+	if (result.status === "failed" || result.status === "error") {
+		return <PodcastErrorState title={title} error={result.error || "Generation failed"} />;
+	}
+
+	// Already generating - show simple warning, don't create another poller
+	// The FIRST tool call will display the podcast when ready
+	// (new: "generating", legacy: "already_generating")
+	if (result.status === "generating" || result.status === "already_generating") {
+		return (
+			<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+				<div className="px-5 pt-5 pb-4">
+					<p className="text-sm font-semibold text-foreground">Podcast already in progress</p>
+					<p className="text-xs text-muted-foreground mt-0.5">
+						Please wait for the current podcast to complete.
+					</p>
 				</div>
-			);
-		}
+			</div>
+		);
+	}
 
-		// Fallback - missing required data
-		return <PodcastErrorState title={title} error="Missing podcast ID" />;
-	},
-});
+	// Pending - poll for completion (new: "pending" with podcast_id)
+	if (result.status === "pending" && result.podcast_id) {
+		return <PodcastStatusPoller podcastId={result.podcast_id} title={result.title || title} />;
+	}
+
+	// Ready with podcast_id (new: "ready", legacy: "success")
+	if ((result.status === "ready" || result.status === "success") && result.podcast_id) {
+		return <PodcastPlayer podcastId={result.podcast_id} title={result.title || title} />;
+	}
+
+	// Legacy: old chats with Celery task_id (status: "processing" or "success" without podcast_id)
+	// These can't be recovered since the old task polling endpoint no longer exists
+	if (result.task_id && !result.podcast_id) {
+		return (
+			<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+				<div className="px-5 pt-5 pb-4">
+					<p className="text-sm font-semibold text-muted-foreground">Podcast Unavailable</p>
+					<p className="text-xs text-muted-foreground mt-0.5">
+						This podcast was generated with an older version. Please generate a new one.
+					</p>
+				</div>
+			</div>
+		);
+	}
+
+	// Fallback - missing required data
+	return <PodcastErrorState title={title} error="Missing podcast ID" />;
+};

@@ -102,6 +102,44 @@ def load_global_image_gen_configs():
         return []
 
 
+def load_global_vision_llm_configs():
+    global_config_file = BASE_DIR / "app" / "config" / "global_llm_config.yaml"
+
+    if not global_config_file.exists():
+        return []
+
+    try:
+        with open(global_config_file, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+            return data.get("global_vision_llm_configs", [])
+    except Exception as e:
+        print(f"Warning: Failed to load global vision LLM configs: {e}")
+        return []
+
+
+def load_vision_llm_router_settings():
+    default_settings = {
+        "routing_strategy": "usage-based-routing",
+        "num_retries": 3,
+        "allowed_fails": 3,
+        "cooldown_time": 60,
+    }
+
+    global_config_file = BASE_DIR / "app" / "config" / "global_llm_config.yaml"
+
+    if not global_config_file.exists():
+        return default_settings
+
+    try:
+        with open(global_config_file, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+            settings = data.get("vision_llm_router_settings", {})
+            return {**default_settings, **settings}
+    except Exception as e:
+        print(f"Warning: Failed to load vision LLM router settings: {e}")
+        return default_settings
+
+
 def load_image_gen_router_settings():
     """
     Load router settings for image generation Auto mode from YAML file.
@@ -182,6 +220,29 @@ def initialize_image_gen_router():
         print(f"Warning: Failed to initialize Image Generation Router: {e}")
 
 
+def initialize_vision_llm_router():
+    vision_configs = load_global_vision_llm_configs()
+    router_settings = load_vision_llm_router_settings()
+
+    if not vision_configs:
+        print(
+            "Info: No global vision LLM configs found, "
+            "Vision LLM Auto mode will not be available"
+        )
+        return
+
+    try:
+        from app.services.vision_llm_router_service import VisionLLMRouterService
+
+        VisionLLMRouterService.initialize(vision_configs, router_settings)
+        print(
+            f"Info: Vision LLM Router initialized with {len(vision_configs)} models "
+            f"(strategy: {router_settings.get('routing_strategy', 'usage-based-routing')})"
+        )
+    except Exception as e:
+        print(f"Warning: Failed to initialize Vision LLM Router: {e}")
+
+
 class Config:
     # Check if ffmpeg is installed
     if not is_ffmpeg_installed():
@@ -224,9 +285,27 @@ class Config:
         os.getenv("CONNECTOR_INDEXING_LOCK_TTL_SECONDS", str(8 * 60 * 60))
     )
 
+    # Platform web search (SearXNG)
+    SEARXNG_DEFAULT_HOST = os.getenv("SEARXNG_DEFAULT_HOST")
+
     NEXT_FRONTEND_URL = os.getenv("NEXT_FRONTEND_URL")
     # Backend URL to override the http to https in the OAuth redirect URI
     BACKEND_URL = os.getenv("BACKEND_URL")
+
+    # Stripe checkout for pay-as-you-go page packs
+    STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+    STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+    STRIPE_PRICE_ID = os.getenv("STRIPE_PRICE_ID")
+    STRIPE_PAGES_PER_UNIT = int(os.getenv("STRIPE_PAGES_PER_UNIT", "1000"))
+    STRIPE_PAGE_BUYING_ENABLED = (
+        os.getenv("STRIPE_PAGE_BUYING_ENABLED", "TRUE").upper() == "TRUE"
+    )
+    STRIPE_RECONCILIATION_LOOKBACK_MINUTES = int(
+        os.getenv("STRIPE_RECONCILIATION_LOOKBACK_MINUTES", "10")
+    )
+    STRIPE_RECONCILIATION_BATCH_SIZE = int(
+        os.getenv("STRIPE_RECONCILIATION_BATCH_SIZE", "100")
+    )
 
     # Auth
     AUTH_TYPE = os.getenv("AUTH_TYPE")
@@ -235,6 +314,7 @@ class Config:
     # Google OAuth
     GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
     GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
+    GOOGLE_PICKER_API_KEY = os.getenv("GOOGLE_PICKER_API_KEY")
 
     # Google Calendar redirect URI
     GOOGLE_CALENDAR_REDIRECT_URI = os.getenv("GOOGLE_CALENDAR_REDIRECT_URI")
@@ -277,15 +357,21 @@ class Config:
     DISCORD_REDIRECT_URI = os.getenv("DISCORD_REDIRECT_URI")
     DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
-    # Microsoft Teams OAuth
-    TEAMS_CLIENT_ID = os.getenv("TEAMS_CLIENT_ID")
-    TEAMS_CLIENT_SECRET = os.getenv("TEAMS_CLIENT_SECRET")
+    # Microsoft OAuth (shared for Teams and OneDrive)
+    MICROSOFT_CLIENT_ID = os.getenv("MICROSOFT_CLIENT_ID")
+    MICROSOFT_CLIENT_SECRET = os.getenv("MICROSOFT_CLIENT_SECRET")
     TEAMS_REDIRECT_URI = os.getenv("TEAMS_REDIRECT_URI")
+    ONEDRIVE_REDIRECT_URI = os.getenv("ONEDRIVE_REDIRECT_URI")
 
     # ClickUp OAuth
     CLICKUP_CLIENT_ID = os.getenv("CLICKUP_CLIENT_ID")
     CLICKUP_CLIENT_SECRET = os.getenv("CLICKUP_CLIENT_SECRET")
     CLICKUP_REDIRECT_URI = os.getenv("CLICKUP_REDIRECT_URI")
+
+    # Dropbox OAuth
+    DROPBOX_APP_KEY = os.getenv("DROPBOX_APP_KEY")
+    DROPBOX_APP_SECRET = os.getenv("DROPBOX_APP_SECRET")
+    DROPBOX_REDIRECT_URI = os.getenv("DROPBOX_REDIRECT_URI")
 
     # Composio Configuration (for managed OAuth integrations)
     # Get your API key from https://app.composio.dev
@@ -310,6 +396,12 @@ class Config:
     # Router settings for Image Generation Auto mode
     IMAGE_GEN_ROUTER_SETTINGS = load_image_gen_router_settings()
 
+    # Global Vision LLM Configurations (optional)
+    GLOBAL_VISION_LLM_CONFIGS = load_global_vision_llm_configs()
+
+    # Router settings for Vision LLM Auto mode
+    VISION_LLM_ROUTER_SETTINGS = load_vision_llm_router_settings()
+
     # Chonkie Configuration | Edit this to your needs
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
     # Azure OpenAI credentials from environment variables
@@ -327,6 +419,7 @@ class Config:
         EMBEDDING_MODEL,
         **embedding_kwargs,
     )
+    is_local_embedding_model = "://" not in (EMBEDDING_MODEL or "")
     chunker_instance = RecursiveChunker(
         chunk_size=getattr(embedding_model_instance, "max_seq_length", 512)
     )
@@ -368,8 +461,10 @@ class Config:
         UNSTRUCTURED_API_KEY = os.getenv("UNSTRUCTURED_API_KEY")
 
     elif ETL_SERVICE == "LLAMACLOUD":
-        # LlamaCloud API Key
         LLAMA_CLOUD_API_KEY = os.getenv("LLAMA_CLOUD_API_KEY")
+        # Optional: Azure Document Intelligence accelerator for supported file types
+        AZURE_DI_ENDPOINT = os.getenv("AZURE_DI_ENDPOINT")
+        AZURE_DI_KEY = os.getenv("AZURE_DI_KEY")
 
     # Residential Proxy Configuration (anonymous-proxies.net)
     # Used for web crawling and YouTube transcript fetching to avoid IP bans.
@@ -388,6 +483,15 @@ class Config:
     STT_SERVICE = os.getenv("STT_SERVICE")
     STT_SERVICE_API_BASE = os.getenv("STT_SERVICE_API_BASE")
     STT_SERVICE_API_KEY = os.getenv("STT_SERVICE_API_KEY")
+
+    # Video presentation defaults
+    VIDEO_PRESENTATION_MAX_SLIDES = int(
+        os.getenv("VIDEO_PRESENTATION_MAX_SLIDES", "30")
+    )
+    VIDEO_PRESENTATION_FPS = int(os.getenv("VIDEO_PRESENTATION_FPS", "30"))
+    VIDEO_PRESENTATION_DEFAULT_DURATION_IN_FRAMES = int(
+        os.getenv("VIDEO_PRESENTATION_DEFAULT_DURATION_IN_FRAMES", "300")
+    )
 
     # Validation Checks
     # Check embedding dimension

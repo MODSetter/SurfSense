@@ -17,6 +17,7 @@ from sqlalchemy import update
 
 from app.config import config
 from app.db import (
+    Prompt,
     SearchSpace,
     SearchSpaceMembership,
     SearchSpaceRole,
@@ -25,6 +26,7 @@ from app.db import (
     get_default_roles_config,
     get_user_db,
 )
+from app.prompts.system_defaults import SYSTEM_PROMPT_DEFAULTS
 from app.utils.refresh_tokens import create_refresh_token
 
 logger = logging.getLogger(__name__)
@@ -187,6 +189,18 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                     is_owner=True,
                 )
                 session.add(owner_membership)
+
+                for default in SYSTEM_PROMPT_DEFAULTS:
+                    session.add(
+                        Prompt(
+                            user_id=user.id,
+                            default_prompt_slug=default["slug"],
+                            name=default["name"],
+                            prompt=default["prompt"],
+                            mode=default["mode"],
+                            version=default["version"],
+                        )
+                    )
 
                 await session.commit()
                 logger.info(

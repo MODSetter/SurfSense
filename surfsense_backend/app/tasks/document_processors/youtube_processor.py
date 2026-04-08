@@ -419,7 +419,7 @@ async def add_youtube_video_document(
             "author": video_data.get("author_name", "Unknown"),
             "thumbnail": video_data.get("thumbnail_url", ""),
         }
-        safe_set_chunks(document, chunks)
+        await safe_set_chunks(session, document, chunks)
         document.source_markdown = combined_document_string
         document.status = DocumentStatus.ready()  # READY status - fully processed
         document.updated_at = get_current_timestamp()

@@ -21,17 +21,39 @@
 </div>
 
 # SurfSense
-Connect any LLM to your internal knowledge sources and chat with it in real time alongside your team. OSS alternative to NotebookLM, Perplexity, and Glean.
 
-SurfSense is a highly customizable AI research agent, connected to external sources such as Search Engines (SearxNG, Tavily, LinkUp), Google Drive, Slack, Microsoft Teams, Linear, Jira, ClickUp, Confluence, BookStack, Gmail, Notion, YouTube, GitHub, Discord, Airtable, Google Calendar, Luma, Circleback, Elasticsearch, Obsidian and more to come.
+NotebookLM is one of the best and most useful AI platforms out there, but once you start using it regularly you also feel its limitations leaving something to be desired more.
+
+1. There are limits on the amount of sources you can add in a notebook.
+2. There are limits on the number of notebooks you can have.
+3. You cannot have sources that exceed 500,000 words and are more than 200MB.
+4. You are vendor locked in to Google services (LLMs, usage models, etc.) with no option to configure them.
+5. Limited external data sources and service integrations.
+6. NotebookLM Agent is specifically optimised for just studying and researching, but you can do so much more with the source data.
+7. Lack of multiplayer support.
+
+...and more.
+
+**SurfSense is specifically made to solve these problems.** SurfSense empowers you to:
+
+- **Control Your Data Flow** - Keep your data private and secure.
+- **No Data Limits** - Add an unlimited amount of sources and notebooks.
+- **No Vendor Lock-in** - Configure any LLM, image, TTS, and STT models to use.
+- **25+ External Data Sources** - Add your sources from Google Drive, OneDrive, Dropbox, Notion, and many other external services.
+- **Real-Time Multiplayer Support** - Work easily with your team members in a shared notebook.
+- **Desktop App** - Get AI assistance in any application with Quick Assist, General Assist, Extreme Assist, and local folder sync.
+
+...and more to come.
 
 
 
-# Video 
+## Video Agent Sample
 
-https://github.com/user-attachments/assets/cc0c84d3-1f2f-4f7a-b519-2ecce22310b1
+https://github.com/user-attachments/assets/012a7ffa-6f76-4f06-9dda-7632b470057a
 
-## Podcast Sample
+
+
+## Podcast Agent Sample
 
 https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
@@ -42,37 +64,58 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 1. Go to [surfsense.com](https://www.surfsense.com) and login.
 
-<p align="center"><img src="https://github.com/user-attachments/assets/b4df25fe-db5a-43c2-9462-b75cf7f1b707" alt="Login" /></p>
+<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/LoginFlowGif.gif" alt="Login" /></p>
 
 2. Connect your connectors and sync. Enable periodic syncing to keep connectors synced.
 
-<p align="center"><img src="https://github.com/user-attachments/assets/59da61d7-da05-4576-b7c0-dbc09f5985e8" alt="Connectors" /></p>
+<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ConnectorFlowGif.gif" alt="Connectors" /></p>
 
 3. Till connectors data index, upload Documents.
 
-<p align="center"><img src="https://github.com/user-attachments/assets/d1e8b2e2-9eac-41d8-bdc0-f0cdc405d128" alt="Upload Documents" /></p>
+<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/DocUploadGif.gif" alt="Upload Documents" /></p>
 
 4. Once everything is indexed, Ask Away (Use Cases):
 
+   - Desktop App — General Assist
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/general_assist.gif" alt="General Assist" /></p>
+
+   - Desktop App — Quick Assist
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/quick_assist.gif" alt="Quick Assist" /></p>
+
+   - Desktop App — Extreme Assist
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/extreme_assist.gif" alt="Extreme Assist" /></p>
+
+   - Desktop App — Watch Local Folder
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/folder_watch.gif" alt="Watch Local Folder" /></p>
+
+   - Video Generation
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/video_gen_gif.gif" alt="Video Generation" /></p>
+
    - Basic search and citation
 
-   <p align="center"><img src="https://github.com/user-attachments/assets/81e797a1-e01a-4003-8e60-0a0b3a9789df" alt="Search and Citation" /></p>
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BSNCGif.gif" alt="Search and Citation" /></p>
 
    - Document Mention QNA
 
-   <p align="center"><img src="https://github.com/user-attachments/assets/be958295-0a8c-4707-998c-9fe1f1c007be" alt="Document Mention QNA" /></p>
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="Document Mention QNA" /></p>
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="Document Mention QNA" /></p>
 
-   - Report Generations and Exports (PDF, DOCX for now)
+   - Report Generations and Exports (PDF, DOCX, HTML, LaTeX, EPUB, ODT, Plain Text)
 
-   <p align="center"><img src="https://github.com/user-attachments/assets/9836b7d6-57c9-4951-b61c-68202c9b6ace" alt="Report Generation" /></p>
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="Report Generation" /></p>
 
    - Podcast Generations
 
-   <p align="center"><img src="https://github.com/user-attachments/assets/58c9b057-8848-4e81-aaba-d2c617985d8c" alt="Podcast Generation" /></p>
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/PodcastGenGif.gif" alt="Podcast Generation" /></p>
 
    - Image Generations
 
-   <p align="center"><img src="https://github.com/user-attachments/assets/25f94cb3-18f8-4854-afd9-27b7bfd079cb" alt="Image Generation" /></p>
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ImageGenGif.gif" alt="Image Generation" /></p>
 
    - And more coming soon.
 
@@ -99,6 +142,19 @@ The install script sets up [Watchtower](https://github.com/nicholas-fedor/watcht
 
 For Docker Compose, manual installation, and other deployment options, see the [docs](https://www.surfsense.com/docs/).
 
+### Desktop App
+
+SurfSense also ships a desktop app that brings AI assistance to every application on your computer. Download it from the [latest release](https://github.com/MODSetter/SurfSense/releases/latest).
+
+The desktop app includes these powerful features:
+
+- **General Assist** — Launch SurfSense instantly from any application with a global shortcut.
+- **Quick Assist** — Select text anywhere, then ask AI to explain, rewrite, or act on it.
+- **Extreme Assist** — Get inline writing suggestions powered by your knowledge base as you type in any app.
+- **Watch Local Folder** — Watch a local folder and automatically sync file changes to your knowledge base. **Pro tip:** Point it at your Obsidian vault to keep your notes searchable in SurfSense.
+
+All features operate against your chosen search space, so your answers are always grounded in your own data.
+
 ### How to Realtime Collaborate (Beta)
 
 1. Go to Manage Members page and create an invite.
@@ -115,34 +171,42 @@ For Docker Compose, manual installation, and other deployment options, see the [
 
 4. Your team can now chat in realtime.
 
-   <p align="center"><img src="https://github.com/user-attachments/assets/83803ac2-fbce-4d93-aae3-85eb85a3053a" alt="Realtime Chat" /></p>
+   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeChatGif.gif" alt="Realtime Chat" /></p>
 
 5. Add comment to tag teammates.
 
-   <p align="center"><img src="https://github.com/user-attachments/assets/3b04477d-8f42-4baa-be95-867c1eaeba87" alt="Realtime Comments" /></p>
+   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeCommentsFlow.gif" alt="Realtime Comments" /></p>
 
-## Key Features
+## SurfSense vs Google NotebookLM
 
-| Feature | Description |
-|---------|-------------|
-| OSS Alternative | Drop in replacement for NotebookLM, Perplexity, and Glean with real time team collaboration |
-| 50+ File Formats | Upload documents, images, videos via LlamaCloud, Unstructured, or Docling (local) |
-| Hybrid Search | Semantic + Full Text Search with Hierarchical Indices and Reciprocal Rank Fusion |
-| Cited Answers | Chat with your knowledge base and get Perplexity style cited responses |
-| Deep Agent Architecture | Powered by [LangChain Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) planning, subagents, and file system access |
-| Universal LLM Support | 100+ LLMs, 6000+ embedding models, all major rerankers via OpenAI spec & LiteLLM |
-| Privacy First | Full local LLM support (vLLM, Ollama) your data stays yours |
-| Team Collaboration | RBAC with Owner / Admin / Editor / Viewer roles, real time chat & comment threads |
-| Podcast Generation | 3 min podcast in under 20 seconds; multiple TTS providers (OpenAI, Azure, Kokoro) |
-| Browser Extension | Cross browser extension to save any webpage, including auth protected pages |
-| 25+ Connectors | Search Engines, Google Drive, Slack, Teams, Jira, Notion, GitHub, Discord & [more](#external-sources) |
-| Self Hostable | Open source, Docker one liner or full Docker Compose for production |
+| Feature | Google NotebookLM | SurfSense |
+|---------|-------------------|-----------|
+| **Sources per Notebook** | 50 (Free) to 600 (Ultra, $249.99/mo) | Unlimited |
+| **Number of Notebooks** | 100 (Free) to 500 (paid tiers) | Unlimited |
+| **Source Size Limit** | 500,000 words / 200MB per source | No limit |
+| **Pricing** | Free tier available; Pro $19.99/mo, Ultra $249.99/mo | Free and open source, self-host on your own infra |
+| **LLM Support** | Google Gemini only | 100+ LLMs via OpenAI spec & LiteLLM |
+| **Embedding Models** | Google only | 6,000+ embedding models, all major rerankers |
+| **Local / Private LLMs** | Not available | Full support (vLLM, Ollama) - your data stays yours |
+| **Self Hostable** | No | Yes - Docker one-liner or full Docker Compose |
+| **Open Source** | No | Yes |
+| **External Connectors** | Google Drive, YouTube, websites | 27+ connectors - Search Engines, Google Drive, OneDrive, Dropbox, Slack, Teams, Jira, Notion, GitHub, Discord & [more](#external-sources) |
+| **File Format Support** | PDFs, Docs, Slides, Sheets, CSV, Word, EPUB, images, web URLs, YouTube | 50+ formats - documents, images, videos via LlamaCloud, Unstructured, or Docling (local) |
+| **Search** | Semantic search | Hybrid Search - Semantic + Full Text with Hierarchical Indices & Reciprocal Rank Fusion |
+| **Cited Answers** | Yes | Yes - Perplexity-style cited responses |
+| **Agentic Architecture** | No | Yes - powered by [LangChain Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) with planning, subagents, and file system access |
+| **Real-Time Multiplayer** | Shared notebooks with Viewer/Editor roles (no real-time chat) | RBAC with Owner / Admin / Editor / Viewer roles, real-time chat & comment threads |
+| **Video Generation** | Cinematic Video Overviews via Veo 3 (Ultra only) | Available (NotebookLM is better here, actively improving) |
+| **Presentation Generation** | Better looking slides but not editable | Create editable, slide-based presentations |
+| **Podcast Generation** | Audio Overviews with customizable hosts and languages | Available with multiple TTS providers (NotebookLM is better here, actively improving) |
+| **Desktop App** | No | Native app with General Assist, Quick Assist, Extreme Assist, and local folder sync |
+| **Browser Extension** | No | Cross-browser extension to save any webpage, including auth-protected pages |
 
 <details>
 <summary><b>Full list of External Sources</b></summary>
 <a id="external-sources"></a>
 
-Search Engines (Tavily, LinkUp) · SearxNG · Google Drive · Slack · Microsoft Teams · Linear · Jira · ClickUp · Confluence · BookStack · Notion · Gmail · YouTube Videos · GitHub · Discord · Airtable · Google Calendar · Luma · Circleback · Elasticsearch · Obsidian, and more to come.
+Search Engines (Tavily, LinkUp) · SearxNG · Google Drive · OneDrive · Dropbox · Slack · Microsoft Teams · Linear · Jira · ClickUp · Confluence · BookStack · Notion · Gmail · YouTube Videos · GitHub · Discord · Airtable · Google Calendar · Luma · Circleback · Elasticsearch · Obsidian, and more to come.
 
 </details>
 

@@ -2,6 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { useSetAtom } from "jotai";
 import {
 	ArchiveIcon,
 	ChevronLeft,
@@ -16,8 +17,10 @@ import {
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { removeChatTabAtom } from "@/atoms/tabs/tabs.atom";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/animated-tabs";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -31,13 +34,11 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
-	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useLongPress } from "@/hooks/use-long-press";
@@ -51,24 +52,27 @@ import {
 import { cn } from "@/lib/utils";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 
-interface AllPrivateChatsSidebarProps {
-	open: boolean;
+export interface AllPrivateChatsSidebarContentProps {
 	onOpenChange: (open: boolean) => void;
 	searchSpaceId: string;
 	onCloseMobileSidebar?: () => void;
 }
 
-export function AllPrivateChatsSidebar({
-	open,
+interface AllPrivateChatsSidebarProps extends AllPrivateChatsSidebarContentProps {
+	open: boolean;
+}
+
+export function AllPrivateChatsSidebarContent({
 	onOpenChange,
 	searchSpaceId,
 	onCloseMobileSidebar,
-}: AllPrivateChatsSidebarProps) {
+}: AllPrivateChatsSidebarContentProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
 	const params = useParams();
 	const queryClient = useQueryClient();
 	const isMobile = useIsMobile();
+	const removeChatTab = useSetAtom(removeChatTabAtom);
 
 	const currentChatId = Array.isArray(params.chat_id)
 		? Number(params.chat_id[0])
@@ -97,16 +101,6 @@ export function AllPrivateChatsSidebar({
 
 	const isSearchMode = !!debouncedSearchQuery.trim();
 
-	useEffect(() => {
-		const handleEscape = (e: KeyboardEvent) => {
-			if (e.key === "Escape" && open) {
-				onOpenChange(false);
-			}
-		};
-		document.addEventListener("keydown", handleEscape);
-		return () => document.removeEventListener("keydown", handleEscape);
-	}, [open, onOpenChange]);
-
 	const {
 		data: threadsData,
 		error: threadsError,
@@ -114,7 +108,8 @@ export function AllPrivateChatsSidebar({
 	} = useQuery({
 		queryKey: ["all-threads", searchSpaceId],
 		queryFn: () => fetchThreads(Number(searchSpaceId)),
-		enabled: !!searchSpaceId && open && !isSearchMode,
+		enabled: !!searchSpaceId && !isSearchMode,
+		placeholderData: () => queryClient.getQueryData(["threads", searchSpaceId, { limit: 40 }]),
 	});
 
 	const {
@@ -124,7 +119,7 @@ export function AllPrivateChatsSidebar({
 	} = useQuery({
 		queryKey: ["search-threads", searchSpaceId, debouncedSearchQuery],
 		queryFn: () => searchThreads(Number(searchSpaceId), debouncedSearchQuery.trim()),
-		enabled: !!searchSpaceId && open && isSearchMode,
+		enabled: !!searchSpaceId && isSearchMode,
 	});
 
 	// Filter to only private chats (PRIVATE visibility or no visibility set)
@@ -167,6 +162,7 @@ export function AllPrivateChatsSidebar({
 			setDeletingThreadId(threadId);
 			try {
 				await deleteThread(threadId);
+				const fallbackTab = removeChatTab(threadId);
 				toast.success(t("chat_deleted") || "Chat deleted successfully");
 				queryClient.invalidateQueries({ queryKey: ["all-threads", searchSpaceId] });
 				queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
@@ -175,6 +171,10 @@ export function AllPrivateChatsSidebar({
 				if (currentChatId === threadId) {
 					onOpenChange(false);
 					setTimeout(() => {
+						if (fallbackTab?.type === "chat" && fallbackTab.chatUrl) {
+							router.push(fallbackTab.chatUrl);
+							return;
+						}
 						router.push(`/dashboard/${searchSpaceId}/new-chat`);
 					}, 250);
 				}
@@ -185,7 +185,7 @@ export function AllPrivateChatsSidebar({
 				setDeletingThreadId(null);
 			}
 		},
-		[queryClient, searchSpaceId, t, currentChatId, router, onOpenChange]
+		[queryClient, searchSpaceId, t, currentChatId, router, onOpenChange, removeChatTab]
 	);
 
 	const handleToggleArchive = useCallback(
@@ -251,11 +251,7 @@ export function AllPrivateChatsSidebar({
 	const archivedCount = archivedChats.length;
 
 	return (
-		<SidebarSlideOutPanel
-			open={open}
-			onOpenChange={onOpenChange}
-			ariaLabel={t("chats") || "Private Chats"}
-		>
+		<>
 			<div className="shrink-0 p-4 pb-2 space-y-3">
 				<div className="flex items-center gap-2">
 					{isMobile && (
@@ -300,14 +296,11 @@ export function AllPrivateChatsSidebar({
 				<Tabs
 					value={showArchived ? "archived" : "active"}
 					onValueChange={(value) => setShowArchived(value === "archived")}
-					className="shrink-0 mx-4"
+					className="shrink-0 mx-4 mt-2"
 				>
-					<TabsList className="w-full h-auto p-0 bg-transparent rounded-none border-b">
-						<TabsTrigger
-							value="active"
-							className="flex-1 rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-						>
-							<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
+					<TabsList stretch showBottomBorder size="sm">
+						<TabsTrigger value="active">
+							<span className="inline-flex items-center gap-1.5">
 								<MessageCircleMore className="h-4 w-4" />
 								<span>Active</span>
 								<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
@@ -315,11 +308,8 @@ export function AllPrivateChatsSidebar({
 								</span>
 							</span>
 						</TabsTrigger>
-						<TabsTrigger
-							value="archived"
-							className="flex-1 rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-						>
-							<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
+						<TabsTrigger value="archived">
+							<span className="inline-flex items-center gap-1.5">
 								<ArchiveIcon className="h-4 w-4" />
 								<span>Archived</span>
 								<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
@@ -334,8 +324,11 @@ export function AllPrivateChatsSidebar({
 			<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
 				{isLoading ? (
 					<div className="space-y-1">
-						{[75, 90, 55, 80, 65, 85].map((titleWidth, i) => (
-							<div key={`skeleton-${i}`} className="flex items-center gap-2 rounded-md px-2 py-1.5">
+						{[75, 90, 55, 80, 65, 85].map((titleWidth) => (
+							<div
+								key={`skeleton-${titleWidth}`}
+								className="flex items-center gap-2 rounded-md px-2 py-1.5"
+							>
 								<Skeleton className="h-4 w-4 shrink-0 rounded" />
 								<Skeleton className="h-4 rounded" style={{ width: `${titleWidth}%` }} />
 							</div>
@@ -357,7 +350,7 @@ export function AllPrivateChatsSidebar({
 								<div
 									key={thread.id}
 									className={cn(
-										"group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm",
+										"sidebar-item-lazy group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm",
 										"hover:bg-accent hover:text-accent-foreground",
 										"transition-colors cursor-pointer",
 										isActive && "bg-accent text-accent-foreground",
@@ -380,11 +373,10 @@ export function AllPrivateChatsSidebar({
 											disabled={isBusy}
 											className="flex items-center gap-2 flex-1 min-w-0 text-left overflow-hidden"
 										>
-											<MessageCircleMore className="h-4 w-4 shrink-0 text-muted-foreground" />
 											<span className="truncate">{thread.title || "New Chat"}</span>
 										</button>
 									) : (
-										<Tooltip>
+										<Tooltip delayDuration={600}>
 											<TooltipTrigger asChild>
 												<button
 													type="button"
@@ -392,7 +384,6 @@ export function AllPrivateChatsSidebar({
 													disabled={isBusy}
 													className="flex items-center gap-2 flex-1 min-w-0 text-left overflow-hidden"
 												>
-													<MessageCircleMore className="h-4 w-4 shrink-0 text-muted-foreground" />
 													<span className="truncate">{thread.title || "New Chat"}</span>
 												</button>
 											</TooltipTrigger>
@@ -414,10 +405,13 @@ export function AllPrivateChatsSidebar({
 												variant="ghost"
 												size="icon"
 												className={cn(
-													"h-6 w-6 shrink-0",
+													"h-6 w-6 shrink-0 hover:bg-transparent",
 													isMobile
 														? "opacity-0 pointer-events-none absolute"
-														: "md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100",
+														: openDropdownId === thread.id
+															? "opacity-100"
+															: "md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100",
+													openDropdownId === thread.id && "bg-accent hover:bg-accent",
 													"transition-opacity"
 												)}
 												disabled={isBusy}
@@ -455,7 +449,6 @@ export function AllPrivateChatsSidebar({
 													</>
 												)}
 											</DropdownMenuItem>
-											<DropdownMenuSeparator />
 											<DropdownMenuItem onClick={() => handleDeleteThread(thread.id)}>
 												<Trash2 className="mr-2 h-4 w-4" />
 												<span>{t("delete") || "Delete"}</span>
@@ -512,7 +505,7 @@ export function AllPrivateChatsSidebar({
 							}
 						}}
 					/>
-					<DialogFooter className="flex gap-2 sm:justify-end">
+					<DialogFooter className="flex sm:justify-end">
 						<Button
 							variant="secondary"
 							onClick={() => setShowRenameDialog(false)}
@@ -537,6 +530,29 @@ export function AllPrivateChatsSidebar({
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
+		</>
+	);
+}
+
+export function AllPrivateChatsSidebar({
+	open,
+	onOpenChange,
+	searchSpaceId,
+	onCloseMobileSidebar,
+}: AllPrivateChatsSidebarProps) {
+	const t = useTranslations("sidebar");
+
+	return (
+		<SidebarSlideOutPanel
+			open={open}
+			onOpenChange={onOpenChange}
+			ariaLabel={t("chats") || "Private Chats"}
+		>
+			<AllPrivateChatsSidebarContent
+				onOpenChange={onOpenChange}
+				searchSpaceId={searchSpaceId}
+				onCloseMobileSidebar={onCloseMobileSidebar}
+			/>
 		</SidebarSlideOutPanel>
 	);
 }

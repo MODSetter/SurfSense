@@ -3,11 +3,12 @@ import type { PlasmoMessaging } from "@plasmohq/messaging";
 import { Storage } from "@plasmohq/storage";
 import { convertHtmlToMarkdown } from "dom-to-semantic-markdown";
 import { DOMParser } from "linkedom";
+import { buildBackendUrl } from "~utils/backend-url";
 import { getRenderedHtml, webhistoryToLangChainDocument } from "~utils/commons";
 import type { WebHistory } from "~utils/interfaces";
 
 // @ts-ignore
-global.Node = {
+globalThis.Node = {
 	ELEMENT_NODE: 1,
 	ATTRIBUTE_NODE: 2,
 	TEXT_NODE: 3,
@@ -122,10 +123,7 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
 					body: JSON.stringify(toSend),
 				};
 
-				const response = await fetch(
-					`${process.env.PLASMO_PUBLIC_BACKEND_URL}/api/v1/documents`,
-					requestOptions
-				);
+				const response = await fetch(await buildBackendUrl("/api/v1/documents"), requestOptions);
 				const resp = await response.json();
 				if (resp) {
 					res.send({

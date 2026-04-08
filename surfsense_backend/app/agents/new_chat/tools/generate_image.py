@@ -2,8 +2,7 @@
 Image generation tool for the SurfSense agent.
 
 This module provides a tool that generates images using litellm.aimage_generation()
-and returns the result via the existing display_image tool format so the frontend
-renders the generated image inline in the chat.
+and returns the result directly in a format the frontend Image component can render.
 
 Config resolution:
 1. Uses the search space's image_generation_config_id preference
@@ -11,6 +10,7 @@ Config resolution:
 3. Supports global YAML configs (negative IDs) and user DB configs (positive IDs)
 """
 
+import hashlib
 import logging
 from typing import Any
 
@@ -222,11 +222,17 @@ def create_generate_image_tool(
             else:
                 return {"error": "No displayable image data in the response"}
 
+            image_id = f"image-{hashlib.md5(image_url.encode()).hexdigest()[:12]}"
+
             return {
+                "id": image_id,
+                "assetId": image_url,
                 "src": image_url,
                 "alt": revised_prompt or prompt,
                 "title": "Generated Image",
                 "description": revised_prompt if revised_prompt != prompt else None,
+                "domain": "ai-generated",
+                "ratio": "auto",
                 "generated": True,
                 "prompt": prompt,
                 "image_count": len(images),

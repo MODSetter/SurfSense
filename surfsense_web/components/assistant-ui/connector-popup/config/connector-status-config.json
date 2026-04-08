@@ -1,24 +1,9 @@
 {
 	"connectorStatuses": {
-		"GOOGLE_DRIVE_CONNECTOR": {
-			"enabled": true,
-			"status": "warning",
-			"statusMessage": "Our Google OAuth app is not verified. You may see a 'non-verified app' warning during sign-in."
-		},
-		"GOOGLE_GMAIL_CONNECTOR": {
-			"enabled": true,
-			"status": "warning",
-			"statusMessage": "Our Google OAuth app is not verified. You may see a 'non-verified app' warning during sign-in."
-		},
-		"GOOGLE_CALENDAR_CONNECTOR": {
-			"enabled": true,
-			"status": "warning",
-			"statusMessage": "Our Google OAuth app is not verified. You may see a 'non-verified app' warning during sign-in."
-		},
 		"YOUTUBE_CONNECTOR": {
 			"enabled": true,
 			"status": "warning",
-			"statusMessage": "Doesn't work on cloud version due to YouTube blocks. Will be fixed soon."
+			"statusMessage": "Sometimes may not work due to Youtube blocks."
 		},
 		"WEBCRAWLER_CONNECTOR": {
 			"enabled": true,

@@ -1,10 +1,10 @@
 "use client";
 
-import { CheckCircle2, CircleAlert } from "lucide-react";
+import { CheckCircle2, CircleAlert, RefreshCw } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { NavItem } from "../../types/layout.types";
+import { SidebarButton } from "./SidebarButton";
 
 interface NavSectionProps {
 	items: NavItem[];
@@ -12,11 +12,58 @@ interface NavSectionProps {
 	isCollapsed?: boolean;
 }
 
+function getStatusInfo(status: NavItem["statusIndicator"]) {
+	switch (status) {
+		case "processing":
+			return {
+				tooltip: "New or updated documents are still being prepared for search.",
+			};
+		case "background_sync":
+			return {
+				pillLabel: "Background sync",
+				tooltip:
+					"Periodic sync is checking for updates in the background. Existing documents stay searchable while this runs.",
+			};
+		case "success":
+			return {
+				tooltip: "All document updates are fully synced.",
+			};
+		case "error":
+			return {
+				pillLabel: "Needs attention",
+				tooltip: "Some documents failed to sync. Open Documents or Inbox for details.",
+			};
+		default:
+			return {};
+	}
+}
+
+function StatusPill({ status }: { status: NavItem["statusIndicator"] }) {
+	const { pillLabel } = getStatusInfo(status);
+
+	if (!pillLabel) {
+		return null;
+	}
+
+	return (
+		<span className="inline-flex items-center rounded-full border border-border/60 bg-background/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+			{pillLabel}
+		</span>
+	);
+}
+
 function StatusBadge({ status }: { status: NavItem["statusIndicator"] }) {
 	if (status === "processing") {
 		return (
 			<span className="absolute top-0.5 right-0.5 inline-flex items-center justify-center h-[14px] w-[14px] rounded-full bg-primary/15">
 				<Spinner size="xs" className="text-primary" />
+			</span>
+		);
+	}
+	if (status === "background_sync") {
+		return (
+			<span className="absolute top-0.5 right-0.5 inline-flex items-center justify-center h-[14px] w-[14px] rounded-full bg-primary/15">
+				<RefreshCw className="h-[9px] w-[9px] text-primary animate-[spin_3s_linear_infinite]" />
 			</span>
 		);
 	}
@@ -49,6 +96,13 @@ function StatusIcon({
 	if (status === "processing") {
 		return <Spinner size="sm" className={cn("shrink-0 text-primary", className)} />;
 	}
+	if (status === "background_sync") {
+		return (
+			<RefreshCw
+				className={cn("shrink-0 text-primary animate-[spin_3s_linear_infinite]", className)}
+			/>
+		);
+	}
 	if (status === "success") {
 		return (
 			<CheckCircle2
@@ -66,73 +120,52 @@ function StatusIcon({
 	return <FallbackIcon className={cn("shrink-0", className)} />;
 }
 
+function CollapsedOverlay({ item }: { item: NavItem }) {
+	const indicator = item.statusIndicator;
+	if (indicator && indicator !== "idle") {
+		return <StatusBadge status={indicator} />;
+	}
+	if (item.badge) {
+		return (
+			<span className="absolute top-0.5 right-0.5 inline-flex items-center justify-center min-w-[14px] h-[14px] px-0.5 rounded-full bg-red-500 text-white text-[9px] font-medium">
+				{item.badge}
+			</span>
+		);
+	}
+	return null;
+}
+
 export function NavSection({ items, onItemClick, isCollapsed = false }: NavSectionProps) {
 	return (
 		<div className={cn("flex flex-col gap-0.5 py-2", isCollapsed && "items-center")}>
 			{items.map((item) => {
-				const Icon = item.icon;
-				const indicator = item.statusIndicator;
-
 				const joyrideAttr =
-					item.title === "Documents" || item.title.toLowerCase().includes("documents")
-						? { "data-joyride": "documents-sidebar" }
-						: item.title === "Inbox" || item.title.toLowerCase().includes("inbox")
-							? { "data-joyride": "inbox-sidebar" }
-							: {};
-
-				if (isCollapsed) {
-					return (
-						<Tooltip key={item.url}>
-							<TooltipTrigger asChild>
-								<button
-									type="button"
-									onClick={() => onItemClick?.(item)}
-									className={cn(
-										"relative flex h-10 w-10 items-center justify-center rounded-md transition-colors",
-										"hover:bg-accent hover:text-accent-foreground",
-										"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-									)}
-									{...joyrideAttr}
-								>
-									<Icon className="h-4 w-4" />
-									{indicator && indicator !== "idle" ? (
-										<StatusBadge status={indicator} />
-									) : item.badge ? (
-										<span className="absolute top-0.5 right-0.5 inline-flex items-center justify-center min-w-[14px] h-[14px] px-0.5 rounded-full bg-red-500 text-white text-[9px] font-medium">
-											{item.badge}
-										</span>
-									) : null}
-									<span className="sr-only">{item.title}</span>
-								</button>
-							</TooltipTrigger>
-							<TooltipContent side="right">
-								{item.title}
-								{item.badge && ` (${item.badge})`}
-							</TooltipContent>
-						</Tooltip>
-					);
-				}
+					item.title === "Inbox" || item.title.toLowerCase().includes("inbox")
+						? { "data-joyride": "inbox-sidebar" as const }
+						: {};
+				const { tooltip } = getStatusInfo(item.statusIndicator);
 
 				return (
-					<button
+					<SidebarButton
 						key={item.url}
-						type="button"
+						icon={item.icon}
+						label={item.title}
 						onClick={() => onItemClick?.(item)}
-						className={cn(
-							"flex items-center gap-2 rounded-md mx-2 px-2 py-1.5 text-sm transition-colors text-left",
-							"hover:bg-accent hover:text-accent-foreground",
-							"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-						)}
-						{...joyrideAttr}
-					>
-						<StatusIcon status={indicator} FallbackIcon={Icon} className="h-4 w-4" />
-						<span className="flex-1 truncate">{item.title}</span>
-						{item.badge && (
-							<span className="inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-medium">
-								{item.badge}
-							</span>
-						)}
-					</button>
+						isCollapsed={isCollapsed}
+						isActive={item.isActive}
+						badge={item.badge}
+						collapsedOverlay={<CollapsedOverlay item={item} />}
+						expandedIconNode={
+							<StatusIcon
+								status={item.statusIndicator}
+								FallbackIcon={item.icon}
+								className="h-4 w-4"
+							/>
+						}
+						trailingContent={<StatusPill status={item.statusIndicator} />}
+						tooltipContent={tooltip}
+						buttonProps={joyrideAttr}
+					/>
 				);
 			})}
 		</div>

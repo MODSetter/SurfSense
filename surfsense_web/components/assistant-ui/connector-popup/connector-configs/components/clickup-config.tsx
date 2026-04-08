@@ -2,7 +2,7 @@
 
 import { Info, KeyRound } from "lucide-react";
 import type { FC } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ConnectorConfigProps } from "../index";
@@ -23,15 +23,6 @@ export const ClickUpConfig: FC<ClickUpConfigProps> = ({
 		(connector.config?.CLICKUP_API_TOKEN as string) || ""
 	);
 	const [name, setName] = useState<string>(connector.name || "");
-
-	// Update values when connector changes (only for legacy connectors)
-	useEffect(() => {
-		if (!isOAuth) {
-			const token = (connector.config?.CLICKUP_API_TOKEN as string) || "";
-			setApiToken(token);
-		}
-		setName(connector.name || "");
-	}, [connector.config, connector.name, isOAuth]);
 
 	const handleApiTokenChange = (value: string) => {
 		setApiToken(value);

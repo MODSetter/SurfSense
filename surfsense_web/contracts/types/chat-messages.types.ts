@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * Raw message from database (Electric SQL sync)
+ * Raw message from database (real-time sync)
  */
 export const rawMessage = z.object({
 	id: z.number(),

@@ -45,7 +45,7 @@ function DrawerContent({
 			<DrawerOverlay className={overlayClassName} />
 			<DrawerPrimitive.Content
 				className={cn(
-					"fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
+					"fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-3xl bg-main-panel",
 					className
 				)}
 				{...props}
@@ -93,7 +93,7 @@ DrawerDescription.displayName = DrawerPrimitive.Description.displayName;
 function DrawerHandle({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
 	return (
 		<div
-			className={cn("mx-auto mt-4 h-1.5 w-12 rounded-full bg-muted-foreground/40", className)}
+			className={cn("mx-auto mt-4 h-2 w-12 rounded-full bg-muted-foreground/40", className)}
 			{...props}
 		/>
 	);

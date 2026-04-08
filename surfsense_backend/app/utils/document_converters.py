@@ -1,5 +1,6 @@
 import hashlib
 import logging
+import threading
 import warnings
 
 import numpy as np
@@ -10,6 +11,12 @@ from app.db import Chunk, DocumentType
 from app.prompts import SUMMARY_PROMPT_TEMPLATE
 
 logger = logging.getLogger(__name__)
+
+# HuggingFace fast tokenizers (Rust-backed) are not thread-safe — concurrent
+# access from multiple threads causes "RuntimeError: Already borrowed".
+# This reentrant lock serialises tokenizer + embedding model access so that
+# asyncio.to_thread calls from index_batch_parallel don't collide.
+_embedding_lock = threading.RLock()
 
 
 def _get_embedding_max_tokens() -> int:
@@ -36,23 +43,43 @@ def truncate_for_embedding(text: str) -> str:
     if len(text) // 3 <= max_tokens:
         return text
 
-    tokenizer = config.embedding_model_instance.get_tokenizer()
-    tokens = tokenizer.encode(text)
-    if len(tokens) <= max_tokens:
-        return text
+    with _embedding_lock:
+        tokenizer = config.embedding_model_instance.get_tokenizer()
+        tokens = tokenizer.encode(text)
+        if len(tokens) <= max_tokens:
+            return text
 
-    warnings.warn(
-        f"Truncating text from {len(tokens)} to {max_tokens} tokens for embedding.",
-        stacklevel=2,
-    )
-    return tokenizer.decode(tokens[:max_tokens])
+        warnings.warn(
+            f"Truncating text from {len(tokens)} to {max_tokens} tokens for embedding.",
+            stacklevel=2,
+        )
+        return tokenizer.decode(tokens[:max_tokens])
 
 
 def embed_text(text: str) -> np.ndarray:
     """Truncate text to fit and embed it. Drop-in replacement for
     ``config.embedding_model_instance.embed(text)`` that never exceeds the
     model's context window."""
-    return config.embedding_model_instance.embed(truncate_for_embedding(text))
+    with _embedding_lock:
+        return config.embedding_model_instance.embed(truncate_for_embedding(text))
+
+
+def embed_texts(texts: list[str]) -> list[np.ndarray]:
+    """Batch-embed multiple texts in a single call.
+
+    Each text is truncated to fit the model's context window before embedding.
+    For API-based models (``://`` in the model string) this uses
+    ``embed_batch`` to collapse many network round-trips into one.
+    For local models (SentenceTransformers) it falls back to sequential
+    ``embed`` calls to avoid padding overhead.
+    """
+    if not texts:
+        return []
+    with _embedding_lock:
+        truncated = [truncate_for_embedding(t) for t in texts]
+        if config.is_local_embedding_model:
+            return [config.embedding_model_instance.embed(t) for t in truncated]
+        return config.embedding_model_instance.embed_batch(truncated)
 
 
 def get_model_context_window(model_name: str) -> int:
@@ -209,12 +236,11 @@ async def create_document_chunks(content: str) -> list[Chunk]:
     Returns:
         List of Chunk objects with embeddings
     """
+    chunk_texts = [c.text for c in config.chunker_instance.chunk(content)]
+    chunk_embeddings = embed_texts(chunk_texts)
     return [
-        Chunk(
-            content=chunk.text,
-            embedding=embed_text(chunk.text),
-        )
-        for chunk in config.chunker_instance.chunk(content)
+        Chunk(content=text, embedding=emb)
+        for text, emb in zip(chunk_texts, chunk_embeddings, strict=False)
     ]
 
 

@@ -39,6 +39,22 @@ Found a bug? Create an issue with:
 
 Want to fix it? Go for it! Just link the issue in your PR.
 
+## 🌿 Branching Workflow
+
+We follow a **branch protection model** to keep `main` stable:
+
+| Branch | Purpose | Who can merge |
+|--------|---------|---------------|
+| `main` | Stable/release branch | Maintainers only (from `dev`) |
+| `dev` | Active development & integration | Via approved PRs from contributors |
+| `feature/*`, `fix/*`, etc. | Individual work branches | Contributors create PRs to `dev` |
+
+### Important Rules
+
+- **All contributor PRs must target the `dev` branch.** PRs targeting `main` will not be accepted.
+- `main` is updated exclusively by maintainers merging from `dev` when a release is ready.
+- Always create your feature/fix branches from the latest `dev`.
+
 ## 🛠️ Development Setup
 
 ### Prerequisites
@@ -49,17 +65,24 @@ Want to fix it? Go for it! Just link the issue in your PR.
 - **API Keys** for external services you're testing
 
 ### Quick Start
-1. **Clone the repository**
+1. **Fork and clone the repository**
    ```bash
-   git clone https://github.com/MODSetter/SurfSense.git
+   git clone https://github.com/<your-username>/SurfSense.git
    cd SurfSense
    ```
 
-2. **Choose your setup method**:
+2. **Create your branch from `dev`**
+   ```bash
+   git checkout dev
+   git pull origin dev
+   git checkout -b feature/your-feature-name
+   ```
+
+3. **Choose your setup method**:
    - **Docker Setup**: Follow the [Docker Setup Guide](./DOCKER_SETUP.md)
    - **Manual Setup**: Follow the [Installation Guide](https://www.surfsense.com/docs/)
 
-3. **Configure services**:
+4. **Configure services**:
    - Set up PGVector & PostgreSQL
    - Configure a file ETL service: `Unstructured.io` or `LlamaIndex`
    - Add API keys for external services
@@ -103,7 +126,7 @@ refactor: improve error handling in connectors
 - Include integration tests for API endpoints
 
 ### Branch Naming
-Use descriptive branch names:
+Create branches from `dev` with descriptive names:
 - `feature/add-document-search`
 - `fix/pagination-issue`
 - `docs/update-contributing-guide`
@@ -112,12 +135,16 @@ Use descriptive branch names:
 
 ### Before Submitting
 1. **Create an issue** first (unless it's a minor fix)
-2. **Fork the repository** and create a feature branch
+2. **Fork the repository** and create a branch from `dev`
 3. **Make your changes** following the coding guidelines
 4. **Test your changes** thoroughly
 5. **Update documentation** if needed
+6. **Open a PR targeting the `dev` branch**
+
+> **Note:** PRs targeting `main` will **not** be reviewed or merged. If you accidentally open a PR to `main`, please retarget it to `dev`.
 
 ### PR Requirements
+- **Target the `dev` branch** — this is mandatory
 - **One feature or fix per PR** - keep changes focused
 - **Link related issues** in the PR description
 - **Include screenshots or demos** for UI changes

@@ -7,12 +7,13 @@ Allows fetching emails from Gmail mailbox using Google OAuth credentials.
 import base64
 import json
 import logging
-import re
 from typing import Any
 
+from bs4 import BeautifulSoup
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+from markdownify import markdownify as md
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm.attributes import flag_modified
@@ -80,44 +81,39 @@ class GoogleGmailConnector:
     ) -> Credentials:
         """
         Get valid Google OAuth credentials.
-        Returns:
-            Google OAuth credentials
-        Raises:
-            ValueError: If credentials have not been set
-            Exception: If credential refresh fails
+
+        Supports both native OAuth (with refresh_token) and Composio-sourced
+        credentials (with refresh_handler). For Composio credentials, validation
+        and DB persistence are skipped since Composio manages its own tokens.
         """
-        if not all(
-            [
-                self._credentials.client_id,
-                self._credentials.client_secret,
-                self._credentials.refresh_token,
-            ]
+        has_standard_refresh = bool(self._credentials.refresh_token)
+
+        if has_standard_refresh and not all(
+            [self._credentials.client_id, self._credentials.client_secret]
         ):
             raise ValueError(
-                "Google OAuth credentials (client_id, client_secret, refresh_token) must be set"
+                "Google OAuth credentials (client_id, client_secret) must be set"
             )
 
         if self._credentials and not self._credentials.expired:
             return self._credentials
 
-        # Create credentials from refresh token
-        self._credentials = Credentials(
-            token=self._credentials.token,
-            refresh_token=self._credentials.refresh_token,
-            token_uri=self._credentials.token_uri,
-            client_id=self._credentials.client_id,
-            client_secret=self._credentials.client_secret,
-            scopes=self._credentials.scopes,
-            expiry=self._credentials.expiry,
-        )
+        if has_standard_refresh:
+            self._credentials = Credentials(
+                token=self._credentials.token,
+                refresh_token=self._credentials.refresh_token,
+                token_uri=self._credentials.token_uri,
+                client_id=self._credentials.client_id,
+                client_secret=self._credentials.client_secret,
+                scopes=self._credentials.scopes,
+                expiry=self._credentials.expiry,
+            )
 
-        # Refresh the token if needed
         if self._credentials.expired or not self._credentials.valid:
             try:
                 self._credentials.refresh(Request())
-                # Update the connector config in DB
-                if self._session:
-                    # Use connector_id if available, otherwise fall back to user_id query
+                # Only persist refreshed token for native OAuth (Composio manages its own)
+                if has_standard_refresh and self._session:
                     if self._connector_id:
                         result = await self._session.execute(
                             select(SearchSourceConnector).filter(
@@ -137,12 +133,38 @@ class GoogleGmailConnector:
                         raise RuntimeError(
                             "GMAIL connector not found; cannot persist refreshed token."
                         )
-                    connector.config = json.loads(self._credentials.to_json())
+
+                    from app.config import config
+                    from app.utils.oauth_security import TokenEncryption
+
+                    creds_dict = json.loads(self._credentials.to_json())
+                    token_encrypted = connector.config.get("_token_encrypted", False)
+
+                    if token_encrypted and config.SECRET_KEY:
+                        token_encryption = TokenEncryption(config.SECRET_KEY)
+                        if creds_dict.get("token"):
+                            creds_dict["token"] = token_encryption.encrypt_token(
+                                creds_dict["token"]
+                            )
+                        if creds_dict.get("refresh_token"):
+                            creds_dict["refresh_token"] = (
+                                token_encryption.encrypt_token(
+                                    creds_dict["refresh_token"]
+                                )
+                            )
+                        if creds_dict.get("client_secret"):
+                            creds_dict["client_secret"] = (
+                                token_encryption.encrypt_token(
+                                    creds_dict["client_secret"]
+                                )
+                            )
+                        creds_dict["_token_encrypted"] = True
+
+                    connector.config = creds_dict
                     flag_modified(connector, "config")
                     await self._session.commit()
             except Exception as e:
                 error_str = str(e)
-                # Check if this is an invalid_grant error (token expired/revoked)
                 if (
                     "invalid_grant" in error_str.lower()
                     or "token has been expired or revoked" in error_str.lower()
@@ -288,7 +310,7 @@ class GoogleGmailConnector:
         Fetch recent messages from Gmail within specified date range.
         Args:
             max_results: Maximum number of messages to fetch (default: 50)
-            start_date: Start date in YYYY-MM-DD format (default: 30 days ago)
+            start_date: Start date in YYYY-MM-DD format (default: 3 days ago)
             end_date: End date in YYYY-MM-DD format (default: today)
         Returns:
             Tuple containing (messages list with details, error message or None)
@@ -312,8 +334,8 @@ class GoogleGmailConnector:
                 start_query = start_dt.strftime("%Y/%m/%d")
                 query_parts.append(f"after:{start_query}")
             else:
-                # Default to 30 days ago
-                cutoff_date = datetime.now() - timedelta(days=30)
+                # Default to 3 days ago
+                cutoff_date = datetime.now() - timedelta(days=3)
                 date_query = cutoff_date.strftime("%Y/%m/%d")
                 query_parts.append(f"after:{date_query}")
 
@@ -347,6 +369,18 @@ class GoogleGmailConnector:
 
         except Exception as e:
             return [], f"Error fetching recent messages: {e!s}"
+
+    @staticmethod
+    def _html_to_markdown(html: str) -> str:
+        """Convert HTML (especially email layouts with nested tables) to clean markdown."""
+        soup = BeautifulSoup(html, "html.parser")
+        for tag in soup.find_all(["style", "script", "img"]):
+            tag.decompose()
+        for tag in soup.find_all(
+            ["table", "thead", "tbody", "tfoot", "tr", "td", "th"]
+        ):
+            tag.unwrap()
+        return md(str(soup)).strip()
 
     def extract_message_text(self, message: dict[str, Any]) -> str:
         """
@@ -387,13 +421,10 @@ class GoogleGmailConnector:
                     )
                     text_content += decoded_data + "\n"
                 elif mime_type == "text/html" and data and not text_content:
-                    # Use HTML as fallback if no plain text
                     decoded_data = base64.urlsafe_b64decode(data + "===").decode(
                         "utf-8", errors="ignore"
                     )
-                    # Basic HTML tag removal (you might want to use a proper HTML parser)
-
-                    text_content = re.sub(r"<[^>]+>", "", decoded_data)
+                    text_content = self._html_to_markdown(decoded_data)
 
             return text_content.strip()
 

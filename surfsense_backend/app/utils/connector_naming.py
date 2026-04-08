@@ -21,6 +21,8 @@ BASE_NAME_FOR_TYPE = {
     SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR: "Google Calendar",
     SearchSourceConnectorType.SLACK_CONNECTOR: "Slack",
     SearchSourceConnectorType.TEAMS_CONNECTOR: "Microsoft Teams",
+    SearchSourceConnectorType.ONEDRIVE_CONNECTOR: "OneDrive",
+    SearchSourceConnectorType.DROPBOX_CONNECTOR: "Dropbox",
     SearchSourceConnectorType.NOTION_CONNECTOR: "Notion",
     SearchSourceConnectorType.LINEAR_CONNECTOR: "Linear",
     SearchSourceConnectorType.JIRA_CONNECTOR: "Jira",
@@ -60,6 +62,12 @@ def extract_identifier_from_credentials(
 
     if connector_type == SearchSourceConnectorType.TEAMS_CONNECTOR:
         return credentials.get("tenant_name")
+
+    if connector_type == SearchSourceConnectorType.ONEDRIVE_CONNECTOR:
+        return credentials.get("user_email")
+
+    if connector_type == SearchSourceConnectorType.DROPBOX_CONNECTOR:
+        return credentials.get("user_email")
 
     if connector_type == SearchSourceConnectorType.NOTION_CONNECTOR:
         return credentials.get("workspace_name")
@@ -157,6 +165,44 @@ async def check_duplicate_connector(
         )
     )
     return (result.scalar() or 0) > 0
+
+
+async def ensure_unique_connector_name(
+    session: AsyncSession,
+    name: str,
+    search_space_id: int,
+    user_id: UUID,
+) -> str:
+    """
+    Ensure a connector name is unique within a user's search space.
+
+    If the name already exists, appends a counter suffix: (2), (3), etc.
+    Uses the same suffix format as generate_unique_connector_name.
+
+    Args:
+        session: Database session
+        name: Desired connector name
+        search_space_id: The search space ID
+        user_id: The user ID
+
+    Returns:
+        Unique name, either the original or with a counter suffix
+    """
+    result = await session.execute(
+        select(SearchSourceConnector.name).where(
+            SearchSourceConnector.search_space_id == search_space_id,
+            SearchSourceConnector.user_id == user_id,
+        )
+    )
+    existing_names = {row[0] for row in result.all()}
+
+    if name not in existing_names:
+        return name
+
+    counter = 2
+    while f"{name} ({counter})" in existing_names:
+        counter += 1
+    return f"{name} ({counter})"
 
 
 async def generate_unique_connector_name(

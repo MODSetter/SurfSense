@@ -14,6 +14,7 @@ SurfSense 现已支持以下国产 LLM：
 - ✅ **阿里通义千问 (Alibaba Qwen)** - 阿里云通义千问大模型
 - ✅ **月之暗面 Kimi (Moonshot)** - 月之暗面 Kimi 大模型
 - ✅ **智谱 AI GLM (Zhipu)** - 智谱 AI GLM 系列模型
+- ✅ **MiniMax** - MiniMax 大模型 (M2.5 系列，204K 上下文)
 
 ---
 
@@ -23,7 +24,7 @@ SurfSense 现已支持以下国产 LLM：
 
 1. 登录 SurfSense Dashboard
 2. 进入 **Settings** → **API Keys** (或 **LLM Configurations**)
-3. 点击 **Add New Configuration**
+3. 点击 **Add Model**
 4. 从 **Provider** 下拉菜单中选择你的国产 LLM 提供商
 5. 填写必填字段（见下方各提供商详细配置）
 6. 点击 **Save**
@@ -197,6 +198,52 @@ API Base URL: https://open.bigmodel.cn/api/paas/v4
 
 ---
 
+## 5️⃣ MiniMax 配置 | MiniMax Configuration
+
+### 获取 API Key
+
+1. 访问 [MiniMax 开放平台](https://platform.minimaxi.com/)
+2. 注册并登录账号
+3. 进入 **API Keys** 页面
+4. 创建新的 API Key
+5. 复制 API Key
+
+### 在 SurfSense 中配置
+
+| 字段 | 值 | 说明 |
+|------|-----|------|
+| **Configuration Name** | `MiniMax M2.5` | 配置名称（自定义） |
+| **Provider** | `MINIMAX` | 选择 MiniMax |
+| **Model Name** | `MiniMax-M2.5` | 推荐模型<br>其他选项: `MiniMax-M2.5-highspeed` |
+| **API Key** | `eyJ...` | 你的 MiniMax API Key |
+| **API Base URL** | `https://api.minimax.io/v1` | MiniMax API 地址 |
+| **Parameters** | `{"temperature": 1.0}` | 注意：temperature 必须在 (0.0, 1.0] 范围内，不能为 0 |
+
+### 示例配置
+
+```
+Configuration Name: MiniMax M2.5
+Provider: MINIMAX
+Model Name: MiniMax-M2.5
+API Key: eyJxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+API Base URL: https://api.minimax.io/v1
+```
+
+### 可用模型
+
+- **MiniMax-M2.5**: 高性能通用模型，204K 上下文窗口（推荐）
+- **MiniMax-M2.5-highspeed**: 高速推理版本，204K 上下文窗口
+
+### 注意事项
+
+- **temperature 参数**: MiniMax 要求 temperature 必须在 (0.0, 1.0] 范围内，不能设置为 0。建议使用 1.0。
+- 两个模型都支持 204K 超长上下文窗口，适合处理长文本任务。
+
+### 定价
+- 请访问 [MiniMax 定价页面](https://platform.minimaxi.com/document/Price) 查看最新价格
+
+---
+
 ## ⚙️ 高级配置 | Advanced Configuration
 
 ### 自定义参数 | Custom Parameters
@@ -268,8 +315,8 @@ docker compose logs backend | grep -i "error"
 |---------|---------|------|
 | **文档摘要** | Qwen-Plus, GLM-4 | 平衡性能和成本 |
 | **代码分析** | DeepSeek-Coder | 代码专用 |
-| **长文本处理** | Kimi 128K | 超长上下文 |
-| **快速响应** | Qwen-Turbo, GLM-4-Flash | 速度优先 |
+| **长文本处理** | Kimi 128K, MiniMax-M2.5 (204K) | 超长上下文 |
+| **快速响应** | Qwen-Turbo, GLM-4-Flash, MiniMax-M2.5-highspeed | 速度优先 |
 
 ### 2. 成本优化
 
@@ -294,6 +341,7 @@ docker compose logs backend | grep -i "error"
 - [阿里云百炼文档](https://help.aliyun.com/zh/model-studio/)
 - [Moonshot AI 文档](https://platform.moonshot.cn/docs)
 - [智谱 AI 文档](https://open.bigmodel.cn/dev/api)
+- [MiniMax 文档](https://platform.minimaxi.com/document/Guides)
 
 ### SurfSense 文档
 

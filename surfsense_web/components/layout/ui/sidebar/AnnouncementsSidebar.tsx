@@ -9,26 +9,27 @@ import { useAnnouncements } from "@/hooks/use-announcements";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 
-interface AnnouncementsSidebarProps {
-	open: boolean;
+export interface AnnouncementsSidebarContentProps {
 	onOpenChange: (open: boolean) => void;
 	onCloseMobileSidebar?: () => void;
 }
 
-export function AnnouncementsSidebar({
-	open,
+interface AnnouncementsSidebarProps extends AnnouncementsSidebarContentProps {
+	open: boolean;
+}
+
+export function AnnouncementsSidebarContent({
 	onOpenChange,
 	onCloseMobileSidebar,
-}: AnnouncementsSidebarProps) {
+}: AnnouncementsSidebarContentProps) {
 	const isMobile = !useMediaQuery("(min-width: 640px)");
 	const { announcements, markAllRead } = useAnnouncements();
 
 	useEffect(() => {
-		if (!open) return;
 		markAllRead();
-	}, [open, markAllRead]);
+	}, [markAllRead]);
 
-	const body = (
+	return (
 		<div className="h-full flex flex-col">
 			<div className="shrink-0 p-4 pb-2 space-y-3">
 				<div className="flex items-center justify-between">
@@ -65,10 +66,19 @@ export function AnnouncementsSidebar({
 			</div>
 		</div>
 	);
+}
 
+export function AnnouncementsSidebar({
+	open,
+	onOpenChange,
+	onCloseMobileSidebar,
+}: AnnouncementsSidebarProps) {
 	return (
 		<SidebarSlideOutPanel open={open} onOpenChange={onOpenChange} ariaLabel="Announcements">
-			{body}
+			<AnnouncementsSidebarContent
+				onOpenChange={onOpenChange}
+				onCloseMobileSidebar={onCloseMobileSidebar}
+			/>
 		</SidebarSlideOutPanel>
 	);
 }

@@ -9,15 +9,34 @@ import re
 from datetime import UTC, datetime
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import delete as sa_delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlalchemy.orm.attributes import set_committed_value
 
 from app.config import config
 from app.db import SurfsenseDocsChunk, SurfsenseDocsDocument, async_session_maker
 from app.utils.document_converters import embed_text
 
 logger = logging.getLogger(__name__)
+
+
+async def _safe_set_docs_chunks(
+    session: AsyncSession, document: SurfsenseDocsDocument, chunks: list
+) -> None:
+    """safe_set_chunks variant for the SurfsenseDocsDocument/Chunk models."""
+    if document.id is not None:
+        await session.execute(
+            sa_delete(SurfsenseDocsChunk).where(
+                SurfsenseDocsChunk.document_id == document.id
+            )
+        )
+        for chunk in chunks:
+            chunk.document_id = document.id
+
+    set_committed_value(document, "chunks", chunks)
+    session.add_all(chunks)
+
 
 # Path to docs relative to project root
 DOCS_DIR = (
@@ -156,7 +175,7 @@ async def index_surfsense_docs(session: AsyncSession) -> tuple[int, int, int, in
                 existing_doc.content = content
                 existing_doc.content_hash = content_hash
                 existing_doc.embedding = embed_text(content)
-                existing_doc.chunks = chunks
+                await _safe_set_docs_chunks(session, existing_doc, chunks)
                 existing_doc.updated_at = datetime.now(UTC)
 
                 updated += 1

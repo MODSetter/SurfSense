@@ -102,13 +102,15 @@ wait_for_pg() {
 step "Downloading SurfSense files"
 info "Installation directory: ${INSTALL_DIR}"
 mkdir -p "${INSTALL_DIR}/scripts"
+mkdir -p "${INSTALL_DIR}/searxng"
 
 FILES=(
     "docker/docker-compose.yml:docker-compose.yml"
     "docker/.env.example:.env.example"
     "docker/postgresql.conf:postgresql.conf"
-    "docker/scripts/init-electric-user.sh:scripts/init-electric-user.sh"
     "docker/scripts/migrate-database.sh:scripts/migrate-database.sh"
+    "docker/searxng/settings.yml:searxng/settings.yml"
+    "docker/searxng/limiter.toml:searxng/limiter.toml"
 )
 
 for entry in "${FILES[@]}"; do
@@ -119,7 +121,6 @@ for entry in "${FILES[@]}"; do
         || error "Failed to download ${dest}. Check your internet connection and try again."
 done
 
-chmod +x "${INSTALL_DIR}/scripts/init-electric-user.sh"
 chmod +x "${INSTALL_DIR}/scripts/migrate-database.sh"
 success "All files downloaded to ${INSTALL_DIR}/"
 
@@ -304,9 +305,9 @@ _version_display="${_version_display:-latest}"
 printf "         OSS Alternative to NotebookLM for Teams  ${YELLOW}[%s]${NC}\n" "${_version_display}"
 printf "${CYAN}══════════════════════════════════════════════════════════════${NC}\n\n"
 
-info "  Frontend:  http://localhost:3000"
-info "  Backend:   http://localhost:8000"
-info "  API Docs:  http://localhost:8000/docs"
+info "  Frontend:  http://localhost:3929"
+info "  Backend:   http://localhost:8929"
+info "  API Docs:  http://localhost:8929/docs"
 info ""
 info "  Config:    ${INSTALL_DIR}/.env"
 info "  Logs:      cd ${INSTALL_DIR} && ${DC} logs -f"

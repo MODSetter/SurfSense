@@ -3,12 +3,13 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
 import { Earth, User, Users } from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
+
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { currentThreadAtom, setThreadVisibilityAtom } from "@/atoms/chat/current-thread.atom";
 import { myAccessAtom } from "@/atoms/members/members-query.atoms";
 import { createPublicChatSnapshotMutationAtom } from "@/atoms/public-chat-snapshots/public-chat-snapshots-mutation.atoms";
+import { searchSpaceSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -48,9 +49,8 @@ const visibilityOptions: {
 
 export function ChatShareButton({ thread, onVisibilityChange, className }: ChatShareButtonProps) {
 	const queryClient = useQueryClient();
-	const router = useRouter();
-	const params = useParams();
 	const [open, setOpen] = useState(false);
+	const setSearchSpaceSettingsDialog = useSetAtom(searchSpaceSettingsDialogAtom);
 
 	// Use Jotai atom for visibility (single source of truth)
 	const currentThreadState = useAtomValue(currentThreadAtom);
@@ -148,7 +148,10 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 						<button
 							type="button"
 							onClick={() =>
-								router.push(`/dashboard/${params.search_space_id}/settings?tab=public-links`)
+								setSearchSpaceSettingsDialog({
+									open: true,
+									initialTab: "public-links",
+								})
 							}
 							className="flex items-center justify-center h-8 w-8 rounded-md bg-muted/50 hover:bg-muted transition-colors"
 						>
@@ -160,21 +163,16 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 			)}
 
 			<Popover open={open} onOpenChange={setOpen}>
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<PopoverTrigger asChild>
-							<Button
-								variant="outline"
-								size="icon"
-								className="h-8 w-8 md:w-auto md:px-3 md:gap-2 relative bg-muted hover:bg-muted/80 border-0 select-none"
-							>
-								<CurrentIcon className="h-4 w-4" />
-								<span className="hidden md:inline text-sm">{buttonLabel}</span>
-							</Button>
-						</PopoverTrigger>
-					</TooltipTrigger>
-					<TooltipContent>Share settings</TooltipContent>
-				</Tooltip>
+				<PopoverTrigger asChild>
+					<Button
+						variant="outline"
+						size="icon"
+						className="h-8 w-8 md:w-auto md:px-3 md:gap-2 relative bg-muted hover:bg-muted/80 border-0 select-none"
+					>
+						<CurrentIcon className="h-4 w-4" />
+						<span className="hidden md:inline text-sm">{buttonLabel}</span>
+					</Button>
+				</PopoverTrigger>
 
 				<PopoverContent
 					className="w-[280px] md:w-[320px] p-0 rounded-lg shadow-lg border-border/60 dark:bg-neutral-900 dark:border dark:border-white/5 select-none"
@@ -196,7 +194,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 									className={cn(
 										"w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all",
 										"hover:bg-accent/50 dark:hover:bg-white/10 cursor-pointer",
-										"focus:outline-none",
+										"focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
 										isSelected && "bg-accent/80 dark:bg-white/10"
 									)}
 								>
@@ -245,7 +243,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 									className={cn(
 										"w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all",
 										"hover:bg-accent/50 dark:hover:bg-white/10 cursor-pointer",
-										"focus:outline-none",
+										"focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
 										"disabled:opacity-50 disabled:cursor-not-allowed"
 									)}
 								>

@@ -103,6 +103,14 @@ def create_update_linear_issue_tool(
 
             if "error" in context:
                 error_msg = context["error"]
+                if context.get("auth_expired"):
+                    logger.warning(f"Auth expired for update context: {error_msg}")
+                    return {
+                        "status": "auth_error",
+                        "message": error_msg,
+                        "connector_id": context.get("connector_id"),
+                        "connector_type": "linear",
+                    }
                 if "not found" in error_msg.lower():
                     logger.warning(f"Issue not found: {error_msg}")
                     return {"status": "not_found", "message": error_msg}

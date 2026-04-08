@@ -1,13 +1,15 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { useAtomValue, useSetAtom } from "jotai";
-import { Dot, FileTextIcon } from "lucide-react";
+import { Dot } from "lucide-react";
 import { useParams, usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { openReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
+import { PlateEditor } from "@/components/editor/plate-editor";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { baseApiService } from "@/lib/apis/base-api.service";
 
 /**
@@ -30,9 +32,10 @@ const GenerateReportResultSchema = z.object({
 	error: z.string().nullish(),
 });
 
-const ReportMetadataResponseSchema = z.object({
+const ReportContentResponseSchema = z.object({
 	id: z.number(),
 	title: z.string(),
+	content: z.string().nullish(),
 	report_metadata: z
 		.object({
 			status: z.enum(["ready", "failed"]).nullish(),
@@ -58,79 +61,88 @@ const ReportMetadataResponseSchema = z.object({
 type GenerateReportArgs = z.infer<typeof GenerateReportArgsSchema>;
 type GenerateReportResult = z.infer<typeof GenerateReportResultSchema>;
 
-/**
- * Loading state component shown while report is being generated.
- * Matches the compact card layout of the completed ReportCard.
- */
+function ContentSkeleton() {
+	return (
+		<div className="h-[7rem] space-y-2">
+			<div className="h-3 w-full rounded bg-muted/60 animate-pulse" />
+			<div className="h-3 w-[92%] rounded bg-muted/60 animate-pulse [animation-delay:100ms]" />
+			<div className="h-3 w-[75%] rounded bg-muted/60 animate-pulse [animation-delay:200ms]" />
+			<div className="h-3 w-[85%] rounded bg-muted/60 animate-pulse [animation-delay:300ms]" />
+			<div className="h-3 w-[60%] rounded bg-muted/60 animate-pulse [animation-delay:400ms]" />
+		</div>
+	);
+}
+
 function ReportGeneratingState({ topic }: { topic: string }) {
 	return (
-		<div className="my-4 overflow-hidden rounded-xl border bg-card">
-			<div className="flex w-full items-center gap-2 sm:gap-3 bg-muted/30 px-4 py-5 sm:px-6 sm:py-6">
-				<div className="flex size-8 sm:size-12 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-					<FileTextIcon className="size-4 sm:size-6 text-primary" />
-				</div>
-				<div className="min-w-0 flex-1">
-					<h3 className="font-semibold text-foreground text-sm sm:text-base leading-tight line-clamp-2">
-						{topic}
-					</h3>
-					<TextShimmerLoader text="Putting things together" size="sm" />
-				</div>
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-foreground line-clamp-2">{topic}</p>
+				<TextShimmerLoader text="Putting things together" size="sm" />
+			</div>
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 pt-3 pb-4">
+				<ContentSkeleton />
 			</div>
 		</div>
 	);
 }
 
-/**
- * Error state component shown when report generation fails
- */
 function ReportErrorState({ title, error }: { title: string; error: string }) {
 	return (
-		<div className="my-4 overflow-hidden rounded-xl border bg-card">
-			<div className="flex items-center gap-2 sm:gap-3 bg-muted/30 px-4 py-5 sm:px-6 sm:py-6">
-				<div className="flex size-8 sm:size-12 shrink-0 items-center justify-center rounded-lg bg-muted/60">
-					<FileTextIcon className="size-4 sm:size-6 text-muted-foreground" />
-				</div>
-				<div className="min-w-0 flex-1">
-					<h3 className="font-semibold text-muted-foreground text-sm sm:text-base leading-tight line-clamp-2">
-						{title}
-					</h3>
-					<p className="text-muted-foreground/60 text-[11px] sm:text-xs mt-0.5 truncate">{error}</p>
-				</div>
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-destructive">Report Generation Failed</p>
+			</div>
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 py-4">
+				<p className="text-sm font-medium text-foreground line-clamp-2">{title}</p>
+				<p className="text-sm text-muted-foreground mt-1">{error}</p>
 			</div>
 		</div>
 	);
 }
 
-/**
- * Compact report card shown inline in the chat.
- * Clicking it opens the report in the right-side panel (desktop) or Vaul drawer (mobile).
- */
+function ReportCancelledState() {
+	return (
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-muted-foreground">Report Cancelled</p>
+				<p className="text-xs text-muted-foreground mt-0.5">Report generation was cancelled</p>
+			</div>
+		</div>
+	);
+}
+
 function ReportCard({
 	reportId,
 	title,
 	wordCount,
 	shareToken,
+	autoOpen = false,
 }: {
 	reportId: number;
 	title: string;
 	wordCount?: number;
-	/** When set, uses public endpoint for fetching report data */
 	shareToken?: string | null;
+	autoOpen?: boolean;
 }) {
 	const openPanel = useSetAtom(openReportPanelAtom);
 	const panelState = useAtomValue(reportPanelAtom);
+	const isDesktop = useMediaQuery("(min-width: 768px)");
+	const autoOpenedRef = useRef(false);
 	const [metadata, setMetadata] = useState<{
 		title: string;
 		wordCount: number | null;
 		versionLabel: string | null;
-	}>({ title, wordCount: wordCount ?? null, versionLabel: null });
+		content: string | null;
+	}>({ title, wordCount: wordCount ?? null, versionLabel: null, content: null });
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
-	// Fetch lightweight metadata (title + counts + version info)
 	useEffect(() => {
 		let cancelled = false;
-		const fetchMetadata = async () => {
+		const fetchData = async () => {
 			setIsLoading(true);
 			setError(null);
 			try {
@@ -139,13 +151,11 @@ function ReportCard({
 					: `/api/v1/reports/${reportId}/content`;
 				const rawData = await baseApiService.get<unknown>(url);
 				if (cancelled) return;
-				const parsed = ReportMetadataResponseSchema.safeParse(rawData);
+				const parsed = ReportContentResponseSchema.safeParse(rawData);
 				if (parsed.success) {
-					// Check if report was marked as failed in metadata
 					if (parsed.data.report_metadata?.status === "failed") {
 						setError(parsed.data.report_metadata?.error_message || "Report generation failed");
 					} else {
-						// Determine version label from versions array
 						let versionLabel: string | null = null;
 						const versions = parsed.data.versions;
 						if (versions && versions.length > 1) {
@@ -154,11 +164,24 @@ function ReportCard({
 								versionLabel = `version ${idx + 1}`;
 							}
 						}
+						const resolvedTitle = parsed.data.title || title;
+						const resolvedWordCount = parsed.data.report_metadata?.word_count ?? wordCount ?? null;
 						setMetadata({
-							title: parsed.data.title || title,
-							wordCount: parsed.data.report_metadata?.word_count ?? wordCount ?? null,
+							title: resolvedTitle,
+							wordCount: resolvedWordCount,
 							versionLabel,
+							content: parsed.data.content ?? null,
 						});
+
+						if (autoOpen && isDesktop && !autoOpenedRef.current) {
+							autoOpenedRef.current = true;
+							openPanel({
+								reportId,
+								title: resolvedTitle,
+								wordCount: resolvedWordCount ?? undefined,
+								shareToken,
+							});
+						}
 					}
 				}
 			} catch {
@@ -167,13 +190,12 @@ function ReportCard({
 				if (!cancelled) setIsLoading(false);
 			}
 		};
-		fetchMetadata();
+		fetchData();
 		return () => {
 			cancelled = true;
 		};
-	}, [reportId, title, wordCount, shareToken]);
+	}, [reportId, title, wordCount, shareToken, autoOpen, isDesktop, openPanel]);
 
-	// Show non-clickable error card for any error (failed status, not found, etc.)
 	if (!isLoading && error) {
 		return <ReportErrorState title={title} error={error} />;
 	}
@@ -191,21 +213,18 @@ function ReportCard({
 
 	return (
 		<div
-			className={`my-4 overflow-hidden rounded-xl border bg-card transition-colors ${isActive ? "ring-1 ring-primary/50" : ""}`}
+			className={`my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-[box-shadow] duration-300 ${isActive ? "ring-1 ring-primary/50" : ""}`}
 		>
 			<button
 				type="button"
 				onClick={handleOpen}
-				className="flex w-full items-center gap-2 sm:gap-3 bg-muted/30 px-4 py-5 sm:px-6 sm:py-6 text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:outline-none"
+				className="w-full text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:outline-none"
 			>
-				<div className="flex size-8 sm:size-12 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-					<FileTextIcon className="size-4 sm:size-6 text-primary" />
-				</div>
-				<div className="min-w-0 flex-1">
-					<h3 className="font-semibold text-foreground text-sm sm:text-base leading-tight line-clamp-2">
+				<div className="px-5 pt-5 pb-4 select-none">
+					<p className="text-sm font-semibold text-foreground line-clamp-2">
 						{isLoading ? title : metadata.title}
-					</h3>
-					<p className="text-muted-foreground text-[10px] sm:text-xs mt-0.5">
+					</p>
+					<p className="text-xs text-muted-foreground mt-0.5">
 						{isLoading ? (
 							<span className="inline-block h-3 w-24 rounded bg-muted/60 animate-pulse" />
 						) : (
@@ -219,85 +238,97 @@ function ReportCard({
 						)}
 					</p>
 				</div>
+
+				<div className="mx-5 h-px bg-border/50" />
+
+				<div className="px-5 pt-3 pb-4">
+					{isLoading ? (
+						<ContentSkeleton />
+					) : metadata.content ? (
+						<div
+							className="max-h-[7rem] overflow-hidden [&_*]:!text-[24px]"
+							style={{
+								maskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
+								WebkitMaskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
+							}}
+						>
+							<PlateEditor
+								markdown={metadata.content}
+								readOnly
+								preset="readonly"
+								editorVariant="none"
+								className="h-auto [&_[data-slate-editor]]:!min-h-0 [&_[data-slate-editor]>*:first-child]:!mt-0"
+							/>
+						</div>
+					) : (
+						<p className="text-sm text-muted-foreground italic">No content available</p>
+					)}
+				</div>
 			</button>
 		</div>
 	);
 }
 
 /**
- * Generate Report Tool UI Component
- *
- * This component is registered with assistant-ui to render custom UI
+ * Generate Report Tool UI — renders custom UI inline in chat
  * when the generate_report tool is called by the agent.
- *
- * Unlike podcast (which uses polling), the report is generated inline
- * and the result contains status: "ready" immediately.
  */
-export const GenerateReportToolUI = makeAssistantToolUI<GenerateReportArgs, GenerateReportResult>({
-	toolName: "generate_report",
-	render: function GenerateReportUI({ args, result, status }) {
-		const params = useParams();
-		const pathname = usePathname();
-		const isPublicRoute = pathname?.startsWith("/public/");
-		const shareToken = isPublicRoute && typeof params?.token === "string" ? params.token : null;
+export const GenerateReportToolUI = ({
+	args,
+	result,
+	status,
+}: ToolCallMessagePartProps<GenerateReportArgs, GenerateReportResult>) => {
+	const params = useParams();
+	const pathname = usePathname();
+	const isPublicRoute = pathname?.startsWith("/public/");
+	const shareToken = isPublicRoute && typeof params?.token === "string" ? params.token : null;
 
-		const topic = args.topic || "Report";
+	const topic = args.topic || "Report";
 
-		// Loading state - tool is still running (LLM generating report)
-		if (status.type === "running" || status.type === "requires-action") {
-			return <ReportGeneratingState topic={topic} />;
+	const sawRunningRef = useRef(false);
+	if (status.type === "running" || status.type === "requires-action") {
+		sawRunningRef.current = true;
+	}
+
+	if (status.type === "running" || status.type === "requires-action") {
+		return <ReportGeneratingState topic={topic} />;
+	}
+
+	if (status.type === "incomplete") {
+		if (status.reason === "cancelled") {
+			return <ReportCancelledState />;
 		}
-
-		// Incomplete/cancelled state
-		if (status.type === "incomplete") {
-			if (status.reason === "cancelled") {
-				return (
-					<div className="my-4 rounded-xl border border-muted p-3 sm:p-4 text-muted-foreground">
-						<p className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
-							<FileTextIcon className="size-3.5 sm:size-4" />
-							<span className="line-through">Report generation cancelled</span>
-						</p>
-					</div>
-				);
-			}
-			if (status.reason === "error") {
-				return (
-					<ReportErrorState
-						title={topic}
-						error={typeof status.error === "string" ? status.error : "An error occurred"}
-					/>
-				);
-			}
-		}
-
-		// No result yet
-		if (!result) {
-			return <ReportGeneratingState topic={topic} />;
-		}
-
-		// Failed result
-		if (result.status === "failed") {
+		if (status.reason === "error") {
 			return (
 				<ReportErrorState
-					title={result.title || topic}
-					error={result.error || "Generation failed"}
+					title={topic}
+					error={typeof status.error === "string" ? status.error : "An error occurred"}
 				/>
 			);
 		}
+	}
 
-		// Ready with report_id
-		if (result.status === "ready" && result.report_id) {
-			return (
-				<ReportCard
-					reportId={result.report_id}
-					title={result.title || topic}
-					wordCount={result.word_count ?? undefined}
-					shareToken={shareToken}
-				/>
-			);
-		}
+	if (!result) {
+		return <ReportGeneratingState topic={topic} />;
+	}
 
-		// Fallback - missing required data
-		return <ReportErrorState title={topic} error="Missing report ID" />;
-	},
-});
+	if (result.status === "failed") {
+		return (
+			<ReportErrorState title={result.title || topic} error={result.error || "Generation failed"} />
+		);
+	}
+
+	if (result.status === "ready" && result.report_id) {
+		return (
+			<ReportCard
+				reportId={result.report_id}
+				title={result.title || topic}
+				wordCount={result.word_count ?? undefined}
+				shareToken={shareToken}
+				autoOpen={sawRunningRef.current}
+			/>
+		);
+	}
+
+	return <ReportErrorState title={topic} error="Missing report ID" />;
+};

@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
+import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Suspense, useEffect, useState } from "react";
@@ -16,6 +17,7 @@ import { LocalLoginForm } from "./LocalLoginForm";
 function LoginContent() {
 	const t = useTranslations("auth");
 	const tCommon = useTranslations("common");
+	const router = useRouter();
 	const [authType, setAuthType] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [urlError, setUrlError] = useState<{ title: string; message: string } | null>(null);
@@ -79,7 +81,7 @@ function LoginContent() {
 			if (shouldRetry(error)) {
 				toastOptions.action = {
 					label: "Retry",
-					onClick: () => window.location.reload(),
+					onClick: () => router.refresh(),
 				};
 			}
 
@@ -115,7 +117,7 @@ function LoginContent() {
 		<div className="relative w-full overflow-hidden">
 			<AmbientBackground />
 			<div className="mx-auto flex h-screen max-w-lg flex-col items-center justify-center">
-				<Logo className="h-16 w-16 md:h-32 md:w-32 rounded-md transition-all" />
+				<Logo priority className="h-16 w-16 md:h-32 md:w-32 rounded-md transition-all" />
 				<h1 className="mt-4 mb-6 text-xl font-bold text-neutral-800 dark:text-neutral-100 md:mt-8 md:mb-8 md:text-3xl lg:text-4xl transition-all">
 					{t("sign_in")}
 				</h1>

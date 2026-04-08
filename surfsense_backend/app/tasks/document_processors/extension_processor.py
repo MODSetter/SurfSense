@@ -21,6 +21,7 @@ from app.utils.document_converters import (
 from .base import (
     check_document_by_unique_identifier,
     get_current_timestamp,
+    safe_set_chunks,
 )
 
 
@@ -154,7 +155,7 @@ async def add_extension_received_document(
             existing_document.content_hash = content_hash
             existing_document.embedding = summary_embedding
             existing_document.document_metadata = content.metadata.model_dump()
-            existing_document.chunks = chunks
+            await safe_set_chunks(session, existing_document, chunks)
             existing_document.source_markdown = combined_document_string
             existing_document.updated_at = get_current_timestamp()
 

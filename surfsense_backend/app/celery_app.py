@@ -18,10 +18,15 @@ def init_worker(**kwargs):
     This ensures the Auto mode (LiteLLM Router) is available for background tasks
     like document summarization and image generation.
     """
-    from app.config import initialize_image_gen_router, initialize_llm_router
+    from app.config import (
+        initialize_image_gen_router,
+        initialize_llm_router,
+        initialize_vision_llm_router,
+    )
 
     initialize_llm_router()
     initialize_image_gen_router()
+    initialize_vision_llm_router()
 
 
 # Get Celery configuration from environment
@@ -33,6 +38,7 @@ CELERY_TASK_DEFAULT_QUEUE = os.getenv("CELERY_TASK_DEFAULT_QUEUE", "surfsense")
 # Format: "<number><unit>" where unit is 'm' (minutes) or 'h' (hours)
 # Examples: "1m" (every minute), "5m" (every 5 minutes), "1h" (every hour)
 SCHEDULE_CHECKER_INTERVAL = os.getenv("SCHEDULE_CHECKER_INTERVAL", "2m")
+STRIPE_RECONCILIATION_INTERVAL = os.getenv("STRIPE_RECONCILIATION_INTERVAL", "10m")
 
 
 def parse_schedule_interval(interval: str) -> dict:
@@ -68,6 +74,9 @@ def parse_schedule_interval(interval: str) -> dict:
 
 # Parse the schedule interval
 schedule_params = parse_schedule_interval(SCHEDULE_CHECKER_INTERVAL)
+stripe_reconciliation_schedule_params = parse_schedule_interval(
+    STRIPE_RECONCILIATION_INTERVAL
+)
 
 # Create Celery app
 celery_app = Celery(
@@ -77,10 +86,12 @@ celery_app = Celery(
     include=[
         "app.tasks.celery_tasks.document_tasks",
         "app.tasks.celery_tasks.podcast_tasks",
+        "app.tasks.celery_tasks.video_presentation_tasks",
         "app.tasks.celery_tasks.connector_tasks",
         "app.tasks.celery_tasks.schedule_checker_task",
         "app.tasks.celery_tasks.document_reindex_tasks",
         "app.tasks.celery_tasks.stale_notification_cleanup_task",
+        "app.tasks.celery_tasks.stripe_reconciliation_task",
     ],
 )
 
@@ -166,6 +177,14 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(minute="*/5"),  # Every 5 minutes
         "options": {
             "expires": 60,  # Task expires after 60 seconds if not picked up
+        },
+    },
+    # Reconcile Stripe purchases that were paid but remained pending
+    "reconcile-pending-stripe-page-purchases": {
+        "task": "reconcile_pending_stripe_page_purchases",
+        "schedule": crontab(**stripe_reconciliation_schedule_params),
+        "options": {
+            "expires": 60,
         },
     },
 }

@@ -14,7 +14,7 @@ export function FixedToolbar({
 	return (
 		<Toolbar
 			className={cn(
-				"scrollbar-hide sticky top-0 left-0 z-10 w-full justify-between overflow-x-auto rounded-t-lg border-b bg-background/95 p-1 backdrop-blur supports-backdrop-filter:bg-background/60",
+				"scrollbar-hide sticky top-0 left-0 z-10 w-full justify-between overflow-x-auto border-b bg-background/95 p-1 backdrop-blur supports-backdrop-filter:bg-background/60",
 				className
 			)}
 			{...props}

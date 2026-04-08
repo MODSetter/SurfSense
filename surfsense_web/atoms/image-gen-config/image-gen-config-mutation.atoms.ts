@@ -2,6 +2,8 @@ import { atomWithMutation } from "jotai-tanstack-query";
 import { toast } from "sonner";
 import type {
 	CreateImageGenConfigRequest,
+	CreateImageGenConfigResponse,
+	DeleteImageGenConfigResponse,
 	GetImageGenConfigsResponse,
 	UpdateImageGenConfigRequest,
 	UpdateImageGenConfigResponse,
@@ -23,14 +25,14 @@ export const createImageGenConfigMutationAtom = atomWithMutation((get) => {
 		mutationFn: async (request: CreateImageGenConfigRequest) => {
 			return imageGenConfigApiService.createConfig(request);
 		},
-		onSuccess: () => {
-			toast.success("Image model configuration created");
+		onSuccess: (_: CreateImageGenConfigResponse, request: CreateImageGenConfigRequest) => {
+			toast.success(`${request.name} created`);
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.imageGenConfigs.all(Number(searchSpaceId)),
 			});
 		},
 		onError: (error: Error) => {
-			toast.error(error.message || "Failed to create image model configuration");
+			toast.error(error.message || "Failed to create image model");
 		},
 	};
 });
@@ -48,7 +50,7 @@ export const updateImageGenConfigMutationAtom = atomWithMutation((get) => {
 			return imageGenConfigApiService.updateConfig(request);
 		},
 		onSuccess: (_: UpdateImageGenConfigResponse, request: UpdateImageGenConfigRequest) => {
-			toast.success("Image model configuration updated");
+			toast.success(`${request.data.name ?? "Configuration"} updated`);
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.imageGenConfigs.all(Number(searchSpaceId)),
 			});
@@ -57,7 +59,7 @@ export const updateImageGenConfigMutationAtom = atomWithMutation((get) => {
 			});
 		},
 		onError: (error: Error) => {
-			toast.error(error.message || "Failed to update image model configuration");
+			toast.error(error.message || "Failed to update image model");
 		},
 	};
 });
@@ -71,21 +73,21 @@ export const deleteImageGenConfigMutationAtom = atomWithMutation((get) => {
 	return {
 		mutationKey: ["image-gen-configs", "delete"],
 		enabled: !!searchSpaceId,
-		mutationFn: async (id: number) => {
-			return imageGenConfigApiService.deleteConfig(id);
+		mutationFn: async (request: { id: number; name: string }) => {
+			return imageGenConfigApiService.deleteConfig(request.id);
 		},
-		onSuccess: (_, id: number) => {
-			toast.success("Image model configuration deleted");
+		onSuccess: (_: DeleteImageGenConfigResponse, request: { id: number; name: string }) => {
+			toast.success(`${request.name} deleted`);
 			queryClient.setQueryData(
 				cacheKeys.imageGenConfigs.all(Number(searchSpaceId)),
 				(oldData: GetImageGenConfigsResponse | undefined) => {
 					if (!oldData) return oldData;
-					return oldData.filter((config) => config.id !== id);
+					return oldData.filter((config) => config.id !== request.id);
 				}
 			);
 		},
 		onError: (error: Error) => {
-			toast.error(error.message || "Failed to delete image model configuration");
+			toast.error(error.message || "Failed to delete image model");
 		},
 	};
 });

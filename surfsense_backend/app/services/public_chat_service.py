@@ -32,16 +32,16 @@ from app.db import (
     Report,
     SearchSpaceMembership,
     User,
+    VideoPresentation,
+    VideoPresentationStatus,
 )
 from app.utils.rbac import check_permission
 
 UI_TOOLS = {
-    "display_image",
-    "link_preview",
+    "generate_image",
     "generate_podcast",
     "generate_report",
-    "scrape_webpage",
-    "multi_link_preview",
+    "generate_video_presentation",
 }
 
 
@@ -199,6 +199,8 @@ async def create_snapshot(
     podcast_ids_seen: set[int] = set()
     reports_data = []
     report_ids_seen: set[int] = set()
+    video_presentations_data = []
+    video_presentation_ids_seen: set[int] = set()
 
     for msg in sorted(thread.messages, key=lambda m: m.created_at):
         author = await get_author_display(session, msg.author_id, user_cache)
@@ -223,6 +225,18 @@ async def create_snapshot(
                             podcasts_data.append(podcast_info)
                             podcast_ids_seen.add(podcast_id)
                             # Update status to "ready" so frontend renders PodcastPlayer
+                            part["result"] = {**result_data, "status": "ready"}
+
+                elif tool_name == "generate_video_presentation":
+                    result_data = part.get("result", {})
+                    vp_id = result_data.get("video_presentation_id")
+                    if vp_id and vp_id not in video_presentation_ids_seen:
+                        vp_info = await _get_video_presentation_for_snapshot(
+                            session, vp_id
+                        )
+                        if vp_info:
+                            video_presentations_data.append(vp_info)
+                            video_presentation_ids_seen.add(vp_id)
                             part["result"] = {**result_data, "status": "ready"}
 
                 elif tool_name == "generate_report":
@@ -283,6 +297,7 @@ async def create_snapshot(
         "messages": messages_data,
         "podcasts": podcasts_data,
         "reports": reports_data,
+        "video_presentations": video_presentations_data,
     }
 
     # Create new snapshot
@@ -323,6 +338,27 @@ async def _get_podcast_for_snapshot(
         "title": podcast.title,
         "transcript": podcast.podcast_transcript,
         "file_path": podcast.file_location,
+    }
+
+
+async def _get_video_presentation_for_snapshot(
+    session: AsyncSession,
+    video_presentation_id: int,
+) -> dict | None:
+    """Get video presentation info for embedding in snapshot_data."""
+    result = await session.execute(
+        select(VideoPresentation).filter(VideoPresentation.id == video_presentation_id)
+    )
+    vp = result.scalars().first()
+
+    if not vp or vp.status != VideoPresentationStatus.READY:
+        return None
+
+    return {
+        "original_id": vp.id,
+        "title": vp.title,
+        "slides": vp.slides,
+        "scene_codes": vp.scene_codes,
     }
 
 
@@ -765,6 +801,31 @@ async def get_snapshot_podcast(
     for podcast in podcasts:
         if podcast.get("original_id") == podcast_id:
             return podcast
+
+    return None
+
+
+async def get_snapshot_video_presentation(
+    session: AsyncSession,
+    share_token: str,
+    video_presentation_id: int,
+) -> dict | None:
+    """
+    Get video presentation info from a snapshot by original video presentation ID.
+
+    Used for rendering video presentation in public view.
+    Looks up the presentation by its original_id in the snapshot's video_presentations array.
+    """
+    snapshot = await get_snapshot_by_token(session, share_token)
+
+    if not snapshot:
+        return None
+
+    video_presentations = snapshot.snapshot_data.get("video_presentations", [])
+
+    for vp in video_presentations:
+        if vp.get("original_id") == video_presentation_id:
+            return vp
 
     return None
 

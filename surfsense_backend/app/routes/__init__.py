@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from .airtable_add_connector_route import (
     router as airtable_add_connector_router,
 )
+from .autocomplete_routes import router as autocomplete_router
 from .chat_comments_routes import router as chat_comments_router
 from .circleback_webhook_route import router as circleback_webhook_router
 from .clickup_add_connector_route import router as clickup_add_connector_router
@@ -10,7 +11,9 @@ from .composio_routes import router as composio_router
 from .confluence_add_connector_route import router as confluence_add_connector_router
 from .discord_add_connector_route import router as discord_add_connector_router
 from .documents_routes import router as documents_router
+from .dropbox_add_connector_route import router as dropbox_add_connector_router
 from .editor_routes import router as editor_router
+from .folders_routes import router as folders_router
 from .google_calendar_add_connector_route import (
     router as google_calendar_add_connector_router,
 )
@@ -32,7 +35,9 @@ from .new_llm_config_routes import router as new_llm_config_router
 from .notes_routes import router as notes_router
 from .notifications_routes import router as notifications_router
 from .notion_add_connector_route import router as notion_add_connector_router
+from .onedrive_add_connector_route import router as onedrive_add_connector_router
 from .podcasts_routes import router as podcasts_router
+from .prompts_routes import router as prompts_router
 from .public_chat_routes import router as public_chat_router
 from .rbac_routes import router as rbac_router
 from .reports_routes import router as reports_router
@@ -40,8 +45,12 @@ from .sandbox_routes import router as sandbox_router
 from .search_source_connectors_routes import router as search_source_connectors_router
 from .search_spaces_routes import router as search_spaces_router
 from .slack_add_connector_route import router as slack_add_connector_router
+from .stripe_routes import router as stripe_router
 from .surfsense_docs_routes import router as surfsense_docs_router
 from .teams_add_connector_route import router as teams_add_connector_router
+from .video_presentations_routes import router as video_presentations_router
+from .vision_llm_routes import router as vision_llm_router
+from .youtube_routes import router as youtube_router
 
 router = APIRouter()
 
@@ -49,13 +58,18 @@ router.include_router(search_spaces_router)
 router.include_router(rbac_router)  # RBAC routes for roles, members, invites
 router.include_router(editor_router)
 router.include_router(documents_router)
+router.include_router(folders_router)
 router.include_router(notes_router)
 router.include_router(new_chat_router)  # Chat with assistant-ui persistence
 router.include_router(sandbox_router)  # Sandbox file downloads (Daytona)
 router.include_router(chat_comments_router)
 router.include_router(podcasts_router)  # Podcast task status and audio
-router.include_router(reports_router)  # Report CRUD and export (PDF/DOCX)
+router.include_router(
+    video_presentations_router
+)  # Video presentation status and streaming
+router.include_router(reports_router)  # Report CRUD and multi-format export
 router.include_router(image_generation_router)  # Image generation via litellm
+router.include_router(vision_llm_router)  # Vision LLM configs for screenshot analysis
 router.include_router(search_source_connectors_router)
 router.include_router(google_calendar_add_connector_router)
 router.include_router(google_gmail_add_connector_router)
@@ -66,16 +80,22 @@ router.include_router(luma_add_connector_router)
 router.include_router(notion_add_connector_router)
 router.include_router(slack_add_connector_router)
 router.include_router(teams_add_connector_router)
+router.include_router(onedrive_add_connector_router)
 router.include_router(discord_add_connector_router)
 router.include_router(jira_add_connector_router)
 router.include_router(confluence_add_connector_router)
 router.include_router(clickup_add_connector_router)
+router.include_router(dropbox_add_connector_router)
 router.include_router(new_llm_config_router)  # LLM configs with prompt configuration
-router.include_router(model_list_router)  # Dynamic LLM model catalogue from OpenRouter
+router.include_router(model_list_router)  # Dynamic model catalogue from OpenRouter
 router.include_router(logs_router)
 router.include_router(circleback_webhook_router)  # Circleback meeting webhooks
 router.include_router(surfsense_docs_router)  # Surfsense documentation for citations
-router.include_router(notifications_router)  # Notifications with Electric SQL sync
+router.include_router(notifications_router)  # Notifications with Zero sync
 router.include_router(composio_router)  # Composio OAuth and toolkit management
 router.include_router(public_chat_router)  # Public chat sharing and cloning
 router.include_router(incentive_tasks_router)  # Incentive tasks for earning free pages
+router.include_router(stripe_router)  # Stripe checkout for additional page packs
+router.include_router(youtube_router)  # YouTube playlist resolution
+router.include_router(prompts_router)
+router.include_router(autocomplete_router)  # Lightweight autocomplete with KB context

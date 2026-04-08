@@ -10,9 +10,25 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { toast } from "sonner";
 import { currentThreadAtom, resetCurrentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
+import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
+import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import {
+	searchSpaceSettingsDialogAtom,
+	teamDialogAtom,
+	userSettingsDialogAtom,
+} from "@/atoms/settings/settings-dialog.atoms";
+import {
+	removeChatTabAtom,
+	resetTabsAtom,
+	syncChatTabAtom,
+	type Tab,
+} from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
+import { SearchSpaceSettingsDialog } from "@/components/settings/search-space-settings-dialog";
+import { TeamDialog } from "@/components/settings/team-dialog";
+import { UserSettingsDialog } from "@/components/settings/user-settings-dialog";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -33,14 +49,14 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { isPageLimitExceededMetadata } from "@/contracts/types/inbox.types";
+import { Spinner } from "@/components/ui/spinner";
 import { useAnnouncements } from "@/hooks/use-announcements";
-import { useDocumentsProcessing } from "@/hooks/use-documents-processing";
 import { useInbox } from "@/hooks/use-inbox";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { notificationsApiService } from "@/lib/apis/notifications-api.service";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
-import { logout } from "@/lib/auth-utils";
+import { getLoginPath, logout } from "@/lib/auth-utils";
 import { deleteThread, fetchThreads, updateThread } from "@/lib/chat/thread-persistence";
-import { cleanupElectric } from "@/lib/electric/client";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import type { ChatItem, NavItem, SearchSpace } from "../types/layout.types";
@@ -72,19 +88,24 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const pathname = usePathname();
 	const queryClient = useQueryClient();
 	const { theme, setTheme } = useTheme();
+	const isMobile = useIsMobile();
 
 	// Announcements
 	const { unreadCount: announcementUnreadCount } = useAnnouncements();
 
 	// Atoms
 	const { data: user } = useAtomValue(currentUserAtom);
-	const { data: searchSpacesData, refetch: refetchSearchSpaces } = useAtomValue(searchSpacesAtom);
+	const {
+		data: searchSpacesData,
+		refetch: refetchSearchSpaces,
+		isSuccess: searchSpacesLoaded,
+	} = useAtomValue(searchSpacesAtom);
 	const { mutateAsync: deleteSearchSpace } = useAtomValue(deleteSearchSpaceMutationAtom);
 	const currentThreadState = useAtomValue(currentThreadAtom);
 	const resetCurrentThread = useSetAtom(resetCurrentThreadAtom);
-
-	// State for handling new chat navigation when router is out of sync
-	const [pendingNewChat, setPendingNewChat] = useState(false);
+	const syncChatTab = useSetAtom(syncChatTabAtom);
+	const resetTabs = useSetAtom(resetTabsAtom);
+	const removeChatTab = useSetAtom(removeChatTabAtom);
 
 	// Key used to force-remount the page component (e.g. after deleting the active chat
 	// when the router is out of sync due to replaceState)
@@ -109,35 +130,68 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		enabled: !!searchSpaceId,
 	});
 
-	// Separate sidebar states for shared and private chats
-	const [isAllSharedChatsSidebarOpen, setIsAllSharedChatsSidebarOpen] = useState(false);
-	const [isAllPrivateChatsSidebarOpen, setIsAllPrivateChatsSidebarOpen] = useState(false);
+	// Unified slide-out panel state (only one can be open at a time)
+	type SlideoutPanel = "inbox" | "shared" | "private" | "announcements" | null;
+	const [activeSlideoutPanel, setActiveSlideoutPanel] = useState<SlideoutPanel>(null);
 
-	// Inbox sidebar state
-	const [isInboxSidebarOpen, setIsInboxSidebarOpen] = useState(false);
-	const [isInboxDocked, setIsInboxDocked] = useState(false);
+	const isInboxSidebarOpen = activeSlideoutPanel === "inbox";
+	const isAnnouncementsSidebarOpen = activeSlideoutPanel === "announcements";
 
 	// Documents sidebar state (shared atom so Composer can toggle it)
 	const [isDocumentsSidebarOpen, setIsDocumentsSidebarOpen] = useAtom(documentsSidebarOpenAtom);
+	const [isDocumentsDocked, setIsDocumentsDocked] = useState(true);
+	const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useAtom(rightPanelCollapsedAtom);
 
-	// Announcements sidebar state
-	const [isAnnouncementsSidebarOpen, setIsAnnouncementsSidebarOpen] = useState(false);
+	// Open documents sidebar by default on desktop (docked mode)
+	const documentsInitialized = useRef(false);
+	useEffect(() => {
+		if (!documentsInitialized.current) {
+			documentsInitialized.current = true;
+			const isDesktop = typeof window !== "undefined" && window.innerWidth >= 768;
+			if (isDesktop) {
+				setIsDocumentsSidebarOpen(true);
+			}
+		}
+	}, [setIsDocumentsSidebarOpen]);
 
 	// Search space dialog state
 	const [isCreateSearchSpaceDialogOpen, setIsCreateSearchSpaceDialogOpen] = useState(false);
 
-	// Per-tab inbox hooks — each has independent API loading, pagination,
-	// and Electric live queries. The Electric sync shape is shared (client-level cache).
 	const userId = user?.id ? String(user.id) : null;
 	const numericSpaceId = Number(searchSpaceId) || null;
 
-	const commentsInbox = useInbox(userId, numericSpaceId, "comments");
-	const statusInbox = useInbox(userId, numericSpaceId, "status");
+	// Batch-fetch unread counts for all categories in a single request
+	// instead of 2 separate /unread-count calls.
+	const { data: batchUnread, isLoading: isBatchUnreadLoading } = useQuery({
+		queryKey: cacheKeys.notifications.batchUnreadCounts(numericSpaceId),
+		queryFn: () => notificationsApiService.getBatchUnreadCounts(numericSpaceId ?? undefined),
+		enabled: !!userId && !!numericSpaceId,
+		staleTime: 30_000,
+	});
+
+	const commentsInbox = useInbox(
+		userId,
+		numericSpaceId,
+		"comments",
+		batchUnread?.comments,
+		!isBatchUnreadLoading
+	);
+	const statusInbox = useInbox(
+		userId,
+		numericSpaceId,
+		"status",
+		batchUnread?.status,
+		!isBatchUnreadLoading
+	);
 
 	const totalUnreadCount = commentsInbox.unreadCount + statusInbox.unreadCount;
 
-	// Document processing status — drives sidebar status indicator (spinner / check / error)
-	const documentsProcessingStatus = useDocumentsProcessing(numericSpaceId);
+	// Sync status inbox items to a shared atom so child components
+	// (e.g. ConnectorPopup) can read them without creating duplicate useInbox hooks.
+	const setStatusInboxItems = useSetAtom(statusInboxItemsAtom);
+	useEffect(() => {
+		setStatusInboxItems(statusInbox.inboxItems);
+	}, [statusInbox.inboxItems, setStatusInboxItems]);
 
 	// Track seen notification IDs to detect new page_limit_exceeded notifications
 	const seenPageLimitNotifications = useRef<Set<number>>(new Set());
@@ -166,17 +220,13 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		for (const notification of newNotifications) {
 			seenPageLimitNotifications.current.add(notification.id);
 
-			const actionUrl = isPageLimitExceededMetadata(notification.metadata)
-				? notification.metadata.action_url
-				: `/dashboard/${searchSpaceId}/more-pages`;
-
 			toast.error(notification.title, {
 				description: notification.message,
 				duration: 8000,
 				icon: <AlertTriangle className="h-5 w-5 text-amber-500" />,
 				action: {
-					label: "View Plans",
-					onClick: () => router.push(actionUrl),
+					label: "Get More Pages",
+					onClick: () => router.push(`/dashboard/${searchSpaceId}/more-pages`),
 				},
 			});
 		}
@@ -201,16 +251,16 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const [isDeletingSearchSpace, setIsDeletingSearchSpace] = useState(false);
 	const [isLeavingSearchSpace, setIsLeavingSearchSpace] = useState(false);
 
-	// Effect to complete new chat navigation after router syncs
-	// This runs when handleNewChat detected an out-of-sync state and triggered a sync
+	// Reset transient slide-out panels and tabs when switching search spaces.
+	// Use a ref to skip the initial mount — only reset when the space actually changes.
+	const prevSearchSpaceIdRef = useRef(searchSpaceId);
 	useEffect(() => {
-		if (pendingNewChat && params?.chat_id) {
-			// Router is now synced (chat_id is in params), complete navigation to new-chat
-			resetCurrentThread();
-			router.push(`/dashboard/${searchSpaceId}/new-chat`);
-			setPendingNewChat(false);
+		if (prevSearchSpaceIdRef.current !== searchSpaceId) {
+			prevSearchSpaceIdRef.current = searchSpaceId;
+			setActiveSlideoutPanel(null);
+			resetTabs();
 		}
-	}, [pendingNewChat, params?.chat_id, router, searchSpaceId, resetCurrentThread]);
+	}, [searchSpaceId, resetTabs]);
 
 	const searchSpaces: SearchSpace[] = useMemo(() => {
 		if (!searchSpacesData || !Array.isArray(searchSpacesData)) return [];
@@ -229,6 +279,41 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		if (!searchSpaceId || !searchSpaces.length) return null;
 		return searchSpaces.find((s) => s.id === Number(searchSpaceId)) ?? null;
 	}, [searchSpaceId, searchSpaces]);
+
+	// Safety redirect: if the current search space is no longer in the user's list
+	// (e.g. deleted by background task, membership revoked), redirect to a valid space.
+	useEffect(() => {
+		if (!searchSpacesLoaded || !searchSpaceId || isDeletingSearchSpace || isLeavingSearchSpace)
+			return;
+		if (searchSpaces.length > 0 && !activeSearchSpace) {
+			router.replace(`/dashboard/${searchSpaces[0].id}/new-chat`);
+		} else if (searchSpaces.length === 0 && searchSpacesLoaded) {
+			router.replace("/dashboard");
+		}
+	}, [
+		searchSpacesLoaded,
+		searchSpaceId,
+		searchSpaces,
+		activeSearchSpace,
+		isDeletingSearchSpace,
+		isLeavingSearchSpace,
+		router,
+	]);
+
+	// Sync current chat route with tab state
+	useEffect(() => {
+		const chatId = currentChatId ?? null;
+		const chatUrl = chatId
+			? `/dashboard/${searchSpaceId}/new-chat/${chatId}`
+			: `/dashboard/${searchSpaceId}/new-chat`;
+		const thread = threadsData?.threads?.find((t) => t.id === chatId);
+		syncChatTab({
+			chatId,
+			// Avoid overwriting live SSE-updated tab titles with fallback values.
+			title: chatId ? (thread?.title ?? undefined) : "New Chat",
+			chatUrl,
+		});
+	}, [currentChatId, searchSpaceId, threadsData?.threads, syncChatTab]);
 
 	// Transform and split chats into private and shared based on visibility
 	const { myChats, sharedChats } = useMemo(() => {
@@ -262,36 +347,41 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 
 	// Navigation items
 	const navItems: NavItem[] = useMemo(
-		() => [
-			{
-				title: "Inbox",
-				url: "#inbox",
-				icon: Inbox,
-				isActive: isInboxSidebarOpen,
-				badge: totalUnreadCount > 0 ? formatInboxCount(totalUnreadCount) : undefined,
-			},
-			{
-				title: "Documents",
-				url: "#documents",
-				icon: SquareLibrary,
-				isActive: isDocumentsSidebarOpen,
-				statusIndicator: documentsProcessingStatus,
-			},
-			{
-				title: "Announcements",
-				url: "#announcements",
-				icon: Megaphone,
-				isActive: isAnnouncementsSidebarOpen,
-				badge: announcementUnreadCount > 0 ? formatInboxCount(announcementUnreadCount) : undefined,
-			},
-		],
+		() =>
+			(
+				[
+					{
+						title: "Inbox",
+						url: "#inbox",
+						icon: Inbox,
+						isActive: isInboxSidebarOpen,
+						badge: totalUnreadCount > 0 ? formatInboxCount(totalUnreadCount) : undefined,
+					},
+					isMobile
+						? {
+								title: "Documents",
+								url: "#documents",
+								icon: SquareLibrary,
+								isActive: isDocumentsSidebarOpen,
+							}
+						: null,
+					{
+						title: "Announcements",
+						url: "#announcements",
+						icon: Megaphone,
+						isActive: isAnnouncementsSidebarOpen,
+						badge:
+							announcementUnreadCount > 0 ? formatInboxCount(announcementUnreadCount) : undefined,
+					},
+				] as (NavItem | null)[]
+			).filter((item): item is NavItem => item !== null),
 		[
+			isMobile,
 			isInboxSidebarOpen,
 			isDocumentsSidebarOpen,
 			totalUnreadCount,
 			isAnnouncementsSidebarOpen,
 			announcementUnreadCount,
-			documentsProcessingStatus,
 		]
 	);
 
@@ -307,15 +397,19 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		setIsCreateSearchSpaceDialogOpen(true);
 	}, []);
 
+	const setUserSettingsDialog = useSetAtom(userSettingsDialogAtom);
+	const setSearchSpaceSettingsDialog = useSetAtom(searchSpaceSettingsDialogAtom);
+	const setTeamDialogOpen = useSetAtom(teamDialogAtom);
+
 	const handleUserSettings = useCallback(() => {
-		router.push(`/dashboard/${searchSpaceId}/user-settings?tab=profile`);
-	}, [router, searchSpaceId]);
+		setUserSettingsDialog({ open: true, initialTab: "profile" });
+	}, [setUserSettingsDialog]);
 
 	const handleSearchSpaceSettings = useCallback(
-		(space: SearchSpace) => {
-			router.push(`/dashboard/${space.id}/settings?tab=general`);
+		(_space: SearchSpace) => {
+			setSearchSpaceSettingsDialog({ open: true, initialTab: "general" });
 		},
-		[router]
+		[setSearchSpaceSettingsDialog]
 	);
 
 	const handleSearchSpaceDeleteClick = useCallback((space: SearchSpace) => {
@@ -334,95 +428,103 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		setIsDeletingSearchSpace(true);
 		try {
 			await deleteSearchSpace({ id: searchSpaceToDelete.id });
-			refetchSearchSpaces();
-			if (Number(searchSpaceId) === searchSpaceToDelete.id && searchSpaces.length > 1) {
-				const remaining = searchSpaces.filter((s) => s.id !== searchSpaceToDelete.id);
-				if (remaining.length > 0) {
-					router.push(`/dashboard/${remaining[0].id}/new-chat`);
+
+			const isCurrentSpace = Number(searchSpaceId) === searchSpaceToDelete.id;
+
+			// Await refetch so we have the freshest list (backend now hides [DELETING] spaces)
+			const result = await refetchSearchSpaces();
+			const updatedSpaces = (result.data ?? []).filter((s) => s.id !== searchSpaceToDelete.id);
+
+			if (isCurrentSpace) {
+				if (updatedSpaces.length > 0) {
+					router.push(`/dashboard/${updatedSpaces[0].id}/new-chat`);
+				} else {
+					router.push("/dashboard");
 				}
-			} else if (searchSpaces.length === 1) {
-				router.push("/dashboard");
 			}
 		} catch (error) {
 			console.error("Error deleting search space:", error);
+			toast.error(
+				t.has("delete_space_error") ? t("delete_space_error") : "Failed to delete search space"
+			);
 		} finally {
 			setIsDeletingSearchSpace(false);
 			setShowDeleteSearchSpaceDialog(false);
 			setSearchSpaceToDelete(null);
 		}
-	}, [
-		searchSpaceToDelete,
-		deleteSearchSpace,
-		refetchSearchSpaces,
-		searchSpaceId,
-		searchSpaces,
-		router,
-	]);
+	}, [searchSpaceToDelete, deleteSearchSpace, refetchSearchSpaces, searchSpaceId, router, t]);
 
 	const confirmLeaveSearchSpace = useCallback(async () => {
 		if (!searchSpaceToLeave) return;
 		setIsLeavingSearchSpace(true);
 		try {
 			await searchSpacesApiService.leaveSearchSpace(searchSpaceToLeave.id);
-			refetchSearchSpaces();
-			if (Number(searchSpaceId) === searchSpaceToLeave.id && searchSpaces.length > 1) {
-				const remaining = searchSpaces.filter((s) => s.id !== searchSpaceToLeave.id);
-				if (remaining.length > 0) {
-					router.push(`/dashboard/${remaining[0].id}/new-chat`);
+
+			const isCurrentSpace = Number(searchSpaceId) === searchSpaceToLeave.id;
+
+			const result = await refetchSearchSpaces();
+			const updatedSpaces = (result.data ?? []).filter((s) => s.id !== searchSpaceToLeave.id);
+
+			if (isCurrentSpace) {
+				if (updatedSpaces.length > 0) {
+					router.push(`/dashboard/${updatedSpaces[0].id}/new-chat`);
+				} else {
+					router.push("/dashboard");
 				}
-			} else if (searchSpaces.length === 1) {
-				router.push("/dashboard");
 			}
 		} catch (error) {
 			console.error("Error leaving search space:", error);
+			toast.error(t.has("leave_error") ? t("leave_error") : "Failed to leave search space");
 		} finally {
 			setIsLeavingSearchSpace(false);
 			setShowLeaveSearchSpaceDialog(false);
 			setSearchSpaceToLeave(null);
 		}
-	}, [searchSpaceToLeave, refetchSearchSpaces, searchSpaceId, searchSpaces, router]);
+	}, [searchSpaceToLeave, refetchSearchSpaces, searchSpaceId, router, t]);
+
+	const handleTabSwitch = useCallback(
+		(tab: Tab) => {
+			if (tab.type === "chat") {
+				const url = tab.chatUrl || `/dashboard/${searchSpaceId}/new-chat`;
+				router.push(url);
+			}
+			// Document tabs are handled in-place by LayoutShell — no navigation needed
+		},
+		[router, searchSpaceId]
+	);
 
 	const handleNavItemClick = useCallback(
 		(item: NavItem) => {
 			if (item.url === "#inbox") {
-				setIsInboxSidebarOpen((prev) => {
-					if (!prev) {
-						setIsAllSharedChatsSidebarOpen(false);
-						setIsAllPrivateChatsSidebarOpen(false);
-						setIsDocumentsSidebarOpen(false);
-						setIsAnnouncementsSidebarOpen(false);
-					}
-					return !prev;
-				});
+				setActiveSlideoutPanel((prev) => (prev === "inbox" ? null : "inbox"));
 				return;
 			}
 			if (item.url === "#documents") {
-				setIsDocumentsSidebarOpen((prev) => {
-					if (!prev) {
-						setIsInboxSidebarOpen(false);
-						setIsAllSharedChatsSidebarOpen(false);
-						setIsAllPrivateChatsSidebarOpen(false);
-						setIsAnnouncementsSidebarOpen(false);
+				if (!isMobile) {
+					if (!isDocumentsSidebarOpen) {
+						setIsDocumentsSidebarOpen(true);
+						setIsRightPanelCollapsed(false);
+						setActiveSlideoutPanel(null);
+					} else {
+						setIsRightPanelCollapsed((prev) => !prev);
 					}
-					return !prev;
-				});
+				} else {
+					setIsDocumentsSidebarOpen((prev) => {
+						if (!prev) {
+							setActiveSlideoutPanel(null);
+						}
+						return !prev;
+					});
+				}
 				return;
 			}
 			if (item.url === "#announcements") {
-				setIsAnnouncementsSidebarOpen((prev) => {
-					if (!prev) {
-						setIsInboxSidebarOpen(false);
-						setIsAllSharedChatsSidebarOpen(false);
-						setIsAllPrivateChatsSidebarOpen(false);
-						setIsDocumentsSidebarOpen(false);
-					}
-					return !prev;
-				});
+				setActiveSlideoutPanel((prev) => (prev === "announcements" ? null : "announcements"));
 				return;
 			}
 			router.push(item.url);
 		},
-		[router, setIsDocumentsSidebarOpen]
+		[router, isMobile, isDocumentsSidebarOpen, setIsDocumentsSidebarOpen, setIsRightPanelCollapsed]
 	);
 
 	const handleNewChat = useCallback(() => {
@@ -432,14 +534,17 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		if (isOutOfSync) {
 			// First sync Next.js router by navigating to the current chat's actual URL
 			// This updates the router's internal state to match the browser URL
+			resetCurrentThread();
 			router.replace(`/dashboard/${searchSpaceId}/new-chat/${currentThreadState.id}`);
-			// Set flag to trigger navigation to new-chat after params update
-			setPendingNewChat(true);
+			// Allow router to sync, then navigate to fresh new-chat
+			setTimeout(() => {
+				router.push(`/dashboard/${searchSpaceId}/new-chat`);
+			}, 0);
 		} else {
 			// Normal navigation - router is in sync
 			router.push(`/dashboard/${searchSpaceId}/new-chat`);
 		}
-	}, [router, searchSpaceId, currentThreadState.id, params?.chat_id]);
+	}, [router, searchSpaceId, currentThreadState.id, params?.chat_id, resetCurrentThread]);
 
 	const handleChatSelect = useCallback(
 		(chat: ChatItem) => {
@@ -482,54 +587,38 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	);
 
 	const handleSettings = useCallback(() => {
-		router.push(`/dashboard/${searchSpaceId}/settings?tab=general`);
-	}, [router, searchSpaceId]);
+		setSearchSpaceSettingsDialog({ open: true, initialTab: "general" });
+	}, [setSearchSpaceSettingsDialog]);
 
 	const handleManageMembers = useCallback(() => {
-		router.push(`/dashboard/${searchSpaceId}/team`);
-	}, [router, searchSpaceId]);
+		setTeamDialogOpen(true);
+	}, [setTeamDialogOpen]);
 
 	const handleLogout = useCallback(async () => {
 		try {
 			trackLogout();
 			resetUser();
 
-			// Best-effort cleanup of Electric SQL / PGlite
-			// Even if this fails, login-time cleanup will handle it
-			try {
-				await cleanupElectric();
-			} catch (err) {
-				console.warn("[Logout] Electric cleanup failed (will be handled on next login):", err);
-			}
-
 			// Revoke refresh token on server and clear all tokens from localStorage
 			await logout();
 
 			if (typeof window !== "undefined") {
-				router.push("/");
+				router.push(getLoginPath());
 			}
 		} catch (error) {
 			console.error("Error during logout:", error);
 			await logout();
-			router.push("/");
+			router.push(getLoginPath());
 		}
 	}, [router]);
 
 	const handleViewAllSharedChats = useCallback(() => {
-		setIsAllSharedChatsSidebarOpen(true);
-		setIsAllPrivateChatsSidebarOpen(false);
-		setIsInboxSidebarOpen(false);
-		setIsDocumentsSidebarOpen(false);
-		setIsAnnouncementsSidebarOpen(false);
-	}, [setIsDocumentsSidebarOpen]);
+		setActiveSlideoutPanel((prev) => (prev === "shared" ? null : "shared"));
+	}, []);
 
 	const handleViewAllPrivateChats = useCallback(() => {
-		setIsAllPrivateChatsSidebarOpen(true);
-		setIsAllSharedChatsSidebarOpen(false);
-		setIsInboxSidebarOpen(false);
-		setIsDocumentsSidebarOpen(false);
-		setIsAnnouncementsSidebarOpen(false);
-	}, [setIsDocumentsSidebarOpen]);
+		setActiveSlideoutPanel((prev) => (prev === "private" ? null : "private"));
+	}, []);
 
 	// Delete handlers
 	const confirmDeleteChat = useCallback(async () => {
@@ -537,15 +626,20 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		setIsDeletingChat(true);
 		try {
 			await deleteThread(chatToDelete.id);
+			const fallbackTab = removeChatTab(chatToDelete.id);
 			queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
 			if (currentChatId === chatToDelete.id) {
 				resetCurrentThread();
-				const isOutOfSync = currentThreadState.id !== null && !params?.chat_id;
-				if (isOutOfSync) {
-					window.history.replaceState(null, "", `/dashboard/${searchSpaceId}/new-chat`);
-					setChatResetKey((k) => k + 1);
+				if (fallbackTab?.type === "chat" && fallbackTab.chatUrl) {
+					router.push(fallbackTab.chatUrl);
 				} else {
-					router.push(`/dashboard/${searchSpaceId}/new-chat`);
+					const isOutOfSync = currentThreadState.id !== null && !params?.chat_id;
+					if (isOutOfSync) {
+						window.history.replaceState(null, "", `/dashboard/${searchSpaceId}/new-chat`);
+						setChatResetKey((k) => k + 1);
+					} else {
+						router.push(`/dashboard/${searchSpaceId}/new-chat`);
+					}
 				}
 			}
 		} catch (error) {
@@ -564,6 +658,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		currentThreadState.id,
 		params?.chat_id,
 		router,
+		removeChatTab,
 	]);
 
 	// Rename handler
@@ -634,9 +729,10 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				setTheme={setTheme}
 				isChatPage={isChatPage}
 				isLoadingChats={isLoadingThreads}
+				activeSlideoutPanel={activeSlideoutPanel}
+				onSlideoutPanelChange={setActiveSlideoutPanel}
 				inbox={{
 					isOpen: isInboxSidebarOpen,
-					onOpenChange: setIsInboxSidebarOpen,
 					totalUnreadCount,
 					comments: {
 						items: commentsInbox.inboxItems,
@@ -658,27 +754,20 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						markAsRead: statusInbox.markAsRead,
 						markAllAsRead: statusInbox.markAllAsRead,
 					},
-					isDocked: isInboxDocked,
-					onDockedChange: setIsInboxDocked,
-				}}
-				announcementsPanel={{
-					open: isAnnouncementsSidebarOpen,
-					onOpenChange: setIsAnnouncementsSidebarOpen,
 				}}
 				allSharedChatsPanel={{
-					open: isAllSharedChatsSidebarOpen,
-					onOpenChange: setIsAllSharedChatsSidebarOpen,
 					searchSpaceId,
 				}}
 				allPrivateChatsPanel={{
-					open: isAllPrivateChatsSidebarOpen,
-					onOpenChange: setIsAllPrivateChatsSidebarOpen,
 					searchSpaceId,
 				}}
 				documentsPanel={{
 					open: isDocumentsSidebarOpen,
 					onOpenChange: setIsDocumentsSidebarOpen,
+					isDocked: isDocumentsDocked,
+					onDockedChange: setIsDocumentsDocked,
 				}}
+				onTabSwitch={handleTabSwitch}
 			>
 				<Fragment key={chatResetKey}>{children}</Fragment>
 			</LayoutShell>
@@ -689,7 +778,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 					<AlertDialogHeader>
 						<AlertDialogTitle>{t("delete_chat")}</AlertDialogTitle>
 						<AlertDialogDescription>
-							{t("delete_chat_confirm")} <span className="font-medium">{chatToDelete?.name}</span>?{" "}
+							{t("delete_chat_confirm")}{" "}
+							<span className="font-medium break-all">{chatToDelete?.name}</span>?{" "}
 							{t("action_cannot_undone")}
 						</AlertDialogDescription>
 					</AlertDialogHeader>
@@ -701,16 +791,10 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 								confirmDeleteChat();
 							}}
 							disabled={isDeletingChat}
-							className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
+							className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90 items-center justify-center"
 						>
-							{isDeletingChat ? (
-								<>
-									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-									{t("deleting")}
-								</>
-							) : (
-								tCommon("delete")
-							)}
+							<span className={isDeletingChat ? "opacity-0" : ""}>{tCommon("delete")}</span>
+							{isDeletingChat && <Spinner size="sm" className="absolute" />}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
@@ -737,7 +821,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 							}
 						}}
 					/>
-					<DialogFooter className="flex gap-2 sm:justify-end">
+					<DialogFooter className="flex sm:justify-end">
 						<Button
 							variant="secondary"
 							onClick={() => setShowRenameChatDialog(false)}
@@ -747,17 +831,15 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						</Button>
 						<Button
 							onClick={confirmRenameChat}
-							disabled={isRenamingChat || !newChatTitle.trim()}
-							className="gap-2"
+							disabled={
+								isRenamingChat || !newChatTitle.trim() || newChatTitle.trim() === chatToRename?.name
+							}
+							className="relative"
 						>
-							{isRenamingChat ? (
-								<>
-									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-									{tSidebar("renaming") || "Renaming"}
-								</>
-							) : (
-								tSidebar("rename") || "Rename"
-							)}
+							<span className={isRenamingChat ? "opacity-0" : ""}>
+								{tSidebar("rename") || "Rename"}
+							</span>
+							{isRenamingChat && <Spinner size="sm" className="absolute" />}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
@@ -782,16 +864,10 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 								confirmDeleteSearchSpace();
 							}}
 							disabled={isDeletingSearchSpace}
-							className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
+							className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
-							{isDeletingSearchSpace ? (
-								<>
-									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-									{t("deleting")}
-								</>
-							) : (
-								tCommon("delete")
-							)}
+							<span className={isDeletingSearchSpace ? "opacity-0" : ""}>{tCommon("delete")}</span>
+							{isDeletingSearchSpace && <Spinner size="sm" className="absolute" />}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
@@ -816,16 +892,10 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 								confirmLeaveSearchSpace();
 							}}
 							disabled={isLeavingSearchSpace}
-							className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
+							className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
-							{isLeavingSearchSpace ? (
-								<>
-									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-									{t("leaving")}
-								</>
-							) : (
-								t("leave")
-							)}
+							<span className={isLeavingSearchSpace ? "opacity-0" : ""}>{t("leave")}</span>
+							{isLeavingSearchSpace && <Spinner size="sm" className="absolute" />}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
@@ -836,6 +906,11 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				open={isCreateSearchSpaceDialogOpen}
 				onOpenChange={setIsCreateSearchSpaceDialogOpen}
 			/>
+
+			{/* Settings Dialogs */}
+			<SearchSpaceSettingsDialog searchSpaceId={Number(searchSpaceId)} />
+			<UserSettingsDialog />
+			<TeamDialog searchSpaceId={Number(searchSpaceId)} />
 		</>
 	);
 }

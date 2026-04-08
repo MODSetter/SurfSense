@@ -21,17 +21,39 @@
 </div>
 
 # SurfSense
-Conecte qualquer LLM às suas fontes de conhecimento internas e converse com ele em tempo real junto com sua equipe. Alternativa de código aberto ao NotebookLM, Perplexity e Glean.
 
-SurfSense é um agente de pesquisa de IA altamente personalizável, conectado a fontes externas como mecanismos de busca (SearxNG, Tavily, LinkUp), Google Drive, Slack, Microsoft Teams, Linear, Jira, ClickUp, Confluence, BookStack, Gmail, Notion, YouTube, GitHub, Discord, Airtable, Google Calendar, Luma, Circleback, Elasticsearch, Obsidian e mais por vir.
+O NotebookLM é uma das melhores e mais úteis plataformas de IA disponíveis, mas quando você começa a usá-lo regularmente também sente suas limitações deixando algo a desejar.
+
+1. Há limites na quantidade de fontes que você pode adicionar em um notebook.
+2. Há limites no número de notebooks que você pode ter.
+3. Você não pode ter fontes que excedam 500.000 palavras e mais de 200MB.
+4. Você fica preso aos serviços do Google (LLMs, modelos de uso, etc.) sem opção de configurá-los.
+5. Fontes de dados externas e integrações de serviços limitadas.
+6. O agente do NotebookLM é especificamente otimizado apenas para estudar e pesquisar, mas você pode fazer muito mais com os dados de origem.
+7. Falta de suporte multiplayer.
+
+...e mais.
+
+**O SurfSense foi feito especificamente para resolver esses problemas.** O SurfSense permite que você:
+
+- **Controle Seu Fluxo de Dados** - Mantenha seus dados privados e seguros.
+- **Sem Limites de Dados** - Adicione uma quantidade ilimitada de fontes e notebooks.
+- **Sem Dependência de Fornecedor** - Configure qualquer modelo LLM, de imagem, TTS e STT.
+- **25+ Fontes de Dados Externas** - Adicione suas fontes do Google Drive, OneDrive, Dropbox, Notion e muitos outros serviços externos.
+- **Suporte Multiplayer em Tempo Real** - Trabalhe facilmente com os membros da sua equipe em um notebook compartilhado.
+- **Aplicativo Desktop** - Obtenha assistência de IA em qualquer aplicativo com Quick Assist, General Assist, Extreme Assist e sincronização de pastas locais.
+
+...e mais por vir.
 
 
 
-# Vídeo 
+## Exemplo de Agente de Vídeo
 
-https://github.com/user-attachments/assets/cc0c84d3-1f2f-4f7a-b519-2ecce22310b1
+https://github.com/user-attachments/assets/012a7ffa-6f76-4f06-9dda-7632b470057a
 
-## Exemplo de Podcast
+
+
+## Exemplo de Agente de Podcast
 
 https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
@@ -42,37 +64,58 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 1. Acesse [surfsense.com](https://www.surfsense.com) e faça login.
 
-<p align="center"><img src="https://github.com/user-attachments/assets/b4df25fe-db5a-43c2-9462-b75cf7f1b707" alt="Login" /></p>
+<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/LoginFlowGif.gif" alt="Login" /></p>
 
 2. Conecte seus conectores e sincronize. Ative a sincronização periódica para manter os conectores atualizados.
 
-<p align="center"><img src="https://github.com/user-attachments/assets/59da61d7-da05-4576-b7c0-dbc09f5985e8" alt="Conectores" /></p>
+<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ConnectorFlowGif.gif" alt="Conectores" /></p>
 
 3. Enquanto os dados dos conectores são indexados, faça upload de documentos.
 
-<p align="center"><img src="https://github.com/user-attachments/assets/d1e8b2e2-9eac-41d8-bdc0-f0cdc405d128" alt="Upload de Documentos" /></p>
+<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/DocUploadGif.gif" alt="Upload de Documentos" /></p>
 
 4. Quando tudo estiver indexado, pergunte o que quiser (Casos de uso):
 
+   - Aplicativo Desktop — General Assist
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/general_assist.gif" alt="General Assist" /></p>
+
+   - Aplicativo Desktop — Quick Assist
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/quick_assist.gif" alt="Quick Assist" /></p>
+
+   - Aplicativo Desktop — Extreme Assist
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/extreme_assist.gif" alt="Extreme Assist" /></p>
+
+   - Aplicativo Desktop — Watch Local Folder
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/folder_watch.gif" alt="Watch Local Folder" /></p>
+
+   - Geração de vídeos
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/video_gen_gif.gif" alt="Geração de Vídeos" /></p>
+
    - Busca básica e citações
 
-   <p align="center"><img src="https://github.com/user-attachments/assets/81e797a1-e01a-4003-8e60-0a0b3a9789df" alt="Busca e Citação" /></p>
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BSNCGif.gif" alt="Busca e Citação" /></p>
 
    - QNA com menção de documentos
 
-   <p align="center"><img src="https://github.com/user-attachments/assets/be958295-0a8c-4707-998c-9fe1f1c007be" alt="QNA com Menção de Documentos" /></p>
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="QNA com Menção de Documentos" /></p>
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="QNA com Menção de Documentos" /></p>
 
-   - Geração de relatórios e exportações (PDF, DOCX por enquanto)
+   - Geração de relatórios e exportações (PDF, DOCX, HTML, LaTeX, EPUB, ODT, texto simples)
 
-   <p align="center"><img src="https://github.com/user-attachments/assets/9836b7d6-57c9-4951-b61c-68202c9b6ace" alt="Geração de Relatórios" /></p>
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="Geração de Relatórios" /></p>
 
    - Geração de podcasts
 
-   <p align="center"><img src="https://github.com/user-attachments/assets/58c9b057-8848-4e81-aaba-d2c617985d8c" alt="Geração de Podcasts" /></p>
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/PodcastGenGif.gif" alt="Geração de Podcasts" /></p>
 
    - Geração de imagens
 
-   <p align="center"><img src="https://github.com/user-attachments/assets/25f94cb3-18f8-4854-afd9-27b7bfd079cb" alt="Geração de Imagens" /></p>
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ImageGenGif.gif" alt="Geração de Imagens" /></p>
 
    - E mais em breve.
 
@@ -99,6 +142,19 @@ O script de instalação configura o [Watchtower](https://github.com/nicholas-fe
 
 Para Docker Compose, instalação manual e outras opções de implantação, consulte a [documentação](https://www.surfsense.com/docs/).
 
+### Aplicativo Desktop
+
+O SurfSense também oferece um aplicativo desktop que traz assistência de IA para cada aplicativo no seu computador. Baixe-o na [última versão](https://github.com/MODSetter/SurfSense/releases/latest).
+
+O aplicativo desktop inclui estes recursos poderosos:
+
+- **General Assist** — Abra o SurfSense instantaneamente de qualquer aplicativo com um atalho global.
+- **Quick Assist** — Selecione texto em qualquer lugar, depois peça à IA para explicar, reescrever ou agir sobre ele.
+- **Extreme Assist** — Receba sugestões de escrita em linha alimentadas pela sua base de conhecimento enquanto digita em qualquer aplicativo.
+- **Watch Local Folder** — Monitore uma pasta local e sincronize automaticamente as alterações de arquivos com sua base de conhecimento. **Pro tip:** Aponte para seu cofre do Obsidian para manter suas notas pesquisáveis no SurfSense.
+
+Todos os recursos operam no espaço de busca escolhido, para que suas respostas sejam sempre baseadas nos seus próprios dados.
+
 ### Como Colaborar em Tempo Real (Beta)
 
 1. Acesse a página de Gerenciar Membros e crie um convite.
@@ -115,34 +171,42 @@ Para Docker Compose, instalação manual e outras opções de implantação, con
 
 4. Sua equipe agora pode conversar em tempo real.
 
-   <p align="center"><img src="https://github.com/user-attachments/assets/83803ac2-fbce-4d93-aae3-85eb85a3053a" alt="Chat em Tempo Real" /></p>
+   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeChatGif.gif" alt="Chat em Tempo Real" /></p>
 
 5. Adicione comentários para marcar colegas de equipe.
 
-   <p align="center"><img src="https://github.com/user-attachments/assets/3b04477d-8f42-4baa-be95-867c1eaeba87" alt="Comentários em Tempo Real" /></p>
+   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeCommentsFlow.gif" alt="Comentários em Tempo Real" /></p>
 
-## Funcionalidades Principais
+## SurfSense vs Google NotebookLM
 
-| Funcionalidade | Descrição |
-|----------------|-----------|
-| Alternativa OSS | Substituto direto do NotebookLM, Perplexity e Glean com colaboração em equipe em tempo real |
-| 50+ Formatos de Arquivo | Faça upload de documentos, imagens, vídeos via LlamaCloud, Unstructured ou Docling (local) |
-| Busca Híbrida | Semântica + Texto completo com Índices Hierárquicos e Reciprocal Rank Fusion |
-| Respostas com Citações | Converse com sua base de conhecimento e obtenha respostas citadas no estilo Perplexity |
-| Arquitetura de Agentes Profundos | Alimentado por [LangChain Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) com planejamento, subagentes e acesso ao sistema de arquivos |
-| Suporte Universal de LLM | 100+ LLMs, 6000+ modelos de embeddings, todos os principais rerankers via OpenAI spec e LiteLLM |
-| Privacidade em Primeiro Lugar | Suporte completo a LLM local (vLLM, Ollama) seus dados ficam com você |
-| Colaboração em Equipe | RBAC com papéis de Proprietário / Admin / Editor / Visualizador, chat em tempo real e threads de comentários |
-| Geração de Podcasts | Podcast de 3 min em menos de 20 segundos; múltiplos provedores TTS (OpenAI, Azure, Kokoro) |
-| Extensão de Navegador | Extensão multi-navegador para salvar qualquer página web, incluindo páginas protegidas por autenticação |
-| 25+ Conectores | Mecanismos de busca, Google Drive, Slack, Teams, Jira, Notion, GitHub, Discord e [mais](#fontes-externas) |
-| Auto-Hospedável | Código aberto, Docker em um único comando ou Docker Compose completo para produção |
+| Recurso | Google NotebookLM | SurfSense |
+|---------|-------------------|-----------|
+| **Fontes por Notebook** | 50 (Grátis) a 600 (Ultra, $249.99/mês) | Ilimitadas |
+| **Número de Notebooks** | 100 (Grátis) a 500 (planos pagos) | Ilimitados |
+| **Limite de Tamanho da Fonte** | 500.000 palavras / 200MB por fonte | Sem limite |
+| **Preços** | Nível gratuito disponível; Pro $19.99/mês, Ultra $249.99/mês | Gratuito e de código aberto, auto-hospedável na sua própria infra |
+| **Suporte a LLM** | Apenas Google Gemini | 100+ LLMs via OpenAI spec e LiteLLM |
+| **Modelos de Embeddings** | Apenas Google | 6.000+ modelos de embeddings, todos os principais rerankers |
+| **LLMs Locais / Privados** | Não disponível | Suporte completo (vLLM, Ollama) - seus dados ficam com você |
+| **Auto-Hospedável** | Não | Sim - Docker em um único comando ou Docker Compose completo |
+| **Código Aberto** | Não | Sim |
+| **Conectores Externos** | Google Drive, YouTube, sites | 27+ conectores - Mecanismos de busca, Google Drive, OneDrive, Dropbox, Slack, Teams, Jira, Notion, GitHub, Discord e [mais](#fontes-externas) |
+| **Suporte a Formatos de Arquivo** | PDFs, Docs, Slides, Sheets, CSV, Word, EPUB, imagens, URLs web, YouTube | 50+ formatos - documentos, imagens, vídeos via LlamaCloud, Unstructured ou Docling (local) |
+| **Busca** | Busca semântica | Busca Híbrida - Semântica + Texto completo com Índices Hierárquicos e Reciprocal Rank Fusion |
+| **Respostas com Citações** | Sim | Sim - Respostas citadas no estilo Perplexity |
+| **Arquitetura de Agentes** | Não | Sim - alimentado por [LangChain Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) com planejamento, subagentes e acesso ao sistema de arquivos |
+| **Multiplayer em Tempo Real** | Notebooks compartilhados com papéis de Visualizador/Editor (sem chat em tempo real) | RBAC com papéis de Proprietário / Admin / Editor / Visualizador, chat em tempo real e threads de comentários |
+| **Geração de Vídeos** | Visões gerais cinemáticas via Veo 3 (apenas Ultra) | Disponível (NotebookLM é melhor aqui, melhorando ativamente) |
+| **Geração de Apresentações** | Slides mais bonitos mas não editáveis | Cria apresentações editáveis baseadas em slides |
+| **Geração de Podcasts** | Visões gerais em áudio com hosts e idiomas personalizáveis | Disponível com múltiplos provedores TTS (NotebookLM é melhor aqui, melhorando ativamente) |
+| **Aplicativo Desktop** | Não | Aplicativo nativo com General Assist, Quick Assist, Extreme Assist e sincronização de pastas locais |
+| **Extensão de Navegador** | Não | Extensão multi-navegador para salvar qualquer página web, incluindo páginas protegidas por autenticação |
 
 <details>
 <summary><b>Lista completa de Fontes Externas</b></summary>
 <a id="fontes-externas"></a>
 
-Mecanismos de Busca (Tavily, LinkUp) · SearxNG · Google Drive · Slack · Microsoft Teams · Linear · Jira · ClickUp · Confluence · BookStack · Notion · Gmail · Vídeos do YouTube · GitHub · Discord · Airtable · Google Calendar · Luma · Circleback · Elasticsearch · Obsidian, e mais por vir.
+Mecanismos de Busca (Tavily, LinkUp) · SearxNG · Google Drive · OneDrive · Dropbox · Slack · Microsoft Teams · Linear · Jira · ClickUp · Confluence · BookStack · Notion · Gmail · Vídeos do YouTube · GitHub · Discord · Airtable · Google Calendar · Luma · Circleback · Elasticsearch · Obsidian, e mais por vir.
 
 </details>
 

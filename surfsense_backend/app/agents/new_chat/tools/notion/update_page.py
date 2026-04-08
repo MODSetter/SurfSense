@@ -33,16 +33,19 @@ def create_update_notion_page_tool(
     @tool
     async def update_notion_page(
         page_title: str,
-        content: str,
+        content: str | None = None,
     ) -> dict[str, Any]:
         """Update an existing Notion page by appending new content.
 
         Use this tool when the user asks you to add content to, modify, or update
         a Notion page. The new content will be appended to the existing page content.
+        The user MUST specify what to add before you call this tool. If the
+        request is vague, ask what content they want added.
 
         Args:
             page_title: The title of the Notion page to update.
-            content: The markdown content to append to the page body (supports headings, lists, paragraphs).
+            content: Optional markdown content to append to the page body (supports headings, lists, paragraphs).
+                     Generate this yourself based on the user's request.
 
         Returns:
             Dictionary with:
@@ -60,10 +63,9 @@ def create_update_notion_page_tool(
               Example: "I couldn't find the page '[page_title]' in your indexed Notion pages. [message details]"
               Do NOT treat this as an error. Do NOT invent information. Simply relay the message and
               ask the user to verify the page title or check if it's been indexed.
-
         Examples:
-            - "Add 'New meeting notes from today' to the 'Meeting Notes' Notion page"
-            - "Append the following to the 'Project Plan' Notion page: '# Status Update\n\nCompleted phase 1'"
+            - "Add today's meeting notes to the 'Meeting Notes' Notion page"
+            - "Update the 'Project Plan' page with a status update on phase 1"
         """
         logger.info(
             f"update_notion_page called: page_title='{page_title}', content_length={len(content) if content else 0}"
@@ -106,6 +108,17 @@ def create_update_notion_page_tool(
                         "status": "error",
                         "message": error_msg,
                     }
+
+            account = context.get("account", {})
+            if account.get("auth_expired"):
+                logger.warning(
+                    "Notion account %s has expired authentication",
+                    account.get("id"),
+                )
+                return {
+                    "status": "auth_error",
+                    "message": "The Notion account for this page needs re-authentication. Please re-authenticate in your connector settings.",
+                }
 
             page_id = context.get("page_id")
             document_id = context.get("document_id")
@@ -261,6 +274,18 @@ def create_update_notion_page_tool(
                 raise
 
             logger.error(f"Error updating Notion page: {e}", exc_info=True)
+            error_str = str(e).lower()
+            if isinstance(e, NotionAPIError) and (
+                "401" in error_str or "unauthorized" in error_str
+            ):
+                return {
+                    "status": "auth_error",
+                    "message": str(e),
+                    "connector_id": connector_id_from_context
+                    if "connector_id_from_context" in dir()
+                    else None,
+                    "connector_type": "notion",
+                }
             if isinstance(e, ValueError | NotionAPIError):
                 message = str(e)
             else:

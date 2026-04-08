@@ -1,16 +1,35 @@
 "use client";
 
-import { ArrowLeft, Plus, Server } from "lucide-react";
-import type { FC } from "react";
+import { useAtomValue } from "jotai";
+import { ArrowLeft, Plus, RefreshCw, Server } from "lucide-react";
+import { type FC, useCallback, useState } from "react";
+import { toast } from "sonner";
+import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+import { authenticatedFetch } from "@/lib/auth-utils";
 import { formatRelativeDate } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
 import { useConnectorStatus } from "../hooks/use-connector-status";
 import { getConnectorDisplayName } from "../tabs/all-connectors-tab";
+
+const REAUTH_ENDPOINTS: Partial<Record<string, string>> = {
+	[EnumConnectorName.LINEAR_CONNECTOR]: "/api/v1/auth/linear/connector/reauth",
+	[EnumConnectorName.NOTION_CONNECTOR]: "/api/v1/auth/notion/connector/reauth",
+	[EnumConnectorName.GOOGLE_DRIVE_CONNECTOR]: "/api/v1/auth/google/drive/connector/reauth",
+	[EnumConnectorName.GOOGLE_GMAIL_CONNECTOR]: "/api/v1/auth/google/gmail/connector/reauth",
+	[EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR]: "/api/v1/auth/google/calendar/connector/reauth",
+	[EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
+	[EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
+	[EnumConnectorName.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
+	[EnumConnectorName.ONEDRIVE_CONNECTOR]: "/api/v1/auth/onedrive/connector/reauth",
+	[EnumConnectorName.JIRA_CONNECTOR]: "/api/v1/auth/jira/connector/reauth",
+	[EnumConnectorName.DROPBOX_CONNECTOR]: "/api/v1/auth/dropbox/connector/reauth",
+	[EnumConnectorName.CONFLUENCE_CONNECTOR]: "/api/v1/auth/confluence/connector/reauth",
+};
 
 interface ConnectorAccountsListViewProps {
 	connectorType: string;
@@ -43,11 +62,48 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 	isConnecting = false,
 	addButtonText,
 }) => {
+	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const [reauthingId, setReauthingId] = useState<number | null>(null);
+
 	// Get connector status
 	const { isConnectorEnabled, getConnectorStatusMessage } = useConnectorStatus();
 
 	const isEnabled = isConnectorEnabled(connectorType);
 	const statusMessage = getConnectorStatusMessage(connectorType);
+
+	const reauthEndpoint = REAUTH_ENDPOINTS[connectorType];
+
+	const handleReauth = useCallback(
+		async (connectorId: number) => {
+			if (!searchSpaceId || !reauthEndpoint) return;
+			setReauthingId(connectorId);
+			try {
+				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+				const url = new URL(`${backendUrl}${reauthEndpoint}`);
+				url.searchParams.set("connector_id", String(connectorId));
+				url.searchParams.set("space_id", String(searchSpaceId));
+				url.searchParams.set("return_url", window.location.pathname);
+				const response = await authenticatedFetch(url.toString());
+				if (!response.ok) {
+					const data = await response.json().catch(() => ({}));
+					toast.error(data.detail ?? "Failed to initiate re-authentication.");
+					return;
+				}
+				const data = await response.json();
+				if (data.auth_url) {
+					window.location.href = data.auth_url;
+				} else if (data.success) {
+					toast.success(data.message ?? "Authentication refreshed successfully.");
+					window.location.reload();
+				}
+			} catch {
+				toast.error("Failed to initiate re-authentication.");
+			} finally {
+				setReauthingId(null);
+			}
+		},
+		[searchSpaceId, reauthEndpoint]
+	);
 
 	// Filter connectors to only show those of this type
 	const typeConnectors = connectors.filter((c) => c.connector_type === connectorType);
@@ -117,9 +173,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 								<Plus className="size-3 text-primary" />
 							)}
 						</div>
-						<span className="text-xs sm:text-sm font-medium">
-							{isConnecting ? "Connecting" : buttonText}
-						</span>
+						<span className="text-xs sm:text-sm font-medium">{buttonText}</span>
 					</button>
 				</div>
 			</div>
@@ -149,6 +203,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 						{typeConnectors.map((connector) => {
 							const isIndexing = indexingConnectorIds.has(connector.id);
+							const isAuthExpired = !!reauthEndpoint && connector.config?.auth_expired === true;
 
 							return (
 								<div
@@ -189,14 +244,28 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 											</p>
 										)}
 									</div>
-									<Button
-										variant="secondary"
-										size="sm"
-										className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80 shrink-0"
-										onClick={() => onManage(connector)}
-									>
-										Manage
-									</Button>
+									{isAuthExpired ? (
+										<Button
+											size="sm"
+											className="h-8 text-[11px] px-3 rounded-lg font-medium bg-amber-600 hover:bg-amber-700 text-white border-0 shadow-xs shrink-0"
+											onClick={() => handleReauth(connector.id)}
+											disabled={reauthingId === connector.id}
+										>
+											<RefreshCw
+												className={cn("size-3.5", reauthingId === connector.id && "animate-spin")}
+											/>
+											Re-authenticate
+										</Button>
+									) : (
+										<Button
+											variant="secondary"
+											size="sm"
+											className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80 shrink-0"
+											onClick={() => onManage(connector)}
+										>
+											Manage
+										</Button>
+									)}
 								</div>
 							);
 						})}

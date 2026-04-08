@@ -1,16 +1,16 @@
 "use client";
 
-import { FolderOpen, PenSquare } from "lucide-react";
+import { PenSquare } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { SIDEBAR_MIN_WIDTH } from "../../hooks/useSidebarResize";
 import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
 import { ChatListItem } from "./ChatListItem";
 import { NavSection } from "./NavSection";
 import { PageUsageDisplay } from "./PageUsageDisplay";
+import { SidebarButton } from "./SidebarButton";
 import { SidebarCollapseButton } from "./SidebarCollapseButton";
 import { SidebarHeader } from "./SidebarHeader";
 import { SidebarSection } from "./SidebarSection";
@@ -41,6 +41,8 @@ interface SidebarProps {
 	onChatArchive?: (chat: ChatItem) => void;
 	onViewAllSharedChats?: () => void;
 	onViewAllPrivateChats?: () => void;
+	isSharedChatsPanelOpen?: boolean;
+	isPrivateChatsPanelOpen?: boolean;
 	user: User;
 	onSettings?: () => void;
 	onManageMembers?: () => void;
@@ -53,7 +55,6 @@ interface SidebarProps {
 	isLoadingChats?: boolean;
 	disableTooltips?: boolean;
 	sidebarWidth?: number;
-	onResizeMouseDown?: (e: React.MouseEvent) => void;
 	isResizing?: boolean;
 }
 
@@ -73,6 +74,8 @@ export function Sidebar({
 	onChatArchive,
 	onViewAllSharedChats,
 	onViewAllPrivateChats,
+	isSharedChatsPanelOpen = false,
+	isPrivateChatsPanelOpen = false,
 	user,
 	onSettings,
 	onManageMembers,
@@ -85,28 +88,21 @@ export function Sidebar({
 	isLoadingChats = false,
 	disableTooltips = false,
 	sidebarWidth = SIDEBAR_MIN_WIDTH,
-	onResizeMouseDown,
 	isResizing = false,
 }: SidebarProps) {
 	const t = useTranslations("sidebar");
+	const [openDropdownChatId, setOpenDropdownChatId] = useState<number | null>(null);
 
 	return (
 		<div
 			className={cn(
 				"relative flex h-full flex-col bg-sidebar text-sidebar-foreground overflow-hidden select-none",
-				isCollapsed ? "w-[60px] transition-all duration-200" : "",
-				!isCollapsed && !isResizing ? "transition-all duration-200" : "",
+				isCollapsed ? "w-[60px] transition-[width] duration-200" : "",
+				!isCollapsed && !isResizing ? "transition-[width] duration-200" : "",
 				className
 			)}
 			style={!isCollapsed ? { width: sidebarWidth } : undefined}
 		>
-			{/* Resize handle on right border */}
-			{!isCollapsed && onResizeMouseDown && (
-				<div
-					onMouseDown={onResizeMouseDown}
-					className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-border active:bg-border z-10"
-				/>
-			)}
 			{/* Header - search space name or collapse button when collapsed */}
 			{isCollapsed ? (
 				<div className="flex h-14 shrink-0 items-center justify-center border-b">
@@ -135,23 +131,13 @@ export function Sidebar({
 			)}
 
 			{/* New chat button */}
-			<div className="p-2">
-				{isCollapsed ? (
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button variant="outline" size="icon" className="w-full h-10" onClick={onNewChat}>
-								<PenSquare className="h-4 w-4" />
-								<span className="sr-only">{t("new_chat")}</span>
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent side="right">{t("new_chat")}</TooltipContent>
-					</Tooltip>
-				) : (
-					<Button variant="outline" className="w-full justify-start gap-2" onClick={onNewChat}>
-						<PenSquare className="h-4 w-4" />
-						{t("new_chat")}
-					</Button>
-				)}
+			<div className={cn("flex flex-col gap-0.5 py-2", isCollapsed && "items-center")}>
+				<SidebarButton
+					icon={PenSquare}
+					label={t("new_chat")}
+					onClick={onNewChat}
+					isCollapsed={isCollapsed}
+				/>
 			</div>
 
 			{/* Chat sections - fills available space */}
@@ -165,34 +151,16 @@ export function Sidebar({
 						defaultOpen={true}
 						fillHeight={false}
 						className="shrink-0 max-h-[50%] flex flex-col"
+						alwaysShowAction={!disableTooltips && isSharedChatsPanelOpen}
 						action={
 							onViewAllSharedChats ? (
-								disableTooltips ? (
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-8 w-8 shrink-0 hover:bg-transparent hover:text-current focus-visible:ring-0"
-										onClick={onViewAllSharedChats}
-									>
-										<FolderOpen className="h-4 w-4" />
-									</Button>
-								) : (
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<Button
-												variant="ghost"
-												size="icon"
-												className="h-8 w-8 shrink-0 hover:bg-transparent hover:text-current focus-visible:ring-0"
-												onClick={onViewAllSharedChats}
-											>
-												<FolderOpen className="h-4 w-4" />
-											</Button>
-										</TooltipTrigger>
-										<TooltipContent side="top">
-											{t("view_all_shared_chats") || "View all shared chats"}
-										</TooltipContent>
-									</Tooltip>
-								)
+								<button
+									type="button"
+									onClick={onViewAllSharedChats}
+									className="text-xs font-medium text-muted-foreground/60 hover:text-muted-foreground transition-colors whitespace-nowrap cursor-pointer bg-transparent border-none p-0 focus:outline-none"
+								>
+									{!disableTooltips && isSharedChatsPanelOpen ? t("hide") : t("show_all")}
+								</button>
 							) : undefined
 						}
 					>
@@ -215,6 +183,8 @@ export function Sidebar({
 											name={chat.name}
 											isActive={chat.id === activeChatId}
 											archived={chat.archived}
+											dropdownOpen={openDropdownChatId === chat.id}
+											onDropdownOpenChange={(open) => setOpenDropdownChatId(open ? chat.id : null)}
 											onClick={() => onChatSelect(chat)}
 											onRename={() => onChatRename?.(chat)}
 											onArchive={() => onChatArchive?.(chat)}
@@ -237,34 +207,16 @@ export function Sidebar({
 						title={t("chats")}
 						defaultOpen={true}
 						fillHeight={true}
+						alwaysShowAction={!disableTooltips && isPrivateChatsPanelOpen}
 						action={
 							onViewAllPrivateChats ? (
-								disableTooltips ? (
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-8 w-8 shrink-0 hover:bg-transparent hover:text-current focus-visible:ring-0"
-										onClick={onViewAllPrivateChats}
-									>
-										<FolderOpen className="h-4 w-4" />
-									</Button>
-								) : (
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<Button
-												variant="ghost"
-												size="icon"
-												className="h-8 w-8 shrink-0 hover:bg-transparent hover:text-current focus-visible:ring-0"
-												onClick={onViewAllPrivateChats}
-											>
-												<FolderOpen className="h-4 w-4" />
-											</Button>
-										</TooltipTrigger>
-										<TooltipContent side="top">
-											{t("view_all_private_chats") || "View all private chats"}
-										</TooltipContent>
-									</Tooltip>
-								)
+								<button
+									type="button"
+									onClick={onViewAllPrivateChats}
+									className="text-xs font-medium text-muted-foreground/60 hover:text-muted-foreground transition-colors whitespace-nowrap cursor-pointer bg-transparent border-none p-0 focus:outline-none"
+								>
+									{!disableTooltips && isPrivateChatsPanelOpen ? t("hide") : t("show_all")}
+								</button>
 							) : undefined
 						}
 					>
@@ -287,6 +239,8 @@ export function Sidebar({
 											name={chat.name}
 											isActive={chat.id === activeChatId}
 											archived={chat.archived}
+											dropdownOpen={openDropdownChatId === chat.id}
+											onDropdownOpenChange={(open) => setOpenDropdownChatId(open ? chat.id : null)}
 											onClick={() => onChatSelect(chat)}
 											onRename={() => onChatRename?.(chat)}
 											onArchive={() => onChatArchive?.(chat)}

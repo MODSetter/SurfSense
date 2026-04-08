@@ -5,7 +5,7 @@ export interface LLMModel {
 	contextWindow?: string;
 }
 
-// Comprehensive LLM models database organized by provider
+// Comprehensive models database organized by provider
 export const LLM_MODELS: LLMModel[] = [
 	// OpenAI
 	{
@@ -1524,6 +1524,20 @@ export const LLM_MODELS: LLMModel[] = [
 		label: "GitHub DeepSeek R1",
 		provider: "GITHUB_MODELS",
 		contextWindow: "64K",
+	},
+
+	// MiniMax
+	{
+		value: "MiniMax-M2.5",
+		label: "MiniMax M2.5",
+		provider: "MINIMAX",
+		contextWindow: "204K",
+	},
+	{
+		value: "MiniMax-M2.5-highspeed",
+		label: "MiniMax M2.5 Highspeed",
+		provider: "MINIMAX",
+		contextWindow: "204K",
 	},
 ];
 

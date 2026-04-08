@@ -9,7 +9,7 @@ import {
 	TrashIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -215,7 +215,7 @@ interface ThreadListItemComponentProps {
 	onDelete: () => void;
 }
 
-function ThreadListItemComponent({
+const ThreadListItemComponent = memo(function ThreadListItemComponent({
 	thread,
 	isActive,
 	isArchived,
@@ -224,25 +224,24 @@ function ThreadListItemComponent({
 	onUnarchive,
 	onDelete,
 }: ThreadListItemComponentProps) {
+	const relativeTime = useMemo(
+		() => formatRelativeTime(new Date(thread.updatedAt)),
+		[thread.updatedAt]
+	);
+
 	return (
-		<div
+		<button
+			type="button"
 			className={cn(
-				"group flex items-center gap-2 rounded-lg px-3 py-2 transition-colors cursor-pointer",
+				"group flex w-full items-center gap-2 rounded-lg px-3 py-2 transition-colors cursor-pointer text-left",
 				isActive ? "bg-accent text-accent-foreground" : "hover:bg-muted/50"
 			)}
 			onClick={onClick}
-			onKeyDown={(e) => {
-				if (e.key === "Enter" || e.key === " ") onClick();
-			}}
-			role="button"
-			tabIndex={0}
 		>
 			<MessageSquareIcon className="size-4 shrink-0 text-muted-foreground" />
 			<div className="flex-1 min-w-0">
 				<p className="truncate text-sm font-medium">{thread.title || "New Chat"}</p>
-				<p className="truncate text-xs text-muted-foreground">
-					{formatRelativeTime(new Date(thread.updatedAt))}
-				</p>
+				<p className="truncate text-xs text-muted-foreground">{relativeTime}</p>
 			</div>
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
@@ -274,9 +273,9 @@ function ThreadListItemComponent({
 					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>
-		</div>
+		</button>
 	);
-}
+});
 
 /**
  * Format a date as relative time (e.g., "2 hours ago", "Yesterday")

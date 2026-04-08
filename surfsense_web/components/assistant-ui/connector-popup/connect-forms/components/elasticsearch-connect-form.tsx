@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as RadioGroup from "@radix-ui/react-radio-group";
 import { Info } from "lucide-react";
 import type { FC } from "react";
 import { useId, useRef, useState } from "react";
@@ -26,6 +25,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
 	Select,
 	SelectContent,
@@ -172,14 +172,12 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSub
 
 	return (
 		<div className="space-y-6 pb-6">
-			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3 flex items-center [&>svg]:relative [&>svg]:left-0 [&>svg]:top-0 [&>svg+div]:translate-y-0">
-				<Info className="h-3 w-3 sm:h-4 sm:w-4 shrink-0 ml-1" />
-				<div className="-ml-1">
-					<AlertTitle className="text-xs sm:text-sm">API Key Required</AlertTitle>
-					<AlertDescription className="text-[10px] sm:text-xs !pl-0">
-						Enter your Elasticsearch cluster endpoint URL and authentication credentials to connect.
-					</AlertDescription>
-				</div>
+			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3">
+				<Info className="size-4 shrink-0" />
+				<AlertTitle className="text-xs sm:text-sm">API Key Required</AlertTitle>
+				<AlertDescription className="text-[10px] sm:text-xs">
+					Enter your Elasticsearch cluster endpoint URL and authentication credentials to connect.
+				</AlertDescription>
 			</Alert>
 
 			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">
@@ -284,10 +282,9 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSub
 								render={({ field }) => (
 									<FormItem className="space-y-3">
 										<FormControl>
-											<RadioGroup.Root
+											<RadioGroup
 												onValueChange={(value) => {
 													field.onChange(value);
-													// Clear auth fields when method changes
 													if (value !== "basic") {
 														form.setValue("username", "");
 														form.setValue("password", "");
@@ -297,38 +294,22 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSub
 													}
 												}}
 												value={field.value}
-												className="flex flex-col space-y-2"
+												className="flex flex-col gap-2"
 											>
-												<div className="flex items-center space-x-2">
-													<RadioGroup.Item
-														value="api_key"
-														id={authApiKeyId}
-														className="aspect-square h-4 w-4 rounded-full border border-primary text-primary ring-offset-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-													>
-														<RadioGroup.Indicator className="flex items-center justify-center">
-															<div className="h-2.5 w-2.5 rounded-full bg-current" />
-														</RadioGroup.Indicator>
-													</RadioGroup.Item>
+												<div className="flex items-center gap-2">
+													<RadioGroupItem value="api_key" id={authApiKeyId} />
 													<Label htmlFor={authApiKeyId} className="text-xs sm:text-sm">
 														API Key
 													</Label>
 												</div>
 
-												<div className="flex items-center space-x-2">
-													<RadioGroup.Item
-														value="basic"
-														id={authBasicId}
-														className="aspect-square h-4 w-4 rounded-full border border-primary text-primary ring-offset-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-													>
-														<RadioGroup.Indicator className="flex items-center justify-center">
-															<div className="h-2.5 w-2.5 rounded-full bg-current" />
-														</RadioGroup.Indicator>
-													</RadioGroup.Item>
+												<div className="flex items-center gap-2">
+													<RadioGroupItem value="basic" id={authBasicId} />
 													<Label htmlFor={authBasicId} className="text-xs sm:text-sm">
 														Username & Password
 													</Label>
 												</div>
-											</RadioGroup.Root>
+											</RadioGroup>
 										</FormControl>
 										<FormMessage />
 									</FormItem>

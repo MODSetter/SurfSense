@@ -15,6 +15,7 @@ from pathlib import Path
 
 import yaml
 from langchain_litellm import ChatLiteLLM
+from litellm import get_model_info
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -58,8 +59,25 @@ PROVIDER_MAP = {
     "DATABRICKS": "databricks",
     "COMETAPI": "cometapi",
     "HUGGINGFACE": "huggingface",
+    "MINIMAX": "openai",
     "CUSTOM": "custom",
 }
+
+
+def _attach_model_profile(llm: ChatLiteLLM, model_string: str) -> None:
+    """Attach a ``profile`` dict to ChatLiteLLM with model context metadata."""
+    try:
+        info = get_model_info(model_string)
+        max_input_tokens = info.get("max_input_tokens")
+        if isinstance(max_input_tokens, int) and max_input_tokens > 0:
+            llm.profile = {
+                "max_input_tokens": max_input_tokens,
+                "max_input_tokens_upper": max_input_tokens,
+                "token_count_model": model_string,
+                "token_count_models": [model_string],
+            }
+    except Exception:
+        return
 
 
 @dataclass
@@ -366,7 +384,9 @@ def create_chat_litellm_from_config(llm_config: dict) -> ChatLiteLLM | None:
     if llm_config.get("litellm_params"):
         litellm_kwargs.update(llm_config["litellm_params"])
 
-    return ChatLiteLLM(**litellm_kwargs)
+    llm = ChatLiteLLM(**litellm_kwargs)
+    _attach_model_profile(llm, model_string)
+    return llm
 
 
 def create_chat_litellm_from_agent_config(
@@ -419,4 +439,6 @@ def create_chat_litellm_from_agent_config(
     if agent_config.litellm_params:
         litellm_kwargs.update(agent_config.litellm_params)
 
-    return ChatLiteLLM(**litellm_kwargs)
+    llm = ChatLiteLLM(**litellm_kwargs)
+    _attach_model_profile(llm, model_string)
+    return llm

@@ -1,7 +1,13 @@
 import { loader } from "fumadocs-core/source";
+import type { Metadata } from "next";
 import { changelog } from "@/.source/server";
 import { formatDate } from "@/lib/utils";
 import { getMDXComponents } from "@/mdx-components";
+
+export const metadata: Metadata = {
+	title: "Changelog | SurfSense",
+	description: "See what's new in SurfSense.",
+};
 
 const source = loader({
 	baseUrl: "/changelog",
@@ -23,7 +29,7 @@ interface ChangelogPageItem {
 
 export default async function ChangelogPage() {
 	const allPages = source.getPages() as ChangelogPageItem[];
-	const sortedChangelogs = allPages.sort((a, b) => {
+	const sortedChangelogs = allPages.toSorted((a, b) => {
 		const dateA = new Date(a.data.date).getTime();
 		const dateB = new Date(b.data.date).getTime();
 		return dateB - dateA;

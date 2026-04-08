@@ -10,6 +10,8 @@ export interface CommentComposerProps {
 	onCancel?: () => void;
 	autoFocus?: boolean;
 	initialValue?: string;
+	/** Compact mode: inline send button with ArrowUp icon, no label */
+	compact?: boolean;
 }
 
 export interface MentionState {

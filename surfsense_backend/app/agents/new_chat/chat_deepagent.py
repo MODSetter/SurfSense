@@ -4,6 +4,13 @@ SurfSense deep agent implementation.
 This module provides the factory function for creating SurfSense deep agents
 with configurable tools via the tools registry and configurable prompts
 via NewLLMConfig.
+
+We use ``create_agent`` (from langchain) rather than ``create_deep_agent``
+(from deepagents) so that the middleware stack is fully under our control.
+This lets us swap in ``SurfSenseFilesystemMiddleware`` — a customisable
+subclass of the default ``FilesystemMiddleware`` — while preserving every
+other behaviour that ``create_deep_agent`` provides (todo-list, subagents,
+summarisation, prompt-caching, etc.).
 """
 
 import asyncio
@@ -12,8 +19,15 @@ import time
 from collections.abc import Sequence
 from typing import Any
 
-from deepagents import create_deep_agent
-from deepagents.backends.protocol import SandboxBackendProtocol
+from deepagents import SubAgent, SubAgentMiddleware, __version__ as deepagents_version
+from deepagents.backends import StateBackend
+from deepagents.graph import BASE_AGENT_PROMPT
+from deepagents.middleware.patch_tool_calls import PatchToolCallsMiddleware
+from deepagents.middleware.subagents import GENERAL_PURPOSE_SUBAGENT
+from deepagents.middleware.summarization import create_summarization_middleware
+from langchain.agents import create_agent
+from langchain.agents.middleware import TodoListMiddleware
+from langchain_anthropic.middleware import AnthropicPromptCachingMiddleware
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 from langgraph.types import Checkpointer
@@ -21,6 +35,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.new_chat.context import SurfSenseContextSchema
 from app.agents.new_chat.llm_config import AgentConfig
+from app.agents.new_chat.middleware import (
+    DedupHITLToolCallsMiddleware,
+    KnowledgeBaseSearchMiddleware,
+    SurfSenseFilesystemMiddleware,
+)
 from app.agents.new_chat.system_prompt import (
     build_configurable_system_prompt,
     build_surfsense_system_prompt,
@@ -37,13 +56,15 @@ _perf_log = get_perf_logger()
 # =============================================================================
 
 # Maps SearchSourceConnectorType enum values to the searchable document/connector types
-# used by the knowledge_base tool. Some connectors map to different document types.
+# used by pre-search middleware and web_search.
+# Live search connectors (TAVILY_API, LINKUP_API, BAIDU_SEARCH_API) are routed to
+# the web_search tool; all others are considered local/indexed data.
 _CONNECTOR_TYPE_TO_SEARCHABLE: dict[str, str] = {
-    # Direct mappings (connector type == searchable type)
+    # Live search connectors (handled by web_search tool)
     "TAVILY_API": "TAVILY_API",
-    "SEARXNG_API": "SEARXNG_API",
     "LINKUP_API": "LINKUP_API",
     "BAIDU_SEARCH_API": "BAIDU_SEARCH_API",
+    # Local/indexed connectors (handled by KB pre-search middleware)
     "SLACK_CONNECTOR": "SLACK_CONNECTOR",
     "TEAMS_CONNECTOR": "TEAMS_CONNECTOR",
     "NOTION_CONNECTOR": "NOTION_CONNECTOR",
@@ -63,10 +84,13 @@ _CONNECTOR_TYPE_TO_SEARCHABLE: dict[str, str] = {
     "BOOKSTACK_CONNECTOR": "BOOKSTACK_CONNECTOR",
     "CIRCLEBACK_CONNECTOR": "CIRCLEBACK",  # Connector type differs from document type
     "OBSIDIAN_CONNECTOR": "OBSIDIAN_CONNECTOR",
-    # Composio connectors
-    "COMPOSIO_GOOGLE_DRIVE_CONNECTOR": "COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
-    "COMPOSIO_GMAIL_CONNECTOR": "COMPOSIO_GMAIL_CONNECTOR",
-    "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR": "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
+    "DROPBOX_CONNECTOR": "DROPBOX_FILE",  # Connector type differs from document type
+    "ONEDRIVE_CONNECTOR": "ONEDRIVE_FILE",  # Connector type differs from document type
+    # Composio connectors (unified to native document types).
+    # Reverse of NATIVE_TO_LEGACY_DOCTYPE in app.db.
+    "COMPOSIO_GOOGLE_DRIVE_CONNECTOR": "GOOGLE_DRIVE_FILE",
+    "COMPOSIO_GMAIL_CONNECTOR": "GOOGLE_GMAIL_CONNECTOR",
+    "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR": "GOOGLE_CALENDAR_CONNECTOR",
 }
 
 # Document types that don't come from SearchSourceConnector but should always be searchable
@@ -135,17 +159,14 @@ async def create_surfsense_deep_agent(
     additional_tools: Sequence[BaseTool] | None = None,
     firecrawl_api_key: str | None = None,
     thread_visibility: ChatVisibility | None = None,
-    sandbox_backend: SandboxBackendProtocol | None = None,
+    mentioned_document_ids: list[int] | None = None,
 ):
     """
     Create a SurfSense deep agent with configurable tools and prompts.
 
     The agent comes with built-in tools that can be configured:
-    - search_knowledge_base: Search the user's personal knowledge base
     - generate_podcast: Generate audio podcasts from content
     - generate_image: Generate images from text descriptions using AI models
-    - link_preview: Fetch rich previews for URLs
-    - display_image: Display images in chat
     - scrape_webpage: Extract content from webpages
     - save_memory: Store facts/preferences about the user
     - recall_memory: Retrieve relevant user memories
@@ -175,9 +196,6 @@ async def create_surfsense_deep_agent(
                          These are always added regardless of enabled/disabled settings.
         firecrawl_api_key: Optional Firecrawl API key for premium web scraping.
                           Falls back to Chromium/Trafilatura if not provided.
-        sandbox_backend: Optional sandbox backend (e.g. DaytonaSandbox) for
-                        secure code execution. When provided, the agent gets an
-                        isolated ``execute`` tool for running shell commands.
 
     Returns:
         CompiledStateGraph: The configured deep agent
@@ -201,7 +219,7 @@ async def create_surfsense_deep_agent(
         # Create agent with only specific tools
         agent = create_surfsense_deep_agent(
             llm, search_space_id, db_session, ...,
-            enabled_tools=["search_knowledge_base", "link_preview"]
+            enabled_tools=["scrape_webpage"]
         )
 
         # Create agent without podcast generation
@@ -233,6 +251,7 @@ async def create_surfsense_deep_agent(
         available_document_types = await connector_service.get_available_document_types(
             search_space_id
         )
+
     except Exception as e:
         logging.warning(f"Failed to discover available connectors/document types: {e}")
     _perf_log.info(
@@ -289,6 +308,85 @@ async def create_surfsense_deep_agent(
         ]
         modified_disabled_tools.extend(linear_tools)
 
+    # Disable Google Drive action tools if no Google Drive connector is configured
+    has_google_drive_connector = (
+        available_connectors is not None and "GOOGLE_DRIVE_FILE" in available_connectors
+    )
+    if not has_google_drive_connector:
+        google_drive_tools = [
+            "create_google_drive_file",
+            "delete_google_drive_file",
+        ]
+        modified_disabled_tools.extend(google_drive_tools)
+
+    has_dropbox_connector = (
+        available_connectors is not None and "DROPBOX_FILE" in available_connectors
+    )
+    if not has_dropbox_connector:
+        modified_disabled_tools.extend(["create_dropbox_file", "delete_dropbox_file"])
+
+    has_onedrive_connector = (
+        available_connectors is not None and "ONEDRIVE_FILE" in available_connectors
+    )
+    if not has_onedrive_connector:
+        modified_disabled_tools.extend(["create_onedrive_file", "delete_onedrive_file"])
+
+    # Disable Google Calendar action tools if no Google Calendar connector is configured
+    has_google_calendar_connector = (
+        available_connectors is not None
+        and "GOOGLE_CALENDAR_CONNECTOR" in available_connectors
+    )
+    if not has_google_calendar_connector:
+        calendar_tools = [
+            "create_calendar_event",
+            "update_calendar_event",
+            "delete_calendar_event",
+        ]
+        modified_disabled_tools.extend(calendar_tools)
+
+    # Disable Gmail action tools if no Gmail connector is configured
+    has_gmail_connector = (
+        available_connectors is not None
+        and "GOOGLE_GMAIL_CONNECTOR" in available_connectors
+    )
+    if not has_gmail_connector:
+        gmail_tools = [
+            "create_gmail_draft",
+            "update_gmail_draft",
+            "send_gmail_email",
+            "trash_gmail_email",
+        ]
+        modified_disabled_tools.extend(gmail_tools)
+
+    # Disable Jira action tools if no Jira connector is configured
+    has_jira_connector = (
+        available_connectors is not None and "JIRA_CONNECTOR" in available_connectors
+    )
+    if not has_jira_connector:
+        jira_tools = [
+            "create_jira_issue",
+            "update_jira_issue",
+            "delete_jira_issue",
+        ]
+        modified_disabled_tools.extend(jira_tools)
+
+    # Disable Confluence action tools if no Confluence connector is configured
+    has_confluence_connector = (
+        available_connectors is not None
+        and "CONFLUENCE_CONNECTOR" in available_connectors
+    )
+    if not has_confluence_connector:
+        confluence_tools = [
+            "create_confluence_page",
+            "update_confluence_page",
+            "delete_confluence_page",
+        ]
+        modified_disabled_tools.extend(confluence_tools)
+
+    # Remove direct KB search tool; we now pre-seed a scoped filesystem via middleware.
+    if "search_knowledge_base" not in modified_disabled_tools:
+        modified_disabled_tools.append("search_knowledge_base")
+
     # Build tools using the async registry (includes MCP tools)
     _t0 = time.perf_counter()
     tools = await build_tools_async(
@@ -303,43 +401,94 @@ async def create_surfsense_deep_agent(
         len(tools),
     )
 
-    # Build system prompt based on agent_config
+    # Build system prompt based on agent_config, scoped to the tools actually enabled
     _t0 = time.perf_counter()
-    _sandbox_enabled = sandbox_backend is not None
+    _enabled_tool_names = {t.name for t in tools}
+    _user_disabled_tool_names = set(disabled_tools) if disabled_tools else set()
     if agent_config is not None:
         system_prompt = build_configurable_system_prompt(
             custom_system_instructions=agent_config.system_instructions,
             use_default_system_instructions=agent_config.use_default_system_instructions,
             citations_enabled=agent_config.citations_enabled,
             thread_visibility=thread_visibility,
-            sandbox_enabled=_sandbox_enabled,
+            enabled_tool_names=_enabled_tool_names,
+            disabled_tool_names=_user_disabled_tool_names,
         )
     else:
         system_prompt = build_surfsense_system_prompt(
             thread_visibility=thread_visibility,
-            sandbox_enabled=_sandbox_enabled,
+            enabled_tool_names=_enabled_tool_names,
+            disabled_tool_names=_user_disabled_tool_names,
         )
     _perf_log.info(
         "[create_agent] System prompt built in %.3fs", time.perf_counter() - _t0
     )
 
-    # Build optional kwargs for the deep agent
-    deep_agent_kwargs: dict[str, Any] = {}
-    if sandbox_backend is not None:
-        deep_agent_kwargs["backend"] = sandbox_backend
+    # -- Build the middleware stack (mirrors create_deep_agent internals) ------
+    # General-purpose subagent middleware
+    gp_middleware = [
+        TodoListMiddleware(),
+        SurfSenseFilesystemMiddleware(
+            search_space_id=search_space_id,
+            created_by_id=user_id,
+        ),
+        create_summarization_middleware(llm, StateBackend),
+        PatchToolCallsMiddleware(),
+        AnthropicPromptCachingMiddleware(unsupported_model_behavior="ignore"),
+    ]
+
+    general_purpose_spec: SubAgent = {  # type: ignore[typeddict-unknown-key]
+        **GENERAL_PURPOSE_SUBAGENT,
+        "model": llm,
+        "tools": tools,
+        "middleware": gp_middleware,
+    }
+
+    # Main agent middleware
+    deepagent_middleware = [
+        TodoListMiddleware(),
+        KnowledgeBaseSearchMiddleware(
+            llm=llm,
+            search_space_id=search_space_id,
+            available_connectors=available_connectors,
+            available_document_types=available_document_types,
+            mentioned_document_ids=mentioned_document_ids,
+        ),
+        SurfSenseFilesystemMiddleware(
+            search_space_id=search_space_id,
+            created_by_id=user_id,
+        ),
+        SubAgentMiddleware(backend=StateBackend, subagents=[general_purpose_spec]),
+        create_summarization_middleware(llm, StateBackend),
+        PatchToolCallsMiddleware(),
+        DedupHITLToolCallsMiddleware(),
+        AnthropicPromptCachingMiddleware(unsupported_model_behavior="ignore"),
+    ]
+
+    # Combine system_prompt with BASE_AGENT_PROMPT (same as create_deep_agent)
+    final_system_prompt = system_prompt + "\n\n" + BASE_AGENT_PROMPT
 
     _t0 = time.perf_counter()
     agent = await asyncio.to_thread(
-        create_deep_agent,
-        model=llm,
+        create_agent,
+        llm,
+        system_prompt=final_system_prompt,
         tools=tools,
-        system_prompt=system_prompt,
+        middleware=deepagent_middleware,
         context_schema=SurfSenseContextSchema,
         checkpointer=checkpointer,
-        **deep_agent_kwargs,
+    )
+    agent = agent.with_config(
+        {
+            "recursion_limit": 10_000,
+            "metadata": {
+                "ls_integration": "deepagents",
+                "versions": {"deepagents": deepagents_version},
+            },
+        }
     )
     _perf_log.info(
-        "[create_agent] Graph compiled (create_deep_agent) in %.3fs",
+        "[create_agent] Graph compiled (create_agent) in %.3fs",
         time.perf_counter() - _t0,
     )
 

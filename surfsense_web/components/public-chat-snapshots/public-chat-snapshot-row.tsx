@@ -1,13 +1,14 @@
 "use client";
 
-import { Check, Copy, ExternalLink, MessageSquare, Trash2 } from "lucide-react";
-import Image from "next/image";
+import { Check, Copy, Dot, ExternalLink, MessageSquare, Trash2 } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { PublicChatSnapshotDetail } from "@/contracts/types/chat-threads.types";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 function getInitials(name: string): string {
 	const parts = name.trim().split(/\s+/);
@@ -36,6 +37,7 @@ export function PublicChatSnapshotRow({
 }: PublicChatSnapshotRowProps) {
 	const [copied, setCopied] = useState(false);
 	const copyTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
+	const isDesktop = useMediaQuery("(min-width: 768px)");
 
 	const handleCopyClick = useCallback(() => {
 		onCopy(snapshot);
@@ -56,8 +58,8 @@ export function PublicChatSnapshotRow({
 		<Card className="group relative overflow-hidden transition-all duration-200 border-border/60 hover:shadow-md h-full">
 			<CardContent className="p-4 flex flex-col gap-3 h-full">
 				{/* Header: Title + Actions */}
-				<div className="flex items-start justify-between gap-2">
-					<div className="min-w-0 flex-1">
+				<div className="relative">
+					<div className="min-w-0 pr-16 sm:pr-0 sm:group-hover:pr-16">
 						<h4
 							className="text-sm font-semibold tracking-tight truncate"
 							title={snapshot.thread_title}
@@ -65,9 +67,9 @@ export function PublicChatSnapshotRow({
 							{snapshot.thread_title}
 						</h4>
 					</div>
-					<div className="flex items-center gap-0.5 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150">
+					<div className="flex items-center gap-0.5 shrink-0 sm:hidden sm:group-hover:flex absolute right-0 top-0">
 						<TooltipProvider>
-							<Tooltip>
+							<Tooltip open={isDesktop ? undefined : false}>
 								<TooltipTrigger asChild>
 									<Button
 										variant="ghost"
@@ -85,7 +87,7 @@ export function PublicChatSnapshotRow({
 						</TooltipProvider>
 						{canDelete && (
 							<TooltipProvider>
-								<Tooltip>
+								<Tooltip open={isDesktop ? undefined : false}>
 									<TooltipTrigger asChild>
 										<Button
 											variant="ghost"
@@ -126,7 +128,7 @@ export function PublicChatSnapshotRow({
 						</p>
 					</div>
 					<TooltipProvider>
-						<Tooltip>
+						<Tooltip open={isDesktop ? undefined : false}>
 							<TooltipTrigger asChild>
 								<Button
 									variant="ghost"
@@ -151,26 +153,19 @@ export function PublicChatSnapshotRow({
 					<span className="text-[11px] text-muted-foreground/60">{formattedDate}</span>
 					{member && (
 						<>
-							<span className="text-muted-foreground/30">·</span>
+							<Dot className="h-4 w-4 text-muted-foreground/30" />
 							<TooltipProvider>
-								<Tooltip>
+								<Tooltip open={isDesktop ? undefined : false}>
 									<TooltipTrigger asChild>
 										<div className="flex items-center gap-1.5 cursor-default">
-											{member.avatarUrl ? (
-												<Image
-													src={member.avatarUrl}
-													alt={member.name}
-													width={18}
-													height={18}
-													className="h-4.5 w-4.5 rounded-full object-cover shrink-0"
-												/>
-											) : (
-												<div className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 shrink-0">
-													<span className="text-[9px] font-semibold text-primary">
-														{getInitials(member.name)}
-													</span>
-												</div>
-											)}
+											<Avatar className="size-4.5 shrink-0">
+												{member.avatarUrl && (
+													<AvatarImage src={member.avatarUrl} alt={member.name} />
+												)}
+												<AvatarFallback className="text-[9px]">
+													{getInitials(member.name)}
+												</AvatarFallback>
+											</Avatar>
 											<span className="text-[11px] text-muted-foreground/60 truncate max-w-[120px]">
 												{member.name}
 											</span>

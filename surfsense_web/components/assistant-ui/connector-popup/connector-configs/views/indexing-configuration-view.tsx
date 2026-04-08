@@ -1,7 +1,6 @@
 "use client";
 
 import { ArrowLeft, Check, Info } from "lucide-react";
-import { useSearchParams } from "next/navigation";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -24,6 +23,7 @@ interface IndexingConfigurationViewProps {
 	frequencyMinutes: string;
 	enableSummary: boolean;
 	isStartingIndexing: boolean;
+	isFromOAuth?: boolean;
 	onStartDateChange: (date: Date | undefined) => void;
 	onEndDateChange: (date: Date | undefined) => void;
 	onPeriodicEnabledChange: (enabled: boolean) => void;
@@ -43,6 +43,7 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 	frequencyMinutes,
 	enableSummary,
 	isStartingIndexing,
+	isFromOAuth = false,
 	onStartDateChange,
 	onEndDateChange,
 	onPeriodicEnabledChange,
@@ -52,9 +53,6 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 	onStartIndexing,
 	onSkip,
 }) => {
-	const searchParams = useSearchParams();
-	const isFromOAuth = searchParams.get("view") === "configure";
-
 	// Get connector-specific config component
 	const ConnectorConfigComponent = useMemo(
 		() => (connector ? getConnectorConfigComponent(connector.connector_type) : null),
@@ -160,9 +158,11 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 								{/* AI Summary toggle */}
 								<SummaryConfig enabled={enableSummary} onEnabledChange={onEnableSummaryChange} />
 
-								{/* Date range selector - not shown for Google Drive (regular and Composio), Webcrawler, or GitHub (indexes full repo snapshots) */}
+								{/* Date range selector - not shown for file-based connectors (Drive, Dropbox, OneDrive), Webcrawler, GitHub, or Local Folder */}
 								{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" &&
 									config.connectorType !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&
+									config.connectorType !== "DROPBOX_CONNECTOR" &&
+									config.connectorType !== "ONEDRIVE_CONNECTOR" &&
 									config.connectorType !== "WEBCRAWLER_CONNECTOR" &&
 									config.connectorType !== "GITHUB_CONNECTOR" && (
 										<DateRangeSelector
@@ -179,9 +179,10 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 										/>
 									)}
 
-								{/* Periodic sync - not shown for Google Drive (regular and Composio) */}
 								{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" &&
-									config.connectorType !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" && (
+									config.connectorType !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&
+									config.connectorType !== "DROPBOX_CONNECTOR" &&
+									config.connectorType !== "ONEDRIVE_CONNECTOR" && (
 										<PeriodicSyncConfig
 											enabled={periodicEnabled}
 											frequencyMinutes={frequencyMinutes}
@@ -224,16 +225,10 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 				<Button
 					onClick={onStartIndexing}
 					disabled={isStartingIndexing}
-					className="text-xs sm:text-sm"
+					className="text-xs sm:text-sm relative"
 				>
-					{isStartingIndexing ? (
-						<>
-							<Spinner size="sm" className="mr-2" />
-							Starting
-						</>
-					) : (
-						"Start Indexing"
-					)}
+					<span className={isStartingIndexing ? "opacity-0" : ""}>Start Indexing</span>
+					{isStartingIndexing && <Spinner size="sm" className="absolute" />}
 				</Button>
 			</div>
 		</div>

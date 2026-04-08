@@ -1,9 +1,10 @@
 "use client";
 
-import { ExternalLink } from "lucide-react";
 import type { FC } from "react";
 import { useState } from "react";
+import { useCitationMetadata } from "@/components/assistant-ui/citation-metadata-context";
 import { SourceDetailPanel } from "@/components/new-chat/source-detail-panel";
+import { Citation } from "@/components/tool-ui/citation";
 
 interface InlineCitationProps {
 	chunkId: number;
@@ -28,16 +29,14 @@ export const InlineCitation: FC<InlineCitationProps> = ({ chunkId, isDocsChunk =
 			url=""
 			isDocsChunk={isDocsChunk}
 		>
-			<span
+			<button
+				type="button"
 				onClick={() => setIsOpen(true)}
-				onKeyDown={(e) => e.key === "Enter" && setIsOpen(true)}
-				className="text-[10px] font-bold bg-primary/80 hover:bg-primary text-primary-foreground rounded-full min-w-4 h-4 px-1 inline-flex items-center justify-center align-super cursor-pointer transition-colors ml-0.5"
+				className="ml-0.5 inline-flex h-5 min-w-5 cursor-pointer items-center justify-center rounded-md bg-muted/60 px-1.5 text-[11px] font-medium text-muted-foreground align-baseline shadow-sm transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none"
 				title={`View source chunk #${chunkId}`}
-				role="button"
-				tabIndex={0}
 			>
 				{chunkId}
-			</span>
+			</button>
 		</SourceDetailPanel>
 	);
 };
@@ -57,21 +56,23 @@ interface UrlCitationProps {
 
 /**
  * Inline citation for live web search results (URL-based chunk IDs).
- * Renders a clickable badge showing the source domain that opens the URL in a new tab.
+ * Renders a compact chip with favicon + domain and a hover popover showing the
+ * page title and snippet (extracted deterministically from web_search tool results).
  */
 export const UrlCitation: FC<UrlCitationProps> = ({ url }) => {
 	const domain = extractDomain(url);
+	const meta = useCitationMetadata(url);
 
 	return (
-		<a
+		<Citation
+			id={`url-cite-${url}`}
 			href={url}
-			target="_blank"
-			rel="noopener noreferrer"
-			className="text-[10px] font-bold bg-primary/80 hover:bg-primary text-primary-foreground rounded-full h-4 px-1.5 inline-flex items-center gap-0.5 align-super cursor-pointer transition-colors ml-0.5 no-underline"
-			title={url}
-		>
-			<ExternalLink className="size-2.5 shrink-0" />
-			{domain}
-		</a>
+			title={meta?.title || domain}
+			snippet={meta?.snippet}
+			domain={domain}
+			favicon={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
+			variant="inline"
+			type="webpage"
+		/>
 	);
 };

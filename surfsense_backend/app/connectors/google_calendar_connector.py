@@ -52,44 +52,39 @@ class GoogleCalendarConnector:
     ) -> Credentials:
         """
         Get valid Google OAuth credentials.
-        Returns:
-            Google OAuth credentials
-        Raises:
-            ValueError: If credentials have not been set
-            Exception: If credential refresh fails
+
+        Supports both native OAuth (with refresh_token) and Composio-sourced
+        credentials (with refresh_handler). For Composio credentials, validation
+        and DB persistence are skipped since Composio manages its own tokens.
         """
-        if not all(
-            [
-                self._credentials.client_id,
-                self._credentials.client_secret,
-                self._credentials.refresh_token,
-            ]
+        has_standard_refresh = bool(self._credentials.refresh_token)
+
+        if has_standard_refresh and not all(
+            [self._credentials.client_id, self._credentials.client_secret]
         ):
             raise ValueError(
-                "Google OAuth credentials (client_id, client_secret, refresh_token) must be set"
+                "Google OAuth credentials (client_id, client_secret) must be set"
             )
 
         if self._credentials and not self._credentials.expired:
             return self._credentials
 
-        # Create credentials from refresh token
-        self._credentials = Credentials(
-            token=self._credentials.token,
-            refresh_token=self._credentials.refresh_token,
-            token_uri=self._credentials.token_uri,
-            client_id=self._credentials.client_id,
-            client_secret=self._credentials.client_secret,
-            scopes=self._credentials.scopes,
-            expiry=self._credentials.expiry,
-        )
+        if has_standard_refresh:
+            self._credentials = Credentials(
+                token=self._credentials.token,
+                refresh_token=self._credentials.refresh_token,
+                token_uri=self._credentials.token_uri,
+                client_id=self._credentials.client_id,
+                client_secret=self._credentials.client_secret,
+                scopes=self._credentials.scopes,
+                expiry=self._credentials.expiry,
+            )
 
-        # Refresh the token if needed
         if self._credentials.expired or not self._credentials.valid:
             try:
                 self._credentials.refresh(Request())
-                # Update the connector config in DB
-                if self._session:
-                    # Use connector_id if available, otherwise fall back to user_id query
+                # Only persist refreshed token for native OAuth (Composio manages its own)
+                if has_standard_refresh and self._session:
                     if self._connector_id:
                         result = await self._session.execute(
                             select(SearchSourceConnector).filter(
@@ -110,7 +105,6 @@ class GoogleCalendarConnector:
                             "GOOGLE_CALENDAR_CONNECTOR connector not found; cannot persist refreshed token."
                         )
 
-                    # Encrypt sensitive credentials before storing
                     from app.config import config
                     from app.utils.oauth_security import TokenEncryption
 
@@ -119,7 +113,6 @@ class GoogleCalendarConnector:
 
                     if token_encrypted and config.SECRET_KEY:
                         token_encryption = TokenEncryption(config.SECRET_KEY)
-                        # Encrypt sensitive fields
                         if creds_dict.get("token"):
                             creds_dict["token"] = token_encryption.encrypt_token(
                                 creds_dict["token"]
@@ -143,7 +136,6 @@ class GoogleCalendarConnector:
                     await self._session.commit()
             except Exception as e:
                 error_str = str(e)
-                # Check if this is an invalid_grant error (token expired/revoked)
                 if (
                     "invalid_grant" in error_str.lower()
                     or "token has been expired or revoked" in error_str.lower()

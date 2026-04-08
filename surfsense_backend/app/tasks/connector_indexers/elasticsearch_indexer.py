@@ -386,7 +386,7 @@ async def index_elasticsearch_documents(
                     document.content_hash = item["content_hash"]
                     document.unique_identifier_hash = item["unique_identifier_hash"]
                     document.document_metadata = metadata
-                    safe_set_chunks(document, chunks)
+                    await safe_set_chunks(session, document, chunks)
                     document.updated_at = get_current_timestamp()
                     document.status = DocumentStatus.ready()
 
@@ -413,7 +413,7 @@ async def index_elasticsearch_documents(
                     documents_failed += 1
                     continue
 
-            # CRITICAL: Always update timestamp (even if 0 documents indexed) so Electric SQL syncs
+            # CRITICAL: Always update timestamp (even if 0 documents indexed) so Zero syncs
             # This ensures the UI shows "Last indexed" instead of "Never indexed"
             if update_last_indexed:
                 connector.last_indexed_at = (

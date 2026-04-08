@@ -2,7 +2,7 @@
 
 import { Info } from "lucide-react";
 import type { FC } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,14 +18,6 @@ export const WebcrawlerConfig: FC<ConnectorConfigProps> = ({ connector, onConfig
 	const [apiKey, setApiKey] = useState(existingApiKey);
 	const [initialUrls, setInitialUrls] = useState(existingUrls);
 	const [showApiKey, setShowApiKey] = useState(false);
-
-	// Update state when connector config changes
-	useEffect(() => {
-		const apiKeyValue = (connector.config?.FIRECRAWL_API_KEY as string | undefined) || "";
-		const urlsValue = (connector.config?.INITIAL_URLS as string | undefined) || "";
-		setApiKey(apiKeyValue);
-		setInitialUrls(urlsValue);
-	}, [connector.config]);
 
 	const handleApiKeyChange = (value: string) => {
 		setApiKey(value);
@@ -54,8 +46,17 @@ export const WebcrawlerConfig: FC<ConnectorConfigProps> = ({ connector, onConfig
 			<div className="space-y-1 sm:space-y-2">
 				<h3 className="font-medium text-sm sm:text-base">Web Crawler Configuration</h3>
 				<p className="text-xs sm:text-sm text-muted-foreground">
-					Configure your web crawler settings. You can add a Firecrawl API key for enhanced crawling
-					or use the free fallback option.
+					Add webpages to your knowledge base for periodic indexing. Configure a Firecrawl API key
+					for enhanced crawling or use the free fallback option.
+				</p>
+			</div>
+
+			{/* Chat tip */}
+			<div className="flex items-start gap-3 rounded-lg border border-blue-200/50 bg-blue-50/50 dark:border-blue-500/20 dark:bg-blue-950/20 p-3 text-xs sm:text-sm">
+				<Info className="size-4 mt-0.5 shrink-0 text-blue-600 dark:text-blue-400" />
+				<p className="text-muted-foreground">
+					Want a quick answer from a webpage without indexing it? Just paste the URL directly into
+					the chat instead.
 				</p>
 			</div>
 
@@ -77,7 +78,7 @@ export const WebcrawlerConfig: FC<ConnectorConfigProps> = ({ connector, onConfig
 						type="button"
 						variant="ghost"
 						size="sm"
-						onClick={() => setShowApiKey(!showApiKey)}
+						onClick={() => setShowApiKey((prev) => !prev)}
 						className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
 					>
 						{showApiKey ? "Hide" : "Show"}
@@ -115,9 +116,9 @@ export const WebcrawlerConfig: FC<ConnectorConfigProps> = ({ connector, onConfig
 			</div>
 
 			{/* Info Alert */}
-			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3 flex items-center gap-2 [&>svg]:relative [&>svg]:left-0 [&>svg]:top-0 [&>svg+div]:translate-y-0">
-				<Info className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
-				<AlertDescription className="text-[10px] sm:text-xs !pl-0">
+			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3">
+				<Info className="size-4 shrink-0" />
+				<AlertDescription className="text-[10px] sm:text-xs">
 					Configuration is saved when you start indexing. You can update these settings anytime from
 					the connector management page.
 				</AlertDescription>

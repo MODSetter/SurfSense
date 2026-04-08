@@ -1,7 +1,5 @@
 import base64
-import hashlib
 import logging
-import secrets
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -26,7 +24,11 @@ from app.utils.connector_naming import (
     check_duplicate_connector,
     generate_unique_connector_name,
 )
-from app.utils.oauth_security import OAuthStateManager, TokenEncryption
+from app.utils.oauth_security import (
+    OAuthStateManager,
+    TokenEncryption,
+    generate_pkce_pair,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -73,28 +75,6 @@ def make_basic_auth_header(client_id: str, client_secret: str) -> str:
     credentials = f"{client_id}:{client_secret}".encode()
     b64 = base64.b64encode(credentials).decode("ascii")
     return f"Basic {b64}"
-
-
-def generate_pkce_pair() -> tuple[str, str]:
-    """
-    Generate PKCE code verifier and code challenge.
-
-    Returns:
-        Tuple of (code_verifier, code_challenge)
-    """
-    # Generate code verifier (43-128 characters)
-    code_verifier = (
-        base64.urlsafe_b64encode(secrets.token_bytes(32)).decode("utf-8").rstrip("=")
-    )
-
-    # Generate code challenge (SHA256 hash of verifier, base64url encoded)
-    code_challenge = (
-        base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode("utf-8")).digest())
-        .decode("utf-8")
-        .rstrip("=")
-    )
-
-    return code_verifier, code_challenge
 
 
 @router.get("/auth/airtable/connector/add")
@@ -199,7 +179,7 @@ async def airtable_callback(
             # Redirect to frontend with error parameter
             if space_id:
                 return RedirectResponse(
-                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=airtable_oauth_denied"
+                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=airtable_oauth_denied"
                 )
             else:
                 return RedirectResponse(
@@ -316,7 +296,7 @@ async def airtable_callback(
                 f"Duplicate Airtable connector detected for user {user_id} with email {user_email}"
             )
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=duplicate_account&connector=airtable-connector"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=duplicate_account&connector=airtable-connector"
             )
 
         # Generate a unique, user-friendly connector name
@@ -348,7 +328,7 @@ async def airtable_callback(
             # Redirect to the frontend with success params for indexing config
             # Using query params to auto-open the popup with config view on new-chat page
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=airtable-connector&connectorId={new_connector.id}"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?success=true&connector=airtable-connector&connectorId={new_connector.id}"
             )
 
         except ValidationError as e:

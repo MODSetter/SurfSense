@@ -10,7 +10,6 @@ import {
 	CheckCheck,
 	CheckCircle2,
 	ChevronLeft,
-	ChevronRight,
 	History,
 	Inbox,
 	LayoutGrid,
@@ -21,10 +20,11 @@ import {
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
-import { setCommentsCollapsedAtom, setTargetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { setTargetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
 import { convertRenderedToDisplay } from "@/components/chat-comments/comment-item/comment-item";
+import { getDocumentTypeLabel } from "@/components/documents/DocumentTypeIcon";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/animated-tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,7 +44,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import {
@@ -112,6 +111,8 @@ function getConnectorTypeDisplayName(connectorType: string): string {
 		CIRCLEBACK_CONNECTOR: "Circleback",
 		MCP_CONNECTOR: "MCP",
 		OBSIDIAN_CONNECTOR: "Obsidian",
+		ONEDRIVE_CONNECTOR: "OneDrive",
+		DROPBOX_CONNECTOR: "Dropbox",
 		TAVILY_API: "Tavily",
 		SEARXNG_API: "SearXNG",
 		LINKUP_API: "Linkup",
@@ -141,34 +142,31 @@ interface TabDataSource {
 	markAllAsRead: () => Promise<boolean>;
 }
 
-interface InboxSidebarProps {
-	open: boolean;
+export interface InboxSidebarContentProps {
 	onOpenChange: (open: boolean) => void;
 	comments: TabDataSource;
 	status: TabDataSource;
 	totalUnreadCount: number;
 	onCloseMobileSidebar?: () => void;
-	isDocked?: boolean;
-	onDockedChange?: (docked: boolean) => void;
 }
 
-export function InboxSidebar({
-	open,
+interface InboxSidebarProps extends InboxSidebarContentProps {
+	open: boolean;
+}
+
+export function InboxSidebarContent({
 	onOpenChange,
 	comments,
 	status,
 	totalUnreadCount,
 	onCloseMobileSidebar,
-	isDocked = false,
-	onDockedChange,
-}: InboxSidebarProps) {
+}: InboxSidebarContentProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
 	const params = useParams();
 	const isMobile = !useMediaQuery("(min-width: 640px)");
 	const searchSpaceId = params?.search_space_id ? Number(params.search_space_id) : null;
 
-	const [, setCommentsCollapsed] = useAtom(setCommentsCollapsedAtom);
 	const [, setTargetCommentId] = useAtom(setTargetCommentIdAtom);
 
 	const [searchQuery, setSearchQuery] = useState("");
@@ -180,12 +178,23 @@ export function InboxSidebar({
 	const [mounted, setMounted] = useState(false);
 	const [openDropdown, setOpenDropdown] = useState<"filter" | null>(null);
 	const [connectorScrollPos, setConnectorScrollPos] = useState<"top" | "middle" | "bottom">("top");
+	const connectorRafRef = useRef<number>();
 	const handleConnectorScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
 		const el = e.currentTarget;
-		const atTop = el.scrollTop <= 2;
-		const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
-		setConnectorScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+		if (connectorRafRef.current) return;
+		connectorRafRef.current = requestAnimationFrame(() => {
+			const atTop = el.scrollTop <= 2;
+			const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
+			setConnectorScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+			connectorRafRef.current = undefined;
+		});
 	}, []);
+	useEffect(
+		() => () => {
+			if (connectorRafRef.current) cancelAnimationFrame(connectorRafRef.current);
+		},
+		[]
+	);
 	const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 	const [markingAsReadId, setMarkingAsReadId] = useState<number | null>(null);
 
@@ -205,7 +214,7 @@ export function InboxSidebar({
 				},
 			}),
 		staleTime: 30 * 1000,
-		enabled: isSearchMode && open,
+		enabled: isSearchMode,
 	});
 
 	useEffect(() => {
@@ -213,23 +222,13 @@ export function InboxSidebar({
 	}, []);
 
 	useEffect(() => {
-		const handleEscape = (e: KeyboardEvent) => {
-			if (e.key === "Escape" && open) {
-				onOpenChange(false);
-			}
-		};
-		document.addEventListener("keydown", handleEscape);
-		return () => document.removeEventListener("keydown", handleEscape);
-	}, [open, onOpenChange]);
-
-	useEffect(() => {
-		if (!open || !isMobile) return;
+		if (!isMobile) return;
 		const originalOverflow = document.body.style.overflow;
 		document.body.style.overflow = "hidden";
 		return () => {
 			document.body.style.overflow = originalOverflow;
 		};
-	}, [open, isMobile]);
+	}, [isMobile]);
 
 	useEffect(() => {
 		if (activeTab !== "status") {
@@ -245,7 +244,7 @@ export function InboxSidebar({
 		queryKey: cacheKeys.notifications.sourceTypes(searchSpaceId),
 		queryFn: () => notificationsApiService.getSourceTypes(searchSpaceId ?? undefined),
 		staleTime: 60 * 1000,
-		enabled: open && activeTab === "status",
+		enabled: activeTab === "status",
 	});
 
 	const statusSourceOptions = useMemo(() => {
@@ -301,15 +300,14 @@ export function InboxSidebar({
 		[activeFilter]
 	);
 
+	// Defer non-urgent list updates so the search input stays responsive.
+	// The deferred snapshot lags one render behind the live value intentionally.
+	const deferredTabItems = useDeferredValue(activeSource.items);
+	const deferredSearchItems = useDeferredValue(searchResponse?.items ?? []);
+
 	// Two data paths: search mode (API) or default (per-tab data source)
 	const filteredItems = useMemo(() => {
-		let tabItems: InboxItem[];
-
-		if (isSearchMode) {
-			tabItems = searchResponse?.items ?? [];
-		} else {
-			tabItems = activeSource.items;
-		}
+		const tabItems: InboxItem[] = isSearchMode ? deferredSearchItems : deferredTabItems;
 
 		let result = tabItems;
 		if (activeFilter !== "all") {
@@ -322,8 +320,8 @@ export function InboxSidebar({
 		return result;
 	}, [
 		isSearchMode,
-		searchResponse,
-		activeSource.items,
+		deferredSearchItems,
+		deferredTabItems,
 		activeTab,
 		activeFilter,
 		selectedSource,
@@ -333,7 +331,7 @@ export function InboxSidebar({
 
 	// Infinite scroll — uses active tab's pagination
 	useEffect(() => {
-		if (!activeSource.hasMore || activeSource.loadingMore || !open || isSearchMode) return;
+		if (!activeSource.hasMore || activeSource.loadingMore || isSearchMode) return;
 
 		const observer = new IntersectionObserver(
 			(entries) => {
@@ -353,7 +351,7 @@ export function InboxSidebar({
 		}
 
 		return () => observer.disconnect();
-	}, [activeSource.hasMore, activeSource.loadingMore, activeSource.loadMore, open, isSearchMode]);
+	}, [activeSource.hasMore, activeSource.loadingMore, activeSource.loadMore, isSearchMode]);
 
 	const handleItemClick = useCallback(
 		async (item: InboxItem) => {
@@ -528,7 +526,7 @@ export function InboxSidebar({
 
 	const isLoading = isSearchMode ? isSearchLoading : activeSource.loading;
 
-	const inboxContent = (
+	return (
 		<>
 			<div className="shrink-0 p-4 pb-2 space-y-3">
 				<div className="flex items-center justify-between">
@@ -552,7 +550,7 @@ export function InboxSidebar({
 								<Button
 									variant="ghost"
 									size="icon"
-									className="h-8 w-8 rounded-full"
+									className="h-7 w-7 rounded-full"
 									onClick={() => setFilterDrawerOpen(true)}
 								>
 									<ListFilter className="h-4 w-4 text-muted-foreground" />
@@ -700,7 +698,7 @@ export function InboxSidebar({
 								<Tooltip>
 									<TooltipTrigger asChild>
 										<DropdownMenuTrigger asChild>
-											<Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+											<Button variant="ghost" size="icon" className="h-7 w-7 rounded-full">
 												<ListFilter className="h-4 w-4 text-muted-foreground" />
 												<span className="sr-only">{t("filter") || "Filter"}</span>
 											</Button>
@@ -792,67 +790,23 @@ export function InboxSidebar({
 								</DropdownMenuContent>
 							</DropdownMenu>
 						)}
-						{isMobile ? (
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8 rounded-full"
-								onClick={handleMarkAllAsRead}
-								disabled={totalUnreadCount === 0}
-							>
-								<CheckCheck className="h-4 w-4 text-muted-foreground" />
-								<span className="sr-only">{t("mark_all_read") || "Mark all as read"}</span>
-							</Button>
-						) : (
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-8 w-8 rounded-full"
-										onClick={handleMarkAllAsRead}
-										disabled={totalUnreadCount === 0}
-									>
-										<CheckCheck className="h-4 w-4 text-muted-foreground" />
-										<span className="sr-only">{t("mark_all_read") || "Mark all as read"}</span>
-									</Button>
-								</TooltipTrigger>
-								<TooltipContent className="z-80">
-									{t("mark_all_read") || "Mark all as read"}
-								</TooltipContent>
-							</Tooltip>
-						)}
-						{!isMobile && onDockedChange && (
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-8 w-8 rounded-full"
-										onClick={() => {
-											if (isDocked) {
-												setCommentsCollapsed(false);
-												onDockedChange(false);
-												onOpenChange(false);
-											} else {
-												setCommentsCollapsed(true);
-												onDockedChange(true);
-											}
-										}}
-									>
-										{isDocked ? (
-											<ChevronLeft className="h-4 w-4 text-muted-foreground" />
-										) : (
-											<ChevronRight className="h-4 w-4 text-muted-foreground" />
-										)}
-										<span className="sr-only">{isDocked ? "Collapse panel" : "Expand panel"}</span>
-									</Button>
-								</TooltipTrigger>
-								<TooltipContent className="z-80">
-									{isDocked ? "Collapse panel" : "Expand panel"}
-								</TooltipContent>
-							</Tooltip>
-						)}
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-7 w-7 rounded-full"
+									onClick={handleMarkAllAsRead}
+									disabled={totalUnreadCount === 0}
+								>
+									<CheckCheck className="h-4 w-4 text-muted-foreground" />
+									<span className="sr-only">{t("mark_all_read") || "Mark all as read"}</span>
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent className="z-80">
+								{t("mark_all_read") || "Mark all as read"}
+							</TooltipContent>
+						</Tooltip>
 					</div>
 				</div>
 
@@ -888,14 +842,11 @@ export function InboxSidebar({
 						setActiveFilter("all");
 					}
 				}}
-				className="shrink-0 mx-4"
+				className="shrink-0 mx-4 mt-2"
 			>
-				<TabsList className="w-full h-auto p-0 bg-transparent rounded-none border-b">
-					<TabsTrigger
-						value="comments"
-						className="flex-1 rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-					>
-						<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
+				<TabsList stretch showBottomBorder size="sm">
+					<TabsTrigger value="comments">
+						<span className="inline-flex items-center gap-1.5">
 							<MessageSquare className="h-4 w-4" />
 							<span>{t("comments") || "Comments"}</span>
 							<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
@@ -903,11 +854,8 @@ export function InboxSidebar({
 							</span>
 						</span>
 					</TabsTrigger>
-					<TabsTrigger
-						value="status"
-						className="flex-1 rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-					>
-						<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
+					<TabsTrigger value="status">
+						<span className="inline-flex items-center gap-1.5">
 							<History className="h-4 w-4" />
 							<span>{t("status") || "Status"}</span>
 							<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
@@ -922,9 +870,9 @@ export function InboxSidebar({
 				{isLoading ? (
 					<div className="space-y-2">
 						{activeTab === "comments"
-							? [85, 60, 90, 70, 50, 75].map((titleWidth, i) => (
+							? [85, 60, 90, 70, 50, 75].map((titleWidth) => (
 									<div
-										key={`skeleton-comment-${i}`}
+										key={`skeleton-comment-${titleWidth}`}
 										className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
 									>
 										<Skeleton className="h-8 w-8 rounded-full shrink-0" />
@@ -935,9 +883,9 @@ export function InboxSidebar({
 										<Skeleton className="h-3 w-6 shrink-0 rounded" />
 									</div>
 								))
-							: [75, 90, 55, 80, 65, 85].map((titleWidth, i) => (
+							: [75, 90, 55, 80, 65, 85].map((titleWidth) => (
 									<div
-										key={`skeleton-status-${i}`}
+										key={`skeleton-status-${titleWidth}`}
 										className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
 									>
 										<Skeleton className="h-8 w-8 rounded-full shrink-0" />
@@ -969,31 +917,10 @@ export function InboxSidebar({
 										"transition-colors cursor-pointer",
 										isMarkingAsRead && "opacity-50 pointer-events-none"
 									)}
+									style={{ contentVisibility: "auto", containIntrinsicSize: "0 80px" }}
 								>
-									{isMobile ? (
-										<button
-											type="button"
-											onClick={() => handleItemClick(item)}
-											disabled={isMarkingAsRead}
-											className="flex items-center gap-3 flex-1 min-w-0 text-left overflow-hidden"
-										>
-											<div className="shrink-0">{getStatusIcon(item)}</div>
-											<div className="flex-1 min-w-0 overflow-hidden">
-												<p
-													className={cn(
-														"text-xs font-medium line-clamp-2",
-														!item.read && "font-semibold"
-													)}
-												>
-													{item.title}
-												</p>
-												<p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
-													{convertRenderedToDisplay(item.message)}
-												</p>
-											</div>
-										</button>
-									) : (
-										<Tooltip>
+									{activeTab === "status" ? (
+										<Tooltip delayDuration={600}>
 											<TooltipTrigger asChild>
 												<button
 													type="button"
@@ -1024,6 +951,28 @@ export function InboxSidebar({
 												</p>
 											</TooltipContent>
 										</Tooltip>
+									) : (
+										<button
+											type="button"
+											onClick={() => handleItemClick(item)}
+											disabled={isMarkingAsRead}
+											className="flex items-center gap-3 flex-1 min-w-0 text-left overflow-hidden"
+										>
+											<div className="shrink-0">{getStatusIcon(item)}</div>
+											<div className="flex-1 min-w-0 overflow-hidden">
+												<p
+													className={cn(
+														"text-xs font-medium line-clamp-2",
+														!item.read && "font-semibold"
+													)}
+												>
+													{item.title}
+												</p>
+												<p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
+													{convertRenderedToDisplay(item.message)}
+												</p>
+											</div>
+										</button>
 									)}
 
 									<div className="flex items-center justify-end gap-1.5 shrink-0 w-10">
@@ -1040,9 +989,9 @@ export function InboxSidebar({
 						)}
 						{activeSource.loadingMore &&
 							(activeTab === "comments"
-								? [80, 60, 90].map((titleWidth, i) => (
+								? [80, 60, 90].map((titleWidth) => (
 										<div
-											key={`loading-more-comment-${i}`}
+											key={`loading-more-comment-${titleWidth}`}
 											className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
 										>
 											<Skeleton className="h-8 w-8 rounded-full shrink-0" />
@@ -1053,9 +1002,9 @@ export function InboxSidebar({
 											<Skeleton className="h-3 w-6 shrink-0 rounded" />
 										</div>
 									))
-								: [70, 85, 55].map((titleWidth, i) => (
+								: [70, 85, 55].map((titleWidth) => (
 										<div
-											key={`loading-more-status-${i}`}
+											key={`loading-more-status-${titleWidth}`}
 											className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
 										>
 											<Skeleton className="h-8 w-8 rounded-full shrink-0" />
@@ -1094,21 +1043,27 @@ export function InboxSidebar({
 			</div>
 		</>
 	);
+}
 
-	if (isDocked && open && !isMobile) {
-		return (
-			<aside
-				className="h-full w-[360px] shrink-0 bg-sidebar text-sidebar-foreground flex flex-col border-r"
-				aria-label={t("inbox") || "Inbox"}
-			>
-				{inboxContent}
-			</aside>
-		);
-	}
+export function InboxSidebar({
+	open,
+	onOpenChange,
+	comments,
+	status,
+	totalUnreadCount,
+	onCloseMobileSidebar,
+}: InboxSidebarProps) {
+	const t = useTranslations("sidebar");
 
 	return (
 		<SidebarSlideOutPanel open={open} onOpenChange={onOpenChange} ariaLabel={t("inbox") || "Inbox"}>
-			{inboxContent}
+			<InboxSidebarContent
+				onOpenChange={onOpenChange}
+				comments={comments}
+				status={status}
+				totalUnreadCount={totalUnreadCount}
+				onCloseMobileSidebar={onCloseMobileSidebar}
+			/>
 		</SidebarSlideOutPanel>
 	);
 }

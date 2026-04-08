@@ -1,7 +1,7 @@
 """
 Notifications API routes.
 These endpoints allow marking notifications as read and fetching older notifications.
-Electric SQL automatically syncs the changes to all connected clients for recent items.
+Zero automatically syncs the changes to all connected clients for recent items.
 For older items (beyond the sync window), use the list endpoint.
 """
 
@@ -10,7 +10,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import desc, func, literal, literal_column, select, update
+from sqlalchemy import case, desc, func, literal, literal_column, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import Notification, User, get_async_session
@@ -108,6 +108,73 @@ class UnreadCountResponse(BaseModel):
     recent_unread: int  # Within SYNC_WINDOW_DAYS
 
 
+class CategoryUnreadCount(BaseModel):
+    total_unread: int
+    recent_unread: int
+
+
+class BatchUnreadCountResponse(BaseModel):
+    """Batched unread counts for all categories in a single response."""
+
+    comments: CategoryUnreadCount
+    status: CategoryUnreadCount
+
+
+@router.get("/unread-counts-batch", response_model=BatchUnreadCountResponse)
+async def get_unread_counts_batch(
+    search_space_id: int | None = Query(None, description="Filter by search space ID"),
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> BatchUnreadCountResponse:
+    """
+    Get unread counts for all notification categories in a single DB query.
+
+    Replaces multiple separate calls to /unread-count with different category
+    filters, reducing round-trips from 2+ to 1.
+    """
+    cutoff_date = datetime.now(UTC) - timedelta(days=SYNC_WINDOW_DAYS)
+
+    base_filter = [
+        Notification.user_id == user.id,
+        Notification.read == False,  # noqa: E712
+    ]
+
+    if search_space_id is not None:
+        base_filter.append(
+            (Notification.search_space_id == search_space_id)
+            | (Notification.search_space_id.is_(None))
+        )
+
+    is_comments = Notification.type.in_(CATEGORY_TYPES["comments"])
+    is_status = Notification.type.in_(CATEGORY_TYPES["status"])
+    is_recent = Notification.created_at > cutoff_date
+
+    query = select(
+        func.count(case((is_comments, Notification.id))).label("comments_total"),
+        func.count(case((is_comments & is_recent, Notification.id))).label(
+            "comments_recent"
+        ),
+        func.count(case((is_status, Notification.id))).label("status_total"),
+        func.count(case((is_status & is_recent, Notification.id))).label(
+            "status_recent"
+        ),
+    ).where(*base_filter)
+
+    result = await session.execute(query)
+    row = result.one()
+
+    return BatchUnreadCountResponse(
+        comments=CategoryUnreadCount(
+            total_unread=row.comments_total,
+            recent_unread=row.comments_recent,
+        ),
+        status=CategoryUnreadCount(
+            total_unread=row.status_total,
+            recent_unread=row.status_recent,
+        ),
+    )
+
+
 @router.get("/source-types", response_model=SourceTypesResponse)
 async def get_notification_source_types(
     search_space_id: int | None = Query(None, description="Filter by search space ID"),
@@ -200,7 +267,7 @@ async def get_unread_count(
 
     This allows the frontend to calculate:
     - older_unread = total_unread - recent_unread (static until reconciliation)
-    - Display count = older_unread + live_recent_count (from Electric SQL)
+    - Display count = older_unread + live_recent_count (from Zero)
     """
     # Calculate cutoff date for sync window
     cutoff_date = datetime.now(UTC) - timedelta(days=SYNC_WINDOW_DAYS)
@@ -277,7 +344,7 @@ async def list_notifications(
     List notifications for the current user with pagination.
 
     This endpoint is used as a fallback for older notifications that are
-    outside the Electric SQL sync window (2 weeks).
+    outside the Zero sync window (2 weeks).
 
     Use `before_date` to paginate through older notifications efficiently.
     """
@@ -420,7 +487,7 @@ async def mark_notification_as_read(
     """
     Mark a single notification as read.
 
-    Electric SQL will automatically sync this change to all connected clients.
+    Zero will automatically sync this change to all connected clients.
     """
     # Verify the notification belongs to the user
     result = await session.execute(
@@ -461,7 +528,7 @@ async def mark_all_notifications_as_read(
     """
     Mark all notifications as read for the current user.
 
-    Electric SQL will automatically sync these changes to all connected clients.
+    Zero will automatically sync these changes to all connected clients.
     """
     # Update all unread notifications for the user
     result = await session.execute(

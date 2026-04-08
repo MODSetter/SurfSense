@@ -79,6 +79,8 @@ Select the **"Granular scopes"** tab and enable:
 | View pages | `read:page:confluence` | View page content |
 | View comments | `read:comment:confluence` | View comments on pages or blogposts |
 | View spaces | `read:space:confluence` | View space details |
+| Write pages | `write:page:confluence` | Create and update page content |
+| Delete pages | `delete:page:confluence` | Delete pages |
 
 4. Click **"Save"**
 
@@ -97,7 +99,7 @@ Select the **"Granular scopes"** tab and enable:
 
 ## Running SurfSense with Confluence Connector
 
-Add the Atlassian credentials to your `.env` file (created during [Docker installation](/docs/docker-installation)):
+Add the Atlassian credentials to your `.env` file (created during [Docker installation](/docs/docker-installation/docker-compose)):
 
 ```bash
 ATLASSIAN_CLIENT_ID=your_atlassian_client_id

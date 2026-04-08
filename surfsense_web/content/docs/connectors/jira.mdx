@@ -66,6 +66,7 @@ This guide walks you through setting up an Atlassian OAuth 2.0 (3LO) integration
 |------------|------|-------------|
 | View Jira issue data | `read:jira-work` | Read Jira project and issue data, search for issues, and objects associated with issues like attachments and worklogs |
 | View user profiles | `read:jira-user` | View user information in Jira that the user has access to, including usernames, email addresses, and avatars |
+| Create and manage issues | `write:jira-work` | Create, edit, and delete issues, comments, worklogs, and other Jira data the user has access to |
 
 4. Click **"Save"**
 
@@ -84,7 +85,7 @@ This guide walks you through setting up an Atlassian OAuth 2.0 (3LO) integration
 
 ## Running SurfSense with Jira Connector
 
-Add the Atlassian credentials to your `.env` file (created during [Docker installation](/docs/docker-installation)):
+Add the Atlassian credentials to your `.env` file (created during [Docker installation](/docs/docker-installation/docker-compose)):
 
 ```bash
 ATLASSIAN_CLIENT_ID=your_atlassian_client_id

@@ -284,6 +284,20 @@ export const getSourceTypesResponse = z.object({
 	sources: z.array(sourceTypeItem),
 });
 
+/**
+ * Batched unread counts for all categories in a single response.
+ * Replaces 2 separate /unread-count calls (comments + status).
+ */
+export const categoryUnreadCount = z.object({
+	total_unread: z.number(),
+	recent_unread: z.number(),
+});
+
+export const getBatchUnreadCountResponse = z.object({
+	comments: categoryUnreadCount,
+	status: categoryUnreadCount,
+});
+
 // =============================================================================
 // Type Guards for Metadata
 // =============================================================================
@@ -412,3 +426,4 @@ export type GetUnreadCountRequest = z.infer<typeof getUnreadCountRequest>;
 export type GetUnreadCountResponse = z.infer<typeof getUnreadCountResponse>;
 export type SourceTypeItem = z.infer<typeof sourceTypeItem>;
 export type GetSourceTypesResponse = z.infer<typeof getSourceTypesResponse>;
+export type GetBatchUnreadCountResponse = z.infer<typeof getBatchUnreadCountResponse>;

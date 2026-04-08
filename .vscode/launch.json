@@ -22,7 +22,11 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "cwd": "${workspaceFolder}/surfsense_backend",
-            "python": "${command:python.interpreterPath}"
+            "python": "uv",
+            "pythonArgs": [
+                "run",
+                "python"
+            ]
         },
         {
             "name": "Backend: FastAPI (No Reload)",
@@ -32,7 +36,11 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "cwd": "${workspaceFolder}/surfsense_backend",
-            "python": "${command:python.interpreterPath}"
+            "python": "uv",
+            "pythonArgs": [
+                "run",
+                "python"
+            ]
         },
         {
             "name": "Backend: FastAPI (main.py)",
@@ -41,14 +49,19 @@
             "program": "${workspaceFolder}/surfsense_backend/main.py",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "cwd": "${workspaceFolder}/surfsense_backend"
+            "cwd": "${workspaceFolder}/surfsense_backend",
+            "python": "uv",
+            "pythonArgs": [
+                "run",
+                "python"
+            ]
         },
         {
             "name": "Frontend: Next.js",
             "type": "node",
             "request": "launch",
             "cwd": "${workspaceFolder}/surfsense_web",
-            "runtimeExecutable": "npm",
+            "runtimeExecutable": "pnpm",
             "runtimeArgs": ["run", "dev"],
             "console": "integratedTerminal",
             "serverReadyAction": {
@@ -62,7 +75,7 @@
             "type": "node",
             "request": "launch",
             "cwd": "${workspaceFolder}/surfsense_web",
-            "runtimeExecutable": "npm",
+            "runtimeExecutable": "pnpm",
             "runtimeArgs": ["run", "debug:server"],
             "console": "integratedTerminal",
             "serverReadyAction": {
@@ -87,7 +100,11 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "cwd": "${workspaceFolder}/surfsense_backend",
-            "python": "${command:python.interpreterPath}"
+            "python": "uv",
+            "pythonArgs": [
+                "run",
+                "python"
+            ]
         },
         {
             "name": "Celery: Beat Scheduler",
@@ -103,7 +120,11 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "cwd": "${workspaceFolder}/surfsense_backend",
-            "python": "${command:python.interpreterPath}"
+            "python": "uv",
+            "pythonArgs": [
+                "run",
+                "python"
+            ]
         }
     ],
     "compounds": [

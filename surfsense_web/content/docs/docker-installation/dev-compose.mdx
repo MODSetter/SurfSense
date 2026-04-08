@@ -1,0 +1,30 @@
+---
+title: Docker Compose Development
+description: Building SurfSense from source using docker-compose.dev.yml
+---
+
+If you're contributing to SurfSense and want to build from source, use `docker-compose.dev.yml` instead:
+
+```bash
+cd SurfSense/docker
+docker compose -f docker-compose.dev.yml up --build
+```
+
+This file builds the backend and frontend from your local source code (instead of pulling prebuilt images) and includes pgAdmin for database inspection at [http://localhost:5050](http://localhost:5050). Use the production `docker-compose.yml` for all other cases.
+
+## Dev-Only Environment Variables
+
+The following `.env` variables are **only used by the dev compose file** (they have no effect on the production `docker-compose.yml`):
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PGADMIN_PORT` | pgAdmin web UI port | `5050` |
+| `PGADMIN_DEFAULT_EMAIL` | pgAdmin login email | `admin@surfsense.com` |
+| `PGADMIN_DEFAULT_PASSWORD` | pgAdmin login password | `surfsense` |
+| `REDIS_PORT` | Exposed Redis port (internal-only in prod) | `6379` |
+| `NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE` | Frontend build arg for auth type | `LOCAL` |
+| `NEXT_PUBLIC_ETL_SERVICE` | Frontend build arg for ETL service | `DOCLING` |
+| `NEXT_PUBLIC_ZERO_CACHE_URL` | Frontend build arg for Zero-cache URL | `http://localhost:4848` |
+| `NEXT_PUBLIC_DEPLOYMENT_MODE` | Frontend build arg for deployment mode | `self-hosted` |
+
+In the production compose file, the `NEXT_PUBLIC_*` frontend variables are automatically derived from `AUTH_TYPE`, `ETL_SERVICE`, and the port settings. In the dev compose file, they are passed as build args since the frontend is built from source.

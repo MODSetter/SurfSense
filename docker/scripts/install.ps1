@@ -103,13 +103,15 @@ Write-Step "Downloading SurfSense files"
 Write-Info "Installation directory: $InstallDir"
 
 New-Item -ItemType Directory -Path "$InstallDir\scripts" -Force | Out-Null
+New-Item -ItemType Directory -Path "$InstallDir\searxng" -Force | Out-Null
 
 $Files = @(
     @{ Src = "docker/docker-compose.yml";                Dest = "docker-compose.yml" }
     @{ Src = "docker/.env.example";                      Dest = ".env.example" }
     @{ Src = "docker/postgresql.conf";                   Dest = "postgresql.conf" }
-    @{ Src = "docker/scripts/init-electric-user.sh";     Dest = "scripts/init-electric-user.sh" }
     @{ Src = "docker/scripts/migrate-database.ps1";      Dest = "scripts/migrate-database.ps1" }
+    @{ Src = "docker/searxng/settings.yml";              Dest = "searxng/settings.yml" }
+    @{ Src = "docker/searxng/limiter.toml";              Dest = "searxng/limiter.toml" }
 )
 
 foreach ($f in $Files) {
@@ -321,9 +323,9 @@ Write-Host "         OSS Alternative to NotebookLM for Teams  [$versionDisplay]"
 Write-Host ("=" * 62) -ForegroundColor Cyan
 Write-Host ""
 
-Write-Info "  Frontend:  http://localhost:3000"
-Write-Info "  Backend:   http://localhost:8000"
-Write-Info "  API Docs:  http://localhost:8000/docs"
+Write-Info "  Frontend:  http://localhost:3929"
+Write-Info "  Backend:   http://localhost:8929"
+Write-Info "  API Docs:  http://localhost:8929/docs"
 Write-Info ""
 Write-Info "  Config:    $InstallDir\.env"
 Write-Info "  Logs:      cd $InstallDir; docker compose logs -f"

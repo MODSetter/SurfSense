@@ -1,13 +1,6 @@
 "use client";
 
-import {
-	ArchiveIcon,
-	MessageSquare,
-	MoreHorizontal,
-	PenLine,
-	RotateCcwIcon,
-	Trash2,
-} from "lucide-react";
+import { ArchiveIcon, MoreHorizontal, PenLine, RotateCcwIcon, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -15,7 +8,6 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
-	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useLongPress } from "@/hooks/use-long-press";
@@ -27,6 +19,8 @@ interface ChatListItemProps {
 	name: string;
 	isActive?: boolean;
 	archived?: boolean;
+	dropdownOpen?: boolean;
+	onDropdownOpenChange?: (open: boolean) => void;
 	onClick?: () => void;
 	onRename?: () => void;
 	onArchive?: () => void;
@@ -37,6 +31,8 @@ export function ChatListItem({
 	name,
 	isActive,
 	archived,
+	dropdownOpen: controlledOpen,
+	onDropdownOpenChange,
 	onClick,
 	onRename,
 	onArchive,
@@ -44,11 +40,13 @@ export function ChatListItem({
 }: ChatListItemProps) {
 	const t = useTranslations("sidebar");
 	const isMobile = useIsMobile();
-	const [dropdownOpen, setDropdownOpen] = useState(false);
+	const [internalOpen, setInternalOpen] = useState(false);
+	const dropdownOpen = controlledOpen ?? internalOpen;
+	const setDropdownOpen = onDropdownOpenChange ?? setInternalOpen;
 	const animatedName = useTypewriter(name);
 
 	const { handlers: longPressHandlers, wasLongPress } = useLongPress(
-		useCallback(() => setDropdownOpen(true), [])
+		useCallback(() => setDropdownOpen(true), [setDropdownOpen])
 	);
 
 	const handleClick = useCallback(() => {
@@ -63,27 +61,39 @@ export function ChatListItem({
 				onClick={handleClick}
 				{...(isMobile ? longPressHandlers : {})}
 				className={cn(
-					"flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-sm text-left transition-colors",
-					"[&>span:last-child]:truncate",
-					"hover:bg-accent hover:text-accent-foreground",
+					"flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-sm text-left",
+					"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
 					"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
 					isActive && "bg-accent text-accent-foreground"
 				)}
 			>
-				<MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
-				<span className="w-[calc(100%-3rem)] ">{animatedName}</span>
+				<span className="truncate">{animatedName}</span>
 			</button>
 
 			{/* Actions dropdown - trigger hidden on mobile, long-press opens it instead */}
 			<div
 				className={cn(
-					"absolute right-1 top-1/2 -translate-y-1/2 transition-opacity",
-					isMobile ? "opacity-0 pointer-events-none" : "opacity-0 group-hover/item:opacity-100"
+					"pointer-events-none absolute right-0 top-0 bottom-0 flex items-center pr-1 pl-6 rounded-r-md",
+					isActive
+						? "bg-gradient-to-l from-accent from-60% to-transparent"
+						: "bg-gradient-to-l from-sidebar from-60% to-transparent group-hover/item:from-accent",
+					isMobile
+						? "opacity-0"
+						: isActive || dropdownOpen
+							? "opacity-100"
+							: "opacity-0 group-hover/item:opacity-100"
 				)}
 			>
 				<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
 					<DropdownMenuTrigger asChild>
-						<Button variant="ghost" size="icon" className="h-6 w-6">
+						<Button
+							variant="ghost"
+							size="icon"
+							className={cn(
+								"pointer-events-auto h-6 w-6 hover:bg-transparent",
+								dropdownOpen && "bg-accent hover:bg-accent"
+							)}
+						>
 							<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
 							<span className="sr-only">{t("more_options")}</span>
 						</Button>
@@ -120,7 +130,6 @@ export function ChatListItem({
 								)}
 							</DropdownMenuItem>
 						)}
-						{onArchive && onDelete && <DropdownMenuSeparator />}
 						{onDelete && (
 							<DropdownMenuItem
 								onClick={(e) => {
