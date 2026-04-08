@@ -92,7 +92,7 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { cn } from "@/lib/utils";
 
-const COMPOSER_PLACEHOLDER = "Ask anything · Type / for prompts · Type @ to mention docs";
+const COMPOSER_PLACEHOLDER = "Ask anything, type / for prompts, type @ to mention docs";
 
 export const Thread: FC = () => {
 	return <ThreadContent />;

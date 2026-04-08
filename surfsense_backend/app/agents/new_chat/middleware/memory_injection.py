@@ -93,10 +93,28 @@ class MemoryInjectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
     async def _load_user_memory(self, session: AsyncSession) -> str | None:
         try:
             result = await session.execute(
-                select(User.memory_md).where(User.id == self.user_id)
+                select(User.memory_md, User.display_name).where(
+                    User.id == self.user_id
+                )
             )
-            row = result.scalar_one_or_none()
-            return row if row else None
+            row = result.one_or_none()
+            if row is None:
+                return None
+
+            memory_md, display_name = row
+
+            if memory_md:
+                return memory_md
+
+            # No saved memory yet — seed with the user's first name so the
+            # LLM knows who it's talking to from the very first turn.  The
+            # name is only injected, not persisted; the LLM will include it
+            # naturally when it first calls update_memory.
+            if display_name:
+                first_name = display_name.split()[0]
+                return f"## About the user\n- Name: {first_name}"
+
+            return None
         except Exception:
             logger.exception("Failed to load user memory")
             return None
