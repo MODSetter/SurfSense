@@ -1058,12 +1058,12 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							side="bottom"
 							align="start"
 							sideOffset={12}
-							className="w-[calc(100vw-2rem)] max-w-56 sm:max-w-72 sm:w-72 p-0 select-none"
+							className="w-[calc(100vw-2rem)] max-w-48 sm:max-w-56 sm:w-56 p-0 select-none"
 							onOpenAutoFocus={(e) => e.preventDefault()}
 						>
 							<div className="sr-only">Manage Tools</div>
 							<div
-								className="max-h-48 sm:max-h-64 overflow-y-auto overscroll-none py-0.5 sm:py-1"
+								className="max-h-44 sm:max-h-56 overflow-y-auto overscroll-none py-0.5"
 								onScroll={handleToolsScroll}
 								style={{
 									maskImage: `linear-gradient(to bottom, ${toolsScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${toolsScrollPos === "bottom" ? "black" : "transparent"})`,
@@ -1074,22 +1074,22 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									.filter((g) => !g.connectorIcon)
 									.map((group) => (
 										<div key={group.label}>
-											<div className="px-2.5 sm:px-3 pt-2 pb-0.5 text-[10px] sm:text-xs text-muted-foreground/80 font-normal select-none">
+											<div className="px-2 sm:px-2.5 pt-1.5 pb-0.5 text-[9px] sm:text-[10px] text-muted-foreground/80 font-normal select-none">
 												{group.label}
 											</div>
 											{group.tools.map((tool) => {
 												const isDisabled = disabledToolsSet.has(tool.name);
 												const ToolIcon = getToolIcon(tool.name);
 												const row = (
-													<div className="flex w-full items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-1 sm:py-1.5 hover:bg-muted-foreground/10 transition-colors">
-														<ToolIcon className="size-3.5 sm:size-4 shrink-0 text-muted-foreground" />
-														<span className="flex-1 min-w-0 text-xs sm:text-sm font-medium truncate">
+													<div className="flex w-full items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-0.5 sm:py-1 hover:bg-muted-foreground/10 transition-colors">
+														<ToolIcon className="size-3 sm:size-3.5 shrink-0 text-muted-foreground" />
+														<span className="flex-1 min-w-0 text-[11px] sm:text-xs font-medium truncate">
 															{formatToolName(tool.name)}
 														</span>
 														<Switch
 															checked={!isDisabled}
 															onCheckedChange={() => toggleTool(tool.name)}
-															className="shrink-0 scale-[0.6] sm:scale-75"
+															className="shrink-0 scale-50 sm:scale-[0.6]"
 														/>
 													</div>
 												);
@@ -1106,7 +1106,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									))}
 								{groupedTools.some((g) => g.connectorIcon) && (
 									<div>
-										<div className="px-2.5 sm:px-3 pt-2 pb-0.5 text-[10px] sm:text-xs text-muted-foreground/80 font-normal select-none">
+										<div className="px-2 sm:px-2.5 pt-1.5 pb-0.5 text-[9px] sm:text-[10px] text-muted-foreground/80 font-normal select-none">
 											Connector Actions
 										</div>
 										{groupedTools
@@ -1118,26 +1118,26 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 												const allDisabled = toolNames.every((n) => disabledToolsSet.has(n));
 												const groupDef = TOOL_GROUPS.find((g) => g.label === group.label);
 												const row = (
-													<div className="flex w-full items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-1 sm:py-1.5 hover:bg-muted-foreground/10 transition-colors">
+													<div className="flex w-full items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-0.5 sm:py-1 hover:bg-muted-foreground/10 transition-colors">
 														{iconInfo ? (
 															<Image
 																src={iconInfo.src}
 																alt={iconInfo.alt}
-																width={16}
-																height={16}
-																className="size-3.5 sm:size-4 shrink-0 select-none pointer-events-none"
+																width={14}
+																height={14}
+																className="size-3 sm:size-3.5 shrink-0 select-none pointer-events-none"
 																draggable={false}
 															/>
 														) : (
-															<Wrench className="size-3.5 sm:size-4 shrink-0 text-muted-foreground" />
+															<Wrench className="size-3 sm:size-3.5 shrink-0 text-muted-foreground" />
 														)}
-														<span className="flex-1 min-w-0 text-xs sm:text-sm font-medium truncate">
+														<span className="flex-1 min-w-0 text-[11px] sm:text-xs font-medium truncate">
 															{group.label}
 														</span>
 														<Switch
 															checked={!allDisabled}
 															onCheckedChange={() => toggleToolGroup(toolNames)}
-															className="shrink-0 scale-[0.6] sm:scale-75"
+															className="shrink-0 scale-50 sm:scale-[0.6]"
 														/>
 													</div>
 												);
@@ -1158,7 +1158,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									</div>
 								)}
 								{!filteredTools?.length && (
-									<div className="px-3 py-4 text-center text-xs text-muted-foreground">
+									<div className="px-2.5 py-3 text-center text-[11px] text-muted-foreground">
 										Loading tools...
 									</div>
 								)}
