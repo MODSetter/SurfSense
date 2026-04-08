@@ -38,6 +38,8 @@ import { removeChatTabAtom, updateChatTabTitleAtom } from "@/atoms/tabs/tabs.ato
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { ThinkingStepsDataUI } from "@/components/assistant-ui/thinking-steps";
 import { Thread } from "@/components/assistant-ui/thread";
+import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
+import { useMessagesSync } from "@/hooks/use-messages-sync";
 import Loading from "../loading";
 
 const MobileEditorPanel = dynamic(
