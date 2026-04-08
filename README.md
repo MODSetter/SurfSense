@@ -78,15 +78,15 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
    - Desktop App — General Assist
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/general_assist.gif" alt="General Assist" /></p>
+   <p align="center"><video src="surfsense_web/public/homepage/hero_tutorial/general_assist.mp4" alt="General Assist" width="100%" autoplay loop muted playsinline></video></p>
 
    - Desktop App — Quick Assist
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/quick_assist.gif" alt="Quick Assist" /></p>
+   <p align="center"><video src="surfsense_web/public/homepage/hero_tutorial/quick_assist.mp4" alt="Quick Assist" width="100%" autoplay loop muted playsinline></video></p>
 
    - Desktop App — Extreme Assist
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/extreme_assist.gif" alt="Extreme Assist" /></p>
+   <p align="center"><video src="surfsense_web/public/homepage/hero_tutorial/extreme_assist.mp4" alt="Extreme Assist" width="100%" autoplay loop muted playsinline></video></p>
 
    - Desktop App — Watch Local Folder
 
