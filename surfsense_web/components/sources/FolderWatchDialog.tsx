@@ -167,7 +167,7 @@ export function FolderWatchDialog({
 			<DialogContent className="sm:max-w-md select-none">
 				<DialogHeader>
 					<DialogTitle>Watch Local Folder</DialogTitle>
-					<DialogDescription>Select a folder to sync and watch for changes.</DialogDescription>
+					<DialogDescription>Select a folder to sync and watch for changes</DialogDescription>
 				</DialogHeader>
 
 				<div className="space-y-3 pt-2 min-h-[13rem]">

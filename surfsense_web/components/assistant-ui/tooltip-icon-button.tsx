@@ -1,7 +1,7 @@
 "use client";
 
 import { Slottable } from "@radix-ui/react-slot";
-import { type ComponentPropsWithRef, forwardRef, type ReactNode } from "react";
+import { type ComponentPropsWithRef, forwardRef, type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -17,9 +17,10 @@ export const TooltipIconButton = forwardRef<HTMLButtonElement, TooltipIconButton
 	({ children, tooltip, side = "bottom", className, disableTooltip, ...rest }, ref) => {
 		const isTouchDevice = useMediaQuery("(pointer: coarse)");
 		const suppressTooltip = disableTooltip || isTouchDevice;
+		const [tooltipOpen, setTooltipOpen] = useState(false);
 
 		return (
-			<Tooltip open={suppressTooltip ? false : undefined}>
+			<Tooltip open={suppressTooltip ? false : tooltipOpen} onOpenChange={suppressTooltip ? undefined : setTooltipOpen}>
 				<TooltipTrigger asChild>
 					<Button
 						variant="ghost"

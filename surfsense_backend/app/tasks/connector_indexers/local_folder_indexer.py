@@ -344,6 +344,27 @@ async def _resolve_folder_for_file(
     return current_parent_id
 
 
+async def _set_indexing_flag(session: AsyncSession, folder_id: int) -> None:
+    folder = await session.get(Folder, folder_id)
+    if folder:
+        meta = dict(folder.folder_metadata or {})
+        meta["indexing_in_progress"] = True
+        folder.folder_metadata = meta
+        await session.commit()
+
+
+async def _clear_indexing_flag(session: AsyncSession, folder_id: int) -> None:
+    try:
+        folder = await session.get(Folder, folder_id)
+        if folder:
+            meta = dict(folder.folder_metadata or {})
+            meta.pop("indexing_in_progress", None)
+            folder.folder_metadata = meta
+            await session.commit()
+    except Exception:
+        pass
+
+
 async def _cleanup_empty_folder_chain(
     session: AsyncSession,
     folder_id: int,
@@ -531,44 +552,50 @@ async def index_local_folder(
         # BATCH MODE (1..N files)
         # ====================================================================
         if target_file_paths:
-            if len(target_file_paths) == 1:
-                indexed, skipped, err = await _index_single_file(
-                    session=session,
+            if root_folder_id:
+                await _set_indexing_flag(session, root_folder_id)
+            try:
+                if len(target_file_paths) == 1:
+                    indexed, skipped, err = await _index_single_file(
+                        session=session,
+                        search_space_id=search_space_id,
+                        user_id=user_id,
+                        folder_path=folder_path,
+                        folder_name=folder_name,
+                        target_file_path=target_file_paths[0],
+                        enable_summary=enable_summary,
+                        root_folder_id=root_folder_id,
+                        task_logger=task_logger,
+                        log_entry=log_entry,
+                    )
+                    return indexed, skipped, root_folder_id, err
+
+                indexed, failed, err = await _index_batch_files(
                     search_space_id=search_space_id,
                     user_id=user_id,
                     folder_path=folder_path,
                     folder_name=folder_name,
-                    target_file_path=target_file_paths[0],
+                    target_file_paths=target_file_paths,
                     enable_summary=enable_summary,
                     root_folder_id=root_folder_id,
-                    task_logger=task_logger,
-                    log_entry=log_entry,
+                    on_progress_callback=on_heartbeat_callback,
                 )
-                return indexed, skipped, root_folder_id, err
-
-            indexed, failed, err = await _index_batch_files(
-                search_space_id=search_space_id,
-                user_id=user_id,
-                folder_path=folder_path,
-                folder_name=folder_name,
-                target_file_paths=target_file_paths,
-                enable_summary=enable_summary,
-                root_folder_id=root_folder_id,
-                on_progress_callback=on_heartbeat_callback,
-            )
-            if err:
-                await task_logger.log_task_success(
-                    log_entry,
-                    f"Batch indexing: {indexed} indexed, {failed} failed",
-                    {"indexed": indexed, "failed": failed},
-                )
-            else:
-                await task_logger.log_task_success(
-                    log_entry,
-                    f"Batch indexing complete: {indexed} indexed",
-                    {"indexed": indexed, "failed": failed},
-                )
-            return indexed, failed, root_folder_id, err
+                if err:
+                    await task_logger.log_task_success(
+                        log_entry,
+                        f"Batch indexing: {indexed} indexed, {failed} failed",
+                        {"indexed": indexed, "failed": failed},
+                    )
+                else:
+                    await task_logger.log_task_success(
+                        log_entry,
+                        f"Batch indexing complete: {indexed} indexed",
+                        {"indexed": indexed, "failed": failed},
+                    )
+                return indexed, failed, root_folder_id, err
+            finally:
+                if root_folder_id:
+                    await _clear_indexing_flag(session, root_folder_id)
 
         # ====================================================================
         # FULL-SCAN MODE
@@ -588,6 +615,7 @@ async def index_local_folder(
             exclude_patterns=exclude_patterns,
         )
         await session.flush()
+        await _set_indexing_flag(session, root_folder_id)
 
         try:
             files = scan_folder(folder_path, file_extensions, exclude_patterns)
@@ -595,6 +623,7 @@ async def index_local_folder(
             await task_logger.log_task_failure(
                 log_entry, f"Failed to scan folder: {e}", "Scan error", {}
             )
+            await _clear_indexing_flag(session, root_folder_id)
             return 0, 0, root_folder_id, f"Failed to scan folder: {e}"
 
         logger.info(f"Found {len(files)} files in folder")
@@ -882,6 +911,7 @@ async def index_local_folder(
             },
         )
 
+        await _clear_indexing_flag(session, root_folder_id)
         return indexed_count, skipped_count, root_folder_id, warning_message
 
     except SQLAlchemyError as e:
@@ -890,6 +920,8 @@ async def index_local_folder(
         await task_logger.log_task_failure(
             log_entry, f"DB error: {e}", "Database error", {}
         )
+        if root_folder_id:
+            await _clear_indexing_flag(session, root_folder_id)
         return 0, 0, root_folder_id, f"Database error: {e}"
 
     except Exception as e:
@@ -897,6 +929,8 @@ async def index_local_folder(
         await task_logger.log_task_failure(
             log_entry, f"Error: {e}", "Unexpected error", {}
         )
+        if root_folder_id:
+            await _clear_indexing_flag(session, root_folder_id)
         return 0, 0, root_folder_id, str(e)
 
 
@@ -1261,12 +1295,7 @@ async def index_uploaded_files(
         )
         await session.flush()
 
-        root_folder = await session.get(Folder, root_folder_id)
-        if root_folder:
-            meta = dict(root_folder.folder_metadata or {})
-            meta["indexing_in_progress"] = True
-            root_folder.folder_metadata = meta
-            await session.commit()
+        await _set_indexing_flag(session, root_folder_id)
 
         page_limit_service = PageLimitService(session)
         pipeline = IndexingPipelineService(session)
@@ -1443,12 +1472,4 @@ async def index_uploaded_files(
         return 0, 0, str(e)
 
     finally:
-        try:
-            root_folder = await session.get(Folder, root_folder_id)
-            if root_folder:
-                meta = dict(root_folder.folder_metadata or {})
-                meta.pop("indexing_in_progress", None)
-                root_folder.folder_metadata = meta
-                await session.commit()
-        except Exception:
-            pass
+        await _clear_indexing_flag(session, root_folder_id)

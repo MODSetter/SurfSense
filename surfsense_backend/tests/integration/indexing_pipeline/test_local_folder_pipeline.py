@@ -1,4 +1,4 @@
-"""Integration tests for local folder indexer — Tier 3 (I1-I5), Tier 4 (F1-F7), Tier 5 (P1), Tier 6 (B1-B2)."""
+"""Integration tests for local folder indexer — Tier 3 (I1-I5), Tier 4 (F1-F7), Tier 5 (P1), Tier 6 (B1-B2), Tier 7 (IP1-IP3)."""
 
 import os
 from contextlib import asynccontextmanager
@@ -1178,3 +1178,129 @@ class TestPageLimits:
         await db_session.refresh(db_user)
         assert db_user.pages_used > 0
         assert db_user.pages_used <= db_user.pages_limit + 1
+
+
+# ====================================================================
+# Tier 7: Indexing Progress Flag (IP1-IP3)
+# ====================================================================
+
+
+class TestIndexingProgressFlag:
+    @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
+    async def test_ip1_full_scan_clears_flag(
+        self,
+        db_session: AsyncSession,
+        db_user: User,
+        db_search_space: SearchSpace,
+        tmp_path: Path,
+    ):
+        """IP1: Full-scan mode clears indexing_in_progress after completion."""
+        from app.tasks.connector_indexers.local_folder_indexer import index_local_folder
+
+        (tmp_path / "note.md").write_text("# Hello\n\nContent.")
+
+        _, _, root_folder_id, _ = await index_local_folder(
+            session=db_session,
+            search_space_id=db_search_space.id,
+            user_id=str(db_user.id),
+            folder_path=str(tmp_path),
+            folder_name="test-folder",
+        )
+
+        assert root_folder_id is not None
+        root_folder = (
+            await db_session.execute(select(Folder).where(Folder.id == root_folder_id))
+        ).scalar_one()
+        meta = root_folder.folder_metadata or {}
+        assert "indexing_in_progress" not in meta
+
+    @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
+    async def test_ip2_single_file_clears_flag(
+        self,
+        db_session: AsyncSession,
+        db_user: User,
+        db_search_space: SearchSpace,
+        tmp_path: Path,
+    ):
+        """IP2: Single-file (Chokidar) mode clears indexing_in_progress after completion."""
+        from app.tasks.connector_indexers.local_folder_indexer import index_local_folder
+
+        (tmp_path / "root.md").write_text("root")
+        _, _, root_folder_id, _ = await index_local_folder(
+            session=db_session,
+            search_space_id=db_search_space.id,
+            user_id=str(db_user.id),
+            folder_path=str(tmp_path),
+            folder_name="test-folder",
+        )
+
+        (tmp_path / "new.md").write_text("new file content")
+
+        await index_local_folder(
+            session=db_session,
+            search_space_id=db_search_space.id,
+            user_id=str(db_user.id),
+            folder_path=str(tmp_path),
+            folder_name="test-folder",
+            target_file_paths=[str(tmp_path / "new.md")],
+            root_folder_id=root_folder_id,
+        )
+
+        root_folder = (
+            await db_session.execute(select(Folder).where(Folder.id == root_folder_id))
+        ).scalar_one()
+        meta = root_folder.folder_metadata or {}
+        assert "indexing_in_progress" not in meta
+
+    @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
+    async def test_ip3_flag_set_during_indexing(
+        self,
+        db_session: AsyncSession,
+        db_user: User,
+        db_search_space: SearchSpace,
+        tmp_path: Path,
+    ):
+        """IP3: indexing_in_progress is True on the root folder while indexing is running."""
+        from app.tasks.connector_indexers.local_folder_indexer import index_local_folder
+
+        (tmp_path / "note.md").write_text("# Check flag\n\nDuring indexing.")
+
+        from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
+
+        original_index = IndexingPipelineService.index
+        flag_observed = []
+
+        async def patched_index(self_pipe, document, connector_doc, llm):
+            folder = (
+                await db_session.execute(
+                    select(Folder).where(
+                        Folder.search_space_id == db_search_space.id,
+                        Folder.parent_id.is_(None),
+                    )
+                )
+            ).scalar_one_or_none()
+            if folder:
+                meta = folder.folder_metadata or {}
+                flag_observed.append(meta.get("indexing_in_progress", False))
+            return await original_index(self_pipe, document, connector_doc, llm)
+
+        IndexingPipelineService.index = patched_index
+        try:
+            _, _, root_folder_id, _ = await index_local_folder(
+                session=db_session,
+                search_space_id=db_search_space.id,
+                user_id=str(db_user.id),
+                folder_path=str(tmp_path),
+                folder_name="test-folder",
+            )
+        finally:
+            IndexingPipelineService.index = original_index
+
+        assert len(flag_observed) > 0, "index() should have been called at least once"
+        assert all(flag_observed), "indexing_in_progress should be True during indexing"
+
+        root_folder = (
+            await db_session.execute(select(Folder).where(Folder.id == root_folder_id))
+        ).scalar_one()
+        meta = root_folder.folder_metadata or {}
+        assert "indexing_in_progress" not in meta
