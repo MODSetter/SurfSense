@@ -56,5 +56,14 @@ bump_json "$REPO_ROOT/surfsense_browser_extension/package.json"
 bump_json "$REPO_ROOT/surfsense_desktop/package.json"
 bump_toml "$REPO_ROOT/surfsense_backend/pyproject.toml"
 
+echo ""
+echo "Syncing lock files..."
+if command -v uv &>/dev/null; then
+  (cd "$REPO_ROOT/surfsense_backend" && uv lock)
+  echo "  OK    surfsense_backend/uv.lock"
+else
+  echo "  SKIP  uv not found -- run 'uv lock' in surfsense_backend/ manually"
+fi
+
 echo "---------------------------------"
 echo "Done. All packages set to $VERSION"
