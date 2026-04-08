@@ -90,15 +90,14 @@ export function SidebarSlideOutPanel({
 					/>
 
 					{/* Panel extending from sidebar's right edge, flush with the wrapper border */}
-					<motion.div
-						style={{ width }}
-						initial={{ x: -width }}
-						animate={{ x: 0 }}
-						exit={{ x: -width }}
-						transition={{ type: "tween", duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-						className="absolute z-20 overflow-hidden"
-						style={{ width, left: "100%", top: -1, bottom: -1 }}
-					>
+				<motion.div
+					initial={{ width: 0 }}
+					animate={{ width }}
+					exit={{ width: 0 }}
+					transition={{ type: "tween", duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+					className="absolute z-20 overflow-hidden"
+					style={{ left: "100%", top: -1, bottom: -1 }}
+				>
 						<div
 							style={{ width }}
 							className="h-full bg-sidebar text-sidebar-foreground flex flex-col select-none border rounded-r-xl shadow-xl"
