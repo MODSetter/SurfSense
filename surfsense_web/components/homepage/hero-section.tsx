@@ -1,9 +1,15 @@
 "use client";
-import { Download, Monitor } from "lucide-react";
+import { ChevronDown, Download, Monitor } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
-import React, { memo, useCallback, useEffect, useRef, useState } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Balancer from "react-wrap-balancer";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ExpandedMediaOverlay, useExpandedMedia } from "@/components/ui/expanded-gif-overlay";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AUTH_TYPE, BACKEND_URL } from "@/lib/env-config";
@@ -191,29 +197,159 @@ function GetStartedButton() {
 	);
 }
 
-function useUserOS() {
-	const [os, setOs] = useState<"macOS" | "Windows" | "Linux">("macOS");
+type OSInfo = {
+	os: "macOS" | "Windows" | "Linux";
+	arch: "arm64" | "x64";
+};
+
+function useUserOS(): OSInfo {
+	const [info, setInfo] = useState<OSInfo>({ os: "macOS", arch: "arm64" });
 	useEffect(() => {
 		const ua = navigator.userAgent;
-		if (/Windows/i.test(ua)) setOs("Windows");
-		else if (/Linux/i.test(ua)) setOs("Linux");
-		else setOs("macOS");
+		let os: OSInfo["os"] = "macOS";
+		let arch: OSInfo["arch"] = "x64";
+
+		if (/Windows/i.test(ua)) {
+			os = "Windows";
+			arch = "x64";
+		} else if (/Linux/i.test(ua)) {
+			os = "Linux";
+			arch = "x64";
+		} else {
+			os = "macOS";
+			arch = /Mac/.test(ua) && !/Intel/.test(ua) ? "arm64" : "arm64";
+		}
+
+		const uaData = (navigator as Navigator & { userAgentData?: { architecture?: string } })
+			.userAgentData;
+		if (uaData?.architecture === "arm") arch = "arm64";
+		else if (uaData?.architecture === "x86") arch = "x64";
+
+		setInfo({ os, arch });
 	}, []);
-	return os;
+	return info;
+}
+
+interface ReleaseAsset {
+	name: string;
+	url: string;
+}
+
+function useLatestRelease() {
+	const [assets, setAssets] = useState<ReleaseAsset[]>([]);
+
+	useEffect(() => {
+		const controller = new AbortController();
+		fetch("https://api.github.com/repos/MODSetter/SurfSense/releases/latest", {
+			signal: controller.signal,
+		})
+			.then((r) => r.json())
+			.then((data) => {
+				if (data?.assets) {
+					setAssets(
+						data.assets
+							.filter((a: { name: string }) => /\.(exe|dmg|AppImage|deb)$/.test(a.name))
+							.map((a: { name: string; browser_download_url: string }) => ({
+								name: a.name,
+								url: a.browser_download_url,
+							}))
+					);
+				}
+			})
+			.catch(() => {});
+		return () => controller.abort();
+	}, []);
+
+	return assets;
+}
+
+const ASSET_LABELS: Record<string, string> = {
+	".exe": "Windows (exe)",
+	"-arm64.dmg": "macOS Apple Silicon (dmg)",
+	"-x64.dmg": "macOS Intel (dmg)",
+	"-arm64.zip": "macOS Apple Silicon (zip)",
+	"-x64.zip": "macOS Intel (zip)",
+	".AppImage": "Linux (AppImage)",
+	".deb": "Linux (deb)",
+};
+
+function getAssetLabel(name: string): string {
+	for (const [suffix, label] of Object.entries(ASSET_LABELS)) {
+		if (name.endsWith(suffix)) return label;
+	}
+	return name;
 }
 
 function DownloadButton() {
-	const os = useUserOS();
+	const { os, arch } = useUserOS();
+	const assets = useLatestRelease();
+
+	const { primary, alternatives } = useMemo(() => {
+		if (assets.length === 0) return { primary: null, alternatives: [] };
+
+		const matchers: Record<string, (n: string) => boolean> = {
+			Windows: (n) => n.endsWith(".exe"),
+			macOS: (n) => n.endsWith(`-${arch}.dmg`),
+			Linux: (n) => n.endsWith(".AppImage"),
+		};
+
+		const match = matchers[os];
+		const primary = assets.find((a) => match(a.name)) ?? null;
+		const alternatives = assets.filter((a) => a !== primary);
+		return { primary, alternatives };
+	}, [assets, os, arch]);
+
+	const fallbackUrl = GITHUB_RELEASES_URL;
+
+	if (!primary) {
+		return (
+			<a
+				href={fallbackUrl}
+				target="_blank"
+				rel="noopener noreferrer"
+				className="flex h-14 w-full items-center justify-center gap-2 rounded-lg border border-neutral-200 bg-white text-center text-base font-medium text-neutral-700 shadow-sm transition duration-150 active:scale-98 hover:bg-neutral-50 sm:w-auto sm:px-6 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+			>
+				<Download className="size-4" />
+				Download for {os}
+			</a>
+		);
+	}
+
 	return (
-		<a
-			href={GITHUB_RELEASES_URL}
-			target="_blank"
-			rel="noopener noreferrer"
-			className="flex h-14 w-full items-center justify-center gap-2 rounded-lg border border-neutral-200 bg-white text-center text-base font-medium text-neutral-700 shadow-sm transition duration-150 active:scale-98 hover:bg-neutral-50 sm:w-56 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-		>
-			<Download className="size-4" />
-			Download for {os}
-		</a>
+		<div className="flex h-14 w-full items-stretch sm:w-auto">
+			<a
+				href={primary.url}
+				className="flex flex-1 items-center justify-center gap-2 rounded-l-lg border border-r-0 border-neutral-200 bg-white px-5 text-base font-medium text-neutral-700 shadow-sm transition duration-150 active:scale-[0.99] hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+			>
+				<Download className="size-4 shrink-0" />
+				Download for {os}
+			</a>
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild>
+					<button
+						type="button"
+						className="flex items-center justify-center rounded-r-lg border border-neutral-200 bg-white px-2.5 text-neutral-500 shadow-sm transition duration-150 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800"
+					>
+						<ChevronDown className="size-4" />
+					</button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent align="end" className="w-64">
+					{alternatives.map((asset) => (
+						<DropdownMenuItem key={asset.name} asChild>
+							<a href={asset.url} className="cursor-pointer">
+								<Download className="mr-2 size-3.5" />
+								{getAssetLabel(asset.name)}
+							</a>
+						</DropdownMenuItem>
+					))}
+					<DropdownMenuItem asChild>
+						<a href={fallbackUrl} target="_blank" rel="noopener noreferrer" className="cursor-pointer">
+							All downloads
+						</a>
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
+		</div>
 	);
 }
 
