@@ -64,7 +64,8 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 	// Permission check for public sharing
 	const { data: access } = useAtomValue(myAccessAtom);
 	const canCreatePublicLink =
-		!!access && (access.is_owner || (access.permissions?.includes("public_sharing:create") ?? false));
+		!!access &&
+		(access.is_owner || (access.permissions?.includes("public_sharing:create") ?? false));
 
 	// Query to check if thread has public snapshots
 	const { data: snapshotsData } = useQuery({

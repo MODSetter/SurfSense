@@ -79,9 +79,11 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 
 	const { data: access } = useAtomValue(myAccessAtom);
 	const canCreate =
-		!!access && (access.is_owner || (access.permissions?.includes("image_generations:create") ?? false));
+		!!access &&
+		(access.is_owner || (access.permissions?.includes("image_generations:create") ?? false));
 	const canDelete =
-		!!access && (access.is_owner || (access.permissions?.includes("image_generations:delete") ?? false));
+		!!access &&
+		(access.is_owner || (access.permissions?.includes("image_generations:delete") ?? false));
 	const canUpdate = canCreate;
 	const isReadOnly = !canCreate && !canDelete;
 

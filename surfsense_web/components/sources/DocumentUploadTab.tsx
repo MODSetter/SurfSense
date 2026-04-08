@@ -341,18 +341,11 @@ export function DocumentUploadTab({
 						</button>
 					)
 				) : (
-					<div
-						role="button"
-						tabIndex={0}
+					<button
+						type="button"
 						className="flex flex-col items-center gap-4 py-12 px-4 cursor-pointer w-full bg-transparent border-none"
 						onClick={() => {
 							if (!isElectron) fileInputRef.current?.click();
-						}}
-						onKeyDown={(e) => {
-							if (e.key === "Enter" || e.key === " ") {
-								e.preventDefault();
-								if (!isElectron) fileInputRef.current?.click();
-							}
 						}}
 					>
 						<Upload className="h-10 w-10 text-muted-foreground" />
@@ -362,15 +355,14 @@ export function DocumentUploadTab({
 							</p>
 							<p className="text-sm text-muted-foreground">{t("file_size_limit")}</p>
 						</div>
-						<div
-							className="w-full mt-1"
+						<fieldset
+							className="w-full mt-1 border-none p-0 m-0"
 							onClick={(e) => e.stopPropagation()}
 							onKeyDown={(e) => e.stopPropagation()}
-							role="group"
 						>
 							{renderBrowseButton({ fullWidth: true })}
-						</div>
-					</div>
+						</fieldset>
+					</button>
 				)}
 			</div>
 

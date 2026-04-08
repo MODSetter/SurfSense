@@ -47,7 +47,8 @@ export function PublicChatSnapshotsManager({
 		!!access && (access.is_owner || (access.permissions?.includes("public_sharing:view") ?? false));
 
 	const canDelete =
-		!!access && (access.is_owner || (access.permissions?.includes("public_sharing:delete") ?? false));
+		!!access &&
+		(access.is_owner || (access.permissions?.includes("public_sharing:delete") ?? false));
 
 	// Mutations
 	const { mutateAsync: deleteSnapshot } = useAtomValue(deletePublicChatSnapshotMutationAtom);
