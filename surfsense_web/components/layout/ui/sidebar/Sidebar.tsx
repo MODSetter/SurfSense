@@ -97,8 +97,8 @@ export function Sidebar({
 		<div
 			className={cn(
 				"relative flex h-full flex-col bg-sidebar text-sidebar-foreground overflow-hidden select-none",
-				isCollapsed ? "w-[60px] transition-all duration-200" : "",
-				!isCollapsed && !isResizing ? "transition-all duration-200" : "",
+				isCollapsed ? "w-[60px] transition-[width] duration-200" : "",
+				!isCollapsed && !isResizing ? "transition-[width] duration-200" : "",
 				className
 			)}
 			style={!isCollapsed ? { width: sidebarWidth } : undefined}

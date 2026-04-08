@@ -1191,7 +1191,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 						aria-pressed={isWebSearchEnabled}
 						onClick={() => toggleTool("web_search")}
 						className={cn(
-							"rounded-full transition-all flex items-center gap-1 px-2 py-1 border h-8 select-none",
+							"rounded-full transition-[background-color,border-color,color] flex items-center gap-1 px-2 py-1 border h-8 select-none",
 							isWebSearchEnabled
 								? "bg-sky-500/15 border-sky-500/60 text-sky-500"
 								: "bg-transparent border-transparent text-muted-foreground hover:text-foreground"

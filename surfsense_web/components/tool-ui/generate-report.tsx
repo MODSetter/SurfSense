@@ -213,7 +213,7 @@ function ReportCard({
 
 	return (
 		<div
-			className={`my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-all duration-300 ${isActive ? "ring-1 ring-primary/50" : ""}`}
+			className={`my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-[box-shadow] duration-300 ${isActive ? "ring-1 ring-primary/50" : ""}`}
 		>
 			<button
 				type="button"

@@ -365,7 +365,7 @@ const TabsList = forwardRef<
 						{showHoverEffect && (
 							<div
 								className={cn(
-									"absolute transition-all duration-300 ease-out flex items-center z-0",
+									"absolute transition-[left,width,opacity] duration-300 ease-out flex items-center z-0",
 									SIZE_CLASSES[size],
 									HOVER_INDICATOR_CLASSES[variant],
 									hoverIndicatorClassName
@@ -460,7 +460,7 @@ const TabsList = forwardRef<
 						{showActiveIndicator && variant !== "pills" && activeIndex >= 0 && (
 							<div
 								className={cn(
-									"absolute transition-all duration-300 ease-out z-10",
+									"absolute transition-[left,width,bottom,top] duration-300 ease-out z-10",
 									ACTIVE_INDICATOR_CLASSES[variant],
 									activeIndicatorPosition === "top" ? "top-[-1px]" : "bottom-[-1px]",
 									activeIndicatorClassName
