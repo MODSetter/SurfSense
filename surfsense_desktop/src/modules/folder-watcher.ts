@@ -449,12 +449,28 @@ export async function acknowledgeFileEvents(eventIds: string[]): Promise<{ ackno
 
   const ackSet = new Set(eventIds);
   let acknowledged = 0;
+  const foldersToUpdate = new Set<string>();
 
   for (const [key, event] of outboxEvents.entries()) {
     if (ackSet.has(event.id)) {
+      if (event.action !== 'unlink') {
+        const map = mtimeMaps.get(event.folderPath);
+        if (map) {
+          try {
+            map[event.relativePath] = fs.statSync(event.fullPath).mtimeMs;
+            foldersToUpdate.add(event.folderPath);
+          } catch {
+            // File may have been removed
+          }
+        }
+      }
       outboxEvents.delete(key);
       acknowledged += 1;
     }
+  }
+
+  for (const fp of foldersToUpdate) {
+    persistMtimeMap(fp);
   }
 
   if (acknowledged > 0) {
@@ -462,6 +478,17 @@ export async function acknowledgeFileEvents(eventIds: string[]): Promise<{ ackno
   }
 
   return { acknowledged };
+}
+
+export async function seedFolderMtimes(
+  folderPath: string,
+  mtimes: Record<string, number>,
+): Promise<void> {
+  const ms = await getMtimeStore();
+  const existing: MtimeMap = ms.get(folderPath) ?? {};
+  const merged = { ...existing, ...mtimes };
+  mtimeMaps.set(folderPath, merged);
+  ms.set(folderPath, merged);
 }
 
 export async function pauseWatcher(): Promise<void> {

@@ -20,6 +20,7 @@ import {
   browseFiles,
   readLocalFiles,
   listFolderFiles,
+  seedFolderMtimes,
   type WatchedFolderConfig,
 } from '../modules/folder-watcher';
 import { getShortcuts, setShortcuts, type ShortcutConfig } from '../modules/shortcuts';
@@ -95,6 +96,12 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.FOLDER_SYNC_LIST_FILES, (_event, config: WatchedFolderConfig) =>
     listFolderFiles(config)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.FOLDER_SYNC_SEED_MTIMES,
+    (_event, folderPath: string, mtimes: Record<string, number>) =>
+      seedFolderMtimes(folderPath, mtimes),
   );
 
   ipcMain.handle(IPC_CHANNELS.BROWSE_FILES, () => browseFiles());

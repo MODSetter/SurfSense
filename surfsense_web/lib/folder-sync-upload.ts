@@ -212,5 +212,15 @@ export async function uploadFolderScan(params: FolderSyncParams): Promise<number
 
 	params.onProgress?.({ phase: "done", uploaded: entriesToUpload.length, total: entriesToUpload.length });
 
+	// Seed the Electron mtime store so the reconciliation scan in
+	// startWatcher won't re-emit events for files we just indexed.
+	if (api.seedFolderMtimes) {
+		const mtimes: Record<string, number> = {};
+		for (const f of allFiles) {
+			mtimes[f.relativePath] = f.mtimeMs;
+		}
+		await api.seedFolderMtimes(folderPath, mtimes);
+	}
+
 	return rootFolderId;
 }
