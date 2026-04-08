@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
 import { Earth, User, Users } from "lucide-react";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { currentThreadAtom, setThreadVisibilityAtom } from "@/atoms/chat/current-thread.atom";
 import { myAccessAtom } from "@/atoms/members/members-query.atoms";
@@ -63,11 +63,8 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 
 	// Permission check for public sharing
 	const { data: access } = useAtomValue(myAccessAtom);
-	const canCreatePublicLink = useMemo(() => {
-		if (!access) return false;
-		if (access.is_owner) return true;
-		return access.permissions?.includes("public_sharing:create") ?? false;
-	}, [access]);
+	const canCreatePublicLink =
+		!!access && (access.is_owner || (access.permissions?.includes("public_sharing:create") ?? false));
 
 	// Query to check if thread has public snapshots
 	const { data: snapshotsData } = useQuery({
