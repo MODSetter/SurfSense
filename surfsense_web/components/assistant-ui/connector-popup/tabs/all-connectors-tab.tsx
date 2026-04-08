@@ -302,12 +302,12 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 
 	return (
 		<div className="space-y-8">
-			{/* Document/Files Connectors */}
+			{/* File Storage Integrations */}
 			{hasDocumentFileConnectors && (
 				<section>
 					<div className="flex items-center gap-2 mb-4">
 						<h3 className="text-sm font-semibold text-muted-foreground">
-							Document/Files Connectors
+							File Storage Integrations
 						</h3>
 					</div>
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
