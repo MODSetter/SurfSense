@@ -178,6 +178,22 @@ def _content_hash(content: str, search_space_id: int) -> str:
     return hashlib.sha256(f"{search_space_id}:{content}".encode()).hexdigest()
 
 
+def _compute_raw_file_hash(file_path: str) -> str:
+    """SHA-256 hash of the raw file bytes.
+
+    Much cheaper than ETL/OCR extraction -- only performs sequential I/O.
+    Used as a pre-filter to skip expensive content extraction when the
+    underlying file hasn't changed at all.
+    """
+    import hashlib
+
+    h = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 async def _compute_file_content_hash(
     file_path: str,
     filename: str,
@@ -630,6 +646,24 @@ async def index_local_folder(
                         skipped_count += 1
                         continue
 
+                    raw_hash = await asyncio.to_thread(
+                        _compute_raw_file_hash, file_path_abs
+                    )
+
+                    stored_raw_hash = (
+                        existing_document.document_metadata or {}
+                    ).get("raw_file_hash")
+                    if stored_raw_hash and stored_raw_hash == raw_hash:
+                        meta = dict(existing_document.document_metadata or {})
+                        meta["mtime"] = current_mtime
+                        existing_document.document_metadata = meta
+                        if not DocumentStatus.is_state(
+                            existing_document.status, DocumentStatus.READY
+                        ):
+                            existing_document.status = DocumentStatus.ready()
+                        skipped_count += 1
+                        continue
+
                     try:
                         estimated_pages = await _check_page_limit_or_skip(
                             page_limit_service, user_id, file_path_abs
@@ -653,6 +687,7 @@ async def index_local_folder(
                     if existing_document.content_hash == content_hash:
                         meta = dict(existing_document.document_metadata or {})
                         meta["mtime"] = current_mtime
+                        meta["raw_file_hash"] = raw_hash
                         existing_document.document_metadata = meta
                         if not DocumentStatus.is_state(
                             existing_document.status, DocumentStatus.READY
@@ -687,6 +722,10 @@ async def index_local_folder(
                         skipped_count += 1
                         continue
 
+                    raw_hash = await asyncio.to_thread(
+                        _compute_raw_file_hash, file_path_abs
+                    )
+
                 doc = _build_connector_doc(
                     title=file_info["name"],
                     content=content,
@@ -702,6 +741,7 @@ async def index_local_folder(
                     "mtime": file_info["modified_at"].timestamp(),
                     "estimated_pages": estimated_pages,
                     "content_length": len(content),
+                    "raw_file_hash": raw_hash,
                 }
 
             except Exception as e:
@@ -795,6 +835,7 @@ async def index_local_folder(
 
                     doc_meta = dict(result.document_metadata or {})
                     doc_meta["mtime"] = mtime_info.get("mtime")
+                    doc_meta["raw_file_hash"] = mtime_info.get("raw_file_hash")
                     result.document_metadata = doc_meta
 
                     est = mtime_info.get("estimated_pages", 1)
@@ -988,6 +1029,26 @@ async def _index_single_file(
             DocumentType.LOCAL_FOLDER_FILE.value, unique_id, search_space_id
         )
 
+        raw_hash = await asyncio.to_thread(_compute_raw_file_hash, str(full_path))
+
+        existing = await check_document_by_unique_identifier(session, uid_hash)
+
+        if existing:
+            stored_raw_hash = (existing.document_metadata or {}).get(
+                "raw_file_hash"
+            )
+            if stored_raw_hash and stored_raw_hash == raw_hash:
+                mtime = full_path.stat().st_mtime
+                meta = dict(existing.document_metadata or {})
+                meta["mtime"] = mtime
+                existing.document_metadata = meta
+                if not DocumentStatus.is_state(
+                    existing.status, DocumentStatus.READY
+                ):
+                    existing.status = DocumentStatus.ready()
+                await session.commit()
+                return 0, 0, None
+
         page_limit_service = PageLimitService(session)
         try:
             estimated_pages = await _check_page_limit_or_skip(
@@ -1006,13 +1067,12 @@ async def _index_single_file(
         if not content.strip():
             return 0, 1, None
 
-        existing = await check_document_by_unique_identifier(session, uid_hash)
-
         if existing:
             if existing.content_hash == content_hash:
                 mtime = full_path.stat().st_mtime
                 meta = dict(existing.document_metadata or {})
                 meta["mtime"] = mtime
+                meta["raw_file_hash"] = raw_hash
                 existing.document_metadata = meta
                 await session.commit()
                 return 0, 1, None
@@ -1055,6 +1115,7 @@ async def _index_single_file(
         await session.refresh(db_doc)
         doc_meta = dict(db_doc.document_metadata or {})
         doc_meta["mtime"] = mtime
+        doc_meta["raw_file_hash"] = raw_hash
         db_doc.document_metadata = doc_meta
         await session.commit()
 
@@ -1236,6 +1297,29 @@ async def index_uploaded_files(
                     search_space_id,
                 )
 
+                raw_hash = await asyncio.to_thread(
+                    _compute_raw_file_hash, temp_path
+                )
+
+                existing = await check_document_by_unique_identifier(
+                    session, uid_hash
+                )
+
+                if existing:
+                    stored_raw_hash = (existing.document_metadata or {}).get(
+                        "raw_file_hash"
+                    )
+                    if stored_raw_hash and stored_raw_hash == raw_hash:
+                        meta = dict(existing.document_metadata or {})
+                        meta["mtime"] = datetime.now(UTC).timestamp()
+                        existing.document_metadata = meta
+                        if not DocumentStatus.is_state(
+                            existing.status, DocumentStatus.READY
+                        ):
+                            existing.status = DocumentStatus.ready()
+                        await session.commit()
+                        continue
+
                 try:
                     estimated_pages = await _check_page_limit_or_skip(
                         page_limit_service, user_id, temp_path
@@ -1259,14 +1343,11 @@ async def index_uploaded_files(
                     failed_count += 1
                     continue
 
-                existing = await check_document_by_unique_identifier(
-                    session, uid_hash
-                )
-
                 if existing:
                     if existing.content_hash == content_hash:
                         meta = dict(existing.document_metadata or {})
                         meta["mtime"] = datetime.now(UTC).timestamp()
+                        meta["raw_file_hash"] = raw_hash
                         existing.document_metadata = meta
                         if not DocumentStatus.is_state(
                             existing.status, DocumentStatus.READY
@@ -1312,6 +1393,7 @@ async def index_uploaded_files(
                 await session.refresh(db_doc)
                 doc_meta = dict(db_doc.document_metadata or {})
                 doc_meta["mtime"] = datetime.now(UTC).timestamp()
+                doc_meta["raw_file_hash"] = raw_hash
                 db_doc.document_metadata = doc_meta
                 await session.commit()
 
