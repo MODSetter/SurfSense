@@ -77,6 +77,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
@@ -804,7 +805,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const isDesktop = useMediaQuery("(min-width: 640px)");
 	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
 	const [toolsScrollPos, setToolsScrollPos] = useState<"top" | "middle" | "bottom">("top");
-	const toolsRafRef = useRef<number>();
+	const toolsRafRef = useRef<number | undefined>(undefined);
 	const handleToolsScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
 		const el = e.currentTarget;
 		if (toolsRafRef.current) return;
@@ -1020,14 +1021,29 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 												})}
 										</div>
 									)}
-									{!filteredTools?.length && (
-										<div className="px-4 py-6 text-center text-sm text-muted-foreground">
-											Loading tools...
-										</div>
-									)}
-								</div>
-							</DrawerContent>
-						</Drawer>
+								{!filteredTools?.length && (
+									<div className="px-4 pt-3 pb-2">
+										<Skeleton className="h-3 w-16 mb-2" />
+										{["t1", "t2", "t3", "t4"].map((k) => (
+											<div key={k} className="flex items-center gap-3 py-2">
+												<Skeleton className="size-4 rounded shrink-0" />
+												<Skeleton className="h-3.5 flex-1" />
+												<Skeleton className="h-5 w-9 rounded-full shrink-0" />
+											</div>
+										))}
+										<Skeleton className="h-3 w-24 mt-3 mb-2" />
+										{["c1", "c2", "c3"].map((k) => (
+											<div key={k} className="flex items-center gap-3 py-2">
+												<Skeleton className="size-4 rounded shrink-0" />
+												<Skeleton className="h-3.5 flex-1" />
+												<Skeleton className="h-5 w-9 rounded-full shrink-0" />
+											</div>
+										))}
+									</div>
+								)}
+							</div>
+						</DrawerContent>
+					</Drawer>
 						<Button
 							variant="ghost"
 							size="icon"
@@ -1158,8 +1174,23 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									</div>
 								)}
 								{!filteredTools?.length && (
-									<div className="px-2.5 py-3 text-center text-[11px] text-muted-foreground">
-										Loading tools...
+									<div className="px-2 sm:px-2.5 pt-1.5 pb-1">
+										<Skeleton className="h-2 w-12 mb-1.5" />
+										{["dt1", "dt2", "dt3", "dt4"].map((k) => (
+											<div key={k} className="flex items-center gap-1.5 sm:gap-2 py-0.5 sm:py-1">
+												<Skeleton className="size-3 sm:size-3.5 rounded shrink-0" />
+												<Skeleton className="h-2.5 sm:h-3 flex-1" />
+												<Skeleton className="h-3.5 sm:h-4 w-7 sm:w-8 rounded-full shrink-0" />
+											</div>
+										))}
+										<Skeleton className="h-2 w-20 mt-2 mb-1.5" />
+										{["dc1", "dc2", "dc3"].map((k) => (
+											<div key={k} className="flex items-center gap-1.5 sm:gap-2 py-0.5 sm:py-1">
+												<Skeleton className="size-3 sm:size-3.5 rounded shrink-0" />
+												<Skeleton className="h-2.5 sm:h-3 flex-1" />
+												<Skeleton className="h-3.5 sm:h-4 w-7 sm:w-8 rounded-full shrink-0" />
+											</div>
+										))}
 									</div>
 								)}
 							</div>
