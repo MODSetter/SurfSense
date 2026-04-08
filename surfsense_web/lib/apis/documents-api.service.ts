@@ -424,35 +424,6 @@ class DocumentsApiService {
 		return baseApiService.post(`/api/v1/documents/${documentId}/versions/${versionNumber}/restore`);
 	};
 
-	folderIndex = async (
-		searchSpaceId: number,
-		body: {
-			folder_path: string;
-			folder_name: string;
-			search_space_id: number;
-			exclude_patterns?: string[];
-			file_extensions?: string[];
-			root_folder_id?: number;
-			enable_summary?: boolean;
-		}
-	) => {
-		return baseApiService.post(`/api/v1/documents/folder-index`, undefined, { body });
-	};
-
-	folderIndexFiles = async (
-		searchSpaceId: number,
-		body: {
-			folder_path: string;
-			folder_name: string;
-			search_space_id: number;
-			target_file_paths: string[];
-			root_folder_id?: number | null;
-			enable_summary?: boolean;
-		}
-	) => {
-		return baseApiService.post(`/api/v1/documents/folder-index-files`, undefined, { body });
-	};
-
 	folderMtimeCheck = async (body: {
 		folder_name: string;
 		search_space_id: number;

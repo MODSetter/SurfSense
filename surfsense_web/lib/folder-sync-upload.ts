@@ -70,11 +70,12 @@ async function uploadBatchesWithConcurrency(
 		signal?: AbortSignal;
 		onBatchComplete?: (filesInBatch: number) => void;
 	},
-) {
+): Promise<number | null> {
 	const api = window.electronAPI;
 	if (!api) throw new Error("Electron API not available");
 
 	let batchIdx = 0;
+	let resolvedRootFolderId = params.rootFolderId;
 	const errors: string[] = [];
 
 	async function processNext(): Promise<void> {
@@ -95,17 +96,21 @@ async function uploadBatchesWithConcurrency(
 					return new File([blob], fd.name, { type: blob.type });
 				});
 
-				await documentsApiService.folderUploadFiles(
+				const result = await documentsApiService.folderUploadFiles(
 					files,
 					{
 						folder_name: params.folderName,
 						search_space_id: params.searchSpaceId,
 						relative_paths: batch.map((e) => e.relativePath),
-						root_folder_id: params.rootFolderId,
+						root_folder_id: resolvedRootFolderId,
 						enable_summary: params.enableSummary,
 					},
 					params.signal,
 				);
+
+				if (result.root_folder_id && !resolvedRootFolderId) {
+					resolvedRootFolderId = result.root_folder_id;
+				}
 
 				params.onBatchComplete?.(batch.length);
 			} catch (err) {
@@ -122,6 +127,8 @@ async function uploadBatchesWithConcurrency(
 	if (errors.length > 0 && !params.signal?.aborted) {
 		console.error("Some batches failed:", errors);
 	}
+
+	return resolvedRootFolderId;
 }
 
 /**
@@ -173,7 +180,7 @@ export async function uploadFolderScan(params: FolderSyncParams): Promise<number
 		let uploaded = 0;
 		params.onProgress?.({ phase: "uploading", uploaded: 0, total: entriesToUpload.length });
 
-		await uploadBatchesWithConcurrency(batches, {
+		const uploadedRootId = await uploadBatchesWithConcurrency(batches, {
 			folderName,
 			searchSpaceId,
 			rootFolderId: rootFolderId ?? null,
@@ -187,13 +194,8 @@ export async function uploadFolderScan(params: FolderSyncParams): Promise<number
 
 		if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
-		if (!rootFolderId) {
-			const watchedFolders = await documentsApiService.getWatchedFolders(searchSpaceId);
-			const folderList = watchedFolders as Array<{ id: number; name: string }> | undefined;
-			const matched = folderList?.find((f) => f.name === folderName);
-			if (matched?.id) {
-				rootFolderId = matched.id;
-			}
+		if (uploadedRootId) {
+			rootFolderId = uploadedRootId;
 		}
 	}
 
