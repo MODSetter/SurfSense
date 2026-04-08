@@ -57,6 +57,12 @@ const TAB_ITEMS = [
 		src: "/homepage/hero_tutorial/extreme_assist.mp4",
 		featured: true,
 	},
+	{
+		title: "Watch Local Folder",
+		description: "Watch a local folder and automatically sync file changes to your knowledge base. Works great with Obsidian vaults.",
+		src: "/homepage/hero_tutorial/folder_watch.mp4",
+		featured: true,
+	},
 	// {
 	// 	title: "Connect & Sync",
 	// 	description:

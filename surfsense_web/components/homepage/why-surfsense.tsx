@@ -31,8 +31,8 @@ const cards = [
 
 export function WhySurfSense() {
 	return (
-		<section className="px-4 py-10 md:px-8 md:py-24 lg:px-16 lg:py-32">
-			<div className="mx-auto mb-10 max-w-3xl text-center md:mb-16">
+		<section className="max-w-7xl mx-auto my-10">
+			<div className="mx-auto mb-10 text-center md:mb-16">
 				<p className="mb-3 text-sm font-semibold uppercase tracking-widest text-brand">
 					Why SurfSense
 				</p>
@@ -45,7 +45,7 @@ export function WhySurfSense() {
 				</p>
 			</div>
 
-			<div className="mx-auto grid w-full max-w-6xl grid-cols-1 divide-x-0 divide-y divide-border overflow-hidden rounded-2xl shadow-sm ring-1 ring-border md:grid-cols-3 md:divide-x md:divide-y-0">
+			<div className="grid mx-auto max-w-7xl grid-cols-1 divide-x-0 divide-y divide-border overflow-hidden rounded-2xl shadow-sm ring-1 ring-border md:grid-cols-3 md:divide-x md:divide-y-0">
 				{cards.map((card) => (
 					<FeatureCard key={card.title} {...card} />
 				))}
@@ -384,7 +384,7 @@ function ComparisonStrip() {
 			initial={{ opacity: 0, y: 20 }}
 			animate={isInView ? { opacity: 1, y: 0 } : {}}
 			transition={{ duration: 0.5, delay: 0.1 }}
-			className="mx-auto mt-12 w-full max-w-4xl overflow-hidden rounded-2xl bg-card shadow-sm ring-1 ring-border"
+			className="mx-auto mt-12 max-w-7xl overflow-hidden rounded-2xl bg-card shadow-sm ring-1 ring-border"
 		>
 			<div className="grid grid-cols-3 px-4 py-3 sm:px-6">
 				<span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
