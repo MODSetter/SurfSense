@@ -251,7 +251,7 @@ export function Audio({ id, src, title, durationMs, className }: AudioProps) {
 						<div className="relative hidden h-6 w-16 items-center md:flex md:opacity-0 md:pointer-events-none md:group-hover/volume:opacity-100 md:group-hover/volume:pointer-events-auto md:transition-opacity md:duration-200">
 							<div className="relative h-1 w-full rounded-full bg-muted-foreground/20">
 								<div
-									className="absolute left-0 top-0 h-full rounded-full bg-muted-foreground/60 transition-all"
+									className="absolute left-0 top-0 h-full rounded-full bg-muted-foreground/60 transition-[width]"
 									style={{ width: `${(isMuted ? 0 : volume) * 100}%` }}
 								/>
 							</div>
