@@ -12,6 +12,8 @@ function initPostHog() {
 			capture_pageleave: true,
 			before_send: (event) => {
 				if (event?.properties) {
+					event.properties.platform = "web";
+
 					const params = new URLSearchParams(window.location.search);
 					const ref = params.get("ref");
 					if (ref) {
@@ -28,6 +30,7 @@ function initPostHog() {
 
 					event.properties.$set = {
 						...event.properties.$set,
+						platform: "web",
 						last_seen_at: new Date().toISOString(),
 					};
 				}
