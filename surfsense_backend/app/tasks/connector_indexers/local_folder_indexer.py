@@ -387,24 +387,21 @@ async def _cleanup_empty_folders(
     search_space_id: int,
     existing_dirs_on_disk: set[str],
     folder_mapping: dict[str, int],
+    subtree_ids: list[int] | None = None,
 ) -> None:
     """Delete Folder rows that are empty (no docs, no children) and no longer on disk."""
     from sqlalchemy import delete as sa_delete
 
     id_to_rel: dict[int, str] = {fid: rel for rel, fid in folder_mapping.items() if rel}
 
-    all_folders = (
-        (
-            await session.execute(
-                select(Folder).where(
-                    Folder.search_space_id == search_space_id,
-                    Folder.id != root_folder_id,
-                )
-            )
-        )
-        .scalars()
-        .all()
+    query = select(Folder).where(
+        Folder.search_space_id == search_space_id,
+        Folder.id != root_folder_id,
     )
+    if subtree_ids is not None:
+        query = query.where(Folder.id.in_(subtree_ids))
+
+    all_folders = (await session.execute(query)).scalars().all()
 
     candidates: list[Folder] = []
     for folder in all_folders:

@@ -1675,6 +1675,7 @@ async def folder_sync_finalize(
     gets deleted.
     """
     from app.indexing_pipeline.document_hashing import compute_identifier_hash
+    from app.services.folder_service import get_folder_subtree_ids
     from app.tasks.connector_indexers.local_folder_indexer import (
         _cleanup_empty_folders,
     )
@@ -1687,6 +1688,11 @@ async def folder_sync_finalize(
         "You don't have permission to delete documents in this search space",
     )
 
+    if not request.root_folder_id:
+        return {"deleted_count": 0}
+
+    subtree_ids = await get_folder_subtree_ids(session, request.root_folder_id)
+
     seen_hashes: set[str] = set()
     for rel_path in request.all_relative_paths:
         unique_id = f"{request.folder_name}:{rel_path}"
@@ -1697,32 +1703,13 @@ async def folder_sync_finalize(
         )
         seen_hashes.add(uid_hash)
 
-    all_root_folder_ids: set[int] = set()
-    if request.root_folder_id:
-        all_root_folder_ids.add(request.root_folder_id)
-
-        all_db_folders = (
-            (
-                await session.execute(
-                    select(Folder.id).where(
-                        Folder.search_space_id == request.search_space_id,
-                    )
-                )
-            )
-            .scalars()
-            .all()
-        )
-        all_root_folder_ids.update(all_db_folders)
-
     all_folder_docs = (
         (
             await session.execute(
                 select(Document).where(
                     Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
                     Document.search_space_id == request.search_space_id,
-                    Document.folder_id.in_(list(all_root_folder_ids))
-                    if all_root_folder_ids
-                    else True,
+                    Document.folder_id.in_(subtree_ids),
                 )
             )
         )
@@ -1738,24 +1725,22 @@ async def folder_sync_finalize(
 
     await session.flush()
 
-    if request.root_folder_id:
-        existing_dirs: set[str] = set()
-        for rel_path in request.all_relative_paths:
-            parent = str(os.path.dirname(rel_path))
-            if parent and parent != ".":
-                existing_dirs.add(parent)
+    existing_dirs: set[str] = set()
+    for rel_path in request.all_relative_paths:
+        parent = str(os.path.dirname(rel_path))
+        if parent and parent != ".":
+            existing_dirs.add(parent)
 
-        folder_mapping: dict[str, int] = {}
-        if request.root_folder_id:
-            folder_mapping[""] = request.root_folder_id
+    folder_mapping: dict[str, int] = {"": request.root_folder_id}
 
-        await _cleanup_empty_folders(
-            session,
-            request.root_folder_id,
-            request.search_space_id,
-            existing_dirs,
-            folder_mapping,
-        )
+    await _cleanup_empty_folders(
+        session,
+        request.root_folder_id,
+        request.search_space_id,
+        existing_dirs,
+        folder_mapping,
+        subtree_ids=subtree_ids,
+    )
 
     await session.commit()
     return {"deleted_count": deleted_count}
