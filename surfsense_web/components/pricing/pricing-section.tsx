@@ -8,7 +8,7 @@ const demoPlans = [
 		price: "0",
 		yearlyPrice: "0",
 		period: "",
-		billingText: "1,000 pages included",
+		billingText: "500 pages included",
 		features: [
 			"Self Hostable",
 			"500 pages included to start",
