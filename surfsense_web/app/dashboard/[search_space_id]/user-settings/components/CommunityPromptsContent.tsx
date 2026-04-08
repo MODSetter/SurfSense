@@ -60,7 +60,7 @@ export function CommunityPromptsContent() {
 
 			{list.length === 0 && (
 				<div className="rounded-lg border border-dashed border-border/60 p-8 text-center">
-					<Globe className="mx-auto size-8 text-muted-foreground/40" />
+					<Globe className="mx-auto size-8 text-muted-foreground" />
 					<p className="mt-2 text-sm text-muted-foreground">No community prompts yet</p>
 					<p className="text-xs text-muted-foreground/60">
 						Share your own prompts from the My Prompts tab

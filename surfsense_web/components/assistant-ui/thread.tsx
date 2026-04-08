@@ -15,6 +15,7 @@ import {
 	ChevronDown,
 	ChevronUp,
 	Clipboard,
+	Dot,
 	Globe,
 	Plus,
 	Settings2,
@@ -88,17 +89,10 @@ import type { Document } from "@/contracts/types/document.types";
 import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsSync } from "@/hooks/use-comments-sync";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useElectronAPI } from "@/hooks/use-platform";
 import { cn } from "@/lib/utils";
 
-/** Placeholder texts that cycle in new chats when input is empty */
-const CYCLING_PLACEHOLDERS = [
-	"Ask SurfSense anything or @mention docs",
-	"Generate a podcast from my vacation ideas in Notion",
-	"Sum up last week's meeting notes from Drive in a bulleted list",
-	"Give me a brief overview of the most urgent tickets in Jira and Linear",
-	"Briefly, what are today's top ten important emails and calendar events?",
-	"Check if this week's Slack messages reference any GitHub issues",
-];
+const COMPOSER_PLACEHOLDER = "Ask anything · Type / for prompts · Type @ to mention docs";
 
 export const Thread: FC = () => {
 	return <ThreadContent />;
@@ -267,7 +261,7 @@ const ConnectToolsBanner: FC<{ isThreadEmpty: boolean }> = ({ isThreadEmpty }) =
 			<div className="flex w-full items-center gap-2.5 px-4 py-2.5">
 				<button
 					type="button"
-					className="flex flex-1 items-center gap-2.5 text-left cursor-pointer"
+					className="flex flex-1 items-center gap-2.5 text-left cursor-pointer select-none"
 					onClick={() => setConnectorDialogOpen(true)}
 				>
 					<Unplug className="size-4 text-muted-foreground shrink-0" />
@@ -361,45 +355,23 @@ const Composer: FC = () => {
 		};
 	}, []);
 
+	const electronAPI = useElectronAPI();
 	const [clipboardInitialText, setClipboardInitialText] = useState<string | undefined>();
 	const clipboardLoadedRef = useRef(false);
 	useEffect(() => {
-		if (!window.electronAPI || clipboardLoadedRef.current) return;
+		if (!electronAPI || clipboardLoadedRef.current) return;
 		clipboardLoadedRef.current = true;
-		window.electronAPI.getQuickAskText().then((text) => {
+		electronAPI.getQuickAskText().then((text) => {
 			if (text) {
 				setClipboardInitialText(text);
-				setShowPromptPicker(true);
 			}
 		});
-	}, []);
+	}, [electronAPI]);
 
 	const isThreadEmpty = useAuiState(({ thread }) => thread.isEmpty);
 	const isThreadRunning = useAuiState(({ thread }) => thread.isRunning);
 
-	// Cycling placeholder state - only cycles in new chats
-	const [placeholderIndex, setPlaceholderIndex] = useState(0);
-
-	// Cycle through placeholders every 4 seconds when thread is empty (new chat)
-	useEffect(() => {
-		// Only cycle when thread is empty (new chat)
-		if (!isThreadEmpty) {
-			// Reset to first placeholder when chat becomes active
-			setPlaceholderIndex(0);
-			return;
-		}
-
-		const intervalId = setInterval(() => {
-			setPlaceholderIndex((prev) => (prev + 1) % CYCLING_PLACEHOLDERS.length);
-		}, 6000);
-
-		return () => clearInterval(intervalId);
-	}, [isThreadEmpty]);
-
-	// Compute current placeholder - only cycle in new chats
-	const currentPlaceholder = isThreadEmpty
-		? CYCLING_PLACEHOLDERS[placeholderIndex]
-		: CYCLING_PLACEHOLDERS[0];
+	const currentPlaceholder = COMPOSER_PLACEHOLDER;
 
 	// Live collaboration state
 	const { data: currentUser } = useAtomValue(currentUserAtom);
@@ -503,34 +475,28 @@ const Composer: FC = () => {
 				: userText
 					? `${action.prompt}\n\n${userText}`
 					: action.prompt;
+			editorRef.current?.setText(finalPrompt);
 			aui.composer().setText(finalPrompt);
-			aui.composer().send();
-			editorRef.current?.clear();
 			setShowPromptPicker(false);
 			setActionQuery("");
-			setMentionedDocuments([]);
-			setSidebarDocs([]);
 		},
-		[actionQuery, aui, setMentionedDocuments, setSidebarDocs]
+		[actionQuery, aui]
 	);
 
 	const handleQuickAskSelect = useCallback(
 		(action: { name: string; prompt: string; mode: "transform" | "explore" }) => {
 			if (!clipboardInitialText) return;
-			window.electronAPI?.setQuickAskMode(action.mode);
+			electronAPI?.setQuickAskMode(action.mode);
 			const finalPrompt = action.prompt.includes("{selection}")
 				? action.prompt.replace("{selection}", () => clipboardInitialText)
 				: `${action.prompt}\n\n${clipboardInitialText}`;
+			editorRef.current?.setText(finalPrompt);
 			aui.composer().setText(finalPrompt);
-			aui.composer().send();
-			editorRef.current?.clear();
 			setShowPromptPicker(false);
 			setActionQuery("");
 			setClipboardInitialText(undefined);
-			setMentionedDocuments([]);
-			setSidebarDocs([]);
 		},
-		[clipboardInitialText, aui, setMentionedDocuments, setSidebarDocs]
+		[clipboardInitialText, electronAPI, aui]
 	);
 
 	// Keyboard navigation for document/action picker (arrow keys, Enter, Escape)
@@ -816,12 +782,23 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const isDesktop = useMediaQuery("(min-width: 640px)");
 	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
 	const [toolsScrollPos, setToolsScrollPos] = useState<"top" | "middle" | "bottom">("top");
+	const toolsRafRef = useRef<number>();
 	const handleToolsScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
 		const el = e.currentTarget;
-		const atTop = el.scrollTop <= 2;
-		const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
-		setToolsScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+		if (toolsRafRef.current) return;
+		toolsRafRef.current = requestAnimationFrame(() => {
+			const atTop = el.scrollTop <= 2;
+			const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
+			setToolsScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+			toolsRafRef.current = undefined;
+		});
 	}, []);
+	useEffect(
+		() => () => {
+			if (toolsRafRef.current) cancelAnimationFrame(toolsRafRef.current);
+		},
+		[]
+	);
 	const isComposerTextEmpty = useAuiState(({ composer }) => {
 		const text = composer.text?.trim() || "";
 		return text.length === 0;
@@ -1064,7 +1041,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 						>
 							<div className="sr-only">Manage Tools</div>
 							<div
-								className="max-h-48 sm:max-h-64 overflow-y-auto py-0.5 sm:py-1"
+								className="max-h-48 sm:max-h-64 overflow-y-auto overscroll-none py-0.5 sm:py-1"
 								onScroll={handleToolsScroll}
 								style={{
 									maskImage: `linear-gradient(to bottom, ${toolsScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${toolsScrollPos === "bottom" ? "black" : "transparent"})`,
@@ -1147,7 +1124,11 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 														<TooltipTrigger asChild>{row}</TooltipTrigger>
 														<TooltipContent side="right" className="max-w-72 text-xs">
 															{groupDef?.tooltip ??
-																group.tools.map((t) => t.description).join(" · ")}
+																group.tools.flatMap((t, i) =>
+																	i === 0
+																		? [t.description]
+																		: [<Dot key={i} className="inline h-4 w-4" />, t.description]
+																)}
 														</TooltipContent>
 													</Tooltip>
 												);

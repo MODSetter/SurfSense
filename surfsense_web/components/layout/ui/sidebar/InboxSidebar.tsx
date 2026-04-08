@@ -21,9 +21,9 @@ import {
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
 import { setTargetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
 import { convertRenderedToDisplay } from "@/components/chat-comments/comment-item/comment-item";
+import { getDocumentTypeLabel } from "@/components/documents/DocumentTypeIcon";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/animated-tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -178,12 +178,23 @@ export function InboxSidebarContent({
 	const [mounted, setMounted] = useState(false);
 	const [openDropdown, setOpenDropdown] = useState<"filter" | null>(null);
 	const [connectorScrollPos, setConnectorScrollPos] = useState<"top" | "middle" | "bottom">("top");
+	const connectorRafRef = useRef<number>();
 	const handleConnectorScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
 		const el = e.currentTarget;
-		const atTop = el.scrollTop <= 2;
-		const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
-		setConnectorScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+		if (connectorRafRef.current) return;
+		connectorRafRef.current = requestAnimationFrame(() => {
+			const atTop = el.scrollTop <= 2;
+			const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
+			setConnectorScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+			connectorRafRef.current = undefined;
+		});
 	}, []);
+	useEffect(
+		() => () => {
+			if (connectorRafRef.current) cancelAnimationFrame(connectorRafRef.current);
+		},
+		[]
+	);
 	const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 	const [markingAsReadId, setMarkingAsReadId] = useState<number | null>(null);
 
@@ -779,36 +790,23 @@ export function InboxSidebarContent({
 								</DropdownMenuContent>
 							</DropdownMenu>
 						)}
-						{isMobile ? (
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-7 w-7 rounded-full"
-								onClick={handleMarkAllAsRead}
-								disabled={totalUnreadCount === 0}
-							>
-								<CheckCheck className="h-4 w-4 text-muted-foreground" />
-								<span className="sr-only">{t("mark_all_read") || "Mark all as read"}</span>
-							</Button>
-						) : (
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-7 w-7 rounded-full"
-										onClick={handleMarkAllAsRead}
-										disabled={totalUnreadCount === 0}
-									>
-										<CheckCheck className="h-4 w-4 text-muted-foreground" />
-										<span className="sr-only">{t("mark_all_read") || "Mark all as read"}</span>
-									</Button>
-								</TooltipTrigger>
-								<TooltipContent className="z-80">
-									{t("mark_all_read") || "Mark all as read"}
-								</TooltipContent>
-							</Tooltip>
-						)}
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-7 w-7 rounded-full"
+									onClick={handleMarkAllAsRead}
+									disabled={totalUnreadCount === 0}
+								>
+									<CheckCheck className="h-4 w-4 text-muted-foreground" />
+									<span className="sr-only">{t("mark_all_read") || "Mark all as read"}</span>
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent className="z-80">
+								{t("mark_all_read") || "Mark all as read"}
+							</TooltipContent>
+						</Tooltip>
 					</div>
 				</div>
 
@@ -921,30 +919,8 @@ export function InboxSidebarContent({
 									)}
 									style={{ contentVisibility: "auto", containIntrinsicSize: "0 80px" }}
 								>
-									{isMobile ? (
-										<button
-											type="button"
-											onClick={() => handleItemClick(item)}
-											disabled={isMarkingAsRead}
-											className="flex items-center gap-3 flex-1 min-w-0 text-left overflow-hidden"
-										>
-											<div className="shrink-0">{getStatusIcon(item)}</div>
-											<div className="flex-1 min-w-0 overflow-hidden">
-												<p
-													className={cn(
-														"text-xs font-medium line-clamp-2",
-														!item.read && "font-semibold"
-													)}
-												>
-													{item.title}
-												</p>
-												<p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
-													{convertRenderedToDisplay(item.message)}
-												</p>
-											</div>
-										</button>
-									) : (
-										<Tooltip>
+									{activeTab === "status" ? (
+										<Tooltip delayDuration={600}>
 											<TooltipTrigger asChild>
 												<button
 													type="button"
@@ -975,6 +951,28 @@ export function InboxSidebarContent({
 												</p>
 											</TooltipContent>
 										</Tooltip>
+									) : (
+										<button
+											type="button"
+											onClick={() => handleItemClick(item)}
+											disabled={isMarkingAsRead}
+											className="flex items-center gap-3 flex-1 min-w-0 text-left overflow-hidden"
+										>
+											<div className="shrink-0">{getStatusIcon(item)}</div>
+											<div className="flex-1 min-w-0 overflow-hidden">
+												<p
+													className={cn(
+														"text-xs font-medium line-clamp-2",
+														!item.read && "font-semibold"
+													)}
+												>
+													{item.title}
+												</p>
+												<p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
+													{convertRenderedToDisplay(item.message)}
+												</p>
+											</div>
+										</button>
 									)}
 
 									<div className="flex items-center justify-end gap-1.5 shrink-0 w-10">

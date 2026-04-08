@@ -1,39 +1,15 @@
 "use client";
+import { Download, Monitor } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
-import type React from "react";
-import { useEffect, useRef, useState } from "react";
+import React, { memo, useCallback, useEffect, useRef, useState } from "react";
 import Balancer from "react-wrap-balancer";
+import { ExpandedMediaOverlay, useExpandedMedia } from "@/components/ui/expanded-gif-overlay";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AUTH_TYPE, BACKEND_URL } from "@/lib/env-config";
 import { trackLoginAttempt } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
 
-const HeroCarousel = dynamic(
-	() => import("@/components/ui/hero-carousel").then((m) => ({ default: m.HeroCarousel })),
-	{
-		ssr: false,
-		loading: () => (
-			<div className="w-full py-4 sm:py-8">
-				<div className="mx-auto w-full max-w-[900px]">
-					<div className="overflow-hidden rounded-2xl border border-neutral-200/60 bg-white shadow-xl sm:rounded-3xl dark:border-neutral-700/60 dark:bg-neutral-900">
-						<div className="flex items-center gap-3 border-b border-neutral-200/60 px-4 py-3 sm:px-6 sm:py-4 dark:border-neutral-700/60">
-							<div className="min-w-0 flex-1">
-								<div className="h-5 w-32 animate-pulse rounded bg-neutral-200 dark:bg-neutral-700" />
-								<div className="mt-2 h-4 w-64 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800" />
-							</div>
-						</div>
-						<div className="bg-neutral-50 p-2 sm:p-3 dark:bg-neutral-950">
-							<div className="aspect-video w-full animate-pulse rounded-lg bg-neutral-100 sm:rounded-xl dark:bg-neutral-800" />
-						</div>
-					</div>
-				</div>
-			</div>
-		),
-	}
-);
-
-// Official Google "G" logo with brand colors
 const GoogleLogo = ({ className }: { className?: string }) => (
 	<svg
 		className={className}
@@ -62,87 +38,123 @@ const GoogleLogo = ({ className }: { className?: string }) => (
 	</svg>
 );
 
-function useIsDesktop(breakpoint = 1024) {
-	const [isDesktop, setIsDesktop] = useState(false);
-	useEffect(() => {
-		const mql = window.matchMedia(`(min-width: ${breakpoint}px)`);
-		setIsDesktop(mql.matches);
-		const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
-		mql.addEventListener("change", handler);
-		return () => mql.removeEventListener("change", handler);
-	}, [breakpoint]);
-	return isDesktop;
-}
+const TAB_ITEMS = [
+	{
+		title: "General Assist",
+		description: "Launch SurfSense instantly from any application.",
+		src: "/homepage/hero_tutorial/general_assist.mp4",
+		featured: true,
+	},
+	{
+		title: "Quick Assist",
+		description: "Select text anywhere, then ask AI to explain, rewrite, or act on it.",
+		src: "/homepage/hero_tutorial/quick_assist.mp4",
+		featured: true,
+	},
+	{
+		title: "Extreme Assist",
+		description: "Get inline writing suggestions powered by your knowledge base as you type in any app.",
+		src: "/homepage/hero_tutorial/extreme_assist.mp4",
+		featured: true,
+	},
+	{
+		title: "Watch Local Folder",
+		description: "Watch a local folder and automatically sync file changes to your knowledge base. Works great with Obsidian vaults.",
+		src: "/homepage/hero_tutorial/folder_watch.mp4",
+		featured: true,
+	},
+	// {
+	// 	title: "Connect & Sync",
+	// 	description:
+	// 		"Connect data sources like Notion, Drive and Gmail. Automatically sync to keep them updated.",
+	// 	src: "/homepage/hero_tutorial/ConnectorFlowGif.mp4",
+	// 	featured: true,
+	// },
+	// {
+	// 	title: "Upload Documents",
+	// 	description: "Upload documents directly, from images to massive PDFs.",
+	// 	src: "/homepage/hero_tutorial/DocUploadGif.mp4",
+	// 	featured: true,
+	// },
+	{
+		title: "Video & Presentations",
+		description: "Create short videos and editable presentations with AI-generated visuals and narration from your sources.",
+		src: "/homepage/hero_tutorial/video_gen_surf.mp4",
+		featured: false,
+	},
+	{
+		title: "Search & Citation",
+		description: "Ask questions and get cited responses from your knowledge base.",
+		src: "/homepage/hero_tutorial/BSNCGif.mp4",
+		featured: false,
+	},
+	{
+		title: "Document Q&A",
+		description: "Mention specific documents in chat for targeted answers.",
+		src: "/homepage/hero_tutorial/BQnaGif_compressed.mp4",
+		featured: false,
+	},
+	{
+		title: "Reports",
+		description: "Generate reports from your sources in many formats.",
+		src: "/homepage/hero_tutorial/ReportGenGif_compressed.mp4",
+		featured: false,
+	},
+	{
+		title: "Podcasts",
+		description: "Turn anything into a podcast in under 20 seconds.",
+		src: "/homepage/hero_tutorial/PodcastGenGif.mp4",
+		featured: false,
+	},
+	{
+		title: "Image Generation",
+		description: "Generate high-quality images easily from your conversations.",
+		src: "/homepage/hero_tutorial/ImageGenGif.mp4",
+		featured: false,
+	},
+	{
+		title: "Collaborative Chat",
+		description: "Collaborate on AI-powered conversations in realtime with your team.",
+		src: "/homepage/hero_realtime/RealTimeChatGif.mp4",
+		featured: false,
+	},
+	{
+		title: "Comments",
+		description: "Add comments and tag teammates on any message.",
+		src: "/homepage/hero_realtime/RealTimeCommentsFlow.mp4",
+		featured: false,
+	},
+] as const;
 
 export function HeroSection() {
-	const containerRef = useRef<HTMLDivElement>(null);
-	const parentRef = useRef<HTMLDivElement>(null);
-	const isDesktop = useIsDesktop();
-
 	return (
-		<div
-			ref={parentRef}
-			className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 py-24 md:px-8 md:py-48"
-		>
-			<BackgroundGrids />
-			{isDesktop && (
-				<>
-					<CollisionMechanism
-						parentRef={parentRef}
-						beamOptions={{
-							initialX: -400,
-							translateX: 600,
-							duration: 7,
-							repeatDelay: 3,
-						}}
-					/>
-					<CollisionMechanism
-						parentRef={parentRef}
-						beamOptions={{
-							initialX: -200,
-							translateX: 800,
-							duration: 4,
-							repeatDelay: 3,
-						}}
-					/>
-					<CollisionMechanism
-						parentRef={parentRef}
-						beamOptions={{
-							initialX: 200,
-							translateX: 1200,
-							duration: 5,
-							repeatDelay: 3,
-						}}
-					/>
-					<CollisionMechanism
-						parentRef={parentRef}
-						beamOptions={{
-							initialX: 400,
-							translateX: 1400,
-							duration: 6,
-							repeatDelay: 3,
-						}}
-					/>
-				</>
-			)}
+		<div className="mx-auto w-full max-w-7xl min-w-0 pt-36">
+			<div className="mt-4 flex w-full min-w-0 flex-col items-start px-2 md:px-8 xl:px-0">
+				<h1
+					className={cn(
+						"relative mt-4 max-w-7xl text-left text-4xl font-bold tracking-tight text-balance text-neutral-900 sm:text-5xl md:text-6xl xl:text-8xl dark:text-neutral-50"
+					)}
+				>
+					<Balancer>NotebookLM for Teams</Balancer>
+				</h1>
+				<div className="mt-4 flex w-full flex-col items-start justify-between gap-4 md:mt-12 md:flex-row md:items-end md:gap-10">
+					<div>
+						<h2
+							className={cn(
+								"relative mb-8 max-w-2xl text-left text-sm tracking-wide text-neutral-600 antialiased sm:text-base md:text-xl dark:text-neutral-400"
+							)}
+						>
+							An open source, privacy focused alternative to NotebookLM for teams with no data
+							limits.
+						</h2>
 
-			<h2 className="relative z-50 mx-auto mb-4 mt-8 max-w-4xl text-balance text-center text-3xl font-semibold tracking-tight text-gray-700 md:text-7xl dark:text-neutral-300">
-				<div className="relative mx-auto inline-block w-max filter-[drop-shadow(0px_1px_3px_rgba(27,37,80,0.14))]">
-					<div className="text-black [text-shadow:0_0_rgba(0,0,0,0.1)] dark:text-white">
-						<Balancer>NotebookLM for Teams</Balancer>
+						<div className="relative mb-4 flex w-full flex-col justify-center gap-y-2 sm:flex-row sm:justify-start sm:space-y-0 sm:space-x-4">
+							<DownloadButton />
+							<GetStartedButton />
+						</div>
 					</div>
 				</div>
-			</h2>
-			<p className="relative z-50 mx-auto mt-4 max-w-lg px-6 text-center text-sm leading-relaxed text-gray-600 sm:text-base sm:leading-relaxed md:max-w-xl md:text-lg md:leading-relaxed dark:text-gray-200">
-				Connect any LLM to your internal knowledge sources and chat with it in real time alongside
-				your team.
-			</p>
-			<div className="mb-6 mt-6 flex w-full flex-col items-center justify-center gap-4 px-8 sm:flex-row md:mb-10">
-				<GetStartedButton />
-				{/* <ContactSalesButton /> */}
-			</div>
-			<div ref={containerRef} className="relative w-full z-51">
-				<HeroCarousel />
+				<BrowserWindow />
 			</div>
 		</div>
 	);
@@ -158,256 +170,196 @@ function GetStartedButton() {
 
 	if (isGoogleAuth) {
 		return (
-			<motion.button
+			<button
 				type="button"
 				onClick={handleGoogleLogin}
-				whileHover="hover"
-				whileTap={{ scale: 0.98 }}
-				initial="idle"
-				className="group relative z-20 flex h-11 w-full cursor-pointer items-center justify-center gap-3 overflow-hidden rounded-xl bg-white px-6 py-2.5 text-sm font-semibold text-neutral-700 shadow-lg ring-1 ring-neutral-200/50 transition-shadow duration-300 hover:shadow-xl sm:w-56 dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-700/50"
-				variants={{
-					idle: { scale: 1, y: 0 },
-					hover: { scale: 1.02, y: -2 },
-				}}
+				className="flex h-14 w-full cursor-pointer items-center justify-center gap-3 rounded-lg bg-white text-center text-base font-medium text-neutral-700 shadow-sm ring-1 shadow-black/10 ring-black/10 transition duration-150 active:scale-98 hover:bg-neutral-50 sm:w-56 dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-700/50 dark:hover:bg-neutral-800"
 			>
-				{/* Animated gradient background on hover */}
-				<motion.div
-					className="absolute inset-0 bg-linear-to-r from-blue-50 via-green-50 to-yellow-50 dark:from-blue-950/30 dark:via-green-950/30 dark:to-yellow-950/30"
-					variants={{
-						idle: { opacity: 0 },
-						hover: { opacity: 1 },
-					}}
-					transition={{ duration: 0.3 }}
-				/>
-				{/* Google logo with subtle animation */}
-				<motion.div
-					className="relative"
-					variants={{
-						idle: { rotate: 0 },
-						hover: { rotate: [0, -8, 8, 0] },
-					}}
-					transition={{ duration: 0.4, ease: "easeInOut" }}
-				>
-					<GoogleLogo className="h-5 w-5" />
-				</motion.div>
-				<span className="relative">Continue with Google</span>
-			</motion.button>
+				<GoogleLogo className="h-5 w-5" />
+				<span>Continue with Google</span>
+			</button>
 		);
 	}
 
 	return (
-		<motion.div whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }}>
-			<Link
-				href="/login"
-				className="group relative z-20 flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-black px-6 py-2.5 text-sm font-semibold text-white shadow-lg transition-shadow duration-300 hover:shadow-xl sm:w-56 dark:bg-white dark:text-black"
-			>
-				Get Started
-			</Link>
-		</motion.div>
+		<Link
+			href="/login"
+			className="flex h-14 w-full items-center justify-center rounded-lg bg-black text-center text-base font-medium text-white shadow-sm ring-1 shadow-black/10 ring-black/10 transition duration-150 active:scale-98 sm:w-52 dark:bg-white dark:text-black"
+		>
+			Get Started
+		</Link>
 	);
 }
 
-const BackgroundGrids = () => {
+function useUserOS() {
+	const [os, setOs] = useState<"macOS" | "Windows" | "Linux">("macOS");
+	useEffect(() => {
+		const ua = navigator.userAgent;
+		if (/Windows/i.test(ua)) setOs("Windows");
+		else if (/Linux/i.test(ua)) setOs("Linux");
+		else setOs("macOS");
+	}, []);
+	return os;
+}
+
+function DownloadButton() {
+	const os = useUserOS();
 	return (
-		<div className="pointer-events-none absolute inset-0 z-0 grid h-screen w-full -rotate-45 transform select-none grid-cols-2 gap-10 md:grid-cols-4">
-			<div className="relative h-full w-full">
-				<GridLineVertical className="left-0" />
-				<GridLineVertical className="left-auto right-0" />
-			</div>
-			<div className="relative h-full w-full">
-				<GridLineVertical className="left-0" />
-				<GridLineVertical className="left-auto right-0" />
-			</div>
-			<div className="relative h-full w-full bg-linear-to-b from-transparent via-neutral-100 to-transparent dark:via-neutral-800">
-				<GridLineVertical className="left-0" />
-				<GridLineVertical className="left-auto right-0" />
-			</div>
-			<div className="relative h-full w-full">
-				<GridLineVertical className="left-0" />
-				<GridLineVertical className="left-auto right-0" />
-			</div>
-		</div>
+		<a
+			href={GITHUB_RELEASES_URL}
+			target="_blank"
+			rel="noopener noreferrer"
+			className="flex h-14 w-full items-center justify-center gap-2 rounded-lg border border-neutral-200 bg-white text-center text-base font-medium text-neutral-700 shadow-sm transition duration-150 active:scale-98 hover:bg-neutral-50 sm:w-56 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+		>
+			<Download className="size-4" />
+			Download for {os}
+		</a>
 	);
-};
+}
 
-const CollisionMechanism = ({
-	parentRef,
-	beamOptions = {},
-}: {
-	parentRef: React.RefObject<HTMLDivElement | null>;
-	beamOptions?: {
-		initialX?: number;
-		translateX?: number;
-		initialY?: number;
-		translateY?: number;
-		rotate?: number;
-		className?: string;
-		duration?: number;
-		delay?: number;
-		repeatDelay?: number;
-	};
-}) => {
-	const beamRef = useRef<HTMLDivElement>(null);
-	const [collision, setCollision] = useState<{
-		detected: boolean;
-		coordinates: { x: number; y: number } | null;
-	}>({ detected: false, coordinates: null });
-	const [beamKey, setBeamKey] = useState(0);
-	const [cycleCollisionDetected, setCycleCollisionDetected] = useState(false);
-
-	useEffect(() => {
-		const checkCollision = () => {
-			if (beamRef.current && parentRef.current && !cycleCollisionDetected) {
-				const beamRect = beamRef.current.getBoundingClientRect();
-				const parentRect = parentRef.current.getBoundingClientRect();
-				const rightEdge = parentRect.right;
-
-				if (beamRect.right >= rightEdge - 20) {
-					const relativeX = parentRect.width - 20;
-					const relativeY = beamRect.top - parentRect.top + beamRect.height / 2;
-
-					setCollision({
-						detected: true,
-						coordinates: { x: relativeX, y: relativeY },
-					});
-					setCycleCollisionDetected(true);
-					if (beamRef.current) {
-						beamRef.current.style.opacity = "0";
-					}
-				}
-			}
-		};
-
-		const animationInterval = setInterval(checkCollision, 100);
-
-		return () => clearInterval(animationInterval);
-	}, [cycleCollisionDetected, parentRef]);
-
-	useEffect(() => {
-		if (!collision.detected || !collision.coordinates) return;
-
-		const timer1 = setTimeout(() => {
-			setCollision({ detected: false, coordinates: null });
-			setCycleCollisionDetected(false);
-			if (beamRef.current) {
-				beamRef.current.style.opacity = "1";
-			}
-		}, 2000);
-
-		const timer2 = setTimeout(() => {
-			setBeamKey((prevKey) => prevKey + 1);
-		}, 2000);
-
-		return () => {
-			clearTimeout(timer1);
-			clearTimeout(timer2);
-		};
-	}, [collision]);
+const BrowserWindow = () => {
+	const [selectedIndex, setSelectedIndex] = useState(0);
+	const selectedItem = TAB_ITEMS[selectedIndex];
+	const { expanded, open, close } = useExpandedMedia();
 
 	return (
 		<>
-			<motion.div
-				key={beamKey}
-				ref={beamRef}
-				animate="animate"
-				initial={{
-					translateY: beamOptions.initialY || "-200px",
-					translateX: beamOptions.initialX || "0px",
-					rotate: beamOptions.rotate || -45,
-				}}
-				variants={{
-					animate: {
-						translateY: beamOptions.translateY || "800px",
-						translateX: beamOptions.translateX || "700px",
-						rotate: beamOptions.rotate || -45,
-					},
-				}}
-				transition={{
-					duration: beamOptions.duration || 8,
-					repeat: Infinity,
-					repeatType: "loop",
-					ease: "linear",
-					delay: beamOptions.delay || 0,
-					repeatDelay: beamOptions.repeatDelay || 0,
-				}}
-				className={cn(
-					"absolute left-96 top-20 m-auto h-14 w-px rounded-full bg-linear-to-t from-orange-500 via-yellow-500 to-transparent will-change-transform",
-					beamOptions.className
-				)}
-			/>
+			<motion.div className="relative my-4 flex w-full flex-col items-start justify-start overflow-hidden rounded-2xl shadow-2xl md:my-12">
+				<div className="flex w-full items-center justify-start overflow-hidden bg-gray-200 py-4 pl-4 dark:bg-neutral-800">
+					<div className="mr-6 flex items-center gap-2">
+						<div className="size-3 rounded-full bg-red-500" />
+						<div className="size-3 rounded-full bg-yellow-500" />
+						<div className="size-3 rounded-full bg-green-500" />
+					</div>
+					<div className="no-visible-scrollbar flex min-w-0 shrink flex-row items-center justify-start gap-2 overflow-x-auto mask-l-from-98% py-0.5 pr-2 pl-2 md:pl-4">
+						{TAB_ITEMS.map((item, index) => (
+							<React.Fragment key={item.title}>
+								<button
+									type="button"
+									onClick={() => setSelectedIndex(index)}
+									className={cn(
+										"flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs transition duration-150 hover:bg-white sm:text-sm dark:hover:bg-neutral-950",
+										selectedIndex === index &&
+											!item.featured &&
+											"bg-white shadow ring-1 shadow-black/10 ring-black/10 dark:bg-neutral-900",
+										selectedIndex === index &&
+											item.featured &&
+											"bg-amber-50 shadow ring-1 shadow-amber-200/50 ring-amber-400/60 dark:bg-amber-950/40 dark:shadow-amber-900/30 dark:ring-amber-500/50",
+										item.featured &&
+											selectedIndex !== index &&
+											"hover:bg-amber-50 dark:hover:bg-amber-950/30"
+									)}
+								>
+									{item.title}
+									{item.featured && (
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<span className="inline-flex shrink-0 items-center justify-center rounded border border-amber-300 bg-amber-100 p-0.5 text-amber-700 dark:border-amber-700 dark:bg-amber-900/50 dark:text-amber-400">
+													<Monitor className="size-3" />
+												</span>
+											</TooltipTrigger>
+											<TooltipContent side="bottom">Desktop app only</TooltipContent>
+										</Tooltip>
+									)}
+								</button>
+								{index !== TAB_ITEMS.length - 1 && (
+									<div className="h-4 w-px shrink-0 rounded-full bg-neutral-300 dark:bg-neutral-700" />
+								)}
+							</React.Fragment>
+						))}
+					</div>
+				</div>
+				<div className="w-full overflow-hidden bg-gray-100/50 px-4 pt-4 perspective-distant dark:bg-neutral-950">
+					<AnimatePresence mode="wait">
+						<motion.div
+							initial={{
+								opacity: 0,
+								scale: 0.99,
+								filter: "blur(10px)",
+							}}
+							animate={{
+								opacity: 1,
+								scale: 1,
+								filter: "blur(0px)",
+							}}
+							exit={{
+								opacity: 0,
+								scale: 0.98,
+								filter: "blur(10px)",
+							}}
+							transition={{
+								duration: 0.3,
+								ease: "easeOut",
+							}}
+							key={selectedItem.title}
+							className="relative overflow-hidden rounded-tl-xl rounded-tr-xl bg-white shadow-sm ring-1 shadow-black/10 ring-black/10 will-change-transform dark:bg-neutral-950"
+						>
+							<div className="flex items-center gap-3 border-b border-neutral-200/60 px-4 py-3 sm:px-6 sm:py-4 dark:border-neutral-700/60">
+								<div className="min-w-0">
+									<h3 className="truncate text-base font-semibold text-neutral-900 sm:text-lg dark:text-white">
+										{selectedItem.title}
+									</h3>
+									<p className="text-sm text-neutral-500 dark:text-neutral-400">
+										{selectedItem.description}
+									</p>
+								</div>
+							</div>
+							<button
+								type="button"
+								className="cursor-pointer bg-neutral-50 p-2 sm:p-3 dark:bg-neutral-950 w-full"
+								onClick={open}
+							>
+								<TabVideo src={selectedItem.src} />
+							</button>
+						</motion.div>
+					</AnimatePresence>
+				</div>
+			</motion.div>
+
 			<AnimatePresence>
-				{collision.detected && collision.coordinates && (
-					<Explosion
-						key={`${collision.coordinates.x}-${collision.coordinates.y}`}
-						className=""
-						style={{
-							left: `${collision.coordinates.x + 20}px`,
-							top: `${collision.coordinates.y}px`,
-							transform: "translate(-50%, -50%)",
-						}}
-					/>
+				{expanded && (
+					<ExpandedMediaOverlay src={selectedItem.src} alt={selectedItem.title} onClose={close} />
 				)}
 			</AnimatePresence>
 		</>
 	);
 };
 
-const Explosion = ({ ...props }: React.HTMLProps<HTMLDivElement>) => {
-	const spans = Array.from({ length: 20 }, (_, index) => ({
-		id: index,
-		initialX: 0,
-		initialY: 0,
-		directionX: Math.floor(Math.random() * 80 - 40),
-		directionY: Math.floor(Math.random() * -50 - 10),
-	}));
+const TabVideo = memo(function TabVideo({ src }: { src: string }) {
+	const videoRef = useRef<HTMLVideoElement>(null);
+	const [hasLoaded, setHasLoaded] = useState(false);
+
+	useEffect(() => {
+		setHasLoaded(false);
+		const video = videoRef.current;
+		if (!video) return;
+		video.currentTime = 0;
+		video.play().catch(() => {});
+	}, [src]);
+
+	const handleCanPlay = useCallback(() => {
+		setHasLoaded(true);
+	}, []);
 
 	return (
-		<div {...props} className={cn("absolute z-50 h-2 w-2", props.className)}>
-			<motion.div
-				initial={{ opacity: 0 }}
-				animate={{ opacity: [0, 1, 0] }}
-				exit={{ opacity: 0 }}
-				transition={{ duration: 1, ease: "easeOut" }}
-				className="absolute -inset-x-10 top-0 m-auto h-[4px] w-10 rounded-full bg-linear-to-r from-transparent via-orange-500 to-transparent blur-sm"
-			></motion.div>
-			{spans.map((span) => (
-				<motion.span
-					key={span.id}
-					initial={{ x: span.initialX, y: span.initialY, opacity: 1 }}
-					animate={{ x: span.directionX, y: span.directionY, opacity: 0 }}
-					transition={{ duration: Math.random() * 1.5 + 0.5, ease: "easeOut" }}
-					className="absolute h-1 w-1 rounded-full bg-linear-to-b from-orange-500 to-yellow-500"
-				/>
-			))}
+		<div className="relative">
+			<video
+				ref={videoRef}
+				key={src}
+				src={src}
+				preload="auto"
+				loop
+				muted
+				playsInline
+				onCanPlay={handleCanPlay}
+				className="aspect-video w-full rounded-lg sm:rounded-xl"
+			/>
+			{!hasLoaded && (
+				<div className="absolute inset-0 aspect-video w-full animate-pulse rounded-lg bg-neutral-100 sm:rounded-xl dark:bg-neutral-800" />
+			)}
 		</div>
 	);
-};
+});
 
-const GridLineVertical = ({ className, offset }: { className?: string; offset?: string }) => {
-	return (
-		<div
-			style={
-				{
-					"--background": "#ffffff",
-					"--color": "rgba(0, 0, 0, 0.2)",
-					"--height": "5px",
-					"--width": "1px",
-					"--fade-stop": "90%",
-					"--offset": offset || "150px", //-100px if you want to keep the line inside
-					"--color-dark": "rgba(255, 255, 255, 0.3)",
-					maskComposite: "exclude",
-				} as React.CSSProperties
-			}
-			className={cn(
-				"absolute top-[calc(var(--offset)/2*-1)] h-[calc(100%+var(--offset))] w-(--width)",
-				"bg-[linear-gradient(to_bottom,var(--color),var(--color)_50%,transparent_0,transparent)]",
-				"bg-size-[var(--width)_var(--height)]",
-				"[mask:linear-gradient(to_top,var(--background)_var(--fade-stop),transparent),linear-gradient(to_bottom,var(--background)_var(--fade-stop),transparent),linear-gradient(black,black)]",
-				"mask-exclude",
-				"z-30",
-				"dark:bg-[linear-gradient(to_bottom,var(--color-dark),var(--color-dark)_50%,transparent_0,transparent)]",
-				className
-			)}
-		></div>
-	);
-};
+const GITHUB_RELEASES_URL = "https://github.com/MODSetter/SurfSense/releases/latest";
+

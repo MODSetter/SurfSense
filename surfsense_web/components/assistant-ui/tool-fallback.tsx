@@ -1,6 +1,6 @@
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon, XCircleIcon } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { getToolIcon } from "@/contracts/enums/toolIcons";
 import { cn } from "@/lib/utils";
 
@@ -19,17 +19,29 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
 	const isCancelled = status?.type === "incomplete" && status.reason === "cancelled";
 	const isError = status?.type === "incomplete" && status.reason === "error";
 	const isRunning = status?.type === "running" || status?.type === "requires-action";
+	const errorData = status?.type === "incomplete" ? status.error : undefined;
+	const serializedError = useMemo(
+		() => (errorData && typeof errorData !== "string" ? JSON.stringify(errorData) : null),
+		[errorData]
+	);
+
+	const serializedResult = useMemo(
+		() =>
+			result !== undefined && typeof result !== "string" ? JSON.stringify(result, null, 2) : null,
+		[result]
+	);
+
 	const cancelledReason =
 		isCancelled && status.error
 			? typeof status.error === "string"
 				? status.error
-				: JSON.stringify(status.error)
+				: serializedError
 			: null;
 	const errorReason =
 		isError && status.error
 			? typeof status.error === "string"
 				? status.error
-				: JSON.stringify(status.error)
+				: serializedError
 			: null;
 
 	const Icon = getToolIcon(toolName);
@@ -122,7 +134,7 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
 								<div>
 									<p className="text-xs font-medium text-muted-foreground mb-1">Result</p>
 									<pre className="text-xs text-foreground/80 whitespace-pre-wrap break-all">
-										{typeof result === "string" ? result : JSON.stringify(result, null, 2)}
+										{typeof result === "string" ? result : serializedResult}
 									</pre>
 								</div>
 							</>

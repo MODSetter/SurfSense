@@ -4,8 +4,8 @@ Lossless file-to-markdown converters for text-based formats.
 These converters handle file types that can be faithfully represented as
 markdown without any external ETL/OCR service:
 
-- CSV / TSV  → markdown table  (stdlib ``csv``)
-- HTML / HTM → markdown        (``markdownify``)
+- CSV / TSV          → markdown table  (stdlib ``csv``)
+- HTML / HTM / XHTML → markdown        (``markdownify``)
 """
 
 from __future__ import annotations
@@ -73,6 +73,7 @@ _CONVERTER_MAP: dict[str, Callable[..., str]] = {
     ".tsv": tsv_to_markdown,
     ".html": html_to_markdown,
     ".htm": html_to_markdown,
+    ".xhtml": html_to_markdown,
 }
 
 

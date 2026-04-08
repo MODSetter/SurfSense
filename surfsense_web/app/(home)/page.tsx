@@ -6,6 +6,11 @@ import { useEffect } from "react";
 import { HeroSection } from "@/components/homepage/hero-section";
 import { getBearerToken } from "@/lib/auth-utils";
 
+const WhySurfSense = dynamic(
+	() => import("@/components/homepage/why-surfsense").then((m) => ({ default: m.WhySurfSense })),
+	{ ssr: false }
+);
+
 const FeaturesCards = dynamic(
 	() => import("@/components/homepage/features-card").then((m) => ({ default: m.FeaturesCards })),
 	{ ssr: false }
@@ -40,6 +45,7 @@ export default function HomePage() {
 	return (
 		<main className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 text-gray-900 dark:from-black dark:to-gray-900 dark:text-white">
 			<HeroSection />
+			<WhySurfSense />
 			<FeaturesCards />
 			<FeaturesBentoGrid />
 			<ExternalIntegrations />

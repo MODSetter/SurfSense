@@ -272,7 +272,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 								{/* AI Summary toggle */}
 								<SummaryConfig enabled={enableSummary} onEnabledChange={onEnableSummaryChange} />
 
-								{/* Date range selector - not shown for file-based connectors (Drive, Dropbox, OneDrive), Webcrawler, or GitHub (indexes full repo snapshots) */}
+								{/* Date range selector - not shown for file-based connectors (Drive, Dropbox, OneDrive), Webcrawler, GitHub, or Local Folder */}
 								{connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" &&
 									connector.connector_type !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&
 									connector.connector_type !== "DROPBOX_CONNECTOR" &&
@@ -293,9 +293,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 										/>
 									)}
 
-								{/* Periodic sync - shown for all indexable connectors */}
 								{(() => {
-									// Check if Google Drive (regular or Composio) has folders/files selected
 									const isGoogleDrive = connector.connector_type === "GOOGLE_DRIVE_CONNECTOR";
 									const isComposioGoogleDrive =
 										connector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR";
@@ -371,16 +369,10 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 								size="sm"
 								onClick={handleDisconnectConfirm}
 								disabled={isDisconnecting}
-								className="text-xs sm:text-sm flex-1 sm:flex-initial h-10 sm:h-auto py-2 sm:py-2"
+								className="relative text-xs sm:text-sm flex-1 sm:flex-initial h-10 sm:h-auto py-2 sm:py-2"
 							>
-								{isDisconnecting ? (
-									<>
-										<Spinner size="sm" className="mr-2" />
-										Disconnecting
-									</>
-								) : (
-									"Confirm Disconnect"
-								)}
+								<span className={isDisconnecting ? "opacity-0" : ""}>Confirm Disconnect</span>
+								{isDisconnecting && <Spinner size="sm" className="absolute" />}
 							</Button>
 							<Button
 								variant="ghost"
@@ -417,16 +409,10 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 					<Button
 						onClick={onSave}
 						disabled={isSaving || isDisconnecting}
-						className="text-xs sm:text-sm flex-1 sm:flex-initial h-12 sm:h-auto py-3 sm:py-2"
+						className="relative text-xs sm:text-sm flex-1 sm:flex-initial h-12 sm:h-auto py-3 sm:py-2"
 					>
-						{isSaving ? (
-							<>
-								<Spinner size="sm" className="mr-2" />
-								Saving
-							</>
-						) : (
-							"Save Changes"
-						)}
+						<span className={isSaving ? "opacity-0" : ""}>Save Changes</span>
+						{isSaving && <Spinner size="sm" className="absolute" />}
 					</Button>
 				)}
 			</div>

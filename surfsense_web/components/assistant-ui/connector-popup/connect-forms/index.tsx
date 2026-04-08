@@ -58,7 +58,6 @@ export function getConnectFormComponent(connectorType: string): ConnectFormCompo
 			return MCPConnectForm;
 		case "OBSIDIAN_CONNECTOR":
 			return ObsidianConnectForm;
-		// Add other connector types here as needed
 		default:
 			return null;
 	}

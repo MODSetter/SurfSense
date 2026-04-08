@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { getBearerToken } from "@/lib/auth-utils";
 import { copyToClipboard as copyToClipboardUtil } from "@/lib/utils";
@@ -14,6 +14,13 @@ export function useApiKey(): UseApiKeyReturn {
 	const [apiKey, setApiKey] = useState<string | null>(null);
 	const [copied, setCopied] = useState(false);
 	const [isLoading, setIsLoading] = useState(true);
+	const copyTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+	useEffect(() => {
+		return () => {
+			if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+		};
+	}, []);
 
 	useEffect(() => {
 		// Load API key from localStorage
@@ -41,7 +48,8 @@ export function useApiKey(): UseApiKeyReturn {
 		if (success) {
 			setCopied(true);
 			toast.success("API key copied to clipboard");
-			setTimeout(() => {
+			if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+			copyTimerRef.current = setTimeout(() => {
 				setCopied(false);
 			}, 2000);
 		} else {

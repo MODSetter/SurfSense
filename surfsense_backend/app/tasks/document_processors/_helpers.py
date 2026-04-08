@@ -11,13 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import Document, DocumentStatus, DocumentType
 from app.utils.document_converters import generate_unique_identifier_hash
 
-from ._constants import (
-    BASE_JOB_TIMEOUT,
-    MAX_UPLOAD_TIMEOUT,
-    MIN_UPLOAD_TIMEOUT,
-    PER_PAGE_JOB_TIMEOUT,
-    UPLOAD_BYTES_PER_SECOND_SLOW,
-)
 from .base import (
     check_document_by_unique_identifier,
     check_duplicate_document,
@@ -198,21 +191,3 @@ async def update_document_from_connector(
     if "connector_id" in connector:
         document.connector_id = connector["connector_id"]
     await session.commit()
-
-
-# ---------------------------------------------------------------------------
-# Timeout calculations
-# ---------------------------------------------------------------------------
-
-
-def calculate_upload_timeout(file_size_bytes: int) -> float:
-    """Calculate upload timeout based on file size (conservative for slow connections)."""
-    estimated_time = (file_size_bytes / UPLOAD_BYTES_PER_SECOND_SLOW) * 1.5
-    return max(MIN_UPLOAD_TIMEOUT, min(estimated_time, MAX_UPLOAD_TIMEOUT))
-
-
-def calculate_job_timeout(estimated_pages: int, file_size_bytes: int) -> float:
-    """Calculate job processing timeout based on page count and file size."""
-    page_based_timeout = BASE_JOB_TIMEOUT + (estimated_pages * PER_PAGE_JOB_TIMEOUT)
-    size_based_timeout = BASE_JOB_TIMEOUT + (file_size_bytes / (10 * 1024 * 1024)) * 60
-    return max(page_based_timeout, size_based_timeout)

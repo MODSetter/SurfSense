@@ -83,14 +83,14 @@ export function MorePagesContent() {
 				</p>
 			</div>
 
-			{/* 6k free offer */}
+			{/* 3k free offer */}
 			<Card className="border-emerald-500/30 bg-emerald-500/5">
 				<CardContent className="flex items-center gap-3 p-4">
 					<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white text-xs font-bold">
-						6k
+						3k
 					</div>
 					<div className="min-w-0 flex-1">
-						<p className="text-sm font-semibold">Claim 6,000 Free Pages</p>
+						<p className="text-sm font-semibold">Claim 3,000 Free Pages</p>
 						<p className="text-xs text-muted-foreground">
 							Limited offer. Schedule a meeting or email us to claim.
 						</p>
@@ -198,18 +198,18 @@ export function MorePagesContent() {
 				)}
 			</div>
 
-			{/* Claim 6k dialog */}
+			{/* Claim 3k dialog */}
 			<Dialog open={claimOpen} onOpenChange={setClaimOpen}>
 				<DialogContent className="sm:max-w-md">
 					<DialogHeader>
-						<DialogTitle>Claim 6,000 Free Pages</DialogTitle>
+						<DialogTitle>Claim 3,000 Free Pages</DialogTitle>
 						<DialogDescription>
-							Send us an email to claim your free 6,000 pages. Include your account email and
+							Send us an email to claim your free 3,000 pages. Include your account email and
 							primary usecase for free pages.
 						</DialogDescription>
 					</DialogHeader>
 					<Button asChild className="w-full gap-2">
-						<a href="mailto:rohan@surfsense.com?subject=Claim%206%2C000%20Free%20Pages&body=Hi%2C%20I'd%20like%20to%20claim%20the%206%2C000%20free%20pages%20offer.%0A%0AMy%20account%20email%3A%20">
+						<a href="mailto:rohan@surfsense.com?subject=Claim%203%2C000%20Free%20Pages&body=Hi%2C%20I'd%20like%20to%20claim%20the%203%2C000%20free%20pages%20offer.%0A%0AMy%20account%20email%3A%20">
 							<Mail className="h-4 w-4" />
 							rohan@surfsense.com
 						</a>

@@ -248,12 +248,33 @@ def _folder_dict(file_id: str, name: str) -> dict:
     }
 
 
+def _make_page_limit_session(pages_used=0, pages_limit=999_999):
+    """Build a mock DB session that real PageLimitService can operate against."""
+
+    class _FakeUser:
+        def __init__(self, pu, pl):
+            self.pages_used = pu
+            self.pages_limit = pl
+
+    fake_user = _FakeUser(pages_used, pages_limit)
+    session = AsyncMock()
+
+    def _make_result(*_a, **_kw):
+        r = MagicMock()
+        r.first.return_value = (fake_user.pages_used, fake_user.pages_limit)
+        r.unique.return_value.scalar_one_or_none.return_value = fake_user
+        return r
+
+    session.execute = AsyncMock(side_effect=_make_result)
+    return session, fake_user
+
+
 @pytest.fixture
 def full_scan_mocks(mock_drive_client, monkeypatch):
     """Wire up all mocks needed to call _index_full_scan in isolation."""
     import app.tasks.connector_indexers.google_drive_indexer as _mod
 
-    mock_session = AsyncMock()
+    mock_session, _ = _make_page_limit_session()
     mock_connector = MagicMock()
     mock_task_logger = MagicMock()
     mock_task_logger.log_task_progress = AsyncMock()
@@ -345,7 +366,7 @@ async def test_full_scan_three_phase_counts(full_scan_mocks, monkeypatch):
     full_scan_mocks["download_mock"].return_value = (mock_docs, 0)
     full_scan_mocks["batch_mock"].return_value = ([], 2, 0)
 
-    indexed, skipped = await _run_full_scan(full_scan_mocks)
+    indexed, skipped, _unsupported = await _run_full_scan(full_scan_mocks)
 
     assert indexed == 3  # 1 renamed + 2 from batch
     assert skipped == 1  # 1 unchanged
@@ -472,11 +493,11 @@ async def test_delta_sync_removals_serial_rest_parallel(monkeypatch):
         AsyncMock(return_value=MagicMock()),
     )
 
-    mock_session = AsyncMock()
+    mock_session, _ = _make_page_limit_session()
     mock_task_logger = MagicMock()
     mock_task_logger.log_task_progress = AsyncMock()
 
-    indexed, skipped = await _index_with_delta_sync(
+    indexed, skipped, _unsupported = await _index_with_delta_sync(
         MagicMock(),
         mock_session,
         MagicMock(),
@@ -512,7 +533,7 @@ def selected_files_mocks(mock_drive_client, monkeypatch):
     """Wire up mocks for _index_selected_files tests."""
     import app.tasks.connector_indexers.google_drive_indexer as _mod
 
-    mock_session = AsyncMock()
+    mock_session, _ = _make_page_limit_session()
 
     get_file_results: dict[str, tuple[dict | None, str | None]] = {}
 
@@ -568,7 +589,7 @@ async def test_selected_files_single_file_indexed(selected_files_mocks):
     )
     selected_files_mocks["download_and_index_mock"].return_value = (1, 0)
 
-    indexed, skipped, errors = await _run_selected(
+    indexed, skipped, _unsup, errors = await _run_selected(
         selected_files_mocks,
         [("f1", "report.pdf")],
     )
@@ -592,7 +613,7 @@ async def test_selected_files_fetch_failure_isolation(selected_files_mocks):
     )
     selected_files_mocks["download_and_index_mock"].return_value = (2, 0)
 
-    indexed, skipped, errors = await _run_selected(
+    indexed, skipped, _unsup, errors = await _run_selected(
         selected_files_mocks,
         [("f1", "first.txt"), ("f2", "mid.txt"), ("f3", "third.txt")],
     )
@@ -626,7 +647,7 @@ async def test_selected_files_skip_rename_counting(selected_files_mocks):
 
     selected_files_mocks["download_and_index_mock"].return_value = (2, 0)
 
-    indexed, skipped, errors = await _run_selected(
+    indexed, skipped, _unsup, errors = await _run_selected(
         selected_files_mocks,
         [
             ("s1", "unchanged.txt"),

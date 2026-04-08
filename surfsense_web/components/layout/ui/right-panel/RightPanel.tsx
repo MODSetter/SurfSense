@@ -10,7 +10,6 @@ import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { closeEditorPanelAtom, editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { rightPanelCollapsedAtom, rightPanelTabAtom } from "@/atoms/layout/right-panel.atom";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DocumentsSidebar } from "../sidebar";
 
@@ -19,7 +18,7 @@ const EditorPanelContent = dynamic(
 		import("@/components/editor-panel/editor-panel").then((m) => ({
 			default: m.EditorPanelContent,
 		})),
-	{ ssr: false, loading: () => <Skeleton className="h-96 w-full" /> }
+	{ ssr: false, loading: () => null }
 );
 
 const HitlEditPanelContent = dynamic(
@@ -27,7 +26,7 @@ const HitlEditPanelContent = dynamic(
 		import("@/components/hitl-edit-panel/hitl-edit-panel").then((m) => ({
 			default: m.HitlEditPanelContent,
 		})),
-	{ ssr: false, loading: () => <Skeleton className="h-96 w-full" /> }
+	{ ssr: false, loading: () => null }
 );
 
 const ReportPanelContent = dynamic(
@@ -35,7 +34,7 @@ const ReportPanelContent = dynamic(
 		import("@/components/report-panel/report-panel").then((m) => ({
 			default: m.ReportPanelContent,
 		})),
-	{ ssr: false, loading: () => <Skeleton className="h-96 w-full" /> }
+	{ ssr: false, loading: () => null }
 );
 
 interface RightPanelProps {
@@ -78,14 +77,14 @@ export function RightPanelExpandButton() {
 	if (!collapsed || !hasContent) return null;
 
 	return (
-		<div className="flex shrink-0 items-center px-1">
+		<div className="flex shrink-0 items-center px-0.5">
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<Button
 						variant="ghost"
 						size="icon"
 						onClick={() => startTransition(() => setCollapsed(false))}
-						className="h-7 w-7 shrink-0"
+						className="h-8 w-8 shrink-0 -m-0.5"
 					>
 						<PanelRight className="h-4 w-4" />
 						<span className="sr-only">Expand panel</span>

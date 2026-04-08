@@ -55,23 +55,12 @@ from app.schemas import (
 )
 from app.services.composio_service import ComposioService, get_composio_service
 from app.services.notification_service import NotificationService
-from app.tasks.connector_indexers import (
-    index_airtable_records,
-    index_clickup_tasks,
-    index_confluence_pages,
-    index_crawled_urls,
-    index_discord_messages,
-    index_elasticsearch_documents,
-    index_github_repos,
-    index_google_calendar_events,
-    index_google_gmail_messages,
-    index_jira_issues,
-    index_linear_issues,
-    index_luma_events,
-    index_notion_pages,
-    index_slack_messages,
-)
 from app.users import current_active_user
+
+# NOTE: connector indexer functions are imported lazily inside each
+# ``run_*_indexing`` helper to break a circular import cycle:
+#   connector_indexers.__init__ → airtable_indexer → airtable_history
+#   → app.routes.__init__ → this file → connector_indexers (not ready yet)
 from app.utils.connector_naming import ensure_unique_connector_name
 from app.utils.indexing_locks import (
     acquire_connector_indexing_lock,
@@ -1378,6 +1367,8 @@ async def run_slack_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_slack_messages
+
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
@@ -1824,6 +1815,8 @@ async def run_notion_indexing_with_new_session(
     Create a new session and run the Notion indexing task.
     This prevents session leaks by creating a dedicated session for the background task.
     """
+    from app.tasks.connector_indexers import index_notion_pages
+
     async with async_session_maker() as session:
         await _run_indexing_with_notifications(
             session=session,
@@ -1858,6 +1851,8 @@ async def run_notion_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_notion_pages
+
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
@@ -1910,6 +1905,8 @@ async def run_github_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_github_repos
+
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
@@ -1961,6 +1958,8 @@ async def run_linear_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_linear_issues
+
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
@@ -2011,6 +2010,8 @@ async def run_discord_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_discord_messages
+
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
@@ -2113,6 +2114,8 @@ async def run_jira_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_jira_issues
+
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
@@ -2166,6 +2169,8 @@ async def run_confluence_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_confluence_pages
+
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
@@ -2217,6 +2222,8 @@ async def run_clickup_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_clickup_tasks
+
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
@@ -2268,6 +2275,8 @@ async def run_airtable_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_airtable_records
+
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
@@ -2321,6 +2330,8 @@ async def run_google_calendar_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_google_calendar_events
+
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
@@ -2370,6 +2381,7 @@ async def run_google_gmail_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_google_gmail_messages
 
     # Create a wrapper function that calls index_google_gmail_messages with max_messages
     async def gmail_indexing_wrapper(
@@ -2465,6 +2477,8 @@ async def run_google_drive_indexing(
                 stage="fetching",
             )
 
+        total_unsupported = 0
+
         # Index each folder with indexing options
         for folder in items.folders:
             try:
@@ -2472,6 +2486,7 @@ async def run_google_drive_indexing(
                     indexed_count,
                     skipped_count,
                     error_message,
+                    unsupported_count,
                 ) = await index_google_drive_files(
                     session,
                     connector_id,
@@ -2485,6 +2500,7 @@ async def run_google_drive_indexing(
                     include_subfolders=indexing_options.include_subfolders,
                 )
                 total_skipped += skipped_count
+                total_unsupported += unsupported_count
                 if error_message:
                     errors.append(f"Folder '{folder.name}': {error_message}")
                 else:
@@ -2560,6 +2576,7 @@ async def run_google_drive_indexing(
                 indexed_count=total_indexed,
                 error_message=error_message,
                 skipped_count=total_skipped,
+                unsupported_count=total_unsupported,
             )
 
     except Exception as e:
@@ -2630,7 +2647,12 @@ async def run_onedrive_indexing(
                 stage="fetching",
             )
 
-        total_indexed, total_skipped, error_message = await index_onedrive_files(
+        (
+            total_indexed,
+            total_skipped,
+            error_message,
+            total_unsupported,
+        ) = await index_onedrive_files(
             session,
             connector_id,
             search_space_id,
@@ -2671,6 +2693,7 @@ async def run_onedrive_indexing(
                 indexed_count=total_indexed,
                 error_message=error_message,
                 skipped_count=total_skipped,
+                unsupported_count=total_unsupported,
             )
 
     except Exception as e:
@@ -2738,7 +2761,12 @@ async def run_dropbox_indexing(
                 stage="fetching",
             )
 
-        total_indexed, total_skipped, error_message = await index_dropbox_files(
+        (
+            total_indexed,
+            total_skipped,
+            error_message,
+            total_unsupported,
+        ) = await index_dropbox_files(
             session,
             connector_id,
             search_space_id,
@@ -2779,6 +2807,7 @@ async def run_dropbox_indexing(
                 indexed_count=total_indexed,
                 error_message=error_message,
                 skipped_count=total_skipped,
+                unsupported_count=total_unsupported,
             )
 
     except Exception as e:
@@ -2836,6 +2865,8 @@ async def run_luma_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_luma_events
+
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
@@ -2888,6 +2919,8 @@ async def run_elasticsearch_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_elasticsearch_documents
+
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
@@ -2938,6 +2971,8 @@ async def run_web_page_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    from app.tasks.connector_indexers import index_crawled_urls
+
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,

@@ -125,6 +125,13 @@ from .video_presentations import (
     VideoPresentationRead,
     VideoPresentationUpdate,
 )
+from .vision_llm import (
+    GlobalVisionLLMConfigRead,
+    VisionLLMConfigCreate,
+    VisionLLMConfigPublic,
+    VisionLLMConfigRead,
+    VisionLLMConfigUpdate,
+)
 
 __all__ = [
     # Folder schemas
@@ -163,6 +170,8 @@ __all__ = [
     "FolderUpdate",
     "GlobalImageGenConfigRead",
     "GlobalNewLLMConfigRead",
+    # Vision LLM Config schemas
+    "GlobalVisionLLMConfigRead",
     "GoogleDriveIndexRequest",
     "GoogleDriveIndexingOptions",
     # Base schemas
@@ -264,4 +273,8 @@ __all__ = [
     "VideoPresentationCreate",
     "VideoPresentationRead",
     "VideoPresentationUpdate",
+    "VisionLLMConfigCreate",
+    "VisionLLMConfigPublic",
+    "VisionLLMConfigRead",
+    "VisionLLMConfigUpdate",
 ]

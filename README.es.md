@@ -41,17 +41,13 @@ NotebookLM es una de las mejores y más útiles plataformas de IA que existen, p
 - **Sin Dependencia de Proveedores** - Configura cualquier modelo LLM, de imagen, TTS y STT.
 - **25+ Fuentes de Datos Externas** - Agrega tus fuentes desde Google Drive, OneDrive, Dropbox, Notion y muchos otros servicios externos.
 - **Soporte Multijugador en Tiempo Real** - Trabaja fácilmente con los miembros de tu equipo en un notebook compartido.
+- **Aplicación de Escritorio** - Obtén asistencia de IA en cualquier aplicación con Quick Assist, General Assist, Extreme Assist y sincronización de carpetas locales.
 
 ...y más por venir.
 
 
 
-# Demo
-
-https://github.com/user-attachments/assets/cc0c84d3-1f2f-4f7a-b519-2ecce22310b1
-
 ## Ejemplo de Agente de Video
-
 
 https://github.com/user-attachments/assets/012a7ffa-6f76-4f06-9dda-7632b470057a
 
@@ -68,42 +64,58 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 1. Ve a [surfsense.com](https://www.surfsense.com) e inicia sesión.
 
-<p align="center"><img src="https://github.com/user-attachments/assets/b4df25fe-db5a-43c2-9462-b75cf7f1b707" alt="Login" /></p>
+<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/LoginFlowGif.gif" alt="Login" /></p>
 
 2. Conecta tus conectores y sincroniza. Activa la sincronización periódica para mantenerlos actualizados.
 
-<p align="center"><img src="https://github.com/user-attachments/assets/0740f351-23fa-4909-9880-70aa1dcc1df7" alt="Conectores" /></p>
+<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ConnectorFlowGif.gif" alt="Conectores" /></p>
 
 3. Mientras se indexan los datos de los conectores, sube documentos.
 
-<p align="center"><img src="https://github.com/user-attachments/assets/daf3dbae-ef86-4e86-82ea-fcbcad988761" alt="Subir Documentos" /></p>
+<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/DocUploadGif.gif" alt="Subir Documentos" /></p>
 
 4. Una vez que todo esté indexado, pregunta lo que quieras (Casos de uso):
 
+   - Aplicación de Escritorio — General Assist
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/general_assist.gif" alt="General Assist" /></p>
+
+   - Aplicación de Escritorio — Quick Assist
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/quick_assist.gif" alt="Quick Assist" /></p>
+
+   - Aplicación de Escritorio — Extreme Assist
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/extreme_assist.gif" alt="Extreme Assist" /></p>
+
+   - Aplicación de Escritorio — Watch Local Folder
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/folder_watch.gif" alt="Watch Local Folder" /></p>
+
    - Generación de videos
 
-   <p align="center"><img src="https://github.com/user-attachments/assets/af85c0f3-6cfd-4757-9706-07fd5e32c857" alt="Generación de Videos" /></p>
-   
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/video_gen_gif.gif" alt="Generación de Videos" /></p>
+
    - Búsqueda básica y citaciones
 
-   <p align="center"><img src="https://github.com/user-attachments/assets/81e797a1-e01a-4003-8e60-0a0b3a9789df" alt="Búsqueda y Citación" /></p>
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BSNCGif.gif" alt="Búsqueda y Citación" /></p>
 
    - QNA con mención de documentos
 
-   <p align="center"><img src="https://github.com/user-attachments/assets/65c3bf06-1d46-4dd5-b169-4d934c9b6798" alt="QNA con Mención de Documentos" /></p>
-   <p align="center"><img src="https://github.com/user-attachments/assets/be958295-0a8c-4707-998c-9fe1f1c007be" alt="QNA con Mención de Documentos" /></p>
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="QNA con Mención de Documentos" /></p>
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="QNA con Mención de Documentos" /></p>
 
    - Generación de informes y exportaciones (PDF, DOCX, HTML, LaTeX, EPUB, ODT, texto plano)
 
-   <p align="center"><img src="https://github.com/user-attachments/assets/9836b7d6-57c9-4951-b61c-68202c9b6ace" alt="Generación de Informes" /></p>
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="Generación de Informes" /></p>
 
    - Generación de podcasts
 
-   <p align="center"><img src="https://github.com/user-attachments/assets/58c9b057-8848-4e81-aaba-d2c617985d8c" alt="Generación de Podcasts" /></p>
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/PodcastGenGif.gif" alt="Generación de Podcasts" /></p>
 
    - Generación de imágenes
 
-   <p align="center"><img src="https://github.com/user-attachments/assets/25f94cb3-18f8-4854-afd9-27b7bfd079cb" alt="Generación de Imágenes" /></p>
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ImageGenGif.gif" alt="Generación de Imágenes" /></p>
 
    - Y más próximamente.
 
@@ -130,6 +142,19 @@ El script de instalación configura [Watchtower](https://github.com/nicholas-fed
 
 Para Docker Compose, instalación manual y otras opciones de despliegue, consulta la [documentación](https://www.surfsense.com/docs/).
 
+### Aplicación de Escritorio
+
+SurfSense también ofrece una aplicación de escritorio que lleva la asistencia de IA a cada aplicación en tu computadora. Descárgala desde la [última versión](https://github.com/MODSetter/SurfSense/releases/latest).
+
+La aplicación de escritorio incluye estas potentes funciones:
+
+- **General Assist** — Lanza SurfSense al instante desde cualquier aplicación con un atajo global.
+- **Quick Assist** — Selecciona texto en cualquier lugar, luego pide a la IA que lo explique, reescriba o actúe sobre él.
+- **Extreme Assist** — Obtén sugerencias de escritura en línea impulsadas por tu base de conocimiento mientras escribes en cualquier aplicación.
+- **Watch Local Folder** — Vigila una carpeta local y sincroniza automáticamente los cambios de archivos con tu base de conocimiento. **Pro tip:** Apúntalo a tu bóveda de Obsidian para mantener tus notas buscables en SurfSense.
+
+Todas las funciones operan contra tu espacio de búsqueda elegido, por lo que tus respuestas siempre están basadas en tus propios datos.
+
 ### Cómo Colaborar en Tiempo Real (Beta)
 
 1. Ve a la página de Gestión de Miembros y crea una invitación.
@@ -146,11 +171,11 @@ Para Docker Compose, instalación manual y otras opciones de despliegue, consult
 
 4. Tu equipo ahora puede chatear en tiempo real.
 
-   <p align="center"><img src="https://github.com/user-attachments/assets/83803ac2-fbce-4d93-aae3-85eb85a3053a" alt="Chat en Tiempo Real" /></p>
+   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeChatGif.gif" alt="Chat en Tiempo Real" /></p>
 
 5. Agrega comentarios para etiquetar a compañeros de equipo.
 
-   <p align="center"><img src="https://github.com/user-attachments/assets/3b04477d-8f42-4baa-be95-867c1eaeba87" alt="Comentarios en Tiempo Real" /></p>
+   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeCommentsFlow.gif" alt="Comentarios en Tiempo Real" /></p>
 
 ## SurfSense vs Google NotebookLM
 
@@ -174,6 +199,7 @@ Para Docker Compose, instalación manual y otras opciones de despliegue, consult
 | **Generación de Videos** | Resúmenes en video cinemáticos vía Veo 3 (solo Ultra) | Disponible (NotebookLM es mejor aquí, mejorando activamente) |
 | **Generación de Presentaciones** | Diapositivas más atractivas pero no editables | Crea presentaciones editables basadas en diapositivas |
 | **Generación de Podcasts** | Resúmenes de audio con hosts e idiomas personalizables | Disponible con múltiples proveedores TTS (NotebookLM es mejor aquí, mejorando activamente) |
+| **Aplicación de Escritorio** | No | Aplicación nativa con General Assist, Quick Assist, Extreme Assist y sincronización de carpetas locales |
 | **Extensión de Navegador** | No | Extensión multi-navegador para guardar cualquier página web, incluyendo páginas protegidas por autenticación |
 
 <details>

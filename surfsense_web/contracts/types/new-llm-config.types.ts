@@ -41,14 +41,14 @@ export const liteLLMProviderEnum = z.enum([
 export type LiteLLMProvider = z.infer<typeof liteLLMProviderEnum>;
 
 /**
- * NewLLMConfig - combines LLM model settings with prompt configuration
+ * NewLLMConfig - combines model settings with prompt configuration
  */
 export const newLLMConfig = z.object({
 	id: z.number(),
 	name: z.string().max(100),
 	description: z.string().max(500).nullable().optional(),
 
-	// LLM Model Configuration
+	// Model Configuration
 	provider: liteLLMProviderEnum,
 	custom_provider: z.string().max(100).nullable().optional(),
 	model_name: z.string().max(100),
@@ -148,7 +148,7 @@ export const globalNewLLMConfig = z.object({
 	name: z.string(),
 	description: z.string().nullable().optional(),
 
-	// LLM Model Configuration (no api_key)
+	// Model Configuration (no api_key)
 	provider: z.string(), // String because YAML doesn't enforce enum, "AUTO" for Auto mode
 	custom_provider: z.string().nullable().optional(),
 	model_name: z.string(),
@@ -253,20 +253,98 @@ export const globalImageGenConfig = z.object({
 export const getGlobalImageGenConfigsResponse = z.array(globalImageGenConfig);
 
 // =============================================================================
+// Vision LLM Config (separate table for vision-capable models)
+// =============================================================================
+
+export const visionProviderEnum = z.enum([
+	"OPENAI",
+	"ANTHROPIC",
+	"GOOGLE",
+	"AZURE_OPENAI",
+	"VERTEX_AI",
+	"BEDROCK",
+	"XAI",
+	"OPENROUTER",
+	"OLLAMA",
+	"GROQ",
+	"TOGETHER_AI",
+	"FIREWORKS_AI",
+	"DEEPSEEK",
+	"MISTRAL",
+	"CUSTOM",
+]);
+
+export type VisionProvider = z.infer<typeof visionProviderEnum>;
+
+export const visionLLMConfig = z.object({
+	id: z.number(),
+	name: z.string().max(100),
+	description: z.string().max(500).nullable().optional(),
+	provider: visionProviderEnum,
+	custom_provider: z.string().max(100).nullable().optional(),
+	model_name: z.string().max(100),
+	api_key: z.string(),
+	api_base: z.string().max(500).nullable().optional(),
+	api_version: z.string().max(50).nullable().optional(),
+	litellm_params: z.record(z.string(), z.any()).nullable().optional(),
+	created_at: z.string(),
+	search_space_id: z.number(),
+	user_id: z.string(),
+});
+
+export const createVisionLLMConfigRequest = visionLLMConfig.omit({
+	id: true,
+	created_at: true,
+	user_id: true,
+});
+
+export const createVisionLLMConfigResponse = visionLLMConfig;
+
+export const getVisionLLMConfigsResponse = z.array(visionLLMConfig);
+
+export const updateVisionLLMConfigRequest = z.object({
+	id: z.number(),
+	data: visionLLMConfig
+		.omit({ id: true, created_at: true, search_space_id: true, user_id: true })
+		.partial(),
+});
+
+export const updateVisionLLMConfigResponse = visionLLMConfig;
+
+export const deleteVisionLLMConfigResponse = z.object({
+	message: z.string(),
+	id: z.number(),
+});
+
+export const globalVisionLLMConfig = z.object({
+	id: z.number(),
+	name: z.string(),
+	description: z.string().nullable().optional(),
+	provider: z.string(),
+	custom_provider: z.string().nullable().optional(),
+	model_name: z.string(),
+	api_base: z.string().nullable().optional(),
+	api_version: z.string().nullable().optional(),
+	litellm_params: z.record(z.string(), z.any()).nullable().optional(),
+	is_global: z.literal(true),
+	is_auto_mode: z.boolean().optional().default(false),
+});
+
+export const getGlobalVisionLLMConfigsResponse = z.array(globalVisionLLMConfig);
+
+// =============================================================================
 // LLM Preferences (Role Assignments)
 // =============================================================================
 
-/**
- * LLM Preferences schemas - for role assignments
- * image_generation uses image_generation_config_id (not llm_id)
- */
 export const llmPreferences = z.object({
 	agent_llm_id: z.union([z.number(), z.null()]).optional(),
 	document_summary_llm_id: z.union([z.number(), z.null()]).optional(),
 	image_generation_config_id: z.union([z.number(), z.null()]).optional(),
+	vision_llm_config_id: z.union([z.number(), z.null()]).optional(),
 	agent_llm: z.union([z.record(z.string(), z.unknown()), z.null()]).optional(),
 	document_summary_llm: z.union([z.record(z.string(), z.unknown()), z.null()]).optional(),
 	image_generation_config: z.union([z.record(z.string(), z.unknown()), z.null()]).optional(),
+	vision_llm_config: z.union([z.record(z.string(), z.unknown()), z.null()]).optional(),
 });
 
 /**
@@ -287,6 +365,7 @@ export const updateLLMPreferencesRequest = z.object({
 		agent_llm_id: true,
 		document_summary_llm_id: true,
 		image_generation_config_id: true,
+		vision_llm_config_id: true,
 	}),
 });
 
@@ -338,6 +417,15 @@ export type UpdateImageGenConfigResponse = z.infer<typeof updateImageGenConfigRe
 export type DeleteImageGenConfigResponse = z.infer<typeof deleteImageGenConfigResponse>;
 export type GlobalImageGenConfig = z.infer<typeof globalImageGenConfig>;
 export type GetGlobalImageGenConfigsResponse = z.infer<typeof getGlobalImageGenConfigsResponse>;
+export type VisionLLMConfig = z.infer<typeof visionLLMConfig>;
+export type CreateVisionLLMConfigRequest = z.infer<typeof createVisionLLMConfigRequest>;
+export type CreateVisionLLMConfigResponse = z.infer<typeof createVisionLLMConfigResponse>;
+export type GetVisionLLMConfigsResponse = z.infer<typeof getVisionLLMConfigsResponse>;
+export type UpdateVisionLLMConfigRequest = z.infer<typeof updateVisionLLMConfigRequest>;
+export type UpdateVisionLLMConfigResponse = z.infer<typeof updateVisionLLMConfigResponse>;
+export type DeleteVisionLLMConfigResponse = z.infer<typeof deleteVisionLLMConfigResponse>;
+export type GlobalVisionLLMConfig = z.infer<typeof globalVisionLLMConfig>;
+export type GetGlobalVisionLLMConfigsResponse = z.infer<typeof getGlobalVisionLLMConfigsResponse>;
 export type LLMPreferences = z.infer<typeof llmPreferences>;
 export type GetLLMPreferencesRequest = z.infer<typeof getLLMPreferencesRequest>;
 export type GetLLMPreferencesResponse = z.infer<typeof getLLMPreferencesResponse>;

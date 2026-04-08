@@ -11,8 +11,8 @@ const demoPlans = [
 		billingText: "1,000 pages included",
 		features: [
 			"Self Hostable",
-			"1,000 pages included to start",
-			"Earn up to 6,000+ bonus pages for free",
+			"500 pages included to start",
+			"Earn up to 3,000+ bonus pages for free",
 			"Includes access to OpenAI text, audio and image models",
 			"Realtime Collaborative Group Chats with teammates",
 			"Community support on Discord",
@@ -66,7 +66,7 @@ function PricingBasic() {
 		<Pricing
 			plans={demoPlans}
 			title="SurfSense Pricing"
-			description="Start free with 1,000 pages. Earn up to 6,000+ more or buy as you go."
+			description="Start free with 1,000 pages. Earn up to 3,000+ more or buy as you go."
 		/>
 	);
 }

@@ -64,6 +64,7 @@ class DocumentType(StrEnum):
     COMPOSIO_GOOGLE_DRIVE_CONNECTOR = "COMPOSIO_GOOGLE_DRIVE_CONNECTOR"
     COMPOSIO_GMAIL_CONNECTOR = "COMPOSIO_GMAIL_CONNECTOR"
     COMPOSIO_GOOGLE_CALENDAR_CONNECTOR = "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR"
+    LOCAL_FOLDER_FILE = "LOCAL_FOLDER_FILE"
 
 
 # Native Google document types → their legacy Composio equivalents.
@@ -259,6 +260,24 @@ class ImageGenProvider(StrEnum):
     NSCALE = "NSCALE"
 
 
+class VisionProvider(StrEnum):
+    OPENAI = "OPENAI"
+    ANTHROPIC = "ANTHROPIC"
+    GOOGLE = "GOOGLE"
+    AZURE_OPENAI = "AZURE_OPENAI"
+    VERTEX_AI = "VERTEX_AI"
+    BEDROCK = "BEDROCK"
+    XAI = "XAI"
+    OPENROUTER = "OPENROUTER"
+    OLLAMA = "OLLAMA"
+    GROQ = "GROQ"
+    TOGETHER_AI = "TOGETHER_AI"
+    FIREWORKS_AI = "FIREWORKS_AI"
+    DEEPSEEK = "DEEPSEEK"
+    MISTRAL = "MISTRAL"
+    CUSTOM = "CUSTOM"
+
+
 class LogLevel(StrEnum):
     DEBUG = "DEBUG"
     INFO = "INFO"
@@ -376,6 +395,11 @@ class Permission(StrEnum):
     IMAGE_GENERATIONS_READ = "image_generations:read"
     IMAGE_GENERATIONS_DELETE = "image_generations:delete"
 
+    # Vision LLM Configs
+    VISION_CONFIGS_CREATE = "vision_configs:create"
+    VISION_CONFIGS_READ = "vision_configs:read"
+    VISION_CONFIGS_DELETE = "vision_configs:delete"
+
     # Connectors
     CONNECTORS_CREATE = "connectors:create"
     CONNECTORS_READ = "connectors:read"
@@ -444,6 +468,9 @@ DEFAULT_ROLE_PERMISSIONS = {
         # Image Generations (create and read, no delete)
         Permission.IMAGE_GENERATIONS_CREATE.value,
         Permission.IMAGE_GENERATIONS_READ.value,
+        # Vision Configs (create and read, no delete)
+        Permission.VISION_CONFIGS_CREATE.value,
+        Permission.VISION_CONFIGS_READ.value,
         # Connectors (no delete)
         Permission.CONNECTORS_CREATE.value,
         Permission.CONNECTORS_READ.value,
@@ -477,6 +504,8 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.VIDEO_PRESENTATIONS_READ.value,
         # Image Generations (read only)
         Permission.IMAGE_GENERATIONS_READ.value,
+        # Vision Configs (read only)
+        Permission.VISION_CONFIGS_READ.value,
         # Connectors (read only)
         Permission.CONNECTORS_READ.value,
         # Logs (read only)
@@ -955,6 +984,7 @@ class Folder(BaseModel, TimestampMixin):
         onupdate=lambda: datetime.now(UTC),
         index=True,
     )
+    folder_metadata = Column("metadata", JSONB, nullable=True)
 
     parent = relationship("Folder", remote_side="Folder.id", backref="children")
     search_space = relationship("SearchSpace", back_populates="folders")
@@ -1037,6 +1067,26 @@ class Document(BaseModel, TimestampMixin):
     chunks = relationship(
         "Chunk", back_populates="document", cascade="all, delete-orphan"
     )
+
+
+class DocumentVersion(BaseModel, TimestampMixin):
+    __tablename__ = "document_versions"
+    __table_args__ = (
+        UniqueConstraint("document_id", "version_number", name="uq_document_version"),
+    )
+
+    document_id = Column(
+        Integer,
+        ForeignKey("documents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    version_number = Column(Integer, nullable=False)
+    source_markdown = Column(Text, nullable=True)
+    content_hash = Column(String, nullable=False)
+    title = Column(String, nullable=True)
+
+    document = relationship("Document", backref="versions")
 
 
 class Chunk(BaseModel, TimestampMixin):
@@ -1241,6 +1291,33 @@ class ImageGenerationConfig(BaseModel, TimestampMixin):
     user = relationship("User", back_populates="image_generation_configs")
 
 
+class VisionLLMConfig(BaseModel, TimestampMixin):
+    __tablename__ = "vision_llm_configs"
+
+    name = Column(String(100), nullable=False, index=True)
+    description = Column(String(500), nullable=True)
+
+    provider = Column(SQLAlchemyEnum(VisionProvider), nullable=False)
+    custom_provider = Column(String(100), nullable=True)
+    model_name = Column(String(100), nullable=False)
+
+    api_key = Column(String, nullable=False)
+    api_base = Column(String(500), nullable=True)
+    api_version = Column(String(50), nullable=True)
+
+    litellm_params = Column(JSON, nullable=True, default={})
+
+    search_space_id = Column(
+        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    )
+    search_space = relationship("SearchSpace", back_populates="vision_llm_configs")
+
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
+    )
+    user = relationship("User", back_populates="vision_llm_configs")
+
+
 class ImageGeneration(BaseModel, TimestampMixin):
     """
     Stores image generation requests and results using litellm.aimage_generation().
@@ -1329,6 +1406,9 @@ class SearchSpace(BaseModel, TimestampMixin):
     image_generation_config_id = Column(
         Integer, nullable=True, default=0
     )  # For image generation, defaults to Auto mode
+    vision_llm_config_id = Column(
+        Integer, nullable=True, default=0
+    )  # For vision/screenshot analysis, defaults to Auto mode
 
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
@@ -1405,6 +1485,12 @@ class SearchSpace(BaseModel, TimestampMixin):
         "ImageGenerationConfig",
         back_populates="search_space",
         order_by="ImageGenerationConfig.id",
+        cascade="all, delete-orphan",
+    )
+    vision_llm_configs = relationship(
+        "VisionLLMConfig",
+        back_populates="search_space",
+        order_by="VisionLLMConfig.id",
         cascade="all, delete-orphan",
     )
 
@@ -1936,6 +2022,12 @@ if config.AUTH_TYPE == "GOOGLE":
             passive_deletes=True,
         )
 
+        vision_llm_configs = relationship(
+            "VisionLLMConfig",
+            back_populates="user",
+            passive_deletes=True,
+        )
+
         # User memories for personalized AI responses
         memories = relationship(
             "UserMemory",
@@ -2046,6 +2138,12 @@ else:
         # Image generation configs created by this user
         image_generation_configs = relationship(
             "ImageGenerationConfig",
+            back_populates="user",
+            passive_deletes=True,
+        )
+
+        vision_llm_configs = relationship(
+            "VisionLLMConfig",
             back_populates="user",
             passive_deletes=True,
         )

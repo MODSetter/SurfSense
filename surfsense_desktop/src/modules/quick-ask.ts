@@ -1,13 +1,17 @@
 import { BrowserWindow, clipboard, globalShortcut, ipcMain, screen, shell } from 'electron';
 import path from 'path';
 import { IPC_CHANNELS } from '../ipc/channels';
-import { checkAccessibilityPermission, getFrontmostApp, simulatePaste } from './platform';
+import { checkAccessibilityPermission, getFrontmostApp, simulateCopy, simulatePaste } from './platform';
 import { getServerPort } from './server';
+import { getShortcuts } from './shortcuts';
+import { getActiveSearchSpaceId } from './active-search-space';
+import { trackEvent } from './analytics';
 
-const SHORTCUT = 'CommandOrControl+Option+S';
+let currentShortcut = '';
 let quickAskWindow: BrowserWindow | null = null;
 let pendingText = '';
 let pendingMode = '';
+let pendingSearchSpaceId: string | null = null;
 let sourceApp = '';
 let savedClipboard = '';
 
@@ -52,7 +56,9 @@ function createQuickAskWindow(x: number, y: number): BrowserWindow {
     skipTaskbar: true,
   });
 
-  quickAskWindow.loadURL(`http://localhost:${getServerPort()}/dashboard`);
+  const spaceId = pendingSearchSpaceId;
+  const route = spaceId ? `/dashboard/${spaceId}/new-chat` : '/dashboard';
+  quickAskWindow.loadURL(`http://localhost:${getServerPort()}${route}?quickAssist=true`);
 
   quickAskWindow.once('ready-to-show', () => {
     quickAskWindow?.show();
@@ -77,28 +83,54 @@ function createQuickAskWindow(x: number, y: number): BrowserWindow {
   return quickAskWindow;
 }
 
-export function registerQuickAsk(): void {
-  const ok = globalShortcut.register(SHORTCUT, () => {
-    if (quickAskWindow && !quickAskWindow.isDestroyed()) {
-      destroyQuickAsk();
-      return;
-    }
+async function openQuickAsk(text: string): Promise<void> {
+  pendingText = text;
+  pendingMode = 'quick-assist';
+  pendingSearchSpaceId = await getActiveSearchSpaceId();
+  const cursor = screen.getCursorScreenPoint();
+  const pos = clampToScreen(cursor.x, cursor.y, 450, 750);
+  createQuickAskWindow(pos.x, pos.y);
+}
 
-    sourceApp = getFrontmostApp();
-    savedClipboard = clipboard.readText();
+async function quickAskHandler(): Promise<void> {
+  console.log('[quick-ask] Handler triggered');
 
-    const text = savedClipboard.trim();
-    if (!text) return;
-
-    pendingText = text;
-    const cursor = screen.getCursorScreenPoint();
-    const pos = clampToScreen(cursor.x, cursor.y, 450, 750);
-    createQuickAskWindow(pos.x, pos.y);
-  });
-
-  if (!ok) {
-    console.log(`Quick-ask: failed to register ${SHORTCUT}`);
+  if (quickAskWindow && !quickAskWindow.isDestroyed()) {
+    console.log('[quick-ask] Window already open, closing');
+    destroyQuickAsk();
+    return;
   }
+
+  if (!checkAccessibilityPermission()) {
+    console.log('[quick-ask] Accessibility permission denied');
+    return;
+  }
+
+  savedClipboard = clipboard.readText();
+  console.log('[quick-ask] Saved clipboard length:', savedClipboard.length);
+
+  const copyOk = simulateCopy();
+  console.log('[quick-ask] simulateCopy result:', copyOk);
+
+  await new Promise((r) => setTimeout(r, 300));
+
+  const afterCopy = clipboard.readText();
+  const selected = afterCopy.trim();
+  console.log('[quick-ask] Clipboard after copy length:', afterCopy.length, 'changed:', afterCopy !== savedClipboard);
+
+  const text = selected || savedClipboard.trim();
+
+  sourceApp = getFrontmostApp();
+  console.log('[quick-ask] Source app:', sourceApp, '| Opening Quick Assist with', text.length, 'chars', selected ? '(selected)' : text ? '(clipboard fallback)' : '(empty)');
+  trackEvent('desktop_quick_ask_opened', { has_selected_text: !!selected });
+  openQuickAsk(text);
+}
+
+let ipcRegistered = false;
+
+function registerIpcHandlers(): void {
+  if (ipcRegistered) return;
+  ipcRegistered = true;
 
   ipcMain.handle(IPC_CHANNELS.QUICK_ASK_TEXT, () => {
     const text = pendingText;
@@ -122,6 +154,7 @@ export function registerQuickAsk(): void {
 
     if (!checkAccessibilityPermission()) return;
 
+    trackEvent('desktop_quick_ask_replaced');
     clipboard.writeText(text);
     destroyQuickAsk();
 
@@ -136,6 +169,24 @@ export function registerQuickAsk(): void {
   });
 }
 
+async function registerShortcut(): Promise<void> {
+  const shortcuts = await getShortcuts();
+  currentShortcut = shortcuts.quickAsk;
+
+  const ok = globalShortcut.register(currentShortcut, () => { quickAskHandler(); });
+  console.log(`[quick-ask] Register ${currentShortcut}: ${ok ? 'OK' : 'FAILED'}`);
+}
+
+export async function registerQuickAsk(): Promise<void> {
+  registerIpcHandlers();
+  await registerShortcut();
+}
+
 export function unregisterQuickAsk(): void {
-  globalShortcut.unregister(SHORTCUT);
+  if (currentShortcut) globalShortcut.unregister(currentShortcut);
+}
+
+export async function reregisterQuickAsk(): Promise<void> {
+  unregisterQuickAsk();
+  await registerShortcut();
 }
