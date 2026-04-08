@@ -790,29 +790,18 @@ async def index_local_folder(
                 compute_unique_identifier_hash,
             )
 
-            pipeline = IndexingPipelineService(session)
-            doc_map = {compute_unique_identifier_hash(cd): cd for cd in connector_docs}
-            documents = await pipeline.prepare_for_indexing(connector_docs)
-
-            # Assign folder_id immediately so docs appear in the correct
-            # folder while still pending/processing (visible via Zero sync).
-            for document in documents:
-                cd = doc_map.get(document.unique_identifier_hash)
-                if cd is None:
-                    continue
+            for cd in connector_docs:
                 rel_path = (cd.metadata or {}).get("file_path", "")
                 parent_dir = str(Path(rel_path).parent) if rel_path else ""
                 if parent_dir == ".":
                     parent_dir = ""
-                document.folder_id = folder_mapping.get(
+                cd.folder_id = folder_mapping.get(
                     parent_dir, folder_mapping.get("")
                 )
-            try:
-                await session.commit()
-            except IntegrityError:
-                await session.rollback()
-                for document in documents:
-                    await session.refresh(document)
+
+            pipeline = IndexingPipelineService(session)
+            doc_map = {compute_unique_identifier_hash(cd): cd for cd in connector_docs}
+            documents = await pipeline.prepare_for_indexing(connector_docs)
 
             llm = await get_user_long_context_llm(session, user_id, search_space_id)
 
@@ -1092,6 +1081,11 @@ async def _index_single_file(
             enable_summary=enable_summary,
         )
 
+        if root_folder_id:
+            connector_doc.folder_id = await _resolve_folder_for_file(
+                session, rel_path, root_folder_id, search_space_id, user_id
+            )
+
         pipeline = IndexingPipelineService(session)
         llm = await get_user_long_context_llm(session, user_id, search_space_id)
         documents = await pipeline.prepare_for_indexing([connector_doc])
@@ -1100,16 +1094,6 @@ async def _index_single_file(
             return 0, 1, None
 
         db_doc = documents[0]
-
-        if root_folder_id:
-            try:
-                db_doc.folder_id = await _resolve_folder_for_file(
-                    session, rel_path, root_folder_id, search_space_id, user_id
-                )
-                await session.commit()
-            except IntegrityError:
-                await session.rollback()
-                await session.refresh(db_doc)
 
         await pipeline.index(db_doc, connector_doc, llm)
 
@@ -1376,25 +1360,20 @@ async def index_uploaded_files(
                     enable_summary=enable_summary,
                 )
 
+                connector_doc.folder_id = await _resolve_folder_for_file(
+                    session,
+                    relative_path,
+                    root_folder_id,
+                    search_space_id,
+                    user_id,
+                )
+
                 documents = await pipeline.prepare_for_indexing([connector_doc])
                 if not documents:
                     failed_count += 1
                     continue
 
                 db_doc = documents[0]
-
-                try:
-                    db_doc.folder_id = await _resolve_folder_for_file(
-                        session,
-                        relative_path,
-                        root_folder_id,
-                        search_space_id,
-                        user_id,
-                    )
-                    await session.commit()
-                except IntegrityError:
-                    await session.rollback()
-                    await session.refresh(db_doc)
 
                 await pipeline.index(db_doc, connector_doc, llm)
 
