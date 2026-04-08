@@ -8,6 +8,7 @@ import {
 } from "@assistant-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
+import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -37,47 +38,20 @@ import { removeChatTabAtom, updateChatTabTitleAtom } from "@/atoms/tabs/tabs.ato
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { ThinkingStepsDataUI } from "@/components/assistant-ui/thinking-steps";
 import { Thread } from "@/components/assistant-ui/thread";
-import { MobileEditorPanel } from "@/components/editor-panel/editor-panel";
-import { MobileHitlEditPanel } from "@/components/hitl-edit-panel/hitl-edit-panel";
-import { MobileReportPanel } from "@/components/report-panel/report-panel";
-import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
-import { useMessagesSync } from "@/hooks/use-messages-sync";
-import { documentsApiService } from "@/lib/apis/documents-api.service";
-import { getBearerToken } from "@/lib/auth-utils";
-import { convertToThreadMessage } from "@/lib/chat/message-utils";
-import {
-	isPodcastGenerating,
-	looksLikePodcastRequest,
-	setActivePodcastTaskId,
-} from "@/lib/chat/podcast-state";
-import {
-	addToolCall,
-	appendText,
-	buildContentForPersistence,
-	buildContentForUI,
-	type ContentPartsState,
-	FrameBatchedUpdater,
-	readSSEStream,
-	type ThinkingStepData,
-	updateThinkingSteps,
-	updateToolCall,
-} from "@/lib/chat/streaming-state";
-import {
-	appendMessage,
-	createThread,
-	getRegenerateUrl,
-	getThreadFull,
-	getThreadMessages,
-	type ThreadRecord,
-} from "@/lib/chat/thread-persistence";
-import { NotFoundError } from "@/lib/error";
-import {
-	trackChatCreated,
-	trackChatError,
-	trackChatMessageSent,
-	trackChatResponseReceived,
-} from "@/lib/posthog/events";
 import Loading from "../loading";
+
+const MobileEditorPanel = dynamic(
+	() => import("@/components/editor-panel/editor-panel").then((m) => ({ default: m.MobileEditorPanel })),
+	{ ssr: false }
+);
+const MobileHitlEditPanel = dynamic(
+	() => import("@/components/hitl-edit-panel/hitl-edit-panel").then((m) => ({ default: m.MobileHitlEditPanel })),
+	{ ssr: false }
+);
+const MobileReportPanel = dynamic(
+	() => import("@/components/report-panel/report-panel").then((m) => ({ default: m.MobileReportPanel })),
+	{ ssr: false }
+);
 
 /**
  * After a tool produces output, mark any previously-decided interrupt tool
