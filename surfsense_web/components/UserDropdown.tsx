@@ -66,7 +66,7 @@ export function UserDropdown({
 					</Avatar>
 				</Button>
 			</DropdownMenuTrigger>
-			<DropdownMenuContent className="w-44 md:w-56" align="end" forceMount>
+			<DropdownMenuContent className="w-44 md:w-56" align="end">
 				<DropdownMenuLabel className="font-normal p-2 md:p-3">
 					<div className="flex flex-col space-y-1">
 						<p className="text-xs md:text-sm font-medium leading-none">{user.name}</p>
