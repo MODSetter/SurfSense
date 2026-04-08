@@ -156,6 +156,7 @@ export function LocalLoginForm() {
 					<input
 						id="email"
 						type="email"
+						autoComplete="username"
 						required
 						placeholder="you@example.com"
 						value={username}
@@ -177,6 +178,7 @@ export function LocalLoginForm() {
 						<input
 							id="password"
 							type={showPassword ? "text" : "password"}
+							autoComplete="current-password"
 							required
 							placeholder="Enter your password"
 							value={password}

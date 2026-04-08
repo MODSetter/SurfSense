@@ -66,6 +66,7 @@ export const ConnectorDialogHeader: FC<ConnectorDialogHeaderProps> = ({
 						<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-500 dark:text-gray-500" />
 						<input
 							type="text"
+							autoComplete="off"
 							placeholder="Search"
 							className={cn(
 								"w-full bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10 focus:bg-slate-400/10 dark:focus:bg-white/10 border border-border rounded-xl pl-9 py-2 text-sm transition-all outline-none placeholder:text-muted-foreground/50",
