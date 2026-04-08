@@ -89,21 +89,9 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 
 	// Permissions
 	const { data: access } = useAtomValue(myAccessAtom);
-	const canCreate = useMemo(() => {
-		if (!access) return false;
-		if (access.is_owner) return true;
-		return access.permissions?.includes("llm_configs:create") ?? false;
-	}, [access]);
-	const canUpdate = useMemo(() => {
-		if (!access) return false;
-		if (access.is_owner) return true;
-		return access.permissions?.includes("llm_configs:update") ?? false;
-	}, [access]);
-	const canDelete = useMemo(() => {
-		if (!access) return false;
-		if (access.is_owner) return true;
-		return access.permissions?.includes("llm_configs:delete") ?? false;
-	}, [access]);
+	const canCreate = !!access && (access.is_owner || (access.permissions?.includes("llm_configs:create") ?? false));
+	const canUpdate = !!access && (access.is_owner || (access.permissions?.includes("llm_configs:update") ?? false));
+	const canDelete = !!access && (access.is_owner || (access.permissions?.includes("llm_configs:delete") ?? false));
 	const isReadOnly = !canCreate && !canUpdate && !canDelete;
 
 	// Local state
