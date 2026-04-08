@@ -257,12 +257,18 @@ _MEMORY_TOOL_INSTRUCTIONS: dict[str, dict[str, str]] = {
     `limit` attributes show your current usage and the maximum allowed size.
   - This is your curated long-term memory — the distilled essence of what you know about
     the user, not raw conversation logs.
-  - Call update_memory ONLY when the user shares genuinely important long-term information:
+  - **If <user_memory> has persisted="false"**, the memory has NOT been saved to the
+    database yet (it is a seed).  You MUST call update_memory during this conversation to
+    persist it, merging in any new information you learn from the user.
+  - Call update_memory when the user shares long-term information about themselves,
+    whether explicitly or casually as part of a request:
+    * Identity & background mentioned in passing: "I'm a student", "at my company we...",
+      "I'm working on a React app", "I'm a data scientist"
     * Explicit requests: "remember this", "keep in mind", "note that"
     * Preferences: "I prefer X", "I like Y", "always do Z"
     * Facts: name, role, company, expertise, current projects
     * Standing instructions: response format, communication style
-  - Do NOT call for trivial, temporary, or conversation-specific information.
+  - Skip truly ephemeral info (one-off questions, greetings, session logistics).
   - Args:
     - updated_memory: The FULL updated markdown document (not a diff).
       Merge new facts with existing ones, update contradictions, remove outdated entries.
@@ -281,12 +287,13 @@ _MEMORY_TOOL_INSTRUCTIONS: dict[str, dict[str, str]] = {
   - Your current team memory is already in <team_memory> in your context.  The `chars`
     and `limit` attributes show current usage and the maximum allowed size.
   - This is the team's curated long-term memory — decisions, conventions, key facts.
-  - Call update_memory ONLY when the team shares genuinely important long-term information:
-    * Team decisions: "let's remember we decided to use X"
+  - Call update_memory when the team shares long-term information, whether explicitly
+    or as part of a broader discussion:
+    * Team decisions: "let's use X", "we decided to go with Y"
     * Conventions: coding standards, processes, naming patterns
     * Key facts: where things are, how things work, team structure
     * Priorities: active projects, deadlines, blockers
-  - Do NOT call for trivial, temporary, or conversation-specific information.
+  - Skip truly ephemeral info (one-off questions, greetings, session logistics).
   - Args:
     - updated_memory: The FULL updated markdown document (not a diff).
       Merge new facts with existing ones, update contradictions, remove outdated entries.
@@ -305,12 +312,20 @@ _MEMORY_TOOL_INSTRUCTIONS: dict[str, dict[str, str]] = {
 _MEMORY_TOOL_EXAMPLES: dict[str, dict[str, str]] = {
     "update_memory": {
         "private": """
+- <user_memory persisted="false"> contains "## About the user\\n- Name: Alex"
+  User: "I'm a university student, explain astrophage to me"
+  - Memory is not yet persisted AND the user casually shared that they are a student.
+    You MUST call update_memory to persist the seed plus the new fact:
+    update_memory(updated_memory="## About the user\\n- Name: Alex\\n- University student\\n")
 - User: "Remember that I prefer TypeScript over JavaScript"
   - Timeless preference, no date needed.  You see the current <user_memory> and merge:
     update_memory(updated_memory="## About the user\\n- Senior developer\\n\\n## Preferences\\n- Prefers TypeScript over JavaScript\\n...")
 - User: "I actually moved to Google last month"
   - Fact that changes over time, include date:
     update_memory(updated_memory="## About the user\\n- Senior developer at Google (since 2026-03, previously Acme Corp)\\n...")
+- User: "I'm building a SaaS app with Next.js and Supabase"
+  - Implicit project info shared as context. Save it:
+    update_memory(updated_memory="## About the user\\n- Name: Alex\\n\\n## Current context\\n- Building a SaaS app with Next.js and Supabase (2026-04)\\n")
 """,
         "shared": """
 - User: "Let's remember that we decided to use GraphQL"

@@ -59,11 +59,12 @@ class MemoryInjectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
 
         async with shielded_async_session() as session:
             if self.user_id is not None:
-                user_memory = await self._load_user_memory(session)
+                user_memory, is_persisted = await self._load_user_memory(session)
                 if user_memory:
                     chars = len(user_memory)
+                    persisted = "true" if is_persisted else "false"
                     memory_blocks.append(
-                        f'<user_memory chars="{chars}" limit="{MEMORY_HARD_LIMIT}">\n'
+                        f'<user_memory chars="{chars}" limit="{MEMORY_HARD_LIMIT}" persisted="{persisted}">\n'
                         f"{user_memory}\n"
                         f"</user_memory>"
                     )
@@ -90,7 +91,16 @@ class MemoryInjectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
 
         return {"messages": new_messages}
 
-    async def _load_user_memory(self, session: AsyncSession) -> str | None:
+    async def _load_user_memory(
+        self, session: AsyncSession
+    ) -> tuple[str | None, bool]:
+        """Return (memory_content, is_persisted).
+
+        When the user has saved memory in the database, ``is_persisted`` is
+        ``True``.  When we fall back to a seed (first-name only), it is
+        ``False`` — the system prompt instructs the LLM to call
+        ``update_memory`` once to persist it.
+        """
         try:
             result = await session.execute(
                 select(User.memory_md, User.display_name).where(
@@ -99,25 +109,21 @@ class MemoryInjectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             )
             row = result.one_or_none()
             if row is None:
-                return None
+                return None, True
 
             memory_md, display_name = row
 
             if memory_md:
-                return memory_md
+                return memory_md, True
 
-            # No saved memory yet — seed with the user's first name so the
-            # LLM knows who it's talking to from the very first turn.  The
-            # name is only injected, not persisted; the LLM will include it
-            # naturally when it first calls update_memory.
             if display_name:
                 first_name = display_name.split()[0]
-                return f"## About the user\n- Name: {first_name}"
+                return f"## About the user\n- Name: {first_name}", False
 
-            return None
+            return None, True
         except Exception:
             logger.exception("Failed to load user memory")
-            return None
+            return None, True
 
     async def _load_team_memory(self, session: AsyncSession) -> str | None:
         try:
