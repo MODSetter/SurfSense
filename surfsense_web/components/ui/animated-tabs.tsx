@@ -310,7 +310,8 @@ const TabsList = forwardRef<
 		}, [updateActiveIndicator]);
 
 		useEffect(() => {
-			requestAnimationFrame(updateActiveIndicator);
+			const id = requestAnimationFrame(updateActiveIndicator);
+			return () => cancelAnimationFrame(id);
 		}, [updateActiveIndicator]);
 
 		const scrollTabToCenter = useCallback((index: number) => {
