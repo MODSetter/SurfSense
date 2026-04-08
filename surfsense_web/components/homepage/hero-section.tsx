@@ -59,13 +59,15 @@ const TAB_ITEMS = [
 	},
 	{
 		title: "Extreme Assist",
-		description: "Get inline writing suggestions powered by your knowledge base as you type in any app.",
+		description:
+			"Get inline writing suggestions powered by your knowledge base as you type in any app.",
 		src: "/homepage/hero_tutorial/extreme_assist.mp4",
 		featured: true,
 	},
 	{
 		title: "Watch Local Folder",
-		description: "Watch a local folder and automatically sync file changes to your knowledge base. Works great with Obsidian vaults.",
+		description:
+			"Watch a local folder and automatically sync file changes to your knowledge base. Works great with Obsidian vaults.",
 		src: "/homepage/hero_tutorial/folder_watch.mp4",
 		featured: true,
 	},
@@ -84,7 +86,8 @@ const TAB_ITEMS = [
 	// },
 	{
 		title: "Video & Presentations",
-		description: "Create short videos and editable presentations with AI-generated visuals and narration from your sources.",
+		description:
+			"Create short videos and editable presentations with AI-generated visuals and narration from your sources.",
 		src: "/homepage/hero_tutorial/video_gen_surf.mp4",
 		featured: false,
 	},
@@ -343,7 +346,12 @@ function DownloadButton() {
 						</DropdownMenuItem>
 					))}
 					<DropdownMenuItem asChild>
-						<a href={fallbackUrl} target="_blank" rel="noopener noreferrer" className="cursor-pointer">
+						<a
+							href={fallbackUrl}
+							target="_blank"
+							rel="noopener noreferrer"
+							className="cursor-pointer"
+						>
 							All downloads
 						</a>
 					</DropdownMenuItem>
@@ -498,4 +506,3 @@ const TabVideo = memo(function TabVideo({ src }: { src: string }) {
 });
 
 const GITHUB_RELEASES_URL = "https://github.com/MODSetter/SurfSense/releases/latest";
-

@@ -17,6 +17,7 @@ class ConnectorDocument(BaseModel):
     metadata: dict = {}
     connector_id: int | None = None
     created_by_id: str
+    folder_id: int | None = None
 
     @field_validator("title", "source_markdown", "unique_id", "created_by_id")
     @classmethod

@@ -25,16 +25,38 @@ export interface ConnectFormProps {
 export type ConnectFormComponent = FC<ConnectFormProps>;
 
 const formMap: Record<string, () => Promise<{ default: FC<ConnectFormProps> }>> = {
-	TAVILY_API: () => import("./components/tavily-api-connect-form").then(m => ({ default: m.TavilyApiConnectForm })),
-	LINKUP_API: () => import("./components/linkup-api-connect-form").then(m => ({ default: m.LinkupApiConnectForm })),
-	BAIDU_SEARCH_API: () => import("./components/baidu-search-api-connect-form").then(m => ({ default: m.BaiduSearchApiConnectForm })),
-	ELASTICSEARCH_CONNECTOR: () => import("./components/elasticsearch-connect-form").then(m => ({ default: m.ElasticsearchConnectForm })),
-	BOOKSTACK_CONNECTOR: () => import("./components/bookstack-connect-form").then(m => ({ default: m.BookStackConnectForm })),
-	GITHUB_CONNECTOR: () => import("./components/github-connect-form").then(m => ({ default: m.GithubConnectForm })),
-	LUMA_CONNECTOR: () => import("./components/luma-connect-form").then(m => ({ default: m.LumaConnectForm })),
-	CIRCLEBACK_CONNECTOR: () => import("./components/circleback-connect-form").then(m => ({ default: m.CirclebackConnectForm })),
-	MCP_CONNECTOR: () => import("./components/mcp-connect-form").then(m => ({ default: m.MCPConnectForm })),
-	OBSIDIAN_CONNECTOR: () => import("./components/obsidian-connect-form").then(m => ({ default: m.ObsidianConnectForm })),
+	TAVILY_API: () =>
+		import("./components/tavily-api-connect-form").then((m) => ({
+			default: m.TavilyApiConnectForm,
+		})),
+	LINKUP_API: () =>
+		import("./components/linkup-api-connect-form").then((m) => ({
+			default: m.LinkupApiConnectForm,
+		})),
+	BAIDU_SEARCH_API: () =>
+		import("./components/baidu-search-api-connect-form").then((m) => ({
+			default: m.BaiduSearchApiConnectForm,
+		})),
+	ELASTICSEARCH_CONNECTOR: () =>
+		import("./components/elasticsearch-connect-form").then((m) => ({
+			default: m.ElasticsearchConnectForm,
+		})),
+	BOOKSTACK_CONNECTOR: () =>
+		import("./components/bookstack-connect-form").then((m) => ({
+			default: m.BookStackConnectForm,
+		})),
+	GITHUB_CONNECTOR: () =>
+		import("./components/github-connect-form").then((m) => ({ default: m.GithubConnectForm })),
+	LUMA_CONNECTOR: () =>
+		import("./components/luma-connect-form").then((m) => ({ default: m.LumaConnectForm })),
+	CIRCLEBACK_CONNECTOR: () =>
+		import("./components/circleback-connect-form").then((m) => ({
+			default: m.CirclebackConnectForm,
+		})),
+	MCP_CONNECTOR: () =>
+		import("./components/mcp-connect-form").then((m) => ({ default: m.MCPConnectForm })),
+	OBSIDIAN_CONNECTOR: () =>
+		import("./components/obsidian-connect-form").then((m) => ({ default: m.ObsidianConnectForm })),
 };
 
 const componentCache = new Map<string, ConnectFormComponent>();

@@ -20,7 +20,10 @@ import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
 
 const GenerateVideoPresentationToolUI = dynamic(
-	() => import("@/components/tool-ui/video-presentation").then((m) => ({ default: m.GenerateVideoPresentationToolUI })),
+	() =>
+		import("@/components/tool-ui/video-presentation").then((m) => ({
+			default: m.GenerateVideoPresentationToolUI,
+		})),
 	{ ssr: false }
 );
 
