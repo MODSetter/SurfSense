@@ -9,7 +9,7 @@ export const folder = z.object({
 	created_by_id: z.string().nullable().optional(),
 	created_at: z.string(),
 	updated_at: z.string(),
-	metadata: z.record(z.unknown()).nullable().optional(),
+	metadata: z.record(z.string(), z.any()).nullable().optional(),
 });
 
 export const folderCreateRequest = z.object({

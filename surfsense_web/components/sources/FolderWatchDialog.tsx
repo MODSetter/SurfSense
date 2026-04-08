@@ -228,7 +228,7 @@ export function FolderWatchDialog({
 							<div className="flex gap-2">
 								{submitting ? (
 									<>
-										<Button variant="outline" className="flex-1" onClick={handleCancel}>
+										<Button variant="secondary" className="flex-1" onClick={handleCancel}>
 											Cancel
 										</Button>
 										<Button className="flex-1 relative" disabled>
