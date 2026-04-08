@@ -28,7 +28,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
-import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type FC, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
 	agentToolsAtom,
@@ -338,11 +338,13 @@ const Composer: FC = () => {
 	const [showPromptPicker, setShowPromptPicker] = useState(false);
 	const [mentionQuery, setMentionQuery] = useState("");
 	const [actionQuery, setActionQuery] = useState("");
+	const [containerPos, setContainerPos] = useState({ bottom: "200px", left: "50%", top: "auto" });
 	const editorRef = useRef<InlineMentionEditorRef>(null);
 	const editorContainerRef = useRef<HTMLDivElement>(null);
 	const composerBoxRef = useRef<HTMLDivElement>(null);
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
 	const promptPickerRef = useRef<PromptPickerRef>(null);
+	const viewportRef = useRef<Element | null>(null);
 	const { search_space_id, chat_id } = useParams();
 	const aui = useAui();
 	const threadViewportStore = useThreadViewportStore();
@@ -353,6 +355,36 @@ const Composer: FC = () => {
 		return () => {
 			submitCleanupRef.current?.();
 		};
+	}, []);
+
+	// Store viewport element reference on mount
+	useEffect(() => {
+		viewportRef.current = document.querySelector(".aui-thread-viewport");
+	}, []);
+
+	// Compute picker positions using ResizeObserver to avoid layout reads during render
+	useLayoutEffect(() => {
+		if (!editorContainerRef.current) return;
+
+		const updatePosition = () => {
+			if (!editorContainerRef.current) return;
+			const rect = editorContainerRef.current.getBoundingClientRect();
+			const composerRect = composerBoxRef.current?.getBoundingClientRect();
+			setContainerPos({
+				bottom: `${window.innerHeight - rect.top + 8}px`,
+				left: `${rect.left}px`,
+				top: composerRect ? `${composerRect.bottom + 8}px` : "auto",
+			});
+		};
+
+		updatePosition();
+		const ro = new ResizeObserver(updatePosition);
+		ro.observe(editorContainerRef.current);
+		if (composerBoxRef.current) {
+			ro.observe(composerBoxRef.current);
+		}
+
+		return () => ro.disconnect();
 	}, []);
 
 	const electronAPI = useElectronAPI();
@@ -572,7 +604,7 @@ const Composer: FC = () => {
 		if (isThreadRunning || isBlockedByOtherUser) return;
 		if (showDocumentPopover) return;
 
-		const viewportEl = document.querySelector(".aui-thread-viewport");
+		const viewportEl = viewportRef.current;
 		const heightBefore = viewportEl?.scrollHeight ?? 0;
 
 		aui.composer().send();
@@ -599,7 +631,7 @@ const Composer: FC = () => {
 
 		const pollAndScroll = () => {
 			if (cancelled) return;
-			const el = document.querySelector(".aui-thread-viewport");
+			const el = viewportRef.current;
 			if (el) {
 				const h = el.scrollHeight;
 				if (h !== lastHeight) {
@@ -723,12 +755,8 @@ const Composer: FC = () => {
 							initialSelectedDocuments={mentionedDocuments}
 							externalSearch={mentionQuery}
 							containerStyle={{
-								bottom: editorContainerRef.current
-									? `${window.innerHeight - editorContainerRef.current.getBoundingClientRect().top + 8}px`
-									: "200px",
-								left: editorContainerRef.current
-									? `${editorContainerRef.current.getBoundingClientRect().left}px`
-									: "50%",
+								bottom: containerPos.bottom,
+								left: containerPos.left,
 							}}
 						/>,
 						document.body
@@ -746,16 +774,10 @@ const Composer: FC = () => {
 							externalSearch={actionQuery}
 							containerStyle={{
 								position: "fixed",
-								...(clipboardInitialText && composerBoxRef.current
-									? { top: `${composerBoxRef.current.getBoundingClientRect().bottom + 8}px` }
-									: {
-											bottom: editorContainerRef.current
-												? `${window.innerHeight - editorContainerRef.current.getBoundingClientRect().top + 8}px`
-												: "200px",
-										}),
-								left: editorContainerRef.current
-									? `${editorContainerRef.current.getBoundingClientRect().left}px`
-									: "50%",
+								...(clipboardInitialText
+									? { top: containerPos.top }
+									: { bottom: containerPos.bottom }),
+								left: containerPos.left,
 								zIndex: 50,
 							}}
 						/>,
