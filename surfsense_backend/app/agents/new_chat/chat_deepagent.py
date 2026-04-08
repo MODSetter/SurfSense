@@ -38,6 +38,7 @@ from app.agents.new_chat.llm_config import AgentConfig
 from app.agents.new_chat.middleware import (
     DedupHITLToolCallsMiddleware,
     KnowledgeBaseSearchMiddleware,
+    MemoryInjectionMiddleware,
     SurfSenseFilesystemMiddleware,
 )
 from app.agents.new_chat.system_prompt import (
@@ -425,9 +426,16 @@ async def create_surfsense_deep_agent(
     )
 
     # -- Build the middleware stack (mirrors create_deep_agent internals) ------
+    _memory_middleware = MemoryInjectionMiddleware(
+        user_id=user_id,
+        search_space_id=search_space_id,
+        thread_visibility=visibility,
+    )
+
     # General-purpose subagent middleware
     gp_middleware = [
         TodoListMiddleware(),
+        _memory_middleware,
         SurfSenseFilesystemMiddleware(
             search_space_id=search_space_id,
             created_by_id=user_id,
@@ -447,6 +455,7 @@ async def create_surfsense_deep_agent(
     # Main agent middleware
     deepagent_middleware = [
         TodoListMiddleware(),
+        _memory_middleware,
         KnowledgeBaseSearchMiddleware(
             llm=llm,
             search_space_id=search_space_id,

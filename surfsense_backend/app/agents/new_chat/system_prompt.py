@@ -250,113 +250,75 @@ _TOOL_INSTRUCTIONS["web_search"] = """
 # Memory tool instructions have private and shared variants.
 # We store them keyed as "save_memory" / "recall_memory" with sub-keys.
 _MEMORY_TOOL_INSTRUCTIONS: dict[str, dict[str, str]] = {
-    "save_memory": {
+    "update_memory": {
         "private": """
-- save_memory: Save facts, preferences, or context for personalized responses.
-  - Use this when the user explicitly or implicitly shares information worth remembering.
-  - Trigger scenarios:
-    * User says "remember this", "keep this in mind", "note that", or similar
-    * User shares personal preferences (e.g., "I prefer Python over JavaScript")
-    * User shares facts about themselves (e.g., "I'm a senior developer at Company X")
-    * User gives standing instructions (e.g., "always respond in bullet points")
-    * User shares project context (e.g., "I'm working on migrating our codebase to TypeScript")
+- update_memory: Update your personal memory document about the user.
+  - Your current memory is already in <user_memory> in your context.  The `chars` and
+    `limit` attributes show your current usage and the maximum allowed size.
+  - This is your curated long-term memory — the distilled essence of what you know about
+    the user, not raw conversation logs.
+  - Call update_memory ONLY when the user shares genuinely important long-term information:
+    * Explicit requests: "remember this", "keep in mind", "note that"
+    * Preferences: "I prefer X", "I like Y", "always do Z"
+    * Facts: name, role, company, expertise, current projects
+    * Standing instructions: response format, communication style
+  - Do NOT call for trivial, temporary, or conversation-specific information.
   - Args:
-    - content: The fact/preference to remember. Phrase it clearly:
-      * "User prefers dark mode for all interfaces"
-      * "User is a senior Python developer"
-      * "User wants responses in bullet point format"
-      * "User is working on project called ProjectX"
-    - category: Type of memory:
-      * "preference": User preferences (coding style, tools, formats)
-      * "fact": Facts about the user (role, expertise, background)
-      * "instruction": Standing instructions (response format, communication style)
-      * "context": Current context (ongoing projects, goals, challenges)
-  - Returns: Confirmation of saved memory
-  - IMPORTANT: Only save information that would be genuinely useful for future conversations.
-    Don't save trivial or temporary information.
+    - updated_memory: The FULL updated markdown document (not a diff).
+      Merge new facts with existing ones, update contradictions, remove outdated entries.
+      Treat every update as a curation pass — consolidate, don't just append.
+      Include inline dates (YYYY-MM) on entries where temporal context matters (facts that
+      may change, decisions, context).  Skip dates on timeless preferences and instructions.
+  - Keep it concise and well under the character limit shown in <user_memory>.
+  - Organize using markdown sections as appropriate (suggested but not required):
+    ## About the user — name, role, background, company (with date if it may change)
+    ## Preferences — languages, tools, frameworks, response style
+    ## Instructions — standing instructions, things to always/never do
+    ## Current context — ongoing projects, goals, deadlines (with date)
 """,
         "shared": """
-- save_memory: Save a fact, preference, or context to the team's shared memory for future reference.
-  - Use this when the user or a team member says "remember this", "keep this in mind", or similar in this shared chat.
-  - Use when the team agrees on something to remember (e.g., decisions, conventions).
-  - Someone shares a preference or fact that should be visible to the whole team.
-  - The saved information will be available in future shared conversations in this space.
+- update_memory: Update the team's shared memory document for this search space.
+  - Your current team memory is already in <team_memory> in your context.  The `chars`
+    and `limit` attributes show current usage and the maximum allowed size.
+  - This is the team's curated long-term memory — decisions, conventions, key facts.
+  - Call update_memory ONLY when the team shares genuinely important long-term information:
+    * Team decisions: "let's remember we decided to use X"
+    * Conventions: coding standards, processes, naming patterns
+    * Key facts: where things are, how things work, team structure
+    * Priorities: active projects, deadlines, blockers
+  - Do NOT call for trivial, temporary, or conversation-specific information.
   - Args:
-    - content: The fact/preference/context to remember. Phrase it clearly, e.g. "API keys are stored in Vault", "The team prefers weekly demos on Fridays"
-    - category: Type of memory. One of:
-      * "preference": Team or workspace preferences
-      * "fact": Facts the team agreed on (e.g., processes, locations)
-      * "instruction": Standing instructions for the team
-      * "context": Current context (e.g., ongoing projects, goals)
-  - Returns: Confirmation of saved memory; returned context may include who added it (added_by).
-  - IMPORTANT: Only save information that would be genuinely useful for future team conversations in this space.
-""",
-    },
-    "recall_memory": {
-        "private": """
-- recall_memory: Retrieve relevant memories about the user for personalized responses.
-  - Use this to access stored information about the user.
-  - Trigger scenarios:
-    * You need user context to give a better, more personalized answer
-    * User references something they mentioned before
-    * User asks "what do you know about me?" or similar
-    * Personalization would significantly improve response quality
-    * Before making recommendations that should consider user preferences
-  - Args:
-    - query: Optional search query to find specific memories (e.g., "programming preferences")
-    - category: Optional filter by category ("preference", "fact", "instruction", "context")
-    - top_k: Number of memories to retrieve (default: 5)
-  - Returns: Relevant memories formatted as context
-  - IMPORTANT: Use the recalled memories naturally in your response without explicitly
-    stating "Based on your memory..." - integrate the context seamlessly.
-""",
-        "shared": """
-- recall_memory: Recall relevant team memories for this space to provide contextual responses.
-  - Use when you need team context to answer (e.g., "where do we store X?", "what did we decide about Y?").
-  - Use when someone asks about something the team agreed to remember.
-  - Use when team preferences or conventions would improve the response.
-  - Args:
-    - query: Optional search query to find specific memories. If not provided, returns the most recent memories.
-    - category: Optional filter by category ("preference", "fact", "instruction", "context")
-    - top_k: Number of memories to retrieve (default: 5, max: 20)
-  - Returns: Relevant team memories and formatted context (may include added_by). Integrate naturally without saying "Based on team memory...".
+    - updated_memory: The FULL updated markdown document (not a diff).
+      Merge new facts with existing ones, update contradictions, remove outdated entries.
+      Treat every update as a curation pass — consolidate, don't just append.
+      Include inline dates (YYYY-MM) on decisions and time-sensitive entries.
+  - Keep it concise and well under the character limit shown in <team_memory>.
+  - Organize using markdown sections as appropriate (suggested but not required):
+    ## Team decisions — agreed-upon choices with rationale and date
+    ## Conventions — coding standards, tools, processes, naming patterns
+    ## Key facts — where things are, how things work, team structure
+    ## Current priorities — active projects, deadlines, blockers
 """,
     },
 }
 
 _MEMORY_TOOL_EXAMPLES: dict[str, dict[str, str]] = {
-    "save_memory": {
+    "update_memory": {
         "private": """
 - User: "Remember that I prefer TypeScript over JavaScript"
-  - Call: `save_memory(content="User prefers TypeScript over JavaScript for development", category="preference")`
-- User: "I'm a data scientist working on ML pipelines"
-  - Call: `save_memory(content="User is a data scientist working on ML pipelines", category="fact")`
-- User: "Always give me code examples in Python"
-  - Call: `save_memory(content="User wants code examples to be written in Python", category="instruction")`
+  - Timeless preference, no date needed.  You see the current <user_memory> and merge:
+    update_memory(updated_memory="## About the user\\n- Senior developer\\n\\n## Preferences\\n- Prefers TypeScript over JavaScript\\n...")
+- User: "I actually moved to Google last month"
+  - Fact that changes over time, include date:
+    update_memory(updated_memory="## About the user\\n- Senior developer at Google (since 2026-03, previously Acme Corp)\\n...")
 """,
         "shared": """
-- User: "Remember that API keys are stored in Vault"
-  - Call: `save_memory(content="API keys are stored in Vault", category="fact")`
-- User: "Let's remember that the team prefers weekly demos on Fridays"
-  - Call: `save_memory(content="The team prefers weekly demos on Fridays", category="preference")`
-""",
-    },
-    "recall_memory": {
-        "private": """
-- User: "What programming language should I use for this project?"
-  - First recall: `recall_memory(query="programming language preferences")`
-  - Then provide a personalized recommendation based on their preferences
-- User: "What do you know about me?"
-  - Call: `recall_memory(top_k=10)`
-  - Then summarize the stored memories
-""",
-        "shared": """
-- User: "What did we decide about the release date?"
-  - First recall: `recall_memory(query="release date decision")`
-  - Then answer based on the team memories
-- User: "Where do we document onboarding?"
-  - Call: `recall_memory(query="onboarding documentation")`
-  - Then answer using the recalled team context
+- User: "Let's remember that we decided to use GraphQL"
+  - Decision with date:
+    update_memory(updated_memory="## Team decisions\\n- 2026-04: Adopted GraphQL over REST for new APIs\\n...")
+- User: "Our deploy process uses Railway auto-deploys"
+  - Key fact, no date needed:
+    update_memory(updated_memory="## Key facts\\n- Deploy pipeline: git push -> Railway auto-deploys in ~3min\\n...")
 """,
     },
 }
@@ -456,8 +418,7 @@ _ALL_TOOL_NAMES_ORDERED = [
     "generate_report",
     "generate_image",
     "scrape_webpage",
-    "save_memory",
-    "recall_memory",
+    "update_memory",
 ]
 
 
