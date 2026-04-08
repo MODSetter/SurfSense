@@ -354,7 +354,7 @@ export const FolderNode = React.memo(function FolderNode({
 									className="hidden sm:inline-flex h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
 									onClick={(e) => e.stopPropagation()}
 								>
-									<MoreHorizontal className="h-3.5 w-3.5" />
+									<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
 								</Button>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align="end" className="w-40">
