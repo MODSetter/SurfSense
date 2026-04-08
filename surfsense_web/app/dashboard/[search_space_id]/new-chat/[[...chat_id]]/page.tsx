@@ -38,6 +38,43 @@ import { removeChatTabAtom, updateChatTabTitleAtom } from "@/atoms/tabs/tabs.ato
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { ThinkingStepsDataUI } from "@/components/assistant-ui/thinking-steps";
 import { Thread } from "@/components/assistant-ui/thread";
+import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
+import { useMessagesSync } from "@/hooks/use-messages-sync";
+import { getBearerToken } from "@/lib/auth-utils";
+import { documentsApiService } from "@/lib/apis/documents-api.service";
+import {
+	type ContentPartsState,
+	FrameBatchedUpdater,
+	type ThinkingStepData,
+	addToolCall,
+	appendText,
+	buildContentForPersistence,
+	buildContentForUI,
+	readSSEStream,
+	updateThinkingSteps,
+	updateToolCall,
+} from "@/lib/chat/streaming-state";
+import { convertToThreadMessage } from "@/lib/chat/message-utils";
+import {
+	isPodcastGenerating,
+	looksLikePodcastRequest,
+	setActivePodcastTaskId,
+} from "@/lib/chat/podcast-state";
+import {
+	type ThreadRecord,
+	appendMessage,
+	createThread,
+	getRegenerateUrl,
+	getThreadFull,
+	getThreadMessages,
+} from "@/lib/chat/thread-persistence";
+import { NotFoundError } from "@/lib/error";
+import {
+	trackChatCreated,
+	trackChatError,
+	trackChatMessageSent,
+	trackChatResponseReceived,
+} from "@/lib/posthog/events";
 import Loading from "../loading";
 
 const MobileEditorPanel = dynamic(
