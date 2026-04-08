@@ -261,7 +261,7 @@ const ConnectToolsBanner: FC<{ isThreadEmpty: boolean }> = ({ isThreadEmpty }) =
 			<div className="flex w-full items-center gap-2.5 px-4 py-2.5">
 				<button
 					type="button"
-					className="flex flex-1 items-center gap-2.5 text-left cursor-pointer"
+					className="flex flex-1 items-center gap-2.5 text-left cursor-pointer select-none"
 					onClick={() => setConnectorDialogOpen(true)}
 				>
 					<Unplug className="size-4 text-muted-foreground shrink-0" />

@@ -79,7 +79,9 @@ def upgrade() -> None:
             sa.Column("description", sa.String(500), nullable=True),
             sa.Column(
                 "provider",
-                PG_ENUM(*VISION_PROVIDER_VALUES, name="visionprovider", create_type=False),
+                PG_ENUM(
+                    *VISION_PROVIDER_VALUES, name="visionprovider", create_type=False
+                ),
                 nullable=False,
             ),
             sa.Column("custom_provider", sa.String(100), nullable=True),
@@ -100,9 +102,7 @@ def upgrade() -> None:
             sa.ForeignKeyConstraint(
                 ["search_space_id"], ["searchspaces.id"], ondelete="CASCADE"
             ),
-            sa.ForeignKeyConstraint(
-                ["user_id"], ["user.id"], ondelete="CASCADE"
-            ),
+            sa.ForeignKeyConstraint(["user_id"], ["user.id"], ondelete="CASCADE"),
         )
         op.execute(
             "CREATE INDEX IF NOT EXISTS ix_vision_llm_configs_name "
@@ -117,12 +117,19 @@ def upgrade() -> None:
     existing_columns = [
         col["name"] for col in sa.inspect(connection).get_columns("searchspaces")
     ]
-    if "vision_llm_id" in existing_columns and "vision_llm_config_id" not in existing_columns:
-        op.alter_column("searchspaces", "vision_llm_id", new_column_name="vision_llm_config_id")
+    if (
+        "vision_llm_id" in existing_columns
+        and "vision_llm_config_id" not in existing_columns
+    ):
+        op.alter_column(
+            "searchspaces", "vision_llm_id", new_column_name="vision_llm_config_id"
+        )
     elif "vision_llm_config_id" not in existing_columns:
         op.add_column(
             "searchspaces",
-            sa.Column("vision_llm_config_id", sa.Integer(), nullable=True, server_default="0"),
+            sa.Column(
+                "vision_llm_config_id", sa.Integer(), nullable=True, server_default="0"
+            ),
         )
 
     # 4. Add vision config permissions to existing system roles
@@ -181,7 +188,9 @@ def downgrade() -> None:
         col["name"] for col in sa.inspect(connection).get_columns("searchspaces")
     ]
     if "vision_llm_config_id" in existing_columns:
-        op.alter_column("searchspaces", "vision_llm_config_id", new_column_name="vision_llm_id")
+        op.alter_column(
+            "searchspaces", "vision_llm_config_id", new_column_name="vision_llm_id"
+        )
 
     # Drop table and enum
     op.execute("DROP INDEX IF EXISTS ix_vision_llm_configs_search_space_id")

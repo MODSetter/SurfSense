@@ -92,8 +92,9 @@ def test_non_document_extensions_are_not_supported(filename):
 # ---------------------------------------------------------------------------
 
 
-def test_union_equals_all_three_sets():
+def test_union_includes_all_parser_extension_sets():
     from app.utils.file_extensions import (
+        AZURE_DI_DOCUMENT_EXTENSIONS,
         DOCLING_DOCUMENT_EXTENSIONS,
         DOCUMENT_EXTENSIONS,
         LLAMAPARSE_DOCUMENT_EXTENSIONS,
@@ -104,6 +105,7 @@ def test_union_equals_all_three_sets():
         DOCLING_DOCUMENT_EXTENSIONS
         | LLAMAPARSE_DOCUMENT_EXTENSIONS
         | UNSTRUCTURED_DOCUMENT_EXTENSIONS
+        | AZURE_DI_DOCUMENT_EXTENSIONS
     )
     assert expected == DOCUMENT_EXTENSIONS
 

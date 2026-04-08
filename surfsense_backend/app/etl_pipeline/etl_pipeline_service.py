@@ -1,3 +1,5 @@
+import logging
+
 from app.config import config as app_config
 from app.etl_pipeline.etl_document import EtlRequest, EtlResult
 from app.etl_pipeline.exceptions import (
@@ -75,11 +77,7 @@ class EtlPipelineService:
 
             content = await parse_with_unstructured(request.file_path)
         elif etl_service == "LLAMACLOUD":
-            from app.etl_pipeline.parsers.llamacloud import parse_with_llamacloud
-
-            content = await parse_with_llamacloud(
-                request.file_path, request.estimated_pages
-            )
+            content = await self._extract_with_llamacloud(request)
         else:
             raise EtlServiceUnavailableError(f"Unknown ETL_SERVICE: {etl_service}")
 
@@ -88,3 +86,40 @@ class EtlPipelineService:
             etl_service=etl_service,
             content_type="document",
         )
+
+    async def _extract_with_llamacloud(self, request: EtlRequest) -> str:
+        """Try Azure Document Intelligence first (when configured) then LlamaCloud.
+
+        Azure DI is an internal accelerator: cheaper and faster for its supported
+        file types.  If it is not configured, or the file extension is not in
+        Azure DI's supported set, LlamaCloud is used directly.  If Azure DI
+        fails for any reason, LlamaCloud is used as a fallback.
+        """
+        from pathlib import PurePosixPath
+
+        from app.utils.file_extensions import AZURE_DI_DOCUMENT_EXTENSIONS
+
+        ext = PurePosixPath(request.filename).suffix.lower()
+        azure_configured = bool(
+            getattr(app_config, "AZURE_DI_ENDPOINT", None)
+            and getattr(app_config, "AZURE_DI_KEY", None)
+        )
+
+        if azure_configured and ext in AZURE_DI_DOCUMENT_EXTENSIONS:
+            try:
+                from app.etl_pipeline.parsers.azure_doc_intelligence import (
+                    parse_with_azure_doc_intelligence,
+                )
+
+                return await parse_with_azure_doc_intelligence(request.file_path)
+            except Exception:
+                logging.warning(
+                    "Azure Document Intelligence failed for %s, "
+                    "falling back to LlamaCloud",
+                    request.filename,
+                    exc_info=True,
+                )
+
+        from app.etl_pipeline.parsers.llamacloud import parse_with_llamacloud
+
+        return await parse_with_llamacloud(request.file_path, request.estimated_pages)

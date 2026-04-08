@@ -93,6 +93,22 @@ UNSTRUCTURED_DOCUMENT_EXTENSIONS: frozenset[str] = frozenset(
     }
 )
 
+AZURE_DI_DOCUMENT_EXTENSIONS: frozenset[str] = frozenset(
+    {
+        ".pdf",
+        ".docx",
+        ".xlsx",
+        ".pptx",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".bmp",
+        ".tiff",
+        ".tif",
+        ".heif",
+    }
+)
+
 # ---------------------------------------------------------------------------
 # Union (used by classify_file for routing) + service lookup
 # ---------------------------------------------------------------------------
@@ -101,6 +117,7 @@ DOCUMENT_EXTENSIONS: frozenset[str] = (
     DOCLING_DOCUMENT_EXTENSIONS
     | LLAMAPARSE_DOCUMENT_EXTENSIONS
     | UNSTRUCTURED_DOCUMENT_EXTENSIONS
+    | AZURE_DI_DOCUMENT_EXTENSIONS
 )
 
 _SERVICE_MAP: dict[str, frozenset[str]] = {
@@ -113,9 +130,21 @@ _SERVICE_MAP: dict[str, frozenset[str]] = {
 def get_document_extensions_for_service(etl_service: str | None) -> frozenset[str]:
     """Return the document extensions supported by *etl_service*.
 
+    When *etl_service* is ``LLAMACLOUD`` and Azure Document Intelligence
+    credentials are configured, the set is dynamically expanded to include
+    Azure DI's supported extensions (e.g. ``.heif``).
+
     Falls back to the full union when the service is ``None`` or unknown.
     """
-    return _SERVICE_MAP.get(etl_service or "", DOCUMENT_EXTENSIONS)
+    extensions = _SERVICE_MAP.get(etl_service or "", DOCUMENT_EXTENSIONS)
+    if etl_service == "LLAMACLOUD":
+        from app.config import config as app_config
+
+        if getattr(app_config, "AZURE_DI_ENDPOINT", None) and getattr(
+            app_config, "AZURE_DI_KEY", None
+        ):
+            extensions = extensions | AZURE_DI_DOCUMENT_EXTENSIONS
+    return extensions
 
 
 def is_supported_document_extension(filename: str) -> bool:

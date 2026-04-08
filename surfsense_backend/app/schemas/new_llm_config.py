@@ -183,7 +183,8 @@ class LLMPreferencesRead(BaseModel):
         None, description="ID of the image generation config to use"
     )
     vision_llm_config_id: int | None = Field(
-        None, description="ID of the vision LLM config to use for vision/screenshot analysis"
+        None,
+        description="ID of the vision LLM config to use for vision/screenshot analysis",
     )
     agent_llm: dict[str, Any] | None = Field(
         None, description="Full config for agent LLM"
@@ -214,5 +215,6 @@ class LLMPreferencesUpdate(BaseModel):
         None, description="ID of the image generation config to use"
     )
     vision_llm_config_id: int | None = Field(
-        None, description="ID of the vision LLM config to use for vision/screenshot analysis"
+        None,
+        description="ID of the vision LLM config to use for vision/screenshot analysis",
     )

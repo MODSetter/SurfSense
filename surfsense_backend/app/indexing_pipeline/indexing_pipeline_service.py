@@ -273,17 +273,18 @@ class IndexingPipelineService:
                         continue
 
                     dup_check = await self.session.execute(
-                        select(Document.id).filter(
+                        select(Document.id, Document.title).filter(
                             Document.content_hash == content_hash,
                             Document.id != existing.id,
                         )
                     )
-                    if dup_check.scalars().first() is not None:
+                    dup_row = dup_check.first()
+                    if dup_row is not None:
                         if not DocumentStatus.is_state(
                             existing.status, DocumentStatus.READY
                         ):
                             existing.status = DocumentStatus.failed(
-                                "Duplicate content — already indexed by another document"
+                                f"Duplicate content: matches '{dup_row.title}'"
                             )
                         continue
 

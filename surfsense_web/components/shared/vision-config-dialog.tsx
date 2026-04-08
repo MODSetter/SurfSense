@@ -345,9 +345,7 @@ export function VisionConfigDialog({
 											<CommandInput
 												placeholder={selectedProvider?.example || "Search model name"}
 												value={formData.model_name}
-												onValueChange={(val) =>
-													setFormData((p) => ({ ...p, model_name: val }))
-												}
+												onValueChange={(val) => setFormData((p) => ({ ...p, model_name: val }))}
 											/>
 											<CommandList className="max-h-[300px]">
 												<CommandEmpty>
