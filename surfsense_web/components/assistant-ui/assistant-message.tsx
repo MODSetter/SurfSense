@@ -66,12 +66,8 @@ const GenerateImageToolUI = dynamic(
 	() => import("@/components/tool-ui/generate-image").then(m => ({ default: m.GenerateImageToolUI })),
 	{ ssr: false }
 );
-const SaveMemoryToolUI = dynamic(
-	() => import("@/components/tool-ui/user-memory").then(m => ({ default: m.SaveMemoryToolUI })),
-	{ ssr: false }
-);
-const RecallMemoryToolUI = dynamic(
-	() => import("@/components/tool-ui/user-memory").then(m => ({ default: m.RecallMemoryToolUI })),
+const UpdateMemoryToolUI = dynamic(
+	() => import("@/components/tool-ui/user-memory").then(m => ({ default: m.UpdateMemoryToolUI })),
 	{ ssr: false }
 );
 const SandboxExecuteToolUI = dynamic(
@@ -345,8 +341,7 @@ const AssistantMessageInner: FC = () => {
 								generate_video_presentation: GenerateVideoPresentationToolUI,
 								display_image: GenerateImageToolUI,
 								generate_image: GenerateImageToolUI,
-								save_memory: SaveMemoryToolUI,
-								recall_memory: RecallMemoryToolUI,
+								update_memory: UpdateMemoryToolUI,
 								execute: SandboxExecuteToolUI,
 								create_notion_page: CreateNotionPageToolUI,
 								update_notion_page: UpdateNotionPageToolUI,

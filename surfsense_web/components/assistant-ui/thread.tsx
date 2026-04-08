@@ -1297,7 +1297,7 @@ const TOOL_GROUPS: ToolGroup[] = [
 	},
 	{
 		label: "Memory",
-		tools: ["save_memory", "recall_memory"],
+		tools: ["update_memory"],
 	},
 	{
 		label: "Gmail",
