@@ -164,13 +164,13 @@ export function FolderWatchDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="sm:max-w-md select-none">
-				<DialogHeader>
-					<DialogTitle>Watch Local Folder</DialogTitle>
-					<DialogDescription>Select a folder to sync and watch for changes</DialogDescription>
+			<DialogContent className="sm:max-w-md select-none p-0 gap-0 overflow-hidden bg-muted dark:bg-muted border border-border [&>button]:opacity-80 [&>button]:hover:opacity-100 [&>button]:hover:bg-foreground/10">
+				<DialogHeader className="px-4 sm:px-6 pt-5 sm:pt-6 pb-3">
+					<DialogTitle className="text-lg sm:text-xl font-semibold tracking-tight">Watch Local Folder</DialogTitle>
+					<DialogDescription className="text-xs sm:text-sm text-muted-foreground/80">Select a folder to sync and watch for changes</DialogDescription>
 				</DialogHeader>
 
-				<div className="space-y-3 pt-2 min-h-[13rem]">
+				<div className="flex flex-col gap-3 px-4 sm:px-6 pb-4 sm:pb-6 min-h-[17rem]">
 					{selectedFolder ? (
 						<div className="flex items-center gap-2 py-1.5 pl-4 pr-2 rounded-md bg-slate-400/5 dark:bg-white/5 overflow-hidden">
 							<div className="min-w-0 flex-1 select-text">
@@ -193,7 +193,7 @@ export function FolderWatchDialog({
 						<button
 							type="button"
 							onClick={handleSelectFolder}
-							className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/30 py-8 text-sm text-muted-foreground transition-colors hover:border-foreground/50 hover:text-foreground"
+							className="flex flex-1 w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/30 text-sm text-muted-foreground transition-colors hover:border-foreground/50 hover:text-foreground"
 						>
 							Browse for a folder
 						</button>
@@ -225,7 +225,7 @@ export function FolderWatchDialog({
 								</div>
 							)}
 
-							<div className="flex gap-2">
+							<div className="flex gap-2 mt-auto">
 								{submitting ? (
 									<>
 										<Button variant="secondary" className="flex-1" onClick={handleCancel}>
