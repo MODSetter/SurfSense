@@ -5,6 +5,7 @@ from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from app.agents.new_chat.tools.update_memory import MEMORY_HARD_LIMIT
 from app.config import config
 from app.db import (
     ImageGenerationConfig,
@@ -255,6 +256,13 @@ async def update_search_space(
             raise HTTPException(status_code=404, detail="Search space not found")
 
         update_data = search_space_update.model_dump(exclude_unset=True)
+
+        if "shared_memory_md" in update_data and len(update_data["shared_memory_md"] or "") > MEMORY_HARD_LIMIT:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Team memory exceeds {MEMORY_HARD_LIMIT:,} character limit.",
+            )
+
         for key, value in update_data.items():
             setattr(db_search_space, key, value)
         await session.commit()

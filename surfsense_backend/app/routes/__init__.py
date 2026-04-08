@@ -29,6 +29,7 @@ from .jira_add_connector_route import router as jira_add_connector_router
 from .linear_add_connector_route import router as linear_add_connector_router
 from .logs_routes import router as logs_router
 from .luma_add_connector_route import router as luma_add_connector_router
+from .memory_routes import router as memory_router
 from .model_list_routes import router as model_list_router
 from .new_chat_routes import router as new_chat_router
 from .new_llm_config_routes import router as new_llm_config_router
@@ -98,4 +99,5 @@ router.include_router(incentive_tasks_router)  # Incentive tasks for earning fre
 router.include_router(stripe_router)  # Stripe checkout for additional page packs
 router.include_router(youtube_router)  # YouTube playlist resolution
 router.include_router(prompts_router)
+router.include_router(memory_router)  # User personal memory (memory.md style)
 router.include_router(autocomplete_router)  # Lightweight autocomplete with KB context
