@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useAtom } from "jotai";
-import { Bot, Brain, Eye, FileText, Globe, ImageIcon, MessageSquare, Shield } from "lucide-react";
+	import { Bot, BookMarked, Brain, Eye, FileText, Globe, ImageIcon, MessageSquare, Shield } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type React from "react";
 import { searchSpaceSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
@@ -40,6 +40,10 @@ const PublicChatSnapshotsManager = dynamic(
 	() => import("@/components/public-chat-snapshots/public-chat-snapshots-manager").then(m => ({ default: m.PublicChatSnapshotsManager })),
 	{ ssr: false }
 );
+const TeamMemoryManager = dynamic(
+	() => import("@/components/settings/team-memory-manager").then(m => ({ default: m.TeamMemoryManager })),
+	{ ssr: false }
+);
 
 interface SearchSpaceSettingsDialogProps {
 	searchSpaceId: number;
@@ -69,6 +73,11 @@ export function SearchSpaceSettingsDialog({ searchSpaceId }: SearchSpaceSettings
 			label: t("nav_system_instructions"),
 			icon: <MessageSquare className="h-4 w-4" />,
 		},
+		{
+			value: "team-memory",
+			label: "Team Memory",
+			icon: <BookMarked className="h-4 w-4" />,
+		},
 		{ value: "public-links", label: t("nav_public_links"), icon: <Globe className="h-4 w-4" /> },
 	];
 
@@ -80,6 +89,7 @@ export function SearchSpaceSettingsDialog({ searchSpaceId }: SearchSpaceSettings
 		"vision-models": <VisionModelManager searchSpaceId={searchSpaceId} />,
 		"team-roles": <RolesManager searchSpaceId={searchSpaceId} />,
 		prompts: <PromptConfigManager searchSpaceId={searchSpaceId} />,
+		"team-memory": <TeamMemoryManager searchSpaceId={searchSpaceId} />,
 		"public-links": <PublicChatSnapshotsManager searchSpaceId={searchSpaceId} />,
 	};
 

@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useAtom } from "jotai";
-import { Globe, KeyRound, Monitor, Receipt, Sparkles, User } from "lucide-react";
+import { Brain, Globe, KeyRound, Monitor, Receipt, Sparkles, User } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 import { userSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
@@ -33,6 +33,10 @@ const DesktopContent = dynamic(
 	() => import("@/app/dashboard/[search_space_id]/user-settings/components/DesktopContent").then(m => ({ default: m.DesktopContent })),
 	{ ssr: false }
 );
+const MemoryContent = dynamic(
+	() => import("@/app/dashboard/[search_space_id]/user-settings/components/MemoryContent").then(m => ({ default: m.MemoryContent })),
+	{ ssr: false }
+);
 
 export function UserSettingsDialog() {
 	const t = useTranslations("userSettings");
@@ -57,12 +61,17 @@ export function UserSettingsDialog() {
 				label: "Community Prompts",
 				icon: <Globe className="h-4 w-4" />,
 			},
-			{
-				value: "purchases",
-				label: "Purchase History",
-				icon: <Receipt className="h-4 w-4" />,
-			},
-			...(isDesktop
+		{
+			value: "memory",
+			label: "Memory",
+			icon: <Brain className="h-4 w-4" />,
+		},
+		{
+			value: "purchases",
+			label: "Purchase History",
+			icon: <Receipt className="h-4 w-4" />,
+		},
+		...(isDesktop
 				? [{ value: "desktop", label: "Desktop", icon: <Monitor className="h-4 w-4" /> }]
 				: []),
 		],
@@ -83,8 +92,9 @@ export function UserSettingsDialog() {
 				{state.initialTab === "api-key" && <ApiKeyContent />}
 				{state.initialTab === "prompts" && <PromptsContent />}
 				{state.initialTab === "community-prompts" && <CommunityPromptsContent />}
-				{state.initialTab === "purchases" && <PurchaseHistoryContent />}
-				{state.initialTab === "desktop" && <DesktopContent />}
+			{state.initialTab === "memory" && <MemoryContent />}
+			{state.initialTab === "purchases" && <PurchaseHistoryContent />}
+			{state.initialTab === "desktop" && <DesktopContent />}
 			</div>
 		</SettingsDialog>
 	);
