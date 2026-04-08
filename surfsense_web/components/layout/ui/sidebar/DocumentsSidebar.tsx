@@ -116,48 +116,48 @@ export function DocumentsSidebar({
 		setFolderWatchOpen(true);
 	}, []);
 
-	useEffect(() => {
+	const refreshWatchedIds = useCallback(async () => {
 		if (!electronAPI?.getWatchedFolders) return;
 		const api = electronAPI;
 
-		async function loadWatchedIds() {
-			const folders = await api.getWatchedFolders();
+		const folders = await api.getWatchedFolders();
 
-			if (folders.length === 0) {
-				try {
-					const backendFolders = await documentsApiService.getWatchedFolders(searchSpaceId);
-					for (const bf of backendFolders) {
-						const meta = bf.metadata as Record<string, unknown> | null;
-						if (!meta?.watched || !meta.folder_path) continue;
-						await api.addWatchedFolder({
-							path: meta.folder_path as string,
-							name: bf.name,
-							rootFolderId: bf.id,
-							searchSpaceId: bf.search_space_id,
-							excludePatterns: (meta.exclude_patterns as string[]) ?? [],
-							fileExtensions: (meta.file_extensions as string[] | null) ?? null,
-							active: true,
-						});
-					}
-					const recovered = await api.getWatchedFolders();
-					const ids = new Set(
-						recovered.filter((f) => f.rootFolderId != null).map((f) => f.rootFolderId as number)
-					);
-					setWatchedFolderIds(ids);
-					return;
-				} catch (err) {
-					console.error("[DocumentsSidebar] Recovery from backend failed:", err);
+		if (folders.length === 0) {
+			try {
+				const backendFolders = await documentsApiService.getWatchedFolders(searchSpaceId);
+				for (const bf of backendFolders) {
+					const meta = bf.metadata as Record<string, unknown> | null;
+					if (!meta?.watched || !meta.folder_path) continue;
+					await api.addWatchedFolder({
+						path: meta.folder_path as string,
+						name: bf.name,
+						rootFolderId: bf.id,
+						searchSpaceId: bf.search_space_id,
+						excludePatterns: (meta.exclude_patterns as string[]) ?? [],
+						fileExtensions: (meta.file_extensions as string[] | null) ?? null,
+						active: true,
+					});
 				}
+				const recovered = await api.getWatchedFolders();
+				const ids = new Set(
+					recovered.filter((f) => f.rootFolderId != null).map((f) => f.rootFolderId as number)
+				);
+				setWatchedFolderIds(ids);
+				return;
+			} catch (err) {
+				console.error("[DocumentsSidebar] Recovery from backend failed:", err);
 			}
-
-			const ids = new Set(
-				folders.filter((f) => f.rootFolderId != null).map((f) => f.rootFolderId as number)
-			);
-			setWatchedFolderIds(ids);
 		}
 
-		loadWatchedIds();
+		const ids = new Set(
+			folders.filter((f) => f.rootFolderId != null).map((f) => f.rootFolderId as number)
+		);
+		setWatchedFolderIds(ids);
 	}, [searchSpaceId, electronAPI]);
+
+	useEffect(() => {
+		refreshWatchedIds();
+	}, [refreshWatchedIds]);
 	const { mutateAsync: deleteDocumentMutation } = useAtomValue(deleteDocumentMutationAtom);
 
 	const [sidebarDocs, setSidebarDocs] = useAtom(sidebarSelectedDocumentsAtom);
@@ -342,8 +342,9 @@ export function DocumentsSidebar({
 				console.error("[DocumentsSidebar] Failed to clear watched metadata:", err);
 			}
 			toast.success(`Stopped watching: ${matched.name}`);
+			refreshWatchedIds();
 		},
-		[electronAPI]
+		[electronAPI, refreshWatchedIds]
 	);
 
 	const handleRenameFolder = useCallback(async (folder: FolderDisplay, newName: string) => {
@@ -872,6 +873,7 @@ export function DocumentsSidebar({
 					}}
 					searchSpaceId={searchSpaceId}
 					initialFolder={watchInitialFolder}
+					onSuccess={refreshWatchedIds}
 				/>
 			)}
 
