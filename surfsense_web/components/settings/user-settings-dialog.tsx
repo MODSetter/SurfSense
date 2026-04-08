@@ -1,18 +1,38 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useAtom } from "jotai";
 import { Globe, KeyRound, Monitor, Receipt, Sparkles, User } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
-import { ApiKeyContent } from "@/app/dashboard/[search_space_id]/user-settings/components/ApiKeyContent";
-import { CommunityPromptsContent } from "@/app/dashboard/[search_space_id]/user-settings/components/CommunityPromptsContent";
-import { DesktopContent } from "@/app/dashboard/[search_space_id]/user-settings/components/DesktopContent";
-import { ProfileContent } from "@/app/dashboard/[search_space_id]/user-settings/components/ProfileContent";
-import { PromptsContent } from "@/app/dashboard/[search_space_id]/user-settings/components/PromptsContent";
-import { PurchaseHistoryContent } from "@/app/dashboard/[search_space_id]/user-settings/components/PurchaseHistoryContent";
 import { userSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
 import { SettingsDialog } from "@/components/settings/settings-dialog";
 import { usePlatform } from "@/hooks/use-platform";
+
+const ProfileContent = dynamic(
+	() => import("@/app/dashboard/[search_space_id]/user-settings/components/ProfileContent").then(m => ({ default: m.ProfileContent })),
+	{ ssr: false }
+);
+const ApiKeyContent = dynamic(
+	() => import("@/app/dashboard/[search_space_id]/user-settings/components/ApiKeyContent").then(m => ({ default: m.ApiKeyContent })),
+	{ ssr: false }
+);
+const PromptsContent = dynamic(
+	() => import("@/app/dashboard/[search_space_id]/user-settings/components/PromptsContent").then(m => ({ default: m.PromptsContent })),
+	{ ssr: false }
+);
+const CommunityPromptsContent = dynamic(
+	() => import("@/app/dashboard/[search_space_id]/user-settings/components/CommunityPromptsContent").then(m => ({ default: m.CommunityPromptsContent })),
+	{ ssr: false }
+);
+const PurchaseHistoryContent = dynamic(
+	() => import("@/app/dashboard/[search_space_id]/user-settings/components/PurchaseHistoryContent").then(m => ({ default: m.PurchaseHistoryContent })),
+	{ ssr: false }
+);
+const DesktopContent = dynamic(
+	() => import("@/app/dashboard/[search_space_id]/user-settings/components/DesktopContent").then(m => ({ default: m.DesktopContent })),
+	{ ssr: false }
+);
 
 export function UserSettingsDialog() {
 	const t = useTranslations("userSettings");
