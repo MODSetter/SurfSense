@@ -28,7 +28,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.new_chat.utils import parse_date_or_datetime, resolve_date_range
-from app.db import NATIVE_TO_LEGACY_DOCTYPE, Document, Folder, shielded_async_session
+from app.db import (
+    NATIVE_TO_LEGACY_DOCTYPE,
+    Chunk,
+    Document,
+    Folder,
+    shielded_async_session,
+)
 from app.retriever.chunks_hybrid_search import ChucksHybridSearchRetriever
 from app.utils.document_converters import embed_texts
 from app.utils.perf import get_perf_logger
@@ -430,21 +436,36 @@ async def _get_folder_paths(
 def _build_synthetic_ls(
     existing_files: dict[str, Any] | None,
     new_files: dict[str, Any],
+    *,
+    mentioned_paths: set[str] | None = None,
 ) -> tuple[AIMessage, ToolMessage]:
     """Build a synthetic ls("/documents") tool-call + result for the LLM context.
 
-    Paths are listed with *new* (rank-ordered) files first, then existing files
-    that were already in state from prior turns.
+    Mentioned files are listed first.  A separate header tells the LLM which
+    files the user explicitly selected; the path list itself stays clean so
+    paths can be passed directly to ``read_file`` without stripping tags.
     """
+    _mentioned = mentioned_paths or set()
     merged: dict[str, Any] = {**(existing_files or {}), **new_files}
     doc_paths = [
         p for p, v in merged.items() if p.startswith("/documents/") and v is not None
     ]
 
     new_set = set(new_files)
-    new_paths = [p for p in doc_paths if p in new_set]
+    mentioned_list = [p for p in doc_paths if p in _mentioned]
+    new_non_mentioned = [p for p in doc_paths if p in new_set and p not in _mentioned]
     old_paths = [p for p in doc_paths if p not in new_set]
-    ordered = new_paths + old_paths
+    ordered = mentioned_list + new_non_mentioned + old_paths
+
+    parts: list[str] = []
+    if mentioned_list:
+        parts.append(
+            "USER-MENTIONED documents (read these thoroughly before answering):"
+        )
+        for p in mentioned_list:
+            parts.append(f"  {p}")
+        parts.append("")
+    parts.append(str(ordered) if ordered else "No documents found.")
 
     tool_call_id = f"auto_ls_{uuid.uuid4().hex[:12]}"
     ai_msg = AIMessage(
@@ -452,7 +473,7 @@ def _build_synthetic_ls(
         tool_calls=[{"name": "ls", "args": {"path": "/documents"}, "id": tool_call_id}],
     )
     tool_msg = ToolMessage(
-        content=str(ordered) if ordered else "No documents found.",
+        content="\n".join(parts),
         tool_call_id=tool_call_id,
     )
     return ai_msg, tool_msg
@@ -524,12 +545,92 @@ async def search_knowledge_base(
     return results[:top_k]
 
 
+async def fetch_mentioned_documents(
+    *,
+    document_ids: list[int],
+    search_space_id: int,
+) -> list[dict[str, Any]]:
+    """Fetch explicitly mentioned documents with *all* their chunks.
+
+    Returns the same dict structure as ``search_knowledge_base`` so results
+    can be merged directly into ``build_scoped_filesystem``.  Unlike search
+    results, every chunk is included (no top-K limiting) and none are marked
+    as ``matched`` since the entire document is relevant by virtue of the
+    user's explicit mention.
+    """
+    if not document_ids:
+        return []
+
+    async with shielded_async_session() as session:
+        doc_result = await session.execute(
+            select(Document).where(
+                Document.id.in_(document_ids),
+                Document.search_space_id == search_space_id,
+            )
+        )
+        docs = {doc.id: doc for doc in doc_result.scalars().all()}
+
+        if not docs:
+            return []
+
+        chunk_result = await session.execute(
+            select(Chunk.id, Chunk.content, Chunk.document_id)
+            .where(Chunk.document_id.in_(list(docs.keys())))
+            .order_by(Chunk.document_id, Chunk.id)
+        )
+        chunks_by_doc: dict[int, list[dict[str, Any]]] = {doc_id: [] for doc_id in docs}
+        for row in chunk_result.all():
+            if row.document_id in chunks_by_doc:
+                chunks_by_doc[row.document_id].append(
+                    {"chunk_id": row.id, "content": row.content}
+                )
+
+    results: list[dict[str, Any]] = []
+    for doc_id in document_ids:
+        doc = docs.get(doc_id)
+        if doc is None:
+            continue
+        metadata = doc.document_metadata or {}
+        results.append(
+            {
+                "document_id": doc.id,
+                "content": "",
+                "score": 1.0,
+                "chunks": chunks_by_doc.get(doc.id, []),
+                "matched_chunk_ids": [],
+                "document": {
+                    "id": doc.id,
+                    "title": doc.title,
+                    "document_type": (
+                        doc.document_type.value
+                        if getattr(doc, "document_type", None)
+                        else None
+                    ),
+                    "metadata": metadata,
+                },
+                "source": (
+                    doc.document_type.value
+                    if getattr(doc, "document_type", None)
+                    else None
+                ),
+                "_user_mentioned": True,
+            }
+        )
+    return results
+
+
 async def build_scoped_filesystem(
     *,
     documents: Sequence[dict[str, Any]],
     search_space_id: int,
-) -> dict[str, dict[str, str]]:
-    """Build a StateBackend-compatible files dict from search results."""
+) -> tuple[dict[str, dict[str, str]], dict[int, str]]:
+    """Build a StateBackend-compatible files dict from search results.
+
+    Returns ``(files, doc_id_to_path)`` so callers can reliably map a
+    document id back to its filesystem path without guessing by title.
+    Paths are collision-proof: when two documents resolve to the same
+    path the doc-id is appended to disambiguate.
+    """
     async with shielded_async_session() as session:
         folder_paths = await _get_folder_paths(session, search_space_id)
         doc_ids = [
@@ -551,6 +652,7 @@ async def build_scoped_filesystem(
             }
 
     files: dict[str, dict[str, str]] = {}
+    doc_id_to_path: dict[int, str] = {}
     for document in documents:
         doc_meta = document.get("document") or {}
         title = str(doc_meta.get("title") or "untitled")
@@ -559,6 +661,9 @@ async def build_scoped_filesystem(
         base_folder = folder_paths.get(folder_id, "/documents")
         file_name = _safe_filename(title)
         path = f"{base_folder}/{file_name}"
+        if path in files:
+            stem = file_name.removesuffix(".xml")
+            path = f"{base_folder}/{stem} ({doc_id}).xml"
         matched_ids = set(document.get("matched_chunk_ids") or [])
         xml_content = _build_document_xml(document, matched_chunk_ids=matched_ids)
         files[path] = {
@@ -567,7 +672,9 @@ async def build_scoped_filesystem(
             "created_at": "",
             "modified_at": "",
         }
-    return files
+        if isinstance(doc_id, int):
+            doc_id_to_path[doc_id] = path
+    return files, doc_id_to_path
 
 
 class KnowledgeBaseSearchMiddleware(AgentMiddleware):  # type: ignore[type-arg]
@@ -583,12 +690,14 @@ class KnowledgeBaseSearchMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         available_connectors: list[str] | None = None,
         available_document_types: list[str] | None = None,
         top_k: int = 10,
+        mentioned_document_ids: list[int] | None = None,
     ) -> None:
         self.llm = llm
         self.search_space_id = search_space_id
         self.available_connectors = available_connectors
         self.available_document_types = available_document_types
         self.top_k = top_k
+        self.mentioned_document_ids = mentioned_document_ids or []
 
     async def _plan_search_inputs(
         self,
@@ -680,6 +789,18 @@ class KnowledgeBaseSearchMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             user_text=user_text,
         )
 
+        # --- 1. Fetch mentioned documents (user-selected, all chunks) ---
+        mentioned_results: list[dict[str, Any]] = []
+        if self.mentioned_document_ids:
+            mentioned_results = await fetch_mentioned_documents(
+                document_ids=self.mentioned_document_ids,
+                search_space_id=self.search_space_id,
+            )
+            # Clear after first turn so they are not re-fetched on subsequent
+            # messages within the same agent instance.
+            self.mentioned_document_ids = []
+
+        # --- 2. Run KB hybrid search ---
         search_results = await search_knowledge_base(
             query=planned_query,
             search_space_id=self.search_space_id,
@@ -689,19 +810,50 @@ class KnowledgeBaseSearchMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             start_date=start_date,
             end_date=end_date,
         )
-        new_files = await build_scoped_filesystem(
-            documents=search_results,
+
+        # --- 3. Merge: mentioned first, then search (dedup by doc id) ---
+        seen_doc_ids: set[int] = set()
+        merged: list[dict[str, Any]] = []
+        for doc in mentioned_results:
+            doc_id = (doc.get("document") or {}).get("id")
+            if doc_id is not None:
+                seen_doc_ids.add(doc_id)
+            merged.append(doc)
+        for doc in search_results:
+            doc_id = (doc.get("document") or {}).get("id")
+            if doc_id is not None and doc_id in seen_doc_ids:
+                continue
+            merged.append(doc)
+
+        # --- 4. Build scoped filesystem ---
+        new_files, doc_id_to_path = await build_scoped_filesystem(
+            documents=merged,
             search_space_id=self.search_space_id,
         )
 
-        ai_msg, tool_msg = _build_synthetic_ls(existing_files, new_files)
+        # Identify which paths belong to user-mentioned documents using
+        # the authoritative doc_id -> path mapping (no title guessing).
+        mentioned_doc_ids = {
+            (d.get("document") or {}).get("id") for d in mentioned_results
+        }
+        mentioned_paths = {
+            doc_id_to_path[did] for did in mentioned_doc_ids if did in doc_id_to_path
+        }
+
+        ai_msg, tool_msg = _build_synthetic_ls(
+            existing_files,
+            new_files,
+            mentioned_paths=mentioned_paths,
+        )
 
         if t0 is not None:
             _perf_log.info(
-                "[kb_fs_middleware] completed in %.3fs query=%r optimized=%r new_files=%d total=%d",
+                "[kb_fs_middleware] completed in %.3fs query=%r optimized=%r "
+                "mentioned=%d new_files=%d total=%d",
                 asyncio.get_event_loop().time() - t0,
                 user_text[:80],
                 planned_query[:120],
+                len(mentioned_results),
                 len(new_files),
                 len(new_files) + len(existing_files or {}),
             )

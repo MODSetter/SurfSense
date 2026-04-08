@@ -1,33 +1,41 @@
 "use client";
 
 import { useAtom } from "jotai";
-import { CheckCircle2, FileType, Info, Upload, X } from "lucide-react";
+import { ChevronDown, Dot, File as FileIcon, FolderOpen, Upload, X } from "lucide-react";
 
 import { useTranslations } from "next-intl";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { uploadDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
-import { SummaryConfig } from "@/components/assistant-ui/connector-popup/components/summary-config";
 import {
 	Accordion,
 	AccordionContent,
 	AccordionItem,
 	AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
+import { useElectronAPI } from "@/hooks/use-platform";
 import {
 	trackDocumentUploadFailure,
 	trackDocumentUploadStarted,
 	trackDocumentUploadSuccess,
 } from "@/lib/posthog/events";
-import { GridPattern } from "./GridPattern";
+import {
+	getAcceptedFileTypes,
+	getSupportedExtensions,
+	getSupportedExtensionsSet,
+} from "@/lib/supported-extensions";
 
 interface DocumentUploadTabProps {
 	searchSpaceId: string;
@@ -35,91 +43,16 @@ interface DocumentUploadTabProps {
 	onAccordionStateChange?: (isExpanded: boolean) => void;
 }
 
-const audioFileTypes = {
-	"audio/mpeg": [".mp3", ".mpeg", ".mpga"],
-	"audio/mp4": [".mp4", ".m4a"],
-	"audio/wav": [".wav"],
-	"audio/webm": [".webm"],
-	"text/markdown": [".md", ".markdown"],
-	"text/plain": [".txt"],
-};
-
-const commonTypes = {
-	"application/pdf": [".pdf"],
-	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
-	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
-	"application/vnd.openxmlformats-officedocument.presentationml.presentation": [".pptx"],
-	"text/html": [".html", ".htm"],
-	"text/csv": [".csv"],
-	"image/jpeg": [".jpg", ".jpeg"],
-	"image/png": [".png"],
-	"image/bmp": [".bmp"],
-	"image/webp": [".webp"],
-	"image/tiff": [".tiff"],
-};
-
-const FILE_TYPE_CONFIG: Record<string, Record<string, string[]>> = {
-	LLAMACLOUD: {
-		...commonTypes,
-		"application/msword": [".doc"],
-		"application/vnd.ms-word.document.macroEnabled.12": [".docm"],
-		"application/msword-template": [".dot"],
-		"application/vnd.ms-word.template.macroEnabled.12": [".dotm"],
-		"application/vnd.ms-powerpoint": [".ppt"],
-		"application/vnd.ms-powerpoint.template.macroEnabled.12": [".pptm"],
-		"application/vnd.ms-powerpoint.template": [".pot"],
-		"application/vnd.openxmlformats-officedocument.presentationml.template": [".potx"],
-		"application/vnd.ms-excel": [".xls"],
-		"application/vnd.ms-excel.sheet.macroEnabled.12": [".xlsm"],
-		"application/vnd.ms-excel.sheet.binary.macroEnabled.12": [".xlsb"],
-		"application/vnd.ms-excel.workspace": [".xlw"],
-		"application/rtf": [".rtf"],
-		"application/xml": [".xml"],
-		"application/epub+zip": [".epub"],
-		"text/tab-separated-values": [".tsv"],
-		"text/html": [".html", ".htm", ".web"],
-		"image/gif": [".gif"],
-		"image/svg+xml": [".svg"],
-		...audioFileTypes,
-	},
-	DOCLING: {
-		...commonTypes,
-		"text/asciidoc": [".adoc", ".asciidoc"],
-		"text/html": [".html", ".htm", ".xhtml"],
-		"image/tiff": [".tiff", ".tif"],
-		...audioFileTypes,
-	},
-	default: {
-		...commonTypes,
-		"application/msword": [".doc"],
-		"message/rfc822": [".eml"],
-		"application/epub+zip": [".epub"],
-		"image/heic": [".heic"],
-		"application/vnd.ms-outlook": [".msg"],
-		"application/vnd.oasis.opendocument.text": [".odt"],
-		"text/x-org": [".org"],
-		"application/pkcs7-signature": [".p7s"],
-		"application/vnd.ms-powerpoint": [".ppt"],
-		"text/x-rst": [".rst"],
-		"application/rtf": [".rtf"],
-		"text/tab-separated-values": [".tsv"],
-		"application/vnd.ms-excel": [".xls"],
-		"application/xml": [".xml"],
-		...audioFileTypes,
-	},
-};
-
 interface FileWithId {
 	id: string;
 	file: File;
 }
 
-const cardClass = "border border-border bg-slate-400/5 dark:bg-white/5";
+const MAX_FILE_SIZE_MB = 500;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
-// Upload limits — files are sent in batches of 5 to avoid proxy timeouts
-const MAX_FILES = 50;
-const MAX_TOTAL_SIZE_MB = 200;
-const MAX_TOTAL_SIZE_BYTES = MAX_TOTAL_SIZE_MB * 1024 * 1024;
+const toggleRowClass =
+	"flex items-center justify-between rounded-lg bg-slate-400/5 dark:bg-white/5 p-3";
 
 export function DocumentUploadTab({
 	searchSpaceId,
@@ -134,59 +67,122 @@ export function DocumentUploadTab({
 	const [uploadDocumentMutation] = useAtom(uploadDocumentMutationAtom);
 	const { mutate: uploadDocuments, isPending: isUploading } = uploadDocumentMutation;
 	const fileInputRef = useRef<HTMLInputElement>(null);
+	const folderInputRef = useRef<HTMLInputElement>(null);
+	const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-	const acceptedFileTypes = useMemo(() => {
-		const etlService = process.env.NEXT_PUBLIC_ETL_SERVICE;
-		return FILE_TYPE_CONFIG[etlService || "default"] || FILE_TYPE_CONFIG.default;
+	useEffect(() => {
+		return () => {
+			if (progressIntervalRef.current) {
+				clearInterval(progressIntervalRef.current);
+			}
+		};
 	}, []);
 
+	const electronAPI = useElectronAPI();
+	const isElectron = !!electronAPI?.browseFiles;
+
+	const acceptedFileTypes = useMemo(() => getAcceptedFileTypes(), []);
 	const supportedExtensions = useMemo(
-		() => Array.from(new Set(Object.values(acceptedFileTypes).flat())).sort(),
+		() => getSupportedExtensions(acceptedFileTypes),
+		[acceptedFileTypes]
+	);
+	const supportedExtensionsSet = useMemo(
+		() => getSupportedExtensionsSet(acceptedFileTypes),
 		[acceptedFileTypes]
 	);
 
-	const onDrop = useCallback(
-		(acceptedFiles: File[]) => {
+	const addFiles = useCallback(
+		(incoming: File[]) => {
+			const oversized = incoming.filter((f) => f.size > MAX_FILE_SIZE_BYTES);
+			if (oversized.length > 0) {
+				toast.error(t("file_too_large"), {
+					description: t("file_too_large_desc", {
+						name: oversized[0].name,
+						maxMB: MAX_FILE_SIZE_MB,
+					}),
+				});
+			}
+			const valid = incoming.filter((f) => f.size <= MAX_FILE_SIZE_BYTES);
+			if (valid.length === 0) return;
+
 			setFiles((prev) => {
-				const newEntries = acceptedFiles.map((f) => ({
+				const newEntries = valid.map((f) => ({
 					id: crypto.randomUUID?.() ?? `file-${Date.now()}-${Math.random().toString(36)}`,
 					file: f,
 				}));
-				const newFiles = [...prev, ...newEntries];
-
-				if (newFiles.length > MAX_FILES) {
-					toast.error(t("max_files_exceeded"), {
-						description: t("max_files_exceeded_desc", { max: MAX_FILES }),
-					});
-					return prev;
-				}
-
-				const newTotalSize = newFiles.reduce((sum, entry) => sum + entry.file.size, 0);
-				if (newTotalSize > MAX_TOTAL_SIZE_BYTES) {
-					toast.error(t("max_size_exceeded"), {
-						description: t("max_size_exceeded_desc", { max: MAX_TOTAL_SIZE_MB }),
-					});
-					return prev;
-				}
-
-				return newFiles;
+				return [...prev, ...newEntries];
 			});
 		},
 		[t]
 	);
 
+	const onDrop = useCallback(
+		(acceptedFiles: File[]) => {
+			addFiles(acceptedFiles);
+		},
+		[addFiles]
+	);
+
 	const { getRootProps, getInputProps, isDragActive } = useDropzone({
 		onDrop,
 		accept: acceptedFileTypes,
-		maxSize: 50 * 1024 * 1024, // 50MB per file
-		noClick: false,
-		disabled: files.length >= MAX_FILES,
+		maxSize: MAX_FILE_SIZE_BYTES,
+		noClick: isElectron,
 	});
 
-	// Handle file input click to prevent event bubbling that might reopen dialog
 	const handleFileInputClick = useCallback((e: React.MouseEvent<HTMLInputElement>) => {
 		e.stopPropagation();
 	}, []);
+
+	const handleBrowseFiles = useCallback(async () => {
+		if (!electronAPI?.browseFiles) return;
+
+		const paths = await electronAPI.browseFiles();
+		if (!paths || paths.length === 0) return;
+
+		const fileDataList = await electronAPI.readLocalFiles(paths);
+		const filtered = fileDataList.filter(
+			(fd: { name: string; data: ArrayBuffer; mimeType: string }) => {
+				const ext = fd.name.includes(".") ? `.${fd.name.split(".").pop()?.toLowerCase()}` : "";
+				return ext !== "" && supportedExtensionsSet.has(ext);
+			}
+		);
+
+		if (filtered.length === 0) {
+			toast.error(t("no_supported_files_in_folder"));
+			return;
+		}
+
+		const newFiles: FileWithId[] = filtered.map(
+			(fd: { name: string; data: ArrayBuffer; mimeType: string }) => ({
+				id: crypto.randomUUID?.() ?? `file-${Date.now()}-${Math.random().toString(36)}`,
+				file: new File([fd.data], fd.name, { type: fd.mimeType }),
+			})
+		);
+		setFiles((prev) => [...prev, ...newFiles]);
+	}, [electronAPI, supportedExtensionsSet, t]);
+
+	const handleFolderChange = useCallback(
+		(e: ChangeEvent<HTMLInputElement>) => {
+			const fileList = e.target.files;
+			if (!fileList || fileList.length === 0) return;
+
+			const folderFiles = Array.from(fileList).filter((f) => {
+				const ext = f.name.includes(".") ? `.${f.name.split(".").pop()?.toLowerCase()}` : "";
+				return ext !== "" && supportedExtensionsSet.has(ext);
+			});
+
+			if (folderFiles.length === 0) {
+				toast.error(t("no_supported_files_in_folder"));
+				e.target.value = "";
+				return;
+			}
+
+			addFiles(folderFiles);
+			e.target.value = "";
+		},
+		[addFiles, supportedExtensionsSet, t]
+	);
 
 	const formatFileSize = (bytes: number) => {
 		if (bytes === 0) return "0 Bytes";
@@ -198,16 +194,8 @@ export function DocumentUploadTab({
 
 	const totalFileSize = files.reduce((total, entry) => total + entry.file.size, 0);
 
-	// Check if limits are reached
-	const isFileCountLimitReached = files.length >= MAX_FILES;
-	const isSizeLimitReached = totalFileSize >= MAX_TOTAL_SIZE_BYTES;
-	const remainingFiles = MAX_FILES - files.length;
-	const remainingSizeMB = Math.max(
-		0,
-		(MAX_TOTAL_SIZE_BYTES - totalFileSize) / (1024 * 1024)
-	).toFixed(1);
+	const hasContent = files.length > 0;
 
-	// Track accordion state changes
 	const handleAccordionChange = useCallback(
 		(value: string) => {
 			setAccordionValue(value);
@@ -220,7 +208,7 @@ export function DocumentUploadTab({
 		setUploadProgress(0);
 		trackDocumentUploadStarted(Number(searchSpaceId), files.length, totalFileSize);
 
-		const progressInterval = setInterval(() => {
+		progressIntervalRef.current = setInterval(() => {
 			setUploadProgress((prev) => (prev >= 90 ? prev : prev + Math.random() * 10));
 		}, 200);
 
@@ -233,14 +221,14 @@ export function DocumentUploadTab({
 			},
 			{
 				onSuccess: () => {
-					clearInterval(progressInterval);
+					if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
 					setUploadProgress(100);
 					trackDocumentUploadSuccess(Number(searchSpaceId), files.length);
 					toast(t("upload_initiated"), { description: t("upload_initiated_desc") });
 					onSuccess?.();
 				},
 				onError: (error: unknown) => {
-					clearInterval(progressInterval);
+					if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
 					setUploadProgress(0);
 					const message = error instanceof Error ? error.message : "Upload failed";
 					trackDocumentUploadFailure(Number(searchSpaceId), message);
@@ -252,207 +240,272 @@ export function DocumentUploadTab({
 		);
 	};
 
-	return (
-		<div className="space-y-3 sm:space-y-6 max-w-4xl mx-auto pt-0">
-			<Alert className="border border-border bg-slate-400/5 dark:bg-white/5">
-				<Info className="h-4 w-4 shrink-0 mt-0.5" />
-				<AlertDescription className="text-xs sm:text-sm leading-relaxed pt-0.5">
-					{t("file_size_limit")}{" "}
-					{t("upload_limits", { maxFiles: MAX_FILES, maxSizeMB: MAX_TOTAL_SIZE_MB })}
-				</AlertDescription>
-			</Alert>
+	const renderBrowseButton = (options?: { compact?: boolean; fullWidth?: boolean }) => {
+		const { compact, fullWidth } = options ?? {};
+		const sizeClass = compact ? "h-7" : "h-8";
+		const widthClass = fullWidth ? "w-full" : "";
 
-			<Card className={`relative overflow-hidden ${cardClass}`}>
-				<div className="absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,white,transparent)] opacity-30">
-					<GridPattern />
-				</div>
-				<CardContent className="p-4 sm:p-10 relative z-10">
-					<div
-						{...getRootProps()}
-						className={`flex flex-col items-center justify-center min-h-[200px] sm:min-h-[300px] border-2 border-dashed rounded-lg transition-colors ${
-							isFileCountLimitReached || isSizeLimitReached
-								? "border-destructive/50 bg-destructive/5 cursor-not-allowed"
-								: "border-border hover:border-primary/50 cursor-pointer"
-						}`}
+		if (isElectron) {
+			return (
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+						<Button
+							variant="ghost"
+							size="sm"
+							className={`text-xs gap-1 bg-neutral-700/50 hover:bg-neutral-600/50 ${sizeClass} ${widthClass}`}
+						>
+							Browse
+							<ChevronDown className="h-3 w-3 opacity-60" />
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent
+						align="center"
+						className="dark:bg-neutral-800"
+						onClick={(e) => e.stopPropagation()}
 					>
-						<input
-							{...getInputProps()}
-							ref={fileInputRef}
-							className="hidden"
-							onClick={handleFileInputClick}
-						/>
-						{isFileCountLimitReached ? (
-							<div className="flex flex-col items-center gap-2 sm:gap-4 text-center px-4">
-								<Upload className="h-8 w-8 sm:h-12 sm:w-12 text-destructive/70" />
-								<div>
-									<p className="text-sm sm:text-lg font-medium text-destructive">
-										{t("file_limit_reached")}
-									</p>
-									<p className="text-xs sm:text-sm text-muted-foreground mt-1">
-										{t("file_limit_reached_desc", { max: MAX_FILES })}
-									</p>
-								</div>
-							</div>
-						) : isDragActive ? (
-							<div className="flex flex-col items-center gap-2 sm:gap-4">
-								<Upload className="h-8 w-8 sm:h-12 sm:w-12 text-primary" />
-								<p className="text-sm sm:text-lg font-medium text-primary">{t("drop_files")}</p>
-							</div>
-						) : (
-							<div className="flex flex-col items-center gap-2 sm:gap-4">
-								<Upload className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground" />
-								<div className="text-center">
-									<p className="text-sm sm:text-lg font-medium">{t("drag_drop")}</p>
-									<p className="text-xs sm:text-sm text-muted-foreground mt-1">{t("or_browse")}</p>
-								</div>
-								{files.length > 0 && (
-									<p className="text-xs text-muted-foreground">
-										{t("remaining_capacity", { files: remainingFiles, sizeMB: remainingSizeMB })}
-									</p>
-								)}
+						<DropdownMenuItem onClick={handleBrowseFiles}>
+							<FileIcon className="h-4 w-4 mr-2" />
+							Files
+						</DropdownMenuItem>
+						<DropdownMenuItem onClick={() => folderInputRef.current?.click()}>
+							<FolderOpen className="h-4 w-4 mr-2" />
+							Folder
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			);
+		}
+
+		return (
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+					<Button
+						variant="ghost"
+						size="sm"
+						className={`text-xs gap-1 bg-neutral-700/50 hover:bg-neutral-600/50 ${sizeClass} ${widthClass}`}
+					>
+						Browse
+						<ChevronDown className="h-3 w-3 opacity-60" />
+					</Button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent
+					align="center"
+					className="dark:bg-neutral-800"
+					onClick={(e) => e.stopPropagation()}
+				>
+					<DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+						<FileIcon className="h-4 w-4 mr-2" />
+						{t("browse_files")}
+					</DropdownMenuItem>
+					<DropdownMenuItem onClick={() => folderInputRef.current?.click()}>
+						<FolderOpen className="h-4 w-4 mr-2" />
+						{t("browse_folder")}
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
+		);
+	};
+
+	return (
+		<div className="space-y-2 w-full mx-auto">
+			{/* Hidden file input */}
+			<input
+				{...getInputProps()}
+				ref={fileInputRef}
+				className="hidden"
+				onClick={handleFileInputClick}
+			/>
+
+			{/* Hidden folder input for web folder browsing */}
+			<input
+				ref={folderInputRef}
+				type="file"
+				className="hidden"
+				onChange={handleFolderChange}
+				multiple
+				{...({ webkitdirectory: "", directory: "" } as React.InputHTMLAttributes<HTMLInputElement>)}
+			/>
+
+			{/* MOBILE DROP ZONE */}
+			<div className="sm:hidden">
+				{hasContent ? (
+					isElectron ? (
+						<div className="w-full">{renderBrowseButton({ compact: true, fullWidth: true })}</div>
+					) : (
+						<button
+							type="button"
+							className="w-full text-xs h-8 flex items-center justify-center gap-1.5 rounded-md border border-dashed border-muted-foreground/30 text-muted-foreground hover:text-foreground hover:border-foreground/50 transition-colors"
+							onClick={() => fileInputRef.current?.click()}
+						>
+							Add more files
+						</button>
+					)
+				) : (
+					<button
+						type="button"
+						className="flex flex-col items-center gap-4 py-12 px-4 cursor-pointer w-full bg-transparent border-none"
+						onClick={() => {
+							if (!isElectron) fileInputRef.current?.click();
+						}}
+					>
+						<Upload className="h-10 w-10 text-muted-foreground" />
+						<div className="text-center space-y-1.5">
+							<p className="text-base font-medium">
+								{isElectron ? "Select files or folder" : "Tap to select files or folder"}
+							</p>
+							<p className="text-sm text-muted-foreground">{t("file_size_limit")}</p>
+						</div>
+						{/* biome-ignore lint/a11y/useSemanticElements: wrapper to stop click propagation to parent button */}
+						<div
+							className="w-full mt-1"
+							onClick={(e) => e.stopPropagation()}
+							onKeyDown={(e) => e.stopPropagation()}
+							role="group"
+						>
+							{renderBrowseButton({ fullWidth: true })}
+						</div>
+					</button>
+				)}
+			</div>
+
+			{/* DESKTOP DROP ZONE */}
+			<div
+				{...getRootProps()}
+				className={`hidden sm:block border-2 border-dashed rounded-lg transition-colors border-muted-foreground/30 hover:border-foreground/70 cursor-pointer ${hasContent ? "p-3" : "py-20 px-4"}`}
+			>
+				{hasContent ? (
+					<div className="flex items-center gap-3">
+						<Upload className="h-4 w-4 text-muted-foreground shrink-0" />
+						<span className="text-xs text-muted-foreground flex-1 truncate">
+							{isDragActive ? t("drop_files") : t("drag_drop_more")}
+						</span>
+						{renderBrowseButton({ compact: true })}
+					</div>
+				) : (
+					<div className="relative">
+						{isDragActive && (
+							<div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+								<Upload className="h-8 w-8 text-primary" />
+								<p className="text-sm font-medium text-primary">{t("drop_files")}</p>
 							</div>
 						)}
-						{!isFileCountLimitReached && (
-							<div className="mt-2 sm:mt-4">
+						<div className={`flex flex-col items-center gap-2 ${isDragActive ? "invisible" : ""}`}>
+							<Upload className="h-8 w-8 text-muted-foreground" />
+							<p className="text-sm font-medium">{t("drag_drop")}</p>
+							<p className="text-xs text-muted-foreground">{t("file_size_limit")}</p>
+							<div className="mt-1">{renderBrowseButton()}</div>
+						</div>
+					</div>
+				)}
+			</div>
+
+			{/* FILES SELECTED */}
+			{files.length > 0 && (
+				<div className="rounded-lg border border-border p-3 space-y-2">
+					<div className="flex items-center justify-between">
+						<p className="text-sm font-medium">
+							{t("selected_files", { count: files.length })}
+							<Dot className="inline h-4 w-4" />
+							{formatFileSize(totalFileSize)}
+						</p>
+						<Button
+							variant="ghost"
+							size="sm"
+							className="h-7 text-xs text-muted-foreground hover:text-foreground"
+							onClick={() => setFiles([])}
+							disabled={isUploading}
+						>
+							{t("clear_all")}
+						</Button>
+					</div>
+
+					<div className="max-h-[160px] sm:max-h-[200px] overflow-y-auto -mx-1">
+						{files.map((entry) => (
+							<div
+								key={entry.id}
+								className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-slate-400/5 dark:hover:bg-white/5 group"
+							>
+								<span className="text-[10px] font-medium uppercase leading-none bg-muted px-1.5 py-0.5 rounded text-muted-foreground shrink-0">
+									{entry.file.name.split(".").pop() || "?"}
+								</span>
+								<span className="text-sm truncate flex-1 min-w-0">{entry.file.name}</span>
+								<span className="text-xs text-muted-foreground shrink-0">
+									{formatFileSize(entry.file.size)}
+								</span>
 								<Button
-									variant="secondary"
-									size="sm"
-									className="text-xs sm:text-sm"
-									onClick={(e) => {
-										e.stopPropagation();
-										e.preventDefault();
-										fileInputRef.current?.click();
-									}}
+									variant="ghost"
+									size="icon"
+									className="h-6 w-6 shrink-0"
+									onClick={() => setFiles((prev) => prev.filter((e) => e.id !== entry.id))}
+									disabled={isUploading}
 								>
-									{t("browse_files")}
+									<X className="h-3 w-3" />
 								</Button>
 							</div>
-						)}
+						))}
 					</div>
-				</CardContent>
-			</Card>
 
-			{files.length > 0 && (
-				<Card className={cardClass}>
-					<CardHeader className="p-4 sm:p-6">
-						<div className="flex items-center justify-between gap-2">
-							<div className="min-w-0 flex-1">
-								<CardTitle className="text-base sm:text-2xl">
-									{t("selected_files", { count: files.length })}
-								</CardTitle>
-								<CardDescription className="text-xs sm:text-sm">
-									{t("total_size")}: {formatFileSize(totalFileSize)}
-								</CardDescription>
+					{isUploading && (
+						<div className="space-y-1">
+							<div className="flex items-center justify-between text-xs">
+								<span>{t("uploading_files")}</span>
+								<span>{Math.round(uploadProgress)}%</span>
 							</div>
-							<Button
-								variant="outline"
-								size="sm"
-								className="text-xs sm:text-sm shrink-0"
-								onClick={() => setFiles([])}
-								disabled={isUploading}
-							>
-								{t("clear_all")}
-							</Button>
+							<Progress value={uploadProgress} className="h-1.5" />
 						</div>
-					</CardHeader>
-					<CardContent className="p-4 sm:p-6 pt-0">
-						<div className="space-y-2 sm:space-y-3 max-h-[250px] sm:max-h-[400px] overflow-y-auto">
-							{files.map((entry) => (
-								<div
-									key={entry.id}
-									className={`flex items-center justify-between p-2 sm:p-4 rounded-lg border border-border ${cardClass} hover:bg-slate-400/10 dark:hover:bg-white/10 transition-colors`}
-								>
-									<div className="flex items-center gap-3 flex-1 min-w-0">
-										<FileType className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-										<div className="flex-1 min-w-0">
-											<p className="text-sm sm:text-base font-medium truncate">{entry.file.name}</p>
-											<div className="flex items-center gap-2 mt-1">
-												<Badge variant="secondary" className="text-xs">
-													{formatFileSize(entry.file.size)}
-												</Badge>
-												<Badge variant="outline" className="text-xs">
-													{entry.file.type || "Unknown type"}
-												</Badge>
-											</div>
-										</div>
-									</div>
-									<Button
-										variant="ghost"
-										size="icon"
-										onClick={() => setFiles((prev) => prev.filter((e) => e.id !== entry.id))}
-										disabled={isUploading}
-										className="h-8 w-8"
-									>
-										<X className="h-4 w-4" />
-									</Button>
-								</div>
-							))}
-						</div>
+					)}
 
-						{isUploading && (
-							<div className="mt-3 sm:mt-6 space-y-2 sm:space-y-3">
-								<Separator className="bg-border" />
-								<div className="space-y-2">
-									<div className="flex items-center justify-between text-xs sm:text-sm">
-										<span>{t("uploading_files")}</span>
-										<span>{Math.round(uploadProgress)}%</span>
-									</div>
-									<Progress value={uploadProgress} className="h-2" />
-								</div>
-							</div>
+					<div className={toggleRowClass}>
+						<div className="space-y-0.5">
+							<p className="font-medium text-sm">Enable AI Summary</p>
+							<p className="text-xs text-muted-foreground">
+								Improves search quality but adds latency
+							</p>
+						</div>
+						<Switch checked={shouldSummarize} onCheckedChange={setShouldSummarize} />
+					</div>
+
+					<Button
+						className="w-full"
+						onClick={handleUpload}
+						disabled={isUploading || files.length === 0}
+					>
+						{isUploading ? (
+							<span className="flex items-center gap-2">
+								<Spinner size="sm" />
+								{t("uploading")}
+							</span>
+						) : (
+							<span className="flex items-center gap-2">
+								{t("upload_button", { count: files.length })}
+							</span>
 						)}
-
-						<div className="mt-3 sm:mt-6">
-							<SummaryConfig enabled={shouldSummarize} onEnabledChange={setShouldSummarize} />
-						</div>
-
-						<div className="mt-3 sm:mt-6">
-							<Button
-								className="w-full py-3 sm:py-6 text-xs sm:text-base font-medium"
-								onClick={handleUpload}
-								disabled={isUploading || files.length === 0}
-							>
-								{isUploading ? (
-									<span className="flex items-center gap-2">
-										<Spinner size="sm" />
-										{t("uploading")}
-									</span>
-								) : (
-									<span className="flex items-center gap-2">
-										<CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" />
-										{t("upload_button", { count: files.length })}
-									</span>
-								)}
-							</Button>
-						</div>
-					</CardContent>
-				</Card>
+					</Button>
+				</div>
 			)}
 
+			{/* SUPPORTED FORMATS */}
 			<Accordion
 				type="single"
 				collapsible
 				value={accordionValue}
 				onValueChange={handleAccordionChange}
-				className={`w-full ${cardClass} border border-border rounded-lg mb-0`}
+				className="w-full mt-5"
 			>
-				<AccordionItem value="supported-file-types" className="border-0">
-					<AccordionTrigger className="px-3 sm:px-6 py-3 sm:py-4 hover:no-underline !items-center [&>svg]:!translate-y-0">
-						<div className="flex items-center gap-2 flex-1">
-							<div className="text-left min-w-0">
-								<div className="font-semibold text-sm sm:text-base">
-									{t("supported_file_types")}
-								</div>
-								<div className="text-xs sm:text-sm text-muted-foreground font-normal">
-									{t("file_types_desc")}
-								</div>
-							</div>
-						</div>
+				<AccordionItem value="supported-file-types" className="border border-border rounded-lg">
+					<AccordionTrigger className="px-3 py-2.5 hover:no-underline !items-center [&>svg]:!translate-y-0">
+						<span className="text-xs sm:text-sm text-muted-foreground font-normal">
+							{t("supported_file_types")}
+						</span>
 					</AccordionTrigger>
-					<AccordionContent className="px-3 sm:px-6 pb-3 sm:pb-6">
-						<div className="flex flex-wrap gap-2">
+					<AccordionContent className="px-3 pb-3">
+						<div className="flex flex-wrap gap-1.5">
 							{supportedExtensions.map((ext) => (
-								<Badge key={ext} variant="outline" className="text-xs">
+								<Badge
+									key={ext}
+									variant="secondary"
+									className="rounded border-0 bg-neutral-200/80 dark:bg-neutral-700/60 text-muted-foreground text-[10px] px-2 py-0.5 font-normal"
+								>
 									{ext}
 								</Badge>
 							))}

@@ -1,8 +1,8 @@
 "use client";
 
-import { Cable } from "lucide-react";
+import { Search, Unplug } from "lucide-react";
 import type { FC } from "react";
-import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
+import { getDocumentTypeLabel } from "@/components/documents/DocumentTypeIcon";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TabsContent } from "@/components/ui/tabs";
@@ -134,9 +134,17 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 	const hasActiveConnectors =
 		filteredOAuthConnectorTypes.length > 0 || filteredNonOAuthConnectors.length > 0;
 
+	const hasFilteredResults = hasActiveConnectors || standaloneDocuments.length > 0;
+
 	return (
 		<TabsContent value="active" className="m-0">
-			{hasSources ? (
+			{hasSources && !hasFilteredResults && searchQuery ? (
+				<div className="flex flex-col items-center justify-center py-20 text-center">
+					<Search className="size-8 text-muted-foreground mb-3" />
+					<p className="text-sm text-muted-foreground">No connectors found</p>
+					<p className="text-xs text-muted-foreground/60 mt-1">Try a different search term</p>
+				</div>
+			) : hasSources ? (
 				<div className="space-y-6">
 					{/* Active Connectors Section */}
 					{hasActiveConnectors && (
@@ -302,7 +310,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 			) : (
 				<div className="flex flex-col items-center justify-center py-20 text-center">
 					<div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
-						<Cable className="size-8 text-muted-foreground" />
+						<Unplug className="size-8 text-muted-foreground" />
 					</div>
 					<h4 className="text-lg font-semibold">No active sources</h4>
 					<p className="text-sm text-muted-foreground mt-1 max-w-[280px]">

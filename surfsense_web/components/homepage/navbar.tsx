@@ -32,7 +32,7 @@ export const Navbar = ({ scrolledBgClassName }: NavbarProps = {}) => {
 		};
 
 		handleScroll();
-		window.addEventListener("scroll", handleScroll);
+		window.addEventListener("scroll", handleScroll, { passive: true });
 		return () => window.removeEventListener("scroll", handleScroll);
 	}, []);
 
@@ -132,7 +132,7 @@ const MobileNav = ({ navItems, isScrolled, scrolledBgClassName }: any) => {
 		};
 
 		document.addEventListener("mousedown", handleClickOutside);
-		document.addEventListener("touchstart", handleClickOutside);
+		document.addEventListener("touchstart", handleClickOutside, { passive: true });
 		return () => {
 			document.removeEventListener("mousedown", handleClickOutside);
 			document.removeEventListener("touchstart", handleClickOutside);
@@ -151,6 +151,13 @@ const MobileNav = ({ navItems, isScrolled, scrolledBgClassName }: any) => {
 								"bg-white/80 backdrop-blur-md border border-white/20 shadow-lg dark:bg-neutral-950/80 dark:border-neutral-800/50")
 						: "bg-transparent border border-transparent"
 				)}
+			className={cn(
+				"relative mx-auto flex w-full max-w-[calc(100vw-2rem)] flex-col items-center justify-between px-4 py-2 lg:hidden transition-all duration-300",
+				isScrolled
+					? (scrolledBgClassName ??
+							"bg-white/80 backdrop-blur-md border border-white/20 shadow-lg dark:bg-neutral-950/80 dark:border-neutral-800/50")
+					: "bg-transparent border border-transparent"
+			)}
 		>
 			<div className="flex w-full flex-row items-center justify-between">
 				<Link

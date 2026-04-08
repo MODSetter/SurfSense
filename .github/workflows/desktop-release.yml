@@ -5,6 +5,20 @@ on:
     tags:
       - 'v*'
       - 'beta-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g. 0.0.15) — used for dry-run testing without a tag'
+        required: true
+        default: '0.0.0-test'
+      publish:
+        description: 'Publish to GitHub Releases'
+        required: true
+        type: choice
+        options:
+          - never
+          - always
+        default: 'never'
 
 permissions:
   contents: write
@@ -25,24 +39,28 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      - name: Extract version from tag
+      - name: Extract version
         id: version
         shell: bash
         run: |
-          TAG=${GITHUB_REF#refs/tags/}
-          VERSION=${TAG#beta-}
-          VERSION=${VERSION#v}
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            TAG=${GITHUB_REF#refs/tags/}
+            VERSION=${TAG#beta-}
+            VERSION=${VERSION#v}
+          fi
           echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
           cache: 'pnpm'
           cache-dependency-path: |
             surfsense_web/pnpm-lock.yaml
@@ -60,6 +78,7 @@ jobs:
           NEXT_PUBLIC_ZERO_CACHE_URL: ${{ vars.NEXT_PUBLIC_ZERO_CACHE_URL }}
           NEXT_PUBLIC_DEPLOYMENT_MODE: ${{ vars.NEXT_PUBLIC_DEPLOYMENT_MODE }}
           NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE: ${{ vars.NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE }}
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
 
       - name: Install desktop dependencies
         run: pnpm install
@@ -70,9 +89,12 @@ jobs:
         working-directory: surfsense_desktop
         env:
           HOSTED_FRONTEND_URL: ${{ vars.HOSTED_FRONTEND_URL }}
+          POSTHOG_KEY: ${{ secrets.POSTHOG_KEY }}
+          POSTHOG_HOST: ${{ vars.POSTHOG_HOST }}
 
       - name: Package & Publish
-        run: pnpm exec electron-builder ${{ matrix.platform }} --config electron-builder.yml --publish always -c.extraMetadata.version=${{ steps.version.outputs.VERSION }}
+        shell: bash
+        run: pnpm exec electron-builder ${{ matrix.platform }} --config electron-builder.yml --publish ${{ inputs.publish || 'always' }} -c.extraMetadata.version=${{ steps.version.outputs.VERSION }}
         working-directory: surfsense_desktop
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

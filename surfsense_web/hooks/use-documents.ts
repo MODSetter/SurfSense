@@ -246,9 +246,11 @@ export function useDocuments(
 					status: (doc.status as unknown as DocumentStatusType) ?? { state: "ready" },
 				}));
 
+			const liveById = new Map(validItems.map((v) => [v.id, v]));
+
 			let updated = prev.map((existing) => {
 				if (liveIds.has(existing.id)) {
-					const liveItem = validItems.find((v) => v.id === existing.id);
+					const liveItem = liveById.get(existing.id);
 					if (liveItem) {
 						return {
 							...existing,

@@ -39,7 +39,6 @@ from app.agents.new_chat.llm_config import (
 )
 from app.db import (
     ChatVisibility,
-    Document,
     NewChatMessage,
     NewChatThread,
     Report,
@@ -61,74 +60,6 @@ from app.utils.perf import get_perf_logger, log_system_snapshot, trim_native_hea
 _perf_log = get_perf_logger()
 
 _background_tasks: set[asyncio.Task] = set()
-
-
-def format_mentioned_documents_as_context(documents: list[Document]) -> str:
-    """
-    Format mentioned documents as context for the agent.
-
-    Uses the same XML structure as knowledge_base.format_documents_for_context
-    to ensure citations work properly with chunk IDs.
-    """
-    if not documents:
-        return ""
-
-    context_parts = ["<mentioned_documents>"]
-    context_parts.append(
-        "The user has explicitly mentioned the following documents from their knowledge base. "
-        "These documents are directly relevant to the query and should be prioritized as primary sources. "
-        "Use [citation:CHUNK_ID] format for citations (e.g., [citation:123])."
-    )
-    context_parts.append("")
-
-    for doc in documents:
-        # Build metadata JSON
-        metadata = doc.document_metadata or {}
-        metadata_json = json.dumps(metadata, ensure_ascii=False)
-
-        # Get URL from metadata
-        url = (
-            metadata.get("url")
-            or metadata.get("source")
-            or metadata.get("page_url")
-            or ""
-        )
-
-        context_parts.append("<document>")
-        context_parts.append("<document_metadata>")
-        context_parts.append(f"  <document_id>{doc.id}</document_id>")
-        context_parts.append(
-            f"  <document_type>{doc.document_type.value}</document_type>"
-        )
-        context_parts.append(f"  <title><![CDATA[{doc.title}]]></title>")
-        context_parts.append(f"  <url><![CDATA[{url}]]></url>")
-        context_parts.append(
-            f"  <metadata_json><![CDATA[{metadata_json}]]></metadata_json>"
-        )
-        context_parts.append("</document_metadata>")
-        context_parts.append("")
-        context_parts.append("<document_content>")
-
-        # Use chunks if available (preferred for proper citations)
-        if hasattr(doc, "chunks") and doc.chunks:
-            for chunk in doc.chunks:
-                context_parts.append(
-                    f"  <chunk id='{chunk.id}'><![CDATA[{chunk.content}]]></chunk>"
-                )
-        else:
-            # Fallback to document content if chunks not loaded
-            # Use document ID as chunk ID prefix for consistency
-            context_parts.append(
-                f"  <chunk id='{doc.id}'><![CDATA[{doc.content}]]></chunk>"
-            )
-
-        context_parts.append("</document_content>")
-        context_parts.append("</document>")
-        context_parts.append("")
-
-    context_parts.append("</mentioned_documents>")
-
-    return "\n".join(context_parts)
 
 
 def format_mentioned_surfsense_docs_as_context(
@@ -1317,6 +1248,7 @@ async def stream_new_chat(
             firecrawl_api_key=firecrawl_api_key,
             thread_visibility=visibility,
             disabled_tools=disabled_tools,
+            mentioned_document_ids=mentioned_document_ids,
         )
         _perf_log.info(
             "[stream_new_chat] Agent created in %.3fs", time.perf_counter() - _t0
@@ -1340,18 +1272,9 @@ async def stream_new_chat(
                 thread.needs_history_bootstrap = False
                 await session.commit()
 
-        # Fetch mentioned documents if any (with chunks for proper citations)
-        mentioned_documents: list[Document] = []
-        if mentioned_document_ids:
-            result = await session.execute(
-                select(Document)
-                .options(selectinload(Document.chunks))
-                .filter(
-                    Document.id.in_(mentioned_document_ids),
-                    Document.search_space_id == search_space_id,
-                )
-            )
-            mentioned_documents = list(result.scalars().all())
+        # Mentioned KB documents are now handled by KnowledgeBaseSearchMiddleware
+        # which merges them into the scoped filesystem with full document
+        # structure. Only SurfSense docs and report context are inlined here.
 
         # Fetch mentioned SurfSense docs if any
         mentioned_surfsense_docs: list[SurfsenseDocsDocument] = []
@@ -1379,14 +1302,9 @@ async def stream_new_chat(
         )
         recent_reports = list(recent_reports_result.scalars().all())
 
-        # Format the user query with context (mentioned documents + SurfSense docs)
+        # Format the user query with context (SurfSense docs + reports only)
         final_query = user_query
         context_parts = []
-
-        if mentioned_documents:
-            context_parts.append(
-                format_mentioned_documents_as_context(mentioned_documents)
-            )
 
         if mentioned_surfsense_docs:
             context_parts.append(
@@ -1479,7 +1397,7 @@ async def stream_new_chat(
         yield streaming_service.format_start_step()
 
         # Initial thinking step - analyzing the request
-        if mentioned_documents or mentioned_surfsense_docs:
+        if mentioned_surfsense_docs:
             initial_title = "Analyzing referenced content"
             action_verb = "Analyzing"
         else:
@@ -1489,18 +1407,6 @@ async def stream_new_chat(
         processing_parts = []
         query_text = user_query[:80] + ("..." if len(user_query) > 80 else "")
         processing_parts.append(query_text)
-
-        if mentioned_documents:
-            doc_names = []
-            for doc in mentioned_documents:
-                title = doc.title
-                if len(title) > 30:
-                    title = title[:27] + "..."
-                doc_names.append(title)
-            if len(doc_names) == 1:
-                processing_parts.append(f"[{doc_names[0]}]")
-            else:
-                processing_parts.append(f"[{len(doc_names)} documents]")
 
         if mentioned_surfsense_docs:
             doc_names = []
@@ -1527,7 +1433,7 @@ async def stream_new_chat(
         # These ORM objects (with eagerly-loaded chunks) can be very large.
         # They're only needed to build context strings already copied into
         # final_query / langchain_messages — release them before streaming.
-        del mentioned_documents, mentioned_surfsense_docs, recent_reports
+        del mentioned_surfsense_docs, recent_reports
         del langchain_messages, final_query
 
         # Check if this is the first assistant response so we can generate

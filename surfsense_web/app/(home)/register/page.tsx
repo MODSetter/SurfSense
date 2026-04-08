@@ -229,10 +229,7 @@ export default function RegisterPage() {
 						</AnimatePresence>
 
 						<div>
-							<label
-								htmlFor="email"
-								className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-							>
+							<label htmlFor="email" className="block text-sm font-medium text-foreground">
 								{t("email")}
 							</label>
 							<input
@@ -243,20 +240,17 @@ export default function RegisterPage() {
 								placeholder="you@example.com"
 								value={email}
 								onChange={(e) => setEmail(e.target.value)}
-								className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:bg-gray-800 dark:text-white transition-all ${
+								className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-1 bg-background text-foreground transition-all ${
 									error.title
-										? "border-red-300 focus:border-red-500 focus:ring-red-500 dark:border-red-700"
-										: "border-gray-300 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700"
+										? "border-destructive focus:border-destructive focus:ring-destructive/40"
+										: "border-border focus:border-primary focus:ring-primary/40"
 								}`}
 								disabled={isRegistering}
 							/>
 						</div>
 
 						<div>
-							<label
-								htmlFor="password"
-								className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-							>
+							<label htmlFor="password" className="block text-sm font-medium text-foreground">
 								{t("password")}
 							</label>
 							<input
@@ -267,10 +261,10 @@ export default function RegisterPage() {
 								placeholder="Enter your password"
 								value={password}
 								onChange={(e) => setPassword(e.target.value)}
-								className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:bg-gray-800 dark:text-white transition-all ${
+								className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-1 bg-background text-foreground transition-all ${
 									error.title
-										? "border-red-300 focus:border-red-500 focus:ring-red-500 dark:border-red-700"
-										: "border-gray-300 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700"
+										? "border-destructive focus:border-destructive focus:ring-destructive/40"
+										: "border-border focus:border-primary focus:ring-primary/40"
 								}`}
 								disabled={isRegistering}
 							/>
@@ -279,7 +273,7 @@ export default function RegisterPage() {
 						<div>
 							<label
 								htmlFor="confirmPassword"
-								className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+								className="block text-sm font-medium text-foreground"
 							>
 								{t("confirm_password")}
 							</label>
@@ -291,10 +285,10 @@ export default function RegisterPage() {
 								placeholder="Confirm your password"
 								value={confirmPassword}
 								onChange={(e) => setConfirmPassword(e.target.value)}
-								className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:bg-gray-800 dark:text-white transition-all ${
+								className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-1 bg-background text-foreground transition-all ${
 									error.title
-										? "border-red-300 focus:border-red-500 focus:ring-red-500 dark:border-red-700"
-										: "border-gray-300 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700"
+										? "border-destructive focus:border-destructive focus:ring-destructive/40"
+										: "border-border focus:border-primary focus:ring-primary/40"
 								}`}
 								disabled={isRegistering}
 							/>
@@ -303,7 +297,7 @@ export default function RegisterPage() {
 						<button
 							type="submit"
 							disabled={isRegistering}
-							className="relative w-full rounded-md bg-blue-600 px-4 py-1.5 md:py-2 text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all text-sm md:text-base flex items-center justify-center gap-2"
+							className="relative w-full rounded-md bg-primary px-4 py-1.5 md:py-2 text-primary-foreground shadow-sm hover:bg-primary/90 focus:outline-none focus:ring-1 focus:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50 transition-all text-sm md:text-base flex items-center justify-center gap-2"
 						>
 							<span className={isRegistering ? "invisible" : ""}>{t("register")}</span>
 							{isRegistering && (
@@ -315,12 +309,9 @@ export default function RegisterPage() {
 					</form>
 
 					<div className="mt-4 text-center text-sm">
-						<p className="text-gray-600 dark:text-gray-400">
+						<p className="text-muted-foreground">
 							{t("already_have_account")}{" "}
-							<Link
-								href="/login"
-								className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
-							>
+							<Link href="/login" className="font-medium text-primary hover:text-primary/90">
 								{t("sign_in")}
 							</Link>
 						</p>

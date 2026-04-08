@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, Send, X } from "lucide-react";
+import { ArrowUp } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
@@ -15,13 +15,14 @@ function convertDisplayToData(displayContent: string, mentions: InsertedMention[
 
 	const sortedMentions = [...mentions].sort((a, b) => b.displayName.length - a.displayName.length);
 
-	for (const mention of sortedMentions) {
-		const displayPattern = new RegExp(
-			`@${escapeRegExp(mention.displayName)}(?=\\s|$|[.,!?;:])`,
-			"g"
-		);
-		const dataFormat = `@[${mention.id}]`;
-		result = result.replace(displayPattern, dataFormat);
+	const mentionPatterns = sortedMentions.map((mention) => ({
+		pattern: new RegExp(`@${escapeRegExp(mention.displayName)}(?=\\s|$|[.,!?;:])`, "g"),
+		dataFormat: `@[${mention.id}]`,
+	}));
+
+	for (const { pattern, dataFormat } of mentionPatterns) {
+		pattern.lastIndex = 0; // reset global regex state
+		result = result.replace(pattern, dataFormat);
 	}
 
 	return result;
@@ -306,7 +307,6 @@ export function CommentComposer({
 						onClick={onCancel}
 						disabled={isSubmitting}
 					>
-						<X className="mr-1 size-4" />
 						Cancel
 					</Button>
 				)}
@@ -317,14 +317,7 @@ export function CommentComposer({
 					disabled={!canSubmit}
 					className={cn(!canSubmit && "opacity-50", compact && "size-8 shrink-0 rounded-full")}
 				>
-					{compact ? (
-						<ArrowUp className="size-4" />
-					) : (
-						<>
-							<Send className="mr-1 size-4" />
-							{submitLabel}
-						</>
-					)}
+					{compact ? <ArrowUp className="size-4" /> : submitLabel}
 				</Button>
 			</div>
 		</div>

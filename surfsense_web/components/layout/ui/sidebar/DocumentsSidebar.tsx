@@ -2,12 +2,11 @@
 
 import { useQuery } from "@rocicorp/zero/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { ChevronLeft, ChevronRight, Trash2, Unplug } from "lucide-react";
+import { ChevronLeft, ChevronRight, FolderClock, Trash2, Unplug } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { DocumentsFilters } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentsFilters";
 import { sidebarSelectedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
@@ -18,10 +17,13 @@ import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { CreateFolderDialog } from "@/components/documents/CreateFolderDialog";
 import type { DocumentNodeDoc } from "@/components/documents/DocumentNode";
+import { DocumentsFilters } from "@/components/documents/DocumentsFilters";
 import type { FolderDisplay } from "@/components/documents/FolderNode";
 import { FolderPickerDialog } from "@/components/documents/FolderPickerDialog";
 import { FolderTreeView } from "@/components/documents/FolderTreeView";
+import { VersionHistoryDialog } from "@/components/documents/version-history";
 import { EXPORT_FILE_EXTENSIONS } from "@/components/shared/ExportMenuItems";
+import { FolderWatchDialog, type SelectedFolder } from "@/components/sources/FolderWatchDialog";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -40,6 +42,8 @@ import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useElectronAPI } from "@/hooks/use-platform";
+import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import { queries } from "@/zero/queries/index";
@@ -82,6 +86,7 @@ export function DocumentsSidebar({
 	const tSidebar = useTranslations("sidebar");
 	const params = useParams();
 	const isMobile = !useMediaQuery("(min-width: 640px)");
+	const electronAPI = useElectronAPI();
 	const searchSpaceId = Number(params.search_space_id);
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 	const setRightPanelCollapsed = useSetAtom(rightPanelCollapsedAtom);
@@ -92,6 +97,65 @@ export function DocumentsSidebar({
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebouncedValue(search, 250);
 	const [activeTypes, setActiveTypes] = useState<DocumentTypeEnum[]>([]);
+	const [watchedFolderIds, setWatchedFolderIds] = useState<Set<number>>(new Set());
+	const [folderWatchOpen, setFolderWatchOpen] = useState(false);
+	const [watchInitialFolder, setWatchInitialFolder] = useState<SelectedFolder | null>(null);
+	const isElectron = typeof window !== "undefined" && !!window.electronAPI;
+
+	const handleWatchLocalFolder = useCallback(async () => {
+		const api = window.electronAPI;
+		if (!api?.selectFolder) return;
+
+		const folderPath = await api.selectFolder();
+		if (!folderPath) return;
+
+		const folderName = folderPath.split("/").pop() || folderPath.split("\\").pop() || folderPath;
+		setWatchInitialFolder({ path: folderPath, name: folderName });
+		setFolderWatchOpen(true);
+	}, []);
+
+	useEffect(() => {
+		if (!electronAPI?.getWatchedFolders) return;
+		const api = electronAPI;
+
+		async function loadWatchedIds() {
+			const folders = await api.getWatchedFolders();
+
+			if (folders.length === 0) {
+				try {
+					const backendFolders = await documentsApiService.getWatchedFolders(searchSpaceId);
+					for (const bf of backendFolders) {
+						const meta = bf.metadata as Record<string, unknown> | null;
+						if (!meta?.watched || !meta.folder_path) continue;
+						await api.addWatchedFolder({
+							path: meta.folder_path as string,
+							name: bf.name,
+							rootFolderId: bf.id,
+							searchSpaceId: bf.search_space_id,
+							excludePatterns: (meta.exclude_patterns as string[]) ?? [],
+							fileExtensions: (meta.file_extensions as string[] | null) ?? null,
+							active: true,
+						});
+					}
+					const recovered = await api.getWatchedFolders();
+					const ids = new Set(
+						recovered.filter((f) => f.rootFolderId != null).map((f) => f.rootFolderId as number)
+					);
+					setWatchedFolderIds(ids);
+					return;
+				} catch (err) {
+					console.error("[DocumentsSidebar] Recovery from backend failed:", err);
+				}
+			}
+
+			const ids = new Set(
+				folders.filter((f) => f.rootFolderId != null).map((f) => f.rootFolderId as number)
+			);
+			setWatchedFolderIds(ids);
+		}
+
+		loadWatchedIds();
+	}, [searchSpaceId, electronAPI]);
 	const { mutateAsync: deleteDocumentMutation } = useAtomValue(deleteDocumentMutationAtom);
 
 	const [sidebarDocs, setSidebarDocs] = useAtom(sidebarSelectedDocumentsAtom);
@@ -134,7 +198,12 @@ export function DocumentsSidebar({
 
 	const treeDocuments: DocumentNodeDoc[] = useMemo(() => {
 		const zeroDocs = (zeroAllDocs ?? [])
-			.filter((d) => d.title && d.title.trim() !== "")
+			.filter((d) => {
+				if (!d.title || d.title.trim() === "") return false;
+				const state = (d.status as { state?: string } | undefined)?.state;
+				if (state === "deleting") return false;
+				return true;
+			})
 			.map((d) => ({
 				id: d.id,
 				title: d.title,
@@ -223,6 +292,55 @@ export function DocumentsSidebar({
 		[createFolderParentId, searchSpaceId, setExpandedFolderMap]
 	);
 
+	const handleRescanFolder = useCallback(
+		async (folder: FolderDisplay) => {
+			if (!electronAPI) return;
+
+			const watchedFolders = await electronAPI.getWatchedFolders();
+			const matched = watchedFolders.find((wf) => wf.rootFolderId === folder.id);
+			if (!matched) {
+				toast.error("This folder is not being watched");
+				return;
+			}
+
+			try {
+				await documentsApiService.folderIndex(searchSpaceId, {
+					folder_path: matched.path,
+					folder_name: matched.name,
+					search_space_id: searchSpaceId,
+					root_folder_id: folder.id,
+					file_extensions: matched.fileExtensions ?? undefined,
+				});
+				toast.success(`Re-scanning folder: ${matched.name}`);
+			} catch (err) {
+				toast.error((err as Error)?.message || "Failed to re-scan folder");
+			}
+		},
+		[searchSpaceId, electronAPI]
+	);
+
+	const handleStopWatching = useCallback(
+		async (folder: FolderDisplay) => {
+			if (!electronAPI) return;
+
+			const watchedFolders = await electronAPI.getWatchedFolders();
+			const matched = watchedFolders.find((wf) => wf.rootFolderId === folder.id);
+			if (!matched) {
+				toast.error("This folder is not being watched");
+				return;
+			}
+
+			await electronAPI.removeWatchedFolder(matched.path);
+			try {
+				await foldersApiService.stopWatching(folder.id);
+			} catch (err) {
+				console.error("[DocumentsSidebar] Failed to clear watched metadata:", err);
+			}
+			toast.success(`Stopped watching: ${matched.name}`);
+		},
+		[electronAPI]
+	);
+
 	const handleRenameFolder = useCallback(async (folder: FolderDisplay, newName: string) => {
 		try {
 			await foldersApiService.updateFolder(folder.id, { name: newName });
@@ -232,15 +350,25 @@ export function DocumentsSidebar({
 		}
 	}, []);
 
-	const handleDeleteFolder = useCallback(async (folder: FolderDisplay) => {
-		if (!confirm(`Delete folder "${folder.name}" and all its contents?`)) return;
-		try {
-			await foldersApiService.deleteFolder(folder.id);
-			toast.success("Folder deleted");
-		} catch (e: unknown) {
-			toast.error((e as Error)?.message || "Failed to delete folder");
-		}
-	}, []);
+	const handleDeleteFolder = useCallback(
+		async (folder: FolderDisplay) => {
+			if (!confirm(`Delete folder "${folder.name}" and all its contents?`)) return;
+			try {
+				if (electronAPI) {
+					const watchedFolders = await electronAPI.getWatchedFolders();
+					const matched = watchedFolders.find((wf) => wf.rootFolderId === folder.id);
+					if (matched) {
+						await electronAPI.removeWatchedFolder(matched.path);
+					}
+				}
+				await foldersApiService.deleteFolder(folder.id);
+				toast.success("Folder deleted");
+			} catch (e: unknown) {
+				toast.error((e as Error)?.message || "Failed to delete folder");
+			}
+		},
+		[electronAPI]
+	);
 
 	const handleMoveFolder = useCallback(
 		(folder: FolderDisplay) => {
@@ -425,7 +553,8 @@ export function DocumentsSidebar({
 	const typeCounts = useMemo(() => {
 		const counts: Partial<Record<string, number>> = {};
 		for (const d of treeDocuments) {
-			counts[d.document_type] = (counts[d.document_type] || 0) + 1;
+			const displayType = d.document_type === "LOCAL_FOLDER_FILE" ? "FILE" : d.document_type;
+			counts[displayType] = (counts[displayType] || 0) + 1;
 		}
 		return counts;
 	}, [treeDocuments]);
@@ -448,6 +577,7 @@ export function DocumentsSidebar({
 
 	const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
 	const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+	const [versionDocId, setVersionDocId] = useState<number | null>(null);
 
 	const handleBulkDeleteSelected = useCallback(async () => {
 		if (deletableSelectedIds.length === 0) return;
@@ -639,7 +769,18 @@ export function DocumentsSidebar({
 				</button>
 			</div>
 
-			<div className="flex-1 min-h-0 overflow-x-hidden pt-0 flex flex-col">
+			{isElectron && (
+				<button
+					type="button"
+					onClick={handleWatchLocalFolder}
+					className="shrink-0 mx-4 mb-4 flex select-none items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2 transition-colors hover:bg-muted/80"
+				>
+					<FolderClock className="size-4 shrink-0 text-muted-foreground" />
+					<span className="truncate text-xs text-muted-foreground">Watch local folder</span>
+				</button>
+			)}
+
+			<div className="flex-1 min-h-0 pt-0 flex flex-col">
 				<div className="px-4 pb-2">
 					<DocumentsFilters
 						typeCounts={typeCounts}
@@ -651,55 +792,83 @@ export function DocumentsSidebar({
 					/>
 				</div>
 
-				{deletableSelectedIds.length > 0 && (
-					<div className="shrink-0 flex items-center justify-center px-4 py-1.5 animate-in fade-in duration-150">
-						<button
-							type="button"
-							onClick={() => setBulkDeleteConfirmOpen(true)}
-							className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-destructive text-destructive-foreground shadow-sm text-xs font-medium hover:bg-destructive/90 transition-colors"
-						>
-							<Trash2 size={12} />
-							Delete {deletableSelectedIds.length}{" "}
-							{deletableSelectedIds.length === 1 ? "item" : "items"}
-						</button>
-					</div>
-				)}
+				<div className="relative flex-1 min-h-0 overflow-auto">
+					{deletableSelectedIds.length > 0 && (
+						<div className="absolute inset-x-0 top-0 z-10 flex items-center justify-center px-4 py-1.5 animate-in fade-in duration-150 pointer-events-none">
+							<button
+								type="button"
+								onClick={() => setBulkDeleteConfirmOpen(true)}
+								className="pointer-events-auto flex items-center gap-1.5 px-3 py-1 rounded-md bg-destructive text-destructive-foreground shadow-lg text-xs font-medium hover:bg-destructive/90 transition-colors"
+							>
+								<Trash2 size={12} />
+								Delete {deletableSelectedIds.length}{" "}
+								{deletableSelectedIds.length === 1 ? "item" : "items"}
+							</button>
+						</div>
+					)}
 
-				<FolderTreeView
-					folders={treeFolders}
-					documents={searchFilteredDocuments}
-					expandedIds={expandedIds}
-					onToggleExpand={toggleFolderExpand}
-					mentionedDocIds={mentionedDocIds}
-					onToggleChatMention={handleToggleChatMention}
-					onToggleFolderSelect={handleToggleFolderSelect}
-					onRenameFolder={handleRenameFolder}
-					onDeleteFolder={handleDeleteFolder}
-					onMoveFolder={handleMoveFolder}
-					onCreateFolder={handleCreateFolder}
-					searchQuery={debouncedSearch.trim() || undefined}
-					onPreviewDocument={(doc) => {
-						openEditorPanel({
-							documentId: doc.id,
-							searchSpaceId,
-							title: doc.title,
-						});
-					}}
-					onEditDocument={(doc) => {
-						openEditorPanel({
-							documentId: doc.id,
-							searchSpaceId,
-							title: doc.title,
-						});
-					}}
-					onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
-					onMoveDocument={handleMoveDocument}
-					onExportDocument={handleExportDocument}
-					activeTypes={activeTypes}
-					onDropIntoFolder={handleDropIntoFolder}
-					onReorderFolder={handleReorderFolder}
-				/>
+					<FolderTreeView
+						folders={treeFolders}
+						documents={searchFilteredDocuments}
+						expandedIds={expandedIds}
+						onToggleExpand={toggleFolderExpand}
+						mentionedDocIds={mentionedDocIds}
+						onToggleChatMention={handleToggleChatMention}
+						onToggleFolderSelect={handleToggleFolderSelect}
+						onRenameFolder={handleRenameFolder}
+						onDeleteFolder={handleDeleteFolder}
+						onMoveFolder={handleMoveFolder}
+						onCreateFolder={handleCreateFolder}
+						searchQuery={debouncedSearch.trim() || undefined}
+						onPreviewDocument={(doc) => {
+							openEditorPanel({
+								documentId: doc.id,
+								searchSpaceId,
+								title: doc.title,
+							});
+						}}
+						onEditDocument={(doc) => {
+							openEditorPanel({
+								documentId: doc.id,
+								searchSpaceId,
+								title: doc.title,
+							});
+						}}
+						onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
+						onMoveDocument={handleMoveDocument}
+						onExportDocument={handleExportDocument}
+						onVersionHistory={(doc) => setVersionDocId(doc.id)}
+						activeTypes={activeTypes}
+						onDropIntoFolder={handleDropIntoFolder}
+						onReorderFolder={handleReorderFolder}
+						watchedFolderIds={watchedFolderIds}
+						onRescanFolder={handleRescanFolder}
+						onStopWatchingFolder={handleStopWatching}
+					/>
+				</div>
 			</div>
+
+			{versionDocId !== null && (
+				<VersionHistoryDialog
+					open
+					onOpenChange={(open) => {
+						if (!open) setVersionDocId(null);
+					}}
+					documentId={versionDocId}
+				/>
+			)}
+
+			{isElectron && (
+				<FolderWatchDialog
+					open={folderWatchOpen}
+					onOpenChange={(nextOpen) => {
+						setFolderWatchOpen(nextOpen);
+						if (!nextOpen) setWatchInitialFolder(null);
+					}}
+					searchSpaceId={searchSpaceId}
+					initialFolder={watchInitialFolder}
+				/>
+			)}
 
 			<FolderPickerDialog
 				open={folderPickerOpen}
