@@ -1,43 +1,62 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useAtom } from "jotai";
 import { Bot, Brain, Eye, FileText, Globe, ImageIcon, MessageSquare, Shield } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import type React from "react";
 import { searchSpaceSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
 import { SettingsDialog } from "@/components/settings/settings-dialog";
 
 const GeneralSettingsManager = dynamic(
-	() => import("@/components/settings/general-settings-manager").then(m => ({ default: m.GeneralSettingsManager })),
+	() =>
+		import("@/components/settings/general-settings-manager").then((m) => ({
+			default: m.GeneralSettingsManager,
+		})),
 	{ ssr: false }
 );
 const ModelConfigManager = dynamic(
-	() => import("@/components/settings/model-config-manager").then(m => ({ default: m.ModelConfigManager })),
+	() =>
+		import("@/components/settings/model-config-manager").then((m) => ({
+			default: m.ModelConfigManager,
+		})),
 	{ ssr: false }
 );
 const LLMRoleManager = dynamic(
-	() => import("@/components/settings/llm-role-manager").then(m => ({ default: m.LLMRoleManager })),
+	() =>
+		import("@/components/settings/llm-role-manager").then((m) => ({ default: m.LLMRoleManager })),
 	{ ssr: false }
 );
 const ImageModelManager = dynamic(
-	() => import("@/components/settings/image-model-manager").then(m => ({ default: m.ImageModelManager })),
+	() =>
+		import("@/components/settings/image-model-manager").then((m) => ({
+			default: m.ImageModelManager,
+		})),
 	{ ssr: false }
 );
 const VisionModelManager = dynamic(
-	() => import("@/components/settings/vision-model-manager").then(m => ({ default: m.VisionModelManager })),
+	() =>
+		import("@/components/settings/vision-model-manager").then((m) => ({
+			default: m.VisionModelManager,
+		})),
 	{ ssr: false }
 );
 const RolesManager = dynamic(
-	() => import("@/components/settings/roles-manager").then(m => ({ default: m.RolesManager })),
+	() => import("@/components/settings/roles-manager").then((m) => ({ default: m.RolesManager })),
 	{ ssr: false }
 );
 const PromptConfigManager = dynamic(
-	() => import("@/components/settings/prompt-config-manager").then(m => ({ default: m.PromptConfigManager })),
+	() =>
+		import("@/components/settings/prompt-config-manager").then((m) => ({
+			default: m.PromptConfigManager,
+		})),
 	{ ssr: false }
 );
 const PublicChatSnapshotsManager = dynamic(
-	() => import("@/components/public-chat-snapshots/public-chat-snapshots-manager").then(m => ({ default: m.PublicChatSnapshotsManager })),
+	() =>
+		import("@/components/public-chat-snapshots/public-chat-snapshots-manager").then((m) => ({
+			default: m.PublicChatSnapshotsManager,
+		})),
 	{ ssr: false }
 );
 

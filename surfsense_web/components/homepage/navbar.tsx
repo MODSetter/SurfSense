@@ -144,15 +144,8 @@ const MobileNav = ({ navItems, isScrolled, scrolledBgClassName }: any) => {
 			ref={navRef}
 			animate={{ borderRadius: open ? "4px" : "2rem" }}
 			key={String(open)}
-				className={cn(
-					"relative mx-auto flex w-full max-w-[calc(100vw-2rem)] flex-col items-center justify-between px-4 py-2 lg:hidden transition-[background-color,border-color,box-shadow] duration-300",
-					isScrolled
-						? (scrolledBgClassName ??
-								"bg-white/80 backdrop-blur-md border border-white/20 shadow-lg dark:bg-neutral-950/80 dark:border-neutral-800/50")
-						: "bg-transparent border border-transparent"
-				)}
 			className={cn(
-				"relative mx-auto flex w-full max-w-[calc(100vw-2rem)] flex-col items-center justify-between px-4 py-2 lg:hidden transition-all duration-300",
+				"relative mx-auto flex w-full max-w-[calc(100vw-2rem)] flex-col items-center justify-between px-4 py-2 lg:hidden transition-[background-color,border-color,box-shadow] duration-300",
 				isScrolled
 					? (scrolledBgClassName ??
 							"bg-white/80 backdrop-blur-md border border-white/20 shadow-lg dark:bg-neutral-950/80 dark:border-neutral-800/50")
