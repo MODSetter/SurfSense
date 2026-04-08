@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
+import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Suspense, useEffect, useState } from "react";
@@ -16,6 +17,7 @@ import { LocalLoginForm } from "./LocalLoginForm";
 function LoginContent() {
 	const t = useTranslations("auth");
 	const tCommon = useTranslations("common");
+	const router = useRouter();
 	const [authType, setAuthType] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [urlError, setUrlError] = useState<{ title: string; message: string } | null>(null);
@@ -79,7 +81,7 @@ function LoginContent() {
 			if (shouldRetry(error)) {
 				toastOptions.action = {
 					label: "Retry",
-					onClick: () => window.location.reload(),
+					onClick: () => router.refresh(),
 				};
 			}
 
