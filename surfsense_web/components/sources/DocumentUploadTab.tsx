@@ -341,30 +341,36 @@ export function DocumentUploadTab({
 						</button>
 					)
 				) : (
-					<button
-						type="button"
-						className="flex flex-col items-center gap-4 py-12 px-4 cursor-pointer w-full bg-transparent border-none"
-						onClick={() => {
+				<div
+					role="button"
+					tabIndex={0}
+					className="flex flex-col items-center gap-4 py-12 px-4 cursor-pointer w-full bg-transparent border-none"
+					onClick={() => {
+						if (!isElectron) fileInputRef.current?.click();
+					}}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
 							if (!isElectron) fileInputRef.current?.click();
-						}}
+						}
+					}}
+				>
+					<Upload className="h-10 w-10 text-muted-foreground" />
+					<div className="text-center space-y-1.5">
+						<p className="text-base font-medium">
+							{isElectron ? "Select files or folder" : "Tap to select files or folder"}
+						</p>
+						<p className="text-sm text-muted-foreground">{t("file_size_limit")}</p>
+					</div>
+					<div
+						className="w-full mt-1"
+						onClick={(e) => e.stopPropagation()}
+						onKeyDown={(e) => e.stopPropagation()}
+						role="group"
 					>
-						<Upload className="h-10 w-10 text-muted-foreground" />
-						<div className="text-center space-y-1.5">
-							<p className="text-base font-medium">
-								{isElectron ? "Select files or folder" : "Tap to select files or folder"}
-							</p>
-							<p className="text-sm text-muted-foreground">{t("file_size_limit")}</p>
-						</div>
-						{/* biome-ignore lint/a11y/useSemanticElements: wrapper to stop click propagation to parent button */}
-						<div
-							className="w-full mt-1"
-							onClick={(e) => e.stopPropagation()}
-							onKeyDown={(e) => e.stopPropagation()}
-							role="group"
-						>
-							{renderBrowseButton({ fullWidth: true })}
-						</div>
-					</button>
+						{renderBrowseButton({ fullWidth: true })}
+					</div>
+				</div>
 				)}
 			</div>
 
