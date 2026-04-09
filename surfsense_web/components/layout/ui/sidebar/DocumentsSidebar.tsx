@@ -406,6 +406,45 @@ export function DocumentsSidebar({
 		setFolderPickerOpen(true);
 	}, []);
 
+	const [isExportingKB, setIsExportingKB] = useState(false);
+
+	const handleExportKB = useCallback(async () => {
+		if (isExportingKB) return;
+		setIsExportingKB(true);
+		try {
+			const response = await authenticatedFetch(
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/export`,
+				{ method: "GET" }
+			);
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({ detail: "Export failed" }));
+				throw new Error(errorData.detail || "Export failed");
+			}
+
+			const skipped = response.headers.get("X-Skipped-Documents");
+			if (skipped && Number(skipped) > 0) {
+				toast.warning(`${skipped} document(s) were skipped (still processing)`);
+			}
+
+			const blob = await response.blob();
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = "knowledge-base.zip";
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			URL.revokeObjectURL(url);
+
+			toast.success("Knowledge base exported");
+		} catch (err) {
+			console.error("KB export failed:", err);
+			toast.error(err instanceof Error ? err.message : "Export failed");
+		} finally {
+			setIsExportingKB(false);
+		}
+	}, [searchSpaceId, isExportingKB]);
+
 	const handleExportDocument = useCallback(
 		async (doc: DocumentNodeDoc, format: string) => {
 			const safeTitle =
@@ -800,7 +839,7 @@ export function DocumentsSidebar({
 						onToggleType={onToggleType}
 						activeTypes={activeTypes}
 						onCreateFolder={() => handleCreateFolder(null)}
-						onExportKB={() => toast("Export KB clicked (placeholder)")}
+						onExportKB={handleExportKB}
 					/>
 				</div>
 
