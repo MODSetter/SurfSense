@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { Info, Send } from "lucide-react";
+import { Download, Info, Send } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -75,6 +75,23 @@ export function MemoryContent() {
 			toast.error("Failed to edit memory");
 		} finally {
 			setEditing(false);
+		}
+	};
+
+	const handleExport = () => {
+		if (!memory) return;
+		try {
+			const blob = new Blob([memory], { type: "text/markdown;charset=utf-8" });
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = "personal-memory.md";
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			URL.revokeObjectURL(url);
+		} catch {
+			toast.error("Failed to export memory");
 		}
 	};
 
@@ -168,7 +185,7 @@ export function MemoryContent() {
 				</Button>
 			</div>
 
-			<div className="flex justify-start">
+			<div className="flex items-center gap-2">
 				<Button
 					type="button"
 					variant="destructive"
@@ -177,6 +194,16 @@ export function MemoryContent() {
 					disabled={saving || editing || !memory}
 				>
 					Reset Memory
+				</Button>
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
+					onClick={handleExport}
+					disabled={!memory}
+				>
+					<Download className="h-4 w-4" />
+					Export
 				</Button>
 			</div>
 		</div>
