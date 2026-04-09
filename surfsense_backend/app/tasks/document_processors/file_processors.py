@@ -333,6 +333,7 @@ async def process_file_in_background(
 async def _extract_file_content(
     file_path: str,
     filename: str,
+    search_space_id: int,
     session: AsyncSession,
     user_id: str,
     task_logger: TaskLoggingService,
@@ -360,6 +361,7 @@ async def _extract_file_content(
             FileCategory.PLAINTEXT: "Reading file",
             FileCategory.DIRECT_CONVERT: "Converting file",
             FileCategory.AUDIO: "Transcribing audio",
+            FileCategory.IMAGE: "Analyzing image",
             FileCategory.UNSUPPORTED: "Unsupported file type",
             FileCategory.DOCUMENT: "Extracting content",
         }
@@ -383,7 +385,13 @@ async def _extract_file_content(
         estimated_pages = _estimate_pages_safe(page_limit_service, file_path)
         await page_limit_service.check_page_limit(user_id, estimated_pages)
 
-    result = await EtlPipelineService().extract(
+    vision_llm = None
+    if category == FileCategory.IMAGE:
+        from app.services.llm_service import get_vision_llm
+
+        vision_llm = await get_vision_llm(session, search_space_id)
+
+    result = await EtlPipelineService(vision_llm=vision_llm).extract(
         EtlRequest(
             file_path=file_path,
             filename=filename,
@@ -439,6 +447,7 @@ async def process_file_in_background_with_document(
         markdown_content, etl_service = await _extract_file_content(
             file_path,
             filename,
+            search_space_id,
             session,
             user_id,
             task_logger,

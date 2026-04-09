@@ -154,3 +154,40 @@ def test_get_extensions_for_none_returns_union():
     )
 
     assert get_document_extensions_for_service(None) == DOCUMENT_EXTENSIONS
+
+
+# ---------------------------------------------------------------------------
+# IMAGE_EXTENSIONS
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "ext",
+    [
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".bmp",
+        ".tiff",
+        ".tif",
+        ".webp",
+        ".svg",
+        ".heic",
+        ".heif",
+    ],
+)
+def test_image_extensions_contains_expected(ext):
+    from app.utils.file_extensions import IMAGE_EXTENSIONS
+
+    assert ext in IMAGE_EXTENSIONS
+
+
+def test_image_extensions_are_subset_of_document_extensions():
+    """Image extensions used for routing should also be in DOCUMENT_EXTENSIONS for fallback."""
+    from app.utils.file_extensions import DOCUMENT_EXTENSIONS, IMAGE_EXTENSIONS
+
+    missing = IMAGE_EXTENSIONS - DOCUMENT_EXTENSIONS
+    assert not missing, (
+        f"Image extensions missing from document sets (breaks fallback): {missing}"
+    )

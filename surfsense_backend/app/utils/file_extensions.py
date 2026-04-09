@@ -7,9 +7,32 @@ Extensions already covered by PLAINTEXT_EXTENSIONS, AUDIO_EXTENSIONS, or
 DIRECT_CONVERT_EXTENSIONS in file_classifier are NOT repeated here -- these
 sets are exclusively for the "document" ETL path (Docling / LlamaParse /
 Unstructured).
+
+Image extensions intentionally remain in the per-parser sets for fallback
+compatibility.  IMAGE_EXTENSIONS is used only for routing classification.
 """
 
 from pathlib import PurePosixPath
+
+# ---------------------------------------------------------------------------
+# Image extensions (used by file_classifier for routing to vision LLM)
+# ---------------------------------------------------------------------------
+
+IMAGE_EXTENSIONS: frozenset[str] = frozenset(
+    {
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".bmp",
+        ".tiff",
+        ".tif",
+        ".webp",
+        ".svg",
+        ".heic",
+        ".heif",
+    }
+)
 
 # ---------------------------------------------------------------------------
 # Per-parser document extension sets (from official documentation)

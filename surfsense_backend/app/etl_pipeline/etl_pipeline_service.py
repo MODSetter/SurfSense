@@ -15,6 +15,9 @@ from app.etl_pipeline.parsers.plaintext import read_plaintext
 class EtlPipelineService:
     """Single pipeline for extracting markdown from files. All callers use this."""
 
+    def __init__(self, *, vision_llm=None):
+        self._vision_llm = vision_llm
+
     async def extract(self, request: EtlRequest) -> EtlResult:
         category = classify_file(request.filename)
 
@@ -47,6 +50,28 @@ class EtlPipelineService:
                 content_type="audio",
             )
 
+        if category == FileCategory.IMAGE:
+            return await self._extract_image(request)
+
+        return await self._extract_document(request)
+
+    async def _extract_image(self, request: EtlRequest) -> EtlResult:
+        if self._vision_llm:
+            from app.etl_pipeline.parsers.vision_llm import parse_with_vision_llm
+
+            content = await parse_with_vision_llm(
+                request.file_path, request.filename, self._vision_llm
+            )
+            return EtlResult(
+                markdown_content=content,
+                etl_service="VISION_LLM",
+                content_type="image",
+            )
+
+        logging.info(
+            "No vision LLM provided, falling back to document parser for %s",
+            request.filename,
+        )
         return await self._extract_document(request)
 
     async def _extract_document(self, request: EtlRequest) -> EtlResult:
