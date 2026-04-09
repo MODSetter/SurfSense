@@ -18,9 +18,11 @@ import { cacheKeys } from "@/lib/query-client/cache-keys";
 
 const MEMORY_HARD_LIMIT = 25_000;
 
-const SearchSpaceSchema = z.object({
-	shared_memory_md: z.string().optional().default(""),
-}).passthrough();
+const SearchSpaceSchema = z
+	.object({
+		shared_memory_md: z.string().optional().default(""),
+	})
+	.passthrough();
 
 interface TeamMemoryManagerProps {
 	searchSpaceId: number;
@@ -67,7 +69,7 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 			await baseApiService.post(
 				`/api/v1/searchspaces/${searchSpaceId}/memory/edit`,
 				SearchSpaceSchema,
-				{ body: { query } },
+				{ body: { query } }
 			);
 			setEditQuery("");
 			await queryClient.invalidateQueries({

@@ -134,7 +134,9 @@ async def _forced_rewrite(content: str, llm: Any) -> str | None:
     Returns the rewritten string, or ``None`` if the call fails.
     """
     try:
-        prompt = _FORCED_REWRITE_PROMPT.format(target=MEMORY_HARD_LIMIT, content=content)
+        prompt = _FORCED_REWRITE_PROMPT.format(
+            target=MEMORY_HARD_LIMIT, content=content
+        )
         response = await llm.ainvoke(
             [HumanMessage(content=prompt)],
             config={"tags": ["surfsense:internal"]},

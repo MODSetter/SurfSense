@@ -111,7 +111,9 @@ class MemoryInjectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
 
         return {"messages": new_messages}
 
-    async def _load_user_memory(self, session: AsyncSession) -> tuple[str | None, str | None]:
+    async def _load_user_memory(
+        self, session: AsyncSession
+    ) -> tuple[str | None, str | None]:
         """Return (memory_content, display_name)."""
         try:
             result = await session.execute(

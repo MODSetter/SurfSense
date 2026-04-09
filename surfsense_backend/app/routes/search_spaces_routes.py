@@ -359,9 +359,7 @@ async def edit_team_memory(
         ).strip()
     except Exception as e:
         logger.exception("Team memory edit LLM call failed: %s", e)
-        raise HTTPException(
-            status_code=500, detail="Team memory edit failed."
-        ) from e
+        raise HTTPException(status_code=500, detail="Team memory edit failed.") from e
 
     if not updated:
         raise HTTPException(status_code=400, detail="LLM returned empty result.")
@@ -370,9 +368,7 @@ async def edit_team_memory(
         updated_memory=updated,
         old_memory=current_memory,
         llm=llm,
-        apply_fn=lambda content: setattr(
-            db_search_space, "shared_memory_md", content
-        ),
+        apply_fn=lambda content: setattr(db_search_space, "shared_memory_md", content),
         commit_fn=session.commit,
         rollback_fn=session.rollback,
         label="team memory",
