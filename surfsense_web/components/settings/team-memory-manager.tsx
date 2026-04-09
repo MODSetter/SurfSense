@@ -2,13 +2,14 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
-import { useEffect, useState } from "react";
+import { Info } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { updateSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { PlateEditor } from "@/components/editor/plate-editor";
 import { Spinner } from "@/components/ui/spinner";
-import { Textarea } from "@/components/ui/textarea";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 
@@ -38,6 +39,11 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 			setMemory(searchSpace.shared_memory_md || "");
 		}
 	}, [searchSpace?.shared_memory_md]);
+
+	const handleMarkdownChange = useCallback((md: string) => {
+		const trimmed = md.trim();
+		setMemory(trimmed);
+	}, []);
 
 	const hasChanges =
 		!!searchSpace &&
@@ -94,35 +100,32 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 
 	return (
 		<div className="space-y-4">
-			<div className="rounded-lg border bg-card p-6">
-				<div className="space-y-4">
-					<div>
-						<Label htmlFor="team-memory">Team Memory</Label>
-						<p className="mt-1 text-xs text-muted-foreground">
-							This is the shared memory document for this search space. The AI assistant reads
-							it at the start of every conversation and uses it for team-wide context. You can
-							edit it directly or let the assistant update it during conversations.
-						</p>
-					</div>
+			<Alert className="bg-muted/50 py-3 md:py-4">
+				<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
+				<AlertDescription className="text-xs md:text-sm">
+				SurfSense uses this shared memory to provide team-wide context across all conversations in this search space.
+				</AlertDescription>
+			</Alert>
 
-					<Textarea
-						id="team-memory"
-						value={memory}
-						onChange={(e) => setMemory(e.target.value)}
-						placeholder={
-							"## Team decisions\n- ...\n\n## Conventions\n- ...\n\n## Key facts\n- ...\n\n## Current priorities\n- ..."
-						}
-						className="min-h-[300px] font-mono text-sm"
-					/>
+			<div className="h-[340px] overflow-y-auto rounded-md border">
+				<PlateEditor
+					markdown={searchSpace?.shared_memory_md || ""}
+					onMarkdownChange={handleMarkdownChange}
+					preset="minimal"
+					defaultEditing
+					placeholder="Add team context here, such as decisions, conventions, key facts, or current priorities"
+					variant="default"
+					editorVariant="none"
+					className="px-4 py-4 text-xs min-h-full"
+				/>
+			</div>
 
-					<div className="flex items-center justify-between">
-						<span className={`text-xs ${getCounterColor()}`}>
-							{charCount.toLocaleString()} / {MEMORY_HARD_LIMIT.toLocaleString()} characters
-							{charCount > 20_000 && charCount <= MEMORY_HARD_LIMIT && " — Approaching limit"}
-							{isOverLimit && " — Exceeds limit"}
-						</span>
-					</div>
-				</div>
+			<div className="flex items-center justify-between">
+				<span className={`text-xs ${getCounterColor()}`}>
+					{charCount.toLocaleString()} / {MEMORY_HARD_LIMIT.toLocaleString()} characters
+					{charCount > 20_000 && charCount <= MEMORY_HARD_LIMIT && " — Approaching limit"}
+					{isOverLimit && " — Exceeds limit"}
+				</span>
 			</div>
 
 			<div className="flex justify-between">

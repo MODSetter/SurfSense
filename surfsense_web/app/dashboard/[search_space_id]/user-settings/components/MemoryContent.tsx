@@ -1,12 +1,13 @@
 "use client";
 
+import { Info } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { PlateEditor } from "@/components/editor/plate-editor";
 import { Spinner } from "@/components/ui/spinner";
-import { Textarea } from "@/components/ui/textarea";
 import { baseApiService } from "@/lib/apis/base-api.service";
 
 const MEMORY_HARD_LIMIT = 25_000;
@@ -69,6 +70,11 @@ export function MemoryContent() {
 		}
 	};
 
+	const handleMarkdownChange = useCallback((md: string) => {
+		const trimmed = md.trim();
+		setMemory(trimmed);
+	}, []);
+
 	const hasChanges = memory !== savedMemory;
 	const charCount = memory.length;
 	const isOverLimit = charCount > MEMORY_HARD_LIMIT;
@@ -90,33 +96,32 @@ export function MemoryContent() {
 
 	return (
 		<div className="space-y-4">
-			<div className="rounded-lg border bg-card p-6">
-				<div className="space-y-4">
-					<div>
-						<Label htmlFor="user-memory">Personal Memory</Label>
-						<p className="mt-1 text-xs text-muted-foreground">
-							This is your personal memory document. The AI assistant reads it at the start of
-							every conversation and uses it to personalize responses. You can edit it directly
-							or let the assistant update it during conversations.
-						</p>
-					</div>
+			<Alert className="bg-muted/50 py-3 md:py-4">
+				<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
+				<AlertDescription className="text-xs md:text-sm">
+					SurfSense uses this personal memory to personalize your responses across all conversations.
+				</AlertDescription>
+			</Alert>
 
-					<Textarea
-						id="user-memory"
-						value={memory}
-						onChange={(e) => setMemory(e.target.value)}
-						placeholder={"## About me\n- ...\n\n## Preferences\n- ...\n\n## Instructions\n- ..."}
-						className="min-h-[300px] font-mono text-sm"
-					/>
+			<div className="h-[340px] overflow-y-auto rounded-md border">
+				<PlateEditor
+					markdown={savedMemory}
+					onMarkdownChange={handleMarkdownChange}
+					preset="minimal"
+					defaultEditing
+					placeholder="Add personal context here, such as your preferences, instructions, or facts about you"
+					variant="default"
+					editorVariant="none"
+					className="px-4 py-4 text-xs min-h-full"
+				/>
+			</div>
 
-					<div className="flex items-center justify-between">
-						<span className={`text-xs ${getCounterColor()}`}>
-							{charCount.toLocaleString()} / {MEMORY_HARD_LIMIT.toLocaleString()} characters
-							{charCount > 20_000 && charCount <= MEMORY_HARD_LIMIT && " — Approaching limit"}
-							{isOverLimit && " — Exceeds limit"}
-						</span>
-					</div>
-				</div>
+			<div className="flex items-center justify-between">
+				<span className={`text-xs ${getCounterColor()}`}>
+					{charCount.toLocaleString()} / {MEMORY_HARD_LIMIT.toLocaleString()} characters
+					{charCount > 20_000 && charCount <= MEMORY_HARD_LIMIT && " — Approaching limit"}
+					{isOverLimit && " — Exceeds limit"}
+				</span>
 			</div>
 
 			<div className="flex justify-between">

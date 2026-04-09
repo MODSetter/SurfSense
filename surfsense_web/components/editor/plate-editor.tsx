@@ -188,7 +188,7 @@ export function PlateEditor({
 				}}
 			>
 				<EditorContainer variant={variant} className={className}>
-					<Editor variant={editorVariant} placeholder={placeholder} />
+					<Editor variant={editorVariant} placeholder={placeholder} className="min-h-full" />
 				</EditorContainer>
 			</Plate>
 		</EditorSaveContext.Provider>
