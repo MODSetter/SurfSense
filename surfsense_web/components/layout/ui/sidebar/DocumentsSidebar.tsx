@@ -445,6 +445,47 @@ export function DocumentsSidebar({
 		}
 	}, [searchSpaceId, isExportingKB]);
 
+	const handleExportFolder = useCallback(
+		async (folder: FolderDisplay) => {
+			try {
+				const response = await authenticatedFetch(
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/export?folder_id=${folder.id}`,
+					{ method: "GET" }
+				);
+				if (!response.ok) {
+					const errorData = await response.json().catch(() => ({ detail: "Export failed" }));
+					throw new Error(errorData.detail || "Export failed");
+				}
+
+				const skipped = response.headers.get("X-Skipped-Documents");
+				if (skipped && Number(skipped) > 0) {
+					toast.warning(`${skipped} document(s) were skipped (still processing)`);
+				}
+
+				const blob = await response.blob();
+				const safeName =
+					folder.name
+						.replace(/[^a-zA-Z0-9 _-]/g, "_")
+						.trim()
+						.slice(0, 80) || "folder";
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement("a");
+				a.href = url;
+				a.download = `${safeName}.zip`;
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a);
+				URL.revokeObjectURL(url);
+
+				toast.success(`Folder "${folder.name}" exported`);
+			} catch (err) {
+				console.error("Folder export failed:", err);
+				toast.error(err instanceof Error ? err.message : "Export failed");
+			}
+		},
+		[searchSpaceId]
+	);
+
 	const handleExportDocument = useCallback(
 		async (doc: DocumentNodeDoc, format: string) => {
 			const safeTitle =
@@ -895,6 +936,7 @@ export function DocumentsSidebar({
 						watchedFolderIds={watchedFolderIds}
 						onRescanFolder={handleRescanFolder}
 						onStopWatchingFolder={handleStopWatching}
+						onExportFolder={handleExportFolder}
 					/>
 				</div>
 			</div>

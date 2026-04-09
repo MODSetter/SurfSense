@@ -4,6 +4,7 @@ import {
 	AlertCircle,
 	ChevronDown,
 	ChevronRight,
+	Download,
 	Eye,
 	EyeOff,
 	Folder,
@@ -80,6 +81,7 @@ interface FolderNodeProps {
 	isWatched?: boolean;
 	onRescan?: (folder: FolderDisplay) => void | Promise<void>;
 	onStopWatching?: (folder: FolderDisplay) => void;
+	onExportFolder?: (folder: FolderDisplay) => void;
 }
 
 function getDropZone(
@@ -120,6 +122,7 @@ export const FolderNode = React.memo(function FolderNode({
 	isWatched,
 	onRescan,
 	onStopWatching,
+	onExportFolder,
 }: FolderNodeProps) {
 	const [renameValue, setRenameValue] = useState(folder.name);
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -408,6 +411,17 @@ export const FolderNode = React.memo(function FolderNode({
 									<Move className="mr-2 h-4 w-4" />
 									Move to...
 								</DropdownMenuItem>
+								{onExportFolder && (
+									<DropdownMenuItem
+										onClick={(e) => {
+											e.stopPropagation();
+											onExportFolder(folder);
+										}}
+									>
+										<Download className="mr-2 h-4 w-4" />
+										Export folder
+									</DropdownMenuItem>
+								)}
 								<DropdownMenuItem
 									onClick={(e) => {
 										e.stopPropagation();
@@ -449,6 +463,12 @@ export const FolderNode = React.memo(function FolderNode({
 						<Move className="mr-2 h-4 w-4" />
 						Move to...
 					</ContextMenuItem>
+					{onExportFolder && (
+						<ContextMenuItem onClick={() => onExportFolder(folder)}>
+							<Download className="mr-2 h-4 w-4" />
+							Export folder
+						</ContextMenuItem>
+					)}
 					<ContextMenuItem onClick={() => onDelete(folder)}>
 						<Trash2 className="mr-2 h-4 w-4" />
 						Delete
