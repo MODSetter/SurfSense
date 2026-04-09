@@ -134,10 +134,10 @@ export function MemoryContent() {
 					variant="outline"
 					onClick={handleSave}
 					disabled={saving || !hasChanges || isOverLimit}
-					className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
-				>
-					{saving && <Spinner size="sm" className="mr-2" />}
-					Save
+				className="relative gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200 items-center justify-center"
+			>
+				<span className={saving ? "opacity-0" : ""}>Save</span>
+				{saving && <Spinner size="sm" className="absolute" />}
 				</Button>
 			</div>
 		</div>

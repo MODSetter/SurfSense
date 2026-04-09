@@ -19,8 +19,8 @@ from langgraph.runtime import Runtime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import ChatVisibility, SearchSpace, User, shielded_async_session
 from app.agents.new_chat.tools.update_memory import MEMORY_HARD_LIMIT
+from app.db import ChatVisibility, SearchSpace, User, shielded_async_session
 
 logger = logging.getLogger(__name__)
 
@@ -96,10 +96,9 @@ class MemoryInjectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
     ) -> tuple[str | None, bool]:
         """Return (memory_content, is_persisted).
 
-        When the user has saved memory in the database, ``is_persisted`` is
-        ``True``.  When we fall back to a seed (first-name only), it is
-        ``False`` — the system prompt instructs the LLM to call
-        ``update_memory`` once to persist it.
+        When the user has no saved memory but has a display name, a seed
+        document is created and **persisted to the database immediately**
+        so the LLM doesn't need to make a tool call to save it.
         """
         try:
             result = await session.execute(
@@ -118,7 +117,15 @@ class MemoryInjectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
 
             if display_name:
                 first_name = display_name.split()[0]
-                return f"## About the user\n- Name: {first_name}", False
+                seed = f"## About the user\n- Name: {first_name}"
+                await session.execute(
+                    User.__table__.update()
+                    .where(User.id == self.user_id)
+                    .values(memory_md=seed)
+                )
+                await session.commit()
+                logger.info("Auto-persisted memory seed for user %s", self.user_id)
+                return seed, True
 
             return None, True
         except Exception:
