@@ -32,6 +32,7 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { CommentPanelContainer } from "@/components/chat-comments/comment-panel-container/comment-panel-container";
 import { CommentSheet } from "@/components/chat-comments/comment-sheet/comment-sheet";
 import type { SerializableCitation } from "@/components/tool-ui/citation";
+import { openSafeNavigationHref, resolveSafeNavigationHref } from "@/components/tool-ui/shared/media";
 import {
 	Drawer,
 	DrawerContent,
