@@ -29,10 +29,11 @@ def _build_folder_path_map(folders: list[Folder]) -> dict[int, str]:
         if folder_id in cache:
             return cache[folder_id]
         folder = id_to_folder[folder_id]
+        safe_name = _sanitize_filename(folder.name)
         if folder.parent_id is None or folder.parent_id not in id_to_folder:
-            cache[folder_id] = folder.name
+            cache[folder_id] = safe_name
         else:
-            cache[folder_id] = f"{resolve(folder.parent_id)}/{folder.name}"
+            cache[folder_id] = f"{resolve(folder.parent_id)}/{safe_name}"
         return cache[folder_id]
 
     for f in folders:
