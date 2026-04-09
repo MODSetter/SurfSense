@@ -257,7 +257,10 @@ async def update_search_space(
 
         update_data = search_space_update.model_dump(exclude_unset=True)
 
-        if "shared_memory_md" in update_data and len(update_data["shared_memory_md"] or "") > MEMORY_HARD_LIMIT:
+        if (
+            "shared_memory_md" in update_data
+            and len(update_data["shared_memory_md"] or "") > MEMORY_HARD_LIMIT
+        ):
             raise HTTPException(
                 status_code=400,
                 detail=f"Team memory exceeds {MEMORY_HARD_LIMIT:,} character limit.",

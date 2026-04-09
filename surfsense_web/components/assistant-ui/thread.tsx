@@ -1021,29 +1021,29 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 												})}
 										</div>
 									)}
-								{!filteredTools?.length && (
-									<div className="px-4 pt-3 pb-2">
-										<Skeleton className="h-3 w-16 mb-2" />
-										{["t1", "t2", "t3", "t4"].map((k) => (
-											<div key={k} className="flex items-center gap-3 py-2">
-												<Skeleton className="size-4 rounded shrink-0" />
-												<Skeleton className="h-3.5 flex-1" />
-												<Skeleton className="h-5 w-9 rounded-full shrink-0" />
-											</div>
-										))}
-										<Skeleton className="h-3 w-24 mt-3 mb-2" />
-										{["c1", "c2", "c3"].map((k) => (
-											<div key={k} className="flex items-center gap-3 py-2">
-												<Skeleton className="size-4 rounded shrink-0" />
-												<Skeleton className="h-3.5 flex-1" />
-												<Skeleton className="h-5 w-9 rounded-full shrink-0" />
-											</div>
-										))}
-									</div>
-								)}
-							</div>
-						</DrawerContent>
-					</Drawer>
+									{!filteredTools?.length && (
+										<div className="px-4 pt-3 pb-2">
+											<Skeleton className="h-3 w-16 mb-2" />
+											{["t1", "t2", "t3", "t4"].map((k) => (
+												<div key={k} className="flex items-center gap-3 py-2">
+													<Skeleton className="size-4 rounded shrink-0" />
+													<Skeleton className="h-3.5 flex-1" />
+													<Skeleton className="h-5 w-9 rounded-full shrink-0" />
+												</div>
+											))}
+											<Skeleton className="h-3 w-24 mt-3 mb-2" />
+											{["c1", "c2", "c3"].map((k) => (
+												<div key={k} className="flex items-center gap-3 py-2">
+													<Skeleton className="size-4 rounded shrink-0" />
+													<Skeleton className="h-3.5 flex-1" />
+													<Skeleton className="h-5 w-9 rounded-full shrink-0" />
+												</div>
+											))}
+										</div>
+									)}
+								</div>
+							</DrawerContent>
+						</Drawer>
 						<Button
 							variant="ghost"
 							size="icon"

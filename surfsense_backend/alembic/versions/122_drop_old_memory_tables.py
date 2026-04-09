@@ -60,11 +60,21 @@ def downgrade() -> None:
         );
         """
     )
-    op.execute("CREATE INDEX IF NOT EXISTS ix_user_memories_user_id ON user_memories(user_id);")
-    op.execute("CREATE INDEX IF NOT EXISTS ix_user_memories_search_space_id ON user_memories(search_space_id);")
-    op.execute("CREATE INDEX IF NOT EXISTS ix_user_memories_updated_at ON user_memories(updated_at);")
-    op.execute("CREATE INDEX IF NOT EXISTS ix_user_memories_category ON user_memories(category);")
-    op.execute("CREATE INDEX IF NOT EXISTS ix_user_memories_user_search_space ON user_memories(user_id, search_space_id);")
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_user_memories_user_id ON user_memories(user_id);"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_user_memories_search_space_id ON user_memories(search_space_id);"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_user_memories_updated_at ON user_memories(updated_at);"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_user_memories_category ON user_memories(category);"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_user_memories_user_search_space ON user_memories(user_id, search_space_id);"
+    )
     op.execute(
         "CREATE INDEX IF NOT EXISTS user_memories_vector_index ON user_memories USING hnsw (embedding public.vector_cosine_ops);"
     )
@@ -83,9 +93,15 @@ def downgrade() -> None:
         );
         """
     )
-    op.execute("CREATE INDEX IF NOT EXISTS ix_shared_memories_search_space_id ON shared_memories(search_space_id);")
-    op.execute("CREATE INDEX IF NOT EXISTS ix_shared_memories_updated_at ON shared_memories(updated_at);")
-    op.execute("CREATE INDEX IF NOT EXISTS ix_shared_memories_created_by_id ON shared_memories(created_by_id);")
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_shared_memories_search_space_id ON shared_memories(search_space_id);"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_shared_memories_updated_at ON shared_memories(updated_at);"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_shared_memories_created_by_id ON shared_memories(created_by_id);"
+    )
     op.execute(
         "CREATE INDEX IF NOT EXISTS shared_memories_vector_index ON shared_memories USING hnsw (embedding public.vector_cosine_ops);"
     )

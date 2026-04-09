@@ -6,9 +6,9 @@ import { Info } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { updateSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
+import { PlateEditor } from "@/components/editor/plate-editor";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { PlateEditor } from "@/components/editor/plate-editor";
 import { Spinner } from "@/components/ui/spinner";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
@@ -20,10 +20,7 @@ interface TeamMemoryManagerProps {
 }
 
 export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
-	const {
-		data: searchSpace,
-		isLoading: loading,
-	} = useQuery({
+	const { data: searchSpace, isLoading: loading } = useQuery({
 		queryKey: cacheKeys.searchSpaces.detail(searchSpaceId.toString()),
 		queryFn: () => searchSpacesApiService.getSearchSpace({ id: searchSpaceId }),
 		enabled: !!searchSpaceId,
@@ -45,9 +42,7 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 		setMemory(trimmed);
 	}, []);
 
-	const hasChanges =
-		!!searchSpace &&
-		(searchSpace.shared_memory_md || "") !== memory;
+	const hasChanges = !!searchSpace && (searchSpace.shared_memory_md || "") !== memory;
 
 	const handleSave = async () => {
 		try {
@@ -103,7 +98,10 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 			<Alert className="bg-muted/50 py-3 md:py-4">
 				<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
 				<AlertDescription className="text-xs md:text-sm">
-					<p>SurfSense uses this shared memory to provide team-wide context across all conversations in this search space. Supports <span className="font-medium">Markdown</span> formatting.</p>
+					<p>
+						SurfSense uses this shared memory to provide team-wide context across all conversations
+						in this search space. Supports <span className="font-medium">Markdown</span> formatting.
+					</p>
 				</AlertDescription>
 			</Alert>
 
@@ -134,7 +132,7 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 					variant="destructive"
 					size="sm"
 					onClick={handleClear}
-					disabled={saving || !(searchSpace?.shared_memory_md)}
+					disabled={saving || !searchSpace?.shared_memory_md}
 				>
 					Clear All
 				</Button>
@@ -143,10 +141,10 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 					variant="outline"
 					onClick={handleSave}
 					disabled={saving || !hasChanges || isOverLimit}
-				className="relative gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200 items-center justify-center"
-			>
-				<span className={saving ? "opacity-0" : ""}>Save</span>
-				{saving && <Spinner size="sm" className="absolute" />}
+					className="relative gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200 items-center justify-center"
+				>
+					<span className={saving ? "opacity-0" : ""}>Save</span>
+					{saving && <Spinner size="sm" className="absolute" />}
 				</Button>
 			</div>
 		</div>

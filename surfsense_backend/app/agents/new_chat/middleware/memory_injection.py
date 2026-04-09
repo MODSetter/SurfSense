@@ -91,9 +91,7 @@ class MemoryInjectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
 
         return {"messages": new_messages}
 
-    async def _load_user_memory(
-        self, session: AsyncSession
-    ) -> tuple[str | None, bool]:
+    async def _load_user_memory(self, session: AsyncSession) -> tuple[str | None, bool]:
         """Return (memory_content, is_persisted).
 
         When the user has no saved memory but has a display name, a seed
@@ -102,9 +100,7 @@ class MemoryInjectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         """
         try:
             result = await session.execute(
-                select(User.memory_md, User.display_name).where(
-                    User.id == self.user_id
-                )
+                select(User.memory_md, User.display_name).where(User.id == self.user_id)
             )
             row = result.one_or_none()
             if row is None:

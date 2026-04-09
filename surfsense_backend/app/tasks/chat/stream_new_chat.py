@@ -29,7 +29,6 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
-from app.agents.new_chat.memory_extraction import extract_and_save_memory
 from app.agents.new_chat.checkpointer import get_checkpointer
 from app.agents.new_chat.llm_config import (
     AgentConfig,
@@ -38,6 +37,7 @@ from app.agents.new_chat.llm_config import (
     load_agent_config,
     load_llm_config_from_yaml,
 )
+from app.agents.new_chat.memory_extraction import extract_and_save_memory
 from app.db import (
     ChatVisibility,
     NewChatMessage,

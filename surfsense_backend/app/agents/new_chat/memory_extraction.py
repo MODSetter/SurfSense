@@ -106,9 +106,7 @@ async def _call_extraction_llm(
         config={"tags": ["surfsense:internal", "memory-extraction"]},
     )
     text = (
-        response.content
-        if isinstance(response.content, str)
-        else str(response.content)
+        response.content if isinstance(response.content, str) else str(response.content)
     ).strip()
 
     if text == "NO_UPDATE" or not text:
@@ -155,9 +153,7 @@ async def _extract_user_memory(
     uid = UUID(user_id) if isinstance(user_id, str) else user_id
 
     async with shielded_async_session() as session:
-        result = await session.execute(
-            select(User).where(User.id == uid)
-        )
+        result = await session.execute(select(User).where(User.id == uid))
         user = result.scalars().first()
         if not user:
             return

@@ -54,9 +54,7 @@ export const UpdateMemoryToolUI = ({
 				</div>
 				<div className="flex-1">
 					<span className="text-sm text-destructive">Failed to update memory</span>
-					{result?.message && (
-						<p className="mt-1 text-xs text-destructive/70">{result.message}</p>
-					)}
+					{result?.message && <p className="mt-1 text-xs text-destructive/70">{result.message}</p>}
 				</div>
 			</div>
 		);

@@ -228,7 +228,13 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
                 llm=deps.get("llm"),
             )
         ),
-        requires=["user_id", "search_space_id", "db_session", "thread_visibility", "llm"],
+        requires=[
+            "user_id",
+            "search_space_id",
+            "db_session",
+            "thread_visibility",
+            "llm",
+        ],
     ),
     # =========================================================================
     # LINEAR TOOLS - create, update, delete issues

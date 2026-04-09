@@ -1,7 +1,17 @@
 "use client";
 
 import { useAtom } from "jotai";
-import { Bot, BookMarked, Brain, Eye, FileText, Globe, ImageIcon, MessageSquare, Shield } from "lucide-react";
+import {
+	BookMarked,
+	Bot,
+	Brain,
+	Eye,
+	FileText,
+	Globe,
+	ImageIcon,
+	MessageSquare,
+	Shield,
+} from "lucide-react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import type React from "react";
@@ -60,7 +70,10 @@ const PublicChatSnapshotsManager = dynamic(
 	{ ssr: false }
 );
 const TeamMemoryManager = dynamic(
-	() => import("@/components/settings/team-memory-manager").then(m => ({ default: m.TeamMemoryManager })),
+	() =>
+		import("@/components/settings/team-memory-manager").then((m) => ({
+			default: m.TeamMemoryManager,
+		})),
 	{ ssr: false }
 );
 

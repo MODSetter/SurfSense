@@ -4,9 +4,9 @@ import { Info } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { PlateEditor } from "@/components/editor/plate-editor";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { PlateEditor } from "@/components/editor/plate-editor";
 import { Spinner } from "@/components/ui/spinner";
 import { baseApiService } from "@/lib/apis/base-api.service";
 
@@ -99,7 +99,10 @@ export function MemoryContent() {
 			<Alert className="bg-muted/50 py-3 md:py-4">
 				<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
 				<AlertDescription className="text-xs md:text-sm">
-					<p>SurfSense uses this personal memory to personalize your responses across all conversations. Supports <span className="font-medium">Markdown</span> formatting.</p>
+					<p>
+						SurfSense uses this personal memory to personalize your responses across all
+						conversations. Supports <span className="font-medium">Markdown</span> formatting.
+					</p>
 				</AlertDescription>
 			</Alert>
 
@@ -139,10 +142,10 @@ export function MemoryContent() {
 					variant="outline"
 					onClick={handleSave}
 					disabled={saving || !hasChanges || isOverLimit}
-				className="relative gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200 items-center justify-center"
-			>
-				<span className={saving ? "opacity-0" : ""}>Save</span>
-				{saving && <Spinner size="sm" className="absolute" />}
+					className="relative gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200 items-center justify-center"
+				>
+					<span className={saving ? "opacity-0" : ""}>Save</span>
+					{saving && <Spinner size="sm" className="absolute" />}
 				</Button>
 			</div>
 		</div>
