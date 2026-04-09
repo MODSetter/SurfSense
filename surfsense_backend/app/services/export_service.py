@@ -147,8 +147,7 @@ async def build_export_zip(
                         if dir_path
                         else f"{base_name}_{suffix}.md"
                     )
-                else:
-                    used_paths[file_path] = 1
+                used_paths[file_path] = used_paths.get(file_path, 0) + 1
 
                 zf.writestr(file_path, markdown)
 
