@@ -56,19 +56,24 @@ _TEAM_MEMORY_EXTRACT_PROMPT = """\
 You are a team-memory extraction assistant. Analyze the latest message and \
 decide if it contains durable TEAM-level information worth persisting.
 
-High-precision rule: if uncertain, output NO_UPDATE.
+Decision policy:
+- Prioritize recall for durable team context, while avoiding personal-only facts.
+- Do NOT require explicit consensus language. A direct team-level statement can
+  be stored if it is stable and broadly useful for future team chats.
+- If evidence is weak or clearly tentative, output NO_UPDATE.
 
 Worth remembering (team-level only):
-- Explicit decisions (e.g. "we decided to use X")
+- Decisions and defaults that guide future team work
 - Team conventions/standards (naming, review policy, coding norms)
+- Stable org/project facts (locations, ownership, constraints)
 - Long-lived architecture/process facts
-- Stable project constraints, owners, recurring schedules
+- Ongoing priorities that are likely relevant beyond this turn
 
 NOT worth remembering:
 - Personal preferences or biography of one person
 - Questions, brainstorming, tentative ideas, or speculation
 - One-off requests, status updates, TODOs, logistics for this session
-- Anything not clearly adopted by the team
+- Information scoped only to a single ephemeral task
 
 If the message contains memorizable team information, output the FULL updated \
 team memory document with new facts merged into existing content. Follow rules:
