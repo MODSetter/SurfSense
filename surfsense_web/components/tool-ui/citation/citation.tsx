@@ -1,23 +1,14 @@
 "use client";
 
-import type { LucideIcon } from "lucide-react";
-import { Code2, Database, ExternalLink, File, FileText, Globe, Newspaper } from "lucide-react";
+import { ExternalLink, Globe } from "lucide-react";
 import NextImage from "next/image";
 import * as React from "react";
 import { openSafeNavigationHref, sanitizeHref } from "../shared/media";
 import { cn, Popover, PopoverContent, PopoverTrigger } from "./_adapter";
-import type { CitationType, CitationVariant, SerializableCitation } from "./schema";
+import type { CitationVariant, SerializableCitation } from "./schema";
+import { TYPE_ICONS } from "./type-icons";
 
 const FALLBACK_LOCALE = "en-US";
-
-const TYPE_ICONS: Record<CitationType, LucideIcon> = {
-	webpage: Globe,
-	document: FileText,
-	article: Newspaper,
-	api: Database,
-	code: Code2,
-	other: File,
-};
 
 function extractDomain(url: string): string | undefined {
 	try {
