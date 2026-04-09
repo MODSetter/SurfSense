@@ -99,7 +99,7 @@ export function MemoryContent() {
 			<Alert className="bg-muted/50 py-3 md:py-4">
 				<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
 				<AlertDescription className="text-xs md:text-sm">
-					SurfSense uses this personal memory to personalize your responses across all conversations.
+					<p>SurfSense uses this personal memory to personalize your responses across all conversations. Supports <span className="font-medium">Markdown</span> formatting.</p>
 				</AlertDescription>
 			</Alert>
 
@@ -119,8 +119,8 @@ export function MemoryContent() {
 			<div className="flex items-center justify-between">
 				<span className={`text-xs ${getCounterColor()}`}>
 					{charCount.toLocaleString()} / {MEMORY_HARD_LIMIT.toLocaleString()} characters
-					{charCount > 20_000 && charCount <= MEMORY_HARD_LIMIT && " — Approaching limit"}
-					{isOverLimit && " — Exceeds limit"}
+					{charCount > 20_000 && charCount <= MEMORY_HARD_LIMIT && " - Approaching limit"}
+					{isOverLimit && " - Exceeds limit"}
 				</span>
 			</div>
 

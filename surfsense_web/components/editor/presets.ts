@@ -48,7 +48,6 @@ export const minimalPreset: AnyPluginConfig[] = [
 	...ListKit,
 	...CodeBlockKit,
 	...LinkKit,
-	...FloatingToolbarKit,
 	...AutoformatKit,
 ];
 
