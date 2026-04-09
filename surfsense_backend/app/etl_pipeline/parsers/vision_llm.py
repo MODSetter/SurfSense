@@ -1,5 +1,6 @@
 import base64
 import mimetypes
+import os
 
 from langchain_core.messages import HumanMessage
 
@@ -9,8 +10,16 @@ _PROMPT = (
     "Be concise but complete — let the image content guide the level of detail."
 )
 
+_MAX_IMAGE_BYTES = 5 * 1024 * 1024  # 5 MB (Anthropic Claude's limit, the most restrictive)
+
 
 def _image_to_data_url(file_path: str) -> str:
+    file_size = os.path.getsize(file_path)
+    if file_size > _MAX_IMAGE_BYTES:
+        raise ValueError(
+            f"Image too large for vision LLM ({file_size / (1024 * 1024):.1f} MB, "
+            f"limit {_MAX_IMAGE_BYTES // (1024 * 1024)} MB): {file_path}"
+        )
     mime_type, _ = mimetypes.guess_type(file_path)
     if not mime_type or not mime_type.startswith("image/"):
         mime_type = "image/png"
