@@ -44,7 +44,7 @@ import {
 import { AnimatePresence, motion, type Variants } from "motion/react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import React, { useCallback, useContext, useId, useMemo, useRef, useState } from "react";
+import React, { useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
 	createLogMutationAtom,
@@ -95,6 +95,7 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import type { CreateLogRequest, Log, UpdateLogRequest } from "@/contracts/types/log.types";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { type LogLevel, type LogStatus, useLogs, useLogsSummary } from "@/hooks/use-logs";
 import { cn } from "@/lib/utils";
 
@@ -706,6 +707,15 @@ function LogsFilters({
 	id: string;
 }) {
 	const t = useTranslations("logs");
+	const [filterInput, setFilterInput] = useState(
+		(table.getColumn("message")?.getFilterValue() ?? "") as string
+	);
+	const debouncedFilter = useDebouncedValue(filterInput, 300);
+
+	useEffect(() => {
+		table.getColumn("message")?.setFilterValue(debouncedFilter || undefined);
+	}, [debouncedFilter, table]);
+
 	return (
 		<motion.div
 			className="flex flex-wrap items-center justify-start gap-3 w-full"
@@ -718,24 +728,22 @@ function LogsFilters({
 				<motion.div className="relative w-full sm:w-auto" variants={fadeInScale}>
 					<Input
 						ref={inputRef}
-						className={cn(
-							"peer w-full sm:min-w-60 ps-9",
-							Boolean(table.getColumn("message")?.getFilterValue()) && "pe-9"
-						)}
-						value={(table.getColumn("message")?.getFilterValue() ?? "") as string}
-						onChange={(e) => table.getColumn("message")?.setFilterValue(e.target.value)}
+						className={cn("peer w-full sm:min-w-60 ps-9", Boolean(filterInput) && "pe-9")}
+						value={filterInput}
+						onChange={(e) => setFilterInput(e.target.value)}
 						placeholder={t("filter_by_message")}
 						type="text"
 					/>
 					<div className="pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 text-muted-foreground/80">
 						<ListFilter size={16} strokeWidth={2} />
 					</div>
-					{Boolean(table.getColumn("message")?.getFilterValue()) && (
+					{Boolean(filterInput) && (
 						<Button
 							className="absolute inset-y-0 end-0 flex h-full w-9 items-center justify-center rounded-e-lg text-muted-foreground/80 hover:text-foreground"
 							variant="ghost"
 							size="icon"
 							onClick={() => {
+								setFilterInput("");
 								table.getColumn("message")?.setFilterValue("");
 								inputRef.current?.focus();
 							}}

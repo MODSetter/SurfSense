@@ -235,6 +235,7 @@ export default function RegisterPage() {
 							<input
 								id="email"
 								type="email"
+								autoComplete="email"
 								required
 								placeholder="you@example.com"
 								value={email}
@@ -255,6 +256,7 @@ export default function RegisterPage() {
 							<input
 								id="password"
 								type="password"
+								autoComplete="new-password"
 								required
 								placeholder="Enter your password"
 								value={password}
@@ -278,6 +280,7 @@ export default function RegisterPage() {
 							<input
 								id="confirmPassword"
 								type="password"
+								autoComplete="new-password"
 								required
 								placeholder="Confirm your password"
 								value={confirmPassword}

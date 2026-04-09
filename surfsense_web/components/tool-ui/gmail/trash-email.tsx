@@ -175,7 +175,7 @@ function ApprovalCard({
 	}, [handleApprove]);
 
 	return (
-		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-all duration-300">
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-[box-shadow] duration-300">
 			{/* Header */}
 			<div className="flex items-start justify-between px-5 pt-5 pb-4 select-none">
 				<div className="flex items-center gap-2">

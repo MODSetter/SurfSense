@@ -1,6 +1,6 @@
 {
   "name": "surfsense-desktop",
-  "version": "0.1.0",
+  "version": "0.0.15",
   "description": "SurfSense Desktop App",
   "main": "dist/main.js",
   "scripts": {

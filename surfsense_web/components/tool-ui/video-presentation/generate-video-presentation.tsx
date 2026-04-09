@@ -434,7 +434,7 @@ function VideoPresentationPlayer({
 							</span>
 							<div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
 								<div
-									className="h-full rounded-full bg-muted-foreground/60 transition-all duration-300"
+									className="h-full rounded-full bg-muted-foreground/60 transition-[box-shadow] duration-300"
 									style={{ width: `${(renderProgress ?? 0) * 100}%` }}
 								/>
 							</div>

@@ -8,6 +8,7 @@ import {
 	useAuiState,
 } from "@assistant-ui/react";
 import { CheckIcon, CopyIcon } from "lucide-react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import { type FC, type ReactNode, useState } from "react";
 import { CitationMetadataProvider } from "@/components/assistant-ui/citation-metadata-context";
@@ -17,7 +18,14 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { GenerateImageToolUI } from "@/components/tool-ui/generate-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
-import { GenerateVideoPresentationToolUI } from "@/components/tool-ui/video-presentation";
+
+const GenerateVideoPresentationToolUI = dynamic(
+	() =>
+		import("@/components/tool-ui/video-presentation").then((m) => ({
+			default: m.GenerateVideoPresentationToolUI,
+		})),
+	{ ssr: false }
+);
 
 interface PublicThreadProps {
 	footer?: ReactNode;

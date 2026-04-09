@@ -2,18 +2,63 @@
 
 import { useAtom } from "jotai";
 import { Bot, Brain, Eye, FileText, Globe, ImageIcon, MessageSquare, Shield } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import type React from "react";
 import { searchSpaceSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
-import { PublicChatSnapshotsManager } from "@/components/public-chat-snapshots/public-chat-snapshots-manager";
-import { GeneralSettingsManager } from "@/components/settings/general-settings-manager";
-import { ImageModelManager } from "@/components/settings/image-model-manager";
-import { LLMRoleManager } from "@/components/settings/llm-role-manager";
-import { ModelConfigManager } from "@/components/settings/model-config-manager";
-import { PromptConfigManager } from "@/components/settings/prompt-config-manager";
-import { RolesManager } from "@/components/settings/roles-manager";
 import { SettingsDialog } from "@/components/settings/settings-dialog";
-import { VisionModelManager } from "@/components/settings/vision-model-manager";
+
+const GeneralSettingsManager = dynamic(
+	() =>
+		import("@/components/settings/general-settings-manager").then((m) => ({
+			default: m.GeneralSettingsManager,
+		})),
+	{ ssr: false }
+);
+const ModelConfigManager = dynamic(
+	() =>
+		import("@/components/settings/model-config-manager").then((m) => ({
+			default: m.ModelConfigManager,
+		})),
+	{ ssr: false }
+);
+const LLMRoleManager = dynamic(
+	() =>
+		import("@/components/settings/llm-role-manager").then((m) => ({ default: m.LLMRoleManager })),
+	{ ssr: false }
+);
+const ImageModelManager = dynamic(
+	() =>
+		import("@/components/settings/image-model-manager").then((m) => ({
+			default: m.ImageModelManager,
+		})),
+	{ ssr: false }
+);
+const VisionModelManager = dynamic(
+	() =>
+		import("@/components/settings/vision-model-manager").then((m) => ({
+			default: m.VisionModelManager,
+		})),
+	{ ssr: false }
+);
+const RolesManager = dynamic(
+	() => import("@/components/settings/roles-manager").then((m) => ({ default: m.RolesManager })),
+	{ ssr: false }
+);
+const PromptConfigManager = dynamic(
+	() =>
+		import("@/components/settings/prompt-config-manager").then((m) => ({
+			default: m.PromptConfigManager,
+		})),
+	{ ssr: false }
+);
+const PublicChatSnapshotsManager = dynamic(
+	() =>
+		import("@/components/public-chat-snapshots/public-chat-snapshots-manager").then((m) => ({
+			default: m.PublicChatSnapshotsManager,
+		})),
+	{ ssr: false }
+);
 
 interface SearchSpaceSettingsDialogProps {
 	searchSpaceId: number;

@@ -188,6 +188,31 @@ function walkFolderMtimes(config: WatchedFolderConfig): MtimeMap {
   return result;
 }
 
+export interface FolderFileEntry {
+  relativePath: string;
+  fullPath: string;
+  size: number;
+  mtimeMs: number;
+}
+
+export function listFolderFiles(config: WatchedFolderConfig): FolderFileEntry[] {
+  const root = config.path;
+  const mtimeMap = walkFolderMtimes(config);
+  const entries: FolderFileEntry[] = [];
+
+  for (const [relativePath, mtimeMs] of Object.entries(mtimeMap)) {
+    const fullPath = path.join(root, relativePath);
+    try {
+      const stat = fs.statSync(fullPath);
+      entries.push({ relativePath, fullPath, size: stat.size, mtimeMs });
+    } catch {
+      // File may have been removed between walk and stat
+    }
+  }
+
+  return entries;
+}
+
 function getMainWindow(): BrowserWindow | null {
   const windows = BrowserWindow.getAllWindows();
   return windows.length > 0 ? windows[0] : null;
@@ -424,12 +449,28 @@ export async function acknowledgeFileEvents(eventIds: string[]): Promise<{ ackno
 
   const ackSet = new Set(eventIds);
   let acknowledged = 0;
+  const foldersToUpdate = new Set<string>();
 
   for (const [key, event] of outboxEvents.entries()) {
     if (ackSet.has(event.id)) {
+      if (event.action !== 'unlink') {
+        const map = mtimeMaps.get(event.folderPath);
+        if (map) {
+          try {
+            map[event.relativePath] = fs.statSync(event.fullPath).mtimeMs;
+            foldersToUpdate.add(event.folderPath);
+          } catch {
+            // File may have been removed
+          }
+        }
+      }
       outboxEvents.delete(key);
       acknowledged += 1;
     }
+  }
+
+  for (const fp of foldersToUpdate) {
+    persistMtimeMap(fp);
   }
 
   if (acknowledged > 0) {
@@ -437,6 +478,17 @@ export async function acknowledgeFileEvents(eventIds: string[]): Promise<{ ackno
   }
 
   return { acknowledged };
+}
+
+export async function seedFolderMtimes(
+  folderPath: string,
+  mtimes: Record<string, number>,
+): Promise<void> {
+  const ms = await getMtimeStore();
+  const existing: MtimeMap = ms.get(folderPath) ?? {};
+  const merged = { ...existing, ...mtimes };
+  mtimeMaps.set(folderPath, merged);
+  ms.set(folderPath, merged);
 }
 
 export async function pauseWatcher(): Promise<void> {

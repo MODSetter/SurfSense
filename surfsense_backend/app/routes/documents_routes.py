@@ -1385,45 +1385,48 @@ async def restore_document_version(
     }
 
 
-# ===== Local folder indexing endpoints =====
+# ===== Upload-based local folder indexing endpoints =====
+# These work for ALL deployment modes (cloud, self-hosted remote, self-hosted local).
+# The desktop app reads files locally and uploads them here.
 
 
-class FolderIndexRequest(PydanticBaseModel):
-    folder_path: str
+class FolderMtimeCheckFile(PydanticBaseModel):
+    relative_path: str
+    mtime: float
+
+
+class FolderMtimeCheckRequest(PydanticBaseModel):
     folder_name: str
     search_space_id: int
-    exclude_patterns: list[str] | None = None
-    file_extensions: list[str] | None = None
-    root_folder_id: int | None = None
-    enable_summary: bool = False
+    files: list[FolderMtimeCheckFile]
 
 
-class FolderIndexFilesRequest(PydanticBaseModel):
-    folder_path: str
+class FolderUnlinkRequest(PydanticBaseModel):
     folder_name: str
     search_space_id: int
-    target_file_paths: list[str]
     root_folder_id: int | None = None
-    enable_summary: bool = False
+    relative_paths: list[str]
 
 
-@router.post("/documents/folder-index")
-async def folder_index(
-    request: FolderIndexRequest,
+class FolderSyncFinalizeRequest(PydanticBaseModel):
+    folder_name: str
+    search_space_id: int
+    root_folder_id: int | None = None
+    all_relative_paths: list[str]
+
+
+@router.post("/documents/folder-mtime-check")
+async def folder_mtime_check(
+    request: FolderMtimeCheckRequest,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """Full-scan index of a local folder. Creates the root Folder row synchronously
-    and dispatches the heavy indexing work to a Celery task.
-    Returns the root_folder_id so the desktop can persist it.
-    """
-    from app.config import config as app_config
+    """Pre-upload optimization: check which files need uploading based on mtime.
 
-    if not app_config.is_self_hosted():
-        raise HTTPException(
-            status_code=400,
-            detail="Local folder indexing is only available in self-hosted mode",
-        )
+    Returns the subset of relative paths where the file is new or has a
+    different mtime, so the client can skip reading/uploading unchanged files.
+    """
+    from app.indexing_pipeline.document_hashing import compute_identifier_hash
 
     await check_permission(
         session,
@@ -1433,113 +1436,309 @@ async def folder_index(
         "You don't have permission to create documents in this search space",
     )
 
-    watched_metadata = {
-        "watched": True,
-        "folder_path": request.folder_path,
-        "exclude_patterns": request.exclude_patterns,
-        "file_extensions": request.file_extensions,
-    }
+    uid_hashes = {}
+    for f in request.files:
+        uid = f"{request.folder_name}:{f.relative_path}"
+        uid_hash = compute_identifier_hash(
+            DocumentType.LOCAL_FOLDER_FILE.value, uid, request.search_space_id
+        )
+        uid_hashes[uid_hash] = f
 
-    root_folder_id = request.root_folder_id
-    if root_folder_id:
-        existing = (
-            await session.execute(select(Folder).where(Folder.id == root_folder_id))
-        ).scalar_one_or_none()
-        if not existing:
-            root_folder_id = None
-        else:
-            existing.folder_metadata = watched_metadata
-            await session.commit()
+    existing_docs = (
+        (
+            await session.execute(
+                select(Document).where(
+                    Document.unique_identifier_hash.in_(list(uid_hashes.keys())),
+                    Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    existing_by_hash = {doc.unique_identifier_hash: doc for doc in existing_docs}
+
+    mtime_tolerance = 1.0
+    files_to_upload: list[str] = []
+
+    for uid_hash, file_info in uid_hashes.items():
+        doc = existing_by_hash.get(uid_hash)
+        if doc is None:
+            files_to_upload.append(file_info.relative_path)
+            continue
+
+        stored_mtime = (doc.document_metadata or {}).get("mtime")
+        if stored_mtime is None:
+            files_to_upload.append(file_info.relative_path)
+            continue
+
+        if abs(file_info.mtime - stored_mtime) >= mtime_tolerance:
+            files_to_upload.append(file_info.relative_path)
+
+    return {"files_to_upload": files_to_upload}
+
+
+@router.post("/documents/folder-upload")
+async def folder_upload(
+    files: list[UploadFile],
+    folder_name: str = Form(...),
+    search_space_id: int = Form(...),
+    relative_paths: str = Form(...),
+    root_folder_id: int | None = Form(None),
+    enable_summary: bool = Form(False),
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Upload files from the desktop app for folder indexing.
+
+    Files are written to temp storage and dispatched to a Celery task.
+    Works for all deployment modes (no is_self_hosted guard).
+    """
+    import json
+    import tempfile
+
+    await check_permission(
+        session,
+        user,
+        search_space_id,
+        Permission.DOCUMENTS_CREATE.value,
+        "You don't have permission to create documents in this search space",
+    )
+
+    if not files:
+        raise HTTPException(status_code=400, detail="No files provided")
+
+    try:
+        rel_paths: list[str] = json.loads(relative_paths)
+    except (json.JSONDecodeError, TypeError) as e:
+        raise HTTPException(
+            status_code=400, detail=f"Invalid relative_paths JSON: {e}"
+        ) from e
+
+    if len(rel_paths) != len(files):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Mismatch: {len(files)} files but {len(rel_paths)} relative_paths",
+        )
+
+    for file in files:
+        file_size = file.size or 0
+        if file_size > MAX_FILE_SIZE_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File '{file.filename}' ({file_size / (1024 * 1024):.1f} MB) "
+                f"exceeds the {MAX_FILE_SIZE_BYTES // (1024 * 1024)} MB per-file limit.",
+            )
 
     if not root_folder_id:
-        root_folder = Folder(
-            name=request.folder_name,
-            search_space_id=request.search_space_id,
-            created_by_id=str(user.id),
-            position="a0",
-            folder_metadata=watched_metadata,
-        )
-        session.add(root_folder)
-        await session.flush()
-        root_folder_id = root_folder.id
+        watched_metadata = {
+            "watched": True,
+            "folder_path": folder_name,
+        }
+        existing_root = (
+            await session.execute(
+                select(Folder).where(
+                    Folder.name == folder_name,
+                    Folder.parent_id.is_(None),
+                    Folder.search_space_id == search_space_id,
+                )
+            )
+        ).scalar_one_or_none()
+
+        if existing_root:
+            root_folder_id = existing_root.id
+            existing_root.folder_metadata = watched_metadata
+        else:
+            root_folder = Folder(
+                name=folder_name,
+                search_space_id=search_space_id,
+                created_by_id=str(user.id),
+                position="a0",
+                folder_metadata=watched_metadata,
+            )
+            session.add(root_folder)
+            await session.flush()
+            root_folder_id = root_folder.id
+
         await session.commit()
 
-    from app.tasks.celery_tasks.document_tasks import index_local_folder_task
+    async def _read_and_save(file: UploadFile, idx: int) -> dict:
+        content = await file.read()
+        filename = file.filename or rel_paths[idx].split("/")[-1]
 
-    index_local_folder_task.delay(
-        search_space_id=request.search_space_id,
+        def _write_temp() -> str:
+            with tempfile.NamedTemporaryFile(
+                delete=False, suffix=os.path.splitext(filename)[1]
+            ) as tmp:
+                tmp.write(content)
+                return tmp.name
+
+        temp_path = await asyncio.to_thread(_write_temp)
+        return {
+            "temp_path": temp_path,
+            "relative_path": rel_paths[idx],
+            "filename": filename,
+        }
+
+    file_mappings = await asyncio.gather(
+        *(_read_and_save(f, i) for i, f in enumerate(files))
+    )
+
+    from app.tasks.celery_tasks.document_tasks import (
+        index_uploaded_folder_files_task,
+    )
+
+    index_uploaded_folder_files_task.delay(
+        search_space_id=search_space_id,
         user_id=str(user.id),
-        folder_path=request.folder_path,
-        folder_name=request.folder_name,
-        exclude_patterns=request.exclude_patterns,
-        file_extensions=request.file_extensions,
+        folder_name=folder_name,
         root_folder_id=root_folder_id,
-        enable_summary=request.enable_summary,
+        enable_summary=enable_summary,
+        file_mappings=list(file_mappings),
     )
 
     return {
-        "message": "Folder indexing started",
+        "message": f"Folder upload started for {len(files)} file(s)",
         "status": "processing",
         "root_folder_id": root_folder_id,
+        "file_count": len(files),
     }
 
 
-@router.post("/documents/folder-index-files")
-async def folder_index_files(
-    request: FolderIndexFilesRequest,
+@router.post("/documents/folder-unlink")
+async def folder_unlink(
+    request: FolderUnlinkRequest,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """Index multiple files within a watched folder (batched chokidar trigger).
-    Validates that all target_file_paths are under folder_path.
-    Dispatches a single Celery task that processes them in parallel.
+    """Handle file deletion events from the desktop watcher.
+
+    For each relative path, find the matching document and delete it.
     """
-    from app.config import config as app_config
-
-    if not app_config.is_self_hosted():
-        raise HTTPException(
-            status_code=400,
-            detail="Local folder indexing is only available in self-hosted mode",
-        )
-
-    if not request.target_file_paths:
-        raise HTTPException(
-            status_code=400, detail="target_file_paths must not be empty"
-        )
+    from app.indexing_pipeline.document_hashing import compute_identifier_hash
+    from app.tasks.connector_indexers.local_folder_indexer import (
+        _cleanup_empty_folder_chain,
+    )
 
     await check_permission(
         session,
         user,
         request.search_space_id,
-        Permission.DOCUMENTS_CREATE.value,
-        "You don't have permission to create documents in this search space",
+        Permission.DOCUMENTS_DELETE.value,
+        "You don't have permission to delete documents in this search space",
     )
 
-    from pathlib import Path
+    deleted_count = 0
 
-    for fp in request.target_file_paths:
-        try:
-            Path(fp).relative_to(request.folder_path)
-        except ValueError as err:
-            raise HTTPException(
-                status_code=400,
-                detail=f"target_file_path {fp} must be inside folder_path",
-            ) from err
+    for rel_path in request.relative_paths:
+        unique_id = f"{request.folder_name}:{rel_path}"
+        uid_hash = compute_identifier_hash(
+            DocumentType.LOCAL_FOLDER_FILE.value,
+            unique_id,
+            request.search_space_id,
+        )
 
-    from app.tasks.celery_tasks.document_tasks import index_local_folder_task
+        existing = (
+            await session.execute(
+                select(Document).where(Document.unique_identifier_hash == uid_hash)
+            )
+        ).scalar_one_or_none()
 
-    index_local_folder_task.delay(
-        search_space_id=request.search_space_id,
-        user_id=str(user.id),
-        folder_path=request.folder_path,
-        folder_name=request.folder_name,
-        target_file_paths=request.target_file_paths,
-        root_folder_id=request.root_folder_id,
-        enable_summary=request.enable_summary,
+        if existing:
+            deleted_folder_id = existing.folder_id
+            await session.delete(existing)
+            await session.flush()
+
+            if deleted_folder_id and request.root_folder_id:
+                await _cleanup_empty_folder_chain(
+                    session, deleted_folder_id, request.root_folder_id
+                )
+            deleted_count += 1
+
+    await session.commit()
+    return {"deleted_count": deleted_count}
+
+
+@router.post("/documents/folder-sync-finalize")
+async def folder_sync_finalize(
+    request: FolderSyncFinalizeRequest,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Finalize a full folder scan by deleting orphaned documents.
+
+    The client sends the complete list of relative paths currently in the
+    folder. Any document in the DB for this folder that is NOT in the list
+    gets deleted.
+    """
+    from app.indexing_pipeline.document_hashing import compute_identifier_hash
+    from app.services.folder_service import get_folder_subtree_ids
+    from app.tasks.connector_indexers.local_folder_indexer import (
+        _cleanup_empty_folders,
     )
 
-    return {
-        "message": f"Batch indexing started for {len(request.target_file_paths)} file(s)",
-        "status": "processing",
-        "file_count": len(request.target_file_paths),
-    }
+    await check_permission(
+        session,
+        user,
+        request.search_space_id,
+        Permission.DOCUMENTS_DELETE.value,
+        "You don't have permission to delete documents in this search space",
+    )
+
+    if not request.root_folder_id:
+        return {"deleted_count": 0}
+
+    subtree_ids = await get_folder_subtree_ids(session, request.root_folder_id)
+
+    seen_hashes: set[str] = set()
+    for rel_path in request.all_relative_paths:
+        unique_id = f"{request.folder_name}:{rel_path}"
+        uid_hash = compute_identifier_hash(
+            DocumentType.LOCAL_FOLDER_FILE.value,
+            unique_id,
+            request.search_space_id,
+        )
+        seen_hashes.add(uid_hash)
+
+    all_folder_docs = (
+        (
+            await session.execute(
+                select(Document).where(
+                    Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
+                    Document.search_space_id == request.search_space_id,
+                    Document.folder_id.in_(subtree_ids),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    deleted_count = 0
+    for doc in all_folder_docs:
+        if doc.unique_identifier_hash not in seen_hashes:
+            await session.delete(doc)
+            deleted_count += 1
+
+    await session.flush()
+
+    existing_dirs: set[str] = set()
+    for rel_path in request.all_relative_paths:
+        parent = str(os.path.dirname(rel_path))
+        if parent and parent != ".":
+            existing_dirs.add(parent)
+
+    folder_mapping: dict[str, int] = {"": request.root_folder_id}
+
+    await _cleanup_empty_folders(
+        session,
+        request.root_folder_id,
+        request.search_space_id,
+        existing_dirs,
+        folder_mapping,
+        subtree_ids=subtree_ids,
+    )
+
+    await session.commit()
+    return {"deleted_count": deleted_count}

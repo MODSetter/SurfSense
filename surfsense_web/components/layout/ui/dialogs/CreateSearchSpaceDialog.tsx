@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtomValue } from "jotai";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -43,6 +44,7 @@ interface CreateSearchSpaceDialogProps {
 export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpaceDialogProps) {
 	const t = useTranslations("searchSpace");
 	const tCommon = useTranslations("common");
+	const router = useRouter();
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	const { mutateAsync: createSearchSpace } = useAtomValue(createSearchSpaceMutationAtom);
@@ -65,8 +67,7 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 
 			trackSearchSpaceCreated(result.id, values.name);
 
-			// Hard redirect to ensure fresh state
-			window.location.href = `/dashboard/${result.id}/onboard`;
+			router.push(`/dashboard/${result.id}/onboard`);
 		} catch (error) {
 			console.error("Failed to create search space:", error);
 			setIsSubmitting(false);
@@ -151,16 +152,10 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 							<Button
 								type="submit"
 								disabled={isSubmitting}
-								className="h-8 sm:h-9 text-xs sm:text-sm"
+								className="h-8 sm:h-9 text-xs sm:text-sm relative"
 							>
-								{isSubmitting ? (
-									<>
-										<Spinner size="sm" className="mr-1.5" />
-										{t("creating")}
-									</>
-								) : (
-									<>{t("create_button")}</>
-								)}
+								<span className={isSubmitting ? "opacity-0" : ""}>{t("create_button")}</span>
+								{isSubmitting && <Spinner size="sm" className="absolute" />}
 							</Button>
 						</DialogFooter>
 					</form>

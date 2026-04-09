@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { motion, useInView } from "motion/react";
 import { IconPointerFilled } from "@tabler/icons-react";
 import { Check, X } from "lucide-react";
+import { motion, useInView } from "motion/react";
+import { useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -40,8 +40,8 @@ export function WhySurfSense() {
 					Everything NotebookLM should have been
 				</h2>
 				<p className="mx-auto mt-4 max-w-2xl text-base text-muted-foreground">
-					Open source. No data limits. No vendor lock-in. Built for teams that
-					care about privacy and flexibility.
+					Open source. No data limits. No vendor lock-in. Built for teams that care about privacy
+					and flexibility.
 				</p>
 			</div>
 
@@ -68,10 +68,7 @@ function UnlimitedSkeleton({ className }: { className?: string }) {
 	];
 
 	return (
-		<div
-			ref={ref}
-			className={cn("flex h-full flex-col justify-center gap-2.5", className)}
-		>
+		<div ref={ref} className={cn("flex h-full flex-col justify-center gap-2.5", className)}>
 			{items.map((item, index) => (
 				<motion.div
 					key={item.label}
@@ -81,9 +78,7 @@ function UnlimitedSkeleton({ className }: { className?: string }) {
 					className="flex items-center gap-2 rounded-lg bg-background px-3 py-2 shadow-sm ring-1 ring-border"
 				>
 					<span className="text-sm">{item.icon}</span>
-					<span className="min-w-[60px] text-xs font-medium text-foreground">
-						{item.label}
-					</span>
+					<span className="min-w-[60px] text-xs font-medium text-foreground">{item.label}</span>
 					<div className="ml-auto flex items-center gap-2">
 						<span className="text-[10px] text-muted-foreground line-through">
 							{item.notebookLm}
@@ -125,10 +120,7 @@ function LLMFlexibilitySkeleton({ className }: { className?: string }) {
 	return (
 		<div
 			ref={ref}
-			className={cn(
-				"flex h-full flex-col items-center justify-center gap-3",
-				className,
-			)}
+			className={cn("flex h-full flex-col items-center justify-center gap-3", className)}
 		>
 			<motion.div
 				initial={{ opacity: 0, y: 8 }}
@@ -146,19 +138,13 @@ function LLMFlexibilitySkeleton({ className }: { className?: string }) {
 						transition={{ duration: 0.3, delay: 0.1 + index * 0.1 }}
 						className={cn(
 							"flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-all",
-							selected === index
-								? "bg-background shadow-sm ring-1 ring-border"
-								: "hover:bg-accent",
+							selected === index ? "bg-background shadow-sm ring-1 ring-border" : "hover:bg-accent"
 						)}
 					>
 						<div className={cn("size-2 shrink-0 rounded-full", model.color)} />
 						<div className="min-w-0">
-							<p className="truncate text-xs font-medium text-foreground">
-								{model.name}
-							</p>
-							<p className="text-[10px] text-muted-foreground">
-								{model.provider}
-							</p>
+							<p className="truncate text-xs font-medium text-foreground">{model.name}</p>
+							<p className="text-[10px] text-muted-foreground">{model.provider}</p>
 						</div>
 						{selected === index && (
 							<motion.div
@@ -220,10 +206,7 @@ function MultiplayerSkeleton({ className }: { className?: string }) {
 	return (
 		<div
 			ref={ref}
-			className={cn(
-				"relative flex h-full items-center justify-center overflow-visible",
-				className,
-			)}
+			className={cn("relative flex h-full items-center justify-center overflow-visible", className)}
 		>
 			<motion.div
 				className="relative w-full max-w-[160px] rounded-lg bg-background p-3 shadow-sm ring-1 ring-border"
@@ -246,10 +229,7 @@ function MultiplayerSkeleton({ className }: { className?: string }) {
 						className="my-1.5 flex items-center"
 						style={{ paddingLeft: line.indent * 8 }}
 					>
-						<div
-							className={cn("h-1.5 rounded-full", line.color)}
-							style={{ width: line.width }}
-						/>
+						<div className={cn("h-1.5 rounded-full", line.color)} style={{ width: line.width }} />
 					</div>
 				))}
 			</motion.div>
@@ -295,9 +275,7 @@ function MultiplayerSkeleton({ className }: { className?: string }) {
 						<div className="flex size-5 items-center justify-center rounded-full bg-white/20 text-[9px] font-bold text-white">
 							{collaborator.name[0]}
 						</div>
-						<span className="shrink-0 text-[10px] font-medium text-white">
-							{collaborator.name}
-						</span>
+						<span className="shrink-0 text-[10px] font-medium text-white">{collaborator.name}</span>
 						<span className="rounded bg-white/20 px-1 py-px text-[8px] text-white/80">
 							{collaborator.role}
 						</span>
@@ -321,9 +299,7 @@ function FeatureCard({
 		<div className="flex h-full flex-col justify-between bg-card p-10 first:rounded-l-2xl last:rounded-r-2xl">
 			<div className="h-60 w-full overflow-visible rounded-md">{skeleton}</div>
 			<div className="mt-4">
-				<h3 className="text-base font-bold tracking-tight text-card-foreground">
-					{title}
-				</h3>
+				<h3 className="text-base font-bold tracking-tight text-card-foreground">{title}</h3>
 				<p className="mt-2 text-sm leading-relaxed tracking-tight text-muted-foreground">
 					{description}
 				</p>
@@ -408,9 +384,7 @@ function ComparisonStrip() {
 					transition={{ duration: 0.3, delay: 0.15 + index * 0.06 }}
 				>
 					<div className="grid grid-cols-3 items-center px-4 py-2.5 text-sm sm:px-6">
-						<span className="font-medium text-card-foreground">
-							{row.feature}
-						</span>
+						<span className="font-medium text-card-foreground">{row.feature}</span>
 						<span className="flex justify-center">
 							{typeof row.notebookLm === "boolean" ? (
 								row.notebookLm ? (
@@ -419,9 +393,7 @@ function ComparisonStrip() {
 									<X className="size-4 text-muted-foreground/40" />
 								)
 							) : (
-								<span className="text-muted-foreground">
-									{row.notebookLm}
-								</span>
+								<span className="text-muted-foreground">{row.notebookLm}</span>
 							)}
 						</span>
 						<span className="flex justify-center">
@@ -436,9 +408,7 @@ function ComparisonStrip() {
 							)}
 						</span>
 					</div>
-					{index !== comparisonRows.length - 1 && (
-						<Separator />
-					)}
+					{index !== comparisonRows.length - 1 && <Separator />}
 				</motion.div>
 			))}
 		</motion.div>

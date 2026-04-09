@@ -11,7 +11,10 @@ from app.config import config
 from app.services.notification_service import NotificationService
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.celery_tasks import get_celery_session_maker
-from app.tasks.connector_indexers.local_folder_indexer import index_local_folder
+from app.tasks.connector_indexers.local_folder_indexer import (
+    index_local_folder,
+    index_uploaded_files,
+)
 from app.tasks.document_processors import (
     add_extension_received_document,
     add_youtube_video_document,
@@ -1395,6 +1398,135 @@ async def _index_local_folder_async(
 
         except Exception as e:
             logger.exception(f"Local folder indexing failed: {e}")
+            if notification:
+                try:
+                    await session.refresh(notification)
+                    await NotificationService.document_processing.notify_processing_completed(
+                        session=session,
+                        notification=notification,
+                        error_message=str(e)[:200],
+                    )
+                except Exception:
+                    pass
+            raise
+        finally:
+            if heartbeat_task:
+                heartbeat_task.cancel()
+            if notification_id is not None:
+                _stop_heartbeat(notification_id)
+
+
+# ===== Upload-based folder indexing task =====
+
+
+@celery_app.task(name="index_uploaded_folder_files", bind=True)
+def index_uploaded_folder_files_task(
+    self,
+    search_space_id: int,
+    user_id: str,
+    folder_name: str,
+    root_folder_id: int,
+    enable_summary: bool,
+    file_mappings: list[dict],
+):
+    """Celery task to index files uploaded from the desktop app."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(
+            _index_uploaded_folder_files_async(
+                search_space_id=search_space_id,
+                user_id=user_id,
+                folder_name=folder_name,
+                root_folder_id=root_folder_id,
+                enable_summary=enable_summary,
+                file_mappings=file_mappings,
+            )
+        )
+    finally:
+        loop.close()
+
+
+async def _index_uploaded_folder_files_async(
+    search_space_id: int,
+    user_id: str,
+    folder_name: str,
+    root_folder_id: int,
+    enable_summary: bool,
+    file_mappings: list[dict],
+):
+    """Run upload-based folder indexing with notification + heartbeat."""
+    file_count = len(file_mappings)
+    doc_name = f"{folder_name} ({file_count} file{'s' if file_count != 1 else ''})"
+
+    notification = None
+    notification_id: int | None = None
+    heartbeat_task = None
+
+    async with get_celery_session_maker()() as session:
+        try:
+            notification = (
+                await NotificationService.document_processing.notify_processing_started(
+                    session=session,
+                    user_id=UUID(user_id),
+                    document_type="LOCAL_FOLDER_FILE",
+                    document_name=doc_name,
+                    search_space_id=search_space_id,
+                )
+            )
+            notification_id = notification.id
+            _start_heartbeat(notification_id)
+            heartbeat_task = asyncio.create_task(_run_heartbeat_loop(notification_id))
+        except Exception:
+            logger.warning(
+                "Failed to create notification for uploaded folder indexing",
+                exc_info=True,
+            )
+
+        async def _heartbeat_progress(completed_count: int) -> None:
+            if notification:
+                with contextlib.suppress(Exception):
+                    await NotificationService.document_processing.notify_processing_progress(
+                        session=session,
+                        notification=notification,
+                        stage="indexing",
+                        stage_message=f"Syncing files ({completed_count}/{file_count})",
+                    )
+
+        try:
+            _indexed, _failed, err = await index_uploaded_files(
+                session=session,
+                search_space_id=search_space_id,
+                user_id=user_id,
+                folder_name=folder_name,
+                root_folder_id=root_folder_id,
+                enable_summary=enable_summary,
+                file_mappings=file_mappings,
+                on_heartbeat_callback=_heartbeat_progress,
+            )
+
+            if notification:
+                try:
+                    await session.refresh(notification)
+                    if err:
+                        await NotificationService.document_processing.notify_processing_completed(
+                            session=session,
+                            notification=notification,
+                            error_message=err,
+                        )
+                    else:
+                        await NotificationService.document_processing.notify_processing_completed(
+                            session=session,
+                            notification=notification,
+                        )
+                except Exception:
+                    logger.warning(
+                        "Failed to update notification after uploaded folder indexing",
+                        exc_info=True,
+                    )
+
+        except Exception as e:
+            logger.exception(f"Uploaded folder indexing failed: {e}")
             if notification:
                 try:
                     await session.refresh(notification)

@@ -40,11 +40,11 @@ jobs:
       - name: Read app version and calculate next Docker build version
         id: tag_version
         run: |
-          APP_VERSION=$(grep -E '^version = ' surfsense_backend/pyproject.toml | sed 's/version = "\(.*\)"/\1/')
-          echo "App version from pyproject.toml: $APP_VERSION"
+          APP_VERSION=$(tr -d '[:space:]' < VERSION)
+          echo "App version from VERSION file: $APP_VERSION"
 
           if [ -z "$APP_VERSION" ]; then
-            echo "Error: Could not read version from surfsense_backend/pyproject.toml"
+            echo "Error: Could not read version from VERSION file"
             exit 1
           fi
 

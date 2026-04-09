@@ -168,6 +168,12 @@ export function FolderTreeView({
 		return states;
 	}, [folders, docsByFolder, foldersByParent, mentionedDocIds]);
 
+	const folderMap = useMemo(() => {
+		const map: Record<number, FolderDisplay> = {};
+		for (const f of folders) map[f.id] = f;
+		return map;
+	}, [folders]);
+
 	const folderProcessingStates = useMemo(() => {
 		const states: Record<number, "idle" | "processing" | "failed"> = {};
 
@@ -177,6 +183,11 @@ export function FolderTreeView({
 				(d) => d.status?.state === "pending" || d.status?.state === "processing"
 			);
 			let hasFailed = directDocs.some((d) => d.status?.state === "failed");
+
+			const folder = folderMap[folderId];
+			if (folder?.metadata?.indexing_in_progress) {
+				hasProcessing = true;
+			}
 
 			for (const child of foldersByParent[folderId] ?? []) {
 				const sub = compute(child.id);
@@ -195,7 +206,7 @@ export function FolderTreeView({
 			if (states[f.id] === undefined) compute(f.id);
 		}
 		return states;
-	}, [folders, docsByFolder, foldersByParent]);
+	}, [folders, docsByFolder, foldersByParent, folderMap]);
 
 	function renderLevel(parentId: number | null, depth: number): React.ReactNode[] {
 		const key = parentId ?? "root";
@@ -283,7 +294,7 @@ export function FolderTreeView({
 
 	if (treeNodes.length === 0 && folders.length === 0 && documents.length === 0) {
 		return (
-			<div className="flex flex-1 flex-col items-center justify-center gap-1 px-4 py-12 text-muted-foreground">
+			<div className="flex flex-1 flex-col items-center justify-center gap-1 px-4 py-12 text-muted-foreground select-none">
 				<p className="text-sm font-medium">No documents found</p>
 				<p className="text-xs text-muted-foreground/70">
 					Use the upload button or connect a source above

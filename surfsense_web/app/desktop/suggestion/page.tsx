@@ -346,15 +346,11 @@ export default function SuggestionPage() {
 						needsTruncation && !isExpanded ? option.slice(0, TRUNCATE_LENGTH) + "…" : option;
 
 					return (
-						<div
+						<button
+							type="button"
 							key={index}
-							role="button"
-							tabIndex={0}
 							className="suggestion-option"
 							onClick={() => handleSelect(option)}
-							onKeyDown={(e) => {
-								if (e.key === "Enter") handleSelect(option);
-							}}
 						>
 							<span className="option-number">{index + 1}</span>
 							<span className="option-text">{displayText}</span>
@@ -370,7 +366,7 @@ export default function SuggestionPage() {
 									{isExpanded ? "less" : "more"}
 								</button>
 							)}
-						</div>
+						</button>
 					);
 				})}
 			</div>

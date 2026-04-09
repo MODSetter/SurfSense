@@ -2,7 +2,6 @@ import { createCodePlugin } from "@streamdown/code";
 import { createMathPlugin } from "@streamdown/math";
 import { Streamdown, type StreamdownProps } from "streamdown";
 import "katex/dist/katex.min.css";
-import { is } from "drizzle-orm";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
