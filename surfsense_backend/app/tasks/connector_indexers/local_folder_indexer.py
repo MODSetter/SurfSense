@@ -153,16 +153,16 @@ def scan_folder(
     return files
 
 
-async def _read_file_content(file_path: str, filename: str) -> str:
+async def _read_file_content(file_path: str, filename: str, *, vision_llm=None) -> str:
     """Read file content via the unified ETL pipeline.
 
-    All file types (plaintext, audio, direct-convert, document) are handled
-    by ``EtlPipelineService``.
+    All file types (plaintext, audio, direct-convert, document, image) are
+    handled by ``EtlPipelineService``.
     """
     from app.etl_pipeline.etl_document import EtlRequest
     from app.etl_pipeline.etl_pipeline_service import EtlPipelineService
 
-    result = await EtlPipelineService().extract(
+    result = await EtlPipelineService(vision_llm=vision_llm).extract(
         EtlRequest(file_path=file_path, filename=filename)
     )
     return result.markdown_content
@@ -199,12 +199,14 @@ async def _compute_file_content_hash(
     file_path: str,
     filename: str,
     search_space_id: int,
+    *,
+    vision_llm=None,
 ) -> tuple[str, str]:
     """Read a file (via ETL if needed) and compute its content hash.
 
     Returns (content_text, content_hash).
     """
-    content = await _read_file_content(file_path, filename)
+    content = await _read_file_content(file_path, filename, vision_llm=vision_llm)
     return content, _content_hash(content, search_space_id)
 
 
@@ -635,6 +637,10 @@ async def index_local_folder(
 
         page_limit_service = PageLimitService(session)
 
+        from app.services.llm_service import get_vision_llm
+
+        vision_llm = await get_vision_llm(session, search_space_id)
+
         # ================================================================
         # PHASE 1: Pre-filter files (mtime / content-hash), version changed
         # ================================================================
@@ -704,7 +710,10 @@ async def index_local_folder(
 
                     try:
                         content, content_hash = await _compute_file_content_hash(
-                            file_path_abs, file_info["relative_path"], search_space_id
+                            file_path_abs,
+                            file_info["relative_path"],
+                            search_space_id,
+                            vision_llm=vision_llm,
                         )
                     except Exception as read_err:
                         logger.warning(f"Could not read {file_path_abs}: {read_err}")
@@ -738,7 +747,10 @@ async def index_local_folder(
 
                     try:
                         content, content_hash = await _compute_file_content_hash(
-                            file_path_abs, file_info["relative_path"], search_space_id
+                            file_path_abs,
+                            file_info["relative_path"],
+                            search_space_id,
+                            vision_llm=vision_llm,
                         )
                     except Exception as read_err:
                         logger.warning(f"Could not read {file_path_abs}: {read_err}")
@@ -1080,9 +1092,13 @@ async def _index_single_file(
         except PageLimitExceededError as e:
             return 0, 1, f"Page limit exceeded: {e}"
 
+        from app.services.llm_service import get_vision_llm
+
+        vision_llm = await get_vision_llm(session, search_space_id)
+
         try:
             content, content_hash = await _compute_file_content_hash(
-                str(full_path), full_path.name, search_space_id
+                str(full_path), full_path.name, search_space_id, vision_llm=vision_llm
             )
         except Exception as e:
             return 0, 1, f"Could not read file: {e}"
@@ -1300,6 +1316,10 @@ async def index_uploaded_files(
         pipeline = IndexingPipelineService(session)
         llm = await get_user_long_context_llm(session, user_id, search_space_id)
 
+        from app.services.llm_service import get_vision_llm
+
+        vision_llm = await get_vision_llm(session, search_space_id)
+
         indexed_count = 0
         failed_count = 0
         errors: list[str] = []
@@ -1347,7 +1367,7 @@ async def index_uploaded_files(
 
                 try:
                     content, content_hash = await _compute_file_content_hash(
-                        temp_path, filename, search_space_id
+                        temp_path, filename, search_space_id, vision_llm=vision_llm
                     )
                 except Exception as e:
                     logger.warning(f"Could not read {relative_path}: {e}")
