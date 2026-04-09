@@ -13,6 +13,7 @@ from .discord_add_connector_route import router as discord_add_connector_router
 from .documents_routes import router as documents_router
 from .dropbox_add_connector_route import router as dropbox_add_connector_router
 from .editor_routes import router as editor_router
+from .export_routes import router as export_router
 from .folders_routes import router as folders_router
 from .google_calendar_add_connector_route import (
     router as google_calendar_add_connector_router,
@@ -57,6 +58,7 @@ router = APIRouter()
 router.include_router(search_spaces_router)
 router.include_router(rbac_router)  # RBAC routes for roles, members, invites
 router.include_router(editor_router)
+router.include_router(export_router)
 router.include_router(documents_router)
 router.include_router(folders_router)
 router.include_router(notes_router)
