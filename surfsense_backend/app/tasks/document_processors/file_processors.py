@@ -118,9 +118,13 @@ async def _log_page_divergence(
 
 
 async def _process_non_document_upload(ctx: _ProcessingContext) -> Document | None:
-    """Extract content from a non-document file (plaintext/direct_convert/audio) via the unified ETL pipeline."""
+    """Extract content from a non-document file (plaintext/direct_convert/audio/image) via the unified ETL pipeline."""
     from app.etl_pipeline.etl_document import EtlRequest
     from app.etl_pipeline.etl_pipeline_service import EtlPipelineService
+    from app.etl_pipeline.file_classifier import (
+        FileCategory,
+        classify_file as etl_classify,
+    )
 
     await _notify(ctx, "parsing", "Processing file")
     await ctx.task_logger.log_task_progress(
@@ -129,7 +133,13 @@ async def _process_non_document_upload(ctx: _ProcessingContext) -> Document | No
         {"processing_stage": "extracting"},
     )
 
-    etl_result = await EtlPipelineService().extract(
+    vision_llm = None
+    if etl_classify(ctx.filename) == FileCategory.IMAGE:
+        from app.services.llm_service import get_vision_llm
+
+        vision_llm = await get_vision_llm(ctx.session, ctx.search_space_id)
+
+    etl_result = await EtlPipelineService(vision_llm=vision_llm).extract(
         EtlRequest(file_path=ctx.file_path, filename=ctx.filename)
     )
 
