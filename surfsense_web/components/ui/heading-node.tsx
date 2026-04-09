@@ -6,7 +6,7 @@ import type { PlateElementProps } from "platejs/react";
 import { PlateElement } from "platejs/react";
 import * as React from "react";
 
-const headingVariants = cva("relative mb-1", {
+const headingVariants = cva("relative mb-1 first:mt-0", {
 	variants: {
 		variant: {
 			h1: "mt-[1.6em] pb-1 font-bold font-heading text-4xl",

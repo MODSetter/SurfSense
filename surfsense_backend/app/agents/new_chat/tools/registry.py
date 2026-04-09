@@ -219,14 +219,16 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             create_update_team_memory_tool(
                 search_space_id=deps["search_space_id"],
                 db_session=deps["db_session"],
+                llm=deps.get("llm"),
             )
             if deps["thread_visibility"] == ChatVisibility.SEARCH_SPACE
             else create_update_memory_tool(
                 user_id=deps["user_id"],
                 db_session=deps["db_session"],
+                llm=deps.get("llm"),
             )
         ),
-        requires=["user_id", "search_space_id", "db_session", "thread_visibility"],
+        requires=["user_id", "search_space_id", "db_session", "thread_visibility", "llm"],
     ),
     # =========================================================================
     # LINEAR TOOLS - create, update, delete issues

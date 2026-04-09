@@ -276,11 +276,16 @@ _MEMORY_TOOL_INSTRUCTIONS: dict[str, dict[str, str]] = {
       Include inline dates (YYYY-MM) on entries where temporal context matters (facts that
       may change, decisions, context).  Skip dates on timeless preferences and instructions.
   - Keep it concise and well under the character limit shown in <user_memory>.
-  - Organize using markdown sections as appropriate (suggested but not required):
-    ## About the user — name, role, background, company (with date if it may change)
+  - You MUST organize memory using these standard sections (add new `##` sections only if none of the standard ones fit):
+    ## About the user (pinned) — name, role, background, company (with date if it may change)
     ## Preferences — languages, tools, frameworks, response style
-    ## Instructions — standing instructions, things to always/never do
+    ## Instructions (pinned) — standing instructions, things to always/never do
     ## Current context — ongoing projects, goals, deadlines (with date)
+  - Each entry MUST be a single bullet point. Keep entries concise (aim for under 120 chars each).
+  - Each time-sensitive entry MUST include a (YYYY-MM) date suffix.
+  - Sections with `(pinned)` in the heading are protected — the system will reject any
+    update that removes them. Users can add `(pinned)` to any `##` heading to protect it.
+  - During consolidation, prioritize keeping: pinned sections > preferences > current context.
 """,
         "shared": """
 - update_memory: Update the team's shared memory document for this search space.
@@ -300,11 +305,16 @@ _MEMORY_TOOL_INSTRUCTIONS: dict[str, dict[str, str]] = {
       Treat every update as a curation pass — consolidate, don't just append.
       Include inline dates (YYYY-MM) on decisions and time-sensitive entries.
   - Keep it concise and well under the character limit shown in <team_memory>.
-  - Organize using markdown sections as appropriate (suggested but not required):
-    ## Team decisions — agreed-upon choices with rationale and date
-    ## Conventions — coding standards, tools, processes, naming patterns
+  - You MUST organize memory using these standard sections (add new `##` sections only if none of the standard ones fit):
+    ## Team decisions (pinned) — agreed-upon choices with rationale and date
+    ## Conventions (pinned) — coding standards, tools, processes, naming patterns
     ## Key facts — where things are, how things work, team structure
     ## Current priorities — active projects, deadlines, blockers
+  - Each entry MUST be a single bullet point. Keep entries concise (aim for under 120 chars each).
+  - Each time-sensitive entry MUST include a (YYYY-MM) date suffix.
+  - Sections with `(pinned)` in the heading are protected — the system will reject any
+    update that removes them. Users can add `(pinned)` to any `##` heading to protect it.
+  - During consolidation, prioritize keeping: pinned sections > key facts > current priorities.
 """,
     },
 }
@@ -312,25 +322,25 @@ _MEMORY_TOOL_INSTRUCTIONS: dict[str, dict[str, str]] = {
 _MEMORY_TOOL_EXAMPLES: dict[str, dict[str, str]] = {
     "update_memory": {
         "private": """
-- <user_memory persisted="false"> contains "## About the user\\n- Name: Alex"
+- <user_memory persisted="false"> contains "## About the user (pinned)\\n- Name: Alex"
   User: "I'm a university student, explain astrophage to me"
   - Memory is not yet persisted AND the user casually shared that they are a student.
     You MUST call update_memory to persist the seed plus the new fact:
-    update_memory(updated_memory="## About the user\\n- Name: Alex\\n- University student\\n")
+    update_memory(updated_memory="## About the user (pinned)\\n- Name: Alex\\n- University student\\n")
 - User: "Remember that I prefer TypeScript over JavaScript"
   - Timeless preference, no date needed.  You see the current <user_memory> and merge:
-    update_memory(updated_memory="## About the user\\n- Senior developer\\n\\n## Preferences\\n- Prefers TypeScript over JavaScript\\n...")
+    update_memory(updated_memory="## About the user (pinned)\\n- Senior developer\\n\\n## Preferences\\n- Prefers TypeScript over JavaScript\\n...")
 - User: "I actually moved to Google last month"
   - Fact that changes over time, include date:
-    update_memory(updated_memory="## About the user\\n- Senior developer at Google (since 2026-03, previously Acme Corp)\\n...")
+    update_memory(updated_memory="## About the user (pinned)\\n- Senior developer at Google (since 2026-03, previously Acme Corp)\\n...")
 - User: "I'm building a SaaS app with Next.js and Supabase"
   - Implicit project info shared as context. Save it:
-    update_memory(updated_memory="## About the user\\n- Name: Alex\\n\\n## Current context\\n- Building a SaaS app with Next.js and Supabase (2026-04)\\n")
+    update_memory(updated_memory="## About the user (pinned)\\n- Name: Alex\\n\\n## Current context\\n- Building a SaaS app with Next.js and Supabase (2026-04)\\n")
 """,
         "shared": """
 - User: "Let's remember that we decided to use GraphQL"
   - Decision with date:
-    update_memory(updated_memory="## Team decisions\\n- 2026-04: Adopted GraphQL over REST for new APIs\\n...")
+    update_memory(updated_memory="## Team decisions (pinned)\\n- 2026-04: Adopted GraphQL over REST for new APIs\\n...")
 - User: "Our deploy process uses Railway auto-deploys"
   - Key fact, no date needed:
     update_memory(updated_memory="## Key facts\\n- Deploy pipeline: git push -> Railway auto-deploys in ~3min\\n...")

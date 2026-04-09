@@ -81,8 +81,8 @@ export function MemoryContent() {
 
 	const getCounterColor = () => {
 		if (charCount > MEMORY_HARD_LIMIT) return "text-red-500";
-		if (charCount > 20_000) return "text-orange-500";
-		if (charCount > 15_000) return "text-yellow-500";
+		if (charCount > 15_000) return "text-orange-500";
+		if (charCount > 10_000) return "text-yellow-500";
 		return "text-muted-foreground";
 	};
 
@@ -119,7 +119,7 @@ export function MemoryContent() {
 			<div className="flex items-center justify-between">
 				<span className={`text-xs ${getCounterColor()}`}>
 					{charCount.toLocaleString()} / {MEMORY_HARD_LIMIT.toLocaleString()} characters
-					{charCount > 20_000 && charCount <= MEMORY_HARD_LIMIT && " - Approaching limit"}
+					{charCount > 15_000 && charCount <= MEMORY_HARD_LIMIT && " - Approaching limit"}
 					{isOverLimit && " - Exceeds limit"}
 				</span>
 			</div>

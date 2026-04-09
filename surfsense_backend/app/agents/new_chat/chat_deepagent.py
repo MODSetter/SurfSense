@@ -282,6 +282,7 @@ async def create_surfsense_deep_agent(
         "available_connectors": available_connectors,
         "available_document_types": available_document_types,
         "max_input_tokens": _max_input_tokens,
+        "llm": llm,
     }
 
     # Disable Notion action tools if no Notion connector is configured

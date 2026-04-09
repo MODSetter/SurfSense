@@ -117,7 +117,7 @@ class MemoryInjectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
 
             if display_name:
                 first_name = display_name.split()[0]
-                seed = f"## About the user\n- Name: {first_name}"
+                seed = f"## About the user (pinned)\n- Name: {first_name}"
                 await session.execute(
                     User.__table__.update()
                     .where(User.id == self.user_id)
