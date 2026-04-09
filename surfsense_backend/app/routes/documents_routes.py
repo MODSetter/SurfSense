@@ -1565,7 +1565,8 @@ async def folder_upload(
 
     async def _read_and_save(file: UploadFile, idx: int) -> dict:
         content = await file.read()
-        filename = file.filename or rel_paths[idx].split("/")[-1]
+        raw_name = file.filename or rel_paths[idx]
+        filename = raw_name.split("/")[-1]
 
         def _write_temp() -> str:
             with tempfile.NamedTemporaryFile(
