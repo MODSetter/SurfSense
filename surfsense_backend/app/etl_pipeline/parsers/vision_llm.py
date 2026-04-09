@@ -1,5 +1,4 @@
 import base64
-import mimetypes
 import os
 
 from langchain_core.messages import HumanMessage
@@ -10,7 +9,23 @@ _PROMPT = (
     "Be concise but complete — let the image content guide the level of detail."
 )
 
-_MAX_IMAGE_BYTES = 5 * 1024 * 1024  # 5 MB (Anthropic Claude's limit, the most restrictive)
+_MAX_IMAGE_BYTES = (
+    5 * 1024 * 1024
+)  # 5 MB (Anthropic Claude's limit, the most restrictive)
+
+_EXT_TO_MIME: dict[str, str] = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".bmp": "image/bmp",
+    ".tiff": "image/tiff",
+    ".tif": "image/tiff",
+    ".webp": "image/webp",
+    ".svg": "image/svg+xml",
+    ".heic": "image/heic",
+    ".heif": "image/heif",
+}
 
 
 def _image_to_data_url(file_path: str) -> str:
@@ -20,9 +35,10 @@ def _image_to_data_url(file_path: str) -> str:
             f"Image too large for vision LLM ({file_size / (1024 * 1024):.1f} MB, "
             f"limit {_MAX_IMAGE_BYTES // (1024 * 1024)} MB): {file_path}"
         )
-    mime_type, _ = mimetypes.guess_type(file_path)
-    if not mime_type or not mime_type.startswith("image/"):
-        mime_type = "image/png"
+    ext = os.path.splitext(file_path)[1].lower()
+    mime_type = _EXT_TO_MIME.get(ext)
+    if not mime_type:
+        raise ValueError(f"Unsupported image extension {ext!r}: {file_path}")
     with open(file_path, "rb") as f:
         encoded = base64.b64encode(f.read()).decode("ascii")
     return f"data:{mime_type};base64,{encoded}"
