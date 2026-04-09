@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import os
 
@@ -12,6 +13,8 @@ _PROMPT = (
 _MAX_IMAGE_BYTES = (
     5 * 1024 * 1024
 )  # 5 MB (Anthropic Claude's limit, the most restrictive)
+
+_INVOKE_TIMEOUT_SECONDS = 120
 
 _EXT_TO_MIME: dict[str, str] = {
     ".png": "image/png",
@@ -52,7 +55,9 @@ async def parse_with_vision_llm(file_path: str, filename: str, llm) -> str:
             {"type": "image_url", "image_url": {"url": data_url}},
         ]
     )
-    response = await llm.ainvoke([message])
+    response = await asyncio.wait_for(
+        llm.ainvoke([message]), timeout=_INVOKE_TIMEOUT_SECONDS
+    )
     text = response.content if hasattr(response, "content") else str(response)
     if not text or not text.strip():
         raise ValueError(f"Vision LLM returned empty content for {filename}")

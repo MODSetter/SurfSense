@@ -80,7 +80,14 @@ class EtlPipelineService:
                 request.filename,
             )
 
-        return await self._extract_document(request)
+        try:
+            return await self._extract_document(request)
+        except (EtlUnsupportedFileError, EtlServiceUnavailableError):
+            raise EtlUnsupportedFileError(
+                f"Cannot process image {request.filename}: vision LLM "
+                f"{'failed' if self._vision_llm else 'not configured'} and "
+                f"document parser does not support this format"
+            ) from None
 
     async def _extract_document(self, request: EtlRequest) -> EtlResult:
         from pathlib import PurePosixPath

@@ -1,5 +1,6 @@
 """Service for exporting knowledge base content as a ZIP archive."""
 
+import asyncio
 import logging
 import os
 import tempfile
@@ -106,23 +107,38 @@ async def build_export_zip(
 
     folder_path_map = _build_folder_path_map(folders)
 
-    doc_query = select(Document).where(Document.search_space_id == search_space_id)
+    batch_size = 100
+
+    base_doc_query = select(Document).where(Document.search_space_id == search_space_id)
     if target_folder_ids is not None:
-        doc_query = doc_query.where(Document.folder_id.in_(target_folder_ids))
-    doc_result = await session.execute(doc_query)
-    documents = list(doc_result.scalars().all())
+        base_doc_query = base_doc_query.where(Document.folder_id.in_(target_folder_ids))
+    base_doc_query = base_doc_query.order_by(Document.id)
 
     fd, tmp_path = tempfile.mkstemp(suffix=".zip")
     os.close(fd)
 
-    try:
-        used_paths: dict[str, int] = {}
-        skipped_docs: list[str] = []
+    used_paths: dict[str, int] = {}
+    skipped_docs: list[str] = []
+    is_first_batch = True
 
-        with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zf:
+    try:
+        offset = 0
+        while True:
+            batch_query = base_doc_query.limit(batch_size).offset(offset)
+            batch_result = await session.execute(batch_query)
+            documents = list(batch_result.scalars().all())
+            if not documents:
+                break
+
+            entries: list[tuple[str, str]] = []
+
             for doc in documents:
                 status = doc.status or {}
-                state = status.get("state", "ready") if isinstance(status, dict) else "ready"
+                state = (
+                    status.get("state", "ready")
+                    if isinstance(status, dict)
+                    else "ready"
+                )
                 if state in ("pending", "processing"):
                     skipped_docs.append(doc.title or "Untitled")
                     continue
@@ -137,7 +153,9 @@ async def build_export_zip(
                     dir_path = ""
 
                 base_name = _sanitize_filename(doc.title or "Untitled")
-                file_path = f"{dir_path}/{base_name}.md" if dir_path else f"{base_name}.md"
+                file_path = (
+                    f"{dir_path}/{base_name}.md" if dir_path else f"{base_name}.md"
+                )
 
                 if file_path in used_paths:
                     used_paths[file_path] += 1
@@ -149,7 +167,21 @@ async def build_export_zip(
                     )
                 used_paths[file_path] = used_paths.get(file_path, 0) + 1
 
-                zf.writestr(file_path, markdown)
+                entries.append((file_path, markdown))
+
+            if entries:
+                mode = "w" if is_first_batch else "a"
+                batch_entries = entries
+
+                def _write_batch(m: str = mode, e: list = batch_entries) -> None:
+                    with zipfile.ZipFile(tmp_path, m, zipfile.ZIP_DEFLATED) as zf:
+                        for path, content in e:
+                            zf.writestr(path, content)
+
+                await asyncio.to_thread(_write_batch)
+                is_first_batch = False
+
+            offset += batch_size
 
         export_name = "knowledge-base"
         if folder_id is not None and folder_id in folder_path_map:

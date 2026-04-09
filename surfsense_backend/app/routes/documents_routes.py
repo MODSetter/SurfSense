@@ -2,7 +2,7 @@
 import asyncio
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, UploadFile
-from pydantic import BaseModel as PydanticBaseModel
+from pydantic import BaseModel as PydanticBaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -1395,10 +1395,13 @@ class FolderMtimeCheckFile(PydanticBaseModel):
     mtime: float
 
 
+_MAX_MTIME_CHECK_FILES = 10_000
+
+
 class FolderMtimeCheckRequest(PydanticBaseModel):
     folder_name: str
     search_space_id: int
-    files: list[FolderMtimeCheckFile]
+    files: list[FolderMtimeCheckFile] = Field(max_length=_MAX_MTIME_CHECK_FILES)
 
 
 class FolderUnlinkRequest(PydanticBaseModel):
@@ -1529,6 +1532,23 @@ async def folder_upload(
                 status_code=413,
                 detail=f"File '{file.filename}' ({file_size / (1024 * 1024):.1f} MB) "
                 f"exceeds the {MAX_FILE_SIZE_BYTES // (1024 * 1024)} MB per-file limit.",
+            )
+
+    from app.services.folder_service import MAX_FOLDER_DEPTH
+
+    max_subfolder_depth = max((p.count("/") for p in rel_paths if "/" in p), default=0)
+    if 1 + max_subfolder_depth > MAX_FOLDER_DEPTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Folder structure too deep: {1 + max_subfolder_depth} levels "
+            f"exceeds the maximum of {MAX_FOLDER_DEPTH}.",
+        )
+
+    if root_folder_id:
+        root_folder = await session.get(Folder, root_folder_id)
+        if not root_folder or root_folder.search_space_id != search_space_id:
+            raise HTTPException(
+                status_code=404, detail="Root folder not found in this search space"
             )
 
     if not root_folder_id:
