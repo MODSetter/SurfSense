@@ -4,12 +4,9 @@ import mimetypes
 from langchain_core.messages import HumanMessage
 
 _PROMPT = (
-    "Analyze this image thoroughly and produce a detailed markdown description.\n\n"
-    "Include:\n"
-    "- All visible text, transcribed verbatim\n"
-    "- Description of diagrams, charts, tables, or visual structures\n"
-    "- Key subjects, objects, or scenes depicted\n\n"
-    "Output only the markdown content, no preamble."
+    "Describe this image in markdown. "
+    "Transcribe any visible text verbatim. "
+    "Be concise but complete — let the image content guide the level of detail."
 )
 
 
