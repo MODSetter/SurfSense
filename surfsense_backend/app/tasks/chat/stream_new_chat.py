@@ -29,6 +29,7 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
+from app.agents.new_chat.memory_extraction import extract_and_save_memory
 from app.agents.new_chat.checkpointer import get_checkpointer
 from app.agents.new_chat.llm_config import (
     AgentConfig,
@@ -1523,6 +1524,19 @@ async def stream_new_chat(
             yield streaming_service.format_finish()
             yield streaming_service.format_done()
             return
+
+        if user_id and llm is not None:
+            _mem_task = asyncio.create_task(
+                extract_and_save_memory(
+                    user_message=user_query,
+                    user_id=user_id,
+                    search_space_id=search_space_id,
+                    thread_visibility=visibility,
+                    llm=llm,
+                )
+            )
+            _background_tasks.add(_mem_task)
+            _mem_task.add_done_callback(_background_tasks.discard)
 
         # If the title task didn't finish during streaming, await it now
         if title_task is not None and not title_emitted:

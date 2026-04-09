@@ -257,17 +257,13 @@ _MEMORY_TOOL_INSTRUCTIONS: dict[str, dict[str, str]] = {
     `limit` attributes show your current usage and the maximum allowed size.
   - This is your curated long-term memory — the distilled essence of what you know about
     the user, not raw conversation logs.
-  - **If <user_memory> has persisted="false"**, the memory has NOT been saved to the
-    database yet (it is a seed).  You MUST call update_memory during this conversation to
-    persist it, merging in any new information you learn from the user.
-  - Call update_memory when the user shares long-term information about themselves,
-    whether explicitly or casually as part of a request:
-    * Identity & background mentioned in passing: "I'm a student", "at my company we...",
-      "I'm working on a React app", "I'm a data scientist"
-    * Explicit requests: "remember this", "keep in mind", "note that"
-    * Preferences: "I prefer X", "I like Y", "always do Z"
-    * Facts: name, role, company, expertise, current projects
-    * Standing instructions: response format, communication style
+  - Note: The system automatically extracts memorizable information from every
+    conversation in the background. Use this tool primarily for:
+    * Explicit user requests: "remember this", "keep in mind", "note that", "forget X"
+    * Restructuring or reorganizing the memory document
+    * Correcting outdated or wrong entries
+    * **If <user_memory> has persisted="false"** — you MUST still call update_memory
+      to persist the seed.
   - Skip truly ephemeral info (one-off questions, greetings, session logistics).
   - Args:
     - updated_memory: The FULL updated markdown document (not a diff).
@@ -292,12 +288,11 @@ _MEMORY_TOOL_INSTRUCTIONS: dict[str, dict[str, str]] = {
   - Your current team memory is already in <team_memory> in your context.  The `chars`
     and `limit` attributes show current usage and the maximum allowed size.
   - This is the team's curated long-term memory — decisions, conventions, key facts.
-  - Call update_memory when the team shares long-term information, whether explicitly
-    or as part of a broader discussion:
-    * Team decisions: "let's use X", "we decided to go with Y"
-    * Conventions: coding standards, processes, naming patterns
-    * Key facts: where things are, how things work, team structure
-    * Priorities: active projects, deadlines, blockers
+  - Note: The system automatically extracts memorizable team information from every
+    conversation in the background. Use this tool primarily for:
+    * Explicit requests: "let's remember that", "note this decision", "forget X"
+    * Restructuring or reorganizing the team memory document
+    * Correcting outdated or wrong entries
   - Skip truly ephemeral info (one-off questions, greetings, session logistics).
   - Args:
     - updated_memory: The FULL updated markdown document (not a diff).
