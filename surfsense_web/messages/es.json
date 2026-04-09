@@ -396,7 +396,11 @@
 		"supported_file_types": "Tipos de archivo soportados",
 		"file_too_large": "Archivo demasiado grande",
 		"file_too_large_desc": "\"{name}\" excede el límite de {maxMB} MB por archivo.",
-		"no_supported_files_in_folder": "No se encontraron tipos de archivo compatibles en la carpeta seleccionada."
+		"no_supported_files_in_folder": "No se encontraron tipos de archivo compatibles en la carpeta seleccionada.",
+		"uploading_folder": "Subiendo carpeta…",
+		"upload_folder_button": "Subir carpeta ({count} {count, plural, one {archivo} other {archivos}})",
+		"select_files_or_folder": "Seleccionar archivos o carpeta",
+		"tap_select_files_or_folder": "Toca para seleccionar archivos o carpeta"
 	},
 	"add_webpage": {
 		"title": "Agregar páginas web para rastreo",

@@ -540,7 +540,7 @@ export function DocumentUploadTab({
 						<Upload className="h-10 w-10 text-muted-foreground" />
 						<div className="text-center space-y-1.5">
 							<p className="text-base font-medium">
-								{isElectron ? "Select files or folder" : "Tap to select files or folder"}
+								{isElectron ? t("select_files_or_folder") : t("tap_select_files_or_folder")}
 							</p>
 							<p className="text-sm text-muted-foreground">{t("file_size_limit")}</p>
 						</div>
@@ -672,7 +672,7 @@ export function DocumentUploadTab({
 					{isAnyUploading && (
 						<div className="space-y-1">
 							<div className="flex items-center justify-between text-xs">
-								<span>{folderUpload ? "Uploading folder…" : t("uploading_files")}</span>
+								<span>{folderUpload ? t("uploading_folder") : t("uploading_files")}</span>
 								<span>{Math.round(uploadProgress)}%</span>
 							</div>
 							<Progress value={uploadProgress} className="h-1.5" />
@@ -702,7 +702,7 @@ export function DocumentUploadTab({
 						) : (
 							<span className="flex items-center gap-2">
 								{folderUpload
-									? `Upload Folder (${fileCount} files)`
+									? t("upload_folder_button", { count: fileCount })
 									: t("upload_button", { count: fileCount })}
 							</span>
 						)}
