@@ -34,14 +34,20 @@ info, things that only matter for the current task.
 If the message contains memorizable information, output the FULL updated \
 memory document with the new facts merged into the existing content. Follow \
 these rules:
-- Preserve any existing ## headings; create new ones if useful.
-- Keep entries as single concise bullet points (under 120 chars each).
+- Every entry MUST be under a ## heading. Preserve existing headings; create new ones
+  freely. Keep heading names short (2-3 words) and natural. Do NOT include the user's
+  name in headings.
+- Keep entries as single bullet points. Be descriptive but concise — include relevant
+  details and context rather than just a few words.
 - Every bullet MUST use format: - (YYYY-MM-DD) [fact|pref|instr] text
   [fact] = durable facts, [pref] = preferences, [instr] = standing instructions.
+- Use the user's first name (from <user_name>) in entry text, not "the user".
 - If a new fact contradicts an existing entry, update the existing entry.
 - Do not duplicate information that is already present.
 
 If nothing is worth remembering, output exactly: NO_UPDATE
+
+<user_name>{user_name}</user_name>
 
 <current_memory>
 {current_memory}
@@ -76,8 +82,10 @@ NOT worth remembering:
 
 If the message contains memorizable team information, output the FULL updated \
 team memory document with new facts merged into existing content. Follow rules:
-- Preserve any existing ## headings; create new ones if useful.
-- Keep entries as single concise bullet points (under 120 chars each).
+- Every entry MUST be under a ## heading. Preserve existing headings; create new ones
+  freely. Keep heading names short (2-3 words) and natural.
+- Keep entries as single bullet points. Be descriptive but concise — include relevant
+  details and context rather than just a few words.
 - Every bullet MUST use format: - (YYYY-MM-DD) [fact] text
   Team memory uses ONLY the [fact] marker. Never use [pref] or [instr].
 - If a new fact contradicts an existing entry, update the existing entry.
@@ -122,9 +130,11 @@ async def extract_and_save_memory(
                 return
 
             old_memory = user.memory_md
+            first_name = user.display_name.split()[0] if user.display_name else "The user"
             prompt = _MEMORY_EXTRACT_PROMPT.format(
                 current_memory=old_memory or "(empty)",
                 user_message=user_message,
+                user_name=first_name,
             )
             response = await llm.ainvoke(
                 [HumanMessage(content=prompt)],

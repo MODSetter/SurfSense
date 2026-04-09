@@ -164,11 +164,13 @@ limit and must be shortened.
 
 RULES:
 1. Rewrite the document to be under {target} characters.
-2. Preserve any existing ## headings.
+2. Preserve existing ## headings. Every entry must remain under a heading. You may merge
+   or rename headings to consolidate, but keep names personal and descriptive.
 3. Priority for keeping content: [instr] > [pref] > [fact].
 4. Merge duplicate entries, remove outdated entries, shorten verbose descriptions.
 5. Every bullet MUST have format: - (YYYY-MM-DD) [fact|pref|instr] text
-6. Output ONLY the consolidated markdown — no explanations, no wrapping.
+6. Preserve the user's first name in entries — do not replace it with "the user".
+7. Output ONLY the consolidated markdown — no explanations, no wrapping.
 
 <memory_document>
 {content}

@@ -274,7 +274,9 @@ _MEMORY_TOOL_INSTRUCTIONS: dict[str, dict[str, str]] = {
   - Call update_memory when:
     * The user explicitly asks to remember or forget something
     * The user shares durable facts or preferences that will matter in future conversations
-  - The user's name is already provided via <user_name> — do not store it in memory.
+  - The user's first name is provided in <user_name>. Use it in memory entries
+    instead of "the user" (e.g. "{name} works at..." not "The user works at...").
+    Do not store the name itself as a separate memory entry.
   - Do not store short-lived or ephemeral info: one-off questions, greetings,
     session logistics, or things that only matter for the current task.
   - Args:
@@ -287,9 +289,12 @@ _MEMORY_TOOL_INSTRUCTIONS: dict[str, dict[str, str]] = {
       [pref]  — preferences (response style, languages, formats, tools)
       [instr] — standing instructions (always/never do, response rules)
   - Keep it concise and well under the character limit shown in <user_memory>.
-  - Use any `##` heading that fits. Headings are optional and freeform — organize
-    however makes sense for the content (e.g. ## Work, ## Research, ## Personal).
-  - Each entry MUST be a single bullet point. Keep entries concise (aim for under 120 chars each).
+  - Every entry MUST be under a `##` heading. Keep heading names short (2-3 words) and
+    natural. Do NOT include the user's name in headings. Organize by context — e.g.
+    who they are, what they're focused on, how they prefer things. Create, split, or
+    merge headings freely as the memory grows.
+  - Each entry MUST be a single bullet point. Be descriptive but concise — include relevant
+    details and context rather than just a few words.
   - During consolidation, prioritize keeping: [instr] > [pref] > [fact].
 """,
         "shared": """
@@ -312,9 +317,11 @@ _MEMORY_TOOL_INSTRUCTIONS: dict[str, dict[str, str]] = {
   - Every bullet MUST use this format: - (YYYY-MM-DD) [fact] text
     Team memory uses ONLY the [fact] marker. Never use [pref] or [instr] in team memory.
   - Keep it concise and well under the character limit shown in <team_memory>.
-  - Use any `##` heading that fits. Headings are optional and freeform — organize
-    however makes sense for the content (e.g. ## Decisions, ## Architecture, ## Process).
-  - Each entry MUST be a single bullet point. Keep entries concise (aim for under 120 chars each).
+  - Every entry MUST be under a `##` heading. Keep heading names short (2-3 words) and
+    natural. Organize by context — e.g. what the team decided, current architecture,
+    active processes. Create, split, or merge headings freely as the memory grows.
+  - Each entry MUST be a single bullet point. Be descriptive but concise — include relevant
+    details and context rather than just a few words.
   - During consolidation, prioritize keeping: decisions/conventions > key facts > current priorities.
 """,
     },
@@ -323,21 +330,21 @@ _MEMORY_TOOL_INSTRUCTIONS: dict[str, dict[str, str]] = {
 _MEMORY_TOOL_EXAMPLES: dict[str, dict[str, str]] = {
     "update_memory": {
         "private": """
-- <user_memory> is empty. User: "I'm a space enthusiast, explain astrophage to me"
-  - The user casually shared a durable fact about themselves. Save it:
-    update_memory(updated_memory="- (2025-03-15) [fact] Space enthusiast\\n")
+- <user_name>Alex</user_name>, <user_memory> is empty. User: "I'm a space enthusiast, explain astrophage to me"
+  - The user casually shared a durable fact. Use their first name in the entry, short neutral heading:
+    update_memory(updated_memory="## Interests & background\\n- (2025-03-15) [fact] Alex is a space enthusiast\\n")
 - User: "Remember that I prefer concise answers over detailed explanations"
-  - Durable preference. Merge with existing memory:
-    update_memory(updated_memory="- (2025-03-15) [fact] Space enthusiast\\n- (2025-03-15) [pref] Prefers concise answers over detailed explanations\\n")
+  - Durable preference. Merge with existing memory, add a new heading:
+    update_memory(updated_memory="## Interests & background\\n- (2025-03-15) [fact] Alex is a space enthusiast\\n\\n## Response style\\n- (2025-03-15) [pref] Alex prefers concise answers over detailed explanations\\n")
 - User: "I actually moved to Tokyo last month"
   - Updated fact, date prefix reflects when recorded:
-    update_memory(updated_memory="- (2025-03-15) [fact] Lives in Tokyo (previously London)\\n...")
+    update_memory(updated_memory="## Interests & background\\n...\\n\\n## Personal context\\n- (2025-03-15) [fact] Alex lives in Tokyo (previously London)\\n...")
 - User: "I'm a freelance photographer working on a nature documentary"
-  - Durable background info:
-    update_memory(updated_memory="- (2025-03-15) [fact] Freelance photographer\\n- (2025-03-15) [fact] Working on a nature documentary\\n")
+  - Durable background info under a fitting heading:
+    update_memory(updated_memory="...\\n\\n## Current focus\\n- (2025-03-15) [fact] Alex is a freelance photographer\\n- (2025-03-15) [fact] Alex is working on a nature documentary\\n")
 - User: "Always respond in bullet points"
   - Standing instruction:
-    update_memory(updated_memory="...\\n- (2025-03-15) [instr] Always respond in bullet points\\n")
+    update_memory(updated_memory="...\\n\\n## Response style\\n- (2025-03-15) [instr] Always respond to Alex in bullet points\\n")
 """,
         "shared": """
 - User: "Let's remember that we decided to do weekly standup meetings on Mondays"

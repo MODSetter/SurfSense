@@ -42,12 +42,16 @@ FULL updated document.
 
 RULES:
 1. If the instruction asks to add something, add it with format: \
-- (YYYY-MM-DD) [fact|pref|instr] text, under an existing or new ## heading.
+- (YYYY-MM-DD) [fact|pref|instr] text, under an existing or new ## heading. \
+Heading names should be personal and descriptive, not generic categories.
 2. If the instruction asks to remove something, remove the matching entry.
 3. If the instruction asks to change something, update the matching entry.
 4. Preserve existing ## headings and all other entries.
 5. Every bullet must include a marker: [fact], [pref], or [instr].
-6. Output ONLY the updated markdown — no explanations, no wrapping.
+6. Use the user's first name (from <user_name>) in entries instead of "the user".
+7. Output ONLY the updated markdown — no explanations, no wrapping.
+
+<user_name>{user_name}</user_name>
 
 <current_memory>
 {current_memory}
@@ -101,12 +105,14 @@ async def edit_user_memory(
     if not llm:
         raise HTTPException(status_code=500, detail="Failed to create LLM instance.")
 
-    await session.refresh(user, ["memory_md"])
+    await session.refresh(user, ["memory_md", "display_name"])
     current_memory = user.memory_md or ""
+    first_name = user.display_name.split()[0] if user.display_name else "The user"
 
     prompt = _MEMORY_EDIT_PROMPT.format(
         current_memory=current_memory or "(empty)",
         instruction=body.query,
+        user_name=first_name,
     )
     try:
         response = await llm.ainvoke(

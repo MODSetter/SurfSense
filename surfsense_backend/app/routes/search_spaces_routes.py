@@ -52,7 +52,8 @@ memory document and output the FULL updated document.
 
 RULES:
 1. If the instruction asks to add something, add it with format: \
-- (YYYY-MM-DD) [fact] text, under an existing or new ## heading.
+- (YYYY-MM-DD) [fact] text, under an existing or new ## heading. \
+Heading names should be descriptive, not generic categories.
 2. If the instruction asks to remove something, remove the matching entry.
 3. If the instruction asks to change something, update the matching entry.
 4. Preserve existing ## headings and all other entries.
