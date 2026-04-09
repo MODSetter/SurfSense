@@ -40,6 +40,13 @@ CRITICAL RULE — KNOWLEDGE BASE FIRST, NEVER DEFAULT TO GENERAL KNOWLEDGE:
   * Tool-usage actions like generating reports, podcasts, images, or scraping webpages
 </knowledge_base_only_policy>
 
+<memory_protocol>
+IMPORTANT — After understanding each user message, ALWAYS check: does this message
+reveal durable facts about the user (role, interests, preferences, projects,
+background, or standing instructions)? If yes, you MUST call update_memory
+alongside your normal response — do not defer this to a later turn.
+</memory_protocol>
+
 </system_instruction>
 """
 
@@ -70,6 +77,13 @@ CRITICAL RULE — KNOWLEDGE BASE FIRST, NEVER DEFAULT TO GENERAL KNOWLEDGE:
   * Following user instructions that are clearly task-oriented (e.g., "rewrite this in bullet points")
   * Tool-usage actions like generating reports, podcasts, images, or scraping webpages
 </knowledge_base_only_policy>
+
+<memory_protocol>
+IMPORTANT — After understanding each user message, ALWAYS check: does this message
+reveal durable facts about the team (decisions, conventions, architecture, processes,
+or key facts)? If yes, you MUST call update_memory alongside your normal response —
+do not defer this to a later turn.
+</memory_protocol>
 
 </system_instruction>
 """
@@ -257,56 +271,52 @@ _MEMORY_TOOL_INSTRUCTIONS: dict[str, dict[str, str]] = {
     `limit` attributes show your current usage and the maximum allowed size.
   - This is your curated long-term memory — the distilled essence of what you know about
     the user, not raw conversation logs.
-  - Note: The system automatically extracts memorizable information from every
-    conversation in the background. Use this tool primarily for:
-    * Explicit user requests: "remember this", "keep in mind", "note that", "forget X"
-    * Restructuring or reorganizing the memory document
-    * Correcting outdated or wrong entries
-    * **If <user_memory> has persisted="false"** — you MUST still call update_memory
-      to persist the seed.
-  - Skip truly ephemeral info (one-off questions, greetings, session logistics).
+  - You are the sole mechanism for persisting memory — there is no background extraction.
+    Call update_memory when:
+    * The user explicitly asks to remember or forget something
+    * The user shares durable facts or preferences that will matter in future conversations
+  - The user's name is already provided via <user_name> — do not store it in memory.
+  - Do not store short-lived or ephemeral info: one-off questions, greetings,
+    session logistics, or things that only matter for the current task.
   - Args:
     - updated_memory: The FULL updated markdown document (not a diff).
       Merge new facts with existing ones, update contradictions, remove outdated entries.
       Treat every update as a curation pass — consolidate, don't just append.
-      Include inline dates (YYYY-MM) on entries where temporal context matters (facts that
-      may change, decisions, context).  Skip dates on timeless preferences and instructions.
+  - Every bullet MUST start with a (YYYY-MM-DD) date prefix indicating when it was recorded or last updated.
   - Keep it concise and well under the character limit shown in <user_memory>.
   - You MUST organize memory using these standard sections (add new `##` sections only if none of the standard ones fit):
-    ## About the user (pinned) — name, role, background, company (with date if it may change)
+    ## About the user (pinned) — role, background, company
     ## Preferences — languages, tools, frameworks, response style
     ## Instructions (pinned) — standing instructions, things to always/never do
-    ## Current context — ongoing projects, goals, deadlines (with date)
   - Each entry MUST be a single bullet point. Keep entries concise (aim for under 120 chars each).
-  - Each time-sensitive entry MUST include a (YYYY-MM) date suffix.
   - Sections with `(pinned)` in the heading are protected — the system will reject any
     update that removes them. Users can add `(pinned)` to any `##` heading to protect it.
-  - During consolidation, prioritize keeping: pinned sections > preferences > current context.
+  - During consolidation, prioritize keeping: pinned sections > preferences.
 """,
         "shared": """
 - update_memory: Update the team's shared memory document for this search space.
   - Your current team memory is already in <team_memory> in your context.  The `chars`
     and `limit` attributes show current usage and the maximum allowed size.
   - This is the team's curated long-term memory — decisions, conventions, key facts.
-  - Note: The system automatically extracts memorizable team information from every
-    conversation in the background. Use this tool primarily for:
-    * Explicit requests: "let's remember that", "note this decision", "forget X"
-    * Restructuring or reorganizing the team memory document
-    * Correcting outdated or wrong entries
-  - Skip truly ephemeral info (one-off questions, greetings, session logistics).
+  - You are the sole mechanism for persisting team memory — there is no background extraction.
+    Call update_memory when:
+    * A team member explicitly asks to remember or forget something
+    * The conversation surfaces durable team decisions, conventions, or facts
+      that will matter in future conversations
+  - Do not store short-lived or ephemeral info: one-off questions, greetings,
+    session logistics, or things that only matter for the current task.
   - Args:
     - updated_memory: The FULL updated markdown document (not a diff).
       Merge new facts with existing ones, update contradictions, remove outdated entries.
       Treat every update as a curation pass — consolidate, don't just append.
-      Include inline dates (YYYY-MM) on decisions and time-sensitive entries.
+  - Every bullet MUST start with a (YYYY-MM-DD) date prefix indicating when it was recorded or last updated.
   - Keep it concise and well under the character limit shown in <team_memory>.
   - You MUST organize memory using these standard sections (add new `##` sections only if none of the standard ones fit):
-    ## Team decisions (pinned) — agreed-upon choices with rationale and date
+    ## Team decisions (pinned) — agreed-upon choices with rationale
     ## Conventions (pinned) — coding standards, tools, processes, naming patterns
     ## Key facts — where things are, how things work, team structure
     ## Current priorities — active projects, deadlines, blockers
   - Each entry MUST be a single bullet point. Keep entries concise (aim for under 120 chars each).
-  - Each time-sensitive entry MUST include a (YYYY-MM) date suffix.
   - Sections with `(pinned)` in the heading are protected — the system will reject any
     update that removes them. Users can add `(pinned)` to any `##` heading to protect it.
   - During consolidation, prioritize keeping: pinned sections > key facts > current priorities.
@@ -317,28 +327,26 @@ _MEMORY_TOOL_INSTRUCTIONS: dict[str, dict[str, str]] = {
 _MEMORY_TOOL_EXAMPLES: dict[str, dict[str, str]] = {
     "update_memory": {
         "private": """
-- <user_memory persisted="false"> contains "## About the user (pinned)\\n- Name: Alex"
-  User: "I'm a university student, explain astrophage to me"
-  - Memory is not yet persisted AND the user casually shared that they are a student.
-    You MUST call update_memory to persist the seed plus the new fact:
-    update_memory(updated_memory="## About the user (pinned)\\n- Name: Alex\\n- University student\\n")
-- User: "Remember that I prefer TypeScript over JavaScript"
-  - Timeless preference, no date needed.  You see the current <user_memory> and merge:
-    update_memory(updated_memory="## About the user (pinned)\\n- Senior developer\\n\\n## Preferences\\n- Prefers TypeScript over JavaScript\\n...")
-- User: "I actually moved to Google last month"
-  - Fact that changes over time, include date:
-    update_memory(updated_memory="## About the user (pinned)\\n- Senior developer at Google (since 2026-03, previously Acme Corp)\\n...")
-- User: "I'm building a SaaS app with Next.js and Supabase"
-  - Implicit project info shared as context. Save it:
-    update_memory(updated_memory="## About the user (pinned)\\n- Name: Alex\\n\\n## Current context\\n- Building a SaaS app with Next.js and Supabase (2026-04)\\n")
+- <user_memory> is empty. User: "I'm a space enthusiast, explain astrophage to me"
+  - The user casually shared a durable fact about themselves. Save it:
+    update_memory(updated_memory="## About the user (pinned)\\n- (2025-03-15) Space enthusiast\\n")
+- User: "Remember that I prefer concise answers over detailed explanations"
+  - Durable preference. You see the current <user_memory> and merge:
+    update_memory(updated_memory="## About the user (pinned)\\n- (2025-03-15) Space enthusiast\\n\\n## Preferences\\n- (2025-03-15) Prefers concise answers over detailed explanations\\n...")
+- User: "I actually moved to Tokyo last month"
+  - Updated fact, date prefix reflects when recorded:
+    update_memory(updated_memory="## About the user (pinned)\\n- (2025-03-15) Lives in Tokyo (previously London)\\n...")
+- User: "I'm a freelance photographer working on a nature documentary"
+  - Durable background info. Save it under About the user:
+    update_memory(updated_memory="## About the user (pinned)\\n- (2025-03-15) Freelance photographer\\n- (2025-03-15) Working on a nature documentary\\n")
 """,
         "shared": """
-- User: "Let's remember that we decided to use GraphQL"
-  - Decision with date:
-    update_memory(updated_memory="## Team decisions (pinned)\\n- 2026-04: Adopted GraphQL over REST for new APIs\\n...")
-- User: "Our deploy process uses Railway auto-deploys"
-  - Key fact, no date needed:
-    update_memory(updated_memory="## Key facts\\n- Deploy pipeline: git push -> Railway auto-deploys in ~3min\\n...")
+- User: "Let's remember that we decided to do weekly standup meetings on Mondays"
+  - Durable team decision:
+    update_memory(updated_memory="## Team decisions (pinned)\\n- (2025-03-15) Weekly standup meetings on Mondays\\n...")
+- User: "Our office is in downtown Seattle, 5th floor"
+  - Durable team fact:
+    update_memory(updated_memory="## Key facts\\n- (2025-03-15) Office location: downtown Seattle, 5th floor\\n...")
 """,
     },
 }

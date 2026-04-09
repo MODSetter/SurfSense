@@ -135,7 +135,7 @@ export function MemoryContent() {
 					onClick={handleClear}
 					disabled={saving || !savedMemory}
 				>
-					Clear All
+					Reset Memory
 				</Button>
 				<Button
 					type="button"

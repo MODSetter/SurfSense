@@ -37,7 +37,6 @@ from app.agents.new_chat.llm_config import (
     load_agent_config,
     load_llm_config_from_yaml,
 )
-from app.agents.new_chat.memory_extraction import extract_and_save_memory
 from app.db import (
     ChatVisibility,
     NewChatMessage,
@@ -59,8 +58,6 @@ from app.utils.content_utils import bootstrap_history_from_db
 from app.utils.perf import get_perf_logger, log_system_snapshot, trim_native_heap
 
 _perf_log = get_perf_logger()
-
-_background_tasks: set[asyncio.Task] = set()
 
 
 def format_mentioned_surfsense_docs_as_context(
@@ -1524,19 +1521,6 @@ async def stream_new_chat(
             yield streaming_service.format_finish()
             yield streaming_service.format_done()
             return
-
-        if user_id and llm is not None:
-            _mem_task = asyncio.create_task(
-                extract_and_save_memory(
-                    user_message=user_query,
-                    user_id=user_id,
-                    search_space_id=search_space_id,
-                    thread_visibility=visibility,
-                    llm=llm,
-                )
-            )
-            _background_tasks.add(_mem_task)
-            _mem_task.add_done_callback(_background_tasks.discard)
 
         # If the title task didn't finish during streaming, await it now
         if title_task is not None and not title_emitted:

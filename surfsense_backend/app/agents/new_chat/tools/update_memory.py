@@ -6,9 +6,10 @@ always sees the current memory in <user_memory> / <team_memory> tags injected
 by MemoryInjectionMiddleware, so it passes the FULL updated document each time.
 
 Overflow handling:
-  - Soft limit (15K chars): advisory warning returned alongside a successful save.
-  - Hard limit (25K chars): save rejected; an automatic LLM-driven consolidation
-    is attempted before falling back to the error.
+  - Soft limit (18K chars): an automatic LLM-driven consolidation is attempted
+    to proactively keep memory lean.  The save always succeeds.
+  - Hard limit (25K chars): save rejected if memory still exceeds this after
+    consolidation.
   - Pinned sections: headings containing ``(pinned)`` are protected — the system
     rejects any update that drops them and auto-restores them during consolidation.
   - Diff validation: warns when entire ``##`` sections are dropped or when the
@@ -31,7 +32,7 @@ from app.db import SearchSpace, User
 
 logger = logging.getLogger(__name__)
 
-MEMORY_SOFT_LIMIT = 15_000
+MEMORY_SOFT_LIMIT = 18_000
 MEMORY_HARD_LIMIT = 25_000
 
 _PINNED_RE = re.compile(r"^##\s+.+\(pinned\)", re.MULTILINE)
@@ -188,7 +189,7 @@ RULES:
    preferences > current context.
 5. Merge duplicate entries, remove outdated entries, shorten verbose descriptions.
 6. Each entry must be a single bullet point.
-7. Preserve (YYYY-MM) date suffixes on time-sensitive entries.
+7. Every bullet MUST keep its (YYYY-MM-DD) date prefix.
 8. Output ONLY the consolidated markdown — no explanations, no wrapping.
 
 <memory_document>
@@ -259,25 +260,19 @@ async def _save_memory(
     if pinned_err:
         return {"status": "error", "message": pinned_err}
 
-    # --- hard-limit gate with auto-consolidation fallback ---
+    # --- auto-consolidate proactively at the soft limit ---
+    if len(content) > MEMORY_SOFT_LIMIT and llm is not None:
+        consolidated = await _auto_consolidate(content, llm)
+        if consolidated is not None:
+            if old_memory:
+                consolidated = _restore_missing_pinned(old_memory, consolidated)
+            if len(consolidated) < len(content):
+                content = consolidated
+
+    # --- hard-limit gate (reject if still too large after consolidation) ---
     size_err = _validate_memory_size(content)
     if size_err:
-        if llm is None:
-            return size_err
-
-        consolidated = await _auto_consolidate(content, llm)
-        if consolidated is None:
-            return size_err
-
-        # Restore any pinned sections the consolidation LLM may have dropped
-        if old_memory:
-            consolidated = _restore_missing_pinned(old_memory, consolidated)
-
-        recheck = _validate_memory_size(consolidated)
-        if recheck:
-            return recheck
-
-        content = consolidated
+        return size_err
 
     # --- persist ---
     try:

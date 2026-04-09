@@ -134,7 +134,7 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 					onClick={handleClear}
 					disabled={saving || !searchSpace?.shared_memory_md}
 				>
-					Clear All
+					Clear Memory
 				</Button>
 				<Button
 					type="button"

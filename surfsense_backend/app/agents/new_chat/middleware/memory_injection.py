@@ -59,12 +59,14 @@ class MemoryInjectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
 
         async with shielded_async_session() as session:
             if self.user_id is not None:
-                user_memory, is_persisted = await self._load_user_memory(session)
+                user_memory, display_name = await self._load_user_memory(session)
+                if display_name:
+                    first_name = display_name.split()[0]
+                    memory_blocks.append(f"<user_name>{first_name}</user_name>")
                 if user_memory:
                     chars = len(user_memory)
-                    persisted = "true" if is_persisted else "false"
                     memory_blocks.append(
-                        f'<user_memory chars="{chars}" limit="{MEMORY_HARD_LIMIT}" persisted="{persisted}">\n'
+                        f'<user_memory chars="{chars}" limit="{MEMORY_HARD_LIMIT}">\n'
                         f"{user_memory}\n"
                         f"</user_memory>"
                     )
@@ -91,42 +93,19 @@ class MemoryInjectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
 
         return {"messages": new_messages}
 
-    async def _load_user_memory(self, session: AsyncSession) -> tuple[str | None, bool]:
-        """Return (memory_content, is_persisted).
-
-        When the user has no saved memory but has a display name, a seed
-        document is created and **persisted to the database immediately**
-        so the LLM doesn't need to make a tool call to save it.
-        """
+    async def _load_user_memory(self, session: AsyncSession) -> tuple[str | None, str | None]:
+        """Return (memory_content, display_name)."""
         try:
             result = await session.execute(
                 select(User.memory_md, User.display_name).where(User.id == self.user_id)
             )
             row = result.one_or_none()
             if row is None:
-                return None, True
-
-            memory_md, display_name = row
-
-            if memory_md:
-                return memory_md, True
-
-            if display_name:
-                first_name = display_name.split()[0]
-                seed = f"## About the user (pinned)\n- Name: {first_name}"
-                await session.execute(
-                    User.__table__.update()
-                    .where(User.id == self.user_id)
-                    .values(memory_md=seed)
-                )
-                await session.commit()
-                logger.info("Auto-persisted memory seed for user %s", self.user_id)
-                return seed, True
-
-            return None, True
+                return None, None
+            return row.memory_md or None, row.display_name
         except Exception:
             logger.exception("Failed to load user memory")
-            return None, True
+            return None, None
 
     async def _load_team_memory(self, session: AsyncSession) -> str | None:
         try:
