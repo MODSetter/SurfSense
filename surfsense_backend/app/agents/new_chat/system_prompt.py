@@ -284,9 +284,13 @@ _MEMORY_TOOL_INSTRUCTIONS: dict[str, dict[str, str]] = {
   - Every bullet MUST start with a (YYYY-MM-DD) date prefix indicating when it was recorded or last updated.
   - Keep it concise and well under the character limit shown in <user_memory>.
   - You MUST organize memory using these standard sections (add new `##` sections only if none of the standard ones fit):
-    ## About the user — role, background, company
-    ## Preferences — languages, tools, frameworks, response style
-    ## Instructions — standing instructions, things to always/never do
+    ## About the user
+    ## Preferences
+    ## Instructions
+  - Section guidance:
+    * About the user: role, background, company, durable identity context
+    * Preferences: languages, tools, frameworks, response style preferences
+    * Instructions: standing instructions, things to always/never do
   - Each entry MUST be a single bullet point. Keep entries concise (aim for under 120 chars each).
   - During consolidation, prioritize keeping: identity/instructions > preferences.
 """,
@@ -295,6 +299,8 @@ _MEMORY_TOOL_INSTRUCTIONS: dict[str, dict[str, str]] = {
   - Your current team memory is already in <team_memory> in your context.  The `chars`
     and `limit` attributes show current usage and the maximum allowed size.
   - This is the team's curated long-term memory — decisions, conventions, key facts.
+  - NEVER store personal memory in team memory (e.g. personal bio, individual
+    preferences, or user-only standing instructions).
   - Call update_memory when:
     * A team member explicitly asks to remember or forget something
     * The conversation surfaces durable team decisions, conventions, or facts
@@ -308,10 +314,15 @@ _MEMORY_TOOL_INSTRUCTIONS: dict[str, dict[str, str]] = {
   - Every bullet MUST start with a (YYYY-MM-DD) date prefix indicating when it was recorded or last updated.
   - Keep it concise and well under the character limit shown in <team_memory>.
   - You MUST organize memory using these standard sections (add new `##` sections only if none of the standard ones fit):
-    ## Team decisions — agreed-upon choices with rationale
-    ## Conventions — coding standards, tools, processes, naming patterns
-    ## Key facts — where things are, how things work, team structure
-    ## Current priorities — active projects, deadlines, blockers
+    ## Team decisions
+    ## Conventions
+    ## Key facts
+    ## Current priorities
+  - Section guidance:
+    * Team decisions: agreed choices and durable technical/product decisions
+    * Conventions: coding standards, tools, processes, naming patterns
+    * Key facts: stable facts about org/team/system setup
+    * Current priorities: active projects, near-term goals, important blockers
   - Each entry MUST be a single bullet point. Keep entries concise (aim for under 120 chars each).
   - During consolidation, prioritize keeping: decisions/conventions > key facts > current priorities.
 """,

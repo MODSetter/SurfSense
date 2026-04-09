@@ -1,10 +1,8 @@
 """Memory injection middleware for the SurfSense agent.
 
-Loads the user's personal memory (User.memory_md) and, for shared threads,
-the team memory (SearchSpace.shared_memory_md) from the database and injects
-them into the system prompt as <user_memory> / <team_memory> XML blocks on
-every turn.  This ensures the LLM always has the full memory context without
-requiring a tool call.
+Injects memory markdown into the system prompt on every turn:
+- Private threads: only personal memory (<user_memory>)
+- Shared threads: only team memory (<team_memory>)
 """
 
 from __future__ import annotations
@@ -58,7 +56,25 @@ class MemoryInjectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         memory_blocks: list[str] = []
 
         async with shielded_async_session() as session:
-            if self.user_id is not None:
+            if self.visibility == ChatVisibility.SEARCH_SPACE:
+                team_memory = await self._load_team_memory(session)
+                if team_memory:
+                    chars = len(team_memory)
+                    memory_blocks.append(
+                        f'<team_memory chars="{chars}" limit="{MEMORY_HARD_LIMIT}">\n'
+                        f"{team_memory}\n"
+                        f"</team_memory>"
+                    )
+                    if chars > MEMORY_SOFT_LIMIT:
+                        memory_blocks.append(
+                            f"<memory_warning>Team memory is at "
+                            f"{chars:,}/{MEMORY_HARD_LIMIT:,} characters and approaching "
+                            f"the hard limit. On your next update_memory call, consolidate "
+                            f"by merging duplicates, removing outdated entries, and "
+                            f"shortening descriptions before adding anything new."
+                            f"</memory_warning>"
+                        )
+            elif self.user_id is not None:
                 user_memory, display_name = await self._load_user_memory(session)
                 if display_name:
                     first_name = display_name.split()[0]
@@ -73,25 +89,6 @@ class MemoryInjectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                     if chars > MEMORY_SOFT_LIMIT:
                         memory_blocks.append(
                             f"<memory_warning>Your personal memory is at "
-                            f"{chars:,}/{MEMORY_HARD_LIMIT:,} characters and approaching "
-                            f"the hard limit. On your next update_memory call, consolidate "
-                            f"by merging duplicates, removing outdated entries, and "
-                            f"shortening descriptions before adding anything new."
-                            f"</memory_warning>"
-                        )
-
-            if self.visibility == ChatVisibility.SEARCH_SPACE:
-                team_memory = await self._load_team_memory(session)
-                if team_memory:
-                    chars = len(team_memory)
-                    memory_blocks.append(
-                        f'<team_memory chars="{chars}" limit="{MEMORY_HARD_LIMIT}">\n'
-                        f"{team_memory}\n"
-                        f"</team_memory>"
-                    )
-                    if chars > MEMORY_SOFT_LIMIT:
-                        memory_blocks.append(
-                            f"<memory_warning>Team memory is at "
                             f"{chars:,}/{MEMORY_HARD_LIMIT:,} characters and approaching "
                             f"the hard limit. On your next update_memory call, consolidate "
                             f"by merging duplicates, removing outdated entries, and "

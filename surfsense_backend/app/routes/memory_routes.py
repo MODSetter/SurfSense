@@ -132,6 +132,7 @@ async def edit_user_memory(
         commit_fn=session.commit,
         rollback_fn=session.rollback,
         label="memory",
+        scope="user",
     )
 
     if result.get("status") == "error":

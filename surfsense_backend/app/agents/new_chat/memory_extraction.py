@@ -1,11 +1,8 @@
 """Background memory extraction for the SurfSense agent.
 
 After each agent response, if the agent did not call ``update_memory`` during
-the turn, this module runs a lightweight LLM call to decide whether the user's
-message contains any long-term information worth persisting.
-
-Only user (personal) memory is handled here — team memory relies on explicit
-agent calls.
+the turn, this module can run a lightweight LLM call to decide whether the
+latest message contains long-term information worth persisting.
 """
 
 from __future__ import annotations
@@ -18,7 +15,7 @@ from langchain_core.messages import HumanMessage
 from sqlalchemy import select
 
 from app.agents.new_chat.tools.update_memory import _save_memory
-from app.db import User, shielded_async_session
+from app.db import SearchSpace, User, shielded_async_session
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +51,51 @@ If nothing is worth remembering, output exactly: NO_UPDATE
 <user_message>
 {user_message}
 </user_message>"""
+
+_TEAM_MEMORY_EXTRACT_PROMPT = """\
+You are a team-memory extraction assistant. Analyze the latest message and \
+decide if it contains durable TEAM-level information worth persisting.
+
+High-precision rule: if uncertain, output NO_UPDATE.
+
+Worth remembering (team-level only):
+- Explicit decisions (e.g. "we decided to use X")
+- Team conventions/standards (naming, review policy, coding norms)
+- Long-lived architecture/process facts
+- Stable project constraints, owners, recurring schedules
+
+NOT worth remembering:
+- Personal preferences or biography of one person
+- Questions, brainstorming, tentative ideas, or speculation
+- One-off requests, status updates, TODOs, logistics for this session
+- Anything not clearly adopted by the team
+
+If the message contains memorizable team information, output the FULL updated \
+team memory document with new facts merged into existing content. Follow rules:
+- Use the same ## section structure as the existing memory.
+- Keep entries as single concise bullet points (under 120 chars each).
+- Every bullet MUST start with a (YYYY-MM-DD) date prefix.
+- If a new fact contradicts an existing entry, update the existing entry.
+- Do not duplicate existing information.
+- NEVER use personal sections like "## About the user", "## Preferences", \
+  or "## Instructions".
+- Preserve neutral team phrasing; avoid person-specific memory unless role-anchored.
+- Standard sections: "## Team decisions", "## Team conventions", \
+"## Key facts", "## Current priorities"
+
+If nothing is worth remembering, output exactly: NO_UPDATE
+
+<current_team_memory>
+{current_memory}
+</current_team_memory>
+
+<latest_message_author>
+{author}
+</latest_message_author>
+
+<latest_message>
+{user_message}
+</latest_message>"""
 
 
 async def extract_and_save_memory(
@@ -105,6 +147,7 @@ async def extract_and_save_memory(
                 commit_fn=session.commit,
                 rollback_fn=session.rollback,
                 label="memory",
+                scope="user",
             )
             logger.info(
                 "Background memory extraction for user %s: %s",
@@ -113,3 +156,69 @@ async def extract_and_save_memory(
             )
     except Exception:
         logger.exception("Background user memory extraction failed")
+
+
+async def extract_and_save_team_memory(
+    *,
+    user_message: str,
+    search_space_id: int | None,
+    llm: Any,
+    author_display_name: str | None = None,
+) -> None:
+    """Background task: extract team-level memory and persist it.
+
+    Runs only for shared threads. Designed to be fire-and-forget and catches
+    exceptions internally.
+    """
+    if not search_space_id:
+        return
+
+    try:
+        async with shielded_async_session() as session:
+            result = await session.execute(
+                select(SearchSpace).where(SearchSpace.id == search_space_id)
+            )
+            space = result.scalars().first()
+            if not space:
+                return
+
+            old_memory = space.shared_memory_md
+            prompt = _TEAM_MEMORY_EXTRACT_PROMPT.format(
+                current_memory=old_memory or "(empty)",
+                author=author_display_name or "Unknown team member",
+                user_message=user_message,
+            )
+            response = await llm.ainvoke(
+                [HumanMessage(content=prompt)],
+                config={"tags": ["surfsense:internal", "team-memory-extraction"]},
+            )
+            text = (
+                response.content
+                if isinstance(response.content, str)
+                else str(response.content)
+            ).strip()
+
+            if text == "NO_UPDATE" or not text:
+                logger.debug(
+                    "Team memory extraction: no update needed (space %s)",
+                    search_space_id,
+                )
+                return
+
+            save_result = await _save_memory(
+                updated_memory=text,
+                old_memory=old_memory,
+                llm=llm,
+                apply_fn=lambda content: setattr(space, "shared_memory_md", content),
+                commit_fn=session.commit,
+                rollback_fn=session.rollback,
+                label="team memory",
+                scope="team",
+            )
+            logger.info(
+                "Background team memory extraction for space %s: %s",
+                search_space_id,
+                save_result.get("status"),
+            )
+    except Exception:
+        logger.exception("Background team memory extraction failed")

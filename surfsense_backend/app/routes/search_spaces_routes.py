@@ -56,7 +56,9 @@ RULES:
 2. If the instruction asks to remove something, remove the matching entry.
 3. If the instruction asks to change something, update the matching entry.
 4. Preserve the existing ## section structure and all other entries.
-5. Output ONLY the updated markdown — no explanations, no wrapping.
+5. NEVER use personal sections like "## About the user", "## Preferences", or
+   "## Instructions". Team memory must stay team-scoped.
+6. Output ONLY the updated markdown — no explanations, no wrapping.
 
 <current_memory>
 {current_memory}
@@ -372,6 +374,7 @@ async def edit_team_memory(
         commit_fn=session.commit,
         rollback_fn=session.rollback,
         label="team memory",
+        scope="team",
     )
 
     if save_result.get("status") == "error":

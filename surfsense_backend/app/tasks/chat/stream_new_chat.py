@@ -37,7 +37,10 @@ from app.agents.new_chat.llm_config import (
     load_agent_config,
     load_llm_config_from_yaml,
 )
-from app.agents.new_chat.memory_extraction import extract_and_save_memory
+from app.agents.new_chat.memory_extraction import (
+    extract_and_save_memory,
+    extract_and_save_team_memory,
+)
 from app.db import (
     ChatVisibility,
     NewChatMessage,
@@ -1545,15 +1548,26 @@ async def stream_new_chat(
                     chat_id, generated_title
                 )
 
-        # Fire background memory extraction if the agent didn't handle it
-        if not stream_result.agent_called_update_memory and user_id:
-            asyncio.create_task(
-                extract_and_save_memory(
-                    user_message=user_query,
-                    user_id=user_id,
-                    llm=llm,
+        # Fire background memory extraction if the agent didn't handle it.
+        # Shared threads write to team memory; private threads write to user memory.
+        if not stream_result.agent_called_update_memory:
+            if visibility == ChatVisibility.SEARCH_SPACE:
+                asyncio.create_task(
+                    extract_and_save_team_memory(
+                        user_message=user_query,
+                        search_space_id=search_space_id,
+                        llm=llm,
+                        author_display_name=current_user_display_name,
+                    )
                 )
-            )
+            elif user_id:
+                asyncio.create_task(
+                    extract_and_save_memory(
+                        user_message=user_query,
+                        user_id=user_id,
+                        llm=llm,
+                    )
+                )
 
         # Finish the step and message
         yield streaming_service.format_finish_step()
