@@ -74,11 +74,12 @@ class EtlPipelineService:
                     request.filename,
                     exc_info=True,
                 )
+        else:
+            logging.info(
+                "No vision LLM provided, falling back to document parser for %s",
+                request.filename,
+            )
 
-        logging.info(
-            "No vision LLM provided, falling back to document parser for %s",
-            request.filename,
-        )
         return await self._extract_document(request)
 
     async def _extract_document(self, request: EtlRequest) -> EtlResult:
