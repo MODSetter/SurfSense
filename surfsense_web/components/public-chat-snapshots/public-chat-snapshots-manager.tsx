@@ -74,6 +74,7 @@ export function PublicChatSnapshotsManager({
 				});
 			} catch (error) {
 				console.error("Failed to delete snapshot:", error);
+				toast.error("Failed to delete snapshot");
 			} finally {
 				setDeletingId(undefined);
 			}
