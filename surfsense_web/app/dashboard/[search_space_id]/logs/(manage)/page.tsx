@@ -46,7 +46,6 @@ import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import React, { useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import {
 	createLogMutationAtom,
 	deleteLogMutationAtom,
@@ -96,6 +95,7 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import type { CreateLogRequest, Log, UpdateLogRequest } from "@/contracts/types/log.types";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { type LogLevel, type LogStatus, useLogs, useLogsSummary } from "@/hooks/use-logs";
 import { cn } from "@/lib/utils";
 
@@ -728,10 +728,7 @@ function LogsFilters({
 				<motion.div className="relative w-full sm:w-auto" variants={fadeInScale}>
 					<Input
 						ref={inputRef}
-						className={cn(
-							"peer w-full sm:min-w-60 ps-9",
-							Boolean(filterInput) && "pe-9"
-						)}
+						className={cn("peer w-full sm:min-w-60 ps-9", Boolean(filterInput) && "pe-9")}
 						value={filterInput}
 						onChange={(e) => setFilterInput(e.target.value)}
 						placeholder={t("filter_by_message")}

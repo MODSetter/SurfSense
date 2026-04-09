@@ -23,7 +23,11 @@ import { FolderPickerDialog } from "@/components/documents/FolderPickerDialog";
 import { FolderTreeView } from "@/components/documents/FolderTreeView";
 import { VersionHistoryDialog } from "@/components/documents/version-history";
 import { EXPORT_FILE_EXTENSIONS } from "@/components/shared/ExportMenuItems";
-import { FolderWatchDialog, type SelectedFolder } from "@/components/sources/FolderWatchDialog";
+import {
+	DEFAULT_EXCLUDE_PATTERNS,
+	FolderWatchDialog,
+	type SelectedFolder,
+} from "@/components/sources/FolderWatchDialog";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -46,6 +50,8 @@ import { useElectronAPI } from "@/hooks/use-platform";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
+import { uploadFolderScan } from "@/lib/folder-sync-upload";
+import { getSupportedExtensionsSet } from "@/lib/supported-extensions";
 import { queries } from "@/zero/queries/index";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 
@@ -114,48 +120,48 @@ export function DocumentsSidebar({
 		setFolderWatchOpen(true);
 	}, []);
 
-	useEffect(() => {
+	const refreshWatchedIds = useCallback(async () => {
 		if (!electronAPI?.getWatchedFolders) return;
 		const api = electronAPI;
 
-		async function loadWatchedIds() {
-			const folders = await api.getWatchedFolders();
+		const folders = await api.getWatchedFolders();
 
-			if (folders.length === 0) {
-				try {
-					const backendFolders = await documentsApiService.getWatchedFolders(searchSpaceId);
-					for (const bf of backendFolders) {
-						const meta = bf.metadata as Record<string, unknown> | null;
-						if (!meta?.watched || !meta.folder_path) continue;
-						await api.addWatchedFolder({
-							path: meta.folder_path as string,
-							name: bf.name,
-							rootFolderId: bf.id,
-							searchSpaceId: bf.search_space_id,
-							excludePatterns: (meta.exclude_patterns as string[]) ?? [],
-							fileExtensions: (meta.file_extensions as string[] | null) ?? null,
-							active: true,
-						});
-					}
-					const recovered = await api.getWatchedFolders();
-					const ids = new Set(
-						recovered.filter((f) => f.rootFolderId != null).map((f) => f.rootFolderId as number)
-					);
-					setWatchedFolderIds(ids);
-					return;
-				} catch (err) {
-					console.error("[DocumentsSidebar] Recovery from backend failed:", err);
+		if (folders.length === 0) {
+			try {
+				const backendFolders = await documentsApiService.getWatchedFolders(searchSpaceId);
+				for (const bf of backendFolders) {
+					const meta = bf.metadata as Record<string, unknown> | null;
+					if (!meta?.watched || !meta.folder_path) continue;
+					await api.addWatchedFolder({
+						path: meta.folder_path as string,
+						name: bf.name,
+						rootFolderId: bf.id,
+						searchSpaceId: bf.search_space_id,
+						excludePatterns: (meta.exclude_patterns as string[]) ?? [],
+						fileExtensions: (meta.file_extensions as string[] | null) ?? null,
+						active: true,
+					});
 				}
+				const recovered = await api.getWatchedFolders();
+				const ids = new Set(
+					recovered.filter((f) => f.rootFolderId != null).map((f) => f.rootFolderId as number)
+				);
+				setWatchedFolderIds(ids);
+				return;
+			} catch (err) {
+				console.error("[DocumentsSidebar] Recovery from backend failed:", err);
 			}
-
-			const ids = new Set(
-				folders.filter((f) => f.rootFolderId != null).map((f) => f.rootFolderId as number)
-			);
-			setWatchedFolderIds(ids);
 		}
 
-		loadWatchedIds();
+		const ids = new Set(
+			folders.filter((f) => f.rootFolderId != null).map((f) => f.rootFolderId as number)
+		);
+		setWatchedFolderIds(ids);
 	}, [searchSpaceId, electronAPI]);
+
+	useEffect(() => {
+		refreshWatchedIds();
+	}, [refreshWatchedIds]);
 	const { mutateAsync: deleteDocumentMutation } = useAtomValue(deleteDocumentMutationAtom);
 
 	const [sidebarDocs, setSidebarDocs] = useAtom(sidebarSelectedDocumentsAtom);
@@ -192,6 +198,7 @@ export function DocumentsSidebar({
 				position: f.position,
 				parentId: f.parentId ?? null,
 				searchSpaceId: f.searchSpaceId,
+				metadata: f.metadata as Record<string, unknown> | null | undefined,
 			})),
 		[zeroFolders]
 	);
@@ -304,14 +311,17 @@ export function DocumentsSidebar({
 			}
 
 			try {
-				await documentsApiService.folderIndex(searchSpaceId, {
-					folder_path: matched.path,
-					folder_name: matched.name,
-					search_space_id: searchSpaceId,
-					root_folder_id: folder.id,
-					file_extensions: matched.fileExtensions ?? undefined,
+				toast.info(`Re-scanning folder: ${matched.name}`);
+				await uploadFolderScan({
+					folderPath: matched.path,
+					folderName: matched.name,
+					searchSpaceId,
+					excludePatterns: matched.excludePatterns ?? DEFAULT_EXCLUDE_PATTERNS,
+					fileExtensions: matched.fileExtensions ?? Array.from(getSupportedExtensionsSet()),
+					enableSummary: false,
+					rootFolderId: folder.id,
 				});
-				toast.success(`Re-scanning folder: ${matched.name}`);
+				toast.success(`Re-scan complete: ${matched.name}`);
 			} catch (err) {
 				toast.error((err as Error)?.message || "Failed to re-scan folder");
 			}
@@ -337,8 +347,9 @@ export function DocumentsSidebar({
 				console.error("[DocumentsSidebar] Failed to clear watched metadata:", err);
 			}
 			toast.success(`Stopped watching: ${matched.name}`);
+			refreshWatchedIds();
 		},
-		[electronAPI]
+		[electronAPI, refreshWatchedIds]
 	);
 
 	const handleRenameFolder = useCallback(async (folder: FolderDisplay, newName: string) => {
@@ -867,6 +878,7 @@ export function DocumentsSidebar({
 					}}
 					searchSpaceId={searchSpaceId}
 					initialFolder={watchInitialFolder}
+					onSuccess={refreshWatchedIds}
 				/>
 			)}
 

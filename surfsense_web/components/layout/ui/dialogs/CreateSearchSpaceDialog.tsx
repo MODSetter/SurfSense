@@ -152,16 +152,10 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 							<Button
 								type="submit"
 								disabled={isSubmitting}
-								className="h-8 sm:h-9 text-xs sm:text-sm"
+								className="h-8 sm:h-9 text-xs sm:text-sm relative"
 							>
-								{isSubmitting ? (
-									<>
-										<Spinner size="sm" className="mr-1.5" />
-										{t("creating")}
-									</>
-								) : (
-									<>{t("create_button")}</>
-								)}
+								<span className={isSubmitting ? "opacity-0" : ""}>{t("create_button")}</span>
+								{isSubmitting && <Spinner size="sm" className="absolute" />}
 							</Button>
 						</DialogFooter>
 					</form>

@@ -8,7 +8,7 @@ const demoPlans = [
 		price: "0",
 		yearlyPrice: "0",
 		period: "",
-		billingText: "1,000 pages included",
+		billingText: "500 pages included",
 		features: [
 			"Self Hostable",
 			"500 pages included to start",
@@ -66,7 +66,7 @@ function PricingBasic() {
 		<Pricing
 			plans={demoPlans}
 			title="SurfSense Pricing"
-			description="Start free with 1,000 pages. Earn up to 3,000+ more or buy as you go."
+			description="Start free with 500 pages and pay as you go."
 		/>
 	);
 }

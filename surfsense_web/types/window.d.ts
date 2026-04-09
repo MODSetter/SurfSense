@@ -34,6 +34,13 @@ interface LocalFileData {
 	size: number;
 }
 
+interface FolderFileEntry {
+	relativePath: string;
+	fullPath: string;
+	size: number;
+	mtimeMs: number;
+}
+
 interface ElectronAPI {
 	versions: {
 		electron: string;
@@ -82,6 +89,8 @@ interface ElectronAPI {
 	signalRendererReady: () => Promise<void>;
 	getPendingFileEvents: () => Promise<FolderSyncFileChangedEvent[]>;
 	acknowledgeFileEvents: (eventIds: string[]) => Promise<{ acknowledged: number }>;
+	listFolderFiles: (config: WatchedFolderConfig) => Promise<FolderFileEntry[]>;
+	seedFolderMtimes: (folderPath: string, mtimes: Record<string, number>) => Promise<void>;
 	// Browse files/folders via native dialogs
 	browseFiles: () => Promise<string[] | null>;
 	readLocalFiles: (paths: string[]) => Promise<LocalFileData[]>;

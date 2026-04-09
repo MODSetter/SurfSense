@@ -40,20 +40,8 @@ import { ThinkingStepsDataUI } from "@/components/assistant-ui/thinking-steps";
 import { Thread } from "@/components/assistant-ui/thread";
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
 import { useMessagesSync } from "@/hooks/use-messages-sync";
-import { getBearerToken } from "@/lib/auth-utils";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
-import {
-	type ContentPartsState,
-	FrameBatchedUpdater,
-	type ThinkingStepData,
-	addToolCall,
-	appendText,
-	buildContentForPersistence,
-	buildContentForUI,
-	readSSEStream,
-	updateThinkingSteps,
-	updateToolCall,
-} from "@/lib/chat/streaming-state";
+import { getBearerToken } from "@/lib/auth-utils";
 import { convertToThreadMessage } from "@/lib/chat/message-utils";
 import {
 	isPodcastGenerating,
@@ -61,12 +49,24 @@ import {
 	setActivePodcastTaskId,
 } from "@/lib/chat/podcast-state";
 import {
-	type ThreadRecord,
+	addToolCall,
+	appendText,
+	buildContentForPersistence,
+	buildContentForUI,
+	type ContentPartsState,
+	FrameBatchedUpdater,
+	readSSEStream,
+	type ThinkingStepData,
+	updateThinkingSteps,
+	updateToolCall,
+} from "@/lib/chat/streaming-state";
+import {
 	appendMessage,
 	createThread,
 	getRegenerateUrl,
 	getThreadFull,
 	getThreadMessages,
+	type ThreadRecord,
 } from "@/lib/chat/thread-persistence";
 import { NotFoundError } from "@/lib/error";
 import {
@@ -78,15 +78,24 @@ import {
 import Loading from "../loading";
 
 const MobileEditorPanel = dynamic(
-	() => import("@/components/editor-panel/editor-panel").then((m) => ({ default: m.MobileEditorPanel })),
+	() =>
+		import("@/components/editor-panel/editor-panel").then((m) => ({
+			default: m.MobileEditorPanel,
+		})),
 	{ ssr: false }
 );
 const MobileHitlEditPanel = dynamic(
-	() => import("@/components/hitl-edit-panel/hitl-edit-panel").then((m) => ({ default: m.MobileHitlEditPanel })),
+	() =>
+		import("@/components/hitl-edit-panel/hitl-edit-panel").then((m) => ({
+			default: m.MobileHitlEditPanel,
+		})),
 	{ ssr: false }
 );
 const MobileReportPanel = dynamic(
-	() => import("@/components/report-panel/report-panel").then((m) => ({ default: m.MobileReportPanel })),
+	() =>
+		import("@/components/report-panel/report-panel").then((m) => ({
+			default: m.MobileReportPanel,
+		})),
 	{ ssr: false }
 );
 

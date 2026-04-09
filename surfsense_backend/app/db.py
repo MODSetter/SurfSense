@@ -25,7 +25,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import DeclarativeBase, Mapped, declared_attr, relationship
+from sqlalchemy.orm import DeclarativeBase, Mapped, backref, declared_attr, relationship
 
 from app.config import config
 
@@ -1086,7 +1086,9 @@ class DocumentVersion(BaseModel, TimestampMixin):
     content_hash = Column(String, nullable=False)
     title = Column(String, nullable=True)
 
-    document = relationship("Document", backref="versions")
+    document = relationship(
+        "Document", backref=backref("versions", passive_deletes=True)
+    )
 
 
 class Chunk(BaseModel, TimestampMixin):

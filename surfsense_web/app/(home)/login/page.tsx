@@ -1,8 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { useRouter } from "next/navigation";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
