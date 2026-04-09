@@ -248,7 +248,7 @@ _TOOL_INSTRUCTIONS["web_search"] = """
 """
 
 # Memory tool instructions have private and shared variants.
-# We store them keyed as "save_memory" / "recall_memory" with sub-keys.
+# We store them keyed as "update_memory" with sub-keys.
 _MEMORY_TOOL_INSTRUCTIONS: dict[str, dict[str, str]] = {
     "update_memory": {
         "private": """

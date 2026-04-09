@@ -861,99 +861,6 @@ class ChatSessionState(BaseModel):
     ai_responding_to_user = relationship("User")
 
 
-class MemoryCategory(StrEnum):
-    """Categories for user memories."""
-
-    # Using lowercase keys to match PostgreSQL enum values
-    preference = "preference"  # User preferences (e.g., "prefers dark mode")
-    fact = "fact"  # Facts about the user (e.g., "is a Python developer")
-    instruction = (
-        "instruction"  # Standing instructions (e.g., "always respond in bullet points")
-    )
-    context = "context"  # Contextual information (e.g., "working on project X")
-
-
-class UserMemory(BaseModel, TimestampMixin):
-    """
-    Private memory: facts, preferences, context per user per search space.
-    Used only for private chats (not shared/team chats).
-    """
-
-    __tablename__ = "user_memories"
-
-    user_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("user.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    # Optional association with a search space (if memory is space-specific)
-    search_space_id = Column(
-        Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
-        nullable=True,
-        index=True,
-    )
-
-    # The actual memory content
-    memory_text = Column(Text, nullable=False)
-    # Category for organization and filtering
-    category = Column(
-        SQLAlchemyEnum(MemoryCategory),
-        nullable=False,
-        default=MemoryCategory.fact,
-    )
-    # Vector embedding for semantic search
-    embedding = Column(Vector(config.embedding_model_instance.dimension))
-
-    # Track when memory was last updated
-    updated_at = Column(
-        TIMESTAMP(timezone=True),
-        nullable=False,
-        default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
-        index=True,
-    )
-
-    # Relationships
-    user = relationship("User", back_populates="memories")
-    search_space = relationship("SearchSpace", back_populates="user_memories")
-
-
-class SharedMemory(BaseModel, TimestampMixin):
-    __tablename__ = "shared_memories"
-
-    search_space_id = Column(
-        Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    created_by_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("user.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    memory_text = Column(Text, nullable=False)
-    category = Column(
-        SQLAlchemyEnum(MemoryCategory),
-        nullable=False,
-        default=MemoryCategory.fact,
-    )
-    embedding = Column(Vector(config.embedding_model_instance.dimension))
-    updated_at = Column(
-        TIMESTAMP(timezone=True),
-        nullable=False,
-        default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
-        index=True,
-    )
-
-    search_space = relationship("SearchSpace", back_populates="shared_memories")
-    created_by = relationship("User")
-
-
 class Folder(BaseModel, TimestampMixin):
     __tablename__ = "folders"
 
@@ -1518,20 +1425,6 @@ class SearchSpace(BaseModel, TimestampMixin):
         cascade="all, delete-orphan",
     )
 
-    # User memories associated with this search space
-    user_memories = relationship(
-        "UserMemory",
-        back_populates="search_space",
-        order_by="UserMemory.updated_at.desc()",
-        cascade="all, delete-orphan",
-    )
-    shared_memories = relationship(
-        "SharedMemory",
-        back_populates="search_space",
-        order_by="SharedMemory.updated_at.desc()",
-        cascade="all, delete-orphan",
-    )
-
 
 class SearchSourceConnector(BaseModel, TimestampMixin):
     __tablename__ = "search_source_connectors"
@@ -2032,14 +1925,6 @@ if config.AUTH_TYPE == "GOOGLE":
             passive_deletes=True,
         )
 
-        # User memories for personalized AI responses
-        memories = relationship(
-            "UserMemory",
-            back_populates="user",
-            order_by="UserMemory.updated_at.desc()",
-            cascade="all, delete-orphan",
-        )
-
         # Incentive tasks completed by this user
         incentive_tasks = relationship(
             "UserIncentiveTask",
@@ -2152,14 +2037,6 @@ else:
             "VisionLLMConfig",
             back_populates="user",
             passive_deletes=True,
-        )
-
-        # User memories for personalized AI responses
-        memories = relationship(
-            "UserMemory",
-            back_populates="user",
-            order_by="UserMemory.updated_at.desc()",
-            cascade="all, delete-orphan",
         )
 
         # Incentive tasks completed by this user

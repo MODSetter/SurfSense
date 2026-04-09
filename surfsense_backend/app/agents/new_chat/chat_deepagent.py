@@ -169,8 +169,7 @@ async def create_surfsense_deep_agent(
     - generate_podcast: Generate audio podcasts from content
     - generate_image: Generate images from text descriptions using AI models
     - scrape_webpage: Extract content from webpages
-    - save_memory: Store facts/preferences about the user
-    - recall_memory: Retrieve relevant user memories
+    - update_memory: Update the user's personal or team memory document
 
     The agent also includes TodoListMiddleware by default (via create_deep_agent) which provides:
     - write_todos: Create and update planning/todo lists for complex tasks
