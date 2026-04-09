@@ -1,6 +1,7 @@
 "use client";
 
 import type { AnyPluginConfig } from "platejs";
+import { TrailingBlockPlugin } from "platejs";
 
 import { AutoformatKit } from "@/components/editor/plugins/autoformat-kit";
 import { BasicNodesKit } from "@/components/editor/plugins/basic-nodes-kit";
@@ -36,6 +37,7 @@ export const fullPreset: AnyPluginConfig[] = [
 	...FloatingToolbarKit,
 	...AutoformatKit,
 	...DndKit,
+	TrailingBlockPlugin,
 ];
 
 /**
@@ -49,6 +51,7 @@ export const minimalPreset: AnyPluginConfig[] = [
 	...CodeBlockKit,
 	...LinkKit,
 	...AutoformatKit,
+	TrailingBlockPlugin,
 ];
 
 /**
