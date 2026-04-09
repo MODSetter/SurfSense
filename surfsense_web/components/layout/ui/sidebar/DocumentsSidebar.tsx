@@ -503,13 +503,33 @@ export function DocumentsSidebar({
 		setExportWarningContext(null);
 	}, [exportWarningContext, searchSpaceId, doExport]);
 
+	const getPendingCountInSubtree = useCallback(
+		(folderId: number): number => {
+			const subtreeIds = new Set<number>();
+			function collect(id: number) {
+				subtreeIds.add(id);
+				for (const child of foldersByParent[String(id)] ?? []) {
+					collect(child.id);
+				}
+			}
+			collect(folderId);
+			return treeDocuments.filter(
+				(d) =>
+					subtreeIds.has(d.folderId ?? -1) &&
+					(d.status?.state === "pending" || d.status?.state === "processing")
+			).length;
+		},
+		[foldersByParent, treeDocuments]
+	);
+
 	const handleExportFolder = useCallback(
 		async (folder: FolderDisplay) => {
-			if (pendingDocuments.length > 0) {
+			const folderPendingCount = getPendingCountInSubtree(folder.id);
+			if (folderPendingCount > 0) {
 				setExportWarningContext({
 					type: "folder",
 					folder,
-					pendingCount: pendingDocuments.length,
+					pendingCount: folderPendingCount,
 				});
 				setExportWarningOpen(true);
 				return;
@@ -531,7 +551,7 @@ export function DocumentsSidebar({
 				toast.error(err instanceof Error ? err.message : "Export failed");
 			}
 		},
-		[searchSpaceId, pendingDocuments.length, doExport]
+		[searchSpaceId, getPendingCountInSubtree, doExport]
 	);
 
 	const handleExportDocument = useCallback(
