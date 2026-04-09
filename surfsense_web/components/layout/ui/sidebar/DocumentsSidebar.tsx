@@ -484,6 +484,7 @@ export function DocumentsSidebar({
 				setIsExportingKB(false);
 			}
 		} else if (ctx.type === "folder" && ctx.folder) {
+			setIsExportingKB(true);
 			try {
 				const safeName =
 					ctx.folder.name
@@ -498,6 +499,8 @@ export function DocumentsSidebar({
 			} catch (err) {
 				console.error("Folder export failed:", err);
 				toast.error(err instanceof Error ? err.message : "Export failed");
+			} finally {
+				setIsExportingKB(false);
 			}
 		}
 		setExportWarningContext(null);
@@ -535,6 +538,7 @@ export function DocumentsSidebar({
 				return;
 			}
 
+			setIsExportingKB(true);
 			try {
 				const safeName =
 					folder.name
@@ -549,6 +553,8 @@ export function DocumentsSidebar({
 			} catch (err) {
 				console.error("Folder export failed:", err);
 				toast.error(err instanceof Error ? err.message : "Export failed");
+			} finally {
+				setIsExportingKB(false);
 			}
 		},
 		[searchSpaceId, getPendingCountInSubtree, doExport]
@@ -949,6 +955,7 @@ export function DocumentsSidebar({
 						activeTypes={activeTypes}
 						onCreateFolder={() => handleCreateFolder(null)}
 						onExportKB={handleExportKB}
+						isExporting={isExportingKB}
 					/>
 				</div>
 
