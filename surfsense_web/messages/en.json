@@ -780,7 +780,7 @@
 	"homepage": {
 		"hero_title_part1": "The AI Workspace",
 		"hero_title_part2": "Built for Teams",
-		"hero_description": "Connect any LLM to your internal knowledge sources and chat with it in real time alongside your team.",
+		"hero_description": "An open source, privacy focused alternative to NotebookLM for teams with no data limits.",
 		"cta_start_trial": "Start Free Trial",
 		"cta_explore": "Explore",
 		"integrations_title": "Integrations",
