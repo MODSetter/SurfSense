@@ -88,6 +88,7 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 		}
 	};
 
+	const displayMemory = memory.replace(/\(\d{4}-\d{2}-\d{2}\)\s*/g, "");
 	const charCount = memory.length;
 
 	const getCounterColor = () => {
@@ -101,6 +102,19 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 		return (
 			<div className="flex items-center justify-center py-12">
 				<Spinner size="md" className="text-muted-foreground" />
+			</div>
+		);
+	}
+
+	if (!memory) {
+		return (
+			<div className="flex flex-col items-center justify-center py-16 text-center">
+				<h3 className="text-base font-medium text-foreground">
+					What does SurfSense remember about your team?
+				</h3>
+				<p className="mt-2 max-w-sm text-sm text-muted-foreground">
+					Nothing yet. SurfSense picks up on team decisions and conventions as your team chats.
+				</p>
 			</div>
 		);
 	}
@@ -119,7 +133,7 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 
 			<div className="h-[340px] overflow-y-auto rounded-md border">
 				<PlateEditor
-					markdown={memory}
+					markdown={displayMemory}
 					readOnly
 					preset="readonly"
 					variant="default"
@@ -142,7 +156,7 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 					value={editQuery}
 					onChange={(e) => setEditQuery(e.target.value)}
 					onKeyDown={handleKeyDown}
-					placeholder="e.g. &quot;We decided to use PostgreSQL&quot; or &quot;Remove the standup entry&quot;"
+					placeholder="Tell SurfSense what to remember or forget about your team"
 					disabled={editing}
 					rows={2}
 					className="pr-12 resize-none text-sm"
