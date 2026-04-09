@@ -57,16 +57,23 @@ class EtlPipelineService:
 
     async def _extract_image(self, request: EtlRequest) -> EtlResult:
         if self._vision_llm:
-            from app.etl_pipeline.parsers.vision_llm import parse_with_vision_llm
+            try:
+                from app.etl_pipeline.parsers.vision_llm import parse_with_vision_llm
 
-            content = await parse_with_vision_llm(
-                request.file_path, request.filename, self._vision_llm
-            )
-            return EtlResult(
-                markdown_content=content,
-                etl_service="VISION_LLM",
-                content_type="image",
-            )
+                content = await parse_with_vision_llm(
+                    request.file_path, request.filename, self._vision_llm
+                )
+                return EtlResult(
+                    markdown_content=content,
+                    etl_service="VISION_LLM",
+                    content_type="image",
+                )
+            except Exception:
+                logging.warning(
+                    "Vision LLM failed for %s, falling back to document parser",
+                    request.filename,
+                    exc_info=True,
+                )
 
         logging.info(
             "No vision LLM provided, falling back to document parser for %s",
