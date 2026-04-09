@@ -36,13 +36,11 @@ MEMORY_HARD_LIMIT = 25_000
 _SECTION_HEADING_RE = re.compile(r"^##\s+(.+)$", re.MULTILINE)
 _HEADING_NORMALIZE_RE = re.compile(r"\s+")
 
-_USER_ONLY_HEADINGS = {"about the user", "preferences", "instructions"}
-_TEAM_ONLY_HEADINGS = {
-    "team decisions",
-    "conventions",
-    "key facts",
-    "current priorities",
-}
+_MARKER_RE = re.compile(r"\[(fact|pref|instr)\]")
+_BULLET_FORMAT_RE = re.compile(
+    r"^- \(\d{4}-\d{2}-\d{2}\) \[(fact|pref|instr)\] .+$"
+)
+_PERSONAL_ONLY_MARKERS = {"pref", "instr"}
 
 
 # ---------------------------------------------------------------------------
@@ -63,35 +61,38 @@ def _normalize_heading(heading: str) -> str:
 def _validate_memory_scope(
     content: str, scope: Literal["user", "team"]
 ) -> dict[str, Any] | None:
-    """Reject cross-scope headings (user sections in team memory and vice versa)."""
-    headings = {_normalize_heading(h) for h in _extract_headings(content)}
-    if not headings:
+    """Reject personal-only markers ([pref], [instr]) in team memory."""
+    if scope != "team":
         return None
 
-    if scope == "team":
-        leaked = sorted(headings & _USER_ONLY_HEADINGS)
-        if leaked:
-            return {
-                "status": "error",
-                "message": (
-                    "Team memory cannot include personal sections: "
-                    + ", ".join(leaked)
-                    + ". Use team sections only."
-                ),
-            }
-        return None
-
-    leaked = sorted(headings & _TEAM_ONLY_HEADINGS)
+    markers = set(_MARKER_RE.findall(content))
+    leaked = sorted(markers & _PERSONAL_ONLY_MARKERS)
     if leaked:
+        tags = ", ".join(f"[{m}]" for m in leaked)
         return {
             "status": "error",
             "message": (
-                "User memory cannot include team sections: "
-                + ", ".join(leaked)
-                + ". Use personal sections only."
+                f"Team memory cannot include personal markers: {tags}. "
+                "Use [fact] only in team memory."
             ),
         }
     return None
+
+
+def _validate_bullet_format(content: str) -> list[str]:
+    """Return warnings for bullet lines that don't match the required format.
+
+    Expected: ``- (YYYY-MM-DD) [fact|pref|instr] text``
+    """
+    warnings: list[str] = []
+    for line in content.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("- "):
+            continue
+        if not _BULLET_FORMAT_RE.match(stripped):
+            short = stripped[:80] + ("..." if len(stripped) > 80 else "")
+            warnings.append(f"Malformed bullet: {short}")
+    return warnings
 
 
 def _validate_diff(old_memory: str | None, new_memory: str) -> list[str]:
@@ -163,13 +164,11 @@ limit and must be shortened.
 
 RULES:
 1. Rewrite the document to be under {target} characters.
-2. Preserve all ## section headings.
-3. Priority for keeping content: identity/instructions > preferences > \
-   current context.
+2. Preserve any existing ## headings.
+3. Priority for keeping content: [instr] > [pref] > [fact].
 4. Merge duplicate entries, remove outdated entries, shorten verbose descriptions.
-5. Each entry must be a single bullet point.
-6. Every bullet MUST keep its (YYYY-MM-DD) date prefix.
-7. Output ONLY the consolidated markdown — no explanations, no wrapping.
+5. Every bullet MUST have format: - (YYYY-MM-DD) [fact|pref|instr] text
+6. Output ONLY the consolidated markdown — no explanations, no wrapping.
 
 <memory_document>
 {content}
@@ -274,6 +273,10 @@ async def _save_memory(
     diff_warnings = _validate_diff(old_memory, content)
     if diff_warnings:
         resp["diff_warnings"] = diff_warnings
+
+    format_warnings = _validate_bullet_format(content)
+    if format_warnings:
+        resp["format_warnings"] = format_warnings
 
     warning = _soft_warning(content)
     if warning:

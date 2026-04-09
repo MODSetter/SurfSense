@@ -51,13 +51,12 @@ team's shared memory document. Apply the user's instruction to the existing \
 memory document and output the FULL updated document.
 
 RULES:
-1. If the instruction asks to add something, add it in the appropriate \
-## section with a (YYYY-MM-DD) date prefix using today's date.
+1. If the instruction asks to add something, add it with format: \
+- (YYYY-MM-DD) [fact] text, under an existing or new ## heading.
 2. If the instruction asks to remove something, remove the matching entry.
 3. If the instruction asks to change something, update the matching entry.
-4. Preserve the existing ## section structure and all other entries.
-5. NEVER use personal sections like "## About the user", "## Preferences", or
-   "## Instructions". Team memory must stay team-scoped.
+4. Preserve existing ## headings and all other entries.
+5. NEVER use [pref] or [instr] markers. Team memory uses [fact] only.
 6. Output ONLY the updated markdown — no explanations, no wrapping.
 
 <current_memory>

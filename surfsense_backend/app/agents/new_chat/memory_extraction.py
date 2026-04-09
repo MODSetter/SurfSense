@@ -34,13 +34,12 @@ info, things that only matter for the current task.
 If the message contains memorizable information, output the FULL updated \
 memory document with the new facts merged into the existing content. Follow \
 these rules:
-- Use the same ## section structure as the existing memory.
+- Preserve any existing ## headings; create new ones if useful.
 - Keep entries as single concise bullet points (under 120 chars each).
-- Every bullet MUST start with a (YYYY-MM-DD) date prefix.
+- Every bullet MUST use format: - (YYYY-MM-DD) [fact|pref|instr] text
+  [fact] = durable facts, [pref] = preferences, [instr] = standing instructions.
 - If a new fact contradicts an existing entry, update the existing entry.
 - Do not duplicate information that is already present.
-- Standard sections: \
-"## About the user", "## Preferences", "## Instructions"
 
 If nothing is worth remembering, output exactly: NO_UPDATE
 
@@ -77,16 +76,13 @@ NOT worth remembering:
 
 If the message contains memorizable team information, output the FULL updated \
 team memory document with new facts merged into existing content. Follow rules:
-- Use the same ## section structure as the existing memory.
+- Preserve any existing ## headings; create new ones if useful.
 - Keep entries as single concise bullet points (under 120 chars each).
-- Every bullet MUST start with a (YYYY-MM-DD) date prefix.
+- Every bullet MUST use format: - (YYYY-MM-DD) [fact] text
+  Team memory uses ONLY the [fact] marker. Never use [pref] or [instr].
 - If a new fact contradicts an existing entry, update the existing entry.
 - Do not duplicate existing information.
-- NEVER use personal sections like "## About the user", "## Preferences", \
-  or "## Instructions".
 - Preserve neutral team phrasing; avoid person-specific memory unless role-anchored.
-- Standard sections: "## Team decisions", "## Team conventions", \
-"## Key facts", "## Current priorities"
 
 If nothing is worth remembering, output exactly: NO_UPDATE
 

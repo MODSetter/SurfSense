@@ -281,18 +281,16 @@ _MEMORY_TOOL_INSTRUCTIONS: dict[str, dict[str, str]] = {
     - updated_memory: The FULL updated markdown document (not a diff).
       Merge new facts with existing ones, update contradictions, remove outdated entries.
       Treat every update as a curation pass — consolidate, don't just append.
-  - Every bullet MUST start with a (YYYY-MM-DD) date prefix indicating when it was recorded or last updated.
+  - Every bullet MUST use this format: - (YYYY-MM-DD) [marker] text
+    Markers:
+      [fact]  — durable facts (role, background, projects, tools, expertise)
+      [pref]  — preferences (response style, languages, formats, tools)
+      [instr] — standing instructions (always/never do, response rules)
   - Keep it concise and well under the character limit shown in <user_memory>.
-  - You MUST organize memory using these standard sections (add new `##` sections only if none of the standard ones fit):
-    ## About the user
-    ## Preferences
-    ## Instructions
-  - Section guidance:
-    * About the user: role, background, company, durable identity context
-    * Preferences: languages, tools, frameworks, response style preferences
-    * Instructions: standing instructions, things to always/never do
+  - Use any `##` heading that fits. Headings are optional and freeform — organize
+    however makes sense for the content (e.g. ## Work, ## Research, ## Personal).
   - Each entry MUST be a single bullet point. Keep entries concise (aim for under 120 chars each).
-  - During consolidation, prioritize keeping: identity/instructions > preferences.
+  - During consolidation, prioritize keeping: [instr] > [pref] > [fact].
 """,
         "shared": """
 - update_memory: Update the team's shared memory document for this search space.
@@ -311,18 +309,11 @@ _MEMORY_TOOL_INSTRUCTIONS: dict[str, dict[str, str]] = {
     - updated_memory: The FULL updated markdown document (not a diff).
       Merge new facts with existing ones, update contradictions, remove outdated entries.
       Treat every update as a curation pass — consolidate, don't just append.
-  - Every bullet MUST start with a (YYYY-MM-DD) date prefix indicating when it was recorded or last updated.
+  - Every bullet MUST use this format: - (YYYY-MM-DD) [fact] text
+    Team memory uses ONLY the [fact] marker. Never use [pref] or [instr] in team memory.
   - Keep it concise and well under the character limit shown in <team_memory>.
-  - You MUST organize memory using these standard sections (add new `##` sections only if none of the standard ones fit):
-    ## Team decisions
-    ## Conventions
-    ## Key facts
-    ## Current priorities
-  - Section guidance:
-    * Team decisions: agreed choices and durable technical/product decisions
-    * Conventions: coding standards, tools, processes, naming patterns
-    * Key facts: stable facts about org/team/system setup
-    * Current priorities: active projects, near-term goals, important blockers
+  - Use any `##` heading that fits. Headings are optional and freeform — organize
+    however makes sense for the content (e.g. ## Decisions, ## Architecture, ## Process).
   - Each entry MUST be a single bullet point. Keep entries concise (aim for under 120 chars each).
   - During consolidation, prioritize keeping: decisions/conventions > key facts > current priorities.
 """,
@@ -334,24 +325,27 @@ _MEMORY_TOOL_EXAMPLES: dict[str, dict[str, str]] = {
         "private": """
 - <user_memory> is empty. User: "I'm a space enthusiast, explain astrophage to me"
   - The user casually shared a durable fact about themselves. Save it:
-    update_memory(updated_memory="## About the user\\n- (2025-03-15) Space enthusiast\\n")
+    update_memory(updated_memory="- (2025-03-15) [fact] Space enthusiast\\n")
 - User: "Remember that I prefer concise answers over detailed explanations"
-  - Durable preference. You see the current <user_memory> and merge:
-    update_memory(updated_memory="## About the user\\n- (2025-03-15) Space enthusiast\\n\\n## Preferences\\n- (2025-03-15) Prefers concise answers over detailed explanations\\n...")
+  - Durable preference. Merge with existing memory:
+    update_memory(updated_memory="- (2025-03-15) [fact] Space enthusiast\\n- (2025-03-15) [pref] Prefers concise answers over detailed explanations\\n")
 - User: "I actually moved to Tokyo last month"
   - Updated fact, date prefix reflects when recorded:
-    update_memory(updated_memory="## About the user\\n- (2025-03-15) Lives in Tokyo (previously London)\\n...")
+    update_memory(updated_memory="- (2025-03-15) [fact] Lives in Tokyo (previously London)\\n...")
 - User: "I'm a freelance photographer working on a nature documentary"
-  - Durable background info. Save it under About the user:
-    update_memory(updated_memory="## About the user\\n- (2025-03-15) Freelance photographer\\n- (2025-03-15) Working on a nature documentary\\n")
+  - Durable background info:
+    update_memory(updated_memory="- (2025-03-15) [fact] Freelance photographer\\n- (2025-03-15) [fact] Working on a nature documentary\\n")
+- User: "Always respond in bullet points"
+  - Standing instruction:
+    update_memory(updated_memory="...\\n- (2025-03-15) [instr] Always respond in bullet points\\n")
 """,
         "shared": """
 - User: "Let's remember that we decided to do weekly standup meetings on Mondays"
   - Durable team decision:
-    update_memory(updated_memory="## Team decisions\\n- (2025-03-15) Weekly standup meetings on Mondays\\n...")
+    update_memory(updated_memory="- (2025-03-15) [fact] Weekly standup meetings on Mondays\\n...")
 - User: "Our office is in downtown Seattle, 5th floor"
   - Durable team fact:
-    update_memory(updated_memory="## Key facts\\n- (2025-03-15) Office location: downtown Seattle, 5th floor\\n...")
+    update_memory(updated_memory="- (2025-03-15) [fact] Office location: downtown Seattle, 5th floor\\n...")
 """,
     },
 }

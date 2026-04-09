@@ -102,7 +102,7 @@ export function MemoryContent() {
 		}
 	};
 
-	const displayMemory = memory.replace(/\(\d{4}-\d{2}-\d{2}\)\s*/g, "");
+	const displayMemory = memory.replace(/\(\d{4}-\d{2}-\d{2}\)\s*\[(fact|pref|instr)\]\s*/g, "");
 	const charCount = memory.length;
 
 	const getCounterColor = () => {
