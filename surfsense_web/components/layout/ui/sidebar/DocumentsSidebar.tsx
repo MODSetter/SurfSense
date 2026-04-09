@@ -800,6 +800,7 @@ export function DocumentsSidebar({
 						onToggleType={onToggleType}
 						activeTypes={activeTypes}
 						onCreateFolder={() => handleCreateFolder(null)}
+						onExportKB={() => toast("Export KB clicked (placeholder)")}
 					/>
 				</div>
 
