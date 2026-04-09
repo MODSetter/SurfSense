@@ -66,7 +66,7 @@ function PricingBasic() {
 		<Pricing
 			plans={demoPlans}
 			title="SurfSense Pricing"
-			description="Start free with 1,000 pages. Earn up to 3,000+ more or buy as you go."
+			description="Start free with 500 pages and pay as you go."
 		/>
 	);
 }
