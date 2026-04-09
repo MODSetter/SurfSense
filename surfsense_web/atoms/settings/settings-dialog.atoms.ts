@@ -21,5 +21,3 @@ export const userSettingsDialogAtom = atom<UserSettingsDialogState>({
 });
 
 export const teamDialogAtom = atom<boolean>(false);
-
-export const morePagesDialogAtom = atom<boolean>(false);
