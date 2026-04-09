@@ -202,13 +202,7 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 				>
 					Clear Memory
 				</Button>
-				<Button
-					type="button"
-					variant="outline"
-					size="sm"
-					onClick={handleExport}
-					disabled={!memory}
-				>
+				<Button type="button" variant="outline" size="sm" onClick={handleExport} disabled={!memory}>
 					<Download className="h-4 w-4" />
 					Export
 				</Button>
