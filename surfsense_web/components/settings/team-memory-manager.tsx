@@ -1,25 +1,33 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
-import { Info } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { Info, Send } from "lucide-react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { z } from "zod";
 import { updateSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { PlateEditor } from "@/components/editor/plate-editor";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
+import { baseApiService } from "@/lib/apis/base-api.service";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 
 const MEMORY_HARD_LIMIT = 25_000;
+
+const SearchSpaceSchema = z.object({
+	shared_memory_md: z.string().optional().default(""),
+}).passthrough();
 
 interface TeamMemoryManagerProps {
 	searchSpaceId: number;
 }
 
 export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
+	const queryClient = useQueryClient();
 	const { data: searchSpace, isLoading: loading } = useQuery({
 		queryKey: cacheKeys.searchSpaces.detail(searchSpaceId.toString()),
 		queryFn: () => searchSpacesApiService.getSearchSpace({ id: searchSpaceId }),
@@ -28,36 +36,12 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 
 	const { mutateAsync: updateSearchSpace } = useAtomValue(updateSearchSpaceMutationAtom);
 
-	const [memory, setMemory] = useState("");
 	const [saving, setSaving] = useState(false);
+	const [editQuery, setEditQuery] = useState("");
+	const [editing, setEditing] = useState(false);
+	const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-	useEffect(() => {
-		if (searchSpace) {
-			setMemory(searchSpace.shared_memory_md || "");
-		}
-	}, [searchSpace?.shared_memory_md]);
-
-	const handleMarkdownChange = useCallback((md: string) => {
-		const trimmed = md.trim();
-		setMemory(trimmed);
-	}, []);
-
-	const hasChanges = !!searchSpace && (searchSpace.shared_memory_md || "") !== memory;
-
-	const handleSave = async () => {
-		try {
-			setSaving(true);
-			await updateSearchSpace({
-				id: searchSpaceId,
-				data: { shared_memory_md: memory },
-			});
-			toast.success("Team memory saved");
-		} catch {
-			toast.error("Failed to save team memory");
-		} finally {
-			setSaving(false);
-		}
-	};
+	const memory = searchSpace?.shared_memory_md || "";
 
 	const handleClear = async () => {
 		try {
@@ -66,7 +50,6 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 				id: searchSpaceId,
 				data: { shared_memory_md: "" },
 			});
-			setMemory("");
 			toast.success("Team memory cleared");
 		} catch {
 			toast.error("Failed to clear team memory");
@@ -75,8 +58,37 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 		}
 	};
 
+	const handleEdit = async () => {
+		const query = editQuery.trim();
+		if (!query) return;
+
+		try {
+			setEditing(true);
+			await baseApiService.post(
+				`/api/v1/searchspaces/${searchSpaceId}/memory/edit`,
+				SearchSpaceSchema,
+				{ body: { query } },
+			);
+			setEditQuery("");
+			await queryClient.invalidateQueries({
+				queryKey: cacheKeys.searchSpaces.detail(searchSpaceId.toString()),
+			});
+			toast.success("Team memory updated");
+		} catch {
+			toast.error("Failed to edit team memory");
+		} finally {
+			setEditing(false);
+		}
+	};
+
+	const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+		if (e.key === "Enter" && !e.shiftKey) {
+			e.preventDefault();
+			handleEdit();
+		}
+	};
+
 	const charCount = memory.length;
-	const isOverLimit = charCount > MEMORY_HARD_LIMIT;
 
 	const getCounterColor = () => {
 		if (charCount > MEMORY_HARD_LIMIT) return "text-red-500";
@@ -100,18 +112,16 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 				<AlertDescription className="text-xs md:text-sm">
 					<p>
 						SurfSense uses this shared memory to provide team-wide context across all conversations
-						in this search space. Supports <span className="font-medium">Markdown</span> formatting.
+						in this search space. Use the input below to add, update, or remove memory entries.
 					</p>
 				</AlertDescription>
 			</Alert>
 
 			<div className="h-[340px] overflow-y-auto rounded-md border">
 				<PlateEditor
-					markdown={searchSpace?.shared_memory_md || ""}
-					onMarkdownChange={handleMarkdownChange}
-					preset="minimal"
-					defaultEditing
-					placeholder="Add team context here, such as decisions, conventions, key facts, or current priorities"
+					markdown={memory}
+					readOnly
+					preset="readonly"
 					variant="default"
 					editorVariant="none"
 					className="px-4 py-4 text-xs min-h-full"
@@ -122,29 +132,42 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 				<span className={`text-xs ${getCounterColor()}`}>
 					{charCount.toLocaleString()} / {MEMORY_HARD_LIMIT.toLocaleString()} characters
 					{charCount > 15_000 && charCount <= MEMORY_HARD_LIMIT && " - Approaching limit"}
-					{isOverLimit && " - Exceeds limit"}
+					{charCount > MEMORY_HARD_LIMIT && " - Exceeds limit"}
 				</span>
 			</div>
 
-			<div className="flex justify-between">
+			<div className="relative">
+				<Textarea
+					ref={textareaRef}
+					value={editQuery}
+					onChange={(e) => setEditQuery(e.target.value)}
+					onKeyDown={handleKeyDown}
+					placeholder="e.g. &quot;We decided to use PostgreSQL&quot; or &quot;Remove the standup entry&quot;"
+					disabled={editing}
+					rows={2}
+					className="pr-12 resize-none text-sm"
+				/>
+				<Button
+					type="button"
+					size="icon"
+					variant="ghost"
+					onClick={handleEdit}
+					disabled={editing || !editQuery.trim()}
+					className="absolute right-2 bottom-2 h-7 w-7"
+				>
+					{editing ? <Spinner size="sm" /> : <Send className="h-4 w-4" />}
+				</Button>
+			</div>
+
+			<div className="flex justify-start">
 				<Button
 					type="button"
 					variant="destructive"
 					size="sm"
 					onClick={handleClear}
-					disabled={saving || !searchSpace?.shared_memory_md}
+					disabled={saving || editing || !memory}
 				>
 					Clear Memory
-				</Button>
-				<Button
-					type="button"
-					variant="outline"
-					onClick={handleSave}
-					disabled={saving || !hasChanges || isOverLimit}
-					className="relative gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200 items-center justify-center"
-				>
-					<span className={saving ? "opacity-0" : ""}>Save</span>
-					{saving && <Spinner size="sm" className="absolute" />}
 				</Button>
 			</div>
 		</div>

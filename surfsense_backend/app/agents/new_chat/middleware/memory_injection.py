@@ -19,7 +19,7 @@ from langgraph.runtime import Runtime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.new_chat.tools.update_memory import MEMORY_HARD_LIMIT
+from app.agents.new_chat.tools.update_memory import MEMORY_HARD_LIMIT, MEMORY_SOFT_LIMIT
 from app.db import ChatVisibility, SearchSpace, User, shielded_async_session
 
 logger = logging.getLogger(__name__)
@@ -70,6 +70,15 @@ class MemoryInjectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                         f"{user_memory}\n"
                         f"</user_memory>"
                     )
+                    if chars > MEMORY_SOFT_LIMIT:
+                        memory_blocks.append(
+                            f"<memory_warning>Your personal memory is at "
+                            f"{chars:,}/{MEMORY_HARD_LIMIT:,} characters and approaching "
+                            f"the hard limit. On your next update_memory call, consolidate "
+                            f"by merging duplicates, removing outdated entries, and "
+                            f"shortening descriptions before adding anything new."
+                            f"</memory_warning>"
+                        )
 
             if self.visibility == ChatVisibility.SEARCH_SPACE:
                 team_memory = await self._load_team_memory(session)
@@ -80,6 +89,15 @@ class MemoryInjectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                         f"{team_memory}\n"
                         f"</team_memory>"
                     )
+                    if chars > MEMORY_SOFT_LIMIT:
+                        memory_blocks.append(
+                            f"<memory_warning>Team memory is at "
+                            f"{chars:,}/{MEMORY_HARD_LIMIT:,} characters and approaching "
+                            f"the hard limit. On your next update_memory call, consolidate "
+                            f"by merging duplicates, removing outdated entries, and "
+                            f"shortening descriptions before adding anything new."
+                            f"</memory_warning>"
+                        )
 
         if not memory_blocks:
             return None

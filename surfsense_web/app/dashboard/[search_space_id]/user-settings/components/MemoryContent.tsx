@@ -1,13 +1,16 @@
 "use client";
 
-import { Info } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useAtomValue } from "jotai";
+import { Info, Send } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { PlateEditor } from "@/components/editor/plate-editor";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
 import { baseApiService } from "@/lib/apis/base-api.service";
 
 const MEMORY_HARD_LIMIT = 25_000;
@@ -17,17 +20,19 @@ const MemoryReadSchema = z.object({
 });
 
 export function MemoryContent() {
+	const activeSearchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const [memory, setMemory] = useState("");
-	const [savedMemory, setSavedMemory] = useState("");
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
+	const [editQuery, setEditQuery] = useState("");
+	const [editing, setEditing] = useState(false);
+	const textareaRef = useRef<HTMLTextAreaElement>(null);
 
 	const fetchMemory = useCallback(async () => {
 		try {
 			setLoading(true);
 			const data = await baseApiService.get("/api/v1/users/me/memory", MemoryReadSchema);
 			setMemory(data.memory_md);
-			setSavedMemory(data.memory_md);
 		} catch {
 			toast.error("Failed to load memory");
 		} finally {
@@ -39,21 +44,6 @@ export function MemoryContent() {
 		fetchMemory();
 	}, [fetchMemory]);
 
-	const handleSave = async () => {
-		try {
-			setSaving(true);
-			const data = await baseApiService.put("/api/v1/users/me/memory", MemoryReadSchema, {
-				body: { memory_md: memory },
-			});
-			setSavedMemory(data.memory_md);
-			toast.success("Memory saved");
-		} catch {
-			toast.error("Failed to save memory");
-		} finally {
-			setSaving(false);
-		}
-	};
-
 	const handleClear = async () => {
 		try {
 			setSaving(true);
@@ -61,7 +51,6 @@ export function MemoryContent() {
 				body: { memory_md: "" },
 			});
 			setMemory(data.memory_md);
-			setSavedMemory(data.memory_md);
 			toast.success("Memory cleared");
 		} catch {
 			toast.error("Failed to clear memory");
@@ -70,14 +59,33 @@ export function MemoryContent() {
 		}
 	};
 
-	const handleMarkdownChange = useCallback((md: string) => {
-		const trimmed = md.trim();
-		setMemory(trimmed);
-	}, []);
+	const handleEdit = async () => {
+		const query = editQuery.trim();
+		if (!query) return;
 
-	const hasChanges = memory !== savedMemory;
+		try {
+			setEditing(true);
+			const data = await baseApiService.post("/api/v1/users/me/memory/edit", MemoryReadSchema, {
+				body: { query, search_space_id: Number(activeSearchSpaceId) },
+			});
+			setMemory(data.memory_md);
+			setEditQuery("");
+			toast.success("Memory updated");
+		} catch {
+			toast.error("Failed to edit memory");
+		} finally {
+			setEditing(false);
+		}
+	};
+
+	const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+		if (e.key === "Enter" && !e.shiftKey) {
+			e.preventDefault();
+			handleEdit();
+		}
+	};
+
 	const charCount = memory.length;
-	const isOverLimit = charCount > MEMORY_HARD_LIMIT;
 
 	const getCounterColor = () => {
 		if (charCount > MEMORY_HARD_LIMIT) return "text-red-500";
@@ -101,18 +109,16 @@ export function MemoryContent() {
 				<AlertDescription className="text-xs md:text-sm">
 					<p>
 						SurfSense uses this personal memory to personalize your responses across all
-						conversations. Supports <span className="font-medium">Markdown</span> formatting.
+						conversations. Use the input below to add, update, or remove memory entries.
 					</p>
 				</AlertDescription>
 			</Alert>
 
 			<div className="h-[340px] overflow-y-auto rounded-md border">
 				<PlateEditor
-					markdown={savedMemory}
-					onMarkdownChange={handleMarkdownChange}
-					preset="minimal"
-					defaultEditing
-					placeholder="Add personal context here, such as your preferences, instructions, or facts about you"
+					markdown={memory}
+					readOnly
+					preset="readonly"
 					variant="default"
 					editorVariant="none"
 					className="px-4 py-4 text-xs min-h-full"
@@ -123,29 +129,42 @@ export function MemoryContent() {
 				<span className={`text-xs ${getCounterColor()}`}>
 					{charCount.toLocaleString()} / {MEMORY_HARD_LIMIT.toLocaleString()} characters
 					{charCount > 15_000 && charCount <= MEMORY_HARD_LIMIT && " - Approaching limit"}
-					{isOverLimit && " - Exceeds limit"}
+					{charCount > MEMORY_HARD_LIMIT && " - Exceeds limit"}
 				</span>
 			</div>
 
-			<div className="flex justify-between">
+			<div className="relative">
+				<Textarea
+					ref={textareaRef}
+					value={editQuery}
+					onChange={(e) => setEditQuery(e.target.value)}
+					onKeyDown={handleKeyDown}
+					placeholder="e.g. &quot;I prefer TypeScript over JavaScript&quot; or &quot;Remove the entry about Tokyo&quot;"
+					disabled={editing}
+					rows={2}
+					className="pr-12 resize-none text-sm"
+				/>
+				<Button
+					type="button"
+					size="icon"
+					variant="ghost"
+					onClick={handleEdit}
+					disabled={editing || !editQuery.trim()}
+					className="absolute right-2 bottom-2 h-7 w-7"
+				>
+					{editing ? <Spinner size="sm" /> : <Send className="h-4 w-4" />}
+				</Button>
+			</div>
+
+			<div className="flex justify-start">
 				<Button
 					type="button"
 					variant="destructive"
 					size="sm"
 					onClick={handleClear}
-					disabled={saving || !savedMemory}
+					disabled={saving || editing || !memory}
 				>
 					Reset Memory
-				</Button>
-				<Button
-					type="button"
-					variant="outline"
-					onClick={handleSave}
-					disabled={saving || !hasChanges || isOverLimit}
-					className="relative gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200 items-center justify-center"
-				>
-					<span className={saving ? "opacity-0" : ""}>Save</span>
-					{saving && <Spinner size="sm" className="absolute" />}
 				</Button>
 			</div>
 		</div>

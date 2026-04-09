@@ -30,6 +30,7 @@ from sqlalchemy.orm import selectinload
 
 from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
 from app.agents.new_chat.checkpointer import get_checkpointer
+from app.agents.new_chat.memory_extraction import extract_and_save_memory
 from app.agents.new_chat.llm_config import (
     AgentConfig,
     create_chat_litellm_from_agent_config,
@@ -139,6 +140,7 @@ class StreamResult:
     is_interrupted: bool = False
     interrupt_value: dict[str, Any] | None = None
     sandbox_files: list[str] = field(default_factory=list)  # unused, kept for compat
+    agent_called_update_memory: bool = False
 
 
 async def _stream_agent_events(
@@ -181,6 +183,7 @@ async def _stream_agent_events(
     last_active_step_items: list[str] = initial_step_items or []
     just_finished_tool: bool = False
     active_tool_depth: int = 0  # Track nesting: >0 means we're inside a tool
+    called_update_memory: bool = False
 
     def next_thinking_step_id() -> str:
         nonlocal thinking_step_counter
@@ -487,6 +490,9 @@ async def _stream_agent_events(
             run_id = event.get("run_id", "")
             tool_name = event.get("name", "unknown_tool")
             raw_output = event.get("data", {}).get("output", "")
+
+            if tool_name == "update_memory":
+                called_update_memory = True
 
             if hasattr(raw_output, "content"):
                 content = raw_output.content
@@ -1109,6 +1115,7 @@ async def _stream_agent_events(
         yield completion_event
 
     result.accumulated_text = accumulated_text
+    result.agent_called_update_memory = called_update_memory
 
     state = await agent.aget_state(config)
     is_interrupted = state.tasks and any(task.interrupts for task in state.tasks)
@@ -1537,6 +1544,16 @@ async def stream_new_chat(
                 yield streaming_service.format_thread_title_update(
                     chat_id, generated_title
                 )
+
+        # Fire background memory extraction if the agent didn't handle it
+        if not stream_result.agent_called_update_memory and user_id:
+            asyncio.create_task(
+                extract_and_save_memory(
+                    user_message=user_query,
+                    user_id=user_id,
+                    llm=llm,
+                )
+            )
 
         # Finish the step and message
         yield streaming_service.format_finish_step()
