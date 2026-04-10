@@ -107,7 +107,11 @@ async def edit_user_memory(
 
     await session.refresh(user, ["memory_md", "display_name"])
     current_memory = user.memory_md or ""
-    first_name = user.display_name.split()[0] if user.display_name else "The user"
+    first_name = (
+        user.display_name.strip().split()[0]
+        if user.display_name and user.display_name.strip()
+        else "The user"
+    )
 
     prompt = _MEMORY_EDIT_PROMPT.format(
         current_memory=current_memory or "(empty)",

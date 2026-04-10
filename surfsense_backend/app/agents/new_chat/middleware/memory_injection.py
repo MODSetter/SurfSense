@@ -76,8 +76,8 @@ class MemoryInjectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                         )
             elif self.user_id is not None:
                 user_memory, display_name = await self._load_user_memory(session)
-                if display_name:
-                    first_name = display_name.split()[0]
+                if display_name and display_name.strip():
+                    first_name = display_name.strip().split()[0]
                     memory_blocks.append(f"<user_name>{first_name}</user_name>")
                 if user_memory:
                     chars = len(user_memory)
