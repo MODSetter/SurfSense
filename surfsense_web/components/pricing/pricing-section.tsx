@@ -1,5 +1,3 @@
-"use client";
-
 import { Pricing } from "@/components/pricing";
 
 const demoPlans = [
