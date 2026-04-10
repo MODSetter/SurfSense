@@ -34,6 +34,7 @@ export function MemoryContent() {
 	const [editing, setEditing] = useState(false);
 	const [showInput, setShowInput] = useState(false);
 	const textareaRef = useRef<HTMLInputElement>(null);
+	const inputContainerRef = useRef<HTMLDivElement>(null);
 
 	const fetchMemory = useCallback(async () => {
 		try {
@@ -50,6 +51,26 @@ export function MemoryContent() {
 	useEffect(() => {
 		fetchMemory();
 	}, [fetchMemory]);
+
+	useEffect(() => {
+		if (!showInput) return;
+
+		const handlePointerDownOutside = (event: MouseEvent | TouchEvent) => {
+			const target = event.target;
+			if (!(target instanceof Node)) return;
+			if (inputContainerRef.current?.contains(target)) return;
+
+			setShowInput(false);
+		};
+
+		document.addEventListener("mousedown", handlePointerDownOutside);
+		document.addEventListener("touchstart", handlePointerDownOutside, { passive: true });
+
+		return () => {
+			document.removeEventListener("mousedown", handlePointerDownOutside);
+			document.removeEventListener("touchstart", handlePointerDownOutside);
+		};
+	}, [showInput]);
 
 	const handleClear = async () => {
 		try {
@@ -122,9 +143,6 @@ export function MemoryContent() {
 		if (e.key === "Enter" && !e.shiftKey) {
 			e.preventDefault();
 			handleEdit();
-		} else if (e.key === "Escape") {
-			setShowInput(false);
-			setEditQuery("");
 		}
 	};
 
@@ -183,7 +201,10 @@ export function MemoryContent() {
 
 				{showInput ? (
 					<div className="absolute bottom-3 inset-x-3 z-10">
-						<div className="relative flex items-center gap-2 rounded-full border bg-muted/60 backdrop-blur-sm px-4 py-2 shadow-sm">
+						<div
+							ref={inputContainerRef}
+							className="relative flex h-[54px] items-center gap-2 rounded-[9999px] border bg-muted/60 backdrop-blur-sm pl-4 pr-1 shadow-sm"
+						>
 							<input
 								ref={textareaRef}
 								type="text"
@@ -200,9 +221,15 @@ export function MemoryContent() {
 								variant="ghost"
 								onClick={handleEdit}
 								disabled={editing || !editQuery.trim()}
-								className="h-9 w-9 shrink-0 rounded-full"
+								className={`h-11 w-11 shrink-0 rounded-full ${
+									editing ? "" : "bg-muted-foreground/15 hover:bg-muted-foreground/20"
+								}`}
 							>
-								{editing ? <Spinner size="sm" /> : <ArrowUp className="!h-5 !w-5" />}
+								{editing ? (
+									<Spinner size="sm" />
+								) : (
+									<ArrowUp className="!h-5 !w-5 text-foreground" strokeWidth={2.25} />
+								)}
 							</Button>
 						</div>
 					</div>
