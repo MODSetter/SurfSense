@@ -182,7 +182,7 @@ export function MemoryContent() {
 				<AlertDescription className="text-xs md:text-sm">
 					<p>
 						SurfSense uses this personal memory to personalize your responses across all
-						conversations. Use the input below to add, update, or remove memory entries.
+						conversations.
 					</p>
 				</AlertDescription>
 			</Alert>

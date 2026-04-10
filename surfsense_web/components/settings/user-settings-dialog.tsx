@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtom } from "jotai";
-import { Brain, Globe, KeyRound, Monitor, Receipt, Sparkles, User } from "lucide-react";
+import { Brain, CircleUser, Globe, KeyRound, Monitor, ReceiptText, Sparkles } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
@@ -66,7 +66,7 @@ export function UserSettingsDialog() {
 
 	const navItems = useMemo(
 		() => [
-			{ value: "profile", label: t("profile_nav_label"), icon: <User className="h-4 w-4" /> },
+			{ value: "profile", label: t("profile_nav_label"), icon: <CircleUser className="h-4 w-4" /> },
 			{
 				value: "api-key",
 				label: t("api_key_nav_label"),
@@ -90,7 +90,7 @@ export function UserSettingsDialog() {
 			{
 				value: "purchases",
 				label: "Purchase History",
-				icon: <Receipt className="h-4 w-4" />,
+				icon: <ReceiptText className="h-4 w-4" />,
 			},
 			...(isDesktop
 				? [{ value: "desktop", label: "Desktop", icon: <Monitor className="h-4 w-4" /> }]

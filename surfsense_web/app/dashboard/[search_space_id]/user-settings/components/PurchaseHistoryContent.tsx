@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Receipt } from "lucide-react";
+import { ReceiptText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -65,7 +65,7 @@ export function PurchaseHistoryContent() {
 	if (purchases.length === 0) {
 		return (
 			<div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
-				<Receipt className="h-8 w-8 text-muted-foreground" />
+				<ReceiptText className="h-8 w-8 text-muted-foreground" />
 				<p className="text-sm font-medium">No purchases yet</p>
 				<p className="text-xs text-muted-foreground">
 					Your page-pack purchases will appear here after checkout.

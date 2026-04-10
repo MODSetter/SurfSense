@@ -196,7 +196,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 							<span className="font-medium">
 								{globalConfigs.length} global {globalConfigs.length === 1 ? "model" : "models"}
 							</span>{" "}
-							available from your administrator. Use the model selector to view and select them.
+							available from your administrator.
 						</p>
 					</AlertDescription>
 				</Alert>

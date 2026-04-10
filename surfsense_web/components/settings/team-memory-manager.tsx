@@ -188,7 +188,7 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 				<AlertDescription className="text-xs md:text-sm">
 					<p>
 						SurfSense uses this shared memory to provide team-wide context across all conversations
-						in this search space. Use the input below to add, update, or remove memory entries.
+						in this search space.
 					</p>
 				</AlertDescription>
 			</Alert>

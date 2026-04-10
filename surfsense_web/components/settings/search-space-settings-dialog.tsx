@@ -2,15 +2,15 @@
 
 import { useAtom } from "jotai";
 import {
-	BookMarked,
 	Bot,
+	BookText,
 	Brain,
+	CircleUser,
+	Earth,
 	Eye,
-	FileText,
-	Globe,
 	ImageIcon,
-	MessageSquare,
-	Shield,
+	ListChecks,
+	UserKey
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
@@ -86,9 +86,9 @@ export function SearchSpaceSettingsDialog({ searchSpaceId }: SearchSpaceSettings
 	const [state, setState] = useAtom(searchSpaceSettingsDialogAtom);
 
 	const navItems = [
-		{ value: "general", label: t("nav_general"), icon: <FileText className="h-4 w-4" /> },
+		{ value: "general", label: t("nav_general"), icon: <CircleUser className="h-4 w-4" /> },
+		{ value: "roles", label: t("nav_role_assignments"), icon: <ListChecks className="h-4 w-4" /> },
 		{ value: "models", label: t("nav_agent_configs"), icon: <Bot className="h-4 w-4" /> },
-		{ value: "roles", label: t("nav_role_assignments"), icon: <Brain className="h-4 w-4" /> },
 		{
 			value: "image-models",
 			label: t("nav_image_models"),
@@ -99,18 +99,18 @@ export function SearchSpaceSettingsDialog({ searchSpaceId }: SearchSpaceSettings
 			label: t("nav_vision_models"),
 			icon: <Eye className="h-4 w-4" />,
 		},
-		{ value: "team-roles", label: t("nav_team_roles"), icon: <Shield className="h-4 w-4" /> },
+		{ value: "team-roles", label: t("nav_team_roles"), icon: <UserKey className="h-4 w-4" /> },
 		{
 			value: "prompts",
 			label: t("nav_system_instructions"),
-			icon: <MessageSquare className="h-4 w-4" />,
+			icon: <BookText className="h-4 w-4" />,
 		},
 		{
 			value: "team-memory",
 			label: "Team Memory",
-			icon: <BookMarked className="h-4 w-4" />,
+			icon: <Brain className="h-4 w-4" />,
 		},
-		{ value: "public-links", label: t("nav_public_links"), icon: <Globe className="h-4 w-4" /> },
+		{ value: "public-links", label: t("nav_public_links"), icon: <Earth className="h-4 w-4" /> },
 	];
 
 	const content: Record<string, React.ReactNode> = {
