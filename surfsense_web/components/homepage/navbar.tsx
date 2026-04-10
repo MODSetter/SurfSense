@@ -9,9 +9,26 @@ import { Logo } from "@/components/Logo";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
 import { cn } from "@/lib/utils";
 
+interface NavItem {
+    name: string;
+    link: string;
+}
+
 interface NavbarProps {
 	/** Override the scrolled-state background classes (desktop & mobile). */
 	scrolledBgClassName?: string;
+}
+
+interface DesktopNavProps {
+    navItems: NavItem[];
+    isScrolled: boolean;
+    scrolledBgClassName?: string;
+}
+
+interface MobileNavProps {
+    navItems: NavItem[];
+    isScrolled: boolean;
+    scrolledBgClassName?: string;
 }
 
 export const Navbar = ({ scrolledBgClassName }: NavbarProps = {}) => {
@@ -52,7 +69,7 @@ export const Navbar = ({ scrolledBgClassName }: NavbarProps = {}) => {
 	);
 };
 
-const DesktopNav = ({ navItems, isScrolled, scrolledBgClassName }: any) => {
+const DesktopNav = ({ navItems, isScrolled, scrolledBgClassName }: DesktopNavProps) => {
 	const [hovered, setHovered] = useState<number | null>(null);
 	return (
 		<motion.div
@@ -118,7 +135,7 @@ const DesktopNav = ({ navItems, isScrolled, scrolledBgClassName }: any) => {
 	);
 };
 
-const MobileNav = ({ navItems, isScrolled, scrolledBgClassName }: any) => {
+const MobileNav = ({ navItems, isScrolled, scrolledBgClassName }: MobileNavProps) => {
 	const [open, setOpen] = useState(false);
 	const navRef = useRef<HTMLDivElement>(null);
 
