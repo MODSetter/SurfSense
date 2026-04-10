@@ -2,15 +2,15 @@
 
 import { useAtom } from "jotai";
 import {
-	Bot,
 	BookText,
+	Bot,
 	Brain,
 	CircleUser,
 	Earth,
 	Eye,
 	ImageIcon,
 	ListChecks,
-	UserKey
+	UserKey,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";

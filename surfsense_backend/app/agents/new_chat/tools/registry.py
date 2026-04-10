@@ -214,7 +214,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
     # =========================================================================
     ToolDefinition(
         name="update_memory",
-        description="Update the memory document (personal or team) with curated long-term information",
+        description="Save important long-term facts, preferences, and instructions to the (personal or team) memory",
         factory=lambda deps: (
             create_update_team_memory_tool(
                 search_space_id=deps["search_space_id"],

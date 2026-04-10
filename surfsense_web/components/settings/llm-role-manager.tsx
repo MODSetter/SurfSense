@@ -439,7 +439,6 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 												</SelectContent>
 											</Select>
 										</div>
-
 									</CardContent>
 								</Card>
 							</div>
