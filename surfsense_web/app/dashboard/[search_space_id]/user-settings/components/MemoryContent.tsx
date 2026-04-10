@@ -190,7 +190,7 @@ export function MemoryContent() {
 								value={editQuery}
 								onChange={(e) => setEditQuery(e.target.value)}
 								onKeyDown={handleKeyDown}
-								placeholder="Tell SurfSense what to remember or forget..."
+								placeholder="Tell SurfSense what to remember or forget"
 								disabled={editing}
 								className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/70"
 							/>
