@@ -18,14 +18,39 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
 
+function ReportPanelSkeleton() {
+	return (
+		<div className="space-y-6 p-6">
+			<div className="h-6 w-3/4 rounded-md bg-muted/60 animate-pulse" />
+			<div className="space-y-2.5">
+				<div className="h-3 w-full rounded-md bg-muted/60 animate-pulse" />
+				<div className="h-3 w-[95%] rounded-md bg-muted/60 animate-pulse [animation-delay:100ms]" />
+				<div className="h-3 w-[88%] rounded-md bg-muted/60 animate-pulse [animation-delay:200ms]" />
+				<div className="h-3 w-[60%] rounded-md bg-muted/60 animate-pulse [animation-delay:300ms]" />
+			</div>
+			<div className="h-5 w-2/5 rounded-md bg-muted/60 animate-pulse [animation-delay:400ms]" />
+			<div className="space-y-2.5">
+				<div className="h-3 w-full rounded-md bg-muted/60 animate-pulse [animation-delay:500ms]" />
+				<div className="h-3 w-[92%] rounded-md bg-muted/60 animate-pulse [animation-delay:600ms]" />
+				<div className="h-3 w-[97%] rounded-md bg-muted/60 animate-pulse [animation-delay:700ms]" />
+			</div>
+			<div className="h-5 w-1/3 rounded-md bg-muted/60 animate-pulse [animation-delay:800ms]" />
+			<div className="space-y-2.5">
+				<div className="h-3 w-[90%] rounded-md bg-muted/60 animate-pulse [animation-delay:900ms]" />
+				<div className="h-3 w-full rounded-md bg-muted/60 animate-pulse [animation-delay:1000ms]" />
+				<div className="h-3 w-[75%] rounded-md bg-muted/60 animate-pulse [animation-delay:1100ms]" />
+			</div>
+		</div>
+	);
+}
+
 const PlateEditor = dynamic(
 	() => import("@/components/editor/plate-editor").then((m) => ({ default: m.PlateEditor })),
-	{ ssr: false, loading: () => <Skeleton className="h-64 w-full" /> }
+	{ ssr: false, loading: () => <ReportPanelSkeleton /> }
 );
 
 /**
@@ -58,46 +83,6 @@ const ReportContentResponseSchema = z.object({
 
 type ReportContentResponse = z.infer<typeof ReportContentResponseSchema>;
 type VersionInfo = z.infer<typeof VersionInfoSchema>;
-
-/**
- * Shimmer loading skeleton for report panel
- */
-function ReportPanelSkeleton() {
-	return (
-		<div className="space-y-6 p-6">
-			{/* Title skeleton */}
-			<div className="h-6 w-3/4 rounded-md bg-muted/60 animate-pulse" />
-
-			{/* Paragraph 1 */}
-			<div className="space-y-2.5">
-				<div className="h-3 w-full rounded-md bg-muted/60 animate-pulse" />
-				<div className="h-3 w-[95%] rounded-md bg-muted/60 animate-pulse [animation-delay:100ms]" />
-				<div className="h-3 w-[88%] rounded-md bg-muted/60 animate-pulse [animation-delay:200ms]" />
-				<div className="h-3 w-[60%] rounded-md bg-muted/60 animate-pulse [animation-delay:300ms]" />
-			</div>
-
-			{/* Heading */}
-			<div className="h-5 w-2/5 rounded-md bg-muted/60 animate-pulse [animation-delay:400ms]" />
-
-			{/* Paragraph 2 */}
-			<div className="space-y-2.5">
-				<div className="h-3 w-full rounded-md bg-muted/60 animate-pulse [animation-delay:500ms]" />
-				<div className="h-3 w-[92%] rounded-md bg-muted/60 animate-pulse [animation-delay:600ms]" />
-				<div className="h-3 w-[97%] rounded-md bg-muted/60 animate-pulse [animation-delay:700ms]" />
-			</div>
-
-			{/* Heading */}
-			<div className="h-5 w-1/3 rounded-md bg-muted/60 animate-pulse [animation-delay:800ms]" />
-
-			{/* Paragraph 3 */}
-			<div className="space-y-2.5">
-				<div className="h-3 w-[90%] rounded-md bg-muted/60 animate-pulse [animation-delay:900ms]" />
-				<div className="h-3 w-full rounded-md bg-muted/60 animate-pulse [animation-delay:1000ms]" />
-				<div className="h-3 w-[75%] rounded-md bg-muted/60 animate-pulse [animation-delay:1100ms]" />
-			</div>
-		</div>
-	);
-}
 
 /**
  * Inner content component used by desktop panel, mobile drawer, and the layout right panel

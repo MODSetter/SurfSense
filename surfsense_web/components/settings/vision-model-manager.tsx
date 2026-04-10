@@ -191,7 +191,7 @@ export function VisionModelManager({ searchSpaceId }: VisionModelManagerProps) {
 									? "model"
 									: "models"}
 							</span>{" "}
-							available from your administrator. Use the model selector to view and select them.
+							available from your administrator.
 						</p>
 					</AlertDescription>
 				</Alert>

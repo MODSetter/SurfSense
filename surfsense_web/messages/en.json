@@ -693,6 +693,7 @@
 		"learn_more": "Learn more",
 		"documentation": "Documentation",
 		"github": "GitHub",
+		"download_for_os": "Download for {os}",
 		"inbox": "Inbox",
 		"search_inbox": "Search inbox",
 		"mark_all_read": "Mark all as read",

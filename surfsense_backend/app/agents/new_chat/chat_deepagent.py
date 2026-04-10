@@ -38,6 +38,7 @@ from app.agents.new_chat.llm_config import AgentConfig
 from app.agents.new_chat.middleware import (
     DedupHITLToolCallsMiddleware,
     KnowledgeBaseSearchMiddleware,
+    MemoryInjectionMiddleware,
     SurfSenseFilesystemMiddleware,
 )
 from app.agents.new_chat.system_prompt import (
@@ -168,8 +169,7 @@ async def create_surfsense_deep_agent(
     - generate_podcast: Generate audio podcasts from content
     - generate_image: Generate images from text descriptions using AI models
     - scrape_webpage: Extract content from webpages
-    - save_memory: Store facts/preferences about the user
-    - recall_memory: Retrieve relevant user memories
+    - update_memory: Update the user's personal or team memory document
 
     The agent also includes TodoListMiddleware by default (via create_deep_agent) which provides:
     - write_todos: Create and update planning/todo lists for complex tasks
@@ -281,6 +281,7 @@ async def create_surfsense_deep_agent(
         "available_connectors": available_connectors,
         "available_document_types": available_document_types,
         "max_input_tokens": _max_input_tokens,
+        "llm": llm,
     }
 
     # Disable Notion action tools if no Notion connector is configured
@@ -425,9 +426,16 @@ async def create_surfsense_deep_agent(
     )
 
     # -- Build the middleware stack (mirrors create_deep_agent internals) ------
+    _memory_middleware = MemoryInjectionMiddleware(
+        user_id=user_id,
+        search_space_id=search_space_id,
+        thread_visibility=visibility,
+    )
+
     # General-purpose subagent middleware
     gp_middleware = [
         TodoListMiddleware(),
+        _memory_middleware,
         SurfSenseFilesystemMiddleware(
             search_space_id=search_space_id,
             created_by_id=user_id,
@@ -447,6 +455,7 @@ async def create_surfsense_deep_agent(
     # Main agent middleware
     deepagent_middleware = [
         TodoListMiddleware(),
+        _memory_middleware,
         KnowledgeBaseSearchMiddleware(
             llm=llm,
             search_space_id=search_space_id,
