@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
-import { Download, Info, Send } from "lucide-react";
+import { ArrowUp, ChevronDown, ClipboardCopy, Download, Info, Pen } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -10,8 +10,13 @@ import { updateSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-spac
 import { PlateEditor } from "@/components/editor/plate-editor";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
-import { Textarea } from "@/components/ui/textarea";
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
@@ -41,7 +46,8 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 	const [saving, setSaving] = useState(false);
 	const [editQuery, setEditQuery] = useState("");
 	const [editing, setEditing] = useState(false);
-	const textareaRef = useRef<HTMLTextAreaElement>(null);
+	const [showInput, setShowInput] = useState(false);
+	const textareaRef = useRef<HTMLInputElement>(null);
 
 	const memory = searchSpace?.shared_memory_md || "";
 
@@ -72,6 +78,7 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 				{ body: { query } }
 			);
 			setEditQuery("");
+			setShowInput(false);
 			await queryClient.invalidateQueries({
 				queryKey: cacheKeys.searchSpaces.detail(searchSpaceId.toString()),
 			});
@@ -83,7 +90,12 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 		}
 	};
 
-	const handleExport = () => {
+	const openInput = () => {
+		setShowInput(true);
+		requestAnimationFrame(() => textareaRef.current?.focus());
+	};
+
+	const handleDownload = () => {
 		if (!memory) return;
 		try {
 			const blob = new Blob([memory], { type: "text/markdown;charset=utf-8" });
@@ -96,14 +108,27 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 			document.body.removeChild(a);
 			URL.revokeObjectURL(url);
 		} catch {
-			toast.error("Failed to export team memory");
+			toast.error("Failed to download team memory");
 		}
 	};
 
-	const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+	const handleCopyMarkdown = async () => {
+		if (!memory) return;
+		try {
+			await navigator.clipboard.writeText(memory);
+			toast.success("Copied to clipboard");
+		} catch {
+			toast.error("Failed to copy team memory");
+		}
+	};
+
+	const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
 		if (e.key === "Enter" && !e.shiftKey) {
 			e.preventDefault();
 			handleEdit();
+		} else if (e.key === "Escape") {
+			setShowInput(false);
+			setEditQuery("");
 		}
 	};
 
@@ -150,62 +175,95 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 				</AlertDescription>
 			</Alert>
 
-			<div className="h-[340px] overflow-y-auto rounded-md border">
-				<PlateEditor
-					markdown={displayMemory}
-					readOnly
-					preset="readonly"
-					variant="default"
-					editorVariant="none"
-					className="px-4 py-4 text-xs min-h-full"
-				/>
+			<div className="relative h-[380px] rounded-lg border bg-background">
+				<div className="h-full overflow-y-auto scrollbar-thin">
+					<PlateEditor
+						markdown={displayMemory}
+						readOnly
+						preset="readonly"
+						variant="default"
+						editorVariant="none"
+						className="px-5 py-4 text-sm min-h-full"
+					/>
+				</div>
+
+				{showInput ? (
+					<div className="absolute bottom-3 inset-x-3 z-10">
+						<div className="relative flex items-center gap-2 rounded-full border bg-muted/60 backdrop-blur-sm px-4 py-2 shadow-sm">
+							<input
+								ref={textareaRef}
+								type="text"
+								value={editQuery}
+								onChange={(e) => setEditQuery(e.target.value)}
+								onKeyDown={handleKeyDown}
+								placeholder="Tell SurfSense what to remember or forget about your team"
+								disabled={editing}
+								className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/70"
+							/>
+							<Button
+								type="button"
+								size="icon"
+								variant="ghost"
+								onClick={handleEdit}
+								disabled={editing || !editQuery.trim()}
+								className="h-9 w-9 shrink-0 rounded-full"
+							>
+								{editing ? <Spinner size="sm" /> : <ArrowUp className="!h-5 !w-5" />}
+							</Button>
+						</div>
+					</div>
+				) : (
+					<Button
+						type="button"
+						size="icon"
+						variant="secondary"
+						onClick={openInput}
+						className="absolute bottom-3 right-3 z-10 h-[54px] w-[54px] rounded-full border bg-muted/60 backdrop-blur-sm shadow-sm"
+					>
+						<Pen className="!h-5 !w-5" />
+					</Button>
+				)}
 			</div>
 
-			<div className="flex items-center justify-between">
-				<span className={`text-xs ${getCounterColor()}`}>
-					{charCount.toLocaleString()} / {MEMORY_HARD_LIMIT.toLocaleString()} characters
+			<div className="flex items-center justify-between gap-2">
+				<span className={`text-xs shrink-0 ${getCounterColor()}`}>
+					{charCount.toLocaleString()} / {MEMORY_HARD_LIMIT.toLocaleString()}
+					<span className="hidden sm:inline"> characters</span>
+					<span className="sm:hidden"> chars</span>
 					{charCount > 15_000 && charCount <= MEMORY_HARD_LIMIT && " - Approaching limit"}
 					{charCount > MEMORY_HARD_LIMIT && " - Exceeds limit"}
 				</span>
-			</div>
-
-			<div className="relative">
-				<Textarea
-					ref={textareaRef}
-					value={editQuery}
-					onChange={(e) => setEditQuery(e.target.value)}
-					onKeyDown={handleKeyDown}
-					placeholder="Tell SurfSense what to remember or forget about your team"
-					disabled={editing}
-					rows={2}
-					className="pr-12 resize-none text-sm"
-				/>
-				<Button
-					type="button"
-					size="icon"
-					variant="ghost"
-					onClick={handleEdit}
-					disabled={editing || !editQuery.trim()}
-					className="absolute right-2 bottom-2 h-7 w-7"
-				>
-					{editing ? <Spinner size="sm" /> : <Send className="h-4 w-4" />}
-				</Button>
-			</div>
-
-			<div className="flex items-center gap-2">
-				<Button
-					type="button"
-					variant="destructive"
-					size="sm"
-					onClick={handleClear}
-					disabled={saving || editing || !memory}
-				>
-					Clear Memory
-				</Button>
-				<Button type="button" variant="outline" size="sm" onClick={handleExport} disabled={!memory}>
-					<Download className="h-4 w-4" />
-					Export
-				</Button>
+				<div className="flex items-center gap-1.5 sm:gap-2">
+					<Button
+						type="button"
+						variant="destructive"
+						size="sm"
+						className="text-xs sm:text-sm"
+						onClick={handleClear}
+						disabled={saving || editing || !memory}
+					>
+						<span className="hidden sm:inline">Reset Memory</span>
+						<span className="sm:hidden">Reset</span>
+					</Button>
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button type="button" variant="secondary" size="sm" disabled={!memory}>
+								Export
+								<ChevronDown className="h-3 w-3 opacity-60" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end">
+							<DropdownMenuItem onClick={handleCopyMarkdown}>
+								<ClipboardCopy className="h-4 w-4 mr-2" />
+								Copy as Markdown
+							</DropdownMenuItem>
+							<DropdownMenuItem onClick={handleDownload}>
+								<Download className="h-4 w-4 mr-2" />
+								Download as Markdown
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				</div>
 			</div>
 		</div>
 	);
