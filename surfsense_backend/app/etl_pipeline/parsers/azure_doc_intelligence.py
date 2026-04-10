@@ -36,7 +36,7 @@ async def parse_with_azure_doc_intelligence(file_path: str) -> str:
             async with client:
                 with open(file_path, "rb") as f:
                     poller = await client.begin_analyze_document(
-                        "prebuilt-read",
+                        "prebuilt-layout",
                         body=f,
                         output_content_format=DocumentContentFormat.MARKDOWN,
                     )
