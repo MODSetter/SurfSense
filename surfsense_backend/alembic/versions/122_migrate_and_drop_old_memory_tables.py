@@ -133,21 +133,19 @@ def _migrate_shared_memories(conn: sa.engine.Connection) -> None:
     migrated = 0
     for space_id, space_rows in by_space.items():
         existing = conn.execute(
-            sa.text(
-                "SELECT shared_memory_md FROM searchspaces WHERE id = :sid"
-            ),
+            sa.text("SELECT shared_memory_md FROM searchspaces WHERE id = :sid"),
             {"sid": space_id},
         ).scalar()
 
         if existing and existing.strip():
-            logger.info("Search space %s already has shared_memory_md, skipping.", space_id)
+            logger.info(
+                "Search space %s already has shared_memory_md, skipping.", space_id
+            )
             continue
 
         markdown = _build_markdown(space_rows)
         conn.execute(
-            sa.text(
-                "UPDATE searchspaces SET shared_memory_md = :md WHERE id = :sid"
-            ),
+            sa.text("UPDATE searchspaces SET shared_memory_md = :md WHERE id = :sid"),
             {"md": markdown, "sid": space_id},
         )
         migrated += 1

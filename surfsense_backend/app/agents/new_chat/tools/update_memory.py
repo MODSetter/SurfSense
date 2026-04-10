@@ -37,9 +37,7 @@ _SECTION_HEADING_RE = re.compile(r"^##\s+(.+)$", re.MULTILINE)
 _HEADING_NORMALIZE_RE = re.compile(r"\s+")
 
 _MARKER_RE = re.compile(r"\[(fact|pref|instr)\]")
-_BULLET_FORMAT_RE = re.compile(
-    r"^- \(\d{4}-\d{2}-\d{2}\) \[(fact|pref|instr)\] .+$"
-)
+_BULLET_FORMAT_RE = re.compile(r"^- \(\d{4}-\d{2}-\d{2}\) \[(fact|pref|instr)\] .+$")
 _PERSONAL_ONLY_MARKERS = {"pref", "instr"}
 
 

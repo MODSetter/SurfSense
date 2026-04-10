@@ -219,8 +219,8 @@ export function MemoryContent() {
 				)}
 			</div>
 
-		<div className="flex items-center justify-between gap-2">
-			<span className={`text-xs shrink-0 ${getCounterColor()}`}>
+			<div className="flex items-center justify-between gap-2">
+				<span className={`text-xs shrink-0 ${getCounterColor()}`}>
 					{charCount.toLocaleString()} / {MEMORY_HARD_LIMIT.toLocaleString()}
 					<span className="hidden sm:inline"> characters</span>
 					<span className="sm:hidden"> chars</span>

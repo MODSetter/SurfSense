@@ -130,7 +130,9 @@ async def extract_and_save_memory(
                 return
 
             old_memory = user.memory_md
-            first_name = user.display_name.split()[0] if user.display_name else "The user"
+            first_name = (
+                user.display_name.split()[0] if user.display_name else "The user"
+            )
             prompt = _MEMORY_EXTRACT_PROMPT.format(
                 current_memory=old_memory or "(empty)",
                 user_message=user_message,

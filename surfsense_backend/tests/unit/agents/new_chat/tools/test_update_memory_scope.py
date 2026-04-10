@@ -77,19 +77,13 @@ def test_validate_memory_scope_allows_all_markers_in_user_scope() -> None:
 
 
 def test_validate_memory_scope_allows_any_heading_in_team() -> None:
-    content = (
-        "## Architecture\n"
-        "- (2026-04-10) [fact] Uses PostgreSQL for persistence\n"
-    )
+    content = "## Architecture\n- (2026-04-10) [fact] Uses PostgreSQL for persistence\n"
     result = _validate_memory_scope(content, "team")
     assert result is None
 
 
 def test_validate_memory_scope_allows_any_heading_in_user() -> None:
-    content = (
-        "## My Projects\n"
-        "- (2026-04-10) [fact] Working on SurfSense\n"
-    )
+    content = "## My Projects\n- (2026-04-10) [fact] Working on SurfSense\n"
     result = _validate_memory_scope(content, "user")
     assert result is None
 
