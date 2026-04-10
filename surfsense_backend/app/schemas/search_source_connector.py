@@ -17,6 +17,7 @@ class SearchSourceConnectorBase(BaseModel):
     last_indexed_at: datetime | None = None
     config: dict[str, Any]
     enable_summary: bool = False
+    enable_vision_llm: bool = False
     periodic_indexing_enabled: bool = False
     indexing_frequency_minutes: int | None = None
     next_scheduled_at: datetime | None = None
@@ -67,6 +68,7 @@ class SearchSourceConnectorUpdate(BaseModel):
     last_indexed_at: datetime | None = None
     config: dict[str, Any] | None = None
     enable_summary: bool | None = None
+    enable_vision_llm: bool | None = None
     periodic_indexing_enabled: bool | None = None
     indexing_frequency_minutes: int | None = None
     next_scheduled_at: datetime | None = None

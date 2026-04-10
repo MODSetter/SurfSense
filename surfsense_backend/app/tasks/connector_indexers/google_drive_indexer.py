@@ -261,6 +261,7 @@ async def _download_files_parallel(
     enable_summary: bool,
     max_concurrency: int = 3,
     on_heartbeat: HeartbeatCallbackType | None = None,
+    vision_llm=None,
 ) -> tuple[list[ConnectorDocument], int]:
     """Download and ETL files in parallel, returning ConnectorDocuments.
 
@@ -276,7 +277,7 @@ async def _download_files_parallel(
         nonlocal last_heartbeat, completed_count
         async with sem:
             markdown, drive_metadata, error = await download_and_extract_content(
-                drive_client, file
+                drive_client, file, vision_llm=vision_llm
             )
             if error or not markdown:
                 file_name = file.get("name", "Unknown")
@@ -322,6 +323,7 @@ async def _process_single_file(
     search_space_id: int,
     user_id: str,
     enable_summary: bool = True,
+    vision_llm=None,
 ) -> tuple[int, int, int]:
     """Download, extract, and index a single Drive file via the pipeline.
 
@@ -343,7 +345,7 @@ async def _process_single_file(
         await page_limit_service.check_page_limit(user_id, estimated_pages)
 
         markdown, drive_metadata, error = await download_and_extract_content(
-            drive_client, file
+            drive_client, file, vision_llm=vision_llm
         )
         if error or not markdown:
             logger.warning(f"ETL failed for {file_name}: {error}")
@@ -433,6 +435,7 @@ async def _download_and_index(
     user_id: str,
     enable_summary: bool,
     on_heartbeat: HeartbeatCallbackType | None = None,
+    vision_llm=None,
 ) -> tuple[int, int]:
     """Phase 2+3: parallel download then parallel indexing.
 
@@ -446,6 +449,7 @@ async def _download_and_index(
         user_id=user_id,
         enable_summary=enable_summary,
         on_heartbeat=on_heartbeat,
+        vision_llm=vision_llm,
     )
 
     batch_indexed = 0
@@ -476,6 +480,7 @@ async def _index_selected_files(
     user_id: str,
     enable_summary: bool,
     on_heartbeat: HeartbeatCallbackType | None = None,
+    vision_llm=None,
 ) -> tuple[int, int, int, list[str]]:
     """Index user-selected files using the parallel pipeline.
 
@@ -540,6 +545,7 @@ async def _index_selected_files(
         user_id=user_id,
         enable_summary=enable_summary,
         on_heartbeat=on_heartbeat,
+        vision_llm=vision_llm,
     )
 
     if batch_indexed > 0 and files_to_download and batch_estimated_pages > 0:
@@ -573,6 +579,7 @@ async def _index_full_scan(
     include_subfolders: bool = False,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
     enable_summary: bool = True,
+    vision_llm=None,
 ) -> tuple[int, int, int]:
     """Full scan indexing of a folder.
 
@@ -703,6 +710,7 @@ async def _index_full_scan(
         user_id=user_id,
         enable_summary=enable_summary,
         on_heartbeat=on_heartbeat_callback,
+        vision_llm=vision_llm,
     )
 
     if batch_indexed > 0 and files_to_download and batch_estimated_pages > 0:
@@ -736,6 +744,7 @@ async def _index_with_delta_sync(
     include_subfolders: bool = False,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
     enable_summary: bool = True,
+    vision_llm=None,
 ) -> tuple[int, int, int]:
     """Delta sync using change tracking.
 
@@ -844,6 +853,7 @@ async def _index_with_delta_sync(
         user_id=user_id,
         enable_summary=enable_summary,
         on_heartbeat=on_heartbeat_callback,
+        vision_llm=vision_llm,
     )
 
     if batch_indexed > 0 and files_to_download and batch_estimated_pages > 0:
@@ -947,6 +957,11 @@ async def index_google_drive_files(
                 )
 
         connector_enable_summary = getattr(connector, "enable_summary", True)
+        connector_enable_vision_llm = getattr(connector, "enable_vision_llm", False)
+        vision_llm = None
+        if connector_enable_vision_llm:
+            from app.services.llm_service import get_vision_llm
+            vision_llm = await get_vision_llm(session, search_space_id)
         drive_client = GoogleDriveClient(
             session, connector_id, credentials=pre_built_credentials
         )
@@ -986,6 +1001,7 @@ async def index_google_drive_files(
                 include_subfolders,
                 on_heartbeat_callback,
                 connector_enable_summary,
+                vision_llm=vision_llm,
             )
             documents_unsupported += du
             logger.info("Running reconciliation scan after delta sync")
@@ -1004,6 +1020,7 @@ async def index_google_drive_files(
                 include_subfolders,
                 on_heartbeat_callback,
                 connector_enable_summary,
+                vision_llm=vision_llm,
             )
             documents_indexed += ri
             documents_skipped += rs
@@ -1029,6 +1046,7 @@ async def index_google_drive_files(
                 include_subfolders,
                 on_heartbeat_callback,
                 connector_enable_summary,
+                vision_llm=vision_llm,
             )
 
         if documents_indexed > 0 or can_use_delta:
@@ -1146,6 +1164,11 @@ async def index_google_drive_single_file(
                 )
 
         connector_enable_summary = getattr(connector, "enable_summary", True)
+        connector_enable_vision_llm = getattr(connector, "enable_vision_llm", False)
+        vision_llm = None
+        if connector_enable_vision_llm:
+            from app.services.llm_service import get_vision_llm
+            vision_llm = await get_vision_llm(session, search_space_id)
         drive_client = GoogleDriveClient(
             session, connector_id, credentials=pre_built_credentials
         )
@@ -1168,6 +1191,7 @@ async def index_google_drive_single_file(
             search_space_id,
             user_id,
             connector_enable_summary,
+            vision_llm=vision_llm,
         )
         await session.commit()
 
@@ -1278,6 +1302,11 @@ async def index_google_drive_selected_files(
                 return 0, 0, [error_msg]
 
         connector_enable_summary = getattr(connector, "enable_summary", True)
+        connector_enable_vision_llm = getattr(connector, "enable_vision_llm", False)
+        vision_llm = None
+        if connector_enable_vision_llm:
+            from app.services.llm_service import get_vision_llm
+            vision_llm = await get_vision_llm(session, search_space_id)
         drive_client = GoogleDriveClient(
             session, connector_id, credentials=pre_built_credentials
         )
@@ -1291,6 +1320,7 @@ async def index_google_drive_selected_files(
             user_id=user_id,
             enable_summary=connector_enable_summary,
             on_heartbeat=on_heartbeat_callback,
+            vision_llm=vision_llm,
         )
 
         if unsupported > 0:

@@ -778,6 +778,7 @@ def process_file_upload_with_document_task(
     search_space_id: int,
     user_id: str,
     should_summarize: bool = False,
+    use_vision_llm: bool = False,
 ):
     """
     Celery task to process uploaded file with existing pending document.
@@ -833,6 +834,7 @@ def process_file_upload_with_document_task(
                 search_space_id,
                 user_id,
                 should_summarize=should_summarize,
+                use_vision_llm=use_vision_llm,
             )
         )
         logger.info(
@@ -869,6 +871,7 @@ async def _process_file_with_document(
     search_space_id: int,
     user_id: str,
     should_summarize: bool = False,
+    use_vision_llm: bool = False,
 ):
     """
     Process file and update existing pending document status.
@@ -971,6 +974,7 @@ async def _process_file_with_document(
                 log_entry=log_entry,
                 notification=notification,
                 should_summarize=should_summarize,
+                use_vision_llm=use_vision_llm,
             )
 
             # Update notification on success
@@ -1428,6 +1432,7 @@ def index_uploaded_folder_files_task(
     root_folder_id: int,
     enable_summary: bool,
     file_mappings: list[dict],
+    use_vision_llm: bool = False,
 ):
     """Celery task to index files uploaded from the desktop app."""
     loop = asyncio.new_event_loop()
@@ -1441,6 +1446,7 @@ def index_uploaded_folder_files_task(
                 root_folder_id=root_folder_id,
                 enable_summary=enable_summary,
                 file_mappings=file_mappings,
+                use_vision_llm=use_vision_llm,
             )
         )
     finally:
@@ -1454,6 +1460,7 @@ async def _index_uploaded_folder_files_async(
     root_folder_id: int,
     enable_summary: bool,
     file_mappings: list[dict],
+    use_vision_llm: bool = False,
 ):
     """Run upload-based folder indexing with notification + heartbeat."""
     file_count = len(file_mappings)
@@ -1503,6 +1510,7 @@ async def _index_uploaded_folder_files_async(
                 enable_summary=enable_summary,
                 file_mappings=file_mappings,
                 on_heartbeat_callback=_heartbeat_progress,
+                use_vision_llm=use_vision_llm,
             )
 
             if notification:

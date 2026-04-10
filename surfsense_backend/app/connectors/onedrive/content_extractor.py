@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 async def download_and_extract_content(
     client: OneDriveClient,
     file: dict[str, Any],
+    *,
+    vision_llm=None,
 ) -> tuple[str | None, dict[str, Any], str | None]:
     """Download a OneDrive file and extract its content as markdown.
 
@@ -65,7 +67,9 @@ async def download_and_extract_content(
         if error:
             return None, metadata, error
 
-        markdown = await _parse_file_to_markdown(temp_file_path, file_name)
+        markdown = await _parse_file_to_markdown(
+            temp_file_path, file_name, vision_llm=vision_llm
+        )
         return markdown, metadata, None
 
     except Exception as e:
@@ -77,12 +81,14 @@ async def download_and_extract_content(
                 os.unlink(temp_file_path)
 
 
-async def _parse_file_to_markdown(file_path: str, filename: str) -> str:
+async def _parse_file_to_markdown(
+    file_path: str, filename: str, *, vision_llm=None
+) -> str:
     """Parse a local file to markdown using the unified ETL pipeline."""
     from app.etl_pipeline.etl_document import EtlRequest
     from app.etl_pipeline.etl_pipeline_service import EtlPipelineService
 
-    result = await EtlPipelineService().extract(
+    result = await EtlPipelineService(vision_llm=vision_llm).extract(
         EtlRequest(file_path=file_path, filename=filename)
     )
     return result.markdown_content

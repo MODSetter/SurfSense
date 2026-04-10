@@ -1555,6 +1555,13 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
         Boolean, nullable=False, default=False, server_default="false"
     )
 
+    # Vision LLM for image files - disabled by default to save cost/time.
+    # When enabled, images are described via a vision language model instead
+    # of falling back to the document parser.
+    enable_vision_llm = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+
     # Periodic indexing fields
     periodic_indexing_enabled = Column(Boolean, nullable=False, default=False)
     indexing_frequency_minutes = Column(Integer, nullable=True)

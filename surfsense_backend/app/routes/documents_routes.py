@@ -123,6 +123,7 @@ async def create_documents_file_upload(
     files: list[UploadFile],
     search_space_id: int = Form(...),
     should_summarize: bool = Form(False),
+    use_vision_llm: bool = Form(False),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
     dispatcher: TaskDispatcher = Depends(get_task_dispatcher),
@@ -272,6 +273,7 @@ async def create_documents_file_upload(
                 search_space_id=search_space_id,
                 user_id=str(user.id),
                 should_summarize=should_summarize,
+                use_vision_llm=use_vision_llm,
             )
 
         return {
@@ -1490,6 +1492,7 @@ async def folder_upload(
     relative_paths: str = Form(...),
     root_folder_id: int | None = Form(None),
     enable_summary: bool = Form(False),
+    use_vision_llm: bool = Form(False),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
@@ -1616,6 +1619,7 @@ async def folder_upload(
         folder_name=folder_name,
         root_folder_id=root_folder_id,
         enable_summary=enable_summary,
+        use_vision_llm=use_vision_llm,
         file_mappings=list(file_mappings),
     )
 

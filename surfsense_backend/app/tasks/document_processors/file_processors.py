@@ -46,6 +46,7 @@ class _ProcessingContext:
     log_entry: Log
     connector: dict | None = None
     notification: Notification | None = None
+    use_vision_llm: bool = False
     enable_summary: bool = field(init=False)
 
     def __post_init__(self) -> None:
@@ -134,7 +135,7 @@ async def _process_non_document_upload(ctx: _ProcessingContext) -> Document | No
     )
 
     vision_llm = None
-    if etl_classify(ctx.filename) == FileCategory.IMAGE:
+    if ctx.use_vision_llm and etl_classify(ctx.filename) == FileCategory.IMAGE:
         from app.services.llm_service import get_vision_llm
 
         vision_llm = await get_vision_llm(ctx.session, ctx.search_space_id)
@@ -288,6 +289,7 @@ async def process_file_in_background(
     log_entry: Log,
     connector: dict | None = None,
     notification: Notification | None = None,
+    use_vision_llm: bool = False,
 ) -> Document | None:
     ctx = _ProcessingContext(
         session=session,
@@ -299,6 +301,7 @@ async def process_file_in_background(
         log_entry=log_entry,
         connector=connector,
         notification=notification,
+        use_vision_llm=use_vision_llm,
     )
 
     try:
@@ -349,6 +352,7 @@ async def _extract_file_content(
     task_logger: TaskLoggingService,
     log_entry: Log,
     notification: Notification | None,
+    use_vision_llm: bool = False,
 ) -> tuple[str, str]:
     """
     Extract markdown content from a file regardless of type.
@@ -396,7 +400,7 @@ async def _extract_file_content(
         await page_limit_service.check_page_limit(user_id, estimated_pages)
 
     vision_llm = None
-    if category == FileCategory.IMAGE:
+    if use_vision_llm and category == FileCategory.IMAGE:
         from app.services.llm_service import get_vision_llm
 
         vision_llm = await get_vision_llm(session, search_space_id)
@@ -435,6 +439,7 @@ async def process_file_in_background_with_document(
     connector: dict | None = None,
     notification: Notification | None = None,
     should_summarize: bool = False,
+    use_vision_llm: bool = False,
 ) -> Document | None:
     """
     Process file and update existing pending document (2-phase pattern).
@@ -463,6 +468,7 @@ async def process_file_in_background_with_document(
             task_logger,
             log_entry,
             notification,
+            use_vision_llm=use_vision_llm,
         )
 
         if not markdown_content:

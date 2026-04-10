@@ -69,6 +69,7 @@ class InlineTaskDispatcher:
         search_space_id: int,
         user_id: str,
         should_summarize: bool = False,
+        use_vision_llm: bool = False,
     ) -> None:
         from app.tasks.celery_tasks.document_tasks import (
             _process_file_with_document,
@@ -82,6 +83,7 @@ class InlineTaskDispatcher:
                 search_space_id,
                 user_id,
                 should_summarize=should_summarize,
+                use_vision_llm=use_vision_llm,
             )
 
 

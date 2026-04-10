@@ -136,6 +136,7 @@ export function DocumentUploadTab({
 	const [uploadProgress, setUploadProgress] = useState(0);
 	const [accordionValue, setAccordionValue] = useState<string>("");
 	const [shouldSummarize, setShouldSummarize] = useState(false);
+	const [useVisionLlm, setUseVisionLlm] = useState(false);
 	const [uploadDocumentMutation] = useAtom(uploadDocumentMutationAtom);
 	const { mutate: uploadDocuments, isPending: isUploading } = uploadDocumentMutation;
 	const fileInputRef = useRef<HTMLInputElement>(null);
@@ -361,6 +362,7 @@ export function DocumentUploadTab({
 						relative_paths: batch.map((e) => e.relativePath),
 						root_folder_id: rootFolderId,
 						enable_summary: shouldSummarize,
+						use_vision_llm: useVisionLlm,
 					}
 				);
 
@@ -407,6 +409,7 @@ export function DocumentUploadTab({
 				files: rawFiles,
 				search_space_id: Number(searchSpaceId),
 				should_summarize: shouldSummarize,
+				use_vision_llm: useVisionLlm,
 			},
 			{
 				onSuccess: () => {
@@ -694,6 +697,16 @@ export function DocumentUploadTab({
 							</p>
 						</div>
 						<Switch checked={shouldSummarize} onCheckedChange={setShouldSummarize} />
+					</div>
+
+					<div className={toggleRowClass}>
+						<div className="space-y-0.5">
+							<p className="font-medium text-sm">Enable Vision LLM</p>
+							<p className="text-xs text-muted-foreground">
+								Describes images using AI vision (costly, slower)
+							</p>
+						</div>
+						<Switch checked={useVisionLlm} onCheckedChange={setUseVisionLlm} />
 					</div>
 
 					<Button
