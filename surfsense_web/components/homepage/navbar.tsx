@@ -92,7 +92,7 @@ const DesktopNav = ({ navItems, isScrolled, scrolledBgClassName }: DesktopNavPro
 				<span className="dark:text-white/90 text-gray-800 text-lg font-bold">SurfSense</span>
 			</Link>
 			<div className="hidden flex-1 flex-row items-center justify-center space-x-2 text-sm font-medium text-zinc-600 transition duration-200 hover:text-zinc-800 lg:flex lg:space-x-2">
-				{navItems.map((navItem: any, idx: number) => (
+				{navItems.map((navItem: NavItem, idx: number) => (
 					<Link
 						onMouseEnter={() => setHovered(idx)}
 						onMouseLeave={() => setHovered(null)}
@@ -200,7 +200,7 @@ const MobileNav = ({ navItems, isScrolled, scrolledBgClassName }: MobileNavProps
 						transition={{ duration: 0.2, ease: "easeOut" }}
 						className="absolute inset-x-0 top-full mt-1 z-20 flex w-full flex-col items-start justify-start gap-4 rounded-xl bg-white/90 backdrop-blur-xl border border-white/20 shadow-2xl px-4 py-6 dark:bg-neutral-950/90 dark:border-neutral-800/50"
 					>
-						{navItems.map((navItem: any, idx: number) => (
+						{navItems.map((navItem: NavItem, idx: number) => (
 							<Link
 								key={`link=${idx}`}
 								href={navItem.link}
