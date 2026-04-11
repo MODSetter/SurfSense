@@ -41,9 +41,18 @@ export function getLoginPath(): string {
 }
 
 /**
- * Clears tokens and optionally redirects to login.
- * Call this when a 401 response is received.
- * Only redirects when the current route is protected; on public routes we just clear tokens.
+ * Clears tokens and redirects through oauth2-proxy on 401.
+ *
+ * This fork is SSO-only (mPass/Cognito via oauth2-proxy ForwardAuth), so the
+ * only valid recovery from a 401 is bouncing the user through the OIDC flow
+ * at the dedicated auth subdomain. The previous /login redirect was a dead
+ * page in SSO mode and resulted in a blank screen.
+ *
+ * Moving this responsibility to the frontend lets the devstack repo drop
+ * its SurfSense-specific Traefik `mpass-signin@file` middleware and
+ * `auth-redirect.yml` dynamic config — those exist purely to convert API
+ * 401s into redirects at the network layer. With this in place the app
+ * handles its own 401s before Traefik ever needs to.
  */
 export function handleUnauthorized(): void {
 	if (typeof window === "undefined") return;
@@ -54,15 +63,20 @@ export function handleUnauthorized(): void {
 	localStorage.removeItem(BEARER_TOKEN_KEY);
 	localStorage.removeItem(REFRESH_TOKEN_KEY);
 
-	// Only redirect on protected routes; stay on public pages (e.g. /docs)
-	if (!isPublicRoute(pathname)) {
-		const currentPath = pathname + window.location.search + window.location.hash;
-		const excludedPaths = ["/auth", "/auth/callback", "/"];
-		if (!excludedPaths.includes(pathname)) {
-			localStorage.setItem(REDIRECT_PATH_KEY, currentPath);
-		}
-		window.location.href = getLoginPath();
+	// Public routes (e.g. /docs) don't need auth — don't redirect, just clear.
+	if (isPublicRoute(pathname)) return;
+
+	const currentPath = pathname + window.location.search + window.location.hash;
+	const excludedPaths = ["/auth", "/"];
+	if (!excludedPaths.includes(pathname)) {
+		localStorage.setItem(REDIRECT_PATH_KEY, currentPath);
 	}
+
+	// Redirect through oauth2-proxy /oauth2/sign_in. The dedicated auth subdomain
+	// handles the OIDC dance with Cognito and returns the user to `rd=` on success.
+	const oauthProxyUrl = process.env.NEXT_PUBLIC_OAUTH2_PROXY_URL || window.location.origin;
+	const rd = window.location.href;
+	window.location.href = `${oauthProxyUrl}/oauth2/sign_in?rd=${encodeURIComponent(rd)}`;
 }
 
 /**
@@ -138,6 +152,7 @@ export function clearAllTokens(): void {
 }
 
 /**
+<<<<<<< HEAD
  * Pushes the current localStorage tokens into the Electron main process
  * so that other BrowserWindows (Quick Ask, Autocomplete) can access them.
  */
@@ -178,33 +193,80 @@ export async function ensureTokensFromElectron(): Promise<boolean> {
 /**
  * Logout the current user by revoking the refresh token and clearing localStorage.
  * Returns true if logout was successful (or tokens were cleared), false otherwise.
+=======
+ * Reads the short-lived SSO handoff cookies set by /auth/jwt/proxy-login.
+ * Returns null for each if not present.
+ */
+export function getSSOCookieTokens(): { token: string | null; refreshToken: string | null } {
+	if (typeof document === "undefined") return { token: null, refreshToken: null };
+	const get = (name: string): string | null => {
+		const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+		return match ? decodeURIComponent(match[1]) : null;
+	};
+	return { token: get("surfsense_sso_token"), refreshToken: get("surfsense_sso_refresh_token") };
+}
+
+/**
+ * Clears the SSO handoff cookies after tokens have been transferred to localStorage.
+ */
+export function clearSSOCookies(): void {
+	if (typeof document === "undefined") return;
+	const expire = "expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/";
+	document.cookie = `surfsense_sso_token=; ${expire}`;
+	document.cookie = `surfsense_sso_refresh_token=; ${expire}`;
+}
+
+/**
+ * Logout the current user.
+ *
+ * Always performs 3-layer SSO logout (proxy auth is the only auth mode):
+ *   Layer 1 — revoke JWT refresh tokens server-side
+ *   Layer 2 — clear _oauth2_proxy cookie via /oauth2/sign_out
+ *   Layer 3 — clear Cognito session via rd= redirect
+>>>>>>> 8c3ff62c (feat(auth): mPass SSO via oauth2-proxy ForwardAuth with cookie-handoff)
  */
 export async function logout(): Promise<boolean> {
 	const refreshToken = getRefreshToken();
 
-	// Call backend to revoke the refresh token
+	// Layer 1 — revoke the refresh token server-side
 	if (refreshToken) {
 		try {
 			const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
 			const response = await fetch(`${backendUrl}/auth/jwt/revoke`, {
 				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
+				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ refresh_token: refreshToken }),
 			});
-
 			if (!response.ok) {
 				console.warn("Failed to revoke refresh token:", response.status, await response.text());
 			}
 		} catch (error) {
 			console.warn("Failed to revoke refresh token on server:", error);
-			// Continue to clear local tokens even if server call fails
 		}
 	}
 
-	// Clear all tokens from localStorage
 	clearAllTokens();
+
+	// Layers 2 + 3 — SSO logout via oauth2-proxy → Cognito
+	if (typeof window !== "undefined") {
+		const oidcLogoutUrl = process.env.NEXT_PUBLIC_OIDC_LOGOUT_URL;
+		const oidcClientId = process.env.NEXT_PUBLIC_OIDC_CLIENT_ID;
+
+		if (oidcLogoutUrl && oidcClientId) {
+			const cognitoUrl = new URL(oidcLogoutUrl);
+			cognitoUrl.searchParams.set("client_id", oidcClientId);
+			cognitoUrl.searchParams.set("logout_uri", window.location.origin);
+
+			// Full SSO logout: oauth2-proxy sign_out clears _oauth2_proxy cookie,
+			// then rd= redirects to Cognito to clear the Cognito session.
+			// Uses the dedicated auth domain (foss-auth.localhost) so the sign_out
+			// URL is consistent regardless of which app initiates the logout.
+			const oauthProxyUrl = process.env.NEXT_PUBLIC_OAUTH2_PROXY_URL || window.location.origin;
+			window.location.href = `${oauthProxyUrl}/oauth2/sign_out?rd=${encodeURIComponent(cognitoUrl.toString())}`;
+			return true; // browser is already navigating away
+		}
+	}
+
 	return true;
 }
 
@@ -227,7 +289,7 @@ export function redirectToLogin(): void {
 	const currentPath = window.location.pathname + window.location.search + window.location.hash;
 
 	// Don't save auth-related paths or home page
-	const excludedPaths = ["/auth", "/auth/callback", "/", "/login", "/register", "/desktop/login"];
+	const excludedPaths = ["/auth", "/", "/login", "/register"];
 	if (!excludedPaths.includes(window.location.pathname)) {
 		localStorage.setItem(REDIRECT_PATH_KEY, currentPath);
 	}

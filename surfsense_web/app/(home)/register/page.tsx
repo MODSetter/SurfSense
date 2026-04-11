@@ -12,7 +12,7 @@ import { Logo } from "@/components/Logo";
 import { Spinner } from "@/components/ui/spinner";
 import { getAuthErrorDetails, isNetworkError, shouldRetry } from "@/lib/auth-errors";
 import { getBearerToken } from "@/lib/auth-utils";
-import { AUTH_TYPE } from "@/lib/env-config";
+import { AUTH_TYPE, isSSOAuth } from "@/lib/env-config";
 import { AppError, ValidationError } from "@/lib/error";
 import {
 	trackRegistrationAttempt,
@@ -36,6 +36,23 @@ export default function RegisterPage() {
 	});
 	const router = useRouter();
 	const [{ mutateAsync: register, isPending: isRegistering }] = useAtom(registerMutationAtom);
+
+	// SSO mode: bounce straight to oauth2-proxy /oauth2/sign_in. The dedicated
+	// auth subdomain handles the OIDC dance with Cognito and returns the user
+	// to / where the home-route splash + cookie handoff finishes the login
+	// normally. Same pattern as the /login page and handleUnauthorized() in
+	// lib/auth-utils.ts. Falls through to the LOCAL form below when AUTH_TYPE
+	// is not SSO. Hook is unconditional (rules-of-hooks).
+	useEffect(() => {
+		if (typeof window !== "undefined" && isSSOAuth()) {
+			const oauthProxyUrl =
+				process.env.NEXT_PUBLIC_OAUTH2_PROXY_URL || window.location.origin;
+			const rd = `${window.location.origin}/`;
+			window.location.replace(
+				`${oauthProxyUrl}/oauth2/sign_in?rd=${encodeURIComponent(rd)}`
+			);
+		}
+	}, []);
 
 	// Check authentication type and redirect if not LOCAL
 	useEffect(() => {
@@ -155,6 +172,17 @@ export default function RegisterPage() {
 			toast.error(errorDetails.title, toastOptions);
 		}
 	};
+
+	// SSO mode: render splash while window.location.replace() takes effect.
+	// isSSOAuth() reads a build-time-inlined env var (NEXT_PUBLIC_*) so it
+	// works during SSR too — the splash renders on the server, the browser
+	// receives splash HTML directly, no form flash before hydration.
+	// All hooks above run unconditionally (rules-of-hooks); only the render
+	// branches here. In SSO deployments isSSOAuth() is true, so the form
+	// below is never reached at runtime.
+	if (isSSOAuth()) {
+		return <div className="min-h-screen bg-gray-50 dark:bg-black" />;
+	}
 
 	return (
 		<div className="relative w-full overflow-hidden">

@@ -32,11 +32,18 @@ from app.config import (
     initialize_vision_llm_router,
 )
 from app.db import User, create_db_and_tables, get_async_session
+from app.middleware.proxy_auth import ProxyAuthMiddleware
 from app.routes import router as crud_router
 from app.routes.auth_routes import router as auth_router
 from app.schemas import UserCreate, UserRead, UserUpdate
 from app.tasks.surfsense_docs_indexer import seed_surfsense_docs
-from app.users import SECRET, auth_backend, current_active_user, fastapi_users
+from app.users import (
+    SECRET,
+    auth_backend,
+    current_active_user,
+    fastapi_users,
+    get_user_manager,
+)
 from app.utils.perf import get_perf_logger, log_system_snapshot
 
 rate_limit_logger = logging.getLogger("surfsense.rate_limit")
@@ -315,14 +322,28 @@ class RequestPerfMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(RequestPerfMiddleware)
 
-# Add SlowAPI middleware for automatic rate limiting
+# Starlette executes middleware in reverse registration order (last added = first to
+# run on the request).  Request-path execution order:
+#
+#   CORSMiddleware → ProxyHeadersMiddleware → SlowAPIMiddleware
+#   → ProxyAuthMiddleware → RequestPerfMiddleware → route handler
+#
+# SlowAPIMiddleware wraps ProxyAuthMiddleware so rate limiting fires before any DB
+# lookup — abusive traffic is shed at the limiter before we touch the database.
+# ProxyAuthMiddleware runs after ProxyHeadersMiddleware so the client IP/scheme
+# are already normalised when we resolve the user.
+
+# Innermost: reads X-Auth-Request-Email, resolves/creates user, sets request.state.proxy_user.
+app.add_middleware(ProxyAuthMiddleware)
+
+# Wraps ProxyAuthMiddleware — rate limiting fires before the DB lookup.
 # Uses Starlette BaseHTTPMiddleware (not the raw ASGI variant) to avoid
 # corrupting StreamingResponse — SlowAPIASGIMiddleware re-sends
 # http.response.start on every body chunk, breaking SSE/streaming endpoints.
 app.add_middleware(SlowAPIMiddleware)
 
-# Add ProxyHeaders middleware FIRST to trust proxy headers (e.g., from Cloudflare)
-# This ensures FastAPI uses HTTPS in redirects when behind a proxy
+# Outermost of the inner three: trusts proxy headers (X-Forwarded-For etc.)
+# so FastAPI uses HTTPS in redirects when behind Traefik.
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # Add CORS middleware
@@ -362,148 +383,34 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
-app.include_router(
-    fastapi_users.get_auth_router(auth_backend),
-    prefix="/auth/jwt",
-    tags=["auth"],
-    dependencies=[Depends(rate_limit_login)],
-)
-app.include_router(
-    fastapi_users.get_register_router(UserRead, UserCreate),
-    prefix="/auth",
-    tags=["auth"],
-    dependencies=[
-        Depends(rate_limit_register),
-        Depends(registration_allowed),  # blocks registration when disabled
-    ],
-)
-app.include_router(
-    fastapi_users.get_reset_password_router(),
-    prefix="/auth",
-    tags=["auth"],
-    dependencies=[Depends(rate_limit_password_reset)],
-)
-app.include_router(
-    fastapi_users.get_verify_router(UserRead),
-    prefix="/auth",
-    tags=["auth"],
-)
+# Register /users/me BEFORE fastapi_users.get_users_router so our routes take
+# precedence (FastAPI first-match wins). fastapi-users' internal /users/me only
+# validates JWT — it does not check request.state.proxy_user set by the proxy
+# auth middleware, so proxy-auth users would always get 401 from that route.
+@app.get("/users/me", response_model=UserRead, tags=["users"])
+async def get_current_user_me(user: User = Depends(current_active_user)):
+    return user
+
+
+@app.patch("/users/me", response_model=UserRead, tags=["users"])
+async def update_current_user_me(
+    request: Request,
+    user_update: UserUpdate,
+    user: User = Depends(current_active_user),
+    user_manager=Depends(get_user_manager),
+):
+    return await user_manager.update(user_update, user, safe=True, request=request)
+
+
 app.include_router(
     fastapi_users.get_users_router(UserRead, UserUpdate),
     prefix="/users",
     tags=["users"],
 )
 
+
 # Include custom auth routes (refresh token, logout)
 app.include_router(auth_router)
-
-if config.AUTH_TYPE == "GOOGLE":
-    from fastapi.responses import RedirectResponse
-
-    from app.users import google_oauth_client
-
-    # Determine if we're in a secure context (HTTPS) or local development (HTTP)
-    # The CSRF cookie must have secure=False for HTTP (localhost development)
-    is_secure_context = config.BACKEND_URL and config.BACKEND_URL.startswith("https://")
-
-    # For cross-origin OAuth (frontend and backend on different domains):
-    # - SameSite=None is required to allow cross-origin cookie setting
-    # - Secure=True is required when SameSite=None
-    # For same-origin or local development, use SameSite=Lax (default)
-    csrf_cookie_samesite = "none" if is_secure_context else "lax"
-
-    # Extract the domain from BACKEND_URL for cookie domain setting
-    # This helps with cross-site cookie issues in Firefox/Safari
-    csrf_cookie_domain = None
-    if config.BACKEND_URL:
-        from urllib.parse import urlparse
-
-        parsed_url = urlparse(config.BACKEND_URL)
-        csrf_cookie_domain = parsed_url.hostname
-
-    app.include_router(
-        fastapi_users.get_oauth_router(
-            google_oauth_client,
-            auth_backend,
-            SECRET,
-            is_verified_by_default=True,
-            csrf_token_cookie_secure=is_secure_context,
-            csrf_token_cookie_samesite=csrf_cookie_samesite,
-            csrf_token_cookie_httponly=False,  # Required for cross-site OAuth in Firefox/Safari
-        )
-        if not config.BACKEND_URL
-        else fastapi_users.get_oauth_router(
-            google_oauth_client,
-            auth_backend,
-            SECRET,
-            is_verified_by_default=True,
-            redirect_url=f"{config.BACKEND_URL}/auth/google/callback",
-            csrf_token_cookie_secure=is_secure_context,
-            csrf_token_cookie_samesite=csrf_cookie_samesite,
-            csrf_token_cookie_httponly=False,  # Required for cross-site OAuth in Firefox/Safari
-            csrf_token_cookie_domain=csrf_cookie_domain,  # Explicitly set cookie domain
-        ),
-        prefix="/auth/google",
-        tags=["auth"],
-        dependencies=[
-            Depends(registration_allowed)
-        ],  # blocks OAuth registration when disabled
-    )
-
-    # Add a redirect-based authorize endpoint for Firefox/Safari compatibility
-    # This endpoint performs a server-side redirect instead of returning JSON
-    # which fixes cross-site cookie issues where browsers don't send cookies
-    # set via cross-origin fetch requests on subsequent redirects
-    @app.get("/auth/google/authorize-redirect", tags=["auth"])
-    async def google_authorize_redirect(
-        request: Request,
-    ):
-        """
-        Redirect-based OAuth authorization endpoint.
-
-        Unlike the standard /auth/google/authorize endpoint that returns JSON,
-        this endpoint directly redirects the browser to Google's OAuth page.
-        This fixes CSRF cookie issues in Firefox and Safari where cookies set
-        via cross-origin fetch requests are not sent on subsequent redirects.
-        """
-        import secrets
-
-        from fastapi_users.router.oauth import generate_state_token
-
-        # Generate CSRF token
-        csrf_token = secrets.token_urlsafe(32)
-
-        # Build state token
-        state_data = {"csrftoken": csrf_token}
-        state = generate_state_token(state_data, SECRET, lifetime_seconds=3600)
-
-        # Get the callback URL
-        if config.BACKEND_URL:
-            redirect_url = f"{config.BACKEND_URL}/auth/google/callback"
-        else:
-            redirect_url = str(request.url_for("oauth:google.jwt.callback"))
-
-        # Get authorization URL from Google
-        authorization_url = await google_oauth_client.get_authorization_url(
-            redirect_url,
-            state,
-            scope=["openid", "email", "profile"],
-        )
-
-        # Create redirect response and set CSRF cookie
-        response = RedirectResponse(url=authorization_url, status_code=302)
-        response.set_cookie(
-            key="fastapiusersoauthcsrf",
-            value=csrf_token,
-            max_age=3600,
-            path="/",
-            domain=csrf_cookie_domain,
-            secure=is_secure_context,
-            httponly=False,  # Required for cross-site OAuth in Firefox/Safari
-            samesite=csrf_cookie_samesite,
-        )
-
-        return response
 
 
 app.include_router(crud_router, prefix="/api/v1", tags=["crud"])

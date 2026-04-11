@@ -66,9 +66,11 @@ class BaseApiService {
 			 * ----------
 			 */
 			const defaultOptions: RequestOptions = {
-				headers: {
-					Authorization: `Bearer ${this.bearerToken || ""}`,
-				},
+				headers: this.bearerToken
+					? {
+						Authorization: `Bearer ${this.bearerToken}`,
+					}
+					: {},
 				method: "GET",
 				responseType: ResponseType.JSON,
 			};
@@ -87,14 +89,13 @@ class BaseApiService {
 				throw new AppError("Base URL is not set.");
 			}
 
-			// Validate the bearer token
+			// Validate the bearer token — skip check when no token is present;
+			// the backend proxy-auth middleware handles authentication via
+			// the X-Auth-Request-Email header set by oauth2-proxy/Traefik.
 			const isNoAuthEndpoint =
 				this.noAuthEndpoints.includes(url) ||
 				this.noAuthPrefixes.some((prefix) => url.startsWith(prefix)) ||
 				/^\/api\/v1\/invites\/[^/]+\/info$/.test(url);
-			if (!this.bearerToken && !isNoAuthEndpoint) {
-				throw new AuthenticationError("You are not authenticated. Please login again.");
-			}
 
 			// Construct the full URL
 			const fullUrl = new URL(url, this.baseUrl).toString();
@@ -358,3 +359,4 @@ class BaseApiService {
 }
 
 export const baseApiService = new BaseApiService(process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "");
+

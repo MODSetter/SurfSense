@@ -311,6 +311,9 @@ class Config:
     AUTH_TYPE = os.getenv("AUTH_TYPE")
     REGISTRATION_ENABLED = os.getenv("REGISTRATION_ENABLED", "TRUE").upper() == "TRUE"
 
+    # Comma-separated path prefixes that bypass proxy auth (default: /health).
+    MPASS_BYPASS_PATHS = os.getenv("MPASS_BYPASS_PATHS", None)
+
     # Google OAuth
     GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
     GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
@@ -415,17 +418,26 @@ class Config:
     if AZURE_OPENAI_API_KEY:
         embedding_kwargs["azure_api_key"] = AZURE_OPENAI_API_KEY
 
-    embedding_model_instance = AutoEmbeddings.get_embeddings(
-        EMBEDDING_MODEL,
-        **embedding_kwargs,
-    )
+    # mPass patch: defer embedding model loading to first use so the container
+    # starts without the PyTorch/sentence-transformers memory spike.
+    # Routes that use embeddings (search, indexing) will trigger lazy init on
+    # first request. Auth/SSO routes are unaffected.
+    _embedding_kwargs = embedding_kwargs
+    _embedding_model_instance = None
+
+    @classmethod
+    def _get_embedding_model(cls):
+        if cls._embedding_model_instance is None:
+            cls._embedding_model_instance = AutoEmbeddings.get_embeddings(
+                cls.EMBEDDING_MODEL,
+                **cls._embedding_kwargs,
+            )
+        return cls._embedding_model_instance
+
+    embedding_model_instance = property(lambda self: self.__class__._get_embedding_model())
     is_local_embedding_model = "://" not in (EMBEDDING_MODEL or "")
-    chunker_instance = RecursiveChunker(
-        chunk_size=getattr(embedding_model_instance, "max_seq_length", 512)
-    )
-    code_chunker_instance = CodeChunker(
-        chunk_size=getattr(embedding_model_instance, "max_seq_length", 512)
-    )
+    chunker_instance = RecursiveChunker(chunk_size=512)
+    code_chunker_instance = CodeChunker(chunk_size=512)
 
     # Reranker's Configuration | Pinecone, Cohere etc. Read more at https://github.com/AnswerDotAI/rerankers?tab=readme-ov-file#usage
     RERANKERS_ENABLED = os.getenv("RERANKERS_ENABLED", "FALSE").upper() == "TRUE"

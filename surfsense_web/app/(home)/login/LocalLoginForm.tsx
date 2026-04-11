@@ -11,6 +11,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { getAuthErrorDetails, isNetworkError } from "@/lib/auth-errors";
 import { AUTH_TYPE } from "@/lib/env-config";
 import { ValidationError } from "@/lib/error";
+import { setBearerToken } from "@/lib/auth-utils";
 import { trackLoginAttempt, trackLoginFailure, trackLoginSuccess } from "@/lib/posthog/events";
 
 export function LocalLoginForm() {
@@ -46,14 +47,12 @@ export function LocalLoginForm() {
 			// Track successful login
 			trackLoginSuccess("local");
 
-			// Set flag so TokenHandler knows local login was already tracked
-			if (typeof window !== "undefined") {
-				sessionStorage.setItem("login_success_tracked", "true");
-			}
+			// Store token directly — no /auth/callback redirect needed
+			setBearerToken(data.access_token);
 
 			// Small delay to show success message
 			setTimeout(() => {
-				router.push(`/auth/callback?token=${data.access_token}`);
+				router.push("/dashboard");
 			}, 500);
 		} catch (err) {
 			if (err instanceof ValidationError) {

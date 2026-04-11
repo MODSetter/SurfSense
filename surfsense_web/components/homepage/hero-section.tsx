@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ExpandedMediaOverlay, useExpandedMedia } from "@/components/ui/expanded-gif-overlay";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { AUTH_TYPE, BACKEND_URL } from "@/lib/env-config";
+import { AUTH_TYPE, isSSOAuth } from "@/lib/env-config";
 import { trackLoginAttempt } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
 
@@ -171,22 +171,54 @@ export function HeroSection() {
 
 function GetStartedButton() {
 	const isGoogleAuth = AUTH_TYPE === "GOOGLE";
+	const isSSOAuthMode = isSSOAuth();
+	const isProxyLogin = isGoogleAuth || isSSOAuthMode;
 
-	const handleGoogleLogin = () => {
-		trackLoginAttempt("google");
-		window.location.href = `${BACKEND_URL}/auth/google/authorize-redirect`;
+	const handleProxyLogin = () => {
+		trackLoginAttempt(isSSOAuthMode ? "sso" : "google");
+		// Redirect to proxy-login — Traefik ForwardAuth triggers Cognito if needed,
+		// then the endpoint issues a JWT and redirects to /auth/callback.
+		window.location.href = `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/auth/jwt/proxy-login`;
 	};
 
-	if (isGoogleAuth) {
+	if (isProxyLogin) {
 		return (
 			<button
 				type="button"
-				onClick={handleGoogleLogin}
-				className="flex h-14 w-full cursor-pointer items-center justify-center gap-3 rounded-lg bg-white text-center text-base font-medium text-neutral-700 shadow-sm ring-1 shadow-black/10 ring-black/10 transition duration-150 active:scale-98 hover:bg-neutral-50 sm:w-56 dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-700/50 dark:hover:bg-neutral-800"
+				onClick={handleProxyLogin}
+				whileHover="hover"
+				whileTap={{ scale: 0.98 }}
+				initial="idle"
+				className="group relative z-20 flex h-11 w-full cursor-pointer items-center justify-center gap-3 overflow-hidden rounded-xl bg-white px-6 py-2.5 text-sm font-semibold text-neutral-700 shadow-lg ring-1 ring-neutral-200/50 transition-shadow duration-300 hover:shadow-xl sm:w-56 dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-700/50"
+				variants={{
+					idle: { scale: 1, y: 0 },
+					hover: { scale: 1.02, y: -2 },
+				}}
 			>
-				<GoogleLogo className="h-5 w-5" />
-				<span>Continue with Google</span>
-			</button>
+				{/* Animated gradient background on hover */}
+				<motion.div
+					className="absolute inset-0 bg-linear-to-r from-blue-50 via-green-50 to-yellow-50 dark:from-blue-950/30 dark:via-green-950/30 dark:to-yellow-950/30"
+					variants={{
+						idle: { opacity: 0 },
+						hover: { opacity: 1 },
+					}}
+					transition={{ duration: 0.3 }}
+				/>
+				{/* Show Google logo only for native Google OAuth, not SSO */}
+				{isGoogleAuth && (
+					<motion.div
+						className="relative"
+						variants={{
+							idle: { rotate: 0 },
+							hover: { rotate: [0, -8, 8, 0] },
+						}}
+						transition={{ duration: 0.4, ease: "easeInOut" }}
+					>
+						<GoogleLogo className="h-5 w-5" />
+					</motion.div>
+				)}
+				<span className="relative">{isGoogleAuth ? "Continue with Google" : "Sign In"}</span>
+			</motion.button>
 		);
 	}
 

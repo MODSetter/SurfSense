@@ -6,4 +6,6 @@ node_modules/
 .venv
 .pnpm-store
 .DS_Store
-deepagents/
+deepagents/.env.local
+.env.local
+.idea/
