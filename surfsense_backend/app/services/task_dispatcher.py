@@ -19,6 +19,7 @@ class TaskDispatcher(Protocol):
         search_space_id: int,
         user_id: str,
         should_summarize: bool = False,
+        use_vision_llm: bool = False,
     ) -> None: ...
 
 
@@ -34,6 +35,7 @@ class CeleryTaskDispatcher:
         search_space_id: int,
         user_id: str,
         should_summarize: bool = False,
+        use_vision_llm: bool = False,
     ) -> None:
         from app.tasks.celery_tasks.document_tasks import (
             process_file_upload_with_document_task,
@@ -46,6 +48,7 @@ class CeleryTaskDispatcher:
             search_space_id=search_space_id,
             user_id=user_id,
             should_summarize=should_summarize,
+            use_vision_llm=use_vision_llm,
         )
 
 

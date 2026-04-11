@@ -26,6 +26,7 @@ import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { useElectronAPI } from "@/hooks/use-platform";
+import { documentsApiService } from "@/lib/apis/documents-api.service";
 import {
 	trackDocumentUploadFailure,
 	trackDocumentUploadStarted,
@@ -48,6 +49,77 @@ interface FileWithId {
 	file: File;
 }
 
+interface FolderEntry {
+	id: string;
+	file: File;
+	relativePath: string;
+}
+
+interface FolderUploadData {
+	folderName: string;
+	entries: FolderEntry[];
+}
+
+interface FolderTreeNode {
+	name: string;
+	isFolder: boolean;
+	size?: number;
+	children: FolderTreeNode[];
+}
+
+function buildFolderTree(entries: FolderEntry[]): FolderTreeNode[] {
+	const root: FolderTreeNode = { name: "", isFolder: true, children: [] };
+
+	for (const entry of entries) {
+		const parts = entry.relativePath.split("/");
+		let current = root;
+
+		for (let i = 0; i < parts.length - 1; i++) {
+			let child = current.children.find((c) => c.name === parts[i] && c.isFolder);
+			if (!child) {
+				child = { name: parts[i], isFolder: true, children: [] };
+				current.children.push(child);
+			}
+			current = child;
+		}
+
+		current.children.push({
+			name: parts[parts.length - 1],
+			isFolder: false,
+			size: entry.file.size,
+			children: [],
+		});
+	}
+
+	function sortNodes(node: FolderTreeNode) {
+		node.children.sort((a, b) => {
+			if (a.isFolder !== b.isFolder) return a.isFolder ? -1 : 1;
+			return a.name.localeCompare(b.name);
+		});
+		for (const child of node.children) sortNodes(child);
+	}
+	sortNodes(root);
+
+	return root.children;
+}
+
+function flattenTree(
+	nodes: FolderTreeNode[],
+	depth = 0
+): { name: string; isFolder: boolean; depth: number; size?: number }[] {
+	const items: { name: string; isFolder: boolean; depth: number; size?: number }[] = [];
+	for (const node of nodes) {
+		items.push({ name: node.name, isFolder: node.isFolder, depth, size: node.size });
+		if (node.isFolder && node.children.length > 0) {
+			items.push(...flattenTree(node.children, depth + 1));
+		}
+	}
+	return items;
+}
+
+const FOLDER_BATCH_SIZE_BYTES = 20 * 1024 * 1024;
+const FOLDER_BATCH_MAX_FILES = 10;
+
 const MAX_FILE_SIZE_MB = 500;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
@@ -64,11 +136,14 @@ export function DocumentUploadTab({
 	const [uploadProgress, setUploadProgress] = useState(0);
 	const [accordionValue, setAccordionValue] = useState<string>("");
 	const [shouldSummarize, setShouldSummarize] = useState(false);
+	const [useVisionLlm, setUseVisionLlm] = useState(false);
 	const [uploadDocumentMutation] = useAtom(uploadDocumentMutationAtom);
 	const { mutate: uploadDocuments, isPending: isUploading } = uploadDocumentMutation;
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const folderInputRef = useRef<HTMLInputElement>(null);
 	const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+	const [folderUpload, setFolderUpload] = useState<FolderUploadData | null>(null);
+	const [isFolderUploading, setIsFolderUploading] = useState(false);
 
 	useEffect(() => {
 		return () => {
@@ -105,6 +180,7 @@ export function DocumentUploadTab({
 			const valid = incoming.filter((f) => f.size <= MAX_FILE_SIZE_BYTES);
 			if (valid.length === 0) return;
 
+			setFolderUpload(null);
 			setFiles((prev) => {
 				const newEntries = valid.map((f) => ({
 					id: crypto.randomUUID?.() ?? `file-${Date.now()}-${Math.random().toString(36)}`,
@@ -159,6 +235,7 @@ export function DocumentUploadTab({
 				file: new File([fd.data], fd.name, { type: fd.mimeType }),
 			})
 		);
+		setFolderUpload(null);
 		setFiles((prev) => [...prev, ...newFiles]);
 	}, [electronAPI, supportedExtensionsSet, t]);
 
@@ -167,18 +244,35 @@ export function DocumentUploadTab({
 			const fileList = e.target.files;
 			if (!fileList || fileList.length === 0) return;
 
-			const folderFiles = Array.from(fileList).filter((f) => {
-				const ext = f.name.includes(".") ? `.${f.name.split(".").pop()?.toLowerCase()}` : "";
-				return ext !== "" && supportedExtensionsSet.has(ext);
-			});
+			const allFiles = Array.from(fileList);
+			const firstPath = allFiles[0]?.webkitRelativePath || "";
+			const folderName = firstPath.split("/")[0];
 
-			if (folderFiles.length === 0) {
+			if (!folderName) {
+				addFiles(allFiles);
+				e.target.value = "";
+				return;
+			}
+
+			const entries: FolderEntry[] = allFiles
+				.filter((f) => {
+					const ext = f.name.includes(".") ? `.${f.name.split(".").pop()?.toLowerCase()}` : "";
+					return ext !== "" && supportedExtensionsSet.has(ext);
+				})
+				.map((f) => ({
+					id: crypto.randomUUID?.() ?? `file-${Date.now()}-${Math.random().toString(36)}`,
+					file: f,
+					relativePath: f.webkitRelativePath.substring(folderName.length + 1),
+				}));
+
+			if (entries.length === 0) {
 				toast.error(t("no_supported_files_in_folder"));
 				e.target.value = "";
 				return;
 			}
 
-			addFiles(folderFiles);
+			setFiles([]);
+			setFolderUpload({ folderName, entries });
 			e.target.value = "";
 		},
 		[addFiles, supportedExtensionsSet, t]
@@ -192,9 +286,18 @@ export function DocumentUploadTab({
 		return `${parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
 	};
 
-	const totalFileSize = files.reduce((total, entry) => total + entry.file.size, 0);
+	const totalFileSize = folderUpload
+		? folderUpload.entries.reduce((total, entry) => total + entry.file.size, 0)
+		: files.reduce((total, entry) => total + entry.file.size, 0);
 
-	const hasContent = files.length > 0;
+	const fileCount = folderUpload ? folderUpload.entries.length : files.length;
+	const hasContent = files.length > 0 || folderUpload !== null;
+	const isAnyUploading = isUploading || isFolderUploading;
+
+	const folderTreeItems = useMemo(() => {
+		if (!folderUpload) return [];
+		return flattenTree(buildFolderTree(folderUpload.entries));
+	}, [folderUpload]);
 
 	const handleAccordionChange = useCallback(
 		(value: string) => {
@@ -204,7 +307,95 @@ export function DocumentUploadTab({
 		[onAccordionStateChange]
 	);
 
+	const handleFolderUpload = async () => {
+		if (!folderUpload) return;
+
+		setUploadProgress(0);
+		setIsFolderUploading(true);
+		const total = folderUpload.entries.length;
+		trackDocumentUploadStarted(Number(searchSpaceId), total, totalFileSize);
+
+		try {
+			const batches: FolderEntry[][] = [];
+			let currentBatch: FolderEntry[] = [];
+			let currentSize = 0;
+
+			for (const entry of folderUpload.entries) {
+				const size = entry.file.size;
+
+				if (size >= FOLDER_BATCH_SIZE_BYTES) {
+					if (currentBatch.length > 0) {
+						batches.push(currentBatch);
+						currentBatch = [];
+						currentSize = 0;
+					}
+					batches.push([entry]);
+					continue;
+				}
+
+				if (
+					currentBatch.length >= FOLDER_BATCH_MAX_FILES ||
+					currentSize + size > FOLDER_BATCH_SIZE_BYTES
+				) {
+					batches.push(currentBatch);
+					currentBatch = [];
+					currentSize = 0;
+				}
+
+				currentBatch.push(entry);
+				currentSize += size;
+			}
+
+			if (currentBatch.length > 0) {
+				batches.push(currentBatch);
+			}
+
+			let rootFolderId: number | null = null;
+			let uploaded = 0;
+
+			for (const batch of batches) {
+				const result = await documentsApiService.folderUploadFiles(
+					batch.map((e) => e.file),
+					{
+						folder_name: folderUpload.folderName,
+						search_space_id: Number(searchSpaceId),
+						relative_paths: batch.map((e) => e.relativePath),
+						root_folder_id: rootFolderId,
+						enable_summary: shouldSummarize,
+						use_vision_llm: useVisionLlm,
+					}
+				);
+
+				if (result.root_folder_id && !rootFolderId) {
+					rootFolderId = result.root_folder_id;
+				}
+
+				uploaded += batch.length;
+				setUploadProgress(Math.round((uploaded / total) * 100));
+			}
+
+			trackDocumentUploadSuccess(Number(searchSpaceId), total);
+			toast(t("upload_initiated"), { description: t("upload_initiated_desc") });
+			setFolderUpload(null);
+			onSuccess?.();
+		} catch (error) {
+			const message = error instanceof Error ? error.message : "Upload failed";
+			trackDocumentUploadFailure(Number(searchSpaceId), message);
+			toast(t("upload_error"), {
+				description: `${t("upload_error_desc")}: ${message}`,
+			});
+		} finally {
+			setIsFolderUploading(false);
+			setUploadProgress(0);
+		}
+	};
+
 	const handleUpload = async () => {
+		if (folderUpload) {
+			await handleFolderUpload();
+			return;
+		}
+
 		setUploadProgress(0);
 		trackDocumentUploadStarted(Number(searchSpaceId), files.length, totalFileSize);
 
@@ -218,6 +409,7 @@ export function DocumentUploadTab({
 				files: rawFiles,
 				search_space_id: Number(searchSpaceId),
 				should_summarize: shouldSummarize,
+				use_vision_llm: useVisionLlm,
 			},
 			{
 				onSuccess: () => {
@@ -341,28 +533,35 @@ export function DocumentUploadTab({
 						</button>
 					)
 				) : (
-					<button
-						type="button"
-						className="flex flex-col items-center gap-4 py-12 px-4 cursor-pointer w-full bg-transparent border-none"
-						onClick={() => {
+				<div
+					role="button"
+					tabIndex={0}
+					className="flex flex-col items-center gap-4 py-12 px-4 cursor-pointer w-full bg-transparent outline-none select-none"
+					onClick={() => {
+						if (!isElectron) fileInputRef.current?.click();
+					}}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
 							if (!isElectron) fileInputRef.current?.click();
-						}}
+						}
+					}}
+				>
+					<Upload className="h-10 w-10 text-muted-foreground" />
+					<div className="text-center space-y-1.5">
+						<p className="text-base font-medium">
+							{isElectron ? t("select_files_or_folder") : t("tap_select_files_or_folder")}
+						</p>
+						<p className="text-sm text-muted-foreground">{t("file_size_limit")}</p>
+					</div>
+					<fieldset
+						className="w-full mt-1 border-none p-0 m-0"
+						onClick={(e) => e.stopPropagation()}
+						onKeyDown={(e) => e.stopPropagation()}
 					>
-						<Upload className="h-10 w-10 text-muted-foreground" />
-						<div className="text-center space-y-1.5">
-							<p className="text-base font-medium">
-								{isElectron ? "Select files or folder" : "Tap to select files or folder"}
-							</p>
-							<p className="text-sm text-muted-foreground">{t("file_size_limit")}</p>
-						</div>
-						<fieldset
-							className="w-full mt-1 border-none p-0 m-0"
-							onClick={(e) => e.stopPropagation()}
-							onKeyDown={(e) => e.stopPropagation()}
-						>
-							{renderBrowseButton({ fullWidth: true })}
-						</fieldset>
-					</button>
+						{renderBrowseButton({ fullWidth: true })}
+					</fieldset>
+				</div>
 				)}
 			</div>
 
@@ -398,55 +597,92 @@ export function DocumentUploadTab({
 			</div>
 
 			{/* FILES SELECTED */}
-			{files.length > 0 && (
+			{hasContent && (
 				<div className="rounded-lg border border-border p-3 space-y-2">
 					<div className="flex items-center justify-between">
 						<p className="text-sm font-medium">
-							{t("selected_files", { count: files.length })}
-							<Dot className="inline h-4 w-4" />
-							{formatFileSize(totalFileSize)}
+							{folderUpload ? (
+								<>
+									<FolderOpen className="inline h-4 w-4 mr-1 -mt-0.5" />
+									{folderUpload.folderName}
+									<Dot className="inline h-4 w-4" />
+									{folderUpload.entries.length}{" "}
+									{folderUpload.entries.length === 1 ? "file" : "files"}
+									<Dot className="inline h-4 w-4" />
+									{formatFileSize(totalFileSize)}
+								</>
+							) : (
+								<>
+									{t("selected_files", { count: files.length })}
+									<Dot className="inline h-4 w-4" />
+									{formatFileSize(totalFileSize)}
+								</>
+							)}
 						</p>
 						<Button
 							variant="ghost"
 							size="sm"
 							className="h-7 text-xs text-muted-foreground hover:text-foreground"
-							onClick={() => setFiles([])}
-							disabled={isUploading}
+							onClick={() => {
+								setFiles([]);
+								setFolderUpload(null);
+							}}
+							disabled={isAnyUploading}
 						>
 							{t("clear_all")}
 						</Button>
 					</div>
 
 					<div className="max-h-[160px] sm:max-h-[200px] overflow-y-auto -mx-1">
-						{files.map((entry) => (
-							<div
-								key={entry.id}
-								className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-slate-400/5 dark:hover:bg-white/5 group"
-							>
-								<span className="text-[10px] font-medium uppercase leading-none bg-muted px-1.5 py-0.5 rounded text-muted-foreground shrink-0">
-									{entry.file.name.split(".").pop() || "?"}
-								</span>
-								<span className="text-sm truncate flex-1 min-w-0">{entry.file.name}</span>
-								<span className="text-xs text-muted-foreground shrink-0">
-									{formatFileSize(entry.file.size)}
-								</span>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-6 w-6 shrink-0"
-									onClick={() => setFiles((prev) => prev.filter((e) => e.id !== entry.id))}
-									disabled={isUploading}
-								>
-									<X className="h-3 w-3" />
-								</Button>
-							</div>
-						))}
+						{folderUpload
+							? folderTreeItems.map((item, i) => (
+									<div
+										key={`${item.depth}-${i}-${item.name}`}
+										className="flex items-center gap-1.5 py-0.5 px-2"
+										style={{ paddingLeft: `${item.depth * 16 + 8}px` }}
+									>
+										{item.isFolder ? (
+											<FolderOpen className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+										) : (
+											<FileIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+										)}
+										<span className="text-sm truncate flex-1 min-w-0">{item.name}</span>
+										{!item.isFolder && item.size != null && (
+											<span className="text-xs text-muted-foreground shrink-0">
+												{formatFileSize(item.size)}
+											</span>
+										)}
+									</div>
+								))
+							: files.map((entry) => (
+									<div
+										key={entry.id}
+										className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-slate-400/5 dark:hover:bg-white/5 group"
+									>
+										<span className="text-[10px] font-medium uppercase leading-none bg-muted px-1.5 py-0.5 rounded text-muted-foreground shrink-0">
+											{entry.file.name.split(".").pop() || "?"}
+										</span>
+										<span className="text-sm truncate flex-1 min-w-0">{entry.file.name}</span>
+										<span className="text-xs text-muted-foreground shrink-0">
+											{formatFileSize(entry.file.size)}
+										</span>
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-6 w-6 shrink-0"
+											onClick={() => setFiles((prev) => prev.filter((e) => e.id !== entry.id))}
+											disabled={isAnyUploading}
+										>
+											<X className="h-3 w-3" />
+										</Button>
+									</div>
+								))}
 					</div>
 
-					{isUploading && (
+					{isAnyUploading && (
 						<div className="space-y-1">
 							<div className="flex items-center justify-between text-xs">
-								<span>{t("uploading_files")}</span>
+								<span>{folderUpload ? t("uploading_folder") : t("uploading_files")}</span>
 								<span>{Math.round(uploadProgress)}%</span>
 							</div>
 							<Progress value={uploadProgress} className="h-1.5" />
@@ -463,19 +699,31 @@ export function DocumentUploadTab({
 						<Switch checked={shouldSummarize} onCheckedChange={setShouldSummarize} />
 					</div>
 
+					<div className={toggleRowClass}>
+						<div className="space-y-0.5">
+							<p className="font-medium text-sm">Enable Vision LLM</p>
+							<p className="text-xs text-muted-foreground">
+								Describes images using AI vision (costly, slower)
+							</p>
+						</div>
+						<Switch checked={useVisionLlm} onCheckedChange={setUseVisionLlm} />
+					</div>
+
 					<Button
 						className="w-full"
 						onClick={handleUpload}
-						disabled={isUploading || files.length === 0}
+						disabled={isAnyUploading || fileCount === 0}
 					>
-						{isUploading ? (
+						{isAnyUploading ? (
 							<span className="flex items-center gap-2">
 								<Spinner size="sm" />
 								{t("uploading")}
 							</span>
 						) : (
 							<span className="flex items-center gap-2">
-								{t("upload_button", { count: files.length })}
+								{folderUpload
+									? t("upload_folder_button", { count: fileCount })
+									: t("upload_button", { count: fileCount })}
 							</span>
 						)}
 					</Button>

@@ -44,6 +44,7 @@ interface FolderTreeViewProps {
 	watchedFolderIds?: Set<number>;
 	onRescanFolder?: (folder: FolderDisplay) => void;
 	onStopWatchingFolder?: (folder: FolderDisplay) => void;
+	onExportFolder?: (folder: FolderDisplay) => void;
 }
 
 function groupBy<T>(items: T[], keyFn: (item: T) => string | number): Record<string | number, T[]> {
@@ -81,6 +82,7 @@ export function FolderTreeView({
 	watchedFolderIds,
 	onRescanFolder,
 	onStopWatchingFolder,
+	onExportFolder,
 }: FolderTreeViewProps) {
 	const foldersByParent = useMemo(() => groupBy(folders, (f) => f.parentId ?? "root"), [folders]);
 
@@ -259,6 +261,7 @@ export function FolderTreeView({
 					isWatched={watchedFolderIds?.has(f.id)}
 					onRescan={onRescanFolder}
 					onStopWatching={onStopWatchingFolder}
+					onExportFolder={onExportFolder}
 				/>
 			);
 

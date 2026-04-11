@@ -148,6 +148,7 @@ export const uploadDocumentRequest = z.object({
 	files: z.array(z.instanceof(File)),
 	search_space_id: z.number(),
 	should_summarize: z.boolean().default(false),
+	use_vision_llm: z.boolean().default(false),
 });
 
 export const uploadDocumentResponse = z.object({

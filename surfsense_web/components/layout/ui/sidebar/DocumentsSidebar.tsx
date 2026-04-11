@@ -406,6 +406,160 @@ export function DocumentsSidebar({
 		setFolderPickerOpen(true);
 	}, []);
 
+	const [isExportingKB, setIsExportingKB] = useState(false);
+	const [exportWarningOpen, setExportWarningOpen] = useState(false);
+	const [exportWarningContext, setExportWarningContext] = useState<{
+		type: "kb" | "folder";
+		folder?: FolderDisplay;
+		pendingCount: number;
+	} | null>(null);
+
+	const pendingDocuments = useMemo(
+		() =>
+			treeDocuments.filter(
+				(d) => d.status?.state === "pending" || d.status?.state === "processing"
+			),
+		[treeDocuments]
+	);
+
+	const doExport = useCallback(async (url: string, downloadName: string) => {
+		const response = await authenticatedFetch(url, { method: "GET" });
+		if (!response.ok) {
+			const errorData = await response.json().catch(() => ({ detail: "Export failed" }));
+			throw new Error(errorData.detail || "Export failed");
+		}
+
+		const blob = await response.blob();
+		const blobUrl = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = blobUrl;
+		a.download = downloadName;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(blobUrl);
+	}, []);
+
+	const handleExportKB = useCallback(async () => {
+		if (isExportingKB) return;
+
+		if (pendingDocuments.length > 0) {
+			setExportWarningContext({ type: "kb", pendingCount: pendingDocuments.length });
+			setExportWarningOpen(true);
+			return;
+		}
+
+		setIsExportingKB(true);
+		try {
+			await doExport(
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/export`,
+				"knowledge-base.zip"
+			);
+			toast.success("Knowledge base exported");
+		} catch (err) {
+			console.error("KB export failed:", err);
+			toast.error(err instanceof Error ? err.message : "Export failed");
+		} finally {
+			setIsExportingKB(false);
+		}
+	}, [searchSpaceId, isExportingKB, pendingDocuments.length, doExport]);
+
+	const handleExportWarningConfirm = useCallback(async () => {
+		setExportWarningOpen(false);
+		const ctx = exportWarningContext;
+		if (!ctx) return;
+
+		if (ctx.type === "kb") {
+			setIsExportingKB(true);
+			try {
+				await doExport(
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/export`,
+					"knowledge-base.zip"
+				);
+				toast.success("Knowledge base exported");
+			} catch (err) {
+				console.error("KB export failed:", err);
+				toast.error(err instanceof Error ? err.message : "Export failed");
+			} finally {
+				setIsExportingKB(false);
+			}
+		} else if (ctx.type === "folder" && ctx.folder) {
+			setIsExportingKB(true);
+			try {
+				const safeName =
+					ctx.folder.name
+						.replace(/[^a-zA-Z0-9 _-]/g, "_")
+						.trim()
+						.slice(0, 80) || "folder";
+				await doExport(
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/export?folder_id=${ctx.folder.id}`,
+					`${safeName}.zip`
+				);
+				toast.success(`Folder "${ctx.folder.name}" exported`);
+			} catch (err) {
+				console.error("Folder export failed:", err);
+				toast.error(err instanceof Error ? err.message : "Export failed");
+			} finally {
+				setIsExportingKB(false);
+			}
+		}
+		setExportWarningContext(null);
+	}, [exportWarningContext, searchSpaceId, doExport]);
+
+	const getPendingCountInSubtree = useCallback(
+		(folderId: number): number => {
+			const subtreeIds = new Set<number>();
+			function collect(id: number) {
+				subtreeIds.add(id);
+				for (const child of foldersByParent[String(id)] ?? []) {
+					collect(child.id);
+				}
+			}
+			collect(folderId);
+			return treeDocuments.filter(
+				(d) =>
+					subtreeIds.has(d.folderId ?? -1) &&
+					(d.status?.state === "pending" || d.status?.state === "processing")
+			).length;
+		},
+		[foldersByParent, treeDocuments]
+	);
+
+	const handleExportFolder = useCallback(
+		async (folder: FolderDisplay) => {
+			const folderPendingCount = getPendingCountInSubtree(folder.id);
+			if (folderPendingCount > 0) {
+				setExportWarningContext({
+					type: "folder",
+					folder,
+					pendingCount: folderPendingCount,
+				});
+				setExportWarningOpen(true);
+				return;
+			}
+
+			setIsExportingKB(true);
+			try {
+				const safeName =
+					folder.name
+						.replace(/[^a-zA-Z0-9 _-]/g, "_")
+						.trim()
+						.slice(0, 80) || "folder";
+				await doExport(
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/export?folder_id=${folder.id}`,
+					`${safeName}.zip`
+				);
+				toast.success(`Folder "${folder.name}" exported`);
+			} catch (err) {
+				console.error("Folder export failed:", err);
+				toast.error(err instanceof Error ? err.message : "Export failed");
+			} finally {
+				setIsExportingKB(false);
+			}
+		},
+		[searchSpaceId, getPendingCountInSubtree, doExport]
+	);
+
 	const handleExportDocument = useCallback(
 		async (doc: DocumentNodeDoc, format: string) => {
 			const safeTitle =
@@ -800,6 +954,8 @@ export function DocumentsSidebar({
 						onToggleType={onToggleType}
 						activeTypes={activeTypes}
 						onCreateFolder={() => handleCreateFolder(null)}
+						onExportKB={handleExportKB}
+						isExporting={isExportingKB}
 					/>
 				</div>
 
@@ -855,6 +1011,7 @@ export function DocumentsSidebar({
 						watchedFolderIds={watchedFolderIds}
 						onRescanFolder={handleRescanFolder}
 						onStopWatchingFolder={handleStopWatching}
+						onExportFolder={handleExportFolder}
 					/>
 				</div>
 			</div>
@@ -929,6 +1086,33 @@ export function DocumentsSidebar({
 						>
 							<span className={isBulkDeleting ? "opacity-0" : ""}>Delete</span>
 							{isBulkDeleting && <Spinner size="sm" className="absolute" />}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+
+			<AlertDialog
+				open={exportWarningOpen}
+				onOpenChange={(open) => {
+					if (!open) {
+						setExportWarningOpen(false);
+						setExportWarningContext(null);
+					}
+				}}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Some documents are still processing</AlertDialogTitle>
+						<AlertDialogDescription>
+							{exportWarningContext?.pendingCount} document
+							{exportWarningContext?.pendingCount !== 1 ? "s are" : " is"} currently being processed
+							and will be excluded from the export. Do you want to continue?
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction onClick={handleExportWarningConfirm}>
+							Export anyway
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
