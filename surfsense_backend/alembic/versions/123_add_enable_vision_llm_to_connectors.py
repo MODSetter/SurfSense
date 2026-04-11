@@ -1,7 +1,7 @@
-"""121_add_enable_vision_llm_to_connectors
+"""123_add_enable_vision_llm_to_connectors
 
-Revision ID: 121
-Revises: 120
+Revision ID: 123
+Revises: 122
 Create Date: 2026-04-09
 
 Adds enable_vision_llm boolean column to search_source_connectors.
@@ -17,8 +17,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "121"
-down_revision: str | None = "120"
+revision: str = "123"
+down_revision: str | None = "122"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
