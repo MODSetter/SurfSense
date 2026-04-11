@@ -92,6 +92,10 @@ export const cacheKeys = {
 	publicChat: {
 		byToken: (shareToken: string) => ["public-chat", shareToken] as const,
 	},
+	github: {
+		repoStars: (username: string, repo: string) =>
+			["github", "repo-stars", username, repo] as const,
+	},
 	publicChatSnapshots: {
 		all: ["public-chat-snapshots"] as const,
 		bySearchSpace: (searchSpaceId: number) =>

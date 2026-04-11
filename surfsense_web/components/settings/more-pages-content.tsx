@@ -113,11 +113,11 @@ export function MorePagesContent() {
 				{isLoading ? (
 					<Card>
 						<CardContent className="flex items-center gap-3 p-3">
-							<Skeleton className="h-8 w-8 rounded-full bg-muted" />
+							<Skeleton className="h-8 w-8 rounded-full" />
 							<div className="flex-1 space-y-2">
-								<Skeleton className="h-4 w-3/4 bg-muted" />
+								<Skeleton className="h-4 w-3/4" />
 							</div>
-							<Skeleton className="h-8 w-16 bg-muted" />
+							<Skeleton className="h-8 w-16" />
 						</CardContent>
 					</Card>
 				) : (

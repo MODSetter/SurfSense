@@ -697,6 +697,7 @@
 		"learn_more": "Más información",
 		"documentation": "Documentación",
 		"github": "GitHub",
+		"download_for_os": "Descargar para {os}",
 		"inbox": "Bandeja de entrada",
 		"search_inbox": "Buscar en bandeja de entrada",
 		"mark_all_read": "Marcar todo como leído",

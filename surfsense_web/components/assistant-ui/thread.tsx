@@ -77,6 +77,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
@@ -92,7 +93,7 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { cn } from "@/lib/utils";
 
-const COMPOSER_PLACEHOLDER = "Ask anything · Type / for prompts · Type @ to mention docs";
+const COMPOSER_PLACEHOLDER = "Ask anything, type / for prompts, type @ to mention docs";
 
 export const Thread: FC = () => {
 	return <ThreadContent />;
@@ -804,7 +805,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const isDesktop = useMediaQuery("(min-width: 640px)");
 	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
 	const [toolsScrollPos, setToolsScrollPos] = useState<"top" | "middle" | "bottom">("top");
-	const toolsRafRef = useRef<number>();
+	const toolsRafRef = useRef<number | undefined>(undefined);
 	const handleToolsScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
 		const el = e.currentTarget;
 		if (toolsRafRef.current) return;
@@ -1021,8 +1022,23 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 										</div>
 									)}
 									{!filteredTools?.length && (
-										<div className="px-4 py-6 text-center text-sm text-muted-foreground">
-											Loading tools...
+										<div className="px-4 pt-3 pb-2">
+											<Skeleton className="h-3 w-16 mb-2" />
+											{["t1", "t2", "t3", "t4"].map((k) => (
+												<div key={k} className="flex items-center gap-3 py-2">
+													<Skeleton className="size-4 rounded shrink-0" />
+													<Skeleton className="h-3.5 flex-1" />
+													<Skeleton className="h-5 w-9 rounded-full shrink-0" />
+												</div>
+											))}
+											<Skeleton className="h-3 w-24 mt-3 mb-2" />
+											{["c1", "c2", "c3"].map((k) => (
+												<div key={k} className="flex items-center gap-3 py-2">
+													<Skeleton className="size-4 rounded shrink-0" />
+													<Skeleton className="h-3.5 flex-1" />
+													<Skeleton className="h-5 w-9 rounded-full shrink-0" />
+												</div>
+											))}
 										</div>
 									)}
 								</div>
@@ -1058,12 +1074,12 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							side="bottom"
 							align="start"
 							sideOffset={12}
-							className="w-[calc(100vw-2rem)] max-w-56 sm:max-w-72 sm:w-72 p-0 select-none"
+							className="w-[calc(100vw-2rem)] max-w-48 sm:max-w-56 sm:w-56 p-0 select-none"
 							onOpenAutoFocus={(e) => e.preventDefault()}
 						>
 							<div className="sr-only">Manage Tools</div>
 							<div
-								className="max-h-48 sm:max-h-64 overflow-y-auto overscroll-none py-0.5 sm:py-1"
+								className="max-h-44 sm:max-h-56 overflow-y-auto overscroll-none py-0.5"
 								onScroll={handleToolsScroll}
 								style={{
 									maskImage: `linear-gradient(to bottom, ${toolsScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${toolsScrollPos === "bottom" ? "black" : "transparent"})`,
@@ -1074,22 +1090,22 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									.filter((g) => !g.connectorIcon)
 									.map((group) => (
 										<div key={group.label}>
-											<div className="px-2.5 sm:px-3 pt-2 pb-0.5 text-[10px] sm:text-xs text-muted-foreground/80 font-normal select-none">
+											<div className="px-2 sm:px-2.5 pt-1.5 pb-0.5 text-[9px] sm:text-[10px] text-muted-foreground/80 font-normal select-none">
 												{group.label}
 											</div>
 											{group.tools.map((tool) => {
 												const isDisabled = disabledToolsSet.has(tool.name);
 												const ToolIcon = getToolIcon(tool.name);
 												const row = (
-													<div className="flex w-full items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-1 sm:py-1.5 hover:bg-muted-foreground/10 transition-colors">
-														<ToolIcon className="size-3.5 sm:size-4 shrink-0 text-muted-foreground" />
-														<span className="flex-1 min-w-0 text-xs sm:text-sm font-medium truncate">
+													<div className="flex w-full items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-0.5 sm:py-1 hover:bg-muted-foreground/10 transition-colors">
+														<ToolIcon className="size-3 sm:size-3.5 shrink-0 text-muted-foreground" />
+														<span className="flex-1 min-w-0 text-[11px] sm:text-xs font-medium truncate">
 															{formatToolName(tool.name)}
 														</span>
 														<Switch
 															checked={!isDisabled}
 															onCheckedChange={() => toggleTool(tool.name)}
-															className="shrink-0 scale-[0.6] sm:scale-75"
+															className="shrink-0 scale-50 sm:scale-[0.6]"
 														/>
 													</div>
 												);
@@ -1106,7 +1122,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									))}
 								{groupedTools.some((g) => g.connectorIcon) && (
 									<div>
-										<div className="px-2.5 sm:px-3 pt-2 pb-0.5 text-[10px] sm:text-xs text-muted-foreground/80 font-normal select-none">
+										<div className="px-2 sm:px-2.5 pt-1.5 pb-0.5 text-[9px] sm:text-[10px] text-muted-foreground/80 font-normal select-none">
 											Connector Actions
 										</div>
 										{groupedTools
@@ -1118,26 +1134,26 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 												const allDisabled = toolNames.every((n) => disabledToolsSet.has(n));
 												const groupDef = TOOL_GROUPS.find((g) => g.label === group.label);
 												const row = (
-													<div className="flex w-full items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-1 sm:py-1.5 hover:bg-muted-foreground/10 transition-colors">
+													<div className="flex w-full items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-0.5 sm:py-1 hover:bg-muted-foreground/10 transition-colors">
 														{iconInfo ? (
 															<Image
 																src={iconInfo.src}
 																alt={iconInfo.alt}
-																width={16}
-																height={16}
-																className="size-3.5 sm:size-4 shrink-0 select-none pointer-events-none"
+																width={14}
+																height={14}
+																className="size-3 sm:size-3.5 shrink-0 select-none pointer-events-none"
 																draggable={false}
 															/>
 														) : (
-															<Wrench className="size-3.5 sm:size-4 shrink-0 text-muted-foreground" />
+															<Wrench className="size-3 sm:size-3.5 shrink-0 text-muted-foreground" />
 														)}
-														<span className="flex-1 min-w-0 text-xs sm:text-sm font-medium truncate">
+														<span className="flex-1 min-w-0 text-[11px] sm:text-xs font-medium truncate">
 															{group.label}
 														</span>
 														<Switch
 															checked={!allDisabled}
 															onCheckedChange={() => toggleToolGroup(toolNames)}
-															className="shrink-0 scale-[0.6] sm:scale-75"
+															className="shrink-0 scale-50 sm:scale-[0.6]"
 														/>
 													</div>
 												);
@@ -1158,8 +1174,23 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									</div>
 								)}
 								{!filteredTools?.length && (
-									<div className="px-3 py-4 text-center text-xs text-muted-foreground">
-										Loading tools...
+									<div className="px-2 sm:px-2.5 pt-1.5 pb-1">
+										<Skeleton className="h-2 w-12 mb-1.5" />
+										{["dt1", "dt2", "dt3", "dt4"].map((k) => (
+											<div key={k} className="flex items-center gap-1.5 sm:gap-2 py-0.5 sm:py-1">
+												<Skeleton className="size-3 sm:size-3.5 rounded shrink-0" />
+												<Skeleton className="h-2.5 sm:h-3 flex-1" />
+												<Skeleton className="h-3.5 sm:h-4 w-7 sm:w-8 rounded-full shrink-0" />
+											</div>
+										))}
+										<Skeleton className="h-2 w-20 mt-2 mb-1.5" />
+										{["dc1", "dc2", "dc3"].map((k) => (
+											<div key={k} className="flex items-center gap-1.5 sm:gap-2 py-0.5 sm:py-1">
+												<Skeleton className="size-3 sm:size-3.5 rounded shrink-0" />
+												<Skeleton className="h-2.5 sm:h-3 flex-1" />
+												<Skeleton className="h-3.5 sm:h-4 w-7 sm:w-8 rounded-full shrink-0" />
+											</div>
+										))}
 									</div>
 								)}
 							</div>
@@ -1297,7 +1328,7 @@ const TOOL_GROUPS: ToolGroup[] = [
 	},
 	{
 		label: "Memory",
-		tools: ["save_memory", "recall_memory"],
+		tools: ["update_memory"],
 	},
 	{
 		label: "Gmail",

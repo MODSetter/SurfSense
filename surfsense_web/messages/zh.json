@@ -681,6 +681,7 @@
 		"learn_more": "了解更多",
 		"documentation": "文档",
 		"github": "GitHub",
+		"download_for_os": "下载 {os} 版本",
 		"inbox": "收件箱",
 		"search_inbox": "搜索收件箱",
 		"mark_all_read": "全部标记为已读",

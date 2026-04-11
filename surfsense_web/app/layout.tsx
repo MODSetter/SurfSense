@@ -38,7 +38,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
 	title: "SurfSense - Open Source NotebookLM Alternative for Teams",
 	description:
-		"Connect any LLM to your internal knowledge sources and chat with it in real time alongside your team. SurfSense is an open source alternative to NotebookLM, built for enterprise AI search and knowledge management.",
+		"An open source, privacy focused alternative to NotebookLM for teams with no data limits, built for enterprise AI search and knowledge management.",
 	keywords: [
 		"enterprise ai",
 		"enterprise search",
@@ -85,7 +85,7 @@ export const metadata: Metadata = {
 	openGraph: {
 		title: "SurfSense - Open Source NotebookLM Alternative for Teams",
 		description:
-			"Connect any LLM to your internal knowledge sources and chat with it in real time alongside your team. Open source enterprise AI search and knowledge management.",
+			"An open source, privacy focused alternative to NotebookLM for teams with no data limits. Open source enterprise AI search and knowledge management.",
 		url: "https://surfsense.com",
 		siteName: "SurfSense",
 		type: "website",
@@ -103,7 +103,7 @@ export const metadata: Metadata = {
 		card: "summary_large_image",
 		title: "SurfSense - Open Source NotebookLM Alternative for Teams",
 		description:
-			"Connect any LLM to your internal knowledge sources and chat with it in real time alongside your team. Open source enterprise AI search and knowledge management.",
+			"An open source, privacy focused alternative to NotebookLM for teams with no data limits. Open source enterprise AI search and knowledge management.",
 		creator: "https://surfsense.com",
 		site: "https://surfsense.com",
 		images: [

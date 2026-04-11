@@ -37,6 +37,10 @@ from app.agents.new_chat.llm_config import (
     load_agent_config,
     load_llm_config_from_yaml,
 )
+from app.agents.new_chat.memory_extraction import (
+    extract_and_save_memory,
+    extract_and_save_team_memory,
+)
 from app.db import (
     ChatVisibility,
     NewChatMessage,
@@ -58,8 +62,6 @@ from app.utils.content_utils import bootstrap_history_from_db
 from app.utils.perf import get_perf_logger, log_system_snapshot, trim_native_heap
 
 _perf_log = get_perf_logger()
-
-_background_tasks: set[asyncio.Task] = set()
 
 
 def format_mentioned_surfsense_docs_as_context(
@@ -141,6 +143,7 @@ class StreamResult:
     is_interrupted: bool = False
     interrupt_value: dict[str, Any] | None = None
     sandbox_files: list[str] = field(default_factory=list)  # unused, kept for compat
+    agent_called_update_memory: bool = False
 
 
 async def _stream_agent_events(
@@ -183,6 +186,7 @@ async def _stream_agent_events(
     last_active_step_items: list[str] = initial_step_items or []
     just_finished_tool: bool = False
     active_tool_depth: int = 0  # Track nesting: >0 means we're inside a tool
+    called_update_memory: bool = False
 
     def next_thinking_step_id() -> str:
         nonlocal thinking_step_counter
@@ -489,6 +493,9 @@ async def _stream_agent_events(
             run_id = event.get("run_id", "")
             tool_name = event.get("name", "unknown_tool")
             raw_output = event.get("data", {}).get("output", "")
+
+            if tool_name == "update_memory":
+                called_update_memory = True
 
             if hasattr(raw_output, "content"):
                 content = raw_output.content
@@ -1111,6 +1118,7 @@ async def _stream_agent_events(
         yield completion_event
 
     result.accumulated_text = accumulated_text
+    result.agent_called_update_memory = called_update_memory
 
     state = await agent.aget_state(config)
     is_interrupted = state.tasks and any(task.interrupts for task in state.tasks)
@@ -1538,6 +1546,27 @@ async def stream_new_chat(
                         await title_session.commit()
                 yield streaming_service.format_thread_title_update(
                     chat_id, generated_title
+                )
+
+        # Fire background memory extraction if the agent didn't handle it.
+        # Shared threads write to team memory; private threads write to user memory.
+        if not stream_result.agent_called_update_memory:
+            if visibility == ChatVisibility.SEARCH_SPACE:
+                asyncio.create_task(
+                    extract_and_save_team_memory(
+                        user_message=user_query,
+                        search_space_id=search_space_id,
+                        llm=llm,
+                        author_display_name=current_user_display_name,
+                    )
+                )
+            elif user_id:
+                asyncio.create_task(
+                    extract_and_save_memory(
+                        user_message=user_query,
+                        user_id=user_id,
+                        llm=llm,
+                    )
                 )
 
         # Finish the step and message

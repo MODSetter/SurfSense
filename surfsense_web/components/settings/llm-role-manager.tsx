@@ -10,7 +10,6 @@ import {
 	FileText,
 	ImageIcon,
 	RefreshCw,
-	Shuffle,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -44,7 +43,6 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { getProviderIcon } from "@/lib/provider-icons";
 import { cn } from "@/lib/utils";
 
 const ROLE_DESCRIPTIONS = {
@@ -79,8 +77,8 @@ const ROLE_DESCRIPTIONS = {
 		icon: Eye,
 		title: "Vision LLM",
 		description: "Vision-capable model for screenshot analysis and context extraction",
-		color: "text-amber-600 dark:text-amber-400",
-		bgColor: "bg-amber-500/10",
+		color: "text-muted-foreground",
+		bgColor: "bg-muted",
 		prefKey: "vision_llm_config_id" as const,
 		configType: "vision" as const,
 	},
@@ -205,11 +203,6 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		),
 	];
 
-	const isAssignmentComplete =
-		allLLMConfigs.some((c) => c.id === assignments.agent_llm_id) &&
-		allLLMConfigs.some((c) => c.id === assignments.document_summary_llm_id) &&
-		allImageConfigs.some((c) => c.id === assignments.image_generation_config_id);
-
 	const isLoading =
 		configsLoading ||
 		preferencesLoading ||
@@ -231,7 +224,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 	return (
 		<div className="space-y-5 md:space-y-6">
 			{/* Header actions */}
-			<div className="flex items-center justify-between">
+			<div className="flex items-center justify-start">
 				<Button
 					variant="secondary"
 					size="sm"
@@ -239,15 +232,9 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 					disabled={isLoading}
 					className="gap-2"
 				>
-					<RefreshCw className="h-3.5 w-3.5" />
+					<RefreshCw className={cn("h-3.5 w-3.5", isLoading && "animate-spin")} />
 					Refresh
 				</Button>
-				{isAssignmentComplete && !isLoading && !hasError && (
-					<Badge variant="outline" className="text-xs gap-1.5 text-muted-foreground">
-						<CircleCheck className="h-3 w-3" />
-						All roles assigned
-					</Badge>
-				)}
 			</div>
 
 			{/* Error Alert */}
@@ -343,8 +330,6 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 
 						const assignedConfig = roleAllConfigs.find((config) => config.id === currentAssignment);
 						const isAssigned = !!assignedConfig;
-						const isAutoMode =
-							assignedConfig && "is_auto_mode" in assignedConfig && assignedConfig.is_auto_mode;
 
 						return (
 							<div key={key}>
@@ -389,7 +374,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 												<SelectTrigger className="w-full h-9 md:h-10 text-xs md:text-sm">
 													<SelectValue placeholder="Select a configuration" />
 												</SelectTrigger>
-												<SelectContent className="max-w-[calc(100vw-2rem)]">
+												<SelectContent className="max-w-[calc(100vw-2rem)] select-none">
 													<SelectItem
 														value="unassigned"
 														className="text-xs md:text-sm py-1.5 md:py-2"
@@ -412,21 +397,9 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 																		className="text-xs md:text-sm py-1.5 md:py-2"
 																	>
 																		<div className="flex items-center gap-1 md:gap-1.5 flex-wrap min-w-0">
-																			{isAuto ? (
-																				<Shuffle className="size-3 md:size-3.5 shrink-0 text-muted-foreground" />
-																			) : (
-																				getProviderIcon(config.provider, {
-																					className: "size-3 md:size-3.5 shrink-0",
-																				})
-																			)}
 																			<span className="truncate text-xs md:text-sm">
 																				{config.name}
 																			</span>
-																			{!isAuto && (
-																				<span className="text-muted-foreground text-[10px] md:text-[11px] truncate">
-																					({config.model_name})
-																				</span>
-																			)}
 																			{isAuto && (
 																				<Badge
 																					variant="secondary"
@@ -455,14 +428,8 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 																	className="text-xs md:text-sm py-1.5 md:py-2"
 																>
 																	<div className="flex items-center gap-1 md:gap-1.5 flex-wrap min-w-0">
-																		{getProviderIcon(config.provider, {
-																			className: "size-3 md:size-3.5 shrink-0",
-																		})}
 																		<span className="truncate text-xs md:text-sm">
 																			{config.name}
-																		</span>
-																		<span className="text-muted-foreground text-[10px] md:text-[11px] truncate">
-																			({config.model_name})
 																		</span>
 																	</div>
 																</SelectItem>
@@ -472,63 +439,6 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 												</SelectContent>
 											</Select>
 										</div>
-
-										{/* Assigned Config Summary */}
-										{assignedConfig && (
-											<div
-												className={cn(
-													"rounded-lg p-3 border",
-													isAutoMode
-														? "bg-violet-50 dark:bg-violet-900/10 border-violet-200/50 dark:border-violet-800/30"
-														: "bg-muted/40 border-border/50"
-												)}
-											>
-												{isAutoMode ? (
-													<div className="flex items-center gap-2">
-														<Shuffle
-															className={cn(
-																"w-3.5 h-3.5 shrink-0 text-violet-600 dark:text-violet-400"
-															)}
-														/>
-														<div className="min-w-0">
-															<p className="text-xs font-medium text-violet-700 dark:text-violet-300">
-																Auto Mode
-															</p>
-															<p className="text-[10px] text-violet-600/70 dark:text-violet-400/70 mt-0.5">
-																Routes across all available providers
-															</p>
-														</div>
-													</div>
-												) : (
-													<div className="flex items-start gap-2">
-														<IconComponent className="w-3.5 h-3.5 shrink-0 mt-0.5 text-muted-foreground" />
-														<div className="min-w-0 flex-1">
-															<div className="flex items-center gap-1.5 flex-wrap">
-																<span className="text-xs font-medium">{assignedConfig.name}</span>
-																{"is_global" in assignedConfig && assignedConfig.is_global && (
-																	<Badge variant="secondary" className="text-[9px] px-1.5 py-0">
-																		🌐 Global
-																	</Badge>
-																)}
-															</div>
-															<div className="flex items-center gap-1.5 mt-1">
-																{getProviderIcon(assignedConfig.provider, {
-																	className: "size-3 shrink-0",
-																})}
-																<code className="text-[10px] text-muted-foreground font-mono truncate">
-																	{assignedConfig.model_name}
-																</code>
-															</div>
-															{assignedConfig.api_base && (
-																<p className="text-[10px] text-muted-foreground/60 mt-1 truncate">
-																	{assignedConfig.api_base}
-																</p>
-															)}
-														</div>
-													</div>
-												)}
-											</div>
-										)}
 									</CardContent>
 								</Card>
 							</div>

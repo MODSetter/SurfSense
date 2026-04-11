@@ -51,17 +51,11 @@ export {
 	SandboxExecuteToolUI,
 } from "./sandbox-execute";
 export {
-	type MemoryItem,
-	type RecallMemoryArgs,
-	RecallMemoryArgsSchema,
-	type RecallMemoryResult,
-	RecallMemoryResultSchema,
-	RecallMemoryToolUI,
-	type SaveMemoryArgs,
-	SaveMemoryArgsSchema,
-	type SaveMemoryResult,
-	SaveMemoryResultSchema,
-	SaveMemoryToolUI,
+	type UpdateMemoryArgs,
+	UpdateMemoryArgsSchema,
+	type UpdateMemoryResult,
+	UpdateMemoryResultSchema,
+	UpdateMemoryToolUI,
 } from "./user-memory";
 export { GenerateVideoPresentationToolUI } from "./video-presentation";
 export { type WriteTodosData, WriteTodosSchema, WriteTodosToolUI } from "./write-todos";
