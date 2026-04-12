@@ -1,12 +1,9 @@
 """Authentication routes for refresh token management."""
 
 import logging
-import secrets
-import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
-from fastapi_users.password import PasswordHelper
 from sqlalchemy import select
 
 from app.config import config
@@ -35,45 +32,28 @@ router = APIRouter(prefix="/auth/jwt", tags=["auth"])
 @router.get("/proxy-login")
 async def proxy_login(request: Request):
     """
-    Exchange X-Auth-Request-Email (injected by oauth2-proxy ForwardAuth via Traefik)
-    for a SurfSense JWT + refresh token delivered via short-lived cookies.
+    Exchange the oauth2-proxy ForwardAuth session for a SurfSense JWT delivered
+    via short-lived cookies.
 
     Flow:
       Browser → Traefik ForwardAuth → oauth2-proxy validates session
-      → sets X-Auth-Request-Email → this endpoint issues JWT
+      → sets X-Auth-Request-Email → ProxyAuthMiddleware resolves/creates user
+      → this endpoint reads request.state.proxy_user → issues JWT
       → sets surfsense_sso_token + surfsense_sso_refresh_token cookies (60s TTL)
       → redirects to / → page.tsx reads cookies → stores to localStorage → /dashboard
+
+    All user provisioning (including on_after_register side effects —
+    default SearchSpace, RBAC roles, system prompts) is owned by
+    ProxyAuthMiddleware. This handler does not touch the User table.
     """
-    email = request.headers.get("x-auth-request-email")
-    if not email:
+    user: User | None = getattr(request.state, "proxy_user", None)
+    if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No proxy auth header — request did not pass through oauth2-proxy ForwardAuth",
+            detail="No proxy auth session — request did not pass through oauth2-proxy ForwardAuth",
         )
 
-    email = email.strip().lower()
-
-    async with async_session_maker() as session:
-        result = await session.execute(select(User).where(User.email == email))
-        user = result.unique().scalar_one_or_none()
-
-        if user is None:
-            # JIT provisioning — create the user on first SSO login.
-            # A random password is set (unused; auth is always via the SSO proxy).
-            logger.info("proxy_login: first SSO login for %s — provisioning user", email)
-            _ph = PasswordHelper()
-            user = User(
-                id=uuid.uuid4(),
-                email=email,
-                hashed_password=_ph.hash(secrets.token_urlsafe(32)),
-                is_active=True,
-                is_verified=True,
-                is_superuser=False,
-            )
-            session.add(user)
-            await session.commit()
-            await session.refresh(user)
-
+    # Middleware already filters inactive users; defence-in-depth re-check.
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -93,7 +73,7 @@ async def proxy_login(request: Request):
     response.set_cookie("surfsense_sso_token", access_token, **cookie_opts)
     response.set_cookie("surfsense_sso_refresh_token", refresh_token, **cookie_opts)
 
-    logger.info("proxy_login: issued JWT for %s → redirecting to frontend via cookie", email)
+    logger.info("proxy_login: issued JWT for %s → redirecting to frontend via cookie", user.email)
     return response
 
 

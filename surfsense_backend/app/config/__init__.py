@@ -307,8 +307,9 @@ class Config:
         os.getenv("STRIPE_RECONCILIATION_BATCH_SIZE", "100")
     )
 
-    # Auth
-    AUTH_TYPE = os.getenv("AUTH_TYPE")
+    # Auth — this fork is SSO-only. Default to SSO so a missing envvar doesn't
+    # silently fall through to upstream LOCAL behaviour; app.py asserts on boot.
+    AUTH_TYPE = os.getenv("AUTH_TYPE", "SSO")
     REGISTRATION_ENABLED = os.getenv("REGISTRATION_ENABLED", "TRUE").upper() == "TRUE"
 
     # Comma-separated path prefixes that bypass proxy auth (default: /health).
@@ -418,26 +419,17 @@ class Config:
     if AZURE_OPENAI_API_KEY:
         embedding_kwargs["azure_api_key"] = AZURE_OPENAI_API_KEY
 
-    # mPass patch: defer embedding model loading to first use so the container
-    # starts without the PyTorch/sentence-transformers memory spike.
-    # Routes that use embeddings (search, indexing) will trigger lazy init on
-    # first request. Auth/SSO routes are unaffected.
-    _embedding_kwargs = embedding_kwargs
-    _embedding_model_instance = None
-
-    @classmethod
-    def _get_embedding_model(cls):
-        if cls._embedding_model_instance is None:
-            cls._embedding_model_instance = AutoEmbeddings.get_embeddings(
-                cls.EMBEDDING_MODEL,
-                **cls._embedding_kwargs,
-            )
-        return cls._embedding_model_instance
-
-    embedding_model_instance = property(lambda self: self.__class__._get_embedding_model())
+    embedding_model_instance = AutoEmbeddings.get_embeddings(
+        EMBEDDING_MODEL,
+        **embedding_kwargs,
+    )
     is_local_embedding_model = "://" not in (EMBEDDING_MODEL or "")
-    chunker_instance = RecursiveChunker(chunk_size=512)
-    code_chunker_instance = CodeChunker(chunk_size=512)
+    chunker_instance = RecursiveChunker(
+        chunk_size=getattr(embedding_model_instance, "max_seq_length", 512)
+    )
+    code_chunker_instance = CodeChunker(
+        chunk_size=getattr(embedding_model_instance, "max_seq_length", 512)
+    )
 
     # Reranker's Configuration | Pinecone, Cohere etc. Read more at https://github.com/AnswerDotAI/rerankers?tab=readme-ov-file#usage
     RERANKERS_ENABLED = os.getenv("RERANKERS_ENABLED", "FALSE").upper() == "TRUE"
