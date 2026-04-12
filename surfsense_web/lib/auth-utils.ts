@@ -255,7 +255,12 @@ export async function logout(): Promise<boolean> {
 		if (oidcLogoutUrl && oidcClientId) {
 			const cognitoUrl = new URL(oidcLogoutUrl);
 			cognitoUrl.searchParams.set("client_id", oidcClientId);
-			cognitoUrl.searchParams.set("logout_uri", window.location.origin);
+			// Redirect to the platform landing page after Cognito clears its session.
+		// The landing page is NOT behind ForwardAuth, so the user sees it instead
+		// of being bounced back to Cognito login. Falls back to current origin
+		// for deployments without the env var.
+		const logoutRedirect = process.env.NEXT_PUBLIC_LOGOUT_REDIRECT_URL || window.location.origin;
+		cognitoUrl.searchParams.set("logout_uri", logoutRedirect);
 
 			// Full SSO logout: oauth2-proxy sign_out clears _oauth2_proxy cookie,
 			// then rd= redirects to Cognito to clear the Cognito session.
