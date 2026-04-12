@@ -117,6 +117,10 @@ async def complete_task(
     )
     session.add(new_task)
 
+    # The user object may be detached (from ProxyAuthMiddleware's closed
+    # session). Merge it into this session before modifying + committing.
+    user = await session.merge(user)
+
     # pages_used can exceed pages_limit when a document's final page count is
     # determined after processing. Base the new limit on the higher of the two
     # so the rewarded pages are fully usable above the current high-water mark.

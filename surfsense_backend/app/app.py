@@ -397,7 +397,13 @@ async def update_current_user_me(
     user: User = Depends(current_active_user),
     user_manager=Depends(get_user_manager),
 ):
-    return await user_manager.update(user_update, user, safe=True, request=request)
+    # Re-fetch in user_manager's session to avoid detached-instance conflict.
+    # ProxyAuthMiddleware's User object is from a closed session; the JWT
+    # dependency also loaded the same user in user_manager's session.
+    # Passing the middleware's object to session.add() conflicts with the
+    # JWT-loaded one. user_manager.get() returns the session-attached instance.
+    db_user = await user_manager.get(user.id)
+    return await user_manager.update(user_update, db_user, safe=True, request=request)
 
 
 app.include_router(
