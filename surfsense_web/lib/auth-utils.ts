@@ -267,12 +267,18 @@ export async function logout(): Promise<boolean> {
 			// Uses the dedicated auth domain (foss-auth.localhost) so the sign_out
 			// URL is consistent regardless of which app initiates the logout.
 			const oauthProxyUrl = process.env.NEXT_PUBLIC_OAUTH2_PROXY_URL || window.location.origin;
-			window.location.href = `${oauthProxyUrl}/oauth2/sign_out?rd=${encodeURIComponent(cognitoUrl.toString())}`;
+			// Single-encode the Cognito URL so oauth2-proxy decodes it once
+			// and passes a clean logout_uri to Cognito (matching Plane's pattern).
+			// encodeURIComponent would double-encode the query params, causing
+			// Cognito to reject the logout_uri as unregistered.
+			const cognitoStr = cognitoUrl.toString();
+			const rdParam = cognitoStr.replace(/\?/, '%3F').replace(/&/g, '%26').replace(/=/g, '%3D');
+			window.location.href = `${oauthProxyUrl}/oauth2/sign_out?rd=${rdParam}`;
 			return true; // browser is already navigating away
 		}
 	}
 
-	return true;
+	return false; // no SSO redirect — caller should navigate
 }
 
 /**

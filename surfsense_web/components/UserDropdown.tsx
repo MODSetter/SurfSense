@@ -38,15 +38,21 @@ export function UserDropdown({
 			trackLogout();
 			resetUser();
 
-			await logout();
+			// Revoke refresh token on server and clear all tokens from localStorage.
+			// logout() returns true and sets window.location.href when SSO is
+			// configured — don't overwrite it with a local redirect.
+			const ssoRedirected = await logout();
 
-			router.push(getLoginPath());
-			router.refresh();
+			if (!ssoRedirected && typeof window !== "undefined") {
+				window.location.href = "/";
+			}
 		} catch (error) {
 			console.error("Error during logout:", error);
-			await logout();
-			router.push(getLoginPath());
-			router.refresh();
+			// Even if there's an error, try to clear tokens and redirect
+			const ssoRedirected = await logout();
+			if (!ssoRedirected && typeof window !== "undefined") {
+				window.location.href = "/";
+			}
 		}
 	};
 
