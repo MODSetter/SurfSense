@@ -1,259 +1,59 @@
+import { loader } from "fumadocs-core/source";
 import type { MetadataRoute } from "next";
+import { blog, changelog } from "@/.source/server";
+import { source as docsSource } from "@/lib/source";
 
-// Returns a date rounded to the current hour (updates only once per hour)
-function getHourlyDate(): Date {
-	const now = new Date();
-	now.setMinutes(0, 0, 0);
-	return now;
-}
+const blogSource = loader({
+	baseUrl: "/blog",
+	source: blog.toFumadocsSource(),
+});
+
+const changelogSource = loader({
+	baseUrl: "/changelog",
+	source: changelog.toFumadocsSource(),
+});
+
+const BASE_URL = "https://surfsense.com";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-	const lastModified = getHourlyDate();
+	const now = new Date();
+	now.setMinutes(0, 0, 0);
+	const lastModified = now;
 
-	return [
-		{
-			url: "https://www.surfsense.com/",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 1,
-		},
-		{
-			url: "https://www.surfsense.com/contact",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.9,
-		},
-		{
-			url: "https://www.surfsense.com/pricing",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.9,
-		},
-		{
-			url: "https://www.surfsense.com/privacy",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.9,
-		},
-		{
-			url: "https://www.surfsense.com/terms",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.9,
-		},
-		// Documentation pages
-		{
-			url: "https://www.surfsense.com/docs",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 1,
-		},
-		{
-			url: "https://www.surfsense.com/docs/installation",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.9,
-		},
-		{
-			url: "https://www.surfsense.com/docs/prerequisites",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.9,
-		},
-		{
-			url: "https://www.surfsense.com/docs/docker-installation/install-script",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.9,
-		},
-		{
-			url: "https://www.surfsense.com/docs/docker-installation/docker-compose",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.9,
-		},
-		{
-			url: "https://www.surfsense.com/docs/docker-installation/updating",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.9,
-		},
-		{
-			url: "https://www.surfsense.com/docs/docker-installation/dev-compose",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.9,
-		},
-		{
-			url: "https://www.surfsense.com/docs/docker-installation/migrate-from-allinone",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.9,
-		},
-		{
-			url: "https://www.surfsense.com/docs/manual-installation",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.9,
-		},
-		// Connector documentation
-		{
-			url: "https://www.surfsense.com/docs/connectors/airtable",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.8,
-		},
-		{
-			url: "https://www.surfsense.com/docs/connectors/bookstack",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.8,
-		},
-		{
-			url: "https://www.surfsense.com/docs/connectors/circleback",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.8,
-		},
-		{
-			url: "https://www.surfsense.com/docs/connectors/clickup",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.8,
-		},
-		{
-			url: "https://www.surfsense.com/docs/connectors/confluence",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.8,
-		},
-		{
-			url: "https://www.surfsense.com/docs/connectors/discord",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.8,
-		},
-		{
-			url: "https://www.surfsense.com/docs/connectors/dropbox",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.8,
-		},
-		{
-			url: "https://www.surfsense.com/docs/connectors/elasticsearch",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.8,
-		},
-		{
-			url: "https://www.surfsense.com/docs/connectors/github",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.8,
-		},
-		{
-			url: "https://www.surfsense.com/docs/connectors/gmail",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.8,
-		},
-		{
-			url: "https://www.surfsense.com/docs/connectors/google-calendar",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.8,
-		},
-		{
-			url: "https://www.surfsense.com/docs/connectors/google-drive",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.8,
-		},
-		{
-			url: "https://www.surfsense.com/docs/connectors/jira",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.8,
-		},
-		{
-			url: "https://www.surfsense.com/docs/connectors/linear",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.8,
-		},
-		{
-			url: "https://www.surfsense.com/docs/connectors/luma",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.8,
-		},
-		{
-			url: "https://www.surfsense.com/docs/connectors/microsoft-onedrive",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.8,
-		},
-		{
-			url: "https://www.surfsense.com/docs/connectors/microsoft-teams",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.8,
-		},
-		{
-			url: "https://www.surfsense.com/docs/connectors/notion",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.8,
-		},
-		{
-			url: "https://www.surfsense.com/docs/connectors/obsidian",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.8,
-		},
-		{
-			url: "https://www.surfsense.com/docs/connectors/slack",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.8,
-		},
-		{
-			url: "https://www.surfsense.com/docs/connectors/web-crawler",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.8,
-		},
-		// How-to documentation
-		{
-			url: "https://www.surfsense.com/docs/how-to/zero-sync",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.8,
-		},
-		{
-			url: "https://www.surfsense.com/docs/how-to/realtime-collaboration",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.8,
-		},
-		{
-			url: "https://www.surfsense.com/docs/how-to/web-search",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.8,
-		},
-		// Developer documentation
-		{
-			url: "https://www.surfsense.com/docs/testing",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.7,
-		},
-		{
-			url: "https://www.surfsense.com/docs/code-of-conduct",
-			lastModified,
-			changeFrequency: "daily",
-			priority: 0.7,
-		},
+	const staticPages: MetadataRoute.Sitemap = [
+		{ url: `${BASE_URL}/`, lastModified, changeFrequency: "daily", priority: 1 },
+		{ url: `${BASE_URL}/pricing`, lastModified, changeFrequency: "weekly", priority: 0.9 },
+		{ url: `${BASE_URL}/contact`, lastModified, changeFrequency: "monthly", priority: 0.7 },
+		{ url: `${BASE_URL}/blog`, lastModified, changeFrequency: "daily", priority: 0.9 },
+		{ url: `${BASE_URL}/changelog`, lastModified, changeFrequency: "weekly", priority: 0.7 },
+		{ url: `${BASE_URL}/announcements`, lastModified, changeFrequency: "weekly", priority: 0.6 },
+		{ url: `${BASE_URL}/docs`, lastModified, changeFrequency: "daily", priority: 1 },
+		{ url: `${BASE_URL}/privacy`, lastModified, changeFrequency: "monthly", priority: 0.3 },
+		{ url: `${BASE_URL}/terms`, lastModified, changeFrequency: "monthly", priority: 0.3 },
+		{ url: `${BASE_URL}/login`, lastModified, changeFrequency: "monthly", priority: 0.5 },
+		{ url: `${BASE_URL}/register`, lastModified, changeFrequency: "monthly", priority: 0.5 },
 	];
+
+	const docsPages: MetadataRoute.Sitemap = docsSource.getPages().map((page) => ({
+		url: `${BASE_URL}${page.url}`,
+		lastModified,
+		changeFrequency: "weekly" as const,
+		priority: 0.8,
+	}));
+
+	const blogPages: MetadataRoute.Sitemap = blogSource.getPages().map((page) => ({
+		url: `${BASE_URL}${page.url}`,
+		lastModified,
+		changeFrequency: "weekly" as const,
+		priority: 0.8,
+	}));
+
+	const changelogPages: MetadataRoute.Sitemap = changelogSource.getPages().map((page) => ({
+		url: `${BASE_URL}${page.url}`,
+		lastModified,
+		changeFrequency: "monthly" as const,
+		priority: 0.5,
+	}));
+
+	return [...staticPages, ...docsPages, ...blogPages, ...changelogPages];
 }

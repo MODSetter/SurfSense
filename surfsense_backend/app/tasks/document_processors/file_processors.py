@@ -46,6 +46,7 @@ class _ProcessingContext:
     log_entry: Log
     connector: dict | None = None
     notification: Notification | None = None
+    use_vision_llm: bool = False
     enable_summary: bool = field(init=False)
 
     def __post_init__(self) -> None:
@@ -118,9 +119,13 @@ async def _log_page_divergence(
 
 
 async def _process_non_document_upload(ctx: _ProcessingContext) -> Document | None:
-    """Extract content from a non-document file (plaintext/direct_convert/audio) via the unified ETL pipeline."""
+    """Extract content from a non-document file (plaintext/direct_convert/audio/image) via the unified ETL pipeline."""
     from app.etl_pipeline.etl_document import EtlRequest
     from app.etl_pipeline.etl_pipeline_service import EtlPipelineService
+    from app.etl_pipeline.file_classifier import (
+        FileCategory,
+        classify_file as etl_classify,
+    )
 
     await _notify(ctx, "parsing", "Processing file")
     await ctx.task_logger.log_task_progress(
@@ -129,7 +134,13 @@ async def _process_non_document_upload(ctx: _ProcessingContext) -> Document | No
         {"processing_stage": "extracting"},
     )
 
-    etl_result = await EtlPipelineService().extract(
+    vision_llm = None
+    if ctx.use_vision_llm and etl_classify(ctx.filename) == FileCategory.IMAGE:
+        from app.services.llm_service import get_vision_llm
+
+        vision_llm = await get_vision_llm(ctx.session, ctx.search_space_id)
+
+    etl_result = await EtlPipelineService(vision_llm=vision_llm).extract(
         EtlRequest(file_path=ctx.file_path, filename=ctx.filename)
     )
 
@@ -278,6 +289,7 @@ async def process_file_in_background(
     log_entry: Log,
     connector: dict | None = None,
     notification: Notification | None = None,
+    use_vision_llm: bool = False,
 ) -> Document | None:
     ctx = _ProcessingContext(
         session=session,
@@ -289,6 +301,7 @@ async def process_file_in_background(
         log_entry=log_entry,
         connector=connector,
         notification=notification,
+        use_vision_llm=use_vision_llm,
     )
 
     try:
@@ -333,11 +346,13 @@ async def process_file_in_background(
 async def _extract_file_content(
     file_path: str,
     filename: str,
+    search_space_id: int,
     session: AsyncSession,
     user_id: str,
     task_logger: TaskLoggingService,
     log_entry: Log,
     notification: Notification | None,
+    use_vision_llm: bool = False,
 ) -> tuple[str, str]:
     """
     Extract markdown content from a file regardless of type.
@@ -360,6 +375,7 @@ async def _extract_file_content(
             FileCategory.PLAINTEXT: "Reading file",
             FileCategory.DIRECT_CONVERT: "Converting file",
             FileCategory.AUDIO: "Transcribing audio",
+            FileCategory.IMAGE: "Analyzing image",
             FileCategory.UNSUPPORTED: "Unsupported file type",
             FileCategory.DOCUMENT: "Extracting content",
         }
@@ -383,7 +399,13 @@ async def _extract_file_content(
         estimated_pages = _estimate_pages_safe(page_limit_service, file_path)
         await page_limit_service.check_page_limit(user_id, estimated_pages)
 
-    result = await EtlPipelineService().extract(
+    vision_llm = None
+    if use_vision_llm and category == FileCategory.IMAGE:
+        from app.services.llm_service import get_vision_llm
+
+        vision_llm = await get_vision_llm(session, search_space_id)
+
+    result = await EtlPipelineService(vision_llm=vision_llm).extract(
         EtlRequest(
             file_path=file_path,
             filename=filename,
@@ -417,6 +439,7 @@ async def process_file_in_background_with_document(
     connector: dict | None = None,
     notification: Notification | None = None,
     should_summarize: bool = False,
+    use_vision_llm: bool = False,
 ) -> Document | None:
     """
     Process file and update existing pending document (2-phase pattern).
@@ -439,11 +462,13 @@ async def process_file_in_background_with_document(
         markdown_content, etl_service = await _extract_file_content(
             file_path,
             filename,
+            search_space_id,
             session,
             user_id,
             task_logger,
             log_entry,
             notification,
+            use_vision_llm=use_vision_llm,
         )
 
         if not markdown_content:

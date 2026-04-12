@@ -44,6 +44,8 @@ async def _export_paper_content(
 async def download_and_extract_content(
     client: DropboxClient,
     file: dict[str, Any],
+    *,
+    vision_llm=None,
 ) -> tuple[str | None, dict[str, Any], str | None]:
     """Download a Dropbox file and extract its content as markdown.
 
@@ -91,7 +93,7 @@ async def download_and_extract_content(
         from app.etl_pipeline.etl_document import EtlRequest
         from app.etl_pipeline.etl_pipeline_service import EtlPipelineService
 
-        result = await EtlPipelineService().extract(
+        result = await EtlPipelineService(vision_llm=vision_llm).extract(
             EtlRequest(file_path=temp_file_path, filename=file_name)
         )
         markdown = result.markdown_content

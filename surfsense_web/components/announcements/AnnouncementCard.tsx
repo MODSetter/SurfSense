@@ -10,7 +10,6 @@ import {
 	CardDescription,
 	CardFooter,
 	CardHeader,
-	CardTitle,
 } from "@/components/ui/card";
 import type { AnnouncementCategory } from "@/contracts/types/announcement.types";
 import type { AnnouncementWithState } from "@/hooks/use-announcements";
@@ -67,7 +66,7 @@ export function AnnouncementCard({ announcement }: { announcement: AnnouncementW
 						</div>
 						<div className="min-w-0 flex-1">
 							<div className="flex items-center gap-2 flex-wrap">
-								<CardTitle className="text-base leading-tight">{announcement.title}</CardTitle>
+								<h2 className="text-base font-semibold leading-tight tracking-tight">{announcement.title}</h2>
 								<Badge variant={config.badgeVariant} className="text-[10px] px-1.5 py-0">
 									{config.label}
 								</Badge>

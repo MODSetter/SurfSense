@@ -396,7 +396,11 @@
 		"supported_file_types": "Supported File Types",
 		"file_too_large": "File Too Large",
 		"file_too_large_desc": "\"{name}\" exceeds the {maxMB}MB per-file limit.",
-		"no_supported_files_in_folder": "No supported file types found in the selected folder."
+		"no_supported_files_in_folder": "No supported file types found in the selected folder.",
+		"uploading_folder": "Uploading folder…",
+		"upload_folder_button": "Upload Folder ({count} {count, plural, one {file} other {files}})",
+		"select_files_or_folder": "Select files or folder",
+		"tap_select_files_or_folder": "Tap to select files or folder"
 	},
 	"add_webpage": {
 		"title": "Add Webpages for Crawling",
@@ -693,6 +697,7 @@
 		"learn_more": "Learn more",
 		"documentation": "Documentation",
 		"github": "GitHub",
+		"download_for_os": "Download for {os}",
 		"inbox": "Inbox",
 		"search_inbox": "Search inbox",
 		"mark_all_read": "Mark all as read",
@@ -780,7 +785,7 @@
 	"homepage": {
 		"hero_title_part1": "The AI Workspace",
 		"hero_title_part2": "Built for Teams",
-		"hero_description": "Connect any LLM to your internal knowledge sources and chat with it in real time alongside your team.",
+		"hero_description": "An open source, privacy focused alternative to NotebookLM for teams with no data limits.",
 		"cta_start_trial": "Start Free Trial",
 		"cta_explore": "Explore",
 		"integrations_title": "Integrations",

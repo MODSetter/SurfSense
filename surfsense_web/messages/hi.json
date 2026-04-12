@@ -396,7 +396,11 @@
 		"supported_file_types": "समर्थित फ़ाइल प्रकार",
 		"file_too_large": "फ़ाइल बहुत बड़ी है",
 		"file_too_large_desc": "\"{name}\" प्रति फ़ाइल {maxMB}MB की सीमा से अधिक है।",
-		"no_supported_files_in_folder": "चयनित फ़ोल्डर में कोई समर्थित फ़ाइल प्रकार नहीं मिला।"
+		"no_supported_files_in_folder": "चयनित फ़ोल्डर में कोई समर्थित फ़ाइल प्रकार नहीं मिला।",
+		"uploading_folder": "फ़ोल्डर अपलोड हो रहा है…",
+		"upload_folder_button": "फ़ोल्डर अपलोड करें ({count} {count, plural, one {फ़ाइल} other {फ़ाइलें}})",
+		"select_files_or_folder": "फ़ाइलें या फ़ोल्डर चुनें",
+		"tap_select_files_or_folder": "फ़ाइलें या फ़ोल्डर चुनने के लिए टैप करें"
 	},
 	"add_webpage": {
 		"title": "क्रॉलिंग के लिए वेबपेज जोड़ें",
@@ -693,6 +697,7 @@
 		"learn_more": "और जानें",
 		"documentation": "दस्तावेज़ीकरण",
 		"github": "GitHub",
+		"download_for_os": "{os} के लिए डाउनलोड करें",
 		"inbox": "इनबॉक्स",
 		"search_inbox": "इनबॉक्स में खोजें",
 		"mark_all_read": "सभी पढ़ा हुआ चिह्नित करें",

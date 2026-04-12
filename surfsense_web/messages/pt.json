@@ -396,7 +396,11 @@
 		"supported_file_types": "Tipos de arquivo suportados",
 		"file_too_large": "Arquivo muito grande",
 		"file_too_large_desc": "\"{name}\" excede o limite de {maxMB} MB por arquivo.",
-		"no_supported_files_in_folder": "Nenhum tipo de arquivo suportado encontrado na pasta selecionada."
+		"no_supported_files_in_folder": "Nenhum tipo de arquivo suportado encontrado na pasta selecionada.",
+		"uploading_folder": "Enviando pasta…",
+		"upload_folder_button": "Enviar pasta ({count} {count, plural, one {arquivo} other {arquivos}})",
+		"select_files_or_folder": "Selecionar arquivos ou pasta",
+		"tap_select_files_or_folder": "Toque para selecionar arquivos ou pasta"
 	},
 	"add_webpage": {
 		"title": "Adicionar páginas web para rastreamento",
@@ -693,6 +697,7 @@
 		"learn_more": "Saiba mais",
 		"documentation": "Documentação",
 		"github": "GitHub",
+		"download_for_os": "Baixar para {os}",
 		"inbox": "Caixa de entrada",
 		"search_inbox": "Pesquisar caixa de entrada",
 		"mark_all_read": "Marcar tudo como lido",

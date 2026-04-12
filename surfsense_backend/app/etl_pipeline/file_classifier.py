@@ -3,6 +3,7 @@ from pathlib import PurePosixPath
 
 from app.utils.file_extensions import (
     DOCUMENT_EXTENSIONS,
+    IMAGE_EXTENSIONS,
     get_document_extensions_for_service,
 )
 
@@ -105,6 +106,7 @@ class FileCategory(Enum):
     PLAINTEXT = "plaintext"
     AUDIO = "audio"
     DIRECT_CONVERT = "direct_convert"
+    IMAGE = "image"
     UNSUPPORTED = "unsupported"
     DOCUMENT = "document"
 
@@ -117,6 +119,8 @@ def classify_file(filename: str) -> FileCategory:
         return FileCategory.AUDIO
     if suffix in DIRECT_CONVERT_EXTENSIONS:
         return FileCategory.DIRECT_CONVERT
+    if suffix in IMAGE_EXTENSIONS:
+        return FileCategory.IMAGE
     if suffix in DOCUMENT_EXTENSIONS:
         return FileCategory.DOCUMENT
     return FileCategory.UNSUPPORTED
@@ -126,12 +130,14 @@ def should_skip_for_service(filename: str, etl_service: str | None) -> bool:
     """Return True if *filename* cannot be processed by *etl_service*.
 
     Plaintext, audio, and direct-convert files are parser-agnostic and never
-    skipped.  Document files are checked against the per-parser extension set.
+    skipped.  Image and document files are checked against the per-parser
+    extension set (images fall back to the document parser when no vision LLM
+    is available, so the same service constraint applies).
     """
     category = classify_file(filename)
     if category == FileCategory.UNSUPPORTED:
         return True
-    if category == FileCategory.DOCUMENT:
+    if category in (FileCategory.DOCUMENT, FileCategory.IMAGE):
         suffix = PurePosixPath(filename).suffix.lower()
         return suffix not in get_document_extensions_for_service(etl_service)
     return False

@@ -9,9 +9,26 @@ import { Logo } from "@/components/Logo";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
 import { cn } from "@/lib/utils";
 
+interface NavItem {
+    name: string;
+    link: string;
+}
+
 interface NavbarProps {
 	/** Override the scrolled-state background classes (desktop & mobile). */
 	scrolledBgClassName?: string;
+}
+
+interface DesktopNavProps {
+    navItems: NavItem[];
+    isScrolled: boolean;
+    scrolledBgClassName?: string;
+}
+
+interface MobileNavProps {
+    navItems: NavItem[];
+    isScrolled: boolean;
+    scrolledBgClassName?: string;
 }
 
 export const Navbar = ({ scrolledBgClassName }: NavbarProps = {}) => {
@@ -19,6 +36,7 @@ export const Navbar = ({ scrolledBgClassName }: NavbarProps = {}) => {
 
 	const navItems = [
 		{ name: "Pricing", link: "/pricing" },
+		{ name: "Blog", link: "/blog" },
 		{ name: "Changelog", link: "/changelog" },
 		{ name: "Docs", link: "/docs" },
 		{ name: "Contact\u00A0Us", link: "/contact" },
@@ -52,7 +70,7 @@ export const Navbar = ({ scrolledBgClassName }: NavbarProps = {}) => {
 	);
 };
 
-const DesktopNav = ({ navItems, isScrolled, scrolledBgClassName }: any) => {
+const DesktopNav = ({ navItems, isScrolled, scrolledBgClassName }: DesktopNavProps) => {
 	const [hovered, setHovered] = useState<number | null>(null);
 	return (
 		<motion.div
@@ -75,7 +93,7 @@ const DesktopNav = ({ navItems, isScrolled, scrolledBgClassName }: any) => {
 				<span className="dark:text-white/90 text-gray-800 text-lg font-bold">SurfSense</span>
 			</Link>
 			<div className="hidden flex-1 flex-row items-center justify-center space-x-2 text-sm font-medium text-zinc-600 transition duration-200 hover:text-zinc-800 lg:flex lg:space-x-2">
-				{navItems.map((navItem: any, idx: number) => (
+				{navItems.map((navItem: NavItem, idx: number) => (
 					<Link
 						onMouseEnter={() => setHovered(idx)}
 						onMouseLeave={() => setHovered(null)}
@@ -118,7 +136,7 @@ const DesktopNav = ({ navItems, isScrolled, scrolledBgClassName }: any) => {
 	);
 };
 
-const MobileNav = ({ navItems, isScrolled, scrolledBgClassName }: any) => {
+const MobileNav = ({ navItems, isScrolled, scrolledBgClassName }: MobileNavProps) => {
 	const [open, setOpen] = useState(false);
 	const navRef = useRef<HTMLDivElement>(null);
 
@@ -183,7 +201,7 @@ const MobileNav = ({ navItems, isScrolled, scrolledBgClassName }: any) => {
 						transition={{ duration: 0.2, ease: "easeOut" }}
 						className="absolute inset-x-0 top-full mt-1 z-20 flex w-full flex-col items-start justify-start gap-4 rounded-xl bg-white/90 backdrop-blur-xl border border-white/20 shadow-2xl px-4 py-6 dark:bg-neutral-950/90 dark:border-neutral-800/50"
 					>
-						{navItems.map((navItem: any, idx: number) => (
+						{navItems.map((navItem: NavItem, idx: number) => (
 							<Link
 								key={`link=${idx}`}
 								href={navItem.link}

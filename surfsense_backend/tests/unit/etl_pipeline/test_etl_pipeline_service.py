@@ -431,7 +431,7 @@ async def test_llamacloud_heif_accepted_only_with_azure_di(tmp_path, mocker):
     mocker.patch("app.config.config.AZURE_DI_ENDPOINT", None, create=True)
     mocker.patch("app.config.config.AZURE_DI_KEY", None, create=True)
 
-    with pytest.raises(EtlUnsupportedFileError, match="not supported by LLAMACLOUD"):
+    with pytest.raises(EtlUnsupportedFileError, match="document parser does not support this format"):
         await EtlPipelineService().extract(
             EtlRequest(file_path=str(heif_file), filename="photo.heif")
         )
@@ -549,8 +549,11 @@ def test_unsupported_extensions_classified_correctly(filename):
         ("doc.docx", "document"),
         ("slides.pptx", "document"),
         ("sheet.xlsx", "document"),
-        ("photo.png", "document"),
-        ("photo.jpg", "document"),
+        ("photo.png", "image"),
+        ("photo.jpg", "image"),
+        ("photo.webp", "image"),
+        ("photo.gif", "image"),
+        ("photo.heic", "image"),
         ("book.epub", "document"),
         ("letter.odt", "document"),
         ("readme.md", "plaintext"),
@@ -680,3 +683,57 @@ async def test_extract_eml_with_docling_raises_unsupported(tmp_path, mocker):
         await EtlPipelineService().extract(
             EtlRequest(file_path=str(eml_file), filename="mail.eml")
         )
+
+
+# ---------------------------------------------------------------------------
+# Image extraction via vision LLM
+# ---------------------------------------------------------------------------
+
+
+async def test_extract_image_with_vision_llm(tmp_path):
+    """An image file is analyzed by the vision LLM when provided."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    img_file = tmp_path / "photo.png"
+    img_file.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 50)
+
+    fake_response = MagicMock()
+    fake_response.content = "# A photo of a sunset over the ocean"
+    fake_llm = AsyncMock()
+    fake_llm.ainvoke.return_value = fake_response
+
+    service = EtlPipelineService(vision_llm=fake_llm)
+    result = await service.extract(
+        EtlRequest(file_path=str(img_file), filename="photo.png")
+    )
+
+    assert result.markdown_content == "# A photo of a sunset over the ocean"
+    assert result.etl_service == "VISION_LLM"
+    assert result.content_type == "image"
+    fake_llm.ainvoke.assert_called_once()
+
+
+async def test_extract_image_falls_back_to_document_without_vision_llm(
+    tmp_path, mocker
+):
+    """Without a vision LLM, image files fall back to the document parser."""
+    mocker.patch("app.config.config.ETL_SERVICE", "DOCLING")
+
+    fake_docling = mocker.AsyncMock()
+    fake_docling.process_document.return_value = {"content": "# OCR text from image"}
+    mocker.patch(
+        "app.services.docling_service.create_docling_service",
+        return_value=fake_docling,
+    )
+
+    img_file = tmp_path / "scan.png"
+    img_file.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 50)
+
+    service = EtlPipelineService()
+    result = await service.extract(
+        EtlRequest(file_path=str(img_file), filename="scan.png")
+    )
+
+    assert result.markdown_content == "# OCR text from image"
+    assert result.etl_service == "DOCLING"
+    assert result.content_type == "document"

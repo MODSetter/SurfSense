@@ -380,7 +380,11 @@
 		"supported_file_types": "支持的文件类型",
 		"file_too_large": "文件过大",
 		"file_too_large_desc": "\"{name}\" 超过了每个文件 {maxMB}MB 的限制。",
-		"no_supported_files_in_folder": "所选文件夹中没有找到支持的文件类型。"
+		"no_supported_files_in_folder": "所选文件夹中没有找到支持的文件类型。",
+		"uploading_folder": "正在上传文件夹…",
+		"upload_folder_button": "上传文件夹（{count}个文件）",
+		"select_files_or_folder": "选择文件或文件夹",
+		"tap_select_files_or_folder": "点击选择文件或文件夹"
 	},
 	"add_webpage": {
 		"title": "添加网页爬取",
@@ -677,6 +681,7 @@
 		"learn_more": "了解更多",
 		"documentation": "文档",
 		"github": "GitHub",
+		"download_for_os": "下载 {os} 版本",
 		"inbox": "收件箱",
 		"search_inbox": "搜索收件箱",
 		"mark_all_read": "全部标记为已读",

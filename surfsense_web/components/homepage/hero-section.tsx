@@ -2,7 +2,7 @@
 import { ChevronDown, Download, Monitor } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { memo, useCallback, useEffect, useRef, useState } from "react";
 import Balancer from "react-wrap-balancer";
 import {
 	DropdownMenu,
@@ -12,6 +12,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ExpandedMediaOverlay, useExpandedMedia } from "@/components/ui/expanded-gif-overlay";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+	GITHUB_RELEASES_URL,
+	getAssetLabel,
+	usePrimaryDownload,
+} from "@/lib/desktop-download-utils";
 import { AUTH_TYPE, BACKEND_URL } from "@/lib/env-config";
 import { trackLoginAttempt } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
@@ -148,14 +153,13 @@ export function HeroSection() {
 				</h1>
 				<div className="mt-4 flex w-full flex-col items-start justify-between gap-4 md:mt-12 md:flex-row md:items-end md:gap-10">
 					<div>
-						<h2
-							className={cn(
-								"relative mb-8 max-w-2xl text-left text-sm tracking-wide text-neutral-600 antialiased sm:text-base md:text-xl dark:text-neutral-400"
-							)}
-						>
-							An open source, privacy focused alternative to NotebookLM for teams with no data
-							limits.
-						</h2>
+					<p
+						className={cn(
+							"relative mb-8 max-w-2xl text-left text-sm tracking-wide text-neutral-600 antialiased sm:text-base md:text-xl dark:text-neutral-400"
+						)}
+					>
+						A free, open source NotebookLM alternative for teams with no data limits. Use ChatGPT, Claude AI, and any AI model for free.
+					</p>
 
 						<div className="relative mb-4 flex w-full flex-col justify-center gap-y-2 sm:flex-row sm:justify-start sm:space-y-0 sm:space-x-4">
 							<DownloadButton />
@@ -200,107 +204,8 @@ function GetStartedButton() {
 	);
 }
 
-type OSInfo = {
-	os: "macOS" | "Windows" | "Linux";
-	arch: "arm64" | "x64";
-};
-
-function useUserOS(): OSInfo {
-	const [info, setInfo] = useState<OSInfo>({ os: "macOS", arch: "arm64" });
-	useEffect(() => {
-		const ua = navigator.userAgent;
-		let os: OSInfo["os"] = "macOS";
-		let arch: OSInfo["arch"] = "x64";
-
-		if (/Windows/i.test(ua)) {
-			os = "Windows";
-			arch = "x64";
-		} else if (/Linux/i.test(ua)) {
-			os = "Linux";
-			arch = "x64";
-		} else {
-			os = "macOS";
-			arch = /Mac/.test(ua) && !/Intel/.test(ua) ? "arm64" : "arm64";
-		}
-
-		const uaData = (navigator as Navigator & { userAgentData?: { architecture?: string } })
-			.userAgentData;
-		if (uaData?.architecture === "arm") arch = "arm64";
-		else if (uaData?.architecture === "x86") arch = "x64";
-
-		setInfo({ os, arch });
-	}, []);
-	return info;
-}
-
-interface ReleaseAsset {
-	name: string;
-	url: string;
-}
-
-function useLatestRelease() {
-	const [assets, setAssets] = useState<ReleaseAsset[]>([]);
-
-	useEffect(() => {
-		const controller = new AbortController();
-		fetch("https://api.github.com/repos/MODSetter/SurfSense/releases/latest", {
-			signal: controller.signal,
-		})
-			.then((r) => r.json())
-			.then((data) => {
-				if (data?.assets) {
-					setAssets(
-						data.assets
-							.filter((a: { name: string }) => /\.(exe|dmg|AppImage|deb)$/.test(a.name))
-							.map((a: { name: string; browser_download_url: string }) => ({
-								name: a.name,
-								url: a.browser_download_url,
-							}))
-					);
-				}
-			})
-			.catch(() => {});
-		return () => controller.abort();
-	}, []);
-
-	return assets;
-}
-
-const ASSET_LABELS: Record<string, string> = {
-	".exe": "Windows (exe)",
-	"-arm64.dmg": "macOS Apple Silicon (dmg)",
-	"-x64.dmg": "macOS Intel (dmg)",
-	"-arm64.zip": "macOS Apple Silicon (zip)",
-	"-x64.zip": "macOS Intel (zip)",
-	".AppImage": "Linux (AppImage)",
-	".deb": "Linux (deb)",
-};
-
-function getAssetLabel(name: string): string {
-	for (const [suffix, label] of Object.entries(ASSET_LABELS)) {
-		if (name.endsWith(suffix)) return label;
-	}
-	return name;
-}
-
 function DownloadButton() {
-	const { os, arch } = useUserOS();
-	const assets = useLatestRelease();
-
-	const { primary, alternatives } = useMemo(() => {
-		if (assets.length === 0) return { primary: null, alternatives: [] };
-
-		const matchers: Record<string, (n: string) => boolean> = {
-			Windows: (n) => n.endsWith(".exe"),
-			macOS: (n) => n.endsWith(`-${arch}.dmg`),
-			Linux: (n) => n.endsWith(".AppImage"),
-		};
-
-		const match = matchers[os];
-		const primary = assets.find((a) => match(a.name)) ?? null;
-		const alternatives = assets.filter((a) => a !== primary);
-		return { primary, alternatives };
-	}, [assets, os, arch]);
+	const { os, primary, alternatives } = usePrimaryDownload();
 
 	const fallbackUrl = GITHUB_RELEASES_URL;
 
@@ -504,5 +409,3 @@ const TabVideo = memo(function TabVideo({ src }: { src: string }) {
 		</div>
 	);
 });
-
-const GITHUB_RELEASES_URL = "https://github.com/MODSetter/SurfSense/releases/latest";

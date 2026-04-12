@@ -13,6 +13,7 @@ from .discord_add_connector_route import router as discord_add_connector_router
 from .documents_routes import router as documents_router
 from .dropbox_add_connector_route import router as dropbox_add_connector_router
 from .editor_routes import router as editor_router
+from .export_routes import router as export_router
 from .folders_routes import router as folders_router
 from .google_calendar_add_connector_route import (
     router as google_calendar_add_connector_router,
@@ -29,6 +30,7 @@ from .jira_add_connector_route import router as jira_add_connector_router
 from .linear_add_connector_route import router as linear_add_connector_router
 from .logs_routes import router as logs_router
 from .luma_add_connector_route import router as luma_add_connector_router
+from .memory_routes import router as memory_router
 from .model_list_routes import router as model_list_router
 from .new_chat_routes import router as new_chat_router
 from .new_llm_config_routes import router as new_llm_config_router
@@ -57,6 +59,7 @@ router = APIRouter()
 router.include_router(search_spaces_router)
 router.include_router(rbac_router)  # RBAC routes for roles, members, invites
 router.include_router(editor_router)
+router.include_router(export_router)
 router.include_router(documents_router)
 router.include_router(folders_router)
 router.include_router(notes_router)
@@ -98,4 +101,5 @@ router.include_router(incentive_tasks_router)  # Incentive tasks for earning fre
 router.include_router(stripe_router)  # Stripe checkout for additional page packs
 router.include_router(youtube_router)  # YouTube playlist resolution
 router.include_router(prompts_router)
+router.include_router(memory_router)  # User personal memory (memory.md style)
 router.include_router(autocomplete_router)  # Lightweight autocomplete with KB context
