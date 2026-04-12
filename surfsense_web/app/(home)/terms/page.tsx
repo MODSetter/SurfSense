@@ -3,6 +3,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
 	title: "Terms of Service | SurfSense",
 	description: "Terms of Service for SurfSense application",
+	alternates: {
+		canonical: "https://surfsense.com/terms",
+	},
 };
 
 export default function TermsOfService() {

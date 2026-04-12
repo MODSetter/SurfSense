@@ -16,6 +16,19 @@ export const changelog = defineDocs({
 	},
 });
 
+export const blog = defineDocs({
+	dir: "blog/content",
+	docs: {
+		schema: frontmatterSchema.extend({
+			date: z.string(),
+			image: z.string().optional(),
+			author: z.string().default("SurfSense Team"),
+			authorAvatar: z.string().optional(),
+			tags: z.array(z.string()).optional(),
+		}),
+	},
+});
+
 export default defineConfig({
 	lastModifiedTime: "git",
 	mdxOptions: {

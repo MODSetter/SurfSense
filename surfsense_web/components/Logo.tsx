@@ -15,7 +15,7 @@ export const Logo = ({
 		<Image
 			src="/icon-128.svg"
 			className={cn("select-none dark:invert", className)}
-			alt="logo"
+			alt="SurfSense"
 			width={128}
 			height={128}
 			priority={priority}

@@ -180,11 +180,11 @@ export default function ExternalIntegrations() {
 		>
 			{/* Heading */}
 			<div className="text-center mb-12 md:mb-16 relative z-20 px-4">
-				<h3 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white leading-[1.1] tracking-tight">
+				<h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white leading-[1.1] tracking-tight">
 					Integrate with your
 					<br />
 					team&apos;s most important tools
-				</h3>
+				</h2>
 			</div>
 
 			{/* Scrolling columns container — masked at edges so the page background shows through seamlessly */}
