@@ -301,6 +301,30 @@ fastapi_users = FastAPIUsers[User, uuid.UUID](get_user_manager, [auth_backend])
 _jwt_current_optional_user = fastapi_users.current_user(active=True, optional=True)
 
 
+async def _refetch_proxy_user(proxy_user: User) -> User:
+    """
+    Re-fetch the proxy_user in a fresh session so it's attached and persistent.
+
+    ProxyAuthMiddleware resolves the user in its own async session which closes
+    before the route handler runs. The User object left on request.state is
+    detached — any downstream handler that tries session.refresh(user) or
+    accesses lazy-loaded relationships in a new session will get
+    "Instance is not persistent within this Session". Re-fetching by ID in a
+    fresh session gives every handler a properly attached object.
+    """
+    from sqlalchemy import select  # avoid circular import at module level
+
+    async with async_session_maker() as session:
+        result = await session.execute(select(User).where(User.id == proxy_user.id))
+        fresh = result.unique().scalar_one_or_none()
+        if fresh is not None:
+            # Expunge so the object outlives this session without being
+            # "detached-from-a-closed-session" — it becomes transient,
+            # and any downstream handler can session.merge() it if needed.
+            session.expunge(fresh)
+        return fresh or proxy_user
+
+
 async def current_active_user(
     request: Request,
     jwt_user: User | None = Depends(_jwt_current_optional_user),
@@ -315,7 +339,7 @@ async def current_active_user(
     """
     proxy_user = getattr(request.state, "proxy_user", None)
     if proxy_user is not None:
-        return proxy_user
+        return await _refetch_proxy_user(proxy_user)
     if jwt_user is not None:
         return jwt_user
     raise HTTPException(
@@ -329,4 +353,6 @@ async def current_optional_user(
     jwt_user: User | None = Depends(_jwt_current_optional_user),
 ) -> User | None:
     proxy_user = getattr(request.state, "proxy_user", None)
-    return proxy_user if proxy_user is not None else jwt_user
+    if proxy_user is not None:
+        return await _refetch_proxy_user(proxy_user)
+    return jwt_user
