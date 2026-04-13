@@ -31,7 +31,13 @@ def main() -> None:
     )
     daytona = Daytona(config)
 
-    image = Image.debian_slim("3.12").pip_install(*PACKAGES)
+    image = (
+        Image.debian_slim("3.12")
+        .pip_install(*PACKAGES)
+        # The agent's virtual filesystem serves documents at /documents/.
+        # This symlink lets code inside the sandbox use the same path.
+        .run("mkdir -p /home/daytona/documents && ln -sf /home/daytona/documents /documents")
+    )
 
     print(f"Creating snapshot '{SNAPSHOT_NAME}' with packages: {', '.join(PACKAGES)}")
     snapshot = daytona.snapshot.create(
