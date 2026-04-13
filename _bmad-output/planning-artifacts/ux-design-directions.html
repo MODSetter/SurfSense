@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html class="dark">
+<head>
+    <title>SurfSense Design Directions</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { darkMode: 'class', theme: { extend: { colors: { zinc: { 900: '#18181b', 800: '#27272a', 950: '#09090b' }, indigo: { 500: '#6366f1', 400: '#818cf8', 300: '#a5b4fc' } } } } }
+    </script>
+</head>
+<body class="bg-zinc-900 text-slate-300 font-sans p-8 max-w-5xl mx-auto">
+    <h1 class="text-3xl font-bold text-white mb-2">SurfSense Design Directions</h1>
+    <p class="text-zinc-400 mb-10">Mô phỏng thiết kế dựa trên phong cách Monochrome & Indigo Focus.</p>
+    
+    <div class="mb-16">
+        <h2 class="text-xl font-semibold text-indigo-400 mb-2">Direction 1: "The Scholar" (Split-Pane Layout)</h2>
+        <p class="mb-6 text-sm text-zinc-400">Giao diện chia đôi màn hình chuẩn mực. Khung Chat bên trái, Tài liệu cuộn bên phải. Tối ưu cho việc đối chiếu và nghiên cứu sâu.</p>
+        <div class="border border-zinc-700 rounded-xl overflow-hidden flex h-[500px] bg-zinc-950 shadow-2xl">
+            <!-- Sidebar / Chat -->
+            <div class="w-1/3 border-r border-zinc-800 p-4 flex flex-col justify-between relative bg-zinc-900">
+                <div class="space-y-4">
+                    <div class="bg-zinc-800 p-4 rounded-lg text-sm shadow-sm"><span class="text-indigo-400 font-semibold text-xs border border-indigo-500/50 px-1.5 py-0.5 rounded mr-2 uppercase tracking-wider">You</span>Nguyên nhân chính là gì?</div>
+                    <div class="p-2 text-sm leading-relaxed"><span class="font-bold text-white mb-2 block flex items-center"><div class="w-2 h-2 bg-indigo-500 rounded-full mr-2 glow"></div> SurfSense AI</span>Nguyên nhân chính được báo cáo nhắc đến chủ yếu do sự thay đổi biểu đồ nhiệt độ toàn cầu <span class="bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded cursor-pointer hover:ring-1 hover:ring-indigo-500 transition-all">[1]</span>.</div>
+                </div>
+                <div class="mt-4"><input type="text" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg p-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all placeholder-zinc-500" placeholder="Ask a question..."></div>
+            </div>
+            <!-- Document Pane -->
+            <div class="w-2/3 p-10 overflow-y-auto bg-zinc-950 relative">
+                <div class="absolute top-4 right-4 text-xs font-mono text-zinc-500 border border-zinc-800 px-2 rounded">SYNCED</div>
+                <h3 class="text-xl font-bold text-white mb-6">Climate_Report_2024.pdf</h3>
+                <p class="text-base leading-8 text-zinc-400 mb-4">... Mặc dù có nhiều giả thuyết, các hiện tượng quan sát được cho thấy <span class="bg-indigo-500/20 text-indigo-100 font-medium px-1 rounded ring-1 ring-indigo-500/50 shadow-[0_0_10px_rgba(99,102,241,0.2)]">thay đổi biểu đồ nhiệt độ toàn cầu</span> là tác nhân định hướng chính yếu của sự kiện này ...</p>
+                <p class="text-base leading-8 text-zinc-400">Các nhà khoa học cũng đồng thuận rằng...</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-12">
+        <h2 class="text-xl font-semibold text-indigo-400 mb-2">Direction 2: "Focus Mode" (Floating Overlay)</h2>
+        <p class="mb-6 text-sm text-zinc-400">Tài liệu chiếm trọn không gian, Chat là một Floating Widget nổi bên dưới tựa như Spotlight. Tối ưu cho việc đọc liền mạch, thỉnh thoảng mới hỏi AI.</p>
+        <div class="border border-zinc-700 rounded-xl overflow-hidden relative h-[500px] bg-zinc-950 shadow-2xl p-10 text-center flex flex-col items-center pt-20">
+            <h3 class="text-2xl font-bold text-white mb-6">Climate_Report_2024.pdf</h3>
+            <p class="text-lg leading-8 text-zinc-400 max-w-2xl mx-auto text-left">... Mặc dù có nhiều giả thuyết, các hiện tượng quan sát được cho thấy thay đổi biểu đồ nhiệt độ toàn cầu là tác nhân định hướng chính yếu của sự kiện này ... Các nhà khoa học cũng đồng thuận rằng mức độ nghiêm trọng cần được đánh giá lại...</p>
+            
+            <!-- Floating Hover Chat -->
+            <div class="absolute bottom-8 left-1/2 transform -translate-x-1/2 w-3/4 max-w-2xl bg-zinc-800/90 backdrop-blur-md border border-zinc-700/50 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-5">
+                <div class="mb-4 text-sm text-zinc-300 text-left flex items-start"><div class="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 mr-3"></div><div class="leading-relaxed">Nguyên nhân chính được báo cáo nhắc đến chủ yếu do sự thay đổi biểu đồ nhiệt độ toàn cầu <span class="text-indigo-400 font-medium cursor-pointer hover:underline">[1]</span>.</div></div>
+                <div class="relative">
+                    <input type="text" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3 pl-4 pr-10 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 shadow-inner" placeholder="Follow up...">
+                    <div class="absolute right-3 top-3 w-5 h-5 bg-indigo-500 text-white rounded text-xs flex items-center justify-center font-bold font-mono shadow">↵</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

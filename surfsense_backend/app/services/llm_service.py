@@ -165,6 +165,28 @@ async def validate_llm_config(
             return False, "LLM returned an empty response"
 
     except Exception as e:
+        # Check both str and repr to cover all litellm exception formats
+        error_text = (str(e) + repr(e)).lower()
+
+        # Billing errors mean the config IS valid — API key works, model exists.
+        # Only the account balance is insufficient, so allow saving the config.
+        BILLING_KEYWORDS = [
+            "insufficient_credits",
+            "insufficient credits",
+            "insufficient balance",
+            "insufficientquota",
+            "quota exceeded",
+            "billing",
+            "payment required",
+            "402",
+        ]
+        if any(kw in error_text for kw in BILLING_KEYWORDS):
+            logger.warning(
+                f"LLM config validation: billing error for model {model_string} "
+                f"(config is valid, account needs top-up): {e}"
+            )
+            return True, ""
+
         error_msg = f"Failed to validate LLM configuration: {e!s}"
         logger.error(error_msg)
         return False, error_msg

@@ -12,6 +12,8 @@ name: surfsense
 services:
   db:
     image: pgvector/pgvector:pg17
+    ports:
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgresql.conf:/etc/postgresql/postgresql.conf:ro
@@ -29,6 +31,8 @@ services:
 
   redis:
     image: redis:8-alpine
+    ports:
+      - "6379:6379"
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
@@ -41,6 +45,7 @@ services:
 
   searxng:
     image: searxng/searxng:2026.3.13-3c1f68c59
+    # ports: reusing mrholmes-searxng on host:8888
     volumes:
       - ./searxng:/etc/searxng
     environment:

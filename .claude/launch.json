@@ -1,0 +1,26 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "SurfSense Frontend",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["dev"],
+      "cwd": "surfsense_web",
+      "port": 3000
+    },
+    {
+      "name": "SurfSense Backend",
+      "runtimeExecutable": ".venv/bin/uvicorn",
+      "runtimeArgs": ["app.app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"],
+      "cwd": "surfsense_backend",
+      "port": 8000
+    },
+    {
+      "name": "SurfSense Full Stack (Docker Dev)",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "-f", "docker/docker-compose.dev.yml", "up", "--build"],
+      "cwd": ".",
+      "port": 3000
+    }
+  ]
+}

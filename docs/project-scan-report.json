@@ -1,0 +1,85 @@
+{
+  "workflow_version": "1.2.0",
+  "timestamps": {
+    "started": "2026-04-12T23:49:16+07:00",
+    "last_updated": "2026-04-13T00:20:00+07:00"
+  },
+  "mode": "full_rescan",
+  "scan_level": "exhaustive",
+  "project_root": "/Users/luisphan/Documents/GitHub/SurfSense",
+  "project_knowledge": "/Users/luisphan/Documents/GitHub/SurfSense/docs",
+  "completed_steps": [
+    "step_1",
+    "step_2",
+    "step_3",
+    "step_4",
+    "step_5",
+    "step_6",
+    "step_7",
+    "step_8",
+    "step_9"
+  ],
+  "current_step": "completed",
+  "findings": {
+    "project_type_id": "web_monorepo",
+    "structure": [
+      "surfsense_web/",
+      "surfsense_backend/",
+      "surfsense_browser_extension/",
+      "surfsense_desktop/",
+      "docker/",
+      "scripts/"
+    ],
+    "dependencies": {
+      "frontend": ["next", "react", "tailwindcss", "drizzle-orm", "@rocicorp/zero", "fumadocs"],
+      "backend": ["fastapi", "alembic", "psycopg", "celery", "redis", "langgraph", "langchain"]
+    },
+    "architectural_patterns": [
+      "Monorepo structure",
+      "Next.js App Router",
+      "Local-first state sync with Zero",
+      "Backend API via FastAPI",
+      "Task Queues via Celery & Redis"
+    ],
+    "components": {
+      "api_endpoints_count": 46,
+      "data_models_count": 34,
+      "ui_components_count": 200
+    },
+    "entry_points": [
+      "surfsense_backend/app/main.py",
+      "surfsense_backend/app/celery_app.py",
+      "surfsense_web/app/layout.tsx"
+    ],
+    "config_files": [
+      "docker/docker-compose.yml",
+      "surfsense_web/package.json",
+      "surfsense_backend/pyproject.toml"
+    ],
+    "data_storage": [
+      "PostgreSQL (Drizzle/SQLAlchemy)",
+      "Redis"
+    ],
+    "integrations": [
+      "Zero Sync",
+      "Google Auth",
+      "LangGraph Agents",
+      "SearXNG"
+    ]
+  },
+  "outputs_generated": [
+    "index.md",
+    "project-overview.md",
+    "architecture-backend.md",
+    "architecture-web.md",
+    "data-models.md",
+    "api-contracts.md",
+    "source-tree-analysis.md",
+    "component-inventory.md",
+    "development-guide.md",
+    "deployment-guide.md",
+    "integration-architecture.md",
+    "project-scan-report.json"
+  ],
+  "resume_instructions": "Scan completed"
+}
