@@ -439,6 +439,7 @@ async def create_surfsense_deep_agent(
         SurfSenseFilesystemMiddleware(
             search_space_id=search_space_id,
             created_by_id=user_id,
+            thread_id=thread_id,
         ),
         create_summarization_middleware(llm, StateBackend),
         PatchToolCallsMiddleware(),
@@ -466,6 +467,7 @@ async def create_surfsense_deep_agent(
         SurfSenseFilesystemMiddleware(
             search_space_id=search_space_id,
             created_by_id=user_id,
+            thread_id=thread_id,
         ),
         SubAgentMiddleware(backend=StateBackend, subagents=[general_purpose_spec]),
         create_summarization_middleware(llm, StateBackend),
