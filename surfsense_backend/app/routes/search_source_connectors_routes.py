@@ -636,8 +636,15 @@ async def delete_search_source_connector(
             )
 
         # Delete the connector record
+        search_space_id = db_connector.search_space_id
+        is_mcp = db_connector.connector_type == SearchSourceConnectorType.MCP_CONNECTOR
         await session.delete(db_connector)
         await session.commit()
+
+        if is_mcp:
+            from app.agents.new_chat.tools.mcp_tool import invalidate_mcp_tools_cache
+
+            invalidate_mcp_tools_cache(search_space_id)
 
         logger.info(
             f"Connector {connector_id} ({connector_name}) deleted successfully. "
