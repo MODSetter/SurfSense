@@ -6,38 +6,26 @@ import { useCallback, useEffect, useState } from "react";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
+import type { InterruptResult, HitlDecision } from "@/lib/hitl";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
 
-interface InterruptResult {
-	__interrupt__: true;
-	__decided__?: "approve" | "reject";
-	__completed__?: boolean;
-	action_requests: Array<{
+interface DeleteConfluencePageInterruptContext {
+	account?: {
+		id: number;
 		name: string;
-		args: Record<string, unknown>;
-	}>;
-	review_configs: Array<{
-		action_name: string;
-		allowed_decisions: Array<"approve" | "reject">;
-	}>;
-	interrupt_type?: string;
-	context?: {
-		account?: {
-			id: number;
-			name: string;
-			base_url: string;
-			auth_expired?: boolean;
-		};
-		page?: {
-			page_id: string;
-			page_title: string;
-			space_id: string;
-			connector_id?: number;
-			document_id?: number;
-			indexed_at?: string;
-		};
-		error?: string;
+		base_url: string;
+		auth_expired?: boolean;
 	};
+	page?: {
+		page_id: string;
+		page_title: string;
+		space_id: string;
+		connector_id?: number;
+		document_id?: number;
+		indexed_at?: string;
+	};
+	error?: string;
 }
 
 interface SuccessResult {
@@ -77,22 +65,13 @@ interface InsufficientPermissionsResult {
 }
 
 type DeleteConfluencePageResult =
-	| InterruptResult
+	| InterruptResult<DeleteConfluencePageInterruptContext>
 	| SuccessResult
 	| ErrorResult
 	| NotFoundResult
 	| WarningResult
 	| AuthErrorResult
 	| InsufficientPermissionsResult;
-
-function isInterruptResult(result: unknown): result is InterruptResult {
-	return (
-		typeof result === "object" &&
-		result !== null &&
-		"__interrupt__" in result &&
-		(result as InterruptResult).__interrupt__ === true
-	);
-}
 
 function isErrorResult(result: unknown): result is ErrorResult {
 	return (
@@ -145,12 +124,8 @@ function ApprovalCard({
 	interruptData,
 	onDecision,
 }: {
-	interruptData: InterruptResult;
-	onDecision: (decision: {
-		type: "approve" | "reject";
-		message?: string;
-		edited_action?: { name: string; args: Record<string, unknown> };
-	}) => void;
+	interruptData: InterruptResult<DeleteConfluencePageInterruptContext>;
+	onDecision: (decision: HitlDecision) => void;
 }) {
 	const { phase, setProcessing, setRejected } = useHitlPhase(interruptData);
 	const [deleteFromKb, setDeleteFromKb] = useState(false);
@@ -402,18 +377,15 @@ export const DeleteConfluencePageToolUI = ({
 	{ page_title_or_id: string; delete_from_kb?: boolean },
 	DeleteConfluencePageResult
 >) => {
+	const { dispatch } = useHitlDecision();
+
 	if (!result) return null;
 
 	if (isInterruptResult(result)) {
 		return (
 			<ApprovalCard
-				interruptData={result}
-				onDecision={(decision) => {
-					const event = new CustomEvent("hitl-decision", {
-						detail: { decisions: [decision] },
-					});
-					window.dispatchEvent(event);
-				}}
+				interruptData={result as InterruptResult<DeleteConfluencePageInterruptContext>}
+				onDecision={(decision) => dispatch([decision])}
 			/>
 		);
 	}
