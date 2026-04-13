@@ -39,7 +39,7 @@ interface CalendarEvent {
 	indexed_at?: string;
 }
 
-interface CalendarUpdateEventContext {
+type CalendarUpdateEventContext = {
 	account?: GoogleCalendarAccount;
 	event?: CalendarEvent;
 	error?: string;

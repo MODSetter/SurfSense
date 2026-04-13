@@ -47,7 +47,7 @@ interface LinearPriority {
 	label: string;
 }
 
-interface LinearUpdateIssueContext {
+type LinearUpdateIssueContext = {
 	workspace?: { id: number; organization_name: string };
 	priorities?: LinearPriority[];
 	issue?: {

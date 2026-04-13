@@ -10,7 +10,7 @@ import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
 import type { InterruptResult, HitlDecision } from "@/lib/hitl";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
 
-interface DeleteConfluencePageInterruptContext {
+type DeleteConfluencePageInterruptContext = {
 	account?: {
 		id: number;
 		name: string;

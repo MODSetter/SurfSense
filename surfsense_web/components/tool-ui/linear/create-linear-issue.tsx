@@ -66,7 +66,7 @@ interface LinearWorkspace {
 	auth_expired?: boolean;
 }
 
-interface LinearCreateIssueContext {
+type LinearCreateIssueContext = {
 	workspaces?: LinearWorkspace[];
 	error?: string;
 }

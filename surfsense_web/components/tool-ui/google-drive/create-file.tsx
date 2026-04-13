@@ -25,7 +25,7 @@ interface GoogleDriveAccount {
 	auth_expired?: boolean;
 }
 
-interface DriveCreateFileContext {
+type DriveCreateFileContext = {
 	accounts?: GoogleDriveAccount[];
 	supported_types?: string[];
 	parent_folders?: Record<number, Array<{ folder_id: string; name: string }>>;

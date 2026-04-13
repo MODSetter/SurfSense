@@ -23,7 +23,7 @@ interface GoogleDriveFile {
 	web_view_link: string;
 }
 
-interface DriveTrashFileContext {
+type DriveTrashFileContext = {
 	account?: GoogleDriveAccount;
 	file?: GoogleDriveFile;
 	error?: string;

@@ -31,7 +31,7 @@ interface SupportedType {
 	label: string;
 }
 
-interface DropboxCreateFileContext {
+type DropboxCreateFileContext = {
 	accounts?: DropboxAccount[];
 	parent_folders?: Record<number, Array<{ folder_path: string; name: string }>>;
 	supported_types?: SupportedType[];

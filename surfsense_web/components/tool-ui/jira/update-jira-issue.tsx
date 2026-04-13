@@ -45,7 +45,7 @@ interface JiraPriority {
 	name: string;
 }
 
-interface UpdateJiraIssueInterruptContext {
+type UpdateJiraIssueInterruptContext = {
 	account?: JiraAccount;
 	issue?: JiraIssue;
 	priorities?: JiraPriority[];

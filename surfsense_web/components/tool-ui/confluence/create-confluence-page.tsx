@@ -32,7 +32,7 @@ interface ConfluenceSpace {
 	name: string;
 }
 
-interface CreateConfluencePageInterruptContext {
+type CreateConfluencePageInterruptContext = {
 	accounts?: ConfluenceAccount[];
 	spaces?: ConfluenceSpace[];
 	error?: string;

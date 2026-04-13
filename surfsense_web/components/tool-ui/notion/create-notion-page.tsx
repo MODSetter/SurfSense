@@ -19,7 +19,7 @@ import { useHitlPhase } from "@/hooks/use-hitl-phase";
 import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
 import type { InterruptResult, HitlDecision } from "@/lib/hitl";
 
-interface NotionCreatePageContext {
+type NotionCreatePageContext = {
 	accounts?: Array<{
 		id: number;
 		name: string;

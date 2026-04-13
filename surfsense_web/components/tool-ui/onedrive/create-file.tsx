@@ -26,7 +26,7 @@ interface OneDriveAccount {
 	auth_expired?: boolean;
 }
 
-interface OneDriveCreateFileContext {
+type OneDriveCreateFileContext = {
 	accounts?: OneDriveAccount[];
 	parent_folders?: Record<number, Array<{ folder_id: string; name: string }>>;
 	error?: string;

@@ -25,7 +25,7 @@ interface JiraIssue {
 	document_id?: number;
 }
 
-interface DeleteJiraIssueInterruptContext {
+type DeleteJiraIssueInterruptContext = {
 	account?: JiraAccount;
 	issue?: JiraIssue;
 	error?: string;

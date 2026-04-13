@@ -29,7 +29,7 @@ interface CalendarEvent {
 	indexed_at?: string;
 }
 
-interface CalendarDeleteEventContext {
+type CalendarDeleteEventContext = {
 	account?: GoogleCalendarAccount;
 	event?: CalendarEvent;
 	error?: string;

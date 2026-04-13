@@ -10,7 +10,7 @@ import { useHitlPhase } from "@/hooks/use-hitl-phase";
 import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
 import type { InterruptResult, HitlDecision } from "@/lib/hitl";
 
-interface LinearDeleteIssueContext {
+type LinearDeleteIssueContext = {
 	workspace?: { id: number; organization_name: string };
 	issue?: {
 		id: string;

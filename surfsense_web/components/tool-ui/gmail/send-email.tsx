@@ -27,7 +27,7 @@ interface GmailAccount {
 	auth_expired?: boolean;
 }
 
-interface GmailSendEmailContext {
+type GmailSendEmailContext = {
 	accounts?: GmailAccount[];
 	error?: string;
 }

@@ -12,7 +12,7 @@ import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
 import type { InterruptResult, HitlDecision } from "@/lib/hitl";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
 
-interface UpdateConfluencePageInterruptContext {
+type UpdateConfluencePageInterruptContext = {
 	account?: {
 		id: number;
 		name: string;

@@ -32,7 +32,7 @@ interface CalendarEntry {
 	primary?: boolean;
 }
 
-interface CalendarCreateEventContext {
+type CalendarCreateEventContext = {
 	accounts?: GoogleCalendarAccount[];
 	calendars?: CalendarEntry[];
 	timezone?: string;

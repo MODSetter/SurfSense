@@ -30,7 +30,7 @@ interface GmailMessage {
 	document_id: number;
 }
 
-interface GmailUpdateDraftContext {
+type GmailUpdateDraftContext = {
 	account?: GmailAccount;
 	email?: GmailMessage;
 	draft_id?: string;

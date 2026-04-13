@@ -27,7 +27,7 @@ interface GmailMessage {
 	document_id: number;
 }
 
-interface GmailTrashEmailContext {
+type GmailTrashEmailContext = {
 	account?: GmailAccount;
 	email?: GmailMessage;
 	error?: string;

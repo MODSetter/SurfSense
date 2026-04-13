@@ -24,7 +24,7 @@ interface OneDriveFile {
 	web_url?: string;
 }
 
-interface OneDriveTrashFileContext {
+type OneDriveTrashFileContext = {
 	account?: OneDriveAccount;
 	file?: OneDriveFile;
 	error?: string;

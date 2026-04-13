@@ -42,7 +42,7 @@ interface JiraPriority {
 	name: string;
 }
 
-interface CreateJiraIssueInterruptContext {
+type CreateJiraIssueInterruptContext = {
 	accounts?: JiraAccount[];
 	projects?: JiraProject[];
 	issue_types?: JiraIssueType[];

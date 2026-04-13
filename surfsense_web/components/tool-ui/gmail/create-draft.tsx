@@ -27,7 +27,7 @@ interface GmailAccount {
 	auth_expired?: boolean;
 }
 
-interface GmailCreateDraftContext {
+type GmailCreateDraftContext = {
 	accounts?: GmailAccount[];
 	error?: string;
 }

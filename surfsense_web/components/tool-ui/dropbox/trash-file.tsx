@@ -24,7 +24,7 @@ interface DropboxFile {
 	document_id?: number;
 }
 
-interface DropboxTrashFileContext {
+type DropboxTrashFileContext = {
 	account?: DropboxAccount;
 	file?: DropboxFile;
 	error?: string;
