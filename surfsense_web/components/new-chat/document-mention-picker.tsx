@@ -29,8 +29,6 @@ interface DocumentMentionPickerProps {
 	onDone: () => void;
 	initialSelectedDocuments?: Pick<Document, "id" | "title" | "document_type">[];
 	externalSearch?: string;
-	/** Positioning styles for the container */
-	containerStyle?: React.CSSProperties;
 }
 
 const PAGE_SIZE = 20;
@@ -75,7 +73,6 @@ export const DocumentMentionPicker = forwardRef<
 		onDone,
 		initialSelectedDocuments = [],
 		externalSearch = "",
-		containerStyle,
 	},
 	ref
 ) {
@@ -396,11 +393,7 @@ export const DocumentMentionPicker = forwardRef<
 
 	return (
 		<div
-			className="fixed shadow-2xl rounded-lg border border-border dark:border-white/5 overflow-hidden bg-popover dark:bg-neutral-900 flex flex-col w-[280px] sm:w-[320px] select-none"
-			style={{
-				zIndex: 9999,
-				...containerStyle,
-			}}
+			className="shadow-2xl rounded-lg border border-border dark:border-white/5 overflow-hidden bg-popover dark:bg-neutral-900 flex flex-col w-[280px] sm:w-[320px] select-none"
 			onKeyDown={handleKeyDown}
 			role="listbox"
 			tabIndex={-1}

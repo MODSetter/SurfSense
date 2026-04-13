@@ -28,11 +28,10 @@ interface PromptPickerProps {
 	onSelect: (action: { name: string; prompt: string; mode: "transform" | "explore" }) => void;
 	onDone: () => void;
 	externalSearch?: string;
-	containerStyle?: React.CSSProperties;
 }
 
 export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(function PromptPicker(
-	{ onSelect, onDone, externalSearch = "", containerStyle },
+	{ onSelect, onDone, externalSearch = "" },
 	ref
 ) {
 	const setUserSettingsDialog = useSetAtom(userSettingsDialogAtom);
@@ -113,13 +112,7 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 	);
 
 	return (
-		<div
-			className="fixed shadow-2xl rounded-lg border border-border dark:border-white/5 overflow-hidden bg-popover dark:bg-neutral-900 flex flex-col w-[280px] sm:w-[320px] select-none"
-			style={{
-				zIndex: 9999,
-				...containerStyle,
-			}}
-		>
+		<div className="shadow-2xl rounded-lg border border-border dark:border-white/5 overflow-hidden bg-popover dark:bg-neutral-900 flex flex-col w-[280px] sm:w-[320px] select-none">
 			<div ref={scrollContainerRef} className="max-h-[180px] sm:max-h-[280px] overflow-y-auto">
 				{isLoading ? (
 					<div className="py-1 px-2">
