@@ -7,6 +7,8 @@ import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
+import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
+import type { InterruptResult, HitlDecision } from "@/lib/hitl";
 
 interface DropboxAccount {
 	id: number;
@@ -22,13 +24,10 @@ interface DropboxFile {
 	document_id?: number;
 }
 
-interface InterruptResult {
-	__interrupt__: true;
-	__decided__?: "approve" | "reject";
-	__completed__?: boolean;
-	action_requests: Array<{ name: string; args: Record<string, unknown> }>;
-	review_configs: Array<{ action_name: string; allowed_decisions: Array<"approve" | "reject"> }>;
-	context?: { account?: DropboxAccount; file?: DropboxFile; error?: string };
+interface DropboxTrashFileContext {
+	account?: DropboxAccount;
+	file?: DropboxFile;
+	error?: string;
 }
 
 interface SuccessResult {
@@ -52,20 +51,12 @@ interface AuthErrorResult {
 }
 
 type DeleteDropboxFileResult =
-	| InterruptResult
+	| InterruptResult<DropboxTrashFileContext>
 	| SuccessResult
 	| ErrorResult
 	| NotFoundResult
 	| AuthErrorResult;
 
-function isInterruptResult(result: unknown): result is InterruptResult {
-	return (
-		typeof result === "object" &&
-		result !== null &&
-		"__interrupt__" in result &&
-		(result as InterruptResult).__interrupt__ === true
-	);
-}
 function isErrorResult(result: unknown): result is ErrorResult {
 	return (
 		typeof result === "object" &&
@@ -95,12 +86,8 @@ function ApprovalCard({
 	interruptData,
 	onDecision,
 }: {
-	interruptData: InterruptResult;
-	onDecision: (decision: {
-		type: "approve" | "reject";
-		message?: string;
-		edited_action?: { name: string; args: Record<string, unknown> };
-	}) => void;
+	interruptData: InterruptResult<DropboxTrashFileContext>;
+	onDecision: (decision: HitlDecision) => void;
 }) {
 	const { phase, setProcessing, setRejected } = useHitlPhase(interruptData);
 	const [deleteFromKb, setDeleteFromKb] = useState(false);
@@ -308,16 +295,13 @@ export const DeleteDropboxFileToolUI = ({
 	{ file_name: string; delete_from_kb?: boolean },
 	DeleteDropboxFileResult
 >) => {
+	const { dispatch } = useHitlDecision();
 	if (!result) return null;
 	if (isInterruptResult(result)) {
 		return (
 			<ApprovalCard
-				interruptData={result}
-				onDecision={(decision) => {
-					window.dispatchEvent(
-						new CustomEvent("hitl-decision", { detail: { decisions: [decision] } })
-					);
-				}}
+				interruptData={result as InterruptResult<DropboxTrashFileContext>}
+				onDecision={(decision) => dispatch([decision])}
 			/>
 		);
 	}
