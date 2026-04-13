@@ -193,10 +193,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 
 				const iconSpan = document.createElement("span");
 				iconSpan.className = "flex items-center text-muted-foreground";
-				renderIconToElement(
-					getConnectorIcon(doc.document_type ?? "UNKNOWN", "h-3 w-3"),
-					iconSpan
-				);
+				renderIconToElement(getConnectorIcon(doc.document_type ?? "UNKNOWN", "h-3 w-3"), iconSpan);
 
 				const removeBtn = document.createElement("button");
 				removeBtn.type = "button";
