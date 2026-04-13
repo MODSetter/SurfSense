@@ -798,7 +798,7 @@ export default function NewChatPage() {
 									});
 								} else {
 									const tcId = `interrupt-${action.name}`;
-									addToolCall(contentPartsState, TOOLS_WITH_UI, tcId, action.name, action.args);
+									addToolCall(contentPartsState, TOOLS_WITH_UI, tcId, action.name, action.args, true);
 									updateToolCall(contentPartsState, tcId, {
 										result: { __interrupt__: true, ...interruptData },
 									});
@@ -1125,7 +1125,7 @@ export default function NewChatPage() {
 									});
 								} else {
 									const tcId = `interrupt-${action.name}`;
-									addToolCall(contentPartsState, TOOLS_WITH_UI, tcId, action.name, action.args);
+									addToolCall(contentPartsState, TOOLS_WITH_UI, tcId, action.name, action.args, true);
 									updateToolCall(contentPartsState, tcId, {
 										result: {
 											__interrupt__: true,
