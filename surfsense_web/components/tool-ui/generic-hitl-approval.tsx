@@ -1,7 +1,7 @@
 "use client";
 
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
-import { CornerDownLeftIcon, ShieldAlertIcon, ShieldCheckIcon } from "lucide-react";
+import { CornerDownLeftIcon, Pen } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
@@ -134,17 +134,14 @@ function GenericApprovalCard({
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-[box-shadow] duration-300">
 			{/* Header */}
-			<div className="flex items-start gap-3 px-5 pt-5 pb-4 select-none">
-				<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
-					<ShieldAlertIcon className="size-4 text-amber-600" />
-				</div>
-				<div className="flex-1 min-w-0">
+			<div className="flex items-start justify-between px-5 pt-5 pb-4 select-none">
+				<div>
 					<p className="text-sm font-semibold text-foreground">
 						{phase === "rejected"
 							? `${displayName} — Rejected`
 							: phase === "processing" || phase === "complete"
 								? `${displayName} — Approved`
-								: `Approve: ${displayName}`}
+								: displayName}
 					</p>
 					{phase === "processing" ? (
 						<TextShimmerLoader text="Executing..." size="sm" />
@@ -163,13 +160,24 @@ function GenericApprovalCard({
 						</p>
 					)}
 				</div>
+				{phase === "pending" && canEdit && !isEditing && (
+					<Button
+						size="sm"
+						variant="ghost"
+						className="rounded-lg text-muted-foreground -mt-1 -mr-2"
+						onClick={() => setIsEditing(true)}
+					>
+						<Pen className="size-3.5" />
+						Edit
+					</Button>
+				)}
 			</div>
 
 			{/* Description */}
 			{toolDescription && phase === "pending" && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
-					<div className="px-5 py-2">
+					<div className="px-5 py-3">
 						<p className="text-xs text-muted-foreground">{toolDescription}</p>
 					</div>
 				</>
@@ -179,7 +187,7 @@ function GenericApprovalCard({
 			{Object.keys(args).length > 0 && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
-					<div className="px-5 py-3 space-y-2">
+					<div className="px-5 py-4 space-y-2">
 						<p className="text-xs font-medium text-muted-foreground">Parameters</p>
 						{phase === "pending" && isEditing ? (
 							<ParamEditor
@@ -200,7 +208,7 @@ function GenericApprovalCard({
 			{phase === "pending" && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
-					<div className="px-5 py-3 flex items-center gap-2 select-none flex-wrap">
+					<div className="px-5 py-4 flex items-center gap-2 select-none">
 						{allowedDecisions.includes("approve") && (
 							<Button size="sm" className="rounded-lg gap-1.5" onClick={handleApprove}>
 								{isEditing && hasChanged ? "Approve with edits" : "Approve"}
@@ -210,22 +218,10 @@ function GenericApprovalCard({
 						{isMCPTool && (
 							<Button
 								size="sm"
-								variant="outline"
-								className="rounded-lg gap-1.5"
+								className="rounded-lg"
 								onClick={handleAlwaysAllow}
 							>
-								<ShieldCheckIcon className="size-3" />
 								Always Allow
-							</Button>
-						)}
-						{canEdit && !isEditing && (
-							<Button
-								size="sm"
-								variant="outline"
-								className="rounded-lg"
-								onClick={() => setIsEditing(true)}
-							>
-								Edit
 							</Button>
 						)}
 						{allowedDecisions.includes("reject") && (

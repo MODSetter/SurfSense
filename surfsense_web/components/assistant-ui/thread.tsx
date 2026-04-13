@@ -123,6 +123,10 @@ const ThreadContent: FC = () => {
 					}}
 				/>
 
+				<AuiIf condition={({ thread }) => !thread.isEmpty}>
+					<div className="grow" />
+				</AuiIf>
+
 				<ThreadPrimitive.ViewportFooter
 					className="aui-thread-viewport-footer sticky bottom-0 z-10 mx-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-main-panel pb-4 md:pb-6"
 					style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
