@@ -29,7 +29,6 @@ from app.agents.new_chat.sandbox import (
     _evict_sandbox_cache,
     get_or_create_sandbox,
     is_sandbox_enabled,
-    sync_files_to_sandbox,
 )
 from app.db import Chunk, Document, DocumentType, Folder, shielded_async_session
 from app.indexing_pipeline.document_chunker import chunk_text
@@ -589,8 +588,8 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         timeout: int | None,
     ) -> str:
         sandbox, is_new = await get_or_create_sandbox(self._thread_id)
-        files = runtime.state.get("files") or {}
-        await sync_files_to_sandbox(self._thread_id, files, sandbox, is_new)
+        # files = runtime.state.get("files") or {}
+        # await sync_files_to_sandbox(self._thread_id, files, sandbox, is_new)
         result = await sandbox.aexecute(command, timeout=timeout)
         output = (result.output or "").strip()
         if not output and result.exit_code == 0:
