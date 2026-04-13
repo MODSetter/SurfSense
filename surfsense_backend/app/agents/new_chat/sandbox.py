@@ -16,6 +16,7 @@ import contextlib
 import logging
 import os
 import shutil
+import threading
 from pathlib import Path
 
 from daytona import (
@@ -55,9 +56,16 @@ class _TimeoutAwareSandbox(DaytonaSandbox):
     ) -> ExecuteResponse:  # type: ignore[override]
         return await asyncio.to_thread(self.execute, command, timeout=timeout)
 
+    def download_file(self, path: str) -> bytes:
+        """Download a file from the sandbox filesystem."""
+        return self._sandbox.fs.download_file(path)
+
 
 _daytona_client: Daytona | None = None
+_client_lock = threading.Lock()
 _sandbox_cache: dict[str, _TimeoutAwareSandbox] = {}
+_sandbox_locks: dict[str, asyncio.Lock] = {}
+_sandbox_locks_mu = asyncio.Lock()
 _seeded_files: dict[str, dict[str, str]] = {}
 _SANDBOX_CACHE_MAX_SIZE = 20
 THREAD_LABEL_KEY = "surfsense_thread"
@@ -70,14 +78,15 @@ def is_sandbox_enabled() -> bool:
 
 def _get_client() -> Daytona:
     global _daytona_client
-    if _daytona_client is None:
-        config = DaytonaConfig(
-            api_key=os.environ.get("DAYTONA_API_KEY", ""),
-            api_url=os.environ.get("DAYTONA_API_URL", "https://app.daytona.io/api"),
-            target=os.environ.get("DAYTONA_TARGET", "us"),
-        )
-        _daytona_client = Daytona(config)
-    return _daytona_client
+    with _client_lock:
+        if _daytona_client is None:
+            config = DaytonaConfig(
+                api_key=os.environ.get("DAYTONA_API_KEY", ""),
+                api_url=os.environ.get("DAYTONA_API_URL", "https://app.daytona.io/api"),
+                target=os.environ.get("DAYTONA_TARGET", "us"),
+            )
+            _daytona_client = Daytona(config)
+        return _daytona_client
 
 
 def _sandbox_create_params(
@@ -136,13 +145,23 @@ def _find_or_create(thread_id: str) -> tuple[_TimeoutAwareSandbox, bool]:
         elif sandbox.state != SandboxState.STARTED:
             sandbox.wait_for_sandbox_start(timeout=60)
 
-    except Exception:
+    except DaytonaError:
         logger.info("No existing sandbox for thread %s — creating one", thread_id)
         sandbox = client.create(_sandbox_create_params(labels))
         is_new = True
         logger.info("Created new sandbox: %s", sandbox.id)
 
     return _TimeoutAwareSandbox(sandbox=sandbox), is_new
+
+
+async def _get_thread_lock(key: str) -> asyncio.Lock:
+    """Return a per-thread asyncio lock, creating one if needed."""
+    async with _sandbox_locks_mu:
+        lock = _sandbox_locks.get(key)
+        if lock is None:
+            lock = asyncio.Lock()
+            _sandbox_locks[key] = lock
+        return lock
 
 
 async def get_or_create_sandbox(
@@ -152,25 +171,51 @@ async def get_or_create_sandbox(
 
     Uses an in-process cache keyed by thread_id so subsequent messages
     in the same conversation reuse the sandbox object without an API call.
+    A per-thread async lock prevents duplicate sandbox creation from
+    concurrent requests.
 
     Returns:
         Tuple of (sandbox, is_new). *is_new* is True when a fresh sandbox
         was created, signalling that file tracking should be reset.
     """
     key = str(thread_id)
-    cached = _sandbox_cache.get(key)
-    if cached is not None:
-        logger.info("Reusing cached sandbox for thread %s", key)
-        return cached, False
-    sandbox, is_new = await asyncio.to_thread(_find_or_create, key)
-    _sandbox_cache[key] = sandbox
+    lock = await _get_thread_lock(key)
 
-    if len(_sandbox_cache) > _SANDBOX_CACHE_MAX_SIZE:
-        oldest_key = next(iter(_sandbox_cache))
-        _sandbox_cache.pop(oldest_key, None)
-        logger.debug("Evicted oldest sandbox cache entry: %s", oldest_key)
+    async with lock:
+        cached = _sandbox_cache.get(key)
+        if cached is not None:
+            logger.info("Reusing cached sandbox for thread %s", key)
+            return cached, False
+        sandbox, is_new = await asyncio.to_thread(_find_or_create, key)
+        _sandbox_cache[key] = sandbox
 
-    return sandbox, is_new
+        if len(_sandbox_cache) > _SANDBOX_CACHE_MAX_SIZE:
+            oldest_key = next(iter(_sandbox_cache))
+            if oldest_key != key:
+                evicted = _sandbox_cache.pop(oldest_key, None)
+                _seeded_files.pop(oldest_key, None)
+                logger.debug("Evicted sandbox cache entry: %s", oldest_key)
+                if evicted is not None:
+                    _schedule_sandbox_delete(evicted)
+
+        return sandbox, is_new
+
+
+def _schedule_sandbox_delete(sandbox: _TimeoutAwareSandbox) -> None:
+    """Best-effort background deletion of an evicted sandbox."""
+    def _delete() -> None:
+        try:
+            client = _get_client()
+            client.delete(sandbox._sandbox)
+            logger.info("Deleted evicted sandbox: %s", sandbox._sandbox.id)
+        except Exception:
+            logger.debug("Could not delete evicted sandbox", exc_info=True)
+
+    try:
+        loop = asyncio.get_running_loop()
+        loop.run_in_executor(None, _delete)
+    except RuntimeError:
+        pass
 
 
 async def sync_files_to_sandbox(

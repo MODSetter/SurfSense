@@ -142,7 +142,7 @@ class StreamResult:
     accumulated_text: str = ""
     is_interrupted: bool = False
     interrupt_value: dict[str, Any] | None = None
-    sandbox_files: list[str] = field(default_factory=list)  # unused, kept for compat
+    sandbox_files: list[str] = field(default_factory=list)
     agent_called_update_memory: bool = False
 
 
@@ -440,7 +440,7 @@ async def _stream_agent_events(
                     status="in_progress",
                     items=last_active_step_items,
                 )
-            elif tool_name == "execute":
+            elif tool_name in ("execute", "execute_code"):
                 cmd = (
                     tool_input.get("command", "")
                     if isinstance(tool_input, dict)
@@ -738,7 +738,7 @@ async def _stream_agent_events(
                     status="completed",
                     items=completed_items,
                 )
-            elif tool_name == "execute":
+            elif tool_name in ("execute", "execute_code"):
                 raw_text = (
                     tool_output.get("result", "")
                     if isinstance(tool_output, dict)
@@ -985,7 +985,7 @@ async def _stream_agent_events(
                     if isinstance(tool_output, dict)
                     else {"result": tool_output},
                 )
-            elif tool_name == "execute":
+            elif tool_name in ("execute", "execute_code"):
                 raw_text = (
                     tool_output.get("result", "")
                     if isinstance(tool_output, dict)
@@ -1616,6 +1616,21 @@ async def stream_new_chat(
 
             with contextlib.suppress(Exception):
                 await session.close()
+
+        # Persist any sandbox-produced files to local storage so they
+        # remain downloadable after the Daytona sandbox auto-deletes.
+        if stream_result and stream_result.sandbox_files:
+            with contextlib.suppress(Exception):
+                from app.agents.new_chat.sandbox import (
+                    is_sandbox_enabled,
+                    persist_and_delete_sandbox,
+                )
+
+                if is_sandbox_enabled():
+                    with anyio.CancelScope(shield=True):
+                        await persist_and_delete_sandbox(
+                            chat_id, stream_result.sandbox_files
+                        )
 
         # Break circular refs held by the agent graph, tools, and LLM
         # wrappers so the GC can reclaim them in a single pass.

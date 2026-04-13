@@ -43,6 +43,7 @@ import { useComments } from "@/hooks/use-comments";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { cn } from "@/lib/utils";
+import { openSafeNavigationHref, resolveSafeNavigationHref } from "@/components/tool-ui/shared/media";
 
 // Captured once at module load — survives client-side navigations that strip the query param.
 const IS_QUICK_ASSIST_WINDOW =
@@ -384,6 +385,7 @@ const AssistantMessageInner: FC = () => {
 								generate_image: GenerateImageToolUI,
 								update_memory: UpdateMemoryToolUI,
 								execute: SandboxExecuteToolUI,
+								execute_code: SandboxExecuteToolUI,
 								create_notion_page: CreateNotionPageToolUI,
 								update_notion_page: UpdateNotionPageToolUI,
 								delete_notion_page: DeleteNotionPageToolUI,
