@@ -39,29 +39,29 @@ import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { ThinkingStepsDataUI } from "@/components/assistant-ui/thinking-steps";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ChatHeader } from "@/components/new-chat/chat-header";
+// Crypto Tool UI Components - Conversational Crypto Advisor
+import {
+	ActionConfirmationToolUI,
+	AlertConfigurationToolUI,
+	HolderAnalysisToolUI,
+	LiveTokenDataToolUI,
+	// Real-time crypto tools (Hybrid approach: RAG + Real-time)
+	LiveTokenPriceToolUI,
+	MarketOverviewToolUI,
+	PortfolioDisplayToolUI,
+	ProactiveAlertToolUI,
+	TokenAnalysisToolUI,
+	TrendingTokensToolUI,
+	UserProfileToolUI,
+	WatchlistDisplayToolUI,
+	WhaleActivityToolUI,
+} from "@/components/tool-ui/crypto";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
 import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
 import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-memory";
-// Crypto Tool UI Components - Conversational Crypto Advisor
-import {
-	TokenAnalysisToolUI,
-	WatchlistDisplayToolUI,
-	ActionConfirmationToolUI,
-	AlertConfigurationToolUI,
-	ProactiveAlertToolUI,
-	TrendingTokensToolUI,
-	WhaleActivityToolUI,
-	MarketOverviewToolUI,
-	HolderAnalysisToolUI,
-	PortfolioDisplayToolUI,
-	UserProfileToolUI,
-	// Real-time crypto tools (Hybrid approach: RAG + Real-time)
-	LiveTokenPriceToolUI,
-	LiveTokenDataToolUI,
-} from "@/components/tool-ui/crypto";
 import { Spinner } from "@/components/ui/spinner";
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
 import { useMessagesSync } from "@/hooks/use-messages-sync";

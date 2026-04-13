@@ -2,7 +2,15 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { AlertTriangle, Coins, Inbox, LogOut, Megaphone, SquareLibrary, Trash2 } from "lucide-react";
+import {
+	AlertTriangle,
+	Coins,
+	Inbox,
+	LogOut,
+	Megaphone,
+	SquareLibrary,
+	Trash2,
+} from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";

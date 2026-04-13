@@ -12,7 +12,77 @@
 ✓ Starting...
 [MDX] generated files in 7.297166999999945ms
 [MDX] started dev server
-⨯ Unable to acquire lock at /Users/luisphan/Documents/GitHub/SurfSense/surfsense_web/.next/dev/lock, is another instance of next dev running?
-  Suggestion: If you intended to restart next dev, terminate the other process, and then try again.
-[MDX] closing dev server
-[?25h
+⨯ Unable to acquire lock at /Users/luisphan/Documents/GitHub/SurfSense/surfsense_web/.next/de
+thread 'tokio-runtime-worker' (11801668) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Meta for determine_module_type_for_directory (TaskId 563198))
+
+Caused by:
+    0: Looking up data for TaskId 563198 from database failed
+    1: Unable to open static sorted file referenced from 00000594.meta
+    2: Unable to open static sorted file 00000590.sst
+    3: No such file or directory (os error 2)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'tokio-runtime-worker' (11801668) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Meta for determine_module_type_for_directory (TaskId 563198))
+
+Caused by:
+    0: Looking up data for TaskId 563198 from database failed
+    1: Unable to open static sorted file referenced from 00000594.meta
+    2: Unable to open static sorted file 00000590.sst
+    3: No such file or directory (os error 2)
+[MDX] generated files in 55.22929099947214ms
+
+thread 'tokio-runtime-worker' (11801675) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Meta for realpath_with_links (TaskId 1366130))
+
+Caused by:
+    0: Looking up data for TaskId 1366130 from database failed
+    1: Unable to open static sorted file referenced from 00000594.meta
+    2: Unable to open static sorted file 00000590.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (11801674) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Meta for find_context_file (TaskId 572))
+
+Caused by:
+    0: Looking up data for TaskId 572 from database failed
+    1: Unable to open static sorted file referenced from 00000594.meta
+    2: Unable to open static sorted file 00000590.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (12171593) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Meta for find_context_file (TaskId 523))
+
+Caused by:
+    0: Looking up data for TaskId 523 from database failed
+    1: Unable to open static sorted file referenced from 00000594.meta
+    2: Unable to open static sorted file 00000590.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (11801674) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Meta for project_container_entrypoints_operation (TaskId 15))
+
+Caused by:
+    0: Looking up data for TaskId 15 from database failed
+    1: Unable to open static sorted file referenced from 00000594.meta
+    2: Unable to open static sorted file 00000590.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (11801674) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Meta for pick_endpoint (TaskId 929))
+
+Caused by:
+    0: Looking up data for TaskId 929 from database failed
+    1: Unable to open static sorted file referenced from 00000594.meta
+    2: Unable to open static sorted file 00000590.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (12171593) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Meta for pick_endpoint (TaskId 929))
+
+Caused by:
+    0: Looking up data for TaskId 929 from database failed
+    1: Unable to open static sorted file referenced from 00000594.meta
+    2: Unable to open static sorted file 00000590.sst
+    3: No such file or directory (os error 2)
