@@ -42,7 +42,7 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { getProviderIcon } from "@/lib/provider-icons";
 import { cn } from "@/lib/utils";
 
-interface ModelConfigManagerProps {
+interface AgentModelManagerProps {
 	searchSpaceId: number;
 }
 
@@ -54,7 +54,7 @@ function getInitials(name: string): string {
 	return name.slice(0, 2).toUpperCase();
 }
 
-export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
+export function AgentModelManager({ searchSpaceId }: AgentModelManagerProps) {
 	const isDesktop = useMediaQuery("(min-width: 768px)");
 	// Mutations
 	const { mutateAsync: deleteConfig, isPending: isDeleting } = useAtomValue(
@@ -277,7 +277,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 														</div>
 													</div>
 													{(canUpdate || canDelete) && (
-														<div className="flex items-center gap-0 shrink-0 sm:w-0 sm:overflow-hidden sm:group-hover:w-auto sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-150">
+														<div className="flex items-center gap-1 shrink-0 sm:w-0 sm:overflow-hidden sm:group-hover:w-auto sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-150">
 															{canUpdate && (
 																<TooltipProvider>
 																	<Tooltip open={isDesktop ? undefined : false}>
@@ -286,7 +286,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 																				variant="ghost"
 																				size="icon"
 																				onClick={() => openEditDialog(config)}
-																				className="h-6 w-6 text-muted-foreground hover:text-foreground"
+																				className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground"
 																			>
 																				<Edit3 className="h-3 w-3" />
 																			</Button>
@@ -303,7 +303,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 																				variant="ghost"
 																				size="icon"
 																				onClick={() => setConfigToDelete(config)}
-																				className="h-6 w-6 text-muted-foreground hover:text-destructive"
+																				className="h-7 w-7 rounded-lg text-muted-foreground hover:text-destructive"
 																			>
 																				<Trash2 className="h-3 w-3" />
 																			</Button>
@@ -341,7 +341,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 
 												{/* Footer: Date + Creator */}
 												<div className="flex items-center pt-2 border-t border-border/40 mt-auto">
-													<span className="flex-1 min-w-0 text-[11px] text-muted-foreground/60 truncate">
+													<span className="shrink-0 text-[11px] text-muted-foreground/60 whitespace-nowrap">
 														{new Date(config.created_at).toLocaleDateString(undefined, {
 															year: "numeric",
 															month: "short",
@@ -354,7 +354,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 															<TooltipProvider>
 																<Tooltip open={isDesktop ? undefined : false}>
 																	<TooltipTrigger asChild>
-																		<div className="flex-1 min-w-0 flex items-center justify-end gap-1.5 cursor-default">
+																		<div className="min-w-0 flex items-center gap-1.5 cursor-default">
 																			<Avatar className="size-4.5 shrink-0">
 																				{member.avatarUrl && (
 																					<AvatarImage src={member.avatarUrl} alt={member.name} />
