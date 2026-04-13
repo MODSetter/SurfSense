@@ -7,7 +7,7 @@ import {
 	Brain,
 	CircleUser,
 	Earth,
-	Eye,
+	ScanEye,
 	ImageIcon,
 	ListChecks,
 	UserKey,
@@ -97,7 +97,7 @@ export function SearchSpaceSettingsDialog({ searchSpaceId }: SearchSpaceSettings
 		{
 			value: "vision-models",
 			label: t("nav_vision_models"),
-			icon: <Eye className="h-4 w-4" />,
+			icon: <ScanEye className="h-4 w-4" />,
 		},
 		{ value: "team-roles", label: t("nav_team_roles"), icon: <UserKey className="h-4 w-4" /> },
 		{

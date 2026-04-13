@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { Bot, Check, ChevronDown, Edit3, Eye, ImageIcon, Plus, Search, Zap } from "lucide-react";
+import { Bot, Check, ChevronDown, Edit3, ImageIcon, Plus, ScanEye, Search, Zap } from "lucide-react";
 import { type UIEvent, useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -387,7 +387,7 @@ export function ModelSelector({
 									</span>
 								</>
 							) : (
-								<Eye className="size-4 text-muted-foreground" />
+								<ScanEye className="size-4 text-muted-foreground" />
 							)}
 						</>
 					)}
@@ -425,7 +425,7 @@ export function ModelSelector({
 								value="vision"
 								className="gap-1.5 text-sm font-medium rounded-none text-muted-foreground transition-all duration-200 h-full bg-transparent data-[state=active]:bg-transparent shadow-none data-[state=active]:shadow-none border-b-[1.5px] border-transparent data-[state=active]:border-foreground dark:data-[state=active]:border-white data-[state=active]:text-foreground"
 							>
-								<Eye className="size-3.5" />
+								<ScanEye className="size-3.5" />
 								Vision
 							</TabsTrigger>
 						</TabsList>
@@ -458,9 +458,15 @@ export function ModelSelector({
 							>
 								<CommandEmpty className="py-8 text-center">
 									<div className="flex flex-col items-center gap-2">
-										<Search className="size-8 text-muted-foreground" />
-										<p className="text-sm text-muted-foreground">No models found</p>
-										<p className="text-xs text-muted-foreground/60">Try a different search term</p>
+										{llmGlobalConfigs?.length || llmUserConfigs?.length ? (
+											<>
+												<Search className="size-8 text-muted-foreground" />
+												<p className="text-sm text-muted-foreground">No models found</p>
+												<p className="text-xs text-muted-foreground/60">Try a different search term</p>
+											</>
+										) : (
+											<p className="text-sm text-muted-foreground">No models found</p>
+										)}
 									</div>
 								</CommandEmpty>
 
@@ -645,9 +651,15 @@ export function ModelSelector({
 							>
 								<CommandEmpty className="py-8 text-center">
 									<div className="flex flex-col items-center gap-2">
-										<Search className="size-8 text-muted-foreground" />
-										<p className="text-sm text-muted-foreground">No image models found</p>
-										<p className="text-xs text-muted-foreground/60">Try a different search term</p>
+										{imageGlobalConfigs?.length || imageUserConfigs?.length ? (
+											<>
+												<Search className="size-8 text-muted-foreground" />
+												<p className="text-sm text-muted-foreground">No image models found</p>
+												<p className="text-xs text-muted-foreground/60">Try a different search term</p>
+											</>
+										) : (
+											<p className="text-sm text-muted-foreground">No image models found</p>
+										)}
 									</div>
 								</CommandEmpty>
 
@@ -817,9 +829,15 @@ export function ModelSelector({
 							>
 								<CommandEmpty className="py-8 text-center">
 									<div className="flex flex-col items-center gap-2">
-										<Search className="size-8 text-muted-foreground" />
-										<p className="text-sm text-muted-foreground">No vision models found</p>
-										<p className="text-xs text-muted-foreground/60">Try a different search term</p>
+										{visionGlobalConfigs?.length || visionUserConfigs?.length ? (
+											<>
+												<Search className="size-8 text-muted-foreground" />
+												<p className="text-sm text-muted-foreground">No vision models found</p>
+												<p className="text-xs text-muted-foreground/60">Try a different search term</p>
+											</>
+										) : (
+											<p className="text-sm text-muted-foreground">No vision models found</p>
+										)}
 									</div>
 								</CommandEmpty>
 

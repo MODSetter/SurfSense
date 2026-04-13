@@ -6,7 +6,7 @@ import {
 	Bot,
 	CircleCheck,
 	CircleDashed,
-	Eye,
+	ScanEye,
 	FileText,
 	ImageIcon,
 	RefreshCw,
@@ -74,7 +74,7 @@ const ROLE_DESCRIPTIONS = {
 		configType: "image" as const,
 	},
 	vision: {
-		icon: Eye,
+		icon: ScanEye,
 		title: "Vision LLM",
 		description: "Vision-capable model for screenshot analysis and context extraction",
 		color: "text-muted-foreground",
