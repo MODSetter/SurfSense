@@ -16,6 +16,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
+import type { HitlDecision, InterruptResult } from "@/lib/hitl";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
 
 interface GmailAccount {
@@ -25,22 +27,9 @@ interface GmailAccount {
 	auth_expired?: boolean;
 }
 
-interface InterruptResult {
-	__interrupt__: true;
-	__decided__?: "approve" | "reject" | "edit";
-	__completed__?: boolean;
-	action_requests: Array<{
-		name: string;
-		args: Record<string, unknown>;
-	}>;
-	review_configs: Array<{
-		action_name: string;
-		allowed_decisions: Array<"approve" | "edit" | "reject">;
-	}>;
-	context?: {
-		accounts?: GmailAccount[];
-		error?: string;
-	};
+interface GmailSendEmailContext {
+	accounts?: GmailAccount[];
+	error?: string;
 }
 
 interface SuccessResult {
@@ -67,20 +56,11 @@ interface InsufficientPermissionsResult {
 }
 
 type SendGmailEmailResult =
-	| InterruptResult
+	| InterruptResult<GmailSendEmailContext>
 	| SuccessResult
 	| ErrorResult
 	| InsufficientPermissionsResult
 	| AuthErrorResult;
-
-function isInterruptResult(result: unknown): result is InterruptResult {
-	return (
-		typeof result === "object" &&
-		result !== null &&
-		"__interrupt__" in result &&
-		(result as InterruptResult).__interrupt__ === true
-	);
-}
 
 function isErrorResult(result: unknown): result is ErrorResult {
 	return (
@@ -115,12 +95,8 @@ function ApprovalCard({
 	onDecision,
 }: {
 	args: { to: string; subject: string; body: string; cc?: string; bcc?: string };
-	interruptData: InterruptResult;
-	onDecision: (decision: {
-		type: "approve" | "reject" | "edit";
-		message?: string;
-		edited_action?: { name: string; args: Record<string, unknown> };
-	}) => void;
+	interruptData: InterruptResult<GmailSendEmailContext>;
+	onDecision: (decision: HitlDecision) => void;
 }) {
 	const { phase, setProcessing, setRejected } = useHitlPhase(interruptData);
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -471,18 +447,16 @@ export const SendGmailEmailToolUI = ({
 	{ to: string; subject: string; body: string; cc?: string; bcc?: string },
 	SendGmailEmailResult
 >) => {
+	const { dispatch } = useHitlDecision();
+
 	if (!result) return null;
 
 	if (isInterruptResult(result)) {
 		return (
 			<ApprovalCard
 				args={args}
-				interruptData={result}
-				onDecision={(decision) => {
-					window.dispatchEvent(
-						new CustomEvent("hitl-decision", { detail: { decisions: [decision] } })
-					);
-				}}
+				interruptData={result as InterruptResult<GmailSendEmailContext>}
+				onDecision={(decision) => dispatch([decision])}
 			/>
 		);
 	}

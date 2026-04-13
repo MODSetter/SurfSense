@@ -16,6 +16,8 @@ import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 import { PlateEditor } from "@/components/editor/plate-editor";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
+import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
+import type { HitlDecision, InterruptResult } from "@/lib/hitl";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
 
 interface GoogleCalendarAccount {
@@ -37,23 +39,10 @@ interface CalendarEvent {
 	indexed_at?: string;
 }
 
-interface InterruptResult {
-	__interrupt__: true;
-	__decided__?: "approve" | "reject" | "edit";
-	__completed__?: boolean;
-	action_requests: Array<{
-		name: string;
-		args: Record<string, unknown>;
-	}>;
-	review_configs: Array<{
-		action_name: string;
-		allowed_decisions: Array<"approve" | "edit" | "reject">;
-	}>;
-	context?: {
-		account?: GoogleCalendarAccount;
-		event?: CalendarEvent;
-		error?: string;
-	};
+interface CalendarUpdateEventContext {
+	account?: GoogleCalendarAccount;
+	event?: CalendarEvent;
+	error?: string;
 }
 
 interface SuccessResult {
@@ -86,21 +75,12 @@ interface InsufficientPermissionsResult {
 }
 
 type UpdateCalendarEventResult =
-	| InterruptResult
+	| InterruptResult<CalendarUpdateEventContext>
 	| SuccessResult
 	| ErrorResult
 	| NotFoundResult
 	| InsufficientPermissionsResult
 	| AuthErrorResult;
-
-function isInterruptResult(result: unknown): result is InterruptResult {
-	return (
-		typeof result === "object" &&
-		result !== null &&
-		"__interrupt__" in result &&
-		(result as InterruptResult).__interrupt__ === true
-	);
-}
 
 function isErrorResult(result: unknown): result is ErrorResult {
 	return (
@@ -163,12 +143,8 @@ function ApprovalCard({
 		new_location?: string;
 		new_attendees?: string[];
 	};
-	interruptData: InterruptResult;
-	onDecision: (decision: {
-		type: "approve" | "reject" | "edit";
-		message?: string;
-		edited_action?: { name: string; args: Record<string, unknown> };
-	}) => void;
+	interruptData: InterruptResult<CalendarUpdateEventContext>;
+	onDecision: (decision: HitlDecision) => void;
 }) {
 	const { phase, setProcessing, setRejected } = useHitlPhase(interruptData);
 	const actionArgs = interruptData.action_requests[0]?.args ?? {};
@@ -686,18 +662,16 @@ export const UpdateCalendarEventToolUI = ({
 	},
 	UpdateCalendarEventResult
 >) => {
+	const { dispatch } = useHitlDecision();
+
 	if (!result) return null;
 
 	if (isInterruptResult(result)) {
 		return (
 			<ApprovalCard
 				args={args}
-				interruptData={result}
-				onDecision={(decision) => {
-					window.dispatchEvent(
-						new CustomEvent("hitl-decision", { detail: { decisions: [decision] } })
-					);
-				}}
+				interruptData={result as InterruptResult<CalendarUpdateEventContext>}
+				onDecision={(decision) => dispatch([decision])}
 			/>
 		);
 	}

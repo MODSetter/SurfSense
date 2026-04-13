@@ -6,6 +6,8 @@ import { useCallback, useEffect, useState } from "react";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
+import type { HitlDecision, InterruptResult } from "@/lib/hitl";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
 
 interface GmailAccount {
@@ -25,23 +27,10 @@ interface GmailMessage {
 	document_id: number;
 }
 
-interface InterruptResult {
-	__interrupt__: true;
-	__decided__?: "approve" | "reject";
-	__completed__?: boolean;
-	action_requests: Array<{
-		name: string;
-		args: Record<string, unknown>;
-	}>;
-	review_configs: Array<{
-		action_name: string;
-		allowed_decisions: Array<"approve" | "reject">;
-	}>;
-	context?: {
-		account?: GmailAccount;
-		email?: GmailMessage;
-		error?: string;
-	};
+interface GmailTrashEmailContext {
+	account?: GmailAccount;
+	email?: GmailMessage;
+	error?: string;
 }
 
 interface SuccessResult {
@@ -74,21 +63,12 @@ interface InsufficientPermissionsResult {
 }
 
 type TrashGmailEmailResult =
-	| InterruptResult
+	| InterruptResult<GmailTrashEmailContext>
 	| SuccessResult
 	| ErrorResult
 	| NotFoundResult
 	| InsufficientPermissionsResult
 	| AuthErrorResult;
-
-function isInterruptResult(result: unknown): result is InterruptResult {
-	return (
-		typeof result === "object" &&
-		result !== null &&
-		"__interrupt__" in result &&
-		(result as InterruptResult).__interrupt__ === true
-	);
-}
 
 function isErrorResult(result: unknown): result is ErrorResult {
 	return (
@@ -134,12 +114,8 @@ function ApprovalCard({
 	interruptData,
 	onDecision,
 }: {
-	interruptData: InterruptResult;
-	onDecision: (decision: {
-		type: "approve" | "reject";
-		message?: string;
-		edited_action?: { name: string; args: Record<string, unknown> };
-	}) => void;
+	interruptData: InterruptResult<GmailTrashEmailContext>;
+	onDecision: (decision: HitlDecision) => void;
 }) {
 	const { phase, setProcessing, setRejected } = useHitlPhase(interruptData);
 	const [deleteFromKb, setDeleteFromKb] = useState(false);
@@ -385,18 +361,15 @@ export const TrashGmailEmailToolUI = ({
 	{ email_subject_or_id: string; delete_from_kb?: boolean },
 	TrashGmailEmailResult
 >) => {
+	const { dispatch } = useHitlDecision();
+
 	if (!result) return null;
 
 	if (isInterruptResult(result)) {
 		return (
 			<ApprovalCard
-				interruptData={result}
-				onDecision={(decision) => {
-					const event = new CustomEvent("hitl-decision", {
-						detail: { decisions: [decision] },
-					});
-					window.dispatchEvent(event);
-				}}
+				interruptData={result as InterruptResult<GmailTrashEmailContext>}
+				onDecision={(decision) => dispatch([decision])}
 			/>
 		);
 	}
