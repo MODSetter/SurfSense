@@ -189,26 +189,28 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 				</div>
 			</form>
 
-			<div className="border-t pt-6 space-y-2">
+		<div className="border-t pt-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+			<div className="space-y-1">
 				<Label>Export knowledge base</Label>
 				<p className="text-xs text-muted-foreground">
 					Download all documents in this search space as a ZIP of markdown files.
 				</p>
-				<Button
-					type="button"
-					variant="secondary"
-					size="sm"
-					disabled={isExporting}
-					onClick={handleExportKB}
-					className="relative"
-				>
-					<span className={isExporting ? "opacity-0" : ""}>
-						<FolderArchive className="h-3 w-3 opacity-60" />
-					</span>
-					<span className={isExporting ? "opacity-0" : ""}>Export</span>
-					{isExporting && <Spinner size="sm" className="absolute" />}
-				</Button>
 			</div>
+			<Button
+				type="button"
+				variant="secondary"
+				size="sm"
+				disabled={isExporting}
+				onClick={handleExportKB}
+				className="relative w-fit shrink-0"
+			>
+				<span className={isExporting ? "opacity-0" : ""}>
+					<FolderArchive className="h-3 w-3 opacity-60" />
+				</span>
+				<span className={isExporting ? "opacity-0" : ""}>Export</span>
+				{isExporting && <Spinner size="sm" className="absolute" />}
+			</Button>
+		</div>
 		</div>
 	);
 }
