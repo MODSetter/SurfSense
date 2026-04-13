@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
+import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
+import type { InterruptResult, HitlDecision } from "@/lib/hitl";
 
 interface LinearLabel {
 	id: string;
@@ -45,45 +47,31 @@ interface LinearPriority {
 	label: string;
 }
 
-interface InterruptResult {
-	__interrupt__: true;
-	__decided__?: "approve" | "reject" | "edit";
-	__completed__?: boolean;
-	action_requests: Array<{
-		name: string;
-		args: Record<string, unknown>;
-	}>;
-	review_configs: Array<{
-		action_name: string;
-		allowed_decisions: Array<"approve" | "edit" | "reject">;
-	}>;
-	interrupt_type?: string;
-	context?: {
-		workspace?: { id: number; organization_name: string };
-		priorities?: LinearPriority[];
-		issue?: {
-			id: string;
-			identifier: string;
-			title: string;
-			description?: string;
-			priority: number;
-			url: string;
-			current_state?: LinearState;
-			current_assignee?: { id: string; name: string; email: string } | null;
-			current_labels?: LinearLabel[];
-			team_id: string;
-			document_id: number;
-		};
-		team?: {
-			id: string;
-			name: string;
-			key: string;
-			states: LinearState[];
-			members: LinearMember[];
-			labels: LinearLabel[];
-		};
-		error?: string;
+interface LinearUpdateIssueContext {
+	workspace?: { id: number; organization_name: string };
+	priorities?: LinearPriority[];
+	issue?: {
+		id: string;
+		identifier: string;
+		title: string;
+		description?: string;
+		priority: number;
+		url: string;
+		current_state?: LinearState;
+		current_assignee?: { id: string; name: string; email: string } | null;
+		current_labels?: LinearLabel[];
+		team_id: string;
+		document_id: number;
 	};
+	team?: {
+		id: string;
+		name: string;
+		key: string;
+		states: LinearState[];
+		members: LinearMember[];
+		labels: LinearLabel[];
+	};
+	error?: string;
 }
 
 interface SuccessResult {
@@ -111,20 +99,11 @@ interface AuthErrorResult {
 }
 
 type UpdateLinearIssueResult =
-	| InterruptResult
+	| InterruptResult<LinearUpdateIssueContext>
 	| SuccessResult
 	| ErrorResult
 	| NotFoundResult
 	| AuthErrorResult;
-
-function isInterruptResult(result: unknown): result is InterruptResult {
-	return (
-		typeof result === "object" &&
-		result !== null &&
-		"__interrupt__" in result &&
-		(result as InterruptResult).__interrupt__ === true
-	);
-}
 
 function isErrorResult(result: unknown): result is ErrorResult {
 	return (
@@ -167,12 +146,8 @@ function ApprovalCard({
 		new_priority?: number;
 		new_label_names?: string[];
 	};
-	interruptData: InterruptResult;
-	onDecision: (decision: {
-		type: "approve" | "reject" | "edit";
-		message?: string;
-		edited_action?: { name: string; args: Record<string, unknown> };
-	}) => void;
+	interruptData: InterruptResult<LinearUpdateIssueContext>;
+	onDecision: (decision: HitlDecision) => void;
 }) {
 	const { phase, setProcessing, setRejected } = useHitlPhase(interruptData);
 
@@ -752,18 +727,16 @@ export const UpdateLinearIssueToolUI = ({
 	},
 	UpdateLinearIssueResult
 >) => {
+	const { dispatch } = useHitlDecision();
+
 	if (!result) return null;
 
 	if (isInterruptResult(result)) {
 		return (
 			<ApprovalCard
 				args={args}
-				interruptData={result}
-				onDecision={(decision) => {
-					window.dispatchEvent(
-						new CustomEvent("hitl-decision", { detail: { decisions: [decision] } })
-					);
-				}}
+				interruptData={result as InterruptResult<LinearUpdateIssueContext>}
+				onDecision={(decision) => dispatch([decision])}
 			/>
 		);
 	}

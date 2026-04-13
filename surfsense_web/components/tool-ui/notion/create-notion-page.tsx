@@ -16,41 +16,27 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
+import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
+import type { InterruptResult, HitlDecision } from "@/lib/hitl";
 
-interface InterruptResult {
-	__interrupt__: true;
-	__decided__?: "approve" | "reject" | "edit";
-	__completed__?: boolean;
-	action_requests: Array<{
+interface NotionCreatePageContext {
+	accounts?: Array<{
+		id: number;
 		name: string;
-		args: Record<string, unknown>;
-		description?: string;
+		workspace_id: string | null;
+		workspace_name: string;
+		workspace_icon: string;
+		auth_expired?: boolean;
 	}>;
-	review_configs: Array<{
-		action_name: string;
-		allowed_decisions: Array<"approve" | "edit" | "reject">;
-	}>;
-	interrupt_type?: string;
-	message?: string;
-	context?: {
-		accounts?: Array<{
-			id: number;
-			name: string;
-			workspace_id: string | null;
-			workspace_name: string;
-			workspace_icon: string;
-			auth_expired?: boolean;
-		}>;
-		parent_pages?: Record<
-			number,
-			Array<{
-				page_id: string;
-				title: string;
-				document_id: number;
-			}>
-		>;
-		error?: string;
-	};
+	parent_pages?: Record<
+		number,
+		Array<{
+			page_id: string;
+			title: string;
+			document_id: number;
+		}>
+	>;
+	error?: string;
 }
 
 interface SuccessResult {
@@ -75,16 +61,7 @@ interface AuthErrorResult {
 	connector_type: string;
 }
 
-type CreateNotionPageResult = InterruptResult | SuccessResult | ErrorResult | AuthErrorResult;
-
-function isInterruptResult(result: unknown): result is InterruptResult {
-	return (
-		typeof result === "object" &&
-		result !== null &&
-		"__interrupt__" in result &&
-		(result as InterruptResult).__interrupt__ === true
-	);
-}
+type CreateNotionPageResult = InterruptResult<NotionCreatePageContext> | SuccessResult | ErrorResult | AuthErrorResult;
 
 function isAuthErrorResult(result: unknown): result is AuthErrorResult {
 	return (
@@ -110,12 +87,8 @@ function ApprovalCard({
 	onDecision,
 }: {
 	args: Record<string, unknown>;
-	interruptData: InterruptResult;
-	onDecision: (decision: {
-		type: "approve" | "reject" | "edit";
-		message?: string;
-		edited_action?: { name: string; args: Record<string, unknown> };
-	}) => void;
+	interruptData: InterruptResult<NotionCreatePageContext>;
+	onDecision: (decision: HitlDecision) => void;
 }) {
 	const { phase, setProcessing, setRejected } = useHitlPhase(interruptData);
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -449,19 +422,16 @@ export const CreateNotionPageToolUI = ({
 	args,
 	result,
 }: ToolCallMessagePartProps<{ title: string; content: string }, CreateNotionPageResult>) => {
+	const { dispatch } = useHitlDecision();
+
 	if (!result) return null;
 
 	if (isInterruptResult(result)) {
 		return (
 			<ApprovalCard
 				args={args}
-				interruptData={result}
-				onDecision={(decision) => {
-					const event = new CustomEvent("hitl-decision", {
-						detail: { decisions: [decision] },
-					});
-					window.dispatchEvent(event);
-				}}
+				interruptData={result as InterruptResult<NotionCreatePageContext>}
+				onDecision={(decision) => dispatch([decision])}
 			/>
 		);
 	}
