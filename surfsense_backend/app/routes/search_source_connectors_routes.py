@@ -3624,3 +3624,114 @@ async def get_drive_picker_token(
             status_code=500,
             detail="Failed to retrieve access token. Check server logs for details.",
         ) from e
+
+
+# =============================================================================
+# MCP Tool Trust (Allow-List) Routes
+# =============================================================================
+
+
+class MCPTrustToolRequest(BaseModel):
+    tool_name: str
+
+
+@router.post("/connectors/mcp/{connector_id}/trust-tool")
+async def trust_mcp_tool(
+    connector_id: int,
+    body: MCPTrustToolRequest,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Add a tool to the MCP connector's trusted (always-allow) list.
+
+    Once trusted, the tool executes without HITL approval on subsequent calls.
+    """
+    try:
+        result = await session.execute(
+            select(SearchSourceConnector).filter(
+                SearchSourceConnector.id == connector_id,
+                SearchSourceConnector.connector_type
+                == SearchSourceConnectorType.MCP_CONNECTOR,
+            )
+        )
+        connector = result.scalars().first()
+        if not connector:
+            raise HTTPException(status_code=404, detail="MCP connector not found")
+
+        config = dict(connector.config or {})
+        trusted: list[str] = list(config.get("trusted_tools", []))
+        if body.tool_name not in trusted:
+            trusted.append(body.tool_name)
+        config["trusted_tools"] = trusted
+        connector.config = config
+
+        from sqlalchemy.orm.attributes import flag_modified
+
+        flag_modified(connector, "config")
+        await session.commit()
+
+        from app.agents.new_chat.tools.mcp_tool import invalidate_mcp_tools_cache
+
+        invalidate_mcp_tools_cache(connector.search_space_id)
+
+        return {"status": "ok", "trusted_tools": trusted}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to trust MCP tool: {e!s}", exc_info=True)
+        await session.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Failed to trust tool: {e!s}"
+        ) from e
+
+
+@router.post("/connectors/mcp/{connector_id}/untrust-tool")
+async def untrust_mcp_tool(
+    connector_id: int,
+    body: MCPTrustToolRequest,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Remove a tool from the MCP connector's trusted list.
+
+    The tool will require HITL approval again on subsequent calls.
+    """
+    try:
+        result = await session.execute(
+            select(SearchSourceConnector).filter(
+                SearchSourceConnector.id == connector_id,
+                SearchSourceConnector.connector_type
+                == SearchSourceConnectorType.MCP_CONNECTOR,
+            )
+        )
+        connector = result.scalars().first()
+        if not connector:
+            raise HTTPException(status_code=404, detail="MCP connector not found")
+
+        config = dict(connector.config or {})
+        trusted: list[str] = list(config.get("trusted_tools", []))
+        if body.tool_name in trusted:
+            trusted.remove(body.tool_name)
+        config["trusted_tools"] = trusted
+        connector.config = config
+
+        from sqlalchemy.orm.attributes import flag_modified
+
+        flag_modified(connector, "config")
+        await session.commit()
+
+        from app.agents.new_chat.tools.mcp_tool import invalidate_mcp_tools_cache
+
+        invalidate_mcp_tools_cache(connector.search_space_id)
+
+        return {"status": "ok", "trusted_tools": trusted}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to untrust MCP tool: {e!s}", exc_info=True)
+        await session.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Failed to untrust tool: {e!s}"
+        ) from e
