@@ -499,10 +499,14 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			const empty = text.length === 0 && mentionedDocs.size === 0;
 			setIsEmpty(empty);
 
-			// Check for @ mentions
+			// Unified trigger scan: find the leftmost @ or / in the current word.
+			// Whichever trigger was typed first owns the token — the other character
+			// is treated as part of the query, not as a separate trigger.
 			const selection = window.getSelection();
 			let shouldTriggerMention = false;
 			let mentionQuery = "";
+			let shouldTriggerAction = false;
+			let actionQuery = "";
 
 			if (selection && selection.rangeCount > 0) {
 				const range = selection.getRangeAt(0);
@@ -512,63 +516,41 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 					const textContent = textNode.textContent || "";
 					const cursorPos = range.startOffset;
 
-					// Look for @ before cursor
-					let atIndex = -1;
+					let wordStart = 0;
 					for (let i = cursorPos - 1; i >= 0; i--) {
-						if (textContent[i] === "@") {
-							atIndex = i;
-							break;
-						}
-						// Stop if we hit a space (@ must be at word boundary)
 						if (textContent[i] === " " || textContent[i] === "\n") {
+							wordStart = i + 1;
 							break;
 						}
 					}
 
-					if (atIndex !== -1) {
-						const query = textContent.slice(atIndex + 1, cursorPos);
-						// Only trigger if query doesn't start with space
+					let triggerChar: "@" | "/" | null = null;
+					let triggerIndex = -1;
+					for (let i = wordStart; i < cursorPos; i++) {
+						if (textContent[i] === "@" || textContent[i] === "/") {
+							triggerChar = textContent[i] as "@" | "/";
+							triggerIndex = i;
+							break;
+						}
+					}
+
+					if (triggerChar === "@" && triggerIndex !== -1) {
+						const query = textContent.slice(triggerIndex + 1, cursorPos);
 						if (!query.startsWith(" ")) {
 							shouldTriggerMention = true;
 							mentionQuery = query;
 						}
-					}
-				}
-			}
-
-			// Check for / actions (same pattern as @)
-			let shouldTriggerAction = false;
-			let actionQuery = "";
-
-			if (!shouldTriggerMention && selection && selection.rangeCount > 0) {
-				const range = selection.getRangeAt(0);
-				const textNode = range.startContainer;
-
-				if (textNode.nodeType === Node.TEXT_NODE) {
-					const textContent = textNode.textContent || "";
-					const cursorPos = range.startOffset;
-
-					let slashIndex = -1;
-					for (let i = cursorPos - 1; i >= 0; i--) {
-						if (textContent[i] === "/") {
-							slashIndex = i;
-							break;
-						}
-						if (textContent[i] === " " || textContent[i] === "\n") {
-							break;
-						}
-					}
-
-					if (
-						slashIndex !== -1 &&
-						(slashIndex === 0 ||
-							textContent[slashIndex - 1] === " " ||
-							textContent[slashIndex - 1] === "\n")
-					) {
-						const query = textContent.slice(slashIndex + 1, cursorPos);
-						if (!query.startsWith(" ")) {
-							shouldTriggerAction = true;
-							actionQuery = query;
+					} else if (triggerChar === "/" && triggerIndex !== -1) {
+						if (
+							triggerIndex === 0 ||
+							textContent[triggerIndex - 1] === " " ||
+							textContent[triggerIndex - 1] === "\n"
+						) {
+							const query = textContent.slice(triggerIndex + 1, cursorPos);
+							if (!query.startsWith(" ")) {
+								shouldTriggerAction = true;
+								actionQuery = query;
+							}
 						}
 					}
 				}
