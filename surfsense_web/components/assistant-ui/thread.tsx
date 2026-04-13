@@ -128,11 +128,9 @@ const ThreadContent: FC = () => {
 					style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
 				>
 					<ThreadScrollToBottom />
-					<AuiIf condition={({ thread }) => !thread.isEmpty}>
-						<div className="fade-in slide-in-from-bottom-4 animate-in duration-500 ease-out fill-mode-both">
-							<Composer />
-						</div>
-					</AuiIf>
+				<AuiIf condition={({ thread }) => !thread.isEmpty}>
+					<Composer />
+				</AuiIf>
 				</ThreadPrimitive.ViewportFooter>
 			</ThreadPrimitive.Viewport>
 		</ThreadPrimitive.Root>
@@ -558,23 +556,15 @@ const Composer: FC = () => {
 
 	// Submit message (blocked during streaming, document picker open, or AI responding to another user)
 	const handleSubmit = useCallback(() => {
-		if (isThreadRunning || isBlockedByOtherUser) {
-			return;
-		}
-		if (!showDocumentPopover && !showPromptPicker) {
-			if (clipboardInitialText) {
-				const userText = editorRef.current?.getText() ?? "";
-				const combined = userText ? `${userText}\n\n${clipboardInitialText}` : clipboardInitialText;
-				aui.composer().setText(combined);
-				setClipboardInitialText(undefined);
-			}
-			aui.composer().send();
-			editorRef.current?.clear();
-			setMentionedDocuments([]);
-			setSidebarDocs([]);
-		}
 		if (isThreadRunning || isBlockedByOtherUser) return;
-		if (showDocumentPopover) return;
+		if (showDocumentPopover || showPromptPicker) return;
+
+		if (clipboardInitialText) {
+			const userText = editorRef.current?.getText() ?? "";
+			const combined = userText ? `${userText}\n\n${clipboardInitialText}` : clipboardInitialText;
+			aui.composer().setText(combined);
+			setClipboardInitialText(undefined);
+		}
 
 		const viewportEl = viewportRef.current;
 		const heightBefore = viewportEl?.scrollHeight ?? 0;
@@ -588,18 +578,14 @@ const Composer: FC = () => {
 		// assistant message so that scrolling-to-bottom actually positions the
 		// user message at the TOP of the viewport. That slack height is
 		// calculated asynchronously (ResizeObserver → style → layout).
-		//
-		// We poll via rAF for ~2 s, re-scrolling whenever scrollHeight changes
-		// (user msg render → assistant placeholder → ViewportSlack min-height →
-		// first streamed content). Backup setTimeout calls cover cases where
-		// the batcher's 50 ms throttle delays the DOM update past the rAF.
+		// Poll via rAF for ~500ms, re-scrolling whenever scrollHeight changes.
 		const scrollToBottom = () =>
 			threadViewportStore.getState().scrollToBottom({ behavior: "instant" });
 
 		let lastHeight = heightBefore;
 		let frames = 0;
 		let cancelled = false;
-		const POLL_FRAMES = 120;
+		const POLL_FRAMES = 30;
 
 		const pollAndScroll = () => {
 			if (cancelled) return;
@@ -619,16 +605,11 @@ const Composer: FC = () => {
 
 		const t1 = setTimeout(scrollToBottom, 100);
 		const t2 = setTimeout(scrollToBottom, 300);
-		const t3 = setTimeout(scrollToBottom, 600);
 
-		// Cleanup if component unmounts during the polling window. The ref is
-		// checked inside pollAndScroll; timeouts are cleared in the return below.
-		// Store cleanup fn so it can be called from a useEffect cleanup if needed.
 		submitCleanupRef.current = () => {
 			cancelled = true;
 			clearTimeout(t1);
 			clearTimeout(t2);
-			clearTimeout(t3);
 		};
 	}, [
 		showDocumentPopover,
