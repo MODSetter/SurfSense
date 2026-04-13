@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, FolderPlus, ListFilter, Loader2, Search, Upload, X } from "lucide-react";
+import { FolderPlus, ListFilter, Search, Upload, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
@@ -20,8 +20,6 @@ export function DocumentsFilters({
 	onToggleType,
 	activeTypes,
 	onCreateFolder,
-	onExportKB,
-	isExporting,
 }: {
 	typeCounts: Partial<Record<DocumentTypeEnum, number>>;
 	onSearch: (v: string) => void;
@@ -29,8 +27,6 @@ export function DocumentsFilters({
 	onToggleType: (type: DocumentTypeEnum, checked: boolean) => void;
 	activeTypes: DocumentTypeEnum[];
 	onCreateFolder?: () => void;
-	onExportKB?: () => void;
-	isExporting?: boolean;
 }) {
 	const t = useTranslations("documents");
 	const id = React.useId();
@@ -85,33 +81,8 @@ export function DocumentsFilters({
 								</ToggleGroupItem>
 							</TooltipTrigger>
 							<TooltipContent>New folder</TooltipContent>
-						</Tooltip>
-					)}
-
-					{onExportKB && (
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<ToggleGroupItem
-									value="export"
-									disabled={isExporting}
-									className="h-9 w-9 shrink-0 border-sidebar-border text-sidebar-foreground/60 hover:text-sidebar-foreground hover:border-sidebar-border bg-sidebar"
-									onClick={(e) => {
-										e.preventDefault();
-										onExportKB();
-									}}
-								>
-									{isExporting ? (
-										<Loader2 size={14} className="animate-spin" />
-									) : (
-										<Download size={14} />
-									)}
-								</ToggleGroupItem>
-							</TooltipTrigger>
-							<TooltipContent>
-								{isExporting ? "Exporting…" : "Export knowledge base"}
-							</TooltipContent>
-						</Tooltip>
-					)}
+					</Tooltip>
+				)}
 
 					<Popover>
 						<Tooltip>

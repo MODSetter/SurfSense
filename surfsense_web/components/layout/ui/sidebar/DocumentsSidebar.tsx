@@ -406,21 +406,12 @@ export function DocumentsSidebar({
 		setFolderPickerOpen(true);
 	}, []);
 
-	const [isExportingKB, setIsExportingKB] = useState(false);
+	const [, setIsExportingKB] = useState(false);
 	const [exportWarningOpen, setExportWarningOpen] = useState(false);
 	const [exportWarningContext, setExportWarningContext] = useState<{
-		type: "kb" | "folder";
-		folder?: FolderDisplay;
+		folder: FolderDisplay;
 		pendingCount: number;
 	} | null>(null);
-
-	const pendingDocuments = useMemo(
-		() =>
-			treeDocuments.filter(
-				(d) => d.status?.state === "pending" || d.status?.state === "processing"
-			),
-		[treeDocuments]
-	);
 
 	const doExport = useCallback(async (url: string, downloadName: string) => {
 		const response = await authenticatedFetch(url, { method: "GET" });
@@ -440,68 +431,28 @@ export function DocumentsSidebar({
 		URL.revokeObjectURL(blobUrl);
 	}, []);
 
-	const handleExportKB = useCallback(async () => {
-		if (isExportingKB) return;
-
-		if (pendingDocuments.length > 0) {
-			setExportWarningContext({ type: "kb", pendingCount: pendingDocuments.length });
-			setExportWarningOpen(true);
-			return;
-		}
-
-		setIsExportingKB(true);
-		try {
-			await doExport(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/export`,
-				"knowledge-base.zip"
-			);
-			toast.success("Knowledge base exported");
-		} catch (err) {
-			console.error("KB export failed:", err);
-			toast.error(err instanceof Error ? err.message : "Export failed");
-		} finally {
-			setIsExportingKB(false);
-		}
-	}, [searchSpaceId, isExportingKB, pendingDocuments.length, doExport]);
-
 	const handleExportWarningConfirm = useCallback(async () => {
 		setExportWarningOpen(false);
 		const ctx = exportWarningContext;
-		if (!ctx) return;
+		if (!ctx?.folder) return;
 
-		if (ctx.type === "kb") {
-			setIsExportingKB(true);
-			try {
-				await doExport(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/export`,
-					"knowledge-base.zip"
-				);
-				toast.success("Knowledge base exported");
-			} catch (err) {
-				console.error("KB export failed:", err);
-				toast.error(err instanceof Error ? err.message : "Export failed");
-			} finally {
-				setIsExportingKB(false);
-			}
-		} else if (ctx.type === "folder" && ctx.folder) {
-			setIsExportingKB(true);
-			try {
-				const safeName =
-					ctx.folder.name
-						.replace(/[^a-zA-Z0-9 _-]/g, "_")
-						.trim()
-						.slice(0, 80) || "folder";
-				await doExport(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/export?folder_id=${ctx.folder.id}`,
-					`${safeName}.zip`
-				);
-				toast.success(`Folder "${ctx.folder.name}" exported`);
-			} catch (err) {
-				console.error("Folder export failed:", err);
-				toast.error(err instanceof Error ? err.message : "Export failed");
-			} finally {
-				setIsExportingKB(false);
-			}
+		setIsExportingKB(true);
+		try {
+			const safeName =
+				ctx.folder.name
+					.replace(/[^a-zA-Z0-9 _-]/g, "_")
+					.trim()
+					.slice(0, 80) || "folder";
+			await doExport(
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/export?folder_id=${ctx.folder.id}`,
+				`${safeName}.zip`
+			);
+			toast.success(`Folder "${ctx.folder.name}" exported`);
+		} catch (err) {
+			console.error("Folder export failed:", err);
+			toast.error(err instanceof Error ? err.message : "Export failed");
+		} finally {
+			setIsExportingKB(false);
 		}
 		setExportWarningContext(null);
 	}, [exportWarningContext, searchSpaceId, doExport]);
@@ -530,7 +481,6 @@ export function DocumentsSidebar({
 			const folderPendingCount = getPendingCountInSubtree(folder.id);
 			if (folderPendingCount > 0) {
 				setExportWarningContext({
-					type: "folder",
 					folder,
 					pendingCount: folderPendingCount,
 				});
@@ -954,8 +904,6 @@ export function DocumentsSidebar({
 						onToggleType={onToggleType}
 						activeTypes={activeTypes}
 						onCreateFolder={() => handleCreateFolder(null)}
-						onExportKB={handleExportKB}
-						isExporting={isExportingKB}
 					/>
 				</div>
 

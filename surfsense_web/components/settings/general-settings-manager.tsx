@@ -2,9 +2,9 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
-import { Info } from "lucide-react";
+import { FolderArchive, Info } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { updateSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
+import { authenticatedFetch } from "@/lib/auth-utils";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { Spinner } from "../ui/spinner";
 
@@ -39,6 +40,37 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 	const [name, setName] = useState("");
 	const [description, setDescription] = useState("");
 	const [saving, setSaving] = useState(false);
+	const [isExporting, setIsExporting] = useState(false);
+
+	const handleExportKB = useCallback(async () => {
+		if (isExporting) return;
+		setIsExporting(true);
+		try {
+			const response = await authenticatedFetch(
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/export`,
+				{ method: "GET" }
+			);
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({ detail: "Export failed" }));
+				throw new Error(errorData.detail || "Export failed");
+			}
+			const blob = await response.blob();
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = "knowledge-base.zip";
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			URL.revokeObjectURL(url);
+			toast.success("Knowledge base exported");
+		} catch (err) {
+			console.error("KB export failed:", err);
+			toast.error(err instanceof Error ? err.message : "Export failed");
+		} finally {
+			setIsExporting(false);
+		}
+	}, [searchSpaceId, isExporting]);
 
 	// Initialize state from fetched search space
 	useEffect(() => {
@@ -156,6 +188,27 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 					</Button>
 				</div>
 			</form>
+
+			<div className="border-t pt-6 space-y-2">
+				<Label>Export knowledge base</Label>
+				<p className="text-xs text-muted-foreground">
+					Download all documents in this search space as a ZIP of markdown files.
+				</p>
+				<Button
+					type="button"
+					variant="secondary"
+					size="sm"
+					disabled={isExporting}
+					onClick={handleExportKB}
+					className="relative"
+				>
+					<span className={isExporting ? "opacity-0" : ""}>
+						<FolderArchive className="h-3 w-3 opacity-60" />
+					</span>
+					<span className={isExporting ? "opacity-0" : ""}>Export</span>
+					{isExporting && <Spinner size="sm" className="absolute" />}
+				</Button>
+			</div>
 		</div>
 	);
 }
