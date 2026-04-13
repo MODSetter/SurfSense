@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from langchain_core.tools import tool
-from langgraph.types import interrupt
+from app.agents.new_chat.tools.hitl import request_approval
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -159,56 +159,30 @@ def create_create_dropbox_file_tool(
                 "supported_types": _SUPPORTED_TYPES,
             }
 
-            approval = interrupt(
-                {
-                    "type": "dropbox_file_creation",
-                    "action": {
-                        "tool": "create_dropbox_file",
-                        "params": {
-                            "name": name,
-                            "file_type": file_type,
-                            "content": content,
-                            "connector_id": None,
-                            "parent_folder_path": None,
-                        },
-                    },
-                    "context": context,
-                }
+            result = request_approval(
+                action_type="dropbox_file_creation",
+                tool_name="create_dropbox_file",
+                params={
+                    "name": name,
+                    "file_type": file_type,
+                    "content": content,
+                    "connector_id": None,
+                    "parent_folder_path": None,
+                },
+                context=context,
             )
 
-            decisions_raw = (
-                approval.get("decisions", []) if isinstance(approval, dict) else []
-            )
-            decisions = (
-                decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
-            )
-            decisions = [d for d in decisions if isinstance(d, dict)]
-            if not decisions:
-                return {"status": "error", "message": "No approval decision received"}
-
-            decision = decisions[0]
-            decision_type = decision.get("type") or decision.get("decision_type")
-
-            if decision_type == "reject":
+            if result.rejected:
                 return {
                     "status": "rejected",
-                    "message": "User declined. The file was not created.",
+                    "message": "User declined. Do not retry or suggest alternatives.",
                 }
 
-            final_params: dict[str, Any] = {}
-            edited_action = decision.get("edited_action")
-            if isinstance(edited_action, dict):
-                edited_args = edited_action.get("args")
-                if isinstance(edited_args, dict):
-                    final_params = edited_args
-            elif isinstance(decision.get("args"), dict):
-                final_params = decision["args"]
-
-            final_name = final_params.get("name", name)
-            final_file_type = final_params.get("file_type", file_type)
-            final_content = final_params.get("content", content)
-            final_connector_id = final_params.get("connector_id")
-            final_parent_folder_path = final_params.get("parent_folder_path")
+            final_name = result.params.get("name", name)
+            final_file_type = result.params.get("file_type", file_type)
+            final_content = result.params.get("content", content)
+            final_connector_id = result.params.get("connector_id")
+            final_parent_folder_path = result.params.get("parent_folder_path")
 
             if not final_name or not final_name.strip():
                 return {"status": "error", "message": "File name cannot be empty."}

@@ -2,7 +2,7 @@ import logging
 from typing import Any
 
 from langchain_core.tools import tool
-from langgraph.types import interrupt
+from app.agents.new_chat.tools.hitl import request_approval
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -78,62 +78,36 @@ def create_update_confluence_page_tool(
             document_id = page_data.get("document_id")
             connector_id_from_context = context.get("account", {}).get("id")
 
-            approval = interrupt(
-                {
-                    "type": "confluence_page_update",
-                    "action": {
-                        "tool": "update_confluence_page",
-                        "params": {
-                            "page_id": page_id,
-                            "document_id": document_id,
-                            "new_title": new_title,
-                            "new_content": new_content,
-                            "version": current_version,
-                            "connector_id": connector_id_from_context,
-                        },
-                    },
-                    "context": context,
-                }
+            result = request_approval(
+                action_type="confluence_page_update",
+                tool_name="update_confluence_page",
+                params={
+                    "page_id": page_id,
+                    "document_id": document_id,
+                    "new_title": new_title,
+                    "new_content": new_content,
+                    "version": current_version,
+                    "connector_id": connector_id_from_context,
+                },
+                context=context,
             )
 
-            decisions_raw = (
-                approval.get("decisions", []) if isinstance(approval, dict) else []
-            )
-            decisions = (
-                decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
-            )
-            decisions = [d for d in decisions if isinstance(d, dict)]
-            if not decisions:
-                return {"status": "error", "message": "No approval decision received"}
-
-            decision = decisions[0]
-            decision_type = decision.get("type") or decision.get("decision_type")
-
-            if decision_type == "reject":
+            if result.rejected:
                 return {
                     "status": "rejected",
-                    "message": "User declined. The page was not updated.",
+                    "message": "User declined. Do not retry or suggest alternatives.",
                 }
 
-            final_params: dict[str, Any] = {}
-            edited_action = decision.get("edited_action")
-            if isinstance(edited_action, dict):
-                edited_args = edited_action.get("args")
-                if isinstance(edited_args, dict):
-                    final_params = edited_args
-            elif isinstance(decision.get("args"), dict):
-                final_params = decision["args"]
-
-            final_page_id = final_params.get("page_id", page_id)
-            final_title = final_params.get("new_title", new_title) or current_title
-            final_content = final_params.get("new_content", new_content)
+            final_page_id = result.params.get("page_id", page_id)
+            final_title = result.params.get("new_title", new_title) or current_title
+            final_content = result.params.get("new_content", new_content)
             if final_content is None:
                 final_content = current_body
-            final_version = final_params.get("version", current_version)
-            final_connector_id = final_params.get(
+            final_version = result.params.get("version", current_version)
+            final_connector_id = result.params.get(
                 "connector_id", connector_id_from_context
             )
-            final_document_id = final_params.get("document_id", document_id)
+            final_document_id = result.params.get("document_id", document_id)
 
             from sqlalchemy.future import select
 
