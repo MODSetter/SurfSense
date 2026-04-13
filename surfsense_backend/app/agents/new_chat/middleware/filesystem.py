@@ -7,10 +7,12 @@ This middleware customizes prompts and persists write/edit operations for
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
+from daytona.common.errors import DaytonaError
 from deepagents import FilesystemMiddleware
 from deepagents.backends.protocol import EditResult, WriteResult
 from deepagents.backends.utils import validate_path
@@ -23,6 +25,12 @@ from langchain_core.tools import BaseTool, StructuredTool
 from langgraph.types import Command
 from sqlalchemy import delete, select
 
+from app.agents.new_chat.sandbox import (
+    _evict_sandbox_cache,
+    get_or_create_sandbox,
+    is_sandbox_enabled,
+    sync_files_to_sandbox,
+)
 from app.db import Chunk, Document, DocumentType, Folder, shielded_async_session
 from app.indexing_pipeline.document_chunker import chunk_text
 from app.utils.document_converters import (
@@ -30,6 +38,8 @@ from app.utils.document_converters import (
     generate_content_hash,
     generate_unique_identifier_hash,
 )
+
+logger = logging.getLogger(__name__)
 
 # =============================================================================
 # System Prompt (injected into every model call by wrap_model_call)
@@ -40,7 +50,7 @@ SURFSENSE_FILESYSTEM_SYSTEM_PROMPT = """## Following Conventions
 - Read files before editing — understand existing content before making changes.
 - Mimic existing style, naming conventions, and patterns.
 
-## Filesystem Tools `ls`, `read_file`, `write_file`, `edit_file`, `glob`, `grep`, `save_document`
+## Filesystem Tools
 
 All file paths must start with a `/`.
 - ls: list files and directories at a given path.
@@ -128,6 +138,21 @@ SURFSENSE_GREP_TOOL_DESCRIPTION = """Search for a literal text pattern across fi
 Use this to locate relevant document files/chunks before reading full files.
 """
 
+SURFSENSE_EXECUTE_CODE_TOOL_DESCRIPTION = """Executes a shell command in an isolated sandbox environment.
+
+The sandbox runs Python with common data-science packages pre-installed
+(pandas, numpy, matplotlib, scipy, scikit-learn).
+
+Knowledge base documents from your conversation are automatically available
+as XML files under /home/daytona/documents/.
+
+Usage notes:
+- Commands run in an isolated sandbox with no outbound network access.
+- Returns combined stdout/stderr output with exit code.
+- Use the optional timeout parameter to override the default timeout.
+- When issuing multiple commands, use ';' or '&&' to chain them.
+"""
+
 SURFSENSE_SAVE_DOCUMENT_TOOL_DESCRIPTION = """Permanently saves a document to the user's knowledge base.
 
 This is an expensive operation — it creates a new Document record in the
@@ -148,17 +173,29 @@ Args:
 class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
     """SurfSense-specific filesystem middleware with DB persistence for docs."""
 
+    _MAX_EXECUTE_TIMEOUT = 300
+
     def __init__(
         self,
         *,
         search_space_id: int | None = None,
         created_by_id: str | None = None,
+        thread_id: int | str | None = None,
         tool_token_limit_before_evict: int | None = 20000,
     ) -> None:
         self._search_space_id = search_space_id
         self._created_by_id = created_by_id
+        self._thread_id = thread_id
+        self._sandbox_available = is_sandbox_enabled() and thread_id is not None
+
+        system_prompt = SURFSENSE_FILESYSTEM_SYSTEM_PROMPT
+        if self._sandbox_available:
+            system_prompt += (
+                "\n- execute_code: run shell commands in an isolated Python sandbox."
+            )
+
         super().__init__(
-            system_prompt=SURFSENSE_FILESYSTEM_SYSTEM_PROMPT,
+            system_prompt=system_prompt,
             custom_tool_descriptions={
                 "ls": SURFSENSE_LIST_FILES_TOOL_DESCRIPTION,
                 "read_file": SURFSENSE_READ_FILE_TOOL_DESCRIPTION,
@@ -168,10 +205,12 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
                 "grep": SURFSENSE_GREP_TOOL_DESCRIPTION,
             },
             tool_token_limit_before_evict=tool_token_limit_before_evict,
+            max_execute_timeout=self._MAX_EXECUTE_TIMEOUT,
         )
-        # Remove the execute tool (no sandbox backend)
         self.tools = [t for t in self.tools if t.name != "execute"]
         self.tools.append(self._create_save_document_tool())
+        if self._sandbox_available:
+            self.tools.append(self._create_execute_code_tool())
 
     @staticmethod
     def _run_async_blocking(coro: Any) -> Any:
@@ -454,6 +493,96 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
             func=sync_save_document,
             coroutine=async_save_document,
         )
+
+    def _create_execute_code_tool(self) -> BaseTool:
+        """Create execute_code tool backed by a Daytona sandbox."""
+
+        def sync_execute_code(
+            command: Annotated[
+                str, "Shell command to execute in the sandbox environment."
+            ],
+            runtime: ToolRuntime[None, FilesystemState],
+            timeout: Annotated[
+                int | None,
+                "Optional timeout in seconds for this command.",
+            ] = None,
+        ) -> str:
+            if timeout is not None:
+                if timeout < 0:
+                    return f"Error: timeout must be non-negative, got {timeout}."
+                if timeout > self._MAX_EXECUTE_TIMEOUT:
+                    return f"Error: timeout {timeout}s exceeds maximum ({self._MAX_EXECUTE_TIMEOUT}s)."
+            return self._run_async_blocking(
+                self._execute_in_sandbox(command, runtime, timeout)
+            )
+
+        async def async_execute_code(
+            command: Annotated[
+                str, "Shell command to execute in the sandbox environment."
+            ],
+            runtime: ToolRuntime[None, FilesystemState],
+            timeout: Annotated[
+                int | None,
+                "Optional timeout in seconds for this command.",
+            ] = None,
+        ) -> str:
+            if timeout is not None:
+                if timeout < 0:
+                    return f"Error: timeout must be non-negative, got {timeout}."
+                if timeout > self._MAX_EXECUTE_TIMEOUT:
+                    return f"Error: timeout {timeout}s exceeds maximum ({self._MAX_EXECUTE_TIMEOUT}s)."
+            return await self._execute_in_sandbox(command, runtime, timeout)
+
+        return StructuredTool.from_function(
+            name="execute_code",
+            description=SURFSENSE_EXECUTE_CODE_TOOL_DESCRIPTION,
+            func=sync_execute_code,
+            coroutine=async_execute_code,
+        )
+
+    async def _execute_in_sandbox(
+        self,
+        command: str,
+        runtime: ToolRuntime[None, FilesystemState],
+        timeout: int | None,
+    ) -> str:
+        """Core logic: get sandbox, sync files, run command, handle retries."""
+        assert self._thread_id is not None
+
+        try:
+            return await self._try_sandbox_execute(command, runtime, timeout)
+        except (DaytonaError, Exception) as first_err:
+            logger.warning(
+                "Sandbox execute failed for thread %s, retrying: %s",
+                self._thread_id,
+                first_err,
+            )
+            _evict_sandbox_cache(self._thread_id)
+            try:
+                return await self._try_sandbox_execute(command, runtime, timeout)
+            except Exception:
+                logger.exception(
+                    "Sandbox retry also failed for thread %s", self._thread_id
+                )
+                return "Error: Code execution is temporarily unavailable. Please try again."
+
+    async def _try_sandbox_execute(
+        self,
+        command: str,
+        runtime: ToolRuntime[None, FilesystemState],
+        timeout: int | None,
+    ) -> str:
+        sandbox, is_new = await get_or_create_sandbox(self._thread_id)
+        files = runtime.state.get("files") or {}
+        await sync_files_to_sandbox(self._thread_id, files, sandbox, is_new)
+        result = await sandbox.aexecute(command, timeout=timeout)
+        parts = [result.output]
+        if result.exit_code is not None:
+            status = "succeeded" if result.exit_code == 0 else "failed"
+            parts.append(f"\n[Command {status} with exit code {result.exit_code}]")
+        if result.truncated:
+            parts.append("\n[Output was truncated due to size limits]")
+        return "".join(parts)
 
     def _create_write_file_tool(self) -> BaseTool:
         """Create write_file — ephemeral for /documents/*, persisted otherwise."""
