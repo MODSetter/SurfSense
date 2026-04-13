@@ -39,6 +39,14 @@ def main() -> None:
         .run("mkdir -p /home/daytona/documents && ln -sf /home/daytona/documents /documents")
     )
 
+    try:
+        existing = daytona.snapshot.get(SNAPSHOT_NAME)
+        print(f"Deleting existing snapshot '{SNAPSHOT_NAME}'...")
+        daytona.snapshot.delete(existing)
+        print("Deleted.")
+    except Exception:
+        pass
+
     print(f"Creating snapshot '{SNAPSHOT_NAME}' with packages: {', '.join(PACKAGES)}")
     snapshot = daytona.snapshot.create(
         CreateSnapshotParams(name=SNAPSHOT_NAME, image=image),
