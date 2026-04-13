@@ -38,6 +38,31 @@ import { removeChatTabAtom, updateChatTabTitleAtom } from "@/atoms/tabs/tabs.ato
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { ThinkingStepsDataUI } from "@/components/assistant-ui/thinking-steps";
 import { Thread } from "@/components/assistant-ui/thread";
+import { ChatHeader } from "@/components/new-chat/chat-header";
+import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
+import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
+import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
+import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
+import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
+import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-memory";
+// Crypto Tool UI Components - Conversational Crypto Advisor
+import {
+	TokenAnalysisToolUI,
+	WatchlistDisplayToolUI,
+	ActionConfirmationToolUI,
+	AlertConfigurationToolUI,
+	ProactiveAlertToolUI,
+	TrendingTokensToolUI,
+	WhaleActivityToolUI,
+	MarketOverviewToolUI,
+	HolderAnalysisToolUI,
+	PortfolioDisplayToolUI,
+	UserProfileToolUI,
+	// Real-time crypto tools (Hybrid approach: RAG + Real-time)
+	LiveTokenPriceToolUI,
+	LiveTokenDataToolUI,
+} from "@/components/tool-ui/crypto";
+import { Spinner } from "@/components/ui/spinner";
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
 import { useMessagesSync } from "@/hooks/use-messages-sync";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
@@ -1570,6 +1595,28 @@ export default function NewChatPage() {
 	return (
 		<AssistantRuntimeProvider runtime={runtime}>
 			<ThinkingStepsDataUI />
+			<GeneratePodcastToolUI />
+			<LinkPreviewToolUI />
+			<DisplayImageToolUI />
+			<ScrapeWebpageToolUI />
+			<SaveMemoryToolUI />
+			<RecallMemoryToolUI />
+			{/* Crypto Tool UI Components - Conversational Crypto Advisor */}
+			<TokenAnalysisToolUI />
+			<WatchlistDisplayToolUI />
+			<ActionConfirmationToolUI />
+			<AlertConfigurationToolUI />
+			<ProactiveAlertToolUI />
+			<TrendingTokensToolUI />
+			<WhaleActivityToolUI />
+			<MarketOverviewToolUI />
+			<HolderAnalysisToolUI />
+			<PortfolioDisplayToolUI />
+			<UserProfileToolUI />
+			{/* Real-time Crypto Tools - Hybrid approach (RAG + Real-time) */}
+			<LiveTokenPriceToolUI />
+			<LiveTokenDataToolUI />
+			{/* <WriteTodosToolUI /> Disabled for now */}
 			<div key={searchSpaceId} className="flex h-full overflow-hidden">
 				<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 					<Thread />

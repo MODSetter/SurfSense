@@ -85,14 +85,6 @@ class JiraHistoryConnector:
 
             if is_oauth:
                 # OAuth 2.0 authentication
-                # Check if access_token exists before processing
-                raw_access_token = config_data.get("access_token")
-                if not raw_access_token:
-                    raise ValueError(
-                        "Jira access token not found. "
-                        "Please reconnect your Jira account."
-                    )
-
                 if not config.SECRET_KEY:
                     raise ValueError(
                         "SECRET_KEY not configured but tokens are marked as encrypted"
@@ -125,16 +117,6 @@ class JiraHistoryConnector:
                     raise ValueError(
                         f"Failed to decrypt Jira credentials: {e!s}"
                     ) from e
-
-                # Final validation after decryption
-                final_token = config_data.get("access_token")
-                if not final_token or (
-                    isinstance(final_token, str) and not final_token.strip()
-                ):
-                    raise ValueError(
-                        "Jira access token is invalid or empty. "
-                        "Please reconnect your Jira account."
-                    )
 
                 try:
                     self._credentials = AtlassianAuthCredentialsBase.from_dict(
@@ -183,9 +165,9 @@ class JiraHistoryConnector:
                         f"Connector {self._connector_id} not found; cannot refresh token."
                     )
 
+                # Refresh token
                 # Lazy import to avoid circular dependency
                 from app.routes.jira_add_connector_route import refresh_jira_token
-
                 connector = await refresh_jira_token(self._session, connector)
 
                 # Reload credentials after refresh

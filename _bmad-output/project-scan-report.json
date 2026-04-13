@@ -1,0 +1,83 @@
+{
+    "workflow_version": "1.2.0",
+    "timestamps": {
+        "started": "2026-01-31T12:46:00+07:00",
+        "completed": "2026-01-31T12:55:00+07:00"
+    },
+    "mode": "initial_scan",
+    "scan_level": "exhaustive",
+    "project_root": "/Users/mac_1/Documents/GitHub/SurfSense",
+    "output_folder": "/Users/mac_1/Documents/GitHub/SurfSense/_bmad-output",
+    "repository_type": "multi-part",
+    "parts_count": 3,
+    "project_parts": [
+        {
+            "part_id": "backend",
+            "root_path": "surfsense_backend",
+            "project_type_id": "backend",
+            "display_name": "SurfSense Backend",
+            "tech_stack": {
+                "framework": "FastAPI",
+                "language": "Python 3.12",
+                "database": "Postgres (asyncpg), Redis",
+                "key_libs": "LangGraph, DeepAgents, Alembic"
+            },
+            "architecture_pattern": "Service-centric / Microservice"
+        },
+        {
+            "part_id": "web",
+            "root_path": "surfsense_web",
+            "project_type_id": "web_app",
+            "display_name": "SurfSense Web",
+            "tech_stack": {
+                "framework": "Next.js 16",
+                "language": "TypeScript",
+                "ui": "React 19, Tailwind v4",
+                "state": "ElectricSQL"
+            },
+            "architecture_pattern": "App Router / Server Actions"
+        },
+        {
+            "part_id": "extension",
+            "root_path": "surfsense_browser_extension",
+            "project_type_id": "browser_extension",
+            "display_name": "SurfSense Extension",
+            "tech_stack": {
+                "framework": "Plasmo",
+                "language": "TypeScript",
+                "ui": "React 18"
+            },
+            "architecture_pattern": "Manifest V3 / Popup + Background"
+        }
+    ],
+    "completed_steps": [
+        "step_1_init",
+        "step_2_classify",
+        "step_3_tech_stack",
+        "step_4_analysis",
+        "step_5_backend_docs",
+        "step_6_web_docs",
+        "step_7_extension_docs",
+        "step_10_master_index"
+    ],
+    "current_step": "complete",
+    "findings": {
+        "project_classification": "Multi-part project with Backend (Python/FastAPI), Extension (Plasmo/React), and Web (Next.js/React).",
+        "technology_stack": "Comprehensive stack detected. High complexity in AI/Agentic workflows.",
+        "documentation_status": "Generated comprehensive documentation suite."
+    },
+    "outputs_generated": [
+        "project-scan-report.json",
+        "project-overview.md",
+        "source-tree-analysis.md",
+        "integration-architecture.md",
+        "architecture-backend.md",
+        "data-models-backend.md",
+        "api-contracts-backend.md",
+        "architecture-web.md",
+        "component-inventory-web.md",
+        "architecture-extension.md",
+        "index.md"
+    ],
+    "resume_instructions": "Documentation complete. User can review files in _bmad-output/."
+}

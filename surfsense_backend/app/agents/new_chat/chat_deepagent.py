@@ -92,6 +92,8 @@ _CONNECTOR_TYPE_TO_SEARCHABLE: dict[str, str] = {
     "COMPOSIO_GOOGLE_DRIVE_CONNECTOR": "GOOGLE_DRIVE_FILE",
     "COMPOSIO_GMAIL_CONNECTOR": "GOOGLE_GMAIL_CONNECTOR",
     "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR": "GOOGLE_CALENDAR_CONNECTOR",
+    # Cryptocurrency data
+    "DEXSCREENER_CONNECTOR": "DEXSCREENER_CONNECTOR",
 }
 
 # Document types that don't come from SearchSourceConnector but should always be searchable

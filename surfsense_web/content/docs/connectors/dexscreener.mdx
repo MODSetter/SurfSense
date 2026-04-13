@@ -1,0 +1,237 @@
+---
+title: DexScreener
+description: Connect DexScreener trading pair data to SurfSense
+---
+
+# DexScreener Integration Setup Guide
+
+DexScreener is a powerful cryptocurrency trading analytics platform that provides real-time data for trading pairs across multiple decentralized exchanges (DEXs). Integrate DexScreener with SurfSense to search and analyze crypto market data using AI.
+
+## How it works
+
+The DexScreener connector fetches trading pair data for tokens you specify and indexes it into your SurfSense search space. This allows you to:
+
+- Track real-time price movements across multiple DEXs
+- Monitor trading volume and liquidity metrics
+- Analyze historical price trends
+- Search for specific tokens and trading pairs using natural language
+- Get AI-powered insights on market data
+
+## Authorization
+
+**No authentication required!** DexScreener's API is public and free to use. Simply configure the tokens you want to track and start indexing.
+
+## Supported Chains
+
+The DexScreener connector supports the following blockchain networks:
+
+- **Ethereum** - The largest DeFi ecosystem
+- **BSC (Binance Smart Chain)** - High-speed, low-cost transactions
+- **Polygon** - Ethereum scaling solution
+- **Arbitrum** - Ethereum Layer 2 rollup
+- **Optimism** - Ethereum Layer 2 optimistic rollup
+- **Base** - Coinbase's Layer 2 network
+- **Avalanche** - High-throughput blockchain platform
+- **Solana** - High-performance blockchain
+
+## Setup Instructions
+
+### 1. Add the Connector
+
+1. Navigate to your SurfSense dashboard
+2. Click **"Add Connector"** in the connector popup
+3. Select **"DexScreener"** from the connector list
+
+### 2. Configure Connector Name
+
+Enter a friendly name for your connector (e.g., "My Crypto Tracker", "DeFi Portfolio Monitor")
+
+### 3. Add Tokens to Track
+
+For each token you want to monitor:
+
+1. Click **"Add Token"**
+2. Select the **blockchain network** from the dropdown
+3. Enter the **token contract address** (must be a valid 40-character hex address starting with `0x`)
+4. (Optional) Add a **friendly name** to help identify the token
+
+**Example:**
+- Chain: Ethereum
+- Address: `0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2`
+- Name: Wrapped Ether (WETH)
+
+You can track up to **50 tokens** per connector.
+
+### 4. Configure Indexing Settings
+
+#### Date Range (Optional)
+Set a date range to limit historical data indexing. Leave blank to index all available data.
+
+#### Periodic Sync
+Enable automatic re-indexing to keep your data up-to-date:
+
+- **Every 5 minutes** - For active trading monitoring
+- **Every 15 minutes** - For frequent updates
+- **Every hour** - For regular monitoring
+- **Every 6 hours** - For daily tracking
+- **Every 12 hours** - For bi-daily updates
+- **Daily** - For long-term portfolio tracking
+- **Weekly** - For occasional updates
+
+### 5. Connect
+
+Click **"Connect"** to create the connector and start indexing.
+
+## Token Configuration
+
+### Finding Token Addresses
+
+Token contract addresses can be found on:
+
+- **DexScreener**: Search for the token and copy the address from the URL or token info
+- **Etherscan** (Ethereum): etherscan.io
+- **BscScan** (BSC): bscscan.com
+- **PolygonScan** (Polygon): polygonscan.com
+- **Block explorers** for other chains
+
+### Address Format
+
+Token addresses must be:
+- Exactly 42 characters long
+- Start with `0x`
+- Followed by 40 hexadecimal characters (0-9, a-f, A-F)
+
+**Valid example:** `0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2`  
+**Invalid examples:**
+- `C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2` (missing 0x)
+- `0x123` (too short)
+- `0xGGGGaaA39b223FE8D0A0e5C4F27eAD9083C756Cc2` (invalid hex characters)
+
+## What Gets Indexed
+
+For each tracked token, the connector indexes:
+
+- **Token Information**
+  - Token symbol and name
+  - Contract address
+  - Blockchain network
+
+- **Price Data**
+  - Current price in USD
+  - Price in native currency
+  - Price change percentages (5m, 1h, 6h, 24h)
+
+- **Volume Metrics**
+  - 24-hour trading volume
+  - 6-hour trading volume
+  - 1-hour trading volume
+
+- **Liquidity Information**
+  - Total liquidity in USD
+  - Liquidity distribution across DEXs
+
+- **DEX Information**
+  - Exchange names
+  - Trading pair details
+  - Pool addresses
+
+## Managing Your Connector
+
+### Editing Configuration
+
+1. Click **"Configure"** on your DexScreener connector
+2. Update the connector name if needed
+3. Add or remove tokens from the tracked list
+4. Modify token details (chain, address, name)
+5. Click **"Save"** to apply changes
+
+### Triggering Manual Indexing
+
+To manually re-index your connector:
+
+1. Open the connector configuration
+2. Click **"Index Now"** or wait for the next scheduled sync
+
+### Deleting the Connector
+
+To remove the connector and all indexed data:
+
+1. Click the **delete icon** on the connector card
+2. Confirm the deletion
+
+## Troubleshooting
+
+### "Invalid token address" error
+
+**Cause:** The token address doesn't match the required format.
+
+**Solution:**
+- Ensure the address is exactly 42 characters (0x + 40 hex chars)
+- Verify you copied the full address without spaces
+- Check that the address contains only valid hex characters (0-9, a-f, A-F)
+
+### "Token not found" error
+
+**Cause:** The token doesn't exist on DexScreener or hasn't been indexed yet.
+
+**Solution:**
+- Verify the token address is correct
+- Check that the token has trading activity on DEXs
+- Try searching for the token on [dexscreener.com](https://dexscreener.com) first
+- Ensure you selected the correct blockchain network
+
+### No data appearing in search
+
+**Cause:** Indexing may not have completed yet.
+
+**Solution:**
+- Wait a few minutes for the initial indexing to complete
+- Check the connector status in your dashboard
+- Verify the connector is active and not paused
+- Try manually triggering a re-index
+
+### "Maximum tokens exceeded" error
+
+**Cause:** You're trying to add more than 50 tokens to a single connector.
+
+**Solution:**
+- Remove some tokens you no longer need to track
+- Create a second DexScreener connector for additional tokens
+- Prioritize the most important tokens for your use case
+
+## Best Practices
+
+1. **Start Small**: Begin with 5-10 important tokens and expand as needed
+2. **Use Descriptive Names**: Add friendly names to tokens for easier identification
+3. **Set Appropriate Sync Frequency**: Balance data freshness with API usage
+4. **Organize by Strategy**: Create separate connectors for different trading strategies or portfolios
+5. **Regular Cleanup**: Remove tokens you're no longer tracking to keep data relevant
+
+## API Rate Limits
+
+DexScreener's public API has rate limits. To avoid issues:
+
+- Don't track more tokens than you actively need
+- Use reasonable sync frequencies (avoid 5-minute intervals unless necessary)
+- If you encounter rate limit errors, increase the sync interval
+
+## Privacy & Security
+
+- **No Authentication**: DexScreener connector doesn't require API keys or credentials
+- **Public Data Only**: All indexed data is publicly available market data
+- **No Personal Info**: Token addresses and market data don't contain personal information
+- **Secure Storage**: All connector configurations are encrypted and stored securely
+
+## Support
+
+For issues or questions:
+
+- Check the [DexScreener API Documentation](https://docs.dexscreener.com/api/reference)
+- Visit the SurfSense community forums
+- Contact SurfSense support
+
+## Related Resources
+
+- [DexScreener Website](https://dexscreener.com)
+- [DexScreener API Docs](https://docs.dexscreener.com/api/reference)
+- [SurfSense Connector Overview](/docs/connectors)

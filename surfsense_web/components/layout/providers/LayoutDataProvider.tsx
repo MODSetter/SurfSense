@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { AlertTriangle, Inbox, Megaphone, SquareLibrary } from "lucide-react";
+import { AlertTriangle, Coins, Inbox, LogOut, Megaphone, SquareLibrary, Trash2 } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
@@ -373,6 +373,12 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						badge:
 							announcementUnreadCount > 0 ? formatInboxCount(announcementUnreadCount) : undefined,
 					},
+					{
+						title: "Crypto",
+						url: `/dashboard/${searchSpaceId}/crypto`,
+						icon: Coins,
+						isActive: pathname?.includes("/crypto"),
+					},
 				] as (NavItem | null)[]
 			).filter((item): item is NavItem => item !== null),
 		[
@@ -382,6 +388,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			totalUnreadCount,
 			isAnnouncementsSidebarOpen,
 			announcementUnreadCount,
+			searchSpaceId,
+			pathname,
 		]
 	);
 

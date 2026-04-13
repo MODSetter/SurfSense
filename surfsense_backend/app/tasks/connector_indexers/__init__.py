@@ -42,9 +42,10 @@ from .jira_indexer import index_jira_issues
 
 # Issue tracking and project management
 from .linear_indexer import index_linear_issues
+from .luma_indexer import index_luma_events
+from .dexscreener_indexer import index_dexscreener_pairs
 
 # Documentation and knowledge management
-from .luma_indexer import index_luma_events
 from .notion_indexer import index_notion_pages
 from .obsidian_indexer import index_obsidian_vault
 from .slack_indexer import index_slack_messages
@@ -74,4 +75,5 @@ __all__ = [  # noqa: RUF022
     # Communication platforms
     "index_slack_messages",
     "index_google_gmail_messages",
+    "index_dexscreener_pairs",
 ]

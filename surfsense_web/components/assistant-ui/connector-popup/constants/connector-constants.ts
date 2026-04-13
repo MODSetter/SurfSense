@@ -142,6 +142,12 @@ export const OTHER_CONNECTORS = [
 		connectorType: EnumConnectorName.LUMA_CONNECTOR,
 	},
 	{
+		id: "dexscreener-connector",
+		title: "DexScreener",
+		description: "Track cryptocurrency trading pairs across DEXs",
+		connectorType: EnumConnectorName.DEXSCREENER_CONNECTOR,
+	},
+	{
 		id: "elasticsearch-connector",
 		title: "Elasticsearch",
 		description: "Search ES indexes",

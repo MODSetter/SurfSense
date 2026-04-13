@@ -17,7 +17,6 @@ from sqlalchemy.future import select
 
 from app.config import config
 from app.db import SearchSourceConnector
-from app.routes.discord_add_connector_route import refresh_discord_token
 from app.schemas.discord_auth_credentials import DiscordAuthCredentialsBase
 from app.utils.oauth_security import TokenEncryption
 
@@ -177,6 +176,8 @@ class DiscordConnector(commands.Bot):
                     )
 
                 # Refresh token
+                # Lazy import to avoid circular dependency
+                from app.routes.discord_add_connector_route import refresh_discord_token
                 connector = await refresh_discord_token(self._session, connector)
 
                 # Reload credentials after refresh

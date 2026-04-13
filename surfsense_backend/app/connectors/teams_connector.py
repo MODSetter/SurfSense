@@ -16,7 +16,6 @@ from sqlalchemy.future import select
 
 from app.config import config
 from app.db import SearchSourceConnector
-from app.routes.teams_add_connector_route import refresh_teams_token
 from app.schemas.teams_auth_credentials import TeamsAuthCredentialsBase
 from app.utils.oauth_security import TokenEncryption
 
@@ -146,6 +145,8 @@ class TeamsConnector:
                     )
 
                 # Refresh token
+                # Lazy import to avoid circular dependency
+                from app.routes.teams_add_connector_route import refresh_teams_token
                 connector = await refresh_teams_token(self._session, connector)
 
                 # Reload credentials after refresh

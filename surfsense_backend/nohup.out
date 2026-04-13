@@ -1,0 +1,143 @@
+INFO:     Will watch for changes in these directories: ['/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend']
+INFO:     Uvicorn running on http://0.0.0.0:3998 (Press CTRL+C to quit)
+INFO:     Started reloader process [6491] using WatchFiles
+/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/chonkie/chunker/code.py:82: UserWarning: The language is set to `auto`. This would adversely affect the performance of the chunker. Consider setting the `language` parameter to a specific language to improve performance.
+  warnings.warn("The language is set to `auto`. This would adversely affect the performance of the chunker. " +
+INFO:     Started server process [6495]
+INFO:     Waiting for application startup.
+ERROR:    Traceback (most recent call last):
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/starlette/routing.py", line 694, in lifespan
+    async with self.lifespan_context(app) as maybe_state:
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/.local/share/uv/python/cpython-3.12.9-macos-aarch64-none/lib/python3.12/contextlib.py", line 210, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 153, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/.local/share/uv/python/cpython-3.12.9-macos-aarch64-none/lib/python3.12/contextlib.py", line 210, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 153, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/.local/share/uv/python/cpython-3.12.9-macos-aarch64-none/lib/python3.12/contextlib.py", line 210, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 153, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/.local/share/uv/python/cpython-3.12.9-macos-aarch64-none/lib/python3.12/contextlib.py", line 210, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 153, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/.local/share/uv/python/cpython-3.12.9-macos-aarch64-none/lib/python3.12/contextlib.py", line 210, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 153, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/.local/share/uv/python/cpython-3.12.9-macos-aarch64-none/lib/python3.12/contextlib.py", line 210, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 153, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/.local/share/uv/python/cpython-3.12.9-macos-aarch64-none/lib/python3.12/contextlib.py", line 210, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/app/app.py", line 23, in lifespan
+    await create_db_and_tables()
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/app/db.py", line 1386, in create_db_and_tables
+    async with engine.begin() as conn:
+               ^^^^^^^^^^^^^^
+  File "/Users/mac_1/.local/share/uv/python/cpython-3.12.9-macos-aarch64-none/lib/python3.12/contextlib.py", line 210, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/ext/asyncio/engine.py", line 1066, in begin
+    async with conn:
+               ^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/ext/asyncio/base.py", line 121, in __aenter__
+    return await self.start(is_ctxmanager=True)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/ext/asyncio/engine.py", line 274, in start
+    await greenlet_spawn(self.sync_engine.connect)
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 201, in greenlet_spawn
+    result = context.throw(*sys.exc_info())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3273, in connect
+    return self._connection_cls(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 145, in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3297, in raw_connection
+    return self.pool.connect()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 449, in connect
+    return _ConnectionFairy._checkout(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 1264, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 713, in checkout
+    rec = pool._do_get()
+          ^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/pool/impl.py", line 179, in _do_get
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/pool/impl.py", line 177, in _do_get
+    return self._create_connection()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 390, in _create_connection
+    return _ConnectionRecord(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 675, in __init__
+    self.__connect()
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 901, in __connect
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 897, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/engine/create.py", line 646, in connect
+    return dialect.connect(*cargs, **cparams)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 625, in connect
+    return self.loaded_dbapi.connect(*cargs, **cparams)  # type: ignore[no-any-return]  # NOQA: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 961, in connect
+    await_only(creator_fn(*arg, **kw)),
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/asyncpg/connection.py", line 2421, in connect
+    return await connect_utils._connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/asyncpg/connect_utils.py", line 1075, in _connect
+    raise last_error or exceptions.TargetServerAttributeNotMatched(
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/asyncpg/connect_utils.py", line 1049, in _connect
+    conn = await _connect_addr(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/asyncpg/connect_utils.py", line 882, in _connect_addr
+    return await __connect_addr(params, False, *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/asyncpg/connect_utils.py", line 931, in __connect_addr
+    tr, pr = await connector
+             ^^^^^^^^^^^^^^^
+  File "uvloop/loop.pyx", line 2043, in create_connection
+  File "uvloop/loop.pyx", line 2020, in uvloop.loop.Loop.create_connection
+ConnectionRefusedError: [Errno 61] Connection refused
+
+ERROR:    Application startup failed. Exiting.
+INFO:     Stopping reloader process [6491]

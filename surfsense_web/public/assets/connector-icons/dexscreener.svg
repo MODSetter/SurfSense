@@ -1,0 +1,19 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="12" cy="12" r="11" fill="url(#dexGradient)" stroke="currentColor" stroke-width="1"/>
+  
+  <!-- Chart/Trading icon -->
+  <path d="M7 14L10 11L13 14L17 8" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="7" cy="14" r="1.5" fill="white"/>
+  <circle cx="10" cy="11" r="1.5" fill="white"/>
+  <circle cx="13" cy="14" r="1.5" fill="white"/>
+  <circle cx="17" cy="8" r="1.5" fill="white"/>
+  
+  <!-- Gradient definition -->
+  <defs>
+    <linearGradient id="dexGradient" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+  </defs>
+</svg>

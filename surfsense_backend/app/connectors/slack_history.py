@@ -17,7 +17,6 @@ from sqlalchemy.future import select
 
 from app.config import config
 from app.db import SearchSourceConnector
-from app.routes.slack_add_connector_route import refresh_slack_token
 from app.schemas.slack_auth_credentials import SlackAuthCredentialsBase
 from app.utils.oauth_security import TokenEncryption
 
@@ -155,6 +154,8 @@ class SlackHistory:
                     )
 
                 # Refresh token
+                # Lazy import to avoid circular dependency
+                from app.routes.slack_add_connector_route import refresh_slack_token
                 connector = await refresh_slack_token(self._session, connector)
 
                 # Reload credentials after refresh

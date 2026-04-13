@@ -50,6 +50,11 @@ from .confluence import (
     create_delete_confluence_page_tool,
     create_update_confluence_page_tool,
 )
+from .crypto_realtime import (
+    create_get_live_token_data_tool,
+    create_get_live_token_price_tool,
+)
+from .display_image import create_display_image_tool
 from .dropbox import (
     create_create_dropbox_file_tool,
     create_delete_dropbox_file_tool,
@@ -80,6 +85,8 @@ from .linear import (
     create_delete_linear_issue_tool,
     create_update_linear_issue_tool,
 )
+from .knowledge_base import create_search_knowledge_base_tool
+from .link_preview import create_link_preview_tool
 from .mcp_tool import load_mcp_tools
 from .notion import (
     create_create_notion_page_tool,
@@ -521,6 +528,26 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+    ),
+    # =========================================================================
+    # CRYPTO REAL-TIME TOOLS - Hybrid approach (RAG + Real-time)
+    # =========================================================================
+    # These tools fetch LIVE data directly from DexScreener API.
+    # Use alongside search_knowledge_base for comprehensive crypto analysis:
+    # - search_knowledge_base: Historical context, trends (from indexed data)
+    # - get_live_token_price: Current price (real-time API call)
+    # - get_live_token_data: Full market data (real-time API call)
+    ToolDefinition(
+        name="get_live_token_price",
+        description="Get LIVE/CURRENT cryptocurrency price from DexScreener API. Use for real-time price queries.",
+        factory=lambda deps: create_get_live_token_price_tool(),
+        requires=[],
+    ),
+    ToolDefinition(
+        name="get_live_token_data",
+        description="Get comprehensive LIVE market data (price, volume, liquidity, transactions) from DexScreener API.",
+        factory=lambda deps: create_get_live_token_data_tool(),
+        requires=[],
     ),
 ]
 

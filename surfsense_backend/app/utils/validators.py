@@ -485,6 +485,56 @@ def validate_connector_config(
                 if not validators.url(url):
                     raise ValueError(f"Invalid URL format in INITIAL_URLS: {url}")
 
+    def validate_dexscreener_tokens() -> None:
+        """Validate DexScreener tokens configuration."""
+        tokens = config.get("tokens")
+        if not isinstance(tokens, list) or not tokens:
+            raise ValueError("tokens must be a non-empty list")
+        
+        # Valid blockchain names supported by DexScreener
+        valid_chains = [
+            "ethereum", "bsc", "polygon", "arbitrum", "optimism", "base", 
+            "solana", "avalanche", "fantom", "cronos", "moonbeam", "moonriver",
+            "celo", "aurora", "harmony", "metis", "boba", "fuse", "okex",
+            "heco", "elastos", "telos", "iotex", "thundercore", "tomochain",
+            "velas", "wanchain", "kardia", "pulsechain", "dogechain", "evmos",
+            "kava", "step", "godwoken", "milkomeda", "dfk", "swimmer", "rei",
+            "vision", "smartbch", "redlight", "astar", "shiden", "clover",
+            "bitgert", "sx", "oasis", "energi", "tombchain", "canto", "kcc",
+            "ethw", "ethf", "core", "zksync", "polygonzkevm", "linea", "scroll",
+            "mantle", "manta", "blast", "mode", "xlayer", "merlin", "zkfair",
+            "opbnb", "taiko", "zeta", "sei", "berachain"
+        ]
+        
+        for i, token in enumerate(tokens):
+            if not isinstance(token, dict):
+                raise ValueError(f"tokens[{i}] must be a dictionary")
+            
+            # Validate required fields
+            if "chain" not in token:
+                raise ValueError(f"tokens[{i}] must have 'chain' field")
+            if "address" not in token:
+                raise ValueError(f"tokens[{i}] must have 'address' field")
+            
+            # Validate chain is valid
+            chain = token["chain"]
+            if not isinstance(chain, str) or chain.lower() not in valid_chains:
+                raise ValueError(
+                    f"tokens[{i}].chain must be one of the supported blockchains. "
+                    f"Got: {chain}. See DexScreener documentation for valid chains."
+                )
+            
+            # Validate address format (basic check)
+            address = token["address"]
+            if not isinstance(address, str) or not address.strip():
+                raise ValueError(f"tokens[{i}].address cannot be empty")
+            
+            # Optional: validate name field if present
+            if "name" in token:
+                name = token["name"]
+                if not isinstance(name, str):
+                    raise ValueError(f"tokens[{i}].name must be a string if provided")
+
     # Lookup table for connector validation rules
     connector_rules = {
         "SERPER_API": {"required": ["SERPER_API_KEY"], "validators": {}},
@@ -576,6 +626,12 @@ def validate_connector_config(
             "validators": {
                 "FIRECRAWL_API_KEY": lambda: validate_firecrawl_api_key_format(),
                 "INITIAL_URLS": lambda: validate_initial_urls(),
+            },
+        },
+        "DEXSCREENER_CONNECTOR": {
+            "required": ["tokens"],
+            "validators": {
+                "tokens": lambda: validate_dexscreener_tokens()
             },
         },
     }

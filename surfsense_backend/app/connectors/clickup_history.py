@@ -14,9 +14,9 @@ from sqlalchemy.future import select
 from app.config import config
 from app.connectors.clickup_connector import ClickUpConnector
 from app.db import SearchSourceConnector
-from app.routes.clickup_add_connector_route import refresh_clickup_token
 from app.schemas.clickup_auth_credentials import ClickUpAuthCredentialsBase
 from app.utils.oauth_security import TokenEncryption
+
 
 logger = logging.getLogger(__name__)
 
@@ -184,6 +184,8 @@ class ClickUpHistoryConnector:
                     )
 
                 # Refresh token
+                # Lazy import to avoid circular dependency
+                from app.routes.clickup_add_connector_route import refresh_clickup_token
                 connector = await refresh_clickup_token(self._session, connector)
 
                 # Reload credentials after refresh

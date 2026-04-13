@@ -12,7 +12,7 @@ from sqlalchemy.future import select
 from app.config import config
 from app.connectors.airtable_connector import AirtableConnector
 from app.db import SearchSourceConnector
-from app.routes.airtable_add_connector_route import refresh_airtable_token
+from app.utils.airtable_token_utils import refresh_airtable_token
 from app.schemas.airtable_auth_credentials import AirtableAuthCredentialsBase
 from app.utils.oauth_security import TokenEncryption
 

@@ -2758,6 +2758,135 @@ class ConnectorService:
 
         return result_object, obsidian_docs
 
+    async def search_dexscreener(
+        self,
+        user_query: str,
+        search_space_id: int,
+        top_k: int = 20,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> tuple:
+        """
+        Search for DexScreener cryptocurrency trading pair data and return both the source information and langchain documents.
+
+        Uses combined chunk-level and document-level hybrid search with RRF fusion.
+
+        Args:
+            user_query: The user's query
+            search_space_id: The search space ID to search in
+            top_k: Maximum number of results to return
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
+
+        Returns:
+            tuple: (sources_info, langchain_documents)
+        """
+        dexscreener_docs = await self._combined_rrf_search(
+            query_text=user_query,
+            search_space_id=search_space_id,
+            document_type="DEXSCREENER_CONNECTOR",
+            top_k=top_k,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        # Early return if no results
+        if not dexscreener_docs:
+            return {
+                "id": 54,
+                "name": "DexScreener",
+                "type": "DEXSCREENER_CONNECTOR",
+                "sources": [],
+            }, []
+
+        def _title_fn(doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
+            # Extract token and chain info from metadata
+            base_token = metadata.get("base_symbol", "")
+            quote_token = metadata.get("quote_symbol", "")
+            chain = metadata.get("chain_id", "")
+            dex = metadata.get("dex", "")
+            
+            if base_token and quote_token:
+                title = f"{base_token}/{quote_token}"
+                if chain:
+                    title += f" on {chain.capitalize()}"
+                if dex:
+                    title += f" ({dex})"
+                return title
+            
+            return doc_info.get("title", "DexScreener Trading Pair")
+
+        def _url_fn(doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
+            # DexScreener URL format: https://dexscreener.com/{chain}/{pair_address}
+            chain = metadata.get("chain_id", "")
+            pair_address = metadata.get("pair_address", "")
+            if chain and pair_address:
+                return f"https://dexscreener.com/{chain}/{pair_address}"
+            return ""
+
+        def _description_fn(
+            chunk: dict[str, Any], _doc_info: dict[str, Any], metadata: dict[str, Any]
+        ) -> str:
+            # Build a rich description with price and volume info
+            description_parts = []
+            
+            price_usd = metadata.get("price_usd")
+            if price_usd:
+                description_parts.append(f"Price: ${price_usd}")
+            
+            volume_24h = metadata.get("volume_24h")
+            if volume_24h:
+                description_parts.append(f"24h Volume: ${volume_24h}")
+            
+            price_change_24h = metadata.get("price_change_24h")
+            if price_change_24h is not None:
+                sign = "+" if price_change_24h > 0 else ""
+                description_parts.append(f"24h Change: {sign}{price_change_24h}%")
+            
+            liquidity_usd = metadata.get("liquidity_usd")
+            if liquidity_usd:
+                description_parts.append(f"Liquidity: ${liquidity_usd}")
+            
+            if description_parts:
+                return " | ".join(description_parts)
+            
+            # Fallback to chunk content preview
+            return self._chunk_preview(chunk.get("content", ""), limit=200)
+
+        def _extra_fields_fn(
+            _chunk: dict[str, Any], _doc_info: dict[str, Any], metadata: dict[str, Any]
+        ) -> dict[str, Any]:
+            return {
+                "chain_id": metadata.get("chain_id", ""),
+                "dex": metadata.get("dex", ""),
+                "pair_address": metadata.get("pair_address", ""),
+                "base_symbol": metadata.get("base_symbol", ""),
+                "quote_symbol": metadata.get("quote_symbol", ""),
+                "price_usd": metadata.get("price_usd"),
+                "volume_24h": metadata.get("volume_24h"),
+                "price_change_24h": metadata.get("price_change_24h"),
+                "liquidity_usd": metadata.get("liquidity_usd"),
+            }
+
+        sources_list = self._build_chunk_sources_from_documents(
+            dexscreener_docs,
+            title_fn=_title_fn,
+            url_fn=_url_fn,
+            description_fn=_description_fn,
+            extra_fields_fn=_extra_fields_fn,
+        )
+
+        # Create result object
+        result_object = {
+            "id": 54,
+            "name": "DexScreener",
+            "type": "DEXSCREENER_CONNECTOR",
+            "sources": sources_list,
+        }
+
+        return result_object, dexscreener_docs
+
+
     # =========================================================================
     # Utility Methods for Connector Discovery
     # =========================================================================

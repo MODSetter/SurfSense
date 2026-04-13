@@ -111,6 +111,13 @@ export function getConnectorBenefits(connectorType: string): string[] | null {
 			"Incremental sync - only changed files are re-indexed",
 			"Full support for your vault's folder structure",
 		],
+		DEXSCREENER_CONNECTOR: [
+			"Real-time cryptocurrency trading pair data from multiple DEXs",
+			"Track token prices, volume, and liquidity across chains",
+			"Search and analyze market data with AI-powered insights",
+			"Monitor your crypto portfolio with automated updates",
+			"Access historical price trends and trading volumes",
+		],
 	};
 
 	return benefits[connectorType] || null;

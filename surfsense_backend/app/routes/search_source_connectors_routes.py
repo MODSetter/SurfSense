@@ -1106,6 +1106,17 @@ async def index_connector_content(
             )
             response_message = "Luma indexing started in the background."
 
+        elif connector.connector_type == SearchSourceConnectorType.DEXSCREENER_CONNECTOR:
+            from app.tasks.celery_tasks.connector_tasks import index_dexscreener_pairs_task
+
+            logger.info(
+                f"Triggering DexScreener indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
+            )
+            index_dexscreener_pairs_task.delay(
+                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
+            )
+            response_message = "DexScreener indexing started in the background."
+
         elif (
             connector.connector_type
             == SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR

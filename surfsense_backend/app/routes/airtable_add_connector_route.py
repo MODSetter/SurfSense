@@ -1,5 +1,7 @@
 import base64
+import hashlib
 import logging
+import secrets
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -20,15 +22,12 @@ from app.db import (
 )
 from app.schemas.airtable_auth_credentials import AirtableAuthCredentialsBase
 from app.users import current_active_user
+from app.utils.airtable_token_utils import refresh_airtable_token
 from app.utils.connector_naming import (
     check_duplicate_connector,
     generate_unique_connector_name,
 )
-from app.utils.oauth_security import (
-    OAuthStateManager,
-    TokenEncryption,
-    generate_pkce_pair,
-)
+from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +74,28 @@ def make_basic_auth_header(client_id: str, client_secret: str) -> str:
     credentials = f"{client_id}:{client_secret}".encode()
     b64 = base64.b64encode(credentials).decode("ascii")
     return f"Basic {b64}"
+
+
+def generate_pkce_pair() -> tuple[str, str]:
+    """
+    Generate PKCE code verifier and code challenge.
+
+    Returns:
+        Tuple of (code_verifier, code_challenge)
+    """
+    # Generate code verifier (43-128 characters)
+    code_verifier = (
+        base64.urlsafe_b64encode(secrets.token_bytes(32)).decode("utf-8").rstrip("=")
+    )
+
+    # Generate code challenge (SHA256 hash of verifier, base64url encoded)
+    code_challenge = (
+        base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode("utf-8")).digest())
+        .decode("utf-8")
+        .rstrip("=")
+    )
+
+    return code_verifier, code_challenge
 
 
 @router.get("/auth/airtable/connector/add")
@@ -179,7 +200,7 @@ async def airtable_callback(
             # Redirect to frontend with error parameter
             if space_id:
                 return RedirectResponse(
-                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=airtable_oauth_denied"
+                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=airtable_oauth_denied"
                 )
             else:
                 return RedirectResponse(
@@ -296,7 +317,7 @@ async def airtable_callback(
                 f"Duplicate Airtable connector detected for user {user_id} with email {user_email}"
             )
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=duplicate_account&connector=airtable-connector"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=duplicate_account&connector=airtable-connector"
             )
 
         # Generate a unique, user-friendly connector name
@@ -328,7 +349,7 @@ async def airtable_callback(
             # Redirect to the frontend with success params for indexing config
             # Using query params to auto-open the popup with config view on new-chat page
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?success=true&connector=airtable-connector&connectorId={new_connector.id}"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=airtable-connector&connectorId={new_connector.id}"
             )
 
         except ValidationError as e:
@@ -358,134 +379,3 @@ async def airtable_callback(
             status_code=500, detail=f"Failed to complete Airtable OAuth: {e!s}"
         ) from e
 
-
-async def refresh_airtable_token(
-    session: AsyncSession, connector: SearchSourceConnector
-) -> SearchSourceConnector:
-    """
-    Refresh the Airtable access token for a connector.
-
-    Args:
-        session: Database session
-        connector: Airtable connector to refresh
-
-    Returns:
-        Updated connector object
-    """
-    try:
-        logger.info(f"Refreshing Airtable token for connector {connector.id}")
-
-        credentials = AirtableAuthCredentialsBase.from_dict(connector.config)
-
-        # Decrypt tokens if they are encrypted
-        token_encryption = get_token_encryption()
-        is_encrypted = connector.config.get("_token_encrypted", False)
-
-        refresh_token = credentials.refresh_token
-        if is_encrypted and refresh_token:
-            try:
-                refresh_token = token_encryption.decrypt_token(refresh_token)
-            except Exception as e:
-                logger.error(f"Failed to decrypt refresh token: {e!s}")
-                raise HTTPException(
-                    status_code=500, detail="Failed to decrypt stored refresh token"
-                ) from e
-
-        if not refresh_token:
-            raise HTTPException(
-                status_code=400,
-                detail="No refresh token available. Please re-authenticate.",
-            )
-
-        auth_header = make_basic_auth_header(
-            config.AIRTABLE_CLIENT_ID, config.AIRTABLE_CLIENT_SECRET
-        )
-
-        # Prepare token refresh data
-        refresh_data = {
-            "grant_type": "refresh_token",
-            "refresh_token": refresh_token,
-            "client_id": config.AIRTABLE_CLIENT_ID,
-            "client_secret": config.AIRTABLE_CLIENT_SECRET,
-        }
-
-        async with httpx.AsyncClient() as client:
-            token_response = await client.post(
-                TOKEN_URL,
-                data=refresh_data,
-                headers={
-                    "Content-Type": "application/x-www-form-urlencoded",
-                    "Authorization": auth_header,
-                },
-                timeout=30.0,
-            )
-
-        if token_response.status_code != 200:
-            error_detail = token_response.text
-            error_code = ""
-            try:
-                error_json = token_response.json()
-                error_detail = error_json.get("error_description", error_detail)
-                error_code = error_json.get("error", "")
-            except Exception:
-                pass
-            # Check if this is a token expiration/revocation error
-            error_lower = (error_detail + error_code).lower()
-            if (
-                "invalid_grant" in error_lower
-                or "expired" in error_lower
-                or "revoked" in error_lower
-            ):
-                raise HTTPException(
-                    status_code=401,
-                    detail="Airtable authentication failed. Please re-authenticate.",
-                )
-            raise HTTPException(
-                status_code=400, detail=f"Token refresh failed: {error_detail}"
-            )
-
-        token_json = token_response.json()
-
-        # Calculate expiration time (UTC, tz-aware)
-        expires_at = None
-        if token_json.get("expires_in"):
-            now_utc = datetime.now(UTC)
-            expires_at = now_utc + timedelta(seconds=int(token_json["expires_in"]))
-
-        # Encrypt new tokens before storing
-        access_token = token_json.get("access_token")
-        new_refresh_token = token_json.get("refresh_token")
-
-        if not access_token:
-            raise HTTPException(
-                status_code=400, detail="No access token received from Airtable refresh"
-            )
-
-        # Update credentials object with encrypted tokens
-        credentials.access_token = token_encryption.encrypt_token(access_token)
-        if new_refresh_token:
-            credentials.refresh_token = token_encryption.encrypt_token(
-                new_refresh_token
-            )
-        credentials.expires_in = token_json.get("expires_in")
-        credentials.expires_at = expires_at
-        credentials.scope = token_json.get("scope")
-
-        # Update connector config with encrypted tokens
-        credentials_dict = credentials.to_dict()
-        credentials_dict["_token_encrypted"] = True
-        connector.config = credentials_dict
-        await session.commit()
-        await session.refresh(connector)
-
-        logger.info(
-            f"Successfully refreshed Airtable token for connector {connector.id}"
-        )
-
-        return connector
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to refresh Airtable token: {e!s}"
-        ) from e

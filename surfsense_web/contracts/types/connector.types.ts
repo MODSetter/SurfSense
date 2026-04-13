@@ -33,6 +33,7 @@ export const searchSourceConnectorTypeEnum = z.enum([
 	"COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
 	"COMPOSIO_GMAIL_CONNECTOR",
 	"COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
+	"DEXSCREENER_CONNECTOR",
 ]);
 
 export const searchSourceConnector = z.object({

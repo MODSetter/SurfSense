@@ -968,3 +968,47 @@ async def _index_composio_connector(
         await run_composio_indexing(
             session, connector_id, search_space_id, user_id, start_date, end_date
         )
+
+
+@celery_app.task(name="index_dexscreener_pairs", bind=True)
+def index_dexscreener_pairs_task(
+    self,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Celery task to index DexScreener trading pairs."""
+    import asyncio
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    try:
+        loop.run_until_complete(
+            _index_dexscreener_pairs(
+                connector_id, search_space_id, user_id, start_date, end_date
+            )
+        )
+    finally:
+        loop.close()
+
+
+async def _index_dexscreener_pairs(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Index DexScreener pairs with new session."""
+    from app.tasks.connector_indexers.dexscreener_indexer import (
+        index_dexscreener_pairs,
+    )
+
+    async with get_celery_session_maker()() as session:
+        await index_dexscreener_pairs(
+            session, connector_id, search_space_id, user_id, start_date, end_date
+        )
+

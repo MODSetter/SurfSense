@@ -1,0 +1,1260 @@
+/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/chonkie/chunker/code.py:82: UserWarning: The language is set to `auto`. This would adversely affect the performance of the chunker. Consider setting the `language` parameter to a specific language to improve performance.
+  warnings.warn("The language is set to `auto`. This would adversely affect the performance of the chunker. " +
+INFO:     Will watch for changes in these directories: ['/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/app']
+INFO:     Started server process [59799]
+INFO:     Waiting for application startup.
+[92m07:44:17 - LiteLLM Router:INFO[0m: router.py:711 - Routing strategy: usage-based-routing
+2026-01-31 07:44:17 - LiteLLM Router - INFO - Routing strategy: usage-based-routing
+2026-01-31 07:44:17 - app.services.llm_router_service - INFO - LLM Router initialized with 4 deployments, strategy: usage-based-routing
+2026-01-31 07:44:17 - app.tasks.surfsense_docs_indexer - INFO - Starting Surfsense docs indexing...
+2026-01-31 07:44:17 - app.tasks.surfsense_docs_indexer - INFO - Found 24 MDX files to index
+2026-01-31 07:44:17 - app.tasks.surfsense_docs_indexer - INFO - Indexing complete: 0 created, 0 updated, 24 skipped, 0 deleted
+2026-01-31 07:44:17 - app.tasks.surfsense_docs_indexer - INFO - Surfsense docs indexing complete: created=0, updated=0, skipped=24, deleted=0
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+[Checkpointer] PostgreSQL checkpoint tables ready
+Info: LLM Router initialized with 4 models (strategy: usage-based-routing)
+INFO:     127.0.0.1:55617 - "OPTIONS /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55619 - "OPTIONS /api/v1/new-llm-configs?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55617 - "GET /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55617 - "OPTIONS /api/v1/notifications/unread-count?search_space_id=2&type=connector_indexing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55621 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=connector_indexing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55619 - "GET /api/v1/new-llm-configs?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55619 - "OPTIONS /api/v1/notifications?search_space_id=2&type=connector_indexing&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55621 - "GET /api/v1/notifications?search_space_id=2&type=connector_indexing&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55684 - "OPTIONS /api/v1/threads/2/full HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55685 - "OPTIONS /api/v1/threads/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55681 - "GET /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55684 - "GET /api/v1/threads/2/full HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55685 - "GET /api/v1/threads/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55685 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=connector_indexing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55685 - "OPTIONS /api/v1/messages/10/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55685 - "OPTIONS /api/v1/messages/12/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55684 - "GET /api/v1/messages/10/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55685 - "OPTIONS /api/v1/messages/14/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55681 - "GET /api/v1/messages/12/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55681 - "OPTIONS /api/v1/messages/16/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55685 - "GET /api/v1/messages/16/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55684 - "GET /api/v1/messages/14/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55684 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=connector_indexing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55684 - "GET /api/v1/notifications?search_space_id=2&type=connector_indexing&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55711 - "OPTIONS /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55711 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55711 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55711 - "OPTIONS /api/v1/global-new-llm-configs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55713 - "OPTIONS /api/v1/search-spaces/2/llm-preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55716 - "OPTIONS /api/v1/searchspaces/2/my-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55711 - "GET /api/v1/global-new-llm-configs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55713 - "GET /api/v1/search-spaces/2/llm-preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55717 - "GET /api/v1/searchspaces/2/my-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55717 - "OPTIONS /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55713 - "OPTIONS /api/v1/documents/type-counts?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55713 - "OPTIONS /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55716 - "OPTIONS /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55716 - "OPTIONS /api/v1/searchspaces?limit=10&skip=0&owned_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55711 - "GET /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55721 - "GET /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55721 - "OPTIONS /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55717 - "GET /api/v1/documents/type-counts?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55711 - "GET /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55721 - "GET /api/v1/searchspaces?limit=10&skip=0&owned_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55717 - "GET /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55716 - "GET /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55713 - "GET /api/v1/threads/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55723 - "GET /api/v1/threads/2/full HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55723 - "GET /api/v1/new-llm-configs?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55723 - "GET /api/v1/messages/10/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55713 - "GET /api/v1/messages/12/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55717 - "GET /api/v1/messages/16/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55716 - "GET /api/v1/messages/14/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55717 - "OPTIONS /api/v1/notifications/unread-count?search_space_id=2&type=new_mention HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55717 - "OPTIONS /api/v1/notifications/unread-count?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55716 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=connector_indexing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55717 - "OPTIONS /api/v1/notifications?search_space_id=2&type=new_mention&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55721 - "OPTIONS /api/v1/notifications?search_space_id=2&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55713 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=new_mention HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55723 - "GET /api/v1/notifications/unread-count?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55716 - "GET /api/v1/notifications?search_space_id=2&type=connector_indexing&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55711 - "GET /api/v1/notifications?search_space_id=2&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55721 - "GET /api/v1/notifications?search_space_id=2&type=new_mention&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55739 - "GET /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55739 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=connector_indexing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55739 - "GET /api/v1/notifications?search_space_id=2&type=connector_indexing&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55768 - "OPTIONS /api/v1/threads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55768 - "POST /api/v1/threads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55768 - "OPTIONS /api/v1/threads/3/messages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55768 - "OPTIONS /api/v1/new_chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55768 - "POST /api/v1/new_chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55770 - "POST /api/v1/threads/3/messages HTTP/1.1" 200 OK
+2026-01-31 07:48:23 - app.services.llm_router_service - INFO - ChatLiteLLMRouter initialized with 4 models
+INFO:     127.0.0.1:55770 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=connector_indexing HTTP/1.1" 200 OK
+2026-01-31 07:48:23 - app.agents.new_chat.tools.mcp_tool - INFO - Loaded 0 MCP tools for search space 2
+2026-01-31 07:48:23 - root - INFO - Registered 0 MCP tools: []
+2026-01-31 07:48:23 - root - INFO - Total tools for agent: 8 - ['search_knowledge_base', 'generate_podcast', 'link_preview', 'display_image', 'scrape_webpage', 'search_surfsense_docs', 'save_memory', 'recall_memory']
+INFO:     127.0.0.1:55770 - "GET /api/v1/notifications?search_space_id=2&type=connector_indexing&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55774 - "GET /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55772 - "GET /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+2026-01-31 07:48:23 - app.services.llm_router_service - INFO - ChatLiteLLMRouter initialized with 4 models
+[92m07:48:23 - LiteLLM Router:INFO[0m: router.py:7929 - get_available_deployment for model: auto, Selected deployment: {'model_name': 'auto', 'litellm_params': {'api_key': 'sk**********', 'api_base': 'https://v98store.com/v1', 'tpm': 100000, 'rpm': 500, 'use_in_pass_through': False, 'use_litellm_proxy': False, 'merge_reasoning_content_in_choices': False, 'model': 'openai/gpt-5.1', 'temperature': 0.7, 'max_tokens': 4000}, 'model_info': {'id': '0e2fd49707ee0dd99df767bdbd697eb086bedf2800228d45acf7718916d29d34', 'db_model': False}, 'rpm': 500, 'tpm': 100000} for model: auto
+2026-01-31 07:48:23 - LiteLLM Router - INFO - get_available_deployment for model: auto, Selected deployment: {'model_name': 'auto', 'litellm_params': {'api_key': 'sk**********', 'api_base': 'https://v98store.com/v1', 'tpm': 100000, 'rpm': 500, 'use_in_pass_through': False, 'use_litellm_proxy': False, 'merge_reasoning_content_in_choices': False, 'model': 'openai/gpt-5.1', 'temperature': 0.7, 'max_tokens': 4000}, 'model_info': {'id': '0e2fd49707ee0dd99df767bdbd697eb086bedf2800228d45acf7718916d29d34', 'db_model': False}, 'rpm': 500, 'tpm': 100000} for model: auto
+[92m07:48:23 - LiteLLM:INFO[0m: utils.py:3443 - 
+LiteLLM completion() model= gpt-5.1; provider = openai
+2026-01-31 07:48:23 - LiteLLM - INFO - 
+LiteLLM completion() model= gpt-5.1; provider = openai
+[92m07:48:27 - LiteLLM Router:INFO[0m: router.py:1553 - litellm.acompletion(model=openai/gpt-5.1)[32m 200 OK[0m
+2026-01-31 07:48:27 - LiteLLM Router - INFO - litellm.acompletion(model=openai/gpt-5.1)[32m 200 OK[0m
+INFO:     127.0.0.1:55768 - "POST /api/v1/threads/3/messages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55768 - "OPTIONS /api/v1/messages/19/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55772 - "GET /api/v1/messages/19/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55798 - "POST /api/v1/new_chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55797 - "POST /api/v1/threads/3/messages HTTP/1.1" 200 OK
+2026-01-31 07:49:36 - app.services.llm_router_service - INFO - ChatLiteLLMRouter initialized with 4 models
+2026-01-31 07:49:36 - app.agents.new_chat.tools.mcp_tool - INFO - Loaded 0 MCP tools for search space 2
+2026-01-31 07:49:36 - root - INFO - Registered 0 MCP tools: []
+2026-01-31 07:49:36 - root - INFO - Total tools for agent: 8 - ['search_knowledge_base', 'generate_podcast', 'link_preview', 'display_image', 'scrape_webpage', 'search_surfsense_docs', 'save_memory', 'recall_memory']
+2026-01-31 07:49:36 - app.services.llm_router_service - INFO - ChatLiteLLMRouter initialized with 4 models
+[92m07:49:36 - LiteLLM Router:INFO[0m: router.py:7929 - get_available_deployment for model: auto, Selected deployment: {'model_name': 'auto', 'litellm_params': {'api_key': 'sk**********', 'api_base': 'https://v98store.com/v1', 'tpm': 100000, 'rpm': 500, 'use_in_pass_through': False, 'use_litellm_proxy': False, 'merge_reasoning_content_in_choices': False, 'model': 'openai/gpt-5.1', 'temperature': 0.7, 'max_tokens': 4000}, 'model_info': {'id': '0e2fd49707ee0dd99df767bdbd697eb086bedf2800228d45acf7718916d29d34', 'db_model': False}, 'rpm': 500, 'tpm': 100000} for model: auto
+2026-01-31 07:49:36 - LiteLLM Router - INFO - get_available_deployment for model: auto, Selected deployment: {'model_name': 'auto', 'litellm_params': {'api_key': 'sk**********', 'api_base': 'https://v98store.com/v1', 'tpm': 100000, 'rpm': 500, 'use_in_pass_through': False, 'use_litellm_proxy': False, 'merge_reasoning_content_in_choices': False, 'model': 'openai/gpt-5.1', 'temperature': 0.7, 'max_tokens': 4000}, 'model_info': {'id': '0e2fd49707ee0dd99df767bdbd697eb086bedf2800228d45acf7718916d29d34', 'db_model': False}, 'rpm': 500, 'tpm': 100000} for model: auto
+[92m07:49:36 - LiteLLM:INFO[0m: utils.py:3443 - 
+LiteLLM completion() model= gpt-5.1; provider = openai
+2026-01-31 07:49:36 - LiteLLM - INFO - 
+LiteLLM completion() model= gpt-5.1; provider = openai
+[92m07:49:39 - LiteLLM Router:INFO[0m: router.py:1553 - litellm.acompletion(model=openai/gpt-5.1)[32m 200 OK[0m
+2026-01-31 07:49:39 - LiteLLM Router - INFO - litellm.acompletion(model=openai/gpt-5.1)[32m 200 OK[0m
+INFO:     127.0.0.1:55798 - "POST /api/v1/threads/3/messages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55798 - "OPTIONS /api/v1/messages/21/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55798 - "GET /api/v1/messages/21/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63226 - "OPTIONS /api/v1/threads/1/regenerate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63226 - "POST /api/v1/threads/1/regenerate HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63226 - "OPTIONS /api/v1/threads/1/messages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63228 - "OPTIONS /api/v1/new_chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63226 - "POST /api/v1/threads/1/messages HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63228 - "POST /api/v1/new_chat HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63269 - "OPTIONS /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63269 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63269 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63269 - "OPTIONS /api/v1/global-new-llm-configs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63269 - "OPTIONS /api/v1/search-spaces/1/llm-preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63273 - "OPTIONS /api/v1/searchspaces/1/my-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63271 - "GET /api/v1/global-new-llm-configs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63269 - "GET /api/v1/search-spaces/1/llm-preferences HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63273 - "GET /api/v1/searchspaces/1/my-access HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63273 - "GET /api/v1/search-spaces/1/llm-preferences HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63269 - "GET /api/v1/searchspaces/1/my-access HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63269 - "GET /api/v1/search-spaces/1/llm-preferences HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63273 - "GET /api/v1/searchspaces/1/my-access HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63273 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63273 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63273 - "GET /api/v1/global-new-llm-configs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63290 - "GET /api/v1/search-spaces/1/llm-preferences HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63292 - "GET /api/v1/searchspaces/1/my-access HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63292 - "GET /api/v1/search-spaces/1/llm-preferences HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63290 - "GET /api/v1/searchspaces/1/my-access HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63292 - "GET /api/v1/searchspaces/1/my-access HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63290 - "GET /api/v1/search-spaces/1/llm-preferences HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63301 - "GET /api/v1/searchspaces/1/my-access HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63303 - "GET /api/v1/search-spaces/1/llm-preferences HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63303 - "OPTIONS /api/v1/threads?search_space_id=1&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63303 - "OPTIONS /api/v1/documents/type-counts?search_space_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63305 - "OPTIONS /api/v1/search-source-connectors?search_space_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63301 - "GET /api/v1/threads?search_space_id=1&limit=1 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63305 - "GET /api/v1/search-source-connectors?search_space_id=1 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63303 - "GET /api/v1/documents/type-counts?search_space_id=1 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63305 - "OPTIONS /api/v1/searchspaces/1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63303 - "GET /api/v1/searchspaces/1 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63303 - "OPTIONS /api/v1/searchspaces/1/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63303 - "OPTIONS /api/v1/threads/1/full HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63303 - "OPTIONS /api/v1/threads/1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63305 - "GET /api/v1/searchspaces/1/members HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63307 - "GET /api/v1/threads/1 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63301 - "GET /api/v1/threads/1/full HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63301 - "OPTIONS /api/v1/searchspaces?limit=10&skip=0&owned_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63301 - "OPTIONS /api/v1/threads?search_space_id=1&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63305 - "GET /api/v1/threads?search_space_id=1&limit=40 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63305 - "OPTIONS /api/v1/notifications/unread-count?search_space_id=1&type=new_mention HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63305 - "OPTIONS /api/v1/notifications/unread-count?search_space_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63307 - "GET /api/v1/searchspaces?limit=10&skip=0&owned_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63301 - "GET /api/v1/notifications/unread-count?search_space_id=1&type=new_mention HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63303 - "GET /api/v1/notifications/unread-count?search_space_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63303 - "OPTIONS /api/v1/notifications?search_space_id=1&type=new_mention&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63301 - "OPTIONS /api/v1/notifications?search_space_id=1&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63307 - "GET /api/v1/notifications?search_space_id=1&type=new_mention&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63303 - "GET /api/v1/notifications?search_space_id=1&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63305 - "GET /api/v1/searchspaces/1 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63303 - "GET /api/v1/threads?search_space_id=1&limit=1 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63307 - "GET /api/v1/documents/type-counts?search_space_id=1 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63301 - "GET /api/v1/search-source-connectors?search_space_id=1 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63332 - "GET /api/v1/searchspaces/1/members HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63333 - "GET /api/v1/threads?search_space_id=1&limit=40 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63338 - "GET /api/v1/threads/1 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63336 - "GET /api/v1/threads/1/full HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63338 - "GET /api/v1/searchspaces/1 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63336 - "GET /api/v1/threads?search_space_id=1&limit=1 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63336 - "GET /api/v1/documents/type-counts?search_space_id=1 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63338 - "GET /api/v1/search-source-connectors?search_space_id=1 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63344 - "GET /api/v1/searchspaces/1/members HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63345 - "GET /api/v1/threads?search_space_id=1&limit=40 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63338 - "GET /api/v1/threads?search_space_id=1&limit=1 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63345 - "GET /api/v1/searchspaces/1 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63336 - "GET /api/v1/threads?search_space_id=1&limit=40 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63344 - "GET /api/v1/search-source-connectors?search_space_id=1 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63338 - "GET /api/v1/searchspaces/1/members HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63345 - "GET /api/v1/documents/type-counts?search_space_id=1 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63344 - "OPTIONS /api/v1/search-spaces/2/llm-preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63344 - "OPTIONS /api/v1/searchspaces/2/my-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63345 - "GET /api/v1/search-spaces/1/llm-preferences HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63338 - "GET /api/v1/searchspaces/1/my-access HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63336 - "GET /api/v1/search-spaces/2/llm-preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63344 - "GET /api/v1/searchspaces/2/my-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63344 - "OPTIONS /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63336 - "OPTIONS /api/v1/documents/type-counts?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63344 - "OPTIONS /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63336 - "GET /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63338 - "GET /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63345 - "GET /api/v1/documents/type-counts?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63345 - "OPTIONS /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63345 - "OPTIONS /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63338 - "GET /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63338 - "OPTIONS /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63336 - "GET /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63336 - "OPTIONS /api/v1/notifications/unread-count?search_space_id=2&type=new_mention HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63336 - "OPTIONS /api/v1/notifications/unread-count?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63338 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=new_mention HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63345 - "GET /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63344 - "GET /api/v1/notifications/unread-count?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63344 - "OPTIONS /api/v1/new-llm-configs?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63364 - "OPTIONS /api/v1/notifications/unread-count?search_space_id=2&type=connector_indexing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63364 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=connector_indexing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63344 - "GET /api/v1/new-llm-configs?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63344 - "OPTIONS /api/v1/notifications?search_space_id=2&type=new_mention&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63364 - "OPTIONS /api/v1/notifications?search_space_id=2&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63344 - "OPTIONS /api/v1/notifications?search_space_id=2&type=connector_indexing&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63366 - "GET /api/v1/notifications?search_space_id=2&type=new_mention&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63344 - "GET /api/v1/notifications?search_space_id=2&type=connector_indexing&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63364 - "GET /api/v1/notifications?search_space_id=2&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65121 - "GET /api/v1/global-new-llm-configs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65118 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65123 - "GET /api/v1/search-spaces/2/llm-preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65126 - "GET /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65124 - "GET /api/v1/searchspaces/2/my-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65123 - "GET /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65124 - "GET /api/v1/searchspaces?limit=10&skip=0&owned_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65126 - "GET /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65124 - "OPTIONS /api/v1/messages/19/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65126 - "OPTIONS /api/v1/messages/21/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65124 - "OPTIONS /api/v1/messages/10/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65126 - "OPTIONS /api/v1/messages/12/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65124 - "OPTIONS /api/v1/messages/14/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65126 - "OPTIONS /api/v1/messages/16/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65124 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65123 - "GET /api/v1/new-llm-configs?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65118 - "GET /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65124 - "GET /api/v1/search-spaces/2/llm-preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65123 - "GET /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65118 - "GET /api/v1/searchspaces/2/my-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65126 - "GET /api/v1/global-new-llm-configs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65124 - "GET /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65123 - "GET /api/v1/searchspaces?limit=10&skip=0&owned_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65118 - "GET /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65121 - "GET /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65126 - "GET /api/v1/messages/19/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65124 - "GET /api/v1/messages/21/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65123 - "GET /api/v1/messages/10/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65128 - "GET /api/v1/documents/type-counts?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65121 - "GET /api/v1/messages/14/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65126 - "GET /api/v1/messages/16/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65123 - "GET /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65124 - "GET /api/v1/new-llm-configs?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65128 - "GET /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65123 - "GET /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65121 - "GET /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65126 - "GET /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65123 - "GET /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65124 - "GET /api/v1/documents/type-counts?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65118 - "GET /api/v1/messages/12/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65428 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65428 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65516 - "OPTIONS /auth/register HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65516 - "POST /auth/register HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:49177 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49177 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49179 - "GET /api/v1/searchspaces?limit=10&skip=0&owned_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49179 - "GET /api/v1/global-new-llm-configs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49177 - "GET /api/v1/search-spaces/2/llm-preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49183 - "GET /api/v1/searchspaces/2/my-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49188 - "GET /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49190 - "GET /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49183 - "GET /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49177 - "GET /api/v1/documents/type-counts?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49179 - "GET /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49186 - "GET /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49179 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=connector_indexing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49177 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=new_mention HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49183 - "GET /api/v1/notifications/unread-count?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49188 - "GET /api/v1/notifications?search_space_id=2&type=connector_indexing&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49186 - "GET /api/v1/notifications?search_space_id=2&type=new_mention&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49190 - "GET /api/v1/new-llm-configs?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49179 - "GET /api/v1/notifications?search_space_id=2&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49216 - "OPTIONS /api/v1/threads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49216 - "POST /api/v1/threads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49216 - "OPTIONS /api/v1/threads/4/messages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49218 - "POST /api/v1/new_chat HTTP/1.1" 200 OK
+2026-01-31 12:07:10 - app.services.llm_router_service - INFO - ChatLiteLLMRouter initialized with 4 models
+INFO:     127.0.0.1:49221 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=connector_indexing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49216 - "POST /api/v1/threads/4/messages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49223 - "GET /api/v1/notifications?search_space_id=2&type=connector_indexing&limit=50 HTTP/1.1" 200 OK
+2026-01-31 12:07:10 - app.agents.new_chat.tools.mcp_tool - INFO - Loaded 0 MCP tools for search space 2
+2026-01-31 12:07:10 - root - INFO - Registered 0 MCP tools: []
+2026-01-31 12:07:10 - root - INFO - Total tools for agent: 8 - ['search_knowledge_base', 'generate_podcast', 'link_preview', 'display_image', 'scrape_webpage', 'search_surfsense_docs', 'save_memory', 'recall_memory']
+INFO:     127.0.0.1:49216 - "GET /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49223 - "GET /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+2026-01-31 12:07:11 - app.services.llm_router_service - INFO - ChatLiteLLMRouter initialized with 4 models
+[92m12:07:11 - LiteLLM Router:INFO[0m: router.py:7929 - get_available_deployment for model: auto, Selected deployment: {'model_name': 'auto', 'litellm_params': {'api_key': 'sk**********', 'api_base': 'https://v98store.com/v1', 'tpm': 100000, 'rpm': 500, 'use_in_pass_through': False, 'use_litellm_proxy': False, 'merge_reasoning_content_in_choices': False, 'model': 'openai/gpt-5.1', 'temperature': 0.7, 'max_tokens': 4000}, 'model_info': {'id': '0e2fd49707ee0dd99df767bdbd697eb086bedf2800228d45acf7718916d29d34', 'db_model': False}, 'rpm': 500, 'tpm': 100000} for model: auto
+2026-01-31 12:07:11 - LiteLLM Router - INFO - get_available_deployment for model: auto, Selected deployment: {'model_name': 'auto', 'litellm_params': {'api_key': 'sk**********', 'api_base': 'https://v98store.com/v1', 'tpm': 100000, 'rpm': 500, 'use_in_pass_through': False, 'use_litellm_proxy': False, 'merge_reasoning_content_in_choices': False, 'model': 'openai/gpt-5.1', 'temperature': 0.7, 'max_tokens': 4000}, 'model_info': {'id': '0e2fd49707ee0dd99df767bdbd697eb086bedf2800228d45acf7718916d29d34', 'db_model': False}, 'rpm': 500, 'tpm': 100000} for model: auto
+[92m12:07:11 - LiteLLM:INFO[0m: utils.py:3443 - 
+LiteLLM completion() model= gpt-5.1; provider = openai
+2026-01-31 12:07:11 - LiteLLM - INFO - 
+LiteLLM completion() model= gpt-5.1; provider = openai
+[92m12:07:15 - LiteLLM Router:INFO[0m: router.py:1553 - litellm.acompletion(model=openai/gpt-5.1)[32m 200 OK[0m
+2026-01-31 12:07:15 - LiteLLM Router - INFO - litellm.acompletion(model=openai/gpt-5.1)[32m 200 OK[0m
+INFO:     127.0.0.1:49239 - "POST /api/v1/threads/4/messages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49239 - "OPTIONS /api/v1/messages/23/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49239 - "GET /api/v1/messages/23/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49273 - "POST /api/v1/new_chat HTTP/1.1" 200 OK
+2026-01-31 12:07:36 - app.services.llm_router_service - INFO - ChatLiteLLMRouter initialized with 4 models
+INFO:     127.0.0.1:49271 - "POST /api/v1/threads/4/messages HTTP/1.1" 200 OK
+2026-01-31 12:07:36 - app.agents.new_chat.tools.mcp_tool - INFO - Loaded 0 MCP tools for search space 2
+2026-01-31 12:07:36 - root - INFO - Registered 0 MCP tools: []
+2026-01-31 12:07:36 - root - INFO - Total tools for agent: 8 - ['search_knowledge_base', 'generate_podcast', 'link_preview', 'display_image', 'scrape_webpage', 'search_surfsense_docs', 'save_memory', 'recall_memory']
+2026-01-31 12:07:36 - app.services.llm_router_service - INFO - ChatLiteLLMRouter initialized with 4 models
+[92m12:07:36 - LiteLLM Router:INFO[0m: router.py:7929 - get_available_deployment for model: auto, Selected deployment: {'model_name': 'auto', 'litellm_params': {'api_key': 'sk**********', 'api_base': 'https://v98store.com/v1', 'tpm': 150000, 'rpm': 500, 'use_in_pass_through': False, 'use_litellm_proxy': False, 'merge_reasoning_content_in_choices': False, 'model': 'openai/gpt-5-mini-2025-08-07', 'temperature': 0.7, 'max_tokens': 4000}, 'model_info': {'id': '1754542679551228cc3ecbc4acabc63146299bea571898be02f3ae84fec2d098', 'db_model': False}, 'rpm': 500, 'tpm': 150000} for model: auto
+2026-01-31 12:07:36 - LiteLLM Router - INFO - get_available_deployment for model: auto, Selected deployment: {'model_name': 'auto', 'litellm_params': {'api_key': 'sk**********', 'api_base': 'https://v98store.com/v1', 'tpm': 150000, 'rpm': 500, 'use_in_pass_through': False, 'use_litellm_proxy': False, 'merge_reasoning_content_in_choices': False, 'model': 'openai/gpt-5-mini-2025-08-07', 'temperature': 0.7, 'max_tokens': 4000}, 'model_info': {'id': '1754542679551228cc3ecbc4acabc63146299bea571898be02f3ae84fec2d098', 'db_model': False}, 'rpm': 500, 'tpm': 150000} for model: auto
+[92m12:07:36 - LiteLLM:INFO[0m: utils.py:3443 - 
+LiteLLM completion() model= gpt-5-mini-2025-08-07; provider = openai
+2026-01-31 12:07:36 - LiteLLM - INFO - 
+LiteLLM completion() model= gpt-5-mini-2025-08-07; provider = openai
+[92m12:07:48 - LiteLLM Router:INFO[0m: router.py:1553 - litellm.acompletion(model=openai/gpt-5-mini-2025-08-07)[32m 200 OK[0m
+2026-01-31 12:07:48 - LiteLLM Router - INFO - litellm.acompletion(model=openai/gpt-5-mini-2025-08-07)[32m 200 OK[0m
+INFO:     127.0.0.1:49273 - "POST /api/v1/threads/4/messages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49273 - "OPTIONS /api/v1/messages/25/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49273 - "GET /api/v1/messages/25/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49305 - "POST /api/v1/new_chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49303 - "POST /api/v1/threads/4/messages HTTP/1.1" 200 OK
+2026-01-31 12:08:12 - app.services.llm_router_service - INFO - ChatLiteLLMRouter initialized with 4 models
+2026-01-31 12:08:12 - app.agents.new_chat.tools.mcp_tool - INFO - Loaded 0 MCP tools for search space 2
+2026-01-31 12:08:12 - root - INFO - Registered 0 MCP tools: []
+2026-01-31 12:08:12 - root - INFO - Total tools for agent: 8 - ['search_knowledge_base', 'generate_podcast', 'link_preview', 'display_image', 'scrape_webpage', 'search_surfsense_docs', 'save_memory', 'recall_memory']
+2026-01-31 12:08:12 - app.services.llm_router_service - INFO - ChatLiteLLMRouter initialized with 4 models
+[92m12:08:12 - LiteLLM Router:INFO[0m: router.py:7929 - get_available_deployment for model: auto, Selected deployment: {'model_name': 'auto', 'litellm_params': {'api_key': 'sk**********', 'api_base': 'https://v98store.com/v1', 'tpm': 100000, 'rpm': 500, 'use_in_pass_through': False, 'use_litellm_proxy': False, 'merge_reasoning_content_in_choices': False, 'model': 'openai/gpt-5.1', 'temperature': 0.7, 'max_tokens': 4000}, 'model_info': {'id': '0e2fd49707ee0dd99df767bdbd697eb086bedf2800228d45acf7718916d29d34', 'db_model': False}, 'rpm': 500, 'tpm': 100000} for model: auto
+2026-01-31 12:08:12 - LiteLLM Router - INFO - get_available_deployment for model: auto, Selected deployment: {'model_name': 'auto', 'litellm_params': {'api_key': 'sk**********', 'api_base': 'https://v98store.com/v1', 'tpm': 100000, 'rpm': 500, 'use_in_pass_through': False, 'use_litellm_proxy': False, 'merge_reasoning_content_in_choices': False, 'model': 'openai/gpt-5.1', 'temperature': 0.7, 'max_tokens': 4000}, 'model_info': {'id': '0e2fd49707ee0dd99df767bdbd697eb086bedf2800228d45acf7718916d29d34', 'db_model': False}, 'rpm': 500, 'tpm': 100000} for model: auto
+[92m12:08:12 - LiteLLM:INFO[0m: utils.py:3443 - 
+LiteLLM completion() model= gpt-5.1; provider = openai
+2026-01-31 12:08:12 - LiteLLM - INFO - 
+LiteLLM completion() model= gpt-5.1; provider = openai
+[92m12:08:17 - LiteLLM Router:INFO[0m: router.py:1553 - litellm.acompletion(model=openai/gpt-5.1)[32m 200 OK[0m
+2026-01-31 12:08:17 - LiteLLM Router - INFO - litellm.acompletion(model=openai/gpt-5.1)[32m 200 OK[0m
+INFO:     127.0.0.1:49305 - "POST /api/v1/threads/4/messages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49305 - "OPTIONS /api/v1/messages/27/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49305 - "GET /api/v1/messages/27/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49331 - "OPTIONS /api/v1/threads/2/full HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49333 - "OPTIONS /api/v1/threads/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49329 - "GET /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49336 - "GET /api/v1/threads/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49331 - "GET /api/v1/threads/2/full HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49331 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=connector_indexing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49340 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=connector_indexing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49333 - "GET /api/v1/messages/16/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49329 - "GET /api/v1/messages/14/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49331 - "GET /api/v1/messages/10/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49340 - "GET /api/v1/notifications?search_space_id=2&type=connector_indexing&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49336 - "GET /api/v1/messages/12/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49351 - "OPTIONS /api/v1/threads/2/regenerate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49351 - "POST /api/v1/threads/2/regenerate HTTP/1.1" 200 OK
+2026-01-31 12:08:47 - app.services.llm_router_service - INFO - ChatLiteLLMRouter initialized with 4 models
+2026-01-31 12:08:47 - app.agents.new_chat.tools.mcp_tool - INFO - Loaded 0 MCP tools for search space 2
+2026-01-31 12:08:47 - root - INFO - Registered 0 MCP tools: []
+2026-01-31 12:08:47 - root - INFO - Total tools for agent: 8 - ['search_knowledge_base', 'generate_podcast', 'link_preview', 'display_image', 'scrape_webpage', 'search_surfsense_docs', 'save_memory', 'recall_memory']
+2026-01-31 12:08:48 - app.services.llm_router_service - INFO - ChatLiteLLMRouter initialized with 4 models
+[92m12:08:48 - LiteLLM Router:INFO[0m: router.py:7929 - get_available_deployment for model: auto, Selected deployment: {'model_name': 'auto', 'litellm_params': {'api_key': 'sk**********', 'api_base': 'https://v98store.com/v1', 'tpm': 150000, 'rpm': 500, 'use_in_pass_through': False, 'use_litellm_proxy': False, 'merge_reasoning_content_in_choices': False, 'model': 'openai/gpt-5-mini-2025-08-07', 'temperature': 0.7, 'max_tokens': 4000}, 'model_info': {'id': '1754542679551228cc3ecbc4acabc63146299bea571898be02f3ae84fec2d098', 'db_model': False}, 'rpm': 500, 'tpm': 150000} for model: auto
+2026-01-31 12:08:48 - LiteLLM Router - INFO - get_available_deployment for model: auto, Selected deployment: {'model_name': 'auto', 'litellm_params': {'api_key': 'sk**********', 'api_base': 'https://v98store.com/v1', 'tpm': 150000, 'rpm': 500, 'use_in_pass_through': False, 'use_litellm_proxy': False, 'merge_reasoning_content_in_choices': False, 'model': 'openai/gpt-5-mini-2025-08-07', 'temperature': 0.7, 'max_tokens': 4000}, 'model_info': {'id': '1754542679551228cc3ecbc4acabc63146299bea571898be02f3ae84fec2d098', 'db_model': False}, 'rpm': 500, 'tpm': 150000} for model: auto
+[92m12:08:48 - LiteLLM:INFO[0m: utils.py:3443 - 
+LiteLLM completion() model= gpt-5-mini-2025-08-07; provider = openai
+2026-01-31 12:08:48 - LiteLLM - INFO - 
+LiteLLM completion() model= gpt-5-mini-2025-08-07; provider = openai
+[92m12:08:52 - LiteLLM Router:INFO[0m: router.py:1553 - litellm.acompletion(model=openai/gpt-5-mini-2025-08-07)[32m 200 OK[0m
+2026-01-31 12:08:52 - LiteLLM Router - INFO - litellm.acompletion(model=openai/gpt-5-mini-2025-08-07)[32m 200 OK[0m
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.35it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.35it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 90.66it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 76.49it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 72.46it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 97.46it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 80.55it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 21.95it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 41.43it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 83.95it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 56.03it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 89.11it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 81.38it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 90.05it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 51.43it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 83.32it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 48.37it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 35.56it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 31.66it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 72.11it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 61.72it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 55.82it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 57.75it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 73.91it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 53.17it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 56.77it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 90.96it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 74.27it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 97.64it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 74.03it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 79.06it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 93.60it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 94.63it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 60.84it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 87.75it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 60.05it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 62.83it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 89.18it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 85.23it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 83.97it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 82.87it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 111.44it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 96.75it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 87.97it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 53.75it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 67.02it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 95.39it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 73.92it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 68.06it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 78.30it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 85.19it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 75.56it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 75.06it/s]
+2026-01-31 12:08:54 - app.services.llm_router_service - INFO - ChatLiteLLMRouter initialized with 4 models
+[92m12:08:54 - LiteLLM Router:INFO[0m: router.py:7929 - get_available_deployment for model: auto, Selected deployment: {'model_name': 'auto', 'litellm_params': {'api_key': 'AI**********', 'tpm': 4000000, 'rpm': 1000, 'use_in_pass_through': False, 'use_litellm_proxy': False, 'merge_reasoning_content_in_choices': False, 'model': 'gemini/gemini-3-flash-preview', 'temperature': 0.7, 'max_tokens': 8000}, 'model_info': {'id': '18ab52c9db03ce26a0a642963575792af3c3b2b011d883a30d5c54076672cb42', 'db_model': False}, 'rpm': 1000, 'tpm': 4000000} for model: auto
+2026-01-31 12:08:54 - LiteLLM Router - INFO - get_available_deployment for model: auto, Selected deployment: {'model_name': 'auto', 'litellm_params': {'api_key': 'AI**********', 'tpm': 4000000, 'rpm': 1000, 'use_in_pass_through': False, 'use_litellm_proxy': False, 'merge_reasoning_content_in_choices': False, 'model': 'gemini/gemini-3-flash-preview', 'temperature': 0.7, 'max_tokens': 8000}, 'model_info': {'id': '18ab52c9db03ce26a0a642963575792af3c3b2b011d883a30d5c54076672cb42', 'db_model': False}, 'rpm': 1000, 'tpm': 4000000} for model: auto
+[92m12:08:54 - LiteLLM:INFO[0m: utils.py:3443 - 
+LiteLLM completion() model= gemini-3-flash-preview; provider = gemini
+2026-01-31 12:08:54 - LiteLLM - INFO - 
+LiteLLM completion() model= gemini-3-flash-preview; provider = gemini
+[92m12:08:54 - LiteLLM:INFO[0m: vertex_and_google_ai_studio_gemini.py:846 - Warning: Setting temperature < 1.0 for Gemini 3 models (gemini-3-flash-preview) can cause infinite loops, degraded reasoning performance, and failure on complex tasks. Strongly recommended to use temperature = 1.0 (default).
+2026-01-31 12:08:54 - LiteLLM - INFO - Warning: Setting temperature < 1.0 for Gemini 3 models (gemini-3-flash-preview) can cause infinite loops, degraded reasoning performance, and failure on complex tasks. Strongly recommended to use temperature = 1.0 (default).
+[92m12:08:54 - LiteLLM Router:INFO[0m: router.py:1553 - litellm.acompletion(model=gemini/gemini-3-flash-preview)[32m 200 OK[0m
+2026-01-31 12:08:54 - LiteLLM Router - INFO - litellm.acompletion(model=gemini/gemini-3-flash-preview)[32m 200 OK[0m
+2026-01-31 12:08:56 - app.services.llm_router_service - INFO - ChatLiteLLMRouter initialized with 4 models
+[92m12:08:56 - LiteLLM Router:INFO[0m: router.py:7929 - get_available_deployment for model: auto, Selected deployment: {'model_name': 'auto', 'litellm_params': {'api_key': 'AI**********', 'tpm': 4000000, 'rpm': 360, 'use_in_pass_through': False, 'use_litellm_proxy': False, 'merge_reasoning_content_in_choices': False, 'model': 'gemini/gemini-3-pro-preview', 'temperature': 0.7, 'max_tokens': 8000}, 'model_info': {'id': 'b0546c6dec9376ba0c492c4def27d34d9399ad0e8143f8d6960159b3f4713d32', 'db_model': False}, 'rpm': 360, 'tpm': 4000000} for model: auto
+2026-01-31 12:08:56 - LiteLLM Router - INFO - get_available_deployment for model: auto, Selected deployment: {'model_name': 'auto', 'litellm_params': {'api_key': 'AI**********', 'tpm': 4000000, 'rpm': 360, 'use_in_pass_through': False, 'use_litellm_proxy': False, 'merge_reasoning_content_in_choices': False, 'model': 'gemini/gemini-3-pro-preview', 'temperature': 0.7, 'max_tokens': 8000}, 'model_info': {'id': 'b0546c6dec9376ba0c492c4def27d34d9399ad0e8143f8d6960159b3f4713d32', 'db_model': False}, 'rpm': 360, 'tpm': 4000000} for model: auto
+[92m12:08:56 - LiteLLM:INFO[0m: utils.py:3443 - 
+LiteLLM completion() model= gemini-3-pro-preview; provider = gemini
+2026-01-31 12:08:56 - LiteLLM - INFO - 
+LiteLLM completion() model= gemini-3-pro-preview; provider = gemini
+[92m12:08:56 - LiteLLM:INFO[0m: vertex_and_google_ai_studio_gemini.py:846 - Warning: Setting temperature < 1.0 for Gemini 3 models (gemini-3-pro-preview) can cause infinite loops, degraded reasoning performance, and failure on complex tasks. Strongly recommended to use temperature = 1.0 (default).
+2026-01-31 12:08:56 - LiteLLM - INFO - Warning: Setting temperature < 1.0 for Gemini 3 models (gemini-3-pro-preview) can cause infinite loops, degraded reasoning performance, and failure on complex tasks. Strongly recommended to use temperature = 1.0 (default).
+[92m12:08:56 - LiteLLM Router:INFO[0m: router.py:1553 - litellm.acompletion(model=gemini/gemini-3-pro-preview)[32m 200 OK[0m
+2026-01-31 12:08:56 - LiteLLM Router - INFO - litellm.acompletion(model=gemini/gemini-3-pro-preview)[32m 200 OK[0m
+[92m12:08:57 - LiteLLM Router:INFO[0m: router.py:4145 - Trying to fallback b/w models
+2026-01-31 12:08:57 - LiteLLM Router - INFO - Trying to fallback b/w models
+[92m12:08:57 - LiteLLM Router:ERROR[0m: router.py:1431 - Fallback also failed: litellm.ServiceUnavailableError: litellm.MidStreamFallbackError: litellm.RateLimitError: litellm.RateLimitError: vertex_ai_betaException - b'{\n  "error": {\n    "code": 429,\n    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-3-pro\\nPlease retry in 2.783688804s.",\n    "status": "RESOURCE_EXHAUSTED",\n    "details": [\n      {\n        "@type": "type.googleapis.com/google.rpc.Help",\n        "links": [\n          {\n            "description": "Learn more about Gemini API quotas",\n            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"\n          }\n        ]\n      },\n      {\n        "@type": "type.googleapis.com/google.rpc.QuotaFailure",\n        "violations": [\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",\n            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",\n            "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count",\n            "quotaId": "GenerateContentInputTokensPerModelPerMinute-FreeTier",\n            "quotaDimensions": {\n              "model": "gemini-3-pro",\n              "location": "global"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count",\n            "quotaId": "GenerateContentInputTokensPerModelPerDay-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          }\n        ]\n      },\n      {\n        "@type": "type.googleapis.com/google.rpc.RetryInfo",\n        "retryDelay": "2s"\n      }\n    ]\n  }\n}\n'. Received Model Group=auto
+Available Model Group Fallbacks=None Original exception: RateLimitError: litellm.RateLimitError: litellm.RateLimitError: vertex_ai_betaException - b'{\n  "error": {\n    "code": 429,\n    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-3-pro\\nPlease retry in 2.783688804s.",\n    "status": "RESOURCE_EXHAUSTED",\n    "details": [\n      {\n        "@type": "type.googleapis.com/google.rpc.Help",\n        "links": [\n          {\n            "description": "Learn more about Gemini API quotas",\n            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"\n          }\n        ]\n      },\n      {\n        "@type": "type.googleapis.com/google.rpc.QuotaFailure",\n        "violations": [\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",\n            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",\n            "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count",\n            "quotaId": "GenerateContentInputTokensPerModelPerMinute-FreeTier",\n            "quotaDimensions": {\n              "model": "gemini-3-pro",\n              "location": "global"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count",\n            "quotaId": "GenerateContentInputTokensPerModelPerDay-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          }\n        ]\n      },\n      {\n        "@type": "type.googleapis.com/google.rpc.RetryInfo",\n        "retryDelay": "2s"\n      }\n    ]\n  }\n}\n'
+2026-01-31 12:08:57 - LiteLLM Router - ERROR - Fallback also failed: litellm.ServiceUnavailableError: litellm.MidStreamFallbackError: litellm.RateLimitError: litellm.RateLimitError: vertex_ai_betaException - b'{\n  "error": {\n    "code": 429,\n    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-3-pro\\nPlease retry in 2.783688804s.",\n    "status": "RESOURCE_EXHAUSTED",\n    "details": [\n      {\n        "@type": "type.googleapis.com/google.rpc.Help",\n        "links": [\n          {\n            "description": "Learn more about Gemini API quotas",\n            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"\n          }\n        ]\n      },\n      {\n        "@type": "type.googleapis.com/google.rpc.QuotaFailure",\n        "violations": [\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",\n            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",\n            "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count",\n            "quotaId": "GenerateContentInputTokensPerModelPerMinute-FreeTier",\n            "quotaDimensions": {\n              "model": "gemini-3-pro",\n              "location": "global"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count",\n            "quotaId": "GenerateContentInputTokensPerModelPerDay-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          }\n        ]\n      },\n      {\n        "@type": "type.googleapis.com/google.rpc.RetryInfo",\n        "retryDelay": "2s"\n      }\n    ]\n  }\n}\n'. Received Model Group=auto
+Available Model Group Fallbacks=None Original exception: RateLimitError: litellm.RateLimitError: litellm.RateLimitError: vertex_ai_betaException - b'{\n  "error": {\n    "code": 429,\n    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-3-pro\\nPlease retry in 2.783688804s.",\n    "status": "RESOURCE_EXHAUSTED",\n    "details": [\n      {\n        "@type": "type.googleapis.com/google.rpc.Help",\n        "links": [\n          {\n            "description": "Learn more about Gemini API quotas",\n            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"\n          }\n        ]\n      },\n      {\n        "@type": "type.googleapis.com/google.rpc.QuotaFailure",\n        "violations": [\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",\n            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",\n            "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count",\n            "quotaId": "GenerateContentInputTokensPerModelPerMinute-FreeTier",\n            "quotaDimensions": {\n              "model": "gemini-3-pro",\n              "location": "global"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count",\n            "quotaId": "GenerateContentInputTokensPerModelPerDay-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          }\n        ]\n      },\n      {\n        "@type": "type.googleapis.com/google.rpc.RetryInfo",\n        "retryDelay": "2s"\n      }\n    ]\n  }\n}\n'
+/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/litellm/integrations/custom_logger.py:440: RuntimeWarning: coroutine 'router_cooldown_event_callback' was never awaited
+  pass
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+[stream_new_chat] Error during chat: litellm.ServiceUnavailableError: litellm.MidStreamFallbackError: litellm.RateLimitError: litellm.RateLimitError: vertex_ai_betaException - b'{\n  "error": {\n    "code": 429,\n    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-3-pro\\nPlease retry in 2.783688804s.",\n    "status": "RESOURCE_EXHAUSTED",\n    "details": [\n      {\n        "@type": "type.googleapis.com/google.rpc.Help",\n        "links": [\n          {\n            "description": "Learn more about Gemini API quotas",\n            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"\n          }\n        ]\n      },\n      {\n        "@type": "type.googleapis.com/google.rpc.QuotaFailure",\n        "violations": [\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",\n            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",\n            "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count",\n            "quotaId": "GenerateContentInputTokensPerModelPerMinute-FreeTier",\n            "quotaDimensions": {\n              "model": "gemini-3-pro",\n              "location": "global"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count",\n            "quotaId": "GenerateContentInputTokensPerModelPerDay-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          }\n        ]\n      },\n      {\n        "@type": "type.googleapis.com/google.rpc.RetryInfo",\n        "retryDelay": "2s"\n      }\n    ]\n  }\n}\n'. Received Model Group=auto
+Available Model Group Fallbacks=None Original exception: RateLimitError: litellm.RateLimitError: litellm.RateLimitError: vertex_ai_betaException - b'{\n  "error": {\n    "code": 429,\n    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-3-pro\\nPlease retry in 2.783688804s.",\n    "status": "RESOURCE_EXHAUSTED",\n    "details": [\n      {\n        "@type": "type.googleapis.com/google.rpc.Help",\n        "links": [\n          {\n            "description": "Learn more about Gemini API quotas",\n            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"\n          }\n        ]\n      },\n      {\n        "@type": "type.googleapis.com/google.rpc.QuotaFailure",\n        "violations": [\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",\n            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",\n            "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count",\n            "quotaId": "GenerateContentInputTokensPerModelPerMinute-FreeTier",\n            "quotaDimensions": {\n              "model": "gemini-3-pro",\n              "location": "global"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count",\n            "quotaId": "GenerateContentInputTokensPerModelPerDay-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          }\n        ]\n      },\n      {\n        "@type": "type.googleapis.com/google.rpc.RetryInfo",\n        "retryDelay": "2s"\n      }\n    ]\n  }\n}\n'
+[stream_new_chat] Exception type: MidStreamFallbackError
+[stream_new_chat] Traceback:
+Traceback (most recent call last):
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/litellm/llms/vertex_ai/gemini/vertex_and_google_ai_studio_gemini.py", line 2071, in make_call
+    response = await client.post(
+               ^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/litellm/litellm_core_utils/logging_utils.py", line 190, in async_wrapper
+    result = await func(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/litellm/llms/custom_httpx/http_handler.py", line 464, in post
+    raise e
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/litellm/llms/custom_httpx/http_handler.py", line 420, in post
+    response.raise_for_status()
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/httpx/_models.py", line 829, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '429 Too Many Requests' for url 'https://generativelanguage.googleapis.com/v1alpha/models/gemini-3-pro-preview:streamGenerateContent?key=AIzaSyCEymJ2DxeFwCiLxC7CEXanyd6NI2BXTT0&alt=sse'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/litellm/litellm_core_utils/streaming_handler.py", line 1812, in __anext__
+    await self.fetch_stream()
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/litellm/litellm_core_utils/streaming_handler.py", line 1796, in fetch_stream
+    self.completion_stream = await self.make_call(
+                             ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/litellm/llms/vertex_ai/gemini/vertex_and_google_ai_studio_gemini.py", line 2077, in make_call
+    raise VertexAIError(
+litellm.llms.vertex_ai.common_utils.VertexAIError: b'{\n  "error": {\n    "code": 429,\n    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-3-pro\\nPlease retry in 2.783688804s.",\n    "status": "RESOURCE_EXHAUSTED",\n    "details": [\n      {\n        "@type": "type.googleapis.com/google.rpc.Help",\n        "links": [\n          {\n            "description": "Learn more about Gemini API quotas",\n            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"\n          }\n        ]\n      },\n      {\n        "@type": "type.googleapis.com/google.rpc.QuotaFailure",\n        "violations": [\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",\n            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",\n            "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count",\n            "quotaId": "GenerateContentInputTokensPerModelPerMinute-FreeTier",\n            "quotaDimensions": {\n              "model": "gemini-3-pro",\n              "location": "global"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count",\n            "quotaId": "GenerateContentInputTokensPerModelPerDay-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          }\n        ]\n      },\n      {\n        "@type": "type.googleapis.com/google.rpc.RetryInfo",\n        "retryDelay": "2s"\n      }\n    ]\n  }\n}\n'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/litellm/litellm_core_utils/streaming_handler.py", line 2003, in __anext__
+    raise exception_type(
+          ^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/litellm/litellm_core_utils/exception_mapping_utils.py", line 2340, in exception_type
+    raise e
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/litellm/litellm_core_utils/exception_mapping_utils.py", line 1332, in exception_type
+    raise RateLimitError(
+litellm.exceptions.RateLimitError: litellm.RateLimitError: litellm.RateLimitError: vertex_ai_betaException - b'{\n  "error": {\n    "code": 429,\n    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-3-pro\\nPlease retry in 2.783688804s.",\n    "status": "RESOURCE_EXHAUSTED",\n    "details": [\n      {\n        "@type": "type.googleapis.com/google.rpc.Help",\n        "links": [\n          {\n            "description": "Learn more about Gemini API quotas",\n            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"\n          }\n        ]\n      },\n      {\n        "@type": "type.googleapis.com/google.rpc.QuotaFailure",\n        "violations": [\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",\n            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",\n            "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count",\n            "quotaId": "GenerateContentInputTokensPerModelPerMinute-FreeTier",\n            "quotaDimensions": {\n              "model": "gemini-3-pro",\n              "location": "global"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count",\n            "quotaId": "GenerateContentInputTokensPerModelPerDay-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          }\n        ]\n      },\n      {\n        "@type": "type.googleapis.com/google.rpc.RetryInfo",\n        "retryDelay": "2s"\n      }\n    ]\n  }\n}\n'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/app/tasks/chat/stream_new_chat.py", line 522, in stream_new_chat
+    async for event in agent.astream_events(
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langchain_core/runnables/base.py", line 1514, in astream_events
+    async for event in event_stream:
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langchain_core/tracers/event_stream.py", line 1082, in _astream_events_implementation_v2
+    await task
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langchain_core/tracers/event_stream.py", line 1037, in consume_astream
+    async for _ in event_streamer.tap_output_aiter(run_id, stream):
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langchain_core/tracers/event_stream.py", line 215, in tap_output_aiter
+    async for chunk in output:
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langgraph/pregel/main.py", line 2971, in astream
+    async for _ in runner.atick(
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langgraph/pregel/_runner.py", line 304, in atick
+    await arun_with_retry(
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langgraph/pregel/_retry.py", line 132, in arun_with_retry
+    async for _ in task.proc.astream(task.input, config):
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langgraph/_internal/_runnable.py", line 839, in astream
+    output = await asyncio.create_task(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langgraph/_internal/_runnable.py", line 904, in _consume_aiter
+    async for chunk in it:
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langchain_core/tracers/event_stream.py", line 192, in tap_output_aiter
+    first = await anext(output, sentinel)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langchain_core/runnables/base.py", line 1587, in atransform
+    async for ichunk in input:
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langchain_core/runnables/base.py", line 1168, in astream
+    yield await self.ainvoke(input, config, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langgraph/_internal/_runnable.py", line 473, in ainvoke
+    ret = await self.afunc(*args, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langchain/agents/factory.py", line 1199, in amodel_node
+    response = await awrap_model_call_handler(request, _execute_model_async)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langchain/agents/factory.py", line 277, in final_normalized
+    final_result = await result(request, handler)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langchain/agents/factory.py", line 261, in composed
+    outer_result = await outer(request, inner_handler)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langchain/agents/middleware/todo.py", line 248, in awrap_model_call
+    return await handler(request.override(system_message=new_system_message))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langchain/agents/factory.py", line 257, in inner_handler
+    inner_result = await inner(req, handler)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langchain/agents/factory.py", line 261, in composed
+    outer_result = await outer(request, inner_handler)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/deepagents/middleware/filesystem.py", line 1029, in awrap_model_call
+    return await handler(request)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langchain/agents/factory.py", line 257, in inner_handler
+    inner_result = await inner(req, handler)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langchain/agents/factory.py", line 261, in composed
+    outer_result = await outer(request, inner_handler)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/deepagents/middleware/subagents.py", line 557, in awrap_model_call
+    return await handler(request.override(system_message=new_system_message))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langchain/agents/factory.py", line 257, in inner_handler
+    inner_result = await inner(req, handler)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langchain_anthropic/middleware/prompt_caching.py", line 140, in awrap_model_call
+    return await handler(request)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langchain/agents/factory.py", line 1167, in _execute_model_async
+    output = await model_.ainvoke(messages)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langchain_core/language_models/chat_models.py", line 425, in ainvoke
+    llm_result = await self.agenerate_prompt(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langchain_core/language_models/chat_models.py", line 1132, in agenerate_prompt
+    return await self.agenerate(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langchain_core/language_models/chat_models.py", line 1090, in agenerate
+    raise exceptions[0]
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/langchain_core/language_models/chat_models.py", line 1316, in _agenerate_with_cache
+    async for chunk in self._astream(messages, stop=stop, **kwargs):
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/app/services/llm_router_service.py", line 483, in _astream
+    async for chunk in response:
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/litellm/router.py", line 1334, in __anext__
+    return await self._async_generator.__anext__()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/litellm/router.py", line 1434, in stream_with_fallbacks
+    raise fallback_error
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/litellm/router.py", line 1378, in stream_with_fallbacks
+    await self.async_function_with_fallbacks_common_utils(
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/litellm/router.py", line 4299, in async_function_with_fallbacks_common_utils
+    raise original_exception
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/litellm/router.py", line 1338, in stream_with_fallbacks
+    async for item in model_response:
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/litellm/litellm_core_utils/streaming_handler.py", line 2013, in __anext__
+    raise MidStreamFallbackError(
+litellm.exceptions.MidStreamFallbackError: litellm.ServiceUnavailableError: litellm.MidStreamFallbackError: litellm.RateLimitError: litellm.RateLimitError: vertex_ai_betaException - b'{\n  "error": {\n    "code": 429,\n    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-3-pro\\nPlease retry in 2.783688804s.",\n    "status": "RESOURCE_EXHAUSTED",\n    "details": [\n      {\n        "@type": "type.googleapis.com/google.rpc.Help",\n        "links": [\n          {\n            "description": "Learn more about Gemini API quotas",\n            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"\n          }\n        ]\n      },\n      {\n        "@type": "type.googleapis.com/google.rpc.QuotaFailure",\n        "violations": [\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",\n            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",\n            "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count",\n            "quotaId": "GenerateContentInputTokensPerModelPerMinute-FreeTier",\n            "quotaDimensions": {\n              "model": "gemini-3-pro",\n              "location": "global"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count",\n            "quotaId": "GenerateContentInputTokensPerModelPerDay-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          }\n        ]\n      },\n      {\n        "@type": "type.googleapis.com/google.rpc.RetryInfo",\n        "retryDelay": "2s"\n      }\n    ]\n  }\n}\n'. Received Model Group=auto
+Available Model Group Fallbacks=None Original exception: RateLimitError: litellm.RateLimitError: litellm.RateLimitError: vertex_ai_betaException - b'{\n  "error": {\n    "code": 429,\n    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-3-pro\\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-3-pro\\nPlease retry in 2.783688804s.",\n    "status": "RESOURCE_EXHAUSTED",\n    "details": [\n      {\n        "@type": "type.googleapis.com/google.rpc.Help",\n        "links": [\n          {\n            "description": "Learn more about Gemini API quotas",\n            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"\n          }\n        ]\n      },\n      {\n        "@type": "type.googleapis.com/google.rpc.QuotaFailure",\n        "violations": [\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",\n            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",\n            "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count",\n            "quotaId": "GenerateContentInputTokensPerModelPerMinute-FreeTier",\n            "quotaDimensions": {\n              "model": "gemini-3-pro",\n              "location": "global"\n            }\n          },\n          {\n            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count",\n            "quotaId": "GenerateContentInputTokensPerModelPerDay-FreeTier",\n            "quotaDimensions": {\n              "location": "global",\n              "model": "gemini-3-pro"\n            }\n          }\n        ]\n      },\n      {\n        "@type": "type.googleapis.com/google.rpc.RetryInfo",\n        "retryDelay": "2s"\n      }\n    ]\n  }\n}\n'
+During task with name 'model' and id 'fb68e6ee-4add-3088-0d98-3607480636bb'
+
+INFO:     127.0.0.1:49379 - "OPTIONS /api/v1/threads/4/full HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49381 - "OPTIONS /api/v1/threads/4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49377 - "GET /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49383 - "GET /api/v1/threads/4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49379 - "GET /api/v1/threads/4/full HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49383 - "GET /api/v1/messages/25/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49381 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=connector_indexing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49379 - "GET /api/v1/messages/23/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49377 - "GET /api/v1/messages/27/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49377 - "GET /api/v1/notifications?search_space_id=2&type=connector_indexing&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49391 - "POST /api/v1/new_chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49390 - "POST /api/v1/threads/4/messages HTTP/1.1" 200 OK
+2026-01-31 12:09:23 - app.services.llm_router_service - INFO - ChatLiteLLMRouter initialized with 4 models
+2026-01-31 12:09:23 - app.agents.new_chat.tools.mcp_tool - INFO - Loaded 0 MCP tools for search space 2
+2026-01-31 12:09:23 - root - INFO - Registered 0 MCP tools: []
+2026-01-31 12:09:23 - root - INFO - Total tools for agent: 8 - ['search_knowledge_base', 'generate_podcast', 'link_preview', 'display_image', 'scrape_webpage', 'search_surfsense_docs', 'save_memory', 'recall_memory']
+2026-01-31 12:09:23 - app.services.llm_router_service - INFO - ChatLiteLLMRouter initialized with 4 models
+[92m12:09:23 - LiteLLM Router:INFO[0m: router.py:7929 - get_available_deployment for model: auto, Selected deployment: {'model_name': 'auto', 'litellm_params': {'api_key': 'sk**********', 'api_base': 'https://v98store.com/v1', 'tpm': 100000, 'rpm': 500, 'use_in_pass_through': False, 'use_litellm_proxy': False, 'merge_reasoning_content_in_choices': False, 'model': 'openai/gpt-5.1', 'temperature': 0.7, 'max_tokens': 4000}, 'model_info': {'id': '0e2fd49707ee0dd99df767bdbd697eb086bedf2800228d45acf7718916d29d34', 'db_model': False}, 'rpm': 500, 'tpm': 100000} for model: auto
+2026-01-31 12:09:23 - LiteLLM Router - INFO - get_available_deployment for model: auto, Selected deployment: {'model_name': 'auto', 'litellm_params': {'api_key': 'sk**********', 'api_base': 'https://v98store.com/v1', 'tpm': 100000, 'rpm': 500, 'use_in_pass_through': False, 'use_litellm_proxy': False, 'merge_reasoning_content_in_choices': False, 'model': 'openai/gpt-5.1', 'temperature': 0.7, 'max_tokens': 4000}, 'model_info': {'id': '0e2fd49707ee0dd99df767bdbd697eb086bedf2800228d45acf7718916d29d34', 'db_model': False}, 'rpm': 500, 'tpm': 100000} for model: auto
+[92m12:09:23 - LiteLLM:INFO[0m: utils.py:3443 - 
+LiteLLM completion() model= gpt-5.1; provider = openai
+2026-01-31 12:09:23 - LiteLLM - INFO - 
+LiteLLM completion() model= gpt-5.1; provider = openai
+[92m12:09:27 - LiteLLM Router:INFO[0m: router.py:1553 - litellm.acompletion(model=openai/gpt-5.1)[32m 200 OK[0m
+2026-01-31 12:09:27 - LiteLLM Router - INFO - litellm.acompletion(model=openai/gpt-5.1)[32m 200 OK[0m
+2026-01-31 12:09:27 - app.services.llm_router_service - INFO - ChatLiteLLMRouter initialized with 4 models
+[92m12:09:27 - LiteLLM Router:INFO[0m: router.py:7929 - get_available_deployment for model: auto, Selected deployment: {'model_name': 'auto', 'litellm_params': {'api_key': 'sk**********', 'api_base': 'https://v98store.com/v1', 'tpm': 150000, 'rpm': 500, 'use_in_pass_through': False, 'use_litellm_proxy': False, 'merge_reasoning_content_in_choices': False, 'model': 'openai/gpt-5-mini-2025-08-07', 'temperature': 0.7, 'max_tokens': 4000}, 'model_info': {'id': '1754542679551228cc3ecbc4acabc63146299bea571898be02f3ae84fec2d098', 'db_model': False}, 'rpm': 500, 'tpm': 150000} for model: auto
+2026-01-31 12:09:27 - LiteLLM Router - INFO - get_available_deployment for model: auto, Selected deployment: {'model_name': 'auto', 'litellm_params': {'api_key': 'sk**********', 'api_base': 'https://v98store.com/v1', 'tpm': 150000, 'rpm': 500, 'use_in_pass_through': False, 'use_litellm_proxy': False, 'merge_reasoning_content_in_choices': False, 'model': 'openai/gpt-5-mini-2025-08-07', 'temperature': 0.7, 'max_tokens': 4000}, 'model_info': {'id': '1754542679551228cc3ecbc4acabc63146299bea571898be02f3ae84fec2d098', 'db_model': False}, 'rpm': 500, 'tpm': 150000} for model: auto
+[92m12:09:27 - LiteLLM:INFO[0m: utils.py:3443 - 
+LiteLLM completion() model= gpt-5-mini-2025-08-07; provider = openai
+2026-01-31 12:09:27 - LiteLLM - INFO - 
+LiteLLM completion() model= gpt-5-mini-2025-08-07; provider = openai
+[92m12:09:31 - LiteLLM Router:INFO[0m: router.py:1553 - litellm.acompletion(model=openai/gpt-5-mini-2025-08-07)[32m 200 OK[0m
+2026-01-31 12:09:31 - LiteLLM Router - INFO - litellm.acompletion(model=openai/gpt-5-mini-2025-08-07)[32m 200 OK[0m
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.75it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  1.75it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 59.55it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 65.18it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 29.82it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 71.89it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 75.14it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 81.79it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 77.48it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 83.88it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 85.94it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 71.82it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 83.72it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 88.34it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 82.20it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 84.68it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 96.07it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 105.18it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 93.43it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 92.67it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 93.48it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 89.38it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 91.95it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 82.68it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 66.14it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 81.28it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 77.50it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 87.89it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 87.66it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 89.02it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 77.38it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 83.77it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 85.77it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 86.09it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 80.25it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 76.67it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 89.03it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 81.23it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 84.03it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 89.47it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 86.16it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 86.47it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 85.81it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 59.88it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 76.15it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 89.82it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 63.41it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 89.78it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 102.63it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 104.16it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 83.49it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 87.94it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 69.79it/s]
+2026-01-31 12:09:33 - app.services.llm_router_service - INFO - ChatLiteLLMRouter initialized with 4 models
+[92m12:09:33 - LiteLLM Router:INFO[0m: router.py:7929 - get_available_deployment for model: auto, Selected deployment: {'model_name': 'auto', 'litellm_params': {'api_key': 'AI**********', 'tpm': 4000000, 'rpm': 1000, 'use_in_pass_through': False, 'use_litellm_proxy': False, 'merge_reasoning_content_in_choices': False, 'model': 'gemini/gemini-3-flash-preview', 'temperature': 0.7, 'max_tokens': 8000}, 'model_info': {'id': '18ab52c9db03ce26a0a642963575792af3c3b2b011d883a30d5c54076672cb42', 'db_model': False}, 'rpm': 1000, 'tpm': 4000000} for model: auto
+2026-01-31 12:09:33 - LiteLLM Router - INFO - get_available_deployment for model: auto, Selected deployment: {'model_name': 'auto', 'litellm_params': {'api_key': 'AI**********', 'tpm': 4000000, 'rpm': 1000, 'use_in_pass_through': False, 'use_litellm_proxy': False, 'merge_reasoning_content_in_choices': False, 'model': 'gemini/gemini-3-flash-preview', 'temperature': 0.7, 'max_tokens': 8000}, 'model_info': {'id': '18ab52c9db03ce26a0a642963575792af3c3b2b011d883a30d5c54076672cb42', 'db_model': False}, 'rpm': 1000, 'tpm': 4000000} for model: auto
+[92m12:09:33 - LiteLLM:INFO[0m: utils.py:3443 - 
+LiteLLM completion() model= gemini-3-flash-preview; provider = gemini
+2026-01-31 12:09:33 - LiteLLM - INFO - 
+LiteLLM completion() model= gemini-3-flash-preview; provider = gemini
+[92m12:09:33 - LiteLLM:INFO[0m: vertex_and_google_ai_studio_gemini.py:846 - Warning: Setting temperature < 1.0 for Gemini 3 models (gemini-3-flash-preview) can cause infinite loops, degraded reasoning performance, and failure on complex tasks. Strongly recommended to use temperature = 1.0 (default).
+2026-01-31 12:09:33 - LiteLLM - INFO - Warning: Setting temperature < 1.0 for Gemini 3 models (gemini-3-flash-preview) can cause infinite loops, degraded reasoning performance, and failure on complex tasks. Strongly recommended to use temperature = 1.0 (default).
+[92m12:09:33 - LiteLLM Router:INFO[0m: router.py:1553 - litellm.acompletion(model=gemini/gemini-3-flash-preview)[32m 200 OK[0m
+2026-01-31 12:09:33 - LiteLLM Router - INFO - litellm.acompletion(model=gemini/gemini-3-flash-preview)[32m 200 OK[0m
+2026-01-31 12:09:35 - app.services.llm_router_service - INFO - ChatLiteLLMRouter initialized with 4 models
+[92m12:09:35 - LiteLLM Router:INFO[0m: router.py:7929 - get_available_deployment for model: auto, Selected deployment: {'model_name': 'auto', 'litellm_params': {'api_key': 'sk**********', 'api_base': 'https://v98store.com/v1', 'tpm': 100000, 'rpm': 500, 'use_in_pass_through': False, 'use_litellm_proxy': False, 'merge_reasoning_content_in_choices': False, 'model': 'openai/gpt-5.1', 'temperature': 0.7, 'max_tokens': 4000}, 'model_info': {'id': '0e2fd49707ee0dd99df767bdbd697eb086bedf2800228d45acf7718916d29d34', 'db_model': False}, 'rpm': 500, 'tpm': 100000} for model: auto
+2026-01-31 12:09:35 - LiteLLM Router - INFO - get_available_deployment for model: auto, Selected deployment: {'model_name': 'auto', 'litellm_params': {'api_key': 'sk**********', 'api_base': 'https://v98store.com/v1', 'tpm': 100000, 'rpm': 500, 'use_in_pass_through': False, 'use_litellm_proxy': False, 'merge_reasoning_content_in_choices': False, 'model': 'openai/gpt-5.1', 'temperature': 0.7, 'max_tokens': 4000}, 'model_info': {'id': '0e2fd49707ee0dd99df767bdbd697eb086bedf2800228d45acf7718916d29d34', 'db_model': False}, 'rpm': 500, 'tpm': 100000} for model: auto
+[92m12:09:35 - LiteLLM:INFO[0m: utils.py:3443 - 
+LiteLLM completion() model= gpt-5.1; provider = openai
+2026-01-31 12:09:35 - LiteLLM - INFO - 
+LiteLLM completion() model= gpt-5.1; provider = openai
+[92m12:09:43 - LiteLLM Router:INFO[0m: router.py:1553 - litellm.acompletion(model=openai/gpt-5.1)[32m 200 OK[0m
+2026-01-31 12:09:43 - LiteLLM Router - INFO - litellm.acompletion(model=openai/gpt-5.1)[32m 200 OK[0m
+INFO:     127.0.0.1:49391 - "POST /api/v1/threads/4/messages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49391 - "OPTIONS /api/v1/messages/29/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49391 - "GET /api/v1/messages/29/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50957 - "OPTIONS /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50957 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50957 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50957 - "OPTIONS /api/v1/global-new-llm-configs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50957 - "OPTIONS /api/v1/search-spaces/2/llm-preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50957 - "OPTIONS /api/v1/searchspaces/2/my-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50959 - "GET /api/v1/global-new-llm-configs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50961 - "GET /api/v1/search-spaces/2/llm-preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50963 - "GET /api/v1/searchspaces/2/my-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50963 - "OPTIONS /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50963 - "OPTIONS /api/v1/documents/type-counts?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50959 - "OPTIONS /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50957 - "GET /api/v1/documents/type-counts?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50961 - "GET /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50963 - "GET /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50963 - "OPTIONS /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50961 - "GET /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50961 - "OPTIONS /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50963 - "GET /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50963 - "OPTIONS /api/v1/searchspaces?limit=10&skip=0&owned_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50963 - "OPTIONS /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50957 - "GET /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50961 - "GET /api/v1/searchspaces?limit=10&skip=0&owned_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50961 - "OPTIONS /api/v1/new-llm-configs?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50957 - "GET /api/v1/new-llm-configs?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50957 - "OPTIONS /api/v1/notifications/unread-count?search_space_id=2&type=connector_indexing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50957 - "OPTIONS /api/v1/notifications/unread-count?search_space_id=2&type=new_mention HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50957 - "OPTIONS /api/v1/notifications/unread-count?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50959 - "OPTIONS /api/v1/notifications?search_space_id=2&type=connector_indexing&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50974 - "OPTIONS /api/v1/notifications?search_space_id=2&type=new_mention&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50976 - "OPTIONS /api/v1/notifications?search_space_id=2&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50961 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=connector_indexing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50963 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=new_mention HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50959 - "GET /api/v1/notifications?search_space_id=2&type=connector_indexing&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50974 - "GET /api/v1/notifications?search_space_id=2&type=new_mention&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50957 - "GET /api/v1/notifications/unread-count?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50976 - "GET /api/v1/notifications?search_space_id=2&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51247 - "OPTIONS /api/v1/threads/4/full HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51249 - "OPTIONS /api/v1/threads/4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51245 - "GET /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51247 - "GET /api/v1/threads/4/full HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51249 - "GET /api/v1/threads/4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51249 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=connector_indexing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51249 - "OPTIONS /api/v1/messages/23/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51247 - "GET /api/v1/messages/23/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51249 - "OPTIONS /api/v1/messages/25/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51247 - "GET /api/v1/messages/25/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51247 - "OPTIONS /api/v1/messages/27/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51249 - "GET /api/v1/messages/27/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51249 - "OPTIONS /api/v1/messages/29/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51247 - "GET /api/v1/messages/29/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51247 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=connector_indexing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51247 - "GET /api/v1/notifications?search_space_id=2&type=connector_indexing&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51270 - "POST /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51270 - "GET /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51270 - "GET /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51287 - "OPTIONS /api/v1/auth/composio/connector/add/?toolkit_id=gmail&space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51287 - "GET /api/v1/auth/composio/connector/add/?toolkit_id=gmail&space_id=2 HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:51287 - "OPTIONS /api/v1/auth/composio/connector/add?toolkit_id=gmail&space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51289 - "GET /api/v1/auth/composio/connector/add?toolkit_id=gmail&space_id=2 HTTP/1.1" 503 Service Unavailable
+INFO:     127.0.0.1:51289 - "OPTIONS /api/v1/auth/composio/connector/add/?toolkit_id=googledrive&space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51287 - "GET /api/v1/auth/composio/connector/add/?toolkit_id=googledrive&space_id=2 HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:51287 - "OPTIONS /api/v1/auth/composio/connector/add?toolkit_id=googledrive&space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51289 - "GET /api/v1/auth/composio/connector/add?toolkit_id=googledrive&space_id=2 HTTP/1.1" 503 Service Unavailable
+INFO:     127.0.0.1:51289 - "OPTIONS /api/v1/auth/composio/connector/add/?toolkit_id=googlecalendar&space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51287 - "GET /api/v1/auth/composio/connector/add/?toolkit_id=googlecalendar&space_id=2 HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:51287 - "OPTIONS /api/v1/auth/composio/connector/add?toolkit_id=googlecalendar&space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51289 - "GET /api/v1/auth/composio/connector/add?toolkit_id=googlecalendar&space_id=2 HTTP/1.1" 503 Service Unavailable
+INFO:     127.0.0.1:51289 - "OPTIONS /api/v1/auth/notion/connector/add/?space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51287 - "GET /api/v1/auth/notion/connector/add/?space_id=2 HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:51287 - "OPTIONS /api/v1/auth/notion/connector/add?space_id=2 HTTP/1.1" 200 OK
+2026-01-31 12:41:23 - app.routes.notion_add_connector_route - ERROR - Failed to initiate Notion OAuth: 500: Notion OAuth not configured.
+Traceback (most recent call last):
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/app/routes/notion_add_connector_route.py", line 93, in connect_notion
+    raise HTTPException(status_code=500, detail="Notion OAuth not configured.")
+fastapi.exceptions.HTTPException: 500: Notion OAuth not configured.
+INFO:     127.0.0.1:51289 - "GET /api/v1/auth/notion/connector/add?space_id=2 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51515 - "OPTIONS /api/v1/threads/4/messages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51517 - "OPTIONS /api/v1/new_chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51517 - "POST /api/v1/new_chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51515 - "POST /api/v1/threads/4/messages HTTP/1.1" 200 OK
+2026-01-31 12:47:05 - app.services.llm_router_service - INFO - ChatLiteLLMRouter initialized with 4 models
+2026-01-31 12:47:05 - app.agents.new_chat.tools.mcp_tool - INFO - Loaded 0 MCP tools for search space 2
+2026-01-31 12:47:05 - root - INFO - Registered 0 MCP tools: []
+2026-01-31 12:47:05 - root - INFO - Total tools for agent: 8 - ['search_knowledge_base', 'generate_podcast', 'link_preview', 'display_image', 'scrape_webpage', 'search_surfsense_docs', 'save_memory', 'recall_memory']
+2026-01-31 12:47:05 - app.services.llm_router_service - INFO - ChatLiteLLMRouter initialized with 4 models
+[92m12:47:05 - LiteLLM Router:INFO[0m: router.py:7929 - get_available_deployment for model: auto, Selected deployment: {'model_name': 'auto', 'litellm_params': {'api_key': 'sk**********', 'api_base': 'https://v98store.com/v1', 'tpm': 100000, 'rpm': 500, 'use_in_pass_through': False, 'use_litellm_proxy': False, 'merge_reasoning_content_in_choices': False, 'model': 'openai/gpt-5.1', 'temperature': 0.7, 'max_tokens': 4000}, 'model_info': {'id': '0e2fd49707ee0dd99df767bdbd697eb086bedf2800228d45acf7718916d29d34', 'db_model': False}, 'rpm': 500, 'tpm': 100000} for model: auto
+2026-01-31 12:47:05 - LiteLLM Router - INFO - get_available_deployment for model: auto, Selected deployment: {'model_name': 'auto', 'litellm_params': {'api_key': 'sk**********', 'api_base': 'https://v98store.com/v1', 'tpm': 100000, 'rpm': 500, 'use_in_pass_through': False, 'use_litellm_proxy': False, 'merge_reasoning_content_in_choices': False, 'model': 'openai/gpt-5.1', 'temperature': 0.7, 'max_tokens': 4000}, 'model_info': {'id': '0e2fd49707ee0dd99df767bdbd697eb086bedf2800228d45acf7718916d29d34', 'db_model': False}, 'rpm': 500, 'tpm': 100000} for model: auto
+[92m12:47:05 - LiteLLM:INFO[0m: utils.py:3443 - 
+LiteLLM completion() model= gpt-5.1; provider = openai
+2026-01-31 12:47:05 - LiteLLM - INFO - 
+LiteLLM completion() model= gpt-5.1; provider = openai
+[92m12:47:11 - LiteLLM Router:INFO[0m: router.py:1553 - litellm.acompletion(model=openai/gpt-5.1)[32m 200 OK[0m
+2026-01-31 12:47:11 - LiteLLM Router - INFO - litellm.acompletion(model=openai/gpt-5.1)[32m 200 OK[0m
+INFO:     127.0.0.1:51517 - "POST /api/v1/threads/4/messages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51517 - "OPTIONS /api/v1/messages/31/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51519 - "GET /api/v1/messages/31/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51622 - "OPTIONS /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51624 - "OPTIONS /api/v1/global-new-llm-configs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51626 - "OPTIONS /api/v1/search-spaces/2/llm-preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51628 - "OPTIONS /api/v1/searchspaces/2/my-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51629 - "OPTIONS /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51631 - "OPTIONS /api/v1/documents/type-counts?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51622 - "OPTIONS /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51624 - "OPTIONS /api/v1/searchspaces?limit=10&skip=0&owned_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51626 - "OPTIONS /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51628 - "OPTIONS /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51629 - "OPTIONS /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51631 - "OPTIONS /api/v1/new-llm-configs?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51624 - "GET /api/v1/messages/23/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51628 - "GET /api/v1/messages/25/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51622 - "GET /api/v1/messages/31/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51629 - "GET /api/v1/messages/27/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51626 - "GET /api/v1/messages/29/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51624 - "GET /api/v1/global-new-llm-configs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51628 - "GET /api/v1/search-spaces/2/llm-preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51622 - "GET /api/v1/searchspaces/2/my-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51629 - "GET /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51631 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51628 - "GET /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51622 - "GET /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51631 - "GET /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51626 - "GET /api/v1/documents/type-counts?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51628 - "GET /api/v1/new-llm-configs?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51624 - "GET /api/v1/searchspaces?limit=10&skip=0&owned_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51629 - "GET /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51628 - "GET /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51624 - "GET /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51622 - "GET /api/v1/messages/27/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51626 - "GET /api/v1/messages/23/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51628 - "GET /api/v1/messages/29/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51629 - "GET /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51631 - "GET /api/v1/messages/25/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51624 - "GET /api/v1/messages/31/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53258 - "OPTIONS /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53260 - "OPTIONS /api/v1/global-new-llm-configs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53258 - "OPTIONS /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53261 - "OPTIONS /api/v1/search-spaces/2/llm-preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53260 - "OPTIONS /api/v1/searchspaces?limit=10&skip=0&owned_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53265 - "OPTIONS /api/v1/searchspaces/2/my-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53265 - "OPTIONS /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53261 - "OPTIONS /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53258 - "OPTIONS /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53267 - "OPTIONS /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53260 - "OPTIONS /api/v1/new-llm-configs?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53268 - "OPTIONS /api/v1/documents/type-counts?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53261 - "OPTIONS /api/v1/messages/23/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53265 - "OPTIONS /api/v1/messages/25/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53258 - "OPTIONS /api/v1/messages/27/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53267 - "OPTIONS /api/v1/messages/29/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53268 - "OPTIONS /api/v1/messages/31/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53260 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53261 - "GET /api/v1/global-new-llm-configs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53265 - "GET /api/v1/search-spaces/2/llm-preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53258 - "GET /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53267 - "GET /api/v1/searchspaces/2/my-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53260 - "GET /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53258 - "GET /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53265 - "GET /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53261 - "GET /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53260 - "GET /api/v1/new-llm-configs?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53265 - "GET /api/v1/messages/25/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53268 - "GET /api/v1/searchspaces?limit=10&skip=0&owned_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53258 - "GET /api/v1/messages/23/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53261 - "GET /api/v1/messages/27/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53260 - "GET /api/v1/messages/29/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53265 - "GET /api/v1/messages/31/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53267 - "GET /api/v1/documents/type-counts?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53571 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53578 - "GET /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53576 - "GET /api/v1/searchspaces/2/my-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53577 - "GET /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53572 - "GET /api/v1/search-spaces/2/llm-preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53578 - "GET /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53576 - "GET /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53580 - "GET /api/v1/searchspaces?limit=10&skip=0&owned_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53577 - "GET /api/v1/new-llm-configs?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53578 - "GET /api/v1/messages/25/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53576 - "GET /api/v1/messages/27/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53571 - "GET /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53580 - "GET /api/v1/messages/29/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53572 - "GET /api/v1/messages/23/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53577 - "GET /api/v1/messages/31/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54516 - "OPTIONS /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54519 - "OPTIONS /api/v1/global-new-llm-configs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54516 - "OPTIONS /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54520 - "OPTIONS /api/v1/search-spaces/2/llm-preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54519 - "OPTIONS /api/v1/searchspaces?limit=10&skip=0&owned_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54522 - "OPTIONS /api/v1/searchspaces/2/my-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54516 - "OPTIONS /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54520 - "OPTIONS /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54525 - "OPTIONS /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54522 - "OPTIONS /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54519 - "OPTIONS /api/v1/new-llm-configs?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54526 - "OPTIONS /api/v1/documents/type-counts?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54516 - "OPTIONS /api/v1/messages/23/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54520 - "OPTIONS /api/v1/messages/25/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54525 - "OPTIONS /api/v1/messages/27/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54522 - "OPTIONS /api/v1/messages/29/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54519 - "OPTIONS /api/v1/messages/31/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54516 - "GET /api/v1/global-new-llm-configs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54526 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54520 - "GET /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54525 - "GET /api/v1/search-spaces/2/llm-preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54522 - "GET /api/v1/searchspaces/2/my-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54516 - "GET /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54526 - "GET /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54520 - "GET /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54522 - "GET /api/v1/new-llm-configs?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54516 - "GET /api/v1/documents/type-counts?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54525 - "GET /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54526 - "GET /api/v1/messages/23/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54520 - "GET /api/v1/messages/25/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54519 - "GET /api/v1/searchspaces?limit=10&skip=0&owned_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54522 - "GET /api/v1/messages/27/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54525 - "GET /api/v1/messages/29/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54516 - "GET /api/v1/messages/31/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58489 - "OPTIONS /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58490 - "OPTIONS /api/v1/global-new-llm-configs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58489 - "OPTIONS /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58493 - "OPTIONS /api/v1/search-spaces/2/llm-preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58490 - "OPTIONS /api/v1/searchspaces?limit=10&skip=0&owned_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58494 - "OPTIONS /api/v1/searchspaces/2/my-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58493 - "OPTIONS /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58489 - "OPTIONS /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58497 - "OPTIONS /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58490 - "OPTIONS /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58494 - "OPTIONS /api/v1/new-llm-configs?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58498 - "OPTIONS /api/v1/documents/type-counts?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58497 - "OPTIONS /api/v1/messages/23/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58493 - "OPTIONS /api/v1/messages/25/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58489 - "OPTIONS /api/v1/messages/27/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58490 - "OPTIONS /api/v1/messages/29/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58498 - "OPTIONS /api/v1/messages/31/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58489 - "GET /api/v1/global-new-llm-configs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58494 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58497 - "GET /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58490 - "GET /api/v1/searchspaces?limit=10&skip=0&owned_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58494 - "GET /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58489 - "GET /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58490 - "GET /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58494 - "GET /api/v1/documents/type-counts?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58489 - "GET /api/v1/new-llm-configs?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58493 - "GET /api/v1/search-spaces/2/llm-preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58490 - "GET /api/v1/messages/27/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58493 - "GET /api/v1/messages/29/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58489 - "GET /api/v1/messages/25/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58494 - "GET /api/v1/messages/23/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58498 - "GET /api/v1/searchspaces/2/my-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58497 - "GET /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58490 - "GET /api/v1/messages/31/comments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50485 - "GET /health HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50506 - "POST /api/auth/register HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50535 - "POST /api/auth/login HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50544 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50554 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50580 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50625 - "POST /connectors/dexscreener/add HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50643 - "POST /api/v1/connectors/dexscreener/add HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50655 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [59799]
+/Users/mac_1/.local/share/uv/python/cpython-3.12.9-macos-aarch64-none/lib/python3.12/multiprocessing/resource_tracker.py:255: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '
+/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/chonkie/chunker/code.py:82: UserWarning: The language is set to `auto`. This would adversely affect the performance of the chunker. Consider setting the `language` parameter to a specific language to improve performance.
+  warnings.warn("The language is set to `auto`. This would adversely affect the performance of the chunker. " +
+INFO:     Will watch for changes in these directories: ['/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/app']
+INFO:     Started server process [75345]
+INFO:     Waiting for application startup.
+[92m17:02:04 - LiteLLM Router:INFO[0m: router.py:711 - Routing strategy: usage-based-routing
+2026-01-31 17:02:04 - LiteLLM Router - INFO - Routing strategy: usage-based-routing
+2026-01-31 17:02:04 - app.services.llm_router_service - INFO - LLM Router initialized with 4 deployments, strategy: usage-based-routing
+2026-01-31 17:02:04 - app.tasks.surfsense_docs_indexer - INFO - Starting Surfsense docs indexing...
+2026-01-31 17:02:04 - app.tasks.surfsense_docs_indexer - INFO - Found 24 MDX files to index
+2026-01-31 17:02:04 - app.tasks.surfsense_docs_indexer - INFO - Indexing complete: 0 created, 0 updated, 24 skipped, 0 deleted
+2026-01-31 17:02:04 - app.tasks.surfsense_docs_indexer - INFO - Surfsense docs indexing complete: created=0, updated=0, skipped=24, deleted=0
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+[Checkpointer] PostgreSQL checkpoint tables ready
+Info: LLM Router initialized with 4 models (strategy: usage-based-routing)
+INFO:     127.0.0.1:50750 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50775 - "POST /api/v1/connectors/dexscreener/add HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:50777 - "GET /api/v1/connectors/dexscreener/test?chain=ethereum&address=0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 HTTP/1.1" 401 Unauthorized
+2026-01-31 17:05:43 - app.users - INFO - User f34b4612-6556-47c8-bd37-c0e1fd6c9b30 has registered. Creating default search space...
+2026-01-31 17:05:43 - app.users - INFO - Created default search space (ID: 3) for user f34b4612-6556-47c8-bd37-c0e1fd6c9b30
+INFO:     127.0.0.1:50909 - "POST /auth/register HTTP/1.1" 201 Created
+INFO:     127.0.0.1:51070 - "POST /auth/jwt/login HTTP/1.1" 200 OK
+2026-01-31 17:08:45 - app.routes.dexscreener_add_connector_route - ERROR - Unexpected error adding DexScreener connector: (sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.InvalidTextRepresentationError'>: invalid input value for enum searchsourceconnectortype: "DEXSCREENER_CONNECTOR"
+[SQL: SELECT search_source_connectors.name, search_source_connectors.connector_type, search_source_connectors.is_indexable, search_source_connectors.last_indexed_at, search_source_connectors.config, search_source_connectors.periodic_indexing_enabled, search_source_connectors.indexing_frequency_minutes, search_source_connectors.next_scheduled_at, search_source_connectors.search_space_id, search_source_connectors.user_id, search_source_connectors.id, search_source_connectors.created_at 
+FROM search_source_connectors 
+WHERE search_source_connectors.search_space_id = $1::INTEGER AND search_source_connectors.user_id = $2::UUID AND search_source_connectors.connector_type = $3::searchsourceconnectortype]
+[parameters: (1, UUID('f34b4612-6556-47c8-bd37-c0e1fd6c9b30'), 'DEXSCREENER_CONNECTOR')]
+(Background on this error at: https://sqlalche.me/e/20/dbapi)
+Traceback (most recent call last):
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 545, in _prepare_and_execute
+    self._rows = deque(await prepared_stmt.fetch(*parameters))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/asyncpg/prepared_stmt.py", line 176, in fetch
+    data = await self.__bind_execute(args, 0, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/asyncpg/prepared_stmt.py", line 267, in __bind_execute
+    data, status, _ = await self.__do_execute(
+                      ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/asyncpg/prepared_stmt.py", line 256, in __do_execute
+    return await executor(protocol)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "asyncpg/protocol/protocol.pyx", line 206, in bind_execute
+asyncpg.exceptions.InvalidTextRepresentationError: invalid input value for enum searchsourceconnectortype: "DEXSCREENER_CONNECTOR"
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1963, in _exec_single_context
+    self.dialect.do_execute(
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 943, in do_execute
+    cursor.execute(statement, parameters)
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 580, in execute
+    self._adapt_connection.await_(
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 558, in _prepare_and_execute
+    self._handle_exception(error)
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 508, in _handle_exception
+    self._adapt_connection._handle_exception(error)
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 792, in _handle_exception
+    raise translated_error from error
+sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_dbapi.Error: <class 'asyncpg.exceptions.InvalidTextRepresentationError'>: invalid input value for enum searchsourceconnectortype: "DEXSCREENER_CONNECTOR"
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/app/routes/dexscreener_add_connector_route.py", line 79, in add_dexscreener_connector
+    result = await session.execute(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/ext/asyncio/session.py", line 463, in execute
+    result = await greenlet_spawn(
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 201, in greenlet_spawn
+    result = context.throw(*sys.exc_info())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2365, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2251, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1415, in execute
+    return meth(
+           ^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 523, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1637, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1842, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1982, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2351, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1963, in _exec_single_context
+    self.dialect.do_execute(
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 943, in do_execute
+    cursor.execute(statement, parameters)
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 580, in execute
+    self._adapt_connection.await_(
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 558, in _prepare_and_execute
+    self._handle_exception(error)
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 508, in _handle_exception
+    self._adapt_connection._handle_exception(error)
+  File "/Users/mac_1/Documents/GitHub/SurfSense/surfsense_backend/.venv/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 792, in _handle_exception
+    raise translated_error from error
+sqlalchemy.exc.DBAPIError: (sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.InvalidTextRepresentationError'>: invalid input value for enum searchsourceconnectortype: "DEXSCREENER_CONNECTOR"
+[SQL: SELECT search_source_connectors.name, search_source_connectors.connector_type, search_source_connectors.is_indexable, search_source_connectors.last_indexed_at, search_source_connectors.config, search_source_connectors.periodic_indexing_enabled, search_source_connectors.indexing_frequency_minutes, search_source_connectors.next_scheduled_at, search_source_connectors.search_space_id, search_source_connectors.user_id, search_source_connectors.id, search_source_connectors.created_at 
+FROM search_source_connectors 
+WHERE search_source_connectors.search_space_id = $1::INTEGER AND search_source_connectors.user_id = $2::UUID AND search_source_connectors.connector_type = $3::searchsourceconnectortype]
+[parameters: (1, UUID('f34b4612-6556-47c8-bd37-c0e1fd6c9b30'), 'DEXSCREENER_CONNECTOR')]
+(Background on this error at: https://sqlalche.me/e/20/dbapi)
+INFO:     127.0.0.1:51071 - "POST /api/v1/connectors/dexscreener/add HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51072 - "GET /api/v1/connectors/dexscreener HTTP/1.1" 405 Method Not Allowed
+INFO:     127.0.0.1:51073 - "GET /api/v1/connectors/dexscreener/test?chain=ethereum&address=0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:51170 - "POST /auth/jwt/login HTTP/1.1" 200 OK
+2026-01-31 17:10:00 - app.routes.dexscreener_add_connector_route - INFO - Successfully created DexScreener connector for user f34b4612-6556-47c8-bd37-c0e1fd6c9b30 with ID 3
+INFO:     127.0.0.1:51171 - "POST /api/v1/connectors/dexscreener/add HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51172 - "GET /api/v1/connectors/dexscreener HTTP/1.1" 405 Method Not Allowed
+INFO:     127.0.0.1:51173 - "GET /api/v1/connectors/dexscreener/test?chain=ethereum&address=0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:51257 - "POST /auth/jwt/login HTTP/1.1" 200 OK
+2026-01-31 17:10:42 - app.routes.dexscreener_add_connector_route - INFO - Updated existing DexScreener connector for user f34b4612-6556-47c8-bd37-c0e1fd6c9b30 in space 1
+INFO:     127.0.0.1:51258 - "POST /api/v1/connectors/dexscreener/add HTTP/1.1" 200 OK
+2026-01-31 17:10:43 - app.connectors.dexscreener_connector - INFO - Token not found: tokens/ethereum/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+INFO:     127.0.0.1:51259 - "GET /api/v1/connectors/dexscreener/test?space_id=1 HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:52249 - "POST /auth/jwt/login HTTP/1.1" 200 OK
+2026-01-31 17:23:19 - app.routes.dexscreener_add_connector_route - INFO - Updated existing DexScreener connector for user f34b4612-6556-47c8-bd37-c0e1fd6c9b30 in space 1
+INFO:     127.0.0.1:52250 - "POST /api/v1/connectors/dexscreener/add HTTP/1.1" 200 OK
+2026-01-31 17:23:19 - app.connectors.dexscreener_connector - INFO - Token not found: tokens/ethereum/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+INFO:     127.0.0.1:52251 - "GET /api/v1/connectors/dexscreener/test?space_id=1 HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:52255 - "GET /api/v1/connectors/dexscreener/test?space_id=1 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:52260 - "POST /api/v1/connectors/dexscreener/add HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:52262 - "DELETE /api/v1/connectors/dexscreener?space_id=1 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:53087 - "OPTIONS /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53090 - "OPTIONS /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53087 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53087 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53117 - "OPTIONS /api/v1/searchspaces?limit=10&skip=0&owned_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53115 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53115 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53117 - "GET /api/v1/searchspaces?limit=10&skip=0&owned_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53125 - "OPTIONS /api/v1/global-new-llm-configs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53127 - "OPTIONS /api/v1/search-spaces/2/llm-preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53129 - "OPTIONS /api/v1/searchspaces/2/my-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53129 - "GET /api/v1/global-new-llm-configs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53127 - "GET /api/v1/search-spaces/2/llm-preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53125 - "GET /api/v1/searchspaces/2/my-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53125 - "OPTIONS /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53127 - "OPTIONS /api/v1/documents/type-counts?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53125 - "OPTIONS /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53133 - "OPTIONS /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53135 - "OPTIONS /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53133 - "OPTIONS /api/v1/notifications/unread-count?search_space_id=2&type=new_mention HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53137 - "OPTIONS /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53135 - "OPTIONS /api/v1/notifications/unread-count?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53125 - "GET /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53127 - "GET /api/v1/documents/type-counts?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53125 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=new_mention HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53125 - "OPTIONS /api/v1/new-llm-configs?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53125 - "OPTIONS /api/v1/notifications/unread-count?search_space_id=2&type=connector_indexing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53125 - "OPTIONS /api/v1/notifications?search_space_id=2&type=new_mention&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53125 - "OPTIONS /api/v1/notifications?search_space_id=2&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53125 - "OPTIONS /api/v1/notifications?search_space_id=2&type=connector_indexing&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53129 - "GET /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53127 - "GET /api/v1/notifications/unread-count?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53135 - "GET /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53125 - "GET /api/v1/new-llm-configs?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53133 - "GET /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53129 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=connector_indexing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53137 - "GET /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53127 - "GET /api/v1/notifications?search_space_id=2&type=new_mention&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53135 - "GET /api/v1/notifications?search_space_id=2&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53125 - "GET /api/v1/notifications?search_space_id=2&type=connector_indexing&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53316 - "OPTIONS /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53318 - "OPTIONS /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53320 - "OPTIONS /api/v1/searchspaces?limit=10&skip=0&owned_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53320 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53320 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53318 - "GET /api/v1/searchspaces?limit=10&skip=0&owned_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53318 - "OPTIONS /api/v1/global-new-llm-configs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53320 - "OPTIONS /api/v1/search-spaces/2/llm-preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53320 - "OPTIONS /api/v1/searchspaces/2/my-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53318 - "GET /api/v1/global-new-llm-configs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53316 - "GET /api/v1/search-spaces/2/llm-preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53320 - "GET /api/v1/searchspaces/2/my-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53328 - "OPTIONS /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53329 - "OPTIONS /api/v1/documents/type-counts?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53332 - "OPTIONS /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53334 - "OPTIONS /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53335 - "OPTIONS /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53332 - "OPTIONS /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53334 - "GET /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53334 - "OPTIONS /api/v1/new-llm-configs?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53337 - "GET /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53335 - "GET /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53328 - "GET /api/v1/documents/type-counts?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53329 - "GET /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53334 - "GET /api/v1/new-llm-configs?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53332 - "GET /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53332 - "OPTIONS /api/v1/notifications/unread-count?search_space_id=2&type=connector_indexing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53334 - "OPTIONS /api/v1/notifications/unread-count?search_space_id=2&type=new_mention HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53329 - "OPTIONS /api/v1/notifications/unread-count?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53328 - "OPTIONS /api/v1/notifications?search_space_id=2&type=connector_indexing&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53335 - "OPTIONS /api/v1/notifications?search_space_id=2&type=new_mention&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53337 - "OPTIONS /api/v1/notifications?search_space_id=2&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53332 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=connector_indexing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53329 - "GET /api/v1/notifications/unread-count?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53334 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=new_mention HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53335 - "GET /api/v1/notifications?search_space_id=2&type=new_mention&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53337 - "GET /api/v1/notifications?search_space_id=2&type=connector_indexing&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53328 - "GET /api/v1/notifications?search_space_id=2&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53382 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53384 - "GET /api/v1/global-new-llm-configs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53382 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53386 - "GET /api/v1/search-spaces/2/llm-preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53388 - "GET /api/v1/searchspaces/2/my-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53384 - "GET /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53382 - "GET /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53391 - "GET /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53388 - "GET /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53386 - "GET /api/v1/documents/type-counts?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53382 - "GET /api/v1/new-llm-configs?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53384 - "GET /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53393 - "GET /api/v1/searchspaces?limit=10&skip=0&owned_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53397 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=connector_indexing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53399 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=new_mention HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53403 - "GET /api/v1/notifications?search_space_id=2&type=connector_indexing&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53401 - "GET /api/v1/notifications/unread-count?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53405 - "GET /api/v1/notifications?search_space_id=2&type=new_mention&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53407 - "GET /api/v1/notifications?search_space_id=2&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53418 - "GET /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53421 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=connector_indexing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53424 - "GET /api/v1/notifications?search_space_id=2&type=connector_indexing&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53419 - "GET /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53529 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53529 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53531 - "GET /api/v1/searchspaces?limit=10&skip=0&owned_only=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53531 - "GET /api/v1/global-new-llm-configs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53529 - "GET /api/v1/search-spaces/2/llm-preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53538 - "GET /api/v1/searchspaces/2/my-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53540 - "GET /api/v1/searchspaces/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53538 - "GET /api/v1/threads?search_space_id=2&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53542 - "GET /api/v1/searchspaces/2/members HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53529 - "GET /api/v1/documents/type-counts?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53531 - "GET /api/v1/search-source-connectors?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53542 - "GET /api/v1/new-llm-configs?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53544 - "GET /api/v1/threads?search_space_id=2&limit=40 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53544 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=connector_indexing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53542 - "GET /api/v1/notifications/unread-count?search_space_id=2&type=new_mention HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53538 - "GET /api/v1/notifications?search_space_id=2&type=new_mention&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53529 - "GET /api/v1/notifications?search_space_id=2&type=connector_indexing&limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53531 - "GET /api/v1/notifications/unread-count?search_space_id=2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53540 - "GET /api/v1/notifications?search_space_id=2&limit=50 HTTP/1.1" 200 OK

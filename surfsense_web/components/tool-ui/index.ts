@@ -59,3 +59,37 @@ export {
 } from "./user-memory";
 export { GenerateVideoPresentationToolUI } from "./video-presentation";
 export { type WriteTodosData, WriteTodosSchema, WriteTodosToolUI } from "./write-todos";
+
+// Crypto Tool UI Components - Conversational Crypto Advisor
+export {
+	// Token Analysis
+	TokenAnalysisToolUI,
+	TokenAnalysisArgsSchema,
+	TokenAnalysisResultSchema,
+	type TokenAnalysisArgs,
+	type TokenAnalysisResult,
+	// Watchlist Display
+	WatchlistDisplayToolUI,
+	WatchlistDisplayArgsSchema,
+	WatchlistDisplayResultSchema,
+	type WatchlistDisplayArgs,
+	type WatchlistDisplayResult,
+	// Action Confirmation
+	ActionConfirmationToolUI,
+	ActionConfirmationArgsSchema,
+	ActionConfirmationResultSchema,
+	type ActionConfirmationArgs,
+	type ActionConfirmationResult,
+	// Alert Configuration
+	AlertConfigurationToolUI,
+	AlertConfigurationArgsSchema,
+	AlertConfigurationResultSchema,
+	type AlertConfigurationArgs,
+	type AlertConfigurationResult,
+	// Proactive Alert
+	ProactiveAlertToolUI,
+	ProactiveAlertArgsSchema,
+	ProactiveAlertResultSchema,
+	type ProactiveAlertArgs,
+	type ProactiveAlertResult,
+} from "./crypto";
