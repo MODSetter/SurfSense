@@ -141,13 +141,12 @@ Use this to locate relevant document files/chunks before reading full files.
 SURFSENSE_EXECUTE_CODE_TOOL_DESCRIPTION = """Executes a shell command in an isolated code execution environment.
 
 Common data-science packages are pre-installed (pandas, numpy, matplotlib,
-scipy, scikit-learn). Documents from the conversation are automatically
-made available — run `ls` to discover them.
+scipy, scikit-learn).
 
-When to use this tool: always use execute_code for any task involving
-numerical computation, data analysis, aggregation, or statistics. Write
-Python code to compute results and present the verified output. Never
-perform arithmetic manually when this tool is available.
+When to use this tool: use execute_code for numerical computation, data
+analysis, statistics, and any task that benefits from running shell
+commands or Python code. Never perform arithmetic manually when this tool
+is available.
 
 Usage notes:
 - No outbound network access.
@@ -195,7 +194,13 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         if self._sandbox_available:
             system_prompt += (
                 "\n- execute_code: run shell commands in an isolated Python sandbox."
-                " Prefer this tool for any numerical computation or data analysis."
+                "\n\n## Code Execution"
+                "\n\nUse execute_code for numerical computation, data analysis, and"
+                " statistics — never do arithmetic manually."
+                "\n\nDocuments here are XML-wrapped markdown, not raw data files."
+                " To work with them programmatically, read the document first,"
+                " extract the data, write it as a clean file (CSV, JSON, etc.),"
+                " and then run your code against it."
             )
 
         super().__init__(
