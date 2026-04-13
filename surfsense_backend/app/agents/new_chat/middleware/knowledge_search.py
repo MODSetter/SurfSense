@@ -774,11 +774,16 @@ class KnowledgeBaseSearchMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         messages = state.get("messages") or []
         if not messages:
             return None
-        last_message = messages[-1]
-        if not isinstance(last_message, HumanMessage):
+
+        last_human = None
+        for msg in reversed(messages):
+            if isinstance(msg, HumanMessage):
+                last_human = msg
+                break
+        if last_human is None:
             return None
 
-        user_text = _extract_text_from_message(last_message).strip()
+        user_text = _extract_text_from_message(last_human).strip()
         if not user_text:
             return None
 
