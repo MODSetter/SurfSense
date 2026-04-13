@@ -627,9 +627,10 @@ export function DocumentsSidebar({
 			function collectSubtreeDocs(parentId: number): DocumentNodeDoc[] {
 				const directDocs = (treeDocuments ?? []).filter(
 					(d) =>
-						d.folderId === parentId &&
-						d.status?.state !== "pending" &&
-						d.status?.state !== "processing"
+					d.folderId === parentId &&
+					d.status?.state !== "pending" &&
+					d.status?.state !== "processing" &&
+					d.status?.state !== "failed"
 				);
 				const childFolders = foldersByParent[String(parentId)] ?? [];
 				const descendantDocs = childFolders.flatMap((cf) => collectSubtreeDocs(cf.id));
