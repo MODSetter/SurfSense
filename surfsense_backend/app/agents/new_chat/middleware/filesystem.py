@@ -138,21 +138,22 @@ SURFSENSE_GREP_TOOL_DESCRIPTION = """Search for a literal text pattern across fi
 Use this to locate relevant document files/chunks before reading full files.
 """
 
-SURFSENSE_EXECUTE_CODE_TOOL_DESCRIPTION = """Executes a shell command in an isolated code execution environment.
+SURFSENSE_EXECUTE_CODE_TOOL_DESCRIPTION = """Executes Python code in an isolated sandbox environment.
 
 Common data-science packages are pre-installed (pandas, numpy, matplotlib,
 scipy, scikit-learn).
 
 When to use this tool: use execute_code for numerical computation, data
-analysis, statistics, and any task that benefits from running shell
-commands or Python code. Never perform arithmetic manually when this tool
-is available.
+analysis, statistics, and any task that benefits from running Python code.
+Never perform arithmetic manually when this tool is available.
 
 Usage notes:
 - No outbound network access.
 - Returns combined stdout/stderr with exit code.
+- Use print() to produce output.
+- You can create files, run shell commands via subprocess or os.system(),
+  and use any standard library module.
 - Use the optional timeout parameter to override the default timeout.
-- Chain multiple commands with ';' or '&&'.
 """
 
 SURFSENSE_SAVE_DOCUMENT_TOOL_DESCRIPTION = """Permanently saves a document to the user's knowledge base.
@@ -193,10 +194,10 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         system_prompt = SURFSENSE_FILESYSTEM_SYSTEM_PROMPT
         if self._sandbox_available:
             system_prompt += (
-                "\n- execute_code: run shell commands in an isolated Python sandbox."
+                "\n- execute_code: run Python code in an isolated sandbox."
                 "\n\n## Code Execution"
-                "\n\nUse execute_code for numerical computation, data analysis, and"
-                " statistics — never do arithmetic manually."
+                "\n\nUse execute_code whenever a task benefits from running code."
+                " Never perform arithmetic manually."
                 "\n\nDocuments here are XML-wrapped markdown, not raw data files."
                 " To work with them programmatically, read the document first,"
                 " extract the data, write it as a clean file (CSV, JSON, etc.),"
@@ -508,12 +509,12 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
 
         def sync_execute_code(
             command: Annotated[
-                str, "Shell command to execute in the sandbox environment."
+                str, "Python code to execute. Use print() to see output."
             ],
             runtime: ToolRuntime[None, FilesystemState],
             timeout: Annotated[
                 int | None,
-                "Optional timeout in seconds for this command.",
+                "Optional timeout in seconds.",
             ] = None,
         ) -> str:
             if timeout is not None:
@@ -527,12 +528,12 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
 
         async def async_execute_code(
             command: Annotated[
-                str, "Shell command to execute in the sandbox environment."
+                str, "Python code to execute. Use print() to see output."
             ],
             runtime: ToolRuntime[None, FilesystemState],
             timeout: Annotated[
                 int | None,
-                "Optional timeout in seconds for this command.",
+                "Optional timeout in seconds.",
             ] = None,
         ) -> str:
             if timeout is not None:
@@ -549,6 +550,11 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
             coroutine=async_execute_code,
         )
 
+    @staticmethod
+    def _wrap_as_python(code: str) -> str:
+        """Wrap Python code in a shell invocation for the sandbox."""
+        return f"python3 << 'PYEOF'\n{code}\nPYEOF"
+
     async def _execute_in_sandbox(
         self,
         command: str,
@@ -557,6 +563,7 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
     ) -> str:
         """Core logic: get sandbox, sync files, run command, handle retries."""
         assert self._thread_id is not None
+        command = self._wrap_as_python(command)
 
         try:
             return await self._try_sandbox_execute(command, runtime, timeout)
@@ -585,6 +592,12 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         files = runtime.state.get("files") or {}
         await sync_files_to_sandbox(self._thread_id, files, sandbox, is_new)
         result = await sandbox.aexecute(command, timeout=timeout)
+        output = (result.output or "").strip()
+        if not output and result.exit_code == 0:
+            return (
+                "[Code executed successfully but produced no output. "
+                "Use print() to display results, then try again.]"
+            )
         parts = [result.output]
         if result.exit_code is not None:
             status = "succeeded" if result.exit_code == 0 else "failed"
