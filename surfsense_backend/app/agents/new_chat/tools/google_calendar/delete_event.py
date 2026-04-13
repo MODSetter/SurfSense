@@ -6,9 +6,9 @@ from typing import Any
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from langchain_core.tools import tool
-from langgraph.types import interrupt
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.new_chat.tools.hitl import request_approval
 from app.services.google_calendar import GoogleCalendarToolMetadataService
 
 logger = logging.getLogger(__name__)
@@ -100,56 +100,28 @@ def create_delete_calendar_event_tool(
             logger.info(
                 f"Requesting approval for deleting calendar event: '{event_title_or_id}' (event_id={event_id}, delete_from_kb={delete_from_kb})"
             )
-            approval = interrupt(
-                {
-                    "type": "google_calendar_event_deletion",
-                    "action": {
-                        "tool": "delete_calendar_event",
-                        "params": {
-                            "event_id": event_id,
-                            "connector_id": connector_id_from_context,
-                            "delete_from_kb": delete_from_kb,
-                        },
-                    },
-                    "context": context,
-                }
+            result = request_approval(
+                action_type="google_calendar_event_deletion",
+                tool_name="delete_calendar_event",
+                params={
+                    "event_id": event_id,
+                    "connector_id": connector_id_from_context,
+                    "delete_from_kb": delete_from_kb,
+                },
+                context=context,
             )
 
-            decisions_raw = (
-                approval.get("decisions", []) if isinstance(approval, dict) else []
-            )
-            decisions = (
-                decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
-            )
-            decisions = [d for d in decisions if isinstance(d, dict)]
-            if not decisions:
-                logger.warning("No approval decision received")
-                return {"status": "error", "message": "No approval decision received"}
-
-            decision = decisions[0]
-            decision_type = decision.get("type") or decision.get("decision_type")
-            logger.info(f"User decision: {decision_type}")
-
-            if decision_type == "reject":
+            if result.rejected:
                 return {
                     "status": "rejected",
                     "message": "User declined. The event was not deleted. Do not ask again or suggest alternatives.",
                 }
 
-            edited_action = decision.get("edited_action")
-            final_params: dict[str, Any] = {}
-            if isinstance(edited_action, dict):
-                edited_args = edited_action.get("args")
-                if isinstance(edited_args, dict):
-                    final_params = edited_args
-            elif isinstance(decision.get("args"), dict):
-                final_params = decision["args"]
-
-            final_event_id = final_params.get("event_id", event_id)
-            final_connector_id = final_params.get(
+            final_event_id = result.params.get("event_id", event_id)
+            final_connector_id = result.params.get(
                 "connector_id", connector_id_from_context
             )
-            final_delete_from_kb = final_params.get("delete_from_kb", delete_from_kb)
+            final_delete_from_kb = result.params.get("delete_from_kb", delete_from_kb)
 
             if not final_connector_id:
                 return {
