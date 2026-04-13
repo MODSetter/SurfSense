@@ -49,6 +49,7 @@ interface VisionConfigDialogProps {
 	isGlobal: boolean;
 	searchSpaceId: number;
 	mode: "create" | "edit" | "view";
+	defaultProvider?: string;
 }
 
 const INITIAL_FORM = {
@@ -68,6 +69,7 @@ export function VisionConfigDialog({
 	isGlobal,
 	searchSpaceId,
 	mode,
+	defaultProvider,
 }: VisionConfigDialogProps) {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [formData, setFormData] = useState(INITIAL_FORM);
@@ -87,11 +89,11 @@ export function VisionConfigDialog({
 					api_version: (config as VisionLLMConfig).api_version || "",
 				});
 			} else if (mode === "create") {
-				setFormData(INITIAL_FORM);
+				setFormData({ ...INITIAL_FORM, provider: defaultProvider ?? "" });
 			}
 			setScrollPos("top");
 		}
-	}, [open, mode, config, isGlobal]);
+	}, [open, mode, config, isGlobal, defaultProvider]);
 
 	const { mutateAsync: createConfig } = useAtomValue(createVisionLLMConfigMutationAtom);
 	const { mutateAsync: updateConfig } = useAtomValue(updateVisionLLMConfigMutationAtom);
