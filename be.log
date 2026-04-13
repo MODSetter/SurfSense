@@ -1,0 +1,19 @@
+2026-04-13 11:08:51,512 | WARNING  | chonkie.chunker.code:__init__:75 - The language is set to `auto`. This would adversely affect the performance of the chunker. Consider setting the `language` parameter to a specific language to improve performance.
+INFO:     Will watch for changes in these directories: ['/Users/luisphan/Documents/GitHub/SurfSense/surfsense_backend/app']
+INFO:     Started server process [56913]
+INFO:     Waiting for application startup.
+2026-04-13 11:08:59 - app.agents.new_chat.checkpointer - INFO - [Checkpointer] Created AsyncPostgresSaver with connection pool
+2026-04-13 11:08:59 - app.agents.new_chat.checkpointer - INFO - [Checkpointer] PostgreSQL checkpoint tables ready
+2026-04-13 11:08:59 - app.tasks.surfsense_docs_indexer - INFO - Starting Surfsense docs indexing...
+2026-04-13 11:08:59 - app.tasks.surfsense_docs_indexer - INFO - Found 38 MDX files to index
+2026-04-13 11:08:59 - app.tasks.surfsense_docs_indexer - INFO - Indexing complete: 0 created, 0 updated, 38 skipped, 0 deleted
+2026-04-13 11:08:59 - app.tasks.surfsense_docs_indexer - INFO - Surfsense docs indexing complete: created=0, updated=0, skipped=38, deleted=0
+2026-04-13 11:08:59,503 [PERF] [startup_complete] rss=719.2MB cpu=0.0% threads=11 fds=22 asyncio_tasks=6 gc=(6, 0, 11)
+INFO:     Application startup complete.
+ERROR:    [Errno 48] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
+INFO:     Waiting for application shutdown.
+2026-04-13 11:08:59 - app.agents.new_chat.checkpointer - INFO - [Checkpointer] PostgreSQL connection pool closed
+INFO:     Application shutdown complete.
+Info: No global LLM configs found, Auto mode will not be available
+Info: No global image generation configs found, Image Generation Auto mode will not be available
+Info: No global vision LLM configs found, Vision LLM Auto mode will not be available

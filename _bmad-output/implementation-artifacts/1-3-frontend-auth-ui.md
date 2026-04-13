@@ -14,9 +14,8 @@ So that tôi nhận được Token và ngay lập tức kết nối tới hệ t
 **Given** tôi đang ở trạng thái khách (Guest) trên UI
 **When** tôi điền form đăng nhập thành công
 **Then** giao diện lưu token vào cục bộ và tự động khởi tạo instance `ZeroClient` để bắt đầu mở cầu nối WebSockets.
-**And** khi tôi nhấn nút "Đăng xuất" (Log Out), hàm `onLogout()` tự động thực thi dọn dẹp sạch (purge) toàn bộ IndexedDB, chặn bảo mật.
-**And** Giao diện (Form đăng nhập, nút bấm) ứng dụng quy chuẩn UX-DR1 (Màu Base Zinc/Accent Indigo, font Inter).
-Người dùng dễ dàng kéo thả các tệp PDF/TXT lên hệ thống; hệ thống tự động bóc tách dữ liệu mượt mà trong nền mà không làm gián đoạn công việc. Họ nắm rõ tiến độ nạp file và làm chủ khối lượng tài liệu của mình.
+**And** khi tôi nhấn nút "Đăng xuất" (Log Out), hàm `logout()` tự động thực thi dọn dẹp sạch token cục bộ (localStorage) và ngắt kết nối an toàn.
+**And** Giao diện (Form đăng nhập, nút bấm) ứng dụng quy chuẩn thiết kế của hệ thống.
 **FRs covered:** FR1, FR2, FR3, FR4, FR12, FR13
 
 ## 🏗️ Architecture & Technical Guardrails
@@ -30,14 +29,11 @@ Người dùng dễ dàng kéo thả các tệp PDF/TXT lên hệ thống; hệ 
 ### Code Organization
 This story is currently marked as `done`. Implementation should target the following components/files:
 
-- `surfsense_backend/app/connectors/dropbox/client.py`
-- `surfsense_backend/app/schemas/incentive_tasks.py`
-- `surfsense_backend/app/utils/proxy_config.py`
-- `surfsense_web/components/chat-comments/comment-panel-container/comment-panel-container.tsx`
-- `surfsense_web/components/tool-ui/write-todos.tsx`
-- `surfsense_web/components/shared/image-config-dialog.tsx`
-- `surfsense_backend/app/users.py`
-- `surfsense_web/components/ui/dropdown-menu.tsx`
+- `surfsense_web/app/(home)/login/LocalLoginForm.tsx`
+- `surfsense_web/components/UserDropdown.tsx`
+- `surfsense_web/components/layout/ui/sidebar/SidebarUserProfile.tsx`
+- `surfsense_web/lib/auth-utils.ts`
+- `surfsense_web/components/providers/ZeroProvider.tsx`
 
 ### Developer Agent Constraints
 1. **No Destructive Refactors**: Extend existing modules when possible.

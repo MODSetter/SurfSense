@@ -27,14 +27,10 @@ So that hệ thống API chính không bị nghẽn khi người dùng upload fi
 ### Code Organization
 This story is currently marked as `done`. Implementation should target the following components/files:
 
-- `surfsense_backend/app/connectors/dropbox/client.py`
-- `surfsense_backend/app/schemas/incentive_tasks.py`
-- `surfsense_backend/app/utils/proxy_config.py`
-- `surfsense_web/components/chat-comments/comment-panel-container/comment-panel-container.tsx`
-- `surfsense_web/components/tool-ui/write-todos.tsx`
-- `surfsense_web/components/shared/image-config-dialog.tsx`
-- `surfsense_backend/app/users.py`
-- `surfsense_web/components/ui/dropdown-menu.tsx`
+- `surfsense_backend/app/services/task_dispatcher.py`
+- `surfsense_backend/app/tasks/celery_tasks/document_tasks.py`
+- `surfsense_backend/app/services/docling_service.py`
+- `surfsense_backend/app/routes/documents_routes.py`
 
 ### Developer Agent Constraints
 1. **No Destructive Refactors**: Extend existing modules when possible.

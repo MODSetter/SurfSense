@@ -1,0 +1,18 @@
+
+> surfsense_web@0.0.15 dev
+> next dev --turbopack
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.9:3000
+- Environments: .env
+- Experiments (use with caution):
+  · optimizePackageImports
+
+✓ Starting...
+[MDX] generated files in 7.297166999999945ms
+[MDX] started dev server
+⨯ Unable to acquire lock at /Users/luisphan/Documents/GitHub/SurfSense/surfsense_web/.next/dev/lock, is another instance of next dev running?
+  Suggestion: If you intended to restart next dev, terminate the other process, and then try again.
+[MDX] closing dev server
+[?25h
