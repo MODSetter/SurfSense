@@ -138,19 +138,22 @@ SURFSENSE_GREP_TOOL_DESCRIPTION = """Search for a literal text pattern across fi
 Use this to locate relevant document files/chunks before reading full files.
 """
 
-SURFSENSE_EXECUTE_CODE_TOOL_DESCRIPTION = """Executes a shell command in an isolated sandbox environment.
+SURFSENSE_EXECUTE_CODE_TOOL_DESCRIPTION = """Executes a shell command in an isolated code execution environment.
 
-The sandbox runs Python with common data-science packages pre-installed
-(pandas, numpy, matplotlib, scipy, scikit-learn).
+Common data-science packages are pre-installed (pandas, numpy, matplotlib,
+scipy, scikit-learn). Documents from the conversation are automatically
+made available — run `ls` to discover them.
 
-Knowledge base documents from your conversation are automatically available
-as XML files under /home/daytona/documents/.
+When to use this tool: always use execute_code for any task involving
+numerical computation, data analysis, aggregation, or statistics. Write
+Python code to compute results and present the verified output. Never
+perform arithmetic manually when this tool is available.
 
 Usage notes:
-- Commands run in an isolated sandbox with no outbound network access.
-- Returns combined stdout/stderr output with exit code.
+- No outbound network access.
+- Returns combined stdout/stderr with exit code.
 - Use the optional timeout parameter to override the default timeout.
-- When issuing multiple commands, use ';' or '&&' to chain them.
+- Chain multiple commands with ';' or '&&'.
 """
 
 SURFSENSE_SAVE_DOCUMENT_TOOL_DESCRIPTION = """Permanently saves a document to the user's knowledge base.
@@ -192,6 +195,7 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         if self._sandbox_available:
             system_prompt += (
                 "\n- execute_code: run shell commands in an isolated Python sandbox."
+                " Prefer this tool for any numerical computation or data analysis."
             )
 
         super().__init__(
