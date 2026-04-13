@@ -10,7 +10,8 @@ import {
 	useRef,
 	useState,
 } from "react";
-import ReactDOMServer from "react-dom/server";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Document } from "@/contracts/types/document.types";
 import { cn } from "@/lib/utils";
@@ -81,6 +82,12 @@ function getChipId(element: Element): number | null {
  */
 function getChipDocType(element: Element): string {
 	return element.getAttribute(CHIP_DOCTYPE_ATTR) ?? "UNKNOWN";
+}
+
+function renderIconToElement(reactElement: React.ReactElement, container: HTMLElement): void {
+	flushSync(() => {
+		createRoot(container).render(reactElement);
+	});
 }
 
 export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMentionEditorProps>(
@@ -186,8 +193,9 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 
 				const iconSpan = document.createElement("span");
 				iconSpan.className = "flex items-center text-muted-foreground";
-				iconSpan.innerHTML = ReactDOMServer.renderToString(
-					getConnectorIcon(doc.document_type ?? "UNKNOWN", "h-3 w-3")
+				renderIconToElement(
+					getConnectorIcon(doc.document_type ?? "UNKNOWN", "h-3 w-3"),
+					iconSpan
 				);
 
 				const removeBtn = document.createElement("button");
@@ -195,8 +203,9 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				removeBtn.className =
 					"size-3 items-center justify-center rounded-full text-muted-foreground transition-colors";
 				removeBtn.style.display = "none";
-				removeBtn.innerHTML = ReactDOMServer.renderToString(
-					createElement(X, { className: "h-3 w-3", strokeWidth: 2.5 })
+				renderIconToElement(
+					createElement(X, { className: "h-3 w-3", strokeWidth: 2.5 }),
+					removeBtn
 				);
 				removeBtn.onclick = (e) => {
 					e.preventDefault();
