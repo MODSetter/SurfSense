@@ -23,6 +23,10 @@ import dynamic from "next/dynamic";
 import type { FC } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { commentsEnabledAtom, targetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
+import {
+	globalNewLLMConfigsAtom,
+	newLLMConfigsAtom,
+} from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import {
 	CitationMetadataProvider,
@@ -47,6 +51,7 @@ import { useComments } from "@/hooks/use-comments";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { useTokenUsage } from "@/components/assistant-ui/token-usage-context";
+import { getProviderIcon } from "@/lib/provider-icons";
 import { cn } from "@/lib/utils";
 
 // Captured once at module load — survives client-side navigations that strip the query param.
@@ -386,6 +391,26 @@ const MessageInfoDropdown: FC = () => {
 	const createdAt = useAuiState(({ message }) => message?.createdAt);
 	const usage = useTokenUsage(messageId);
 
+	const { data: localConfigs } = useAtomValue(newLLMConfigsAtom);
+	const { data: globalConfigs } = useAtomValue(globalNewLLMConfigsAtom);
+
+	const configByModel = useMemo(() => {
+		const map = new Map<string, { name: string; provider: string }>();
+		for (const c of [...(globalConfigs ?? []), ...(localConfigs ?? [])]) {
+			map.set(c.model_name, { name: c.name, provider: c.provider });
+		}
+		return map;
+	}, [localConfigs, globalConfigs]);
+
+	const resolveModel = (modelKey: string) => {
+		const parts = modelKey.split("/");
+		const bare = parts[parts.length - 1] ?? modelKey;
+		const config = configByModel.get(modelKey) ?? configByModel.get(bare);
+		return config
+			? { name: config.name, icon: getProviderIcon(config.provider, { className: "size-3.5" }) }
+			: { name: modelKey, icon: null };
+	};
+
 	const modelBreakdown = usage ? (usage.usage ?? usage.model_breakdown) : undefined;
 	const models = modelBreakdown ? Object.entries(modelBreakdown) : [];
 	const hasUsage = usage && usage.total_tokens > 0;
@@ -411,14 +436,20 @@ const MessageInfoDropdown: FC = () => {
 					<>
 						<ActionBarMorePrimitive.Separator className="bg-border mx-2 my-1 h-px" />
 						{models.length > 0 ? (
-							models.map(([model, counts]) => (
-								<ActionBarMorePrimitive.Item key={model} className="focus:bg-neutral-200 dark:focus:bg-neutral-700 relative flex cursor-default flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none" onSelect={(e) => e.preventDefault()}>
-									<span className="text-xs font-medium">{model}</span>
-									<span className="text-xs text-muted-foreground">
-										{counts.total_tokens.toLocaleString()} tokens
-									</span>
-								</ActionBarMorePrimitive.Item>
-							))
+							models.map(([model, counts]) => {
+								const { name, icon } = resolveModel(model);
+								return (
+									<ActionBarMorePrimitive.Item key={model} className="focus:bg-neutral-200 dark:focus:bg-neutral-700 relative flex cursor-default flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none" onSelect={(e) => e.preventDefault()}>
+										<span className="flex items-center gap-1.5 text-xs font-medium">
+											{icon}
+											{name}
+										</span>
+										<span className="text-xs text-muted-foreground">
+											{counts.total_tokens.toLocaleString()} tokens
+										</span>
+									</ActionBarMorePrimitive.Item>
+								);
+							})
 						) : (
 							<ActionBarMorePrimitive.Item className="focus:bg-neutral-200 dark:focus:bg-neutral-700 relative flex cursor-default flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none" onSelect={(e) => e.preventDefault()}>
 								<span className="text-xs text-muted-foreground">
