@@ -84,7 +84,16 @@ class ProxyAuthMiddleware(BaseHTTPMiddleware):
         if _is_bypass_path(request.url.path, self.bypass_paths):
             return await call_next(request)
 
-        raw_email = request.headers.get("x-auth-request-email")
+        raw_email = (request.headers.get("x-auth-request-email") or "").strip()
+        if raw_email and "@" not in raw_email:
+            # Header holds a bare username (user_id_claim=cognito:username).
+            domain = getattr(config, "SMB_NAME", "")
+            raw_email = f"{raw_email}@{domain}.com" if domain else ""
+        if not raw_email:
+            raw_username = (request.headers.get("x-auth-request-user") or "").strip()
+            domain = getattr(config, "SMB_NAME", "")
+            if raw_username and domain:
+                raw_email = f"{raw_username}@{domain}.com"
         if not raw_email:
             logger.debug(
                 "ProxyAuth: x-auth-request-email missing on %s", request.url.path
@@ -112,9 +121,11 @@ class ProxyAuthMiddleware(BaseHTTPMiddleware):
 
                 if user is None:
                     hashed_password = _password_helper.hash(secrets.token_urlsafe(32))
+                    display_name = email.split("@")[0] or None
                     user = User(
                         email=email,
                         hashed_password=hashed_password,
+                        display_name=display_name,
                         is_active=True,
                         is_verified=True,
                         is_superuser=False,

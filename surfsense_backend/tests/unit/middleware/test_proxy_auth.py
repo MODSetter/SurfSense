@@ -401,7 +401,7 @@ class TestProxyAuthMiddlewareDispatch:
         ):
             await mw.dispatch(request, _ok_call_next)
 
-        mock_norm.assert_called_once_with(raw_email)
+        mock_norm.assert_called_once_with(raw_email.strip())
         assert request.state.proxy_user is user
 
     # ── SPEC 9: race condition / IntegrityError ──────────────────────────────
@@ -438,3 +438,27 @@ class TestProxyAuthMiddlewareDispatch:
 
         session.rollback.assert_called_once()
         assert request.state.proxy_user is race_user
+
+    # ── SPEC 10: bare username → email synthesis ──────────────────────────────
+
+    async def test_bare_username_synthesizes_email_via_smb_name(self):
+        """
+        GIVEN  X-Auth-Request-Email contains a bare username (no @)
+               AND config.SMB_NAME is set
+        WHEN   request arrives
+        THEN   middleware synthesizes {username}@{SMB_NAME}.com
+               AND passes it to _resolve_user
+        """
+        mw = _make_middleware()
+        resolved = _make_user(email="testuser@foss.com")
+        mw._resolve_user = AsyncMock(return_value=resolved)
+        request = _make_request(headers={"x-auth-request-email": "testuser"})
+
+        with patch("app.middleware.proxy_auth.config") as mock_cfg:
+            mock_cfg.SMB_NAME = "foss"
+            await mw.dispatch(request, _ok_call_next)
+
+        mw._resolve_user.assert_called_once()
+        called_email = mw._resolve_user.call_args.args[0]
+        assert called_email == "testuser@foss.com"
+        assert request.state.proxy_user is resolved
