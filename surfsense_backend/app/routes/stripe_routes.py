@@ -1,4 +1,4 @@
-"""Stripe routes for pay-as-you-go page purchases."""
+"""Stripe routes for pay-as-you-go page purchases and subscriptions."""
 
 from __future__ import annotations
 
@@ -13,11 +13,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from stripe import SignatureVerificationError, StripeClient, StripeError
 
 from app.config import config
-from app.db import PagePurchase, PagePurchaseStatus, User, get_async_session
+from app.db import PagePurchase, PagePurchaseStatus, SubscriptionStatus, User, get_async_session
 from app.schemas.stripe import (
     CreateCheckoutSessionRequest,
     CreateCheckoutSessionResponse,
+    CreateSubscriptionCheckoutRequest,
+    CreateSubscriptionCheckoutResponse,
     PagePurchaseHistoryResponse,
+    PlanId,
     StripeStatusResponse,
     StripeWebhookResponse,
 )
@@ -74,6 +77,86 @@ def _normalize_optional_string(value: Any) -> str | None:
     if isinstance(value, str):
         return value
     return getattr(value, "id", str(value))
+
+
+def _get_subscription_urls() -> tuple[str, str]:
+    """Return (success_url, cancel_url) for subscription checkout."""
+    if not config.NEXT_FRONTEND_URL:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="NEXT_FRONTEND_URL is not configured.",
+        )
+    base = config.NEXT_FRONTEND_URL.rstrip("/")
+    success_url = f"{base}/subscription-success?session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{base}/pricing"
+    return success_url, cancel_url
+
+
+def _get_price_id_for_plan(plan_id: PlanId) -> str:
+    """Map a plan_id enum to the corresponding Stripe Price ID from env vars."""
+    if plan_id == PlanId.pro_monthly:
+        price_id = config.STRIPE_PRO_MONTHLY_PRICE_ID
+        if not price_id:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="STRIPE_PRO_MONTHLY_PRICE_ID is not configured.",
+            )
+        return price_id
+    if plan_id == PlanId.pro_yearly:
+        price_id = config.STRIPE_PRO_YEARLY_PRICE_ID
+        if not price_id:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="STRIPE_PRO_YEARLY_PRICE_ID is not configured.",
+            )
+        return price_id
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=f"Unknown plan_id: {plan_id}",
+    )
+
+
+async def _get_or_create_stripe_customer(
+    stripe_client: StripeClient,
+    user: User,
+    db_session: AsyncSession,
+) -> str:
+    """Return existing Stripe customer ID or create a new one and persist it.
+
+    Uses SELECT ... FOR UPDATE to prevent duplicate customer creation under
+    concurrent requests for the same user.
+    """
+    if user.stripe_customer_id:
+        return user.stripe_customer_id
+
+    locked_user = (
+        (
+            await db_session.execute(
+                select(User).where(User.id == user.id).with_for_update()
+            )
+        )
+        .unique()
+        .scalar_one()
+    )
+
+    # Re-check after acquiring the lock — another request may have created it.
+    if locked_user.stripe_customer_id:
+        return locked_user.stripe_customer_id
+
+    try:
+        customer = stripe_client.v1.customers.create(
+            params={"email": locked_user.email, "metadata": {"user_id": str(locked_user.id)}}
+        )
+    except StripeError as exc:
+        logger.exception("Failed to create Stripe customer for user %s", locked_user.id)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to create Stripe customer.",
+        ) from exc
+
+    locked_user.stripe_customer_id = str(customer.id)
+    await db_session.commit()
+    return locked_user.stripe_customer_id
 
 
 def _get_metadata(checkout_session: Any) -> dict[str, str]:
@@ -269,6 +352,91 @@ async def create_checkout_session(
     await db_session.commit()
 
     return CreateCheckoutSessionResponse(checkout_url=checkout_url)
+
+
+@router.post(
+    "/create-subscription-checkout",
+    response_model=CreateSubscriptionCheckoutResponse,
+)
+async def create_subscription_checkout(
+    body: CreateSubscriptionCheckoutRequest,
+    user: User = Depends(current_active_user),
+    db_session: AsyncSession = Depends(get_async_session),
+) -> CreateSubscriptionCheckoutResponse:
+    """Create a Stripe Checkout Session for a recurring subscription."""
+    stripe_client = get_stripe_client()
+    price_id = _get_price_id_for_plan(body.plan_id)
+    success_url, cancel_url = _get_subscription_urls()
+
+    # Prevent duplicate subscriptions
+    if user.subscription_status == SubscriptionStatus.ACTIVE:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="You already have an active subscription.",
+        )
+
+    customer_id = await _get_or_create_stripe_customer(stripe_client, user, db_session)
+
+    try:
+        checkout_session = stripe_client.v1.checkout.sessions.create(
+            params={
+                "mode": "subscription",
+                "customer": customer_id,
+                "success_url": success_url,
+                "cancel_url": cancel_url,
+                "line_items": [{"price": price_id, "quantity": 1}],
+                "metadata": {
+                    "user_id": str(user.id),
+                    "plan_id": body.plan_id.value,
+                },
+            }
+        )
+    except StripeError as exc:
+        logger.exception(
+            "Failed to create Stripe subscription checkout for user %s", user.id
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to create Stripe subscription checkout session.",
+        ) from exc
+
+    checkout_url = getattr(checkout_session, "url", None)
+    if not checkout_url:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Stripe subscription checkout session did not return a URL.",
+        )
+
+    return CreateSubscriptionCheckoutResponse(checkout_url=checkout_url)
+
+
+@router.get("/verify-checkout-session")
+async def verify_checkout_session(
+    session_id: str,
+    user: User = Depends(current_active_user),
+) -> dict:
+    """Verify a Stripe Checkout Session belongs to the user and is paid."""
+    stripe_client = get_stripe_client()
+    try:
+        session = stripe_client.v1.checkout.sessions.retrieve(session_id)
+    except StripeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid checkout session.",
+        ) from exc
+
+    metadata = getattr(session, "metadata", None) or {}
+    if metadata.get("user_id") != str(user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Session does not belong to this user.",
+        )
+
+    payment_status = getattr(session, "payment_status", None)
+    return {
+        "verified": payment_status in {"paid", "no_payment_required"},
+        "payment_status": payment_status,
+    }
 
 
 @router.get("/status", response_model=StripeStatusResponse)

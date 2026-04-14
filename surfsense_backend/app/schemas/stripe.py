@@ -1,11 +1,19 @@
-"""Schemas for Stripe-backed page purchases."""
+"""Schemas for Stripe-backed page purchases and subscriptions."""
 
 import uuid
 from datetime import datetime
+from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.db import PagePurchaseStatus
+
+
+class PlanId(str, Enum):
+    """Supported subscription plan identifiers."""
+
+    pro_monthly = "pro_monthly"
+    pro_yearly = "pro_yearly"
 
 
 class CreateCheckoutSessionRequest(BaseModel):
@@ -13,6 +21,18 @@ class CreateCheckoutSessionRequest(BaseModel):
 
     quantity: int = Field(ge=1, le=100)
     search_space_id: int = Field(ge=1)
+
+
+class CreateSubscriptionCheckoutRequest(BaseModel):
+    """Request body for creating a subscription checkout session."""
+
+    plan_id: PlanId
+
+
+class CreateSubscriptionCheckoutResponse(BaseModel):
+    """Response containing the Stripe-hosted subscription checkout URL."""
+
+    checkout_url: str
 
 
 class CreateCheckoutSessionResponse(BaseModel):

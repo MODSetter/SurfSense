@@ -67,7 +67,7 @@ development_status:
   epic-4-retrospective: optional
   epic-5: in-progress
   5-1-pricing-plan-selection-ui: done
-  5-2-stripe-payment-integration: ready-for-dev
+  5-2-stripe-payment-integration: done
   5-3-stripe-webhook-sync: ready-for-dev
   5-4-usage-tracking-rate-limit-enforcement: ready-for-dev
   epic-5-retrospective: optional
