@@ -117,12 +117,16 @@ class TokenTrackingCallback(CustomLogger):
     ) -> None:
         acc = _turn_accumulator.get()
         if acc is None:
-            logger.debug("[TokenTracking] async_log_success_event fired but no accumulator in context")
+            logger.debug(
+                "[TokenTracking] async_log_success_event fired but no accumulator in context"
+            )
             return
 
         usage = getattr(response_obj, "usage", None)
         if not usage:
-            logger.debug("[TokenTracking] async_log_success_event fired but response has no usage data")
+            logger.debug(
+                "[TokenTracking] async_log_success_event fired but response has no usage data"
+            )
             return
 
         prompt_tokens = getattr(usage, "prompt_tokens", 0) or 0
@@ -139,7 +143,11 @@ class TokenTrackingCallback(CustomLogger):
         )
         logger.info(
             "[TokenTracking] Captured: model=%s prompt=%d completion=%d total=%d (accumulator now has %d calls)",
-            model, prompt_tokens, completion_tokens, total_tokens, len(acc.calls),
+            model,
+            prompt_tokens,
+            completion_tokens,
+            total_tokens,
+            len(acc.calls),
         )
 
 
@@ -187,11 +195,16 @@ async def record_token_usage(
         session.add(record)
         logger.debug(
             "[TokenTracking] recorded %s usage: prompt=%d completion=%d total=%d",
-            usage_type, prompt_tokens, completion_tokens, total_tokens,
+            usage_type,
+            prompt_tokens,
+            completion_tokens,
+            total_tokens,
         )
         return record
     except Exception:
         logger.warning(
-            "[TokenTracking] failed to record %s token usage", usage_type, exc_info=True,
+            "[TokenTracking] failed to record %s token usage",
+            usage_type,
+            exc_info=True,
         )
         return None

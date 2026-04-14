@@ -33,7 +33,9 @@ def upgrade() -> None:
         "token_usage",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
         sa.Column("prompt_tokens", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("completion_tokens", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column(
+            "completion_tokens", sa.Integer(), nullable=False, server_default="0"
+        ),
         sa.Column("total_tokens", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("model_breakdown", JSONB, nullable=True),
         sa.Column("call_details", JSONB, nullable=True),
@@ -72,7 +74,9 @@ def upgrade() -> None:
 
     op.create_index("ix_token_usage_thread_id", "token_usage", ["thread_id"])
     op.create_index("ix_token_usage_message_id", "token_usage", ["message_id"])
-    op.create_index("ix_token_usage_search_space_id", "token_usage", ["search_space_id"])
+    op.create_index(
+        "ix_token_usage_search_space_id", "token_usage", ["search_space_id"]
+    )
     op.create_index("ix_token_usage_user_id", "token_usage", ["user_id"])
     op.create_index("ix_token_usage_usage_type", "token_usage", ["usage_type"])
 

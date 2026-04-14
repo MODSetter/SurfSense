@@ -15,6 +15,7 @@ from app.services.llm_router_service import (
     get_auto_mode_llm,
     is_auto_mode,
 )
+from app.services.token_tracking_service import token_tracker
 
 # Configure litellm to automatically drop unsupported parameters
 litellm.drop_params = True
@@ -24,8 +25,6 @@ litellm.telemetry = False
 litellm.cache = None
 litellm.failure_callback = []
 litellm.input_callback = []
-
-from app.services.token_tracking_service import token_tracker
 
 litellm.callbacks = [token_tracker]
 

@@ -1475,17 +1475,22 @@ async def stream_new_chat(
                 """
                 try:
                     from litellm import acompletion
+
                     from app.services.llm_router_service import LLMRouterService
                     from app.services.token_tracking_service import _turn_accumulator
 
                     _turn_accumulator.set(None)
 
-                    prompt = TITLE_GENERATION_PROMPT.replace("{user_query}", user_query[:500])
+                    prompt = TITLE_GENERATION_PROMPT.replace(
+                        "{user_query}", user_query[:500]
+                    )
                     messages = [{"role": "user", "content": prompt}]
 
                     if getattr(llm, "model", None) == "auto":
                         router = LLMRouterService.get_router()
-                        response = await router.acompletion(model="auto", messages=messages)
+                        response = await router.acompletion(
+                            model="auto", messages=messages
+                        )
                     else:
                         response = await acompletion(
                             model=llm.model,
@@ -1498,11 +1503,16 @@ async def stream_new_chat(
                     usage = getattr(response, "usage", None)
                     if usage:
                         raw_model = getattr(llm, "model", "") or ""
-                        model_name = raw_model.split("/", 1)[-1] if "/" in raw_model else (raw_model or response.model or "unknown")
+                        model_name = (
+                            raw_model.split("/", 1)[-1]
+                            if "/" in raw_model
+                            else (raw_model or response.model or "unknown")
+                        )
                         usage_info = {
                             "model": model_name,
                             "prompt_tokens": getattr(usage, "prompt_tokens", 0) or 0,
-                            "completion_tokens": getattr(usage, "completion_tokens", 0) or 0,
+                            "completion_tokens": getattr(usage, "completion_tokens", 0)
+                            or 0,
                             "total_tokens": getattr(usage, "total_tokens", 0) or 0,
                         }
 
@@ -1511,7 +1521,9 @@ async def stream_new_chat(
                         return raw_title.strip("\"'"), usage_info
                     return None, usage_info
                 except Exception:
-                    logging.getLogger(__name__).exception("[TitleGen] _generate_title failed")
+                    logging.getLogger(__name__).exception(
+                        "[TitleGen] _generate_title failed"
+                    )
                     return None, None
 
             title_task = asyncio.create_task(_generate_title())
@@ -1575,16 +1587,21 @@ async def stream_new_chat(
             usage_summary = accumulator.per_message_summary()
             _perf_log.info(
                 "[token_usage] interrupted new_chat: calls=%d total=%d summary=%s",
-                len(accumulator.calls), accumulator.grand_total, usage_summary,
+                len(accumulator.calls),
+                accumulator.grand_total,
+                usage_summary,
             )
             if usage_summary:
-                yield streaming_service.format_data("token-usage", {
-                    "usage": usage_summary,
-                    "prompt_tokens": accumulator.total_prompt_tokens,
-                    "completion_tokens": accumulator.total_completion_tokens,
-                    "total_tokens": accumulator.grand_total,
-                    "call_details": accumulator.serialized_calls(),
-                })
+                yield streaming_service.format_data(
+                    "token-usage",
+                    {
+                        "usage": usage_summary,
+                        "prompt_tokens": accumulator.total_prompt_tokens,
+                        "completion_tokens": accumulator.total_completion_tokens,
+                        "total_tokens": accumulator.grand_total,
+                        "call_details": accumulator.serialized_calls(),
+                    },
+                )
 
             yield streaming_service.format_finish_step()
             yield streaming_service.format_finish()
@@ -1612,16 +1629,21 @@ async def stream_new_chat(
         usage_summary = accumulator.per_message_summary()
         _perf_log.info(
             "[token_usage] normal new_chat: calls=%d total=%d summary=%s",
-            len(accumulator.calls), accumulator.grand_total, usage_summary,
+            len(accumulator.calls),
+            accumulator.grand_total,
+            usage_summary,
         )
         if usage_summary:
-            yield streaming_service.format_data("token-usage", {
-                "usage": usage_summary,
-                "prompt_tokens": accumulator.total_prompt_tokens,
-                "completion_tokens": accumulator.total_completion_tokens,
-                "total_tokens": accumulator.grand_total,
-                "call_details": accumulator.serialized_calls(),
-            })
+            yield streaming_service.format_data(
+                "token-usage",
+                {
+                    "usage": usage_summary,
+                    "prompt_tokens": accumulator.total_prompt_tokens,
+                    "completion_tokens": accumulator.total_completion_tokens,
+                    "total_tokens": accumulator.grand_total,
+                    "call_details": accumulator.serialized_calls(),
+                },
+            )
 
         # Fire background memory extraction if the agent didn't handle it.
         # Shared threads write to team memory; private threads write to user memory.
@@ -1870,16 +1892,21 @@ async def stream_resume_chat(
             usage_summary = accumulator.per_message_summary()
             _perf_log.info(
                 "[token_usage] interrupted resume_chat: calls=%d total=%d summary=%s",
-                len(accumulator.calls), accumulator.grand_total, usage_summary,
+                len(accumulator.calls),
+                accumulator.grand_total,
+                usage_summary,
             )
             if usage_summary:
-                yield streaming_service.format_data("token-usage", {
-                    "usage": usage_summary,
-                    "prompt_tokens": accumulator.total_prompt_tokens,
-                    "completion_tokens": accumulator.total_completion_tokens,
-                    "total_tokens": accumulator.grand_total,
-                    "call_details": accumulator.serialized_calls(),
-                })
+                yield streaming_service.format_data(
+                    "token-usage",
+                    {
+                        "usage": usage_summary,
+                        "prompt_tokens": accumulator.total_prompt_tokens,
+                        "completion_tokens": accumulator.total_completion_tokens,
+                        "total_tokens": accumulator.grand_total,
+                        "call_details": accumulator.serialized_calls(),
+                    },
+                )
 
             yield streaming_service.format_finish_step()
             yield streaming_service.format_finish()
@@ -1889,16 +1916,21 @@ async def stream_resume_chat(
         usage_summary = accumulator.per_message_summary()
         _perf_log.info(
             "[token_usage] normal resume_chat: calls=%d total=%d summary=%s",
-            len(accumulator.calls), accumulator.grand_total, usage_summary,
+            len(accumulator.calls),
+            accumulator.grand_total,
+            usage_summary,
         )
         if usage_summary:
-            yield streaming_service.format_data("token-usage", {
-                "usage": usage_summary,
-                "prompt_tokens": accumulator.total_prompt_tokens,
-                "completion_tokens": accumulator.total_completion_tokens,
-                "total_tokens": accumulator.grand_total,
-                "call_details": accumulator.serialized_calls(),
-            })
+            yield streaming_service.format_data(
+                "token-usage",
+                {
+                    "usage": usage_summary,
+                    "prompt_tokens": accumulator.total_prompt_tokens,
+                    "completion_tokens": accumulator.total_completion_tokens,
+                    "total_tokens": accumulator.grand_total,
+                    "call_details": accumulator.serialized_calls(),
+                },
+            )
 
         yield streaming_service.format_finish_step()
         yield streaming_service.format_finish()

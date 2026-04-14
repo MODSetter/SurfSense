@@ -498,7 +498,9 @@ async def get_thread_messages(
                 author_id=msg.author_id,
                 author_display_name=msg.author.display_name if msg.author else None,
                 author_avatar_url=msg.author.avatar_url if msg.author else None,
-                token_usage=TokenUsageSummary.model_validate(msg.token_usage) if msg.token_usage else None,
+                token_usage=TokenUsageSummary.model_validate(msg.token_usage)
+                if msg.token_usage
+                else None,
             )
             for msg in db_messages
         ]
