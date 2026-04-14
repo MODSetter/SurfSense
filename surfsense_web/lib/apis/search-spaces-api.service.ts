@@ -1,3 +1,4 @@
+import { z } from "zod";
 import {
 	type CreateSearchSpaceRequest,
 	createSearchSpaceRequest,
@@ -115,6 +116,17 @@ class SearchSpacesApiService {
 		}
 
 		return baseApiService.delete(`/api/v1/searchspaces/${request.id}`, deleteSearchSpaceResponse);
+	};
+
+	/**
+	 * Trigger AI file sorting for all documents in a search space
+	 */
+	triggerAiSort = async (searchSpaceId: number) => {
+		return baseApiService.post(
+			`/api/v1/searchspaces/${searchSpaceId}/ai-sort`,
+			z.object({ message: z.string() }),
+			{}
+		);
 	};
 
 	/**

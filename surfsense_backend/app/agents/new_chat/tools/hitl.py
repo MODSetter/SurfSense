@@ -58,7 +58,9 @@ def _parse_decision(approval: Any) -> tuple[str, dict[str, Any]]:
         raise ValueError("No approval decision received")
 
     decision = decisions[0]
-    decision_type: str = decision.get("type") or decision.get("decision_type") or "approve"
+    decision_type: str = (
+        decision.get("type") or decision.get("decision_type") or "approve"
+    )
 
     edited_params: dict[str, Any] = {}
     edited_action = decision.get("edited_action")

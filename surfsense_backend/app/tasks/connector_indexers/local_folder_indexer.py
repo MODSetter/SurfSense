@@ -1360,7 +1360,9 @@ async def index_uploaded_files(
 
                 try:
                     content, content_hash = await _compute_file_content_hash(
-                        temp_path, filename, search_space_id,
+                        temp_path,
+                        filename,
+                        search_space_id,
                         vision_llm=vision_llm_instance,
                     )
                 except Exception as e:

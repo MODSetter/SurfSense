@@ -2,9 +2,9 @@ import logging
 from typing import Any
 
 from langchain_core.tools import tool
-from app.agents.new_chat.tools.hitl import request_approval
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.new_chat.tools.hitl import request_approval
 from app.connectors.linear_connector import LinearAPIError, LinearConnector
 from app.services.linear import LinearKBSyncService, LinearToolMetadataService
 
@@ -157,9 +157,13 @@ def create_update_linear_issue_tool(
             final_issue_id = result.params.get("issue_id", issue_id)
             final_document_id = result.params.get("document_id", document_id)
             final_new_title = result.params.get("new_title", new_title)
-            final_new_description = result.params.get("new_description", new_description)
+            final_new_description = result.params.get(
+                "new_description", new_description
+            )
             final_new_state_id = result.params.get("new_state_id", new_state_id)
-            final_new_assignee_id = result.params.get("new_assignee_id", new_assignee_id)
+            final_new_assignee_id = result.params.get(
+                "new_assignee_id", new_assignee_id
+            )
             final_new_priority = result.params.get("new_priority", new_priority)
             final_new_label_ids: list[str] | None = result.params.get(
                 "new_label_ids", new_label_ids

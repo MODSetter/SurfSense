@@ -656,6 +656,7 @@ async def index_onedrive_files(
         vision_llm = None
         if connector_enable_vision_llm:
             from app.services.llm_service import get_vision_llm
+
             vision_llm = await get_vision_llm(session, search_space_id)
 
         onedrive_client = OneDriveClient(session, connector_id)

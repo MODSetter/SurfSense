@@ -150,7 +150,9 @@ def create_update_calendar_event_tool(
             final_new_end_datetime = result.params.get(
                 "new_end_datetime", new_end_datetime
             )
-            final_new_description = result.params.get("new_description", new_description)
+            final_new_description = result.params.get(
+                "new_description", new_description
+            )
             final_new_location = result.params.get("new_location", new_location)
             final_new_attendees = result.params.get("new_attendees", new_attendees)
 

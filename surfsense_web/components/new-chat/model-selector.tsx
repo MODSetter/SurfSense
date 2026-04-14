@@ -1,8 +1,20 @@
 "use client";
 
+import type React from "react";
 import { useAtomValue } from "jotai";
-import { Bot, Check, ChevronDown, Edit3, ImageIcon, Plus, ScanEye, Search, Zap } from "lucide-react";
-import { type UIEvent, useCallback, useMemo, useState } from "react";
+import {
+	Bot,
+	Check,
+	ChevronDown,
+	Edit3,
+	Eye,
+	ImageIcon,
+	Layers,
+	Plus,
+	Search,
+	Zap,
+} from "lucide-react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
 	globalImageGenConfigsAtom,
@@ -22,17 +34,16 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-	Command,
-	CommandEmpty,
-	CommandGroup,
-	CommandInput,
-	CommandItem,
-	CommandList,
-	CommandSeparator,
-} from "@/components/ui/command";
+	Drawer,
+	DrawerContent,
+	DrawerHandle,
+	DrawerHeader,
+	DrawerTitle,
+	DrawerTrigger,
+} from "@/components/ui/drawer";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type {
 	GlobalImageGenConfig,
 	GlobalNewLLMConfig,
@@ -41,16 +52,209 @@ import type {
 	NewLLMConfigPublic,
 	VisionLLMConfig,
 } from "@/contracts/types/new-llm-config.types";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { getProviderIcon } from "@/lib/provider-icons";
 import { cn } from "@/lib/utils";
 
+// ─── Helpers ────────────────────────────────────────────────────────
+
+const PROVIDER_NAMES: Record<string, string> = {
+	OPENAI: "OpenAI",
+	ANTHROPIC: "Anthropic",
+	GOOGLE: "Google",
+	AZURE: "Azure",
+	AZURE_OPENAI: "Azure OpenAI",
+	AWS_BEDROCK: "AWS Bedrock",
+	BEDROCK: "Bedrock",
+	DEEPSEEK: "DeepSeek",
+	MISTRAL: "Mistral",
+	COHERE: "Cohere",
+	GROQ: "Groq",
+	OLLAMA: "Ollama",
+	TOGETHER_AI: "Together AI",
+	FIREWORKS_AI: "Fireworks AI",
+	REPLICATE: "Replicate",
+	HUGGINGFACE: "HuggingFace",
+	PERPLEXITY: "Perplexity",
+	XAI: "xAI",
+	OPENROUTER: "OpenRouter",
+	CEREBRAS: "Cerebras",
+	SAMBANOVA: "SambaNova",
+	VERTEX_AI: "Vertex AI",
+	MINIMAX: "MiniMax",
+	MOONSHOT: "Moonshot",
+	ZHIPU: "Zhipu",
+	DEEPINFRA: "DeepInfra",
+	CLOUDFLARE: "Cloudflare",
+	DATABRICKS: "Databricks",
+	NSCALE: "NScale",
+	RECRAFT: "Recraft",
+	XINFERENCE: "XInference",
+	CUSTOM: "Custom",
+	AI21: "AI21",
+	ALIBABA_QWEN: "Qwen",
+	ANYSCALE: "Anyscale",
+	COMETAPI: "CometAPI",
+};
+
+// Provider keys valid per model type, matching backend enums
+// (LiteLLMProvider, ImageGenProvider, VisionProvider in db.py)
+const LLM_PROVIDER_KEYS: string[] = [
+	"OPENAI",
+	"ANTHROPIC",
+	"GOOGLE",
+	"AZURE_OPENAI",
+	"BEDROCK",
+	"VERTEX_AI",
+	"GROQ",
+	"DEEPSEEK",
+	"XAI",
+	"MISTRAL",
+	"COHERE",
+	"OPENROUTER",
+	"TOGETHER_AI",
+	"FIREWORKS_AI",
+	"REPLICATE",
+	"PERPLEXITY",
+	"OLLAMA",
+	"CEREBRAS",
+	"SAMBANOVA",
+	"DEEPINFRA",
+	"AI21",
+	"ALIBABA_QWEN",
+	"MOONSHOT",
+	"ZHIPU",
+	"MINIMAX",
+	"HUGGINGFACE",
+	"CLOUDFLARE",
+	"DATABRICKS",
+	"ANYSCALE",
+	"COMETAPI",
+	"GITHUB_MODELS",
+	"CUSTOM",
+];
+
+const IMAGE_PROVIDER_KEYS: string[] = [
+	"OPENAI",
+	"AZURE_OPENAI",
+	"GOOGLE",
+	"VERTEX_AI",
+	"BEDROCK",
+	"RECRAFT",
+	"OPENROUTER",
+	"XINFERENCE",
+	"NSCALE",
+];
+
+const VISION_PROVIDER_KEYS: string[] = [
+	"OPENAI",
+	"ANTHROPIC",
+	"GOOGLE",
+	"AZURE_OPENAI",
+	"VERTEX_AI",
+	"BEDROCK",
+	"XAI",
+	"OPENROUTER",
+	"OLLAMA",
+	"GROQ",
+	"TOGETHER_AI",
+	"FIREWORKS_AI",
+	"DEEPSEEK",
+	"MISTRAL",
+	"CUSTOM",
+];
+
+const PROVIDER_KEYS_BY_TAB: Record<string, string[]> = {
+	llm: LLM_PROVIDER_KEYS,
+	image: IMAGE_PROVIDER_KEYS,
+	vision: VISION_PROVIDER_KEYS,
+};
+
+function formatProviderName(provider: string): string {
+	const key = provider.toUpperCase();
+	return (
+		PROVIDER_NAMES[key] ??
+		provider.charAt(0).toUpperCase() +
+			provider.slice(1).toLowerCase().replace(/_/g, " ")
+	);
+}
+
+function normalizeText(input: string): string {
+	return input
+		.normalize("NFD")
+		.replace(/\p{Diacritic}/gu, "")
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, " ")
+		.trim();
+}
+
+interface ConfigBase {
+	id: number;
+	name: string;
+	model_name: string;
+	provider: string;
+}
+
+function filterAndScore<T extends ConfigBase>(
+	configs: T[],
+	selectedProvider: string,
+	searchQuery: string,
+): T[] {
+	let result = configs;
+
+	if (selectedProvider !== "all") {
+		result = result.filter(
+			(c) => c.provider.toUpperCase() === selectedProvider,
+		);
+	}
+
+	if (!searchQuery.trim()) return result;
+
+	const normalized = normalizeText(searchQuery);
+	const tokens = normalized.split(/\s+/).filter(Boolean);
+
+	const scored = result.map((c) => {
+		const aggregate = normalizeText(
+			[c.name, c.model_name, c.provider].join(" "),
+		);
+		let score = 0;
+		if (aggregate.includes(normalized)) score += 5;
+		for (const token of tokens) {
+			if (aggregate.includes(token)) score += 1;
+		}
+		return { config: c, score };
+	});
+
+	return scored
+		.filter((s) => s.score > 0)
+		.sort((a, b) => b.score - a.score)
+		.map((s) => s.config);
+}
+
+interface DisplayItem {
+	config: ConfigBase & Record<string, unknown>;
+	isGlobal: boolean;
+	isAutoMode: boolean;
+}
+
+// ─── Component ──────────────────────────────────────────────────────
+
 interface ModelSelectorProps {
-	onEditLLM: (config: NewLLMConfigPublic | GlobalNewLLMConfig, isGlobal: boolean) => void;
-	onAddNewLLM: () => void;
-	onEditImage?: (config: ImageGenerationConfig | GlobalImageGenConfig, isGlobal: boolean) => void;
-	onAddNewImage?: () => void;
-	onEditVision?: (config: VisionLLMConfig | GlobalVisionLLMConfig, isGlobal: boolean) => void;
-	onAddNewVision?: () => void;
+	onEditLLM: (
+		config: NewLLMConfigPublic | GlobalNewLLMConfig,
+		isGlobal: boolean,
+	) => void;
+	onAddNewLLM: (provider?: string) => void;
+	onEditImage?: (
+		config: ImageGenerationConfig | GlobalImageGenConfig,
+		isGlobal: boolean,
+	) => void;
+	onAddNewImage?: (provider?: string) => void;
+	onEditVision?: (
+		config: VisionLLMConfig | GlobalVisionLLMConfig,
+		isGlobal: boolean,
+	) => void;
+	onAddNewVision?: (provider?: string) => void;
 	className?: string;
 }
 
@@ -64,40 +268,69 @@ export function ModelSelector({
 	className,
 }: ModelSelectorProps) {
 	const [open, setOpen] = useState(false);
-	const [activeTab, setActiveTab] = useState<"llm" | "image" | "vision">("llm");
-	const [llmSearchQuery, setLlmSearchQuery] = useState("");
-	const [imageSearchQuery, setImageSearchQuery] = useState("");
-	const [visionSearchQuery, setVisionSearchQuery] = useState("");
-	const [llmScrollPos, setLlmScrollPos] = useState<"top" | "middle" | "bottom">("top");
-	const [imageScrollPos, setImageScrollPos] = useState<"top" | "middle" | "bottom">("top");
-	const [visionScrollPos, setVisionScrollPos] = useState<"top" | "middle" | "bottom">("top");
-	const handleListScroll = useCallback(
-		(setter: typeof setLlmScrollPos) => (e: UIEvent<HTMLDivElement>) => {
-			const el = e.currentTarget;
-			const atTop = el.scrollTop <= 2;
-			const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
-			setter(atTop ? "top" : atBottom ? "bottom" : "middle");
-		},
-		[]
+	const [activeTab, setActiveTab] = useState<"llm" | "image" | "vision">(
+		"llm",
 	);
+	const [searchQuery, setSearchQuery] = useState("");
+	const [selectedProvider, setSelectedProvider] = useState<string>("all");
+	const [focusedIndex, setFocusedIndex] = useState(-1);
+	const [showScrollIndicator, setShowScrollIndicator] = useState(true);
+	const providerSidebarRef = useRef<HTMLDivElement>(null);
+	const modelListRef = useRef<HTMLDivElement>(null);
+	const searchInputRef = useRef<HTMLInputElement>(null);
+	const isMobile = useIsMobile();
 
-	// LLM data
-	const { data: llmUserConfigs, isLoading: llmUserLoading } = useAtomValue(newLLMConfigsAtom);
+	// Reset search + provider when tab changes
+	useEffect(() => {
+		setSelectedProvider("all");
+		setSearchQuery("");
+		setFocusedIndex(-1);
+	}, [activeTab]);
+
+	// Reset on open
+	useEffect(() => {
+		if (open) {
+			setSearchQuery("");
+			setSelectedProvider("all");
+		}
+	}, [open]);
+
+	// Cmd/Ctrl+M shortcut
+	useEffect(() => {
+		const handler = (e: KeyboardEvent) => {
+			if ((e.metaKey || e.ctrlKey) && e.key === "m") {
+				e.preventDefault();
+				setOpen((prev) => !prev);
+			}
+		};
+		document.addEventListener("keydown", handler);
+		return () => document.removeEventListener("keydown", handler);
+	}, []);
+
+	// Focus search input on open
+	useEffect(() => {
+		if (open && !isMobile) {
+			requestAnimationFrame(() => searchInputRef.current?.focus());
+		}
+	}, [open, isMobile, activeTab]);
+
+	// ─── Data ───
+	const { data: llmUserConfigs, isLoading: llmUserLoading } =
+		useAtomValue(newLLMConfigsAtom);
 	const { data: llmGlobalConfigs, isLoading: llmGlobalLoading } =
 		useAtomValue(globalNewLLMConfigsAtom);
-	const { data: preferences, isLoading: prefsLoading } = useAtomValue(llmPreferencesAtom);
+	const { data: preferences, isLoading: prefsLoading } =
+		useAtomValue(llmPreferencesAtom);
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
-	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
-
-	// Image data
+	const { mutateAsync: updatePreferences } = useAtomValue(
+		updateLLMPreferencesMutationAtom,
+	);
 	const { data: imageGlobalConfigs, isLoading: imageGlobalLoading } =
 		useAtomValue(globalImageGenConfigsAtom);
-	const { data: imageUserConfigs, isLoading: imageUserLoading } = useAtomValue(imageGenConfigsAtom);
-
-	// Vision data
-	const { data: visionGlobalConfigs, isLoading: visionGlobalLoading } = useAtomValue(
-		globalVisionLLMConfigsAtom
-	);
+	const { data: imageUserConfigs, isLoading: imageUserLoading } =
+		useAtomValue(imageGenConfigsAtom);
+	const { data: visionGlobalConfigs, isLoading: visionGlobalLoading } =
+		useAtomValue(globalVisionLLMConfigsAtom);
 	const { data: visionUserConfigs, isLoading: visionUserLoading } =
 		useAtomValue(visionLLMConfigsAtom);
 
@@ -110,133 +343,220 @@ export function ModelSelector({
 		visionGlobalLoading ||
 		visionUserLoading;
 
-	// ─── LLM current config ───
+	// ─── Current selected configs ───
 	const currentLLMConfig = useMemo(() => {
 		if (!preferences) return null;
-		const agentLlmId = preferences.agent_llm_id;
-		if (agentLlmId === null || agentLlmId === undefined) return null;
-		if (agentLlmId <= 0) {
-			return llmGlobalConfigs?.find((c) => c.id === agentLlmId) ?? null;
-		}
-		return llmUserConfigs?.find((c) => c.id === agentLlmId) ?? null;
+		const id = preferences.agent_llm_id;
+		if (id === null || id === undefined) return null;
+		if (id <= 0) return llmGlobalConfigs?.find((c) => c.id === id) ?? null;
+		return llmUserConfigs?.find((c) => c.id === id) ?? null;
 	}, [preferences, llmGlobalConfigs, llmUserConfigs]);
 
 	const isLLMAutoMode =
-		currentLLMConfig && "is_auto_mode" in currentLLMConfig && currentLLMConfig.is_auto_mode;
+		currentLLMConfig &&
+		"is_auto_mode" in currentLLMConfig &&
+		currentLLMConfig.is_auto_mode;
 
-	// ─── Image current config ───
 	const currentImageConfig = useMemo(() => {
 		if (!preferences) return null;
 		const id = preferences.image_generation_config_id;
 		if (id === null || id === undefined) return null;
-		const globalMatch = imageGlobalConfigs?.find((c) => c.id === id);
-		if (globalMatch) return globalMatch;
-		return imageUserConfigs?.find((c) => c.id === id) ?? null;
+		return (
+			imageGlobalConfigs?.find((c) => c.id === id) ??
+			imageUserConfigs?.find((c) => c.id === id) ??
+			null
+		);
 	}, [preferences, imageGlobalConfigs, imageUserConfigs]);
 
 	const isImageAutoMode =
-		currentImageConfig && "is_auto_mode" in currentImageConfig && currentImageConfig.is_auto_mode;
+		currentImageConfig &&
+		"is_auto_mode" in currentImageConfig &&
+		currentImageConfig.is_auto_mode;
 
-	// ─── Vision current config ───
 	const currentVisionConfig = useMemo(() => {
 		if (!preferences) return null;
 		const id = preferences.vision_llm_config_id;
 		if (id === null || id === undefined) return null;
-		const globalMatch = visionGlobalConfigs?.find((c) => c.id === id);
-		if (globalMatch) return globalMatch;
-		return visionUserConfigs?.find((c) => c.id === id) ?? null;
+		return (
+			visionGlobalConfigs?.find((c) => c.id === id) ??
+			visionUserConfigs?.find((c) => c.id === id) ??
+			null
+		);
 	}, [preferences, visionGlobalConfigs, visionUserConfigs]);
 
-	const isVisionAutoMode = useMemo(() => {
-		return (
-			currentVisionConfig &&
-			"is_auto_mode" in currentVisionConfig &&
-			currentVisionConfig.is_auto_mode
+	const isVisionAutoMode =
+		currentVisionConfig &&
+		"is_auto_mode" in currentVisionConfig &&
+		currentVisionConfig.is_auto_mode;
+
+	// ─── Filtered configs (separate global / user for section headers) ───
+	const filteredLLMGlobal = useMemo(
+		() =>
+			filterAndScore(llmGlobalConfigs ?? [], selectedProvider, searchQuery),
+		[llmGlobalConfigs, selectedProvider, searchQuery],
+	);
+	const filteredLLMUser = useMemo(
+		() =>
+			filterAndScore(llmUserConfigs ?? [], selectedProvider, searchQuery),
+		[llmUserConfigs, selectedProvider, searchQuery],
+	);
+	const filteredImageGlobal = useMemo(
+		() =>
+			filterAndScore(
+				imageGlobalConfigs ?? [],
+				selectedProvider,
+				searchQuery,
+			),
+		[imageGlobalConfigs, selectedProvider, searchQuery],
+	);
+	const filteredImageUser = useMemo(
+		() =>
+			filterAndScore(
+				imageUserConfigs ?? [],
+				selectedProvider,
+				searchQuery,
+			),
+		[imageUserConfigs, selectedProvider, searchQuery],
+	);
+	const filteredVisionGlobal = useMemo(
+		() =>
+			filterAndScore(
+				visionGlobalConfigs ?? [],
+				selectedProvider,
+				searchQuery,
+			),
+		[visionGlobalConfigs, selectedProvider, searchQuery],
+	);
+	const filteredVisionUser = useMemo(
+		() =>
+			filterAndScore(
+				visionUserConfigs ?? [],
+				selectedProvider,
+				searchQuery,
+			),
+		[visionUserConfigs, selectedProvider, searchQuery],
+	);
+
+	// Combined display list for keyboard navigation
+	const currentDisplayItems: DisplayItem[] = useMemo(() => {
+		const toItems = (
+			configs: ConfigBase[],
+			isGlobal: boolean,
+		): DisplayItem[] =>
+			configs.map((c) => ({
+				config: c as ConfigBase & Record<string, unknown>,
+				isGlobal,
+				isAutoMode:
+					isGlobal &&
+					"is_auto_mode" in c &&
+					!!(c as Record<string, unknown>).is_auto_mode,
+			}));
+
+		switch (activeTab) {
+			case "llm":
+				return [
+					...toItems(filteredLLMGlobal, true),
+					...toItems(filteredLLMUser, false),
+				];
+			case "image":
+				return [
+					...toItems(filteredImageGlobal, true),
+					...toItems(filteredImageUser, false),
+				];
+			case "vision":
+				return [
+					...toItems(filteredVisionGlobal, true),
+					...toItems(filteredVisionUser, false),
+				];
+		}
+	}, [
+		activeTab,
+		filteredLLMGlobal,
+		filteredLLMUser,
+		filteredImageGlobal,
+		filteredImageUser,
+		filteredVisionGlobal,
+		filteredVisionUser,
+	]);
+
+	// ─── Provider sidebar data ───
+	// Collect which providers actually have configured models for the active tab
+	const configuredProviderSet = useMemo(() => {
+		const configs =
+			activeTab === "llm"
+				? [
+						...(llmGlobalConfigs ?? []),
+						...(llmUserConfigs ?? []),
+					]
+				: activeTab === "image"
+					? [
+							...(imageGlobalConfigs ?? []),
+							...(imageUserConfigs ?? []),
+						]
+					: [
+							...(visionGlobalConfigs ?? []),
+							...(visionUserConfigs ?? []),
+						];
+		const set = new Set<string>();
+		for (const c of configs) {
+			if (c.provider) set.add(c.provider.toUpperCase());
+		}
+		return set;
+	}, [
+		activeTab,
+		llmGlobalConfigs,
+		llmUserConfigs,
+		imageGlobalConfigs,
+		imageUserConfigs,
+		visionGlobalConfigs,
+		visionUserConfigs,
+	]);
+
+	// Show only providers valid for the active tab; configured ones first
+	const activeProviders = useMemo(() => {
+		const tabKeys = PROVIDER_KEYS_BY_TAB[activeTab] ?? LLM_PROVIDER_KEYS;
+		const configured = tabKeys.filter((p) =>
+			configuredProviderSet.has(p),
 		);
-	}, [currentVisionConfig]);
-
-	// ─── LLM filtering ───
-	const filteredLLMGlobal = useMemo(() => {
-		if (!llmGlobalConfigs) return [];
-		if (!llmSearchQuery) return llmGlobalConfigs;
-		const q = llmSearchQuery.toLowerCase();
-		return llmGlobalConfigs.filter(
-			(c) =>
-				c.name.toLowerCase().includes(q) ||
-				c.model_name.toLowerCase().includes(q) ||
-				c.provider.toLowerCase().includes(q)
+		const unconfigured = tabKeys.filter(
+			(p) => !configuredProviderSet.has(p),
 		);
-	}, [llmGlobalConfigs, llmSearchQuery]);
+		return ["all", ...configured, ...unconfigured];
+	}, [activeTab, configuredProviderSet]);
 
-	const filteredLLMUser = useMemo(() => {
-		if (!llmUserConfigs) return [];
-		if (!llmSearchQuery) return llmUserConfigs;
-		const q = llmSearchQuery.toLowerCase();
-		return llmUserConfigs.filter(
-			(c) =>
-				c.name.toLowerCase().includes(q) ||
-				c.model_name.toLowerCase().includes(q) ||
-				c.provider.toLowerCase().includes(q)
-		);
-	}, [llmUserConfigs, llmSearchQuery]);
+	const providerModelCounts = useMemo(() => {
+		const allConfigs =
+			activeTab === "llm"
+				? [
+						...(llmGlobalConfigs ?? []),
+						...(llmUserConfigs ?? []),
+					]
+				: activeTab === "image"
+					? [
+							...(imageGlobalConfigs ?? []),
+							...(imageUserConfigs ?? []),
+						]
+					: [
+							...(visionGlobalConfigs ?? []),
+							...(visionUserConfigs ?? []),
+						];
+		const counts: Record<string, number> = { all: allConfigs.length };
+		for (const c of allConfigs) {
+			const p = c.provider.toUpperCase();
+			counts[p] = (counts[p] || 0) + 1;
+		}
+		return counts;
+	}, [
+		activeTab,
+		llmGlobalConfigs,
+		llmUserConfigs,
+		imageGlobalConfigs,
+		imageUserConfigs,
+		visionGlobalConfigs,
+		visionUserConfigs,
+	]);
 
-	const totalLLMModels = (llmGlobalConfigs?.length ?? 0) + (llmUserConfigs?.length ?? 0);
-
-	// ─── Image filtering ───
-	const filteredImageGlobal = useMemo(() => {
-		if (!imageGlobalConfigs) return [];
-		if (!imageSearchQuery) return imageGlobalConfigs;
-		const q = imageSearchQuery.toLowerCase();
-		return imageGlobalConfigs.filter(
-			(c) =>
-				c.name.toLowerCase().includes(q) ||
-				c.model_name.toLowerCase().includes(q) ||
-				c.provider.toLowerCase().includes(q)
-		);
-	}, [imageGlobalConfigs, imageSearchQuery]);
-
-	const filteredImageUser = useMemo(() => {
-		if (!imageUserConfigs) return [];
-		if (!imageSearchQuery) return imageUserConfigs;
-		const q = imageSearchQuery.toLowerCase();
-		return imageUserConfigs.filter(
-			(c) =>
-				c.name.toLowerCase().includes(q) ||
-				c.model_name.toLowerCase().includes(q) ||
-				c.provider.toLowerCase().includes(q)
-		);
-	}, [imageUserConfigs, imageSearchQuery]);
-
-	const totalImageModels = (imageGlobalConfigs?.length ?? 0) + (imageUserConfigs?.length ?? 0);
-
-	// ─── Vision filtering ───
-	const filteredVisionGlobal = useMemo(() => {
-		if (!visionGlobalConfigs) return [];
-		if (!visionSearchQuery) return visionGlobalConfigs;
-		const q = visionSearchQuery.toLowerCase();
-		return visionGlobalConfigs.filter(
-			(c) =>
-				c.name.toLowerCase().includes(q) ||
-				c.model_name.toLowerCase().includes(q) ||
-				c.provider.toLowerCase().includes(q)
-		);
-	}, [visionGlobalConfigs, visionSearchQuery]);
-
-	const filteredVisionUser = useMemo(() => {
-		if (!visionUserConfigs) return [];
-		if (!visionSearchQuery) return visionUserConfigs;
-		const q = visionSearchQuery.toLowerCase();
-		return visionUserConfigs.filter(
-			(c) =>
-				c.name.toLowerCase().includes(q) ||
-				c.model_name.toLowerCase().includes(q) ||
-				c.provider.toLowerCase().includes(q)
-		);
-	}, [visionUserConfigs, visionSearchQuery]);
-
-	const totalVisionModels = (visionGlobalConfigs?.length ?? 0) + (visionUserConfigs?.length ?? 0);
-
-	// ─── Handlers ───
+	// ─── Selection handlers ───
 	const handleSelectLLM = useCallback(
 		async (config: NewLLMConfigPublic | GlobalNewLLMConfig) => {
 			if (currentLLMConfig?.id === config.id) {
@@ -254,21 +574,11 @@ export function ModelSelector({
 				});
 				toast.success(`Switched to ${config.name}`);
 				setOpen(false);
-			} catch (error) {
-				console.error("Failed to switch model:", error);
+			} catch {
 				toast.error("Failed to switch model");
 			}
 		},
-		[currentLLMConfig, searchSpaceId, updatePreferences]
-	);
-
-	const handleEditLLMConfig = useCallback(
-		(e: React.MouseEvent, config: NewLLMConfigPublic | GlobalNewLLMConfig, isGlobal: boolean) => {
-			e.stopPropagation();
-			onEditLLM(config, isGlobal);
-			setOpen(false);
-		},
-		[onEditLLM]
+		[currentLLMConfig, searchSpaceId, updatePreferences],
 	);
 
 	const handleSelectImage = useCallback(
@@ -292,7 +602,7 @@ export function ModelSelector({
 				toast.error("Failed to switch image model");
 			}
 		},
-		[currentImageConfig, searchSpaceId, updatePreferences]
+		[currentImageConfig, searchSpaceId, updatePreferences],
 	);
 
 	const handleSelectVision = useCallback(
@@ -316,667 +626,687 @@ export function ModelSelector({
 				toast.error("Failed to switch vision model");
 			}
 		},
-		[currentVisionConfig, searchSpaceId, updatePreferences]
+		[currentVisionConfig, searchSpaceId, updatePreferences],
 	);
 
-	return (
-		<Popover open={open} onOpenChange={setOpen}>
-			<PopoverTrigger asChild>
-				<Button
-					variant="ghost"
-					size="sm"
-					role="combobox"
-					aria-expanded={open}
+	const handleSelectItem = useCallback(
+		(item: DisplayItem) => {
+			switch (activeTab) {
+				case "llm":
+					handleSelectLLM(
+						item.config as NewLLMConfigPublic | GlobalNewLLMConfig,
+					);
+					break;
+				case "image":
+					handleSelectImage(item.config.id);
+					break;
+				case "vision":
+					handleSelectVision(item.config.id);
+					break;
+			}
+		},
+		[activeTab, handleSelectLLM, handleSelectImage, handleSelectVision],
+	);
+
+	const handleEditItem = useCallback(
+		(e: React.MouseEvent, item: DisplayItem) => {
+			e.stopPropagation();
+			setOpen(false);
+			switch (activeTab) {
+				case "llm":
+					onEditLLM(
+						item.config as NewLLMConfigPublic | GlobalNewLLMConfig,
+						item.isGlobal,
+					);
+					break;
+				case "image":
+					onEditImage?.(
+						item.config as ImageGenerationConfig | GlobalImageGenConfig,
+						item.isGlobal,
+					);
+					break;
+				case "vision":
+					onEditVision?.(
+						item.config as VisionLLMConfig | GlobalVisionLLMConfig,
+						item.isGlobal,
+					);
+					break;
+			}
+		},
+		[activeTab, onEditLLM, onEditImage, onEditVision],
+	);
+
+	// ─── Keyboard navigation ───
+	useEffect(() => {
+		setFocusedIndex(-1);
+	}, [searchQuery, selectedProvider]);
+
+	useEffect(() => {
+		if (focusedIndex < 0 || !modelListRef.current) return;
+		const items =
+			modelListRef.current.querySelectorAll("[data-model-index]");
+		items[focusedIndex]?.scrollIntoView({
+			block: "nearest",
+			behavior: "smooth",
+		});
+	}, [focusedIndex]);
+
+	const handleKeyDown = useCallback(
+		(e: React.KeyboardEvent<HTMLInputElement>) => {
+			const count = currentDisplayItems.length;
+
+			// Arrow Left/Right cycle provider filters
+			if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+				e.preventDefault();
+				const providers = activeProviders;
+				const idx = providers.indexOf(selectedProvider);
+				let next: number;
+				if (e.key === "ArrowLeft") {
+					next = idx > 0 ? idx - 1 : providers.length - 1;
+				} else {
+					next =
+						idx < providers.length - 1 ? idx + 1 : 0;
+				}
+				setSelectedProvider(providers[next]);
+				if (providerSidebarRef.current) {
+					const buttons =
+						providerSidebarRef.current.querySelectorAll("button");
+					buttons[next]?.scrollIntoView({
+						block: "nearest",
+						inline: "nearest",
+						behavior: "smooth",
+					});
+				}
+				return;
+			}
+
+			if (count === 0) return;
+
+			switch (e.key) {
+				case "ArrowDown":
+					e.preventDefault();
+					setFocusedIndex((prev) =>
+						prev < count - 1 ? prev + 1 : 0,
+					);
+					break;
+				case "ArrowUp":
+					e.preventDefault();
+					setFocusedIndex((prev) =>
+						prev > 0 ? prev - 1 : count - 1,
+					);
+					break;
+				case "Enter":
+					e.preventDefault();
+					if (focusedIndex >= 0 && focusedIndex < count) {
+						handleSelectItem(currentDisplayItems[focusedIndex]);
+					}
+					break;
+				case "Home":
+					e.preventDefault();
+					setFocusedIndex(0);
+					break;
+				case "End":
+					e.preventDefault();
+					setFocusedIndex(count - 1);
+					break;
+			}
+		},
+		[
+			currentDisplayItems,
+			focusedIndex,
+			activeProviders,
+			selectedProvider,
+			handleSelectItem,
+		],
+	);
+
+	// ─── Render: Provider sidebar ───
+	const renderProviderSidebar = () => {
+		const configuredCount = configuredProviderSet.size;
+
+		return (
+			<div
+				className={cn(
+					"shrink-0 border-border/50 relative flex flex-col",
+					!isMobile && "w-10 border-r",
+				)}
+			>
+				<div
+					ref={providerSidebarRef}
+					onScroll={(e) => {
+						const t = e.currentTarget;
+						setShowScrollIndicator(
+							t.scrollHeight - t.scrollTop >
+								t.clientHeight + 10,
+						);
+					}}
 					className={cn(
-						"h-8 gap-2 px-3 text-sm bg-main-panel hover:bg-accent/50 dark:hover:bg-white/[0.06] border border-border/40 select-none",
-						className
+						isMobile
+							? "flex flex-row gap-0.5 px-2 py-1.5 overflow-x-auto border-b border-border/40"
+							: "flex flex-col gap-0.5 p-1 overflow-y-auto flex-1 [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent",
 					)}
 				>
-					{isLoading ? (
+					{activeProviders.map((provider, idx) => {
+						const isAll = provider === "all";
+						const isActive = selectedProvider === provider;
+						const count = providerModelCounts[provider] || 0;
+						const isConfigured =
+							isAll || configuredProviderSet.has(provider);
+
+						// Separator between configured and unconfigured providers
+						// idx 0 is "all", configured run from 1..configuredCount, unconfigured start at configuredCount+1
+						const showSeparator =
+							!isAll &&
+							idx === configuredCount + 1 &&
+							configuredCount > 0;
+
+						return (
+							<Fragment key={provider}>
+								{showSeparator &&
+									(isMobile ? (
+										<div className="w-px h-5 bg-border/60 shrink-0 self-center mx-0.5" />
+									) : (
+										<div className="h-px w-5 bg-border/60 mx-auto my-0.5" />
+									))}
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<button
+											type="button"
+											onClick={() =>
+												setSelectedProvider(provider)
+											}
+											tabIndex={-1}
+											className={cn(
+												"relative flex items-center justify-center rounded-md transition-all duration-150",
+												isMobile
+													? "p-2 shrink-0"
+													: "p-1.5 w-full",
+												isActive
+													? "bg-primary/10 text-primary"
+													: isConfigured
+														? "hover:bg-accent/60 text-muted-foreground hover:text-foreground"
+														: "opacity-50 hover:opacity-80 hover:bg-accent/40 text-muted-foreground",
+											)}
+										>
+											{isAll ? (
+												<Layers className="size-4" />
+											) : (
+												getProviderIcon(provider, {
+													className: "size-4",
+												})
+											)}
+										</button>
+									</TooltipTrigger>
+									<TooltipContent
+										side={
+											isMobile ? "bottom" : "right"
+										}
+									>
+										{isAll
+											? "All Models"
+											: formatProviderName(
+													provider,
+												)}
+										{isConfigured
+											? ` (${count})`
+											: " — not configured"}
+									</TooltipContent>
+								</Tooltip>
+							</Fragment>
+						);
+					})}
+				</div>
+				{!isMobile && showScrollIndicator && (
+					<div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-background to-transparent pointer-events-none flex items-end justify-center pb-0.5">
+						<ChevronDown className="size-3 text-muted-foreground" />
+					</div>
+				)}
+			</div>
+		);
+	};
+
+	// ─── Render: Model card ───
+	const getSelectedId = () => {
+		switch (activeTab) {
+			case "llm":
+				return currentLLMConfig?.id;
+			case "image":
+				return currentImageConfig?.id;
+			case "vision":
+				return currentVisionConfig?.id;
+		}
+	};
+
+	const renderModelCard = (item: DisplayItem, index: number) => {
+		const { config, isAutoMode } = item;
+		const isSelected = getSelectedId() === config.id;
+		const isFocused = focusedIndex === index;
+		const hasCitations =
+			"citations_enabled" in config && !!config.citations_enabled;
+
+		return (
+			<div
+				key={`${activeTab}-${item.isGlobal ? "g" : "u"}-${config.id}`}
+				data-model-index={index}
+				role="option"
+				aria-selected={isSelected}
+				onClick={() => handleSelectItem(item)}
+				onMouseEnter={() => setFocusedIndex(index)}
+				className={cn(
+					"group flex items-start gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer",
+					"transition-all duration-150 mx-1",
+					"hover:bg-accent/40 active:scale-[0.99]",
+					isSelected && "bg-primary/6 dark:bg-primary/8",
+					isFocused && "bg-accent/50 ring-1 ring-primary/20",
+				)}
+			>
+				{/* Provider icon */}
+				<div className="shrink-0 mt-0.5">
+					{getProviderIcon(config.provider as string, {
+						isAutoMode,
+						className: "size-5",
+					})}
+				</div>
+
+				{/* Model info */}
+				<div className="flex-1 min-w-0">
+					<div className="flex items-center gap-1.5">
+						<span className="font-medium text-sm truncate">
+							{config.name}
+						</span>
+						{isAutoMode && (
+							<Badge
+								variant="secondary"
+								className="text-[9px] px-1 py-0 h-3.5 bg-violet-800 text-white dark:bg-violet-800 dark:text-white border-0"
+							>
+								Recommended
+							</Badge>
+						)}
+					</div>
+					<div className="flex items-center gap-1.5 mt-0.5">
+						<span className="text-xs text-muted-foreground truncate">
+							{isAutoMode
+								? "Auto Mode"
+								: (config.model_name as string)}
+						</span>
+						{!isAutoMode && hasCitations && (
+							<Badge
+								variant="outline"
+								className="text-[9px] px-1 py-0 h-3.5 bg-primary/10 text-primary border-primary/20"
+							>
+								Citations
+							</Badge>
+						)}
+					</div>
+				</div>
+
+				{/* Actions */}
+				<div className="flex items-center gap-1 shrink-0">
+					{!isAutoMode && (
+						<Button
+							variant="ghost"
+							size="icon"
+							className="size-7 rounded-md hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
+							onClick={(e) => handleEditItem(e, item)}
+						>
+							<Edit3 className="size-3.5 text-muted-foreground" />
+						</Button>
+					)}
+					{isSelected && (
+						<Check className="size-4 text-primary shrink-0" />
+					)}
+				</div>
+			</div>
+		);
+	};
+
+	// ─── Render: Full content ───
+	const renderContent = () => {
+		const globalItems = currentDisplayItems.filter((i) => i.isGlobal);
+		const userItems = currentDisplayItems.filter((i) => !i.isGlobal);
+		const globalStartIdx = 0;
+		const userStartIdx = globalItems.length;
+
+		const addHandler =
+			activeTab === "llm"
+				? onAddNewLLM
+				: activeTab === "image"
+					? onAddNewImage
+					: onAddNewVision;
+		const addLabel =
+			activeTab === "llm"
+				? "Add Model"
+				: activeTab === "image"
+					? "Add Image Model"
+					: "Add Vision Model";
+
+		return (
+			<div className="flex flex-col w-full">
+				{/* Tab header */}
+				<div className="border-b border-border/80 dark:border-neutral-800">
+					<div className="w-full grid grid-cols-3 h-11">
+						{(
+							[
+								{
+									value: "llm" as const,
+									icon: Zap,
+									label: "LLM",
+								},
+								{
+									value: "image" as const,
+									icon: ImageIcon,
+									label: "Image",
+								},
+								{
+									value: "vision" as const,
+									icon: Eye,
+									label: "Vision",
+								},
+							] as const
+						).map(({ value, icon: Icon, label }) => (
+							<button
+								key={value}
+								type="button"
+								onClick={() => setActiveTab(value)}
+								className={cn(
+									"flex items-center justify-center gap-1.5 text-sm font-medium transition-all duration-200 border-b-[1.5px]",
+									activeTab === value
+										? "border-foreground dark:border-white text-foreground"
+										: "border-transparent text-muted-foreground hover:text-foreground/70",
+								)}
+							>
+								<Icon className="size-3.5" />
+								{label}
+							</button>
+						))}
+					</div>
+				</div>
+
+				{/* Two-pane layout */}
+				<div
+					className={cn(
+						"flex",
+						isMobile
+							? "flex-col h-[60vh]"
+							: "flex-row h-[420px]",
+					)}
+				>
+					{/* Provider sidebar */}
+					{renderProviderSidebar()}
+
+					{/* Main content */}
+					<div className="flex flex-col min-w-0 min-h-0 flex-1 overflow-hidden">
+						{/* Search */}
+						<div className="relative px-3 py-2">
+							<Search className="absolute left-5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/50 pointer-events-none" />
+							<input
+								ref={searchInputRef}
+								placeholder="Search models..."
+								value={searchQuery}
+								onChange={(e) =>
+									setSearchQuery(e.target.value)
+								}
+								onKeyDown={handleKeyDown}
+								autoFocus={!isMobile}
+								role="combobox"
+								aria-expanded={true}
+								aria-controls="model-selector-list"
+								className={cn(
+									"w-full pl-8 pr-3 py-1.5 text-xs rounded-lg",
+									"bg-secondary/30 border border-border/40",
+									"focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40",
+									"placeholder:text-muted-foreground/50",
+									"transition-[box-shadow,border-color] duration-200",
+								)}
+							/>
+						</div>
+
+						{/* Provider header when filtered */}
+						{selectedProvider !== "all" && (
+							<div className="flex items-center gap-2 px-3 py-1.5 border-b border-border/40">
+								{getProviderIcon(selectedProvider, {
+									className: "size-4",
+								})}
+								<span className="text-sm font-medium">
+									{formatProviderName(selectedProvider)}
+								</span>
+								<span className="text-xs text-muted-foreground ml-auto">
+									{configuredProviderSet.has(
+										selectedProvider,
+									)
+										? `${providerModelCounts[selectedProvider] || 0} models`
+										: "Not configured"}
+								</span>
+							</div>
+						)}
+
+						{/* Model list */}
+						<div
+							id="model-selector-list"
+							ref={modelListRef}
+							role="listbox"
+							className="overflow-y-auto flex-1 py-1"
+						>
+							{currentDisplayItems.length === 0 ? (
+								<div className="py-8 flex flex-col items-center gap-3 px-4">
+									{selectedProvider !== "all" &&
+									!configuredProviderSet.has(
+										selectedProvider,
+									) ? (
+										<>
+											<div className="opacity-40">
+												{getProviderIcon(
+													selectedProvider,
+													{
+														className:
+															"size-10",
+													},
+												)}
+											</div>
+											<p className="text-sm font-medium text-muted-foreground">
+												No{" "}
+												{formatProviderName(
+													selectedProvider,
+												)}{" "}
+												models configured
+											</p>
+											<p className="text-xs text-muted-foreground/60 text-center">
+												Add a model with this
+												provider to get started
+											</p>
+											{addHandler && (
+												<Button
+													variant="outline"
+													size="sm"
+													className="mt-1 gap-2"
+													onClick={() => {
+														setOpen(false);
+														addHandler(selectedProvider !== "all" ? selectedProvider : undefined);
+													}}
+												>
+													<Plus className="size-3.5" />
+													{addLabel}
+												</Button>
+											)}
+										</>
+									) : (
+										<>
+											<Search className="size-8 text-muted-foreground/40" />
+											<p className="text-sm text-muted-foreground">
+												No models found
+											</p>
+											<p className="text-xs text-muted-foreground/60">
+												Try a different search
+												term
+											</p>
+										</>
+									)}
+								</div>
+							) : (
+								<>
+									{globalItems.length > 0 && (
+										<>
+											<div className="flex items-center gap-2 px-3 py-1.5 text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-wider">
+												Global Models
+											</div>
+											{globalItems.map((item, i) =>
+												renderModelCard(
+													item,
+													globalStartIdx + i,
+												),
+											)}
+										</>
+									)}
+									{globalItems.length > 0 &&
+										userItems.length > 0 && (
+											<div className="my-1.5 mx-4 h-px bg-border/60" />
+										)}
+									{userItems.length > 0 && (
+										<>
+											<div className="flex items-center gap-2 px-3 py-1.5 text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-wider">
+												Your Configurations
+											</div>
+											{userItems.map((item, i) =>
+												renderModelCard(
+													item,
+													userStartIdx + i,
+												),
+											)}
+										</>
+									)}
+								</>
+							)}
+						</div>
+
+						{/* Add model button */}
+						{addHandler && (
+							<div className="p-2 border-t border-border/40 bg-muted/20 dark:bg-neutral-900">
+								<Button
+									variant="ghost"
+									size="sm"
+									className="w-full justify-start gap-2 h-9 rounded-lg hover:bg-accent/50 dark:hover:bg-white/[0.06]"
+									onClick={() => {
+										setOpen(false);
+										addHandler(selectedProvider !== "all" ? selectedProvider : undefined);
+									}}
+								>
+									<Plus className="size-4 text-primary" />
+									<span className="text-sm font-medium">
+										{addLabel}
+									</span>
+								</Button>
+							</div>
+						)}
+					</div>
+				</div>
+			</div>
+		);
+	};
+
+	// ─── Trigger button ───
+	const triggerButton = (
+		<Button
+			variant="ghost"
+			size="sm"
+			role="combobox"
+			aria-expanded={open}
+			className={cn(
+				"h-8 gap-2 px-3 text-sm bg-main-panel hover:bg-accent/50 dark:hover:bg-white/[0.06] border border-border/40 select-none",
+				className,
+			)}
+		>
+			{isLoading ? (
+				<>
+					<Spinner
+						size="sm"
+						className="text-muted-foreground"
+					/>
+					<span className="text-muted-foreground hidden md:inline">
+						Loading
+					</span>
+				</>
+			) : (
+				<>
+					{/* LLM */}
+					{currentLLMConfig ? (
 						<>
-							<Spinner size="sm" className="text-muted-foreground" />
-							<span className="text-muted-foreground hidden md:inline">Loading</span>
+							{getProviderIcon(currentLLMConfig.provider, {
+								isAutoMode: isLLMAutoMode ?? false,
+							})}
+							<span className="max-w-[100px] md:max-w-[120px] truncate hidden md:inline">
+								{currentLLMConfig.name}
+							</span>
 						</>
 					) : (
 						<>
-							{/* LLM section */}
-							{currentLLMConfig ? (
-								<>
-									{getProviderIcon(currentLLMConfig.provider, {
-										isAutoMode: isLLMAutoMode ?? false,
-									})}
-									<span className="max-w-[100px] md:max-w-[120px] truncate hidden md:inline">
-										{currentLLMConfig.name}
-									</span>
-								</>
-							) : (
-								<>
-									<Bot className="size-4 text-muted-foreground" />
-									<span className="text-muted-foreground hidden md:inline">Select Model</span>
-								</>
-							)}
-
-							{/* Divider */}
-							<div className="h-4 w-px bg-border/60 dark:bg-white/10 mx-0.5" />
-
-							{/* Image section */}
-							{currentImageConfig ? (
-								<>
-									{getProviderIcon(currentImageConfig.provider, {
-										isAutoMode: isImageAutoMode ?? false,
-									})}
-									<span className="max-w-[80px] md:max-w-[100px] truncate hidden md:inline">
-										{currentImageConfig.name}
-									</span>
-								</>
-							) : (
-								<ImageIcon className="size-4 text-muted-foreground" />
-							)}
-
-							{/* Divider */}
-							<div className="h-4 w-px bg-border/60 dark:bg-white/10 mx-0.5" />
-
-							{/* Vision section */}
-							{currentVisionConfig ? (
-								<>
-									{getProviderIcon(currentVisionConfig.provider, {
-										isAutoMode: isVisionAutoMode ?? false,
-									})}
-									<span className="max-w-[80px] md:max-w-[100px] truncate hidden md:inline">
-										{currentVisionConfig.name}
-									</span>
-								</>
-							) : (
-								<ScanEye className="size-4 text-muted-foreground" />
-							)}
+							<Bot className="size-4 text-muted-foreground" />
+							<span className="text-muted-foreground hidden md:inline">
+								Select Model
+							</span>
 						</>
 					)}
-					<ChevronDown className="h-3.5 w-3.5 text-muted-foreground ml-1 shrink-0" />
-				</Button>
-			</PopoverTrigger>
+					<div className="h-4 w-px bg-border/60 dark:bg-white/10 mx-0.5" />
+					{/* Image */}
+					{currentImageConfig ? (
+						<>
+							{getProviderIcon(currentImageConfig.provider, {
+								isAutoMode: isImageAutoMode ?? false,
+							})}
+							<span className="max-w-[80px] md:max-w-[100px] truncate hidden md:inline">
+								{currentImageConfig.name}
+							</span>
+						</>
+					) : (
+						<ImageIcon className="size-4 text-muted-foreground" />
+					)}
+					<div className="h-4 w-px bg-border/60 dark:bg-white/10 mx-0.5" />
+					{/* Vision */}
+					{currentVisionConfig ? (
+						<>
+							{getProviderIcon(currentVisionConfig.provider, {
+								isAutoMode: isVisionAutoMode ?? false,
+							})}
+							<span className="max-w-[80px] md:max-w-[100px] truncate hidden md:inline">
+								{currentVisionConfig.name}
+							</span>
+						</>
+					) : (
+						<Eye className="size-4 text-muted-foreground" />
+					)}
+				</>
+			)}
+			<ChevronDown className="h-3.5 w-3.5 text-muted-foreground ml-1 shrink-0" />
+		</Button>
+	);
 
+	// ─── Shell: Drawer on mobile, Popover on desktop ───
+	if (isMobile) {
+		return (
+			<Drawer open={open} onOpenChange={setOpen}>
+				<DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
+				<DrawerContent className="max-h-[85vh]">
+					<DrawerHandle />
+					<DrawerHeader className="pb-0">
+						<DrawerTitle>Select Model</DrawerTitle>
+					</DrawerHeader>
+					<div className="flex-1 overflow-hidden">
+						{renderContent()}
+					</div>
+				</DrawerContent>
+			</Drawer>
+		);
+	}
+
+	return (
+		<Popover open={open} onOpenChange={setOpen}>
+			<PopoverTrigger asChild>{triggerButton}</PopoverTrigger>
 			<PopoverContent
-				className="w-[280px] md:w-[360px] p-0 rounded-lg shadow-lg bg-white border-border/60 dark:bg-neutral-900 dark:border dark:border-white/5 select-none"
+				className="w-[340px] md:w-[440px] p-0 rounded-lg shadow-lg bg-white border-border/60 dark:bg-neutral-900 dark:border dark:border-white/5 select-none"
 				align="start"
 				sideOffset={8}
+				onCloseAutoFocus={(e) => e.preventDefault()}
 			>
-				<Tabs
-					value={activeTab}
-					onValueChange={(v) => setActiveTab(v as "llm" | "image" | "vision")}
-					className="w-full"
-				>
-					<div className="border-b border-border/80 dark:border-neutral-800">
-						<TabsList className="w-full grid grid-cols-3 rounded-none rounded-t-lg bg-transparent h-11 p-0 gap-0">
-							<TabsTrigger
-								value="llm"
-								className="gap-1.5 text-sm font-medium rounded-none text-muted-foreground transition-all duration-200 h-full bg-transparent data-[state=active]:bg-transparent shadow-none data-[state=active]:shadow-none border-b-[1.5px] border-transparent data-[state=active]:border-foreground dark:data-[state=active]:border-white data-[state=active]:text-foreground"
-							>
-								<Zap className="size-3.5" />
-								LLM
-							</TabsTrigger>
-							<TabsTrigger
-								value="image"
-								className="gap-1.5 text-sm font-medium rounded-none text-muted-foreground transition-all duration-200 h-full bg-transparent data-[state=active]:bg-transparent shadow-none data-[state=active]:shadow-none border-b-[1.5px] border-transparent data-[state=active]:border-foreground dark:data-[state=active]:border-white data-[state=active]:text-foreground"
-							>
-								<ImageIcon className="size-3.5" />
-								Image
-							</TabsTrigger>
-							<TabsTrigger
-								value="vision"
-								className="gap-1.5 text-sm font-medium rounded-none text-muted-foreground transition-all duration-200 h-full bg-transparent data-[state=active]:bg-transparent shadow-none data-[state=active]:shadow-none border-b-[1.5px] border-transparent data-[state=active]:border-foreground dark:data-[state=active]:border-white data-[state=active]:text-foreground"
-							>
-								<ScanEye className="size-3.5" />
-								Vision
-							</TabsTrigger>
-						</TabsList>
-					</div>
-
-					{/* ─── LLM Tab ─── */}
-					<TabsContent value="llm" className="mt-0">
-						<Command
-							shouldFilter={false}
-							className="rounded-none rounded-b-lg relative dark:bg-neutral-900 [&_[data-slot=command-input-wrapper]]:border-0 [&_[data-slot=command-input-wrapper]]:px-0 [&_[data-slot=command-input-wrapper]]:gap-2"
-						>
-							{totalLLMModels > 3 && (
-								<div className="px-2 md:px-3 py-1.5 md:py-2">
-									<CommandInput
-										placeholder="Search models"
-										value={llmSearchQuery}
-										onValueChange={setLlmSearchQuery}
-										className="h-7 md:h-8 w-full text-xs md:text-sm border-0 bg-transparent focus:ring-0 placeholder:text-muted-foreground/60"
-									/>
-								</div>
-							)}
-
-							<CommandList
-								className="max-h-[300px] md:max-h-[400px] overflow-y-auto"
-								onScroll={handleListScroll(setLlmScrollPos)}
-								style={{
-									maskImage: `linear-gradient(to bottom, ${llmScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${llmScrollPos === "bottom" ? "black" : "transparent"})`,
-									WebkitMaskImage: `linear-gradient(to bottom, ${llmScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${llmScrollPos === "bottom" ? "black" : "transparent"})`,
-								}}
-							>
-								<CommandEmpty className="py-8 text-center">
-									<div className="flex flex-col items-center gap-2">
-										{llmGlobalConfigs?.length || llmUserConfigs?.length ? (
-											<>
-												<Search className="size-8 text-muted-foreground" />
-												<p className="text-sm text-muted-foreground">No models found</p>
-												<p className="text-xs text-muted-foreground/60">Try a different search term</p>
-											</>
-										) : (
-											<p className="text-sm text-muted-foreground">No models found</p>
-										)}
-									</div>
-								</CommandEmpty>
-
-								{/* Global LLM Configs */}
-								{filteredLLMGlobal.length > 0 && (
-									<CommandGroup>
-										<div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground tracking-wider">
-											Global Models
-										</div>
-										{filteredLLMGlobal.map((config) => {
-											const isSelected = currentLLMConfig?.id === config.id;
-											const isAutoMode = "is_auto_mode" in config && config.is_auto_mode;
-											return (
-												<CommandItem
-													key={`llm-g-${config.id}`}
-													value={`llm-g-${config.id}`}
-													onSelect={() => handleSelectLLM(config)}
-													className={cn(
-														"mx-2 rounded-lg mb-1 cursor-pointer group transition-all",
-														"hover:bg-accent/50 dark:hover:bg-white/[0.06]",
-														isSelected && "bg-accent/80 dark:bg-white/[0.06]",
-														isAutoMode && ""
-													)}
-												>
-													<div className="flex items-center justify-between w-full gap-2">
-														<div className="flex items-center gap-3 min-w-0 flex-1">
-															<div className="shrink-0">
-																{getProviderIcon(config.provider, { isAutoMode })}
-															</div>
-															<div className="min-w-0 flex-1">
-																<div className="flex items-center gap-2">
-																	<span className="font-medium truncate">{config.name}</span>
-																	{isAutoMode && (
-																		<Badge
-																			variant="secondary"
-																			className="text-[9px] px-1 py-0 h-3.5 bg-violet-800 text-white dark:bg-violet-800 dark:text-white border-0"
-																		>
-																			Recommended
-																		</Badge>
-																	)}
-																	{isSelected && (
-																		<Check className="size-3.5 text-primary shrink-0" />
-																	)}
-																</div>
-																<div className="flex items-center gap-1.5 mt-0.5">
-																	<span className="text-xs text-muted-foreground truncate">
-																		{isAutoMode ? "Auto Mode" : config.model_name}
-																	</span>
-																	{!isAutoMode && config.citations_enabled && (
-																		<Badge
-																			variant="outline"
-																			className="text-[9px] px-1 py-0 h-3.5 bg-primary/10 text-primary border-primary/20"
-																		>
-																			Citations
-																		</Badge>
-																	)}
-																</div>
-															</div>
-														</div>
-														{!isAutoMode && (
-															<Button
-																variant="ghost"
-																size="icon"
-																className="size-7 shrink-0 rounded-md hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
-																onClick={(e) => handleEditLLMConfig(e, config, true)}
-															>
-																<Edit3 className="size-3.5 text-muted-foreground" />
-															</Button>
-														)}
-													</div>
-												</CommandItem>
-											);
-										})}
-									</CommandGroup>
-								)}
-
-								{filteredLLMGlobal.length > 0 && filteredLLMUser.length > 0 && (
-									<CommandSeparator className="my-1 mx-4 bg-border/60" />
-								)}
-
-								{/* User LLM Configs */}
-								{filteredLLMUser.length > 0 && (
-									<CommandGroup>
-										<div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground tracking-wider">
-											Your Configurations
-										</div>
-										{filteredLLMUser.map((config) => {
-											const isSelected = currentLLMConfig?.id === config.id;
-											return (
-												<CommandItem
-													key={`llm-u-${config.id}`}
-													value={`llm-u-${config.id}`}
-													onSelect={() => handleSelectLLM(config)}
-													className={cn(
-														"mx-2 rounded-lg mb-1 cursor-pointer group transition-all",
-														"hover:bg-accent/50 dark:hover:bg-white/[0.06]",
-														isSelected && "bg-accent/80 dark:bg-white/[0.06]"
-													)}
-												>
-													<div className="flex items-center justify-between w-full gap-2">
-														<div className="flex items-center gap-3 min-w-0 flex-1">
-															<div className="shrink-0">{getProviderIcon(config.provider)}</div>
-															<div className="min-w-0 flex-1">
-																<div className="flex items-center gap-2">
-																	<span className="font-medium truncate">{config.name}</span>
-																	{isSelected && (
-																		<Check className="size-3.5 text-primary shrink-0" />
-																	)}
-																</div>
-																<div className="flex items-center gap-1.5 mt-0.5">
-																	<span className="text-xs text-muted-foreground truncate">
-																		{config.model_name}
-																	</span>
-																	{config.citations_enabled && (
-																		<Badge
-																			variant="outline"
-																			className="text-[9px] px-1 py-0 h-3.5 bg-primary/10 text-primary border-primary/20"
-																		>
-																			Citations
-																		</Badge>
-																	)}
-																</div>
-															</div>
-														</div>
-														<Button
-															variant="ghost"
-															size="icon"
-															className="size-7 shrink-0 rounded-md hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
-															onClick={(e) => handleEditLLMConfig(e, config, false)}
-														>
-															<Edit3 className="size-3.5 text-muted-foreground" />
-														</Button>
-													</div>
-												</CommandItem>
-											);
-										})}
-									</CommandGroup>
-								)}
-
-								{/* Add New LLM Config */}
-								<div className="p-2 bg-muted/20 dark:bg-neutral-900">
-									<Button
-										variant="ghost"
-										size="sm"
-										className="w-full justify-start gap-2 h-9 rounded-lg hover:bg-accent/50 dark:hover:bg-white/[0.06]"
-										onClick={() => {
-											setOpen(false);
-											onAddNewLLM();
-										}}
-									>
-										<Plus className="size-4 text-primary" />
-										<span className="text-sm font-medium">Add Model</span>
-									</Button>
-								</div>
-							</CommandList>
-						</Command>
-					</TabsContent>
-
-					{/* ─── Image Tab ─── */}
-					<TabsContent value="image" className="mt-0">
-						<Command
-							shouldFilter={false}
-							className="rounded-none rounded-b-lg dark:bg-neutral-900 [&_[data-slot=command-input-wrapper]]:border-0 [&_[data-slot=command-input-wrapper]]:px-0 [&_[data-slot=command-input-wrapper]]:gap-2"
-						>
-							{totalImageModels > 3 && (
-								<div className="px-2 md:px-3 py-1.5 md:py-2">
-									<CommandInput
-										placeholder="Search models"
-										value={imageSearchQuery}
-										onValueChange={setImageSearchQuery}
-										className="h-7 md:h-8 w-full text-xs md:text-sm border-0 bg-transparent focus:ring-0 placeholder:text-muted-foreground/60"
-									/>
-								</div>
-							)}
-							<CommandList
-								className="max-h-[300px] md:max-h-[400px] overflow-y-auto"
-								onScroll={handleListScroll(setImageScrollPos)}
-								style={{
-									maskImage: `linear-gradient(to bottom, ${imageScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${imageScrollPos === "bottom" ? "black" : "transparent"})`,
-									WebkitMaskImage: `linear-gradient(to bottom, ${imageScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${imageScrollPos === "bottom" ? "black" : "transparent"})`,
-								}}
-							>
-								<CommandEmpty className="py-8 text-center">
-									<div className="flex flex-col items-center gap-2">
-										{imageGlobalConfigs?.length || imageUserConfigs?.length ? (
-											<>
-												<Search className="size-8 text-muted-foreground" />
-												<p className="text-sm text-muted-foreground">No image models found</p>
-												<p className="text-xs text-muted-foreground/60">Try a different search term</p>
-											</>
-										) : (
-											<p className="text-sm text-muted-foreground">No image models found</p>
-										)}
-									</div>
-								</CommandEmpty>
-
-								{/* Global Image Configs */}
-								{filteredImageGlobal.length > 0 && (
-									<CommandGroup>
-										<div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground tracking-wider">
-											Global Image Models
-										</div>
-										{filteredImageGlobal.map((config) => {
-											const isSelected = currentImageConfig?.id === config.id;
-											const isAuto = "is_auto_mode" in config && config.is_auto_mode;
-											return (
-												<CommandItem
-													key={`img-g-${config.id}`}
-													value={`img-g-${config.id}`}
-													onSelect={() => handleSelectImage(config.id)}
-													className={cn(
-														"mx-2 rounded-lg mb-1 cursor-pointer group transition-all hover:bg-accent/50 dark:hover:bg-white/[0.06]",
-														isSelected && "bg-accent/80 dark:bg-white/[0.06]",
-														isAuto && ""
-													)}
-												>
-													<div className="flex items-center gap-3 min-w-0 flex-1">
-														<div className="shrink-0">
-															{getProviderIcon(config.provider, { isAutoMode: isAuto })}
-														</div>
-														<div className="min-w-0 flex-1">
-															<div className="flex items-center gap-2">
-																<span className="font-medium truncate">{config.name}</span>
-																{isAuto && (
-																	<Badge
-																		variant="secondary"
-																		className="text-[9px] px-1 py-0 h-3.5 bg-violet-800 text-white dark:bg-violet-800 dark:text-white border-0"
-																	>
-																		Recommended
-																	</Badge>
-																)}
-																{isSelected && <Check className="size-3.5 text-primary shrink-0" />}
-															</div>
-															<span className="text-xs text-muted-foreground truncate block">
-																{isAuto ? "Auto Mode" : config.model_name}
-															</span>
-														</div>
-														{onEditImage && !isAuto && (
-															<Button
-																variant="ghost"
-																size="icon"
-																className="size-7 shrink-0 rounded-md hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
-																onClick={(e) => {
-																	e.stopPropagation();
-																	setOpen(false);
-																	onEditImage(config, true);
-																}}
-															>
-																<Edit3 className="size-3.5 text-muted-foreground" />
-															</Button>
-														)}
-													</div>
-												</CommandItem>
-											);
-										})}
-									</CommandGroup>
-								)}
-
-								{/* User Image Configs */}
-								{filteredImageUser.length > 0 && (
-									<>
-										{filteredImageGlobal.length > 0 && (
-											<CommandSeparator className="my-1 mx-4 bg-border/60" />
-										)}
-										<CommandGroup>
-											<div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground tracking-wider">
-												Your Image Models
-											</div>
-											{filteredImageUser.map((config) => {
-												const isSelected = currentImageConfig?.id === config.id;
-												return (
-													<CommandItem
-														key={`img-u-${config.id}`}
-														value={`img-u-${config.id}`}
-														onSelect={() => handleSelectImage(config.id)}
-														className={cn(
-															"mx-2 rounded-lg mb-1 cursor-pointer group transition-all hover:bg-accent/50 dark:hover:bg-white/[0.06]",
-															isSelected && "bg-accent/80 dark:bg-white/[0.06]"
-														)}
-													>
-														<div className="flex items-center gap-3 min-w-0 flex-1">
-															<div className="shrink-0">{getProviderIcon(config.provider)}</div>
-															<div className="min-w-0 flex-1">
-																<div className="flex items-center gap-2">
-																	<span className="font-medium truncate">{config.name}</span>
-																	{isSelected && (
-																		<Check className="size-3.5 text-primary shrink-0" />
-																	)}
-																</div>
-																<span className="text-xs text-muted-foreground truncate block">
-																	{config.model_name}
-																</span>
-															</div>
-															{onEditImage && (
-																<Button
-																	variant="ghost"
-																	size="icon"
-																	className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-																	onClick={(e) => {
-																		e.stopPropagation();
-																		setOpen(false);
-																		onEditImage(config, false);
-																	}}
-																>
-																	<Edit3 className="size-3.5 text-muted-foreground" />
-																</Button>
-															)}
-														</div>
-													</CommandItem>
-												);
-											})}
-										</CommandGroup>
-									</>
-								)}
-
-								{/* Add New Image Config */}
-								{onAddNewImage && (
-									<div className="p-2 bg-muted/20 dark:bg-neutral-900">
-										<Button
-											variant="ghost"
-											size="sm"
-											className="w-full justify-start gap-2 h-9 rounded-lg hover:bg-accent/50 dark:hover:bg-white/[0.06]"
-											onClick={() => {
-												setOpen(false);
-												onAddNewImage();
-											}}
-										>
-											<Plus className="size-4 text-primary" />
-											<span className="text-sm font-medium">Add Image Model</span>
-										</Button>
-									</div>
-								)}
-							</CommandList>
-						</Command>
-					</TabsContent>
-
-					{/* ─── Vision Tab ─── */}
-					<TabsContent value="vision" className="mt-0">
-						<Command
-							shouldFilter={false}
-							className="rounded-none rounded-b-lg dark:bg-neutral-900 [&_[data-slot=command-input-wrapper]]:border-0 [&_[data-slot=command-input-wrapper]]:px-0 [&_[data-slot=command-input-wrapper]]:gap-2"
-						>
-							{totalVisionModels > 3 && (
-								<div className="px-2 md:px-3 py-1.5 md:py-2">
-									<CommandInput
-										placeholder="Search vision models"
-										value={visionSearchQuery}
-										onValueChange={setVisionSearchQuery}
-										className="h-7 md:h-8 w-full text-xs md:text-sm border-0 bg-transparent focus:ring-0 placeholder:text-muted-foreground/60"
-									/>
-								</div>
-							)}
-							<CommandList
-								className="max-h-[300px] md:max-h-[400px] overflow-y-auto"
-								onScroll={handleListScroll(setVisionScrollPos)}
-								style={{
-									maskImage: `linear-gradient(to bottom, ${visionScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${visionScrollPos === "bottom" ? "black" : "transparent"})`,
-									WebkitMaskImage: `linear-gradient(to bottom, ${visionScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${visionScrollPos === "bottom" ? "black" : "transparent"})`,
-								}}
-							>
-								<CommandEmpty className="py-8 text-center">
-									<div className="flex flex-col items-center gap-2">
-										{visionGlobalConfigs?.length || visionUserConfigs?.length ? (
-											<>
-												<Search className="size-8 text-muted-foreground" />
-												<p className="text-sm text-muted-foreground">No vision models found</p>
-												<p className="text-xs text-muted-foreground/60">Try a different search term</p>
-											</>
-										) : (
-											<p className="text-sm text-muted-foreground">No vision models found</p>
-										)}
-									</div>
-								</CommandEmpty>
-
-								{filteredVisionGlobal.length > 0 && (
-									<CommandGroup>
-										<div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground tracking-wider">
-											Global Vision Models
-										</div>
-										{filteredVisionGlobal.map((config) => {
-											const isSelected = currentVisionConfig?.id === config.id;
-											const isAuto = "is_auto_mode" in config && config.is_auto_mode;
-											return (
-												<CommandItem
-													key={`vis-g-${config.id}`}
-													value={`vis-g-${config.id}`}
-													onSelect={() => handleSelectVision(config.id)}
-													className={cn(
-														"mx-2 rounded-lg mb-1 cursor-pointer group transition-all hover:bg-accent/50 dark:hover:bg-white/[0.06]",
-														isSelected && "bg-accent/80 dark:bg-white/[0.06]"
-													)}
-												>
-													<div className="flex items-center gap-3 min-w-0 flex-1">
-														<div className="shrink-0">
-															{getProviderIcon(config.provider, { isAutoMode: isAuto })}
-														</div>
-														<div className="min-w-0 flex-1">
-															<div className="flex items-center gap-2">
-																<span className="font-medium truncate">{config.name}</span>
-																{isAuto && (
-																	<Badge
-																		variant="secondary"
-																		className="text-[9px] px-1 py-0 h-3.5 bg-violet-800 text-white dark:bg-violet-800 dark:text-white border-0"
-																	>
-																		Recommended
-																	</Badge>
-																)}
-																{isSelected && <Check className="size-3.5 text-primary shrink-0" />}
-															</div>
-															<span className="text-xs text-muted-foreground truncate block">
-																{isAuto ? "Auto Mode" : config.model_name}
-															</span>
-														</div>
-														{onEditVision && !isAuto && (
-															<Button
-																variant="ghost"
-																size="icon"
-																className="size-7 shrink-0 rounded-md hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
-																onClick={(e) => {
-																	e.stopPropagation();
-																	setOpen(false);
-																	onEditVision(config as VisionLLMConfig, true);
-																}}
-															>
-																<Edit3 className="size-3.5 text-muted-foreground" />
-															</Button>
-														)}
-													</div>
-												</CommandItem>
-											);
-										})}
-									</CommandGroup>
-								)}
-
-								{filteredVisionUser.length > 0 && (
-									<>
-										{filteredVisionGlobal.length > 0 && (
-											<CommandSeparator className="my-1 mx-4 bg-border/60" />
-										)}
-										<CommandGroup>
-											<div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground tracking-wider">
-												Your Vision Models
-											</div>
-											{filteredVisionUser.map((config) => {
-												const isSelected = currentVisionConfig?.id === config.id;
-												return (
-													<CommandItem
-														key={`vis-u-${config.id}`}
-														value={`vis-u-${config.id}`}
-														onSelect={() => handleSelectVision(config.id)}
-														className={cn(
-															"mx-2 rounded-lg mb-1 cursor-pointer group transition-all hover:bg-accent/50 dark:hover:bg-white/[0.06]",
-															isSelected && "bg-accent/80 dark:bg-white/[0.06]"
-														)}
-													>
-														<div className="flex items-center gap-3 min-w-0 flex-1">
-															<div className="shrink-0">{getProviderIcon(config.provider)}</div>
-															<div className="min-w-0 flex-1">
-																<div className="flex items-center gap-2">
-																	<span className="font-medium truncate">{config.name}</span>
-																	{isSelected && (
-																		<Check className="size-3.5 text-primary shrink-0" />
-																	)}
-																</div>
-																<span className="text-xs text-muted-foreground truncate block">
-																	{config.model_name}
-																</span>
-															</div>
-															{onEditVision && (
-																<Button
-																	variant="ghost"
-																	size="icon"
-																	className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-																	onClick={(e) => {
-																		e.stopPropagation();
-																		setOpen(false);
-																		onEditVision(config, false);
-																	}}
-																>
-																	<Edit3 className="size-3.5 text-muted-foreground" />
-																</Button>
-															)}
-														</div>
-													</CommandItem>
-												);
-											})}
-										</CommandGroup>
-									</>
-								)}
-
-								{onAddNewVision && (
-									<div className="p-2 bg-muted/20 dark:bg-neutral-900">
-										<Button
-											variant="ghost"
-											size="sm"
-											className="w-full justify-start gap-2 h-9 rounded-lg hover:bg-accent/50 dark:hover:bg-white/[0.06]"
-											onClick={() => {
-												setOpen(false);
-												onAddNewVision();
-											}}
-										>
-											<Plus className="size-4 text-primary" />
-											<span className="text-sm font-medium">Add Vision Model</span>
-										</Button>
-									</div>
-								)}
-							</CommandList>
-						</Command>
-					</TabsContent>
-				</Tabs>
+				{renderContent()}
 			</PopoverContent>
 		</Popover>
 	);

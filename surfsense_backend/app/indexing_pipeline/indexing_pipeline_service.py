@@ -422,6 +422,8 @@ class IndexingPipelineService:
             )
             log_index_success(ctx, chunk_count=len(chunks))
 
+            await self._enqueue_ai_sort_if_enabled(document)
+
         except RETRYABLE_LLM_ERRORS as e:
             log_retryable_llm_error(ctx, e)
             await rollback_and_persist_failure(
@@ -456,6 +458,29 @@ class IndexingPipelineService:
             await self.session.refresh(document)
 
         return document
+
+    async def _enqueue_ai_sort_if_enabled(self, document: Document) -> None:
+        """Fire-and-forget: enqueue incremental AI sort if the search space has it enabled."""
+        try:
+            from app.db import SearchSpace
+
+            result = await self.session.execute(
+                select(SearchSpace.ai_file_sort_enabled).where(
+                    SearchSpace.id == document.search_space_id
+                )
+            )
+            enabled = result.scalar()
+            if not enabled:
+                return
+
+            from app.tasks.celery_tasks.document_tasks import ai_sort_document_task
+
+            user_id = str(document.created_by_id) if document.created_by_id else ""
+            ai_sort_document_task.delay(document.search_space_id, user_id, document.id)
+        except Exception:
+            logging.getLogger(__name__).warning(
+                "Failed to enqueue AI sort for document %s", document.id, exc_info=True
+            )
 
     async def index_batch_parallel(
         self,

@@ -2,9 +2,9 @@ import logging
 from typing import Any
 
 from langchain_core.tools import tool
-from app.agents.new_chat.tools.hitl import request_approval
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.new_chat.tools.hitl import request_approval
 from app.connectors.linear_connector import LinearAPIError, LinearConnector
 from app.services.linear import LinearToolMetadataService
 

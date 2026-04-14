@@ -61,6 +61,7 @@ from app.services.new_streaming_service import VercelStreamingService
 from app.utils.content_utils import bootstrap_history_from_db
 from app.utils.perf import get_perf_logger, log_system_snapshot, trim_native_heap
 
+_background_tasks: set[asyncio.Task] = set()
 _perf_log = get_perf_logger()
 
 
@@ -142,7 +143,7 @@ class StreamResult:
     accumulated_text: str = ""
     is_interrupted: bool = False
     interrupt_value: dict[str, Any] | None = None
-    sandbox_files: list[str] = field(default_factory=list)  # unused, kept for compat
+    sandbox_files: list[str] = field(default_factory=list)
     agent_called_update_memory: bool = False
 
 
@@ -440,7 +441,7 @@ async def _stream_agent_events(
                     status="in_progress",
                     items=last_active_step_items,
                 )
-            elif tool_name == "execute":
+            elif tool_name in ("execute", "execute_code"):
                 cmd = (
                     tool_input.get("command", "")
                     if isinstance(tool_input, dict)
@@ -738,7 +739,7 @@ async def _stream_agent_events(
                     status="completed",
                     items=completed_items,
                 )
-            elif tool_name == "execute":
+            elif tool_name in ("execute", "execute_code"):
                 raw_text = (
                     tool_output.get("result", "")
                     if isinstance(tool_output, dict)
@@ -985,7 +986,7 @@ async def _stream_agent_events(
                     if isinstance(tool_output, dict)
                     else {"result": tool_output},
                 )
-            elif tool_name == "execute":
+            elif tool_name in ("execute", "execute_code"):
                 raw_text = (
                     tool_output.get("result", "")
                     if isinstance(tool_output, dict)
@@ -1552,7 +1553,7 @@ async def stream_new_chat(
         # Shared threads write to team memory; private threads write to user memory.
         if not stream_result.agent_called_update_memory:
             if visibility == ChatVisibility.SEARCH_SPACE:
-                asyncio.create_task(
+                task = asyncio.create_task(
                     extract_and_save_team_memory(
                         user_message=user_query,
                         search_space_id=search_space_id,
@@ -1560,14 +1561,18 @@ async def stream_new_chat(
                         author_display_name=current_user_display_name,
                     )
                 )
+                _background_tasks.add(task)
+                task.add_done_callback(_background_tasks.discard)
             elif user_id:
-                asyncio.create_task(
+                task = asyncio.create_task(
                     extract_and_save_memory(
                         user_message=user_query,
                         user_id=user_id,
                         llm=llm,
                     )
                 )
+                _background_tasks.add(task)
+                task.add_done_callback(_background_tasks.discard)
 
         # Finish the step and message
         yield streaming_service.format_finish_step()
@@ -1616,6 +1621,21 @@ async def stream_new_chat(
 
             with contextlib.suppress(Exception):
                 await session.close()
+
+        # Persist any sandbox-produced files to local storage so they
+        # remain downloadable after the Daytona sandbox auto-deletes.
+        if stream_result and stream_result.sandbox_files:
+            with contextlib.suppress(Exception):
+                from app.agents.new_chat.sandbox import (
+                    is_sandbox_enabled,
+                    persist_and_delete_sandbox,
+                )
+
+                if is_sandbox_enabled():
+                    with anyio.CancelScope(shield=True):
+                        await persist_and_delete_sandbox(
+                            chat_id, stream_result.sandbox_files
+                        )
 
         # Break circular refs held by the agent graph, tools, and LLM
         # wrappers so the GC can reclaim them in a single pass.
