@@ -1,7 +1,7 @@
-"""124_add_token_usage_table
+"""125_add_token_usage_table
 
-Revision ID: 124
-Revises: 123
+Revision ID: 125
+Revises: 124
 Create Date: 2026-04-14
 
 Adds token_usage table for tracking LLM token consumption per message.
@@ -18,8 +18,8 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "124"
-down_revision: str | None = "123"
+revision: str = "125"
+down_revision: str | None = "124"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
