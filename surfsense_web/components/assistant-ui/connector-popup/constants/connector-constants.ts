@@ -180,9 +180,8 @@ export const OTHER_CONNECTORS = [
 	{
 		id: "obsidian-connector",
 		title: "Obsidian",
-		description: "Index your Obsidian vault (self-hosted only)",
+		description: "Index your Obsidian vault (Local folder scan on Desktop)",
 		connectorType: EnumConnectorName.OBSIDIAN_CONNECTOR,
-		selfHostedOnly: true,
 	},
 ] as const;
 
