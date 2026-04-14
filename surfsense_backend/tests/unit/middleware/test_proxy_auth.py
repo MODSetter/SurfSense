@@ -259,7 +259,7 @@ class TestProxyAuthMiddlewareDispatch:
         s1 = AsyncMock()
         s1.add = MagicMock()  # add() is sync; avoid AsyncMock warning
         no_user_result = MagicMock()
-        no_user_result.scalar_one_or_none.return_value = None
+        no_user_result.unique.return_value.scalar_one_or_none.return_value = None
         update_result = MagicMock()
         s1.execute = AsyncMock(side_effect=[no_user_result, update_result])
         s1_cm = _make_session_cm(s1)
@@ -268,7 +268,7 @@ class TestProxyAuthMiddlewareDispatch:
         reg_user = _make_user(email=_EMAIL)
         s2 = AsyncMock()
         reg_result = MagicMock()
-        reg_result.scalar_one_or_none.return_value = reg_user
+        reg_result.unique.return_value.scalar_one_or_none.return_value = reg_user
         s2.execute = AsyncMock(return_value=reg_result)
         s2_cm = _make_session_cm(s2)
 
@@ -305,7 +305,7 @@ class TestProxyAuthMiddlewareDispatch:
 
         session = AsyncMock()
         found_result = MagicMock()
-        found_result.scalar_one_or_none.return_value = existing
+        found_result.unique.return_value.scalar_one_or_none.return_value = existing
         update_result = MagicMock()
         session.execute = AsyncMock(side_effect=[found_result, update_result])
         session_cm = _make_session_cm(session)
@@ -332,7 +332,7 @@ class TestProxyAuthMiddlewareDispatch:
 
         session = AsyncMock()
         found_result = MagicMock()
-        found_result.scalar_one_or_none.return_value = inactive
+        found_result.unique.return_value.scalar_one_or_none.return_value = inactive
         session.execute = AsyncMock(return_value=found_result)
         session_cm = _make_session_cm(session)
 
@@ -357,7 +357,7 @@ class TestProxyAuthMiddlewareDispatch:
 
         session = AsyncMock()
         found_result = MagicMock()
-        found_result.scalar_one_or_none.return_value = user
+        found_result.unique.return_value.scalar_one_or_none.return_value = user
         # last_login is recent → needs_update=False → only one execute call
         session.execute = AsyncMock(return_value=found_result)
         session_cm = _make_session_cm(session)
@@ -386,7 +386,7 @@ class TestProxyAuthMiddlewareDispatch:
 
         session = AsyncMock()
         found_result = MagicMock()
-        found_result.scalar_one_or_none.return_value = user
+        found_result.unique.return_value.scalar_one_or_none.return_value = user
         session.execute = AsyncMock(return_value=found_result)
         session_cm = _make_session_cm(session)
 
@@ -422,10 +422,10 @@ class TestProxyAuthMiddlewareDispatch:
         session.add = MagicMock()  # add() is sync; avoid AsyncMock warning
         # Call 1: initial SELECT — no user found
         no_user_result = MagicMock()
-        no_user_result.scalar_one_or_none.return_value = None
+        no_user_result.unique.return_value.scalar_one_or_none.return_value = None
         # Call 2: fallback SELECT after rollback — race_user found
         fallback_result = MagicMock()
-        fallback_result.scalar_one_or_none.return_value = race_user
+        fallback_result.unique.return_value.scalar_one_or_none.return_value = race_user
         session.execute = AsyncMock(side_effect=[no_user_result, fallback_result])
         # INSERT commit raises IntegrityError; any subsequent commits should succeed
         session.commit = AsyncMock(side_effect=[IntegrityError(None, None, None), None])
