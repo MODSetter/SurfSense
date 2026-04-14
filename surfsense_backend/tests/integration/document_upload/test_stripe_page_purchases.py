@@ -12,7 +12,7 @@ from app.app import app
 from app.routes import stripe_routes
 from app.tasks.celery_tasks import stripe_reconciliation_task
 from tests.conftest import TEST_DATABASE_URL
-from tests.utils.helpers import auth_headers, get_auth_token
+from tests.utils.helpers import TEST_EMAIL, auth_headers, get_auth_token
 
 pytestmark = pytest.mark.integration
 
@@ -142,6 +142,7 @@ class TestStripeCheckoutSessionCreation:
         fake_client = _FakeCreateStripeClient(checkout_session)
 
         monkeypatch.setattr(stripe_routes, "get_stripe_client", lambda: fake_client)
+        monkeypatch.setattr(stripe_routes.config, "STRIPE_PAGE_BUYING_ENABLED", True)
         monkeypatch.setattr(stripe_routes.config, "STRIPE_PRICE_ID", "price_pages_1000")
         monkeypatch.setattr(
             stripe_routes.config, "NEXT_FRONTEND_URL", "http://localhost:3000"
@@ -229,6 +230,7 @@ class TestStripeWebhookFulfillment:
         create_client = _FakeCreateStripeClient(checkout_session)
 
         monkeypatch.setattr(stripe_routes, "get_stripe_client", lambda: create_client)
+        monkeypatch.setattr(stripe_routes.config, "STRIPE_PAGE_BUYING_ENABLED", True)
         monkeypatch.setattr(stripe_routes.config, "STRIPE_PRICE_ID", "price_pages_1000")
         monkeypatch.setattr(
             stripe_routes.config, "NEXT_FRONTEND_URL", "http://localhost:3000"
@@ -322,6 +324,7 @@ class TestStripeReconciliation:
         create_client = _FakeCreateStripeClient(checkout_session)
 
         monkeypatch.setattr(stripe_routes, "get_stripe_client", lambda: create_client)
+        monkeypatch.setattr(stripe_routes.config, "STRIPE_PAGE_BUYING_ENABLED", True)
         monkeypatch.setattr(stripe_routes.config, "STRIPE_PRICE_ID", "price_pages_1000")
         monkeypatch.setattr(
             stripe_routes.config, "NEXT_FRONTEND_URL", "http://localhost:3000"
@@ -400,6 +403,7 @@ class TestStripeReconciliation:
         create_client = _FakeCreateStripeClient(checkout_session)
 
         monkeypatch.setattr(stripe_routes, "get_stripe_client", lambda: create_client)
+        monkeypatch.setattr(stripe_routes.config, "STRIPE_PAGE_BUYING_ENABLED", True)
         monkeypatch.setattr(stripe_routes.config, "STRIPE_PRICE_ID", "price_pages_1000")
         monkeypatch.setattr(
             stripe_routes.config, "NEXT_FRONTEND_URL", "http://localhost:3000"
