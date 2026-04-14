@@ -1,46 +1,82 @@
-# Story 5.2: Tích hợp Stripe Checkout (Stripe Payment Integration)
+# Story 5.2: Xác minh & Hardening Stripe PAYG Flow
 
 Status: ready-for-dev
 
-<!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
+## Context / Correction Note
+> **⚠️ Story gốc bị sai hướng.** Story gốc mô tả implement `mode: "subscription"` Stripe Checkout. Thực tế, SurfSense dùng mô hình **PAYG (Pay-As-You-Go page packs)** với `mode: "payment"` (one-time purchase). Endpoint `POST /api/v1/stripe/create-checkout-session` **đã tồn tại và hoạt động**. Story này chỉ cần hardening, không cần implement mới.
 
 ## Story
 
-As a Người dùng,
-I want bấm "Nâng cấp" và được chuyển tới trang thanh toán an toàn,
-so that tôi có thể điền thông tin thẻ tín dụng mà không sợ bị lộ dữ liệu trên máy chủ của SurfSense.
+As a Kỹ sư Hệ thống,
+I want đảm bảo Stripe PAYG checkout flow hoạt động ổn định end-to-end,
+so that user có thể mua page packs và pages được cộng vào tài khoản đúng cách.
+
+## Actual Architecture (as-is)
+
+**Đã implement:**
+- `POST /api/v1/stripe/create-checkout-session` — tạo Stripe Checkout Session (`mode: "payment"`)
+  - Nhận `search_space_id`, `quantity`
+  - Tạo `PagePurchase` record với status `PENDING`
+  - Trả về `checkout_url`
+- `_fulfill_completed_purchase()` — khi webhook confirm, tăng `user.pages_limit`
+- `_get_checkout_urls()` — tạo success/cancel URL cho Stripe redirect
+
+**Config cần thiết (env vars):**
+- `STRIPE_SECRET_KEY`
+- `STRIPE_PRICE_ID` — price ID cho 1 page pack
+- `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_PAGES_PER_UNIT` — pages per pack (default: 1000)
+
+**Còn thiếu / chưa xác minh:**
+- Frontend chưa gọi endpoint này (chặn bởi Story 5.1)
+- Chưa có test end-to-end với Stripe test mode
+- `STRIPE_PRICE_ID` cần được tạo trên Stripe Dashboard và config đúng
 
 ## Acceptance Criteria
 
-1. Khi User bấm thanh toán, BE gọi API Stripe lấy `sessionId` của Stripe Checkout (Chế độ Subscription / Recurring Mode, không phải Chế độ Mua đứt OTP).
-2. Hệ thống redirect User an toàn qua cổng Stripe được Hosted trực tiếp bởi Stripe Server.
+1. Với Stripe test keys, tạo checkout session thành công, redirect đến Stripe test checkout page.
+2. Sau khi hoàn tất thanh toán (dùng test card `4242 4242 4242 4242`), webhook trigger và `pages_limit` của user tăng lên đúng số lượng.
+3. Nếu `STRIPE_SECRET_KEY` hoặc `STRIPE_PRICE_ID` không được cấu hình, API trả về lỗi có thể đọc được (không crash 500).
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Nâng cấp `stripe_routes.py`
-  - [ ] Subtask 1.1: Bổ sung Endpoint POST `/api/v1/stripe/create-subscription-checkout`. 
-  - [ ] Subtask 1.2: Phân tích `plan_id` từ Request body hoặc User, cấu hình `mode='subscription'` trong dict truyền cho thư viện Stripe (thay vì chế độ `payment` cũ).
-- [ ] Task 2: Liên kết Action Nút ở UI
-  - [ ] Subtask 2.1: Ở `Pricing` Component, xử lý `onClick` bằng cách submit POST form request tới API mới, bắt `checkout_url` và route trình duyệt tới URL đó bằng thẻ A hoặc JS `window.location.href`.
+- [ ] Task 1: Verify Stripe config
+  - [ ] Subtask 1.1: Kiểm tra `surfsense_backend/app/config.py` — đảm bảo `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PAGES_PER_UNIT` được đọc từ env vars.
+  - [ ] Subtask 1.2: Đảm bảo `_ensure_page_buying_enabled()` trả về lỗi 503 rõ ràng thay vì crash khi Stripe chưa config.
+- [ ] Task 2: Test end-to-end với Stripe CLI
+  - [ ] Subtask 2.1: Dùng `stripe listen --forward-to localhost:8000/api/v1/stripe/webhook` để test webhook locally.
+  - [ ] Subtask 2.2: Verify `PagePurchase.status` chuyển từ `PENDING` → `COMPLETED` sau webhook.
+  - [ ] Subtask 2.3: Verify `user.pages_limit` tăng đúng `quantity × STRIPE_PAGES_PER_UNIT`.
+- [ ] Task 3: Thêm Stripe setup vào `.env.example`
+  - [ ] Subtask 3.1: Bổ sung `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PAGES_PER_UNIT` vào `surfsense_backend/.env.example` với comment hướng dẫn.
 
 ## Dev Notes
 
-### Relevant Architecture Patterns & Constraints
-- Codebase hiện có `surfsense_backend/app/routes/stripe_routes.py` nhưng ĐANG GẮN code Payment Intent cho Token "Page Purchase" One-time 1 lần. DEV cần lưu ý CẤU HÌNH LẠI để route mới sinh này phục vụ riêng cho gói Subscription hàng tháng (Gửi theo CustomerID nếu User đã bind).
-- Security: Giá `stripe_price_id` bắt buộc phải map và define ở Back-End environment variable (Vd `STRIPE_PRO_PLAN_ID`), tuyệt đối không chấp nhận param `price` từ Header gửi lên (Phòng tránh giả mạo giá tiền).
+### Current Flow (hoạt động)
+```
+FE → POST /api/v1/stripe/create-checkout-session
+   → Stripe Checkout (hosted page)
+   → Stripe → POST /api/v1/stripe/webhook (checkout.session.completed)
+   → _fulfill_completed_purchase() → user.pages_limit += pages_granted
+   → Stripe redirects FE → success_url
+```
 
-### Project Structure Notes
-- Module thay đổi:
-  - `surfsense_backend/app/routes/stripe_routes.py`
-  - `surfsense_web/src/pages/pricing/page.tsx`
+### PagePurchase Status Enum
+- `PENDING` — checkout tạo nhưng chưa thanh toán
+- `COMPLETED` — thanh toán thành công, pages đã được grant
+- `FAILED` — thanh toán thất bại
 
 ### References
-- [Epic 5.2 - Subscriptions]
+- `surfsense_backend/app/routes/stripe_routes.py`
+- `surfsense_backend/app/db.py` (class `PagePurchase`, lines ~1616+)
+- Stripe Test Cards: https://stripe.com/docs/testing
 
 ## Dev Agent Record
 
 ### Agent Model Used
-Antigravity Claude 3.5 Sonnet Engine
+_TBD_
 
 ### File List
 - `surfsense_backend/app/routes/stripe_routes.py`
+- `surfsense_backend/app/config.py`
+- `surfsense_backend/.env.example`
