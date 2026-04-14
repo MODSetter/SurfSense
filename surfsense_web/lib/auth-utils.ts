@@ -272,7 +272,7 @@ export async function logout(): Promise<boolean> {
 			// encodeURIComponent would double-encode the query params, causing
 			// Cognito to reject the logout_uri as unregistered.
 			const cognitoStr = cognitoUrl.toString();
-			const rdParam = cognitoStr.replace(/\?/, '%3F').replace(/&/g, '%26').replace(/=/g, '%3D');
+			const rdParam = cognitoStr.replace(/\?/, "%3F").replace(/&/g, "%26").replace(/=/g, "%3D");
 			window.location.href = `${oauthProxyUrl}/oauth2/sign_out?rd=${rdParam}`;
 			return true; // browser is already navigating away
 		}
