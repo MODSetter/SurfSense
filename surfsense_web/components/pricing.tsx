@@ -23,25 +23,38 @@ interface PricingPlan {
 	buttonText: string;
 	href: string;
 	isPopular: boolean;
+	onAction?: () => void;
+	disabled?: boolean;
 }
 
 interface PricingProps {
 	plans: PricingPlan[];
 	title?: string;
 	description?: string;
+	isYearly?: boolean;
+	onToggleBilling?: (yearly: boolean) => void;
 }
 
 export function Pricing({
 	plans,
 	title = "Simple, Transparent Pricing",
 	description = "Choose the plan that works for you\nAll plans include access to our SurfSense AI workspace and community support.",
+	isYearly: isYearlyProp,
+	onToggleBilling,
 }: PricingProps) {
-	const [isMonthly, setIsMonthly] = useState(false);
+	const [isYearlyLocal, setIsYearlyLocal] = useState(false);
+	const isYearly = isYearlyProp !== undefined ? isYearlyProp : isYearlyLocal;
+	const isMonthly = !isYearly;
 	const isDesktop = useMediaQuery("(min-width: 768px)");
 	const switchRef = useRef<HTMLButtonElement>(null);
 
 	const handleToggle = (checked: boolean) => {
-		setIsMonthly(!checked);
+		const yearly = checked;
+		if (onToggleBilling) {
+			onToggleBilling(yearly);
+		} else {
+			setIsYearlyLocal(yearly);
+		}
 		if (checked && switchRef.current) {
 			const rect = switchRef.current.getBoundingClientRect();
 			const x = rect.left + rect.width / 2;
@@ -76,24 +89,27 @@ export function Pricing({
 				<p className="text-muted-foreground text-lg whitespace-pre-line">{description}</p>
 			</div>
 
-			{/* <div className="flex justify-center mb-10">
+			<div className="flex justify-center mb-10">
 				<label
 					htmlFor="billing-toggle"
-					className="relative inline-flex items-center cursor-pointer"
+					className="relative inline-flex items-center cursor-pointer gap-3"
 				>
+					<span className={`font-semibold ${isMonthly ? "text-foreground" : "text-muted-foreground"}`}>
+						Monthly
+					</span>
 					<Label>
 						<Switch
 							ref={switchRef as any}
-							checked={!isMonthly}
+							checked={isYearly}
 							onCheckedChange={handleToggle}
 							className="relative"
 						/>
 					</Label>
+					<span className={`font-semibold ${isYearly ? "text-foreground" : "text-muted-foreground"}`}>
+						Annual <span className="text-primary">(Save 25%)</span>
+					</span>
 				</label>
-				<span className="ml-2 font-semibold">
-					Annual billing <span className="text-primary">(Save 20%)</span>
-				</span>
-			</div> */}
+			</div>
 
 			<div
 				className={cn(
@@ -203,21 +219,42 @@ export function Pricing({
 
 							<hr className="w-full my-4" />
 
-							<Link
-								href={plan.href}
-								className={cn(
-									buttonVariants({
-										variant: "outline",
-									}),
-									"group relative w-full gap-2 overflow-hidden text-lg font-semibold tracking-tighter",
-									"transform-gpu ring-offset-current transition-all duration-300 ease-out hover:ring-2 hover:ring-primary hover:ring-offset-1 hover:bg-primary hover:text-primary-foreground",
-									plan.isPopular
-										? "bg-primary text-primary-foreground"
-										: "bg-background text-foreground"
-								)}
-							>
-								{plan.buttonText}
-							</Link>
+							{plan.onAction ? (
+								<button
+									type="button"
+									onClick={plan.onAction}
+									disabled={plan.disabled}
+									className={cn(
+										buttonVariants({
+											variant: "outline",
+										}),
+										"group relative w-full gap-2 overflow-hidden text-lg font-semibold tracking-tighter",
+										"transform-gpu ring-offset-current transition-all duration-300 ease-out hover:ring-2 hover:ring-primary hover:ring-offset-1 hover:bg-primary hover:text-primary-foreground",
+										plan.isPopular
+											? "bg-primary text-primary-foreground"
+											: "bg-background text-foreground",
+										plan.disabled && "opacity-50 cursor-not-allowed hover:ring-0 hover:bg-inherit hover:text-inherit"
+									)}
+								>
+									{plan.buttonText}
+								</button>
+							) : (
+								<Link
+									href={plan.href}
+									className={cn(
+										buttonVariants({
+											variant: "outline",
+										}),
+										"group relative w-full gap-2 overflow-hidden text-lg font-semibold tracking-tighter",
+										"transform-gpu ring-offset-current transition-all duration-300 ease-out hover:ring-2 hover:ring-primary hover:ring-offset-1 hover:bg-primary hover:text-primary-foreground",
+										plan.isPopular
+											? "bg-primary text-primary-foreground"
+											: "bg-background text-foreground"
+									)}
+								>
+									{plan.buttonText}
+								</Link>
+							)}
 							<p className="mt-6 text-xs leading-5 text-muted-foreground">{plan.description}</p>
 						</div>
 					</motion.div>
