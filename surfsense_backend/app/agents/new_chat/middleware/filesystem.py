@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import secrets
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
@@ -27,6 +28,7 @@ from sqlalchemy import delete, select
 
 from app.agents.new_chat.sandbox import (
     _evict_sandbox_cache,
+    delete_sandbox,
     get_or_create_sandbox,
     is_sandbox_enabled,
 )
@@ -552,7 +554,8 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
     @staticmethod
     def _wrap_as_python(code: str) -> str:
         """Wrap Python code in a shell invocation for the sandbox."""
-        return f"python3 << 'PYEOF'\n{code}\nPYEOF"
+        sentinel = f"_PYEOF_{secrets.token_hex(8)}"
+        return f"python3 << '{sentinel}'\n{code}\n{sentinel}"
 
     async def _execute_in_sandbox(
         self,
@@ -572,7 +575,10 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
                 self._thread_id,
                 first_err,
             )
-            _evict_sandbox_cache(self._thread_id)
+            try:
+                await delete_sandbox(self._thread_id)
+            except Exception:
+                _evict_sandbox_cache(self._thread_id)
             try:
                 return await self._try_sandbox_execute(command, runtime, timeout)
             except Exception:
@@ -587,7 +593,14 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         runtime: ToolRuntime[None, FilesystemState],
         timeout: int | None,
     ) -> str:
-        sandbox, is_new = await get_or_create_sandbox(self._thread_id)
+        sandbox, _is_new = await get_or_create_sandbox(self._thread_id)
+        # NOTE: sync_files_to_sandbox is intentionally disabled.
+        # The virtual FS contains XML-wrapped KB documents whose paths
+        # would double-nest under SANDBOX_DOCUMENTS_ROOT (e.g.
+        # /home/daytona/documents/documents/Report.xml) and uploading
+        # all KB docs on the first execute_code call adds significant
+        # latency.  Re-enable once path mapping is fixed and upload is
+        # limited to user-created scratch files.
         # files = runtime.state.get("files") or {}
         # await sync_files_to_sandbox(self._thread_id, files, sandbox, is_new)
         result = await sandbox.aexecute(command, timeout=timeout)

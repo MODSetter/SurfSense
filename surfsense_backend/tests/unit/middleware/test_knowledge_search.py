@@ -6,6 +6,7 @@ import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
 from app.agents.new_chat.middleware.knowledge_search import (
+    KBSearchPlan,
     KnowledgeBaseSearchMiddleware,
     _build_document_xml,
     _normalize_optional_date_range,
@@ -366,3 +367,146 @@ class TestKnowledgeBaseSearchMiddlewarePlanner:
         assert captured["query"] == "deel founders guide summary"
         assert captured["start_date"] is None
         assert captured["end_date"] is None
+
+    async def test_middleware_routes_to_recency_browse_when_flagged(
+        self,
+        monkeypatch,
+    ):
+        """When the planner sets is_recency_query=true, browse_recent_documents
+        is called instead of search_knowledge_base."""
+        browse_captured: dict = {}
+        search_called = False
+
+        async def fake_browse_recent_documents(**kwargs):
+            browse_captured.update(kwargs)
+            return []
+
+        async def fake_search_knowledge_base(**kwargs):
+            nonlocal search_called
+            search_called = True
+            return []
+
+        async def fake_build_scoped_filesystem(**kwargs):
+            return {}, {}
+
+        monkeypatch.setattr(
+            "app.agents.new_chat.middleware.knowledge_search.browse_recent_documents",
+            fake_browse_recent_documents,
+        )
+        monkeypatch.setattr(
+            "app.agents.new_chat.middleware.knowledge_search.search_knowledge_base",
+            fake_search_knowledge_base,
+        )
+        monkeypatch.setattr(
+            "app.agents.new_chat.middleware.knowledge_search.build_scoped_filesystem",
+            fake_build_scoped_filesystem,
+        )
+
+        llm = FakeLLM(
+            json.dumps(
+                {
+                    "optimized_query": "latest uploaded file",
+                    "start_date": None,
+                    "end_date": None,
+                    "is_recency_query": True,
+                }
+            )
+        )
+        middleware = KnowledgeBaseSearchMiddleware(llm=llm, search_space_id=42)
+
+        result = await middleware.abefore_agent(
+            {"messages": [HumanMessage(content="what's my latest file?")]},
+            runtime=None,
+        )
+
+        assert result is not None
+        assert browse_captured["search_space_id"] == 42
+        assert not search_called
+
+    async def test_middleware_uses_hybrid_search_when_not_recency(
+        self,
+        monkeypatch,
+    ):
+        """When is_recency_query is false (default), hybrid search is used."""
+        search_captured: dict = {}
+        browse_called = False
+
+        async def fake_browse_recent_documents(**kwargs):
+            nonlocal browse_called
+            browse_called = True
+            return []
+
+        async def fake_search_knowledge_base(**kwargs):
+            search_captured.update(kwargs)
+            return []
+
+        async def fake_build_scoped_filesystem(**kwargs):
+            return {}, {}
+
+        monkeypatch.setattr(
+            "app.agents.new_chat.middleware.knowledge_search.browse_recent_documents",
+            fake_browse_recent_documents,
+        )
+        monkeypatch.setattr(
+            "app.agents.new_chat.middleware.knowledge_search.search_knowledge_base",
+            fake_search_knowledge_base,
+        )
+        monkeypatch.setattr(
+            "app.agents.new_chat.middleware.knowledge_search.build_scoped_filesystem",
+            fake_build_scoped_filesystem,
+        )
+
+        llm = FakeLLM(
+            json.dumps(
+                {
+                    "optimized_query": "quarterly revenue report analysis",
+                    "start_date": None,
+                    "end_date": None,
+                    "is_recency_query": False,
+                }
+            )
+        )
+        middleware = KnowledgeBaseSearchMiddleware(llm=llm, search_space_id=42)
+
+        await middleware.abefore_agent(
+            {"messages": [HumanMessage(content="find the quarterly revenue report")]},
+            runtime=None,
+        )
+
+        assert search_captured["query"] == "quarterly revenue report analysis"
+        assert not browse_called
+
+
+# ── KBSearchPlan schema ────────────────────────────────────────────────
+
+
+class TestKBSearchPlanSchema:
+    def test_is_recency_query_defaults_to_false(self):
+        plan = KBSearchPlan(optimized_query="test query")
+        assert plan.is_recency_query is False
+
+    def test_is_recency_query_parses_true(self):
+        plan = _parse_kb_search_plan_response(
+            json.dumps(
+                {
+                    "optimized_query": "latest uploaded file",
+                    "start_date": None,
+                    "end_date": None,
+                    "is_recency_query": True,
+                }
+            )
+        )
+        assert plan.is_recency_query is True
+        assert plan.optimized_query == "latest uploaded file"
+
+    def test_missing_is_recency_query_defaults_to_false(self):
+        plan = _parse_kb_search_plan_response(
+            json.dumps(
+                {
+                    "optimized_query": "meeting notes",
+                    "start_date": None,
+                    "end_date": None,
+                }
+            )
+        )
+        assert plan.is_recency_query is False

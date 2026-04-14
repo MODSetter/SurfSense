@@ -961,6 +961,7 @@ async def index_google_drive_files(
         vision_llm = None
         if connector_enable_vision_llm:
             from app.services.llm_service import get_vision_llm
+
             vision_llm = await get_vision_llm(session, search_space_id)
         drive_client = GoogleDriveClient(
             session, connector_id, credentials=pre_built_credentials
@@ -1168,6 +1169,7 @@ async def index_google_drive_single_file(
         vision_llm = None
         if connector_enable_vision_llm:
             from app.services.llm_service import get_vision_llm
+
             vision_llm = await get_vision_llm(session, search_space_id)
         drive_client = GoogleDriveClient(
             session, connector_id, credentials=pre_built_credentials
@@ -1306,6 +1308,7 @@ async def index_google_drive_selected_files(
         vision_llm = None
         if connector_enable_vision_llm:
             from app.services.llm_service import get_vision_llm
+
             vision_llm = await get_vision_llm(session, search_space_id)
         drive_client = GoogleDriveClient(
             session, connector_id, credentials=pre_built_credentials

@@ -60,7 +60,7 @@ import {
 } from "@/components/assistant-ui/inline-mention-editor";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { UserMessage } from "@/components/assistant-ui/user-message";
-import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/components/layout/ui/sidebar/SidebarSlideOutPanel";
+import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/lib/layout-events";
 import {
 	DocumentMentionPicker,
 	type DocumentMentionPickerRef,

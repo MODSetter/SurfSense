@@ -216,6 +216,7 @@ async def read_search_spaces(
                     user_id=space.user_id,
                     citations_enabled=space.citations_enabled,
                     qna_custom_instructions=space.qna_custom_instructions,
+                    ai_file_sort_enabled=space.ai_file_sort_enabled,
                     member_count=member_count,
                     is_owner=is_owner,
                 )
@@ -382,6 +383,42 @@ async def edit_team_memory(
 
     await session.refresh(db_search_space)
     return db_search_space
+
+
+@router.post("/searchspaces/{search_space_id}/ai-sort")
+async def trigger_ai_sort(
+    search_space_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Trigger a full AI file sort for all documents in the search space."""
+    try:
+        await check_permission(
+            session,
+            user,
+            search_space_id,
+            Permission.SETTINGS_UPDATE.value,
+            "You don't have permission to trigger AI sort on this search space",
+        )
+
+        result = await session.execute(
+            select(SearchSpace).filter(SearchSpace.id == search_space_id)
+        )
+        db_search_space = result.scalars().first()
+        if not db_search_space:
+            raise HTTPException(status_code=404, detail="Search space not found")
+
+        from app.tasks.celery_tasks.document_tasks import ai_sort_search_space_task
+
+        ai_sort_search_space_task.delay(search_space_id, str(user.id))
+        return {"message": "AI sort started"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to trigger AI sort: {e!s}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to trigger AI sort: {e!s}"
+        ) from e
 
 
 @router.delete("/searchspaces/{search_space_id}", response_model=dict)

@@ -48,6 +48,7 @@ interface ImageConfigDialogProps {
 	isGlobal: boolean;
 	searchSpaceId: number;
 	mode: "create" | "edit" | "view";
+	defaultProvider?: string;
 }
 
 const INITIAL_FORM = {
@@ -67,6 +68,7 @@ export function ImageConfigDialog({
 	isGlobal,
 	searchSpaceId,
 	mode,
+	defaultProvider,
 }: ImageConfigDialogProps) {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [formData, setFormData] = useState(INITIAL_FORM);
@@ -87,11 +89,11 @@ export function ImageConfigDialog({
 					api_version: config.api_version || "",
 				});
 			} else if (mode === "create") {
-				setFormData(INITIAL_FORM);
+				setFormData({ ...INITIAL_FORM, provider: defaultProvider ?? "" });
 			}
 			setScrollPos("top");
 		}
-	}, [open, mode, config, isGlobal]);
+	}, [open, mode, config, isGlobal, defaultProvider]);
 
 	const { mutateAsync: createConfig } = useAtomValue(createImageGenConfigMutationAtom);
 	const { mutateAsync: updateConfig } = useAtomValue(updateImageGenConfigMutationAtom);

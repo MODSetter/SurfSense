@@ -288,7 +288,7 @@ export function Image({
 							alt={alt}
 							width={0}
 							height={0}
-							sizes="100vw"
+							sizes={`(max-width: ${maxWidth}) 100vw, ${maxWidth}`}
 							loading="eager"
 							className={cn(
 								"w-full h-auto transition-transform duration-300",
@@ -307,7 +307,7 @@ export function Image({
 							src={src}
 							alt={alt}
 							fill
-							sizes="(max-width: 512px) 100vw, 512px"
+							sizes={`(max-width: ${maxWidth}) 100vw, ${maxWidth}`}
 							className={cn(
 								"transition-transform duration-300",
 								fit === "cover" ? "object-cover" : "object-contain",

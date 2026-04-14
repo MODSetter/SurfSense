@@ -6,9 +6,9 @@ from email.mime.text import MIMEText
 from typing import Any
 
 from langchain_core.tools import tool
-from app.agents.new_chat.tools.hitl import request_approval
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.new_chat.tools.hitl import request_approval
 from app.services.gmail import GmailToolMetadataService
 
 logger = logging.getLogger(__name__)
