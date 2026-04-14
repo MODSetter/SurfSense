@@ -1532,7 +1532,12 @@ async def stream_new_chat(
             if title_task is not None and not title_task.done():
                 title_task.cancel()
 
+            await asyncio.sleep(0.2)
             usage_summary = accumulator.per_message_summary()
+            _perf_log.info(
+                "[token_usage] interrupted new_chat: calls=%d total=%d summary=%s",
+                len(accumulator.calls), accumulator.grand_total, usage_summary,
+            )
             if usage_summary:
                 yield streaming_service.format_data("token-usage", {
                     "usage": usage_summary,
@@ -1563,7 +1568,12 @@ async def stream_new_chat(
                     chat_id, generated_title
                 )
 
+        await asyncio.sleep(0.2)
         usage_summary = accumulator.per_message_summary()
+        _perf_log.info(
+            "[token_usage] normal new_chat: calls=%d total=%d summary=%s",
+            len(accumulator.calls), accumulator.grand_total, usage_summary,
+        )
         if usage_summary:
             yield streaming_service.format_data("token-usage", {
                 "usage": usage_summary,
@@ -1797,8 +1807,13 @@ async def stream_resume_chat(
             time.perf_counter() - _t_stream_start,
             chat_id,
         )
+        await asyncio.sleep(0.2)
         if stream_result.is_interrupted:
             usage_summary = accumulator.per_message_summary()
+            _perf_log.info(
+                "[token_usage] interrupted resume_chat: calls=%d total=%d summary=%s",
+                len(accumulator.calls), accumulator.grand_total, usage_summary,
+            )
             if usage_summary:
                 yield streaming_service.format_data("token-usage", {
                     "usage": usage_summary,
@@ -1814,6 +1829,10 @@ async def stream_resume_chat(
             return
 
         usage_summary = accumulator.per_message_summary()
+        _perf_log.info(
+            "[token_usage] normal resume_chat: calls=%d total=%d summary=%s",
+            len(accumulator.calls), accumulator.grand_total, usage_summary,
+        )
         if usage_summary:
             yield streaming_service.format_data("token-usage", {
                 "usage": usage_summary,

@@ -87,6 +87,7 @@ def start_turn() -> TurnTokenAccumulator:
     """Create a fresh accumulator for the current async context and return it."""
     acc = TurnTokenAccumulator()
     _turn_accumulator.set(acc)
+    logger.info("[TokenTracking] start_turn: new accumulator created (id=%s)", id(acc))
     return acc
 
 
@@ -106,10 +107,12 @@ class TokenTrackingCallback(CustomLogger):
     ) -> None:
         acc = _turn_accumulator.get()
         if acc is None:
+            logger.debug("[TokenTracking] async_log_success_event fired but no accumulator in context")
             return
 
         usage = getattr(response_obj, "usage", None)
         if not usage:
+            logger.debug("[TokenTracking] async_log_success_event fired but response has no usage data")
             return
 
         prompt_tokens = getattr(usage, "prompt_tokens", 0) or 0
@@ -123,6 +126,10 @@ class TokenTrackingCallback(CustomLogger):
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             total_tokens=total_tokens,
+        )
+        logger.info(
+            "[TokenTracking] Captured: model=%s prompt=%d completion=%d total=%d (accumulator now has %d calls)",
+            model, prompt_tokens, completion_tokens, total_tokens, len(acc.calls),
         )
 
 

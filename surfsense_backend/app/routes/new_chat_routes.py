@@ -46,12 +46,12 @@ from app.schemas.new_chat import (
     NewChatThreadWithMessages,
     PublicChatSnapshotCreateResponse,
     PublicChatSnapshotListResponse,
-    TokenUsageSummary,
     RegenerateRequest,
     ResumeRequest,
     ThreadHistoryLoadResponse,
     ThreadListItem,
     ThreadListResponse,
+    TokenUsageSummary,
 )
 from app.tasks.chat.stream_new_chat import stream_new_chat, stream_resume_chat
 from app.users import current_active_user
@@ -965,9 +965,17 @@ async def append_message(
 
         await session.commit()
 
-        # Return the in-memory object (already has id from flush) instead of
-        # doing an extra refresh() SELECT.
-        return db_message
+        # Build response manually to avoid lazy-loading the token_usage
+        # relationship after commit (which would trigger MissingGreenlet).
+        return NewChatMessageRead(
+            id=db_message.id,
+            thread_id=db_message.thread_id,
+            role=db_message.role,
+            content=db_message.content,
+            created_at=db_message.created_at,
+            author_id=db_message.author_id,
+            token_usage=None,
+        )
 
     except HTTPException:
         raise
@@ -1031,6 +1039,7 @@ async def list_messages(
         # Get messages
         query = (
             select(NewChatMessage)
+            .options(selectinload(NewChatMessage.token_usage))
             .filter(NewChatMessage.thread_id == thread_id)
             .order_by(NewChatMessage.created_at)
             .offset(skip)
