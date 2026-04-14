@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { CommentComposer } from "../comment-composer/comment-composer";
 import { CommentActions } from "./comment-actions";
+import { convertRenderedToDisplay } from "@/lib/comments/utils";
 import type { CommentItemProps } from "./types";
 
 function getInitials(name: string | null, email: string): string {
@@ -69,10 +70,6 @@ function formatTimestamp(dateString: string): string {
 	);
 }
 
-export function convertRenderedToDisplay(contentRendered: string): string {
-	// Convert @{DisplayName} format to @DisplayName for editing
-	return contentRendered.replace(/@\{([^}]+)\}/g, "@$1");
-}
 
 function renderMentions(content: string): React.ReactNode {
 	// Match @{DisplayName} format from backend

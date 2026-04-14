@@ -11,7 +11,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
-import { getDocumentTypeIcon, getDocumentTypeLabel } from "./DocumentTypeIcon";
+import { getDocumentTypeIcon } from "./DocumentTypeIcon";
+import { getDocumentTypeLabel } from "@/lib/documents/document-type-labels";
 
 export function DocumentsFilters({
 	typeCounts: typeCountsRecord,

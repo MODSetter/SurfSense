@@ -3,8 +3,8 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect } from "react";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/lib/layout-events";
 
-export const SLIDEOUT_PANEL_OPENED_EVENT = "slideout-panel-opened";
 
 interface SidebarSlideOutPanelProps {
 	open: boolean;
