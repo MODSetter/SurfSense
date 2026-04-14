@@ -45,12 +45,14 @@ import {
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuLabel,
+	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { useComments } from "@/hooks/use-comments";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
+import { useTokenUsage } from "@/components/assistant-ui/token-usage-context";
 import { cn } from "@/lib/utils";
 
 // Captured once at module load — survives client-side navigations that strip the query param.
@@ -375,22 +377,24 @@ export const MessageError: FC = () => {
 	);
 };
 
-const TokenUsageDropdown: FC = () => {
-	const usage = useAuiState(({ message }) => {
-		const custom = message?.metadata?.custom as Record<string, unknown> | undefined;
-		return custom?.usage as Record<string, unknown> | undefined;
+function formatMessageDate(date: Date): string {
+	return date.toLocaleDateString(undefined, {
+		month: "short",
+		day: "numeric",
+		hour: "numeric",
+		minute: "2-digit",
+		hour12: true,
 	});
+}
 
-	if (!usage) return null;
+const MessageInfoDropdown: FC = () => {
+	const messageId = useAuiState(({ message }) => message?.id);
+	const createdAt = useAuiState(({ message }) => message?.createdAt);
+	const usage = useTokenUsage(messageId);
 
-	const totalTokens = (usage.total_tokens as number) ?? 0;
-	if (totalTokens === 0) return null;
-
-	const modelBreakdown = (usage.usage ?? usage.model_breakdown) as
-		| Record<string, { prompt_tokens: number; completion_tokens: number; total_tokens: number }>
-		| undefined;
-
+	const modelBreakdown = usage ? (usage.usage ?? usage.model_breakdown) : undefined;
 	const models = modelBreakdown ? Object.entries(modelBreakdown) : [];
+	const hasUsage = usage && usage.total_tokens > 0;
 
 	return (
 		<DropdownMenu>
@@ -401,24 +405,31 @@ const TokenUsageDropdown: FC = () => {
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="start" className="min-w-[180px]">
-				<DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
-					Token Usage
-				</DropdownMenuLabel>
-				{models.length > 0 ? (
-					models.map(([model, counts]) => (
-						<DropdownMenuItem key={model} className="flex-col items-start gap-0.5 cursor-default" onSelect={(e) => e.preventDefault()}>
-							<span className="text-xs font-medium">{model}</span>
-							<span className="text-xs text-muted-foreground">
-								{counts.total_tokens.toLocaleString()} tokens
-							</span>
-						</DropdownMenuItem>
-					))
-				) : (
-					<DropdownMenuItem className="flex-col items-start gap-0.5 cursor-default" onSelect={(e) => e.preventDefault()}>
-						<span className="text-xs text-muted-foreground">
-							{totalTokens.toLocaleString()} tokens
-						</span>
-					</DropdownMenuItem>
+				{createdAt && (
+					<DropdownMenuLabel className="text-xs text-muted-foreground font-normal select-none">
+						{formatMessageDate(createdAt)}
+					</DropdownMenuLabel>
+				)}
+				{hasUsage && (
+					<>
+						<DropdownMenuSeparator />
+						{models.length > 0 ? (
+							models.map(([model, counts]) => (
+								<DropdownMenuItem key={model} className="flex-col items-start gap-0.5 cursor-default" onSelect={(e) => e.preventDefault()}>
+									<span className="text-xs font-medium">{model}</span>
+									<span className="text-xs text-muted-foreground">
+										{counts.total_tokens.toLocaleString()} tokens
+									</span>
+								</DropdownMenuItem>
+							))
+						) : (
+							<DropdownMenuItem className="flex-col items-start gap-0.5 cursor-default" onSelect={(e) => e.preventDefault()}>
+								<span className="text-xs text-muted-foreground">
+									{usage.total_tokens.toLocaleString()} tokens
+								</span>
+							</DropdownMenuItem>
+						)}
+					</>
 				)}
 			</DropdownMenuContent>
 		</DropdownMenu>
@@ -683,7 +694,7 @@ const AssistantActionBar: FC = () => {
 					<ClipboardPaste />
 				</TooltipIconButton>
 			)}
-			<TokenUsageDropdown />
+			<MessageInfoDropdown />
 		</ActionBarPrimitive.Root>
 	);
 };

@@ -42,6 +42,7 @@ import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
 import { useMessagesSync } from "@/hooks/use-messages-sync";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { getBearerToken } from "@/lib/auth-utils";
+import { createTokenUsageStore, TokenUsageProvider, type TokenUsageData } from "@/components/assistant-ui/token-usage-context";
 import { convertToThreadMessage } from "@/lib/chat/message-utils";
 import {
 	isPodcastGenerating,
@@ -195,6 +196,7 @@ export default function NewChatPage() {
 	const [currentThread, setCurrentThread] = useState<ThreadRecord | null>(null);
 	const [messages, setMessages] = useState<ThreadMessageLike[]>([]);
 	const [isRunning, setIsRunning] = useState(false);
+	const [tokenUsageStore] = useState(() => createTokenUsageStore());
 	const abortControllerRef = useRef<AbortController | null>(null);
 	const [pendingInterrupt, setPendingInterrupt] = useState<{
 		threadId: number;
@@ -307,6 +309,7 @@ export default function NewChatPage() {
 		setThreadId(null);
 		setCurrentThread(null);
 		setMentionedDocuments([]);
+		tokenUsageStore.clear();
 		setSidebarDocuments([]);
 		setMessageDocumentsMap({});
 		clearPlanOwnerRegistry();
@@ -329,6 +332,12 @@ export default function NewChatPage() {
 				if (messagesResponse.messages && messagesResponse.messages.length > 0) {
 					const loadedMessages = messagesResponse.messages.map(convertToThreadMessage);
 					setMessages(loadedMessages);
+
+					for (const msg of messagesResponse.messages) {
+						if (msg.token_usage) {
+							tokenUsageStore.set(`msg-${msg.id}`, msg.token_usage as TokenUsageData);
+						}
+					}
 
 					const restoredDocsMap: Record<string, MentionedDocumentInfo[]> = {};
 					for (const msg of messagesResponse.messages) {
@@ -374,6 +383,7 @@ export default function NewChatPage() {
 		closeEditorPanel,
 		removeChatTab,
 		searchSpaceId,
+		tokenUsageStore,
 	]);
 
 	// Initialize on mount, and re-init when switching search spaces (even if urlChatId is the same)
@@ -824,6 +834,7 @@ export default function NewChatPage() {
 
 						case "data-token-usage":
 							tokenUsageData = parsed.data;
+							tokenUsageStore.set(assistantMsgId, parsed.data as TokenUsageData);
 							break;
 
 						case "error":
@@ -832,16 +843,6 @@ export default function NewChatPage() {
 				}
 
 				batcher.flush();
-
-				if (tokenUsageData) {
-					setMessages((prev) =>
-						prev.map((m) =>
-							m.id === assistantMsgId
-								? { ...m, metadata: { ...m.metadata, custom: { ...(m.metadata?.custom as Record<string, unknown> ?? {}), usage: tokenUsageData } } }
-								: m
-						)
-					);
-				}
 
 				// Skip persistence for interrupted messages -- handleResume will persist the final version
 				const finalContent = buildContentForPersistence(contentPartsState, TOOLS_WITH_UI);
@@ -855,8 +856,9 @@ export default function NewChatPage() {
 
 						// Update message ID from temporary to database ID so comments work immediately
 						const newMsgId = `msg-${savedMessage.id}`;
+						tokenUsageStore.rename(assistantMsgId, newMsgId);
 						setMessages((prev) =>
-							prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m))
+							prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m)),
 						);
 
 						// Update pending interrupt with the new persisted message ID
@@ -946,6 +948,7 @@ export default function NewChatPage() {
 			currentUser,
 			disabledTools,
 			updateChatTabTitle,
+			tokenUsageStore,
 		]
 	);
 
@@ -1168,6 +1171,7 @@ export default function NewChatPage() {
 
 						case "data-token-usage":
 							tokenUsageData = parsed.data;
+							tokenUsageStore.set(assistantMsgId, parsed.data as TokenUsageData);
 							break;
 
 						case "error":
@@ -1176,16 +1180,6 @@ export default function NewChatPage() {
 				}
 
 				batcher.flush();
-
-				if (tokenUsageData) {
-					setMessages((prev) =>
-						prev.map((m) =>
-							m.id === assistantMsgId
-								? { ...m, metadata: { ...m.metadata, custom: { ...(m.metadata?.custom as Record<string, unknown> ?? {}), usage: tokenUsageData } } }
-								: m
-						)
-					);
-				}
 
 				const finalContent = buildContentForPersistence(contentPartsState, TOOLS_WITH_UI);
 				if (contentParts.length > 0) {
@@ -1196,8 +1190,9 @@ export default function NewChatPage() {
 							token_usage: tokenUsageData ?? undefined,
 						});
 						const newMsgId = `msg-${savedMessage.id}`;
+						tokenUsageStore.rename(assistantMsgId, newMsgId);
 						setMessages((prev) =>
-							prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m))
+							prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m)),
 						);
 					} catch (err) {
 						console.error("Failed to persist resumed assistant message:", err);
@@ -1215,7 +1210,7 @@ export default function NewChatPage() {
 				abortControllerRef.current = null;
 			}
 		},
-		[pendingInterrupt, messages, searchSpaceId]
+		[pendingInterrupt, messages, searchSpaceId, tokenUsageStore]
 	);
 
 	useEffect(() => {
@@ -1463,6 +1458,7 @@ export default function NewChatPage() {
 
 						case "data-token-usage":
 							tokenUsageData = parsed.data;
+							tokenUsageStore.set(assistantMsgId, parsed.data as TokenUsageData);
 							break;
 
 						case "error":
@@ -1471,16 +1467,6 @@ export default function NewChatPage() {
 				}
 
 				batcher.flush();
-
-				if (tokenUsageData) {
-					setMessages((prev) =>
-						prev.map((m) =>
-							m.id === assistantMsgId
-								? { ...m, metadata: { ...m.metadata, custom: { ...(m.metadata?.custom as Record<string, unknown> ?? {}), usage: tokenUsageData } } }
-								: m
-						)
-					);
-				}
 
 				// Persist messages after streaming completes
 				const finalContent = buildContentForPersistence(contentPartsState, TOOLS_WITH_UI);
@@ -1509,10 +1495,10 @@ export default function NewChatPage() {
 							token_usage: tokenUsageData ?? undefined,
 						});
 
-						// Update assistant message ID to database ID
 						const newMsgId = `msg-${savedMessage.id}`;
+						tokenUsageStore.rename(assistantMsgId, newMsgId);
 						setMessages((prev) =>
-							prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m))
+							prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m)),
 						);
 
 						trackChatResponseReceived(searchSpaceId, threadId);
@@ -1547,7 +1533,7 @@ export default function NewChatPage() {
 				abortControllerRef.current = null;
 			}
 		},
-		[threadId, searchSpaceId, messages, disabledTools]
+		[threadId, searchSpaceId, messages, disabledTools, tokenUsageStore]
 	);
 
 	// Handle editing a message - truncates history and regenerates with new query
@@ -1616,6 +1602,7 @@ export default function NewChatPage() {
 	}
 
 	return (
+		<TokenUsageProvider store={tokenUsageStore}>
 		<AssistantRuntimeProvider runtime={runtime}>
 			<ThinkingStepsDataUI />
 			<div key={searchSpaceId} className="flex h-full overflow-hidden">
@@ -1627,5 +1614,6 @@ export default function NewChatPage() {
 				<MobileHitlEditPanel />
 			</div>
 		</AssistantRuntimeProvider>
+		</TokenUsageProvider>
 	);
 }
