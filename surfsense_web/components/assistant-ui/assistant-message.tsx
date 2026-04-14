@@ -15,6 +15,7 @@ import {
 	ExternalLink,
 	Globe,
 	MessageSquare,
+	MoreHorizontalIcon,
 	RefreshCwIcon,
 } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -39,6 +40,14 @@ import {
 	DrawerHeader,
 	DrawerTitle,
 } from "@/components/ui/drawer";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { useComments } from "@/hooks/use-comments";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
@@ -366,6 +375,56 @@ export const MessageError: FC = () => {
 	);
 };
 
+const TokenUsageDropdown: FC = () => {
+	const usage = useAuiState(({ message }) => {
+		const custom = message?.metadata?.custom as Record<string, unknown> | undefined;
+		return custom?.usage as Record<string, unknown> | undefined;
+	});
+
+	if (!usage) return null;
+
+	const totalTokens = (usage.total_tokens as number) ?? 0;
+	if (totalTokens === 0) return null;
+
+	const modelBreakdown = (usage.usage ?? usage.model_breakdown) as
+		| Record<string, { prompt_tokens: number; completion_tokens: number; total_tokens: number }>
+		| undefined;
+
+	const models = modelBreakdown ? Object.entries(modelBreakdown) : [];
+
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<Button variant="ghost" size="icon" className="aui-button-icon size-6 p-1">
+					<MoreHorizontalIcon className="size-4" />
+					<span className="sr-only">More</span>
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="start" className="min-w-[180px]">
+				<DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
+					Token Usage
+				</DropdownMenuLabel>
+				{models.length > 0 ? (
+					models.map(([model, counts]) => (
+						<DropdownMenuItem key={model} className="flex-col items-start gap-0.5 cursor-default" onSelect={(e) => e.preventDefault()}>
+							<span className="text-xs font-medium">{model}</span>
+							<span className="text-xs text-muted-foreground">
+								{counts.total_tokens.toLocaleString()} tokens
+							</span>
+						</DropdownMenuItem>
+					))
+				) : (
+					<DropdownMenuItem className="flex-col items-start gap-0.5 cursor-default" onSelect={(e) => e.preventDefault()}>
+						<span className="text-xs text-muted-foreground">
+							{totalTokens.toLocaleString()} tokens
+						</span>
+					</DropdownMenuItem>
+				)}
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+};
+
 const AssistantMessageInner: FC = () => {
 	const isMobile = !useMediaQuery("(min-width: 768px)");
 
@@ -427,7 +486,7 @@ const AssistantMessageInner: FC = () => {
 				</div>
 			)}
 
-			<div className="aui-assistant-message-footer mt-1 mb-5 ml-2 flex">
+			<div className="aui-assistant-message-footer mt-1 mb-5 ml-2 flex items-center gap-2">
 				<AssistantActionBar />
 			</div>
 		</CitationMetadataProvider>
@@ -624,6 +683,7 @@ const AssistantActionBar: FC = () => {
 					<ClipboardPaste />
 				</TooltipIconButton>
 			)}
+			<TokenUsageDropdown />
 		</ActionBarPrimitive.Root>
 	);
 };

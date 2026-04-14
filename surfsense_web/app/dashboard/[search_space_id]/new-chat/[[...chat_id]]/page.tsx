@@ -624,6 +624,7 @@ export default function NewChatPage() {
 			};
 			const { contentParts, toolCallIndices } = contentPartsState;
 			let wasInterrupted = false;
+			let tokenUsageData: Record<string, unknown> | null = null;
 
 			// Add placeholder assistant message
 			setMessages((prev) => [
@@ -821,12 +822,26 @@ export default function NewChatPage() {
 							break;
 						}
 
+						case "data-token-usage":
+							tokenUsageData = parsed.data;
+							break;
+
 						case "error":
 							throw new Error(parsed.errorText || "Server error");
 					}
 				}
 
 				batcher.flush();
+
+				if (tokenUsageData) {
+					setMessages((prev) =>
+						prev.map((m) =>
+							m.id === assistantMsgId
+								? { ...m, metadata: { ...m.metadata, custom: { ...(m.metadata?.custom as Record<string, unknown> ?? {}), usage: tokenUsageData } } }
+								: m
+						)
+					);
+				}
 
 				// Skip persistence for interrupted messages -- handleResume will persist the final version
 				const finalContent = buildContentForPersistence(contentPartsState, TOOLS_WITH_UI);
@@ -835,6 +850,7 @@ export default function NewChatPage() {
 						const savedMessage = await appendMessage(currentThreadId, {
 							role: "assistant",
 							content: finalContent,
+							token_usage: tokenUsageData ?? undefined,
 						});
 
 						// Update message ID from temporary to database ID so comments work immediately
@@ -965,6 +981,7 @@ export default function NewChatPage() {
 				toolCallIndices: new Map(),
 			};
 			const { contentParts, toolCallIndices } = contentPartsState;
+			let tokenUsageData: Record<string, unknown> | null = null;
 
 			const existingMsg = messages.find((m) => m.id === assistantMsgId);
 			if (existingMsg && Array.isArray(existingMsg.content)) {
@@ -1149,6 +1166,10 @@ export default function NewChatPage() {
 							break;
 						}
 
+						case "data-token-usage":
+							tokenUsageData = parsed.data;
+							break;
+
 						case "error":
 							throw new Error(parsed.errorText || "Server error");
 					}
@@ -1156,12 +1177,23 @@ export default function NewChatPage() {
 
 				batcher.flush();
 
+				if (tokenUsageData) {
+					setMessages((prev) =>
+						prev.map((m) =>
+							m.id === assistantMsgId
+								? { ...m, metadata: { ...m.metadata, custom: { ...(m.metadata?.custom as Record<string, unknown> ?? {}), usage: tokenUsageData } } }
+								: m
+						)
+					);
+				}
+
 				const finalContent = buildContentForPersistence(contentPartsState, TOOLS_WITH_UI);
 				if (contentParts.length > 0) {
 					try {
 						const savedMessage = await appendMessage(resumeThreadId, {
 							role: "assistant",
 							content: finalContent,
+							token_usage: tokenUsageData ?? undefined,
 						});
 						const newMsgId = `msg-${savedMessage.id}`;
 						setMessages((prev) =>
@@ -1319,6 +1351,7 @@ export default function NewChatPage() {
 			};
 			const { contentParts, toolCallIndices } = contentPartsState;
 			const batcher = new FrameBatchedUpdater();
+			let tokenUsageData: Record<string, unknown> | null = null;
 
 			// Add placeholder messages to UI
 			// Always add back the user message (with new query for edit, or original content for reload)
@@ -1428,12 +1461,26 @@ export default function NewChatPage() {
 							break;
 						}
 
+						case "data-token-usage":
+							tokenUsageData = parsed.data;
+							break;
+
 						case "error":
 							throw new Error(parsed.errorText || "Server error");
 					}
 				}
 
 				batcher.flush();
+
+				if (tokenUsageData) {
+					setMessages((prev) =>
+						prev.map((m) =>
+							m.id === assistantMsgId
+								? { ...m, metadata: { ...m.metadata, custom: { ...(m.metadata?.custom as Record<string, unknown> ?? {}), usage: tokenUsageData } } }
+								: m
+						)
+					);
+				}
 
 				// Persist messages after streaming completes
 				const finalContent = buildContentForPersistence(contentPartsState, TOOLS_WITH_UI);
@@ -1459,6 +1506,7 @@ export default function NewChatPage() {
 						const savedMessage = await appendMessage(threadId, {
 							role: "assistant",
 							content: finalContent,
+							token_usage: tokenUsageData ?? undefined,
 						});
 
 						// Update assistant message ID to database ID
