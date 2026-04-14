@@ -404,6 +404,45 @@ class ConnectorsApiService {
 			listDiscordChannelsResponse
 		);
 	};
+
+	// =============================================================================
+	// MCP Tool Trust (Allow-List) Methods
+	// =============================================================================
+
+	/**
+	 * Add a tool to the MCP connector's "Always Allow" list.
+	 * Subsequent calls to this tool will skip HITL approval.
+	 */
+	trustMCPTool = async (connectorId: number, toolName: string): Promise<void> => {
+		const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+		const token =
+			typeof window !== "undefined" ? document.cookie.match(/fapiToken=([^;]+)/)?.[1] : undefined;
+		await fetch(`${backendUrl}/api/v1/connectors/mcp/${connectorId}/trust-tool`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				...(token ? { Authorization: `Bearer ${token}` } : {}),
+			},
+			body: JSON.stringify({ tool_name: toolName }),
+		});
+	};
+
+	/**
+	 * Remove a tool from the MCP connector's "Always Allow" list.
+	 */
+	untrustMCPTool = async (connectorId: number, toolName: string): Promise<void> => {
+		const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+		const token =
+			typeof window !== "undefined" ? document.cookie.match(/fapiToken=([^;]+)/)?.[1] : undefined;
+		await fetch(`${backendUrl}/api/v1/connectors/mcp/${connectorId}/untrust-tool`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				...(token ? { Authorization: `Bearer ${token}` } : {}),
+			},
+			body: JSON.stringify({ tool_name: toolName }),
+		});
+	};
 }
 
 export type { SlackChannel, DiscordChannel };

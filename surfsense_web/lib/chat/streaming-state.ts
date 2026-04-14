@@ -148,9 +148,10 @@ export function addToolCall(
 	toolsWithUI: Set<string>,
 	toolCallId: string,
 	toolName: string,
-	args: Record<string, unknown>
+	args: Record<string, unknown>,
+	force = false,
 ): void {
-	if (toolsWithUI.has(toolName)) {
+	if (force || toolsWithUI.has(toolName)) {
 		state.contentParts.push({
 			type: "tool-call",
 			toolCallId,
@@ -175,13 +176,20 @@ export function updateToolCall(
 	}
 }
 
+function _hasInterruptResult(part: ContentPart): boolean {
+	if (part.type !== "tool-call") return false;
+	const r = (part as { result?: unknown }).result;
+	return typeof r === "object" && r !== null && "__interrupt__" in r;
+}
+
 export function buildContentForUI(
 	state: ContentPartsState,
 	toolsWithUI: Set<string>
 ): ThreadMessageLike["content"] {
 	const filtered = state.contentParts.filter((part) => {
 		if (part.type === "text") return part.text.length > 0;
-		if (part.type === "tool-call") return toolsWithUI.has(part.toolName);
+		if (part.type === "tool-call")
+			return toolsWithUI.has(part.toolName) || _hasInterruptResult(part);
 		if (part.type === "data-thinking-steps") return true;
 		return false;
 	});
@@ -199,7 +207,10 @@ export function buildContentForPersistence(
 	for (const part of state.contentParts) {
 		if (part.type === "text" && part.text.length > 0) {
 			parts.push(part);
-		} else if (part.type === "tool-call" && toolsWithUI.has(part.toolName)) {
+		} else if (
+			part.type === "tool-call" &&
+			(toolsWithUI.has(part.toolName) || _hasInterruptResult(part))
+		) {
 			parts.push(part);
 		} else if (part.type === "data-thinking-steps") {
 			parts.push(part);

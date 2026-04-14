@@ -472,7 +472,7 @@ async def create_surfsense_deep_agent(
         SubAgentMiddleware(backend=StateBackend, subagents=[general_purpose_spec]),
         create_summarization_middleware(llm, StateBackend),
         PatchToolCallsMiddleware(),
-        DedupHITLToolCallsMiddleware(),
+        DedupHITLToolCallsMiddleware(agent_tools=tools),
         AnthropicPromptCachingMiddleware(unsupported_model_behavior="ignore"),
     ]
 

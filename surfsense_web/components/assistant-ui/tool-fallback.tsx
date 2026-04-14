@@ -1,14 +1,16 @@
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon, XCircleIcon } from "lucide-react";
 import { useMemo, useState } from "react";
+import { GenericHitlApprovalToolUI } from "@/components/tool-ui/generic-hitl-approval";
 import { getToolIcon } from "@/contracts/enums/toolIcons";
+import { isInterruptResult } from "@/lib/hitl";
 import { cn } from "@/lib/utils";
 
 function formatToolName(name: string): string {
 	return name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export const ToolFallback: ToolCallMessagePartComponent = ({
+const DefaultToolFallbackInner: ToolCallMessagePartComponent = ({
 	toolName,
 	argsText,
 	result,
@@ -144,4 +146,11 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
 			)}
 		</div>
 	);
+};
+
+export const ToolFallback: ToolCallMessagePartComponent = (props) => {
+	if (isInterruptResult(props.result)) {
+		return <GenericHitlApprovalToolUI {...props} />;
+	}
+	return <DefaultToolFallbackInner {...props} />;
 };

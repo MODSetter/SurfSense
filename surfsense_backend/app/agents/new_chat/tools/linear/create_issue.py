@@ -2,7 +2,7 @@ import logging
 from typing import Any
 
 from langchain_core.tools import tool
-from langgraph.types import interrupt
+from app.agents.new_chat.tools.hitl import request_approval
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.connectors.linear_connector import LinearAPIError, LinearConnector
@@ -94,65 +94,37 @@ def create_create_linear_issue_tool(
                 }
 
             logger.info(f"Requesting approval for creating Linear issue: '{title}'")
-            approval = interrupt(
-                {
-                    "type": "linear_issue_creation",
-                    "action": {
-                        "tool": "create_linear_issue",
-                        "params": {
-                            "title": title,
-                            "description": description,
-                            "team_id": None,
-                            "state_id": None,
-                            "assignee_id": None,
-                            "priority": None,
-                            "label_ids": [],
-                            "connector_id": connector_id,
-                        },
-                    },
-                    "context": context,
-                }
+            result = request_approval(
+                action_type="linear_issue_creation",
+                tool_name="create_linear_issue",
+                params={
+                    "title": title,
+                    "description": description,
+                    "team_id": None,
+                    "state_id": None,
+                    "assignee_id": None,
+                    "priority": None,
+                    "label_ids": [],
+                    "connector_id": connector_id,
+                },
+                context=context,
             )
 
-            decisions_raw = (
-                approval.get("decisions", []) if isinstance(approval, dict) else []
-            )
-            decisions = (
-                decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
-            )
-            decisions = [d for d in decisions if isinstance(d, dict)]
-            if not decisions:
-                logger.warning("No approval decision received")
-                return {"status": "error", "message": "No approval decision received"}
-
-            decision = decisions[0]
-            decision_type = decision.get("type") or decision.get("decision_type")
-            logger.info(f"User decision: {decision_type}")
-
-            if decision_type == "reject":
+            if result.rejected:
                 logger.info("Linear issue creation rejected by user")
                 return {
                     "status": "rejected",
-                    "message": "User declined. The issue was not created. Do not ask again or suggest alternatives.",
+                    "message": "User declined. Do not retry or suggest alternatives.",
                 }
 
-            final_params: dict[str, Any] = {}
-            edited_action = decision.get("edited_action")
-            if isinstance(edited_action, dict):
-                edited_args = edited_action.get("args")
-                if isinstance(edited_args, dict):
-                    final_params = edited_args
-            elif isinstance(decision.get("args"), dict):
-                final_params = decision["args"]
-
-            final_title = final_params.get("title", title)
-            final_description = final_params.get("description", description)
-            final_team_id = final_params.get("team_id")
-            final_state_id = final_params.get("state_id")
-            final_assignee_id = final_params.get("assignee_id")
-            final_priority = final_params.get("priority")
-            final_label_ids = final_params.get("label_ids") or []
-            final_connector_id = final_params.get("connector_id", connector_id)
+            final_title = result.params.get("title", title)
+            final_description = result.params.get("description", description)
+            final_team_id = result.params.get("team_id")
+            final_state_id = result.params.get("state_id")
+            final_assignee_id = result.params.get("assignee_id")
+            final_priority = result.params.get("priority")
+            final_label_ids = result.params.get("label_ids") or []
+            final_connector_id = result.params.get("connector_id", connector_id)
 
             if not final_title or not final_title.strip():
                 logger.error("Title is empty or contains only whitespace")

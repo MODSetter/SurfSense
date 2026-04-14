@@ -3,7 +3,7 @@ import logging
 from typing import Any
 
 from langchain_core.tools import tool
-from langgraph.types import interrupt
+from app.agents.new_chat.tools.hitl import request_approval
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -69,58 +69,32 @@ def create_create_jira_issue_tool(
                     "connector_type": "jira",
                 }
 
-            approval = interrupt(
-                {
-                    "type": "jira_issue_creation",
-                    "action": {
-                        "tool": "create_jira_issue",
-                        "params": {
-                            "project_key": project_key,
-                            "summary": summary,
-                            "issue_type": issue_type,
-                            "description": description,
-                            "priority": priority,
-                            "connector_id": connector_id,
-                        },
-                    },
-                    "context": context,
-                }
+            result = request_approval(
+                action_type="jira_issue_creation",
+                tool_name="create_jira_issue",
+                params={
+                    "project_key": project_key,
+                    "summary": summary,
+                    "issue_type": issue_type,
+                    "description": description,
+                    "priority": priority,
+                    "connector_id": connector_id,
+                },
+                context=context,
             )
 
-            decisions_raw = (
-                approval.get("decisions", []) if isinstance(approval, dict) else []
-            )
-            decisions = (
-                decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
-            )
-            decisions = [d for d in decisions if isinstance(d, dict)]
-            if not decisions:
-                return {"status": "error", "message": "No approval decision received"}
-
-            decision = decisions[0]
-            decision_type = decision.get("type") or decision.get("decision_type")
-
-            if decision_type == "reject":
+            if result.rejected:
                 return {
                     "status": "rejected",
-                    "message": "User declined. The issue was not created.",
+                    "message": "User declined. Do not retry or suggest alternatives.",
                 }
 
-            final_params: dict[str, Any] = {}
-            edited_action = decision.get("edited_action")
-            if isinstance(edited_action, dict):
-                edited_args = edited_action.get("args")
-                if isinstance(edited_args, dict):
-                    final_params = edited_args
-            elif isinstance(decision.get("args"), dict):
-                final_params = decision["args"]
-
-            final_project_key = final_params.get("project_key", project_key)
-            final_summary = final_params.get("summary", summary)
-            final_issue_type = final_params.get("issue_type", issue_type)
-            final_description = final_params.get("description", description)
-            final_priority = final_params.get("priority", priority)
-            final_connector_id = final_params.get("connector_id", connector_id)
+            final_project_key = result.params.get("project_key", project_key)
+            final_summary = result.params.get("summary", summary)
+            final_issue_type = result.params.get("issue_type", issue_type)
+            final_description = result.params.get("description", description)
+            final_priority = result.params.get("priority", priority)
+            final_connector_id = result.params.get("connector_id", connector_id)
 
             if not final_summary or not final_summary.strip():
                 return {"status": "error", "message": "Issue summary cannot be empty."}

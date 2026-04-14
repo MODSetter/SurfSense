@@ -6,7 +6,7 @@ from email.mime.text import MIMEText
 from typing import Any
 
 from langchain_core.tools import tool
-from langgraph.types import interrupt
+from app.agents.new_chat.tools.hitl import request_approval
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.gmail import GmailToolMetadataService
@@ -122,65 +122,37 @@ def create_update_gmail_draft_tool(
                 f"Requesting approval for updating Gmail draft: '{original_subject}' "
                 f"(message_id={message_id}, draft_id={draft_id_from_context})"
             )
-            approval = interrupt(
-                {
-                    "type": "gmail_draft_update",
-                    "action": {
-                        "tool": "update_gmail_draft",
-                        "params": {
-                            "message_id": message_id,
-                            "draft_id": draft_id_from_context,
-                            "to": final_to_default,
-                            "subject": final_subject_default,
-                            "body": body,
-                            "cc": cc,
-                            "bcc": bcc,
-                            "connector_id": connector_id_from_context,
-                        },
-                    },
-                    "context": context,
-                }
+            result = request_approval(
+                action_type="gmail_draft_update",
+                tool_name="update_gmail_draft",
+                params={
+                    "message_id": message_id,
+                    "draft_id": draft_id_from_context,
+                    "to": final_to_default,
+                    "subject": final_subject_default,
+                    "body": body,
+                    "cc": cc,
+                    "bcc": bcc,
+                    "connector_id": connector_id_from_context,
+                },
+                context=context,
             )
 
-            decisions_raw = (
-                approval.get("decisions", []) if isinstance(approval, dict) else []
-            )
-            decisions = (
-                decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
-            )
-            decisions = [d for d in decisions if isinstance(d, dict)]
-            if not decisions:
-                logger.warning("No approval decision received")
-                return {"status": "error", "message": "No approval decision received"}
-
-            decision = decisions[0]
-            decision_type = decision.get("type") or decision.get("decision_type")
-            logger.info(f"User decision: {decision_type}")
-
-            if decision_type == "reject":
+            if result.rejected:
                 return {
                     "status": "rejected",
                     "message": "User declined. The draft was not updated. Do not ask again or suggest alternatives.",
                 }
 
-            final_params: dict[str, Any] = {}
-            edited_action = decision.get("edited_action")
-            if isinstance(edited_action, dict):
-                edited_args = edited_action.get("args")
-                if isinstance(edited_args, dict):
-                    final_params = edited_args
-            elif isinstance(decision.get("args"), dict):
-                final_params = decision["args"]
-
-            final_to = final_params.get("to", final_to_default)
-            final_subject = final_params.get("subject", final_subject_default)
-            final_body = final_params.get("body", body)
-            final_cc = final_params.get("cc", cc)
-            final_bcc = final_params.get("bcc", bcc)
-            final_connector_id = final_params.get(
+            final_to = result.params.get("to", final_to_default)
+            final_subject = result.params.get("subject", final_subject_default)
+            final_body = result.params.get("body", body)
+            final_cc = result.params.get("cc", cc)
+            final_bcc = result.params.get("bcc", bcc)
+            final_connector_id = result.params.get(
                 "connector_id", connector_id_from_context
             )
-            final_draft_id = final_params.get("draft_id", draft_id_from_context)
+            final_draft_id = result.params.get("draft_id", draft_id_from_context)
 
             if not final_connector_id:
                 return {
