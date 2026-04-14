@@ -1,4 +1,5 @@
 import {
+	ActionBarMorePrimitive,
 	ActionBarPrimitive,
 	AuiIf,
 	ErrorPrimitive,
@@ -15,12 +16,17 @@ import {
 	ExternalLink,
 	Globe,
 	MessageSquare,
+	MoreHorizontalIcon,
 	RefreshCwIcon,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import type { FC } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { commentsEnabledAtom, targetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
+import {
+	globalNewLLMConfigsAtom,
+	newLLMConfigsAtom,
+} from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import {
 	CitationMetadataProvider,
@@ -39,9 +45,13 @@ import {
 	DrawerHeader,
 	DrawerTitle,
 } from "@/components/ui/drawer";
+import { DropdownMenuLabel } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { useComments } from "@/hooks/use-comments";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
+import { useTokenUsage } from "@/components/assistant-ui/token-usage-context";
+import { getProviderIcon } from "@/lib/provider-icons";
 import { cn } from "@/lib/utils";
 import { openSafeNavigationHref, resolveSafeNavigationHref } from "@/components/tool-ui/shared/media";
 
@@ -367,6 +377,94 @@ export const MessageError: FC = () => {
 	);
 };
 
+function formatMessageDate(date: Date): string {
+	return date.toLocaleDateString(undefined, {
+		month: "short",
+		day: "numeric",
+		hour: "numeric",
+		minute: "2-digit",
+		hour12: true,
+	});
+}
+
+const MessageInfoDropdown: FC = () => {
+	const messageId = useAuiState(({ message }) => message?.id);
+	const createdAt = useAuiState(({ message }) => message?.createdAt);
+	const usage = useTokenUsage(messageId);
+
+	const { data: localConfigs } = useAtomValue(newLLMConfigsAtom);
+	const { data: globalConfigs } = useAtomValue(globalNewLLMConfigsAtom);
+
+	const configByModel = useMemo(() => {
+		const map = new Map<string, { name: string; provider: string }>();
+		for (const c of [...(globalConfigs ?? []), ...(localConfigs ?? [])]) {
+			map.set(c.model_name, { name: c.name, provider: c.provider });
+		}
+		return map;
+	}, [localConfigs, globalConfigs]);
+
+	const resolveModel = (modelKey: string) => {
+		const parts = modelKey.split("/");
+		const bare = parts[parts.length - 1] ?? modelKey;
+		const config = configByModel.get(modelKey) ?? configByModel.get(bare);
+		return config
+			? { name: config.name, icon: getProviderIcon(config.provider, { className: "size-3.5" }) }
+			: { name: modelKey, icon: null };
+	};
+
+	const modelBreakdown = usage ? (usage.usage ?? usage.model_breakdown) : undefined;
+	const models = modelBreakdown ? Object.entries(modelBreakdown) : [];
+	const hasUsage = usage && usage.total_tokens > 0;
+
+	return (
+		<ActionBarMorePrimitive.Root>
+			<ActionBarMorePrimitive.Trigger asChild>
+				<Button variant="ghost" size="icon" className="aui-button-icon size-6 p-1">
+					<MoreHorizontalIcon className="size-4" />
+					<span className="sr-only">More</span>
+				</Button>
+			</ActionBarMorePrimitive.Trigger>
+			<ActionBarMorePrimitive.Content
+				align="start"
+				className="bg-muted text-popover-foreground z-50 max-h-(--radix-dropdown-menu-content-available-height) min-w-[180px] origin-(--radix-dropdown-menu-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border dark:border-neutral-700 p-1 shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2"
+			>
+				{createdAt && (
+					<DropdownMenuLabel className="text-xs text-muted-foreground font-normal select-none">
+						{formatMessageDate(createdAt)}
+					</DropdownMenuLabel>
+				)}
+				{hasUsage && (
+					<>
+						<ActionBarMorePrimitive.Separator className="bg-border mx-2 my-1 h-px" />
+						{models.length > 0 ? (
+							models.map(([model, counts]) => {
+								const { name, icon } = resolveModel(model);
+								return (
+									<ActionBarMorePrimitive.Item key={model} className="focus:bg-neutral-200 dark:focus:bg-neutral-700 relative flex cursor-default flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none" onSelect={(e) => e.preventDefault()}>
+										<span className="flex items-center gap-1.5 text-xs font-medium">
+											{icon}
+											{name}
+										</span>
+										<span className="text-xs text-muted-foreground">
+											{counts.total_tokens.toLocaleString()} tokens
+										</span>
+									</ActionBarMorePrimitive.Item>
+								);
+							})
+						) : (
+							<ActionBarMorePrimitive.Item className="focus:bg-neutral-200 dark:focus:bg-neutral-700 relative flex cursor-default flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none" onSelect={(e) => e.preventDefault()}>
+								<span className="text-xs text-muted-foreground">
+									{usage.total_tokens.toLocaleString()} tokens
+								</span>
+							</ActionBarMorePrimitive.Item>
+						)}
+					</>
+				)}
+			</ActionBarMorePrimitive.Content>
+		</ActionBarMorePrimitive.Root>
+	);
+};
+
 const AssistantMessageInner: FC = () => {
 	const isMobile = !useMediaQuery("(min-width: 768px)");
 
@@ -429,7 +527,7 @@ const AssistantMessageInner: FC = () => {
 				</div>
 			)}
 
-			<div className="aui-assistant-message-footer mt-1 mb-5 ml-2 flex">
+			<div className="aui-assistant-message-footer mt-1 mb-5 ml-2 flex items-center gap-2">
 				<AssistantActionBar />
 			</div>
 		</CitationMetadataProvider>
@@ -626,6 +724,7 @@ const AssistantActionBar: FC = () => {
 					<ClipboardPaste />
 				</TooltipIconButton>
 			)}
+			<MessageInfoDropdown />
 		</ActionBarPrimitive.Root>
 	);
 };

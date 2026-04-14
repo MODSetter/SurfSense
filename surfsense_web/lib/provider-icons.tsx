@@ -13,6 +13,7 @@ import {
 	DeepSeekIcon,
 	FireworksAiIcon,
 	GeminiIcon,
+	GitHubModelsIcon,
 	GroqIcon,
 	HuggingFaceIcon,
 	MiniMaxIcon,
@@ -82,6 +83,8 @@ export function getProviderIcon(
 			return <FireworksAiIcon className={cn(className)} />;
 		case "GOOGLE":
 			return <GeminiIcon className={cn(className)} />;
+		case "GITHUB_MODELS":
+			return <GitHubModelsIcon className={cn(className)} />;
 		case "GROQ":
 			return <GroqIcon className={cn(className)} />;
 		case "HUGGINGFACE":

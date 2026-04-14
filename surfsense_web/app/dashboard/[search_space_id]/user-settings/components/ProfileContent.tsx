@@ -113,10 +113,10 @@ export function ProfileContent() {
 							type="submit"
 							variant="outline"
 							disabled={isPending || !hasChanges}
-							className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+							className="relative gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
 						>
-							{isPending && <Spinner size="sm" className="mr-2" />}
-							{t("profile_save")}
+							<span className={isPending ? "opacity-0" : ""}>{t("profile_save")}</span>
+							{isPending && <Spinner size="sm" className="absolute" />}
 						</Button>
 					</div>
 				</form>

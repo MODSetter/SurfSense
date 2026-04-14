@@ -10,6 +10,7 @@ export { default as DeepInfraIcon } from "./deepinfra.svg";
 export { default as DeepSeekIcon } from "./deepseek.svg";
 export { default as FireworksAiIcon } from "./fireworksai.svg";
 export { default as GeminiIcon } from "./gemini.svg";
+export { default as GitHubModelsIcon } from "./github.svg";
 export { default as GroqIcon } from "./groq.svg";
 export { default as HuggingFaceIcon } from "./huggingface.svg";
 export { default as MiniMaxIcon } from "./minimax.svg";

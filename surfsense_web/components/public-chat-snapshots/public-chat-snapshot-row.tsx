@@ -1,14 +1,22 @@
 "use client";
 
-import { Check, Copy, Dot, ExternalLink, MessageSquare, Trash2 } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { Copy, Dot, ExternalLink, MessageSquare, MoreHorizontal, Trash2 } from "lucide-react";
+import { useCallback, useState } from "react";
+import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { PublicChatSnapshotDetail } from "@/contracts/types/chat-threads.types";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { cn } from "@/lib/utils";
 
 function getInitials(name: string): string {
 	const parts = name.trim().split(/\s+/);
@@ -35,15 +43,12 @@ export function PublicChatSnapshotRow({
 	isDeleting = false,
 	memberMap,
 }: PublicChatSnapshotRowProps) {
-	const [copied, setCopied] = useState(false);
-	const copyTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
+	const [dropdownOpen, setDropdownOpen] = useState(false);
 	const isDesktop = useMediaQuery("(min-width: 768px)");
 
 	const handleCopyClick = useCallback(() => {
 		onCopy(snapshot);
-		setCopied(true);
-		if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-		copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
+		toast.success("Link copied to clipboard");
 	}, [onCopy, snapshot]);
 
 	const formattedDate = new Date(snapshot.created_at).toLocaleDateString(undefined, {
@@ -58,94 +63,64 @@ export function PublicChatSnapshotRow({
 		<Card className="group relative overflow-hidden transition-all duration-200 border-border/60 hover:shadow-md h-full">
 			<CardContent className="p-4 flex flex-col gap-3 h-full">
 				{/* Header: Title + Actions */}
-				<div className="relative">
-					<div className="min-w-0 pr-16 sm:pr-0 sm:group-hover:pr-16">
-						<h4
-							className="text-sm font-semibold tracking-tight truncate"
-							title={snapshot.thread_title}
-						>
-							{snapshot.thread_title}
-						</h4>
-					</div>
-					<div className="flex items-center gap-0.5 shrink-0 sm:hidden sm:group-hover:flex absolute right-0 top-0">
-						<TooltipProvider>
-							<Tooltip open={isDesktop ? undefined : false}>
-								<TooltipTrigger asChild>
-									<Button
-										variant="ghost"
-										size="icon"
-										asChild
-										className="h-7 w-7 text-muted-foreground hover:text-foreground"
-									>
-										<a href={snapshot.public_url} target="_blank" rel="noopener noreferrer">
-											<ExternalLink className="h-3 w-3" />
-										</a>
-									</Button>
-								</TooltipTrigger>
-								<TooltipContent>Open link</TooltipContent>
-							</Tooltip>
-						</TooltipProvider>
-						{canDelete && (
-							<TooltipProvider>
-								<Tooltip open={isDesktop ? undefined : false}>
-									<TooltipTrigger asChild>
-										<Button
-											variant="ghost"
-											size="icon"
-											onClick={() => onDelete(snapshot)}
-											disabled={isDeleting}
-											className="h-7 w-7 text-muted-foreground hover:text-destructive"
-										>
-											<Trash2 className="h-3 w-3" />
-										</Button>
-									</TooltipTrigger>
-									<TooltipContent>Delete</TooltipContent>
-								</Tooltip>
-							</TooltipProvider>
+				<div className="relative flex items-center">
+					<h4
+						className={cn(
+							"text-sm font-semibold tracking-tight truncate",
+							dropdownOpen ? "pr-8" : "sm:group-hover:pr-8"
 						)}
-					</div>
+						title={snapshot.thread_title}
+					>
+						{snapshot.thread_title}
+					</h4>
+					<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+						<DropdownMenuTrigger asChild>
+							<Button
+								variant="ghost"
+								size="icon"
+								className={cn(
+									"absolute right-0 h-6 w-6 shrink-0 hover:bg-transparent",
+									dropdownOpen
+										? "opacity-100"
+										: "sm:opacity-0 sm:group-hover:opacity-100"
+								)}
+							>
+								<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end" className="w-40">
+							<DropdownMenuItem onClick={handleCopyClick}>
+								<Copy className="mr-2 h-4 w-4" />
+								Copy link
+							</DropdownMenuItem>
+							<DropdownMenuItem asChild>
+								<a href={snapshot.public_url} target="_blank" rel="noopener noreferrer">
+									<ExternalLink className="mr-2 h-4 w-4" />
+									Open link
+								</a>
+							</DropdownMenuItem>
+							{canDelete && (
+								<DropdownMenuItem
+									onClick={() => onDelete(snapshot)}
+									disabled={isDeleting}
+								>
+									<Trash2 className="mr-2 h-4 w-4" />
+									Delete
+								</DropdownMenuItem>
+							)}
+						</DropdownMenuContent>
+					</DropdownMenu>
 				</div>
 
 				{/* Message count badge */}
 				<div className="flex items-center gap-1.5">
 					<Badge
-						variant="outline"
-						className="text-[10px] px-1.5 py-0.5 border-muted-foreground/20 text-muted-foreground"
+						variant="secondary"
+						className="text-[10px] px-1.5 py-0.5 border-0 text-muted-foreground bg-muted"
 					>
 						<MessageSquare className="h-2.5 w-2.5 mr-1" />
 						{snapshot.message_count} messages
 					</Badge>
-				</div>
-
-				{/* Public URL – selectable fallback for manual copy */}
-				<div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5">
-					<div className="min-w-0 flex-1 overflow-x-auto scrollbar-hide">
-						<p
-							className="text-[10px] font-mono text-muted-foreground whitespace-nowrap select-all cursor-text"
-							title={snapshot.public_url}
-						>
-							{snapshot.public_url}
-						</p>
-					</div>
-					<TooltipProvider>
-						<Tooltip open={isDesktop ? undefined : false}>
-							<TooltipTrigger asChild>
-								<Button
-									variant="ghost"
-									size="icon"
-									onClick={handleCopyClick}
-									className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
-								>
-									{copied ? (
-										<Check className="h-3 w-3 text-green-500" />
-									) : (
-										<Copy className="h-3 w-3" />
-									)}
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent>{copied ? "Copied!" : "Copy link"}</TooltipContent>
-						</Tooltip>
-					</TooltipProvider>
 				</div>
 
 				{/* Footer: Date + Creator */}
