@@ -67,6 +67,8 @@ import {
 	getRegenerateUrl,
 	getThreadFull,
 	getThreadMessages,
+	type ThreadListItem,
+	type ThreadListResponse,
 	type ThreadRecord,
 } from "@/lib/chat/thread-persistence";
 import { NotFoundError } from "@/lib/error";
@@ -770,9 +772,21 @@ export default function NewChatPage() {
 							if (titleData?.title && titleData?.threadId === currentThreadId) {
 								setCurrentThread((prev) => (prev ? { ...prev, title: titleData.title } : prev));
 								updateChatTabTitle({ chatId: currentThreadId, title: titleData.title });
-								queryClient.invalidateQueries({
-									queryKey: ["threads", String(searchSpaceId)],
-								});
+								queryClient.setQueriesData<ThreadListResponse>(
+									{ queryKey: ["threads", String(searchSpaceId)] },
+									(old) => {
+										if (!old) return old;
+										const updateTitle = (list: ThreadListItem[]) =>
+											list.map((t) =>
+												t.id === titleData.threadId ? { ...t, title: titleData.title } : t
+											);
+										return {
+											...old,
+											threads: updateTitle(old.threads),
+											archived_threads: updateTitle(old.archived_threads),
+										};
+									}
+								);
 							}
 							break;
 						}

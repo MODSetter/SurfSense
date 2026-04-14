@@ -27,7 +27,6 @@ export function useTypewriter(text: string, speed = 35, skipFor = "New Chat"): s
 		}
 
 		let i = 0;
-		setDisplayed("");
 		intervalRef.current = setInterval(() => {
 			i++;
 			setDisplayed(text.slice(0, i));
