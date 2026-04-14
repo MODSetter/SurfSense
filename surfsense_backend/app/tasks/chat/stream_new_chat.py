@@ -1170,6 +1170,10 @@ async def stream_new_chat(
     _t_total = time.perf_counter()
     log_system_snapshot("stream_new_chat_START")
 
+    from app.services.token_tracking_service import start_turn
+
+    accumulator = start_turn()
+
     session = async_session_maker()
     try:
         # Mark AI as responding to this user for live collaboration
@@ -1527,6 +1531,17 @@ async def stream_new_chat(
         if stream_result.is_interrupted:
             if title_task is not None and not title_task.done():
                 title_task.cancel()
+
+            usage_summary = accumulator.per_message_summary()
+            if usage_summary:
+                yield streaming_service.format_data("token-usage", {
+                    "usage": usage_summary,
+                    "prompt_tokens": accumulator.total_prompt_tokens,
+                    "completion_tokens": accumulator.total_completion_tokens,
+                    "total_tokens": accumulator.grand_total,
+                    "call_details": accumulator.serialized_calls(),
+                })
+
             yield streaming_service.format_finish_step()
             yield streaming_service.format_finish()
             yield streaming_service.format_done()
@@ -1547,6 +1562,16 @@ async def stream_new_chat(
                 yield streaming_service.format_thread_title_update(
                     chat_id, generated_title
                 )
+
+        usage_summary = accumulator.per_message_summary()
+        if usage_summary:
+            yield streaming_service.format_data("token-usage", {
+                "usage": usage_summary,
+                "prompt_tokens": accumulator.total_prompt_tokens,
+                "completion_tokens": accumulator.total_completion_tokens,
+                "total_tokens": accumulator.grand_total,
+                "call_details": accumulator.serialized_calls(),
+            })
 
         # Fire background memory extraction if the agent didn't handle it.
         # Shared threads write to team memory; private threads write to user memory.
@@ -1645,6 +1670,10 @@ async def stream_resume_chat(
     streaming_service = VercelStreamingService()
     stream_result = StreamResult()
     _t_total = time.perf_counter()
+
+    from app.services.token_tracking_service import start_turn
+
+    accumulator = start_turn()
 
     session = async_session_maker()
     try:
@@ -1769,10 +1798,30 @@ async def stream_resume_chat(
             chat_id,
         )
         if stream_result.is_interrupted:
+            usage_summary = accumulator.per_message_summary()
+            if usage_summary:
+                yield streaming_service.format_data("token-usage", {
+                    "usage": usage_summary,
+                    "prompt_tokens": accumulator.total_prompt_tokens,
+                    "completion_tokens": accumulator.total_completion_tokens,
+                    "total_tokens": accumulator.grand_total,
+                    "call_details": accumulator.serialized_calls(),
+                })
+
             yield streaming_service.format_finish_step()
             yield streaming_service.format_finish()
             yield streaming_service.format_done()
             return
+
+        usage_summary = accumulator.per_message_summary()
+        if usage_summary:
+            yield streaming_service.format_data("token-usage", {
+                "usage": usage_summary,
+                "prompt_tokens": accumulator.total_prompt_tokens,
+                "completion_tokens": accumulator.total_completion_tokens,
+                "total_tokens": accumulator.grand_total,
+                "call_details": accumulator.serialized_calls(),
+            })
 
         yield streaming_service.format_finish_step()
         yield streaming_service.format_finish()

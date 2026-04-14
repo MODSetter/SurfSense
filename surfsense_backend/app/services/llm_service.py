@@ -22,9 +22,12 @@ litellm.drop_params = True
 # Memory controls: prevent unbounded internal accumulation
 litellm.telemetry = False
 litellm.cache = None
-litellm.success_callback = []
 litellm.failure_callback = []
 litellm.input_callback = []
+
+from app.services.token_tracking_service import token_tracker
+
+litellm.callbacks = [token_tracker]
 
 logger = logging.getLogger(__name__)
 

@@ -970,6 +970,7 @@ class ChatLiteLLMRouter(BaseChatModel):
                 messages=formatted_messages,
                 stop=stop,
                 stream=True,
+                stream_options={"include_usage": True},
                 **call_kwargs,
             )
         except ContextWindowExceededError as e:

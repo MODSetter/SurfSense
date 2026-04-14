@@ -34,6 +34,14 @@ class NewChatMessageCreate(NewChatMessageBase):
     thread_id: int
 
 
+class TokenUsageSummary(BaseModel):
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+    model_breakdown: dict | None = None
+    model_config = ConfigDict(from_attributes=True)
+
+
 class NewChatMessageRead(NewChatMessageBase, IDModel, TimestampModel):
     """Schema for reading a message."""
 
@@ -41,6 +49,7 @@ class NewChatMessageRead(NewChatMessageBase, IDModel, TimestampModel):
     author_id: UUID | None = None
     author_display_name: str | None = None
     author_avatar_url: str | None = None
+    token_usage: TokenUsageSummary | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
