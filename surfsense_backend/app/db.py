@@ -647,6 +647,11 @@ class NewChatThread(BaseModel, TimestampMixin):
         cascade="all, delete-orphan",
         foreign_keys="[PublicChatSnapshot.thread_id]",
     )
+    token_usages = relationship(
+        "TokenUsage",
+        back_populates="thread",
+        cascade="all, delete-orphan",
+    )
 
 
 class NewChatMessage(BaseModel, TimestampMixin):
@@ -685,6 +690,63 @@ class NewChatMessage(BaseModel, TimestampMixin):
         back_populates="message",
         cascade="all, delete-orphan",
     )
+    token_usage = relationship(
+        "TokenUsage",
+        back_populates="message",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+
+
+class TokenUsage(BaseModel, TimestampMixin):
+    """
+    Tracks LLM token consumption per assistant turn.
+
+    One row per usage event. For chat, linked to a specific message via message_id.
+    The usage_type column enables future extension to track non-chat usage
+    (indexing, image generation, podcasts, etc.) without schema changes.
+    """
+
+    __tablename__ = "token_usage"
+
+    prompt_tokens = Column(Integer, nullable=False, default=0)
+    completion_tokens = Column(Integer, nullable=False, default=0)
+    total_tokens = Column(Integer, nullable=False, default=0)
+    model_breakdown = Column(JSONB, nullable=True)
+    call_details = Column(JSONB, nullable=True)
+
+    usage_type = Column(String(50), nullable=False, default="chat", index=True)
+
+    thread_id = Column(
+        Integer,
+        ForeignKey("new_chat_threads.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    message_id = Column(
+        Integer,
+        ForeignKey("new_chat_messages.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    search_space_id = Column(
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    # Relationships
+    thread = relationship("NewChatThread", back_populates="token_usages")
+    message = relationship("NewChatMessage", back_populates="token_usage")
+    search_space = relationship("SearchSpace")
+    user = relationship("User")
 
 
 class PublicChatSnapshot(BaseModel, TimestampMixin):
