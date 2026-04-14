@@ -1,76 +1,51 @@
-# Story 5.1: Kết nối Pricing UI với Stripe Checkout
+# Story 5.1: Giao diện Bảng giá & Lựa chọn Gói Cước (Pricing Plan Selection UI)
 
 Status: ready-for-dev
 
-## Context / Correction Note
-> **⚠️ Story gốc bị sai hướng.** Story gốc mô tả tạo mới pricing page với Free/Pro/Team subscription tiers. Thực tế, pricing page **đã tồn tại** với mô hình PAYG (Pay-As-You-Go page packs), không phải subscription. Stripe checkout endpoint cũng đã tồn tại. Task thực tế là **wire up** nút "Get Started" của PAYG tier với endpoint hiện có.
+<!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
 ## Story
 
-As a Người dùng đã đăng nhập,
-I want bấm "Get Started" trên trang Pricing để mua page packs,
-so that tôi có thể tiếp tục upload tài liệu sau khi hết quota.
-
-## Actual Architecture (as-is)
-
-**Đã tồn tại và hoạt động:**
-- `surfsense_web/app/(home)/pricing/page.tsx` — pricing page route
-- `surfsense_web/components/pricing/pricing-section.tsx` — UI với 3 tiers:
-  - **FREE**: 500 pages included, button href="/login"
-  - **PAY AS YOU GO**: $1/1,000 pages, button href="/login" ← **cần sửa**
-  - **ENTERPRISE**: Contact Sales, button href="/contact"
-- `surfsense_backend/app/routes/stripe_routes.py:create_checkout_session` — endpoint `POST /api/v1/stripe/create-checkout-session` đã implement, mode=`payment`, yêu cầu `search_space_id` và `quantity`
-
-**Chưa làm:**
-- Nút "Get Started" của PAYG tier chỉ link đến `/login`, chưa gọi Stripe checkout
-- Không có flow chọn số lượng page packs (quantity)
+As a Khách hàng tiềm năng,
+I want xem một bảng giá rõ ràng về các gói cước (ví dụ: Free, Pro, Team) với quyền lợi tương ứng,
+so that tôi biết chính xác số lượng file/tin nhắn mình nhận được trước khi quyết định nâng cấp hoặc duy trì để quản lý ví (Wallet/Token) của mình.
 
 ## Acceptance Criteria
 
-1. Khi user đã đăng nhập bấm "Get Started" ở PAYG tier, hiện modal/form cho phép chọn số lượng pack (1, 5, 10, etc.).
-2. Sau khi confirm, gọi `POST /api/v1/stripe/create-checkout-session` với `quantity` và `search_space_id`, nhận `checkout_url`.
-3. Redirect user đến `checkout_url` (Stripe-hosted checkout page).
-4. Nếu user chưa đăng nhập, redirect đến `/login` trước (behavior hiện tại giữ nguyên cho FREE tier).
+1. UI hiển thị các mức giá (monthly/yearly) rõ ràng cùng các bullets tính năng.
+2. Thiết kế áp dụng chuẩn UX-DR1 (Dark mode, Base Zinc, Accent Indigo) hiện có của app.
+3. Kèm theo hiệu ứng hover mượt mà cho các Pricing Cards (<150ms delay).
+4. Phân bổ ít nhất 2 gói cước (Free, Pro) gắn liền với Limit.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Cập nhật nút PAYG trong `pricing-section.tsx`
-  - [ ] Subtask 1.1: Thay `href="/login"` bằng `onClick` handler. Nếu user chưa authenticated, redirect `/login`. Nếu đã authenticated, mở modal chọn quantity.
-  - [ ] Subtask 1.2: Tạo `PurchasePagesModal` component với dropdown/input chọn số pack (1–10), hiển thị tổng tiền (`quantity × $1`).
-- [ ] Task 2: Gọi Stripe checkout API
-  - [ ] Subtask 2.1: Khi user confirm trong modal, gọi `POST /api/v1/stripe/create-checkout-session` với `{ quantity, search_space_id }`.
-  - [ ] Subtask 2.2: Nhận `checkout_url` và redirect bằng `window.location.href = checkout_url`.
-- [ ] Task 3: Xử lý return URL sau checkout
-  - [ ] Subtask 3.1: Kiểm tra success/cancel URL config hiện tại trong `stripe_routes.py` (`_get_checkout_urls`).
-  - [ ] Subtask 3.2: Sau purchase thành công, hiển thị toast "Mua thành công! X pages đã được thêm vào tài khoản."
+- [ ] Task 1: Dựng Page Route Pricing (Frontend)
+  - [ ] Subtask 1.1: Tạo Component `/src/pages/pricing/page.tsx` (app router tuỳ cấu hình Next.js hoặc Vite App).
+  - [ ] Subtask 1.2: Sử dụng thư viện `framer-motion` (nếu có sẵn) hoặc Tailwind Utilities (`transition-all duration-150`) để thoả mãn Animation criteria.
+- [ ] Task 2: Data cấu hình Static Pricing (Frontend)
+  - [ ] Subtask 2.1: Cấu trúc Object Constant cho Gói "Free" (Limits: 10 docs, 50 LLM messages/day).
+  - [ ] Subtask 2.2: Cấu trúc Object Constant cho Gói "Pro" (Limits: 100 docs, 1000 LLM messages/day).
+- [ ] Task 3: Liên kết Nút "Upgrade" (Frontend)
+  - [ ] Subtask 3.1: Nút nâng cấp sẽ chèn hàm mock gọi `/api/v1/stripe/checkout` (Endpoint này sẽ được làm chi tiết ở story 5.2).
 
 ## Dev Notes
 
-### Stripe Checkout Request Schema (hiện tại)
-```python
-class CreateCheckoutSessionRequest(BaseModel):
-    search_space_id: int
-    quantity: int  # số pack, mỗi pack = STRIPE_PAGES_PER_UNIT pages
-```
+### Relevant Architecture Patterns & Constraints
+- **State Management & Data Retrieval:** Vì UI Pricing khá tĩnh, hãy triển khai bằng cấu trúc Const Typescript thay vì gọi DB ở màn đầu tiên nhằm tối ưu tốc độ load.
+- Chú ý đến Graceful degradation: Nếu user Offline, màn pricing vẫn load được Static Data, nhưng disable nút "Purchase" để tránh lỗi Network Request.
 
-### API Endpoint
-```
-POST /api/v1/stripe/create-checkout-session
-Authorization: Bearer <token>
-Body: { "search_space_id": 1, "quantity": 2 }
-Response: { "checkout_url": "https://checkout.stripe.com/..." }
-```
+### Project Structure Notes
+- Module thay đổi:
+  - `surfsense_web/src/pages/pricing/page.tsx` (hoặc tương đương tuỳ thư mục routes).
+  - `surfsense_web/src/constants/billing.ts` (Lưu định mức cước).
 
 ### References
-- `surfsense_web/components/pricing/pricing-section.tsx`
-- `surfsense_backend/app/routes/stripe_routes.py` (lines ~204–271)
-- `surfsense_web/app/dashboard/[search_space_id]/purchase-cancel/page.tsx`
+- [Epic 5 - Commercialization & Account Limits].
 
 ## Dev Agent Record
 
 ### Agent Model Used
-_TBD_
+Antigravity Claude 3.5 Sonnet Engine
 
 ### File List
-- `surfsense_web/components/pricing/pricing-section.tsx`
-- `surfsense_web/components/pricing/PurchasePagesModal.tsx` (new)
+- `surfsense_web/src/pages/pricing...`
