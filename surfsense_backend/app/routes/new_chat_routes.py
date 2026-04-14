@@ -30,7 +30,6 @@ from app.db import (
     NewChatThread,
     Permission,
     SearchSpace,
-    TokenUsage,
     User,
     get_async_session,
     shielded_async_session,
@@ -53,6 +52,7 @@ from app.schemas.new_chat import (
     ThreadListResponse,
     TokenUsageSummary,
 )
+from app.services.token_tracking_service import record_token_usage
 from app.tasks.chat.stream_new_chat import stream_new_chat, stream_resume_chat
 from app.users import current_active_user
 from app.utils.rbac import check_permission
@@ -949,19 +949,19 @@ async def append_message(
         # Persist token usage if provided (for assistant messages)
         token_usage_data = raw_body.get("token_usage")
         if token_usage_data and message_role == NewChatMessageRole.ASSISTANT:
-            token_usage_record = TokenUsage(
+            await record_token_usage(
+                session,
+                usage_type="chat",
+                search_space_id=thread.search_space_id,
+                user_id=user.id,
                 prompt_tokens=token_usage_data.get("prompt_tokens", 0),
                 completion_tokens=token_usage_data.get("completion_tokens", 0),
                 total_tokens=token_usage_data.get("total_tokens", 0),
                 model_breakdown=token_usage_data.get("usage"),
                 call_details=token_usage_data.get("call_details"),
-                usage_type="chat",
                 thread_id=thread_id,
                 message_id=db_message.id,
-                search_space_id=thread.search_space_id,
-                user_id=user.id,
             )
-            session.add(token_usage_record)
 
         await session.commit()
 
