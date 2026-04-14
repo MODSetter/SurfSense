@@ -30,7 +30,9 @@ async def get_auth_token(client: httpx.AsyncClient) -> str:
         f"proxy-login failed ({response.status_code}): {response.text}"
     )
     token = response.cookies.get("surfsense_sso_token")
-    assert token, f"surfsense_sso_token cookie missing from proxy-login response: {response.headers!r}"
+    assert token, (
+        f"surfsense_sso_token cookie missing from proxy-login response: {response.headers!r}"
+    )
     return token
 
 

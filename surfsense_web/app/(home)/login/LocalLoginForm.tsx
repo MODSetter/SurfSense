@@ -9,9 +9,9 @@ import { useState } from "react";
 import { loginMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
 import { Spinner } from "@/components/ui/spinner";
 import { getAuthErrorDetails, isNetworkError } from "@/lib/auth-errors";
+import { setBearerToken } from "@/lib/auth-utils";
 import { AUTH_TYPE } from "@/lib/env-config";
 import { ValidationError } from "@/lib/error";
-import { setBearerToken } from "@/lib/auth-utils";
 import { trackLoginAttempt, trackLoginFailure, trackLoginSuccess } from "@/lib/posthog/events";
 
 export function LocalLoginForm() {

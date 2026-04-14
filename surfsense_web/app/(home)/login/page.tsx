@@ -31,12 +31,9 @@ function LoginContent() {
 	// rendering the form lives below, after every other hook has run.
 	useEffect(() => {
 		if (typeof window !== "undefined" && isSSOAuth()) {
-			const oauthProxyUrl =
-				process.env.NEXT_PUBLIC_OAUTH2_PROXY_URL || window.location.origin;
+			const oauthProxyUrl = process.env.NEXT_PUBLIC_OAUTH2_PROXY_URL || window.location.origin;
 			const rd = `${window.location.origin}/`;
-			window.location.replace(
-				`${oauthProxyUrl}/oauth2/sign_in?rd=${encodeURIComponent(rd)}`
-			);
+			window.location.replace(`${oauthProxyUrl}/oauth2/sign_in?rd=${encodeURIComponent(rd)}`);
 		}
 	}, []);
 

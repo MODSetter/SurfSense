@@ -86,7 +86,9 @@ class ProxyAuthMiddleware(BaseHTTPMiddleware):
 
         raw_email = request.headers.get("x-auth-request-email")
         if not raw_email:
-            logger.debug("ProxyAuth: x-auth-request-email missing on %s", request.url.path)
+            logger.debug(
+                "ProxyAuth: x-auth-request-email missing on %s", request.url.path
+            )
             return await call_next(request)
 
         user = await self._resolve_user(_normalise_email(raw_email), request)

@@ -68,8 +68,8 @@ class BaseApiService {
 			const defaultOptions: RequestOptions = {
 				headers: this.bearerToken
 					? {
-						Authorization: `Bearer ${this.bearerToken}`,
-					}
+							Authorization: `Bearer ${this.bearerToken}`,
+						}
 					: {},
 				method: "GET",
 				responseType: ResponseType.JSON,
@@ -359,4 +359,3 @@ class BaseApiService {
 }
 
 export const baseApiService = new BaseApiService(process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "");
-

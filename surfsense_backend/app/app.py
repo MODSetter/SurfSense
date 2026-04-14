@@ -35,7 +35,7 @@ from app.db import User, create_db_and_tables, get_async_session
 from app.middleware.proxy_auth import ProxyAuthMiddleware
 from app.routes import router as crud_router
 from app.routes.auth_routes import router as auth_router
-from app.schemas import UserCreate, UserRead, UserUpdate
+from app.schemas import UserRead, UserUpdate
 from app.tasks.surfsense_docs_indexer import seed_surfsense_docs
 from app.users import (
     current_active_user,
@@ -380,6 +380,7 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
 
 # Register /users/me BEFORE fastapi_users.get_users_router so our routes take
 # precedence (FastAPI first-match wins). fastapi-users' internal /users/me only

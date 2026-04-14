@@ -163,7 +163,9 @@ class TestProxyLogin:
         mock_strategy.write_token = AsyncMock(return_value="mock-access-token")
 
         with (
-            patch("app.routes.auth_routes.get_jwt_strategy", return_value=mock_strategy),
+            patch(
+                "app.routes.auth_routes.get_jwt_strategy", return_value=mock_strategy
+            ),
             patch(
                 "app.routes.auth_routes.create_refresh_token",
                 AsyncMock(return_value="mock-refresh-token"),
@@ -197,4 +199,3 @@ class TestProxyLogin:
             await proxy_login(request)
 
         assert exc_info.value.status_code == 401
-

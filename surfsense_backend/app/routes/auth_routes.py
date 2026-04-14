@@ -73,7 +73,10 @@ async def proxy_login(request: Request):
     response.set_cookie("surfsense_sso_token", access_token, **cookie_opts)
     response.set_cookie("surfsense_sso_refresh_token", refresh_token, **cookie_opts)
 
-    logger.info("proxy_login: issued JWT for %s → redirecting to frontend via cookie", user.email)
+    logger.info(
+        "proxy_login: issued JWT for %s → redirecting to frontend via cookie",
+        user.email,
+    )
     return response
 
 
