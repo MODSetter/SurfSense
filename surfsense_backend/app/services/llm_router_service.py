@@ -820,7 +820,9 @@ class ChatLiteLLMRouter(BaseChatModel):
         )
 
         # Convert response to ChatResult with potential tool calls
-        message = self._convert_response_to_message(response.choices[0].message)
+        message = self._convert_response_to_message(
+            response.choices[0].message, response=response
+        )
         generation = ChatGeneration(message=message)
 
         return ChatResult(generations=[generation])
@@ -886,7 +888,9 @@ class ChatLiteLLMRouter(BaseChatModel):
         )
 
         # Convert response to ChatResult with potential tool calls
-        message = self._convert_response_to_message(response.choices[0].message)
+        message = self._convert_response_to_message(
+            response.choices[0].message, response=response
+        )
         generation = ChatGeneration(message=message)
 
         return ChatResult(generations=[generation])
@@ -1076,7 +1080,9 @@ class ChatLiteLLMRouter(BaseChatModel):
 
         return result
 
-    def _convert_response_to_message(self, response_message: Any) -> AIMessage:
+    def _convert_response_to_message(
+        self, response_message: Any, response: Any = None
+    ) -> AIMessage:
         """Convert a LiteLLM response message to a LangChain AIMessage."""
         import json
 
@@ -1099,9 +1105,22 @@ class ChatLiteLLMRouter(BaseChatModel):
                         tool_call["args"] = tc.function.arguments
                 tool_calls.append(tool_call)
 
+        extra_kwargs: dict[str, Any] = {}
+        if response:
+            usage = getattr(response, "usage", None)
+            if usage:
+                extra_kwargs["usage_metadata"] = {
+                    "input_tokens": getattr(usage, "prompt_tokens", 0) or 0,
+                    "output_tokens": getattr(usage, "completion_tokens", 0) or 0,
+                    "total_tokens": getattr(usage, "total_tokens", 0) or 0,
+                }
+            extra_kwargs["response_metadata"] = {
+                "model_name": getattr(response, "model", "unknown"),
+            }
+
         if tool_calls:
-            return AIMessage(content=content, tool_calls=tool_calls)
-        return AIMessage(content=content)
+            return AIMessage(content=content, tool_calls=tool_calls, **extra_kwargs)
+        return AIMessage(content=content, **extra_kwargs)
 
     def _convert_delta_to_chunk(self, delta: Any) -> AIMessageChunk | None:
         """Convert a streaming delta to an AIMessageChunk."""

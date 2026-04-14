@@ -1459,22 +1459,35 @@ async def stream_new_chat(
         )
         is_first_response = (assistant_count_result.scalar() or 0) == 0
 
-        title_task: asyncio.Task[str | None] | None = None
+        title_task: asyncio.Task[tuple[str | None, dict[str, int] | None]] | None = None
         if is_first_response:
 
-            async def _generate_title() -> str | None:
+            async def _generate_title() -> tuple[str | None, dict[str, int] | None]:
+                """Return (title, usage_dict) where usage_dict has model/prompt/completion/total."""
                 try:
                     title_chain = TITLE_GENERATION_PROMPT_TEMPLATE | llm
                     title_result = await title_chain.ainvoke(
                         {"user_query": user_query[:500]}
                     )
-                    if title_result and hasattr(title_result, "content"):
-                        raw_title = title_result.content.strip()
-                        if raw_title and len(raw_title) <= 100:
-                            return raw_title.strip("\"'")
+                    usage_dict: dict[str, int] | None = None
+                    if title_result:
+                        um = getattr(title_result, "usage_metadata", None)
+                        if um:
+                            rm = getattr(title_result, "response_metadata", None) or {}
+                            raw_model = rm.get("model_name", "unknown")
+                            usage_dict = {
+                                "model": raw_model.split("/", 1)[-1] if "/" in raw_model else raw_model,
+                                "prompt_tokens": um.get("input_tokens", 0),
+                                "completion_tokens": um.get("output_tokens", 0),
+                                "total_tokens": um.get("total_tokens", 0),
+                            }
+                        if hasattr(title_result, "content"):
+                            raw_title = title_result.content.strip()
+                            if raw_title and len(raw_title) <= 100:
+                                return raw_title.strip("\"'"), usage_dict
+                    return None, usage_dict
                 except Exception:
-                    pass
-                return None
+                    return None, None
 
             title_task = asyncio.create_task(_generate_title())
 
@@ -1506,7 +1519,7 @@ async def stream_new_chat(
 
             # Inject title update mid-stream as soon as the background task finishes
             if title_task is not None and title_task.done() and not title_emitted:
-                generated_title = title_task.result()
+                generated_title, _title_usage = title_task.result()
                 if generated_title:
                     async with shielded_async_session() as title_session:
                         title_thread_result = await title_session.execute(
@@ -1532,7 +1545,6 @@ async def stream_new_chat(
             if title_task is not None and not title_task.done():
                 title_task.cancel()
 
-            await asyncio.sleep(0.2)
             usage_summary = accumulator.per_message_summary()
             _perf_log.info(
                 "[token_usage] interrupted new_chat: calls=%d total=%d summary=%s",
@@ -1554,7 +1566,7 @@ async def stream_new_chat(
 
         # If the title task didn't finish during streaming, await it now
         if title_task is not None and not title_emitted:
-            generated_title = await title_task
+            generated_title, _title_usage = await title_task
             if generated_title:
                 async with shielded_async_session() as title_session:
                     title_thread_result = await title_session.execute(
@@ -1568,7 +1580,6 @@ async def stream_new_chat(
                     chat_id, generated_title
                 )
 
-        await asyncio.sleep(0.2)
         usage_summary = accumulator.per_message_summary()
         _perf_log.info(
             "[token_usage] normal new_chat: calls=%d total=%d summary=%s",
@@ -1807,7 +1818,6 @@ async def stream_resume_chat(
             time.perf_counter() - _t_stream_start,
             chat_id,
         )
-        await asyncio.sleep(0.2)
         if stream_result.is_interrupted:
             usage_summary = accumulator.per_message_summary()
             _perf_log.info(

@@ -4,6 +4,10 @@ Token usage tracking via LiteLLM custom callback.
 Uses a ContextVar-scoped accumulator to group all LLM calls within a single
 async request/turn. The accumulated data is emitted via SSE and persisted
 when the frontend calls appendMessage.
+
+Agent LLM calls are captured automatically via the async callback.
+Title-generation usage is added explicitly from the LangChain response
+metadata to avoid callback-timing issues.
 """
 
 from __future__ import annotations

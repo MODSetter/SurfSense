@@ -1,4 +1,5 @@
 import {
+	ActionBarMorePrimitive,
 	ActionBarPrimitive,
 	AuiIf,
 	ErrorPrimitive,
@@ -40,14 +41,7 @@ import {
 	DrawerHeader,
 	DrawerTitle,
 } from "@/components/ui/drawer";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { useComments } from "@/hooks/use-comments";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -397,14 +391,17 @@ const MessageInfoDropdown: FC = () => {
 	const hasUsage = usage && usage.total_tokens > 0;
 
 	return (
-		<DropdownMenu>
-			<DropdownMenuTrigger asChild>
+		<ActionBarMorePrimitive.Root>
+			<ActionBarMorePrimitive.Trigger asChild>
 				<Button variant="ghost" size="icon" className="aui-button-icon size-6 p-1">
 					<MoreHorizontalIcon className="size-4" />
 					<span className="sr-only">More</span>
 				</Button>
-			</DropdownMenuTrigger>
-			<DropdownMenuContent align="start" className="min-w-[180px]">
+			</ActionBarMorePrimitive.Trigger>
+			<ActionBarMorePrimitive.Content
+				align="start"
+				className="bg-muted text-popover-foreground z-50 max-h-(--radix-dropdown-menu-content-available-height) min-w-[180px] origin-(--radix-dropdown-menu-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border dark:border-neutral-700 p-1 shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2"
+			>
 				{createdAt && (
 					<DropdownMenuLabel className="text-xs text-muted-foreground font-normal select-none">
 						{formatMessageDate(createdAt)}
@@ -412,27 +409,27 @@ const MessageInfoDropdown: FC = () => {
 				)}
 				{hasUsage && (
 					<>
-						<DropdownMenuSeparator />
+						<ActionBarMorePrimitive.Separator className="bg-border mx-2 my-1 h-px" />
 						{models.length > 0 ? (
 							models.map(([model, counts]) => (
-								<DropdownMenuItem key={model} className="flex-col items-start gap-0.5 cursor-default" onSelect={(e) => e.preventDefault()}>
+								<ActionBarMorePrimitive.Item key={model} className="focus:bg-neutral-200 dark:focus:bg-neutral-700 relative flex cursor-default flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none" onSelect={(e) => e.preventDefault()}>
 									<span className="text-xs font-medium">{model}</span>
 									<span className="text-xs text-muted-foreground">
 										{counts.total_tokens.toLocaleString()} tokens
 									</span>
-								</DropdownMenuItem>
+								</ActionBarMorePrimitive.Item>
 							))
 						) : (
-							<DropdownMenuItem className="flex-col items-start gap-0.5 cursor-default" onSelect={(e) => e.preventDefault()}>
+							<ActionBarMorePrimitive.Item className="focus:bg-neutral-200 dark:focus:bg-neutral-700 relative flex cursor-default flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none" onSelect={(e) => e.preventDefault()}>
 								<span className="text-xs text-muted-foreground">
 									{usage.total_tokens.toLocaleString()} tokens
 								</span>
-							</DropdownMenuItem>
+							</ActionBarMorePrimitive.Item>
 						)}
 					</>
 				)}
-			</DropdownMenuContent>
-		</DropdownMenu>
+			</ActionBarMorePrimitive.Content>
+		</ActionBarMorePrimitive.Root>
 	);
 };
 
