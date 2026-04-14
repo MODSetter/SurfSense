@@ -116,3 +116,7 @@ Webhook endpoint **PHẢI** parse raw body bằng `await request.body()` TRƯỚ
 ### Change Log
 - 2026-04-15: Implement Stripe webhook subscription event handlers — subscription lifecycle, invoice payment reset, checkout activation.
 - 2026-04-15: Code review patches applied — 12 fixes: pages_limit upgrade/downgrade, period_end guards, token reset billing reasons, idempotency plan_id check, UTC date fix, unrecognized price ID warning.
+
+## Review Findings (2026-04-15)
+
+- [x] [Review][Patch] Unrecognized Stripe price ID silently downgrades active subscription to "free" [stripe_routes.py] — **Fixed**: Added early return when plan_id=="free" but subscription status is "active" and price ID was unrecognized

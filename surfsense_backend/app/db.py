@@ -1197,15 +1197,15 @@ class ImageGenerationConfig(BaseModel, TimestampMixin):
 
     # Relationships
     search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=True
     )
     search_space = relationship(
         "SearchSpace", back_populates="image_generation_configs"
     )
 
-    # User who created this config
+    # User who created this config (NULL for admin-created global configs)
     user_id = Column(
-        UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=True
     )
     user = relationship("User", back_populates="image_generation_configs")
 
@@ -1227,12 +1227,13 @@ class VisionLLMConfig(BaseModel, TimestampMixin):
     litellm_params = Column(JSON, nullable=True, default={})
 
     search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=True
     )
     search_space = relationship("SearchSpace", back_populates="vision_llm_configs")
 
+    # User who created this config (NULL for admin-created global configs)
     user_id = Column(
-        UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=True
     )
     user = relationship("User", back_populates="vision_llm_configs")
 
@@ -1535,13 +1536,13 @@ class NewLLMConfig(BaseModel, TimestampMixin):
 
     # === Relationships ===
     search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=True
     )
     search_space = relationship("SearchSpace", back_populates="new_llm_configs")
 
-    # User who created this config
+    # User who created this config (NULL for admin-created global configs)
     user_id = Column(
-        UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=True
     )
     user = relationship("User", back_populates="new_llm_configs")
 
@@ -1681,6 +1682,56 @@ class PagePurchase(Base, TimestampMixin):
     completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
 
     user = relationship("User", back_populates="page_purchases")
+
+
+class SubscriptionRequestStatus(StrEnum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
+class SubscriptionRequest(Base):
+    """Tracks subscription upgrade requests when Stripe is not configured (admin-approval flow)."""
+
+    __tablename__ = "subscription_requests"
+    __allow_unmapped__ = True
+
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    plan_id = Column(String(50), nullable=False)
+    status = Column(
+        SQLAlchemyEnum(
+            SubscriptionRequestStatus,
+            name="subscriptionrequeststatus",
+            create_type=False,
+            values_callable=lambda x: [e.value for e in x],
+        ),
+        nullable=False,
+        default=SubscriptionRequestStatus.PENDING,
+        server_default="pending",
+    )
+    created_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    )
+    approved_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    approved_by = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id"),
+        nullable=True,
+    )
+
+    user = relationship("User", foreign_keys=[user_id], back_populates="subscription_requests")
 
 
 class SearchSpaceRole(BaseModel, TimestampMixin):
@@ -1953,6 +2004,12 @@ if config.AUTH_TYPE == "GOOGLE":
             back_populates="user",
             cascade="all, delete-orphan",
         )
+        subscription_requests = relationship(
+            "SubscriptionRequest",
+            foreign_keys="SubscriptionRequest.user_id",
+            back_populates="user",
+            cascade="all, delete-orphan",
+        )
 
         # Page usage tracking for ETL services
         pages_limit = Column(
@@ -1968,7 +2025,7 @@ if config.AUTH_TYPE == "GOOGLE":
         tokens_used_this_month = Column(Integer, nullable=False, default=0, server_default="0")
         token_reset_date = Column(Date, nullable=True)
         subscription_status = Column(
-            SQLAlchemyEnum(SubscriptionStatus, name="subscriptionstatus", create_type=True),
+            SQLAlchemyEnum(SubscriptionStatus, name="subscriptionstatus", create_type=True, values_callable=lambda x: [e.value for e in x]),
             nullable=False,
             default=SubscriptionStatus.FREE,
             server_default="free",
@@ -2082,6 +2139,12 @@ else:
             back_populates="user",
             cascade="all, delete-orphan",
         )
+        subscription_requests = relationship(
+            "SubscriptionRequest",
+            foreign_keys="SubscriptionRequest.user_id",
+            back_populates="user",
+            cascade="all, delete-orphan",
+        )
 
         # Page usage tracking for ETL services
         pages_limit = Column(
@@ -2097,7 +2160,7 @@ else:
         tokens_used_this_month = Column(Integer, nullable=False, default=0, server_default="0")
         token_reset_date = Column(Date, nullable=True)
         subscription_status = Column(
-            SQLAlchemyEnum(SubscriptionStatus, name="subscriptionstatus", create_type=True),
+            SQLAlchemyEnum(SubscriptionStatus, name="subscriptionstatus", create_type=True, values_callable=lambda x: [e.value for e in x]),
             nullable=False,
             default=SubscriptionStatus.FREE,
             server_default="free",

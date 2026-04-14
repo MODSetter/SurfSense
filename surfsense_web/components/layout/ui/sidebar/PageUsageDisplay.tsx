@@ -11,12 +11,32 @@ import { stripeApiService } from "@/lib/apis/stripe-api.service";
 interface PageUsageDisplayProps {
 	pagesUsed: number;
 	pagesLimit: number;
+	tokensUsed: number;
+	tokensLimit: number;
 }
 
-export function PageUsageDisplay({ pagesUsed, pagesLimit }: PageUsageDisplayProps) {
+function formatTokenCount(n: number): string {
+	if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+	if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+	return n.toLocaleString();
+}
+
+function progressColor(percent: number): string {
+	if (percent > 95) return "[&>div]:bg-red-500";
+	if (percent > 80) return "[&>div]:bg-amber-500";
+	return "";
+}
+
+export function PageUsageDisplay({
+	pagesUsed,
+	pagesLimit,
+	tokensUsed,
+	tokensLimit,
+}: PageUsageDisplayProps) {
 	const params = useParams();
 	const searchSpaceId = params?.search_space_id ?? "";
-	const usagePercentage = (pagesUsed / pagesLimit) * 100;
+	const pagePercent = Math.min(100, (pagesUsed / pagesLimit) * 100);
+	const tokenPercent = Math.min(100, (tokensUsed / tokensLimit) * 100);
 	const { data: stripeStatus } = useQuery({
 		queryKey: ["stripe-status"],
 		queryFn: () => stripeApiService.getStatus(),
@@ -25,14 +45,29 @@ export function PageUsageDisplay({ pagesUsed, pagesLimit }: PageUsageDisplayProp
 
 	return (
 		<div className="px-3 py-3 border-t">
-			<div className="space-y-1.5">
-				<div className="flex justify-between items-center text-xs">
-					<span className="text-muted-foreground">
-						{pagesUsed.toLocaleString()} / {pagesLimit.toLocaleString()} pages
-					</span>
-					<span className="font-medium">{usagePercentage.toFixed(0)}%</span>
+			<div className="space-y-2">
+				{/* Page usage */}
+				<div className="space-y-1">
+					<div className="flex justify-between items-center text-xs">
+						<span className="text-muted-foreground">
+							{pagesUsed.toLocaleString()} / {pagesLimit.toLocaleString()} pages
+						</span>
+						<span className="font-medium">{pagePercent.toFixed(0)}%</span>
+					</div>
+					<Progress value={pagePercent} className={`h-1.5 ${progressColor(pagePercent)}`} />
 				</div>
-				<Progress value={usagePercentage} className="h-1.5" />
+
+				{/* Token usage */}
+				<div className="space-y-1">
+					<div className="flex justify-between items-center text-xs">
+						<span className="text-muted-foreground">
+							{formatTokenCount(tokensUsed)} / {formatTokenCount(tokensLimit)} tokens
+						</span>
+						<span className="font-medium">{tokenPercent.toFixed(0)}%</span>
+					</div>
+					<Progress value={tokenPercent} className={`h-1.5 ${progressColor(tokenPercent)}`} />
+				</div>
+
 				<Link
 					href={`/dashboard/${searchSpaceId}/more-pages`}
 					className="group flex w-[calc(100%+0.75rem)] items-center justify-between rounded-md px-1.5 py-1 -mx-1.5 transition-colors hover:bg-accent"

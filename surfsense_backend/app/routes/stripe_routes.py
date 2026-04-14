@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import UTC, datetime
+from collections import defaultdict
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -13,7 +14,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from stripe import SignatureVerificationError, StripeClient, StripeError
 
 from app.config import config
-from app.db import PagePurchase, PagePurchaseStatus, SubscriptionStatus, User, get_async_session
+from app.db import (
+    PagePurchase,
+    PagePurchaseStatus,
+    SubscriptionRequest,
+    SubscriptionRequestStatus,
+    SubscriptionStatus,
+    User,
+    get_async_session,
+)
 from app.schemas.stripe import (
     CreateCheckoutSessionRequest,
     CreateCheckoutSessionResponse,
@@ -29,6 +38,28 @@ from app.users import current_active_user
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/stripe", tags=["stripe"])
+
+# ---------------------------------------------------------------------------
+# Simple in-memory rate limiter for verify-checkout-session (20 calls/60 s)
+# Not persistent across workers — acceptable for the low-risk, low-volume
+# nature of this endpoint.
+# ---------------------------------------------------------------------------
+_VERIFY_SESSION_WINDOW_SECS = 60
+_VERIFY_SESSION_MAX_CALLS = 20
+_verify_session_calls: dict[str, list[float]] = defaultdict(list)
+
+
+def _check_verify_session_rate_limit(user_id: str) -> None:
+    now = datetime.now(UTC).timestamp()
+    cutoff = now - _VERIFY_SESSION_WINDOW_SECS
+    calls = [t for t in _verify_session_calls[user_id] if t > cutoff]
+    if len(calls) >= _VERIFY_SESSION_MAX_CALLS:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many requests. Try again later.",
+        )
+    calls.append(now)
+    _verify_session_calls[user_id] = calls
 
 
 def get_stripe_client() -> StripeClient:
@@ -145,7 +176,10 @@ async def _get_or_create_stripe_customer(
 
     try:
         customer = stripe_client.v1.customers.create(
-            params={"email": locked_user.email, "metadata": {"user_id": str(locked_user.id)}}
+            params={
+                "email": locked_user.email,
+                "metadata": {"user_id": str(locked_user.id)},
+            }
         )
     except StripeError as exc:
         logger.exception("Failed to create Stripe customer for user %s", locked_user.id)
@@ -288,6 +322,7 @@ async def _fulfill_completed_purchase(
 # Subscription event helpers
 # ---------------------------------------------------------------------------
 
+
 async def _get_user_by_stripe_customer_id(
     db_session: AsyncSession, customer_id: str
 ) -> User | None:
@@ -344,16 +379,34 @@ async def _handle_subscription_event(
                         subscription_id,
                         price_id,
                     )
-    except Exception:  # noqa: BLE001
+    except Exception:
         logger.warning("Could not parse plan from subscription %s", subscription_id)
 
     if not customer_id:
-        logger.error("Subscription event missing customer ID for subscription %s", subscription_id)
+        logger.error(
+            "Subscription event missing customer ID for subscription %s",
+            subscription_id,
+        )
+        return StripeWebhookResponse()
+
+    # Safety: never silently downgrade an active subscription to "free" due to
+    # an unrecognized price ID. Return early without modifying the user.
+    if (
+        plan_id == "free"
+        and str(getattr(subscription, "status", "")).lower() == "active"
+    ):
+        logger.error(
+            "Subscription %s is active but price ID is unrecognized — skipping update to avoid downgrade",
+            subscription_id,
+        )
         return StripeWebhookResponse()
 
     user = await _get_user_by_stripe_customer_id(db_session, customer_id)
     if user is None:
-        logger.warning("No user found for Stripe customer %s; skipping subscription event", customer_id)
+        logger.warning(
+            "No user found for Stripe customer %s; skipping subscription event",
+            customer_id,
+        )
         return StripeWebhookResponse()
 
     # Map Stripe status → SubscriptionStatus enum
@@ -398,9 +451,11 @@ async def _handle_subscription_event(
     limits = config.PLAN_LIMITS.get(plan_id, config.PLAN_LIMITS["free"])
     user.monthly_token_limit = limits["monthly_token_limit"]
 
-    # Upgrade pages_limit on activation
+    # Upgrade pages_limit on activation; reset token counter date
     if new_status == SubscriptionStatus.ACTIVE:
         user.pages_limit = max(user.pages_used, limits["pages_limit"])
+        if user.token_reset_date is None:
+            user.token_reset_date = datetime.now(UTC).date()
 
     # Downgrade pages_limit when canceling
     if new_status == SubscriptionStatus.CANCELED:
@@ -430,18 +485,25 @@ async def _handle_invoice_payment_succeeded(
 
     # Reset tokens on subscription renewals and initial subscription creation
     if billing_reason not in {"subscription_cycle", "subscription_create"}:
-        logger.info("invoice.payment_succeeded billing_reason=%s; not resetting tokens", billing_reason)
+        logger.info(
+            "invoice.payment_succeeded billing_reason=%s; not resetting tokens",
+            billing_reason,
+        )
         return StripeWebhookResponse()
 
     user = await _get_user_by_stripe_customer_id(db_session, customer_id)
     if user is None:
-        logger.warning("No user found for Stripe customer %s; skipping token reset", customer_id)
+        logger.warning(
+            "No user found for Stripe customer %s; skipping token reset", customer_id
+        )
         return StripeWebhookResponse()
 
     user.tokens_used_this_month = 0
     user.token_reset_date = datetime.now(UTC).date()
 
-    logger.info("Reset tokens_used_this_month for user %s on subscription renewal", user.id)
+    logger.info(
+        "Reset tokens_used_this_month for user %s on subscription renewal", user.id
+    )
     await db_session.commit()
     return StripeWebhookResponse()
 
@@ -456,7 +518,10 @@ async def _handle_invoice_payment_failed(
 
     user = await _get_user_by_stripe_customer_id(db_session, customer_id)
     if user is None:
-        logger.warning("No user found for Stripe customer %s; skipping past_due update", customer_id)
+        logger.warning(
+            "No user found for Stripe customer %s; skipping past_due update",
+            customer_id,
+        )
         return StripeWebhookResponse()
 
     if user.subscription_status == SubscriptionStatus.ACTIVE:
@@ -464,7 +529,11 @@ async def _handle_invoice_payment_failed(
         logger.info("Set subscription to PAST_DUE for user %s", user.id)
         await db_session.commit()
     else:
-        logger.info("invoice.payment_failed for user %s already in status %s; no change", user.id, user.subscription_status)
+        logger.info(
+            "invoice.payment_failed for user %s already in status %s; no change",
+            user.id,
+            user.subscription_status,
+        )
 
     return StripeWebhookResponse()
 
@@ -477,26 +546,43 @@ async def _activate_subscription_from_checkout(
     The full subscription lifecycle will also be handled by customer.subscription.created,
     but we activate immediately here so the user sees Pro access right after checkout.
     """
-    customer_id = _normalize_optional_string(getattr(checkout_session, "customer", None))
-    subscription_id = _normalize_optional_string(getattr(checkout_session, "subscription", None))
+    customer_id = _normalize_optional_string(
+        getattr(checkout_session, "customer", None)
+    )
+    subscription_id = _normalize_optional_string(
+        getattr(checkout_session, "subscription", None)
+    )
     metadata = _get_metadata(checkout_session)
     plan_id_str = metadata.get("plan_id", "")
 
     if not customer_id:
-        logger.error("Subscription checkout session missing customer ID: %s", getattr(checkout_session, "id", ""))
+        logger.error(
+            "Subscription checkout session missing customer ID: %s",
+            getattr(checkout_session, "id", ""),
+        )
         return StripeWebhookResponse()
 
     user = await _get_user_by_stripe_customer_id(db_session, customer_id)
     if user is None:
-        logger.warning("No user found for Stripe customer %s; skipping subscription activation", customer_id)
+        logger.warning(
+            "No user found for Stripe customer %s; skipping subscription activation",
+            customer_id,
+        )
         return StripeWebhookResponse()
 
     # Idempotency: already activated
-    if user.subscription_status == SubscriptionStatus.ACTIVE and user.stripe_subscription_id == subscription_id:
-        logger.info("Subscription already active for user %s; skipping activation", user.id)
+    if (
+        user.subscription_status == SubscriptionStatus.ACTIVE
+        and user.stripe_subscription_id == subscription_id
+    ):
+        logger.info(
+            "Subscription already active for user %s; skipping activation", user.id
+        )
         return StripeWebhookResponse()
 
-    plan_id = plan_id_str if plan_id_str in {"pro_monthly", "pro_yearly"} else "pro_monthly"
+    plan_id = (
+        plan_id_str if plan_id_str in {"pro_monthly", "pro_yearly"} else "pro_monthly"
+    )
     limits = config.PLAN_LIMITS.get(plan_id, config.PLAN_LIMITS["pro_monthly"])
 
     user.subscription_status = SubscriptionStatus.ACTIVE
@@ -512,11 +598,20 @@ async def _activate_subscription_from_checkout(
         try:
             stripe_client = get_stripe_client()
             sub_obj = stripe_client.v1.subscriptions.retrieve(subscription_id)
-            user.subscription_current_period_end = _period_end_from_subscription(sub_obj)
-        except Exception:  # noqa: BLE001
-            logger.warning("Could not retrieve subscription %s for period_end", subscription_id)
+            user.subscription_current_period_end = _period_end_from_subscription(
+                sub_obj
+            )
+        except Exception:
+            logger.warning(
+                "Could not retrieve subscription %s for period_end", subscription_id
+            )
 
-    logger.info("Activated subscription for user %s: plan=%s subscription=%s", user.id, plan_id, subscription_id)
+    logger.info(
+        "Activated subscription for user %s: plan=%s subscription=%s",
+        user.id,
+        plan_id,
+        subscription_id,
+    )
     await db_session.commit()
     return StripeWebhookResponse()
 
@@ -601,6 +696,47 @@ async def create_subscription_checkout(
     db_session: AsyncSession = Depends(get_async_session),
 ) -> CreateSubscriptionCheckoutResponse:
     """Create a Stripe Checkout Session for a recurring subscription."""
+    # Admin-approval mode: when Stripe is not configured, queue a manual request
+    if not config.STRIPE_SECRET_KEY:
+        if user.subscription_status == SubscriptionStatus.ACTIVE:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="You already have an active subscription.",
+            )
+        existing = await db_session.execute(
+            select(SubscriptionRequest)
+            .where(SubscriptionRequest.user_id == user.id)
+            .where(SubscriptionRequest.status == SubscriptionRequestStatus.PENDING)
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="You already have a pending subscription request.",
+            )
+        cooldown_cutoff = datetime.now(UTC) - timedelta(hours=24)
+        recently_rejected = await db_session.execute(
+            select(SubscriptionRequest)
+            .where(SubscriptionRequest.user_id == user.id)
+            .where(SubscriptionRequest.status == SubscriptionRequestStatus.REJECTED)
+            .where(SubscriptionRequest.created_at >= cooldown_cutoff)
+        )
+        if recently_rejected.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Your previous request was rejected. Please wait 24 hours before resubmitting.",
+            )
+        req = SubscriptionRequest(user_id=user.id, plan_id=body.plan_id.value)
+        db_session.add(req)
+        await db_session.commit()
+        logger.info(
+            "Admin-approval subscription request created for user %s (plan=%s)",
+            user.id,
+            body.plan_id.value,
+        )
+        return CreateSubscriptionCheckoutResponse(
+            checkout_url="", admin_approval_mode=True
+        )
+
     stripe_client = get_stripe_client()
     price_id = _get_price_id_for_plan(body.plan_id)
     success_url, cancel_url = _get_subscription_urls()
@@ -653,6 +789,7 @@ async def verify_checkout_session(
     user: User = Depends(current_active_user),
 ) -> dict:
     """Verify a Stripe Checkout Session belongs to the user and is paid."""
+    _check_verify_session_rate_limit(str(user.id))
     stripe_client = get_stripe_client()
     try:
         session = stripe_client.v1.checkout.sessions.retrieve(session_id)
@@ -743,7 +880,9 @@ async def stripe_webhook(
             return StripeWebhookResponse()
 
         if session_mode == "subscription":
-            return await _activate_subscription_from_checkout(db_session, checkout_session)
+            return await _activate_subscription_from_checkout(
+                db_session, checkout_session
+            )
 
         return await _fulfill_completed_purchase(db_session, checkout_session)
 

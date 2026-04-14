@@ -4,6 +4,7 @@ import { useAtomValue } from "jotai";
 import { AlertCircle, Dot, Edit3, Info, RefreshCw, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { membersAtom, myAccessAtom } from "@/atoms/members/members-query.atoms";
+import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { deleteVisionLLMConfigMutationAtom } from "@/atoms/vision-llm-config/vision-llm-config-mutation.atoms";
 import {
 	globalVisionLLMConfigsAtom,
@@ -78,19 +79,14 @@ export function VisionModelManager({ searchSpaceId }: VisionModelManagerProps) {
 		return map;
 	}, [members]);
 
+	// Permissions — only superusers can create/edit/delete model configs
 	const { data: access } = useAtomValue(myAccessAtom);
-	const canCreate = useMemo(() => {
-		if (!access) return false;
-		if (access.is_owner) return true;
-		return access.permissions?.includes("vision_configs:create") ?? false;
-	}, [access]);
-	const canDelete = useMemo(() => {
-		if (!access) return false;
-		if (access.is_owner) return true;
-		return access.permissions?.includes("vision_configs:delete") ?? false;
-	}, [access]);
-	const canUpdate = canCreate;
-	const isReadOnly = !canCreate && !canDelete;
+	const { data: currentUser } = useAtomValue(currentUserAtom);
+	const isAdmin = !!currentUser?.is_superuser;
+	const canCreate = isAdmin;
+	const canDelete = isAdmin;
+	const canUpdate = isAdmin;
+	const isReadOnly = !isAdmin;
 
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [editingConfig, setEditingConfig] = useState<VisionLLMConfig | null>(null);

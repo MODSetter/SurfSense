@@ -56,6 +56,12 @@ function PricingBasic() {
 			}
 
 			const data = await response.json();
+
+			if (data.admin_approval_mode) {
+				toast.success("Subscription request submitted! An admin will approve it shortly.");
+				return;
+			}
+
 			const checkoutUrl = data.checkout_url;
 			if (typeof checkoutUrl === "string" && checkoutUrl.startsWith("https://")) {
 				window.location.href = checkoutUrl;
@@ -103,7 +109,11 @@ function PricingBasic() {
 				"Priority support on Discord",
 			],
 			description: "For power users and professionals",
-			buttonText: isLoading ? "Redirecting…" : isOnline ? "Upgrade to Pro" : "Offline — unavailable",
+			buttonText: isLoading
+				? "Redirecting…"
+				: isOnline
+					? "Upgrade to Pro"
+					: "Offline — unavailable",
 			href: "#",
 			isPopular: true,
 			onAction: handleUpgradePro,

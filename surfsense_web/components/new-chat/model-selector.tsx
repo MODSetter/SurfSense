@@ -2,7 +2,7 @@
 
 import { useAtomValue } from "jotai";
 import { Bot, Check, ChevronDown, Edit3, Eye, ImageIcon, Plus, Search, Zap } from "lucide-react";
-import { type UIEvent, useCallback, useMemo, useState } from "react";
+import { type UIEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
 	globalImageGenConfigsAtom,
@@ -45,8 +45,8 @@ import { getProviderIcon } from "@/lib/provider-icons";
 import { cn } from "@/lib/utils";
 
 interface ModelSelectorProps {
-	onEditLLM: (config: NewLLMConfigPublic | GlobalNewLLMConfig, isGlobal: boolean) => void;
-	onAddNewLLM: () => void;
+	onEditLLM?: (config: NewLLMConfigPublic | GlobalNewLLMConfig, isGlobal: boolean) => void;
+	onAddNewLLM?: () => void;
 	onEditImage?: (config: ImageGenerationConfig | GlobalImageGenConfig, isGlobal: boolean) => void;
 	onAddNewImage?: () => void;
 	onEditVision?: (config: VisionLLMConfig | GlobalVisionLLMConfig, isGlobal: boolean) => void;
@@ -154,6 +154,30 @@ export function ModelSelector({
 			currentVisionConfig.is_auto_mode
 		);
 	}, [currentVisionConfig]);
+
+	// ─── Auto-reset stale config selections ───
+	// When configs finish loading and a saved preference points to a deleted config,
+	// silently clear the stale ID so the UI shows "Select a model" instead of erroring.
+	useEffect(() => {
+		if (!preferences || !searchSpaceId || llmUserLoading || llmGlobalLoading || prefsLoading)
+			return;
+		const agentLlmId = preferences.agent_llm_id;
+		if (agentLlmId === null || agentLlmId === undefined) return;
+		const existsInUser = llmUserConfigs?.some((c) => c.id === agentLlmId);
+		const existsInGlobal = llmGlobalConfigs?.some((c) => c.id === agentLlmId);
+		if (!existsInUser && !existsInGlobal) {
+			updatePreferences({ search_space_id: Number(searchSpaceId), data: { agent_llm_id: null } });
+		}
+	}, [
+		preferences,
+		llmUserConfigs,
+		llmGlobalConfigs,
+		llmUserLoading,
+		llmGlobalLoading,
+		prefsLoading,
+		searchSpaceId,
+		updatePreferences,
+	]);
 
 	// ─── LLM filtering ───
 	const filteredLLMGlobal = useMemo(() => {
@@ -520,7 +544,7 @@ export function ModelSelector({
 																</div>
 															</div>
 														</div>
-														{!isAutoMode && (
+														{!isAutoMode && onEditLLM && (
 															<Button
 																variant="ghost"
 																size="icon"
@@ -585,14 +609,16 @@ export function ModelSelector({
 																</div>
 															</div>
 														</div>
-														<Button
-															variant="ghost"
-															size="icon"
-															className="size-7 shrink-0 rounded-md hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
-															onClick={(e) => handleEditLLMConfig(e, config, false)}
-														>
-															<Edit3 className="size-3.5 text-muted-foreground" />
-														</Button>
+														{onEditLLM && (
+															<Button
+																variant="ghost"
+																size="icon"
+																className="size-7 shrink-0 rounded-md hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
+																onClick={(e) => handleEditLLMConfig(e, config, false)}
+															>
+																<Edit3 className="size-3.5 text-muted-foreground" />
+															</Button>
+														)}
 													</div>
 												</CommandItem>
 											);
@@ -600,21 +626,23 @@ export function ModelSelector({
 									</CommandGroup>
 								)}
 
-								{/* Add New LLM Config */}
-								<div className="p-2 bg-muted/20 dark:bg-neutral-900">
-									<Button
-										variant="ghost"
-										size="sm"
-										className="w-full justify-start gap-2 h-9 rounded-lg hover:bg-accent/50 dark:hover:bg-white/[0.06]"
-										onClick={() => {
-											setOpen(false);
-											onAddNewLLM();
-										}}
-									>
-										<Plus className="size-4 text-primary" />
-										<span className="text-sm font-medium">Add Model</span>
-									</Button>
-								</div>
+								{/* Add New LLM Config — admin only */}
+								{onAddNewLLM && (
+									<div className="p-2 bg-muted/20 dark:bg-neutral-900">
+										<Button
+											variant="ghost"
+											size="sm"
+											className="w-full justify-start gap-2 h-9 rounded-lg hover:bg-accent/50 dark:hover:bg-white/[0.06]"
+											onClick={() => {
+												setOpen(false);
+												onAddNewLLM();
+											}}
+										>
+											<Plus className="size-4 text-primary" />
+											<span className="text-sm font-medium">Add Model</span>
+										</Button>
+									</div>
+								)}
 							</CommandList>
 						</Command>
 					</TabsContent>

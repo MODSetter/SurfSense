@@ -55,8 +55,9 @@ class ImageGenerationConfigBase(BaseModel):
 class ImageGenerationConfigCreate(ImageGenerationConfigBase):
     """Schema for creating a new ImageGenerationConfig."""
 
-    search_space_id: int = Field(
-        ..., description="Search space ID to associate the config with"
+    search_space_id: int | None = Field(
+        None,
+        description="Search space ID. None = global admin config visible to all spaces",
     )
 
 
@@ -79,8 +80,8 @@ class ImageGenerationConfigRead(ImageGenerationConfigBase):
 
     id: int
     created_at: datetime
-    search_space_id: int
-    user_id: uuid.UUID
+    search_space_id: int | None = None
+    user_id: uuid.UUID | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -98,8 +99,8 @@ class ImageGenerationConfigPublic(BaseModel):
     api_version: str | None = None
     litellm_params: dict[str, Any] | None = None
     created_at: datetime
-    search_space_id: int
-    user_id: uuid.UUID
+    search_space_id: int | None = None
+    user_id: uuid.UUID | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

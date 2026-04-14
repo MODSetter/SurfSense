@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useSetAtom } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
+import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { selectedSystemModelIdAtom } from "@/atoms/new-llm-config/system-models-query.atoms";
 import { ImageConfigDialog } from "@/components/shared/image-config-dialog";
 import { ModelConfigDialog } from "@/components/shared/model-config-dialog";
@@ -24,6 +25,9 @@ interface ChatHeaderProps {
 }
 
 export function ChatHeader({ searchSpaceId, className }: ChatHeaderProps) {
+	const { data: currentUser } = useAtomValue(currentUserAtom);
+	const isAdmin = !!currentUser?.is_superuser;
+
 	// Reset system model selection when search space changes
 	const setSelectedSystemModelId = useSetAtom(selectedSystemModelIdAtom);
 	useEffect(() => {
@@ -129,12 +133,12 @@ export function ChatHeader({ searchSpaceId, className }: ChatHeaderProps) {
 				<SystemModelSelector className={className} />
 			) : (
 				<ModelSelector
-					onEditLLM={handleEditLLMConfig}
-					onAddNewLLM={handleAddNewLLM}
-					onEditImage={handleEditImageConfig}
-					onAddNewImage={handleAddImageModel}
-					onEditVision={handleEditVisionConfig}
-					onAddNewVision={handleAddVisionModel}
+					onEditLLM={isAdmin ? handleEditLLMConfig : undefined}
+					onAddNewLLM={isAdmin ? handleAddNewLLM : undefined}
+					onEditImage={isAdmin ? handleEditImageConfig : undefined}
+					onAddNewImage={isAdmin ? handleAddImageModel : undefined}
+					onEditVision={isAdmin ? handleEditVisionConfig : undefined}
+					onAddNewVision={isAdmin ? handleAddVisionModel : undefined}
 					className={className}
 				/>
 			)}

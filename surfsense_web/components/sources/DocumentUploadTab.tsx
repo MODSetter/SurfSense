@@ -4,6 +4,7 @@ import { useAtom } from "jotai";
 import { ChevronDown, Dot, File as FileIcon, FolderOpen, Upload, X } from "lucide-react";
 
 import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
@@ -132,6 +133,7 @@ export function DocumentUploadTab({
 	onAccordionStateChange,
 }: DocumentUploadTabProps) {
 	const t = useTranslations("upload_documents");
+	const router = useRouter();
 	const [files, setFiles] = useState<FileWithId[]>([]);
 	const [uploadProgress, setUploadProgress] = useState(0);
 	const [accordionValue, setAccordionValue] = useState<string>("");
@@ -379,11 +381,20 @@ export function DocumentUploadTab({
 			setFolderUpload(null);
 			onSuccess?.();
 		} catch (error) {
-			const message = error instanceof Error ? error.message : "Upload failed";
-			trackDocumentUploadFailure(Number(searchSpaceId), message);
-			toast(t("upload_error"), {
-				description: `${t("upload_error_desc")}: ${message}`,
-			});
+			const status = (error as { status?: number }).status;
+			if (status === 402) {
+				const message = error instanceof Error ? error.message : "Page quota exceeded";
+				trackDocumentUploadFailure(Number(searchSpaceId), message);
+				toast.error(message, {
+					action: { label: "Upgrade", onClick: () => router.push("/pricing") },
+				});
+			} else {
+				const message = error instanceof Error ? error.message : "Upload failed";
+				trackDocumentUploadFailure(Number(searchSpaceId), message);
+				toast(t("upload_error"), {
+					description: `${t("upload_error_desc")}: ${message}`,
+				});
+			}
 		} finally {
 			setIsFolderUploading(false);
 			setUploadProgress(0);
@@ -422,11 +433,20 @@ export function DocumentUploadTab({
 				onError: (error: unknown) => {
 					if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
 					setUploadProgress(0);
-					const message = error instanceof Error ? error.message : "Upload failed";
-					trackDocumentUploadFailure(Number(searchSpaceId), message);
-					toast(t("upload_error"), {
-						description: `${t("upload_error_desc")}: ${message}`,
-					});
+					const status = (error as { status?: number }).status;
+					if (status === 402) {
+						const message = error instanceof Error ? error.message : "Page quota exceeded";
+						trackDocumentUploadFailure(Number(searchSpaceId), message);
+						toast.error(message, {
+							action: { label: "Upgrade", onClick: () => router.push("/pricing") },
+						});
+					} else {
+						const message = error instanceof Error ? error.message : "Upload failed";
+						trackDocumentUploadFailure(Number(searchSpaceId), message);
+						toast(t("upload_error"), {
+							description: `${t("upload_error_desc")}: ${message}`,
+						});
+					}
 				},
 			}
 		);
@@ -533,35 +553,35 @@ export function DocumentUploadTab({
 						</button>
 					)
 				) : (
-				<div
-					role="button"
-					tabIndex={0}
-					className="flex flex-col items-center gap-4 py-12 px-4 cursor-pointer w-full bg-transparent outline-none select-none"
-					onClick={() => {
-						if (!isElectron) fileInputRef.current?.click();
-					}}
-					onKeyDown={(e) => {
-						if (e.key === "Enter" || e.key === " ") {
-							e.preventDefault();
+					<div
+						role="button"
+						tabIndex={0}
+						className="flex flex-col items-center gap-4 py-12 px-4 cursor-pointer w-full bg-transparent outline-none select-none"
+						onClick={() => {
 							if (!isElectron) fileInputRef.current?.click();
-						}
-					}}
-				>
-					<Upload className="h-10 w-10 text-muted-foreground" />
-					<div className="text-center space-y-1.5">
-						<p className="text-base font-medium">
-							{isElectron ? t("select_files_or_folder") : t("tap_select_files_or_folder")}
-						</p>
-						<p className="text-sm text-muted-foreground">{t("file_size_limit")}</p>
-					</div>
-					<fieldset
-						className="w-full mt-1 border-none p-0 m-0"
-						onClick={(e) => e.stopPropagation()}
-						onKeyDown={(e) => e.stopPropagation()}
+						}}
+						onKeyDown={(e) => {
+							if (e.key === "Enter" || e.key === " ") {
+								e.preventDefault();
+								if (!isElectron) fileInputRef.current?.click();
+							}
+						}}
 					>
-						{renderBrowseButton({ fullWidth: true })}
-					</fieldset>
-				</div>
+						<Upload className="h-10 w-10 text-muted-foreground" />
+						<div className="text-center space-y-1.5">
+							<p className="text-base font-medium">
+								{isElectron ? t("select_files_or_folder") : t("tap_select_files_or_folder")}
+							</p>
+							<p className="text-sm text-muted-foreground">{t("file_size_limit")}</p>
+						</div>
+						<fieldset
+							className="w-full mt-1 border-none p-0 m-0"
+							onClick={(e) => e.stopPropagation()}
+							onKeyDown={(e) => e.stopPropagation()}
+						>
+							{renderBrowseButton({ fullWidth: true })}
+						</fieldset>
+					</div>
 				)}
 			</div>
 

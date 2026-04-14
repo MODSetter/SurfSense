@@ -73,6 +73,24 @@ async def create_documents(
             "You don't have permission to create documents in this search space",
         )
 
+        # Page quota pre-check for connector documents
+        from app.services.page_limit_service import (
+            PageLimitExceededError,
+            PageLimitService,
+        )
+
+        estimated_pages = len(request.content)  # 1 page per document/URL
+        try:
+            page_service = PageLimitService(session)
+            await page_service.check_page_limit(str(user.id), estimated_pages)
+        except PageLimitExceededError as e:
+            raise HTTPException(
+                status_code=402,
+                detail=f"Page quota exceeded ({e.pages_used}/{e.pages_limit}). "
+                f"This request requires ~{estimated_pages} pages. "
+                f"Upgrade your plan for more pages.",
+            ) from e
+
         if request.document_type == DocumentType.EXTENSION:
             from app.tasks.celery_tasks.document_tasks import (
                 process_extension_document_task,
@@ -168,6 +186,30 @@ async def create_documents_file_upload(
                     detail=f"File '{file.filename}' ({file_size / (1024 * 1024):.1f} MB) "
                     f"exceeds the {MAX_FILE_SIZE_BYTES // (1024 * 1024)} MB per-file limit.",
                 )
+
+        # Page quota pre-check
+        from app.services.page_limit_service import (
+            PageLimitExceededError,
+            PageLimitService,
+        )
+
+        total_estimated_pages = sum(
+            PageLimitService.estimate_pages_from_metadata(
+                file.filename or "", file.size or 0
+            )
+            for file in files
+        )
+
+        try:
+            page_service = PageLimitService(session)
+            await page_service.check_page_limit(str(user.id), total_estimated_pages)
+        except PageLimitExceededError as e:
+            raise HTTPException(
+                status_code=402,
+                detail=f"Page quota exceeded ({e.pages_used}/{e.pages_limit}). "
+                f"This upload requires ~{total_estimated_pages} pages. "
+                f"Upgrade your plan for more pages.",
+            ) from e
 
         # ===== Read all files concurrently to avoid blocking the event loop =====
         async def _read_and_save(file: UploadFile) -> tuple[str, str, int]:

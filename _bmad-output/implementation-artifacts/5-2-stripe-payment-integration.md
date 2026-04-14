@@ -13,6 +13,8 @@ so that tôi có thể điền thông tin thẻ tín dụng mà không sợ bị
 1. Khi User bấm thanh toán, BE gọi API Stripe lấy `sessionId` với **`mode='subscription'`** (recurring billing, không phải one-time payment).
 2. Hệ thống redirect User an toàn qua cổng Stripe Hosted Checkout.
 3. Sau thanh toán thành công, user được redirect về app với subscription activated.
+4. **[Admin-approval mode]** Khi `STRIPE_SECRET_KEY` chưa được cấu hình, endpoint trả về `{ checkout_url: "", admin_approval_mode: true }` thay vì gọi Stripe — frontend hiển thị toast "Subscription request submitted! An admin will approve it shortly." và không redirect.
+5. **[Admin-approval mode]** Nếu user đã có request đang pending, endpoint trả về 409 Conflict để tránh duplicate.
 
 ## As-Is (Code hiện tại)
 
@@ -39,6 +41,15 @@ so that tôi có thể điền thông tin thẻ tín dụng mà không sợ bị
   - [x] Subtask 2.3: Map `plan_id` → Stripe Price ID từ env vars (`STRIPE_PRO_MONTHLY_PRICE_ID`, `STRIPE_PRO_YEARLY_PRICE_ID`). Frontend không gửi price.
   - [x] Subtask 2.4: Gọi `stripe.checkout.sessions.create(mode='subscription', customer=stripe_customer_id, ...)`.
   - [x] Subtask 2.5: Trả về `{ "checkout_url": "https://checkout.stripe.com/..." }`.
+
+- [x] Task 2b: Admin-approval fallback khi Stripe chưa cấu hình
+  - [x] Subtask 2b.1: Kiểm tra `config.STRIPE_SECRET_KEY` ở đầu checkout endpoint — nếu falsy, bỏ qua toàn bộ Stripe logic.
+  - [x] Subtask 2b.2: Guard active subscription: nếu `user.subscription_status == ACTIVE` → 409.
+  - [x] Subtask 2b.3: Guard duplicate pending request: query `SubscriptionRequest` table — nếu đã có pending → 409.
+  - [x] Subtask 2b.4: Tạo `SubscriptionRequest(user_id, plan_id)` row và commit.
+  - [x] Subtask 2b.5: Trả về `CreateSubscriptionCheckoutResponse(checkout_url="", admin_approval_mode=True)`.
+  - [x] Subtask 2b.6: Thêm `admin_approval_mode: bool = False` vào `CreateSubscriptionCheckoutResponse` schema.
+  - [x] Subtask 2b.7: Frontend `handleUpgradePro()` — nếu `data.admin_approval_mode` là `true`, hiển thị toast thành công và return (không redirect).
 
 - [x] Task 3: Kết nối Frontend với Endpoint mới
   - [x] Subtask 3.1: `pricing-section.tsx` đã gọi endpoint với `plan_id` — done trong Story 5.1.
@@ -79,9 +90,11 @@ Sau checkout, Stripe sẽ gửi `checkout.session.completed` → webhook handler
 
 ### File List
 - `surfsense_backend/app/config/__init__.py` — added `STRIPE_PRO_MONTHLY_PRICE_ID`, `STRIPE_PRO_YEARLY_PRICE_ID`
-- `surfsense_backend/app/schemas/stripe.py` — added `PlanId` enum, `CreateSubscriptionCheckoutRequest`, `CreateSubscriptionCheckoutResponse`
-- `surfsense_backend/app/routes/stripe_routes.py` — added `_get_subscription_success_url`, `_get_price_id_for_plan`, `get_or_create_stripe_customer`, `POST /create-subscription-checkout`
+- `surfsense_backend/app/schemas/stripe.py` — added `PlanId` enum, `CreateSubscriptionCheckoutRequest`, `CreateSubscriptionCheckoutResponse` (including `admin_approval_mode: bool = False`)
+- `surfsense_backend/app/routes/stripe_routes.py` — added `_get_subscription_success_url`, `_get_price_id_for_plan`, `get_or_create_stripe_customer`, `POST /create-subscription-checkout` + admin-approval fallback branch
 - `surfsense_web/app/subscription-success/page.tsx` — new success page with toast + user query invalidation
+- `surfsense_web/components/pricing/pricing-section.tsx` — added `admin_approval_mode` toast handling in `handleUpgradePro()`
+- *(See Story 5.5 for admin-approval infrastructure: migrations 126/127, `SubscriptionRequest` model, admin routes, admin UI page)*
 
 ### Review Findings
 
@@ -96,3 +109,4 @@ Sau checkout, Stripe sẽ gửi `checkout.session.completed` → webhook handler
 
 ### Change Log
 - 2026-04-14: Implement subscription checkout endpoint with Stripe customer creation and success page.
+- 2026-04-15: Add admin-approval fallback mode — when `STRIPE_SECRET_KEY` is not configured, checkout endpoint creates a `SubscriptionRequest` row instead of calling Stripe (see Story 5.5).

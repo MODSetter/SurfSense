@@ -268,7 +268,12 @@ export function Sidebar({
 				)}
 
 				{pageUsage && !isCollapsed && (
-					<PageUsageDisplay pagesUsed={pageUsage.pagesUsed} pagesLimit={pageUsage.pagesLimit} />
+					<PageUsageDisplay
+						pagesUsed={pageUsage.pagesUsed}
+						pagesLimit={pageUsage.pagesLimit}
+						tokensUsed={pageUsage.tokensUsed}
+						tokensLimit={pageUsage.tokensLimit}
+					/>
 				)}
 
 				<SidebarUserProfile

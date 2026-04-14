@@ -97,6 +97,15 @@ class TokenQuotaService:
         tokens_used = user.tokens_used_this_month or 0
         token_limit = user.monthly_token_limit or 0
 
+        # PAST_DUE: enforce free-tier token limit to prevent usage without payment
+        if str(getattr(user, "subscription_status", "")).lower() == "past_due":
+            from app.config import config as app_config  # avoid circular import
+
+            free_limit = app_config.PLAN_LIMITS.get("free", {}).get(
+                "monthly_token_limit", 50000
+            )
+            token_limit = min(token_limit, free_limit)
+
         # Strict boundary: >= means at-limit is also exceeded
         if tokens_used + estimated_tokens >= token_limit and token_limit > 0:
             raise TokenQuotaExceededError(

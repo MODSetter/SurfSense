@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { membersAtom, myAccessAtom } from "@/atoms/members/members-query.atoms";
+import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { deleteNewLLMConfigMutationAtom } from "@/atoms/new-llm-config/new-llm-config-mutation.atoms";
 import {
 	globalNewLLMConfigsAtom,
@@ -87,15 +88,14 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 		return map;
 	}, [members]);
 
-	// Permissions
+	// Permissions — only superusers can create/edit/delete model configs
 	const { data: access } = useAtomValue(myAccessAtom);
-	const canCreate =
-		!!access && (access.is_owner || (access.permissions?.includes("llm_configs:create") ?? false));
-	const canUpdate =
-		!!access && (access.is_owner || (access.permissions?.includes("llm_configs:update") ?? false));
-	const canDelete =
-		!!access && (access.is_owner || (access.permissions?.includes("llm_configs:delete") ?? false));
-	const isReadOnly = !canCreate && !canUpdate && !canDelete;
+	const { data: currentUser } = useAtomValue(currentUserAtom);
+	const isAdmin = !!currentUser?.is_superuser;
+	const canCreate = isAdmin;
+	const canUpdate = isAdmin;
+	const canDelete = isAdmin;
+	const isReadOnly = !isAdmin;
 
 	// Local state
 	const [isDialogOpen, setIsDialogOpen] = useState(false);

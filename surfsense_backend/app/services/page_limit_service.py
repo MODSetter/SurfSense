@@ -51,16 +51,25 @@ class PageLimitService:
         """
         from app.db import User
 
-        # Get user's current page usage
+        # Get user's current page usage and subscription status
         result = await self.session.execute(
-            select(User.pages_used, User.pages_limit).where(User.id == user_id)
+            select(User.pages_used, User.pages_limit, User.subscription_status).where(
+                User.id == user_id
+            )
         )
         row = result.first()
 
         if not row:
             raise ValueError(f"User with ID {user_id} not found")
 
-        pages_used, pages_limit = row
+        pages_used, pages_limit, sub_status = row
+
+        # PAST_DUE: enforce free-tier page limit to prevent usage without payment
+        if str(sub_status).lower() == "past_due":
+            from app.config import config as app_config  # avoid circular import
+
+            free_limit = app_config.PLAN_LIMITS.get("free", {}).get("pages_limit", 500)
+            pages_limit = min(pages_limit, free_limit)
 
         # Check if adding estimated pages would exceed limit
         if pages_used + estimated_pages > pages_limit:

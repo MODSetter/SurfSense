@@ -30,6 +30,7 @@ from app.db import (
 from app.schemas import (
     GlobalImageGenConfigRead,
     ImageGenerationConfigCreate,
+    ImageGenerationConfigPublic,
     ImageGenerationConfigRead,
     ImageGenerationConfigUpdate,
     ImageGenerationCreate,
@@ -41,7 +42,7 @@ from app.services.image_gen_router_service import (
     ImageGenRouterService,
     is_image_gen_auto_mode,
 )
-from app.users import current_active_user
+from app.users import current_active_user, current_superuser
 from app.utils.rbac import check_permission
 from app.utils.signed_image_urls import verify_image_token
 
@@ -261,19 +262,11 @@ async def get_global_image_gen_configs(
 async def create_image_gen_config(
     config_data: ImageGenerationConfigCreate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    user: User = Depends(current_superuser),
 ):
-    """Create a new image generation config for a search space."""
+    """Create a new image generation config for a search space. Superuser only."""
     try:
-        await check_permission(
-            session,
-            user,
-            config_data.search_space_id,
-            Permission.IMAGE_GENERATIONS_CREATE.value,
-            "You don't have permission to create image generation configs in this search space",
-        )
-
-        db_config = ImageGenerationConfig(**config_data.model_dump(), user_id=user.id)
+        db_config = ImageGenerationConfig(**config_data.model_dump(), user_id=None)
         session.add(db_config)
         await session.commit()
         await session.refresh(db_config)
@@ -289,7 +282,9 @@ async def create_image_gen_config(
         ) from e
 
 
-@router.get("/image-generation-configs", response_model=list[ImageGenerationConfigRead])
+@router.get(
+    "/image-generation-configs", response_model=list[ImageGenerationConfigPublic]
+)
 async def list_image_gen_configs(
     search_space_id: int,
     skip: int = 0,
@@ -297,7 +292,7 @@ async def list_image_gen_configs(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """List image generation configs for a search space."""
+    """List image generation configs for a search space (includes global admin configs)."""
     try:
         await check_permission(
             session,
@@ -309,7 +304,10 @@ async def list_image_gen_configs(
 
         result = await session.execute(
             select(ImageGenerationConfig)
-            .filter(ImageGenerationConfig.search_space_id == search_space_id)
+            .filter(
+                (ImageGenerationConfig.search_space_id == search_space_id)
+                | (ImageGenerationConfig.search_space_id == None)  # noqa: E711
+            )
             .order_by(ImageGenerationConfig.created_at.desc())
             .offset(skip)
             .limit(limit)
@@ -367,24 +365,19 @@ async def update_image_gen_config(
     config_id: int,
     update_data: ImageGenerationConfigUpdate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    user: User = Depends(current_superuser),
 ):
-    """Update an existing image generation config."""
+    """Update an existing image generation config. Superuser only."""
     try:
         result = await session.execute(
-            select(ImageGenerationConfig).filter(ImageGenerationConfig.id == config_id)
+            select(ImageGenerationConfig).filter(
+                ImageGenerationConfig.id == config_id,
+                ImageGenerationConfig.user_id.is_(None),
+            )
         )
         db_config = result.scalars().first()
         if not db_config:
             raise HTTPException(status_code=404, detail="Config not found")
-
-        await check_permission(
-            session,
-            user,
-            db_config.search_space_id,
-            Permission.IMAGE_GENERATIONS_CREATE.value,
-            "You don't have permission to update image generation configs in this search space",
-        )
 
         for key, value in update_data.model_dump(exclude_unset=True).items():
             setattr(db_config, key, value)
@@ -407,24 +400,19 @@ async def update_image_gen_config(
 async def delete_image_gen_config(
     config_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    user: User = Depends(current_superuser),
 ):
-    """Delete an image generation config."""
+    """Delete an image generation config. Superuser only."""
     try:
         result = await session.execute(
-            select(ImageGenerationConfig).filter(ImageGenerationConfig.id == config_id)
+            select(ImageGenerationConfig).filter(
+                ImageGenerationConfig.id == config_id,
+                ImageGenerationConfig.user_id.is_(None),
+            )
         )
         db_config = result.scalars().first()
         if not db_config:
             raise HTTPException(status_code=404, detail="Config not found")
-
-        await check_permission(
-            session,
-            user,
-            db_config.search_space_id,
-            Permission.IMAGE_GENERATIONS_DELETE.value,
-            "You don't have permission to delete image generation configs in this search space",
-        )
 
         await session.delete(db_config)
         await session.commit()

@@ -15,11 +15,12 @@ from app.db import (
 from app.schemas import (
     GlobalVisionLLMConfigRead,
     VisionLLMConfigCreate,
+    VisionLLMConfigPublic,
     VisionLLMConfigRead,
     VisionLLMConfigUpdate,
 )
 from app.services.vision_model_list_service import get_vision_model_list
-from app.users import current_active_user
+from app.users import current_active_user, current_superuser
 from app.utils.rbac import check_permission
 
 router = APIRouter()
@@ -118,18 +119,11 @@ async def get_global_vision_llm_configs(
 async def create_vision_llm_config(
     config_data: VisionLLMConfigCreate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    user: User = Depends(current_superuser),
 ):
+    """Create a new vision LLM config. Superuser only."""
     try:
-        await check_permission(
-            session,
-            user,
-            config_data.search_space_id,
-            Permission.VISION_CONFIGS_CREATE.value,
-            "You don't have permission to create vision LLM configs in this search space",
-        )
-
-        db_config = VisionLLMConfig(**config_data.model_dump(), user_id=user.id)
+        db_config = VisionLLMConfig(**config_data.model_dump(), user_id=None)
         session.add(db_config)
         await session.commit()
         await session.refresh(db_config)
@@ -145,7 +139,7 @@ async def create_vision_llm_config(
         ) from e
 
 
-@router.get("/vision-llm-configs", response_model=list[VisionLLMConfigRead])
+@router.get("/vision-llm-configs", response_model=list[VisionLLMConfigPublic])
 async def list_vision_llm_configs(
     search_space_id: int,
     skip: int = 0,
@@ -164,7 +158,10 @@ async def list_vision_llm_configs(
 
         result = await session.execute(
             select(VisionLLMConfig)
-            .filter(VisionLLMConfig.search_space_id == search_space_id)
+            .filter(
+                (VisionLLMConfig.search_space_id == search_space_id)
+                | (VisionLLMConfig.search_space_id == None)  # noqa: E711
+            )
             .order_by(VisionLLMConfig.created_at.desc())
             .offset(skip)
             .limit(limit)
@@ -217,23 +214,18 @@ async def update_vision_llm_config(
     config_id: int,
     update_data: VisionLLMConfigUpdate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    user: User = Depends(current_superuser),
 ):
+    """Update an existing vision LLM config. Superuser only."""
     try:
         result = await session.execute(
-            select(VisionLLMConfig).filter(VisionLLMConfig.id == config_id)
+            select(VisionLLMConfig).filter(
+                VisionLLMConfig.id == config_id, VisionLLMConfig.user_id.is_(None)
+            )
         )
         db_config = result.scalars().first()
         if not db_config:
             raise HTTPException(status_code=404, detail="Config not found")
-
-        await check_permission(
-            session,
-            user,
-            db_config.search_space_id,
-            Permission.VISION_CONFIGS_CREATE.value,
-            "You don't have permission to update vision LLM configs in this search space",
-        )
 
         for key, value in update_data.model_dump(exclude_unset=True).items():
             setattr(db_config, key, value)
@@ -256,23 +248,18 @@ async def update_vision_llm_config(
 async def delete_vision_llm_config(
     config_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    user: User = Depends(current_superuser),
 ):
+    """Delete a vision LLM config. Superuser only."""
     try:
         result = await session.execute(
-            select(VisionLLMConfig).filter(VisionLLMConfig.id == config_id)
+            select(VisionLLMConfig).filter(
+                VisionLLMConfig.id == config_id, VisionLLMConfig.user_id.is_(None)
+            )
         )
         db_config = result.scalars().first()
         if not db_config:
             raise HTTPException(status_code=404, detail="Config not found")
-
-        await check_permission(
-            session,
-            user,
-            db_config.search_space_id,
-            Permission.VISION_CONFIGS_DELETE.value,
-            "You don't have permission to delete vision LLM configs in this search space",
-        )
 
         await session.delete(db_config)
         await session.commit()

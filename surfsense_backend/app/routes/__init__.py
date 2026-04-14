@@ -48,6 +48,7 @@ from .sandbox_routes import router as sandbox_router
 from .search_source_connectors_routes import router as search_source_connectors_router
 from .search_spaces_routes import router as search_spaces_router
 from .slack_add_connector_route import router as slack_add_connector_router
+from .admin_routes import router as admin_router
 from .stripe_routes import router as stripe_router
 from .surfsense_docs_routes import router as surfsense_docs_router
 from .teams_add_connector_route import router as teams_add_connector_router
@@ -100,6 +101,7 @@ router.include_router(notifications_router)  # Notifications with Zero sync
 router.include_router(composio_router)  # Composio OAuth and toolkit management
 router.include_router(public_chat_router)  # Public chat sharing and cloning
 router.include_router(incentive_tasks_router)  # Incentive tasks for earning free pages
+router.include_router(admin_router)  # Superuser admin operations
 router.include_router(stripe_router)  # Stripe checkout for additional page packs
 router.include_router(youtube_router)  # YouTube playlist resolution
 router.include_router(prompts_router)

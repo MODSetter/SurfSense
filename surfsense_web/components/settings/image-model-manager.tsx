@@ -9,6 +9,7 @@ import {
 	imageGenConfigsAtom,
 } from "@/atoms/image-gen-config/image-gen-config-query.atoms";
 import { membersAtom, myAccessAtom } from "@/atoms/members/members-query.atoms";
+import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { ImageConfigDialog } from "@/components/shared/image-config-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -77,15 +78,14 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 		return map;
 	}, [members]);
 
+	// Permissions — only superusers can create/edit/delete model configs
 	const { data: access } = useAtomValue(myAccessAtom);
-	const canCreate =
-		!!access &&
-		(access.is_owner || (access.permissions?.includes("image_generations:create") ?? false));
-	const canDelete =
-		!!access &&
-		(access.is_owner || (access.permissions?.includes("image_generations:delete") ?? false));
-	const canUpdate = canCreate;
-	const isReadOnly = !canCreate && !canDelete;
+	const { data: currentUser } = useAtomValue(currentUserAtom);
+	const isAdmin = !!currentUser?.is_superuser;
+	const canCreate = isAdmin;
+	const canDelete = isAdmin;
+	const canUpdate = isAdmin;
+	const isReadOnly = !isAdmin;
 
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [editingConfig, setEditingConfig] = useState<ImageGenerationConfig | null>(null);

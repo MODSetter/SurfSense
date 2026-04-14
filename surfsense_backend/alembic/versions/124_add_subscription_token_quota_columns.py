@@ -24,6 +24,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision: str = "124"
@@ -33,17 +34,35 @@ depends_on: str | Sequence[str] | None = None
 
 # Create the enum type so SQLAlchemy's create_type=False works at runtime
 subscriptionstatus_enum = sa.Enum(
-    "free", "active", "canceled", "past_due",
+    "free",
+    "active",
+    "canceled",
+    "past_due",
     name="subscriptionstatus",
 )
 
 
 def upgrade() -> None:
-    # Create the PostgreSQL enum type first
-    subscriptionstatus_enum.create(op.get_bind(), checkfirst=True)
+    # Drop any pre-existing subscriptionstatus enum (e.g. uppercase version created by
+    # SQLAlchemy's create_all() during early development) so we can create it with
+    # the correct lowercase values. Safe to drop here because no column uses it yet.
+    conn = op.get_bind()
+    conn.execute(sa.text("DROP TYPE IF EXISTS subscriptionstatus CASCADE"))
+    # Create the PostgreSQL enum type with lowercase values
+    subscriptionstatus_enum.create(conn, checkfirst=False)
 
-    op.add_column("user", sa.Column("monthly_token_limit", sa.Integer(), nullable=False, server_default="100000"))
-    op.add_column("user", sa.Column("tokens_used_this_month", sa.Integer(), nullable=False, server_default="0"))
+    op.add_column(
+        "user",
+        sa.Column(
+            "monthly_token_limit", sa.Integer(), nullable=False, server_default="100000"
+        ),
+    )
+    op.add_column(
+        "user",
+        sa.Column(
+            "tokens_used_this_month", sa.Integer(), nullable=False, server_default="0"
+        ),
+    )
     op.add_column("user", sa.Column("token_reset_date", sa.Date(), nullable=True))
     op.add_column(
         "user",
@@ -54,12 +73,23 @@ def upgrade() -> None:
             server_default="free",
         ),
     )
-    op.add_column("user", sa.Column("plan_id", sa.String(50), nullable=False, server_default="free"))
-    op.add_column("user", sa.Column("stripe_customer_id", sa.String(255), nullable=True))
-    op.add_column("user", sa.Column("stripe_subscription_id", sa.String(255), nullable=True))
+    op.add_column(
+        "user",
+        sa.Column("plan_id", sa.String(50), nullable=False, server_default="free"),
+    )
+    op.add_column(
+        "user", sa.Column("stripe_customer_id", sa.String(255), nullable=True)
+    )
+    op.add_column(
+        "user", sa.Column("stripe_subscription_id", sa.String(255), nullable=True)
+    )
 
-    op.create_unique_constraint("uq_user_stripe_customer_id", "user", ["stripe_customer_id"])
-    op.create_unique_constraint("uq_user_stripe_subscription_id", "user", ["stripe_subscription_id"])
+    op.create_unique_constraint(
+        "uq_user_stripe_customer_id", "user", ["stripe_customer_id"]
+    )
+    op.create_unique_constraint(
+        "uq_user_stripe_subscription_id", "user", ["stripe_subscription_id"]
+    )
 
 
 def downgrade() -> None:

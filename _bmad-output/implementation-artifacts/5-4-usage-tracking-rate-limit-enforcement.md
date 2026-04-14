@@ -1,6 +1,6 @@
 # Story 5.4: Hệ thống Khóa Tác vụ dựa trên Hạn Mức (Usage Tracking & Rate Limit Enforcement)
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -35,35 +35,28 @@ so that mô hình kinh doanh không bị lỗ do chi phí LLM và Storage, áp d
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Thêm Page Quota Pre-check vào Document Upload Route (Backend)
-  - [ ] Subtask 1.1: Tìm document upload route (search trong `surfsense_backend/app/routes/`).
-  - [ ] Subtask 1.2: Inject `PageLimitService`, gọi `estimate_pages_from_metadata(filename, file_size)` rồi `check_page_limit(user_id, estimated_pages)`.
-  - [ ] Subtask 1.3: Nếu `PageLimitExceededError` → raise `HTTPException(402, detail={"error": "page_quota_exceeded", "pages_used": X, "pages_limit": Y, "message": "..."})`.
-  - [ ] Subtask 1.4: Giữ nguyên enforcement trong Celery tasks (double-check layer cho trường hợp estimate sai).
+- [x] Task 1: Thêm Page Quota Pre-check vào Document Upload Route (Backend)
+  - [x] Subtask 1.1: Tìm document upload route — `surfsense_backend/app/routes/documents_routes.py`
+  - [x] Subtask 1.2: Inject `PageLimitService`, gọi `estimate_pages_from_metadata(filename, file_size)` rồi `check_page_limit(user_id, estimated_pages)`.
+  - [x] Subtask 1.3: `PageLimitExceededError` → `HTTPException(402)` với message mô tả quota.
+  - [x] Subtask 1.4: Giữ nguyên enforcement trong Celery tasks (double-check layer).
+  - [x] Subtask 1.5: Thêm pre-check cho `create_documents` endpoint (extension/YouTube connector).
 
-- [ ] Task 2: Plan-based Limits (Backend)
-  - [ ] Subtask 2.1: Tạo config mapping `plan_id` → limits (liên kết với Story 5.3):
-    ```python
-    PLAN_LIMITS = {
-        "free": {"pages_limit": 500, "monthly_token_limit": 50_000, "max_docs": 10},
-        "pro": {"pages_limit": 5000, "monthly_token_limit": 1_000_000, "max_docs": 100},
-    }
-    ```
-  - [ ] Subtask 2.2: Khi subscription activate/update (webhook Story 5.3), update `pages_limit` và `monthly_token_limit` theo plan mới.
+- [x] Task 2: Plan-based Limits (Backend)
+  - [x] Subtask 2.1: `PLAN_LIMITS` config đã có trong `config/__init__.py:314`.
+  - [x] Subtask 2.2: Webhook Story 5.3 + admin approval đã update limits khi subscription change.
 
-- [ ] Task 3: Frontend — Bắt lỗi Quota Exceeded
-  - [ ] Subtask 3.1: Document upload component — bắt HTTP 402 response, phân biệt `page_quota_exceeded` vs `token_quota_exceeded`.
-  - [ ] Subtask 3.2: Hiển thị toast/modal: "Bạn đã dùng X/Y pages. Nâng cấp lên Pro để tiếp tục." với link đến `/pricing`.
-  - [ ] Subtask 3.3: Chat component — bắt HTTP 402 từ SSE stream (tương tự Story 3.5 Task 6).
+- [x] Task 3: Frontend — Bắt lỗi Quota Exceeded
+  - [x] Subtask 3.1: Document upload — `DocumentUploadTab.tsx` bắt HTTP 402 (check `error.status`) cho cả file và folder upload.
+  - [x] Subtask 3.2: Toast error với "Upgrade" action button → navigate to `/pricing`.
+  - [x] Subtask 3.3: Chat SSE — đã có `QuotaExceededError` pattern từ Story 3.5 (`page.tsx`).
 
-- [ ] Task 4: Frontend — Quota Indicator (Dashboard)
-  - [ ] Subtask 4.1: Expose `pages_used`, `pages_limit`, `tokens_used_this_month`, `monthly_token_limit` qua user endpoint hoặc Zero sync.
-  - [ ] Subtask 4.2: Tạo component `QuotaIndicator` — hiển thị 2 progress bars (Pages, Tokens) trong sidebar/header.
-  - [ ] Subtask 4.3: Warning state (amber) khi usage > 80%, critical state (red) khi > 95%.
+- [x] Task 4: Frontend — Quota Indicator (Dashboard)
+  - [x] Subtask 4.1: Extend `UserRead` schema + Zod type với `monthly_token_limit`, `tokens_used_this_month`, `plan_id`, `subscription_status`.
+  - [x] Subtask 4.2: Extend `PageUsageDisplay` — hiển thị 2 progress bars (Pages, Tokens) trong sidebar.
+  - [x] Subtask 4.3: Warning state (amber) khi usage > 80%, critical state (red) khi > 95%.
 
-- [ ] Task 5: Anti-spam Rate Limiting (Optional — nếu cần)
-  - [ ] Subtask 5.1: Thêm rate limit cho chat endpoint (e.g. max 60 requests/hour cho free tier).
-  - [ ] Subtask 5.2: Dùng Redis counter hoặc FastAPI dependency.
+- [ ] Task 5: Anti-spam Rate Limiting (Optional — skipped per spec)
 
 ## Dev Notes
 
@@ -86,5 +79,34 @@ PageLimitService.update_page_usage() [COMMIT — tăng pages_used]
 ### References
 - `surfsense_backend/app/services/page_limit_service.py` — page quota (đọc, ít sửa)
 - `surfsense_backend/app/tasks/celery_tasks/document_tasks.py` — enforcement pattern hiện tại
-- `surfsense_backend/app/routes/` — document upload route (cần tìm)
-- Frontend upload component (cần tìm)
+- `surfsense_backend/app/routes/documents_routes.py` — document upload route
+- `surfsense_web/components/sources/DocumentUploadTab.tsx` — frontend upload component
+
+## Dev Agent Record
+
+### Implementation (2026-04-15)
+
+**Backend:**
+- `documents_routes.py`: Added page quota pre-check to both `create_documents` and `create_documents_file_upload` endpoints. Uses `PageLimitService.estimate_pages_from_metadata()` for fast estimation before any I/O, raises HTTP 402 on exceeded quota.
+- `schemas/users.py`: Extended `UserRead` with `monthly_token_limit`, `tokens_used_this_month`, `plan_id`, `subscription_status` — exposed via `/api/v1/users/me`.
+
+**Frontend:**
+- `DocumentUploadTab.tsx`: 402 handling in both file upload (`onError`) and folder upload (`catch`) paths — shows toast with "Upgrade" action linking to `/pricing`.
+- `user.types.ts`: Zod schema extended with token quota fields.
+- `PageUsageDisplay.tsx`: Extended with token usage bar, color-coded warning (amber >80%, red >95%).
+- `layout.types.ts`: `PageUsage` interface extended with `tokensUsed`/`tokensLimit`.
+- `LayoutDataProvider.tsx`: Passes token data to sidebar.
+
+### File List
+- `surfsense_backend/app/routes/documents_routes.py` — page quota pre-check in upload endpoints
+- `surfsense_backend/app/schemas/users.py` — extended UserRead
+- `surfsense_web/components/sources/DocumentUploadTab.tsx` — 402 error handling
+- `surfsense_web/contracts/types/user.types.ts` — quota fields in Zod schema
+- `surfsense_web/components/layout/ui/sidebar/PageUsageDisplay.tsx` — token usage bar + color states
+- `surfsense_web/components/layout/types/layout.types.ts` — extended PageUsage interface
+- `surfsense_web/components/layout/providers/LayoutDataProvider.tsx` — pass token data
+- `surfsense_web/components/layout/ui/sidebar/Sidebar.tsx` — pass token props to PageUsageDisplay
+
+## Review Findings (2026-04-15)
+
+- [x] [Review][Patch] PAST_DUE users retain pro-tier limits and can continue consuming resources [page_limit_service.py, token_quota_service.py] — **Fixed**: Both services now check subscription_status and apply free-tier limits when PAST_DUE

@@ -38,6 +38,8 @@ export interface ChatItem {
 export interface PageUsage {
 	pagesUsed: number;
 	pagesLimit: number;
+	tokensUsed: number;
+	tokensLimit: number;
 }
 
 export interface IconRailProps {
@@ -78,6 +80,8 @@ export interface ChatsSectionProps {
 export interface PageUsageDisplayProps {
 	pagesUsed: number;
 	pagesLimit: number;
+	tokensUsed: number;
+	tokensLimit: number;
 }
 
 export interface SidebarUserProfileProps {

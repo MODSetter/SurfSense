@@ -20,7 +20,10 @@ class VisionLLMConfigBase(BaseModel):
 
 
 class VisionLLMConfigCreate(VisionLLMConfigBase):
-    search_space_id: int = Field(...)
+    search_space_id: int | None = Field(
+        None,
+        description="Search space ID. None = global admin config visible to all spaces",
+    )
 
 
 class VisionLLMConfigUpdate(BaseModel):
@@ -38,8 +41,8 @@ class VisionLLMConfigUpdate(BaseModel):
 class VisionLLMConfigRead(VisionLLMConfigBase):
     id: int
     created_at: datetime
-    search_space_id: int
-    user_id: uuid.UUID
+    search_space_id: int | None = None
+    user_id: uuid.UUID | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -55,8 +58,8 @@ class VisionLLMConfigPublic(BaseModel):
     api_version: str | None = None
     litellm_params: dict[str, Any] | None = None
     created_at: datetime
-    search_space_id: int
-    user_id: uuid.UUID
+    search_space_id: int | None = None
+    user_id: uuid.UUID | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

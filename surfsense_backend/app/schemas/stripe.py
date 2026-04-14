@@ -33,6 +33,7 @@ class CreateSubscriptionCheckoutResponse(BaseModel):
     """Response containing the Stripe-hosted subscription checkout URL."""
 
     checkout_url: str
+    admin_approval_mode: bool = False
 
 
 class CreateCheckoutSessionResponse(BaseModel):

@@ -25,11 +25,12 @@ from app.schemas import (
     DefaultSystemInstructionsResponse,
     GlobalNewLLMConfigRead,
     NewLLMConfigCreate,
+    NewLLMConfigPublic,
     NewLLMConfigRead,
     NewLLMConfigUpdate,
 )
 from app.services.llm_service import validate_llm_config
-from app.users import current_active_user
+from app.users import current_active_user, current_superuser
 from app.utils.rbac import check_permission
 
 router = APIRouter()
@@ -117,22 +118,13 @@ async def get_global_new_llm_configs(
 async def create_new_llm_config(
     config_data: NewLLMConfigCreate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    user: User = Depends(current_superuser),
 ):
     """
     Create a new NewLLMConfig for a search space.
-    Requires LLM_CONFIGS_CREATE permission.
+    Superuser only — configs are shared with all search space members.
     """
     try:
-        # Verify user has permission
-        await check_permission(
-            session,
-            user,
-            config_data.search_space_id,
-            Permission.LLM_CONFIGS_CREATE.value,
-            "You don't have permission to create LLM configurations in this search space",
-        )
-
         # Validate the LLM configuration by making a test API call
         is_valid, error_message = await validate_llm_config(
             provider=config_data.provider.value,
@@ -149,8 +141,8 @@ async def create_new_llm_config(
                 detail=f"Invalid LLM configuration: {error_message}",
             )
 
-        # Create the config with user association
-        db_config = NewLLMConfig(**config_data.model_dump(), user_id=user.id)
+        # Create the config as admin-owned (user_id=None means shared with all space members)
+        db_config = NewLLMConfig(**config_data.model_dump(), user_id=None)
         session.add(db_config)
         await session.commit()
         await session.refresh(db_config)
@@ -167,7 +159,7 @@ async def create_new_llm_config(
         ) from e
 
 
-@router.get("/new-llm-configs", response_model=list[NewLLMConfigRead])
+@router.get("/new-llm-configs", response_model=list[NewLLMConfigPublic])
 async def list_new_llm_configs(
     search_space_id: int,
     skip: int = 0,
@@ -176,11 +168,11 @@ async def list_new_llm_configs(
     user: User = Depends(current_active_user),
 ):
     """
-    Get all NewLLMConfigs for a search space.
+    Get all NewLLMConfigs for a search space (includes global admin configs).
     Requires LLM_CONFIGS_READ permission.
     """
     try:
-        # Verify user has permission
+        # Verify user has permission for their space
         await check_permission(
             session,
             user,
@@ -191,7 +183,10 @@ async def list_new_llm_configs(
 
         result = await session.execute(
             select(NewLLMConfig)
-            .filter(NewLLMConfig.search_space_id == search_space_id)
+            .filter(
+                (NewLLMConfig.search_space_id == search_space_id)
+                | (NewLLMConfig.search_space_id == None)  # noqa: E711
+            )
             .order_by(NewLLMConfig.created_at.desc())
             .offset(skip)
             .limit(limit)
@@ -268,29 +263,22 @@ async def update_new_llm_config(
     config_id: int,
     update_data: NewLLMConfigUpdate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    user: User = Depends(current_superuser),
 ):
     """
     Update an existing NewLLMConfig.
-    Requires LLM_CONFIGS_UPDATE permission.
+    Superuser only.
     """
     try:
         result = await session.execute(
-            select(NewLLMConfig).filter(NewLLMConfig.id == config_id)
+            select(NewLLMConfig).filter(
+                NewLLMConfig.id == config_id, NewLLMConfig.user_id.is_(None)
+            )
         )
         config = result.scalars().first()
 
         if not config:
             raise HTTPException(status_code=404, detail="Configuration not found")
-
-        # Verify user has permission
-        await check_permission(
-            session,
-            user,
-            config.search_space_id,
-            Permission.LLM_CONFIGS_UPDATE.value,
-            "You don't have permission to update LLM configurations in this search space",
-        )
 
         update_dict = update_data.model_dump(exclude_unset=True)
 
@@ -360,29 +348,22 @@ async def update_new_llm_config(
 async def delete_new_llm_config(
     config_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    user: User = Depends(current_superuser),
 ):
     """
     Delete a NewLLMConfig.
-    Requires LLM_CONFIGS_DELETE permission.
+    Superuser only.
     """
     try:
         result = await session.execute(
-            select(NewLLMConfig).filter(NewLLMConfig.id == config_id)
+            select(NewLLMConfig).filter(
+                NewLLMConfig.id == config_id, NewLLMConfig.user_id.is_(None)
+            )
         )
         config = result.scalars().first()
 
         if not config:
             raise HTTPException(status_code=404, detail="Configuration not found")
-
-        # Verify user has permission
-        await check_permission(
-            session,
-            user,
-            config.search_space_id,
-            Permission.LLM_CONFIGS_DELETE.value,
-            "You don't have permission to delete LLM configurations in this search space",
-        )
 
         await session.delete(config)
         await session.commit()

@@ -703,6 +703,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		? {
 				pagesUsed: user.pages_used,
 				pagesLimit: user.pages_limit,
+				tokensUsed: user.tokens_used_this_month,
+				tokensLimit: user.monthly_token_limit,
 			}
 		: undefined;
 
