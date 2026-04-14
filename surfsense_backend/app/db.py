@@ -14,6 +14,7 @@ from sqlalchemy import (
     TIMESTAMP,
     Boolean,
     Column,
+    Date,
     Enum as SQLAlchemyEnum,
     ForeignKey,
     Index,
@@ -318,6 +319,13 @@ class PagePurchaseStatus(StrEnum):
     PENDING = "pending"
     COMPLETED = "completed"
     FAILED = "failed"
+
+
+class SubscriptionStatus(StrEnum):
+    FREE = "free"
+    ACTIVE = "active"
+    CANCELED = "canceled"
+    PAST_DUE = "past_due"
 
 
 # Centralized configuration for incentive tasks
@@ -1955,6 +1963,20 @@ if config.AUTH_TYPE == "GOOGLE":
         )
         pages_used = Column(Integer, nullable=False, default=0, server_default="0")
 
+        # Subscription and token quota (cloud mode)
+        monthly_token_limit = Column(Integer, nullable=False, default=100000, server_default="100000")
+        tokens_used_this_month = Column(Integer, nullable=False, default=0, server_default="0")
+        token_reset_date = Column(Date, nullable=True)
+        subscription_status = Column(
+            SQLAlchemyEnum(SubscriptionStatus, name="subscriptionstatus", create_type=True),
+            nullable=False,
+            default=SubscriptionStatus.FREE,
+            server_default="free",
+        )
+        plan_id = Column(String(50), nullable=False, default="free", server_default="free")
+        stripe_customer_id = Column(String(255), nullable=True, unique=True)
+        stripe_subscription_id = Column(String(255), nullable=True, unique=True)
+
         # User profile from OAuth
         display_name = Column(String, nullable=True)
         avatar_url = Column(String, nullable=True)
@@ -2068,6 +2090,20 @@ else:
             server_default=str(config.PAGES_LIMIT),
         )
         pages_used = Column(Integer, nullable=False, default=0, server_default="0")
+
+        # Subscription and token quota (cloud mode)
+        monthly_token_limit = Column(Integer, nullable=False, default=100000, server_default="100000")
+        tokens_used_this_month = Column(Integer, nullable=False, default=0, server_default="0")
+        token_reset_date = Column(Date, nullable=True)
+        subscription_status = Column(
+            SQLAlchemyEnum(SubscriptionStatus, name="subscriptionstatus", create_type=True),
+            nullable=False,
+            default=SubscriptionStatus.FREE,
+            server_default="free",
+        )
+        plan_id = Column(String(50), nullable=False, default="free", server_default="free")
+        stripe_customer_id = Column(String(255), nullable=True, unique=True)
+        stripe_subscription_id = Column(String(255), nullable=True, unique=True)
 
         # User profile (can be set manually for non-OAuth users)
         display_name = Column(String, nullable=True)

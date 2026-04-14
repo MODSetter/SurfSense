@@ -17,6 +17,7 @@ import { useTranslations } from "next-intl";
 import type React from "react";
 import { searchSpaceSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
 import { SettingsDialog } from "@/components/settings/settings-dialog";
+import { isCloud } from "@/lib/env-config";
 
 const GeneralSettingsManager = dynamic(
 	() =>
@@ -85,20 +86,27 @@ export function SearchSpaceSettingsDialog({ searchSpaceId }: SearchSpaceSettings
 	const t = useTranslations("searchSpaceSettings");
 	const [state, setState] = useAtom(searchSpaceSettingsDialogAtom);
 
+	const cloudMode = isCloud();
+
 	const navItems = [
 		{ value: "general", label: t("nav_general"), icon: <CircleUser className="h-4 w-4" /> },
 		{ value: "roles", label: t("nav_role_assignments"), icon: <ListChecks className="h-4 w-4" /> },
-		{ value: "models", label: t("nav_agent_configs"), icon: <Bot className="h-4 w-4" /> },
-		{
-			value: "image-models",
-			label: t("nav_image_models"),
-			icon: <ImageIcon className="h-4 w-4" />,
-		},
-		{
-			value: "vision-models",
-			label: t("nav_vision_models"),
-			icon: <Eye className="h-4 w-4" />,
-		},
+		// BYOK model config panels — hidden in cloud mode (system models are managed centrally)
+		...(!cloudMode
+			? [
+					{ value: "models", label: t("nav_agent_configs"), icon: <Bot className="h-4 w-4" /> },
+					{
+						value: "image-models",
+						label: t("nav_image_models"),
+						icon: <ImageIcon className="h-4 w-4" />,
+					},
+					{
+						value: "vision-models",
+						label: t("nav_vision_models"),
+						icon: <Eye className="h-4 w-4" />,
+					},
+			  ]
+			: []),
 		{ value: "team-roles", label: t("nav_team_roles"), icon: <UserKey className="h-4 w-4" /> },
 		{
 			value: "prompts",
@@ -115,10 +123,13 @@ export function SearchSpaceSettingsDialog({ searchSpaceId }: SearchSpaceSettings
 
 	const content: Record<string, React.ReactNode> = {
 		general: <GeneralSettingsManager searchSpaceId={searchSpaceId} />,
-		models: <ModelConfigManager searchSpaceId={searchSpaceId} />,
+		// BYOK panels — only rendered in self-hosted mode
+		...(!cloudMode && {
+			models: <ModelConfigManager searchSpaceId={searchSpaceId} />,
+			"image-models": <ImageModelManager searchSpaceId={searchSpaceId} />,
+			"vision-models": <VisionModelManager searchSpaceId={searchSpaceId} />,
+		}),
 		roles: <LLMRoleManager searchSpaceId={searchSpaceId} />,
-		"image-models": <ImageModelManager searchSpaceId={searchSpaceId} />,
-		"vision-models": <VisionModelManager searchSpaceId={searchSpaceId} />,
 		"team-roles": <RolesManager searchSpaceId={searchSpaceId} />,
 		prompts: <PromptConfigManager searchSpaceId={searchSpaceId} />,
 		"team-memory": <TeamMemoryManager searchSpaceId={searchSpaceId} />,

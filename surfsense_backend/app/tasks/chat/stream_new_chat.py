@@ -41,6 +41,7 @@ from app.agents.new_chat.memory_extraction import (
     extract_and_save_memory,
     extract_and_save_team_memory,
 )
+from app.config import config as app_config
 from app.db import (
     ChatVisibility,
     NewChatMessage,
@@ -144,6 +145,7 @@ class StreamResult:
     interrupt_value: dict[str, Any] | None = None
     sandbox_files: list[str] = field(default_factory=list)  # unused, kept for compat
     agent_called_update_memory: bool = False
+    total_tokens_used: int = 0  # Accumulated across all LLM calls in the stream
 
 
 async def _stream_agent_events(
@@ -1105,6 +1107,27 @@ async def _stream_agent_events(
                     },
                 )
 
+        elif event_type == "on_chat_model_end":
+            # Accumulate token counts for quota tracking (cloud mode)
+            output = event.get("data", {}).get("output")
+            if output is not None:
+                usage = None
+                if hasattr(output, "usage_metadata") and output.usage_metadata is not None:
+                    usage = output.usage_metadata
+                elif hasattr(output, "response_metadata") and output.response_metadata is not None:
+                    rm = output.response_metadata or {}
+                    usage = rm.get("usage") or rm.get("token_usage") or rm.get("usage_metadata")
+
+                if isinstance(usage, dict):
+                    total = (
+                        usage.get("total_tokens")
+                        or (usage.get("input_tokens", 0) + usage.get("output_tokens", 0))
+                        or (usage.get("prompt_tokens", 0) + usage.get("completion_tokens", 0))
+                    )
+                    result.total_tokens_used += total or 0
+                elif usage is not None and hasattr(usage, "total_tokens"):
+                    result.total_tokens_used += getattr(usage, "total_tokens", 0) or 0
+
         elif event_type in ("on_chain_end", "on_agent_end"):
             if current_text_id is not None:
                 yield streaming_service.format_text_end(current_text_id)
@@ -1569,6 +1592,22 @@ async def stream_new_chat(
                     )
                 )
 
+        # Cloud mode: deduct consumed tokens from the user's monthly quota
+        if app_config.is_cloud() and user_id and stream_result.total_tokens_used > 0:
+            try:
+                async with shielded_async_session() as quota_session:
+                    from app.services.token_quota_service import TokenQuotaService
+
+                    quota_service = TokenQuotaService(quota_session)
+                    await quota_service.update_token_usage(
+                        user_id, stream_result.total_tokens_used, allow_exceed=True
+                    )
+            except Exception as quota_err:
+                # Non-fatal — log and continue; usage was already streamed
+                logging.getLogger(__name__).warning(
+                    "[stream_new_chat] Failed to record token usage: %s", quota_err
+                )
+
         # Finish the step and message
         yield streaming_service.format_finish_step()
         yield streaming_service.format_finish()
@@ -1777,6 +1816,22 @@ async def stream_resume_chat(
         yield streaming_service.format_finish_step()
         yield streaming_service.format_finish()
         yield streaming_service.format_done()
+
+        # Cloud mode: deduct consumed tokens from the user's monthly quota
+        if app_config.is_cloud() and user_id and stream_result.total_tokens_used > 0:
+            try:
+                async with shielded_async_session() as quota_session:
+                    from app.services.token_quota_service import TokenQuotaService
+
+                    quota_service = TokenQuotaService(quota_session)
+                    await quota_service.update_token_usage(
+                        user_id, stream_result.total_tokens_used, allow_exceed=True
+                    )
+            except Exception as quota_err:
+                # Non-fatal — log and continue; usage was already streamed
+                logging.getLogger(__name__).warning(
+                    "[stream_resume_chat] Failed to record token usage: %s", quota_err
+                )
 
     except Exception as e:
         import traceback

@@ -167,6 +167,27 @@ export const globalNewLLMConfig = z.object({
 export const getGlobalNewLLMConfigsResponse = z.array(globalNewLLMConfig);
 
 // =============================================================================
+// System Model Catalog (cloud mode — backend-managed LLMs)
+// =============================================================================
+
+/**
+ * SystemModelItem — a backend-managed LLM exposed via GET /api/v1/models/system
+ * id is negative (e.g. -1, -2, …), distinct from user configs (positive) and Auto mode (0)
+ */
+export const systemModelItem = z.object({
+	id: z.number(),
+	name: z.string(),
+	description: z.string().nullable().optional(),
+	provider: z.string(),
+	model_name: z.string(),
+	tier_required: z.string().default("free"),
+});
+
+export const getSystemModelsResponse = z.array(systemModelItem);
+
+export type SystemModelItem = z.infer<typeof systemModelItem>;
+
+// =============================================================================
 // Image Generation Config (separate table from NewLLMConfig)
 // =============================================================================
 

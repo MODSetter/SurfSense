@@ -51,6 +51,9 @@ from app.schemas.new_chat import (
     ThreadListItem,
     ThreadListResponse,
 )
+from app.config import config
+from app.routes.model_list_routes import get_tier_for_model_id
+from app.services.token_quota_service import TokenQuotaExceededError, TokenQuotaService
 from app.tasks.chat.stream_new_chat import stream_new_chat, stream_resume_chat
 from app.users import current_active_user
 from app.utils.rbac import check_permission
@@ -1112,6 +1115,47 @@ async def handle_new_chat(
             search_space.agent_llm_id if search_space.agent_llm_id is not None else -1
         )
 
+        # Cloud mode: allow frontend to override with a system model selection
+        # Security: only negative IDs (system models from YAML) are allowed in cloud mode
+        if config.is_cloud() and request.model_id is not None:
+            if request.model_id > 0:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Custom LLM configurations are not allowed in cloud mode. Use system models only.",
+                )
+            llm_config_id = request.model_id
+
+            # Enforce subscription tier for the selected model
+            required_tier = get_tier_for_model_id(request.model_id)
+            if required_tier == "pro" and hasattr(user, "subscription_status"):
+                user_status = getattr(user, "subscription_status", None)
+                if user_status is None or str(user_status) not in ("active",):
+                    raise HTTPException(
+                        status_code=403,
+                        detail={
+                            "error": "tier_restricted",
+                            "message": f"This model requires a Pro subscription. Current status: {user_status}",
+                            "required_tier": required_tier,
+                        },
+                    )
+
+        # Cloud mode: enforce monthly token quota before streaming
+        if config.is_cloud():
+            try:
+                token_quota_service = TokenQuotaService(session)
+                await token_quota_service.check_token_quota(str(user.id))
+            except TokenQuotaExceededError as exc:
+                raise HTTPException(
+                    status_code=402,
+                    detail={
+                        "error": "token_quota_exceeded",
+                        "message": str(exc),
+                        "tokens_used": exc.tokens_used,
+                        "monthly_token_limit": exc.monthly_token_limit,
+                        "upgrade_url": "/pricing",
+                    },
+                ) from exc
+
         # Release the read-transaction so we don't hold ACCESS SHARE locks
         # on searchspaces/documents for the entire duration of the stream.
         # expire_on_commit=False keeps loaded ORM attrs usable.
@@ -1349,6 +1393,47 @@ async def regenerate_response(
             search_space.agent_llm_id if search_space.agent_llm_id is not None else -1
         )
 
+        # Cloud mode: allow frontend to override with a system model selection
+        # Security: only negative IDs (system models from YAML) are allowed in cloud mode
+        if config.is_cloud() and request.model_id is not None:
+            if request.model_id > 0:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Custom LLM configurations are not allowed in cloud mode. Use system models only.",
+                )
+            llm_config_id = request.model_id
+
+            # Enforce subscription tier for the selected model
+            required_tier = get_tier_for_model_id(request.model_id)
+            if required_tier == "pro" and hasattr(user, "subscription_status"):
+                user_status = getattr(user, "subscription_status", None)
+                if user_status is None or str(user_status) not in ("active",):
+                    raise HTTPException(
+                        status_code=403,
+                        detail={
+                            "error": "tier_restricted",
+                            "message": f"This model requires a Pro subscription. Current status: {user_status}",
+                            "required_tier": required_tier,
+                        },
+                    )
+
+        # Cloud mode: enforce monthly token quota before streaming
+        if config.is_cloud():
+            try:
+                token_quota_service = TokenQuotaService(session)
+                await token_quota_service.check_token_quota(str(user.id))
+            except TokenQuotaExceededError as exc:
+                raise HTTPException(
+                    status_code=402,
+                    detail={
+                        "error": "token_quota_exceeded",
+                        "message": str(exc),
+                        "tokens_used": exc.tokens_used,
+                        "monthly_token_limit": exc.monthly_token_limit,
+                        "upgrade_url": "/pricing",
+                    },
+                ) from exc
+
         # Release the read-transaction so we don't hold ACCESS SHARE locks
         # on searchspaces/documents for the entire duration of the stream.
         # expire_on_commit=False keeps loaded ORM attrs (including messages_to_delete PKs) usable.
@@ -1471,6 +1556,47 @@ async def resume_chat(
         llm_config_id = (
             search_space.agent_llm_id if search_space.agent_llm_id is not None else -1
         )
+
+        # Cloud mode: allow frontend to override with a system model selection
+        # Security: only negative IDs (system models from YAML) are allowed in cloud mode
+        if config.is_cloud() and request.model_id is not None:
+            if request.model_id > 0:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Custom LLM configurations are not allowed in cloud mode. Use system models only.",
+                )
+            llm_config_id = request.model_id
+
+            # Enforce subscription tier for the selected model
+            required_tier = get_tier_for_model_id(request.model_id)
+            if required_tier == "pro" and hasattr(user, "subscription_status"):
+                user_status = getattr(user, "subscription_status", None)
+                if user_status is None or str(user_status) not in ("active",):
+                    raise HTTPException(
+                        status_code=403,
+                        detail={
+                            "error": "tier_restricted",
+                            "message": f"This model requires a Pro subscription. Current status: {user_status}",
+                            "required_tier": required_tier,
+                        },
+                    )
+
+        # Cloud mode: enforce monthly token quota before streaming
+        if config.is_cloud():
+            try:
+                token_quota_service = TokenQuotaService(session)
+                await token_quota_service.check_token_quota(str(user.id))
+            except TokenQuotaExceededError as exc:
+                raise HTTPException(
+                    status_code=402,
+                    detail={
+                        "error": "token_quota_exceeded",
+                        "message": str(exc),
+                        "tokens_used": exc.tokens_used,
+                        "monthly_token_limit": exc.monthly_token_limit,
+                        "upgrade_url": "/pricing",
+                    },
+                ) from exc
 
         decisions = [d.model_dump() for d in request.decisions]
 

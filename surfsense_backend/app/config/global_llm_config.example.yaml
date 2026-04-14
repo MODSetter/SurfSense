@@ -52,6 +52,9 @@ global_llm_configs:
     model_name: "gpt-4-turbo-preview"
     api_key: "sk-your-openai-api-key-here"
     api_base: ""
+    tier_required: "pro"  # free | pro | enterprise
+    cost_per_1k_input_tokens: 0.01
+    cost_per_1k_output_tokens: 0.03
     # Rate limits for load balancing (requests/tokens per minute)
     rpm: 500  # Requests per minute
     tpm: 100000  # Tokens per minute
@@ -71,6 +74,9 @@ global_llm_configs:
     model_name: "claude-3-opus-20240229"
     api_key: "sk-ant-your-anthropic-api-key-here"
     api_base: ""
+    tier_required: "pro"
+    cost_per_1k_input_tokens: 0.015
+    cost_per_1k_output_tokens: 0.075
     rpm: 1000
     tpm: 100000
     litellm_params:
@@ -88,6 +94,9 @@ global_llm_configs:
     model_name: "gpt-3.5-turbo"
     api_key: "sk-your-openai-api-key-here"
     api_base: ""
+    tier_required: "free"
+    cost_per_1k_input_tokens: 0.0005
+    cost_per_1k_output_tokens: 0.0015
     rpm: 3500  # GPT-3.5 has higher rate limits
     tpm: 200000
     litellm_params:
@@ -105,6 +114,9 @@ global_llm_configs:
     model_name: "deepseek-chat"
     api_key: "your-deepseek-api-key-here"
     api_base: "https://api.deepseek.com/v1"
+    tier_required: "free"
+    cost_per_1k_input_tokens: 0.0001
+    cost_per_1k_output_tokens: 0.0002
     rpm: 60
     tpm: 100000
     litellm_params:
@@ -134,6 +146,9 @@ global_llm_configs:
     api_key: "your-azure-api-key-here"
     api_base: "https://your-resource.openai.azure.com"
     api_version: "2024-02-15-preview"  # Azure API version
+    tier_required: "pro"
+    cost_per_1k_input_tokens: 0.005
+    cost_per_1k_output_tokens: 0.015
     rpm: 1000
     tpm: 150000
     litellm_params:
@@ -156,6 +171,9 @@ global_llm_configs:
     api_key: "your-azure-api-key-here"
     api_base: "https://your-resource.openai.azure.com"
     api_version: "2024-02-15-preview"
+    tier_required: "pro"
+    cost_per_1k_input_tokens: 0.01
+    cost_per_1k_output_tokens: 0.03
     rpm: 500
     tpm: 100000
     litellm_params:
@@ -174,6 +192,9 @@ global_llm_configs:
     model_name: "llama3-70b-8192"
     api_key: "your-groq-api-key-here"
     api_base: ""
+    tier_required: "pro"
+    cost_per_1k_input_tokens: 0.00059
+    cost_per_1k_output_tokens: 0.00079
     rpm: 30  # Groq has lower rate limits on free tier
     tpm: 14400
     litellm_params:
@@ -191,6 +212,9 @@ global_llm_configs:
     model_name: "MiniMax-M2.5"
     api_key: "your-minimax-api-key-here"
     api_base: "https://api.minimax.io/v1"
+    tier_required: "free"
+    cost_per_1k_input_tokens: 0.001
+    cost_per_1k_output_tokens: 0.003
     rpm: 60
     tpm: 100000
     litellm_params:
@@ -347,6 +371,10 @@ global_vision_llm_configs:
 # - system_instructions: Custom prompt or empty string to use defaults
 # - use_default_system_instructions: true = use SURFSENSE_SYSTEM_INSTRUCTIONS when system_instructions is empty
 # - citations_enabled: true = include citation instructions, false = include anti-citation instructions
+# - tier_required: "free" | "pro" | "enterprise" — subscription tier needed to use this model.
+#   If omitted, tier is inferred from model_name via pattern matching (fragile).
+# - cost_per_1k_input_tokens / cost_per_1k_output_tokens: Optional cost metadata for display.
+#   Not used for billing (token quota is flat), but shown in the UI for transparency.
 # - All standard LiteLLM providers are supported
 # - rpm/tpm: Optional rate limits for load balancing (requests/tokens per minute)
 #   These help the router distribute load evenly and avoid rate limit errors

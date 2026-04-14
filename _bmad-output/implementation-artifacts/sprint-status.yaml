@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-13T02:50:25+07:00
-last_updated: 2026-04-13T02:50:25+07:00
+last_updated: 2026-04-14T17:00:00+07:00
 project: SurfSense
 project_key: NOKEY
 tracking_system: file-system
@@ -58,7 +58,7 @@ development_status:
   3-2-rag-engine-sse-endpoint: done
   3-3-chat-ui-sse-client: done
   3-4-split-pane-layout-interactive-citation: done
-  3-5-model-selection-via-quota: backlog
+  3-5-model-selection-via-quota: done
   epic-3-retrospective: optional
   epic-4: done
   4-1-chat-history-sync: done

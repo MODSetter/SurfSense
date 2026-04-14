@@ -15,6 +15,7 @@ import {
 	getNewLLMConfigResponse,
 	getNewLLMConfigsRequest,
 	getNewLLMConfigsResponse,
+	getSystemModelsResponse,
 	type UpdateLLMPreferencesRequest,
 	type UpdateNewLLMConfigRequest,
 	updateLLMPreferencesRequest,
@@ -151,6 +152,14 @@ class NewLLMConfigApiService {
 	 */
 	getModels = async () => {
 		return baseApiService.get(`/api/v1/models`, getModelListResponse);
+	};
+
+	/**
+	 * Get the system-managed LLM catalogue (cloud mode only)
+	 * Returns backend-configured models from YAML with negative IDs
+	 */
+	getSystemModels = async () => {
+		return baseApiService.get(`/api/v1/models/system`, getSystemModelsResponse);
 	};
 
 	/**

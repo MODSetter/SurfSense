@@ -105,6 +105,9 @@ export const cacheKeys = {
 		all: () => ["prompts"] as const,
 		public: () => ["prompts", "public"] as const,
 	},
+	systemModels: {
+		all: () => ["models", "system"] as const,
+	},
 	notifications: {
 		search: (searchSpaceId: number | null, search: string, tab: string) =>
 			["notifications", "search", searchSpaceId, search, tab] as const,

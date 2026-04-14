@@ -14,6 +14,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { disabledToolsAtom } from "@/atoms/agent-tools/agent-tools.atoms";
+import { selectedSystemModelIdAtom } from "@/atoms/new-llm-config/system-models-query.atoms";
+import { isCloud } from "@/lib/env-config";
 import {
 	clearTargetCommentIdAtom,
 	currentThreadAtom,
@@ -174,6 +176,16 @@ function extractMentionedDocuments(content: unknown): MentionedDocumentInfo[] {
 }
 
 /**
+ * Throw this when the backend returns 402 Payment Required (quota exceeded).
+ */
+class QuotaExceededError extends Error {
+	constructor() {
+		super("Token quota exceeded");
+		this.name = "QuotaExceededError";
+	}
+}
+
+/**
  * Tools that should render custom UI in the chat.
  */
 const TOOLS_WITH_UI = new Set([
@@ -229,6 +241,9 @@ export default function NewChatPage() {
 
 	// Get disabled tools from the tool toggle UI
 	const disabledTools = useAtomValue(disabledToolsAtom);
+
+	// Cloud mode: selected system model ID (null = backend default)
+	const selectedSystemModelId = useAtomValue(selectedSystemModelIdAtom);
 
 	// Get mentioned document IDs from the composer (derived from @ mentions + sidebar selections)
 	const mentionedDocumentIds = useAtomValue(mentionedDocumentIdsAtom);
@@ -704,11 +719,13 @@ export default function NewChatPage() {
 							? mentionedDocumentIds.surfsense_doc_ids
 							: undefined,
 						disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
+						...(isCloud() && selectedSystemModelId != null && { model_id: selectedSystemModelId }),
 					}),
 					signal: controller.signal,
 				});
 
 				if (!response.ok) {
+					if (response.status === 402) throw new QuotaExceededError();
 					throw new Error(`Backend error: ${response.status}`);
 				}
 
@@ -847,6 +864,9 @@ export default function NewChatPage() {
 						}
 
 						case "error":
+							if (parsed.errorText?.includes("quota") || parsed.errorText?.includes("token_quota_exceeded")) {
+								throw new QuotaExceededError();
+							}
 							throw new Error(parsed.errorText || "Server error");
 					}
 				}
@@ -909,6 +929,15 @@ export default function NewChatPage() {
 					}
 					return;
 				}
+				if (error instanceof QuotaExceededError) {
+					toast.error("Monthly token quota exceeded. Upgrade your plan to continue.", {
+						action: {
+							label: "Upgrade",
+							onClick: () => window.open("/pricing", "_blank"),
+						},
+					});
+					return;
+				}
 				console.error("[NewChatPage] Chat error:", error);
 
 				// Track chat error
@@ -955,6 +984,7 @@ export default function NewChatPage() {
 			currentUser,
 			disabledTools,
 			updateChatTabTitle,
+			selectedSystemModelId,
 		]
 	);
 
@@ -1062,11 +1092,13 @@ export default function NewChatPage() {
 					body: JSON.stringify({
 						search_space_id: searchSpaceId,
 						decisions,
+						...(isCloud() && selectedSystemModelId != null && { model_id: selectedSystemModelId }),
 					}),
 					signal: controller.signal,
 				});
 
 				if (!response.ok) {
+					if (response.status === 402) throw new QuotaExceededError();
 					throw new Error(`Backend error: ${response.status}`);
 				}
 
@@ -1175,6 +1207,9 @@ export default function NewChatPage() {
 						}
 
 						case "error":
+							if (parsed.errorText?.includes("quota") || parsed.errorText?.includes("token_quota_exceeded")) {
+								throw new QuotaExceededError();
+							}
 							throw new Error(parsed.errorText || "Server error");
 					}
 				}
@@ -1199,6 +1234,15 @@ export default function NewChatPage() {
 			} catch (error) {
 				batcher.dispose();
 				if (error instanceof Error && error.name === "AbortError") {
+					return;
+				}
+				if (error instanceof QuotaExceededError) {
+					toast.error("Monthly token quota exceeded. Upgrade your plan to continue.", {
+						action: {
+							label: "Upgrade",
+							onClick: () => window.open("/pricing", "_blank"),
+						},
+					});
 					return;
 				}
 				console.error("[NewChatPage] Resume error:", error);
@@ -1380,11 +1424,13 @@ export default function NewChatPage() {
 						search_space_id: searchSpaceId,
 						user_query: newUserQuery || null,
 						disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
+						...(isCloud() && selectedSystemModelId != null && { model_id: selectedSystemModelId }),
 					}),
 					signal: controller.signal,
 				});
 
 				if (!response.ok) {
+					if (response.status === 402) throw new QuotaExceededError();
 					throw new Error(`Backend error: ${response.status}`);
 				}
 
@@ -1454,6 +1500,9 @@ export default function NewChatPage() {
 						}
 
 						case "error":
+							if (parsed.errorText?.includes("quota") || parsed.errorText?.includes("token_quota_exceeded")) {
+								throw new QuotaExceededError();
+							}
 							throw new Error(parsed.errorText || "Server error");
 					}
 				}
@@ -1502,6 +1551,15 @@ export default function NewChatPage() {
 					return;
 				}
 				batcher.dispose();
+				if (error instanceof QuotaExceededError) {
+					toast.error("Monthly token quota exceeded. Upgrade your plan to continue.", {
+						action: {
+							label: "Upgrade",
+							onClick: () => window.open("/pricing", "_blank"),
+						},
+					});
+					return;
+				}
 				console.error("[NewChatPage] Regeneration error:", error);
 				trackChatError(
 					searchSpaceId,
@@ -1524,7 +1582,7 @@ export default function NewChatPage() {
 				abortControllerRef.current = null;
 			}
 		},
-		[threadId, searchSpaceId, messages, disabledTools]
+		[threadId, searchSpaceId, messages, disabledTools, selectedSystemModelId]
 	);
 
 	// Handle editing a message - truncates history and regenerates with new query

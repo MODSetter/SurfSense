@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useSetAtom } from "jotai";
+import { selectedSystemModelIdAtom } from "@/atoms/new-llm-config/system-models-query.atoms";
 import { ImageConfigDialog } from "@/components/shared/image-config-dialog";
 import { ModelConfigDialog } from "@/components/shared/model-config-dialog";
 import { VisionConfigDialog } from "@/components/shared/vision-config-dialog";
@@ -12,7 +14,9 @@ import type {
 	NewLLMConfigPublic,
 	VisionLLMConfig,
 } from "@/contracts/types/new-llm-config.types";
+import { isCloud } from "@/lib/env-config";
 import { ModelSelector } from "./model-selector";
+import { SystemModelSelector } from "./system-model-selector";
 
 interface ChatHeaderProps {
 	searchSpaceId: number;
@@ -20,6 +24,12 @@ interface ChatHeaderProps {
 }
 
 export function ChatHeader({ searchSpaceId, className }: ChatHeaderProps) {
+	// Reset system model selection when search space changes
+	const setSelectedSystemModelId = useSetAtom(selectedSystemModelIdAtom);
+	useEffect(() => {
+		setSelectedSystemModelId(null);
+	}, [searchSpaceId, setSelectedSystemModelId]);
+
 	// LLM config dialog state
 	const [dialogOpen, setDialogOpen] = useState(false);
 	const [selectedConfig, setSelectedConfig] = useState<
@@ -115,15 +125,19 @@ export function ChatHeader({ searchSpaceId, className }: ChatHeaderProps) {
 
 	return (
 		<div className="flex items-center gap-2">
-			<ModelSelector
-				onEditLLM={handleEditLLMConfig}
-				onAddNewLLM={handleAddNewLLM}
-				onEditImage={handleEditImageConfig}
-				onAddNewImage={handleAddImageModel}
-				onEditVision={handleEditVisionConfig}
-				onAddNewVision={handleAddVisionModel}
-				className={className}
-			/>
+			{isCloud() ? (
+				<SystemModelSelector className={className} />
+			) : (
+				<ModelSelector
+					onEditLLM={handleEditLLMConfig}
+					onAddNewLLM={handleAddNewLLM}
+					onEditImage={handleEditImageConfig}
+					onAddNewImage={handleAddImageModel}
+					onEditVision={handleEditVisionConfig}
+					onAddNewVision={handleAddVisionModel}
+					className={className}
+				/>
+			)}
 			<ModelConfigDialog
 				open={dialogOpen}
 				onOpenChange={handleDialogClose}

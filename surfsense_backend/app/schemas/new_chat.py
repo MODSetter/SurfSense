@@ -175,6 +175,10 @@ class NewChatRequest(BaseModel):
     disabled_tools: list[str] | None = (
         None  # Optional list of tool names the user has disabled from the UI
     )
+    # Cloud mode: override the search space's agent_llm_id with a system model
+    # (negative ID from global_llm_config.yaml, selected via SystemModelSelector).
+    # Self-hosted mode: leave None and the search space config is used as before.
+    model_id: int | None = None
 
 
 class RegenerateRequest(BaseModel):
@@ -195,6 +199,7 @@ class RegenerateRequest(BaseModel):
     mentioned_document_ids: list[int] | None = None
     mentioned_surfsense_doc_ids: list[int] | None = None
     disabled_tools: list[str] | None = None
+    model_id: int | None = None  # Cloud mode: override with system model ID
 
 
 # =============================================================================
@@ -218,6 +223,7 @@ class ResumeDecision(BaseModel):
 class ResumeRequest(BaseModel):
     search_space_id: int
     decisions: list[ResumeDecision]
+    model_id: int | None = None  # Cloud mode: override with system model ID
 
 
 # =============================================================================
