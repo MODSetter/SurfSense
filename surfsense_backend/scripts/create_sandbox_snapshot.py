@@ -21,7 +21,11 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 _here = Path(__file__).parent
-for candidate in [_here / "../surfsense_backend/.env", _here / ".env", _here / "../.env"]:
+for candidate in [
+    _here / "../surfsense_backend/.env",
+    _here / ".env",
+    _here / "../.env",
+]:
     if candidate.exists():
         load_dotenv(candidate)
         break
@@ -57,7 +61,10 @@ def main() -> None:
     api_key = os.environ.get("DAYTONA_API_KEY")
     if not api_key:
         print("ERROR: DAYTONA_API_KEY is not set.", file=sys.stderr)
-        print("Add it to surfsense_backend/.env or export it in your shell.", file=sys.stderr)
+        print(
+            "Add it to surfsense_backend/.env or export it in your shell.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     daytona = Daytona()
@@ -67,7 +74,7 @@ def main() -> None:
         print(f"Deleting existing snapshot '{SNAPSHOT_NAME}' …")
         daytona.snapshot.delete(existing)
         print(f"Deleted '{SNAPSHOT_NAME}'. Waiting for removal to propagate …")
-        for attempt in range(30):
+        for _attempt in range(30):
             time.sleep(2)
             try:
                 daytona.snapshot.get(SNAPSHOT_NAME)
@@ -75,7 +82,9 @@ def main() -> None:
                 print(f"Confirmed '{SNAPSHOT_NAME}' is gone.\n")
                 break
         else:
-            print(f"WARNING: '{SNAPSHOT_NAME}' may still exist after 60s. Proceeding anyway.\n")
+            print(
+                f"WARNING: '{SNAPSHOT_NAME}' may still exist after 60s. Proceeding anyway.\n"
+            )
     except Exception:
         pass
 

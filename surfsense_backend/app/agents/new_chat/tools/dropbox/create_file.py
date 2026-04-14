@@ -5,10 +5,10 @@ from pathlib import Path
 from typing import Any, Literal
 
 from langchain_core.tools import tool
-from app.agents.new_chat.tools.hitl import request_approval
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from app.agents.new_chat.tools.hitl import request_approval
 from app.connectors.dropbox.client import DropboxClient
 from app.db import SearchSourceConnector, SearchSourceConnectorType
 

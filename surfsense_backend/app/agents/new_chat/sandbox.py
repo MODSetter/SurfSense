@@ -138,7 +138,9 @@ def _find_or_create(thread_id: str) -> tuple[_TimeoutAwareSandbox, bool]:
             try:
                 client.delete(sandbox)
             except Exception:
-                logger.debug("Could not delete broken sandbox %s", sandbox.id, exc_info=True)
+                logger.debug(
+                    "Could not delete broken sandbox %s", sandbox.id, exc_info=True
+                )
             sandbox = client.create(_sandbox_create_params(labels))
             is_new = True
             logger.info("Created replacement sandbox: %s", sandbox.id)
@@ -203,6 +205,7 @@ async def get_or_create_sandbox(
 
 def _schedule_sandbox_delete(sandbox: _TimeoutAwareSandbox) -> None:
     """Best-effort background deletion of an evicted sandbox."""
+
     def _delete() -> None:
         try:
             client = _get_client()

@@ -431,7 +431,9 @@ async def test_llamacloud_heif_accepted_only_with_azure_di(tmp_path, mocker):
     mocker.patch("app.config.config.AZURE_DI_ENDPOINT", None, create=True)
     mocker.patch("app.config.config.AZURE_DI_KEY", None, create=True)
 
-    with pytest.raises(EtlUnsupportedFileError, match="document parser does not support this format"):
+    with pytest.raises(
+        EtlUnsupportedFileError, match="document parser does not support this format"
+    ):
         await EtlPipelineService().extract(
             EtlRequest(file_path=str(heif_file), filename="photo.heif")
         )

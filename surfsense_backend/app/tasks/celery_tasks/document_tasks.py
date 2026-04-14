@@ -4,6 +4,7 @@ import asyncio
 import contextlib
 import logging
 import os
+import time
 from uuid import UUID
 
 from app.celery_app import celery_app
@@ -1551,3 +1552,121 @@ async def _index_uploaded_folder_files_async(
                 heartbeat_task.cancel()
             if notification_id is not None:
                 _stop_heartbeat(notification_id)
+
+
+# ===== AI File Sort tasks =====
+
+AI_SORT_LOCK_TTL_SECONDS = 600  # 10 minutes
+_ai_sort_redis = None
+
+
+def _get_ai_sort_redis():
+    import redis
+
+    global _ai_sort_redis
+    if _ai_sort_redis is None:
+        _ai_sort_redis = redis.from_url(config.REDIS_APP_URL, decode_responses=True)
+    return _ai_sort_redis
+
+
+def _ai_sort_lock_key(search_space_id: int) -> str:
+    return f"ai_sort:search_space:{search_space_id}:lock"
+
+
+@celery_app.task(name="ai_sort_search_space", bind=True, max_retries=1)
+def ai_sort_search_space_task(self, search_space_id: int, user_id: str):
+    """Full AI sort for all documents in a search space."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(_ai_sort_search_space_async(search_space_id, user_id))
+    finally:
+        loop.close()
+
+
+async def _ai_sort_search_space_async(search_space_id: int, user_id: str):
+    r = _get_ai_sort_redis()
+    lock_key = _ai_sort_lock_key(search_space_id)
+
+    if not r.set(lock_key, "running", nx=True, ex=AI_SORT_LOCK_TTL_SECONDS):
+        logger.info(
+            "AI sort already running for search_space=%d, skipping",
+            search_space_id,
+        )
+        return
+
+    t_start = time.perf_counter()
+    try:
+        from app.services.ai_file_sort_service import ai_sort_all_documents
+        from app.services.llm_service import get_document_summary_llm
+
+        async with get_celery_session_maker()() as session:
+            llm = await get_document_summary_llm(
+                session, search_space_id, disable_streaming=True
+            )
+            if llm is None:
+                logger.warning(
+                    "No LLM configured for search_space=%d, skipping AI sort",
+                    search_space_id,
+                )
+                return
+
+            sorted_count, failed_count = await ai_sort_all_documents(
+                session, search_space_id, llm
+            )
+            elapsed = time.perf_counter() - t_start
+            logger.info(
+                "AI sort search_space=%d done in %.1fs: sorted=%d failed=%d",
+                search_space_id,
+                elapsed,
+                sorted_count,
+                failed_count,
+            )
+    finally:
+        r.delete(lock_key)
+
+
+@celery_app.task(
+    name="ai_sort_document", bind=True, max_retries=2, default_retry_delay=10
+)
+def ai_sort_document_task(self, search_space_id: int, user_id: str, document_id: int):
+    """Incremental AI sort for a single document after indexing."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(
+            _ai_sort_document_async(search_space_id, user_id, document_id)
+        )
+    finally:
+        loop.close()
+
+
+async def _ai_sort_document_async(search_space_id: int, user_id: str, document_id: int):
+    from app.db import Document
+    from app.services.ai_file_sort_service import ai_sort_document
+    from app.services.llm_service import get_document_summary_llm
+
+    async with get_celery_session_maker()() as session:
+        document = await session.get(Document, document_id)
+        if document is None:
+            logger.warning("Document %d not found, skipping AI sort", document_id)
+            return
+
+        llm = await get_document_summary_llm(
+            session, search_space_id, disable_streaming=True
+        )
+        if llm is None:
+            logger.warning(
+                "No LLM for search_space=%d, skipping AI sort of doc=%d",
+                search_space_id,
+                document_id,
+            )
+            return
+
+        await ai_sort_document(session, document, llm)
+        await session.commit()
+        logger.info(
+            "AI sorted document=%d into search_space=%d",
+            document_id,
+            search_space_id,
+        )

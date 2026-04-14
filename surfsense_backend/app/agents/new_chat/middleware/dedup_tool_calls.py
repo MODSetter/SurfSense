@@ -93,7 +93,8 @@ class DedupHITLToolCallsMiddleware(AgentMiddleware):  # type: ignore[type-arg]
 
     @staticmethod
     def _dedup(
-        state: AgentState, dedup_keys: dict[str, str]  # type: ignore[type-arg]
+        state: AgentState,
+        dedup_keys: dict[str, str],  # type: ignore[type-arg]
     ) -> dict[str, Any] | None:
         messages = state.get("messages")
         if not messages:

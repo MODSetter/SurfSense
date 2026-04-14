@@ -20,7 +20,9 @@ router = APIRouter()
 @router.get("/search-spaces/{search_space_id}/export")
 async def export_knowledge_base(
     search_space_id: int,
-    folder_id: int | None = Query(None, description="Export only this folder's subtree"),
+    folder_id: int | None = Query(
+        None, description="Export only this folder's subtree"
+    ),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):

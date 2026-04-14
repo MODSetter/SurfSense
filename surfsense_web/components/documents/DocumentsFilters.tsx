@@ -1,6 +1,8 @@
 "use client";
 
+import { IconBinaryTree, IconBinaryTreeFilled } from "@tabler/icons-react";
 import { FolderPlus, ListFilter, Search, Upload, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
@@ -10,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { getDocumentTypeIcon, getDocumentTypeLabel } from "./DocumentTypeIcon";
 
@@ -20,6 +23,9 @@ export function DocumentsFilters({
 	onToggleType,
 	activeTypes,
 	onCreateFolder,
+	aiSortEnabled = false,
+	aiSortBusy = false,
+	onToggleAiSort,
 }: {
 	typeCounts: Partial<Record<DocumentTypeEnum, number>>;
 	onSearch: (v: string) => void;
@@ -27,6 +33,9 @@ export function DocumentsFilters({
 	onToggleType: (type: DocumentTypeEnum, checked: boolean) => void;
 	activeTypes: DocumentTypeEnum[];
 	onCreateFolder?: () => void;
+	aiSortEnabled?: boolean;
+	aiSortBusy?: boolean;
+	onToggleAiSort?: () => void;
 }) {
 	const t = useTranslations("documents");
 	const id = React.useId();
@@ -64,7 +73,7 @@ export function DocumentsFilters({
 	return (
 		<div className="flex select-none">
 			<div className="flex items-center gap-2 w-full">
-				{/* Filter + New Folder Toggle Group */}
+				{/* New Folder + Filter Toggle Group */}
 				<ToggleGroup type="multiple" variant="outline" value={[]} className="overflow-visible">
 					{onCreateFolder && (
 						<Tooltip>
@@ -171,6 +180,70 @@ export function DocumentsFilters({
 						</PopoverContent>
 					</Popover>
 				</ToggleGroup>
+
+				{/* AI Sort Toggle */}
+				{onToggleAiSort && (
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<button
+								type="button"
+								disabled={aiSortBusy}
+								onClick={onToggleAiSort}
+								className={cn(
+									"relative h-9 w-9 shrink-0 rounded-md border inline-flex items-center justify-center transition-all duration-300 ease-out",
+									"focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 outline-none",
+									"disabled:pointer-events-none disabled:opacity-50",
+									aiSortEnabled
+										? "border-violet-400/60 bg-violet-50 text-violet-600 shadow-[0_0_8px_-1px_rgba(139,92,246,0.3)] hover:bg-violet-100 dark:border-violet-500/40 dark:bg-violet-500/15 dark:text-violet-400 dark:shadow-[0_0_8px_-1px_rgba(139,92,246,0.2)] dark:hover:bg-violet-500/25"
+										: "border-sidebar-border bg-sidebar text-sidebar-foreground/60 hover:text-sidebar-foreground hover:border-sidebar-border hover:bg-accent"
+								)}
+								aria-label={aiSortEnabled ? "Disable AI sort" : "Enable AI sort"}
+								aria-pressed={aiSortEnabled}
+							>
+								<AnimatePresence mode="wait" initial={false}>
+									{aiSortBusy ? (
+										<motion.div
+											key="busy"
+											initial={{ opacity: 0, scale: 0.6, rotate: -90 }}
+											animate={{ opacity: 1, scale: 1, rotate: 0 }}
+											exit={{ opacity: 0, scale: 0.6, rotate: 90 }}
+											transition={{ duration: 0.2, ease: "easeInOut" }}
+										>
+											<IconBinaryTree size={16} className="animate-pulse" />
+										</motion.div>
+									) : aiSortEnabled ? (
+										<motion.div
+											key="on"
+											initial={{ opacity: 0, scale: 0.6, rotate: -90 }}
+											animate={{ opacity: 1, scale: 1, rotate: 0 }}
+											exit={{ opacity: 0, scale: 0.6, rotate: 90 }}
+											transition={{ duration: 0.25, ease: "easeInOut" }}
+										>
+											<IconBinaryTreeFilled size={16} />
+										</motion.div>
+									) : (
+										<motion.div
+											key="off"
+											initial={{ opacity: 0, scale: 0.6, rotate: 90 }}
+											animate={{ opacity: 1, scale: 1, rotate: 0 }}
+											exit={{ opacity: 0, scale: 0.6, rotate: -90 }}
+											transition={{ duration: 0.25, ease: "easeInOut" }}
+										>
+											<IconBinaryTree size={16} />
+										</motion.div>
+									)}
+								</AnimatePresence>
+							</button>
+						</TooltipTrigger>
+						<TooltipContent>
+							{aiSortBusy
+								? "AI sort in progress..."
+								: aiSortEnabled
+									? "AI sort active — click to disable"
+									: "Enable AI sort"}
+						</TooltipContent>
+					</Tooltip>
+				)}
 
 				{/* Search Input */}
 				<div className="relative flex-1 min-w-0">

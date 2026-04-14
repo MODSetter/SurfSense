@@ -61,6 +61,7 @@ from app.services.new_streaming_service import VercelStreamingService
 from app.utils.content_utils import bootstrap_history_from_db
 from app.utils.perf import get_perf_logger, log_system_snapshot, trim_native_heap
 
+_background_tasks: set[asyncio.Task] = set()
 _perf_log = get_perf_logger()
 
 
@@ -1552,7 +1553,7 @@ async def stream_new_chat(
         # Shared threads write to team memory; private threads write to user memory.
         if not stream_result.agent_called_update_memory:
             if visibility == ChatVisibility.SEARCH_SPACE:
-                asyncio.create_task(
+                task = asyncio.create_task(
                     extract_and_save_team_memory(
                         user_message=user_query,
                         search_space_id=search_space_id,
@@ -1560,14 +1561,18 @@ async def stream_new_chat(
                         author_display_name=current_user_display_name,
                     )
                 )
+                _background_tasks.add(task)
+                task.add_done_callback(_background_tasks.discard)
             elif user_id:
-                asyncio.create_task(
+                task = asyncio.create_task(
                     extract_and_save_memory(
                         user_message=user_query,
                         user_id=user_id,
                         llm=llm,
                     )
                 )
+                _background_tasks.add(task)
+                task.add_done_callback(_background_tasks.discard)
 
         # Finish the step and message
         yield streaming_service.format_finish_step()

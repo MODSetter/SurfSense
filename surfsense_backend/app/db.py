@@ -1321,6 +1321,10 @@ class SearchSpace(BaseModel, TimestampMixin):
         Integer, nullable=True, default=0
     )  # For vision/screenshot analysis, defaults to Auto mode
 
+    ai_file_sort_enabled = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
     )

@@ -2,9 +2,9 @@ import logging
 from typing import Any
 
 from langchain_core.tools import tool
-from app.agents.new_chat.tools.hitl import request_approval
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.new_chat.tools.hitl import request_approval
 from app.connectors.notion_history import NotionAPIError, NotionHistoryConnector
 from app.services.notion.tool_metadata_service import NotionToolMetadataService
 

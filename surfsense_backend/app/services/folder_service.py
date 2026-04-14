@@ -142,6 +142,58 @@ async def generate_folder_position(
     return generate_key_between(last_position, None)
 
 
+async def ensure_folder_hierarchy_with_depth_validation(
+    session: AsyncSession,
+    search_space_id: int,
+    path_segments: list[dict],
+) -> Folder:
+    """Create or return a nested folder chain, validating depth at each step.
+
+    Each item in ``path_segments`` is a dict with:
+      - ``name``  (str): folder display name
+      - ``metadata`` (dict | None): optional ``folder_metadata`` JSONB payload
+
+    Returns the deepest (leaf) Folder in the chain.
+    """
+    parent_id: int | None = None
+    current_folder: Folder | None = None
+
+    for segment in path_segments:
+        name = segment["name"]
+        metadata = segment.get("metadata")
+
+        stmt = select(Folder).where(
+            Folder.search_space_id == search_space_id,
+            Folder.name == name,
+            Folder.parent_id == parent_id
+            if parent_id is not None
+            else Folder.parent_id.is_(None),
+        )
+        result = await session.execute(stmt)
+        folder = result.scalar_one_or_none()
+
+        if folder is None:
+            await validate_folder_depth(session, parent_id, subtree_depth=0)
+            position = await generate_folder_position(
+                session, search_space_id, parent_id
+            )
+            folder = Folder(
+                name=name,
+                search_space_id=search_space_id,
+                parent_id=parent_id,
+                position=position,
+                folder_metadata=metadata,
+            )
+            session.add(folder)
+            await session.flush()
+
+        current_folder = folder
+        parent_id = folder.id
+
+    assert current_folder is not None, "path_segments must not be empty"
+    return current_folder
+
+
 async def get_folder_subtree_ids(session: AsyncSession, folder_id: int) -> list[int]:
     """Return all folder IDs in the subtree rooted at folder_id (inclusive)."""
     result = await session.execute(

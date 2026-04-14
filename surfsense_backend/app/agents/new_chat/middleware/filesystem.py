@@ -593,7 +593,7 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         runtime: ToolRuntime[None, FilesystemState],
         timeout: int | None,
     ) -> str:
-        sandbox, is_new = await get_or_create_sandbox(self._thread_id)
+        sandbox, _is_new = await get_or_create_sandbox(self._thread_id)
         # NOTE: sync_files_to_sandbox is intentionally disabled.
         # The virtual FS contains XML-wrapped KB documents whose paths
         # would double-nest under SANDBOX_DOCUMENTS_ROOT (e.g.
