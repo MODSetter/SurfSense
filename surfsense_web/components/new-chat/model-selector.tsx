@@ -6,9 +6,12 @@ import {
 	Bot,
 	Check,
 	ChevronDown,
+	ChevronLeft,
+	ChevronRight,
+	ChevronUp,
 	Edit3,
-	Eye,
 	ImageIcon,
+	ScanEye,
 	Layers,
 	Plus,
 	Search,
@@ -69,6 +72,7 @@ const PROVIDER_NAMES: Record<string, string> = {
 	DEEPSEEK: "DeepSeek",
 	MISTRAL: "Mistral",
 	COHERE: "Cohere",
+	GITHUB_MODELS: "GitHub Models",
 	GROQ: "Groq",
 	OLLAMA: "Ollama",
 	TOGETHER_AI: "Together AI",
@@ -274,17 +278,40 @@ export function ModelSelector({
 	const [searchQuery, setSearchQuery] = useState("");
 	const [selectedProvider, setSelectedProvider] = useState<string>("all");
 	const [focusedIndex, setFocusedIndex] = useState(-1);
-	const [showScrollIndicator, setShowScrollIndicator] = useState(true);
+	const [modelScrollPos, setModelScrollPos] = useState<"top" | "middle" | "bottom">("top");
+	const [sidebarScrollPos, setSidebarScrollPos] = useState<"top" | "middle" | "bottom">("top");
 	const providerSidebarRef = useRef<HTMLDivElement>(null);
 	const modelListRef = useRef<HTMLDivElement>(null);
 	const searchInputRef = useRef<HTMLInputElement>(null);
 	const isMobile = useIsMobile();
 
+	const handleModelListScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+		const el = e.currentTarget;
+		const atTop = el.scrollTop <= 2;
+		const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
+		setModelScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+	}, []);
+
+	const handleSidebarScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+		const el = e.currentTarget;
+		if (isMobile) {
+			const atStart = el.scrollLeft <= 2;
+			const atEnd = el.scrollWidth - el.scrollLeft - el.clientWidth <= 2;
+			setSidebarScrollPos(atStart ? "top" : atEnd ? "bottom" : "middle");
+		} else {
+			const atTop = el.scrollTop <= 2;
+			const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
+			setSidebarScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+		}
+	}, [isMobile]);
+
 	// Reset search + provider when tab changes
+	// biome-ignore lint/correctness/useExhaustiveDependencies: activeTab is intentionally used as a trigger
 	useEffect(() => {
 		setSelectedProvider("all");
 		setSearchQuery("");
 		setFocusedIndex(-1);
+		setModelScrollPos("top");
 	}, [activeTab]);
 
 	// Reset on open
@@ -295,8 +322,9 @@ export function ModelSelector({
 		}
 	}, [open]);
 
-	// Cmd/Ctrl+M shortcut
+	// Cmd/Ctrl+M shortcut (desktop only)
 	useEffect(() => {
+		if (isMobile) return;
 		const handler = (e: KeyboardEvent) => {
 			if ((e.metaKey || e.ctrlKey) && e.key === "m") {
 				e.preventDefault();
@@ -305,9 +333,10 @@ export function ModelSelector({
 		};
 		document.addEventListener("keydown", handler);
 		return () => document.removeEventListener("keydown", handler);
-	}, []);
+	}, [isMobile]);
 
 	// Focus search input on open
+	// biome-ignore lint/correctness/useExhaustiveDependencies: activeTab is intentionally used as a trigger to re-focus on tab switch
 	useEffect(() => {
 		if (open && !isMobile) {
 			requestAnimationFrame(() => searchInputRef.current?.focus());
@@ -677,6 +706,7 @@ export function ModelSelector({
 	);
 
 	// ─── Keyboard navigation ───
+	// biome-ignore lint/correctness/useExhaustiveDependencies: searchQuery and selectedProvider are intentional triggers to reset focus
 	useEffect(() => {
 		setFocusedIndex(-1);
 	}, [searchQuery, selectedProvider]);
@@ -767,24 +797,35 @@ export function ModelSelector({
 		return (
 			<div
 				className={cn(
-					"shrink-0 border-border/50 relative flex flex-col",
-					!isMobile && "w-10 border-r",
+					"shrink-0 border-border/50 flex",
+					isMobile ? "flex-row items-center border-b border-border/40" : "flex-col w-10 border-r",
 				)}
 			>
+				{!isMobile && sidebarScrollPos !== "top" && (
+					<div className="flex items-center justify-center py-0.5 pointer-events-none">
+						<ChevronUp className="size-3 text-muted-foreground" />
+					</div>
+				)}
+				{isMobile && sidebarScrollPos !== "top" && (
+					<div className="flex items-center justify-center px-0.5 shrink-0 pointer-events-none">
+						<ChevronLeft className="size-3 text-muted-foreground" />
+					</div>
+				)}
 				<div
 					ref={providerSidebarRef}
-					onScroll={(e) => {
-						const t = e.currentTarget;
-						setShowScrollIndicator(
-							t.scrollHeight - t.scrollTop >
-								t.clientHeight + 10,
-						);
-					}}
+					onScroll={handleSidebarScroll}
 					className={cn(
 						isMobile
-							? "flex flex-row gap-0.5 px-2 py-1.5 overflow-x-auto border-b border-border/40"
+							? "flex flex-row gap-0.5 px-1 py-1.5 overflow-x-auto [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar-track]:bg-transparent"
 							: "flex flex-col gap-0.5 p-1 overflow-y-auto flex-1 [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent",
 					)}
+					style={isMobile ? {
+						maskImage: `linear-gradient(to right, ${sidebarScrollPos === "top" ? "black" : "transparent"}, black 24px, black calc(100% - 24px), ${sidebarScrollPos === "bottom" ? "black" : "transparent"})`,
+						WebkitMaskImage: `linear-gradient(to right, ${sidebarScrollPos === "top" ? "black" : "transparent"}, black 24px, black calc(100% - 24px), ${sidebarScrollPos === "bottom" ? "black" : "transparent"})`,
+					} : {
+						maskImage: `linear-gradient(to bottom, ${sidebarScrollPos === "top" ? "black" : "transparent"}, black 32px, black calc(100% - 32px), ${sidebarScrollPos === "bottom" ? "black" : "transparent"})`,
+						WebkitMaskImage: `linear-gradient(to bottom, ${sidebarScrollPos === "top" ? "black" : "transparent"}, black 32px, black calc(100% - 32px), ${sidebarScrollPos === "bottom" ? "black" : "transparent"})`,
+					}}
 				>
 					{activeProviders.map((provider, idx) => {
 						const isAll = provider === "all";
@@ -849,16 +890,21 @@ export function ModelSelector({
 												)}
 										{isConfigured
 											? ` (${count})`
-											: " — not configured"}
+											: " (not configured)"}
 									</TooltipContent>
 								</Tooltip>
 							</Fragment>
 						);
 					})}
 				</div>
-				{!isMobile && showScrollIndicator && (
-					<div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-background to-transparent pointer-events-none flex items-end justify-center pb-0.5">
+				{!isMobile && sidebarScrollPos !== "bottom" && (
+					<div className="flex items-center justify-center py-0.5 pointer-events-none">
 						<ChevronDown className="size-3 text-muted-foreground" />
+					</div>
+				)}
+				{isMobile && sidebarScrollPos !== "bottom" && (
+					<div className="flex items-center justify-center px-0.5 shrink-0 pointer-events-none">
+						<ChevronRight className="size-3 text-muted-foreground" />
 					</div>
 				)}
 			</div>
@@ -889,19 +935,26 @@ export function ModelSelector({
 				key={`${activeTab}-${item.isGlobal ? "g" : "u"}-${config.id}`}
 				data-model-index={index}
 				role="option"
+				tabIndex={isMobile ? -1 : 0}
 				aria-selected={isSelected}
 				onClick={() => handleSelectItem(item)}
+				onKeyDown={isMobile ? undefined : (e) => {
+					if (e.key === "Enter" || e.key === " ") {
+						e.preventDefault();
+						handleSelectItem(item);
+					}
+				}}
 				onMouseEnter={() => setFocusedIndex(index)}
 				className={cn(
-					"group flex items-start gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer",
-					"transition-all duration-150 mx-1",
-					"hover:bg-accent/40 active:scale-[0.99]",
+					"group flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer",
+					"transition-all duration-150 mx-2",
+					"hover:bg-accent/40",
 					isSelected && "bg-primary/6 dark:bg-primary/8",
-					isFocused && "bg-accent/50 ring-1 ring-primary/20",
+					isFocused && "bg-accent/50",
 				)}
 			>
 				{/* Provider icon */}
-				<div className="shrink-0 mt-0.5">
+				<div className="shrink-0">
 					{getProviderIcon(config.provider as string, {
 						isAutoMode,
 						className: "size-5",
@@ -931,8 +984,8 @@ export function ModelSelector({
 						</span>
 						{!isAutoMode && hasCitations && (
 							<Badge
-								variant="outline"
-								className="text-[9px] px-1 py-0 h-3.5 bg-primary/10 text-primary border-primary/20"
+								variant="secondary"
+								className="text-[10px] px-1.5 py-0.5 border-0 text-muted-foreground bg-muted"
 							>
 								Citations
 							</Badge>
@@ -981,7 +1034,7 @@ export function ModelSelector({
 					: "Add Vision Model";
 
 		return (
-			<div className="flex flex-col w-full">
+			<div className="flex flex-col w-full overflow-hidden">
 				{/* Tab header */}
 				<div className="border-b border-border/80 dark:border-neutral-800">
 					<div className="w-full grid grid-cols-3 h-11">
@@ -999,7 +1052,7 @@ export function ModelSelector({
 								},
 								{
 									value: "vision" as const,
-									icon: Eye,
+									icon: ScanEye,
 									label: "Vision",
 								},
 							] as const
@@ -1028,7 +1081,7 @@ export function ModelSelector({
 						"flex",
 						isMobile
 							? "flex-col h-[60vh]"
-							: "flex-row h-[420px]",
+							: "flex-row h-[380px]",
 					)}
 				>
 					{/* Provider sidebar */}
@@ -1037,33 +1090,30 @@ export function ModelSelector({
 					{/* Main content */}
 					<div className="flex flex-col min-w-0 min-h-0 flex-1 overflow-hidden">
 						{/* Search */}
-						<div className="relative px-3 py-2">
-							<Search className="absolute left-5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/50 pointer-events-none" />
+						<div className="relative">
+							<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/100 pointer-events-none" />
 							<input
 								ref={searchInputRef}
-								placeholder="Search models..."
+								placeholder="Search models"
 								value={searchQuery}
 								onChange={(e) =>
 									setSearchQuery(e.target.value)
 								}
-								onKeyDown={handleKeyDown}
-								autoFocus={!isMobile}
+								onKeyDown={isMobile ? undefined : handleKeyDown}
 								role="combobox"
 								aria-expanded={true}
 								aria-controls="model-selector-list"
 								className={cn(
-									"w-full pl-8 pr-3 py-1.5 text-xs rounded-lg",
-									"bg-secondary/30 border border-border/40",
-									"focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40",
-									"placeholder:text-muted-foreground/50",
-									"transition-[box-shadow,border-color] duration-200",
+									"w-full pl-8 pr-3 py-2.5 text-sm bg-transparent",
+									"focus:outline-none",
+									"placeholder:text-muted-foreground",
 								)}
 							/>
 						</div>
 
 						{/* Provider header when filtered */}
 						{selectedProvider !== "all" && (
-							<div className="flex items-center gap-2 px-3 py-1.5 border-b border-border/40">
+							<div className="flex items-center gap-2 px-3 py-1.5">
 								{getProviderIcon(selectedProvider, {
 									className: "size-4",
 								})}
@@ -1085,10 +1135,15 @@ export function ModelSelector({
 							id="model-selector-list"
 							ref={modelListRef}
 							role="listbox"
-							className="overflow-y-auto flex-1 py-1"
+							className="overflow-y-auto flex-1 py-1 space-y-1 flex flex-col"
+							onScroll={handleModelListScroll}
+							style={{
+								maskImage: `linear-gradient(to bottom, ${modelScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${modelScrollPos === "bottom" ? "black" : "transparent"})`,
+								WebkitMaskImage: `linear-gradient(to bottom, ${modelScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${modelScrollPos === "bottom" ? "black" : "transparent"})`,
+							}}
 						>
 							{currentDisplayItems.length === 0 ? (
-								<div className="py-8 flex flex-col items-center gap-3 px-4">
+								<div className="flex-1 flex flex-col items-center justify-center gap-3 px-4">
 									{selectedProvider !== "all" &&
 									!configuredProviderSet.has(
 										selectedProvider,
@@ -1116,22 +1171,21 @@ export function ModelSelector({
 											</p>
 											{addHandler && (
 												<Button
-													variant="outline"
+													variant="secondary"
 													size="sm"
-													className="mt-1 gap-2"
+													className="mt-1"
 													onClick={() => {
 														setOpen(false);
 														addHandler(selectedProvider !== "all" ? selectedProvider : undefined);
 													}}
 												>
-													<Plus className="size-3.5" />
 													{addLabel}
 												</Button>
 											)}
 										</>
-									) : (
+									) : searchQuery ? (
 										<>
-											<Search className="size-8 text-muted-foreground/40" />
+											<Search className="size-8 text-muted-foreground" />
 											<p className="text-sm text-muted-foreground">
 												No models found
 											</p>
@@ -1140,13 +1194,22 @@ export function ModelSelector({
 												term
 											</p>
 										</>
+									) : (
+										<>
+											<p className="text-sm font-medium text-muted-foreground">
+												No models configured
+											</p>
+											<p className="text-xs text-muted-foreground/60 text-center">
+												Configure models in your search space settings
+											</p>
+										</>
 									)}
 								</div>
 							) : (
 								<>
 									{globalItems.length > 0 && (
 										<>
-											<div className="flex items-center gap-2 px-3 py-1.5 text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-wider">
+											<div className="flex items-center gap-2 px-3 py-1.5 text-[12px] font-semibold text-muted-foreground tracking-wider">
 												Global Models
 											</div>
 											{globalItems.map((item, i) =>
@@ -1163,7 +1226,7 @@ export function ModelSelector({
 										)}
 									{userItems.length > 0 && (
 										<>
-											<div className="flex items-center gap-2 px-3 py-1.5 text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-wider">
+											<div className="flex items-center gap-2 px-3 py-1.5 text-[12px] font-semibold text-muted-foreground tracking-wider">
 												Your Configurations
 											</div>
 											{userItems.map((item, i) =>
@@ -1180,7 +1243,7 @@ export function ModelSelector({
 
 						{/* Add model button */}
 						{addHandler && (
-							<div className="p-2 border-t border-border/40 bg-muted/20 dark:bg-neutral-900">
+							<div className="p-2">
 								<Button
 									variant="ghost"
 									size="sm"
@@ -1271,7 +1334,7 @@ export function ModelSelector({
 							</span>
 						</>
 					) : (
-						<Eye className="size-4 text-muted-foreground" />
+						<ScanEye className="size-4 text-muted-foreground" />
 					)}
 				</>
 			)}
@@ -1301,7 +1364,7 @@ export function ModelSelector({
 		<Popover open={open} onOpenChange={setOpen}>
 			<PopoverTrigger asChild>{triggerButton}</PopoverTrigger>
 			<PopoverContent
-				className="w-[340px] md:w-[440px] p-0 rounded-lg shadow-lg bg-white border-border/60 dark:bg-neutral-900 dark:border dark:border-white/5 select-none"
+				className="w-[300px] md:w-[380px] p-0 rounded-lg shadow-lg overflow-hidden bg-white border-border/60 dark:bg-neutral-900 dark:border dark:border-white/5 select-none"
 				align="start"
 				sideOffset={8}
 				onCloseAutoFocus={(e) => e.preventDefault()}
