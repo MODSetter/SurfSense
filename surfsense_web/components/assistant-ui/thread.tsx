@@ -28,8 +28,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
-import { type FC, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	agentToolsAtom,
 	disabledToolsAtom,
@@ -124,16 +123,18 @@ const ThreadContent: FC = () => {
 					}}
 				/>
 
+				<AuiIf condition={({ thread }) => !thread.isEmpty}>
+					<div className="grow" />
+				</AuiIf>
+
 				<ThreadPrimitive.ViewportFooter
 					className="aui-thread-viewport-footer sticky bottom-0 z-10 mx-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-main-panel pb-4 md:pb-6"
 					style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
 				>
 					<ThreadScrollToBottom />
-					<AuiIf condition={({ thread }) => !thread.isEmpty}>
-						<div className="fade-in slide-in-from-bottom-4 animate-in duration-500 ease-out fill-mode-both">
-							<Composer />
-						</div>
-					</AuiIf>
+				<AuiIf condition={({ thread }) => !thread.isEmpty}>
+					<Composer />
+				</AuiIf>
 				</ThreadPrimitive.ViewportFooter>
 			</ThreadPrimitive.Viewport>
 		</ThreadPrimitive.Root>
@@ -339,10 +340,7 @@ const Composer: FC = () => {
 	const [showPromptPicker, setShowPromptPicker] = useState(false);
 	const [mentionQuery, setMentionQuery] = useState("");
 	const [actionQuery, setActionQuery] = useState("");
-	const [containerPos, setContainerPos] = useState({ bottom: "200px", left: "50%", top: "auto" });
 	const editorRef = useRef<InlineMentionEditorRef>(null);
-	const editorContainerRef = useRef<HTMLDivElement>(null);
-	const composerBoxRef = useRef<HTMLDivElement>(null);
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
 	const promptPickerRef = useRef<PromptPickerRef>(null);
 	const viewportRef = useRef<Element | null>(null);
@@ -363,38 +361,13 @@ const Composer: FC = () => {
 		viewportRef.current = document.querySelector(".aui-thread-viewport");
 	}, []);
 
-	// Compute picker positions using ResizeObserver to avoid layout reads during render
-	useLayoutEffect(() => {
-		if (!editorContainerRef.current) return;
-
-		const updatePosition = () => {
-			if (!editorContainerRef.current) return;
-			const rect = editorContainerRef.current.getBoundingClientRect();
-			const composerRect = composerBoxRef.current?.getBoundingClientRect();
-			setContainerPos({
-				bottom: `${window.innerHeight - rect.top + 8}px`,
-				left: `${rect.left}px`,
-				top: composerRect ? `${composerRect.bottom + 8}px` : "auto",
-			});
-		};
-
-		updatePosition();
-		const ro = new ResizeObserver(updatePosition);
-		ro.observe(editorContainerRef.current);
-		if (composerBoxRef.current) {
-			ro.observe(composerBoxRef.current);
-		}
-
-		return () => ro.disconnect();
-	}, []);
-
 	const electronAPI = useElectronAPI();
 	const [clipboardInitialText, setClipboardInitialText] = useState<string | undefined>();
 	const clipboardLoadedRef = useRef(false);
 	useEffect(() => {
 		if (!electronAPI || clipboardLoadedRef.current) return;
 		clipboardLoadedRef.current = true;
-		electronAPI.getQuickAskText().then((text) => {
+		electronAPI.getQuickAskText().then((text: string) => {
 			if (text) {
 				setClipboardInitialText(text);
 			}
@@ -587,23 +560,15 @@ const Composer: FC = () => {
 
 	// Submit message (blocked during streaming, document picker open, or AI responding to another user)
 	const handleSubmit = useCallback(() => {
-		if (isThreadRunning || isBlockedByOtherUser) {
-			return;
-		}
-		if (!showDocumentPopover && !showPromptPicker) {
-			if (clipboardInitialText) {
-				const userText = editorRef.current?.getText() ?? "";
-				const combined = userText ? `${userText}\n\n${clipboardInitialText}` : clipboardInitialText;
-				aui.composer().setText(combined);
-				setClipboardInitialText(undefined);
-			}
-			aui.composer().send();
-			editorRef.current?.clear();
-			setMentionedDocuments([]);
-			setSidebarDocs([]);
-		}
 		if (isThreadRunning || isBlockedByOtherUser) return;
-		if (showDocumentPopover) return;
+		if (showDocumentPopover || showPromptPicker) return;
+
+		if (clipboardInitialText) {
+			const userText = editorRef.current?.getText() ?? "";
+			const combined = userText ? `${userText}\n\n${clipboardInitialText}` : clipboardInitialText;
+			aui.composer().setText(combined);
+			setClipboardInitialText(undefined);
+		}
 
 		const viewportEl = viewportRef.current;
 		const heightBefore = viewportEl?.scrollHeight ?? 0;
@@ -617,18 +582,14 @@ const Composer: FC = () => {
 		// assistant message so that scrolling-to-bottom actually positions the
 		// user message at the TOP of the viewport. That slack height is
 		// calculated asynchronously (ResizeObserver → style → layout).
-		//
-		// We poll via rAF for ~2 s, re-scrolling whenever scrollHeight changes
-		// (user msg render → assistant placeholder → ViewportSlack min-height →
-		// first streamed content). Backup setTimeout calls cover cases where
-		// the batcher's 50 ms throttle delays the DOM update past the rAF.
+		// Poll via rAF for ~500ms, re-scrolling whenever scrollHeight changes.
 		const scrollToBottom = () =>
 			threadViewportStore.getState().scrollToBottom({ behavior: "instant" });
 
 		let lastHeight = heightBefore;
 		let frames = 0;
 		let cancelled = false;
-		const POLL_FRAMES = 120;
+		const POLL_FRAMES = 30;
 
 		const pollAndScroll = () => {
 			if (cancelled) return;
@@ -648,16 +609,11 @@ const Composer: FC = () => {
 
 		const t1 = setTimeout(scrollToBottom, 100);
 		const t2 = setTimeout(scrollToBottom, 300);
-		const t3 = setTimeout(scrollToBottom, 600);
 
-		// Cleanup if component unmounts during the polling window. The ref is
-		// checked inside pollAndScroll; timeouts are cleared in the return below.
-		// Store cleanup fn so it can be called from a useEffect cleanup if needed.
 		submitCleanupRef.current = () => {
 			cancelled = true;
 			clearTimeout(t1);
 			clearTimeout(t2);
-			clearTimeout(t3);
 		};
 	}, [
 		showDocumentPopover,
@@ -705,28 +661,54 @@ const Composer: FC = () => {
 	);
 
 	return (
-		<ComposerPrimitive.Root
-			className="aui-composer-root relative flex w-full flex-col gap-2"
-			style={showPromptPicker && clipboardInitialText ? { marginBottom: 220 } : undefined}
-		>
+		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col gap-2">
 			<ChatSessionStatus
 				isAiResponding={isAiResponding}
 				respondingToUserId={respondingToUserId}
 				currentUserId={currentUser?.id ?? null}
 				members={members ?? []}
 			/>
-			<div
-				ref={composerBoxRef}
-				className="aui-composer-attachment-dropzone flex w-full flex-col overflow-hidden rounded-2xl border-input bg-muted pt-2 outline-none transition-shadow"
-			>
+			{showDocumentPopover && (
+				<div className="absolute bottom-full left-0 z-[9999] mb-2">
+					<DocumentMentionPicker
+						ref={documentPickerRef}
+						searchSpaceId={Number(search_space_id)}
+						onSelectionChange={handleDocumentsMention}
+						onDone={() => {
+							setShowDocumentPopover(false);
+							setMentionQuery("");
+						}}
+						initialSelectedDocuments={mentionedDocuments}
+						externalSearch={mentionQuery}
+					/>
+				</div>
+			)}
+			{showPromptPicker && (
+				<div
+					className={cn(
+						"absolute left-0 z-[9999]",
+						clipboardInitialText ? "top-full mt-2" : "bottom-full mb-2"
+					)}
+				>
+					<PromptPicker
+						ref={promptPickerRef}
+						onSelect={clipboardInitialText ? handleQuickAskSelect : handleActionSelect}
+						onDone={() => {
+							setShowPromptPicker(false);
+							setActionQuery("");
+						}}
+						externalSearch={actionQuery}
+					/>
+				</div>
+			)}
+			<div className="aui-composer-attachment-dropzone flex w-full flex-col overflow-hidden rounded-2xl border-input bg-muted pt-2 outline-none transition-shadow">
 				{clipboardInitialText && (
 					<ClipboardChip
 						text={clipboardInitialText}
 						onDismiss={() => setClipboardInitialText(undefined)}
 					/>
 				)}
-				{/* Inline editor with @mention support */}
-				<div ref={editorContainerRef} className="aui-composer-input-wrapper px-4 pt-3 pb-6">
+				<div className="aui-composer-input-wrapper px-4 pt-3 pb-6">
 					<InlineMentionEditor
 						ref={editorRef}
 						placeholder={currentPlaceholder}
@@ -741,49 +723,6 @@ const Composer: FC = () => {
 						className="min-h-[24px]"
 					/>
 				</div>
-				{/* Document picker popover (portal to body for proper z-index stacking) */}
-				{showDocumentPopover &&
-					typeof document !== "undefined" &&
-					createPortal(
-						<DocumentMentionPicker
-							ref={documentPickerRef}
-							searchSpaceId={Number(search_space_id)}
-							onSelectionChange={handleDocumentsMention}
-							onDone={() => {
-								setShowDocumentPopover(false);
-								setMentionQuery("");
-							}}
-							initialSelectedDocuments={mentionedDocuments}
-							externalSearch={mentionQuery}
-							containerStyle={{
-								bottom: containerPos.bottom,
-								left: containerPos.left,
-							}}
-						/>,
-						document.body
-					)}
-				{showPromptPicker &&
-					typeof document !== "undefined" &&
-					createPortal(
-						<PromptPicker
-							ref={promptPickerRef}
-							onSelect={clipboardInitialText ? handleQuickAskSelect : handleActionSelect}
-							onDone={() => {
-								setShowPromptPicker(false);
-								setActionQuery("");
-							}}
-							externalSearch={actionQuery}
-							containerStyle={{
-								position: "fixed",
-								...(clipboardInitialText
-									? { top: containerPos.top }
-									: { bottom: containerPos.bottom }),
-								left: containerPos.left,
-								zIndex: 50,
-							}}
-						/>,
-						document.body
-					)}
 				<ComposerAction isBlockedByOtherUser={isBlockedByOtherUser} />
 				<ConnectorIndicator showTrigger={false} />
 				<ConnectToolsBanner isThreadEmpty={isThreadEmpty} />

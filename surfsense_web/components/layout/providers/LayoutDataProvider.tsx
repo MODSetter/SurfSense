@@ -532,16 +532,14 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		const isOutOfSync = currentThreadState.id !== null && !params?.chat_id;
 
 		if (isOutOfSync) {
-			// First sync Next.js router by navigating to the current chat's actual URL
-			// This updates the router's internal state to match the browser URL
 			resetCurrentThread();
-			router.replace(`/dashboard/${searchSpaceId}/new-chat/${currentThreadState.id}`);
-			// Allow router to sync, then navigate to fresh new-chat
-			setTimeout(() => {
-				router.push(`/dashboard/${searchSpaceId}/new-chat`);
-			}, 0);
+			// Immediately set the browser URL so the page remounts with a clean /new-chat path
+			window.history.replaceState(null, "", `/dashboard/${searchSpaceId}/new-chat`);
+			// Force-remount the page component to reset all React state synchronously
+			setChatResetKey((k) => k + 1);
+			// Sync Next.js router internals so useParams/usePathname stay correct going forward
+			router.replace(`/dashboard/${searchSpaceId}/new-chat`);
 		} else {
-			// Normal navigation - router is in sync
 			router.push(`/dashboard/${searchSpaceId}/new-chat`);
 		}
 	}, [router, searchSpaceId, currentThreadState.id, params?.chat_id, resetCurrentThread]);

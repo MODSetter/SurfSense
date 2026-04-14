@@ -3,7 +3,7 @@ import logging
 from typing import Any
 
 from langchain_core.tools import tool
-from langgraph.types import interrupt
+from app.agents.new_chat.tools.hitl import request_approval
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -71,54 +71,28 @@ def create_delete_jira_issue_tool(
             document_id = issue_data["document_id"]
             connector_id_from_context = context.get("account", {}).get("id")
 
-            approval = interrupt(
-                {
-                    "type": "jira_issue_deletion",
-                    "action": {
-                        "tool": "delete_jira_issue",
-                        "params": {
-                            "issue_key": issue_key,
-                            "connector_id": connector_id_from_context,
-                            "delete_from_kb": delete_from_kb,
-                        },
-                    },
-                    "context": context,
-                }
+            result = request_approval(
+                action_type="jira_issue_deletion",
+                tool_name="delete_jira_issue",
+                params={
+                    "issue_key": issue_key,
+                    "connector_id": connector_id_from_context,
+                    "delete_from_kb": delete_from_kb,
+                },
+                context=context,
             )
 
-            decisions_raw = (
-                approval.get("decisions", []) if isinstance(approval, dict) else []
-            )
-            decisions = (
-                decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
-            )
-            decisions = [d for d in decisions if isinstance(d, dict)]
-            if not decisions:
-                return {"status": "error", "message": "No approval decision received"}
-
-            decision = decisions[0]
-            decision_type = decision.get("type") or decision.get("decision_type")
-
-            if decision_type == "reject":
+            if result.rejected:
                 return {
                     "status": "rejected",
-                    "message": "User declined. The issue was not deleted.",
+                    "message": "User declined. Do not retry or suggest alternatives.",
                 }
 
-            final_params: dict[str, Any] = {}
-            edited_action = decision.get("edited_action")
-            if isinstance(edited_action, dict):
-                edited_args = edited_action.get("args")
-                if isinstance(edited_args, dict):
-                    final_params = edited_args
-            elif isinstance(decision.get("args"), dict):
-                final_params = decision["args"]
-
-            final_issue_key = final_params.get("issue_key", issue_key)
-            final_connector_id = final_params.get(
+            final_issue_key = result.params.get("issue_key", issue_key)
+            final_connector_id = result.params.get(
                 "connector_id", connector_id_from_context
             )
-            final_delete_from_kb = final_params.get("delete_from_kb", delete_from_kb)
+            final_delete_from_kb = result.params.get("delete_from_kb", delete_from_kb)
 
             from sqlalchemy.future import select
 

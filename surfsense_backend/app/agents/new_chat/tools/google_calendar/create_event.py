@@ -6,9 +6,9 @@ from typing import Any
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from langchain_core.tools import tool
-from langgraph.types import interrupt
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.new_chat.tools.hitl import request_approval
 from app.services.google_calendar import GoogleCalendarToolMetadataService
 
 logger = logging.getLogger(__name__)
@@ -90,63 +90,35 @@ def create_create_calendar_event_tool(
             logger.info(
                 f"Requesting approval for creating calendar event: summary='{summary}'"
             )
-            approval = interrupt(
-                {
-                    "type": "google_calendar_event_creation",
-                    "action": {
-                        "tool": "create_calendar_event",
-                        "params": {
-                            "summary": summary,
-                            "start_datetime": start_datetime,
-                            "end_datetime": end_datetime,
-                            "description": description,
-                            "location": location,
-                            "attendees": attendees,
-                            "timezone": context.get("timezone"),
-                            "connector_id": None,
-                        },
-                    },
-                    "context": context,
-                }
+            result = request_approval(
+                action_type="google_calendar_event_creation",
+                tool_name="create_calendar_event",
+                params={
+                    "summary": summary,
+                    "start_datetime": start_datetime,
+                    "end_datetime": end_datetime,
+                    "description": description,
+                    "location": location,
+                    "attendees": attendees,
+                    "timezone": context.get("timezone"),
+                    "connector_id": None,
+                },
+                context=context,
             )
 
-            decisions_raw = (
-                approval.get("decisions", []) if isinstance(approval, dict) else []
-            )
-            decisions = (
-                decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
-            )
-            decisions = [d for d in decisions if isinstance(d, dict)]
-            if not decisions:
-                logger.warning("No approval decision received")
-                return {"status": "error", "message": "No approval decision received"}
-
-            decision = decisions[0]
-            decision_type = decision.get("type") or decision.get("decision_type")
-            logger.info(f"User decision: {decision_type}")
-
-            if decision_type == "reject":
+            if result.rejected:
                 return {
                     "status": "rejected",
                     "message": "User declined. The event was not created. Do not ask again or suggest alternatives.",
                 }
 
-            final_params: dict[str, Any] = {}
-            edited_action = decision.get("edited_action")
-            if isinstance(edited_action, dict):
-                edited_args = edited_action.get("args")
-                if isinstance(edited_args, dict):
-                    final_params = edited_args
-            elif isinstance(decision.get("args"), dict):
-                final_params = decision["args"]
-
-            final_summary = final_params.get("summary", summary)
-            final_start_datetime = final_params.get("start_datetime", start_datetime)
-            final_end_datetime = final_params.get("end_datetime", end_datetime)
-            final_description = final_params.get("description", description)
-            final_location = final_params.get("location", location)
-            final_attendees = final_params.get("attendees", attendees)
-            final_connector_id = final_params.get("connector_id")
+            final_summary = result.params.get("summary", summary)
+            final_start_datetime = result.params.get("start_datetime", start_datetime)
+            final_end_datetime = result.params.get("end_datetime", end_datetime)
+            final_description = result.params.get("description", description)
+            final_location = result.params.get("location", location)
+            final_attendees = result.params.get("attendees", attendees)
+            final_connector_id = result.params.get("connector_id")
 
             if not final_summary or not final_summary.strip():
                 return {"status": "error", "message": "Event summary cannot be empty."}

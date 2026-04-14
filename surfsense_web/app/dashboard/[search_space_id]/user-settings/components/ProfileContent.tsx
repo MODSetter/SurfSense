@@ -78,7 +78,7 @@ export function ProfileContent() {
 				</div>
 			) : (
 				<form onSubmit={handleSubmit} className="space-y-6">
-					<div className="rounded-lg border bg-card p-6">
+					<div className="rounded-lg bg-card">
 						<div className="flex flex-col gap-6">
 							<div className="space-y-2">
 								<Label>{t("profile_avatar")}</Label>

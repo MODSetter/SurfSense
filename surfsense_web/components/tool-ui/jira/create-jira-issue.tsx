@@ -15,6 +15,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
+import type { InterruptResult, HitlDecision } from "@/lib/hitl";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
 
 interface JiraAccount {
@@ -40,26 +42,12 @@ interface JiraPriority {
 	name: string;
 }
 
-interface InterruptResult {
-	__interrupt__: true;
-	__decided__?: "approve" | "reject" | "edit";
-	__completed__?: boolean;
-	action_requests: Array<{
-		name: string;
-		args: Record<string, unknown>;
-	}>;
-	review_configs: Array<{
-		action_name: string;
-		allowed_decisions: Array<"approve" | "edit" | "reject">;
-	}>;
-	interrupt_type?: string;
-	context?: {
-		accounts?: JiraAccount[];
-		projects?: JiraProject[];
-		issue_types?: JiraIssueType[];
-		priorities?: JiraPriority[];
-		error?: string;
-	};
+type CreateJiraIssueInterruptContext = {
+	accounts?: JiraAccount[];
+	projects?: JiraProject[];
+	issue_types?: JiraIssueType[];
+	priorities?: JiraPriority[];
+	error?: string;
 }
 
 interface SuccessResult {
@@ -88,20 +76,11 @@ interface InsufficientPermissionsResult {
 }
 
 type CreateJiraIssueResult =
-	| InterruptResult
+	| InterruptResult<CreateJiraIssueInterruptContext>
 	| SuccessResult
 	| ErrorResult
 	| AuthErrorResult
 	| InsufficientPermissionsResult;
-
-function isInterruptResult(result: unknown): result is InterruptResult {
-	return (
-		typeof result === "object" &&
-		result !== null &&
-		"__interrupt__" in result &&
-		(result as InterruptResult).__interrupt__ === true
-	);
-}
 
 function isErrorResult(result: unknown): result is ErrorResult {
 	return (
@@ -142,12 +121,8 @@ function ApprovalCard({
 		description?: string;
 		priority?: string;
 	};
-	interruptData: InterruptResult;
-	onDecision: (decision: {
-		type: "approve" | "reject" | "edit";
-		message?: string;
-		edited_action?: { name: string; args: Record<string, unknown> };
-	}) => void;
+	interruptData: InterruptResult<CreateJiraIssueInterruptContext>;
+	onDecision: (decision: HitlDecision) => void;
 }) {
 	const { phase, setProcessing, setRejected } = useHitlPhase(interruptData);
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -549,18 +524,16 @@ export const CreateJiraIssueToolUI = ({
 	},
 	CreateJiraIssueResult
 >) => {
+	const { dispatch } = useHitlDecision();
+
 	if (!result) return null;
 
 	if (isInterruptResult(result)) {
 		return (
 			<ApprovalCard
 				args={args}
-				interruptData={result}
-				onDecision={(decision) => {
-					window.dispatchEvent(
-						new CustomEvent("hitl-decision", { detail: { decisions: [decision] } })
-					);
-				}}
+				interruptData={result as InterruptResult<CreateJiraIssueInterruptContext>}
+				onDecision={(decision) => dispatch([decision])}
 			/>
 		);
 	}

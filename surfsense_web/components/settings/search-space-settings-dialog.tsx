@@ -7,7 +7,7 @@ import {
 	Brain,
 	CircleUser,
 	Earth,
-	Eye,
+	ScanEye,
 	ImageIcon,
 	ListChecks,
 	UserKey,
@@ -25,10 +25,10 @@ const GeneralSettingsManager = dynamic(
 		})),
 	{ ssr: false }
 );
-const ModelConfigManager = dynamic(
+const AgentModelManager = dynamic(
 	() =>
-		import("@/components/settings/model-config-manager").then((m) => ({
-			default: m.ModelConfigManager,
+		import("@/components/settings/agent-model-manager").then((m) => ({
+			default: m.AgentModelManager,
 		})),
 	{ ssr: false }
 );
@@ -88,7 +88,7 @@ export function SearchSpaceSettingsDialog({ searchSpaceId }: SearchSpaceSettings
 	const navItems = [
 		{ value: "general", label: t("nav_general"), icon: <CircleUser className="h-4 w-4" /> },
 		{ value: "roles", label: t("nav_role_assignments"), icon: <ListChecks className="h-4 w-4" /> },
-		{ value: "models", label: t("nav_agent_configs"), icon: <Bot className="h-4 w-4" /> },
+		{ value: "models", label: t("nav_agent_models"), icon: <Bot className="h-4 w-4" /> },
 		{
 			value: "image-models",
 			label: t("nav_image_models"),
@@ -97,7 +97,7 @@ export function SearchSpaceSettingsDialog({ searchSpaceId }: SearchSpaceSettings
 		{
 			value: "vision-models",
 			label: t("nav_vision_models"),
-			icon: <Eye className="h-4 w-4" />,
+			icon: <ScanEye className="h-4 w-4" />,
 		},
 		{ value: "team-roles", label: t("nav_team_roles"), icon: <UserKey className="h-4 w-4" /> },
 		{
@@ -115,7 +115,7 @@ export function SearchSpaceSettingsDialog({ searchSpaceId }: SearchSpaceSettings
 
 	const content: Record<string, React.ReactNode> = {
 		general: <GeneralSettingsManager searchSpaceId={searchSpaceId} />,
-		models: <ModelConfigManager searchSpaceId={searchSpaceId} />,
+		models: <AgentModelManager searchSpaceId={searchSpaceId} />,
 		roles: <LLMRoleManager searchSpaceId={searchSpaceId} />,
 		"image-models": <ImageModelManager searchSpaceId={searchSpaceId} />,
 		"vision-models": <VisionModelManager searchSpaceId={searchSpaceId} />,

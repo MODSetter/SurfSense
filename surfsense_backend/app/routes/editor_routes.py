@@ -139,9 +139,19 @@ async def get_editor_content(
                 status_code=409,
                 detail="This document is still being processed. Please wait a moment and try again.",
             )
+        if state == "failed":
+            reason = (
+                doc_status.get("reason", "Unknown error")
+                if isinstance(doc_status, dict)
+                else "Unknown error"
+            )
+            raise HTTPException(
+                status_code=422,
+                detail=f"Processing failed: {reason}. You can delete this document and re-upload it.",
+            )
         raise HTTPException(
             status_code=400,
-            detail="This document has no viewable content yet. It may still be syncing. Try again in a few seconds, or re-upload if the issue persists.",
+            detail="This document has no content. It may not have been processed correctly. Try deleting and re-uploading it.",
         )
 
     markdown_content = "\n\n".join(chunk_contents)

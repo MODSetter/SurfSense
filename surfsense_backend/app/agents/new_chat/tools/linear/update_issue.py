@@ -2,7 +2,7 @@ import logging
 from typing import Any
 
 from langchain_core.tools import tool
-from langgraph.types import interrupt
+from app.agents.new_chat.tools.hitl import request_approval
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.connectors.linear_connector import LinearAPIError, LinearConnector
@@ -130,69 +130,41 @@ def create_update_linear_issue_tool(
             logger.info(
                 f"Requesting approval for updating Linear issue: '{issue_ref}' (id={issue_id})"
             )
-            approval = interrupt(
-                {
-                    "type": "linear_issue_update",
-                    "action": {
-                        "tool": "update_linear_issue",
-                        "params": {
-                            "issue_id": issue_id,
-                            "document_id": document_id,
-                            "new_title": new_title,
-                            "new_description": new_description,
-                            "new_state_id": new_state_id,
-                            "new_assignee_id": new_assignee_id,
-                            "new_priority": new_priority,
-                            "new_label_ids": new_label_ids,
-                            "connector_id": connector_id_from_context,
-                        },
-                    },
-                    "context": context,
-                }
+            result = request_approval(
+                action_type="linear_issue_update",
+                tool_name="update_linear_issue",
+                params={
+                    "issue_id": issue_id,
+                    "document_id": document_id,
+                    "new_title": new_title,
+                    "new_description": new_description,
+                    "new_state_id": new_state_id,
+                    "new_assignee_id": new_assignee_id,
+                    "new_priority": new_priority,
+                    "new_label_ids": new_label_ids,
+                    "connector_id": connector_id_from_context,
+                },
+                context=context,
             )
 
-            decisions_raw = (
-                approval.get("decisions", []) if isinstance(approval, dict) else []
-            )
-            decisions = (
-                decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
-            )
-            decisions = [d for d in decisions if isinstance(d, dict)]
-            if not decisions:
-                logger.warning("No approval decision received")
-                return {"status": "error", "message": "No approval decision received"}
-
-            decision = decisions[0]
-            decision_type = decision.get("type") or decision.get("decision_type")
-            logger.info(f"User decision: {decision_type}")
-
-            if decision_type == "reject":
+            if result.rejected:
                 logger.info("Linear issue update rejected by user")
                 return {
                     "status": "rejected",
-                    "message": "User declined. The issue was not updated. Do not ask again or suggest alternatives.",
+                    "message": "User declined. Do not retry or suggest alternatives.",
                 }
 
-            edited_action = decision.get("edited_action")
-            final_params: dict[str, Any] = {}
-            if isinstance(edited_action, dict):
-                edited_args = edited_action.get("args")
-                if isinstance(edited_args, dict):
-                    final_params = edited_args
-            elif isinstance(decision.get("args"), dict):
-                final_params = decision["args"]
-
-            final_issue_id = final_params.get("issue_id", issue_id)
-            final_document_id = final_params.get("document_id", document_id)
-            final_new_title = final_params.get("new_title", new_title)
-            final_new_description = final_params.get("new_description", new_description)
-            final_new_state_id = final_params.get("new_state_id", new_state_id)
-            final_new_assignee_id = final_params.get("new_assignee_id", new_assignee_id)
-            final_new_priority = final_params.get("new_priority", new_priority)
-            final_new_label_ids: list[str] | None = final_params.get(
+            final_issue_id = result.params.get("issue_id", issue_id)
+            final_document_id = result.params.get("document_id", document_id)
+            final_new_title = result.params.get("new_title", new_title)
+            final_new_description = result.params.get("new_description", new_description)
+            final_new_state_id = result.params.get("new_state_id", new_state_id)
+            final_new_assignee_id = result.params.get("new_assignee_id", new_assignee_id)
+            final_new_priority = result.params.get("new_priority", new_priority)
+            final_new_label_ids: list[str] | None = result.params.get(
                 "new_label_ids", new_label_ids
             )
-            final_connector_id = final_params.get(
+            final_connector_id = result.params.get(
                 "connector_id", connector_id_from_context
             )
 

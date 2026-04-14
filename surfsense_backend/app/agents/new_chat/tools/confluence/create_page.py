@@ -2,7 +2,7 @@ import logging
 from typing import Any
 
 from langchain_core.tools import tool
-from langgraph.types import interrupt
+from app.agents.new_chat.tools.hitl import request_approval
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -65,54 +65,28 @@ def create_create_confluence_page_tool(
                     "connector_type": "confluence",
                 }
 
-            approval = interrupt(
-                {
-                    "type": "confluence_page_creation",
-                    "action": {
-                        "tool": "create_confluence_page",
-                        "params": {
-                            "title": title,
-                            "content": content,
-                            "space_id": space_id,
-                            "connector_id": connector_id,
-                        },
-                    },
-                    "context": context,
-                }
+            result = request_approval(
+                action_type="confluence_page_creation",
+                tool_name="create_confluence_page",
+                params={
+                    "title": title,
+                    "content": content,
+                    "space_id": space_id,
+                    "connector_id": connector_id,
+                },
+                context=context,
             )
 
-            decisions_raw = (
-                approval.get("decisions", []) if isinstance(approval, dict) else []
-            )
-            decisions = (
-                decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
-            )
-            decisions = [d for d in decisions if isinstance(d, dict)]
-            if not decisions:
-                return {"status": "error", "message": "No approval decision received"}
-
-            decision = decisions[0]
-            decision_type = decision.get("type") or decision.get("decision_type")
-
-            if decision_type == "reject":
+            if result.rejected:
                 return {
                     "status": "rejected",
-                    "message": "User declined. The page was not created.",
+                    "message": "User declined. Do not retry or suggest alternatives.",
                 }
 
-            final_params: dict[str, Any] = {}
-            edited_action = decision.get("edited_action")
-            if isinstance(edited_action, dict):
-                edited_args = edited_action.get("args")
-                if isinstance(edited_args, dict):
-                    final_params = edited_args
-            elif isinstance(decision.get("args"), dict):
-                final_params = decision["args"]
-
-            final_title = final_params.get("title", title)
-            final_content = final_params.get("content", content) or ""
-            final_space_id = final_params.get("space_id", space_id)
-            final_connector_id = final_params.get("connector_id", connector_id)
+            final_title = result.params.get("title", title)
+            final_content = result.params.get("content", content) or ""
+            final_space_id = result.params.get("space_id", space_id)
+            final_connector_id = result.params.get("connector_id", connector_id)
 
             if not final_title or not final_title.strip():
                 return {"status": "error", "message": "Page title cannot be empty."}
