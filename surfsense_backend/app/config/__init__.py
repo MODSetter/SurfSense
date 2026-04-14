@@ -310,6 +310,13 @@ class Config:
         os.getenv("STRIPE_RECONCILIATION_BATCH_SIZE", "100")
     )
 
+    # Subscription plan limits
+    PLAN_LIMITS: dict[str, dict[str, int]] = {
+        "free": {"monthly_token_limit": 50_000, "pages_limit": 500},
+        "pro_monthly": {"monthly_token_limit": 1_000_000, "pages_limit": 5000},
+        "pro_yearly": {"monthly_token_limit": 1_000_000, "pages_limit": 5000},
+    }
+
     # Auth
     AUTH_TYPE = os.getenv("AUTH_TYPE")
     REGISTRATION_ENABLED = os.getenv("REGISTRATION_ENABLED", "TRUE").upper() == "TRUE"

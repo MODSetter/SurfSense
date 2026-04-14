@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-13T02:50:25+07:00
-last_updated: 2026-04-14T17:00:00+07:00
+last_updated: 2026-04-15T00:14:00+07:00
 project: SurfSense
 project_key: NOKEY
 tracking_system: file-system
@@ -68,6 +68,6 @@ development_status:
   epic-5: in-progress
   5-1-pricing-plan-selection-ui: done
   5-2-stripe-payment-integration: done
-  5-3-stripe-webhook-sync: ready-for-dev
+  5-3-stripe-webhook-sync: done
   5-4-usage-tracking-rate-limit-enforcement: ready-for-dev
   epic-5-retrospective: optional

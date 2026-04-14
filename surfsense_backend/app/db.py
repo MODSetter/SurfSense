@@ -1976,6 +1976,7 @@ if config.AUTH_TYPE == "GOOGLE":
         plan_id = Column(String(50), nullable=False, default="free", server_default="free")
         stripe_customer_id = Column(String(255), nullable=True, unique=True)
         stripe_subscription_id = Column(String(255), nullable=True, unique=True)
+        subscription_current_period_end = Column(TIMESTAMP(timezone=True), nullable=True)
 
         # User profile from OAuth
         display_name = Column(String, nullable=True)
@@ -2104,6 +2105,7 @@ else:
         plan_id = Column(String(50), nullable=False, default="free", server_default="free")
         stripe_customer_id = Column(String(255), nullable=True, unique=True)
         stripe_subscription_id = Column(String(255), nullable=True, unique=True)
+        subscription_current_period_end = Column(TIMESTAMP(timezone=True), nullable=True)
 
         # User profile (can be set manually for non-OAuth users)
         display_name = Column(String, nullable=True)
