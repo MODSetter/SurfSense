@@ -69,7 +69,7 @@ async def proxy_login(request: Request):
     # Deliver tokens via short-lived cookies so the frontend can pick them up at /
     # without needing a dedicated /auth/callback route (avoids Traefik path splitting).
     response = RedirectResponse(f"{frontend_url}/", status_code=302)
-    cookie_opts = dict(httponly=False, secure=True, samesite="lax", max_age=60)
+    cookie_opts = dict(httponly=False, secure=True, samesite="lax", max_age=60)  # noqa: C408
     response.set_cookie("surfsense_sso_token", access_token, **cookie_opts)
     response.set_cookie("surfsense_sso_refresh_token", refresh_token, **cookie_opts)
 
