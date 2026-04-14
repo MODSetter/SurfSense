@@ -1,6 +1,6 @@
 # Story 5.2: Tích hợp Stripe Subscription Checkout (Stripe Payment Integration)
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -29,21 +29,21 @@ so that tôi có thể điền thông tin thẻ tín dụng mà không sợ bị
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Thêm `stripe_customer_id` vào User (Backend DB)
-  - [ ] Subtask 1.1: Alembic migration thêm column `stripe_customer_id` (String, nullable, unique, indexed) vào `User`.
-  - [ ] Subtask 1.2: Tạo helper function `get_or_create_stripe_customer(user)` — nếu `stripe_customer_id` null → gọi `stripe.customers.create(email=user.email)` → lưu ID vào DB.
+- [x] Task 1: Thêm `stripe_customer_id` vào User (Backend DB)
+  - [x] Subtask 1.1: Alembic migration thêm column `stripe_customer_id` — đã có trong migration 124.
+  - [x] Subtask 1.2: Tạo helper function `get_or_create_stripe_customer(user)` — SELECT FOR UPDATE, tạo Stripe customer nếu chưa có, persist ID.
 
-- [ ] Task 2: Tạo Subscription Checkout Endpoint (Backend)
-  - [ ] Subtask 2.1: Tạo endpoint `POST /api/v1/stripe/create-subscription-checkout`.
-  - [ ] Subtask 2.2: Request body: `{ "plan_id": "pro_monthly" | "pro_yearly" }`.
-  - [ ] Subtask 2.3: Map `plan_id` → Stripe Price ID từ env vars (`STRIPE_PRO_MONTHLY_PRICE_ID`, `STRIPE_PRO_YEARLY_PRICE_ID`). Tuyệt đối **không nhận price từ frontend** — phòng tránh giả mạo giá.
-  - [ ] Subtask 2.4: Gọi `stripe.checkout.sessions.create(mode='subscription', customer=stripe_customer_id, ...)`.
-  - [ ] Subtask 2.5: Trả về `{ "checkout_url": "https://checkout.stripe.com/..." }`.
+- [x] Task 2: Tạo Subscription Checkout Endpoint (Backend)
+  - [x] Subtask 2.1: Tạo endpoint `POST /api/v1/stripe/create-subscription-checkout`.
+  - [x] Subtask 2.2: Request body: `{ "plan_id": "pro_monthly" | "pro_yearly" }` — validated bằng `PlanId` enum.
+  - [x] Subtask 2.3: Map `plan_id` → Stripe Price ID từ env vars (`STRIPE_PRO_MONTHLY_PRICE_ID`, `STRIPE_PRO_YEARLY_PRICE_ID`). Frontend không gửi price.
+  - [x] Subtask 2.4: Gọi `stripe.checkout.sessions.create(mode='subscription', customer=stripe_customer_id, ...)`.
+  - [x] Subtask 2.5: Trả về `{ "checkout_url": "https://checkout.stripe.com/..." }`.
 
-- [ ] Task 3: Kết nối Frontend với Endpoint mới
-  - [ ] Subtask 3.1: Từ `pricing-section.tsx`, nút "Upgrade to Pro" gọi `POST /api/v1/stripe/create-subscription-checkout` với `plan_id`.
-  - [ ] Subtask 3.2: Redirect đến `checkout_url`.
-  - [ ] Subtask 3.3: Xử lý success return URL — hiển thị toast "Subscription activated!"
+- [x] Task 3: Kết nối Frontend với Endpoint mới
+  - [x] Subtask 3.1: `pricing-section.tsx` đã gọi endpoint với `plan_id` — done trong Story 5.1.
+  - [x] Subtask 3.2: Redirect đến `checkout_url` — done trong Story 5.1.
+  - [x] Subtask 3.3: `/subscription-success` page tạo mới — invalidates user query + toast "Subscription activated!"
 
 ## Dev Notes
 
@@ -63,3 +63,36 @@ Sau checkout, Stripe sẽ gửi `checkout.session.completed` → webhook handler
 ### References
 - `surfsense_backend/app/routes/stripe_routes.py` — endpoint PAYG hiện tại (tham khảo pattern)
 - Stripe Subscription Checkout docs: https://stripe.com/docs/billing/subscriptions/build-subscriptions
+
+## Dev Agent Record
+
+### Implementation Notes
+- Migration 124 đã có `stripe_customer_id` và `stripe_subscription_id` từ Story 3.5 — không cần migration mới.
+- `get_or_create_stripe_customer`: dùng `SELECT FOR UPDATE` để tránh duplicate customer khi concurrent requests.
+- `_get_price_id_for_plan`: map `PlanId` enum → env var `STRIPE_PRO_MONTHLY_PRICE_ID` / `STRIPE_PRO_YEARLY_PRICE_ID`. Frontend không gửi price ID.
+- Endpoint `POST /create-subscription-checkout`: `mode='subscription'`, `customer=stripe_customer_id`, `success_url=/subscription-success`, `cancel_url=/pricing`.
+- `PlanId` enum trong schemas/stripe.py đảm bảo frontend chỉ gửi giá trị hợp lệ.
+- Frontend success page `/subscription-success`: toast "Subscription activated!" + invalidate user query.
+
+### Completion Notes
+✅ Tất cả tasks/subtasks hoàn thành. AC 1-3 đều được đáp ứng.
+
+### File List
+- `surfsense_backend/app/config/__init__.py` — added `STRIPE_PRO_MONTHLY_PRICE_ID`, `STRIPE_PRO_YEARLY_PRICE_ID`
+- `surfsense_backend/app/schemas/stripe.py` — added `PlanId` enum, `CreateSubscriptionCheckoutRequest`, `CreateSubscriptionCheckoutResponse`
+- `surfsense_backend/app/routes/stripe_routes.py` — added `_get_subscription_success_url`, `_get_price_id_for_plan`, `get_or_create_stripe_customer`, `POST /create-subscription-checkout`
+- `surfsense_web/app/subscription-success/page.tsx` — new success page with toast + user query invalidation
+
+### Review Findings
+
+- [x] [Review][Decision] Success page verify payment server-side — added GET /verify-checkout-session endpoint + frontend verify flow
+- [x] [Review][Patch] Success URL includes `?session_id={CHECKOUT_SESSION_ID}` template variable [stripe_routes.py:89]
+- [x] [Review][Patch] Duplicate NEXT_FRONTEND_URL check removed — refactored to `_get_subscription_urls()` [stripe_routes.py:82]
+- [x] [Review][Patch] Added active subscription guard (409 Conflict) before creating checkout [stripe_routes.py:370]
+- [x] [Review][Patch] Toast only fires once via `useRef` flag + only after verified [subscription-success/page.tsx]
+- [x] [Review][Defer] Webhook không xử lý subscription-mode checkout — deferred to Story 5.3
+- [x] [Review][Defer] Không có handler cho subscription lifecycle events — deferred to Story 5.3
+- [x] [Review][Defer] Orphan Stripe customer nếu commit fail sau API call — deferred, low probability
+
+### Change Log
+- 2026-04-14: Implement subscription checkout endpoint with Stripe customer creation and success page.
