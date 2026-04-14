@@ -14,6 +14,10 @@ import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.
 import { expandedFolderIdsAtom } from "@/atoms/documents/folder.atoms";
 import { agentCreatedDocumentsAtom } from "@/atoms/documents/ui.atoms";
 import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
+import {
+	folderWatchDialogOpenAtom,
+	folderWatchInitialFolderAtom,
+} from "@/atoms/folder-sync/folder-sync.atoms";
 import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { CreateFolderDialog } from "@/components/documents/CreateFolderDialog";
@@ -106,8 +110,8 @@ export function DocumentsSidebar({
 	const debouncedSearch = useDebouncedValue(search, 250);
 	const [activeTypes, setActiveTypes] = useState<DocumentTypeEnum[]>([]);
 	const [watchedFolderIds, setWatchedFolderIds] = useState<Set<number>>(new Set());
-	const [folderWatchOpen, setFolderWatchOpen] = useState(false);
-	const [watchInitialFolder, setWatchInitialFolder] = useState<SelectedFolder | null>(null);
+	const [folderWatchOpen, setFolderWatchOpen] = useAtom(folderWatchDialogOpenAtom);
+	const [watchInitialFolder, setWatchInitialFolder] = useAtom(folderWatchInitialFolderAtom);
 	const isElectron = typeof window !== "undefined" && !!window.electronAPI;
 
 	// AI File Sort state
@@ -161,7 +165,8 @@ export function DocumentsSidebar({
 		const folderName = folderPath.split("/").pop() || folderPath.split("\\").pop() || folderPath;
 		setWatchInitialFolder({ path: folderPath, name: folderName });
 		setFolderWatchOpen(true);
-	}, []);
+	}, [setWatchInitialFolder, setFolderWatchOpen]);
+
 
 	const refreshWatchedIds = useCallback(async () => {
 		if (!electronAPI?.getWatchedFolders) return;

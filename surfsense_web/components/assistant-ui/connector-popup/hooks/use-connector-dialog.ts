@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
@@ -33,6 +33,13 @@ import {
 	OAUTH_CONNECTORS,
 	OTHER_CONNECTORS,
 } from "../constants/connector-constants";
+import { usePlatform } from "@/hooks/use-platform";
+import { isSelfHosted } from "@/lib/env-config";
+import {
+	folderWatchDialogOpenAtom,
+	folderWatchInitialFolderAtom,
+} from "@/atoms/folder-sync/folder-sync.atoms";
+
 import {
 	dateRangeSchema,
 	frequencyMinutesSchema,
@@ -61,6 +68,11 @@ export const useConnectorDialog = () => {
 	const { mutateAsync: updateConnector } = useAtomValue(updateConnectorMutationAtom);
 	const { mutateAsync: deleteConnector } = useAtomValue(deleteConnectorMutationAtom);
 	const { mutateAsync: createConnector } = useAtomValue(createConnectorMutationAtom);
+	const setFolderWatchOpen = useSetAtom(folderWatchDialogOpenAtom);
+	const setFolderWatchInitialFolder = useSetAtom(folderWatchInitialFolderAtom);
+	const { isDesktop } = usePlatform();
+	const selfHosted = isSelfHosted();
+
 
 	// Use global atom for dialog open state so it can be controlled from anywhere
 	const [isOpen, setIsOpen] = useAtom(connectorDialogOpenAtom);
@@ -440,10 +452,20 @@ export const useConnectorDialog = () => {
 	const handleConnectNonOAuth = useCallback(
 		(connectorType: string) => {
 			if (!searchSpaceId) return;
+
+			// Handle Obsidian specifically on Desktop & Cloud
+			if (connectorType === EnumConnectorName.OBSIDIAN_CONNECTOR && !selfHosted && isDesktop) {
+				setIsOpen(false);
+				setFolderWatchInitialFolder(null);
+				setFolderWatchOpen(true);
+				return;
+			}
+
 			setConnectingConnectorType(connectorType);
 		},
-		[searchSpaceId]
+		[searchSpaceId, selfHosted, isDesktop, setIsOpen, setFolderWatchOpen, setFolderWatchInitialFolder]
 	);
+
 
 	// Handle submitting connect form
 	const handleSubmitConnectForm = useCallback(
