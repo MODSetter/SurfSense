@@ -181,10 +181,10 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 						type="submit"
 						variant="outline"
 						disabled={!hasChanges || saving || !name.trim()}
-						className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+						className="relative gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
 					>
-						{saving ? <Spinner size="sm" /> : null}
-						{saving ? t("general_saving") : t("general_save")}
+						<span className={saving ? "opacity-0" : ""}>{t("general_save")}</span>
+						{saving && <Spinner size="sm" className="absolute" />}
 					</Button>
 				</div>
 			</form>

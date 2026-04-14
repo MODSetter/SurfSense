@@ -970,7 +970,7 @@ export function ModelSelector({
 						{isAutoMode && (
 							<Badge
 								variant="secondary"
-								className="text-[9px] px-1 py-0 h-3.5 bg-violet-800 text-white dark:bg-violet-800 dark:text-white border-0"
+								className="text-[9px] px-1 py-0 h-3.5 bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300 border-0"
 							>
 								Recommended
 							</Badge>

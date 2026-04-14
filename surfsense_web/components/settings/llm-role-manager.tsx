@@ -395,6 +395,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 																		key={config.id}
 																		value={config.id.toString()}
 																		className="text-xs md:text-sm py-1.5 md:py-2"
+																		textValue={config.name}
 																	>
 																		<div className="flex items-center gap-1 md:gap-1.5 flex-wrap min-w-0">
 																			<span className="truncate text-xs md:text-sm">
@@ -403,7 +404,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 																			{isAuto && (
 																				<Badge
 																					variant="secondary"
-																					className="text-[8px] md:text-[9px] shrink-0 bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
+																					className="text-[8px] md:text-[9px] shrink-0 bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300 [[data-slot=select-trigger]_&]:hidden"
 																				>
 																					Recommended
 																				</Badge>

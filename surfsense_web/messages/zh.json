@@ -108,7 +108,6 @@
 		"api_key_nav_description": "管理您的API访问令牌",
 		"api_key_title": "API密钥",
 		"api_key_description": "使用此密钥验证API请求",
-		"api_key_warning_title": "请保密",
 		"api_key_warning_description": "您的API密钥可以完全访问您的账户。请勿公开分享或提交到版本控制。",
 		"your_api_key": "您的API密钥",
 		"copied": "已复制！",

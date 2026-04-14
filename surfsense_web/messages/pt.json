@@ -123,7 +123,6 @@
 		"api_key_nav_description": "Gerencie seu token de acesso à API",
 		"api_key_title": "Chave API",
 		"api_key_description": "Use esta chave para autenticar solicitações da API",
-		"api_key_warning_title": "Mantenha em segredo",
 		"api_key_warning_description": "Sua chave API concede acesso total à sua conta. Nunca a compartilhe publicamente nem a inclua no controle de versão.",
 		"your_api_key": "Sua chave API",
 		"copied": "Copiado!",
