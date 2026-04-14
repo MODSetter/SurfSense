@@ -3,10 +3,11 @@
   "configurations": [
     {
       "name": "SurfSense Frontend",
-      "runtimeExecutable": "bun",
+      "runtimeExecutable": "pnpm",
       "runtimeArgs": ["dev"],
       "cwd": "surfsense_web",
-      "port": 3000
+      "port": 3999,
+      "autoPort": false
     },
     {
       "name": "SurfSense Backend",

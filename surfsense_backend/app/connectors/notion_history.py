@@ -8,6 +8,10 @@ from notion_client.errors import APIResponseError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+
+class NotionAPIError(Exception):
+    """Raised when Notion API returns an error response."""
+
 from app.config import config
 from app.db import SearchSourceConnector
 from app.schemas.notion_auth_credentials import NotionAuthCredentialsBase

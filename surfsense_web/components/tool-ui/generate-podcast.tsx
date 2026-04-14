@@ -377,15 +377,19 @@ export const GeneratePodcastToolUI = ({
 	result,
 	status,
 }: ToolCallMessagePartProps<GeneratePodcastArgs, GeneratePodcastResult>) => {
-	const title = args.podcast_title || "SurfSense Podcast";
+	// Guard: when rendered without props (e.g. as <GeneratePodcastToolUI /> in provider),
+	// render nothing — actual rendering happens via assistant-message.tsx by_name map.
+	if (!status && !result && !args) return null;
+
+	const title = args?.podcast_title || "SurfSense Podcast";
 
 	// Loading state - tool is still running (agent processing)
-	if (status.type === "running" || status.type === "requires-action") {
+	if (status?.type === "running" || status?.type === "requires-action") {
 		return <PodcastGeneratingState title={title} />;
 	}
 
 	// Incomplete/cancelled state
-	if (status.type === "incomplete") {
+	if (status?.type === "incomplete") {
 		if (status.reason === "cancelled") {
 			return (
 				<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">

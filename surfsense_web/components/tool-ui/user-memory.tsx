@@ -86,6 +86,57 @@ export const UpdateMemoryToolUI = ({
 };
 
 // ============================================================================
+// Save Memory Tool UI (stub – tool not yet in backend)
+// ============================================================================
+
+export const SaveMemoryToolUI = ({
+	status,
+}: ToolCallMessagePartProps<{ content: string }, { status: string }>) => {
+	if (!status) return null;
+	const isRunning = status.type === "running" || status.type === "requires-action";
+	return (
+		<div className="my-3 flex items-center gap-3 rounded-lg border bg-card/60 px-4 py-3">
+			<div className="flex size-8 items-center justify-center rounded-full bg-primary/10">
+				{isRunning ? (
+					<Loader2Icon className="size-4 animate-spin text-primary" />
+				) : (
+					<BrainIcon className="size-4 text-primary" />
+				)}
+			</div>
+			<p className="text-sm font-medium">
+				{isRunning ? "Saving to memory..." : "Memory saved"}
+			</p>
+			{!isRunning && <CheckIcon className="ml-auto size-4 text-green-500" />}
+		</div>
+	);
+};
+
+// ============================================================================
+// Recall Memory Tool UI (stub – tool not yet in backend)
+// ============================================================================
+
+export const RecallMemoryToolUI = ({
+	status,
+}: ToolCallMessagePartProps<{ query: string }, { memories: string[] }>) => {
+	if (!status) return null;
+	const isRunning = status.type === "running" || status.type === "requires-action";
+	return (
+		<div className="my-3 flex items-center gap-3 rounded-lg border bg-card/60 px-4 py-3">
+			<div className="flex size-8 items-center justify-center rounded-full bg-primary/10">
+				{isRunning ? (
+					<Loader2Icon className="size-4 animate-spin text-primary" />
+				) : (
+					<BrainIcon className="size-4 text-primary" />
+				)}
+			</div>
+			<p className="text-sm font-medium">
+				{isRunning ? "Recalling from memory..." : "Memory recalled"}
+			</p>
+		</div>
+	);
+};
+
+// ============================================================================
 // Exports
 // ============================================================================
 
