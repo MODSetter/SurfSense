@@ -279,6 +279,7 @@ async def read_report_content(
             id=report.id,
             title=report.title,
             content=report.content,
+            content_type=report.content_type,
             report_metadata=report.report_metadata,
             report_group_id=report.report_group_id,
             versions=versions,
@@ -319,6 +320,7 @@ async def update_report_content(
             id=report.id,
             title=report.title,
             content=report.content,
+            content_type=report.content_type,
             report_metadata=report.report_metadata,
             report_group_id=report.report_group_id,
             versions=versions,
@@ -330,6 +332,57 @@ async def update_report_content(
         raise HTTPException(
             status_code=500,
             detail="Database error occurred while updating report content",
+        ) from None
+
+
+@router.get("/reports/{report_id}/preview")
+async def preview_report_pdf(
+    report_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Return a compiled PDF preview for Typst-based reports (resumes).
+
+    Reads the Typst source from the database and compiles it to PDF bytes
+    on-the-fly. Only works for reports with content_type='typst'.
+    """
+    try:
+        report = await _get_report_with_access(report_id, session, user)
+
+        if not report.content:
+            raise HTTPException(
+                status_code=400, detail="Report has no content to preview"
+            )
+
+        if report.content_type != "typst":
+            raise HTTPException(
+                status_code=400,
+                detail="Preview is only available for Typst-based reports",
+            )
+
+        def _compile() -> bytes:
+            return typst.compile(report.content.encode("utf-8"))
+
+        pdf_bytes = await asyncio.to_thread(_compile)
+
+        safe_title = re.sub(r"[^\w\s-]", "", report.title or "Resume").strip()
+        filename = f"{safe_title}.pdf"
+
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'inline; filename="{filename}"',
+            },
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Failed to compile Typst preview for report %d", report_id)
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to compile resume preview",
         ) from None
 
 
@@ -352,6 +405,27 @@ async def export_report(
         if not report.content:
             raise HTTPException(
                 status_code=400, detail="Report has no content to export"
+            )
+
+        # Typst-based reports (resumes): compile directly without Pandoc
+        if report.content_type == "typst":
+            if format != ExportFormat.PDF:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Typst-based reports currently only support PDF export",
+                )
+
+            def _compile_typst() -> bytes:
+                return typst.compile(report.content.encode("utf-8"))
+
+            pdf_bytes = await asyncio.to_thread(_compile_typst)
+            safe_title = re.sub(r"[^\w\s-]", "", report.title or "Resume").strip()
+            return StreamingResponse(
+                io.BytesIO(pdf_bytes),
+                media_type="application/pdf",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{safe_title}.pdf"',
+                },
             )
 
         # Strip wrapping code fences that LLMs sometimes add around Markdown.
