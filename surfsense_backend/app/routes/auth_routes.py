@@ -2,9 +2,11 @@
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 
+from app.config import config
 from app.db import User, async_session_maker
 from app.schemas.auth import (
     LogoutAllResponse,
@@ -15,6 +17,7 @@ from app.schemas.auth import (
 )
 from app.users import current_active_user, get_jwt_strategy
 from app.utils.refresh_tokens import (
+    create_refresh_token,
     revoke_all_user_tokens,
     revoke_refresh_token,
     rotate_refresh_token,
@@ -24,6 +27,57 @@ from app.utils.refresh_tokens import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth/jwt", tags=["auth"])
+
+
+@router.get("/proxy-login")
+async def proxy_login(request: Request):
+    """
+    Exchange the oauth2-proxy ForwardAuth session for a SurfSense JWT delivered
+    via short-lived cookies.
+
+    Flow:
+      Browser → Traefik ForwardAuth → oauth2-proxy validates session
+      → sets X-Auth-Request-Email → ProxyAuthMiddleware resolves/creates user
+      → this endpoint reads request.state.proxy_user → issues JWT
+      → sets surfsense_sso_token + surfsense_sso_refresh_token cookies (60s TTL)
+      → redirects to / → page.tsx reads cookies → stores to localStorage → /dashboard
+
+    All user provisioning (including on_after_register side effects —
+    default SearchSpace, RBAC roles, system prompts) is owned by
+    ProxyAuthMiddleware. This handler does not touch the User table.
+    """
+    user: User | None = getattr(request.state, "proxy_user", None)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No proxy auth session — request did not pass through oauth2-proxy ForwardAuth",
+        )
+
+    # Middleware already filters inactive users; defence-in-depth re-check.
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User account is inactive",
+        )
+
+    strategy = get_jwt_strategy()
+    access_token = await strategy.write_token(user)
+    refresh_token = await create_refresh_token(user.id)
+
+    frontend_url = (config.NEXT_FRONTEND_URL or "http://localhost:3000").rstrip("/")
+
+    # Deliver tokens via short-lived cookies so the frontend can pick them up at /
+    # without needing a dedicated /auth/callback route (avoids Traefik path splitting).
+    response = RedirectResponse(f"{frontend_url}/", status_code=302)
+    cookie_opts = dict(httponly=False, secure=True, samesite="lax", max_age=60)  # noqa: C408
+    response.set_cookie("surfsense_sso_token", access_token, **cookie_opts)
+    response.set_cookie("surfsense_sso_refresh_token", refresh_token, **cookie_opts)
+
+    logger.info(
+        "proxy_login: issued JWT for %s → redirecting to frontend via cookie",
+        user.email,
+    )
+    return response
 
 
 @router.post("/refresh", response_model=RefreshTokenResponse)

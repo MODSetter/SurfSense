@@ -10,36 +10,30 @@ import httpx
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures"
 
 TEST_EMAIL = "testuser@surfsense.com"
-TEST_PASSWORD = "testpassword123"
 
 
 async def get_auth_token(client: httpx.AsyncClient) -> str:
-    """Log in and return a Bearer JWT token, registering the user first if needed."""
-    response = await client.post(
-        "/auth/jwt/login",
-        data={"username": TEST_EMAIL, "password": TEST_PASSWORD},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-    )
-    if response.status_code == 200:
-        return response.json()["access_token"]
+    """Obtain a Bearer JWT via the SSO proxy-login endpoint.
 
-    reg_response = await client.post(
-        "/auth/register",
-        json={"email": TEST_EMAIL, "password": TEST_PASSWORD},
+    Local auth routes (/auth/register, /auth/jwt/login) are disabled in SSO
+    mode, so the test user is provisioned the same way production users are:
+    ProxyAuthMiddleware reads X-Auth-Request-Email and JIT-creates the user,
+    then /auth/jwt/proxy-login issues a JWT delivered via the
+    surfsense_sso_token cookie on a 302 redirect.
+    """
+    response = await client.get(
+        "/auth/jwt/proxy-login",
+        headers={"X-Auth-Request-Email": TEST_EMAIL},
+        follow_redirects=False,
     )
-    assert reg_response.status_code == 201, (
-        f"Registration failed ({reg_response.status_code}): {reg_response.text}"
+    assert response.status_code == 302, (
+        f"proxy-login failed ({response.status_code}): {response.text}"
     )
-
-    response = await client.post(
-        "/auth/jwt/login",
-        data={"username": TEST_EMAIL, "password": TEST_PASSWORD},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    token = response.cookies.get("surfsense_sso_token")
+    assert token, (
+        f"surfsense_sso_token cookie missing from proxy-login response: {response.headers!r}"
     )
-    assert response.status_code == 200, (
-        f"Login after registration failed ({response.status_code}): {response.text}"
-    )
-    return response.json()["access_token"]
+    return token
 
 
 async def get_search_space_id(client: httpx.AsyncClient, token: str) -> int:

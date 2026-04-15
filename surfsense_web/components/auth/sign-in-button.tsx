@@ -2,7 +2,7 @@
 
 import { motion } from "motion/react";
 import Link from "next/link";
-import { AUTH_TYPE, BACKEND_URL } from "@/lib/env-config";
+import { AUTH_TYPE, isSSOAuth } from "@/lib/env-config";
 import { trackLoginAttempt } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
 
@@ -46,34 +46,39 @@ interface SignInButtonProps {
 
 export const SignInButton = ({ variant = "desktop" }: SignInButtonProps) => {
 	const isGoogleAuth = AUTH_TYPE === "GOOGLE";
+	const isSSOAuthMode = isSSOAuth();
+	// Both Google and SSO modes use the proxy-login button (not email/password form)
+	const isProxyLogin = isGoogleAuth || isSSOAuthMode;
 
-	const handleGoogleLogin = () => {
-		trackLoginAttempt("google");
-		window.location.href = `${BACKEND_URL}/auth/google/authorize-redirect`;
+	const handleProxyLogin = () => {
+		trackLoginAttempt(isSSOAuthMode ? "sso" : "google");
+		// Redirect to proxy-login — Traefik ForwardAuth triggers Cognito if needed,
+		// then the endpoint issues a JWT and redirects to /auth/callback.
+		window.location.href = `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/auth/jwt/proxy-login`;
 	};
 
 	const getClassName = () => {
 		if (variant === "desktop") {
-			return isGoogleAuth
+			return isProxyLogin
 				? "hidden rounded-full bg-white px-5 py-2 text-sm text-neutral-700 shadow-md ring-1 ring-neutral-200/50 hover:shadow-lg md:flex dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-700/50"
 				: "hidden rounded-full bg-black px-8 py-2 text-sm font-bold text-white shadow-[0px_-2px_0px_0px_rgba(255,255,255,0.4)_inset] md:block dark:bg-white dark:text-black";
 		}
 		if (variant === "compact") {
-			return isGoogleAuth
+			return isProxyLogin
 				? "rounded-full bg-white px-4 py-1.5 text-sm text-neutral-700 shadow-md ring-1 ring-neutral-200/50 hover:shadow-lg dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-700/50"
 				: "rounded-full bg-black px-6 py-1.5 text-sm font-bold text-white shadow-[0px_-2px_0px_0px_rgba(255,255,255,0.4)_inset] dark:bg-white dark:text-black";
 		}
 		// mobile
-		return isGoogleAuth
+		return isProxyLogin
 			? "w-full rounded-lg bg-white px-8 py-2.5 text-neutral-700 shadow-md ring-1 ring-neutral-200/50 dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-700/50 touch-manipulation"
 			: "w-full rounded-lg bg-black px-8 py-2 font-medium text-white shadow-[0px_-2px_0px_0px_rgba(255,255,255,0.4)_inset] dark:bg-white dark:text-black text-center touch-manipulation";
 	};
 
-	if (isGoogleAuth) {
+	if (isProxyLogin) {
 		return (
 			<motion.button
 				type="button"
-				onClick={handleGoogleLogin}
+				onClick={handleProxyLogin}
 				whileHover={{ scale: 1.02 }}
 				whileTap={{ scale: 0.98 }}
 				className={cn(
@@ -81,7 +86,7 @@ export const SignInButton = ({ variant = "desktop" }: SignInButtonProps) => {
 					getClassName()
 				)}
 			>
-				<GoogleLogo className="h-4 w-4" />
+				{isGoogleAuth && <GoogleLogo className="h-4 w-4" />}
 				<span>Sign In</span>
 			</motion.button>
 		);

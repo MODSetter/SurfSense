@@ -307,9 +307,18 @@ class Config:
         os.getenv("STRIPE_RECONCILIATION_BATCH_SIZE", "100")
     )
 
-    # Auth
-    AUTH_TYPE = os.getenv("AUTH_TYPE")
+    # Auth — this fork is SSO-only. Default to SSO so a missing envvar doesn't
+    # silently fall through to upstream LOCAL behaviour; app.py asserts on boot.
+    AUTH_TYPE = os.getenv("AUTH_TYPE", "SSO")
     REGISTRATION_ENABLED = os.getenv("REGISTRATION_ENABLED", "TRUE").upper() == "TRUE"
+
+    # Comma-separated path prefixes that bypass proxy auth (default: /health).
+    MPASS_BYPASS_PATHS = os.getenv("MPASS_BYPASS_PATHS", None)
+
+    # SMB tenant name — used to synthesize {username}@{SMB_NAME}.com email
+    # addresses when the OIDC provider sends a bare username (e.g. Cognito
+    # cognito:username claim) instead of an email.
+    SMB_NAME = os.getenv("SMB_NAME", "")
 
     # Google OAuth
     GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID")

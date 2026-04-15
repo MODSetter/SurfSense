@@ -5,9 +5,12 @@ on:
     branches:
       - main
       - dev
+      - foss-main
+      - feat/mpass-proxy-auth
     paths:
       - 'surfsense_backend/**'
       - 'surfsense_web/**'
+      - '.github/workflows/docker-build.yml'
   workflow_dispatch:
     inputs:
       branch:
@@ -26,7 +29,11 @@ permissions:
 jobs:
   tag_release:
     runs-on: ubuntu-latest
-    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || github.event_name == 'workflow_dispatch'
+    if: >
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) ||
+      github.ref == 'refs/heads/foss-main' ||
+      github.ref == 'refs/heads/feat/mpass-proxy-auth' ||
+      github.event_name == 'workflow_dispatch'
     outputs:
       new_tag: ${{ steps.tag_version.outputs.next_version }}
     steps:
@@ -248,7 +255,7 @@ jobs:
             type=ref,event=branch
             type=sha,prefix=git-
           flavor: |
-            latest=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || github.event.inputs.branch == github.event.repository.default_branch }}
+            latest=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || github.ref == 'refs/heads/feat/mpass-proxy-auth' || github.event.inputs.branch == github.event.repository.default_branch }}
 
       - name: Create manifest list and push
         working-directory: /tmp/digests

@@ -27,6 +27,7 @@ const replacements = [
 		process.env.NEXT_PUBLIC_ZERO_CACHE_URL || "http://localhost:4848",
 	],
 	["__NEXT_PUBLIC_DEPLOYMENT_MODE__", process.env.NEXT_PUBLIC_DEPLOYMENT_MODE || "self-hosted"],
+	["__NEXT_PUBLIC_OAUTH2_PROXY_URL__", process.env.NEXT_PUBLIC_OAUTH2_PROXY_URL || ""],
 ];
 
 let filesProcessed = 0;

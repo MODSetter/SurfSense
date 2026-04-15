@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from urllib.parse import parse_qs, urlparse
 
 import asyncpg
 import httpx
@@ -13,7 +12,7 @@ from app.app import app
 from app.routes import stripe_routes
 from app.tasks.celery_tasks import stripe_reconciliation_task
 from tests.conftest import TEST_DATABASE_URL
-from tests.utils.helpers import TEST_EMAIL, TEST_PASSWORD, auth_headers
+from tests.utils.helpers import TEST_EMAIL, auth_headers, get_auth_token
 
 pytestmark = pytest.mark.integration
 
@@ -48,51 +47,12 @@ async def _get_pages_limit(email: str) -> int:
     return row["pages_limit"]
 
 
-def _extract_access_token(response: httpx.Response) -> str | None:
-    if response.status_code == 200:
-        return response.json()["access_token"]
-
-    if response.status_code == 302:
-        location = response.headers.get("location", "")
-        return parse_qs(urlparse(location).query).get("token", [None])[0]
-
-    return None
-
-
-async def _authenticate_test_user(client: httpx.AsyncClient) -> str:
-    response = await client.post(
-        "/auth/jwt/login",
-        data={"username": TEST_EMAIL, "password": TEST_PASSWORD},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-    )
-    token = _extract_access_token(response)
-    if token:
-        return token
-
-    reg_response = await client.post(
-        "/auth/register",
-        json={"email": TEST_EMAIL, "password": TEST_PASSWORD},
-    )
-    assert reg_response.status_code == 201, (
-        f"Registration failed ({reg_response.status_code}): {reg_response.text}"
-    )
-
-    response = await client.post(
-        "/auth/jwt/login",
-        data={"username": TEST_EMAIL, "password": TEST_PASSWORD},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-    )
-    token = _extract_access_token(response)
-    assert token, f"Login failed ({response.status_code}): {response.text}"
-    return token
-
-
 @pytest_asyncio.fixture(scope="session")
 async def auth_token(_ensure_tables) -> str:
     async with httpx.AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test", timeout=30.0
     ) as client:
-        return await _authenticate_test_user(client)
+        return await get_auth_token(client)
 
 
 @pytest.fixture(scope="session")
@@ -182,6 +142,7 @@ class TestStripeCheckoutSessionCreation:
         fake_client = _FakeCreateStripeClient(checkout_session)
 
         monkeypatch.setattr(stripe_routes, "get_stripe_client", lambda: fake_client)
+        monkeypatch.setattr(stripe_routes.config, "STRIPE_PAGE_BUYING_ENABLED", True)
         monkeypatch.setattr(stripe_routes.config, "STRIPE_PRICE_ID", "price_pages_1000")
         monkeypatch.setattr(
             stripe_routes.config, "NEXT_FRONTEND_URL", "http://localhost:3000"
@@ -269,6 +230,7 @@ class TestStripeWebhookFulfillment:
         create_client = _FakeCreateStripeClient(checkout_session)
 
         monkeypatch.setattr(stripe_routes, "get_stripe_client", lambda: create_client)
+        monkeypatch.setattr(stripe_routes.config, "STRIPE_PAGE_BUYING_ENABLED", True)
         monkeypatch.setattr(stripe_routes.config, "STRIPE_PRICE_ID", "price_pages_1000")
         monkeypatch.setattr(
             stripe_routes.config, "NEXT_FRONTEND_URL", "http://localhost:3000"
@@ -362,6 +324,7 @@ class TestStripeReconciliation:
         create_client = _FakeCreateStripeClient(checkout_session)
 
         monkeypatch.setattr(stripe_routes, "get_stripe_client", lambda: create_client)
+        monkeypatch.setattr(stripe_routes.config, "STRIPE_PAGE_BUYING_ENABLED", True)
         monkeypatch.setattr(stripe_routes.config, "STRIPE_PRICE_ID", "price_pages_1000")
         monkeypatch.setattr(
             stripe_routes.config, "NEXT_FRONTEND_URL", "http://localhost:3000"
@@ -440,6 +403,7 @@ class TestStripeReconciliation:
         create_client = _FakeCreateStripeClient(checkout_session)
 
         monkeypatch.setattr(stripe_routes, "get_stripe_client", lambda: create_client)
+        monkeypatch.setattr(stripe_routes.config, "STRIPE_PAGE_BUYING_ENABLED", True)
         monkeypatch.setattr(stripe_routes.config, "STRIPE_PRICE_ID", "price_pages_1000")
         monkeypatch.setattr(
             stripe_routes.config, "NEXT_FRONTEND_URL", "http://localhost:3000"
