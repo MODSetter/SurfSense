@@ -1,22 +1,13 @@
 "use client";
 
-import type { LucideIcon } from "lucide-react";
-import { Code2, Database, ExternalLink, File, FileText, Globe, Newspaper } from "lucide-react";
+import { ExternalLink, Globe } from "lucide-react";
 import NextImage from "next/image";
 import * as React from "react";
 import { openSafeNavigationHref, resolveSafeNavigationHref } from "../shared/media";
 import { cn, Popover, PopoverContent, PopoverTrigger } from "./_adapter";
 import { Citation } from "./citation";
-import type { CitationType, CitationVariant, SerializableCitation } from "./schema";
-
-const TYPE_ICONS: Record<CitationType, LucideIcon> = {
-	webpage: Globe,
-	document: FileText,
-	article: Newspaper,
-	api: Database,
-	code: Code2,
-	other: File,
-};
+import type { CitationVariant, SerializableCitation } from "./schema";
+import { TYPE_ICONS } from "./type-icons";
 
 function useHoverPopover(delay = 100) {
 	const [open, setOpen] = React.useState(false);
