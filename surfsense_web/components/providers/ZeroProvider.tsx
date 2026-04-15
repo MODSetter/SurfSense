@@ -6,7 +6,7 @@ import {
 	ZeroProvider as ZeroReactProvider,
 } from "@rocicorp/zero/react";
 import { useAtomValue } from "jotai";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { getBearerToken, handleUnauthorized, refreshAccessToken } from "@/lib/auth-utils";
 import { queries } from "@/zero/queries";
@@ -43,19 +43,30 @@ function ZeroAuthSync() {
 export function ZeroProvider({ children }: { children: React.ReactNode }) {
 	const { data: user } = useAtomValue(currentUserAtom);
 
-	const hasUser = !!user?.id;
-	const userID = hasUser ? String(user.id) : "anon";
-	const context = hasUser ? { userId: String(user.id) } : undefined;
+	const userId = user?.id;
+	const hasUser = !!userId;
+	const userID = hasUser ? String(userId) : "anon";
+	// getBearerToken() returns a string (a primitive), so it's safe to read
+	// on every render — reference equality holds as long as the token is
+	// unchanged, which keeps the memoized `opts` below stable.
 	const auth = hasUser ? getBearerToken() || undefined : undefined;
 
-	const opts = {
-		userID,
-		schema,
-		queries,
-		context,
-		cacheURL,
-		auth,
-	};
+	const context = useMemo(
+		() => (hasUser ? { userId: String(userId) } : undefined),
+		[hasUser, userId],
+	);
+
+	const opts = useMemo(
+		() => ({
+			userID,
+			schema,
+			queries,
+			context,
+			cacheURL,
+			auth,
+		}),
+		[userID, context, auth],
+	);
 
 	return (
 		<ZeroReactProvider {...opts}>
