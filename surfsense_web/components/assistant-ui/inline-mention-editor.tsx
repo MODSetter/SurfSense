@@ -1,6 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
+import type { ReactElement } from "react";
 import {
 	createElement,
 	forwardRef,
@@ -10,10 +11,26 @@ import {
 	useRef,
 	useState,
 } from "react";
-import ReactDOMServer from "react-dom/server";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Document } from "@/contracts/types/document.types";
 import { cn } from "@/lib/utils";
+
+// Render a React element to an HTML string on the client without pulling
+// `react-dom/server` into the bundle. `createRoot` + `flushSync` use the
+// same `react-dom` package React itself imports, so this adds zero new
+// runtime weight.
+function renderElementToHTML(element: ReactElement): string {
+	const container = document.createElement("div");
+	const root = createRoot(container);
+	flushSync(() => {
+		root.render(element);
+	});
+	const html = container.innerHTML;
+	root.unmount();
+	return html;
+}
 
 export interface MentionedDocument {
 	id: number;
@@ -213,7 +230,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 
 				const iconSpan = document.createElement("span");
 				iconSpan.className = "flex items-center text-muted-foreground";
-				iconSpan.innerHTML = ReactDOMServer.renderToString(
+				iconSpan.innerHTML = renderElementToHTML(
 					getConnectorIcon(doc.document_type ?? "UNKNOWN", "h-3 w-3")
 				);
 
@@ -222,7 +239,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				removeBtn.className =
 					"size-3 items-center justify-center rounded-full text-muted-foreground transition-colors";
 				removeBtn.style.display = "none";
-				removeBtn.innerHTML = ReactDOMServer.renderToString(
+				removeBtn.innerHTML = renderElementToHTML(
 					createElement(X, { className: "h-3 w-3", strokeWidth: 2.5 })
 				);
 				removeBtn.onclick = (e) => {
