@@ -464,8 +464,8 @@ _TOOL_INSTRUCTIONS["generate_resume"] = """
 """
 
 _TOOL_EXAMPLES["generate_resume"] = """
-- User: "Build me a resume. I'm Anish Sarkar, software engineer at SurfSense..."
-  - Call: `generate_resume(user_info="Anish Sarkar, software engineer at SurfSense...")`
+- User: "Build me a resume. I'm John Doe, engineer at Acme Corp..."
+  - Call: `generate_resume(user_info="John Doe, engineer at Acme Corp...")`
   - WHY: Has creation verb "build" + resume → call the tool.
 - User: "Create my CV with this info: [experience, education, skills]"
   - Call: `generate_resume(user_info="[experience, education, skills]")`
