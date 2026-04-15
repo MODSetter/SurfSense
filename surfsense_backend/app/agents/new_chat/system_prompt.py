@@ -443,6 +443,40 @@ _TOOL_EXAMPLES["web_search"] = """
   - Call: `web_search(query="weather New York today")`
 """
 
+_TOOL_INSTRUCTIONS["generate_resume"] = """
+- generate_resume: Generate or revise a professional resume as a Typst document.
+  - WHEN TO CALL: The user asks to create, build, generate, write, or draft a resume or CV.
+    Also when they ask to modify, update, or revise an existing resume from this conversation.
+  - WHEN NOT TO CALL: General career advice, resume tips, cover letters, or reviewing
+    a resume without making changes. For cover letters, use generate_report instead.
+  - The tool produces Typst source code that is compiled to a PDF preview automatically.
+  - Args:
+    - user_info: The user's resume content — work experience, education, skills, contact
+      info, etc. Can be structured or unstructured text. Pass everything the user provides.
+    - user_instructions: Optional style or content preferences (e.g. "emphasize leadership",
+      "keep it to one page"). For revisions, describe what to change.
+    - parent_report_id: Set this when the user wants to MODIFY an existing resume from
+      this conversation. Use the report_id from a previous generate_resume result.
+  - Returns: Dict with status, report_id, title, and content_type.
+  - After calling: Give a brief confirmation. Do NOT paste resume content in chat.
+  - VERSIONING: Same rules as generate_report — set parent_report_id for modifications
+    of an existing resume, leave as None for new resumes.
+"""
+
+_TOOL_EXAMPLES["generate_resume"] = """
+- User: "Build me a resume. I'm Anish Sarkar, software engineer at SurfSense..."
+  - Call: `generate_resume(user_info="Anish Sarkar, software engineer at SurfSense...")`
+  - WHY: Has creation verb "build" + resume → call the tool.
+- User: "Create my CV with this info: [experience, education, skills]"
+  - Call: `generate_resume(user_info="[experience, education, skills]")`
+- User: (after resume generated) "Change my title to Senior Engineer"
+  - Call: `generate_resume(user_info="", user_instructions="Change the job title to Senior Engineer", parent_report_id=<previous_report_id>)`
+  - WHY: Modification verb "change" + refers to existing resume → set parent_report_id.
+- User: "How should I structure my resume?"
+  - Do NOT call generate_resume. Answer in chat with advice.
+  - WHY: No creation/modification verb.
+"""
+
 # All tool names that have prompt instructions (order matters for prompt readability)
 _ALL_TOOL_NAMES_ORDERED = [
     "search_surfsense_docs",
@@ -450,6 +484,7 @@ _ALL_TOOL_NAMES_ORDERED = [
     "generate_podcast",
     "generate_video_presentation",
     "generate_report",
+    "generate_resume",
     "generate_image",
     "scrape_webpage",
     "update_memory",
