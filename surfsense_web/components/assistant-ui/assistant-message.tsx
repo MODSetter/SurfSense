@@ -71,6 +71,13 @@ const GenerateReportToolUI = dynamic(
 		})),
 	{ ssr: false }
 );
+const GenerateResumeToolUI = dynamic(
+	() =>
+		import("@/components/tool-ui/generate-resume").then((m) => ({
+			default: m.GenerateResumeToolUI,
+		})),
+	{ ssr: false }
+);
 const GeneratePodcastToolUI = dynamic(
 	() =>
 		import("@/components/tool-ui/generate-podcast").then((m) => ({
@@ -487,6 +494,7 @@ const AssistantMessageInner: FC = () => {
 						tools: {
 							by_name: {
 								generate_report: GenerateReportToolUI,
+								generate_resume: GenerateResumeToolUI,
 								generate_podcast: GeneratePodcastToolUI,
 								generate_video_presentation: GenerateVideoPresentationToolUI,
 								display_image: GenerateImageToolUI,

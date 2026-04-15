@@ -53,6 +53,11 @@ const PlateEditor = dynamic(
 	{ ssr: false, loading: () => <ReportPanelSkeleton /> }
 );
 
+const PdfViewer = dynamic(
+	() => import("@/components/report-panel/pdf-viewer").then((m) => ({ default: m.PdfViewer })),
+	{ ssr: false, loading: () => <ReportPanelSkeleton /> }
+);
+
 /**
  * Zod schema for a single version entry
  */
@@ -68,6 +73,7 @@ const ReportContentResponseSchema = z.object({
 	id: z.number(),
 	title: z.string(),
 	content: z.string().nullish(),
+	content_type: z.string().default("markdown"),
 	report_metadata: z
 		.object({
 			status: z.enum(["ready", "failed"]).nullish(),
@@ -318,6 +324,7 @@ export function ReportPanelContent({
 								onExport={handleExport}
 								exporting={exporting}
 								showAllFormats={!shareToken}
+								pdfOnly={reportContent?.content_type === "typst"}
 							/>
 						</DropdownMenuContent>
 					</DropdownMenu>
@@ -371,6 +378,10 @@ export function ReportPanelContent({
 							<p className="text-sm text-red-500 mt-1">{error || "An unknown error occurred"}</p>
 						</div>
 					</div>
+				) : reportContent.content_type === "typst" ? (
+					<PdfViewer
+						pdfUrl={`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/reports/${activeReportId}/preview`}
+					/>
 				) : reportContent.content ? (
 					isReadOnly ? (
 						<div className="h-full overflow-y-auto px-5 py-4">

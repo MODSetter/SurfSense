@@ -362,9 +362,10 @@ def create_generate_resume_tool(
                 {"phase": "saving", "message": "Saving your resume"},
             )
 
-            # Extract a title from the Typst source (the = heading)
+            # Extract a title from the Typst source (the = heading is the person's name)
             title_match = re.search(r"^=\s+(.+)$", typst_source, re.MULTILINE)
-            resume_title = title_match.group(1).strip() if title_match else "Resume"
+            name = title_match.group(1).strip() if title_match else None
+            resume_title = f"{name} - Resume" if name else "Resume"
 
             metadata: dict[str, Any] = {
                 "status": "ready",
