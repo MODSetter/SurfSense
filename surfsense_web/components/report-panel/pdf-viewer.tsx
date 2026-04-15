@@ -1,11 +1,12 @@
 "use client";
 
 import { ChevronLeftIcon, ChevronRightIcon, ZoomInIcon, ZoomOutIcon } from "lucide-react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { getAuthHeaders } from "@/lib/auth-utils";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -27,8 +28,7 @@ export function PdfViewer({ pdfUrl }: PdfViewerProps) {
 	const [scale, setScale] = useState(1);
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
-
-	const documentOptions = useMemo(() => ({ httpHeaders: getAuthHeaders() }), []);
+	const documentOptionsRef = useRef({ httpHeaders: getAuthHeaders() });
 
 	const onDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
 		setNumPages(numPages);
@@ -109,17 +109,17 @@ export function PdfViewer({ pdfUrl }: PdfViewerProps) {
 			)}
 
 			{/* PDF content */}
-			<div ref={containerRef} className="flex-1 overflow-auto flex justify-center bg-muted/30 p-4">
-				<Document
-					file={pdfUrl}
-					onLoadSuccess={onDocumentLoadSuccess}
-					onLoadError={onDocumentLoadError}
-					options={documentOptions}
-					loading={
-						<div className="flex items-center justify-center h-64">
-							<div className="size-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-						</div>
-					}
+		<div ref={containerRef} className="flex-1 overflow-auto flex justify-center bg-sidebar p-0">
+			<Document
+				file={pdfUrl}
+				onLoadSuccess={onDocumentLoadSuccess}
+				onLoadError={onDocumentLoadError}
+				options={documentOptionsRef.current}
+			loading={
+				<div className="flex items-center justify-center h-64 text-sidebar-foreground">
+					<Spinner size="md" />
+				</div>
+			}
 				>
 					<Page
 						pageNumber={pageNumber}

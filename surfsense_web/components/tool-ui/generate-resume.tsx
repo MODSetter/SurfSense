@@ -56,7 +56,6 @@ function ResumeErrorState({ title, error }: { title: string; error: string }) {
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
 				<div className="flex items-center gap-2">
-					<FileTextIcon className="size-4 text-destructive" />
 					<p className="text-sm font-semibold text-destructive">Resume Generation Failed</p>
 				</div>
 			</div>
@@ -74,7 +73,6 @@ function ResumeCancelledState() {
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
 				<div className="flex items-center gap-2">
-					<FileTextIcon className="size-4 text-muted-foreground" />
 					<p className="text-sm font-semibold text-muted-foreground">Resume Cancelled</p>
 				</div>
 				<p className="text-xs text-muted-foreground mt-0.5">Resume generation was cancelled</p>
@@ -131,22 +129,13 @@ function ResumeCard({
 		<div
 			className={`my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-[box-shadow] duration-300 ${isActive ? "ring-1 ring-primary/50" : ""}`}
 		>
-			{/* biome-ignore lint/a11y/useSemanticElements: nested interactive content */}
-			<div
-				role="button"
-				tabIndex={0}
-				onClick={handleOpen}
-				onKeyDown={(e) => {
-					if (e.key === "Enter" || e.key === " ") {
-						e.preventDefault();
-						handleOpen();
-					}
-				}}
-				className="w-full text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:outline-none cursor-pointer"
-			>
+		<button
+			type="button"
+			onClick={handleOpen}
+			className="w-full text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:outline-none cursor-pointer"
+		>
 				<div className="px-5 pt-5 pb-4 select-none">
 					<div className="flex items-center gap-2">
-						<FileTextIcon className="size-4 text-primary" />
 						<p className="text-sm font-semibold text-foreground line-clamp-2">{title}</p>
 					</div>
 					<p className="text-xs text-muted-foreground mt-0.5">Resume • Click to preview</p>
@@ -157,7 +146,7 @@ function ResumeCard({
 				<div className="px-5 pt-3 pb-4 flex items-center justify-center">
 					{pdfThumbnailUrl ? (
 						<div className="flex items-center gap-3 text-muted-foreground">
-							<FileTextIcon className="size-8 text-primary/40" />
+							<FileTextIcon className="size-8 text-primary" />
 							<span className="text-sm">PDF Resume ready — click to view</span>
 						</div>
 					) : (
@@ -168,7 +157,7 @@ function ResumeCard({
 						</div>
 					)}
 				</div>
-			</div>
+			</button>
 		</div>
 	);
 }

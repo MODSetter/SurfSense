@@ -215,19 +215,11 @@ function ReportCard({
 		<div
 			className={`my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-[box-shadow] duration-300 ${isActive ? "ring-1 ring-primary/50" : ""}`}
 		>
-			{/* biome-ignore lint/a11y/useSemanticElements: can't use <button> here because PlateEditor renders nested <button> elements (e.g. CopyButton) */}
-			<div
-				role="button"
-				tabIndex={0}
-				onClick={handleOpen}
-				onKeyDown={(e) => {
-					if (e.key === "Enter" || e.key === " ") {
-						e.preventDefault();
-						handleOpen();
-					}
-				}}
-				className="w-full text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:outline-none cursor-pointer"
-			>
+		<button
+			type="button"
+			onClick={handleOpen}
+			className="w-full text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:outline-none cursor-pointer"
+		>
 				<div className="px-5 pt-5 pb-4 select-none">
 					<p className="text-sm font-semibold text-foreground line-clamp-2">
 						{isLoading ? title : metadata.title}
@@ -272,7 +264,7 @@ function ReportCard({
 						<p className="text-sm text-muted-foreground italic">No content available</p>
 					)}
 				</div>
-			</div>
+			</button>
 		</div>
 	);
 }
