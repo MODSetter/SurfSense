@@ -372,7 +372,7 @@ export function ReportPanelContent({
 				{isLoading ? (
 					<ReportPanelSkeleton />
 				) : error || !reportContent ? (
-					<div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+					<div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center select-none">
 						<div>
 							<p className="font-medium text-foreground">Failed to load report</p>
 							<p className="text-sm text-red-500 mt-1">{error || "An unknown error occurred"}</p>

@@ -2,13 +2,22 @@
 
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { useAtomValue, useSetAtom } from "jotai";
-import { FileTextIcon } from "lucide-react";
 import { useParams, usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Document, Page, pdfjs } from "react-pdf";
+import "react-pdf/dist/Page/AnnotationLayer.css";
+import "react-pdf/dist/Page/TextLayer.css";
 import { z } from "zod";
 import { openReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
+import { Spinner } from "@/components/ui/spinner";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { getAuthHeaders } from "@/lib/auth-utils";
+
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+	"pdfjs-dist/build/pdf.worker.min.mjs",
+	import.meta.url
+).toString();
 
 const GenerateResumeArgsSchema = z.object({
 	user_info: z.string(),
@@ -35,7 +44,7 @@ function ResumeGeneratingState() {
 				<div className="flex items-center gap-2">
 					<p className="text-sm font-semibold text-foreground">Resume</p>
 				</div>
-				<TextShimmerLoader text="Building your resume" size="sm" />
+				<TextShimmerLoader text="Crafting your resume" size="sm" />
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 pt-3 pb-4">
@@ -96,10 +105,13 @@ function ResumeCard({
 	const panelState = useAtomValue(reportPanelAtom);
 	const isDesktop = useMediaQuery("(min-width: 768px)");
 	const autoOpenedRef = useRef(false);
-	const [pdfThumbnailUrl, setPdfThumbnailUrl] = useState<string | null>(null);
+	const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+	const [pdfReady, setPdfReady] = useState(false);
+	const [pdfError, setPdfError] = useState(false);
+	const documentOptionsRef = useRef({ httpHeaders: getAuthHeaders() });
 
 	useEffect(() => {
-		setPdfThumbnailUrl(
+		setPdfUrl(
 			`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/reports/${reportId}/preview`
 		);
 
@@ -113,6 +125,15 @@ function ResumeCard({
 			});
 		}
 	}, [reportId, title, shareToken, autoOpen, isDesktop, openPanel]);
+
+	const onPdfLoadSuccess = useCallback(() => {
+		setPdfReady(true);
+	}, []);
+
+	const onPdfLoadError = useCallback(() => {
+		setPdfReady(true);
+		setPdfError(true);
+	}, []);
 
 	const isActive = panelState.isOpen && panelState.reportId === reportId;
 
@@ -129,31 +150,55 @@ function ResumeCard({
 		<div
 			className={`my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-[box-shadow] duration-300 ${isActive ? "ring-1 ring-primary/50" : ""}`}
 		>
-		<button
-			type="button"
-			onClick={handleOpen}
-			className="w-full text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:outline-none cursor-pointer"
-		>
-				<div className="px-5 pt-5 pb-4 select-none">
-					<div className="flex items-center gap-2">
-						<p className="text-sm font-semibold text-foreground line-clamp-2">{title}</p>
-					</div>
-					<p className="text-xs text-muted-foreground mt-0.5">Resume • Click to preview</p>
+			<button
+				type="button"
+				onClick={handleOpen}
+				className="w-full text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:outline-none cursor-pointer select-none"
+			>
+				<div className="px-5 pt-5 pb-4">
+					<p className="text-base font-semibold text-foreground line-clamp-2">{title}</p>
+					<p className="text-sm text-muted-foreground mt-0.5">PDF</p>
 				</div>
 
 				<div className="mx-5 h-px bg-border/50" />
 
-				<div className="px-5 pt-3 pb-4 flex items-center justify-center">
-					{pdfThumbnailUrl ? (
-						<div className="flex items-center gap-3 text-muted-foreground">
-							<FileTextIcon className="size-8 text-primary" />
-							<span className="text-sm">PDF Resume ready — click to view</span>
+				<div className="px-5 pt-3 pb-4">
+				{pdfUrl && !pdfError ? (
+					<div
+						className="max-h-[7rem] overflow-hidden pointer-events-none mix-blend-multiply dark:mix-blend-screen"
+						style={{
+							maskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
+							WebkitMaskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
+						}}
+					>
+						<div className="dark:invert dark:hue-rotate-180">
+							<Document
+								file={pdfUrl}
+								options={documentOptionsRef.current}
+								onLoadSuccess={onPdfLoadSuccess}
+								onLoadError={onPdfLoadError}
+								loading={
+									<div className="flex items-center justify-center h-[7rem]">
+										<Spinner size="md" />
+									</div>
+								}
+							>
+								{pdfReady && (
+									<Page
+										pageNumber={1}
+										renderTextLayer={false}
+										renderAnnotationLayer={false}
+										className="[&_canvas]:!w-full [&_canvas]:!h-auto"
+									/>
+								)}
+							</Document>
 						</div>
+					</div>
+					) : pdfError ? (
+						<p className="text-sm text-muted-foreground italic">Preview unavailable</p>
 					) : (
-						<div className="h-[7rem] space-y-2 w-full">
-							<div className="h-3 w-full rounded bg-muted/60 animate-pulse" />
-							<div className="h-3 w-[92%] rounded bg-muted/60 animate-pulse [animation-delay:100ms]" />
-							<div className="h-3 w-[75%] rounded bg-muted/60 animate-pulse [animation-delay:200ms]" />
+						<div className="flex items-center justify-center h-[7rem]">
+							<Spinner size="md" />
 						</div>
 					)}
 				</div>
