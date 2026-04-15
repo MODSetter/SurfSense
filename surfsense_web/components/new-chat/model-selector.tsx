@@ -1,6 +1,5 @@
 "use client";
 
-import type React from "react";
 import { useAtomValue } from "jotai";
 import {
 	Bot,
@@ -11,12 +10,13 @@ import {
 	ChevronUp,
 	Edit3,
 	ImageIcon,
-	ScanEye,
 	Layers,
 	Plus,
+	ScanEye,
 	Search,
 	Zap,
 } from "lucide-react";
+import type React from "react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -178,8 +178,7 @@ function formatProviderName(provider: string): string {
 	const key = provider.toUpperCase();
 	return (
 		PROVIDER_NAMES[key] ??
-		provider.charAt(0).toUpperCase() +
-			provider.slice(1).toLowerCase().replace(/_/g, " ")
+		provider.charAt(0).toUpperCase() + provider.slice(1).toLowerCase().replace(/_/g, " ")
 	);
 }
 
@@ -202,14 +201,12 @@ interface ConfigBase {
 function filterAndScore<T extends ConfigBase>(
 	configs: T[],
 	selectedProvider: string,
-	searchQuery: string,
+	searchQuery: string
 ): T[] {
 	let result = configs;
 
 	if (selectedProvider !== "all") {
-		result = result.filter(
-			(c) => c.provider.toUpperCase() === selectedProvider,
-		);
+		result = result.filter((c) => c.provider.toUpperCase() === selectedProvider);
 	}
 
 	if (!searchQuery.trim()) return result;
@@ -218,9 +215,7 @@ function filterAndScore<T extends ConfigBase>(
 	const tokens = normalized.split(/\s+/).filter(Boolean);
 
 	const scored = result.map((c) => {
-		const aggregate = normalizeText(
-			[c.name, c.model_name, c.provider].join(" "),
-		);
+		const aggregate = normalizeText([c.name, c.model_name, c.provider].join(" "));
 		let score = 0;
 		if (aggregate.includes(normalized)) score += 5;
 		for (const token of tokens) {
@@ -244,20 +239,11 @@ interface DisplayItem {
 // ─── Component ──────────────────────────────────────────────────────
 
 interface ModelSelectorProps {
-	onEditLLM: (
-		config: NewLLMConfigPublic | GlobalNewLLMConfig,
-		isGlobal: boolean,
-	) => void;
+	onEditLLM: (config: NewLLMConfigPublic | GlobalNewLLMConfig, isGlobal: boolean) => void;
 	onAddNewLLM: (provider?: string) => void;
-	onEditImage?: (
-		config: ImageGenerationConfig | GlobalImageGenConfig,
-		isGlobal: boolean,
-	) => void;
+	onEditImage?: (config: ImageGenerationConfig | GlobalImageGenConfig, isGlobal: boolean) => void;
 	onAddNewImage?: (provider?: string) => void;
-	onEditVision?: (
-		config: VisionLLMConfig | GlobalVisionLLMConfig,
-		isGlobal: boolean,
-	) => void;
+	onEditVision?: (config: VisionLLMConfig | GlobalVisionLLMConfig, isGlobal: boolean) => void;
 	onAddNewVision?: (provider?: string) => void;
 	className?: string;
 }
@@ -272,9 +258,7 @@ export function ModelSelector({
 	className,
 }: ModelSelectorProps) {
 	const [open, setOpen] = useState(false);
-	const [activeTab, setActiveTab] = useState<"llm" | "image" | "vision">(
-		"llm",
-	);
+	const [activeTab, setActiveTab] = useState<"llm" | "image" | "vision">("llm");
 	const [searchQuery, setSearchQuery] = useState("");
 	const [selectedProvider, setSelectedProvider] = useState<string>("all");
 	const [focusedIndex, setFocusedIndex] = useState(-1);
@@ -292,18 +276,21 @@ export function ModelSelector({
 		setModelScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
 	}, []);
 
-	const handleSidebarScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-		const el = e.currentTarget;
-		if (isMobile) {
-			const atStart = el.scrollLeft <= 2;
-			const atEnd = el.scrollWidth - el.scrollLeft - el.clientWidth <= 2;
-			setSidebarScrollPos(atStart ? "top" : atEnd ? "bottom" : "middle");
-		} else {
-			const atTop = el.scrollTop <= 2;
-			const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
-			setSidebarScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
-		}
-	}, [isMobile]);
+	const handleSidebarScroll = useCallback(
+		(e: React.UIEvent<HTMLDivElement>) => {
+			const el = e.currentTarget;
+			if (isMobile) {
+				const atStart = el.scrollLeft <= 2;
+				const atEnd = el.scrollWidth - el.scrollLeft - el.clientWidth <= 2;
+				setSidebarScrollPos(atStart ? "top" : atEnd ? "bottom" : "middle");
+			} else {
+				const atTop = el.scrollTop <= 2;
+				const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
+				setSidebarScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+			}
+		},
+		[isMobile]
+	);
 
 	// Reset search + provider when tab changes
 	// biome-ignore lint/correctness/useExhaustiveDependencies: activeTab is intentionally used as a trigger
@@ -344,22 +331,18 @@ export function ModelSelector({
 	}, [open, isMobile, activeTab]);
 
 	// ─── Data ───
-	const { data: llmUserConfigs, isLoading: llmUserLoading } =
-		useAtomValue(newLLMConfigsAtom);
+	const { data: llmUserConfigs, isLoading: llmUserLoading } = useAtomValue(newLLMConfigsAtom);
 	const { data: llmGlobalConfigs, isLoading: llmGlobalLoading } =
 		useAtomValue(globalNewLLMConfigsAtom);
-	const { data: preferences, isLoading: prefsLoading } =
-		useAtomValue(llmPreferencesAtom);
+	const { data: preferences, isLoading: prefsLoading } = useAtomValue(llmPreferencesAtom);
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
-	const { mutateAsync: updatePreferences } = useAtomValue(
-		updateLLMPreferencesMutationAtom,
-	);
+	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
 	const { data: imageGlobalConfigs, isLoading: imageGlobalLoading } =
 		useAtomValue(globalImageGenConfigsAtom);
-	const { data: imageUserConfigs, isLoading: imageUserLoading } =
-		useAtomValue(imageGenConfigsAtom);
-	const { data: visionGlobalConfigs, isLoading: visionGlobalLoading } =
-		useAtomValue(globalVisionLLMConfigsAtom);
+	const { data: imageUserConfigs, isLoading: imageUserLoading } = useAtomValue(imageGenConfigsAtom);
+	const { data: visionGlobalConfigs, isLoading: visionGlobalLoading } = useAtomValue(
+		globalVisionLLMConfigsAtom
+	);
 	const { data: visionUserConfigs, isLoading: visionUserLoading } =
 		useAtomValue(visionLLMConfigsAtom);
 
@@ -382,9 +365,7 @@ export function ModelSelector({
 	}, [preferences, llmGlobalConfigs, llmUserConfigs]);
 
 	const isLLMAutoMode =
-		currentLLMConfig &&
-		"is_auto_mode" in currentLLMConfig &&
-		currentLLMConfig.is_auto_mode;
+		currentLLMConfig && "is_auto_mode" in currentLLMConfig && currentLLMConfig.is_auto_mode;
 
 	const currentImageConfig = useMemo(() => {
 		if (!preferences) return null;
@@ -398,9 +379,7 @@ export function ModelSelector({
 	}, [preferences, imageGlobalConfigs, imageUserConfigs]);
 
 	const isImageAutoMode =
-		currentImageConfig &&
-		"is_auto_mode" in currentImageConfig &&
-		currentImageConfig.is_auto_mode;
+		currentImageConfig && "is_auto_mode" in currentImageConfig && currentImageConfig.is_auto_mode;
 
 	const currentVisionConfig = useMemo(() => {
 		if (!preferences) return null;
@@ -420,83 +399,47 @@ export function ModelSelector({
 
 	// ─── Filtered configs (separate global / user for section headers) ───
 	const filteredLLMGlobal = useMemo(
-		() =>
-			filterAndScore(llmGlobalConfigs ?? [], selectedProvider, searchQuery),
-		[llmGlobalConfigs, selectedProvider, searchQuery],
+		() => filterAndScore(llmGlobalConfigs ?? [], selectedProvider, searchQuery),
+		[llmGlobalConfigs, selectedProvider, searchQuery]
 	);
 	const filteredLLMUser = useMemo(
-		() =>
-			filterAndScore(llmUserConfigs ?? [], selectedProvider, searchQuery),
-		[llmUserConfigs, selectedProvider, searchQuery],
+		() => filterAndScore(llmUserConfigs ?? [], selectedProvider, searchQuery),
+		[llmUserConfigs, selectedProvider, searchQuery]
 	);
 	const filteredImageGlobal = useMemo(
-		() =>
-			filterAndScore(
-				imageGlobalConfigs ?? [],
-				selectedProvider,
-				searchQuery,
-			),
-		[imageGlobalConfigs, selectedProvider, searchQuery],
+		() => filterAndScore(imageGlobalConfigs ?? [], selectedProvider, searchQuery),
+		[imageGlobalConfigs, selectedProvider, searchQuery]
 	);
 	const filteredImageUser = useMemo(
-		() =>
-			filterAndScore(
-				imageUserConfigs ?? [],
-				selectedProvider,
-				searchQuery,
-			),
-		[imageUserConfigs, selectedProvider, searchQuery],
+		() => filterAndScore(imageUserConfigs ?? [], selectedProvider, searchQuery),
+		[imageUserConfigs, selectedProvider, searchQuery]
 	);
 	const filteredVisionGlobal = useMemo(
-		() =>
-			filterAndScore(
-				visionGlobalConfigs ?? [],
-				selectedProvider,
-				searchQuery,
-			),
-		[visionGlobalConfigs, selectedProvider, searchQuery],
+		() => filterAndScore(visionGlobalConfigs ?? [], selectedProvider, searchQuery),
+		[visionGlobalConfigs, selectedProvider, searchQuery]
 	);
 	const filteredVisionUser = useMemo(
-		() =>
-			filterAndScore(
-				visionUserConfigs ?? [],
-				selectedProvider,
-				searchQuery,
-			),
-		[visionUserConfigs, selectedProvider, searchQuery],
+		() => filterAndScore(visionUserConfigs ?? [], selectedProvider, searchQuery),
+		[visionUserConfigs, selectedProvider, searchQuery]
 	);
 
 	// Combined display list for keyboard navigation
 	const currentDisplayItems: DisplayItem[] = useMemo(() => {
-		const toItems = (
-			configs: ConfigBase[],
-			isGlobal: boolean,
-		): DisplayItem[] =>
+		const toItems = (configs: ConfigBase[], isGlobal: boolean): DisplayItem[] =>
 			configs.map((c) => ({
 				config: c as ConfigBase & Record<string, unknown>,
 				isGlobal,
 				isAutoMode:
-					isGlobal &&
-					"is_auto_mode" in c &&
-					!!(c as Record<string, unknown>).is_auto_mode,
+					isGlobal && "is_auto_mode" in c && !!(c as Record<string, unknown>).is_auto_mode,
 			}));
 
 		switch (activeTab) {
 			case "llm":
-				return [
-					...toItems(filteredLLMGlobal, true),
-					...toItems(filteredLLMUser, false),
-				];
+				return [...toItems(filteredLLMGlobal, true), ...toItems(filteredLLMUser, false)];
 			case "image":
-				return [
-					...toItems(filteredImageGlobal, true),
-					...toItems(filteredImageUser, false),
-				];
+				return [...toItems(filteredImageGlobal, true), ...toItems(filteredImageUser, false)];
 			case "vision":
-				return [
-					...toItems(filteredVisionGlobal, true),
-					...toItems(filteredVisionUser, false),
-				];
+				return [...toItems(filteredVisionGlobal, true), ...toItems(filteredVisionUser, false)];
 		}
 	}, [
 		activeTab,
@@ -513,19 +456,10 @@ export function ModelSelector({
 	const configuredProviderSet = useMemo(() => {
 		const configs =
 			activeTab === "llm"
-				? [
-						...(llmGlobalConfigs ?? []),
-						...(llmUserConfigs ?? []),
-					]
+				? [...(llmGlobalConfigs ?? []), ...(llmUserConfigs ?? [])]
 				: activeTab === "image"
-					? [
-							...(imageGlobalConfigs ?? []),
-							...(imageUserConfigs ?? []),
-						]
-					: [
-							...(visionGlobalConfigs ?? []),
-							...(visionUserConfigs ?? []),
-						];
+					? [...(imageGlobalConfigs ?? []), ...(imageUserConfigs ?? [])]
+					: [...(visionGlobalConfigs ?? []), ...(visionUserConfigs ?? [])];
 		const set = new Set<string>();
 		for (const c of configs) {
 			if (c.provider) set.add(c.provider.toUpperCase());
@@ -544,31 +478,18 @@ export function ModelSelector({
 	// Show only providers valid for the active tab; configured ones first
 	const activeProviders = useMemo(() => {
 		const tabKeys = PROVIDER_KEYS_BY_TAB[activeTab] ?? LLM_PROVIDER_KEYS;
-		const configured = tabKeys.filter((p) =>
-			configuredProviderSet.has(p),
-		);
-		const unconfigured = tabKeys.filter(
-			(p) => !configuredProviderSet.has(p),
-		);
+		const configured = tabKeys.filter((p) => configuredProviderSet.has(p));
+		const unconfigured = tabKeys.filter((p) => !configuredProviderSet.has(p));
 		return ["all", ...configured, ...unconfigured];
 	}, [activeTab, configuredProviderSet]);
 
 	const providerModelCounts = useMemo(() => {
 		const allConfigs =
 			activeTab === "llm"
-				? [
-						...(llmGlobalConfigs ?? []),
-						...(llmUserConfigs ?? []),
-					]
+				? [...(llmGlobalConfigs ?? []), ...(llmUserConfigs ?? [])]
 				: activeTab === "image"
-					? [
-							...(imageGlobalConfigs ?? []),
-							...(imageUserConfigs ?? []),
-						]
-					: [
-							...(visionGlobalConfigs ?? []),
-							...(visionUserConfigs ?? []),
-						];
+					? [...(imageGlobalConfigs ?? []), ...(imageUserConfigs ?? [])]
+					: [...(visionGlobalConfigs ?? []), ...(visionUserConfigs ?? [])];
 		const counts: Record<string, number> = { all: allConfigs.length };
 		for (const c of allConfigs) {
 			const p = c.provider.toUpperCase();
@@ -607,7 +528,7 @@ export function ModelSelector({
 				toast.error("Failed to switch model");
 			}
 		},
-		[currentLLMConfig, searchSpaceId, updatePreferences],
+		[currentLLMConfig, searchSpaceId, updatePreferences]
 	);
 
 	const handleSelectImage = useCallback(
@@ -631,7 +552,7 @@ export function ModelSelector({
 				toast.error("Failed to switch image model");
 			}
 		},
-		[currentImageConfig, searchSpaceId, updatePreferences],
+		[currentImageConfig, searchSpaceId, updatePreferences]
 	);
 
 	const handleSelectVision = useCallback(
@@ -655,16 +576,14 @@ export function ModelSelector({
 				toast.error("Failed to switch vision model");
 			}
 		},
-		[currentVisionConfig, searchSpaceId, updatePreferences],
+		[currentVisionConfig, searchSpaceId, updatePreferences]
 	);
 
 	const handleSelectItem = useCallback(
 		(item: DisplayItem) => {
 			switch (activeTab) {
 				case "llm":
-					handleSelectLLM(
-						item.config as NewLLMConfigPublic | GlobalNewLLMConfig,
-					);
+					handleSelectLLM(item.config as NewLLMConfigPublic | GlobalNewLLMConfig);
 					break;
 				case "image":
 					handleSelectImage(item.config.id);
@@ -674,7 +593,7 @@ export function ModelSelector({
 					break;
 			}
 		},
-		[activeTab, handleSelectLLM, handleSelectImage, handleSelectVision],
+		[activeTab, handleSelectLLM, handleSelectImage, handleSelectVision]
 	);
 
 	const handleEditItem = useCallback(
@@ -683,26 +602,17 @@ export function ModelSelector({
 			setOpen(false);
 			switch (activeTab) {
 				case "llm":
-					onEditLLM(
-						item.config as NewLLMConfigPublic | GlobalNewLLMConfig,
-						item.isGlobal,
-					);
+					onEditLLM(item.config as NewLLMConfigPublic | GlobalNewLLMConfig, item.isGlobal);
 					break;
 				case "image":
-					onEditImage?.(
-						item.config as ImageGenerationConfig | GlobalImageGenConfig,
-						item.isGlobal,
-					);
+					onEditImage?.(item.config as ImageGenerationConfig | GlobalImageGenConfig, item.isGlobal);
 					break;
 				case "vision":
-					onEditVision?.(
-						item.config as VisionLLMConfig | GlobalVisionLLMConfig,
-						item.isGlobal,
-					);
+					onEditVision?.(item.config as VisionLLMConfig | GlobalVisionLLMConfig, item.isGlobal);
 					break;
 			}
 		},
-		[activeTab, onEditLLM, onEditImage, onEditVision],
+		[activeTab, onEditLLM, onEditImage, onEditVision]
 	);
 
 	// ─── Keyboard navigation ───
@@ -713,8 +623,7 @@ export function ModelSelector({
 
 	useEffect(() => {
 		if (focusedIndex < 0 || !modelListRef.current) return;
-		const items =
-			modelListRef.current.querySelectorAll("[data-model-index]");
+		const items = modelListRef.current.querySelectorAll("[data-model-index]");
 		items[focusedIndex]?.scrollIntoView({
 			block: "nearest",
 			behavior: "smooth",
@@ -734,13 +643,11 @@ export function ModelSelector({
 				if (e.key === "ArrowLeft") {
 					next = idx > 0 ? idx - 1 : providers.length - 1;
 				} else {
-					next =
-						idx < providers.length - 1 ? idx + 1 : 0;
+					next = idx < providers.length - 1 ? idx + 1 : 0;
 				}
 				setSelectedProvider(providers[next]);
 				if (providerSidebarRef.current) {
-					const buttons =
-						providerSidebarRef.current.querySelectorAll("button");
+					const buttons = providerSidebarRef.current.querySelectorAll("button");
 					buttons[next]?.scrollIntoView({
 						block: "nearest",
 						inline: "nearest",
@@ -755,15 +662,11 @@ export function ModelSelector({
 			switch (e.key) {
 				case "ArrowDown":
 					e.preventDefault();
-					setFocusedIndex((prev) =>
-						prev < count - 1 ? prev + 1 : 0,
-					);
+					setFocusedIndex((prev) => (prev < count - 1 ? prev + 1 : 0));
 					break;
 				case "ArrowUp":
 					e.preventDefault();
-					setFocusedIndex((prev) =>
-						prev > 0 ? prev - 1 : count - 1,
-					);
+					setFocusedIndex((prev) => (prev > 0 ? prev - 1 : count - 1));
 					break;
 				case "Enter":
 					e.preventDefault();
@@ -781,13 +684,7 @@ export function ModelSelector({
 					break;
 			}
 		},
-		[
-			currentDisplayItems,
-			focusedIndex,
-			activeProviders,
-			selectedProvider,
-			handleSelectItem,
-		],
+		[currentDisplayItems, focusedIndex, activeProviders, selectedProvider, handleSelectItem]
 	);
 
 	// ─── Render: Provider sidebar ───
@@ -798,7 +695,7 @@ export function ModelSelector({
 			<div
 				className={cn(
 					"shrink-0 border-border/50 flex",
-					isMobile ? "flex-row items-center border-b border-border/40" : "flex-col w-10 border-r",
+					isMobile ? "flex-row items-center border-b border-border/40" : "flex-col w-10 border-r"
 				)}
 			>
 				{!isMobile && sidebarScrollPos !== "top" && (
@@ -817,29 +714,29 @@ export function ModelSelector({
 					className={cn(
 						isMobile
 							? "flex flex-row gap-0.5 px-1 py-1.5 overflow-x-auto [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar-track]:bg-transparent"
-							: "flex flex-col gap-0.5 p-1 overflow-y-auto flex-1 [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent",
+							: "flex flex-col gap-0.5 p-1 overflow-y-auto flex-1 [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent"
 					)}
-					style={isMobile ? {
-						maskImage: `linear-gradient(to right, ${sidebarScrollPos === "top" ? "black" : "transparent"}, black 24px, black calc(100% - 24px), ${sidebarScrollPos === "bottom" ? "black" : "transparent"})`,
-						WebkitMaskImage: `linear-gradient(to right, ${sidebarScrollPos === "top" ? "black" : "transparent"}, black 24px, black calc(100% - 24px), ${sidebarScrollPos === "bottom" ? "black" : "transparent"})`,
-					} : {
-						maskImage: `linear-gradient(to bottom, ${sidebarScrollPos === "top" ? "black" : "transparent"}, black 32px, black calc(100% - 32px), ${sidebarScrollPos === "bottom" ? "black" : "transparent"})`,
-						WebkitMaskImage: `linear-gradient(to bottom, ${sidebarScrollPos === "top" ? "black" : "transparent"}, black 32px, black calc(100% - 32px), ${sidebarScrollPos === "bottom" ? "black" : "transparent"})`,
-					}}
+					style={
+						isMobile
+							? {
+									maskImage: `linear-gradient(to right, ${sidebarScrollPos === "top" ? "black" : "transparent"}, black 24px, black calc(100% - 24px), ${sidebarScrollPos === "bottom" ? "black" : "transparent"})`,
+									WebkitMaskImage: `linear-gradient(to right, ${sidebarScrollPos === "top" ? "black" : "transparent"}, black 24px, black calc(100% - 24px), ${sidebarScrollPos === "bottom" ? "black" : "transparent"})`,
+								}
+							: {
+									maskImage: `linear-gradient(to bottom, ${sidebarScrollPos === "top" ? "black" : "transparent"}, black 32px, black calc(100% - 32px), ${sidebarScrollPos === "bottom" ? "black" : "transparent"})`,
+									WebkitMaskImage: `linear-gradient(to bottom, ${sidebarScrollPos === "top" ? "black" : "transparent"}, black 32px, black calc(100% - 32px), ${sidebarScrollPos === "bottom" ? "black" : "transparent"})`,
+								}
+					}
 				>
 					{activeProviders.map((provider, idx) => {
 						const isAll = provider === "all";
 						const isActive = selectedProvider === provider;
 						const count = providerModelCounts[provider] || 0;
-						const isConfigured =
-							isAll || configuredProviderSet.has(provider);
+						const isConfigured = isAll || configuredProviderSet.has(provider);
 
 						// Separator between configured and unconfigured providers
 						// idx 0 is "all", configured run from 1..configuredCount, unconfigured start at configuredCount+1
-						const showSeparator =
-							!isAll &&
-							idx === configuredCount + 1 &&
-							configuredCount > 0;
+						const showSeparator = !isAll && idx === configuredCount + 1 && configuredCount > 0;
 
 						return (
 							<Fragment key={provider}>
@@ -853,20 +750,16 @@ export function ModelSelector({
 									<TooltipTrigger asChild>
 										<button
 											type="button"
-											onClick={() =>
-												setSelectedProvider(provider)
-											}
+											onClick={() => setSelectedProvider(provider)}
 											tabIndex={-1}
 											className={cn(
 												"relative flex items-center justify-center rounded-md transition-all duration-150",
-												isMobile
-													? "p-2 shrink-0"
-													: "p-1.5 w-full",
+												isMobile ? "p-2 shrink-0" : "p-1.5 w-full",
 												isActive
 													? "bg-primary/10 text-primary"
 													: isConfigured
 														? "hover:bg-accent/60 text-muted-foreground hover:text-foreground"
-														: "opacity-50 hover:opacity-80 hover:bg-accent/40 text-muted-foreground",
+														: "opacity-50 hover:opacity-80 hover:bg-accent/40 text-muted-foreground"
 											)}
 										>
 											{isAll ? (
@@ -878,19 +771,9 @@ export function ModelSelector({
 											)}
 										</button>
 									</TooltipTrigger>
-									<TooltipContent
-										side={
-											isMobile ? "bottom" : "right"
-										}
-									>
-										{isAll
-											? "All Models"
-											: formatProviderName(
-													provider,
-												)}
-										{isConfigured
-											? ` (${count})`
-											: " (not configured)"}
+									<TooltipContent side={isMobile ? "bottom" : "right"}>
+										{isAll ? "All Models" : formatProviderName(provider)}
+										{isConfigured ? ` (${count})` : " (not configured)"}
 									</TooltipContent>
 								</Tooltip>
 							</Fragment>
@@ -927,8 +810,7 @@ export function ModelSelector({
 		const { config, isAutoMode } = item;
 		const isSelected = getSelectedId() === config.id;
 		const isFocused = focusedIndex === index;
-		const hasCitations =
-			"citations_enabled" in config && !!config.citations_enabled;
+		const hasCitations = "citations_enabled" in config && !!config.citations_enabled;
 
 		return (
 			<div
@@ -938,19 +820,23 @@ export function ModelSelector({
 				tabIndex={isMobile ? -1 : 0}
 				aria-selected={isSelected}
 				onClick={() => handleSelectItem(item)}
-				onKeyDown={isMobile ? undefined : (e) => {
-					if (e.key === "Enter" || e.key === " ") {
-						e.preventDefault();
-						handleSelectItem(item);
-					}
-				}}
+				onKeyDown={
+					isMobile
+						? undefined
+						: (e) => {
+								if (e.key === "Enter" || e.key === " ") {
+									e.preventDefault();
+									handleSelectItem(item);
+								}
+							}
+				}
 				onMouseEnter={() => setFocusedIndex(index)}
 				className={cn(
 					"group flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer",
 					"transition-all duration-150 mx-2",
 					"hover:bg-accent/40",
 					isSelected && "bg-primary/6 dark:bg-primary/8",
-					isFocused && "bg-accent/50",
+					isFocused && "bg-accent/50"
 				)}
 			>
 				{/* Provider icon */}
@@ -964,9 +850,7 @@ export function ModelSelector({
 				{/* Model info */}
 				<div className="flex-1 min-w-0">
 					<div className="flex items-center gap-1.5">
-						<span className="font-medium text-sm truncate">
-							{config.name}
-						</span>
+						<span className="font-medium text-sm truncate">{config.name}</span>
 						{isAutoMode && (
 							<Badge
 								variant="secondary"
@@ -978,9 +862,7 @@ export function ModelSelector({
 					</div>
 					<div className="flex items-center gap-1.5 mt-0.5">
 						<span className="text-xs text-muted-foreground truncate">
-							{isAutoMode
-								? "Auto Mode"
-								: (config.model_name as string)}
+							{isAutoMode ? "Auto Mode" : (config.model_name as string)}
 						</span>
 						{!isAutoMode && hasCitations && (
 							<Badge
@@ -1005,9 +887,7 @@ export function ModelSelector({
 							<Edit3 className="size-3.5 text-muted-foreground" />
 						</Button>
 					)}
-					{isSelected && (
-						<Check className="size-4 text-primary shrink-0" />
-					)}
+					{isSelected && <Check className="size-4 text-primary shrink-0" />}
 				</div>
 			</div>
 		);
@@ -1021,11 +901,7 @@ export function ModelSelector({
 		const userStartIdx = globalItems.length;
 
 		const addHandler =
-			activeTab === "llm"
-				? onAddNewLLM
-				: activeTab === "image"
-					? onAddNewImage
-					: onAddNewVision;
+			activeTab === "llm" ? onAddNewLLM : activeTab === "image" ? onAddNewImage : onAddNewVision;
 		const addLabel =
 			activeTab === "llm"
 				? "Add Model"
@@ -1065,7 +941,7 @@ export function ModelSelector({
 									"flex items-center justify-center gap-1.5 text-sm font-medium transition-all duration-200 border-b-[1.5px]",
 									activeTab === value
 										? "border-foreground dark:border-white text-foreground"
-										: "border-transparent text-muted-foreground hover:text-foreground/70",
+										: "border-transparent text-muted-foreground hover:text-foreground/70"
 								)}
 							>
 								<Icon className="size-3.5" />
@@ -1076,14 +952,7 @@ export function ModelSelector({
 				</div>
 
 				{/* Two-pane layout */}
-				<div
-					className={cn(
-						"flex",
-						isMobile
-							? "flex-col h-[60vh]"
-							: "flex-row h-[380px]",
-					)}
-				>
+				<div className={cn("flex", isMobile ? "flex-col h-[60vh]" : "flex-row h-[380px]")}>
 					{/* Provider sidebar */}
 					{renderProviderSidebar()}
 
@@ -1096,9 +965,7 @@ export function ModelSelector({
 								ref={searchInputRef}
 								placeholder="Search models"
 								value={searchQuery}
-								onChange={(e) =>
-									setSearchQuery(e.target.value)
-								}
+								onChange={(e) => setSearchQuery(e.target.value)}
 								onKeyDown={isMobile ? undefined : handleKeyDown}
 								role="combobox"
 								aria-expanded={true}
@@ -1106,7 +973,7 @@ export function ModelSelector({
 								className={cn(
 									"w-full pl-8 pr-3 py-2.5 text-sm bg-transparent",
 									"focus:outline-none",
-									"placeholder:text-muted-foreground",
+									"placeholder:text-muted-foreground"
 								)}
 							/>
 						</div>
@@ -1117,13 +984,9 @@ export function ModelSelector({
 								{getProviderIcon(selectedProvider, {
 									className: "size-4",
 								})}
-								<span className="text-sm font-medium">
-									{formatProviderName(selectedProvider)}
-								</span>
+								<span className="text-sm font-medium">{formatProviderName(selectedProvider)}</span>
 								<span className="text-xs text-muted-foreground ml-auto">
-									{configuredProviderSet.has(
-										selectedProvider,
-									)
+									{configuredProviderSet.has(selectedProvider)
 										? `${providerModelCounts[selectedProvider] || 0} models`
 										: "Not configured"}
 								</span>
@@ -1144,30 +1007,18 @@ export function ModelSelector({
 						>
 							{currentDisplayItems.length === 0 ? (
 								<div className="flex-1 flex flex-col items-center justify-center gap-3 px-4">
-									{selectedProvider !== "all" &&
-									!configuredProviderSet.has(
-										selectedProvider,
-									) ? (
+									{selectedProvider !== "all" && !configuredProviderSet.has(selectedProvider) ? (
 										<>
 											<div className="opacity-40">
-												{getProviderIcon(
-													selectedProvider,
-													{
-														className:
-															"size-10",
-													},
-												)}
+												{getProviderIcon(selectedProvider, {
+													className: "size-10",
+												})}
 											</div>
 											<p className="text-sm font-medium text-muted-foreground">
-												No{" "}
-												{formatProviderName(
-													selectedProvider,
-												)}{" "}
-												models configured
+												No {formatProviderName(selectedProvider)} models configured
 											</p>
 											<p className="text-xs text-muted-foreground/60 text-center">
-												Add a model with this
-												provider to get started
+												Add a model with this provider to get started
 											</p>
 											{addHandler && (
 												<Button
@@ -1186,12 +1037,9 @@ export function ModelSelector({
 									) : searchQuery ? (
 										<>
 											<Search className="size-8 text-muted-foreground" />
-											<p className="text-sm text-muted-foreground">
-												No models found
-											</p>
+											<p className="text-sm text-muted-foreground">No models found</p>
 											<p className="text-xs text-muted-foreground/60">
-												Try a different search
-												term
+												Try a different search term
 											</p>
 										</>
 									) : (
@@ -1212,29 +1060,18 @@ export function ModelSelector({
 											<div className="flex items-center gap-2 px-3 py-1.5 text-[12px] font-semibold text-muted-foreground tracking-wider">
 												Global Models
 											</div>
-											{globalItems.map((item, i) =>
-												renderModelCard(
-													item,
-													globalStartIdx + i,
-												),
-											)}
+											{globalItems.map((item, i) => renderModelCard(item, globalStartIdx + i))}
 										</>
 									)}
-									{globalItems.length > 0 &&
-										userItems.length > 0 && (
-											<div className="my-1.5 mx-4 h-px bg-border/60" />
-										)}
+									{globalItems.length > 0 && userItems.length > 0 && (
+										<div className="my-1.5 mx-4 h-px bg-border/60" />
+									)}
 									{userItems.length > 0 && (
 										<>
 											<div className="flex items-center gap-2 px-3 py-1.5 text-[12px] font-semibold text-muted-foreground tracking-wider">
 												Your Configurations
 											</div>
-											{userItems.map((item, i) =>
-												renderModelCard(
-													item,
-													userStartIdx + i,
-												),
-											)}
+											{userItems.map((item, i) => renderModelCard(item, userStartIdx + i))}
 										</>
 									)}
 								</>
@@ -1254,9 +1091,7 @@ export function ModelSelector({
 									}}
 								>
 									<Plus className="size-4 text-primary" />
-									<span className="text-sm font-medium">
-										{addLabel}
-									</span>
+									<span className="text-sm font-medium">{addLabel}</span>
 								</Button>
 							</div>
 						)}
@@ -1275,18 +1110,13 @@ export function ModelSelector({
 			aria-expanded={open}
 			className={cn(
 				"h-8 gap-2 px-3 text-sm bg-main-panel hover:bg-accent/50 dark:hover:bg-white/[0.06] border border-border/40 select-none",
-				className,
+				className
 			)}
 		>
 			{isLoading ? (
 				<>
-					<Spinner
-						size="sm"
-						className="text-muted-foreground"
-					/>
-					<span className="text-muted-foreground hidden md:inline">
-						Loading
-					</span>
+					<Spinner size="sm" className="text-muted-foreground" />
+					<span className="text-muted-foreground hidden md:inline">Loading</span>
 				</>
 			) : (
 				<>
@@ -1303,9 +1133,7 @@ export function ModelSelector({
 					) : (
 						<>
 							<Bot className="size-4 text-muted-foreground" />
-							<span className="text-muted-foreground hidden md:inline">
-								Select Model
-							</span>
+							<span className="text-muted-foreground hidden md:inline">Select Model</span>
 						</>
 					)}
 					<div className="h-4 w-px bg-border/60 dark:bg-white/10 mx-0.5" />
@@ -1352,9 +1180,7 @@ export function ModelSelector({
 					<DrawerHeader className="pb-0">
 						<DrawerTitle>Select Model</DrawerTitle>
 					</DrawerHeader>
-					<div className="flex-1 overflow-hidden">
-						{renderContent()}
-					</div>
+					<div className="flex-1 overflow-hidden">{renderContent()}</div>
 				</DrawerContent>
 			</Drawer>
 		);

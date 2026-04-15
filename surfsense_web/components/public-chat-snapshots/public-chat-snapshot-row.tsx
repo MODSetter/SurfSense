@@ -80,9 +80,7 @@ export function PublicChatSnapshotRow({
 								size="icon"
 								className={cn(
 									"absolute right-0 h-6 w-6 shrink-0 hover:bg-transparent",
-									dropdownOpen
-										? "opacity-100"
-										: "sm:opacity-0 sm:group-hover:opacity-100"
+									dropdownOpen ? "opacity-100" : "sm:opacity-0 sm:group-hover:opacity-100"
 								)}
 							>
 								<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
@@ -100,10 +98,7 @@ export function PublicChatSnapshotRow({
 								</a>
 							</DropdownMenuItem>
 							{canDelete && (
-								<DropdownMenuItem
-									onClick={() => onDelete(snapshot)}
-									disabled={isDeleting}
-								>
+								<DropdownMenuItem onClick={() => onDelete(snapshot)} disabled={isDeleting}>
 									<Trash2 className="mr-2 h-4 w-4" />
 									Delete
 								</DropdownMenuItem>

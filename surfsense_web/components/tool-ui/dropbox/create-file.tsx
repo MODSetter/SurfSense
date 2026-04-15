@@ -16,8 +16,8 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
+import type { HitlDecision, InterruptResult } from "@/lib/hitl";
 import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
-import type { InterruptResult, HitlDecision } from "@/lib/hitl";
 
 interface DropboxAccount {
 	id: number;
@@ -36,7 +36,7 @@ type DropboxCreateFileContext = {
 	parent_folders?: Record<number, Array<{ folder_path: string; name: string }>>;
 	supported_types?: SupportedType[];
 	error?: string;
-}
+};
 
 interface SuccessResult {
 	status: "success";
@@ -57,7 +57,11 @@ interface AuthErrorResult {
 	connector_type?: string;
 }
 
-type CreateDropboxFileResult = InterruptResult<DropboxCreateFileContext> | SuccessResult | ErrorResult | AuthErrorResult;
+type CreateDropboxFileResult =
+	| InterruptResult<DropboxCreateFileContext>
+	| SuccessResult
+	| ErrorResult
+	| AuthErrorResult;
 
 function isErrorResult(result: unknown): result is ErrorResult {
 	return (

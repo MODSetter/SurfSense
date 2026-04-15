@@ -10,8 +10,8 @@ import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
-    name: string;
-    link: string;
+	name: string;
+	link: string;
 }
 
 interface NavbarProps {
@@ -20,15 +20,15 @@ interface NavbarProps {
 }
 
 interface DesktopNavProps {
-    navItems: NavItem[];
-    isScrolled: boolean;
-    scrolledBgClassName?: string;
+	navItems: NavItem[];
+	isScrolled: boolean;
+	scrolledBgClassName?: string;
 }
 
 interface MobileNavProps {
-    navItems: NavItem[];
-    isScrolled: boolean;
-    scrolledBgClassName?: string;
+	navItems: NavItem[];
+	isScrolled: boolean;
+	scrolledBgClassName?: string;
 }
 
 export const Navbar = ({ scrolledBgClassName }: NavbarProps = {}) => {

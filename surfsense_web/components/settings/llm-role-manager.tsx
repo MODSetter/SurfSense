@@ -6,10 +6,10 @@ import {
 	Bot,
 	CircleCheck,
 	CircleDashed,
-	ScanEye,
 	FileText,
 	ImageIcon,
 	RefreshCw,
+	ScanEye,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";

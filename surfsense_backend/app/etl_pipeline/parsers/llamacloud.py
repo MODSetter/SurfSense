@@ -16,8 +16,15 @@ from app.etl_pipeline.constants import (
     calculate_upload_timeout,
 )
 
+LLAMA_TIER_BY_MODE = {
+    "basic": "cost_effective",
+    "premium": "agentic_plus",
+}
 
-async def parse_with_llamacloud(file_path: str, estimated_pages: int) -> str:
+
+async def parse_with_llamacloud(
+    file_path: str, estimated_pages: int, processing_mode: str = "basic"
+) -> str:
     from llama_cloud_services import LlamaParse
     from llama_cloud_services.parse.utils import ResultType
 
@@ -34,10 +41,12 @@ async def parse_with_llamacloud(file_path: str, estimated_pages: int) -> str:
         pool=120.0,
     )
 
+    tier = LLAMA_TIER_BY_MODE.get(processing_mode, "cost_effective")
+
     logging.info(
         f"LlamaCloud upload configured: file_size={file_size_mb:.1f}MB, "
         f"pages={estimated_pages}, upload_timeout={upload_timeout:.0f}s, "
-        f"job_timeout={job_timeout:.0f}s"
+        f"job_timeout={job_timeout:.0f}s, tier={tier} (mode={processing_mode})"
     )
 
     last_exception = None
@@ -56,6 +65,7 @@ async def parse_with_llamacloud(file_path: str, estimated_pages: int) -> str:
                     job_timeout_in_seconds=job_timeout,
                     job_timeout_extra_time_per_page_in_seconds=PER_PAGE_JOB_TIMEOUT,
                     custom_client=custom_client,
+                    tier=tier,
                 )
                 result = await parser.aparse(file_path)
 

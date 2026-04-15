@@ -10,9 +10,7 @@ import type { HitlDecision } from "./types";
 
 export function useHitlDecision() {
 	const dispatch = useCallback((decisions: HitlDecision[]) => {
-		window.dispatchEvent(
-			new CustomEvent("hitl-decision", { detail: { decisions } }),
-		);
+		window.dispatchEvent(new CustomEvent("hitl-decision", { detail: { decisions } }));
 	}, []);
 
 	return { dispatch };

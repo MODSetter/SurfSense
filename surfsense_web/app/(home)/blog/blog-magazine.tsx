@@ -1,10 +1,10 @@
 "use client";
 
-import { Container } from "@/components/container";
 import { format } from "date-fns";
+import FuzzySearch from "fuzzy-search";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import FuzzySearch from "fuzzy-search";
+import { Container } from "@/components/container";
 import type { BlogEntry } from "./page";
 
 function truncate(text: string, length: number) {
@@ -24,8 +24,10 @@ function SearchIcon({ className }: { className?: string }) {
 			strokeWidth="2"
 			strokeLinecap="round"
 			strokeLinejoin="round"
-			aria-hidden
+			aria-hidden="true"
+			role="img"
 		>
+			<title>Search</title>
 			<circle cx="11" cy="11" r="8" />
 			<path d="m21 21-4.3-4.3" />
 		</svg>
@@ -100,9 +102,7 @@ function MagazineFeatured({ blog }: { blog: BlogEntry }) {
 							{blog.author}
 						</span>
 						<span className="text-white/50">·</span>
-						<time dateTime={blog.date}>
-							{format(new Date(blog.date), "MMMM d, yyyy")}
-						</time>
+						<time dateTime={blog.date}>{format(new Date(blog.date), "MMMM d, yyyy")}</time>
 					</div>
 				</div>
 			</div>
@@ -124,7 +124,7 @@ function MagazineSearchGrid({
 			new FuzzySearch(allBlogs, ["title", "description"], {
 				caseSensitive: false,
 			}),
-		[allBlogs],
+		[allBlogs]
 	);
 
 	const [results, setResults] = useState(allBlogs);
@@ -192,9 +192,7 @@ function MagazineCard({ blog }: { blog: BlogEntry }) {
 						className="h-full w-full object-cover transition duration-300 group-hover/card:scale-105"
 					/>
 				) : (
-					<div className="flex h-full items-center justify-center text-neutral-400">
-						No image
-					</div>
+					<div className="flex h-full items-center justify-center text-neutral-400">No image</div>
 				)}
 			</div>
 			<div className="flex flex-1 flex-col p-5">
@@ -218,9 +216,7 @@ function MagazineCard({ blog }: { blog: BlogEntry }) {
 						height={24}
 						className="h-6 w-6 rounded-full object-cover"
 					/>
-					<span className="text-xs text-neutral-600 dark:text-neutral-300">
-						{blog.author}
-					</span>
+					<span className="text-xs text-neutral-600 dark:text-neutral-300">{blog.author}</span>
 				</div>
 			</div>
 		</Link>

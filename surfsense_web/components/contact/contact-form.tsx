@@ -16,9 +16,9 @@ export function ContactFormGridWithDetails() {
 						<IconMailFilled className="h-6 w-6 text-blue-500" />
 					</FeatureIconContainer>
 				</div>
-			<h1 className="mt-9 bg-gradient-to-b from-neutral-800 to-neutral-900 bg-clip-text text-center text-xl font-bold text-transparent md:text-3xl lg:text-5xl dark:from-neutral-200 dark:to-neutral-300">
-				Contact
-			</h1>
+				<h1 className="mt-9 bg-gradient-to-b from-neutral-800 to-neutral-900 bg-clip-text text-center text-xl font-bold text-transparent md:text-3xl lg:text-5xl dark:from-neutral-200 dark:to-neutral-300">
+					Contact
+				</h1>
 				<p className="mt-8 max-w-lg text-center text-base text-neutral-600 dark:text-neutral-400">
 					We'd love to hear from you!
 				</p>

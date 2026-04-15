@@ -7,8 +7,8 @@ import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
+import type { HitlDecision, InterruptResult } from "@/lib/hitl";
 import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
-import type { InterruptResult, HitlDecision } from "@/lib/hitl";
 
 interface GoogleDriveAccount {
 	id: number;
@@ -27,7 +27,7 @@ type DriveTrashFileContext = {
 	account?: GoogleDriveAccount;
 	file?: GoogleDriveFile;
 	error?: string;
-}
+};
 
 interface SuccessResult {
 	status: "success";

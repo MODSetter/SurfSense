@@ -399,7 +399,12 @@
 		"uploading_folder": "Uploading folder…",
 		"upload_folder_button": "Upload Folder ({count} {count, plural, one {file} other {files}})",
 		"select_files_or_folder": "Select files or folder",
-		"tap_select_files_or_folder": "Tap to select files or folder"
+		"tap_select_files_or_folder": "Tap to select files or folder",
+		"processing_mode": "Processing Mode",
+		"basic_mode": "Basic",
+		"basic_mode_desc": "Standard processing (1 credit per page)",
+		"premium_mode": "Premium",
+		"premium_mode_desc": "Enhanced for financial, medical & legal docs (10 credits per page)"
 	},
 	"add_webpage": {
 		"title": "Add Webpages for Crawling",

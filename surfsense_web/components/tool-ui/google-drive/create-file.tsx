@@ -16,8 +16,8 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
+import type { HitlDecision, InterruptResult } from "@/lib/hitl";
 import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
-import type { InterruptResult, HitlDecision } from "@/lib/hitl";
 
 interface GoogleDriveAccount {
 	id: number;
@@ -30,7 +30,7 @@ type DriveCreateFileContext = {
 	supported_types?: string[];
 	parent_folders?: Record<number, Array<{ folder_id: string; name: string }>>;
 	error?: string;
-}
+};
 
 interface SuccessResult {
 	status: "success";

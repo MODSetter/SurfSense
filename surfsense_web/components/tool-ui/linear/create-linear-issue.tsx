@@ -18,8 +18,8 @@ import {
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
+import type { HitlDecision, InterruptResult } from "@/lib/hitl";
 import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
-import type { InterruptResult, HitlDecision } from "@/lib/hitl";
 
 interface LinearLabel {
 	id: string;
@@ -69,7 +69,7 @@ interface LinearWorkspace {
 type LinearCreateIssueContext = {
 	workspaces?: LinearWorkspace[];
 	error?: string;
-}
+};
 
 interface SuccessResult {
 	status: "success";
@@ -91,7 +91,11 @@ interface AuthErrorResult {
 	connector_type: string;
 }
 
-type CreateLinearIssueResult = InterruptResult<LinearCreateIssueContext> | SuccessResult | ErrorResult | AuthErrorResult;
+type CreateLinearIssueResult =
+	| InterruptResult<LinearCreateIssueContext>
+	| SuccessResult
+	| ErrorResult
+	| AuthErrorResult;
 
 function isErrorResult(result: unknown): result is ErrorResult {
 	return (

@@ -15,9 +15,9 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
-import type { InterruptResult, HitlDecision } from "@/lib/hitl";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
+import type { HitlDecision, InterruptResult } from "@/lib/hitl";
+import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
 
 interface ConfluenceAccount {
 	id: number;
@@ -36,7 +36,7 @@ type CreateConfluencePageInterruptContext = {
 	accounts?: ConfluenceAccount[];
 	spaces?: ConfluenceSpace[];
 	error?: string;
-}
+};
 
 interface SuccessResult {
 	status: "success";

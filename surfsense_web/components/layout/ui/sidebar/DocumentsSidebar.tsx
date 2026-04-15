@@ -167,7 +167,6 @@ export function DocumentsSidebar({
 		setFolderWatchOpen(true);
 	}, [setWatchInitialFolder, setFolderWatchOpen]);
 
-
 	const refreshWatchedIds = useCallback(async () => {
 		if (!electronAPI?.getWatchedFolders) return;
 		const api = electronAPI;
@@ -675,10 +674,10 @@ export function DocumentsSidebar({
 			function collectSubtreeDocs(parentId: number): DocumentNodeDoc[] {
 				const directDocs = (treeDocuments ?? []).filter(
 					(d) =>
-					d.folderId === parentId &&
-					d.status?.state !== "pending" &&
-					d.status?.state !== "processing" &&
-					d.status?.state !== "failed"
+						d.folderId === parentId &&
+						d.status?.state !== "pending" &&
+						d.status?.state !== "processing" &&
+						d.status?.state !== "failed"
 				);
 				const childFolders = foldersByParent[String(parentId)] ?? [];
 				const descendantDocs = childFolders.flatMap((cf) => collectSubtreeDocs(cf.id));
@@ -1123,16 +1122,14 @@ export function DocumentsSidebar({
 					<AlertDialogHeader>
 						<AlertDialogTitle>Enable AI File Sorting?</AlertDialogTitle>
 						<AlertDialogDescription>
-							All documents in this search space will be organized into folders by
-							connector type, date, and AI-generated categories. New documents will
-							also be sorted automatically. You can disable this at any time.
+							All documents in this search space will be organized into folders by connector type,
+							date, and AI-generated categories. New documents will also be sorted automatically.
+							You can disable this at any time.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
 						<AlertDialogCancel>Cancel</AlertDialogCancel>
-						<AlertDialogAction onClick={handleConfirmEnableAiSort}>
-							Enable
-						</AlertDialogAction>
+						<AlertDialogAction onClick={handleConfirmEnableAiSort}>Enable</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>

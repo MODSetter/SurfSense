@@ -33,11 +33,17 @@ import {
 	useAllCitationMetadata,
 } from "@/components/assistant-ui/citation-metadata-context";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { useTokenUsage } from "@/components/assistant-ui/token-usage-context";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { CommentPanelContainer } from "@/components/chat-comments/comment-panel-container/comment-panel-container";
 import { CommentSheet } from "@/components/chat-comments/comment-sheet/comment-sheet";
 import type { SerializableCitation } from "@/components/tool-ui/citation";
+import {
+	openSafeNavigationHref,
+	resolveSafeNavigationHref,
+} from "@/components/tool-ui/shared/media";
+import { Button } from "@/components/ui/button";
 import {
 	Drawer,
 	DrawerContent,
@@ -46,14 +52,11 @@ import {
 	DrawerTitle,
 } from "@/components/ui/drawer";
 import { DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
 import { useComments } from "@/hooks/use-comments";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
-import { useTokenUsage } from "@/components/assistant-ui/token-usage-context";
 import { getProviderIcon } from "@/lib/provider-icons";
 import { cn } from "@/lib/utils";
-import { openSafeNavigationHref, resolveSafeNavigationHref } from "@/components/tool-ui/shared/media";
 
 // Captured once at module load — survives client-side navigations that strip the query param.
 const IS_QUICK_ASSIST_WINDOW =
@@ -440,7 +443,11 @@ const MessageInfoDropdown: FC = () => {
 							models.map(([model, counts]) => {
 								const { name, icon } = resolveModel(model);
 								return (
-									<ActionBarMorePrimitive.Item key={model} className="focus:bg-neutral-200 dark:focus:bg-neutral-700 relative flex cursor-default flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none" onSelect={(e) => e.preventDefault()}>
+									<ActionBarMorePrimitive.Item
+										key={model}
+										className="focus:bg-neutral-200 dark:focus:bg-neutral-700 relative flex cursor-default flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none"
+										onSelect={(e) => e.preventDefault()}
+									>
 										<span className="flex items-center gap-1.5 text-xs font-medium">
 											{icon}
 											{name}
@@ -452,7 +459,10 @@ const MessageInfoDropdown: FC = () => {
 								);
 							})
 						) : (
-							<ActionBarMorePrimitive.Item className="focus:bg-neutral-200 dark:focus:bg-neutral-700 relative flex cursor-default flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none" onSelect={(e) => e.preventDefault()}>
+							<ActionBarMorePrimitive.Item
+								className="focus:bg-neutral-200 dark:focus:bg-neutral-700 relative flex cursor-default flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none"
+								onSelect={(e) => e.preventDefault()}
+							>
 								<span className="text-xs text-muted-foreground">
 									{usage.total_tokens.toLocaleString()} tokens
 								</span>

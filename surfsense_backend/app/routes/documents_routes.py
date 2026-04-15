@@ -124,6 +124,7 @@ async def create_documents_file_upload(
     search_space_id: int = Form(...),
     should_summarize: bool = Form(False),
     use_vision_llm: bool = Form(False),
+    processing_mode: str = Form("basic"),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
     dispatcher: TaskDispatcher = Depends(get_task_dispatcher),
@@ -142,11 +143,14 @@ async def create_documents_file_upload(
     from datetime import datetime
 
     from app.db import DocumentStatus
+    from app.etl_pipeline.etl_document import ProcessingMode
     from app.tasks.document_processors.base import (
         check_document_by_unique_identifier,
         get_current_timestamp,
     )
     from app.utils.document_converters import generate_unique_identifier_hash
+
+    validated_mode = ProcessingMode.coerce(processing_mode)
 
     try:
         await check_permission(
@@ -274,6 +278,7 @@ async def create_documents_file_upload(
                 user_id=str(user.id),
                 should_summarize=should_summarize,
                 use_vision_llm=use_vision_llm,
+                processing_mode=validated_mode.value,
             )
 
         return {
@@ -1493,6 +1498,7 @@ async def folder_upload(
     root_folder_id: int | None = Form(None),
     enable_summary: bool = Form(False),
     use_vision_llm: bool = Form(False),
+    processing_mode: str = Form("basic"),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
@@ -1503,6 +1509,10 @@ async def folder_upload(
     """
     import json
     import tempfile
+
+    from app.etl_pipeline.etl_document import ProcessingMode
+
+    validated_mode = ProcessingMode.coerce(processing_mode)
 
     await check_permission(
         session,
@@ -1558,6 +1568,7 @@ async def folder_upload(
         watched_metadata = {
             "watched": True,
             "folder_path": folder_name,
+            "processing_mode": validated_mode.value,
         }
         existing_root = (
             await session.execute(
@@ -1621,6 +1632,7 @@ async def folder_upload(
         enable_summary=enable_summary,
         use_vision_llm=use_vision_llm,
         file_mappings=list(file_mappings),
+        processing_mode=validated_mode.value,
     )
 
     return {

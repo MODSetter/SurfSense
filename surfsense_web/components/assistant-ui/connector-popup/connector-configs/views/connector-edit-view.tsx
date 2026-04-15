@@ -282,7 +282,10 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 									connector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" ||
 									connector.connector_type === "DROPBOX_CONNECTOR" ||
 									connector.connector_type === "ONEDRIVE_CONNECTOR") && (
-									<VisionLLMConfig enabled={enableVisionLlm} onEnabledChange={onEnableVisionLlmChange} />
+									<VisionLLMConfig
+										enabled={enableVisionLlm}
+										onEnabledChange={onEnableVisionLlmChange}
+									/>
 								)}
 
 								{/* Date range selector - not shown for file-based connectors (Drive, Dropbox, OneDrive), Webcrawler, GitHub, or Local Folder */}

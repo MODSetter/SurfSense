@@ -16,9 +16,7 @@ const FENCED_OR_INLINE_CODE = /(```[\s\S]*?```|`[^`\n]+`)/g;
 // - <!-- PageBreak --> becomes a thematic break (---)
 // - All other HTML comments are removed
 function stripHtmlComments(md: string): string {
-	return md
-		.replace(/<!--\s*PageBreak\s*-->/gi, "\n---\n")
-		.replace(/<!--[\s\S]*?-->/g, "");
+	return md.replace(/<!--\s*PageBreak\s*-->/gi, "\n---\n").replace(/<!--[\s\S]*?-->/g, "");
 }
 
 // Convert <figure>...</figure> blocks to plain text blockquotes.

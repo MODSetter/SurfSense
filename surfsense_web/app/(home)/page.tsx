@@ -1,17 +1,17 @@
 import dynamic from "next/dynamic";
-import { HeroSection } from "@/components/homepage/hero-section";
 import { AuthRedirect } from "@/components/homepage/auth-redirect";
-import { FeaturesCards } from "@/components/homepage/features-card";
 import { FeaturesBentoGrid } from "@/components/homepage/features-bento-grid";
+import { FeaturesCards } from "@/components/homepage/features-card";
+import { HeroSection } from "@/components/homepage/hero-section";
 
-const WhySurfSense = dynamic(
-	() => import("@/components/homepage/why-surfsense").then((m) => ({ default: m.WhySurfSense })),
+const WhySurfSense = dynamic(() =>
+	import("@/components/homepage/why-surfsense").then((m) => ({ default: m.WhySurfSense }))
 );
 
 const ExternalIntegrations = dynamic(() => import("@/components/homepage/integrations"));
 
-const CTAHomepage = dynamic(
-	() => import("@/components/homepage/cta").then((m) => ({ default: m.CTAHomepage })),
+const CTAHomepage = dynamic(() =>
+	import("@/components/homepage/cta").then((m) => ({ default: m.CTAHomepage }))
 );
 
 export default function HomePage() {

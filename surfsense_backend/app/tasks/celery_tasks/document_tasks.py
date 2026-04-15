@@ -780,6 +780,7 @@ def process_file_upload_with_document_task(
     user_id: str,
     should_summarize: bool = False,
     use_vision_llm: bool = False,
+    processing_mode: str = "basic",
 ):
     """
     Celery task to process uploaded file with existing pending document.
@@ -836,6 +837,7 @@ def process_file_upload_with_document_task(
                 user_id,
                 should_summarize=should_summarize,
                 use_vision_llm=use_vision_llm,
+                processing_mode=processing_mode,
             )
         )
         logger.info(
@@ -873,6 +875,7 @@ async def _process_file_with_document(
     user_id: str,
     should_summarize: bool = False,
     use_vision_llm: bool = False,
+    processing_mode: str = "basic",
 ):
     """
     Process file and update existing pending document status.
@@ -976,6 +979,7 @@ async def _process_file_with_document(
                 notification=notification,
                 should_summarize=should_summarize,
                 use_vision_llm=use_vision_llm,
+                processing_mode=processing_mode,
             )
 
             # Update notification on success
@@ -1434,6 +1438,7 @@ def index_uploaded_folder_files_task(
     enable_summary: bool,
     file_mappings: list[dict],
     use_vision_llm: bool = False,
+    processing_mode: str = "basic",
 ):
     """Celery task to index files uploaded from the desktop app."""
     loop = asyncio.new_event_loop()
@@ -1448,6 +1453,7 @@ def index_uploaded_folder_files_task(
                 enable_summary=enable_summary,
                 file_mappings=file_mappings,
                 use_vision_llm=use_vision_llm,
+                processing_mode=processing_mode,
             )
         )
     finally:
@@ -1462,6 +1468,7 @@ async def _index_uploaded_folder_files_async(
     enable_summary: bool,
     file_mappings: list[dict],
     use_vision_llm: bool = False,
+    processing_mode: str = "basic",
 ):
     """Run upload-based folder indexing with notification + heartbeat."""
     file_count = len(file_mappings)
@@ -1512,6 +1519,7 @@ async def _index_uploaded_folder_files_async(
                 file_mappings=file_mappings,
                 on_heartbeat_callback=_heartbeat_progress,
                 use_vision_llm=use_vision_llm,
+                processing_mode=processing_mode,
             )
 
             if notification:

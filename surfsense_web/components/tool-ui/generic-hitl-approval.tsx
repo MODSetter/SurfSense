@@ -9,8 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
 import { connectorsApiService } from "@/lib/apis/connectors-api.service";
-import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
 import type { HitlDecision, InterruptResult } from "@/lib/hitl";
+import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
 
 function ParamEditor({
 	params,
@@ -216,11 +216,7 @@ function GenericApprovalCard({
 							</Button>
 						)}
 						{isMCPTool && (
-							<Button
-								size="sm"
-								className="rounded-lg"
-								onClick={handleAlwaysAllow}
-							>
+							<Button size="sm" className="rounded-lg" onClick={handleAlwaysAllow}>
 								Always Allow
 							</Button>
 						)}

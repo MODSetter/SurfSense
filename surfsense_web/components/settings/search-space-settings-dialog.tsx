@@ -7,9 +7,9 @@ import {
 	Brain,
 	CircleUser,
 	Earth,
-	ScanEye,
 	ImageIcon,
 	ListChecks,
+	ScanEye,
 	UserKey,
 } from "lucide-react";
 import dynamic from "next/dynamic";

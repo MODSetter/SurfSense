@@ -16,9 +16,9 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
-import type { InterruptResult, HitlDecision } from "@/lib/hitl";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
+import type { HitlDecision, InterruptResult } from "@/lib/hitl";
+import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
 
 interface JiraIssue {
 	issue_id: string;
@@ -50,7 +50,7 @@ type UpdateJiraIssueInterruptContext = {
 	issue?: JiraIssue;
 	priorities?: JiraPriority[];
 	error?: string;
-}
+};
 
 interface SuccessResult {
 	status: "success";

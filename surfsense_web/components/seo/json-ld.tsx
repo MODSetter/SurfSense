@@ -4,10 +4,8 @@ interface JsonLdProps {
 
 export function JsonLd({ data }: JsonLdProps) {
 	return (
-		<script
-			type="application/ld+json"
-			dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-		/>
+		// biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD structured data requires dangerouslySetInnerHTML for script injection
+		<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
 	);
 }
 
@@ -20,12 +18,9 @@ export function OrganizationJsonLd() {
 				name: "SurfSense",
 				url: "https://surfsense.com",
 				logo: "https://surfsense.com/logo.png",
-			description:
-				"Open source NotebookLM alternative for teams with no data limits. Use ChatGPT, Claude AI, and any AI model for free.",
-				sameAs: [
-					"https://github.com/MODSetter/SurfSense",
-					"https://discord.gg/Cg2M4GUJ",
-				],
+				description:
+					"Open source NotebookLM alternative for teams with no data limits. Use ChatGPT, Claude AI, and any AI model for free.",
+				sameAs: ["https://github.com/MODSetter/SurfSense", "https://discord.gg/Cg2M4GUJ"],
 				contactPoint: {
 					"@type": "ContactPoint",
 					email: "rohan@surfsense.com",
@@ -44,8 +39,8 @@ export function WebSiteJsonLd() {
 				"@type": "WebSite",
 				name: "SurfSense",
 				url: "https://surfsense.com",
-			description:
-				"Open source NotebookLM alternative for teams with no data limits. Free ChatGPT, Claude AI, and any AI model.",
+				description:
+					"Open source NotebookLM alternative for teams with no data limits. Free ChatGPT, Claude AI, and any AI model.",
 				potentialAction: {
 					"@type": "SearchAction",
 					target: {
@@ -74,22 +69,22 @@ export function SoftwareApplicationJsonLd() {
 					priceCurrency: "USD",
 					description: "Free plan with 500 pages included",
 				},
-			description:
-				"Open source NotebookLM alternative with free access to ChatGPT, Claude AI, and any model. Connect Slack, Google Drive, Notion, Confluence, GitHub, and dozens more data sources.",
+				description:
+					"Open source NotebookLM alternative with free access to ChatGPT, Claude AI, and any model. Connect Slack, Google Drive, Notion, Confluence, GitHub, and dozens more data sources.",
 				url: "https://surfsense.com",
 				downloadUrl: "https://github.com/MODSetter/SurfSense/releases",
-			featureList: [
-				"Free access to ChatGPT, Claude AI, and any AI model",
-				"AI-powered semantic search across all connected tools",
-				"Federated search across Slack, Google Drive, Notion, Confluence, GitHub",
-				"No data limits with open source self-hosting",
-				"Real-time collaborative team chats",
-				"Document Q&A with citations",
-				"Report generation",
-				"Podcast and video generation from sources",
-				"Enterprise knowledge management",
-				"Self-hostable and privacy-focused",
-			],
+				featureList: [
+					"Free access to ChatGPT, Claude AI, and any AI model",
+					"AI-powered semantic search across all connected tools",
+					"Federated search across Slack, Google Drive, Notion, Confluence, GitHub",
+					"No data limits with open source self-hosting",
+					"Real-time collaborative team chats",
+					"Document Q&A with citations",
+					"Report generation",
+					"Podcast and video generation from sources",
+					"Enterprise knowledge management",
+					"Self-hostable and privacy-focused",
+				],
 			}}
 		/>
 	);
@@ -141,11 +136,7 @@ export function ArticleJsonLd({
 	);
 }
 
-export function BreadcrumbJsonLd({
-	items,
-}: {
-	items: { name: string; url: string }[];
-}) {
+export function BreadcrumbJsonLd({ items }: { items: { name: string; url: string }[] }) {
 	return (
 		<JsonLd
 			data={{
@@ -162,11 +153,7 @@ export function BreadcrumbJsonLd({
 	);
 }
 
-export function FAQJsonLd({
-	questions,
-}: {
-	questions: { question: string; answer: string }[];
-}) {
+export function FAQJsonLd({ questions }: { questions: { question: string; answer: string }[] }) {
 	return (
 		<JsonLd
 			data={{

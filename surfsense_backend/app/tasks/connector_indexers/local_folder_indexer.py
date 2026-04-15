@@ -60,14 +60,16 @@ async def _check_page_limit_or_skip(
     page_limit_service: PageLimitService,
     user_id: str,
     file_path: str,
-) -> int:
+    page_multiplier: int = 1,
+) -> tuple[int, int]:
     """Estimate pages and check the limit; raises PageLimitExceededError if over quota.
 
-    Returns the estimated page count on success.
+    Returns (estimated_pages, billable_pages).
     """
     estimated = _estimate_pages_safe(page_limit_service, file_path)
-    await page_limit_service.check_page_limit(user_id, estimated)
-    return estimated
+    billable = estimated * page_multiplier
+    await page_limit_service.check_page_limit(user_id, billable)
+    return estimated, billable
 
 
 def _compute_final_pages(
@@ -153,17 +155,20 @@ def scan_folder(
     return files
 
 
-async def _read_file_content(file_path: str, filename: str, *, vision_llm=None) -> str:
+async def _read_file_content(
+    file_path: str, filename: str, *, vision_llm=None, processing_mode: str = "basic"
+) -> str:
     """Read file content via the unified ETL pipeline.
 
     All file types (plaintext, audio, direct-convert, document, image) are
     handled by ``EtlPipelineService``.
     """
-    from app.etl_pipeline.etl_document import EtlRequest
+    from app.etl_pipeline.etl_document import EtlRequest, ProcessingMode
     from app.etl_pipeline.etl_pipeline_service import EtlPipelineService
 
+    mode = ProcessingMode.coerce(processing_mode)
     result = await EtlPipelineService(vision_llm=vision_llm).extract(
-        EtlRequest(file_path=file_path, filename=filename)
+        EtlRequest(file_path=file_path, filename=filename, processing_mode=mode)
     )
     return result.markdown_content
 
@@ -201,12 +206,15 @@ async def _compute_file_content_hash(
     search_space_id: int,
     *,
     vision_llm=None,
+    processing_mode: str = "basic",
 ) -> tuple[str, str]:
     """Read a file (via ETL if needed) and compute its content hash.
 
     Returns (content_text, content_hash).
     """
-    content = await _read_file_content(file_path, filename, vision_llm=vision_llm)
+    content = await _read_file_content(
+        file_path, filename, vision_llm=vision_llm, processing_mode=processing_mode
+    )
     return content, _content_hash(content, search_space_id)
 
 
@@ -694,7 +702,7 @@ async def index_local_folder(
                         continue
 
                     try:
-                        estimated_pages = await _check_page_limit_or_skip(
+                        estimated_pages, _billable = await _check_page_limit_or_skip(
                             page_limit_service, user_id, file_path_abs
                         )
                     except PageLimitExceededError:
@@ -730,7 +738,7 @@ async def index_local_folder(
                     await create_version_snapshot(session, existing_document)
                 else:
                     try:
-                        estimated_pages = await _check_page_limit_or_skip(
+                        estimated_pages, _billable = await _check_page_limit_or_skip(
                             page_limit_service, user_id, file_path_abs
                         )
                     except PageLimitExceededError:
@@ -1080,7 +1088,7 @@ async def _index_single_file(
 
         page_limit_service = PageLimitService(session)
         try:
-            estimated_pages = await _check_page_limit_or_skip(
+            estimated_pages, _billable = await _check_page_limit_or_skip(
                 page_limit_service, user_id, str(full_path)
             )
         except PageLimitExceededError as e:
@@ -1271,6 +1279,7 @@ async def index_uploaded_files(
     file_mappings: list[dict],
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
     use_vision_llm: bool = False,
+    processing_mode: str = "basic",
 ) -> tuple[int, int, str | None]:
     """Index files uploaded from the desktop app via temp paths.
 
@@ -1281,12 +1290,16 @@ async def index_uploaded_files(
 
     Returns ``(indexed_count, failed_count, error_summary_or_none)``.
     """
+    from app.etl_pipeline.etl_document import ProcessingMode
+
+    mode = ProcessingMode.coerce(processing_mode)
+
     task_logger = TaskLoggingService(session, search_space_id)
     log_entry = await task_logger.log_task_start(
         task_name="local_folder_indexing",
         source="uploaded_folder_indexing",
         message=f"Indexing {len(file_mappings)} uploaded file(s) for {folder_name}",
-        metadata={"file_count": len(file_mappings)},
+        metadata={"file_count": len(file_mappings), "processing_mode": mode.value},
     )
 
     try:
@@ -1350,8 +1363,11 @@ async def index_uploaded_files(
                         continue
 
                 try:
-                    estimated_pages = await _check_page_limit_or_skip(
-                        page_limit_service, user_id, temp_path
+                    estimated_pages, _billable_pages = await _check_page_limit_or_skip(
+                        page_limit_service,
+                        user_id,
+                        temp_path,
+                        page_multiplier=mode.page_multiplier,
                     )
                 except PageLimitExceededError:
                     logger.warning(f"Page limit exceeded, skipping: {relative_path}")
@@ -1364,6 +1380,7 @@ async def index_uploaded_files(
                         filename,
                         search_space_id,
                         vision_llm=vision_llm_instance,
+                        processing_mode=mode.value,
                     )
                 except Exception as e:
                     logger.warning(f"Could not read {relative_path}: {e}")
@@ -1429,8 +1446,9 @@ async def index_uploaded_files(
                     final_pages = _compute_final_pages(
                         page_limit_service, estimated_pages, len(content)
                     )
+                    final_billable = final_pages * mode.page_multiplier
                     await page_limit_service.update_page_usage(
-                        user_id, final_pages, allow_exceed=True
+                        user_id, final_billable, allow_exceed=True
                     )
                 else:
                     failed_count += 1

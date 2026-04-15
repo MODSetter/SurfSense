@@ -12,10 +12,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
-import { getDocumentTypeIcon } from "./DocumentTypeIcon";
 import { getDocumentTypeLabel } from "@/lib/documents/document-type-labels";
+import { cn } from "@/lib/utils";
+import { getDocumentTypeIcon } from "./DocumentTypeIcon";
 
 export function DocumentsFilters({
 	typeCounts: typeCountsRecord,
@@ -81,18 +81,18 @@ export function DocumentsFilters({
 							<TooltipTrigger asChild>
 								<ToggleGroupItem
 									value="folder"
-								className="h-9 w-9 shrink-0 border-sidebar-border text-muted-foreground hover:text-foreground hover:border-sidebar-border bg-sidebar"
-								onClick={(e) => {
-									e.preventDefault();
-									onCreateFolder();
+									className="h-9 w-9 shrink-0 border-sidebar-border text-muted-foreground hover:text-foreground hover:border-sidebar-border bg-sidebar"
+									onClick={(e) => {
+										e.preventDefault();
+										onCreateFolder();
 									}}
 								>
 									<FolderPlus size={14} />
 								</ToggleGroupItem>
 							</TooltipTrigger>
 							<TooltipContent>New folder</TooltipContent>
-					</Tooltip>
-				)}
+						</Tooltip>
+					)}
 
 					{onToggleAiSort && (
 						<Tooltip>
@@ -114,9 +114,9 @@ export function DocumentsFilters({
 									aria-label={aiSortEnabled ? "Disable AI sort" : "Enable AI sort"}
 									aria-pressed={aiSortEnabled}
 								>
-								{aiSortBusy ? (
-									<Spinner size="xs" />
-								) : aiSortEnabled ? (
+									{aiSortBusy ? (
+										<Spinner size="xs" />
+									) : aiSortEnabled ? (
 										<IconBinaryTreeFilled size={16} />
 									) : (
 										<IconBinaryTree size={16} />

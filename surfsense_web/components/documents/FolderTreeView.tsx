@@ -247,10 +247,8 @@ export function FolderTreeView({
 	function renderLevel(parentId: number | null, depth: number): React.ReactNode[] {
 		const key = parentId ?? "root";
 		const childFolders = (foldersByParent[key] ?? []).slice().sort((a, b) => {
-			const aIsDate =
-				a.metadata?.ai_sort === true && a.metadata?.ai_sort_level === 2;
-			const bIsDate =
-				b.metadata?.ai_sort === true && b.metadata?.ai_sort_level === 2;
+			const aIsDate = a.metadata?.ai_sort === true && a.metadata?.ai_sort_level === 2;
+			const bIsDate = b.metadata?.ai_sort === true && b.metadata?.ai_sort_level === 2;
 			if (aIsDate && bIsDate) {
 				return b.name.localeCompare(a.name);
 			}

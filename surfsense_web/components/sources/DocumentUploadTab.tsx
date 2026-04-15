@@ -1,7 +1,16 @@
 "use client";
 
 import { useAtom } from "jotai";
-import { ChevronDown, Dot, File as FileIcon, FolderOpen, Upload, X } from "lucide-react";
+import {
+	ChevronDown,
+	Crown,
+	Dot,
+	File as FileIcon,
+	FolderOpen,
+	Upload,
+	X,
+	Zap,
+} from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -25,6 +34,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
+import type { ProcessingMode } from "@/contracts/types/document.types";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import {
@@ -137,6 +147,7 @@ export function DocumentUploadTab({
 	const [accordionValue, setAccordionValue] = useState<string>("");
 	const [shouldSummarize, setShouldSummarize] = useState(false);
 	const [useVisionLlm, setUseVisionLlm] = useState(false);
+	const [processingMode, setProcessingMode] = useState<ProcessingMode>("basic");
 	const [uploadDocumentMutation] = useAtom(uploadDocumentMutationAtom);
 	const { mutate: uploadDocuments, isPending: isUploading } = uploadDocumentMutation;
 	const fileInputRef = useRef<HTMLInputElement>(null);
@@ -363,6 +374,7 @@ export function DocumentUploadTab({
 						root_folder_id: rootFolderId,
 						enable_summary: shouldSummarize,
 						use_vision_llm: useVisionLlm,
+						processing_mode: processingMode,
 					}
 				);
 
@@ -410,6 +422,7 @@ export function DocumentUploadTab({
 				search_space_id: Number(searchSpaceId),
 				should_summarize: shouldSummarize,
 				use_vision_llm: useVisionLlm,
+				processing_mode: processingMode,
 			},
 			{
 				onSuccess: () => {
@@ -533,35 +546,29 @@ export function DocumentUploadTab({
 						</button>
 					)
 				) : (
-				<div
-					role="button"
-					tabIndex={0}
-					className="flex flex-col items-center gap-4 py-12 px-4 cursor-pointer w-full bg-transparent outline-none select-none"
-					onClick={() => {
-						if (!isElectron) fileInputRef.current?.click();
-					}}
-					onKeyDown={(e) => {
-						if (e.key === "Enter" || e.key === " ") {
-							e.preventDefault();
+					<button
+						type="button"
+						tabIndex={0}
+						className="flex flex-col items-center gap-4 py-12 px-4 cursor-pointer w-full bg-transparent outline-none select-none"
+						onClick={() => {
 							if (!isElectron) fileInputRef.current?.click();
-						}
-					}}
-				>
-					<Upload className="h-10 w-10 text-muted-foreground" />
-					<div className="text-center space-y-1.5">
-						<p className="text-base font-medium">
-							{isElectron ? t("select_files_or_folder") : t("tap_select_files_or_folder")}
-						</p>
-						<p className="text-sm text-muted-foreground">{t("file_size_limit")}</p>
-					</div>
-					<fieldset
-						className="w-full mt-1 border-none p-0 m-0"
-						onClick={(e) => e.stopPropagation()}
-						onKeyDown={(e) => e.stopPropagation()}
+						}}
 					>
-						{renderBrowseButton({ fullWidth: true })}
-					</fieldset>
-				</div>
+						<Upload className="h-10 w-10 text-muted-foreground" />
+						<div className="text-center space-y-1.5">
+							<p className="text-base font-medium">
+								{isElectron ? t("select_files_or_folder") : t("tap_select_files_or_folder")}
+							</p>
+							<p className="text-sm text-muted-foreground">{t("file_size_limit")}</p>
+						</div>
+						<fieldset
+							className="w-full mt-1 border-none p-0 m-0"
+							onClick={(e) => e.stopPropagation()}
+							onKeyDown={(e) => e.stopPropagation()}
+						>
+							{renderBrowseButton({ fullWidth: true })}
+						</fieldset>
+					</button>
 				)}
 			</div>
 
@@ -707,6 +714,46 @@ export function DocumentUploadTab({
 							</p>
 						</div>
 						<Switch checked={useVisionLlm} onCheckedChange={setUseVisionLlm} />
+					</div>
+
+					<div className="space-y-1.5">
+						<p className="font-medium text-sm px-1">{t("processing_mode")}</p>
+						<div className="grid grid-cols-2 gap-2">
+							<button
+								type="button"
+								onClick={() => setProcessingMode("basic")}
+								className={`flex items-start gap-2.5 rounded-lg border p-3 text-left transition-colors ${
+									processingMode === "basic"
+										? "border-primary bg-primary/5"
+										: "border-border hover:border-muted-foreground/50"
+								}`}
+							>
+								<Zap
+									className={`h-4 w-4 mt-0.5 shrink-0 ${processingMode === "basic" ? "text-primary" : "text-muted-foreground"}`}
+								/>
+								<div className="space-y-0.5 min-w-0">
+									<p className="font-medium text-sm">{t("basic_mode")}</p>
+									<p className="text-xs text-muted-foreground">{t("basic_mode_desc")}</p>
+								</div>
+							</button>
+							<button
+								type="button"
+								onClick={() => setProcessingMode("premium")}
+								className={`flex items-start gap-2.5 rounded-lg border p-3 text-left transition-colors ${
+									processingMode === "premium"
+										? "border-amber-500 bg-amber-500/5"
+										: "border-border hover:border-muted-foreground/50"
+								}`}
+							>
+								<Crown
+									className={`h-4 w-4 mt-0.5 shrink-0 ${processingMode === "premium" ? "text-amber-500" : "text-muted-foreground"}`}
+								/>
+								<div className="space-y-0.5 min-w-0">
+									<p className="font-medium text-sm">{t("premium_mode")}</p>
+									<p className="text-xs text-muted-foreground">{t("premium_mode_desc")}</p>
+								</div>
+							</button>
+						</div>
 					</div>
 
 					<Button

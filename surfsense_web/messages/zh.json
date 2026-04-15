@@ -383,7 +383,12 @@
 		"uploading_folder": "正在上传文件夹…",
 		"upload_folder_button": "上传文件夹（{count}个文件）",
 		"select_files_or_folder": "选择文件或文件夹",
-		"tap_select_files_or_folder": "点击选择文件或文件夹"
+		"tap_select_files_or_folder": "点击选择文件或文件夹",
+		"processing_mode": "处理模式",
+		"basic_mode": "基础",
+		"basic_mode_desc": "标准处理（每页 1 积分）",
+		"premium_mode": "高级",
+		"premium_mode_desc": "增强处理财务、医疗和法律文档（每页 10 积分）"
 	},
 	"add_webpage": {
 		"title": "添加网页爬取",

@@ -60,7 +60,6 @@ import {
 } from "@/components/assistant-ui/inline-mention-editor";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { UserMessage } from "@/components/assistant-ui/user-message";
-import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/lib/layout-events";
 import {
 	DocumentMentionPicker,
 	type DocumentMentionPickerRef,
@@ -90,6 +89,7 @@ import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsSync } from "@/hooks/use-comments-sync";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
+import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/lib/layout-events";
 import { cn } from "@/lib/utils";
 
 const COMPOSER_PLACEHOLDER = "Ask anything, type / for prompts, type @ to mention docs";
@@ -132,9 +132,9 @@ const ThreadContent: FC = () => {
 					style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
 				>
 					<ThreadScrollToBottom />
-				<AuiIf condition={({ thread }) => !thread.isEmpty}>
-					<Composer />
-				</AuiIf>
+					<AuiIf condition={({ thread }) => !thread.isEmpty}>
+						<Composer />
+					</AuiIf>
 				</ThreadPrimitive.ViewportFooter>
 			</ThreadPrimitive.Viewport>
 		</ThreadPrimitive.Root>

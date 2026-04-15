@@ -3,7 +3,8 @@ import { ContactFormGridWithDetails } from "@/components/contact/contact-form";
 
 export const metadata: Metadata = {
 	title: "Contact | SurfSense",
-	description: "Get in touch with the SurfSense team for enterprise AI search, knowledge management, or partnership inquiries.",
+	description:
+		"Get in touch with the SurfSense team for enterprise AI search, knowledge management, or partnership inquiries.",
 	alternates: {
 		canonical: "https://surfsense.com/contact",
 	},

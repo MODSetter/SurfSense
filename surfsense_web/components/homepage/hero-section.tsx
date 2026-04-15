@@ -153,13 +153,14 @@ export function HeroSection() {
 				</h1>
 				<div className="mt-4 flex w-full flex-col items-start justify-between gap-4 md:mt-12 md:flex-row md:items-end md:gap-10">
 					<div>
-					<p
-						className={cn(
-							"relative mb-8 max-w-2xl text-left text-sm tracking-wide text-neutral-600 antialiased sm:text-base md:text-xl dark:text-neutral-400"
-						)}
-					>
-						A free, open source NotebookLM alternative for teams with no data limits. Use ChatGPT, Claude AI, and any AI model for free.
-					</p>
+						<p
+							className={cn(
+								"relative mb-8 max-w-2xl text-left text-sm tracking-wide text-neutral-600 antialiased sm:text-base md:text-xl dark:text-neutral-400"
+							)}
+						>
+							A free, open source NotebookLM alternative for teams with no data limits. Use ChatGPT,
+							Claude AI, and any AI model for free.
+						</p>
 
 						<div className="relative mb-4 flex w-full flex-col justify-center gap-y-2 sm:flex-row sm:justify-start sm:space-y-0 sm:space-x-4">
 							<DownloadButton />

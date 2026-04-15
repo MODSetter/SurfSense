@@ -16,8 +16,8 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
+import type { HitlDecision, InterruptResult } from "@/lib/hitl";
 import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
-import type { InterruptResult, HitlDecision } from "@/lib/hitl";
 
 interface OneDriveAccount {
 	id: number;
@@ -30,7 +30,7 @@ type OneDriveCreateFileContext = {
 	accounts?: OneDriveAccount[];
 	parent_folders?: Record<number, Array<{ folder_id: string; name: string }>>;
 	error?: string;
-}
+};
 
 interface SuccessResult {
 	status: "success";
@@ -51,7 +51,11 @@ interface AuthErrorResult {
 	connector_type?: string;
 }
 
-type CreateOneDriveFileResult = InterruptResult<OneDriveCreateFileContext> | SuccessResult | ErrorResult | AuthErrorResult;
+type CreateOneDriveFileResult =
+	| InterruptResult<OneDriveCreateFileContext>
+	| SuccessResult
+	| ErrorResult
+	| AuthErrorResult;
 
 function isErrorResult(result: unknown): result is ErrorResult {
 	return (

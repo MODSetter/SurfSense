@@ -10,11 +10,17 @@ import {
 	updateConnectorMutationAtom,
 } from "@/atoms/connectors/connector-mutation.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
+import {
+	folderWatchDialogOpenAtom,
+	folderWatchInitialFolderAtom,
+} from "@/atoms/folder-sync/folder-sync.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { searchSourceConnector } from "@/contracts/types/connector.types";
+import { usePlatform } from "@/hooks/use-platform";
 import { authenticatedFetch } from "@/lib/auth-utils";
+import { isSelfHosted } from "@/lib/env-config";
 import {
 	trackConnectorConnected,
 	trackConnectorDeleted,
@@ -33,12 +39,6 @@ import {
 	OAUTH_CONNECTORS,
 	OTHER_CONNECTORS,
 } from "../constants/connector-constants";
-import { usePlatform } from "@/hooks/use-platform";
-import { isSelfHosted } from "@/lib/env-config";
-import {
-	folderWatchDialogOpenAtom,
-	folderWatchInitialFolderAtom,
-} from "@/atoms/folder-sync/folder-sync.atoms";
 
 import {
 	dateRangeSchema,
@@ -72,7 +72,6 @@ export const useConnectorDialog = () => {
 	const setFolderWatchInitialFolder = useSetAtom(folderWatchInitialFolderAtom);
 	const { isDesktop } = usePlatform();
 	const selfHosted = isSelfHosted();
-
 
 	// Use global atom for dialog open state so it can be controlled from anywhere
 	const [isOpen, setIsOpen] = useAtom(connectorDialogOpenAtom);
@@ -463,9 +462,15 @@ export const useConnectorDialog = () => {
 
 			setConnectingConnectorType(connectorType);
 		},
-		[searchSpaceId, selfHosted, isDesktop, setIsOpen, setFolderWatchOpen, setFolderWatchInitialFolder]
+		[
+			searchSpaceId,
+			selfHosted,
+			isDesktop,
+			setIsOpen,
+			setFolderWatchOpen,
+			setFolderWatchInitialFolder,
+		]
 	);
-
 
 	// Handle submitting connect form
 	const handleSubmitConnectForm = useCallback(
@@ -787,8 +792,8 @@ export const useConnectorDialog = () => {
 				const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
 
 				// Update connector with summary, periodic sync settings, and config changes
-			if (enableSummary || enableVisionLlm || periodicEnabled || indexingConnectorConfig) {
-				const frequency = periodicEnabled ? parseInt(frequencyMinutes, 10) : undefined;
+				if (enableSummary || enableVisionLlm || periodicEnabled || indexingConnectorConfig) {
+					const frequency = periodicEnabled ? parseInt(frequencyMinutes, 10) : undefined;
 					await updateConnector({
 						id: indexingConfig.connectorId,
 						data: {

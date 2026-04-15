@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { BreadcrumbNav } from "@/components/seo/breadcrumb-nav";
 import PricingBasic from "@/components/pricing/pricing-section";
+import { BreadcrumbNav } from "@/components/seo/breadcrumb-nav";
 
 export const metadata: Metadata = {
 	title: "Pricing | SurfSense - Free AI Search Plans",

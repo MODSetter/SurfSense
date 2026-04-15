@@ -1,7 +1,8 @@
 "use client";
-import React, { useRef, useEffect, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
 import { IconPlus } from "@tabler/icons-react";
+import { AnimatePresence, motion } from "motion/react";
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pricing } from "@/components/pricing";
 import { cn } from "@/lib/utils";
 
@@ -79,9 +80,14 @@ const faqData: FAQSection[] = [
 		title: "Pages & Billing",
 		items: [
 			{
-				question: "What exactly is a \"page\" in SurfSense?",
+				question: 'What exactly is a "page" in SurfSense?',
 				answer:
 					"A page is a simple billing unit that measures how much content you add to your knowledge base. For PDFs, one page equals one real PDF page. For other document types like Word, PowerPoint, and Excel files, pages are automatically estimated based on the file. Every file uses at least 1 page.",
+			},
+			{
+				question: "What are Basic and Premium processing modes?",
+				answer:
+					"When uploading documents, you can choose between two processing modes. Basic mode uses standard extraction and costs 1 page credit per page, great for most documents. Premium mode uses advanced extraction optimized for complex financial, medical, and legal documents with intricate tables, layouts, and formatting. Premium costs 10 page credits per page but delivers significantly higher fidelity output for these specialized document types.",
 			},
 			{
 				question: "How does the Pay As You Go plan work?",
@@ -111,7 +117,7 @@ const faqData: FAQSection[] = [
 			{
 				question: "How are pages consumed?",
 				answer:
-					"Pages are deducted whenever a document file is successfully indexed into your knowledge base, whether through direct uploads or file-based connector syncs (Google Drive, OneDrive, Dropbox, Local Folder). SurfSense checks your remaining pages before processing and only charges you after the file is indexed. Duplicate documents are automatically detected and won't cost you extra pages.",
+					"Pages are deducted whenever a document file is successfully indexed into your knowledge base, whether through direct uploads or file-based connector syncs (Google Drive, OneDrive, Dropbox, Local Folder). In Basic mode, each page costs 1 page credit; in Premium mode, each page costs 10 page credits. SurfSense checks your remaining credits before processing and only charges you after the file is indexed. Duplicate documents are automatically detected and won't cost you extra pages.",
 			},
 			{
 				question: "Do connectors like Slack, Notion, or Gmail use pages?",
@@ -132,13 +138,7 @@ const faqData: FAQSection[] = [
 	},
 ];
 
-const GridLineHorizontal = ({
-	className,
-	offset,
-}: {
-	className?: string;
-	offset?: string;
-}) => {
+const GridLineHorizontal = ({ className, offset }: { className?: string; offset?: string }) => {
 	return (
 		<div
 			style={
@@ -162,19 +162,13 @@ const GridLineHorizontal = ({
 				"mask-exclude",
 				"z-30",
 				"dark:bg-[linear-gradient(to_right,var(--color-dark),var(--color-dark)_50%,transparent_0,transparent)]",
-				className,
+				className
 			)}
 		/>
 	);
 };
 
-const GridLineVertical = ({
-	className,
-	offset,
-}: {
-	className?: string;
-	offset?: string;
-}) => {
+const GridLineVertical = ({ className, offset }: { className?: string; offset?: string }) => {
 	return (
 		<div
 			style={
@@ -197,7 +191,7 @@ const GridLineVertical = ({
 				"mask-exclude",
 				"z-30",
 				"dark:bg-[linear-gradient(to_bottom,var(--color-dark),var(--color-dark)_50%,transparent_0,transparent)]",
-				className,
+				className
 			)}
 		/>
 	);
@@ -209,10 +203,7 @@ function PricingFAQ() {
 
 	useEffect(() => {
 		function handleClickOutside(event: MouseEvent) {
-			if (
-				containerRef.current &&
-				!containerRef.current.contains(event.target as Node)
-			) {
+			if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
 				setActiveId(null);
 			}
 		}
@@ -232,21 +223,15 @@ function PricingFAQ() {
 					Frequently Asked Questions
 				</h2>
 				<p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-					Everything you need to know about SurfSense pages and billing.
-					Can&apos;t find what you need? Reach out at{" "}
-					<a
-						href="mailto:rohan@surfsense.com"
-						className="text-blue-500 underline"
-					>
+					Everything you need to know about SurfSense pages and billing. Can&apos;t find what you
+					need? Reach out at{" "}
+					<a href="mailto:rohan@surfsense.com" className="text-blue-500 underline">
 						rohan@surfsense.com
 					</a>
 				</p>
 			</div>
 
-			<div
-				ref={containerRef}
-				className="relative mt-16 flex w-full flex-col gap-12 px-4 md:px-8"
-			>
+			<div ref={containerRef} className="relative mt-16 flex w-full flex-col gap-12 px-4 md:px-8">
 				{faqData.map((section) => (
 					<div key={section.title + "faq"}>
 						<h3 className="mb-6 text-lg font-medium text-neutral-800 dark:text-neutral-200">
@@ -264,30 +249,19 @@ function PricingFAQ() {
 											"relative rounded-lg transition-all duration-200",
 											isActive
 												? "bg-white shadow-sm ring-1 shadow-black/10 ring-black/10 dark:bg-neutral-900 dark:shadow-white/5 dark:ring-white/10"
-												: "hover:bg-neutral-50 dark:hover:bg-neutral-900",
+												: "hover:bg-neutral-50 dark:hover:bg-neutral-900"
 										)}
 									>
 										{isActive && (
 											<div className="absolute inset-0">
-												<GridLineHorizontal
-													className="-top-[2px]"
-													offset="100px"
-												/>
-												<GridLineHorizontal
-													className="-bottom-[2px]"
-													offset="100px"
-												/>
-												<GridLineVertical
-													className="-left-[2px]"
-													offset="100px"
-												/>
-												<GridLineVertical
-													className="-right-[2px] left-auto"
-													offset="100px"
-												/>
+												<GridLineHorizontal className="-top-[2px]" offset="100px" />
+												<GridLineHorizontal className="-bottom-[2px]" offset="100px" />
+												<GridLineVertical className="-left-[2px]" offset="100px" />
+												<GridLineVertical className="-right-[2px] left-auto" offset="100px" />
 											</div>
 										)}
 										<button
+											type="button"
 											onClick={() => toggleQuestion(id)}
 											className="flex w-full items-center justify-between px-4 py-4 text-left"
 										>

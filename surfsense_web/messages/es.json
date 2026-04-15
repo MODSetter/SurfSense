@@ -399,7 +399,12 @@
 		"uploading_folder": "Subiendo carpeta…",
 		"upload_folder_button": "Subir carpeta ({count} {count, plural, one {archivo} other {archivos}})",
 		"select_files_or_folder": "Seleccionar archivos o carpeta",
-		"tap_select_files_or_folder": "Toca para seleccionar archivos o carpeta"
+		"tap_select_files_or_folder": "Toca para seleccionar archivos o carpeta",
+		"processing_mode": "Modo de procesamiento",
+		"basic_mode": "Básico",
+		"basic_mode_desc": "Procesamiento estándar (1 crédito por página)",
+		"premium_mode": "Premium",
+		"premium_mode_desc": "Mejorado para documentos financieros, médicos y legales (10 créditos por página)"
 	},
 	"add_webpage": {
 		"title": "Agregar páginas web para rastreo",

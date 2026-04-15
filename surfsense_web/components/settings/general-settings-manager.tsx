@@ -145,18 +145,14 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 			<form onSubmit={onSubmit} className="space-y-6">
 				<div className="flex flex-col gap-6">
 					<div className="space-y-2">
-						<Label htmlFor="search-space-name">
-							{t("general_name_label")}
-						</Label>
+						<Label htmlFor="search-space-name">{t("general_name_label")}</Label>
 						<Input
 							id="search-space-name"
 							placeholder={t("general_name_placeholder")}
 							value={name}
 							onChange={(e) => setName(e.target.value)}
 						/>
-						<p className="text-xs text-muted-foreground">
-							{t("general_name_description")}
-						</p>
+						<p className="text-xs text-muted-foreground">{t("general_name_description")}</p>
 					</div>
 
 					<div className="space-y-2">
@@ -170,9 +166,7 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 							value={description}
 							onChange={(e) => setDescription(e.target.value)}
 						/>
-						<p className="text-xs text-muted-foreground">
-							{t("general_description_description")}
-						</p>
+						<p className="text-xs text-muted-foreground">{t("general_description_description")}</p>
 					</div>
 				</div>
 
@@ -189,28 +183,28 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 				</div>
 			</form>
 
-		<div className="border-t pt-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-			<div className="space-y-1">
-				<Label>Export knowledge base</Label>
-				<p className="text-xs text-muted-foreground">
-					Download all documents in this search space as a ZIP of markdown files.
-				</p>
+			<div className="border-t pt-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+				<div className="space-y-1">
+					<Label>Export knowledge base</Label>
+					<p className="text-xs text-muted-foreground">
+						Download all documents in this search space as a ZIP of markdown files.
+					</p>
+				</div>
+				<Button
+					type="button"
+					variant="secondary"
+					size="sm"
+					disabled={isExporting}
+					onClick={handleExportKB}
+					className="relative w-fit shrink-0"
+				>
+					<span className={isExporting ? "opacity-0" : ""}>
+						<FolderArchive className="h-3 w-3 opacity-60" />
+					</span>
+					<span className={isExporting ? "opacity-0" : ""}>Export</span>
+					{isExporting && <Spinner size="sm" className="absolute" />}
+				</Button>
 			</div>
-			<Button
-				type="button"
-				variant="secondary"
-				size="sm"
-				disabled={isExporting}
-				onClick={handleExportKB}
-				className="relative w-fit shrink-0"
-			>
-				<span className={isExporting ? "opacity-0" : ""}>
-					<FolderArchive className="h-3 w-3 opacity-60" />
-				</span>
-				<span className={isExporting ? "opacity-0" : ""}>Export</span>
-				{isExporting && <Spinner size="sm" className="absolute" />}
-			</Button>
-		</div>
 		</div>
 	);
 }

@@ -1,13 +1,26 @@
 "use client";
 
-import { createContext, useContext, useCallback, useSyncExternalStore, type FC, type ReactNode } from "react";
+import {
+	createContext,
+	type FC,
+	type ReactNode,
+	useCallback,
+	useContext,
+	useSyncExternalStore,
+} from "react";
 
 export interface TokenUsageData {
 	prompt_tokens: number;
 	completion_tokens: number;
 	total_tokens: number;
-	usage?: Record<string, { prompt_tokens: number; completion_tokens: number; total_tokens: number }>;
-	model_breakdown?: Record<string, { prompt_tokens: number; completion_tokens: number; total_tokens: number }>;
+	usage?: Record<
+		string,
+		{ prompt_tokens: number; completion_tokens: number; total_tokens: number }
+	>;
+	model_breakdown?: Record<
+		string,
+		{ prompt_tokens: number; completion_tokens: number; total_tokens: number }
+	>;
 }
 
 type Listener = () => void;
@@ -51,9 +64,10 @@ class TokenUsageStore {
 
 const TokenUsageContext = createContext<TokenUsageStore | null>(null);
 
-export const TokenUsageProvider: FC<{ store: TokenUsageStore; children: ReactNode }> = ({ store, children }) => (
-	<TokenUsageContext.Provider value={store}>{children}</TokenUsageContext.Provider>
-);
+export const TokenUsageProvider: FC<{ store: TokenUsageStore; children: ReactNode }> = ({
+	store,
+	children,
+}) => <TokenUsageContext.Provider value={store}>{children}</TokenUsageContext.Provider>;
 
 export function useTokenUsageStore(): TokenUsageStore {
 	const store = useContext(TokenUsageContext);
@@ -65,11 +79,11 @@ export function useTokenUsage(messageId: string | undefined): TokenUsageData | u
 	const store = useContext(TokenUsageContext);
 	const getSnapshot = useCallback(
 		() => (store && messageId ? store.get(messageId) : undefined),
-		[store, messageId],
+		[store, messageId]
 	);
 	const subscribe = useCallback(
 		(onStoreChange: () => void) => (store ? store.subscribe(onStoreChange) : () => {}),
-		[store],
+		[store]
 	);
 	return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }

@@ -30,7 +30,10 @@ export interface TokenUsageSummary {
 	prompt_tokens: number;
 	completion_tokens: number;
 	total_tokens: number;
-	model_breakdown?: Record<string, { prompt_tokens: number; completion_tokens: number; total_tokens: number }> | null;
+	model_breakdown?: Record<
+		string,
+		{ prompt_tokens: number; completion_tokens: number; total_tokens: number }
+	> | null;
 }
 
 export interface MessageRecord {

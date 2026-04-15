@@ -7,13 +7,17 @@ import { GlobalLoadingProvider } from "@/components/providers/GlobalLoadingProvi
 import { I18nProvider } from "@/components/providers/I18nProvider";
 import { PostHogProvider } from "@/components/providers/PostHogProvider";
 import { ZeroProvider } from "@/components/providers/ZeroProvider";
+import {
+	OrganizationJsonLd,
+	SoftwareApplicationJsonLd,
+	WebSiteJsonLd,
+} from "@/components/seo/json-ld";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { LocaleProvider } from "@/contexts/LocaleContext";
 import { PlatformProvider } from "@/contexts/platform-context";
 import { ReactQueryClientProvider } from "@/lib/query-client/query-client.provider";
 import { cn } from "@/lib/utils";
-import { OrganizationJsonLd, SoftwareApplicationJsonLd, WebSiteJsonLd } from "@/components/seo/json-ld";
 
 const roboto = Roboto({
 	subsets: ["latin"],

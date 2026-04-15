@@ -149,7 +149,7 @@ export function addToolCall(
 	toolCallId: string,
 	toolName: string,
 	args: Record<string, unknown>,
-	force = false,
+	force = false
 ): void {
 	if (force || toolsWithUI.has(toolName)) {
 		state.contentParts.push({
@@ -241,11 +241,19 @@ export type SSEEvent =
 	| {
 			type: "data-token-usage";
 			data: {
-				usage: Record<string, { prompt_tokens: number; completion_tokens: number; total_tokens: number }>;
+				usage: Record<
+					string,
+					{ prompt_tokens: number; completion_tokens: number; total_tokens: number }
+				>;
 				prompt_tokens: number;
 				completion_tokens: number;
 				total_tokens: number;
-				call_details: Array<{ model: string; prompt_tokens: number; completion_tokens: number; total_tokens: number }>;
+				call_details: Array<{
+					model: string;
+					prompt_tokens: number;
+					completion_tokens: number;
+					total_tokens: number;
+				}>;
 			};
 	  }
 	| { type: "error"; errorText: string };

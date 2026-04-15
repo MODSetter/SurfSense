@@ -67,13 +67,7 @@ export const DocumentMentionPicker = forwardRef<
 	DocumentMentionPickerRef,
 	DocumentMentionPickerProps
 >(function DocumentMentionPicker(
-	{
-		searchSpaceId,
-		onSelectionChange,
-		onDone,
-		initialSelectedDocuments = [],
-		externalSearch = "",
-	},
+	{ searchSpaceId, onSelectionChange, onDone, initialSelectedDocuments = [], externalSearch = "" },
 	ref
 ) {
 	// Debounced search value to minimize API calls and prevent race conditions

@@ -6,10 +6,10 @@ import { useEffect, useRef, useState } from "react";
 import { clearTargetCommentIdAtom, targetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { convertRenderedToDisplay } from "@/lib/comments/utils";
 import { cn } from "@/lib/utils";
 import { CommentComposer } from "../comment-composer/comment-composer";
 import { CommentActions } from "./comment-actions";
-import { convertRenderedToDisplay } from "@/lib/comments/utils";
 import type { CommentItemProps } from "./types";
 
 function getInitials(name: string | null, email: string): string {
@@ -69,7 +69,6 @@ function formatTimestamp(dateString: string): string {
 		}) + ` at ${timeStr}`
 	);
 }
-
 
 function renderMentions(content: string): React.ReactNode {
 	// Match @{DisplayName} format from backend

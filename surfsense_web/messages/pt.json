@@ -399,7 +399,12 @@
 		"uploading_folder": "Enviando pasta…",
 		"upload_folder_button": "Enviar pasta ({count} {count, plural, one {arquivo} other {arquivos}})",
 		"select_files_or_folder": "Selecionar arquivos ou pasta",
-		"tap_select_files_or_folder": "Toque para selecionar arquivos ou pasta"
+		"tap_select_files_or_folder": "Toque para selecionar arquivos ou pasta",
+		"processing_mode": "Modo de processamento",
+		"basic_mode": "Básico",
+		"basic_mode_desc": "Processamento padrão (1 crédito por página)",
+		"premium_mode": "Premium",
+		"premium_mode_desc": "Aprimorado para documentos financeiros, médicos e jurídicos (10 créditos por página)"
 	},
 	"add_webpage": {
 		"title": "Adicionar páginas web para rastreamento",

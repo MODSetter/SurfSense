@@ -10,7 +10,6 @@ export function getDocumentTypeIcon(type: string, className?: string): React.Rea
 	return getConnectorIcon(type, className);
 }
 
-
 export function DocumentTypeChip({ type, className }: { type: string; className?: string }) {
 	const icon = getDocumentTypeIcon(type, "h-4 w-4");
 	const fullLabel = getDocumentTypeLabel(type);

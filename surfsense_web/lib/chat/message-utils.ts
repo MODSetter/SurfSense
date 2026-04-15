@@ -39,19 +39,20 @@ export function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 		content = [{ type: "text", text: String(msg.content) }];
 	}
 
-	const metadata = (msg.author_id || msg.token_usage)
-		? {
-				custom: {
-					...(msg.author_id && {
-						author: {
-							displayName: msg.author_display_name ?? null,
-							avatarUrl: msg.author_avatar_url ?? null,
-						},
-					}),
-					...(msg.token_usage && { usage: msg.token_usage }),
-				},
-			}
-		: undefined;
+	const metadata =
+		msg.author_id || msg.token_usage
+			? {
+					custom: {
+						...(msg.author_id && {
+							author: {
+								displayName: msg.author_display_name ?? null,
+								avatarUrl: msg.author_avatar_url ?? null,
+							},
+						}),
+						...(msg.token_usage && { usage: msg.token_usage }),
+					},
+				}
+			: undefined;
 
 	return {
 		id: `msg-${msg.id}`,

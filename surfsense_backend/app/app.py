@@ -2,12 +2,15 @@ import asyncio
 import gc
 import logging
 import time
+import uuid
 from collections import defaultdict
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from threading import Lock
 
 import redis
 from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from limits.storage import MemoryStorage
@@ -32,12 +35,15 @@ from app.config import (
     initialize_vision_llm_router,
 )
 from app.db import User, create_db_and_tables, get_async_session
+from app.exceptions import GENERIC_5XX_MESSAGE, ISSUES_URL, SurfSenseError
 from app.routes import router as crud_router
 from app.routes.auth_routes import router as auth_router
 from app.schemas import UserCreate, UserRead, UserUpdate
 from app.tasks.surfsense_docs_indexer import seed_surfsense_docs
 from app.users import SECRET, auth_backend, current_active_user, fastapi_users
 from app.utils.perf import get_perf_logger, log_system_snapshot
+
+_error_logger = logging.getLogger("surfsense.errors")
 
 rate_limit_logger = logging.getLogger("surfsense.rate_limit")
 
@@ -61,13 +67,137 @@ limiter = Limiter(
 )
 
 
+def _get_request_id(request: Request) -> str:
+    """Return the request ID from state, header, or generate a new one."""
+    if hasattr(request.state, "request_id"):
+        return request.state.request_id
+    return request.headers.get("X-Request-ID", f"req_{uuid.uuid4().hex[:12]}")
+
+
+def _build_error_response(
+    status_code: int,
+    message: str,
+    *,
+    code: str = "INTERNAL_ERROR",
+    request_id: str = "",
+    extra_headers: dict[str, str] | None = None,
+) -> JSONResponse:
+    """Build the standardized error envelope (new ``error`` + legacy ``detail``)."""
+    body = {
+        "error": {
+            "code": code,
+            "message": message,
+            "status": status_code,
+            "request_id": request_id,
+            "timestamp": datetime.now(UTC).isoformat(),
+            "report_url": ISSUES_URL,
+        },
+        "detail": message,
+    }
+    headers = {"X-Request-ID": request_id}
+    if extra_headers:
+        headers.update(extra_headers)
+    return JSONResponse(status_code=status_code, content=body, headers=headers)
+
+
+# ---------------------------------------------------------------------------
+# Global exception handlers
+# ---------------------------------------------------------------------------
+
+
+def _surfsense_error_handler(request: Request, exc: SurfSenseError) -> JSONResponse:
+    """Handle our own structured exceptions."""
+    rid = _get_request_id(request)
+    if exc.status_code >= 500:
+        _error_logger.error(
+            "[%s] %s - %s: %s",
+            rid,
+            request.url.path,
+            exc.code,
+            exc,
+            exc_info=True,
+        )
+    message = exc.message if exc.safe_for_client else GENERIC_5XX_MESSAGE
+    return _build_error_response(
+        exc.status_code, message, code=exc.code, request_id=rid
+    )
+
+
+def _http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+    """Wrap FastAPI/Starlette HTTPExceptions into the standard envelope."""
+    rid = _get_request_id(request)
+    detail = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
+    if exc.status_code >= 500:
+        _error_logger.error(
+            "[%s] %s - HTTPException %d: %s",
+            rid,
+            request.url.path,
+            exc.status_code,
+            detail,
+        )
+        detail = GENERIC_5XX_MESSAGE
+    code = _status_to_code(exc.status_code, detail)
+    return _build_error_response(exc.status_code, detail, code=code, request_id=rid)
+
+
+def _validation_error_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    """Return 422 with field-level detail in the standard envelope."""
+    rid = _get_request_id(request)
+    fields = []
+    for err in exc.errors():
+        loc = " -> ".join(str(part) for part in err.get("loc", []))
+        fields.append(f"{loc}: {err.get('msg', 'invalid')}")
+    message = (
+        f"Validation failed: {'; '.join(fields)}" if fields else "Validation failed."
+    )
+    return _build_error_response(422, message, code="VALIDATION_ERROR", request_id=rid)
+
+
+def _unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Catch-all: log full traceback, return sanitized 500."""
+    rid = _get_request_id(request)
+    _error_logger.error(
+        "[%s] Unhandled exception on %s %s",
+        rid,
+        request.method,
+        request.url.path,
+        exc_info=True,
+    )
+    return _build_error_response(
+        500, GENERIC_5XX_MESSAGE, code="INTERNAL_ERROR", request_id=rid
+    )
+
+
+def _status_to_code(status_code: int, detail: str = "") -> str:
+    if detail == "RATE_LIMIT_EXCEEDED":
+        return "RATE_LIMIT_EXCEEDED"
+    mapping = {
+        400: "BAD_REQUEST",
+        401: "UNAUTHORIZED",
+        403: "FORBIDDEN",
+        404: "NOT_FOUND",
+        405: "METHOD_NOT_ALLOWED",
+        409: "CONFLICT",
+        422: "VALIDATION_ERROR",
+        429: "RATE_LIMIT_EXCEEDED",
+    }
+    return mapping.get(
+        status_code, "INTERNAL_ERROR" if status_code >= 500 else "CLIENT_ERROR"
+    )
+
+
 def _rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
-    """Custom 429 handler that returns JSON matching our frontend error format."""
+    """Custom 429 handler that returns JSON matching our error envelope."""
+    rid = _get_request_id(request)
     retry_after = exc.detail.split("per")[-1].strip() if exc.detail else "60"
-    return JSONResponse(
-        status_code=429,
-        content={"detail": "RATE_LIMIT_EXCEEDED"},
-        headers={"Retry-After": retry_after},
+    return _build_error_response(
+        429,
+        "Too many requests. Please slow down and try again.",
+        code="RATE_LIMIT_EXCEEDED",
+        request_id=rid,
+        extra_headers={"Retry-After": retry_after},
     )
 
 
@@ -257,6 +387,33 @@ app = FastAPI(lifespan=lifespan)
 # Register rate limiter and custom 429 handler
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Register structured global exception handlers (order matters: most specific first)
+app.add_exception_handler(SurfSenseError, _surfsense_error_handler)
+app.add_exception_handler(RequestValidationError, _validation_error_handler)
+app.add_exception_handler(HTTPException, _http_exception_handler)
+app.add_exception_handler(Exception, _unhandled_exception_handler)
+
+
+# ---------------------------------------------------------------------------
+# Request-ID middleware
+# ---------------------------------------------------------------------------
+
+
+class RequestIDMiddleware(BaseHTTPMiddleware):
+    """Attach a unique request ID to every request and echo it in the response."""
+
+    async def dispatch(
+        self, request: StarletteRequest, call_next: RequestResponseEndpoint
+    ) -> StarletteResponse:
+        request_id = request.headers.get("X-Request-ID", f"req_{uuid.uuid4().hex[:12]}")
+        request.state.request_id = request_id
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        return response
+
+
+app.add_middleware(RequestIDMiddleware)
 
 
 # ---------------------------------------------------------------------------

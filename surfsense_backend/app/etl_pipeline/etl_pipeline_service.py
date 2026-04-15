@@ -145,13 +145,17 @@ class EtlPipelineService:
             and getattr(app_config, "AZURE_DI_KEY", None)
         )
 
+        mode_value = request.processing_mode.value
+
         if azure_configured and ext in AZURE_DI_DOCUMENT_EXTENSIONS:
             try:
                 from app.etl_pipeline.parsers.azure_doc_intelligence import (
                     parse_with_azure_doc_intelligence,
                 )
 
-                return await parse_with_azure_doc_intelligence(request.file_path)
+                return await parse_with_azure_doc_intelligence(
+                    request.file_path, processing_mode=mode_value
+                )
             except Exception:
                 logging.warning(
                     "Azure Document Intelligence failed for %s, "
@@ -162,4 +166,6 @@ class EtlPipelineService:
 
         from app.etl_pipeline.parsers.llamacloud import parse_with_llamacloud
 
-        return await parse_with_llamacloud(request.file_path, request.estimated_pages)
+        return await parse_with_llamacloud(
+            request.file_path, request.estimated_pages, processing_mode=mode_value
+        )

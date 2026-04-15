@@ -399,7 +399,12 @@
 		"uploading_folder": "फ़ोल्डर अपलोड हो रहा है…",
 		"upload_folder_button": "फ़ोल्डर अपलोड करें ({count} {count, plural, one {फ़ाइल} other {फ़ाइलें}})",
 		"select_files_or_folder": "फ़ाइलें या फ़ोल्डर चुनें",
-		"tap_select_files_or_folder": "फ़ाइलें या फ़ोल्डर चुनने के लिए टैप करें"
+		"tap_select_files_or_folder": "फ़ाइलें या फ़ोल्डर चुनने के लिए टैप करें",
+		"processing_mode": "प्रोसेसिंग मोड",
+		"basic_mode": "बेसिक",
+		"basic_mode_desc": "मानक प्रोसेसिंग (1 क्रेडिट प्रति पेज)",
+		"premium_mode": "प्रीमियम",
+		"premium_mode_desc": "वित्तीय, चिकित्सा और कानूनी दस्तावेज़ों के लिए उन्नत (10 क्रेडिट प्रति पेज)"
 	},
 	"add_webpage": {
 		"title": "क्रॉलिंग के लिए वेबपेज जोड़ें",

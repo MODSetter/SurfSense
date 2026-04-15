@@ -554,9 +554,7 @@ function RolesContent({
 													>
 														<div className="flex items-center gap-2 shrink-0">
 															<IconComponent className="h-3.5 w-3.5 text-muted-foreground" />
-															<span className="text-sm text-muted-foreground">
-																{config.label}
-															</span>
+															<span className="text-sm text-muted-foreground">{config.label}</span>
 														</div>
 														<div className="flex flex-wrap justify-end gap-1">
 															{actions.map((action) => (
@@ -685,7 +683,10 @@ function PermissionsEditor({
 										onClick={() => toggleCategoryExpanded(category)}
 									>
 										<div
-											className={cn("transition-transform duration-200", isExpanded && "rotate-180")}
+											className={cn(
+												"transition-transform duration-200",
+												isExpanded && "rotate-180"
+											)}
 										>
 											<svg
 												className="h-4 w-4 text-muted-foreground"

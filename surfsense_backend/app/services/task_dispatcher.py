@@ -20,6 +20,7 @@ class TaskDispatcher(Protocol):
         user_id: str,
         should_summarize: bool = False,
         use_vision_llm: bool = False,
+        processing_mode: str = "basic",
     ) -> None: ...
 
 
@@ -36,6 +37,7 @@ class CeleryTaskDispatcher:
         user_id: str,
         should_summarize: bool = False,
         use_vision_llm: bool = False,
+        processing_mode: str = "basic",
     ) -> None:
         from app.tasks.celery_tasks.document_tasks import (
             process_file_upload_with_document_task,
@@ -49,6 +51,7 @@ class CeleryTaskDispatcher:
             user_id=user_id,
             should_summarize=should_summarize,
             use_vision_llm=use_vision_llm,
+            processing_mode=processing_mode,
         )
 
 

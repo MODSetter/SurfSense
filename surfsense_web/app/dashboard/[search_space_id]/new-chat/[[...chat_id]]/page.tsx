@@ -38,11 +38,15 @@ import { removeChatTabAtom, updateChatTabTitleAtom } from "@/atoms/tabs/tabs.ato
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { ThinkingStepsDataUI } from "@/components/assistant-ui/thinking-steps";
 import { Thread } from "@/components/assistant-ui/thread";
+import {
+	createTokenUsageStore,
+	type TokenUsageData,
+	TokenUsageProvider,
+} from "@/components/assistant-ui/token-usage-context";
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
 import { useMessagesSync } from "@/hooks/use-messages-sync";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { getBearerToken } from "@/lib/auth-utils";
-import { createTokenUsageStore, TokenUsageProvider, type TokenUsageData } from "@/components/assistant-ui/token-usage-context";
 import { convertToThreadMessage } from "@/lib/chat/message-utils";
 import {
 	isPodcastGenerating,
@@ -823,7 +827,14 @@ export default function NewChatPage() {
 									});
 								} else {
 									const tcId = `interrupt-${action.name}`;
-									addToolCall(contentPartsState, TOOLS_WITH_UI, tcId, action.name, action.args, true);
+									addToolCall(
+										contentPartsState,
+										TOOLS_WITH_UI,
+										tcId,
+										action.name,
+										action.args,
+										true
+									);
 									updateToolCall(contentPartsState, tcId, {
 										result: { __interrupt__: true, ...interruptData },
 									});
@@ -872,7 +883,7 @@ export default function NewChatPage() {
 						const newMsgId = `msg-${savedMessage.id}`;
 						tokenUsageStore.rename(assistantMsgId, newMsgId);
 						setMessages((prev) =>
-							prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m)),
+							prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m))
 						);
 
 						// Update pending interrupt with the new persisted message ID
@@ -1159,7 +1170,14 @@ export default function NewChatPage() {
 									});
 								} else {
 									const tcId = `interrupt-${action.name}`;
-									addToolCall(contentPartsState, TOOLS_WITH_UI, tcId, action.name, action.args, true);
+									addToolCall(
+										contentPartsState,
+										TOOLS_WITH_UI,
+										tcId,
+										action.name,
+										action.args,
+										true
+									);
 									updateToolCall(contentPartsState, tcId, {
 										result: {
 											__interrupt__: true,
@@ -1206,7 +1224,7 @@ export default function NewChatPage() {
 						const newMsgId = `msg-${savedMessage.id}`;
 						tokenUsageStore.rename(assistantMsgId, newMsgId);
 						setMessages((prev) =>
-							prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m)),
+							prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m))
 						);
 					} catch (err) {
 						console.error("Failed to persist resumed assistant message:", err);
@@ -1512,7 +1530,7 @@ export default function NewChatPage() {
 						const newMsgId = `msg-${savedMessage.id}`;
 						tokenUsageStore.rename(assistantMsgId, newMsgId);
 						setMessages((prev) =>
-							prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m)),
+							prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m))
 						);
 
 						trackChatResponseReceived(searchSpaceId, threadId);
@@ -1617,17 +1635,17 @@ export default function NewChatPage() {
 
 	return (
 		<TokenUsageProvider store={tokenUsageStore}>
-		<AssistantRuntimeProvider runtime={runtime}>
-			<ThinkingStepsDataUI />
-			<div key={searchSpaceId} className="flex h-full overflow-hidden">
-				<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-					<Thread />
+			<AssistantRuntimeProvider runtime={runtime}>
+				<ThinkingStepsDataUI />
+				<div key={searchSpaceId} className="flex h-full overflow-hidden">
+					<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+						<Thread />
+					</div>
+					<MobileReportPanel />
+					<MobileEditorPanel />
+					<MobileHitlEditPanel />
 				</div>
-				<MobileReportPanel />
-				<MobileEditorPanel />
-				<MobileHitlEditPanel />
-			</div>
-		</AssistantRuntimeProvider>
+			</AssistantRuntimeProvider>
 		</TokenUsageProvider>
 	);
 }

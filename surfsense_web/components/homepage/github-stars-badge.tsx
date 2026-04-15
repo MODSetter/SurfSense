@@ -5,8 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { motion, useMotionValue, useSpring } from "motion/react";
 import * as React from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
+import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Per-digit scrolling wheel
@@ -249,10 +249,7 @@ function NavbarGitHubStars({
 	const { data: stars = 0, isLoading } = useQuery({
 		queryKey: cacheKeys.github.repoStars(username, repo),
 		queryFn: async ({ signal }) => {
-			const res = await fetch(
-				`https://api.github.com/repos/${username}/${repo}`,
-				{ signal },
-			);
+			const res = await fetch(`https://api.github.com/repos/${username}/${repo}`, { signal });
 			const data = await res.json();
 			if (data && typeof data.stargazers_count === "number") {
 				return data.stargazers_count as number;

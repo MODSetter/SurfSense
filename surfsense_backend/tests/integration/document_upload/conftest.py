@@ -70,6 +70,7 @@ class InlineTaskDispatcher:
         user_id: str,
         should_summarize: bool = False,
         use_vision_llm: bool = False,
+        processing_mode: str = "basic",
     ) -> None:
         from app.tasks.celery_tasks.document_tasks import (
             _process_file_with_document,
@@ -84,6 +85,7 @@ class InlineTaskDispatcher:
                 user_id,
                 should_summarize=should_summarize,
                 use_vision_llm=use_vision_llm,
+                processing_mode=processing_mode,
             )
 
 
@@ -321,7 +323,9 @@ def _mock_etl_parsing(monkeypatch):
 
     # -- LlamaParse mock (external API) --------------------------------
 
-    async def _fake_llamacloud_parse(file_path: str, estimated_pages: int) -> str:
+    async def _fake_llamacloud_parse(
+        file_path: str, estimated_pages: int, processing_mode: str = "basic"
+    ) -> str:
         _reject_empty(file_path)
         return _MOCK_ETL_MARKDOWN
 

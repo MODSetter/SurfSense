@@ -127,7 +127,8 @@ class DocumentsApiService {
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
-		const { files, search_space_id, should_summarize, use_vision_llm } = parsedRequest.data;
+		const { files, search_space_id, should_summarize, use_vision_llm, processing_mode } =
+			parsedRequest.data;
 		const UPLOAD_BATCH_SIZE = 5;
 
 		const batches: File[][] = [];
@@ -147,6 +148,7 @@ class DocumentsApiService {
 			formData.append("search_space_id", String(search_space_id));
 			formData.append("should_summarize", String(should_summarize));
 			formData.append("use_vision_llm", String(use_vision_llm));
+			formData.append("processing_mode", processing_mode);
 
 			const controller = new AbortController();
 			const timeoutId = setTimeout(() => controller.abort(), 120_000);
@@ -444,6 +446,7 @@ class DocumentsApiService {
 			root_folder_id?: number | null;
 			enable_summary?: boolean;
 			use_vision_llm?: boolean;
+			processing_mode?: "basic" | "premium";
 		},
 		signal?: AbortSignal
 	): Promise<{ message: string; status: string; root_folder_id: number; file_count: number }> => {
@@ -459,6 +462,7 @@ class DocumentsApiService {
 		}
 		formData.append("enable_summary", String(metadata.enable_summary ?? false));
 		formData.append("use_vision_llm", String(metadata.use_vision_llm ?? false));
+		formData.append("processing_mode", metadata.processing_mode ?? "basic");
 
 		const totalSize = files.reduce((acc, f) => acc + f.size, 0);
 		const timeoutMs = Math.min(Math.max((totalSize / (1024 * 1024)) * 5000, 30_000), 600_000);

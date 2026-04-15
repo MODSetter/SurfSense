@@ -5,7 +5,6 @@ import { useCallback, useEffect } from "react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/lib/layout-events";
 
-
 interface SidebarSlideOutPanelProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;

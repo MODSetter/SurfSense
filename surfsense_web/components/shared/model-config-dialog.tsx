@@ -201,7 +201,9 @@ export function ModelConfigDialog({
 							onSubmit={handleSubmit}
 							mode="create"
 							formId="model-config-form"
-							initialData={defaultProvider ? { provider: defaultProvider as LiteLLMProvider } : undefined}
+							initialData={
+								defaultProvider ? { provider: defaultProvider as LiteLLMProvider } : undefined
+							}
 						/>
 					) : isGlobal && config ? (
 						<div className="space-y-6">

@@ -5,8 +5,7 @@ import { BlogWithSearchMagazine } from "./blog-magazine";
 
 export const metadata: Metadata = {
 	title: "Blog | SurfSense - AI Search & Knowledge Management",
-	description:
-		"Product updates, tutorials, and tips from the SurfSense team.",
+	description: "Product updates, tutorials, and tips from the SurfSense team.",
 	alternates: {
 		canonical: "https://surfsense.com/blog",
 	},
@@ -53,9 +52,7 @@ export default async function BlogPage() {
 			author: page.data.author ?? "SurfSense Team",
 			authorAvatar: page.data.authorAvatar ?? "/logo.png",
 		}))
-		.sort(
-			(a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-		);
+		.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
 	return <BlogWithSearchMagazine blogs={blogs} />;
 }

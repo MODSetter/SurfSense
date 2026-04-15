@@ -1,6 +1,13 @@
 import type { ZodType } from "zod";
 import { getBearerToken, handleUnauthorized, refreshAccessToken } from "../auth-utils";
-import { AppError, AuthenticationError, AuthorizationError, NotFoundError } from "../error";
+import {
+	AbortedError,
+	AppError,
+	AuthenticationError,
+	AuthorizationError,
+	NetworkError,
+	NotFoundError,
+} from "../error";
 
 enum ResponseType {
 	JSON = "json",
@@ -137,12 +144,21 @@ class BaseApiService {
 					throw new AppError("Failed to parse response", response.status, response.statusText);
 				}
 
+				// Extract structured fields from new envelope or legacy shape
+				const envelope = typeof data === "object" && data?.error;
+				const errorMessage: string =
+					envelope?.message ??
+					(typeof data === "object" && typeof data?.detail === "string" ? data.detail : "");
+				const errorCode: string | undefined = envelope?.code;
+				const requestId: string | undefined =
+					envelope?.request_id ?? response.headers.get("X-Request-ID") ?? undefined;
+				const reportUrl: string | undefined = envelope?.report_url;
+
 				// Handle 401 - try to refresh token first (only once)
 				if (response.status === 401) {
 					if (!options?._isRetry) {
 						const newToken = await refreshAccessToken();
 						if (newToken) {
-							// Retry the request with the new token
 							return this.request(url, responseSchema, {
 								...mergedOptions,
 								headers: {
@@ -153,34 +169,37 @@ class BaseApiService {
 							} as RequestOptions & { responseType?: R });
 						}
 					}
-					// Refresh failed or retry failed, redirect to login
 					handleUnauthorized();
 					throw new AuthenticationError(
-						typeof data === "object" && "detail" in data
-							? data.detail
-							: "You are not authenticated. Please login again.",
+						errorMessage || "You are not authenticated. Please login again.",
 						response.status,
 						response.statusText
 					);
 				}
 
-				// For fastapi errors response
-				if (typeof data === "object" && "detail" in data) {
-					throw new AppError(data.detail, response.status, response.statusText);
-				}
-
+				// Map status to typed error
 				switch (response.status) {
 					case 403:
 						throw new AuthorizationError(
-							"You don't have permission to access this resource.",
+							errorMessage || "You don't have permission to access this resource.",
 							response.status,
 							response.statusText
 						);
 					case 404:
-						throw new NotFoundError("Resource not found", response.status, response.statusText);
-					//  Add more cases as needed
+						throw new NotFoundError(
+							errorMessage || "Resource not found",
+							response.status,
+							response.statusText
+						);
 					default:
-						throw new AppError("Something went wrong", response.status, response.statusText);
+						throw new AppError(
+							errorMessage || "Something went wrong",
+							response.status,
+							response.statusText,
+							errorCode,
+							requestId,
+							reportUrl
+						);
 				}
 			}
 
@@ -231,6 +250,16 @@ class BaseApiService {
 
 			return data;
 		} catch (error) {
+			// Normalize browser-level fetch failures before anything else
+			if (error instanceof DOMException && error.name === "AbortError") {
+				throw new AbortedError();
+			}
+			if (error instanceof TypeError && !(error instanceof AppError)) {
+				throw new NetworkError(
+					"Unable to connect to the server. Check your internet connection and try again."
+				);
+			}
+
 			console.error("Request failed:", JSON.stringify(error));
 			if (!(error instanceof AuthenticationError)) {
 				import("posthog-js")
@@ -241,11 +270,12 @@ class BaseApiService {
 							...(error instanceof AppError && {
 								status_code: error.status,
 								status_text: error.statusText,
+								error_code: error.code,
+								request_id: error.requestId,
 							}),
 						});
 					})
 					.catch(() => {
-						// PostHog is not available in the current environment
 						console.error("Failed to capture exception in PostHog");
 					});
 			}

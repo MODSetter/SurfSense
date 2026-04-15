@@ -3,7 +3,8 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
 	title: "Page Not Found | SurfSense",
-	description: "The page you're looking for doesn't exist. Explore SurfSense - open source enterprise AI search and knowledge management.",
+	description:
+		"The page you're looking for doesn't exist. Explore SurfSense - open source enterprise AI search and knowledge management.",
 };
 
 export default function NotFound() {

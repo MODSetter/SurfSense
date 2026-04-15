@@ -42,9 +42,7 @@ export async function generateMetadata(props: {
 	params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
 	const { slug } = await props.params;
-	const page = (source.getPages() as BlogPageItem[]).find(
-		(p) => p.slugs.join("/") === slug,
-	);
+	const page = (source.getPages() as BlogPageItem[]).find((p) => p.slugs.join("/") === slug);
 
 	if (!page) return {};
 
@@ -72,13 +70,9 @@ export async function generateMetadata(props: {
 	};
 }
 
-export default async function BlogPostPage(props: {
-	params: Promise<{ slug: string }>;
-}) {
+export default async function BlogPostPage(props: { params: Promise<{ slug: string }> }) {
 	const { slug } = await props.params;
-	const page = (source.getPages() as BlogPageItem[]).find(
-		(p) => p.slugs.join("/") === slug,
-	);
+	const page = (source.getPages() as BlogPageItem[]).find((p) => p.slugs.join("/") === slug);
 
 	if (!page) notFound();
 

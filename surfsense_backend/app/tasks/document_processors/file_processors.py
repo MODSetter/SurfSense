@@ -47,6 +47,7 @@ class _ProcessingContext:
     connector: dict | None = None
     notification: Notification | None = None
     use_vision_llm: bool = False
+    processing_mode: str = "basic"
     enable_summary: bool = field(init=False)
 
     def __post_init__(self) -> None:
@@ -187,21 +188,28 @@ async def _process_non_document_upload(ctx: _ProcessingContext) -> Document | No
 
 async def _process_document_upload(ctx: _ProcessingContext) -> Document | None:
     """Route a document file to the configured ETL service via the unified pipeline."""
-    from app.etl_pipeline.etl_document import EtlRequest
+    from app.etl_pipeline.etl_document import EtlRequest, ProcessingMode
     from app.etl_pipeline.etl_pipeline_service import EtlPipelineService
     from app.services.page_limit_service import PageLimitExceededError, PageLimitService
 
+    mode = ProcessingMode.coerce(ctx.processing_mode)
     page_limit_service = PageLimitService(ctx.session)
     estimated_pages = _estimate_pages_safe(page_limit_service, ctx.file_path)
+    billable_pages = estimated_pages * mode.page_multiplier
 
     await ctx.task_logger.log_task_progress(
         ctx.log_entry,
         f"Estimated {estimated_pages} pages for file: {ctx.filename}",
-        {"estimated_pages": estimated_pages, "file_type": "document"},
+        {
+            "estimated_pages": estimated_pages,
+            "billable_pages": billable_pages,
+            "processing_mode": mode.value,
+            "file_type": "document",
+        },
     )
 
     try:
-        await page_limit_service.check_page_limit(ctx.user_id, estimated_pages)
+        await page_limit_service.check_page_limit(ctx.user_id, billable_pages)
     except PageLimitExceededError as e:
         await ctx.task_logger.log_task_failure(
             ctx.log_entry,
@@ -212,6 +220,8 @@ async def _process_document_upload(ctx: _ProcessingContext) -> Document | None:
                 "pages_used": e.pages_used,
                 "pages_limit": e.pages_limit,
                 "estimated_pages": estimated_pages,
+                "billable_pages": billable_pages,
+                "processing_mode": mode.value,
             },
         )
         with contextlib.suppress(Exception):
@@ -225,6 +235,7 @@ async def _process_document_upload(ctx: _ProcessingContext) -> Document | None:
             file_path=ctx.file_path,
             filename=ctx.filename,
             estimated_pages=estimated_pages,
+            processing_mode=mode,
         )
     )
 
@@ -246,7 +257,7 @@ async def _process_document_upload(ctx: _ProcessingContext) -> Document | None:
 
     if result:
         await page_limit_service.update_page_usage(
-            ctx.user_id, estimated_pages, allow_exceed=True
+            ctx.user_id, billable_pages, allow_exceed=True
         )
         if ctx.connector:
             await update_document_from_connector(result, ctx.connector, ctx.session)
@@ -259,6 +270,8 @@ async def _process_document_upload(ctx: _ProcessingContext) -> Document | None:
                 "file_type": "document",
                 "etl_service": etl_result.etl_service,
                 "pages_processed": estimated_pages,
+                "billable_pages": billable_pages,
+                "processing_mode": mode.value,
             },
         )
     else:
@@ -290,6 +303,7 @@ async def process_file_in_background(
     connector: dict | None = None,
     notification: Notification | None = None,
     use_vision_llm: bool = False,
+    processing_mode: str = "basic",
 ) -> Document | None:
     ctx = _ProcessingContext(
         session=session,
@@ -302,6 +316,7 @@ async def process_file_in_background(
         connector=connector,
         notification=notification,
         use_vision_llm=use_vision_llm,
+        processing_mode=processing_mode,
     )
 
     try:
@@ -353,22 +368,25 @@ async def _extract_file_content(
     log_entry: Log,
     notification: Notification | None,
     use_vision_llm: bool = False,
-) -> tuple[str, str]:
+    processing_mode: str = "basic",
+) -> tuple[str, str, int]:
     """
     Extract markdown content from a file regardless of type.
 
     Returns:
-        Tuple of (markdown_content, etl_service_name).
+        Tuple of (markdown_content, etl_service_name, billable_pages).
     """
-    from app.etl_pipeline.etl_document import EtlRequest
+    from app.etl_pipeline.etl_document import EtlRequest, ProcessingMode
     from app.etl_pipeline.etl_pipeline_service import EtlPipelineService
     from app.etl_pipeline.file_classifier import (
         FileCategory,
         classify_file as etl_classify,
     )
 
+    mode = ProcessingMode.coerce(processing_mode)
     category = etl_classify(filename)
     estimated_pages = 0
+    billable_pages = 0
 
     if notification:
         stage_messages = {
@@ -397,7 +415,8 @@ async def _extract_file_content(
 
         page_limit_service = PageLimitService(session)
         estimated_pages = _estimate_pages_safe(page_limit_service, file_path)
-        await page_limit_service.check_page_limit(user_id, estimated_pages)
+        billable_pages = estimated_pages * mode.page_multiplier
+        await page_limit_service.check_page_limit(user_id, billable_pages)
 
     vision_llm = None
     if use_vision_llm and category == FileCategory.IMAGE:
@@ -410,13 +429,9 @@ async def _extract_file_content(
             file_path=file_path,
             filename=filename,
             estimated_pages=estimated_pages,
+            processing_mode=mode,
         )
     )
-
-    if category == FileCategory.DOCUMENT:
-        await page_limit_service.update_page_usage(
-            user_id, estimated_pages, allow_exceed=True
-        )
 
     with contextlib.suppress(Exception):
         os.unlink(file_path)
@@ -424,7 +439,7 @@ async def _extract_file_content(
     if not result.markdown_content:
         raise RuntimeError(f"Failed to extract content from file: {filename}")
 
-    return result.markdown_content, result.etl_service
+    return result.markdown_content, result.etl_service, billable_pages
 
 
 async def process_file_in_background_with_document(
@@ -440,12 +455,16 @@ async def process_file_in_background_with_document(
     notification: Notification | None = None,
     should_summarize: bool = False,
     use_vision_llm: bool = False,
+    processing_mode: str = "basic",
 ) -> Document | None:
     """
     Process file and update existing pending document (2-phase pattern).
 
     Phase 1 (API layer): Created document with pending status.
     Phase 2 (this function): Process file and update document to ready/failed.
+
+    Page usage is deferred until after dedup check and successful indexing
+    to avoid charging for duplicate or failed uploads.
     """
     from app.indexing_pipeline.adapters.file_upload_adapter import (
         UploadDocumentAdapter,
@@ -458,8 +477,7 @@ async def process_file_in_background_with_document(
     doc_id = document.id
 
     try:
-        # Step 1: extract content
-        markdown_content, etl_service = await _extract_file_content(
+        markdown_content, etl_service, billable_pages = await _extract_file_content(
             file_path,
             filename,
             search_space_id,
@@ -469,12 +487,12 @@ async def process_file_in_background_with_document(
             log_entry,
             notification,
             use_vision_llm=use_vision_llm,
+            processing_mode=processing_mode,
         )
 
         if not markdown_content:
             raise RuntimeError(f"Failed to extract content from file: {filename}")
 
-        # Step 2: duplicate check
         content_hash = generate_content_hash(markdown_content, search_space_id)
         existing_by_content = await check_duplicate_document(session, content_hash)
         if existing_by_content and existing_by_content.id != doc_id:
@@ -484,7 +502,6 @@ async def process_file_in_background_with_document(
             )
             return None
 
-        # Step 3: index via pipeline
         if notification:
             await NotificationService.document_processing.notify_processing_progress(
                 session,
@@ -505,6 +522,14 @@ async def process_file_in_background_with_document(
             should_summarize=should_summarize,
         )
 
+        if billable_pages > 0:
+            from app.services.page_limit_service import PageLimitService
+
+            page_limit_service = PageLimitService(session)
+            await page_limit_service.update_page_usage(
+                user_id, billable_pages, allow_exceed=True
+            )
+
         await task_logger.log_task_success(
             log_entry,
             f"Successfully processed file: {filename}",
@@ -512,6 +537,8 @@ async def process_file_in_background_with_document(
                 "document_id": doc_id,
                 "content_hash": content_hash,
                 "file_type": etl_service,
+                "billable_pages": billable_pages,
+                "processing_mode": processing_mode,
             },
         )
         return document

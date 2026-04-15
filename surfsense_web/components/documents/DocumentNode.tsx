@@ -86,8 +86,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 	const isProcessing = statusState === "pending" || statusState === "processing";
 	const isUnavailable = isProcessing || isFailed;
 	const isSelectable = !isUnavailable;
-	const isEditable =
-		EDITABLE_DOCUMENT_TYPES.has(doc.document_type) && !isUnavailable;
+	const isEditable = EDITABLE_DOCUMENT_TYPES.has(doc.document_type) && !isUnavailable;
 
 	const handleCheckChange = useCallback(() => {
 		if (isSelectable) {
@@ -261,38 +260,38 @@ export const DocumentNode = React.memo(function DocumentNode({
 								className="w-40"
 								onClick={(e) => e.stopPropagation()}
 							>
-							<DropdownMenuItem onClick={() => onPreview(doc)} disabled={isUnavailable}>
-								<Eye className="mr-2 h-4 w-4" />
-								Open
-							</DropdownMenuItem>
-							{isEditable && (
-								<DropdownMenuItem onClick={() => onEdit(doc)}>
-									<PenLine className="mr-2 h-4 w-4" />
-									Edit
+								<DropdownMenuItem onClick={() => onPreview(doc)} disabled={isUnavailable}>
+									<Eye className="mr-2 h-4 w-4" />
+									Open
 								</DropdownMenuItem>
-							)}
-							<DropdownMenuItem onClick={() => onMove(doc)}>
-								<Move className="mr-2 h-4 w-4" />
-								Move to...
-							</DropdownMenuItem>
-							{onExport && (
-								<DropdownMenuSub>
-									<DropdownMenuSubTrigger disabled={isUnavailable}>
-										<Download className="mr-2 h-4 w-4" />
-										Export
-									</DropdownMenuSubTrigger>
-									<DropdownMenuSubContent className="min-w-[180px]">
-										<ExportDropdownItems onExport={handleExport} exporting={exporting} />
-									</DropdownMenuSubContent>
-								</DropdownMenuSub>
-							)}
-							{onVersionHistory && isVersionableType(doc.document_type) && (
-								<DropdownMenuItem disabled={isUnavailable} onClick={() => onVersionHistory(doc)}>
-									<History className="mr-2 h-4 w-4" />
-									Versions
+								{isEditable && (
+									<DropdownMenuItem onClick={() => onEdit(doc)}>
+										<PenLine className="mr-2 h-4 w-4" />
+										Edit
+									</DropdownMenuItem>
+								)}
+								<DropdownMenuItem onClick={() => onMove(doc)}>
+									<Move className="mr-2 h-4 w-4" />
+									Move to...
 								</DropdownMenuItem>
-							)}
-							<DropdownMenuItem disabled={isProcessing} onClick={() => onDelete(doc)}>
+								{onExport && (
+									<DropdownMenuSub>
+										<DropdownMenuSubTrigger disabled={isUnavailable}>
+											<Download className="mr-2 h-4 w-4" />
+											Export
+										</DropdownMenuSubTrigger>
+										<DropdownMenuSubContent className="min-w-[180px]">
+											<ExportDropdownItems onExport={handleExport} exporting={exporting} />
+										</DropdownMenuSubContent>
+									</DropdownMenuSub>
+								)}
+								{onVersionHistory && isVersionableType(doc.document_type) && (
+									<DropdownMenuItem disabled={isUnavailable} onClick={() => onVersionHistory(doc)}>
+										<History className="mr-2 h-4 w-4" />
+										Versions
+									</DropdownMenuItem>
+								)}
+								<DropdownMenuItem disabled={isProcessing} onClick={() => onDelete(doc)}>
 									<Trash2 className="mr-2 h-4 w-4" />
 									Delete
 								</DropdownMenuItem>
@@ -304,38 +303,38 @@ export const DocumentNode = React.memo(function DocumentNode({
 
 			{contextMenuOpen && (
 				<ContextMenuContent className="w-40" onClick={(e) => e.stopPropagation()}>
-				<ContextMenuItem onClick={() => onPreview(doc)} disabled={isUnavailable}>
-					<Eye className="mr-2 h-4 w-4" />
-					Open
-				</ContextMenuItem>
-				{isEditable && (
-					<ContextMenuItem onClick={() => onEdit(doc)}>
-						<PenLine className="mr-2 h-4 w-4" />
-						Edit
+					<ContextMenuItem onClick={() => onPreview(doc)} disabled={isUnavailable}>
+						<Eye className="mr-2 h-4 w-4" />
+						Open
 					</ContextMenuItem>
-				)}
-				<ContextMenuItem onClick={() => onMove(doc)}>
-					<Move className="mr-2 h-4 w-4" />
-					Move to...
-				</ContextMenuItem>
-				{onExport && (
-					<ContextMenuSub>
-						<ContextMenuSubTrigger disabled={isUnavailable}>
-							<Download className="mr-2 h-4 w-4" />
-							Export
-						</ContextMenuSubTrigger>
-						<ContextMenuSubContent className="min-w-[180px]">
-							<ExportContextItems onExport={handleExport} exporting={exporting} />
-						</ContextMenuSubContent>
-					</ContextMenuSub>
-				)}
-				{onVersionHistory && isVersionableType(doc.document_type) && (
-					<ContextMenuItem disabled={isUnavailable} onClick={() => onVersionHistory(doc)}>
-						<History className="mr-2 h-4 w-4" />
-						Versions
+					{isEditable && (
+						<ContextMenuItem onClick={() => onEdit(doc)}>
+							<PenLine className="mr-2 h-4 w-4" />
+							Edit
+						</ContextMenuItem>
+					)}
+					<ContextMenuItem onClick={() => onMove(doc)}>
+						<Move className="mr-2 h-4 w-4" />
+						Move to...
 					</ContextMenuItem>
-				)}
-				<ContextMenuItem disabled={isProcessing} onClick={() => onDelete(doc)}>
+					{onExport && (
+						<ContextMenuSub>
+							<ContextMenuSubTrigger disabled={isUnavailable}>
+								<Download className="mr-2 h-4 w-4" />
+								Export
+							</ContextMenuSubTrigger>
+							<ContextMenuSubContent className="min-w-[180px]">
+								<ExportContextItems onExport={handleExport} exporting={exporting} />
+							</ContextMenuSubContent>
+						</ContextMenuSub>
+					)}
+					{onVersionHistory && isVersionableType(doc.document_type) && (
+						<ContextMenuItem disabled={isUnavailable} onClick={() => onVersionHistory(doc)}>
+							<History className="mr-2 h-4 w-4" />
+							Versions
+						</ContextMenuItem>
+					)}
+					<ContextMenuItem disabled={isProcessing} onClick={() => onDelete(doc)}>
 						<Trash2 className="mr-2 h-4 w-4" />
 						Delete
 					</ContextMenuItem>

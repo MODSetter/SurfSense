@@ -16,8 +16,8 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
+import type { HitlDecision, InterruptResult } from "@/lib/hitl";
 import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
-import type { InterruptResult, HitlDecision } from "@/lib/hitl";
 
 type NotionCreatePageContext = {
 	accounts?: Array<{
@@ -37,7 +37,7 @@ type NotionCreatePageContext = {
 		}>
 	>;
 	error?: string;
-}
+};
 
 interface SuccessResult {
 	status: "success";
@@ -61,7 +61,11 @@ interface AuthErrorResult {
 	connector_type: string;
 }
 
-type CreateNotionPageResult = InterruptResult<NotionCreatePageContext> | SuccessResult | ErrorResult | AuthErrorResult;
+type CreateNotionPageResult =
+	| InterruptResult<NotionCreatePageContext>
+	| SuccessResult
+	| ErrorResult
+	| AuthErrorResult;
 
 function isAuthErrorResult(result: unknown): result is AuthErrorResult {
 	return (
