@@ -3,12 +3,11 @@
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useParams, usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import { z } from "zod";
 import { openReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
-import { Spinner } from "@/components/ui/spinner";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { getAuthHeaders } from "@/lib/auth-utils";
 
@@ -88,10 +87,22 @@ function ResumeCancelledState() {
 	);
 }
 
-function PdfThumbnail({ pdfUrl }: { pdfUrl: string }) {
+function ThumbnailSkeleton() {
+	return (
+		<div className="h-[7rem] space-y-2">
+			<div className="h-3 w-full rounded bg-muted/60 animate-pulse" />
+			<div className="h-3 w-[92%] rounded bg-muted/60 animate-pulse [animation-delay:100ms]" />
+			<div className="h-3 w-[75%] rounded bg-muted/60 animate-pulse [animation-delay:200ms]" />
+			<div className="h-3 w-[85%] rounded bg-muted/60 animate-pulse [animation-delay:300ms]" />
+			<div className="h-3 w-[60%] rounded bg-muted/60 animate-pulse [animation-delay:400ms]" />
+		</div>
+	);
+}
+
+function PdfThumbnail({ pdfUrl, onLoad, onError }: { pdfUrl: string; onLoad: () => void; onError: () => void }) {
+	const wrapperRef = useRef<HTMLDivElement>(null);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState(false);
+	const [ready, setReady] = useState(false);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -112,53 +123,43 @@ function PdfThumbnail({ pdfUrl }: { pdfUrl: string }) {
 				const canvas = canvasRef.current;
 				if (!canvas) { pdf.destroy(); return; }
 
-				const containerWidth = canvas.parentElement?.clientWidth || 400;
+				const containerWidth = wrapperRef.current?.clientWidth || 400;
 				const unscaledViewport = page.getViewport({ scale: 1 });
 				const fitScale = containerWidth / unscaledViewport.width;
 				const viewport = page.getViewport({ scale: fitScale });
 				const dpr = window.devicePixelRatio || 1;
 
-				canvas.width = Math.floor(viewport.width * dpr);
-				canvas.height = Math.floor(viewport.height * dpr);
-				canvas.style.width = `${Math.floor(viewport.width)}px`;
-				canvas.style.height = `${Math.floor(viewport.height)}px`;
+				canvas.width = Math.ceil(viewport.width * dpr);
+				canvas.height = Math.ceil(viewport.height * dpr);
 
 				await page.render({
 					canvas,
 					viewport,
 					transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined,
 				}).promise;
-				if (!cancelled) setLoading(false);
+
+				if (!cancelled) {
+					setReady(true);
+					onLoad();
+				}
 
 				pdf.destroy();
 			} catch {
-				if (!cancelled) {
-					setError(true);
-					setLoading(false);
-				}
+				if (!cancelled) onError();
 			}
 		};
 
 		renderThumbnail();
 		return () => { cancelled = true; };
-	}, [pdfUrl]);
-
-	if (error) {
-		return <p className="text-sm text-muted-foreground italic">Preview unavailable</p>;
-	}
+	}, [pdfUrl, onLoad, onError]);
 
 	return (
-		<>
-			{loading && (
-				<div className="flex items-center justify-center h-[7rem]">
-					<Spinner size="md" />
-				</div>
-			)}
+		<div ref={wrapperRef}>
 			<canvas
 				ref={canvasRef}
-				className={loading ? "hidden" : "w-full h-auto"}
+				className={ready ? "w-full h-auto" : "hidden"}
 			/>
-		</>
+		</div>
 	);
 }
 
@@ -178,6 +179,7 @@ function ResumeCard({
 	const isDesktop = useMediaQuery("(min-width: 768px)");
 	const autoOpenedRef = useRef(false);
 	const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+	const [thumbState, setThumbState] = useState<"loading" | "ready" | "error">("loading");
 
 	useEffect(() => {
 		setPdfUrl(
@@ -194,6 +196,9 @@ function ResumeCard({
 			});
 		}
 	}, [reportId, title, shareToken, autoOpen, isDesktop, openPanel]);
+
+	const onThumbLoad = useCallback(() => setThumbState("ready"), []);
+	const onThumbError = useCallback(() => setThumbState("error"), []);
 
 	const isActive = panelState.isOpen && panelState.reportId === reportId;
 
@@ -223,21 +228,21 @@ function ResumeCard({
 				<div className="mx-5 h-px bg-border/50" />
 
 				<div className="px-5 pt-3 pb-4">
-					{pdfUrl ? (
+					{thumbState === "loading" && <ThumbnailSkeleton />}
+					{thumbState === "error" && (
+						<p className="text-sm text-muted-foreground italic">Preview unavailable</p>
+					)}
+					{pdfUrl && (
 						<div
-							className="max-h-[7rem] overflow-hidden pointer-events-none mix-blend-multiply dark:mix-blend-screen"
+							className={`max-h-[7rem] overflow-hidden pointer-events-none mix-blend-multiply dark:mix-blend-screen ${thumbState !== "ready" ? "hidden" : ""}`}
 							style={{
 								maskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
 								WebkitMaskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
 							}}
 						>
 							<div className="dark:invert dark:hue-rotate-180">
-								<PdfThumbnail pdfUrl={pdfUrl} />
+								<PdfThumbnail pdfUrl={pdfUrl} onLoad={onThumbLoad} onError={onThumbError} />
 							</div>
-						</div>
-					) : (
-						<div className="flex items-center justify-center h-[7rem]">
-							<Spinner size="md" />
 						</div>
 					)}
 				</div>
