@@ -348,6 +348,11 @@ const comparisonRows: {
 		notebookLm: false,
 		surfSense: true,
 	},
+	{
+		feature: "AI File Sorting",
+		notebookLm: false,
+		surfSense: true,
+	},
 ];
 
 function ComparisonStrip() {
