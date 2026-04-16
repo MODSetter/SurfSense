@@ -1,9 +1,11 @@
 "use client";
 
 import { IconBrandGithub } from "@tabler/icons-react";
+import { useQuery } from "@tanstack/react-query";
 import { motion, useMotionValue, useSpring } from "motion/react";
 import * as React from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -244,28 +246,18 @@ function NavbarGitHubStars({
 	href = "https://github.com/MODSetter/SurfSense",
 	className,
 }: NavbarGitHubStarsProps) {
-	const [stars, setStars] = React.useState(0);
-	const [isLoading, setIsLoading] = React.useState(true);
-
-	React.useEffect(() => {
-		const abortController = new AbortController();
-		fetch(`https://api.github.com/repos/${username}/${repo}`, {
-			signal: abortController.signal,
-		})
-			.then((res) => res.json())
-			.then((data) => {
-				if (data && typeof data.stargazers_count === "number") {
-					setStars(data.stargazers_count);
-				}
-			})
-			.catch((err) => {
-				if (err instanceof Error && err.name !== "AbortError") {
-					console.error("Error fetching stars:", err);
-				}
-			})
-			.finally(() => setIsLoading(false));
-		return () => abortController.abort();
-	}, [username, repo]);
+	const { data: stars = 0, isLoading } = useQuery({
+		queryKey: cacheKeys.github.repoStars(username, repo),
+		queryFn: async ({ signal }) => {
+			const res = await fetch(`https://api.github.com/repos/${username}/${repo}`, { signal });
+			const data = await res.json();
+			if (data && typeof data.stargazers_count === "number") {
+				return data.stargazers_count as number;
+			}
+			return 0;
+		},
+		staleTime: 5 * 60 * 1000,
+	});
 
 	return (
 		<a

@@ -9,9 +9,13 @@ from app.agents.new_chat.middleware.filesystem import (
 from app.agents.new_chat.middleware.knowledge_search import (
     KnowledgeBaseSearchMiddleware,
 )
+from app.agents.new_chat.middleware.memory_injection import (
+    MemoryInjectionMiddleware,
+)
 
 __all__ = [
     "DedupHITLToolCallsMiddleware",
     "KnowledgeBaseSearchMiddleware",
+    "MemoryInjectionMiddleware",
     "SurfSenseFilesystemMiddleware",
 ]

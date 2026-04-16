@@ -191,7 +191,7 @@ export function VisionModelManager({ searchSpaceId }: VisionModelManagerProps) {
 									? "model"
 									: "models"}
 							</span>{" "}
-							available from your administrator. Use the model selector to view and select them.
+							available from your administrator.
 						</p>
 					</AlertDescription>
 				</Alert>
@@ -208,20 +208,20 @@ export function VisionModelManager({ searchSpaceId }: VisionModelManagerProps) {
 							{["skeleton-a", "skeleton-b", "skeleton-c"].map((key) => (
 								<Card key={key} className="border-border/60">
 									<CardContent className="p-4 flex flex-col gap-3">
-										<div className="flex items-start justify-between gap-2">
+										<div className="flex items-center gap-2.5">
+											<Skeleton className="size-4 rounded-full shrink-0" />
 											<div className="space-y-1.5 flex-1 min-w-0">
 												<Skeleton className="h-4 w-28 md:w-32" />
 												<Skeleton className="h-3 w-40 md:w-48" />
 											</div>
 										</div>
-										<div className="flex items-center gap-2">
-											<Skeleton className="h-5 w-16 rounded-full" />
-											<Skeleton className="h-5 w-24 rounded-md" />
-										</div>
-										<div className="flex items-center gap-2 pt-2 border-t border-border/40">
-											<Skeleton className="h-3 w-20" />
-											<Skeleton className="h-4 w-4 rounded-full" />
-											<Skeleton className="h-3 w-16" />
+										<div className="flex items-center pt-2 border-t border-border/40">
+											<Skeleton className="h-3 w-20 flex-1" />
+											<Skeleton className="h-3 w-3 rounded-full shrink-0 mx-1" />
+											<div className="flex-1 flex items-center justify-end gap-1.5">
+												<Skeleton className="h-4 w-4 rounded-full" />
+												<Skeleton className="h-3 w-16" />
+											</div>
 										</div>
 									</CardContent>
 								</Card>
@@ -253,19 +253,25 @@ export function VisionModelManager({ searchSpaceId }: VisionModelManagerProps) {
 									<div key={config.id}>
 										<Card className="group relative overflow-hidden transition-all duration-200 border-border/60 hover:shadow-md h-full">
 											<CardContent className="p-4 flex flex-col gap-3 h-full">
-												<div className="flex items-start justify-between gap-2">
-													<div className="min-w-0 flex-1">
-														<h4 className="text-sm font-semibold tracking-tight truncate">
-															{config.name}
-														</h4>
-														{config.description && (
-															<p className="text-[11px] text-muted-foreground/70 truncate mt-0.5">
-																{config.description}
-															</p>
-														)}
+												{/* Header: Icon + Name + Actions */}
+												<div className="flex items-center justify-between gap-2">
+													<div className="flex items-center gap-2.5 min-w-0 flex-1">
+														<div className="shrink-0">
+															{getProviderIcon(config.provider, { className: "size-4" })}
+														</div>
+														<div className="min-w-0 flex-1">
+															<h4 className="text-sm font-semibold tracking-tight truncate">
+																{config.name}
+															</h4>
+															{config.description && (
+																<p className="text-[11px] text-muted-foreground/70 truncate mt-0.5">
+																	{config.description}
+																</p>
+															)}
+														</div>
 													</div>
 													{(canUpdate || canDelete) && (
-														<div className="flex items-center gap-0.5 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150">
+														<div className="flex items-center gap-1 shrink-0 sm:w-0 sm:overflow-hidden sm:group-hover:w-auto sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-150">
 															{canUpdate && (
 																<TooltipProvider>
 																	<Tooltip open={isDesktop ? undefined : false}>
@@ -274,7 +280,7 @@ export function VisionModelManager({ searchSpaceId }: VisionModelManagerProps) {
 																				variant="ghost"
 																				size="icon"
 																				onClick={() => openEditDialog(config)}
-																				className="h-7 w-7 text-muted-foreground hover:text-foreground"
+																				className="h-6 w-6 text-muted-foreground hover:text-foreground"
 																			>
 																				<Edit3 className="h-3 w-3" />
 																			</Button>
@@ -291,7 +297,7 @@ export function VisionModelManager({ searchSpaceId }: VisionModelManagerProps) {
 																				variant="ghost"
 																				size="icon"
 																				onClick={() => setConfigToDelete(config)}
-																				className="h-7 w-7 text-muted-foreground hover:text-destructive"
+																				className="h-7 w-7 rounded-lg text-muted-foreground hover:text-destructive"
 																			>
 																				<Trash2 className="h-3 w-3" />
 																			</Button>
@@ -304,17 +310,9 @@ export function VisionModelManager({ searchSpaceId }: VisionModelManagerProps) {
 													)}
 												</div>
 
-												<div className="flex items-center gap-2 flex-wrap">
-													{getProviderIcon(config.provider, {
-														className: "size-3.5 shrink-0",
-													})}
-													<code className="text-[11px] font-mono text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md truncate max-w-[160px]">
-														{config.model_name}
-													</code>
-												</div>
-
-												<div className="flex items-center gap-2 pt-2 border-t border-border/40 mt-auto">
-													<span className="text-[11px] text-muted-foreground/60">
+												{/* Footer: Date + Creator */}
+												<div className="flex items-center pt-2 border-t border-border/40 mt-auto">
+													<span className="shrink-0 text-[11px] text-muted-foreground/60 whitespace-nowrap">
 														{new Date(config.created_at).toLocaleDateString(undefined, {
 															year: "numeric",
 															month: "short",
@@ -323,11 +321,11 @@ export function VisionModelManager({ searchSpaceId }: VisionModelManagerProps) {
 													</span>
 													{member && (
 														<>
-															<Dot className="h-4 w-4 text-muted-foreground/30" />
+															<Dot className="h-4 w-4 text-muted-foreground/30 shrink-0" />
 															<TooltipProvider>
 																<Tooltip open={isDesktop ? undefined : false}>
 																	<TooltipTrigger asChild>
-																		<div className="flex items-center gap-1.5 cursor-default">
+																		<div className="min-w-0 flex items-center gap-1.5 cursor-default">
 																			<Avatar className="size-4.5 shrink-0">
 																				{member.avatarUrl && (
 																					<AvatarImage src={member.avatarUrl} alt={member.name} />
@@ -336,7 +334,7 @@ export function VisionModelManager({ searchSpaceId }: VisionModelManagerProps) {
 																					{getInitials(member.name)}
 																				</AvatarFallback>
 																			</Avatar>
-																			<span className="text-[11px] text-muted-foreground/60 truncate max-w-[120px]">
+																			<span className="text-[11px] text-muted-foreground/60 truncate">
 																				{member.name}
 																			</span>
 																		</div>

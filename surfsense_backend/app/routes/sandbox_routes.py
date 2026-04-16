@@ -86,9 +86,8 @@ async def download_sandbox_file(
 
     # Fall back to live sandbox download
     try:
-        sandbox = await get_or_create_sandbox(thread_id)
-        raw_sandbox = sandbox._sandbox
-        content: bytes = await asyncio.to_thread(raw_sandbox.fs.download_file, path)
+        sandbox, _ = await get_or_create_sandbox(thread_id)
+        content: bytes = await asyncio.to_thread(sandbox.download_file, path)
     except Exception as exc:
         logger.warning("Sandbox file download failed for %s: %s", path, exc)
         raise HTTPException(

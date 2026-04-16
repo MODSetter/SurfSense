@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import {
 	Bot,
+	ChevronDown,
 	Edit2,
 	FileText,
 	Globe,
@@ -47,7 +48,6 @@ import {
 	DialogDescription,
 	DialogHeader,
 	DialogTitle,
-	DialogTrigger,
 } from "@/components/ui/dialog";
 import {
 	DropdownMenu,
@@ -58,7 +58,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 import type { PermissionInfo } from "@/contracts/types/permissions.types";
 import type {
@@ -319,100 +318,6 @@ export function RolesManager({ searchSpaceId }: { searchSpaceId: number }) {
 	);
 }
 
-// ============ Role Permissions Display ============
-
-function RolePermissionsDialog({
-	permissions,
-	roleName,
-	children,
-}: {
-	permissions: string[];
-	roleName: string;
-	children: React.ReactNode;
-}) {
-	const isFullAccess = permissions.includes("*");
-
-	const grouped: Record<string, string[]> = {};
-	if (!isFullAccess) {
-		for (const perm of permissions) {
-			const [category, action] = perm.split(":");
-			if (!grouped[category]) grouped[category] = [];
-			grouped[category].push(action);
-		}
-	}
-
-	const sortedCategories = Object.keys(grouped).sort((a, b) => {
-		const orderA = CATEGORY_CONFIG[a]?.order ?? 99;
-		const orderB = CATEGORY_CONFIG[b]?.order ?? 99;
-		return orderA - orderB;
-	});
-
-	const categoryCount = sortedCategories.length;
-
-	return (
-		<Dialog>
-			<DialogTrigger asChild>{children}</DialogTrigger>
-			<DialogContent className="w-[92vw] max-w-md p-0 gap-0">
-				<DialogHeader className="p-4 md:p-5">
-					<DialogTitle className="text-base">{roleName} — Permissions</DialogTitle>
-					<DialogDescription className="text-xs">
-						{isFullAccess
-							? "This role has unrestricted access to all resources"
-							: `${permissions.length} permissions across ${categoryCount} categories`}
-					</DialogDescription>
-				</DialogHeader>
-				{isFullAccess ? (
-					<div className="flex items-center gap-3 px-4 md:px-5 py-6">
-						<div className="h-9 w-9 rounded-lg bg-muted/60 flex items-center justify-center shrink-0">
-							<Shield className="h-4 w-4 text-muted-foreground" />
-						</div>
-						<div>
-							<p className="text-sm font-medium">Full access</p>
-							<p className="text-xs text-muted-foreground">
-								All permissions granted across every category
-							</p>
-						</div>
-					</div>
-				) : (
-					<ScrollArea className="max-h-[55vh]">
-						<div className="divide-y divide-border/50">
-							{sortedCategories.map((category) => {
-								const actions = grouped[category];
-								const config = CATEGORY_CONFIG[category] || {
-									label: category,
-									icon: FileText,
-								};
-								const IconComponent = config.icon;
-								return (
-									<div
-										key={category}
-										className="flex items-center justify-between gap-3 px-4 md:px-5 py-2.5"
-									>
-										<div className="flex items-center gap-2 shrink-0">
-											<IconComponent className="h-3.5 w-3.5 text-muted-foreground" />
-											<span className="text-sm text-muted-foreground">{config.label}</span>
-										</div>
-										<div className="flex flex-wrap justify-end gap-1">
-											{actions.map((action) => (
-												<span
-													key={action}
-													className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[11px] font-medium"
-												>
-													{ACTION_LABELS[action] || action.replace(/_/g, " ")}
-												</span>
-											))}
-										</div>
-									</div>
-								);
-							})}
-						</div>
-					</ScrollArea>
-				)}
-			</DialogContent>
-		</Dialog>
-	);
-}
-
 function PermissionsBadge({ permissions }: { permissions: string[] }) {
 	if (permissions.includes("*")) {
 		return (
@@ -463,6 +368,7 @@ function RolesContent({
 }) {
 	const [showCreateRole, setShowCreateRole] = useState(false);
 	const [editingRoleId, setEditingRoleId] = useState<number | null>(null);
+	const [expandedRoleId, setExpandedRoleId] = useState<number | null>(null);
 
 	if (loading) {
 		return (
@@ -508,91 +414,168 @@ function RolesContent({
 			)}
 
 			<div className="space-y-3">
-				{roles.map((role) => (
-					<div key={role.id}>
-						<div className="w-full text-left relative flex items-center gap-4 rounded-lg border border-border/60 p-4 transition-colors hover:bg-muted/30">
-							<div className="flex-1 min-w-0">
-								<RolePermissionsDialog permissions={role.permissions} roleName={role.name}>
-									<button type="button" className="w-full text-left cursor-pointer">
-										<div className="flex items-center gap-2">
-											<span className="font-medium text-sm">{role.name}</span>
-											{role.is_system_role && (
-												<span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
-													System
-												</span>
-											)}
-											{role.is_default && (
-												<span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
-													Default
-												</span>
-											)}
-										</div>
-										{role.description && (
-											<p className="text-xs text-muted-foreground mt-0.5 truncate">
-												{role.description}
-											</p>
+				{roles.map((role) => {
+					const isExpanded = expandedRoleId === role.id;
+					const isFullAccess = role.permissions.includes("*");
+
+					const grouped: Record<string, string[]> = {};
+					if (!isFullAccess) {
+						for (const perm of role.permissions) {
+							const [category, action] = perm.split(":");
+							if (!grouped[category]) grouped[category] = [];
+							grouped[category].push(action);
+						}
+					}
+					const sortedCategories = Object.keys(grouped).sort((a, b) => {
+						const orderA = CATEGORY_CONFIG[a]?.order ?? 99;
+						const orderB = CATEGORY_CONFIG[b]?.order ?? 99;
+						return orderA - orderB;
+					});
+
+					return (
+						<div key={role.id} className="rounded-lg border border-border/60 overflow-hidden">
+							<div className="flex items-center gap-4 p-4 transition-colors hover:bg-muted/30">
+								<button
+									type="button"
+									className="flex-1 min-w-0 text-left cursor-pointer"
+									onClick={() => setExpandedRoleId(isExpanded ? null : role.id)}
+								>
+									<div className="flex items-center gap-2">
+										<span className="font-medium text-sm">{role.name}</span>
+										{role.is_system_role && (
+											<span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+												System
+											</span>
 										)}
-									</button>
-								</RolePermissionsDialog>
+										{role.is_default && (
+											<span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+												Default
+											</span>
+										)}
+									</div>
+									{role.description && (
+										<p className="text-xs text-muted-foreground mt-0.5 truncate">
+											{role.description}
+										</p>
+									)}
+								</button>
+
+								<div className="shrink-0">
+									<PermissionsBadge permissions={role.permissions} />
+								</div>
+
+								{!role.is_system_role && (
+									<div className="shrink-0" role="none">
+										<DropdownMenu>
+											<DropdownMenuTrigger asChild>
+												<Button variant="ghost" size="icon" className="h-8 w-8">
+													<MoreHorizontal className="h-4 w-4" />
+												</Button>
+											</DropdownMenuTrigger>
+											<DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
+												{canUpdate && (
+													<DropdownMenuItem onClick={() => setEditingRoleId(role.id)}>
+														<Edit2 className="h-4 w-4 mr-2" />
+														Edit Role
+													</DropdownMenuItem>
+												)}
+												{canDelete && (
+													<>
+														<DropdownMenuSeparator />
+														<AlertDialog>
+															<AlertDialogTrigger asChild>
+																<DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+																	<Trash2 className="h-4 w-4 mr-2" />
+																	Delete Role
+																</DropdownMenuItem>
+															</AlertDialogTrigger>
+															<AlertDialogContent>
+																<AlertDialogHeader>
+																	<AlertDialogTitle>Delete role?</AlertDialogTitle>
+																	<AlertDialogDescription>
+																		This will permanently delete the &quot;{role.name}&quot; role.
+																		Members with this role will lose their permissions.
+																	</AlertDialogDescription>
+																</AlertDialogHeader>
+																<AlertDialogFooter>
+																	<AlertDialogCancel>Cancel</AlertDialogCancel>
+																	<AlertDialogAction
+																		onClick={() => onDeleteRole(role.id)}
+																		className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+																	>
+																		Delete
+																	</AlertDialogAction>
+																</AlertDialogFooter>
+															</AlertDialogContent>
+														</AlertDialog>
+													</>
+												)}
+											</DropdownMenuContent>
+										</DropdownMenu>
+									</div>
+								)}
+
+								<button
+									type="button"
+									className="shrink-0 p-1 cursor-pointer"
+									onClick={() => setExpandedRoleId(isExpanded ? null : role.id)}
+								>
+									<ChevronDown
+										className={cn(
+											"h-4 w-4 text-muted-foreground transition-transform duration-200",
+											isExpanded && "rotate-180"
+										)}
+									/>
+								</button>
 							</div>
 
-							<div className="shrink-0">
-								<PermissionsBadge permissions={role.permissions} />
-							</div>
-
-							{!role.is_system_role && (
-								<div className="shrink-0" role="none">
-									<DropdownMenu>
-										<DropdownMenuTrigger asChild>
-											<Button variant="ghost" size="icon" className="h-8 w-8">
-												<MoreHorizontal className="h-4 w-4" />
-											</Button>
-										</DropdownMenuTrigger>
-										<DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
-											{canUpdate && (
-												<DropdownMenuItem onClick={() => setEditingRoleId(role.id)}>
-													<Edit2 className="h-4 w-4 mr-2" />
-													Edit Role
-												</DropdownMenuItem>
-											)}
-											{canDelete && (
-												<>
-													<DropdownMenuSeparator />
-													<AlertDialog>
-														<AlertDialogTrigger asChild>
-															<DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-																<Trash2 className="h-4 w-4 mr-2" />
-																Delete Role
-															</DropdownMenuItem>
-														</AlertDialogTrigger>
-														<AlertDialogContent>
-															<AlertDialogHeader>
-																<AlertDialogTitle>Delete role?</AlertDialogTitle>
-																<AlertDialogDescription>
-																	This will permanently delete the &quot;{role.name}&quot; role.
-																	Members with this role will lose their permissions.
-																</AlertDialogDescription>
-															</AlertDialogHeader>
-															<AlertDialogFooter>
-																<AlertDialogCancel>Cancel</AlertDialogCancel>
-																<AlertDialogAction
-																	onClick={() => onDeleteRole(role.id)}
-																	className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+							{isExpanded && (
+								<div className="border-t border-border/40 px-4 py-3">
+									{isFullAccess ? (
+										<div className="flex items-center gap-3 py-2">
+											<Shield className="h-4 w-4 text-muted-foreground shrink-0" />
+											<p className="text-sm text-muted-foreground">
+												Full access — all permissions granted across every category
+											</p>
+										</div>
+									) : (
+										<div className="divide-y divide-border/30">
+											{sortedCategories.map((category) => {
+												const actions = grouped[category];
+												const config = CATEGORY_CONFIG[category] || {
+													label: category,
+													icon: FileText,
+												};
+												const IconComponent = config.icon;
+												return (
+													<div
+														key={category}
+														className="flex items-center justify-between gap-3 py-2.5"
+													>
+														<div className="flex items-center gap-2 shrink-0">
+															<IconComponent className="h-3.5 w-3.5 text-muted-foreground" />
+															<span className="text-sm text-muted-foreground">{config.label}</span>
+														</div>
+														<div className="flex flex-wrap justify-end gap-1">
+															{actions.map((action) => (
+																<span
+																	key={action}
+																	className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[11px] font-medium"
 																>
-																	Delete
-																</AlertDialogAction>
-															</AlertDialogFooter>
-														</AlertDialogContent>
-													</AlertDialog>
-												</>
-											)}
-										</DropdownMenuContent>
-									</DropdownMenu>
+																	{ACTION_LABELS[action] || action.replace(/_/g, " ")}
+																</span>
+															))}
+														</div>
+													</div>
+												);
+											})}
+										</div>
+									)}
 								</div>
 							)}
 						</div>
-					</div>
-				))}
+					);
+				})}
 			</div>
 		</div>
 	);
@@ -676,46 +659,54 @@ function PermissionsEditor({
 
 					return (
 						<div key={category} className="rounded-lg border border-border/60 overflow-hidden">
-							<button
-								type="button"
-								className="w-full flex items-center justify-between px-3 py-2.5 cursor-pointer hover:bg-muted/40 transition-colors"
-								onClick={() => toggleCategoryExpanded(category)}
-							>
-								<div className="flex items-center gap-2.5">
+							<div className="flex items-center justify-between px-3 py-2.5 hover:bg-muted/40 transition-colors">
+								<button
+									type="button"
+									className="flex-1 flex items-center gap-2.5 cursor-pointer"
+									onClick={() => toggleCategoryExpanded(category)}
+								>
 									<IconComponent className="h-4 w-4 text-muted-foreground shrink-0" />
 									<span className="font-medium text-sm">{config.label}</span>
 									<span className="text-[11px] text-muted-foreground tabular-nums">
 										{stats.selected}/{stats.total}
 									</span>
-								</div>
+								</button>
 								<div className="flex items-center gap-2">
 									<Checkbox
 										checked={stats.allSelected}
 										onCheckedChange={() => onToggleCategory(category)}
-										onClick={(e) => e.stopPropagation()}
 										aria-label={`Select all ${config.label} permissions`}
 									/>
-									<div
-										className={cn("transition-transform duration-200", isExpanded && "rotate-180")}
+									<button
+										type="button"
+										className="cursor-pointer"
+										onClick={() => toggleCategoryExpanded(category)}
 									>
-										<svg
-											className="h-4 w-4 text-muted-foreground"
-											fill="none"
-											viewBox="0 0 24 24"
-											stroke="currentColor"
-											aria-hidden="true"
+										<div
+											className={cn(
+												"transition-transform duration-200",
+												isExpanded && "rotate-180"
+											)}
 										>
-											<title>Toggle</title>
-											<path
-												strokeLinecap="round"
-												strokeLinejoin="round"
-												strokeWidth={2}
-												d="M19 9l-7 7-7-7"
-											/>
-										</svg>
-									</div>
+											<svg
+												className="h-4 w-4 text-muted-foreground"
+												fill="none"
+												viewBox="0 0 24 24"
+												stroke="currentColor"
+												aria-hidden="true"
+											>
+												<title>Toggle</title>
+												<path
+													strokeLinecap="round"
+													strokeLinejoin="round"
+													strokeWidth={2}
+													d="M19 9l-7 7-7-7"
+												/>
+											</svg>
+										</div>
+									</button>
 								</div>
-							</button>
+							</div>
 
 							{isExpanded && (
 								<div className="border-t border-border/60">
@@ -726,28 +717,29 @@ function PermissionsEditor({
 											const isSelected = selectedPermissions.includes(perm.value);
 
 											return (
-												<button
+												<div
 													key={perm.value}
-													type="button"
 													className={cn(
-														"w-full flex items-center justify-between gap-3 px-2.5 py-2 rounded-md cursor-pointer transition-colors",
+														"flex items-center justify-between gap-3 px-2.5 py-2 rounded-md transition-colors",
 														isSelected ? "bg-muted/60 hover:bg-muted/80" : "hover:bg-muted/40"
 													)}
-													onClick={() => onTogglePermission(perm.value)}
 												>
-													<div className="flex-1 min-w-0 text-left">
+													<button
+														type="button"
+														className="flex-1 min-w-0 text-left cursor-pointer"
+														onClick={() => onTogglePermission(perm.value)}
+													>
 														<span className="text-sm font-medium">{actionLabel}</span>
 														<p className="text-xs text-muted-foreground truncate">
 															{perm.description}
 														</p>
-													</div>
+													</button>
 													<Checkbox
 														checked={isSelected}
 														onCheckedChange={() => onTogglePermission(perm.value)}
-														onClick={(e) => e.stopPropagation()}
 														className="shrink-0"
 													/>
-												</button>
+												</div>
 											);
 										})}
 									</div>

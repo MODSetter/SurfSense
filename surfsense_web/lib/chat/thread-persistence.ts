@@ -26,6 +26,16 @@ export interface ThreadRecord {
 	has_comments?: boolean;
 }
 
+export interface TokenUsageSummary {
+	prompt_tokens: number;
+	completion_tokens: number;
+	total_tokens: number;
+	model_breakdown?: Record<
+		string,
+		{ prompt_tokens: number; completion_tokens: number; total_tokens: number }
+	> | null;
+}
+
 export interface MessageRecord {
 	id: number;
 	thread_id: number;
@@ -35,6 +45,7 @@ export interface MessageRecord {
 	author_id?: string | null;
 	author_display_name?: string | null;
 	author_avatar_url?: string | null;
+	token_usage?: TokenUsageSummary | null;
 }
 
 export interface ThreadListResponse {
@@ -111,11 +122,11 @@ export async function getThreadMessages(threadId: number): Promise<ThreadHistory
 }
 
 /**
- * Append a message to a thread
+ * Append a message to a thread.
  */
 export async function appendMessage(
 	threadId: number,
-	message: { role: "user" | "assistant" | "system"; content: unknown }
+	message: { role: "user" | "assistant" | "system"; content: unknown; token_usage?: unknown }
 ): Promise<MessageRecord> {
 	return baseApiService.post<MessageRecord>(`/api/v1/threads/${threadId}/messages`, undefined, {
 		body: message,

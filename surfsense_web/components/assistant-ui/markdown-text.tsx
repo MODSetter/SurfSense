@@ -106,11 +106,11 @@ function preprocessMarkdown(content: string): string {
 	return content;
 }
 
-// Matches [citation:...] with numeric IDs (incl. doc- prefix, comma-separated),
+// Matches [citation:...] with numeric IDs (incl. negative, doc- prefix, comma-separated),
 // URL-based IDs from live web search, or urlciteN placeholders from preprocess.
 // Also matches Chinese brackets 【】 and handles zero-width spaces that LLM sometimes inserts.
 const CITATION_REGEX =
-	/[[【]\u200B?citation:\s*(https?:\/\/[^\]】\u200B]+|urlcite\d+|(?:doc-)?\d+(?:\s*,\s*(?:doc-)?\d+)*)\s*\u200B?[\]】]/g;
+	/[[【]\u200B?citation:\s*(https?:\/\/[^\]】\u200B]+|urlcite\d+|(?:doc-)?-?\d+(?:\s*,\s*(?:doc-)?-?\d+)*)\s*\u200B?[\]】]/g;
 
 /**
  * Parses text and replaces [citation:XXX] patterns with citation components.

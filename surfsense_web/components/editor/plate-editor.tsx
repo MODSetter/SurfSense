@@ -3,7 +3,7 @@
 import { MarkdownPlugin, remarkMdx } from "@platejs/markdown";
 import { slateToHtml } from "@slate-serializers/html";
 import type { AnyPluginConfig, Descendant, Value } from "platejs";
-import { createPlatePlugin, Key, Plate, usePlateEditor } from "platejs/react";
+import { createPlatePlugin, Key, Plate, useEditorReadOnly, usePlateEditor } from "platejs/react";
 import { useEffect, useMemo, useRef } from "react";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -58,6 +58,24 @@ export interface PlateEditorProps {
 	 * without modifying the core editor component.
 	 */
 	extraPlugins?: AnyPluginConfig[];
+}
+
+function PlateEditorContent({
+	editorVariant,
+	placeholder,
+}: {
+	editorVariant: PlateEditorProps["editorVariant"];
+	placeholder?: string;
+}) {
+	const isReadOnly = useEditorReadOnly();
+
+	return (
+		<Editor
+			variant={editorVariant}
+			placeholder={isReadOnly ? undefined : placeholder}
+			className="min-h-full"
+		/>
+	);
 }
 
 export function PlateEditor({
@@ -188,7 +206,7 @@ export function PlateEditor({
 				}}
 			>
 				<EditorContainer variant={variant} className={className}>
-					<Editor variant={editorVariant} placeholder={placeholder} />
+					<PlateEditorContent editorVariant={editorVariant} placeholder={placeholder} />
 				</EditorContainer>
 			</Plate>
 		</EditorSaveContext.Provider>

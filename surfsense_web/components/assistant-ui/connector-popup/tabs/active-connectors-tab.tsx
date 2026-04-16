@@ -2,12 +2,12 @@
 
 import { Search, Unplug } from "lucide-react";
 import type { FC } from "react";
-import { getDocumentTypeLabel } from "@/components/documents/DocumentTypeIcon";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TabsContent } from "@/components/ui/tabs";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+import { getDocumentTypeLabel } from "@/lib/documents/document-type-labels";
 import { cn } from "@/lib/utils";
 import { COMPOSIO_CONNECTORS, OAUTH_CONNECTORS } from "../constants/connector-constants";
 import { getDocumentCountForConnector } from "../utils/connector-document-mapping";

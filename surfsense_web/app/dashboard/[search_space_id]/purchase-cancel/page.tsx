@@ -23,16 +23,14 @@ export default function PurchaseCancelPage() {
 				<CardHeader className="text-center">
 					<CircleSlash2 className="mx-auto h-10 w-10 text-muted-foreground" />
 					<CardTitle className="text-2xl">Checkout canceled</CardTitle>
-					<CardDescription>
-						No charge was made and your current pages are unchanged.
-					</CardDescription>
+					<CardDescription>No charge was made and your account is unchanged.</CardDescription>
 				</CardHeader>
 				<CardContent className="text-center text-sm text-muted-foreground">
 					You can return to the pricing options and try again whenever you&apos;re ready.
 				</CardContent>
 				<CardFooter className="flex flex-col gap-2 sm:flex-row">
 					<Button asChild className="w-full">
-						<Link href={`/dashboard/${searchSpaceId}/more-pages`}>Back to Buy Pages</Link>
+						<Link href={`/dashboard/${searchSpaceId}/buy-more`}>Back to Pricing</Link>
 					</Button>
 					<Button asChild variant="outline" className="w-full">
 						<Link href={`/dashboard/${searchSpaceId}/new-chat`}>Back to Dashboard</Link>

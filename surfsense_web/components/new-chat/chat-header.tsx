@@ -44,21 +44,28 @@ export function ChatHeader({ searchSpaceId, className }: ChatHeaderProps) {
 	const [isVisionGlobal, setIsVisionGlobal] = useState(false);
 	const [visionDialogMode, setVisionDialogMode] = useState<"create" | "edit" | "view">("view");
 
+	// Default provider for create dialogs
+	const [defaultLLMProvider, setDefaultLLMProvider] = useState<string | undefined>();
+	const [defaultImageProvider, setDefaultImageProvider] = useState<string | undefined>();
+	const [defaultVisionProvider, setDefaultVisionProvider] = useState<string | undefined>();
+
 	// LLM handlers
 	const handleEditLLMConfig = useCallback(
 		(config: NewLLMConfigPublic | GlobalNewLLMConfig, global: boolean) => {
 			setSelectedConfig(config);
 			setIsGlobal(global);
 			setDialogMode(global ? "view" : "edit");
+			setDefaultLLMProvider(undefined);
 			setDialogOpen(true);
 		},
 		[]
 	);
 
-	const handleAddNewLLM = useCallback(() => {
+	const handleAddNewLLM = useCallback((provider?: string) => {
 		setSelectedConfig(null);
 		setIsGlobal(false);
 		setDialogMode("create");
+		setDefaultLLMProvider(provider);
 		setDialogOpen(true);
 	}, []);
 
@@ -68,10 +75,11 @@ export function ChatHeader({ searchSpaceId, className }: ChatHeaderProps) {
 	}, []);
 
 	// Image model handlers
-	const handleAddImageModel = useCallback(() => {
+	const handleAddImageModel = useCallback((provider?: string) => {
 		setSelectedImageConfig(null);
 		setIsImageGlobal(false);
 		setImageDialogMode("create");
+		setDefaultImageProvider(provider);
 		setImageDialogOpen(true);
 	}, []);
 
@@ -80,6 +88,7 @@ export function ChatHeader({ searchSpaceId, className }: ChatHeaderProps) {
 			setSelectedImageConfig(config);
 			setIsImageGlobal(global);
 			setImageDialogMode(global ? "view" : "edit");
+			setDefaultImageProvider(undefined);
 			setImageDialogOpen(true);
 		},
 		[]
@@ -91,10 +100,11 @@ export function ChatHeader({ searchSpaceId, className }: ChatHeaderProps) {
 	}, []);
 
 	// Vision model handlers
-	const handleAddVisionModel = useCallback(() => {
+	const handleAddVisionModel = useCallback((provider?: string) => {
 		setSelectedVisionConfig(null);
 		setIsVisionGlobal(false);
 		setVisionDialogMode("create");
+		setDefaultVisionProvider(provider);
 		setVisionDialogOpen(true);
 	}, []);
 
@@ -103,6 +113,7 @@ export function ChatHeader({ searchSpaceId, className }: ChatHeaderProps) {
 			setSelectedVisionConfig(config);
 			setIsVisionGlobal(global);
 			setVisionDialogMode(global ? "view" : "edit");
+			setDefaultVisionProvider(undefined);
 			setVisionDialogOpen(true);
 		},
 		[]
@@ -131,6 +142,7 @@ export function ChatHeader({ searchSpaceId, className }: ChatHeaderProps) {
 				isGlobal={isGlobal}
 				searchSpaceId={searchSpaceId}
 				mode={dialogMode}
+				defaultProvider={defaultLLMProvider}
 			/>
 			<ImageConfigDialog
 				open={imageDialogOpen}
@@ -139,6 +151,7 @@ export function ChatHeader({ searchSpaceId, className }: ChatHeaderProps) {
 				isGlobal={isImageGlobal}
 				searchSpaceId={searchSpaceId}
 				mode={imageDialogMode}
+				defaultProvider={defaultImageProvider}
 			/>
 			<VisionConfigDialog
 				open={visionDialogOpen}
@@ -147,6 +160,7 @@ export function ChatHeader({ searchSpaceId, className }: ChatHeaderProps) {
 				isGlobal={isVisionGlobal}
 				searchSpaceId={searchSpaceId}
 				mode={visionDialogMode}
+				defaultProvider={defaultVisionProvider}
 			/>
 		</div>
 	);

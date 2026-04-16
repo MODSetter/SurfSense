@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { clearTargetCommentIdAtom, targetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { convertRenderedToDisplay } from "@/lib/comments/utils";
 import { cn } from "@/lib/utils";
 import { CommentComposer } from "../comment-composer/comment-composer";
 import { CommentActions } from "./comment-actions";
@@ -67,11 +68,6 @@ function formatTimestamp(dateString: string): string {
 			year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
 		}) + ` at ${timeStr}`
 	);
-}
-
-export function convertRenderedToDisplay(contentRendered: string): string {
-	// Convert @{DisplayName} format to @DisplayName for editing
-	return contentRendered.replace(/@\{([^}]+)\}/g, "@$1");
 }
 
 function renderMentions(content: string): React.ReactNode {

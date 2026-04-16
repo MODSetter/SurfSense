@@ -26,6 +26,10 @@ export function FooterNew() {
 			href: "/pricing",
 		},
 		{
+			title: "Blog",
+			href: "/blog",
+		},
+		{
 			title: "Docs",
 			href: "/docs",
 		},

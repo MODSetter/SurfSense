@@ -2,7 +2,7 @@
 import asyncio
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, UploadFile
-from pydantic import BaseModel as PydanticBaseModel
+from pydantic import BaseModel as PydanticBaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -123,6 +123,8 @@ async def create_documents_file_upload(
     files: list[UploadFile],
     search_space_id: int = Form(...),
     should_summarize: bool = Form(False),
+    use_vision_llm: bool = Form(False),
+    processing_mode: str = Form("basic"),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
     dispatcher: TaskDispatcher = Depends(get_task_dispatcher),
@@ -141,11 +143,14 @@ async def create_documents_file_upload(
     from datetime import datetime
 
     from app.db import DocumentStatus
+    from app.etl_pipeline.etl_document import ProcessingMode
     from app.tasks.document_processors.base import (
         check_document_by_unique_identifier,
         get_current_timestamp,
     )
     from app.utils.document_converters import generate_unique_identifier_hash
+
+    validated_mode = ProcessingMode.coerce(processing_mode)
 
     try:
         await check_permission(
@@ -272,6 +277,8 @@ async def create_documents_file_upload(
                 search_space_id=search_space_id,
                 user_id=str(user.id),
                 should_summarize=should_summarize,
+                use_vision_llm=use_vision_llm,
+                processing_mode=validated_mode.value,
             )
 
         return {
@@ -1395,10 +1402,13 @@ class FolderMtimeCheckFile(PydanticBaseModel):
     mtime: float
 
 
+_MAX_MTIME_CHECK_FILES = 10_000
+
+
 class FolderMtimeCheckRequest(PydanticBaseModel):
     folder_name: str
     search_space_id: int
-    files: list[FolderMtimeCheckFile]
+    files: list[FolderMtimeCheckFile] = Field(max_length=_MAX_MTIME_CHECK_FILES)
 
 
 class FolderUnlinkRequest(PydanticBaseModel):
@@ -1487,6 +1497,8 @@ async def folder_upload(
     relative_paths: str = Form(...),
     root_folder_id: int | None = Form(None),
     enable_summary: bool = Form(False),
+    use_vision_llm: bool = Form(False),
+    processing_mode: str = Form("basic"),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
@@ -1497,6 +1509,10 @@ async def folder_upload(
     """
     import json
     import tempfile
+
+    from app.etl_pipeline.etl_document import ProcessingMode
+
+    validated_mode = ProcessingMode.coerce(processing_mode)
 
     await check_permission(
         session,
@@ -1531,10 +1547,28 @@ async def folder_upload(
                 f"exceeds the {MAX_FILE_SIZE_BYTES // (1024 * 1024)} MB per-file limit.",
             )
 
+    from app.services.folder_service import MAX_FOLDER_DEPTH
+
+    max_subfolder_depth = max((p.count("/") for p in rel_paths if "/" in p), default=0)
+    if 1 + max_subfolder_depth > MAX_FOLDER_DEPTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Folder structure too deep: {1 + max_subfolder_depth} levels "
+            f"exceeds the maximum of {MAX_FOLDER_DEPTH}.",
+        )
+
+    if root_folder_id:
+        root_folder = await session.get(Folder, root_folder_id)
+        if not root_folder or root_folder.search_space_id != search_space_id:
+            raise HTTPException(
+                status_code=404, detail="Root folder not found in this search space"
+            )
+
     if not root_folder_id:
         watched_metadata = {
             "watched": True,
             "folder_path": folder_name,
+            "processing_mode": validated_mode.value,
         }
         existing_root = (
             await session.execute(
@@ -1565,7 +1599,8 @@ async def folder_upload(
 
     async def _read_and_save(file: UploadFile, idx: int) -> dict:
         content = await file.read()
-        filename = file.filename or rel_paths[idx].split("/")[-1]
+        raw_name = file.filename or rel_paths[idx]
+        filename = raw_name.split("/")[-1]
 
         def _write_temp() -> str:
             with tempfile.NamedTemporaryFile(
@@ -1595,7 +1630,9 @@ async def folder_upload(
         folder_name=folder_name,
         root_folder_id=root_folder_id,
         enable_summary=enable_summary,
+        use_vision_llm=use_vision_llm,
         file_mappings=list(file_mappings),
+        processing_mode=validated_mode.value,
     )
 
     return {

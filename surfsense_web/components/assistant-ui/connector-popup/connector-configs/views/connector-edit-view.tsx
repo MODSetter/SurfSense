@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { DateRangeSelector } from "../../components/date-range-selector";
 import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
 import { SummaryConfig } from "../../components/summary-config";
+import { VisionLLMConfig } from "../../components/vision-llm-config";
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
 import { getConnectorConfigComponent } from "../index";
 
@@ -38,6 +39,7 @@ interface ConnectorEditViewProps {
 	periodicEnabled: boolean;
 	frequencyMinutes: string;
 	enableSummary: boolean;
+	enableVisionLlm: boolean;
 	isSaving: boolean;
 	isDisconnecting: boolean;
 	isIndexing?: boolean;
@@ -47,6 +49,7 @@ interface ConnectorEditViewProps {
 	onPeriodicEnabledChange: (enabled: boolean) => void;
 	onFrequencyChange: (frequency: string) => void;
 	onEnableSummaryChange: (enabled: boolean) => void;
+	onEnableVisionLlmChange: (enabled: boolean) => void;
 	onSave: () => void;
 	onDisconnect: () => void;
 	onBack: () => void;
@@ -62,6 +65,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	periodicEnabled,
 	frequencyMinutes,
 	enableSummary,
+	enableVisionLlm,
 	isSaving,
 	isDisconnecting,
 	isIndexing = false,
@@ -71,6 +75,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	onPeriodicEnabledChange,
 	onFrequencyChange,
 	onEnableSummaryChange,
+	onEnableVisionLlmChange,
 	onSave,
 	onDisconnect,
 	onBack,
@@ -271,6 +276,17 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 							<>
 								{/* AI Summary toggle */}
 								<SummaryConfig enabled={enableSummary} onEnabledChange={onEnableSummaryChange} />
+
+								{/* Vision LLM toggle - only for file-based connectors */}
+								{(connector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ||
+									connector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" ||
+									connector.connector_type === "DROPBOX_CONNECTOR" ||
+									connector.connector_type === "ONEDRIVE_CONNECTOR") && (
+									<VisionLLMConfig
+										enabled={enableVisionLlm}
+										onEnabledChange={onEnableVisionLlmChange}
+									/>
+								)}
 
 								{/* Date range selector - not shown for file-based connectors (Drive, Dropbox, OneDrive), Webcrawler, GitHub, or Local Folder */}
 								{connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" &&

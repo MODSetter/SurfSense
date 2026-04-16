@@ -44,6 +44,7 @@ interface FolderTreeViewProps {
 	watchedFolderIds?: Set<number>;
 	onRescanFolder?: (folder: FolderDisplay) => void;
 	onStopWatchingFolder?: (folder: FolderDisplay) => void;
+	onExportFolder?: (folder: FolderDisplay) => void;
 }
 
 function groupBy<T>(items: T[], keyFn: (item: T) => string | number): Record<string | number, T[]> {
@@ -81,12 +82,15 @@ export function FolderTreeView({
 	watchedFolderIds,
 	onRescanFolder,
 	onStopWatchingFolder,
+	onExportFolder,
 }: FolderTreeViewProps) {
 	const foldersByParent = useMemo(() => groupBy(folders, (f) => f.parentId ?? "root"), [folders]);
 
 	const docsByFolder = useMemo(() => groupBy(documents, (d) => d.folderId ?? "root"), [documents]);
 
 	const [openContextMenuId, setOpenContextMenuId] = useState<string | null>(null);
+
+	const [manuallyCollapsedAiIds, setManuallyCollapsedAiIds] = useState<Set<number>>(new Set());
 
 	// Single subscription for rename state — derived boolean passed to each FolderNode
 	const [renamingFolderId, setRenamingFolderId] = useAtom(renamingFolderIdAtom);
@@ -95,6 +99,38 @@ export function FolderTreeView({
 		[setRenamingFolderId]
 	);
 	const handleCancelRename = useCallback(() => setRenamingFolderId(null), [setRenamingFolderId]);
+
+	const aiSortFolderLevels = useMemo(() => {
+		const map = new Map<number, number>();
+		for (const f of folders) {
+			if (f.metadata?.ai_sort === true && typeof f.metadata?.ai_sort_level === "number") {
+				map.set(f.id, f.metadata.ai_sort_level as number);
+			}
+		}
+		return map;
+	}, [folders]);
+
+	const handleToggleExpand = useCallback(
+		(folderId: number) => {
+			const aiLevel = aiSortFolderLevels.get(folderId);
+			if (aiLevel !== undefined && aiLevel < 4) {
+				// AI-auto-expanded folder: only toggle the manual-collapse set.
+				// Calling onToggleExpand would add it to expandedIds and fight auto-expand.
+				setManuallyCollapsedAiIds((prev) => {
+					const next = new Set(prev);
+					if (next.has(folderId)) {
+						next.delete(folderId);
+					} else {
+						next.add(folderId);
+					}
+					return next;
+				});
+				return;
+			}
+			onToggleExpand(folderId);
+		},
+		[onToggleExpand, aiSortFolderLevels]
+	);
 
 	const effectiveActiveTypes = useMemo(() => {
 		if (
@@ -210,9 +246,14 @@ export function FolderTreeView({
 
 	function renderLevel(parentId: number | null, depth: number): React.ReactNode[] {
 		const key = parentId ?? "root";
-		const childFolders = (foldersByParent[key] ?? [])
-			.slice()
-			.sort((a, b) => a.position.localeCompare(b.position));
+		const childFolders = (foldersByParent[key] ?? []).slice().sort((a, b) => {
+			const aIsDate = a.metadata?.ai_sort === true && a.metadata?.ai_sort_level === 2;
+			const bIsDate = b.metadata?.ai_sort === true && b.metadata?.ai_sort_level === 2;
+			if (aIsDate && bIsDate) {
+				return b.name.localeCompare(a.name);
+			}
+			return a.position.localeCompare(b.position);
+		});
 		const visibleFolders = hasDescendantMatch
 			? childFolders.filter((f) => hasDescendantMatch[f.id])
 			: childFolders;
@@ -224,6 +265,32 @@ export function FolderTreeView({
 
 		const nodes: React.ReactNode[] = [];
 
+		if (parentId === null) {
+			const processingDocs = childDocs.filter((d) => {
+				const state = d.status?.state;
+				return state === "pending" || state === "processing";
+			});
+			for (const d of processingDocs) {
+				nodes.push(
+					<DocumentNode
+						key={`doc-${d.id}`}
+						doc={d}
+						depth={depth}
+						isMentioned={mentionedDocIds.has(d.id)}
+						onToggleChatMention={onToggleChatMention}
+						onPreview={onPreviewDocument}
+						onEdit={onEditDocument}
+						onDelete={onDeleteDocument}
+						onMove={onMoveDocument}
+						onExport={onExportDocument}
+						onVersionHistory={onVersionHistory}
+						contextMenuOpen={openContextMenuId === `doc-${d.id}`}
+						onContextMenuOpenChange={(open) => setOpenContextMenuId(open ? `doc-${d.id}` : null)}
+					/>
+				);
+			}
+		}
+
 		for (let i = 0; i < visibleFolders.length; i++) {
 			const f = visibleFolders[i];
 			const siblingPositions = {
@@ -231,8 +298,15 @@ export function FolderTreeView({
 				after: i < visibleFolders.length - 1 ? visibleFolders[i + 1].position : null,
 			};
 
-			const isAutoExpanded = !!searchQuery && !!hasDescendantMatch?.[f.id];
-			const isExpanded = expandedIds.has(f.id) || isAutoExpanded;
+			const isSearchAutoExpanded = !!searchQuery && !!hasDescendantMatch?.[f.id];
+			const isAiAutoExpandCandidate =
+				f.metadata?.ai_sort === true &&
+				typeof f.metadata?.ai_sort_level === "number" &&
+				(f.metadata.ai_sort_level as number) < 4;
+			const isManuallyCollapsed = manuallyCollapsedAiIds.has(f.id);
+			const isExpanded = isManuallyCollapsed
+				? isSearchAutoExpanded
+				: expandedIds.has(f.id) || isSearchAutoExpanded || isAiAutoExpandCandidate;
 
 			nodes.push(
 				<FolderNode
@@ -244,7 +318,7 @@ export function FolderTreeView({
 					selectionState={folderSelectionStates[f.id] ?? "none"}
 					processingState={folderProcessingStates[f.id] ?? "idle"}
 					onToggleSelect={onToggleFolderSelect}
-					onToggleExpand={onToggleExpand}
+					onToggleExpand={handleToggleExpand}
 					onRename={onRenameFolder}
 					onStartRename={handleStartRename}
 					onCancelRename={handleCancelRename}
@@ -259,6 +333,7 @@ export function FolderTreeView({
 					isWatched={watchedFolderIds?.has(f.id)}
 					onRescan={onRescanFolder}
 					onStopWatching={onStopWatchingFolder}
+					onExportFolder={onExportFolder}
 				/>
 			);
 
@@ -267,7 +342,15 @@ export function FolderTreeView({
 			}
 		}
 
-		for (const d of childDocs) {
+		const remainingDocs =
+			parentId === null
+				? childDocs.filter((d) => {
+						const state = d.status?.state;
+						return state !== "pending" && state !== "processing";
+					})
+				: childDocs;
+
+		for (const d of remainingDocs) {
 			nodes.push(
 				<DocumentNode
 					key={`doc-${d.id}`}

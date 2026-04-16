@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtom } from "jotai";
-import { Globe, KeyRound, Monitor, Receipt, Sparkles, User } from "lucide-react";
+import { Brain, CircleUser, Globe, KeyRound, Monitor, ReceiptText, Sparkles } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
@@ -51,6 +51,13 @@ const DesktopContent = dynamic(
 		),
 	{ ssr: false }
 );
+const MemoryContent = dynamic(
+	() =>
+		import("@/app/dashboard/[search_space_id]/user-settings/components/MemoryContent").then(
+			(m) => ({ default: m.MemoryContent })
+		),
+	{ ssr: false }
+);
 
 export function UserSettingsDialog() {
 	const t = useTranslations("userSettings");
@@ -59,7 +66,7 @@ export function UserSettingsDialog() {
 
 	const navItems = useMemo(
 		() => [
-			{ value: "profile", label: t("profile_nav_label"), icon: <User className="h-4 w-4" /> },
+			{ value: "profile", label: t("profile_nav_label"), icon: <CircleUser className="h-4 w-4" /> },
 			{
 				value: "api-key",
 				label: t("api_key_nav_label"),
@@ -76,9 +83,14 @@ export function UserSettingsDialog() {
 				icon: <Globe className="h-4 w-4" />,
 			},
 			{
+				value: "memory",
+				label: "Memory",
+				icon: <Brain className="h-4 w-4" />,
+			},
+			{
 				value: "purchases",
 				label: "Purchase History",
-				icon: <Receipt className="h-4 w-4" />,
+				icon: <ReceiptText className="h-4 w-4" />,
 			},
 			...(isDesktop
 				? [{ value: "desktop", label: "Desktop", icon: <Monitor className="h-4 w-4" /> }]
@@ -101,6 +113,7 @@ export function UserSettingsDialog() {
 				{state.initialTab === "api-key" && <ApiKeyContent />}
 				{state.initialTab === "prompts" && <PromptsContent />}
 				{state.initialTab === "community-prompts" && <CommunityPromptsContent />}
+				{state.initialTab === "memory" && <MemoryContent />}
 				{state.initialTab === "purchases" && <PurchaseHistoryContent />}
 				{state.initialTab === "desktop" && <DesktopContent />}
 			</div>

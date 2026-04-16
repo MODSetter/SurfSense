@@ -2,10 +2,23 @@
 
 import { useQuery } from "@rocicorp/zero/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { ChevronLeft, ChevronRight, FolderClock, Trash2, Unplug } from "lucide-react";
+import {
+	ChevronLeft,
+	ChevronRight,
+	FileText,
+	FolderClock,
+	Lock,
+	Paperclip,
+	Trash2,
+	Unplug,
+	Upload,
+	X,
+} from "lucide-react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import type React from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { sidebarSelectedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
@@ -14,7 +27,12 @@ import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.
 import { expandedFolderIdsAtom } from "@/atoms/documents/folder.atoms";
 import { agentCreatedDocumentsAtom } from "@/atoms/documents/ui.atoms";
 import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
+import {
+	folderWatchDialogOpenAtom,
+	folderWatchInitialFolderAtom,
+} from "@/atoms/folder-sync/folder-sync.atoms";
 import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
+import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { CreateFolderDialog } from "@/components/documents/CreateFolderDialog";
 import type { DocumentNodeDoc } from "@/components/documents/DocumentNode";
 import { DocumentsFilters } from "@/components/documents/DocumentsFilters";
@@ -40,8 +58,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAnonymousMode, useIsAnonymous } from "@/contexts/anonymous-mode";
+import { useLoginGate } from "@/contexts/login-gate";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -49,7 +70,9 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
+import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
+import { BACKEND_URL } from "@/lib/env-config";
 import { uploadFolderScan } from "@/lib/folder-sync-upload";
 import { getSupportedExtensionsSet } from "@/lib/supported-extensions";
 import { queries } from "@/zero/queries/index";
@@ -80,7 +103,15 @@ interface DocumentsSidebarProps {
 	headerAction?: React.ReactNode;
 }
 
-export function DocumentsSidebar({
+export function DocumentsSidebar(props: DocumentsSidebarProps) {
+	const isAnonymous = useIsAnonymous();
+	if (isAnonymous) {
+		return <AnonymousDocumentsSidebar {...props} />;
+	}
+	return <AuthenticatedDocumentsSidebar {...props} />;
+}
+
+function AuthenticatedDocumentsSidebar({
 	open,
 	onOpenChange,
 	isDocked = false,
@@ -104,9 +135,50 @@ export function DocumentsSidebar({
 	const debouncedSearch = useDebouncedValue(search, 250);
 	const [activeTypes, setActiveTypes] = useState<DocumentTypeEnum[]>([]);
 	const [watchedFolderIds, setWatchedFolderIds] = useState<Set<number>>(new Set());
-	const [folderWatchOpen, setFolderWatchOpen] = useState(false);
-	const [watchInitialFolder, setWatchInitialFolder] = useState<SelectedFolder | null>(null);
+	const [folderWatchOpen, setFolderWatchOpen] = useAtom(folderWatchDialogOpenAtom);
+	const [watchInitialFolder, setWatchInitialFolder] = useAtom(folderWatchInitialFolderAtom);
 	const isElectron = typeof window !== "undefined" && !!window.electronAPI;
+
+	// AI File Sort state
+	const { data: searchSpaces, refetch: refetchSearchSpaces } = useAtomValue(searchSpacesAtom);
+	const activeSearchSpace = useMemo(
+		() => searchSpaces?.find((s) => s.id === searchSpaceId),
+		[searchSpaces, searchSpaceId]
+	);
+	const aiSortEnabled = activeSearchSpace?.ai_file_sort_enabled ?? false;
+	const [aiSortBusy, setAiSortBusy] = useState(false);
+	const [aiSortConfirmOpen, setAiSortConfirmOpen] = useState(false);
+
+	const handleToggleAiSort = useCallback(() => {
+		if (aiSortEnabled) {
+			// Disable: just update the setting, no confirmation needed
+			setAiSortBusy(true);
+			searchSpacesApiService
+				.updateSearchSpace({ id: searchSpaceId, data: { ai_file_sort_enabled: false } })
+				.then(() => {
+					refetchSearchSpaces();
+					toast.success("AI file sorting disabled");
+				})
+				.catch(() => toast.error("Failed to disable AI file sorting"))
+				.finally(() => setAiSortBusy(false));
+		} else {
+			setAiSortConfirmOpen(true);
+		}
+	}, [aiSortEnabled, searchSpaceId, refetchSearchSpaces]);
+
+	const handleConfirmEnableAiSort = useCallback(() => {
+		setAiSortConfirmOpen(false);
+		setAiSortBusy(true);
+		searchSpacesApiService
+			.updateSearchSpace({ id: searchSpaceId, data: { ai_file_sort_enabled: true } })
+			.then(() => searchSpacesApiService.triggerAiSort(searchSpaceId))
+			.then(() => {
+				refetchSearchSpaces();
+				toast.success("AI file sorting enabled — organizing your documents in the background");
+			})
+			.catch(() => toast.error("Failed to enable AI file sorting"))
+			.finally(() => setAiSortBusy(false));
+	}, [searchSpaceId, refetchSearchSpaces]);
 
 	const handleWatchLocalFolder = useCallback(async () => {
 		const api = window.electronAPI;
@@ -118,7 +190,7 @@ export function DocumentsSidebar({
 		const folderName = folderPath.split("/").pop() || folderPath.split("\\").pop() || folderPath;
 		setWatchInitialFolder({ path: folderPath, name: folderName });
 		setFolderWatchOpen(true);
-	}, []);
+	}, [setWatchInitialFolder, setFolderWatchOpen]);
 
 	const refreshWatchedIds = useCallback(async () => {
 		if (!electronAPI?.getWatchedFolders) return;
@@ -406,6 +478,110 @@ export function DocumentsSidebar({
 		setFolderPickerOpen(true);
 	}, []);
 
+	const [, setIsExportingKB] = useState(false);
+	const [exportWarningOpen, setExportWarningOpen] = useState(false);
+	const [exportWarningContext, setExportWarningContext] = useState<{
+		folder: FolderDisplay;
+		pendingCount: number;
+	} | null>(null);
+
+	const doExport = useCallback(async (url: string, downloadName: string) => {
+		const response = await authenticatedFetch(url, { method: "GET" });
+		if (!response.ok) {
+			const errorData = await response.json().catch(() => ({ detail: "Export failed" }));
+			throw new Error(errorData.detail || "Export failed");
+		}
+
+		const blob = await response.blob();
+		const blobUrl = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = blobUrl;
+		a.download = downloadName;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(blobUrl);
+	}, []);
+
+	const handleExportWarningConfirm = useCallback(async () => {
+		setExportWarningOpen(false);
+		const ctx = exportWarningContext;
+		if (!ctx?.folder) return;
+
+		setIsExportingKB(true);
+		try {
+			const safeName =
+				ctx.folder.name
+					.replace(/[^a-zA-Z0-9 _-]/g, "_")
+					.trim()
+					.slice(0, 80) || "folder";
+			await doExport(
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/export?folder_id=${ctx.folder.id}`,
+				`${safeName}.zip`
+			);
+			toast.success(`Folder "${ctx.folder.name}" exported`);
+		} catch (err) {
+			console.error("Folder export failed:", err);
+			toast.error(err instanceof Error ? err.message : "Export failed");
+		} finally {
+			setIsExportingKB(false);
+		}
+		setExportWarningContext(null);
+	}, [exportWarningContext, searchSpaceId, doExport]);
+
+	const getPendingCountInSubtree = useCallback(
+		(folderId: number): number => {
+			const subtreeIds = new Set<number>();
+			function collect(id: number) {
+				subtreeIds.add(id);
+				for (const child of foldersByParent[String(id)] ?? []) {
+					collect(child.id);
+				}
+			}
+			collect(folderId);
+			return treeDocuments.filter(
+				(d) =>
+					subtreeIds.has(d.folderId ?? -1) &&
+					(d.status?.state === "pending" || d.status?.state === "processing")
+			).length;
+		},
+		[foldersByParent, treeDocuments]
+	);
+
+	const handleExportFolder = useCallback(
+		async (folder: FolderDisplay) => {
+			const folderPendingCount = getPendingCountInSubtree(folder.id);
+			if (folderPendingCount > 0) {
+				setExportWarningContext({
+					folder,
+					pendingCount: folderPendingCount,
+				});
+				setExportWarningOpen(true);
+				return;
+			}
+
+			setIsExportingKB(true);
+			try {
+				const safeName =
+					folder.name
+						.replace(/[^a-zA-Z0-9 _-]/g, "_")
+						.trim()
+						.slice(0, 80) || "folder";
+				await doExport(
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/export?folder_id=${folder.id}`,
+					`${safeName}.zip`
+				);
+				toast.success(`Folder "${folder.name}" exported`);
+			} catch (err) {
+				console.error("Folder export failed:", err);
+				toast.error(err instanceof Error ? err.message : "Export failed");
+			} finally {
+				setIsExportingKB(false);
+			}
+		},
+		[searchSpaceId, getPendingCountInSubtree, doExport]
+	);
+
 	const handleExportDocument = useCallback(
 		async (doc: DocumentNodeDoc, format: string) => {
 			const safeTitle =
@@ -525,7 +701,8 @@ export function DocumentsSidebar({
 					(d) =>
 						d.folderId === parentId &&
 						d.status?.state !== "pending" &&
-						d.status?.state !== "processing"
+						d.status?.state !== "processing" &&
+						d.status?.state !== "failed"
 				);
 				const childFolders = foldersByParent[String(parentId)] ?? [];
 				const descendantDocs = childFolders.flatMap((cf) => collectSubtreeDocs(cf.id));
@@ -800,6 +977,9 @@ export function DocumentsSidebar({
 						onToggleType={onToggleType}
 						activeTypes={activeTypes}
 						onCreateFolder={() => handleCreateFolder(null)}
+						aiSortEnabled={aiSortEnabled}
+						aiSortBusy={aiSortBusy}
+						onToggleAiSort={handleToggleAiSort}
 					/>
 				</div>
 
@@ -855,6 +1035,7 @@ export function DocumentsSidebar({
 						watchedFolderIds={watchedFolderIds}
 						onRescanFolder={handleRescanFolder}
 						onStopWatchingFolder={handleStopWatching}
+						onExportFolder={handleExportFolder}
 					/>
 				</div>
 			</div>
@@ -933,6 +1114,50 @@ export function DocumentsSidebar({
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>
+
+			<AlertDialog
+				open={exportWarningOpen}
+				onOpenChange={(open) => {
+					if (!open) {
+						setExportWarningOpen(false);
+						setExportWarningContext(null);
+					}
+				}}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Some documents are still processing</AlertDialogTitle>
+						<AlertDialogDescription>
+							{exportWarningContext?.pendingCount} document
+							{exportWarningContext?.pendingCount !== 1 ? "s are" : " is"} currently being processed
+							and will be excluded from the export. Do you want to continue?
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction onClick={handleExportWarningConfirm}>
+							Export anyway
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+
+			<AlertDialog open={aiSortConfirmOpen} onOpenChange={setAiSortConfirmOpen}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Enable AI File Sorting?</AlertDialogTitle>
+						<AlertDialogDescription>
+							All documents in this search space will be organized into folders by connector type,
+							date, and AI-generated categories. New documents will also be sorted automatically.
+							You can disable this at any time.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction onClick={handleConfirmEnableAiSort}>Enable</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</>
 	);
 
@@ -961,6 +1186,433 @@ export function DocumentsSidebar({
 			onOpenChange={onOpenChange}
 			ariaLabel={t("title") || "Documents"}
 			width={isMobile ? undefined : 380}
+		>
+			{documentsContent}
+		</SidebarSlideOutPanel>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Anonymous Documents Sidebar
+// ---------------------------------------------------------------------------
+
+const ANON_ALLOWED_EXTENSIONS = new Set([
+	".md",
+	".markdown",
+	".txt",
+	".text",
+	".json",
+	".jsonl",
+	".yaml",
+	".yml",
+	".toml",
+	".ini",
+	".cfg",
+	".conf",
+	".xml",
+	".css",
+	".scss",
+	".py",
+	".js",
+	".jsx",
+	".ts",
+	".tsx",
+	".java",
+	".kt",
+	".go",
+	".rs",
+	".rb",
+	".php",
+	".c",
+	".h",
+	".cpp",
+	".hpp",
+	".cs",
+	".swift",
+	".sh",
+	".sql",
+	".log",
+	".rst",
+	".tex",
+	".vue",
+	".svelte",
+	".astro",
+	".tf",
+	".proto",
+	".csv",
+	".tsv",
+	".html",
+	".htm",
+	".xhtml",
+]);
+
+const ANON_ACCEPT = Array.from(ANON_ALLOWED_EXTENSIONS).join(",");
+
+function AnonymousDocumentsSidebar({
+	open,
+	onOpenChange,
+	isDocked = false,
+	onDockedChange,
+	embedded = false,
+	headerAction,
+}: DocumentsSidebarProps) {
+	const t = useTranslations("documents");
+	const tSidebar = useTranslations("sidebar");
+	const isMobile = !useMediaQuery("(min-width: 640px)");
+	const setRightPanelCollapsed = useSetAtom(rightPanelCollapsedAtom);
+	const anonMode = useAnonymousMode();
+	const { gate } = useLoginGate();
+
+	const fileInputRef = useRef<HTMLInputElement>(null);
+	const [isUploading, setIsUploading] = useState(false);
+	const [search, setSearch] = useState("");
+
+	const [sidebarDocs, setSidebarDocs] = useAtom(sidebarSelectedDocumentsAtom);
+	const mentionedDocIds = useMemo(() => new Set(sidebarDocs.map((d) => d.id)), [sidebarDocs]);
+
+	const handleToggleChatMention = useCallback(
+		(doc: { id: number; title: string; document_type: string }, isMentioned: boolean) => {
+			if (isMentioned) {
+				setSidebarDocs((prev) => prev.filter((d) => d.id !== doc.id));
+			} else {
+				setSidebarDocs((prev) => {
+					if (prev.some((d) => d.id === doc.id)) return prev;
+					return [
+						...prev,
+						{ id: doc.id, title: doc.title, document_type: doc.document_type as DocumentTypeEnum },
+					];
+				});
+			}
+		},
+		[setSidebarDocs]
+	);
+
+	const uploadedDoc = anonMode.isAnonymous ? anonMode.uploadedDoc : null;
+	const hasDoc = uploadedDoc !== null;
+
+	const handleAnonUploadClick = useCallback(() => {
+		if (hasDoc) {
+			gate("upload more documents");
+			return;
+		}
+		fileInputRef.current?.click();
+	}, [hasDoc, gate]);
+
+	const handleFileChange = useCallback(
+		async (e: React.ChangeEvent<HTMLInputElement>) => {
+			const file = e.target.files?.[0];
+			if (!file) return;
+			e.target.value = "";
+
+			const ext = `.${file.name.split(".").pop()?.toLowerCase()}`;
+			if (!ANON_ALLOWED_EXTENSIONS.has(ext)) {
+				gate("upload PDFs, Word documents, images, and more");
+				return;
+			}
+
+			setIsUploading(true);
+			try {
+				const formData = new FormData();
+				formData.append("file", file);
+				const res = await fetch(`${BACKEND_URL}/api/v1/public/anon-chat/upload`, {
+					method: "POST",
+					credentials: "include",
+					body: formData,
+				});
+
+				if (res.status === 409) {
+					gate("upload more documents");
+					return;
+				}
+				if (!res.ok) {
+					const body = await res.json().catch(() => ({}));
+					throw new Error(body.detail || `Upload failed: ${res.status}`);
+				}
+
+				const data = await res.json();
+				if (anonMode.isAnonymous) {
+					anonMode.setUploadedDoc({
+						filename: data.filename,
+						sizeBytes: data.size_bytes,
+					});
+				}
+				toast.success(`Uploaded "${data.filename}"`);
+			} catch (err) {
+				console.error("Upload failed:", err);
+				toast.error(err instanceof Error ? err.message : "Upload failed");
+			} finally {
+				setIsUploading(false);
+			}
+		},
+		[gate, anonMode]
+	);
+
+	const handleRemoveDoc = useCallback(() => {
+		if (anonMode.isAnonymous) {
+			anonMode.setUploadedDoc(null);
+		}
+	}, [anonMode]);
+
+	const treeDocuments: DocumentNodeDoc[] = useMemo(() => {
+		if (!anonMode.isAnonymous || !anonMode.uploadedDoc) return [];
+		return [
+			{
+				id: -1,
+				title: anonMode.uploadedDoc.filename,
+				document_type: "FILE",
+				folderId: null,
+				status: { state: "ready" } as { state: string; reason?: string | null },
+			},
+		];
+	}, [anonMode]);
+
+	const searchFilteredDocs = useMemo(() => {
+		const q = search.trim().toLowerCase();
+		if (!q) return treeDocuments;
+		return treeDocuments.filter((d) => d.title.toLowerCase().includes(q));
+	}, [treeDocuments, search]);
+
+	useEffect(() => {
+		const handleEscape = (e: KeyboardEvent) => {
+			if (e.key === "Escape" && open) {
+				if (isMobile) {
+					onOpenChange(false);
+				} else {
+					setRightPanelCollapsed(true);
+				}
+			}
+		};
+		document.addEventListener("keydown", handleEscape);
+		return () => document.removeEventListener("keydown", handleEscape);
+	}, [open, onOpenChange, isMobile, setRightPanelCollapsed]);
+
+	const documentsContent = (
+		<>
+			<input
+				ref={fileInputRef}
+				type="file"
+				accept={ANON_ACCEPT}
+				className="hidden"
+				onChange={handleFileChange}
+				disabled={isUploading}
+			/>
+
+			{/* Header */}
+			<div className="shrink-0 flex h-14 items-center px-4">
+				<div className="flex w-full items-center justify-between">
+					<div className="flex items-center gap-2">
+						<h2 className="select-none text-lg font-semibold">{t("title") || "Documents"}</h2>
+					</div>
+					<div className="flex items-center gap-1">
+						{isMobile && (
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 rounded-full"
+								onClick={() => onOpenChange(false)}
+							>
+								<X className="h-4 w-4 text-muted-foreground" />
+								<span className="sr-only">{tSidebar("close") || "Close"}</span>
+							</Button>
+						)}
+						{!isMobile && onDockedChange && (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-8 w-8 rounded-full"
+										onClick={() => {
+											if (isDocked) {
+												onDockedChange(false);
+												onOpenChange(false);
+											} else {
+												onDockedChange(true);
+											}
+										}}
+									>
+										{isDocked ? (
+											<ChevronLeft className="h-4 w-4 text-muted-foreground" />
+										) : (
+											<ChevronRight className="h-4 w-4 text-muted-foreground" />
+										)}
+										<span className="sr-only">{isDocked ? "Collapse panel" : "Expand panel"}</span>
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent className="z-80">
+									{isDocked ? "Collapse panel" : "Expand panel"}
+								</TooltipContent>
+							</Tooltip>
+						)}
+						{headerAction}
+					</div>
+				</div>
+			</div>
+
+			{/* Connectors strip (gated) */}
+			<div className="shrink-0 mx-4 mt-4 mb-4 flex select-none items-center gap-2 rounded-lg border bg-muted/50 transition-colors hover:bg-muted/80">
+				<button
+					type="button"
+					onClick={() => gate("connect your data sources")}
+					className="flex items-center gap-2 min-w-0 flex-1 text-left px-3 py-2"
+				>
+					<Unplug className="size-4 shrink-0 text-muted-foreground" />
+					<span className="truncate text-xs text-muted-foreground">Connect your connectors</span>
+					<AvatarGroup className="ml-auto shrink-0">
+						{(isMobile ? SHOWCASE_CONNECTORS.slice(0, 5) : SHOWCASE_CONNECTORS).map(
+							({ type, label }, i) => {
+								const avatar = (
+									<Avatar
+										key={type}
+										className="size-6"
+										style={{ zIndex: SHOWCASE_CONNECTORS.length - i }}
+									>
+										<AvatarFallback className="bg-muted text-[10px]">
+											{getConnectorIcon(type, "size-3.5")}
+										</AvatarFallback>
+									</Avatar>
+								);
+								if (isMobile) return avatar;
+								return (
+									<Tooltip key={type}>
+										<TooltipTrigger asChild>{avatar}</TooltipTrigger>
+										<TooltipContent side="top" className="text-xs">
+											{label}
+										</TooltipContent>
+									</Tooltip>
+								);
+							}
+						)}
+					</AvatarGroup>
+				</button>
+			</div>
+
+			{/* Filters & upload */}
+			<div className="flex-1 min-h-0 pt-0 flex flex-col">
+				<div className="px-4 pb-2">
+					<DocumentsFilters
+						typeCounts={hasDoc ? { FILE: 1 } : {}}
+						onSearch={setSearch}
+						searchValue={search}
+						onToggleType={() => {}}
+						activeTypes={[]}
+						onCreateFolder={() => gate("create folders")}
+						aiSortEnabled={false}
+						onUploadClick={handleAnonUploadClick}
+					/>
+				</div>
+
+				<div className="relative flex-1 min-h-0 overflow-auto">
+					<FolderTreeView
+						folders={[]}
+						documents={searchFilteredDocs}
+						expandedIds={new Set()}
+						onToggleExpand={() => {}}
+						mentionedDocIds={mentionedDocIds}
+						onToggleChatMention={handleToggleChatMention}
+						onToggleFolderSelect={() => {}}
+						onRenameFolder={() => gate("rename folders")}
+						onDeleteFolder={() => gate("delete folders")}
+						onMoveFolder={() => gate("organize folders")}
+						onCreateFolder={() => gate("create folders")}
+						searchQuery={search.trim() || undefined}
+						onPreviewDocument={() => gate("preview documents")}
+						onEditDocument={() => gate("edit documents")}
+						onDeleteDocument={async () => {
+							handleRemoveDoc();
+							setSidebarDocs((prev) => prev.filter((d) => d.id !== -1));
+							return true;
+						}}
+						onMoveDocument={() => gate("organize documents")}
+						onExportDocument={() => gate("export documents")}
+						onVersionHistory={() => gate("view version history")}
+						activeTypes={[]}
+						onDropIntoFolder={async () => gate("organize documents")}
+						onReorderFolder={async () => gate("organize folders")}
+						watchedFolderIds={new Set()}
+						onRescanFolder={() => gate("watch local folders")}
+						onStopWatchingFolder={() => gate("watch local folders")}
+						onExportFolder={() => gate("export folders")}
+					/>
+
+					{!hasDoc && (
+						<div className="px-4 py-8 text-center">
+							<button
+								type="button"
+								onClick={handleAnonUploadClick}
+								disabled={isUploading}
+								className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-primary/30 px-4 py-6 text-sm text-primary transition-colors hover:border-primary/60 hover:bg-primary/5 cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+							>
+								<Upload className="size-4" />
+								{isUploading ? "Uploading..." : "Upload a document"}
+							</button>
+							<p className="mt-2 text-[11px] text-muted-foreground leading-relaxed">
+								Text, code, CSV, and HTML files only. Create an account for PDFs, images, and 30+
+								connectors.
+							</p>
+						</div>
+					)}
+				</div>
+			</div>
+
+			{/* CTA footer */}
+			<div className="border-t p-4 space-y-3">
+				<div className="flex items-center gap-2 text-xs text-muted-foreground">
+					<Lock className="size-3.5 shrink-0" />
+					<span>Create an account to unlock:</span>
+				</div>
+				<ul className="space-y-1.5 text-xs text-muted-foreground pl-5">
+					<li className="flex items-center gap-1.5">
+						<Paperclip className="size-3 shrink-0" /> PDF, Word, images, audio uploads
+					</li>
+					<li className="flex items-center gap-1.5">
+						<FileText className="size-3 shrink-0" /> Unlimited documents
+					</li>
+				</ul>
+				<Button size="sm" className="w-full" asChild>
+					<Link href="/register">Create Free Account</Link>
+				</Button>
+			</div>
+		</>
+	);
+
+	if (embedded) {
+		return (
+			<div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
+				{documentsContent}
+			</div>
+		);
+	}
+
+	if (isDocked && open && !isMobile) {
+		return (
+			<aside
+				className="h-full w-[380px] shrink-0 bg-sidebar text-sidebar-foreground flex flex-col border-r"
+				aria-label={t("title") || "Documents"}
+			>
+				{documentsContent}
+			</aside>
+		);
+	}
+
+	if (isMobile) {
+		return (
+			<Drawer open={open} onOpenChange={onOpenChange}>
+				<DrawerContent className="max-h-[75vh] flex flex-col">
+					<DrawerTitle className="sr-only">{t("title") || "Documents"}</DrawerTitle>
+					<DrawerHandle />
+					<div className="flex-1 min-h-0 flex flex-col overflow-hidden">{documentsContent}</div>
+				</DrawerContent>
+			</Drawer>
+		);
+	}
+
+	return (
+		<SidebarSlideOutPanel
+			open={open}
+			onOpenChange={onOpenChange}
+			ariaLabel={t("title") || "Documents"}
+			width={380}
 		>
 			{documentsContent}
 		</SidebarSlideOutPanel>

@@ -144,10 +144,14 @@ export const createDocumentResponse = z.object({
 /**
  * Upload documents
  */
+export const processingModeEnum = z.enum(["basic", "premium"]);
+
 export const uploadDocumentRequest = z.object({
 	files: z.array(z.instanceof(File)),
 	search_space_id: z.number(),
 	should_summarize: z.boolean().default(false),
+	use_vision_llm: z.boolean().default(false),
+	processing_mode: processingModeEnum.default("basic"),
 });
 
 export const uploadDocumentResponse = z.object({
@@ -361,3 +365,4 @@ export type GetSurfsenseDocsResponse = z.infer<typeof getSurfsenseDocsResponse>;
 export type GetDocumentChunksRequest = z.infer<typeof getDocumentChunksRequest>;
 export type GetDocumentChunksResponse = z.infer<typeof getDocumentChunksResponse>;
 export type ChunkRead = z.infer<typeof chunkRead>;
+export type ProcessingMode = z.infer<typeof processingModeEnum>;

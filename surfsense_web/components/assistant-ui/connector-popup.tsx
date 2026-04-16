@@ -98,6 +98,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 			periodicEnabled,
 			frequencyMinutes,
 			enableSummary,
+			enableVisionLlm,
 			allConnectors,
 			viewingAccountsType,
 			viewingMCPList,
@@ -109,6 +110,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 			setPeriodicEnabled,
 			setFrequencyMinutes,
 			setEnableSummary,
+			setEnableVisionLlm,
 			handleOpenChange,
 			handleTabChange,
 			handleScroll,
@@ -279,6 +281,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 							periodicEnabled={periodicEnabled}
 							frequencyMinutes={frequencyMinutes}
 							enableSummary={enableSummary}
+							enableVisionLlm={enableVisionLlm}
 							isSaving={isSaving}
 							isDisconnecting={isDisconnecting}
 							isIndexing={indexingConnectorIds.has(editingConnector.id)}
@@ -288,6 +291,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 							onPeriodicEnabledChange={setPeriodicEnabled}
 							onFrequencyChange={setFrequencyMinutes}
 							onEnableSummaryChange={setEnableSummary}
+							onEnableVisionLlmChange={setEnableVisionLlm}
 							onSave={() => {
 								startIndexing(editingConnector.id);
 								handleSaveConnector(() => refreshConnectors());
@@ -336,6 +340,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 							periodicEnabled={periodicEnabled}
 							frequencyMinutes={frequencyMinutes}
 							enableSummary={enableSummary}
+							enableVisionLlm={enableVisionLlm}
 							isStartingIndexing={isStartingIndexing}
 							isFromOAuth={isFromOAuth}
 							onStartDateChange={setStartDate}
@@ -343,6 +348,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 							onPeriodicEnabledChange={setPeriodicEnabled}
 							onFrequencyChange={setFrequencyMinutes}
 							onEnableSummaryChange={setEnableSummary}
+							onEnableVisionLlmChange={setEnableVisionLlm}
 							onConfigChange={setIndexingConnectorConfig}
 							onStartIndexing={() => {
 								if (indexingConfig.connectorId) {

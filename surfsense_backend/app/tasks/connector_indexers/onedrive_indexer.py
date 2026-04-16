@@ -171,6 +171,7 @@ async def _download_files_parallel(
     enable_summary: bool,
     max_concurrency: int = 3,
     on_heartbeat: HeartbeatCallbackType | None = None,
+    vision_llm=None,
 ) -> tuple[list[ConnectorDocument], int]:
     """Download and ETL files in parallel. Returns (docs, failed_count)."""
     results: list[ConnectorDocument] = []
@@ -183,7 +184,7 @@ async def _download_files_parallel(
         nonlocal last_heartbeat, completed_count
         async with sem:
             markdown, od_metadata, error = await download_and_extract_content(
-                onedrive_client, file
+                onedrive_client, file, vision_llm=vision_llm
             )
             if error or not markdown:
                 file_name = file.get("name", "Unknown")
@@ -231,6 +232,7 @@ async def _download_and_index(
     user_id: str,
     enable_summary: bool,
     on_heartbeat: HeartbeatCallbackType | None = None,
+    vision_llm=None,
 ) -> tuple[int, int]:
     """Parallel download then parallel indexing. Returns (batch_indexed, total_failed)."""
     connector_docs, download_failed = await _download_files_parallel(
@@ -241,6 +243,7 @@ async def _download_and_index(
         user_id=user_id,
         enable_summary=enable_summary,
         on_heartbeat=on_heartbeat,
+        vision_llm=vision_llm,
     )
 
     batch_indexed = 0
@@ -293,6 +296,7 @@ async def _index_selected_files(
     user_id: str,
     enable_summary: bool,
     on_heartbeat: HeartbeatCallbackType | None = None,
+    vision_llm=None,
 ) -> tuple[int, int, int, list[str]]:
     """Index user-selected files using the parallel pipeline."""
     page_limit_service = PageLimitService(session)
@@ -343,6 +347,7 @@ async def _index_selected_files(
         user_id=user_id,
         enable_summary=enable_summary,
         on_heartbeat=on_heartbeat,
+        vision_llm=vision_llm,
     )
 
     if batch_indexed > 0 and files_to_download and batch_estimated_pages > 0:
@@ -375,6 +380,7 @@ async def _index_full_scan(
     include_subfolders: bool = True,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
     enable_summary: bool = True,
+    vision_llm=None,
 ) -> tuple[int, int, int]:
     """Full scan indexing of a folder.
 
@@ -450,6 +456,7 @@ async def _index_full_scan(
         user_id=user_id,
         enable_summary=enable_summary,
         on_heartbeat=on_heartbeat_callback,
+        vision_llm=vision_llm,
     )
 
     if batch_indexed > 0 and files_to_download and batch_estimated_pages > 0:
@@ -481,6 +488,7 @@ async def _index_with_delta_sync(
     max_files: int,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
     enable_summary: bool = True,
+    vision_llm=None,
 ) -> tuple[int, int, int, str | None]:
     """Delta sync using OneDrive change tracking.
 
@@ -573,6 +581,7 @@ async def _index_with_delta_sync(
         user_id=user_id,
         enable_summary=enable_summary,
         on_heartbeat=on_heartbeat_callback,
+        vision_llm=vision_llm,
     )
 
     if batch_indexed > 0 and files_to_download and batch_estimated_pages > 0:
@@ -643,6 +652,13 @@ async def index_onedrive_files(
             return 0, 0, error_msg, 0
 
         connector_enable_summary = getattr(connector, "enable_summary", True)
+        connector_enable_vision_llm = getattr(connector, "enable_vision_llm", False)
+        vision_llm = None
+        if connector_enable_vision_llm:
+            from app.services.llm_service import get_vision_llm
+
+            vision_llm = await get_vision_llm(session, search_space_id)
+
         onedrive_client = OneDriveClient(session, connector_id)
 
         indexing_options = items_dict.get("indexing_options", {})
@@ -666,6 +682,7 @@ async def index_onedrive_files(
                 search_space_id=search_space_id,
                 user_id=user_id,
                 enable_summary=connector_enable_summary,
+                vision_llm=vision_llm,
             )
             total_indexed += indexed
             total_skipped += skipped
@@ -695,6 +712,7 @@ async def index_onedrive_files(
                     log_entry,
                     max_files,
                     enable_summary=connector_enable_summary,
+                    vision_llm=vision_llm,
                 )
                 total_indexed += indexed
                 total_skipped += skipped
@@ -721,6 +739,7 @@ async def index_onedrive_files(
                     max_files,
                     include_subfolders,
                     enable_summary=connector_enable_summary,
+                    vision_llm=vision_llm,
                 )
                 total_indexed += ri
                 total_skipped += rs
@@ -740,6 +759,7 @@ async def index_onedrive_files(
                     max_files,
                     include_subfolders,
                     enable_summary=connector_enable_summary,
+                    vision_llm=vision_llm,
                 )
                 total_indexed += indexed
                 total_skipped += skipped

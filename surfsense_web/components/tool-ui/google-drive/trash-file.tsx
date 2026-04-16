@@ -7,6 +7,8 @@ import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
+import type { HitlDecision, InterruptResult } from "@/lib/hitl";
+import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
 
 interface GoogleDriveAccount {
 	id: number;
@@ -21,24 +23,11 @@ interface GoogleDriveFile {
 	web_view_link: string;
 }
 
-interface InterruptResult {
-	__interrupt__: true;
-	__decided__?: "approve" | "reject";
-	__completed__?: boolean;
-	action_requests: Array<{
-		name: string;
-		args: Record<string, unknown>;
-	}>;
-	review_configs: Array<{
-		action_name: string;
-		allowed_decisions: Array<"approve" | "reject">;
-	}>;
-	context?: {
-		account?: GoogleDriveAccount;
-		file?: GoogleDriveFile;
-		error?: string;
-	};
-}
+type DriveTrashFileContext = {
+	account?: GoogleDriveAccount;
+	file?: GoogleDriveFile;
+	error?: string;
+};
 
 interface SuccessResult {
 	status: "success";
@@ -77,22 +66,13 @@ interface AuthErrorResult {
 }
 
 type DeleteGoogleDriveFileResult =
-	| InterruptResult
+	| InterruptResult<DriveTrashFileContext>
 	| SuccessResult
 	| WarningResult
 	| ErrorResult
 	| NotFoundResult
 	| InsufficientPermissionsResult
 	| AuthErrorResult;
-
-function isInterruptResult(result: unknown): result is InterruptResult {
-	return (
-		typeof result === "object" &&
-		result !== null &&
-		"__interrupt__" in result &&
-		(result as InterruptResult).__interrupt__ === true
-	);
-}
 
 function isErrorResult(result: unknown): result is ErrorResult {
 	return (
@@ -151,12 +131,8 @@ function ApprovalCard({
 	interruptData,
 	onDecision,
 }: {
-	interruptData: InterruptResult;
-	onDecision: (decision: {
-		type: "approve" | "reject";
-		message?: string;
-		edited_action?: { name: string; args: Record<string, unknown> };
-	}) => void;
+	interruptData: InterruptResult<DriveTrashFileContext>;
+	onDecision: (decision: HitlDecision) => void;
 }) {
 	const { phase, setProcessing, setRejected } = useHitlPhase(interruptData);
 	const [deleteFromKb, setDeleteFromKb] = useState(false);
@@ -416,18 +392,14 @@ export const DeleteGoogleDriveFileToolUI = ({
 	{ file_name: string; delete_from_kb?: boolean },
 	DeleteGoogleDriveFileResult
 >) => {
+	const { dispatch } = useHitlDecision();
 	if (!result) return null;
 
 	if (isInterruptResult(result)) {
 		return (
 			<ApprovalCard
-				interruptData={result}
-				onDecision={(decision) => {
-					const event = new CustomEvent("hitl-decision", {
-						detail: { decisions: [decision] },
-					});
-					window.dispatchEvent(event);
-				}}
+				interruptData={result as InterruptResult<DriveTrashFileContext>}
+				onDecision={(decision) => dispatch([decision])}
 			/>
 		);
 	}

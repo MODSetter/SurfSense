@@ -9,6 +9,8 @@ export const searchSpace = z.object({
 	user_id: z.string(),
 	citations_enabled: z.boolean(),
 	qna_custom_instructions: z.string().nullable(),
+	shared_memory_md: z.string().nullable().optional(),
+	ai_file_sort_enabled: z.boolean().optional().default(false),
 	member_count: z.number(),
 	is_owner: z.boolean(),
 });
@@ -54,6 +56,8 @@ export const updateSearchSpaceRequest = z.object({
 			description: true,
 			citations_enabled: true,
 			qna_custom_instructions: true,
+			shared_memory_md: true,
+			ai_file_sort_enabled: true,
 		})
 		.partial(),
 });

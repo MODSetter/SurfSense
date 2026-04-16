@@ -28,8 +28,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
-import { type FC, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	agentToolsAtom,
 	disabledToolsAtom,
@@ -61,7 +60,6 @@ import {
 } from "@/components/assistant-ui/inline-mention-editor";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { UserMessage } from "@/components/assistant-ui/user-message";
-import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/components/layout/ui/sidebar/SidebarSlideOutPanel";
 import {
 	DocumentMentionPicker,
 	type DocumentMentionPickerRef,
@@ -77,6 +75,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
@@ -90,9 +89,10 @@ import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsSync } from "@/hooks/use-comments-sync";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
+import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/lib/layout-events";
 import { cn } from "@/lib/utils";
 
-const COMPOSER_PLACEHOLDER = "Ask anything · Type / for prompts · Type @ to mention docs";
+const COMPOSER_PLACEHOLDER = "Ask anything, type / for prompts, type @ to mention docs";
 
 export const Thread: FC = () => {
 	return <ThreadContent />;
@@ -123,15 +123,17 @@ const ThreadContent: FC = () => {
 					}}
 				/>
 
+				<AuiIf condition={({ thread }) => !thread.isEmpty}>
+					<div className="grow" />
+				</AuiIf>
+
 				<ThreadPrimitive.ViewportFooter
 					className="aui-thread-viewport-footer sticky bottom-0 z-10 mx-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-main-panel pb-4 md:pb-6"
 					style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
 				>
 					<ThreadScrollToBottom />
 					<AuiIf condition={({ thread }) => !thread.isEmpty}>
-						<div className="fade-in slide-in-from-bottom-4 animate-in duration-500 ease-out fill-mode-both">
-							<Composer />
-						</div>
+						<Composer />
 					</AuiIf>
 				</ThreadPrimitive.ViewportFooter>
 			</ThreadPrimitive.Viewport>
@@ -338,10 +340,7 @@ const Composer: FC = () => {
 	const [showPromptPicker, setShowPromptPicker] = useState(false);
 	const [mentionQuery, setMentionQuery] = useState("");
 	const [actionQuery, setActionQuery] = useState("");
-	const [containerPos, setContainerPos] = useState({ bottom: "200px", left: "50%", top: "auto" });
 	const editorRef = useRef<InlineMentionEditorRef>(null);
-	const editorContainerRef = useRef<HTMLDivElement>(null);
-	const composerBoxRef = useRef<HTMLDivElement>(null);
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
 	const promptPickerRef = useRef<PromptPickerRef>(null);
 	const viewportRef = useRef<Element | null>(null);
@@ -362,38 +361,13 @@ const Composer: FC = () => {
 		viewportRef.current = document.querySelector(".aui-thread-viewport");
 	}, []);
 
-	// Compute picker positions using ResizeObserver to avoid layout reads during render
-	useLayoutEffect(() => {
-		if (!editorContainerRef.current) return;
-
-		const updatePosition = () => {
-			if (!editorContainerRef.current) return;
-			const rect = editorContainerRef.current.getBoundingClientRect();
-			const composerRect = composerBoxRef.current?.getBoundingClientRect();
-			setContainerPos({
-				bottom: `${window.innerHeight - rect.top + 8}px`,
-				left: `${rect.left}px`,
-				top: composerRect ? `${composerRect.bottom + 8}px` : "auto",
-			});
-		};
-
-		updatePosition();
-		const ro = new ResizeObserver(updatePosition);
-		ro.observe(editorContainerRef.current);
-		if (composerBoxRef.current) {
-			ro.observe(composerBoxRef.current);
-		}
-
-		return () => ro.disconnect();
-	}, []);
-
 	const electronAPI = useElectronAPI();
 	const [clipboardInitialText, setClipboardInitialText] = useState<string | undefined>();
 	const clipboardLoadedRef = useRef(false);
 	useEffect(() => {
 		if (!electronAPI || clipboardLoadedRef.current) return;
 		clipboardLoadedRef.current = true;
-		electronAPI.getQuickAskText().then((text) => {
+		electronAPI.getQuickAskText().then((text: string) => {
 			if (text) {
 				setClipboardInitialText(text);
 			}
@@ -586,23 +560,15 @@ const Composer: FC = () => {
 
 	// Submit message (blocked during streaming, document picker open, or AI responding to another user)
 	const handleSubmit = useCallback(() => {
-		if (isThreadRunning || isBlockedByOtherUser) {
-			return;
-		}
-		if (!showDocumentPopover && !showPromptPicker) {
-			if (clipboardInitialText) {
-				const userText = editorRef.current?.getText() ?? "";
-				const combined = userText ? `${userText}\n\n${clipboardInitialText}` : clipboardInitialText;
-				aui.composer().setText(combined);
-				setClipboardInitialText(undefined);
-			}
-			aui.composer().send();
-			editorRef.current?.clear();
-			setMentionedDocuments([]);
-			setSidebarDocs([]);
-		}
 		if (isThreadRunning || isBlockedByOtherUser) return;
-		if (showDocumentPopover) return;
+		if (showDocumentPopover || showPromptPicker) return;
+
+		if (clipboardInitialText) {
+			const userText = editorRef.current?.getText() ?? "";
+			const combined = userText ? `${userText}\n\n${clipboardInitialText}` : clipboardInitialText;
+			aui.composer().setText(combined);
+			setClipboardInitialText(undefined);
+		}
 
 		const viewportEl = viewportRef.current;
 		const heightBefore = viewportEl?.scrollHeight ?? 0;
@@ -616,18 +582,14 @@ const Composer: FC = () => {
 		// assistant message so that scrolling-to-bottom actually positions the
 		// user message at the TOP of the viewport. That slack height is
 		// calculated asynchronously (ResizeObserver → style → layout).
-		//
-		// We poll via rAF for ~2 s, re-scrolling whenever scrollHeight changes
-		// (user msg render → assistant placeholder → ViewportSlack min-height →
-		// first streamed content). Backup setTimeout calls cover cases where
-		// the batcher's 50 ms throttle delays the DOM update past the rAF.
+		// Poll via rAF for ~500ms, re-scrolling whenever scrollHeight changes.
 		const scrollToBottom = () =>
 			threadViewportStore.getState().scrollToBottom({ behavior: "instant" });
 
 		let lastHeight = heightBefore;
 		let frames = 0;
 		let cancelled = false;
-		const POLL_FRAMES = 120;
+		const POLL_FRAMES = 30;
 
 		const pollAndScroll = () => {
 			if (cancelled) return;
@@ -647,16 +609,11 @@ const Composer: FC = () => {
 
 		const t1 = setTimeout(scrollToBottom, 100);
 		const t2 = setTimeout(scrollToBottom, 300);
-		const t3 = setTimeout(scrollToBottom, 600);
 
-		// Cleanup if component unmounts during the polling window. The ref is
-		// checked inside pollAndScroll; timeouts are cleared in the return below.
-		// Store cleanup fn so it can be called from a useEffect cleanup if needed.
 		submitCleanupRef.current = () => {
 			cancelled = true;
 			clearTimeout(t1);
 			clearTimeout(t2);
-			clearTimeout(t3);
 		};
 	}, [
 		showDocumentPopover,
@@ -704,28 +661,54 @@ const Composer: FC = () => {
 	);
 
 	return (
-		<ComposerPrimitive.Root
-			className="aui-composer-root relative flex w-full flex-col gap-2"
-			style={showPromptPicker && clipboardInitialText ? { marginBottom: 220 } : undefined}
-		>
+		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col gap-2">
 			<ChatSessionStatus
 				isAiResponding={isAiResponding}
 				respondingToUserId={respondingToUserId}
 				currentUserId={currentUser?.id ?? null}
 				members={members ?? []}
 			/>
-			<div
-				ref={composerBoxRef}
-				className="aui-composer-attachment-dropzone flex w-full flex-col overflow-hidden rounded-2xl border-input bg-muted pt-2 outline-none transition-shadow"
-			>
+			{showDocumentPopover && (
+				<div className="absolute bottom-full left-0 z-[9999] mb-2">
+					<DocumentMentionPicker
+						ref={documentPickerRef}
+						searchSpaceId={Number(search_space_id)}
+						onSelectionChange={handleDocumentsMention}
+						onDone={() => {
+							setShowDocumentPopover(false);
+							setMentionQuery("");
+						}}
+						initialSelectedDocuments={mentionedDocuments}
+						externalSearch={mentionQuery}
+					/>
+				</div>
+			)}
+			{showPromptPicker && (
+				<div
+					className={cn(
+						"absolute left-0 z-[9999]",
+						clipboardInitialText ? "top-full mt-2" : "bottom-full mb-2"
+					)}
+				>
+					<PromptPicker
+						ref={promptPickerRef}
+						onSelect={clipboardInitialText ? handleQuickAskSelect : handleActionSelect}
+						onDone={() => {
+							setShowPromptPicker(false);
+							setActionQuery("");
+						}}
+						externalSearch={actionQuery}
+					/>
+				</div>
+			)}
+			<div className="aui-composer-attachment-dropzone flex w-full flex-col overflow-hidden rounded-2xl border-input bg-muted pt-2 outline-none transition-shadow">
 				{clipboardInitialText && (
 					<ClipboardChip
 						text={clipboardInitialText}
 						onDismiss={() => setClipboardInitialText(undefined)}
 					/>
 				)}
-				{/* Inline editor with @mention support */}
-				<div ref={editorContainerRef} className="aui-composer-input-wrapper px-4 pt-3 pb-6">
+				<div className="aui-composer-input-wrapper px-4 pt-3 pb-6">
 					<InlineMentionEditor
 						ref={editorRef}
 						placeholder={currentPlaceholder}
@@ -740,49 +723,6 @@ const Composer: FC = () => {
 						className="min-h-[24px]"
 					/>
 				</div>
-				{/* Document picker popover (portal to body for proper z-index stacking) */}
-				{showDocumentPopover &&
-					typeof document !== "undefined" &&
-					createPortal(
-						<DocumentMentionPicker
-							ref={documentPickerRef}
-							searchSpaceId={Number(search_space_id)}
-							onSelectionChange={handleDocumentsMention}
-							onDone={() => {
-								setShowDocumentPopover(false);
-								setMentionQuery("");
-							}}
-							initialSelectedDocuments={mentionedDocuments}
-							externalSearch={mentionQuery}
-							containerStyle={{
-								bottom: containerPos.bottom,
-								left: containerPos.left,
-							}}
-						/>,
-						document.body
-					)}
-				{showPromptPicker &&
-					typeof document !== "undefined" &&
-					createPortal(
-						<PromptPicker
-							ref={promptPickerRef}
-							onSelect={clipboardInitialText ? handleQuickAskSelect : handleActionSelect}
-							onDone={() => {
-								setShowPromptPicker(false);
-								setActionQuery("");
-							}}
-							externalSearch={actionQuery}
-							containerStyle={{
-								position: "fixed",
-								...(clipboardInitialText
-									? { top: containerPos.top }
-									: { bottom: containerPos.bottom }),
-								left: containerPos.left,
-								zIndex: 50,
-							}}
-						/>,
-						document.body
-					)}
 				<ComposerAction isBlockedByOtherUser={isBlockedByOtherUser} />
 				<ConnectorIndicator showTrigger={false} />
 				<ConnectToolsBanner isThreadEmpty={isThreadEmpty} />
@@ -804,7 +744,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const isDesktop = useMediaQuery("(min-width: 640px)");
 	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
 	const [toolsScrollPos, setToolsScrollPos] = useState<"top" | "middle" | "bottom">("top");
-	const toolsRafRef = useRef<number>();
+	const toolsRafRef = useRef<number | undefined>(undefined);
 	const handleToolsScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
 		const el = e.currentTarget;
 		if (toolsRafRef.current) return;
@@ -1021,8 +961,23 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 										</div>
 									)}
 									{!filteredTools?.length && (
-										<div className="px-4 py-6 text-center text-sm text-muted-foreground">
-											Loading tools...
+										<div className="px-4 pt-3 pb-2">
+											<Skeleton className="h-3 w-16 mb-2" />
+											{["t1", "t2", "t3", "t4"].map((k) => (
+												<div key={k} className="flex items-center gap-3 py-2">
+													<Skeleton className="size-4 rounded shrink-0" />
+													<Skeleton className="h-3.5 flex-1" />
+													<Skeleton className="h-5 w-9 rounded-full shrink-0" />
+												</div>
+											))}
+											<Skeleton className="h-3 w-24 mt-3 mb-2" />
+											{["c1", "c2", "c3"].map((k) => (
+												<div key={k} className="flex items-center gap-3 py-2">
+													<Skeleton className="size-4 rounded shrink-0" />
+													<Skeleton className="h-3.5 flex-1" />
+													<Skeleton className="h-5 w-9 rounded-full shrink-0" />
+												</div>
+											))}
 										</div>
 									)}
 								</div>
@@ -1058,12 +1013,12 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							side="bottom"
 							align="start"
 							sideOffset={12}
-							className="w-[calc(100vw-2rem)] max-w-56 sm:max-w-72 sm:w-72 p-0 select-none"
+							className="w-[calc(100vw-2rem)] max-w-48 sm:max-w-56 sm:w-56 p-0 select-none"
 							onOpenAutoFocus={(e) => e.preventDefault()}
 						>
 							<div className="sr-only">Manage Tools</div>
 							<div
-								className="max-h-48 sm:max-h-64 overflow-y-auto overscroll-none py-0.5 sm:py-1"
+								className="max-h-44 sm:max-h-56 overflow-y-auto overscroll-none py-0.5"
 								onScroll={handleToolsScroll}
 								style={{
 									maskImage: `linear-gradient(to bottom, ${toolsScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${toolsScrollPos === "bottom" ? "black" : "transparent"})`,
@@ -1074,22 +1029,22 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									.filter((g) => !g.connectorIcon)
 									.map((group) => (
 										<div key={group.label}>
-											<div className="px-2.5 sm:px-3 pt-2 pb-0.5 text-[10px] sm:text-xs text-muted-foreground/80 font-normal select-none">
+											<div className="px-2 sm:px-2.5 pt-1.5 pb-0.5 text-[9px] sm:text-[10px] text-muted-foreground/80 font-normal select-none">
 												{group.label}
 											</div>
 											{group.tools.map((tool) => {
 												const isDisabled = disabledToolsSet.has(tool.name);
 												const ToolIcon = getToolIcon(tool.name);
 												const row = (
-													<div className="flex w-full items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-1 sm:py-1.5 hover:bg-muted-foreground/10 transition-colors">
-														<ToolIcon className="size-3.5 sm:size-4 shrink-0 text-muted-foreground" />
-														<span className="flex-1 min-w-0 text-xs sm:text-sm font-medium truncate">
+													<div className="flex w-full items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-0.5 sm:py-1 hover:bg-muted-foreground/10 transition-colors">
+														<ToolIcon className="size-3 sm:size-3.5 shrink-0 text-muted-foreground" />
+														<span className="flex-1 min-w-0 text-[11px] sm:text-xs font-medium truncate">
 															{formatToolName(tool.name)}
 														</span>
 														<Switch
 															checked={!isDisabled}
 															onCheckedChange={() => toggleTool(tool.name)}
-															className="shrink-0 scale-[0.6] sm:scale-75"
+															className="shrink-0 scale-50 sm:scale-[0.6]"
 														/>
 													</div>
 												);
@@ -1106,7 +1061,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									))}
 								{groupedTools.some((g) => g.connectorIcon) && (
 									<div>
-										<div className="px-2.5 sm:px-3 pt-2 pb-0.5 text-[10px] sm:text-xs text-muted-foreground/80 font-normal select-none">
+										<div className="px-2 sm:px-2.5 pt-1.5 pb-0.5 text-[9px] sm:text-[10px] text-muted-foreground/80 font-normal select-none">
 											Connector Actions
 										</div>
 										{groupedTools
@@ -1118,26 +1073,26 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 												const allDisabled = toolNames.every((n) => disabledToolsSet.has(n));
 												const groupDef = TOOL_GROUPS.find((g) => g.label === group.label);
 												const row = (
-													<div className="flex w-full items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-1 sm:py-1.5 hover:bg-muted-foreground/10 transition-colors">
+													<div className="flex w-full items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-0.5 sm:py-1 hover:bg-muted-foreground/10 transition-colors">
 														{iconInfo ? (
 															<Image
 																src={iconInfo.src}
 																alt={iconInfo.alt}
-																width={16}
-																height={16}
-																className="size-3.5 sm:size-4 shrink-0 select-none pointer-events-none"
+																width={14}
+																height={14}
+																className="size-3 sm:size-3.5 shrink-0 select-none pointer-events-none"
 																draggable={false}
 															/>
 														) : (
-															<Wrench className="size-3.5 sm:size-4 shrink-0 text-muted-foreground" />
+															<Wrench className="size-3 sm:size-3.5 shrink-0 text-muted-foreground" />
 														)}
-														<span className="flex-1 min-w-0 text-xs sm:text-sm font-medium truncate">
+														<span className="flex-1 min-w-0 text-[11px] sm:text-xs font-medium truncate">
 															{group.label}
 														</span>
 														<Switch
 															checked={!allDisabled}
 															onCheckedChange={() => toggleToolGroup(toolNames)}
-															className="shrink-0 scale-[0.6] sm:scale-75"
+															className="shrink-0 scale-50 sm:scale-[0.6]"
 														/>
 													</div>
 												);
@@ -1158,8 +1113,23 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									</div>
 								)}
 								{!filteredTools?.length && (
-									<div className="px-3 py-4 text-center text-xs text-muted-foreground">
-										Loading tools...
+									<div className="px-2 sm:px-2.5 pt-1.5 pb-1">
+										<Skeleton className="h-2 w-12 mb-1.5" />
+										{["dt1", "dt2", "dt3", "dt4"].map((k) => (
+											<div key={k} className="flex items-center gap-1.5 sm:gap-2 py-0.5 sm:py-1">
+												<Skeleton className="size-3 sm:size-3.5 rounded shrink-0" />
+												<Skeleton className="h-2.5 sm:h-3 flex-1" />
+												<Skeleton className="h-3.5 sm:h-4 w-7 sm:w-8 rounded-full shrink-0" />
+											</div>
+										))}
+										<Skeleton className="h-2 w-20 mt-2 mb-1.5" />
+										{["dc1", "dc2", "dc3"].map((k) => (
+											<div key={k} className="flex items-center gap-1.5 sm:gap-2 py-0.5 sm:py-1">
+												<Skeleton className="size-3 sm:size-3.5 rounded shrink-0" />
+												<Skeleton className="h-2.5 sm:h-3 flex-1" />
+												<Skeleton className="h-3.5 sm:h-4 w-7 sm:w-8 rounded-full shrink-0" />
+											</div>
+										))}
 									</div>
 								)}
 							</div>
@@ -1297,7 +1267,7 @@ const TOOL_GROUPS: ToolGroup[] = [
 	},
 	{
 		label: "Memory",
-		tools: ["save_memory", "recall_memory"],
+		tools: ["update_memory"],
 	},
 	{
 		label: "Gmail",

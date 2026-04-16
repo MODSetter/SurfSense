@@ -3,8 +3,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect } from "react";
 import { useMediaQuery } from "@/hooks/use-media-query";
-
-export const SLIDEOUT_PANEL_OPENED_EVENT = "slideout-panel-opened";
+import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/lib/layout-events";
 
 interface SidebarSlideOutPanelProps {
 	open: boolean;
@@ -91,12 +90,12 @@ export function SidebarSlideOutPanel({
 
 					{/* Panel extending from sidebar's right edge, flush with the wrapper border */}
 					<motion.div
-						style={{ width, left: "100%", top: -1, bottom: -1 }}
-						initial={{ x: -width }}
-						animate={{ x: 0 }}
-						exit={{ x: -width }}
+						initial={{ width: 0 }}
+						animate={{ width }}
+						exit={{ width: 0 }}
 						transition={{ type: "tween", duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
 						className="absolute z-20 overflow-hidden"
+						style={{ left: "100%", top: -1, bottom: -1 }}
 					>
 						<div
 							style={{ width }}

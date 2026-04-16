@@ -16,9 +16,37 @@ from app.etl_pipeline.constants import (
     calculate_upload_timeout,
 )
 
+LLAMA_PARSE_MODE_MAP = {
+    "basic": "parse_page_with_llm",
+    "premium": "parse_page_with_agent",
+}
 
-async def parse_with_llamacloud(file_path: str, estimated_pages: int) -> str:
+
+def _extract_content(result) -> str:
+    """Pull markdown text out of whatever object LlamaParse.aparse returns."""
+    if hasattr(result, "get_markdown_documents"):
+        markdown_docs = result.get_markdown_documents(split_by_page=False)
+        if markdown_docs and hasattr(markdown_docs[0], "text"):
+            return markdown_docs[0].text
+        if hasattr(result, "pages") and result.pages:
+            return "\n\n".join(p.md for p in result.pages if hasattr(p, "md") and p.md)
+
+    if isinstance(result, list):
+        if result and hasattr(result[0], "text"):
+            return result[0].text
+        return "\n\n".join(
+            doc.page_content if hasattr(doc, "page_content") else str(doc)
+            for doc in result
+        )
+
+    return str(result)
+
+
+async def parse_with_llamacloud(
+    file_path: str, estimated_pages: int, processing_mode: str = "basic"
+) -> str:
     from llama_cloud_services import LlamaParse
+    from llama_cloud_services.parse.base import JobFailedException
     from llama_cloud_services.parse.utils import ResultType
 
     file_size_bytes = os.path.getsize(file_path)
@@ -34,10 +62,13 @@ async def parse_with_llamacloud(file_path: str, estimated_pages: int) -> str:
         pool=120.0,
     )
 
+    parse_mode = LLAMA_PARSE_MODE_MAP.get(processing_mode, "parse_page_with_llm")
+
     logging.info(
         f"LlamaCloud upload configured: file_size={file_size_mb:.1f}MB, "
         f"pages={estimated_pages}, upload_timeout={upload_timeout:.0f}s, "
-        f"job_timeout={job_timeout:.0f}s"
+        f"job_timeout={job_timeout:.0f}s, parse_mode={parse_mode} "
+        f"(mode={processing_mode})"
     )
 
     last_exception = None
@@ -52,6 +83,8 @@ async def parse_with_llamacloud(file_path: str, estimated_pages: int) -> str:
                     verbose=True,
                     language="en",
                     result_type=ResultType.MD,
+                    parse_mode=parse_mode,
+                    ignore_errors=False,
                     max_timeout=int(max(2000, job_timeout + upload_timeout)),
                     job_timeout_in_seconds=job_timeout,
                     job_timeout_extra_time_per_page_in_seconds=PER_PAGE_JOB_TIMEOUT,
@@ -65,27 +98,18 @@ async def parse_with_llamacloud(file_path: str, estimated_pages: int) -> str:
                         f"{len(attempt_errors)} failures"
                     )
 
-                if hasattr(result, "get_markdown_documents"):
-                    markdown_docs = result.get_markdown_documents(split_by_page=False)
-                    if markdown_docs and hasattr(markdown_docs[0], "text"):
-                        return markdown_docs[0].text
-                    if hasattr(result, "pages") and result.pages:
-                        return "\n\n".join(
-                            p.md for p in result.pages if hasattr(p, "md") and p.md
-                        )
-                    return str(result)
-
-                if isinstance(result, list):
-                    if result and hasattr(result[0], "text"):
-                        return result[0].text
-                    return "\n\n".join(
-                        doc.page_content if hasattr(doc, "page_content") else str(doc)
-                        for doc in result
+                content = _extract_content(result)
+                if not content or not content.strip():
+                    raise RuntimeError(
+                        "LlamaCloud returned empty/whitespace-only content"
                     )
+                return content
 
-                return str(result)
-
-        except LLAMACLOUD_RETRYABLE_EXCEPTIONS as e:
+        except (
+            *LLAMACLOUD_RETRYABLE_EXCEPTIONS,
+            RuntimeError,
+            JobFailedException,
+        ) as e:
             last_exception = e
             error_type = type(e).__name__
             error_msg = str(e)[:200]

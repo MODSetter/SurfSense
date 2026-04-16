@@ -28,6 +28,7 @@ interface ModelConfigDialogProps {
 	isGlobal: boolean;
 	searchSpaceId: number;
 	mode: "create" | "edit" | "view";
+	defaultProvider?: string;
 }
 
 export function ModelConfigDialog({
@@ -37,6 +38,7 @@ export function ModelConfigDialog({
 	isGlobal,
 	searchSpaceId,
 	mode,
+	defaultProvider,
 }: ModelConfigDialogProps) {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [scrollPos, setScrollPos] = useState<"top" | "middle" | "bottom">("top");
@@ -194,10 +196,14 @@ export function ModelConfigDialog({
 
 					{mode === "create" ? (
 						<LLMConfigForm
+							key={defaultProvider ?? "no-provider"}
 							searchSpaceId={searchSpaceId}
 							onSubmit={handleSubmit}
 							mode="create"
 							formId="model-config-form"
+							initialData={
+								defaultProvider ? { provider: defaultProvider as LiteLLMProvider } : undefined
+							}
 						/>
 					) : isGlobal && config ? (
 						<div className="space-y-6">

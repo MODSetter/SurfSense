@@ -21,6 +21,42 @@ from markdownify import markdownify
 # at import time so every csv.reader call in this module can handle large fields.
 csv.field_size_limit(2**31 - 1)
 
+_BOM_ENCODINGS: list[tuple[bytes, str]] = [
+    (b"\xff\xfe\x00\x00", "utf-32-le"),
+    (b"\x00\x00\xfe\xff", "utf-32-be"),
+    (b"\xff\xfe", "utf-16-le"),
+    (b"\xfe\xff", "utf-16-be"),
+    (b"\xef\xbb\xbf", "utf-8-sig"),
+]
+
+
+def _detect_encoding(file_path: str) -> str:
+    """Sniff the BOM to pick an encoding, falling back to utf-8."""
+    head = Path(file_path).read_bytes()[:4]
+    for bom, encoding in _BOM_ENCODINGS:
+        if head.startswith(bom):
+            return encoding
+    return "utf-8"
+
+
+def _read_text(file_path: str) -> str:
+    """Read a file with automatic encoding detection.
+
+    Tries BOM-based detection first, then utf-8, then latin-1 as a
+    last resort (latin-1 accepts every byte value).
+    """
+    encoding = _detect_encoding(file_path)
+    try:
+        return Path(file_path).read_text(encoding=encoding)
+    except (UnicodeDecodeError, UnicodeError):
+        pass
+    if encoding != "utf-8":
+        try:
+            return Path(file_path).read_text(encoding="utf-8")
+        except (UnicodeDecodeError, UnicodeError):
+            pass
+    return Path(file_path).read_text(encoding="latin-1")
+
 
 def _escape_pipe(cell: str) -> str:
     """Escape literal pipe characters inside a markdown table cell."""
@@ -33,9 +69,9 @@ def csv_to_markdown(file_path: str, *, delimiter: str = ",") -> str:
     The first row is treated as the header.  An empty file returns an
     empty string so the caller can decide how to handle it.
     """
-    with open(file_path, encoding="utf-8", newline="") as fh:
-        reader = csv.reader(fh, delimiter=delimiter)
-        rows = list(reader)
+    text = _read_text(file_path)
+    reader = csv.reader(text.splitlines(), delimiter=delimiter)
+    rows = list(reader)
 
     if not rows:
         return ""
@@ -64,7 +100,7 @@ def tsv_to_markdown(file_path: str) -> str:
 
 def html_to_markdown(file_path: str) -> str:
     """Convert an HTML file to markdown via ``markdownify``."""
-    html = Path(file_path).read_text(encoding="utf-8")
+    html = _read_text(file_path)
     return markdownify(html).strip()
 
 

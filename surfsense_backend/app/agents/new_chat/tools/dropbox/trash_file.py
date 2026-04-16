@@ -2,11 +2,11 @@ import logging
 from typing import Any
 
 from langchain_core.tools import tool
-from langgraph.types import interrupt
 from sqlalchemy import String, and_, cast, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from app.agents.new_chat.tools.hitl import request_approval
 from app.connectors.dropbox.client import DropboxClient
 from app.db import (
     Document,
@@ -174,53 +174,26 @@ def create_delete_dropbox_file_tool(
                 },
             }
 
-            approval = interrupt(
-                {
-                    "type": "dropbox_file_trash",
-                    "action": {
-                        "tool": "delete_dropbox_file",
-                        "params": {
-                            "file_path": file_path,
-                            "connector_id": connector.id,
-                            "delete_from_kb": delete_from_kb,
-                        },
-                    },
-                    "context": context,
-                }
+            result = request_approval(
+                action_type="dropbox_file_trash",
+                tool_name="delete_dropbox_file",
+                params={
+                    "file_path": file_path,
+                    "connector_id": connector.id,
+                    "delete_from_kb": delete_from_kb,
+                },
+                context=context,
             )
 
-            decisions_raw = (
-                approval.get("decisions", []) if isinstance(approval, dict) else []
-            )
-            decisions = (
-                decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
-            )
-            decisions = [d for d in decisions if isinstance(d, dict)]
-            if not decisions:
-                return {"status": "error", "message": "No approval decision received"}
-
-            decision = decisions[0]
-            decision_type = decision.get("type") or decision.get("decision_type")
-            logger.info(f"User decision: {decision_type}")
-
-            if decision_type == "reject":
+            if result.rejected:
                 return {
                     "status": "rejected",
-                    "message": "User declined. The file was not deleted. Do not ask again or suggest alternatives.",
+                    "message": "User declined. Do not retry or suggest alternatives.",
                 }
 
-            final_params: dict[str, Any] = {}
-            edited_action = decision.get("edited_action")
-            if isinstance(edited_action, dict):
-                edited_args = edited_action.get("args")
-                if isinstance(edited_args, dict):
-                    final_params = edited_args
-            elif isinstance(decision.get("args"), dict):
-                final_params = decision["args"]
-
-            final_file_path = final_params.get("file_path", file_path)
-            final_connector_id = final_params.get("connector_id", connector.id)
-            final_delete_from_kb = final_params.get("delete_from_kb", delete_from_kb)
+            final_file_path = result.params.get("file_path", file_path)
+            final_connector_id = result.params.get("connector_id", connector.id)
+            final_delete_from_kb = result.params.get("delete_from_kb", delete_from_kb)
 
             if final_connector_id != connector.id:
                 result = await db_session.execute(

@@ -94,11 +94,7 @@ from .podcast import create_generate_podcast_tool
 from .report import create_generate_report_tool
 from .scrape_webpage import create_scrape_webpage_tool
 from .search_surfsense_docs import create_search_surfsense_docs_tool
-from .shared_memory import (
-    create_recall_shared_memory_tool,
-    create_save_shared_memory_tool,
-)
-from .user_memory import create_recall_memory_tool, create_save_memory_tool
+from .update_memory import create_update_memory_tool, create_update_team_memory_tool
 from .video_presentation import create_generate_video_presentation_tool
 from .web_search import create_web_search_tool
 
@@ -214,42 +210,31 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         requires=["db_session"],
     ),
     # =========================================================================
-    # USER MEMORY TOOLS - private or team store by thread_visibility
+    # MEMORY TOOL - single update_memory, private or team by thread_visibility
     # =========================================================================
     ToolDefinition(
-        name="save_memory",
-        description="Save facts, preferences, or context for personalized or team responses",
+        name="update_memory",
+        description="Save important long-term facts, preferences, and instructions to the (personal or team) memory",
         factory=lambda deps: (
-            create_save_shared_memory_tool(
+            create_update_team_memory_tool(
                 search_space_id=deps["search_space_id"],
-                created_by_id=deps["user_id"],
                 db_session=deps["db_session"],
+                llm=deps.get("llm"),
             )
             if deps["thread_visibility"] == ChatVisibility.SEARCH_SPACE
-            else create_save_memory_tool(
+            else create_update_memory_tool(
                 user_id=deps["user_id"],
-                search_space_id=deps["search_space_id"],
                 db_session=deps["db_session"],
+                llm=deps.get("llm"),
             )
         ),
-        requires=["user_id", "search_space_id", "db_session", "thread_visibility"],
-    ),
-    ToolDefinition(
-        name="recall_memory",
-        description="Recall relevant memories (personal or team) for context",
-        factory=lambda deps: (
-            create_recall_shared_memory_tool(
-                search_space_id=deps["search_space_id"],
-                db_session=deps["db_session"],
-            )
-            if deps["thread_visibility"] == ChatVisibility.SEARCH_SPACE
-            else create_recall_memory_tool(
-                user_id=deps["user_id"],
-                search_space_id=deps["search_space_id"],
-                db_session=deps["db_session"],
-            )
-        ),
-        requires=["user_id", "search_space_id", "db_session", "thread_visibility"],
+        requires=[
+            "user_id",
+            "search_space_id",
+            "db_session",
+            "thread_visibility",
+            "llm",
+        ],
     ),
     # =========================================================================
     # LINEAR TOOLS - create, update, delete issues

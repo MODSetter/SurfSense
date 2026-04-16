@@ -35,7 +35,11 @@ from app.agents.new_chat.llm_config import (
     create_chat_litellm_from_agent_config,
     create_chat_litellm_from_config,
     load_agent_config,
-    load_llm_config_from_yaml,
+    load_global_llm_config_by_id,
+)
+from app.agents.new_chat.memory_extraction import (
+    extract_and_save_memory,
+    extract_and_save_team_memory,
 )
 from app.db import (
     ChatVisibility,
@@ -47,7 +51,7 @@ from app.db import (
     async_session_maker,
     shielded_async_session,
 )
-from app.prompts import TITLE_GENERATION_PROMPT_TEMPLATE
+from app.prompts import TITLE_GENERATION_PROMPT
 from app.services.chat_session_state_service import (
     clear_ai_responding,
     set_ai_responding,
@@ -57,9 +61,8 @@ from app.services.new_streaming_service import VercelStreamingService
 from app.utils.content_utils import bootstrap_history_from_db
 from app.utils.perf import get_perf_logger, log_system_snapshot, trim_native_heap
 
-_perf_log = get_perf_logger()
-
 _background_tasks: set[asyncio.Task] = set()
+_perf_log = get_perf_logger()
 
 
 def format_mentioned_surfsense_docs_as_context(
@@ -140,7 +143,8 @@ class StreamResult:
     accumulated_text: str = ""
     is_interrupted: bool = False
     interrupt_value: dict[str, Any] | None = None
-    sandbox_files: list[str] = field(default_factory=list)  # unused, kept for compat
+    sandbox_files: list[str] = field(default_factory=list)
+    agent_called_update_memory: bool = False
 
 
 async def _stream_agent_events(
@@ -183,6 +187,7 @@ async def _stream_agent_events(
     last_active_step_items: list[str] = initial_step_items or []
     just_finished_tool: bool = False
     active_tool_depth: int = 0  # Track nesting: >0 means we're inside a tool
+    called_update_memory: bool = False
 
     def next_thinking_step_id() -> str:
         nonlocal thinking_step_counter
@@ -436,7 +441,7 @@ async def _stream_agent_events(
                     status="in_progress",
                     items=last_active_step_items,
                 )
-            elif tool_name == "execute":
+            elif tool_name in ("execute", "execute_code"):
                 cmd = (
                     tool_input.get("command", "")
                     if isinstance(tool_input, dict)
@@ -489,6 +494,9 @@ async def _stream_agent_events(
             run_id = event.get("run_id", "")
             tool_name = event.get("name", "unknown_tool")
             raw_output = event.get("data", {}).get("output", "")
+
+            if tool_name == "update_memory":
+                called_update_memory = True
 
             if hasattr(raw_output, "content"):
                 content = raw_output.content
@@ -731,7 +739,7 @@ async def _stream_agent_events(
                     status="completed",
                     items=completed_items,
                 )
-            elif tool_name == "execute":
+            elif tool_name in ("execute", "execute_code"):
                 raw_text = (
                     tool_output.get("result", "")
                     if isinstance(tool_output, dict)
@@ -978,7 +986,7 @@ async def _stream_agent_events(
                     if isinstance(tool_output, dict)
                     else {"result": tool_output},
                 )
-            elif tool_name == "execute":
+            elif tool_name in ("execute", "execute_code"):
                 raw_text = (
                     tool_output.get("result", "")
                     if isinstance(tool_output, dict)
@@ -1111,6 +1119,7 @@ async def _stream_agent_events(
         yield completion_event
 
     result.accumulated_text = accumulated_text
+    result.agent_called_update_memory = called_update_memory
 
     state = await agent.aget_state(config)
     is_interrupted = state.tasks and any(task.interrupts for task in state.tasks)
@@ -1162,6 +1171,14 @@ async def stream_new_chat(
     _t_total = time.perf_counter()
     log_system_snapshot("stream_new_chat_START")
 
+    from app.services.token_tracking_service import start_turn
+
+    accumulator = start_turn()
+
+    # Premium quota tracking state
+    _premium_reserved = 0
+    _premium_request_id: str | None = None
+
     session = async_session_maker()
     try:
         # Mark AI as responding to this user for live collaboration
@@ -1188,8 +1205,8 @@ async def stream_new_chat(
             # Create ChatLiteLLM from AgentConfig
             llm = create_chat_litellm_from_agent_config(agent_config)
         else:
-            # Negative ID: Load from YAML (global configs)
-            llm_config = load_llm_config_from_yaml(llm_config_id=llm_config_id)
+            # Negative ID: Load from in-memory global configs (includes dynamic OpenRouter models)
+            llm_config = load_global_llm_config_by_id(llm_config_id)
             if not llm_config:
                 yield streaming_service.format_error(
                     f"Failed to load LLM config with id {llm_config_id}"
@@ -1197,15 +1214,53 @@ async def stream_new_chat(
                 yield streaming_service.format_done()
                 return
 
-            # Create ChatLiteLLM from YAML config dict
+            # Create ChatLiteLLM from global config dict
             llm = create_chat_litellm_from_config(llm_config)
-            # Create AgentConfig from YAML for consistency (uses defaults for prompt settings)
             agent_config = AgentConfig.from_yaml_config(llm_config)
         _perf_log.info(
             "[stream_new_chat] LLM config loaded in %.3fs (config_id=%s)",
             time.perf_counter() - _t0,
             llm_config_id,
         )
+
+        # Premium quota reservation — applies to explicitly premium configs
+        # AND Auto mode (which may route to premium models).
+        _needs_premium_quota = (
+            agent_config is not None
+            and user_id
+            and (agent_config.is_premium or agent_config.is_auto_mode)
+        )
+        if _needs_premium_quota:
+            import uuid as _uuid
+
+            from app.config import config as _app_config
+            from app.services.token_quota_service import TokenQuotaService
+
+            _premium_request_id = _uuid.uuid4().hex[:16]
+            reserve_amount = min(
+                agent_config.quota_reserve_tokens
+                or _app_config.QUOTA_MAX_RESERVE_PER_CALL,
+                _app_config.QUOTA_MAX_RESERVE_PER_CALL,
+            )
+            async with shielded_async_session() as quota_session:
+                quota_result = await TokenQuotaService.premium_reserve(
+                    db_session=quota_session,
+                    user_id=UUID(user_id),
+                    request_id=_premium_request_id,
+                    reserve_tokens=reserve_amount,
+                )
+            _premium_reserved = reserve_amount
+            if not quota_result.allowed:
+                if agent_config.is_premium:
+                    yield streaming_service.format_error(
+                        "Premium token quota exceeded. Please purchase more tokens to continue using premium models."
+                    )
+                    yield streaming_service.format_done()
+                    return
+                # Auto mode: quota exhausted but we can still proceed
+                # (the router may pick a free model). Reset reservation.
+                _premium_request_id = None
+                _premium_reserved = 0
 
         if not llm:
             yield streaming_service.format_error("Failed to create LLM instance")
@@ -1447,22 +1502,71 @@ async def stream_new_chat(
         )
         is_first_response = (assistant_count_result.scalar() or 0) == 0
 
-        title_task: asyncio.Task[str | None] | None = None
+        title_task: asyncio.Task[tuple[str | None, dict | None]] | None = None
         if is_first_response:
 
-            async def _generate_title() -> str | None:
+            async def _generate_title() -> tuple[str | None, dict | None]:
+                """Generate a short title via litellm.acompletion.
+
+                Returns (title, usage_dict).  Usage is extracted directly from
+                the response object because litellm fires its async callback
+                via fire-and-forget ``create_task``, so the
+                ``TokenTrackingCallback`` would run too late.  We also blank
+                the accumulator in this child-task context so the late callback
+                doesn't double-count.
+                """
                 try:
-                    title_chain = TITLE_GENERATION_PROMPT_TEMPLATE | llm
-                    title_result = await title_chain.ainvoke(
-                        {"user_query": user_query[:500]}
+                    from litellm import acompletion
+
+                    from app.services.llm_router_service import LLMRouterService
+                    from app.services.token_tracking_service import _turn_accumulator
+
+                    _turn_accumulator.set(None)
+
+                    prompt = TITLE_GENERATION_PROMPT.replace(
+                        "{user_query}", user_query[:500]
                     )
-                    if title_result and hasattr(title_result, "content"):
-                        raw_title = title_result.content.strip()
-                        if raw_title and len(raw_title) <= 100:
-                            return raw_title.strip("\"'")
+                    messages = [{"role": "user", "content": prompt}]
+
+                    if getattr(llm, "model", None) == "auto":
+                        router = LLMRouterService.get_router()
+                        response = await router.acompletion(
+                            model="auto", messages=messages
+                        )
+                    else:
+                        response = await acompletion(
+                            model=llm.model,
+                            messages=messages,
+                            api_key=getattr(llm, "api_key", None),
+                            api_base=getattr(llm, "api_base", None),
+                        )
+
+                    usage_info = None
+                    usage = getattr(response, "usage", None)
+                    if usage:
+                        raw_model = getattr(llm, "model", "") or ""
+                        model_name = (
+                            raw_model.split("/", 1)[-1]
+                            if "/" in raw_model
+                            else (raw_model or response.model or "unknown")
+                        )
+                        usage_info = {
+                            "model": model_name,
+                            "prompt_tokens": getattr(usage, "prompt_tokens", 0) or 0,
+                            "completion_tokens": getattr(usage, "completion_tokens", 0)
+                            or 0,
+                            "total_tokens": getattr(usage, "total_tokens", 0) or 0,
+                        }
+
+                    raw_title = response.choices[0].message.content.strip()
+                    if raw_title and len(raw_title) <= 100:
+                        return raw_title.strip("\"'"), usage_info
+                    return None, usage_info
                 except Exception:
-                    pass
-                return None
+                    logging.getLogger(__name__).exception(
+                        "[TitleGen] _generate_title failed"
+                    )
+                    return None, None
 
             title_task = asyncio.create_task(_generate_title())
 
@@ -1494,7 +1598,9 @@ async def stream_new_chat(
 
             # Inject title update mid-stream as soon as the background task finishes
             if title_task is not None and title_task.done() and not title_emitted:
-                generated_title = title_task.result()
+                generated_title, title_usage = title_task.result()
+                if title_usage:
+                    accumulator.add(**title_usage)
                 if generated_title:
                     async with shielded_async_session() as title_session:
                         title_thread_result = await title_session.execute(
@@ -1519,6 +1625,26 @@ async def stream_new_chat(
         if stream_result.is_interrupted:
             if title_task is not None and not title_task.done():
                 title_task.cancel()
+
+            usage_summary = accumulator.per_message_summary()
+            _perf_log.info(
+                "[token_usage] interrupted new_chat: calls=%d total=%d summary=%s",
+                len(accumulator.calls),
+                accumulator.grand_total,
+                usage_summary,
+            )
+            if usage_summary:
+                yield streaming_service.format_data(
+                    "token-usage",
+                    {
+                        "usage": usage_summary,
+                        "prompt_tokens": accumulator.total_prompt_tokens,
+                        "completion_tokens": accumulator.total_completion_tokens,
+                        "total_tokens": accumulator.grand_total,
+                        "call_details": accumulator.serialized_calls(),
+                    },
+                )
+
             yield streaming_service.format_finish_step()
             yield streaming_service.format_finish()
             yield streaming_service.format_done()
@@ -1526,7 +1652,9 @@ async def stream_new_chat(
 
         # If the title task didn't finish during streaming, await it now
         if title_task is not None and not title_emitted:
-            generated_title = await title_task
+            generated_title, title_usage = await title_task
+            if title_usage:
+                accumulator.add(**title_usage)
             if generated_title:
                 async with shielded_async_session() as title_session:
                     title_thread_result = await title_session.execute(
@@ -1539,6 +1667,80 @@ async def stream_new_chat(
                 yield streaming_service.format_thread_title_update(
                     chat_id, generated_title
                 )
+
+        # Finalize premium quota with actual tokens.
+        # For Auto mode, only count tokens from calls that used premium models.
+        if _premium_request_id and user_id:
+            try:
+                from app.services.token_quota_service import TokenQuotaService
+
+                if agent_config and agent_config.is_auto_mode:
+                    from app.services.llm_router_service import LLMRouterService
+
+                    actual_premium_tokens = LLMRouterService.compute_premium_tokens(
+                        accumulator.calls
+                    )
+                else:
+                    actual_premium_tokens = accumulator.grand_total
+
+                async with shielded_async_session() as quota_session:
+                    await TokenQuotaService.premium_finalize(
+                        db_session=quota_session,
+                        user_id=UUID(user_id),
+                        request_id=_premium_request_id,
+                        actual_tokens=actual_premium_tokens,
+                        reserved_tokens=_premium_reserved,
+                    )
+            except Exception:
+                logging.getLogger(__name__).warning(
+                    "Failed to finalize premium quota for user %s",
+                    user_id,
+                    exc_info=True,
+                )
+
+        usage_summary = accumulator.per_message_summary()
+        _perf_log.info(
+            "[token_usage] normal new_chat: calls=%d total=%d summary=%s",
+            len(accumulator.calls),
+            accumulator.grand_total,
+            usage_summary,
+        )
+        if usage_summary:
+            yield streaming_service.format_data(
+                "token-usage",
+                {
+                    "usage": usage_summary,
+                    "prompt_tokens": accumulator.total_prompt_tokens,
+                    "completion_tokens": accumulator.total_completion_tokens,
+                    "total_tokens": accumulator.grand_total,
+                    "call_details": accumulator.serialized_calls(),
+                },
+            )
+
+        # Fire background memory extraction if the agent didn't handle it.
+        # Shared threads write to team memory; private threads write to user memory.
+        if not stream_result.agent_called_update_memory:
+            if visibility == ChatVisibility.SEARCH_SPACE:
+                task = asyncio.create_task(
+                    extract_and_save_team_memory(
+                        user_message=user_query,
+                        search_space_id=search_space_id,
+                        llm=llm,
+                        author_display_name=current_user_display_name,
+                    )
+                )
+                _background_tasks.add(task)
+                task.add_done_callback(_background_tasks.discard)
+            elif user_id:
+                task = asyncio.create_task(
+                    extract_and_save_memory(
+                        user_message=user_query,
+                        user_id=user_id,
+                        llm=llm,
+                    )
+                )
+                _background_tasks.add(task)
+                task.add_done_callback(_background_tasks.discard)
 
         # Finish the step and message
         yield streaming_service.format_finish_step()
@@ -1570,6 +1772,23 @@ async def stream_new_chat(
         # (CancelledError is a BaseException), and the rest of the
         # finally block — including session.close() — would never run.
         with anyio.CancelScope(shield=True):
+            # Release premium reservation if not finalized
+            if _premium_request_id and _premium_reserved > 0 and user_id:
+                try:
+                    from app.services.token_quota_service import TokenQuotaService
+
+                    async with shielded_async_session() as quota_session:
+                        await TokenQuotaService.premium_release(
+                            db_session=quota_session,
+                            user_id=UUID(user_id),
+                            reserved_tokens=_premium_reserved,
+                        )
+                    _premium_reserved = 0
+                except Exception:
+                    logging.getLogger(__name__).warning(
+                        "Failed to release premium quota for user %s", user_id
+                    )
+
             try:
                 await session.rollback()
                 await clear_ai_responding(session, chat_id)
@@ -1587,6 +1806,21 @@ async def stream_new_chat(
 
             with contextlib.suppress(Exception):
                 await session.close()
+
+        # Persist any sandbox-produced files to local storage so they
+        # remain downloadable after the Daytona sandbox auto-deletes.
+        if stream_result and stream_result.sandbox_files:
+            with contextlib.suppress(Exception):
+                from app.agents.new_chat.sandbox import (
+                    is_sandbox_enabled,
+                    persist_and_delete_sandbox,
+                )
+
+                if is_sandbox_enabled():
+                    with anyio.CancelScope(shield=True):
+                        await persist_and_delete_sandbox(
+                            chat_id, stream_result.sandbox_files
+                        )
 
         # Break circular refs held by the agent graph, tools, and LLM
         # wrappers so the GC can reclaim them in a single pass.
@@ -1617,6 +1851,10 @@ async def stream_resume_chat(
     stream_result = StreamResult()
     _t_total = time.perf_counter()
 
+    from app.services.token_tracking_service import start_turn
+
+    accumulator = start_turn()
+
     session = async_session_maker()
     try:
         if user_id:
@@ -1638,7 +1876,7 @@ async def stream_resume_chat(
                 return
             llm = create_chat_litellm_from_agent_config(agent_config)
         else:
-            llm_config = load_llm_config_from_yaml(llm_config_id=llm_config_id)
+            llm_config = load_global_llm_config_by_id(llm_config_id)
             if not llm_config:
                 yield streaming_service.format_error(
                     f"Failed to load LLM config with id {llm_config_id}"
@@ -1650,6 +1888,44 @@ async def stream_resume_chat(
         _perf_log.info(
             "[stream_resume] LLM config loaded in %.3fs", time.perf_counter() - _t0
         )
+
+        # Premium quota reservation (same logic as stream_new_chat)
+        _resume_premium_reserved = 0
+        _resume_premium_request_id: str | None = None
+        _resume_needs_premium = (
+            agent_config is not None
+            and user_id
+            and (agent_config.is_premium or agent_config.is_auto_mode)
+        )
+        if _resume_needs_premium:
+            import uuid as _uuid
+
+            from app.config import config as _app_config
+            from app.services.token_quota_service import TokenQuotaService
+
+            _resume_premium_request_id = _uuid.uuid4().hex[:16]
+            reserve_amount = min(
+                agent_config.quota_reserve_tokens
+                or _app_config.QUOTA_MAX_RESERVE_PER_CALL,
+                _app_config.QUOTA_MAX_RESERVE_PER_CALL,
+            )
+            async with shielded_async_session() as quota_session:
+                quota_result = await TokenQuotaService.premium_reserve(
+                    db_session=quota_session,
+                    user_id=UUID(user_id),
+                    request_id=_resume_premium_request_id,
+                    reserve_tokens=reserve_amount,
+                )
+            _resume_premium_reserved = reserve_amount
+            if not quota_result.allowed:
+                if agent_config.is_premium:
+                    yield streaming_service.format_error(
+                        "Premium token quota exceeded. Please purchase more tokens to continue using premium models."
+                    )
+                    yield streaming_service.format_done()
+                    return
+                _resume_premium_request_id = None
+                _resume_premium_reserved = 0
 
         if not llm:
             yield streaming_service.format_error("Failed to create LLM instance")
@@ -1740,10 +2016,77 @@ async def stream_resume_chat(
             chat_id,
         )
         if stream_result.is_interrupted:
+            usage_summary = accumulator.per_message_summary()
+            _perf_log.info(
+                "[token_usage] interrupted resume_chat: calls=%d total=%d summary=%s",
+                len(accumulator.calls),
+                accumulator.grand_total,
+                usage_summary,
+            )
+            if usage_summary:
+                yield streaming_service.format_data(
+                    "token-usage",
+                    {
+                        "usage": usage_summary,
+                        "prompt_tokens": accumulator.total_prompt_tokens,
+                        "completion_tokens": accumulator.total_completion_tokens,
+                        "total_tokens": accumulator.grand_total,
+                        "call_details": accumulator.serialized_calls(),
+                    },
+                )
+
             yield streaming_service.format_finish_step()
             yield streaming_service.format_finish()
             yield streaming_service.format_done()
             return
+
+        # Finalize premium quota for resume path
+        if _resume_premium_request_id and user_id:
+            try:
+                from app.services.token_quota_service import TokenQuotaService
+
+                if agent_config and agent_config.is_auto_mode:
+                    from app.services.llm_router_service import LLMRouterService
+
+                    actual_premium_tokens = LLMRouterService.compute_premium_tokens(
+                        accumulator.calls
+                    )
+                else:
+                    actual_premium_tokens = accumulator.grand_total
+
+                async with shielded_async_session() as quota_session:
+                    await TokenQuotaService.premium_finalize(
+                        db_session=quota_session,
+                        user_id=UUID(user_id),
+                        request_id=_resume_premium_request_id,
+                        actual_tokens=actual_premium_tokens,
+                        reserved_tokens=_resume_premium_reserved,
+                    )
+            except Exception:
+                logging.getLogger(__name__).warning(
+                    "Failed to finalize premium quota for user %s (resume)",
+                    user_id,
+                    exc_info=True,
+                )
+
+        usage_summary = accumulator.per_message_summary()
+        _perf_log.info(
+            "[token_usage] normal resume_chat: calls=%d total=%d summary=%s",
+            len(accumulator.calls),
+            accumulator.grand_total,
+            usage_summary,
+        )
+        if usage_summary:
+            yield streaming_service.format_data(
+                "token-usage",
+                {
+                    "usage": usage_summary,
+                    "prompt_tokens": accumulator.total_prompt_tokens,
+                    "completion_tokens": accumulator.total_completion_tokens,
+                    "total_tokens": accumulator.grand_total,
+                    "call_details": accumulator.serialized_calls(),
+                },
+            )
 
         yield streaming_service.format_finish_step()
         yield streaming_service.format_finish()
@@ -1762,6 +2105,23 @@ async def stream_resume_chat(
 
     finally:
         with anyio.CancelScope(shield=True):
+            # Release premium reservation if not finalized
+            if _resume_premium_request_id and _resume_premium_reserved > 0 and user_id:
+                try:
+                    from app.services.token_quota_service import TokenQuotaService
+
+                    async with shielded_async_session() as quota_session:
+                        await TokenQuotaService.premium_release(
+                            db_session=quota_session,
+                            user_id=UUID(user_id),
+                            reserved_tokens=_resume_premium_reserved,
+                        )
+                    _resume_premium_reserved = 0
+                except Exception:
+                    logging.getLogger(__name__).warning(
+                        "Failed to release premium quota for user %s (resume)", user_id
+                    )
+
             try:
                 await session.rollback()
                 await clear_ai_responding(session, chat_id)

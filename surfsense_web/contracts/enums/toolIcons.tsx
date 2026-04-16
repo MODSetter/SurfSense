@@ -19,8 +19,7 @@ const TOOL_ICONS: Record<string, LucideIcon> = {
 	scrape_webpage: ScanLine,
 	web_search: Globe,
 	search_surfsense_docs: BookOpen,
-	save_memory: Brain,
-	recall_memory: Brain,
+	update_memory: Brain,
 };
 
 export function getToolIcon(name: string): LucideIcon {

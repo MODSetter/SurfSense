@@ -10,7 +10,6 @@ import {
 	MessageSquareQuote,
 	RefreshCw,
 	Trash2,
-	Wand2,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { membersAtom, myAccessAtom } from "@/atoms/members/members-query.atoms";
@@ -43,7 +42,7 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { getProviderIcon } from "@/lib/provider-icons";
 import { cn } from "@/lib/utils";
 
-interface ModelConfigManagerProps {
+interface AgentModelManagerProps {
 	searchSpaceId: number;
 }
 
@@ -55,7 +54,7 @@ function getInitials(name: string): string {
 	return name.slice(0, 2).toUpperCase();
 }
 
-export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
+export function AgentModelManager({ searchSpaceId }: AgentModelManagerProps) {
 	const isDesktop = useMediaQuery("(min-width: 768px)");
 	// Mutations
 	const { mutateAsync: deleteConfig, isPending: isDeleting } = useAtomValue(
@@ -196,7 +195,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 							<span className="font-medium">
 								{globalConfigs.length} global {globalConfigs.length === 1 ? "model" : "models"}
 							</span>{" "}
-							available from your administrator. Use the model selector to view and select them.
+							available from your administrator.
 						</p>
 					</AlertDescription>
 				</Alert>
@@ -208,28 +207,26 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 					{["skeleton-a", "skeleton-b", "skeleton-c"].map((key) => (
 						<Card key={key} className="border-border/60">
 							<CardContent className="p-4 flex flex-col gap-3">
-								{/* Header */}
-								<div className="flex items-start justify-between gap-2">
+								{/* Header: Icon + Name */}
+								<div className="flex items-start gap-2.5">
+									<Skeleton className="size-4 rounded-full shrink-0 mt-0.5" />
 									<div className="space-y-1.5 flex-1 min-w-0">
 										<Skeleton className="h-4 w-28 md:w-32" />
 										<Skeleton className="h-3 w-40 md:w-48" />
 									</div>
 								</div>
-								{/* Provider + Model */}
-								<div className="flex items-center gap-2">
-									<Skeleton className="h-5 w-16 rounded-full" />
-									<Skeleton className="h-5 w-24 rounded-md" />
-								</div>
 								{/* Feature badges */}
 								<div className="flex items-center gap-1.5">
 									<Skeleton className="h-5 w-20 rounded-full" />
-									<Skeleton className="h-5 w-16 rounded-full" />
 								</div>
 								{/* Footer */}
-								<div className="flex items-center gap-2 pt-2 border-t border-border/40">
-									<Skeleton className="h-3 w-20" />
-									<Skeleton className="h-4 w-4 rounded-full" />
-									<Skeleton className="h-3 w-16" />
+								<div className="flex items-center pt-2 border-t border-border/40">
+									<Skeleton className="h-3 w-20 flex-1" />
+									<Skeleton className="h-3 w-3 rounded-full shrink-0 mx-1" />
+									<div className="flex-1 flex items-center justify-end gap-1.5">
+										<Skeleton className="h-4 w-4 rounded-full" />
+										<Skeleton className="h-3 w-16" />
+									</div>
 								</div>
 							</CardContent>
 						</Card>
@@ -262,20 +259,25 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 									<div key={config.id}>
 										<Card className="group relative overflow-hidden transition-all duration-200 border-border/60 hover:shadow-md h-full">
 											<CardContent className="p-4 flex flex-col gap-3 h-full">
-												{/* Header: Name + Actions */}
-												<div className="flex items-start justify-between gap-2">
-													<div className="min-w-0 flex-1">
-														<h4 className="text-sm font-semibold tracking-tight truncate">
-															{config.name}
-														</h4>
-														{config.description && (
-															<p className="text-[11px] text-muted-foreground/70 truncate mt-0.5">
-																{config.description}
-															</p>
-														)}
+												{/* Header: Icon + Name + Actions */}
+												<div className="flex items-center justify-between gap-2">
+													<div className="flex items-center gap-2.5 min-w-0 flex-1">
+														<div className="shrink-0">
+															{getProviderIcon(config.provider, { className: "size-4" })}
+														</div>
+														<div className="min-w-0 flex-1">
+															<h4 className="text-sm font-semibold tracking-tight truncate">
+																{config.name}
+															</h4>
+															{config.description && (
+																<p className="text-[11px] text-muted-foreground/70 truncate mt-0.5">
+																	{config.description}
+																</p>
+															)}
+														</div>
 													</div>
 													{(canUpdate || canDelete) && (
-														<div className="flex items-center gap-0.5 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150">
+														<div className="flex items-center gap-1 shrink-0 sm:w-0 sm:overflow-hidden sm:group-hover:w-auto sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-150">
 															{canUpdate && (
 																<TooltipProvider>
 																	<Tooltip open={isDesktop ? undefined : false}>
@@ -284,7 +286,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 																				variant="ghost"
 																				size="icon"
 																				onClick={() => openEditDialog(config)}
-																				className="h-7 w-7 text-muted-foreground hover:text-foreground"
+																				className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground"
 																			>
 																				<Edit3 className="h-3 w-3" />
 																			</Button>
@@ -301,7 +303,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 																				variant="ghost"
 																				size="icon"
 																				onClick={() => setConfigToDelete(config)}
-																				className="h-7 w-7 text-muted-foreground hover:text-destructive"
+																				className="h-7 w-7 rounded-lg text-muted-foreground hover:text-destructive"
 																			>
 																				<Trash2 className="h-3 w-3" />
 																			</Button>
@@ -314,20 +316,12 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 													)}
 												</div>
 
-												{/* Provider + Model */}
-												<div className="flex items-center gap-2 flex-wrap">
-													{getProviderIcon(config.provider, { className: "size-3.5 shrink-0" })}
-													<code className="text-[11px] font-mono text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md truncate max-w-[160px]">
-														{config.model_name}
-													</code>
-												</div>
-
 												{/* Feature badges */}
 												<div className="flex items-center gap-1.5 flex-wrap">
 													{config.citations_enabled && (
 														<Badge
-															variant="outline"
-															className="text-[10px] px-1.5 py-0.5 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 bg-emerald-500/5"
+															variant="secondary"
+															className="text-[10px] px-1.5 py-0.5 border-0 text-muted-foreground bg-muted"
 														>
 															<MessageSquareQuote className="h-2.5 w-2.5 mr-1" />
 															Citations
@@ -336,8 +330,8 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 													{!config.use_default_system_instructions &&
 														config.system_instructions && (
 															<Badge
-																variant="outline"
-																className="text-[10px] px-1.5 py-0.5 border-blue-500/30 text-blue-700 dark:text-blue-300 bg-blue-500/5"
+																variant="secondary"
+																className="text-[10px] px-1.5 py-0.5 border-0 text-muted-foreground bg-muted"
 															>
 																<FileText className="h-2.5 w-2.5 mr-1" />
 																Custom
@@ -346,8 +340,8 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 												</div>
 
 												{/* Footer: Date + Creator */}
-												<div className="flex items-center gap-2 pt-2 border-t border-border/40 mt-auto">
-													<span className="text-[11px] text-muted-foreground/60">
+												<div className="flex items-center pt-2 border-t border-border/40 mt-auto">
+													<span className="shrink-0 text-[11px] text-muted-foreground/60 whitespace-nowrap">
 														{new Date(config.created_at).toLocaleDateString(undefined, {
 															year: "numeric",
 															month: "short",
@@ -356,11 +350,11 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 													</span>
 													{member && (
 														<>
-															<Dot className="h-4 w-4 text-muted-foreground/30" />
+															<Dot className="h-4 w-4 text-muted-foreground/30 shrink-0" />
 															<TooltipProvider>
 																<Tooltip open={isDesktop ? undefined : false}>
 																	<TooltipTrigger asChild>
-																		<div className="flex items-center gap-1.5 cursor-default">
+																		<div className="min-w-0 flex items-center gap-1.5 cursor-default">
 																			<Avatar className="size-4.5 shrink-0">
 																				{member.avatarUrl && (
 																					<AvatarImage src={member.avatarUrl} alt={member.name} />
@@ -369,7 +363,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 																					{getInitials(member.name)}
 																				</AvatarFallback>
 																			</Avatar>
-																			<span className="text-[11px] text-muted-foreground/60 truncate max-w-[120px]">
+																			<span className="text-[11px] text-muted-foreground/60 truncate">
 																				{member.name}
 																			</span>
 																		</div>

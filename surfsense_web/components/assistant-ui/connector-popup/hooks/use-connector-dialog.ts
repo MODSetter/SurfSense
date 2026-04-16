@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
@@ -10,11 +10,17 @@ import {
 	updateConnectorMutationAtom,
 } from "@/atoms/connectors/connector-mutation.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
+import {
+	folderWatchDialogOpenAtom,
+	folderWatchInitialFolderAtom,
+} from "@/atoms/folder-sync/folder-sync.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { searchSourceConnector } from "@/contracts/types/connector.types";
+import { usePlatform } from "@/hooks/use-platform";
 import { authenticatedFetch } from "@/lib/auth-utils";
+import { isSelfHosted } from "@/lib/env-config";
 import {
 	trackConnectorConnected,
 	trackConnectorDeleted,
@@ -33,6 +39,7 @@ import {
 	OAUTH_CONNECTORS,
 	OTHER_CONNECTORS,
 } from "../constants/connector-constants";
+
 import {
 	dateRangeSchema,
 	frequencyMinutesSchema,
@@ -61,6 +68,10 @@ export const useConnectorDialog = () => {
 	const { mutateAsync: updateConnector } = useAtomValue(updateConnectorMutationAtom);
 	const { mutateAsync: deleteConnector } = useAtomValue(deleteConnectorMutationAtom);
 	const { mutateAsync: createConnector } = useAtomValue(createConnectorMutationAtom);
+	const setFolderWatchOpen = useSetAtom(folderWatchDialogOpenAtom);
+	const setFolderWatchInitialFolder = useSetAtom(folderWatchInitialFolderAtom);
+	const { isDesktop } = usePlatform();
+	const selfHosted = isSelfHosted();
 
 	// Use global atom for dialog open state so it can be controlled from anywhere
 	const [isOpen, setIsOpen] = useAtom(connectorDialogOpenAtom);
@@ -80,6 +91,7 @@ export const useConnectorDialog = () => {
 	const [periodicEnabled, setPeriodicEnabled] = useState(false);
 	const [frequencyMinutes, setFrequencyMinutes] = useState("1440");
 	const [enableSummary, setEnableSummary] = useState(false);
+	const [enableVisionLlm, setEnableVisionLlm] = useState(false);
 
 	// Edit mode state
 	const [editingConnector, setEditingConnector] = useState<SearchSourceConnector | null>(null);
@@ -439,9 +451,25 @@ export const useConnectorDialog = () => {
 	const handleConnectNonOAuth = useCallback(
 		(connectorType: string) => {
 			if (!searchSpaceId) return;
+
+			// Handle Obsidian specifically on Desktop & Cloud
+			if (connectorType === EnumConnectorName.OBSIDIAN_CONNECTOR && !selfHosted && isDesktop) {
+				setIsOpen(false);
+				setFolderWatchInitialFolder(null);
+				setFolderWatchOpen(true);
+				return;
+			}
+
 			setConnectingConnectorType(connectorType);
 		},
-		[searchSpaceId]
+		[
+			searchSpaceId,
+			selfHosted,
+			isDesktop,
+			setIsOpen,
+			setFolderWatchOpen,
+			setFolderWatchInitialFolder,
+		]
 	);
 
 	// Handle submitting connect form
@@ -621,6 +649,7 @@ export const useConnectorDialog = () => {
 									setPeriodicEnabled(false);
 									setFrequencyMinutes("1440");
 									setEnableSummary(connector.enable_summary ?? false);
+									setEnableVisionLlm(connector.enable_vision_llm ?? false);
 									setStartDate(undefined);
 									setEndDate(undefined);
 
@@ -763,12 +792,13 @@ export const useConnectorDialog = () => {
 				const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
 
 				// Update connector with summary, periodic sync settings, and config changes
-				if (enableSummary || periodicEnabled || indexingConnectorConfig) {
+				if (enableSummary || enableVisionLlm || periodicEnabled || indexingConnectorConfig) {
 					const frequency = periodicEnabled ? parseInt(frequencyMinutes, 10) : undefined;
 					await updateConnector({
 						id: indexingConfig.connectorId,
 						data: {
 							enable_summary: enableSummary,
+							enable_vision_llm: enableVisionLlm,
 							...(periodicEnabled && {
 								periodic_indexing_enabled: true,
 								indexing_frequency_minutes: frequency,
@@ -896,6 +926,7 @@ export const useConnectorDialog = () => {
 			periodicEnabled,
 			frequencyMinutes,
 			enableSummary,
+			enableVisionLlm,
 			indexingConnectorConfig,
 			setIsOpen,
 		]
@@ -960,6 +991,7 @@ export const useConnectorDialog = () => {
 			setPeriodicEnabled(!connector.is_indexable ? false : connector.periodic_indexing_enabled);
 			setFrequencyMinutes(connector.indexing_frequency_minutes?.toString() || "1440");
 			setEnableSummary(connector.enable_summary ?? false);
+			setEnableVisionLlm(connector.enable_vision_llm ?? false);
 			setStartDate(undefined);
 			setEndDate(undefined);
 		},
@@ -1038,6 +1070,7 @@ export const useConnectorDialog = () => {
 					data: {
 						name: connectorName || editingConnector.name,
 						enable_summary: enableSummary,
+						enable_vision_llm: enableVisionLlm,
 						periodic_indexing_enabled: !editingConnector.is_indexable ? false : periodicEnabled,
 						indexing_frequency_minutes: !editingConnector.is_indexable ? null : frequency,
 						config: connectorConfig || editingConnector.config,
@@ -1172,6 +1205,7 @@ export const useConnectorDialog = () => {
 			periodicEnabled,
 			frequencyMinutes,
 			enableSummary,
+			enableVisionLlm,
 			getFrequencyLabel,
 			connectorConfig,
 			connectorName,
@@ -1332,6 +1366,7 @@ export const useConnectorDialog = () => {
 					setPeriodicEnabled(false);
 					setFrequencyMinutes("1440");
 					setEnableSummary(false);
+					setEnableVisionLlm(false);
 				}
 			}
 		},
@@ -1368,6 +1403,7 @@ export const useConnectorDialog = () => {
 		periodicEnabled,
 		frequencyMinutes,
 		enableSummary,
+		enableVisionLlm,
 		searchSpaceId,
 		allConnectors,
 		viewingAccountsType,
@@ -1382,6 +1418,7 @@ export const useConnectorDialog = () => {
 		setPeriodicEnabled,
 		setFrequencyMinutes,
 		setEnableSummary,
+		setEnableVisionLlm,
 		setConnectorName,
 
 		// Handlers

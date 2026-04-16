@@ -21,6 +21,8 @@ class SearchSpaceUpdate(BaseModel):
     description: str | None = None
     citations_enabled: bool | None = None
     qna_custom_instructions: str | None = None
+    shared_memory_md: str | None = None
+    ai_file_sort_enabled: bool | None = None
 
 
 class SearchSpaceRead(SearchSpaceBase, IDModel, TimestampModel):
@@ -29,6 +31,8 @@ class SearchSpaceRead(SearchSpaceBase, IDModel, TimestampModel):
     user_id: uuid.UUID
     citations_enabled: bool
     qna_custom_instructions: str | None = None
+    shared_memory_md: str | None = None
+    ai_file_sort_enabled: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 

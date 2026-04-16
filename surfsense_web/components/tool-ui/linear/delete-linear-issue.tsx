@@ -7,33 +7,21 @@ import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
+import type { HitlDecision, InterruptResult } from "@/lib/hitl";
+import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
 
-interface InterruptResult {
-	__interrupt__: true;
-	__decided__?: "approve" | "reject";
-	__completed__?: boolean;
-	action_requests: Array<{
-		name: string;
-		args: Record<string, unknown>;
-	}>;
-	review_configs: Array<{
-		action_name: string;
-		allowed_decisions: Array<"approve" | "reject">;
-	}>;
-	interrupt_type?: string;
-	context?: {
-		workspace?: { id: number; organization_name: string };
-		issue?: {
-			id: string;
-			identifier: string;
-			title: string;
-			state?: string;
-			document_id?: number;
-			indexed_at?: string;
-		};
-		error?: string;
+type LinearDeleteIssueContext = {
+	workspace?: { id: number; organization_name: string };
+	issue?: {
+		id: string;
+		identifier: string;
+		title: string;
+		state?: string;
+		document_id?: number;
+		indexed_at?: string;
 	};
-}
+	error?: string;
+};
 
 interface SuccessResult {
 	status: "success";
@@ -65,21 +53,12 @@ interface AuthErrorResult {
 }
 
 type DeleteLinearIssueResult =
-	| InterruptResult
+	| InterruptResult<LinearDeleteIssueContext>
 	| SuccessResult
 	| ErrorResult
 	| NotFoundResult
 	| WarningResult
 	| AuthErrorResult;
-
-function isInterruptResult(result: unknown): result is InterruptResult {
-	return (
-		typeof result === "object" &&
-		result !== null &&
-		"__interrupt__" in result &&
-		(result as InterruptResult).__interrupt__ === true
-	);
-}
 
 function isErrorResult(result: unknown): result is ErrorResult {
 	return (
@@ -123,12 +102,8 @@ function ApprovalCard({
 	interruptData,
 	onDecision,
 }: {
-	interruptData: InterruptResult;
-	onDecision: (decision: {
-		type: "approve" | "reject";
-		message?: string;
-		edited_action?: { name: string; args: Record<string, unknown> };
-	}) => void;
+	interruptData: InterruptResult<LinearDeleteIssueContext>;
+	onDecision: (decision: HitlDecision) => void;
 }) {
 	const { phase, setProcessing, setRejected } = useHitlPhase(interruptData);
 	const [deleteFromKb, setDeleteFromKb] = useState(false);
@@ -366,18 +341,15 @@ export const DeleteLinearIssueToolUI = ({
 	{ issue_ref: string; delete_from_kb?: boolean },
 	DeleteLinearIssueResult
 >) => {
+	const { dispatch } = useHitlDecision();
+
 	if (!result) return null;
 
 	if (isInterruptResult(result)) {
 		return (
 			<ApprovalCard
-				interruptData={result}
-				onDecision={(decision) => {
-					const event = new CustomEvent("hitl-decision", {
-						detail: { decisions: [decision] },
-					});
-					window.dispatchEvent(event);
-				}}
+				interruptData={result as InterruptResult<LinearDeleteIssueContext>}
+				onDecision={(decision) => dispatch([decision])}
 			/>
 		);
 	}

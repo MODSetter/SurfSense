@@ -1,12 +1,16 @@
 import { loader } from "fumadocs-core/source";
 import type { Metadata } from "next";
 import { changelog } from "@/.source/server";
+import { BreadcrumbNav } from "@/components/seo/breadcrumb-nav";
 import { formatDate } from "@/lib/utils";
 import { getMDXComponents } from "@/mdx-components";
 
 export const metadata: Metadata = {
 	title: "Changelog | SurfSense",
-	description: "See what's new in SurfSense.",
+	description: "See what's new in SurfSense. Latest updates, features, and improvements.",
+	alternates: {
+		canonical: "https://surfsense.com/changelog",
+	},
 };
 
 const source = loader({
@@ -42,6 +46,13 @@ export default async function ChangelogPage() {
 				<div className="max-w-5xl mx-auto relative">
 					<div className="p-6 flex items-center justify-between">
 						<div>
+							<BreadcrumbNav
+								items={[
+									{ name: "Home", href: "/" },
+									{ name: "Changelog", href: "/changelog" },
+								]}
+								className="mb-4"
+							/>
 							<h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 bg-clip-text text-transparent">
 								Changelog
 							</h1>

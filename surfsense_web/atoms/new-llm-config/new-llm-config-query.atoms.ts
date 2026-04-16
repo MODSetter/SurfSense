@@ -2,6 +2,7 @@ import { atomWithQuery } from "jotai-tanstack-query";
 import type { LLMModel } from "@/contracts/enums/llm-models";
 import { LLM_MODELS } from "@/contracts/enums/llm-models";
 import { newLLMConfigApiService } from "@/lib/apis/new-llm-config-api.service";
+import { getBearerToken } from "@/lib/auth-utils";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { activeSearchSpaceIdAtom } from "../search-spaces/search-space-query.atoms";
 
@@ -30,6 +31,7 @@ export const globalNewLLMConfigsAtom = atomWithQuery(() => {
 	return {
 		queryKey: cacheKeys.newLLMConfigs.global(),
 		staleTime: 10 * 60 * 1000, // 10 minutes - global configs rarely change
+		enabled: !!getBearerToken(),
 		queryFn: async () => {
 			return newLLMConfigApiService.getGlobalConfigs();
 		},

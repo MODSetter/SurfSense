@@ -2,9 +2,9 @@ import logging
 from typing import Any
 
 from langchain_core.tools import tool
-from langgraph.types import interrupt
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.new_chat.tools.hitl import request_approval
 from app.connectors.notion_history import NotionAPIError, NotionHistoryConnector
 from app.services.notion import NotionToolMetadataService
 
@@ -99,61 +99,29 @@ def create_create_notion_page_tool(
                 }
 
             logger.info(f"Requesting approval for creating Notion page: '{title}'")
-            approval = interrupt(
-                {
-                    "type": "notion_page_creation",
-                    "action": {
-                        "tool": "create_notion_page",
-                        "params": {
-                            "title": title,
-                            "content": content,
-                            "parent_page_id": None,
-                            "connector_id": connector_id,
-                        },
-                    },
-                    "context": context,
-                }
+            result = request_approval(
+                action_type="notion_page_creation",
+                tool_name="create_notion_page",
+                params={
+                    "title": title,
+                    "content": content,
+                    "parent_page_id": None,
+                    "connector_id": connector_id,
+                },
+                context=context,
             )
 
-            decisions_raw = (
-                approval.get("decisions", []) if isinstance(approval, dict) else []
-            )
-            decisions = (
-                decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
-            )
-            decisions = [d for d in decisions if isinstance(d, dict)]
-            if not decisions:
-                logger.warning("No approval decision received")
-                return {
-                    "status": "error",
-                    "message": "No approval decision received",
-                }
-
-            decision = decisions[0]
-            decision_type = decision.get("type") or decision.get("decision_type")
-            logger.info(f"User decision: {decision_type}")
-
-            if decision_type == "reject":
+            if result.rejected:
                 logger.info("Notion page creation rejected by user")
                 return {
                     "status": "rejected",
-                    "message": "User declined. The page was not created. Do not ask again or suggest alternatives.",
+                    "message": "User declined. Do not retry or suggest alternatives.",
                 }
 
-            edited_action = decision.get("edited_action")
-            final_params: dict[str, Any] = {}
-            if isinstance(edited_action, dict):
-                edited_args = edited_action.get("args")
-                if isinstance(edited_args, dict):
-                    final_params = edited_args
-            elif isinstance(decision.get("args"), dict):
-                # Some interrupt payloads place args directly on the decision.
-                final_params = decision["args"]
-
-            final_title = final_params.get("title", title)
-            final_content = final_params.get("content", content)
-            final_parent_page_id = final_params.get("parent_page_id")
-            final_connector_id = final_params.get("connector_id", connector_id)
+            final_title = result.params.get("title", title)
+            final_content = result.params.get("content", content)
+            final_parent_page_id = result.params.get("parent_page_id")
+            final_connector_id = result.params.get("connector_id", connector_id)
 
             if not final_title or not final_title.strip():
                 logger.error("Title is empty or contains only whitespace")

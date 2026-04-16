@@ -38,6 +38,11 @@ import { removeChatTabAtom, updateChatTabTitleAtom } from "@/atoms/tabs/tabs.ato
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { ThinkingStepsDataUI } from "@/components/assistant-ui/thinking-steps";
 import { Thread } from "@/components/assistant-ui/thread";
+import {
+	createTokenUsageStore,
+	type TokenUsageData,
+	TokenUsageProvider,
+} from "@/components/assistant-ui/token-usage-context";
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
 import { useMessagesSync } from "@/hooks/use-messages-sync";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
@@ -66,6 +71,8 @@ import {
 	getRegenerateUrl,
 	getThreadFull,
 	getThreadMessages,
+	type ThreadListItem,
+	type ThreadListResponse,
 	type ThreadRecord,
 } from "@/lib/chat/thread-persistence";
 import { NotFoundError } from "@/lib/error";
@@ -195,6 +202,7 @@ export default function NewChatPage() {
 	const [currentThread, setCurrentThread] = useState<ThreadRecord | null>(null);
 	const [messages, setMessages] = useState<ThreadMessageLike[]>([]);
 	const [isRunning, setIsRunning] = useState(false);
+	const [tokenUsageStore] = useState(() => createTokenUsageStore());
 	const abortControllerRef = useRef<AbortController | null>(null);
 	const [pendingInterrupt, setPendingInterrupt] = useState<{
 		threadId: number;
@@ -307,6 +315,7 @@ export default function NewChatPage() {
 		setThreadId(null);
 		setCurrentThread(null);
 		setMentionedDocuments([]);
+		tokenUsageStore.clear();
 		setSidebarDocuments([]);
 		setMessageDocumentsMap({});
 		clearPlanOwnerRegistry();
@@ -329,6 +338,12 @@ export default function NewChatPage() {
 				if (messagesResponse.messages && messagesResponse.messages.length > 0) {
 					const loadedMessages = messagesResponse.messages.map(convertToThreadMessage);
 					setMessages(loadedMessages);
+
+					for (const msg of messagesResponse.messages) {
+						if (msg.token_usage) {
+							tokenUsageStore.set(`msg-${msg.id}`, msg.token_usage as TokenUsageData);
+						}
+					}
 
 					const restoredDocsMap: Record<string, MentionedDocumentInfo[]> = {};
 					for (const msg of messagesResponse.messages) {
@@ -374,6 +389,7 @@ export default function NewChatPage() {
 		closeEditorPanel,
 		removeChatTab,
 		searchSpaceId,
+		tokenUsageStore,
 	]);
 
 	// Initialize on mount, and re-init when switching search spaces (even if urlChatId is the same)
@@ -624,6 +640,7 @@ export default function NewChatPage() {
 			};
 			const { contentParts, toolCallIndices } = contentPartsState;
 			let wasInterrupted = false;
+			let tokenUsageData: Record<string, unknown> | null = null;
 
 			// Add placeholder assistant message
 			setMessages((prev) => [
@@ -759,9 +776,21 @@ export default function NewChatPage() {
 							if (titleData?.title && titleData?.threadId === currentThreadId) {
 								setCurrentThread((prev) => (prev ? { ...prev, title: titleData.title } : prev));
 								updateChatTabTitle({ chatId: currentThreadId, title: titleData.title });
-								queryClient.invalidateQueries({
-									queryKey: ["threads", String(searchSpaceId)],
-								});
+								queryClient.setQueriesData<ThreadListResponse>(
+									{ queryKey: ["threads", String(searchSpaceId)] },
+									(old) => {
+										if (!old) return old;
+										const updateTitle = (list: ThreadListItem[]) =>
+											list.map((t) =>
+												t.id === titleData.threadId ? { ...t, title: titleData.title } : t
+											);
+										return {
+											...old,
+											threads: updateTitle(old.threads),
+											archived_threads: updateTitle(old.archived_threads),
+										};
+									}
+								);
 							}
 							break;
 						}
@@ -798,7 +827,14 @@ export default function NewChatPage() {
 									});
 								} else {
 									const tcId = `interrupt-${action.name}`;
-									addToolCall(contentPartsState, TOOLS_WITH_UI, tcId, action.name, action.args);
+									addToolCall(
+										contentPartsState,
+										TOOLS_WITH_UI,
+										tcId,
+										action.name,
+										action.args,
+										true
+									);
 									updateToolCall(contentPartsState, tcId, {
 										result: { __interrupt__: true, ...interruptData },
 									});
@@ -821,6 +857,11 @@ export default function NewChatPage() {
 							break;
 						}
 
+						case "data-token-usage":
+							tokenUsageData = parsed.data;
+							tokenUsageStore.set(assistantMsgId, parsed.data as TokenUsageData);
+							break;
+
 						case "error":
 							throw new Error(parsed.errorText || "Server error");
 					}
@@ -835,10 +876,12 @@ export default function NewChatPage() {
 						const savedMessage = await appendMessage(currentThreadId, {
 							role: "assistant",
 							content: finalContent,
+							token_usage: tokenUsageData ?? undefined,
 						});
 
 						// Update message ID from temporary to database ID so comments work immediately
 						const newMsgId = `msg-${savedMessage.id}`;
+						tokenUsageStore.rename(assistantMsgId, newMsgId);
 						setMessages((prev) =>
 							prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m))
 						);
@@ -930,6 +973,7 @@ export default function NewChatPage() {
 			currentUser,
 			disabledTools,
 			updateChatTabTitle,
+			tokenUsageStore,
 		]
 	);
 
@@ -965,6 +1009,7 @@ export default function NewChatPage() {
 				toolCallIndices: new Map(),
 			};
 			const { contentParts, toolCallIndices } = contentPartsState;
+			let tokenUsageData: Record<string, unknown> | null = null;
 
 			const existingMsg = messages.find((m) => m.id === assistantMsgId);
 			if (existingMsg && Array.isArray(existingMsg.content)) {
@@ -1125,7 +1170,14 @@ export default function NewChatPage() {
 									});
 								} else {
 									const tcId = `interrupt-${action.name}`;
-									addToolCall(contentPartsState, TOOLS_WITH_UI, tcId, action.name, action.args);
+									addToolCall(
+										contentPartsState,
+										TOOLS_WITH_UI,
+										tcId,
+										action.name,
+										action.args,
+										true
+									);
 									updateToolCall(contentPartsState, tcId, {
 										result: {
 											__interrupt__: true,
@@ -1149,6 +1201,11 @@ export default function NewChatPage() {
 							break;
 						}
 
+						case "data-token-usage":
+							tokenUsageData = parsed.data;
+							tokenUsageStore.set(assistantMsgId, parsed.data as TokenUsageData);
+							break;
+
 						case "error":
 							throw new Error(parsed.errorText || "Server error");
 					}
@@ -1162,8 +1219,10 @@ export default function NewChatPage() {
 						const savedMessage = await appendMessage(resumeThreadId, {
 							role: "assistant",
 							content: finalContent,
+							token_usage: tokenUsageData ?? undefined,
 						});
 						const newMsgId = `msg-${savedMessage.id}`;
+						tokenUsageStore.rename(assistantMsgId, newMsgId);
 						setMessages((prev) =>
 							prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m))
 						);
@@ -1183,7 +1242,7 @@ export default function NewChatPage() {
 				abortControllerRef.current = null;
 			}
 		},
-		[pendingInterrupt, messages, searchSpaceId]
+		[pendingInterrupt, messages, searchSpaceId, tokenUsageStore]
 	);
 
 	useEffect(() => {
@@ -1319,6 +1378,7 @@ export default function NewChatPage() {
 			};
 			const { contentParts, toolCallIndices } = contentPartsState;
 			const batcher = new FrameBatchedUpdater();
+			let tokenUsageData: Record<string, unknown> | null = null;
 
 			// Add placeholder messages to UI
 			// Always add back the user message (with new query for edit, or original content for reload)
@@ -1428,6 +1488,11 @@ export default function NewChatPage() {
 							break;
 						}
 
+						case "data-token-usage":
+							tokenUsageData = parsed.data;
+							tokenUsageStore.set(assistantMsgId, parsed.data as TokenUsageData);
+							break;
+
 						case "error":
 							throw new Error(parsed.errorText || "Server error");
 					}
@@ -1459,10 +1524,11 @@ export default function NewChatPage() {
 						const savedMessage = await appendMessage(threadId, {
 							role: "assistant",
 							content: finalContent,
+							token_usage: tokenUsageData ?? undefined,
 						});
 
-						// Update assistant message ID to database ID
 						const newMsgId = `msg-${savedMessage.id}`;
+						tokenUsageStore.rename(assistantMsgId, newMsgId);
 						setMessages((prev) =>
 							prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m))
 						);
@@ -1499,7 +1565,7 @@ export default function NewChatPage() {
 				abortControllerRef.current = null;
 			}
 		},
-		[threadId, searchSpaceId, messages, disabledTools]
+		[threadId, searchSpaceId, messages, disabledTools, tokenUsageStore]
 	);
 
 	// Handle editing a message - truncates history and regenerates with new query
@@ -1568,16 +1634,18 @@ export default function NewChatPage() {
 	}
 
 	return (
-		<AssistantRuntimeProvider runtime={runtime}>
-			<ThinkingStepsDataUI />
-			<div key={searchSpaceId} className="flex h-full overflow-hidden">
-				<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-					<Thread />
+		<TokenUsageProvider store={tokenUsageStore}>
+			<AssistantRuntimeProvider runtime={runtime}>
+				<ThinkingStepsDataUI />
+				<div key={searchSpaceId} className="flex h-full overflow-hidden">
+					<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+						<Thread />
+					</div>
+					<MobileReportPanel />
+					<MobileEditorPanel />
+					<MobileHitlEditPanel />
 				</div>
-				<MobileReportPanel />
-				<MobileEditorPanel />
-				<MobileHitlEditPanel />
-			</div>
-		</AssistantRuntimeProvider>
+			</AssistantRuntimeProvider>
+		</TokenUsageProvider>
 	);
 }

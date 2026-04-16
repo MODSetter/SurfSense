@@ -29,8 +29,6 @@ interface DocumentMentionPickerProps {
 	onDone: () => void;
 	initialSelectedDocuments?: Pick<Document, "id" | "title" | "document_type">[];
 	externalSearch?: string;
-	/** Positioning styles for the container */
-	containerStyle?: React.CSSProperties;
 }
 
 const PAGE_SIZE = 20;
@@ -69,14 +67,7 @@ export const DocumentMentionPicker = forwardRef<
 	DocumentMentionPickerRef,
 	DocumentMentionPickerProps
 >(function DocumentMentionPicker(
-	{
-		searchSpaceId,
-		onSelectionChange,
-		onDone,
-		initialSelectedDocuments = [],
-		externalSearch = "",
-		containerStyle,
-	},
+	{ searchSpaceId, onSelectionChange, onDone, initialSelectedDocuments = [], externalSearch = "" },
 	ref
 ) {
 	// Debounced search value to minimize API calls and prevent race conditions
@@ -394,19 +385,9 @@ export const DocumentMentionPicker = forwardRef<
 		[selectableDocuments, highlightedIndex, handleSelectDocument, onDone]
 	);
 
-	// Hide popup when there are no documents to display (regardless of fetch state)
-	// Search continues in background; popup reappears when results arrive
-	if (!actualLoading && actualDocuments.length === 0) {
-		return null;
-	}
-
 	return (
 		<div
-			className="fixed shadow-2xl rounded-lg border border-border dark:border-white/5 overflow-hidden bg-popover dark:bg-neutral-900 flex flex-col w-[280px] sm:w-[320px] select-none"
-			style={{
-				zIndex: 9999,
-				...containerStyle,
-			}}
+			className="shadow-2xl rounded-lg border border-border dark:border-white/5 overflow-hidden bg-popover dark:bg-neutral-900 flex flex-col w-[280px] sm:w-[320px] select-none"
 			onKeyDown={handleKeyDown}
 			role="listbox"
 			tabIndex={-1}
@@ -547,7 +528,11 @@ export const DocumentMentionPicker = forwardRef<
 							</div>
 						)}
 					</div>
-				) : null}
+				) : (
+					<div className="py-1 px-2">
+						<p className="px-3 py-2 text-xs text-muted-foreground">No matching documents</p>
+					</div>
+				)}
 			</div>
 		</div>
 	);

@@ -174,7 +174,7 @@ export function LocalLoginForm() {
 					<label htmlFor="password" className="block text-sm font-medium text-foreground">
 						{t("password")}
 					</label>
-					<div className="relative">
+					<div className="relative mt-1">
 						<input
 							id="password"
 							type={showPassword ? "text" : "password"}
@@ -183,7 +183,7 @@ export function LocalLoginForm() {
 							placeholder="Enter your password"
 							value={password}
 							onChange={(e) => setPassword(e.target.value)}
-							className={`mt-1 block w-full rounded-md border pr-10 px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-1 bg-background text-foreground transition-all ${
+							className={`block w-full rounded-md border pr-10 px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-1 bg-background text-foreground transition-all ${
 								error.title
 									? "border-destructive focus:border-destructive focus:ring-destructive/40"
 									: "border-border focus:border-primary focus:ring-primary/40"
@@ -193,7 +193,7 @@ export function LocalLoginForm() {
 						<button
 							type="button"
 							onClick={() => setShowPassword((prev) => !prev)}
-							className="absolute inset-y-0 right-0 flex items-center pr-3 mt-1 text-muted-foreground hover:text-foreground"
+							className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
 							aria-label={showPassword ? t("hide_password") : t("show_password")}
 						>
 							{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}

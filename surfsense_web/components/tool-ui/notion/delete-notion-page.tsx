@@ -7,37 +7,23 @@ import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
+import type { HitlDecision, InterruptResult } from "@/lib/hitl";
+import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
 
-interface InterruptResult {
-	__interrupt__: true;
-	__decided__?: "approve" | "reject";
-	__completed__?: boolean;
-	action_requests: Array<{
+type NotionDeletePageContext = {
+	account?: {
+		id: number;
 		name: string;
-		args: Record<string, unknown>;
-		description?: string;
-	}>;
-	review_configs: Array<{
-		action_name: string;
-		allowed_decisions: Array<"approve" | "reject">;
-	}>;
-	interrupt_type?: string;
-	message?: string;
-	context?: {
-		account?: {
-			id: number;
-			name: string;
-			workspace_id: string | null;
-			workspace_name: string;
-			workspace_icon: string;
-		};
-		page_id?: string;
-		current_title?: string;
-		document_id?: number;
-		indexed_at?: string;
-		error?: string;
+		workspace_id: string | null;
+		workspace_name: string;
+		workspace_icon: string;
 	};
-}
+	page_id?: string;
+	current_title?: string;
+	document_id?: number;
+	indexed_at?: string;
+	error?: string;
+};
 
 interface SuccessResult {
 	status: "success";
@@ -73,21 +59,12 @@ interface AuthErrorResult {
 }
 
 type DeleteNotionPageResult =
-	| InterruptResult
+	| InterruptResult<NotionDeletePageContext>
 	| SuccessResult
 	| ErrorResult
 	| InfoResult
 	| WarningResult
 	| AuthErrorResult;
-
-function isInterruptResult(result: unknown): result is InterruptResult {
-	return (
-		typeof result === "object" &&
-		result !== null &&
-		"__interrupt__" in result &&
-		(result as InterruptResult).__interrupt__ === true
-	);
-}
 
 function isErrorResult(result: unknown): result is ErrorResult {
 	return (
@@ -131,12 +108,8 @@ function ApprovalCard({
 	interruptData,
 	onDecision,
 }: {
-	interruptData: InterruptResult;
-	onDecision: (decision: {
-		type: "approve" | "reject";
-		message?: string;
-		edited_action?: { name: string; args: Record<string, unknown> };
-	}) => void;
+	interruptData: InterruptResult<NotionDeletePageContext>;
+	onDecision: (decision: HitlDecision) => void;
 }) {
 	const { phase, setProcessing, setRejected } = useHitlPhase(interruptData);
 	const [deleteFromKb, setDeleteFromKb] = useState(false);
@@ -378,18 +351,15 @@ export const DeleteNotionPageToolUI = ({
 	{ page_title: string; delete_from_kb?: boolean },
 	DeleteNotionPageResult
 >) => {
+	const { dispatch } = useHitlDecision();
+
 	if (!result) return null;
 
 	if (isInterruptResult(result)) {
 		return (
 			<ApprovalCard
-				interruptData={result}
-				onDecision={(decision) => {
-					const event = new CustomEvent("hitl-decision", {
-						detail: { decisions: [decision] },
-					});
-					window.dispatchEvent(event);
-				}}
+				interruptData={result as InterruptResult<NotionDeletePageContext>}
+				onDecision={(decision) => dispatch([decision])}
 			/>
 		);
 	}

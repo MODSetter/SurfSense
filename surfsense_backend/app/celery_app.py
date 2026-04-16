@@ -21,9 +21,11 @@ def init_worker(**kwargs):
     from app.config import (
         initialize_image_gen_router,
         initialize_llm_router,
+        initialize_openrouter_integration,
         initialize_vision_llm_router,
     )
 
+    initialize_openrouter_integration()
     initialize_llm_router()
     initialize_image_gen_router()
     initialize_vision_llm_router()
@@ -182,6 +184,13 @@ celery_app.conf.beat_schedule = {
     # Reconcile Stripe purchases that were paid but remained pending
     "reconcile-pending-stripe-page-purchases": {
         "task": "reconcile_pending_stripe_page_purchases",
+        "schedule": crontab(**stripe_reconciliation_schedule_params),
+        "options": {
+            "expires": 60,
+        },
+    },
+    "reconcile-pending-stripe-token-purchases": {
+        "task": "reconcile_pending_stripe_token_purchases",
         "schedule": crontab(**stripe_reconciliation_schedule_params),
         "options": {
             "expires": 60,

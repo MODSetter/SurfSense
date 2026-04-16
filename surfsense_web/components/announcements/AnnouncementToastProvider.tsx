@@ -65,7 +65,9 @@ export function AnnouncementToastProvider() {
 		if (hasChecked.current) return;
 		hasChecked.current = true;
 
-		const timer = setTimeout(() => {
+		const staggerTimers: ReturnType<typeof setTimeout>[] = [];
+
+		const outerTimer = setTimeout(() => {
 			const authed = isAuthenticated();
 			const active = getActiveAnnouncements(announcements, authed);
 			const importantUntoasted = active.filter(
@@ -74,11 +76,14 @@ export function AnnouncementToastProvider() {
 
 			for (let i = 0; i < importantUntoasted.length; i++) {
 				const announcement = importantUntoasted[i];
-				setTimeout(() => showAnnouncementToast(announcement), i * 800);
+				staggerTimers.push(setTimeout(() => showAnnouncementToast(announcement), i * 800));
 			}
 		}, 1500);
 
-		return () => clearTimeout(timer);
+		return () => {
+			clearTimeout(outerTimer);
+			for (const id of staggerTimers) clearTimeout(id);
+		};
 	}, []);
 
 	return null;

@@ -1,5 +1,5 @@
 # Global LLM Configuration
-# 
+#
 # SETUP INSTRUCTIONS:
 # 1. For production: Copy this file to global_llm_config.yaml and add your real API keys
 # 2. For testing: The system will use this example file automatically if global_llm_config.yaml doesn't exist
@@ -29,16 +29,16 @@ router_settings:
   # - "least-busy": Routes to least busy deployment
   # - "latency-based-routing": Routes based on response latency
   routing_strategy: "usage-based-routing"
-  
+
   # Number of retries before failing
   num_retries: 3
-  
+
   # Number of failures allowed before cooling down a deployment
   allowed_fails: 3
-  
+
   # Cooldown time in seconds after allowed_fails is exceeded
   cooldown_time: 60
-  
+
   # Fallback models (optional) - when primary fails, try these
   # Format: [{"primary_model": ["fallback1", "fallback2"]}]
   # fallbacks: []
@@ -48,18 +48,23 @@ global_llm_configs:
   - id: -1
     name: "Global GPT-4 Turbo"
     description: "OpenAI's GPT-4 Turbo with default prompts and citations"
+    billing_tier: "free"
+    anonymous_enabled: true
+    seo_enabled: true
+    seo_slug: "gpt-4-turbo"
+    quota_reserve_tokens: 4000
     provider: "OPENAI"
     model_name: "gpt-4-turbo-preview"
     api_key: "sk-your-openai-api-key-here"
     api_base: ""
     # Rate limits for load balancing (requests/tokens per minute)
-    rpm: 500  # Requests per minute
-    tpm: 100000  # Tokens per minute
+    rpm: 500 # Requests per minute
+    tpm: 100000 # Tokens per minute
     litellm_params:
       temperature: 0.7
       max_tokens: 4000
     # Prompt Configuration
-    system_instructions: ""  # Empty = use default SURFSENSE_SYSTEM_INSTRUCTIONS
+    system_instructions: "" # Empty = use default SURFSENSE_SYSTEM_INSTRUCTIONS
     use_default_system_instructions: true
     citations_enabled: true
 
@@ -67,6 +72,11 @@ global_llm_configs:
   - id: -2
     name: "Global Claude 3 Opus"
     description: "Anthropic's most capable model with citations"
+    billing_tier: "free"
+    anonymous_enabled: true
+    seo_enabled: true
+    seo_slug: "claude-3-opus"
+    quota_reserve_tokens: 4000
     provider: "ANTHROPIC"
     model_name: "claude-3-opus-20240229"
     api_key: "sk-ant-your-anthropic-api-key-here"
@@ -84,23 +94,33 @@ global_llm_configs:
   - id: -3
     name: "Global GPT-3.5 Turbo (Fast)"
     description: "Fast responses without citations for quick queries"
+    billing_tier: "free"
+    anonymous_enabled: true
+    seo_enabled: true
+    seo_slug: "gpt-3.5-turbo-fast"
+    quota_reserve_tokens: 2000
     provider: "OPENAI"
     model_name: "gpt-3.5-turbo"
     api_key: "sk-your-openai-api-key-here"
     api_base: ""
-    rpm: 3500  # GPT-3.5 has higher rate limits
+    rpm: 3500 # GPT-3.5 has higher rate limits
     tpm: 200000
     litellm_params:
       temperature: 0.5
       max_tokens: 2000
     system_instructions: ""
     use_default_system_instructions: true
-    citations_enabled: false  # Disabled for faster responses
+    citations_enabled: false # Disabled for faster responses
 
   # Example: Chinese LLM - DeepSeek with custom instructions
   - id: -4
     name: "Global DeepSeek Chat (Chinese)"
     description: "DeepSeek optimized for Chinese language responses"
+    billing_tier: "free"
+    anonymous_enabled: true
+    seo_enabled: true
+    seo_slug: "deepseek-chat-chinese"
+    quota_reserve_tokens: 4000
     provider: "DEEPSEEK"
     model_name: "deepseek-chat"
     api_key: "your-deepseek-api-key-here"
@@ -114,9 +134,9 @@ global_llm_configs:
     system_instructions: |
       <system_instruction>
       You are SurfSense, a reasoning and acting AI agent designed to answer user questions using the user's personal knowledge base.
-      
+
       Today's date (UTC): {resolved_today}
-      
+
       IMPORTANT: Please respond in Chinese (简体中文) unless the user specifically requests another language.
       </system_instruction>
     use_default_system_instructions: false
@@ -128,12 +148,17 @@ global_llm_configs:
   - id: -5
     name: "Global Azure GPT-4o"
     description: "Azure OpenAI GPT-4o deployment"
+    billing_tier: "free"
+    anonymous_enabled: true
+    seo_enabled: true
+    seo_slug: "azure-gpt-4o"
+    quota_reserve_tokens: 4000
     provider: "AZURE"
     # model_name format for Azure: azure/<your-deployment-name>
     model_name: "azure/gpt-4o-deployment"
     api_key: "your-azure-api-key-here"
     api_base: "https://your-resource.openai.azure.com"
-    api_version: "2024-02-15-preview"  # Azure API version
+    api_version: "2024-02-15-preview" # Azure API version
     rpm: 1000
     tpm: 150000
     litellm_params:
@@ -151,6 +176,11 @@ global_llm_configs:
   - id: -6
     name: "Global Azure GPT-4 Turbo"
     description: "Azure OpenAI GPT-4 Turbo deployment"
+    billing_tier: "free"
+    anonymous_enabled: true
+    seo_enabled: true
+    seo_slug: "azure-gpt-4-turbo"
+    quota_reserve_tokens: 4000
     provider: "AZURE"
     model_name: "azure/gpt-4-turbo-deployment"
     api_key: "your-azure-api-key-here"
@@ -161,7 +191,7 @@ global_llm_configs:
     litellm_params:
       temperature: 0.7
       max_tokens: 4000
-      base_model: "gpt-4-turbo"  # Maps to gpt-4-turbo-preview
+      base_model: "gpt-4-turbo" # Maps to gpt-4-turbo-preview
     system_instructions: ""
     use_default_system_instructions: true
     citations_enabled: true
@@ -170,11 +200,16 @@ global_llm_configs:
   - id: -7
     name: "Global Groq Llama 3"
     description: "Ultra-fast Llama 3 70B via Groq"
+    billing_tier: "free"
+    anonymous_enabled: true
+    seo_enabled: true
+    seo_slug: "groq-llama-3"
+    quota_reserve_tokens: 8000
     provider: "GROQ"
     model_name: "llama3-70b-8192"
     api_key: "your-groq-api-key-here"
     api_base: ""
-    rpm: 30  # Groq has lower rate limits on free tier
+    rpm: 30 # Groq has lower rate limits on free tier
     tpm: 14400
     litellm_params:
       temperature: 0.7
@@ -187,6 +222,11 @@ global_llm_configs:
   - id: -8
     name: "Global MiniMax M2.5"
     description: "MiniMax M2.5 with 204K context window and competitive pricing"
+    billing_tier: "free"
+    anonymous_enabled: true
+    seo_enabled: true
+    seo_slug: "minimax-m2.5"
+    quota_reserve_tokens: 4000
     provider: "MINIMAX"
     model_name: "MiniMax-M2.5"
     api_key: "your-minimax-api-key-here"
@@ -194,11 +234,47 @@ global_llm_configs:
     rpm: 60
     tpm: 100000
     litellm_params:
-      temperature: 1.0  # MiniMax requires temperature in (0.0, 1.0], cannot be 0
+      temperature: 1.0 # MiniMax requires temperature in (0.0, 1.0], cannot be 0
       max_tokens: 4000
     system_instructions: ""
     use_default_system_instructions: true
     citations_enabled: true
+
+# =============================================================================
+# OpenRouter Integration
+# =============================================================================
+# When enabled, dynamically fetches ALL available models from the OpenRouter API
+# and injects them as global configs. This gives premium users access to any model
+# on OpenRouter (Claude, Gemini, Llama, Mistral, etc.) via their premium token quota.
+# Models are fetched at startup and refreshed periodically in the background.
+# All calls go through LiteLLM with the openrouter/ prefix.
+openrouter_integration:
+  enabled: false
+  api_key: "sk-or-your-openrouter-api-key"
+  # billing_tier: "premium" or "free". Controls whether users need premium tokens.
+  billing_tier: "premium"
+  # anonymous_enabled: set true to also show OpenRouter models to no-login users
+  anonymous_enabled: false
+  seo_enabled: false
+  # quota_reserve_tokens: tokens reserved per call for quota enforcement
+  quota_reserve_tokens: 4000
+  # id_offset: starting negative ID for dynamically generated configs.
+  # Must not overlap with your static global_llm_configs IDs above.
+  id_offset: -10000
+  # refresh_interval_hours: how often to re-fetch models from OpenRouter (0 = startup only)
+  refresh_interval_hours: 24
+  # rpm/tpm: Applied uniformly to all OpenRouter models for LiteLLM Router load balancing.
+  # OpenRouter doesn't expose per-model rate limits via API; actual throttling is handled
+  # upstream by OpenRouter itself (your account limits are at https://openrouter.ai/settings/limits).
+  # These values only matter if you set billing_tier to "free" (adding them to Auto mode).
+  # For premium-only models they are cosmetic. Set conservatively or match your account tier.
+  rpm: 200
+  tpm: 1000000
+  litellm_params:
+    max_tokens: 16384
+  system_instructions: ""
+  use_default_system_instructions: true
+  citations_enabled: true
 
 # =============================================================================
 # Image Generation Configuration
@@ -225,7 +301,7 @@ global_image_generation_configs:
     model_name: "dall-e-3"
     api_key: "sk-your-openai-api-key-here"
     api_base: ""
-    rpm: 50  # Requests per minute (image gen is rate-limited by RPM, not tokens)
+    rpm: 50 # Requests per minute (image gen is rate-limited by RPM, not tokens)
     litellm_params: {}
 
   # Example: OpenAI GPT Image 1
@@ -354,7 +430,7 @@ global_vision_llm_configs:
 #
 # IMAGE GENERATION NOTES:
 # - Image generation configs use the same ID scheme as LLM configs (negative for global)
-# - Supported models: dall-e-2, dall-e-3, gpt-image-1 (OpenAI), azure/* (Azure), 
+# - Supported models: dall-e-2, dall-e-3, gpt-image-1 (OpenAI), azure/* (Azure),
 #   bedrock/* (AWS), vertex_ai/* (Google), recraft/* (Recraft), openrouter/* (OpenRouter)
 # - The router uses litellm.aimage_generation() for async image generation
 # - Only RPM (requests per minute) is relevant for image generation rate limiting.
@@ -365,3 +441,13 @@ global_vision_llm_configs:
 # - Only use vision-capable models (GPT-4o, Gemini, Claude 3, etc.)
 # - Lower temperature (0.3) is recommended for accurate screenshot analysis
 # - Lower max_tokens (1000) is sufficient since autocomplete produces short suggestions
+#
+# TOKEN QUOTA & ANONYMOUS ACCESS NOTES:
+# - billing_tier: "free" or "premium". Controls whether registered users need premium token quota.
+# - anonymous_enabled: true/false. Whether the model appears in the public no-login catalog.
+# - seo_enabled: true/false. Whether a /free/<seo_slug> landing page is generated.
+# - seo_slug: Stable URL slug for SEO pages. Must be unique. Do NOT change once public.
+# - seo_title: Optional HTML title tag override for the model's /free/<slug> page.
+# - seo_description: Optional meta description override for the model's /free/<slug> page.
+# - quota_reserve_tokens: Tokens reserved before each LLM call for quota enforcement.
+#   Independent of litellm_params.max_tokens. Used by the token quota service.

@@ -16,6 +16,7 @@ from litellm import aspeech
 from app.config import config as app_config
 from app.services.kokoro_tts_service import get_kokoro_tts_service
 from app.services.llm_service import get_agent_llm
+from app.utils.content_utils import extract_text_content, strip_markdown_fences
 
 from .configuration import Configuration
 from .prompts import (
@@ -67,16 +68,14 @@ async def create_presentation_slides(
     ]
 
     llm_response = await llm.ainvoke(messages)
+    content = strip_markdown_fences(extract_text_content(llm_response.content))
 
     try:
-        presentation = PresentationSlides.model_validate(
-            json.loads(llm_response.content)
-        )
-    except (json.JSONDecodeError, ValueError) as e:
+        presentation = PresentationSlides.model_validate(json.loads(content))
+    except (json.JSONDecodeError, TypeError, ValueError) as e:
         print(f"Direct JSON parsing failed, trying fallback approach: {e!s}")
 
         try:
-            content = llm_response.content
             json_start = content.find("{")
             json_end = content.rfind("}") + 1
             if json_start >= 0 and json_end > json_start:
@@ -89,10 +88,10 @@ async def create_presentation_slides(
                 print(error_message)
                 raise ValueError(error_message)
 
-        except (json.JSONDecodeError, ValueError) as e2:
+        except (json.JSONDecodeError, TypeError, ValueError) as e2:
             error_message = f"Error parsing LLM response (fallback also failed): {e2!s}"
             print(f"Error parsing LLM response: {e2!s}")
-            print(f"Raw response: {llm_response.content}")
+            print(f"Raw response: {content}")
             raise
 
     return {"slides": presentation.slides}
@@ -308,12 +307,7 @@ async def _assign_themes_with_llm(
             ]
         )
 
-        text = response.content.strip()
-        if text.startswith("```"):
-            lines = text.split("\n")
-            text = "\n".join(
-                line for line in lines if not line.strip().startswith("```")
-            ).strip()
+        text = strip_markdown_fences(extract_text_content(response.content))
 
         assignments = json.loads(text)
         valid_themes = set(THEME_PRESETS)
@@ -424,7 +418,9 @@ async def generate_slide_scene_codes(
         )
 
         llm_response = await llm.ainvoke(messages)
-        code, scene_title = _extract_code_and_title(llm_response.content)
+        code, scene_title = _extract_code_and_title(
+            extract_text_content(llm_response.content)
+        )
 
         code = await _refine_if_needed(llm, code, slide.slide_number)
 
@@ -452,7 +448,7 @@ def _extract_code_and_title(content: str) -> tuple[str, str | None]:
 
     Returns (code, title) where title may be None.
     """
-    text = content.strip()
+    text = strip_markdown_fences(content)
 
     if text.startswith("{"):
         try:
@@ -472,18 +468,7 @@ def _extract_code_and_title(content: str) -> tuple[str, str | None]:
             except (json.JSONDecodeError, ValueError):
                 pass
 
-    code = text
-    if code.startswith("```"):
-        lines = code.split("\n")
-        start = 1
-        end = len(lines)
-        for i in range(len(lines) - 1, 0, -1):
-            if lines[i].strip().startswith("```"):
-                end = i
-                break
-        code = "\n".join(lines[start:end]).strip()
-
-    return code, None
+    return text, None
 
 
 async def _refine_if_needed(llm, code: str, slide_number: int) -> str:
@@ -512,7 +497,7 @@ async def _refine_if_needed(llm, code: str, slide_number: int) -> str:
         ]
 
         response = await llm.ainvoke(messages)
-        code, _ = _extract_code_and_title(response.content)
+        code, _ = _extract_code_and_title(extract_text_content(response.content))
 
         error = _basic_syntax_check(code)
         if error is None:

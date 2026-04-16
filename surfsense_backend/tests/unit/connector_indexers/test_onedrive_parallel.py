@@ -162,7 +162,7 @@ async def test_concurrency_bounded_by_semaphore(
     active = 0
     peak = 0
 
-    async def _slow_extract(client, file):
+    async def _slow_extract(client, file, **kwargs):
         nonlocal active, peak
         async with lock:
             active += 1
@@ -203,7 +203,7 @@ async def test_heartbeat_fires_during_parallel_downloads(
 
     monkeypatch.setattr(_mod, "HEARTBEAT_INTERVAL_SECONDS", 0)
 
-    async def _slow_extract(client, file):
+    async def _slow_extract(client, file, **kwargs):
         await asyncio.sleep(0.05)
         return _mock_extract_ok(file["id"], file["name"])
 

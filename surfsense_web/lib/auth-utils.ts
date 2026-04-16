@@ -18,6 +18,7 @@ const PUBLIC_ROUTE_PREFIXES = [
 	"/desktop/login",
 	"/docs",
 	"/public",
+	"/free",
 	"/invite",
 	"/contact",
 	"/pricing",

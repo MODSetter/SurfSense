@@ -431,7 +431,9 @@ async def test_llamacloud_heif_accepted_only_with_azure_di(tmp_path, mocker):
     mocker.patch("app.config.config.AZURE_DI_ENDPOINT", None, create=True)
     mocker.patch("app.config.config.AZURE_DI_KEY", None, create=True)
 
-    with pytest.raises(EtlUnsupportedFileError, match="not supported by LLAMACLOUD"):
+    with pytest.raises(
+        EtlUnsupportedFileError, match="document parser does not support this format"
+    ):
         await EtlPipelineService().extract(
             EtlRequest(file_path=str(heif_file), filename="photo.heif")
         )
@@ -549,8 +551,11 @@ def test_unsupported_extensions_classified_correctly(filename):
         ("doc.docx", "document"),
         ("slides.pptx", "document"),
         ("sheet.xlsx", "document"),
-        ("photo.png", "document"),
-        ("photo.jpg", "document"),
+        ("photo.png", "image"),
+        ("photo.jpg", "image"),
+        ("photo.webp", "image"),
+        ("photo.gif", "image"),
+        ("photo.heic", "image"),
         ("book.epub", "document"),
         ("letter.odt", "document"),
         ("readme.md", "plaintext"),
@@ -680,3 +685,243 @@ async def test_extract_eml_with_docling_raises_unsupported(tmp_path, mocker):
         await EtlPipelineService().extract(
             EtlRequest(file_path=str(eml_file), filename="mail.eml")
         )
+
+
+# ---------------------------------------------------------------------------
+# Image extraction via vision LLM
+# ---------------------------------------------------------------------------
+
+
+async def test_extract_image_with_vision_llm(tmp_path):
+    """An image file is analyzed by the vision LLM when provided."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    img_file = tmp_path / "photo.png"
+    img_file.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 50)
+
+    fake_response = MagicMock()
+    fake_response.content = "# A photo of a sunset over the ocean"
+    fake_llm = AsyncMock()
+    fake_llm.ainvoke.return_value = fake_response
+
+    service = EtlPipelineService(vision_llm=fake_llm)
+    result = await service.extract(
+        EtlRequest(file_path=str(img_file), filename="photo.png")
+    )
+
+    assert result.markdown_content == "# A photo of a sunset over the ocean"
+    assert result.etl_service == "VISION_LLM"
+    assert result.content_type == "image"
+    fake_llm.ainvoke.assert_called_once()
+
+
+async def test_extract_image_falls_back_to_document_without_vision_llm(
+    tmp_path, mocker
+):
+    """Without a vision LLM, image files fall back to the document parser."""
+    mocker.patch("app.config.config.ETL_SERVICE", "DOCLING")
+
+    fake_docling = mocker.AsyncMock()
+    fake_docling.process_document.return_value = {"content": "# OCR text from image"}
+    mocker.patch(
+        "app.services.docling_service.create_docling_service",
+        return_value=fake_docling,
+    )
+
+    img_file = tmp_path / "scan.png"
+    img_file.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 50)
+
+    service = EtlPipelineService()
+    result = await service.extract(
+        EtlRequest(file_path=str(img_file), filename="scan.png")
+    )
+
+    assert result.markdown_content == "# OCR text from image"
+    assert result.etl_service == "DOCLING"
+    assert result.content_type == "document"
+
+
+# ---------------------------------------------------------------------------
+# Processing Mode enum tests
+# ---------------------------------------------------------------------------
+
+
+def test_processing_mode_coerce_basic():
+    from app.etl_pipeline.etl_document import ProcessingMode
+
+    assert ProcessingMode.coerce("basic") == ProcessingMode.BASIC
+    assert ProcessingMode.coerce("BASIC") == ProcessingMode.BASIC
+    assert ProcessingMode.coerce(None) == ProcessingMode.BASIC
+    assert ProcessingMode.coerce("invalid") == ProcessingMode.BASIC
+
+
+def test_processing_mode_coerce_premium():
+    from app.etl_pipeline.etl_document import ProcessingMode
+
+    assert ProcessingMode.coerce("premium") == ProcessingMode.PREMIUM
+    assert ProcessingMode.coerce("PREMIUM") == ProcessingMode.PREMIUM
+
+
+def test_processing_mode_page_multiplier():
+    from app.etl_pipeline.etl_document import ProcessingMode
+
+    assert ProcessingMode.BASIC.page_multiplier == 1
+    assert ProcessingMode.PREMIUM.page_multiplier == 10
+
+
+def test_etl_request_default_processing_mode():
+    from app.etl_pipeline.etl_document import ProcessingMode
+
+    req = EtlRequest(file_path="/tmp/test.pdf", filename="test.pdf")
+    assert req.processing_mode == ProcessingMode.BASIC
+
+
+def test_etl_request_premium_processing_mode():
+    from app.etl_pipeline.etl_document import ProcessingMode
+
+    req = EtlRequest(
+        file_path="/tmp/test.pdf",
+        filename="test.pdf",
+        processing_mode=ProcessingMode.PREMIUM,
+    )
+    assert req.processing_mode == ProcessingMode.PREMIUM
+
+
+# ---------------------------------------------------------------------------
+# Azure DI model selection by processing mode
+# ---------------------------------------------------------------------------
+
+
+async def test_azure_di_basic_uses_prebuilt_read(tmp_path, mocker):
+    """Basic mode should use prebuilt-read model for Azure DI."""
+    pdf_file = tmp_path / "report.pdf"
+    pdf_file.write_bytes(b"%PDF-1.4 fake content " * 10)
+
+    mocker.patch("app.config.config.ETL_SERVICE", "LLAMACLOUD")
+    mocker.patch("app.config.config.LLAMA_CLOUD_API_KEY", "fake-key", create=True)
+    mocker.patch(
+        "app.config.config.AZURE_DI_ENDPOINT",
+        "https://fake.cognitiveservices.azure.com/",
+        create=True,
+    )
+    mocker.patch("app.config.config.AZURE_DI_KEY", "fake-key", create=True)
+
+    fake_client = _mock_azure_di(mocker, "# Azure basic")
+    _mock_llamacloud(mocker)
+
+    from app.etl_pipeline.etl_document import ProcessingMode
+
+    result = await EtlPipelineService().extract(
+        EtlRequest(
+            file_path=str(pdf_file),
+            filename="report.pdf",
+            processing_mode=ProcessingMode.BASIC,
+        )
+    )
+
+    assert result.markdown_content == "# Azure basic"
+    call_args = fake_client.begin_analyze_document.call_args
+    assert call_args[0][0] == "prebuilt-read"
+
+
+async def test_azure_di_premium_uses_prebuilt_layout(tmp_path, mocker):
+    """Premium mode should use prebuilt-layout model for Azure DI."""
+    pdf_file = tmp_path / "report.pdf"
+    pdf_file.write_bytes(b"%PDF-1.4 fake content " * 10)
+
+    mocker.patch("app.config.config.ETL_SERVICE", "LLAMACLOUD")
+    mocker.patch("app.config.config.LLAMA_CLOUD_API_KEY", "fake-key", create=True)
+    mocker.patch(
+        "app.config.config.AZURE_DI_ENDPOINT",
+        "https://fake.cognitiveservices.azure.com/",
+        create=True,
+    )
+    mocker.patch("app.config.config.AZURE_DI_KEY", "fake-key", create=True)
+
+    fake_client = _mock_azure_di(mocker, "# Azure premium")
+    _mock_llamacloud(mocker)
+
+    from app.etl_pipeline.etl_document import ProcessingMode
+
+    result = await EtlPipelineService().extract(
+        EtlRequest(
+            file_path=str(pdf_file),
+            filename="report.pdf",
+            processing_mode=ProcessingMode.PREMIUM,
+        )
+    )
+
+    assert result.markdown_content == "# Azure premium"
+    call_args = fake_client.begin_analyze_document.call_args
+    assert call_args[0][0] == "prebuilt-layout"
+
+
+# ---------------------------------------------------------------------------
+# LlamaCloud tier selection by processing mode
+# ---------------------------------------------------------------------------
+
+
+async def test_llamacloud_basic_uses_cost_effective_tier(tmp_path, mocker):
+    """Basic mode should use parse_page_with_llm parse_mode for LlamaCloud."""
+    pdf_file = tmp_path / "report.pdf"
+    pdf_file.write_bytes(b"%PDF-1.4 fake content " * 10)
+
+    mocker.patch("app.config.config.ETL_SERVICE", "LLAMACLOUD")
+    mocker.patch("app.config.config.LLAMA_CLOUD_API_KEY", "fake-key", create=True)
+    mocker.patch("app.config.config.AZURE_DI_ENDPOINT", None, create=True)
+    mocker.patch("app.config.config.AZURE_DI_KEY", None, create=True)
+
+    fake_parser = _mock_llamacloud(mocker, "# Llama basic")
+
+    llama_parse_cls = mocker.patch(
+        "llama_cloud_services.LlamaParse", return_value=fake_parser
+    )
+
+    from app.etl_pipeline.etl_document import ProcessingMode
+
+    result = await EtlPipelineService().extract(
+        EtlRequest(
+            file_path=str(pdf_file),
+            filename="report.pdf",
+            estimated_pages=5,
+            processing_mode=ProcessingMode.BASIC,
+        )
+    )
+
+    assert result.markdown_content == "# Llama basic"
+    call_kwargs = llama_parse_cls.call_args[1]
+    assert call_kwargs["parse_mode"] == "parse_page_with_llm"
+    assert "tier" not in call_kwargs
+
+
+async def test_llamacloud_premium_uses_agentic_plus_tier(tmp_path, mocker):
+    """Premium mode should use parse_page_with_agent parse_mode for LlamaCloud."""
+    pdf_file = tmp_path / "report.pdf"
+    pdf_file.write_bytes(b"%PDF-1.4 fake content " * 10)
+
+    mocker.patch("app.config.config.ETL_SERVICE", "LLAMACLOUD")
+    mocker.patch("app.config.config.LLAMA_CLOUD_API_KEY", "fake-key", create=True)
+    mocker.patch("app.config.config.AZURE_DI_ENDPOINT", None, create=True)
+    mocker.patch("app.config.config.AZURE_DI_KEY", None, create=True)
+
+    fake_parser = _mock_llamacloud(mocker, "# Llama premium")
+
+    llama_parse_cls = mocker.patch(
+        "llama_cloud_services.LlamaParse", return_value=fake_parser
+    )
+
+    from app.etl_pipeline.etl_document import ProcessingMode
+
+    result = await EtlPipelineService().extract(
+        EtlRequest(
+            file_path=str(pdf_file),
+            filename="report.pdf",
+            estimated_pages=5,
+            processing_mode=ProcessingMode.PREMIUM,
+        )
+    )
+
+    assert result.markdown_content == "# Llama premium"
+    call_kwargs = llama_parse_cls.call_args[1]
+    assert call_kwargs["parse_mode"] == "parse_page_with_agent"
+    assert "tier" not in call_kwargs

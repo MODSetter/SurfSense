@@ -164,6 +164,7 @@ async def _download_files_parallel(
     enable_summary: bool,
     max_concurrency: int = 3,
     on_heartbeat: HeartbeatCallbackType | None = None,
+    vision_llm=None,
 ) -> tuple[list[ConnectorDocument], int]:
     """Download and ETL files in parallel. Returns (docs, failed_count)."""
     results: list[ConnectorDocument] = []
@@ -176,7 +177,7 @@ async def _download_files_parallel(
         nonlocal last_heartbeat, completed_count
         async with sem:
             markdown, db_metadata, error = await download_and_extract_content(
-                dropbox_client, file
+                dropbox_client, file, vision_llm=vision_llm
             )
             if error or not markdown:
                 file_name = file.get("name", "Unknown")
@@ -224,6 +225,7 @@ async def _download_and_index(
     user_id: str,
     enable_summary: bool,
     on_heartbeat: HeartbeatCallbackType | None = None,
+    vision_llm=None,
 ) -> tuple[int, int]:
     """Parallel download then parallel indexing. Returns (batch_indexed, total_failed)."""
     connector_docs, download_failed = await _download_files_parallel(
@@ -234,6 +236,7 @@ async def _download_and_index(
         user_id=user_id,
         enable_summary=enable_summary,
         on_heartbeat=on_heartbeat,
+        vision_llm=vision_llm,
     )
 
     batch_indexed = 0
@@ -287,6 +290,7 @@ async def _index_with_delta_sync(
     max_files: int,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
     enable_summary: bool = True,
+    vision_llm=None,
 ) -> tuple[int, int, int, str]:
     """Delta sync using Dropbox cursor-based change tracking.
 
@@ -359,6 +363,7 @@ async def _index_with_delta_sync(
         user_id=user_id,
         enable_summary=enable_summary,
         on_heartbeat=on_heartbeat_callback,
+        vision_llm=vision_llm,
     )
 
     indexed = renamed_count + batch_indexed
@@ -384,6 +389,7 @@ async def _index_full_scan(
     incremental_sync: bool = True,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
     enable_summary: bool = True,
+    vision_llm=None,
 ) -> tuple[int, int, int]:
     """Full scan indexing of a folder.
 
@@ -469,6 +475,7 @@ async def _index_full_scan(
         user_id=user_id,
         enable_summary=enable_summary,
         on_heartbeat=on_heartbeat_callback,
+        vision_llm=vision_llm,
     )
 
     if batch_indexed > 0 and files_to_download and batch_estimated_pages > 0:
@@ -498,6 +505,7 @@ async def _index_selected_files(
     enable_summary: bool,
     incremental_sync: bool = True,
     on_heartbeat: HeartbeatCallbackType | None = None,
+    vision_llm=None,
 ) -> tuple[int, int, int, list[str]]:
     """Index user-selected files using the parallel pipeline."""
     page_limit_service = PageLimitService(session)
@@ -557,6 +565,7 @@ async def _index_selected_files(
         user_id=user_id,
         enable_summary=enable_summary,
         on_heartbeat=on_heartbeat,
+        vision_llm=vision_llm,
     )
 
     if batch_indexed > 0 and files_to_download and batch_estimated_pages > 0:
@@ -621,6 +630,13 @@ async def index_dropbox_files(
             return 0, 0, error_msg, 0
 
         connector_enable_summary = getattr(connector, "enable_summary", True)
+        connector_enable_vision_llm = getattr(connector, "enable_vision_llm", False)
+        vision_llm = None
+        if connector_enable_vision_llm:
+            from app.services.llm_service import get_vision_llm
+
+            vision_llm = await get_vision_llm(session, search_space_id)
+
         dropbox_client = DropboxClient(session, connector_id)
 
         indexing_options = items_dict.get("indexing_options", {})
@@ -650,6 +666,7 @@ async def index_dropbox_files(
                 user_id=user_id,
                 enable_summary=connector_enable_summary,
                 incremental_sync=incremental_sync,
+                vision_llm=vision_llm,
             )
             total_indexed += indexed
             total_skipped += skipped
@@ -684,6 +701,7 @@ async def index_dropbox_files(
                     log_entry,
                     max_files,
                     enable_summary=connector_enable_summary,
+                    vision_llm=vision_llm,
                 )
                 folder_cursors[folder_path] = new_cursor
                 total_unsupported += unsup
@@ -703,6 +721,7 @@ async def index_dropbox_files(
                     include_subfolders,
                     incremental_sync=incremental_sync,
                     enable_summary=connector_enable_summary,
+                    vision_llm=vision_llm,
                 )
                 total_unsupported += unsup
 

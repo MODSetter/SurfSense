@@ -12,6 +12,7 @@ from sqlalchemy import (
     ARRAY,
     JSON,
     TIMESTAMP,
+    BigInteger,
     Boolean,
     Column,
     Enum as SQLAlchemyEnum,
@@ -313,6 +314,12 @@ class IncentiveTaskType(StrEnum):
 
 
 class PagePurchaseStatus(StrEnum):
+    PENDING = "pending"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class PremiumTokenPurchaseStatus(StrEnum):
     PENDING = "pending"
     COMPLETED = "completed"
     FAILED = "failed"
@@ -647,6 +654,11 @@ class NewChatThread(BaseModel, TimestampMixin):
         cascade="all, delete-orphan",
         foreign_keys="[PublicChatSnapshot.thread_id]",
     )
+    token_usages = relationship(
+        "TokenUsage",
+        back_populates="thread",
+        cascade="all, delete-orphan",
+    )
 
 
 class NewChatMessage(BaseModel, TimestampMixin):
@@ -685,6 +697,63 @@ class NewChatMessage(BaseModel, TimestampMixin):
         back_populates="message",
         cascade="all, delete-orphan",
     )
+    token_usage = relationship(
+        "TokenUsage",
+        back_populates="message",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+
+
+class TokenUsage(BaseModel, TimestampMixin):
+    """
+    Tracks LLM token consumption per assistant turn.
+
+    One row per usage event. For chat, linked to a specific message via message_id.
+    The usage_type column enables future extension to track non-chat usage
+    (indexing, image generation, podcasts, etc.) without schema changes.
+    """
+
+    __tablename__ = "token_usage"
+
+    prompt_tokens = Column(Integer, nullable=False, default=0)
+    completion_tokens = Column(Integer, nullable=False, default=0)
+    total_tokens = Column(Integer, nullable=False, default=0)
+    model_breakdown = Column(JSONB, nullable=True)
+    call_details = Column(JSONB, nullable=True)
+
+    usage_type = Column(String(50), nullable=False, default="chat", index=True)
+
+    thread_id = Column(
+        Integer,
+        ForeignKey("new_chat_threads.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    message_id = Column(
+        Integer,
+        ForeignKey("new_chat_messages.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    search_space_id = Column(
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    # Relationships
+    thread = relationship("NewChatThread", back_populates="token_usages")
+    message = relationship("NewChatMessage", back_populates="token_usage")
+    search_space = relationship("SearchSpace")
+    user = relationship("User")
 
 
 class PublicChatSnapshot(BaseModel, TimestampMixin):
@@ -859,99 +928,6 @@ class ChatSessionState(BaseModel):
 
     thread = relationship("NewChatThread")
     ai_responding_to_user = relationship("User")
-
-
-class MemoryCategory(StrEnum):
-    """Categories for user memories."""
-
-    # Using lowercase keys to match PostgreSQL enum values
-    preference = "preference"  # User preferences (e.g., "prefers dark mode")
-    fact = "fact"  # Facts about the user (e.g., "is a Python developer")
-    instruction = (
-        "instruction"  # Standing instructions (e.g., "always respond in bullet points")
-    )
-    context = "context"  # Contextual information (e.g., "working on project X")
-
-
-class UserMemory(BaseModel, TimestampMixin):
-    """
-    Private memory: facts, preferences, context per user per search space.
-    Used only for private chats (not shared/team chats).
-    """
-
-    __tablename__ = "user_memories"
-
-    user_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("user.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    # Optional association with a search space (if memory is space-specific)
-    search_space_id = Column(
-        Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
-        nullable=True,
-        index=True,
-    )
-
-    # The actual memory content
-    memory_text = Column(Text, nullable=False)
-    # Category for organization and filtering
-    category = Column(
-        SQLAlchemyEnum(MemoryCategory),
-        nullable=False,
-        default=MemoryCategory.fact,
-    )
-    # Vector embedding for semantic search
-    embedding = Column(Vector(config.embedding_model_instance.dimension))
-
-    # Track when memory was last updated
-    updated_at = Column(
-        TIMESTAMP(timezone=True),
-        nullable=False,
-        default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
-        index=True,
-    )
-
-    # Relationships
-    user = relationship("User", back_populates="memories")
-    search_space = relationship("SearchSpace", back_populates="user_memories")
-
-
-class SharedMemory(BaseModel, TimestampMixin):
-    __tablename__ = "shared_memories"
-
-    search_space_id = Column(
-        Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    created_by_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("user.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    memory_text = Column(Text, nullable=False)
-    category = Column(
-        SQLAlchemyEnum(MemoryCategory),
-        nullable=False,
-        default=MemoryCategory.fact,
-    )
-    embedding = Column(Vector(config.embedding_model_instance.dimension))
-    updated_at = Column(
-        TIMESTAMP(timezone=True),
-        nullable=False,
-        default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
-        index=True,
-    )
-
-    search_space = relationship("SearchSpace", back_populates="shared_memories")
-    created_by = relationship("User")
 
 
 class Folder(BaseModel, TimestampMixin):
@@ -1394,6 +1370,8 @@ class SearchSpace(BaseModel, TimestampMixin):
         Text, nullable=True, default=""
     )  # User's custom instructions
 
+    shared_memory_md = Column(Text, nullable=True, server_default="")
+
     # Search space-level LLM preferences (shared by all members)
     # Note: ID values:
     #   - 0: Auto mode (uses LiteLLM Router for load balancing) - default for new search spaces
@@ -1411,6 +1389,10 @@ class SearchSpace(BaseModel, TimestampMixin):
     vision_llm_config_id = Column(
         Integer, nullable=True, default=0
     )  # For vision/screenshot analysis, defaults to Auto mode
+
+    ai_file_sort_enabled = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
 
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
@@ -1516,20 +1498,6 @@ class SearchSpace(BaseModel, TimestampMixin):
         cascade="all, delete-orphan",
     )
 
-    # User memories associated with this search space
-    user_memories = relationship(
-        "UserMemory",
-        back_populates="search_space",
-        order_by="UserMemory.updated_at.desc()",
-        cascade="all, delete-orphan",
-    )
-    shared_memories = relationship(
-        "SharedMemory",
-        back_populates="search_space",
-        order_by="SharedMemory.updated_at.desc()",
-        cascade="all, delete-orphan",
-    )
-
 
 class SearchSourceConnector(BaseModel, TimestampMixin):
     __tablename__ = "search_source_connectors"
@@ -1552,6 +1520,13 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
     # Summary generation (LLM-based) - disabled by default to save resources.
     # When enabled, improves hybrid search quality at the cost of LLM calls.
     enable_summary = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+
+    # Vision LLM for image files - disabled by default to save cost/time.
+    # When enabled, images are described via a vision language model instead
+    # of falling back to the document parser.
+    enable_vision_llm = Column(
         Boolean, nullable=False, default=False, server_default="false"
     )
 
@@ -1769,6 +1744,38 @@ class PagePurchase(Base, TimestampMixin):
     completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
 
     user = relationship("User", back_populates="page_purchases")
+
+
+class PremiumTokenPurchase(Base, TimestampMixin):
+    """Tracks Stripe checkout sessions used to grant additional premium token credits."""
+
+    __tablename__ = "premium_token_purchases"
+    __allow_unmapped__ = True
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    stripe_checkout_session_id = Column(
+        String(255), nullable=False, unique=True, index=True
+    )
+    stripe_payment_intent_id = Column(String(255), nullable=True, index=True)
+    quantity = Column(Integer, nullable=False)
+    tokens_granted = Column(BigInteger, nullable=False)
+    amount_total = Column(Integer, nullable=True)
+    currency = Column(String(10), nullable=True)
+    status = Column(
+        SQLAlchemyEnum(PremiumTokenPurchaseStatus),
+        nullable=False,
+        default=PremiumTokenPurchaseStatus.PENDING,
+        index=True,
+    )
+    completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+    user = relationship("User", back_populates="premium_token_purchases")
 
 
 class SearchSpaceRole(BaseModel, TimestampMixin):
@@ -2030,14 +2037,6 @@ if config.AUTH_TYPE == "GOOGLE":
             passive_deletes=True,
         )
 
-        # User memories for personalized AI responses
-        memories = relationship(
-            "UserMemory",
-            back_populates="user",
-            order_by="UserMemory.updated_at.desc()",
-            cascade="all, delete-orphan",
-        )
-
         # Incentive tasks completed by this user
         incentive_tasks = relationship(
             "UserIncentiveTask",
@@ -2046,6 +2045,11 @@ if config.AUTH_TYPE == "GOOGLE":
         )
         page_purchases = relationship(
             "PagePurchase",
+            back_populates="user",
+            cascade="all, delete-orphan",
+        )
+        premium_token_purchases = relationship(
+            "PremiumTokenPurchase",
             back_populates="user",
             cascade="all, delete-orphan",
         )
@@ -2059,11 +2063,26 @@ if config.AUTH_TYPE == "GOOGLE":
         )
         pages_used = Column(Integer, nullable=False, default=0, server_default="0")
 
+        premium_tokens_limit = Column(
+            BigInteger,
+            nullable=False,
+            default=config.PREMIUM_TOKEN_LIMIT,
+            server_default=str(config.PREMIUM_TOKEN_LIMIT),
+        )
+        premium_tokens_used = Column(
+            BigInteger, nullable=False, default=0, server_default="0"
+        )
+        premium_tokens_reserved = Column(
+            BigInteger, nullable=False, default=0, server_default="0"
+        )
+
         # User profile from OAuth
         display_name = Column(String, nullable=True)
         avatar_url = Column(String, nullable=True)
 
         last_login = Column(TIMESTAMP(timezone=True), nullable=True)
+
+        memory_md = Column(Text, nullable=True, server_default="")
 
         # Refresh tokens for this user
         refresh_tokens = relationship(
@@ -2150,14 +2169,6 @@ else:
             passive_deletes=True,
         )
 
-        # User memories for personalized AI responses
-        memories = relationship(
-            "UserMemory",
-            back_populates="user",
-            order_by="UserMemory.updated_at.desc()",
-            cascade="all, delete-orphan",
-        )
-
         # Incentive tasks completed by this user
         incentive_tasks = relationship(
             "UserIncentiveTask",
@@ -2166,6 +2177,11 @@ else:
         )
         page_purchases = relationship(
             "PagePurchase",
+            back_populates="user",
+            cascade="all, delete-orphan",
+        )
+        premium_token_purchases = relationship(
+            "PremiumTokenPurchase",
             back_populates="user",
             cascade="all, delete-orphan",
         )
@@ -2179,11 +2195,26 @@ else:
         )
         pages_used = Column(Integer, nullable=False, default=0, server_default="0")
 
+        premium_tokens_limit = Column(
+            BigInteger,
+            nullable=False,
+            default=config.PREMIUM_TOKEN_LIMIT,
+            server_default=str(config.PREMIUM_TOKEN_LIMIT),
+        )
+        premium_tokens_used = Column(
+            BigInteger, nullable=False, default=0, server_default="0"
+        )
+        premium_tokens_reserved = Column(
+            BigInteger, nullable=False, default=0, server_default="0"
+        )
+
         # User profile (can be set manually for non-OAuth users)
         display_name = Column(String, nullable=True)
         avatar_url = Column(String, nullable=True)
 
         last_login = Column(TIMESTAMP(timezone=True), nullable=True)
+
+        memory_md = Column(Text, nullable=True, server_default="")
 
         # Refresh tokens for this user
         refresh_tokens = relationship(

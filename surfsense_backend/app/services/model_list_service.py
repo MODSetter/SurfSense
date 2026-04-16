@@ -86,12 +86,34 @@ def _is_text_output_model(model: dict) -> bool:
     return output_mods == ["text"]
 
 
+def _supports_tool_calling(model: dict) -> bool:
+    """Return True if the model supports function/tool calling."""
+    supported = model.get("supported_parameters") or []
+    return "tools" in supported
+
+
+MIN_CONTEXT_LENGTH = 100_000
+
+
+def _has_sufficient_context(model: dict) -> bool:
+    """Return True if the model's context window is at least MIN_CONTEXT_LENGTH."""
+    ctx = model.get("context_length") or 0
+    return ctx >= MIN_CONTEXT_LENGTH
+
+
+def _is_allowed_model(model: dict) -> bool:
+    """Reuse the exclusion list from the OpenRouter integration service."""
+    from app.services.openrouter_integration_service import _is_allowed_model as _check
+
+    return _check(model)
+
+
 def _process_models(raw_models: list[dict]) -> list[dict]:
     """
     Transform raw OpenRouter model entries into a flat list of
     {value, label, provider, context_window} dicts.
 
-    Only text-output models are included (audio/image generators are skipped).
+    Only text-output models with tool-calling support are included.
 
     Each OpenRouter model is emitted once for OPENROUTER (full id) and,
     when the slug maps to a native provider, once more with just the
@@ -108,6 +130,15 @@ def _process_models(raw_models: list[dict]) -> list[dict]:
             continue
 
         if not _is_text_output_model(model):
+            continue
+
+        if not _supports_tool_calling(model):
+            continue
+
+        if not _has_sufficient_context(model):
+            continue
+
+        if not _is_allowed_model(model):
             continue
 
         provider_slug, model_name = model_id.split("/", 1)

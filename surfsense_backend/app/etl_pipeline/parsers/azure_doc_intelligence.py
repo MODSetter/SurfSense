@@ -10,7 +10,15 @@ BASE_DELAY = 10
 MAX_DELAY = 120
 
 
-async def parse_with_azure_doc_intelligence(file_path: str) -> str:
+AZURE_MODEL_BY_MODE = {
+    "basic": "prebuilt-read",
+    "premium": "prebuilt-layout",
+}
+
+
+async def parse_with_azure_doc_intelligence(
+    file_path: str, processing_mode: str = "basic"
+) -> str:
     from azure.ai.documentintelligence.aio import DocumentIntelligenceClient
     from azure.ai.documentintelligence.models import DocumentContentFormat
     from azure.core.credentials import AzureKeyCredential
@@ -21,8 +29,14 @@ async def parse_with_azure_doc_intelligence(file_path: str) -> str:
         ServiceResponseError,
     )
 
+    model_id = AZURE_MODEL_BY_MODE.get(processing_mode, "prebuilt-read")
     file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
     retryable_exceptions = (ServiceRequestError, ServiceResponseError)
+
+    logging.info(
+        f"Azure Document Intelligence using model={model_id} "
+        f"(mode={processing_mode}, file={file_size_mb:.1f}MB)"
+    )
 
     last_exception = None
     attempt_errors: list[str] = []
@@ -36,7 +50,7 @@ async def parse_with_azure_doc_intelligence(file_path: str) -> str:
             async with client:
                 with open(file_path, "rb") as f:
                     poller = await client.begin_analyze_document(
-                        "prebuilt-read",
+                        model_id,
                         body=f,
                         output_content_format=DocumentContentFormat.MARKDOWN,
                     )
@@ -48,10 +62,13 @@ async def parse_with_azure_doc_intelligence(file_path: str) -> str:
                     f"after {len(attempt_errors)} failures"
                 )
 
-            if not result.content:
-                return ""
+            content = result.content or ""
+            if not content.strip():
+                raise RuntimeError(
+                    "Azure Document Intelligence returned empty/whitespace-only content"
+                )
 
-            return result.content
+            return content
 
         except ClientAuthenticationError:
             raise

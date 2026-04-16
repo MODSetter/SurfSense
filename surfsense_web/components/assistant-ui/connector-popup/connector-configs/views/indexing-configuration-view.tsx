@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { DateRangeSelector } from "../../components/date-range-selector";
 import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
 import { SummaryConfig } from "../../components/summary-config";
+import { VisionLLMConfig } from "../../components/vision-llm-config";
 import type { IndexingConfigState } from "../../constants/connector-constants";
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
 import { getConnectorConfigComponent } from "../index";
@@ -22,6 +23,7 @@ interface IndexingConfigurationViewProps {
 	periodicEnabled: boolean;
 	frequencyMinutes: string;
 	enableSummary: boolean;
+	enableVisionLlm: boolean;
 	isStartingIndexing: boolean;
 	isFromOAuth?: boolean;
 	onStartDateChange: (date: Date | undefined) => void;
@@ -29,6 +31,7 @@ interface IndexingConfigurationViewProps {
 	onPeriodicEnabledChange: (enabled: boolean) => void;
 	onFrequencyChange: (frequency: string) => void;
 	onEnableSummaryChange: (enabled: boolean) => void;
+	onEnableVisionLlmChange: (enabled: boolean) => void;
 	onConfigChange?: (config: Record<string, unknown>) => void;
 	onStartIndexing: () => void;
 	onSkip: () => void;
@@ -42,6 +45,7 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 	periodicEnabled,
 	frequencyMinutes,
 	enableSummary,
+	enableVisionLlm,
 	isStartingIndexing,
 	isFromOAuth = false,
 	onStartDateChange,
@@ -49,6 +53,7 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 	onPeriodicEnabledChange,
 	onFrequencyChange,
 	onEnableSummaryChange,
+	onEnableVisionLlmChange,
 	onConfigChange,
 	onStartIndexing,
 	onSkip,
@@ -157,6 +162,17 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 							<>
 								{/* AI Summary toggle */}
 								<SummaryConfig enabled={enableSummary} onEnabledChange={onEnableSummaryChange} />
+
+								{/* Vision LLM toggle - only for file-based connectors */}
+								{(config.connectorType === "GOOGLE_DRIVE_CONNECTOR" ||
+									config.connectorType === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" ||
+									config.connectorType === "DROPBOX_CONNECTOR" ||
+									config.connectorType === "ONEDRIVE_CONNECTOR") && (
+									<VisionLLMConfig
+										enabled={enableVisionLlm}
+										onEnabledChange={onEnableVisionLlmChange}
+									/>
+								)}
 
 								{/* Date range selector - not shown for file-based connectors (Drive, Dropbox, OneDrive), Webcrawler, GitHub, or Local Folder */}
 								{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" &&

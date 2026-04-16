@@ -162,6 +162,16 @@ export const globalNewLLMConfig = z.object({
 
 	is_global: z.literal(true),
 	is_auto_mode: z.boolean().optional().default(false), // True only for Auto mode (ID 0)
+
+	// Token quota and billing policy
+	billing_tier: z.string().default("free"),
+	is_premium: z.boolean().default(false),
+	anonymous_enabled: z.boolean().default(false),
+	seo_enabled: z.boolean().default(false),
+	seo_slug: z.string().nullable().optional(),
+	seo_title: z.string().nullable().optional(),
+	seo_description: z.string().nullable().optional(),
+	quota_reserve_tokens: z.number().nullable().optional(),
 });
 
 export const getGlobalNewLLMConfigsResponse = z.array(globalNewLLMConfig);
