@@ -13,6 +13,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 env_file = BASE_DIR / ".env"
 load_dotenv(env_file)
 
+os.environ.setdefault("OR_APP_NAME", "SurfSense")
+os.environ.setdefault("OR_SITE_URL", "https://surfsense.com")
+
 
 def is_ffmpeg_installed():
     """
