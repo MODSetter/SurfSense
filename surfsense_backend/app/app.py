@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
-from slowapi.util import get_remote_address
+from slowapi.util import get_remote_address  # noqa: F401 — kept for reference
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request as StarletteRequest
@@ -35,7 +35,7 @@ from app.config import (
 )
 from app.db import User, create_db_and_tables, get_async_session
 from app.exceptions import GENERIC_5XX_MESSAGE, ISSUES_URL, SurfSenseError
-from app.rate_limiter import limiter
+from app.rate_limiter import get_real_client_ip, limiter
 from app.routes import router as crud_router
 from app.routes.auth_routes import router as auth_router
 from app.schemas import UserCreate, UserRead, UserUpdate
@@ -290,7 +290,7 @@ def _check_rate_limit(
     Uses atomic INCR + EXPIRE to avoid race conditions.
     Falls back to in-memory sliding window if Redis is unavailable.
     """
-    client_ip = get_remote_address(request)
+    client_ip = get_real_client_ip(request)
     key = f"surfsense:auth_rate_limit:{scope}:{client_ip}"
 
     try:
