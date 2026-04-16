@@ -156,7 +156,7 @@ export default async function FreeHubPage() {
 	const seoModels = models.filter((m) => m.seo_slug);
 
 	return (
-		<main className="min-h-screen pt-20">
+		<div className="min-h-screen pt-20">
 			<JsonLd
 				data={{
 					"@context": "https://schema.org",
@@ -382,6 +382,6 @@ export default async function FreeHubPage() {
 					</ul>
 				</nav>
 			</article>
-		</main>
+		</div>
 	);
 }
