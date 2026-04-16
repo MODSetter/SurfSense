@@ -466,7 +466,7 @@ _TOOL_INSTRUCTIONS["generate_resume"] = """
     - parent_report_id: Set this when the user wants to MODIFY an existing resume from
       this conversation. Use the report_id from a previous generate_resume result.
   - Returns: Dict with status, report_id, title, and content_type.
-  - After calling: Give a brief confirmation. Do NOT paste resume content in chat.
+  - After calling: Give a brief confirmation. Do NOT paste resume content in chat. Do NOT mention report_id or any internal IDs — the resume card is shown automatically.
   - VERSIONING: Same rules as generate_report — set parent_report_id for modifications
     of an existing resume, leave as None for new resumes.
 """

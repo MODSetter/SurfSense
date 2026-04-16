@@ -41,6 +41,7 @@ UI_TOOLS = {
     "generate_image",
     "generate_podcast",
     "generate_report",
+    "generate_resume",
     "generate_video_presentation",
 }
 
@@ -239,7 +240,7 @@ async def create_snapshot(
                             video_presentation_ids_seen.add(vp_id)
                             part["result"] = {**result_data, "status": "ready"}
 
-                elif tool_name == "generate_report":
+                elif tool_name in ("generate_report", "generate_resume"):
                     result_data = part.get("result", {})
                     report_id = result_data.get("report_id")
                     if report_id and report_id not in report_ids_seen:
@@ -247,7 +248,6 @@ async def create_snapshot(
                         if report_info:
                             reports_data.append(report_info)
                             report_ids_seen.add(report_id)
-                            # Update status to "ready" so frontend renders ReportCard
                             part["result"] = {**result_data, "status": "ready"}
 
         messages_data.append(
@@ -377,6 +377,7 @@ async def _get_report_for_snapshot(
         "original_id": report.id,
         "title": report.title,
         "content": report.content,
+        "content_type": report.content_type,
         "report_metadata": report.report_metadata,
         "report_group_id": report.report_group_id,
         "created_at": report.created_at.isoformat() if report.created_at else None,

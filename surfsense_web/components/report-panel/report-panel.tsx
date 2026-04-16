@@ -379,9 +379,9 @@ export function ReportPanelContent({
 						</div>
 					</div>
 				) : reportContent.content_type === "typst" ? (
-					<PdfViewer
-						pdfUrl={`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/reports/${activeReportId}/preview`}
-					/>
+				<PdfViewer
+					pdfUrl={`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}${shareToken ? `/api/v1/public/${shareToken}/reports/${activeReportId}/preview` : `/api/v1/reports/${activeReportId}/preview`}`}
+				/>
 				) : reportContent.content ? (
 					isReadOnly ? (
 						<div className="h-full overflow-y-auto px-5 py-4">

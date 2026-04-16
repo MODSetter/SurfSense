@@ -182,9 +182,10 @@ function ResumeCard({
 	const [thumbState, setThumbState] = useState<"loading" | "ready" | "error">("loading");
 
 	useEffect(() => {
-		setPdfUrl(
-			`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/reports/${reportId}/preview`
-		);
+		const previewPath = shareToken
+			? `/api/v1/public/${shareToken}/reports/${reportId}/preview`
+			: `/api/v1/reports/${reportId}/preview`;
+		setPdfUrl(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}${previewPath}`);
 
 		if (autoOpen && isDesktop && !autoOpenedRef.current) {
 			autoOpenedRef.current = true;
