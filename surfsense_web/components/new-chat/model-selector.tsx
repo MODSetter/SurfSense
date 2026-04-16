@@ -433,13 +433,31 @@ export function ModelSelector({
 					isGlobal && "is_auto_mode" in c && !!(c as Record<string, unknown>).is_auto_mode,
 			}));
 
+		const sortGlobalItems = (items: DisplayItem[]): DisplayItem[] =>
+			[...items].sort((a, b) => {
+				if (a.isAutoMode !== b.isAutoMode) return a.isAutoMode ? -1 : 1;
+				const aPremium = !!(a.config as Record<string, unknown>).is_premium;
+				const bPremium = !!(b.config as Record<string, unknown>).is_premium;
+				if (aPremium !== bPremium) return aPremium ? 1 : -1;
+				return 0;
+			});
+
 		switch (activeTab) {
 			case "llm":
-				return [...toItems(filteredLLMGlobal, true), ...toItems(filteredLLMUser, false)];
+				return [
+					...sortGlobalItems(toItems(filteredLLMGlobal, true)),
+					...toItems(filteredLLMUser, false),
+				];
 			case "image":
-				return [...toItems(filteredImageGlobal, true), ...toItems(filteredImageUser, false)];
+				return [
+					...sortGlobalItems(toItems(filteredImageGlobal, true)),
+					...toItems(filteredImageUser, false),
+				];
 			case "vision":
-				return [...toItems(filteredVisionGlobal, true), ...toItems(filteredVisionUser, false)];
+				return [
+					...sortGlobalItems(toItems(filteredVisionGlobal, true)),
+					...toItems(filteredVisionUser, false),
+				];
 		}
 	}, [
 		activeTab,
@@ -859,14 +877,23 @@ export function ModelSelector({
 								Recommended
 							</Badge>
 						)}
-						{"is_premium" in config && (config as Record<string, unknown>).is_premium && (
+						{"is_premium" in config && (config as Record<string, unknown>).is_premium ? (
 							<Badge
 								variant="secondary"
 								className="text-[9px] px-1 py-0 h-3.5 bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 border-0"
 							>
 								Premium
 							</Badge>
-						)}
+						) : "is_premium" in config &&
+							!(config as Record<string, unknown>).is_premium &&
+							!isAutoMode ? (
+							<Badge
+								variant="secondary"
+								className="text-[9px] px-1 py-0 h-3.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-0"
+							>
+								Free
+							</Badge>
+						) : null}
 					</div>
 					<div className="flex items-center gap-1.5 mt-0.5">
 						<span className="text-xs text-muted-foreground truncate">

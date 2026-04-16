@@ -35,7 +35,7 @@ from app.agents.new_chat.llm_config import (
     create_chat_litellm_from_agent_config,
     create_chat_litellm_from_config,
     load_agent_config,
-    load_llm_config_from_yaml,
+    load_global_llm_config_by_id,
 )
 from app.agents.new_chat.memory_extraction import (
     extract_and_save_memory,
@@ -1205,8 +1205,8 @@ async def stream_new_chat(
             # Create ChatLiteLLM from AgentConfig
             llm = create_chat_litellm_from_agent_config(agent_config)
         else:
-            # Negative ID: Load from YAML (global configs)
-            llm_config = load_llm_config_from_yaml(llm_config_id=llm_config_id)
+            # Negative ID: Load from in-memory global configs (includes dynamic OpenRouter models)
+            llm_config = load_global_llm_config_by_id(llm_config_id)
             if not llm_config:
                 yield streaming_service.format_error(
                     f"Failed to load LLM config with id {llm_config_id}"
@@ -1214,9 +1214,8 @@ async def stream_new_chat(
                 yield streaming_service.format_done()
                 return
 
-            # Create ChatLiteLLM from YAML config dict
+            # Create ChatLiteLLM from global config dict
             llm = create_chat_litellm_from_config(llm_config)
-            # Create AgentConfig from YAML for consistency (uses defaults for prompt settings)
             agent_config = AgentConfig.from_yaml_config(llm_config)
         _perf_log.info(
             "[stream_new_chat] LLM config loaded in %.3fs (config_id=%s)",
@@ -1224,8 +1223,14 @@ async def stream_new_chat(
             llm_config_id,
         )
 
-        # Premium quota reservation
-        if agent_config and agent_config.is_premium and user_id:
+        # Premium quota reservation — applies to explicitly premium configs
+        # AND Auto mode (which may route to premium models).
+        _needs_premium_quota = (
+            agent_config is not None
+            and user_id
+            and (agent_config.is_premium or agent_config.is_auto_mode)
+        )
+        if _needs_premium_quota:
             import uuid as _uuid
 
             from app.config import config as _app_config
@@ -1246,11 +1251,16 @@ async def stream_new_chat(
                 )
             _premium_reserved = reserve_amount
             if not quota_result.allowed:
-                yield streaming_service.format_error(
-                    "Premium token quota exceeded. Please purchase more tokens to continue using premium models."
-                )
-                yield streaming_service.format_done()
-                return
+                if agent_config.is_premium:
+                    yield streaming_service.format_error(
+                        "Premium token quota exceeded. Please purchase more tokens to continue using premium models."
+                    )
+                    yield streaming_service.format_done()
+                    return
+                # Auto mode: quota exhausted but we can still proceed
+                # (the router may pick a free model). Reset reservation.
+                _premium_request_id = None
+                _premium_reserved = 0
 
         if not llm:
             yield streaming_service.format_error("Failed to create LLM instance")
@@ -1658,17 +1668,27 @@ async def stream_new_chat(
                     chat_id, generated_title
                 )
 
-        # Finalize premium quota with actual tokens
+        # Finalize premium quota with actual tokens.
+        # For Auto mode, only count tokens from calls that used premium models.
         if _premium_request_id and user_id:
             try:
                 from app.services.token_quota_service import TokenQuotaService
+
+                if agent_config and agent_config.is_auto_mode:
+                    from app.services.llm_router_service import LLMRouterService
+
+                    actual_premium_tokens = LLMRouterService.compute_premium_tokens(
+                        accumulator.calls
+                    )
+                else:
+                    actual_premium_tokens = accumulator.grand_total
 
                 async with shielded_async_session() as quota_session:
                     await TokenQuotaService.premium_finalize(
                         db_session=quota_session,
                         user_id=UUID(user_id),
                         request_id=_premium_request_id,
-                        actual_tokens=accumulator.grand_total,
+                        actual_tokens=actual_premium_tokens,
                         reserved_tokens=_premium_reserved,
                     )
             except Exception:
@@ -1856,7 +1876,7 @@ async def stream_resume_chat(
                 return
             llm = create_chat_litellm_from_agent_config(agent_config)
         else:
-            llm_config = load_llm_config_from_yaml(llm_config_id=llm_config_id)
+            llm_config = load_global_llm_config_by_id(llm_config_id)
             if not llm_config:
                 yield streaming_service.format_error(
                     f"Failed to load LLM config with id {llm_config_id}"
@@ -1868,6 +1888,44 @@ async def stream_resume_chat(
         _perf_log.info(
             "[stream_resume] LLM config loaded in %.3fs", time.perf_counter() - _t0
         )
+
+        # Premium quota reservation (same logic as stream_new_chat)
+        _resume_premium_reserved = 0
+        _resume_premium_request_id: str | None = None
+        _resume_needs_premium = (
+            agent_config is not None
+            and user_id
+            and (agent_config.is_premium or agent_config.is_auto_mode)
+        )
+        if _resume_needs_premium:
+            import uuid as _uuid
+
+            from app.config import config as _app_config
+            from app.services.token_quota_service import TokenQuotaService
+
+            _resume_premium_request_id = _uuid.uuid4().hex[:16]
+            reserve_amount = min(
+                agent_config.quota_reserve_tokens
+                or _app_config.QUOTA_MAX_RESERVE_PER_CALL,
+                _app_config.QUOTA_MAX_RESERVE_PER_CALL,
+            )
+            async with shielded_async_session() as quota_session:
+                quota_result = await TokenQuotaService.premium_reserve(
+                    db_session=quota_session,
+                    user_id=UUID(user_id),
+                    request_id=_resume_premium_request_id,
+                    reserve_tokens=reserve_amount,
+                )
+            _resume_premium_reserved = reserve_amount
+            if not quota_result.allowed:
+                if agent_config.is_premium:
+                    yield streaming_service.format_error(
+                        "Premium token quota exceeded. Please purchase more tokens to continue using premium models."
+                    )
+                    yield streaming_service.format_done()
+                    return
+                _resume_premium_request_id = None
+                _resume_premium_reserved = 0
 
         if not llm:
             yield streaming_service.format_error("Failed to create LLM instance")
@@ -1982,6 +2040,35 @@ async def stream_resume_chat(
             yield streaming_service.format_done()
             return
 
+        # Finalize premium quota for resume path
+        if _resume_premium_request_id and user_id:
+            try:
+                from app.services.token_quota_service import TokenQuotaService
+
+                if agent_config and agent_config.is_auto_mode:
+                    from app.services.llm_router_service import LLMRouterService
+
+                    actual_premium_tokens = LLMRouterService.compute_premium_tokens(
+                        accumulator.calls
+                    )
+                else:
+                    actual_premium_tokens = accumulator.grand_total
+
+                async with shielded_async_session() as quota_session:
+                    await TokenQuotaService.premium_finalize(
+                        db_session=quota_session,
+                        user_id=UUID(user_id),
+                        request_id=_resume_premium_request_id,
+                        actual_tokens=actual_premium_tokens,
+                        reserved_tokens=_resume_premium_reserved,
+                    )
+            except Exception:
+                logging.getLogger(__name__).warning(
+                    "Failed to finalize premium quota for user %s (resume)",
+                    user_id,
+                    exc_info=True,
+                )
+
         usage_summary = accumulator.per_message_summary()
         _perf_log.info(
             "[token_usage] normal resume_chat: calls=%d total=%d summary=%s",
@@ -2018,6 +2105,23 @@ async def stream_resume_chat(
 
     finally:
         with anyio.CancelScope(shield=True):
+            # Release premium reservation if not finalized
+            if _resume_premium_request_id and _resume_premium_reserved > 0 and user_id:
+                try:
+                    from app.services.token_quota_service import TokenQuotaService
+
+                    async with shielded_async_session() as quota_session:
+                        await TokenQuotaService.premium_release(
+                            db_session=quota_session,
+                            user_id=UUID(user_id),
+                            reserved_tokens=_resume_premium_reserved,
+                        )
+                    _resume_premium_reserved = 0
+                except Exception:
+                    logging.getLogger(__name__).warning(
+                        "Failed to release premium quota for user %s (resume)", user_id
+                    )
+
             try:
                 await session.rollback()
                 await clear_ai_responding(session, chat_id)

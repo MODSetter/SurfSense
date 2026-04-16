@@ -107,12 +107,12 @@ const FAQ_ITEMS = [
 	{
 		question: "Can I use ChatGPT without login?",
 		answer:
-			"Yes. SurfSense lets you use ChatGPT without login or any sign-up. Just pick a model and start chatting. No email, no password, no account needed. You get 1 million free tokens to use across ChatGPT, Claude AI, Gemini, and other models.",
+			"Yes. SurfSense lets you use ChatGPT without login or any sign-up. Just pick a model and start chatting. No email, no password, no account needed. You get 500,000 free tokens to use across ChatGPT, Claude AI, Gemini, and other models.",
 	},
 	{
 		question: "Is ChatGPT really free on SurfSense?",
 		answer:
-			"Yes. SurfSense gives you free access to ChatGPT (GPT-4), Claude AI, Gemini, and other models without login. You get 1 million free tokens across any model with no sign-up required.",
+			"Yes. SurfSense gives you free access to ChatGPT (GPT-4), Claude AI, Gemini, and other models without login. You get 500,000 free tokens across any model with no sign-up required.",
 	},
 	{
 		question: "How do I use ChatGPT no login?",
@@ -125,9 +125,9 @@ const FAQ_ITEMS = [
 			"SurfSense offers free access without login to models from OpenAI (GPT-4, GPT-4 Turbo), Anthropic (Claude 3, Claude free), Google (Gemini), DeepSeek, Mistral, Llama, and more. All available as a free ChatGPT alternative online with no login required.",
 	},
 	{
-		question: "What happens after I use 1 million free tokens?",
+		question: "What happens after I use my free tokens?",
 		answer:
-			"After your free tokens, create a free SurfSense account to unlock 5 million more. Premium model tokens can be purchased at $1 per million tokens. Non-premium models remain unlimited for registered users.",
+			"After your free tokens, create a free SurfSense account to unlock 3 million more premium tokens. Additional tokens can be purchased at $1 per million. Non-premium models remain unlimited for registered users.",
 	},
 	{
 		question: "Is Claude AI available without login?",
@@ -203,7 +203,7 @@ export default async function FreeHubPage() {
 							No login required
 						</Badge>
 						<Badge variant="secondary" className="px-3 py-1.5 text-sm">
-							1M free tokens
+							500K free tokens
 						</Badge>
 						<Badge variant="secondary" className="px-3 py-1.5 text-sm">
 							{seoModels.length} AI models
@@ -329,7 +329,7 @@ export default async function FreeHubPage() {
 				<section className="max-w-3xl mx-auto text-center">
 					<h2 className="text-2xl font-bold mb-3">Want More Features?</h2>
 					<p className="text-muted-foreground mb-6 leading-relaxed">
-						Create a free SurfSense account to unlock 5 million tokens, document uploads with
+						Create a free SurfSense account to unlock 3 million tokens, document uploads with
 						citations, team collaboration, and integrations with Slack, Google Drive, Notion, and
 						30+ more tools.
 					</p>

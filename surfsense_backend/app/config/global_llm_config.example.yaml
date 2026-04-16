@@ -1,5 +1,5 @@
 # Global LLM Configuration
-# 
+#
 # SETUP INSTRUCTIONS:
 # 1. For production: Copy this file to global_llm_config.yaml and add your real API keys
 # 2. For testing: The system will use this example file automatically if global_llm_config.yaml doesn't exist
@@ -29,16 +29,16 @@ router_settings:
   # - "least-busy": Routes to least busy deployment
   # - "latency-based-routing": Routes based on response latency
   routing_strategy: "usage-based-routing"
-  
+
   # Number of retries before failing
   num_retries: 3
-  
+
   # Number of failures allowed before cooling down a deployment
   allowed_fails: 3
-  
+
   # Cooldown time in seconds after allowed_fails is exceeded
   cooldown_time: 60
-  
+
   # Fallback models (optional) - when primary fails, try these
   # Format: [{"primary_model": ["fallback1", "fallback2"]}]
   # fallbacks: []
@@ -58,13 +58,13 @@ global_llm_configs:
     api_key: "sk-your-openai-api-key-here"
     api_base: ""
     # Rate limits for load balancing (requests/tokens per minute)
-    rpm: 500  # Requests per minute
-    tpm: 100000  # Tokens per minute
+    rpm: 500 # Requests per minute
+    tpm: 100000 # Tokens per minute
     litellm_params:
       temperature: 0.7
       max_tokens: 4000
     # Prompt Configuration
-    system_instructions: ""  # Empty = use default SURFSENSE_SYSTEM_INSTRUCTIONS
+    system_instructions: "" # Empty = use default SURFSENSE_SYSTEM_INSTRUCTIONS
     use_default_system_instructions: true
     citations_enabled: true
 
@@ -103,14 +103,14 @@ global_llm_configs:
     model_name: "gpt-3.5-turbo"
     api_key: "sk-your-openai-api-key-here"
     api_base: ""
-    rpm: 3500  # GPT-3.5 has higher rate limits
+    rpm: 3500 # GPT-3.5 has higher rate limits
     tpm: 200000
     litellm_params:
       temperature: 0.5
       max_tokens: 2000
     system_instructions: ""
     use_default_system_instructions: true
-    citations_enabled: false  # Disabled for faster responses
+    citations_enabled: false # Disabled for faster responses
 
   # Example: Chinese LLM - DeepSeek with custom instructions
   - id: -4
@@ -134,9 +134,9 @@ global_llm_configs:
     system_instructions: |
       <system_instruction>
       You are SurfSense, a reasoning and acting AI agent designed to answer user questions using the user's personal knowledge base.
-      
+
       Today's date (UTC): {resolved_today}
-      
+
       IMPORTANT: Please respond in Chinese (简体中文) unless the user specifically requests another language.
       </system_instruction>
     use_default_system_instructions: false
@@ -158,7 +158,7 @@ global_llm_configs:
     model_name: "azure/gpt-4o-deployment"
     api_key: "your-azure-api-key-here"
     api_base: "https://your-resource.openai.azure.com"
-    api_version: "2024-02-15-preview"  # Azure API version
+    api_version: "2024-02-15-preview" # Azure API version
     rpm: 1000
     tpm: 150000
     litellm_params:
@@ -191,7 +191,7 @@ global_llm_configs:
     litellm_params:
       temperature: 0.7
       max_tokens: 4000
-      base_model: "gpt-4-turbo"  # Maps to gpt-4-turbo-preview
+      base_model: "gpt-4-turbo" # Maps to gpt-4-turbo-preview
     system_instructions: ""
     use_default_system_instructions: true
     citations_enabled: true
@@ -209,7 +209,7 @@ global_llm_configs:
     model_name: "llama3-70b-8192"
     api_key: "your-groq-api-key-here"
     api_base: ""
-    rpm: 30  # Groq has lower rate limits on free tier
+    rpm: 30 # Groq has lower rate limits on free tier
     tpm: 14400
     litellm_params:
       temperature: 0.7
@@ -234,11 +234,47 @@ global_llm_configs:
     rpm: 60
     tpm: 100000
     litellm_params:
-      temperature: 1.0  # MiniMax requires temperature in (0.0, 1.0], cannot be 0
+      temperature: 1.0 # MiniMax requires temperature in (0.0, 1.0], cannot be 0
       max_tokens: 4000
     system_instructions: ""
     use_default_system_instructions: true
     citations_enabled: true
+
+# =============================================================================
+# OpenRouter Integration
+# =============================================================================
+# When enabled, dynamically fetches ALL available models from the OpenRouter API
+# and injects them as global configs. This gives premium users access to any model
+# on OpenRouter (Claude, Gemini, Llama, Mistral, etc.) via their premium token quota.
+# Models are fetched at startup and refreshed periodically in the background.
+# All calls go through LiteLLM with the openrouter/ prefix.
+openrouter_integration:
+  enabled: false
+  api_key: "sk-or-your-openrouter-api-key"
+  # billing_tier: "premium" or "free". Controls whether users need premium tokens.
+  billing_tier: "premium"
+  # anonymous_enabled: set true to also show OpenRouter models to no-login users
+  anonymous_enabled: false
+  seo_enabled: false
+  # quota_reserve_tokens: tokens reserved per call for quota enforcement
+  quota_reserve_tokens: 4000
+  # id_offset: starting negative ID for dynamically generated configs.
+  # Must not overlap with your static global_llm_configs IDs above.
+  id_offset: -10000
+  # refresh_interval_hours: how often to re-fetch models from OpenRouter (0 = startup only)
+  refresh_interval_hours: 24
+  # rpm/tpm: Applied uniformly to all OpenRouter models for LiteLLM Router load balancing.
+  # OpenRouter doesn't expose per-model rate limits via API; actual throttling is handled
+  # upstream by OpenRouter itself (your account limits are at https://openrouter.ai/settings/limits).
+  # These values only matter if you set billing_tier to "free" (adding them to Auto mode).
+  # For premium-only models they are cosmetic. Set conservatively or match your account tier.
+  rpm: 200
+  tpm: 1000000
+  litellm_params:
+    max_tokens: 16384
+  system_instructions: ""
+  use_default_system_instructions: true
+  citations_enabled: true
 
 # =============================================================================
 # Image Generation Configuration
@@ -265,7 +301,7 @@ global_image_generation_configs:
     model_name: "dall-e-3"
     api_key: "sk-your-openai-api-key-here"
     api_base: ""
-    rpm: 50  # Requests per minute (image gen is rate-limited by RPM, not tokens)
+    rpm: 50 # Requests per minute (image gen is rate-limited by RPM, not tokens)
     litellm_params: {}
 
   # Example: OpenAI GPT Image 1
@@ -394,7 +430,7 @@ global_vision_llm_configs:
 #
 # IMAGE GENERATION NOTES:
 # - Image generation configs use the same ID scheme as LLM configs (negative for global)
-# - Supported models: dall-e-2, dall-e-3, gpt-image-1 (OpenAI), azure/* (Azure), 
+# - Supported models: dall-e-2, dall-e-3, gpt-image-1 (OpenAI), azure/* (Azure),
 #   bedrock/* (AWS), vertex_ai/* (Google), recraft/* (Recraft), openrouter/* (OpenRouter)
 # - The router uses litellm.aimage_generation() for async image generation
 # - Only RPM (requests per minute) is relevant for image generation rate limiting.

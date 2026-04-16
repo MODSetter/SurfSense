@@ -13,6 +13,7 @@ from litellm import aspeech
 from app.config import config as app_config
 from app.services.kokoro_tts_service import get_kokoro_tts_service
 from app.services.llm_service import get_agent_llm
+from app.utils.content_utils import extract_text_content, strip_markdown_fences
 
 from .configuration import Configuration
 from .prompts import get_podcast_generation_prompt
@@ -53,43 +54,32 @@ async def create_podcast_transcript(
     # Generate the podcast transcript
     llm_response = await llm.ainvoke(messages)
 
-    # First try the direct approach
+    # Reasoning models (e.g. Kimi K2.5) may return content as a list of
+    # blocks including 'reasoning' entries.  Normalise to a plain string.
+    content = strip_markdown_fences(extract_text_content(llm_response.content))
+
     try:
-        podcast_transcript = PodcastTranscripts.model_validate(
-            json.loads(llm_response.content)
-        )
-    except (json.JSONDecodeError, ValueError) as e:
+        podcast_transcript = PodcastTranscripts.model_validate(json.loads(content))
+    except (json.JSONDecodeError, TypeError, ValueError) as e:
         print(f"Direct JSON parsing failed, trying fallback approach: {e!s}")
 
-        # Fallback: Parse the JSON response manually
         try:
-            # Extract JSON content from the response
-            content = llm_response.content
-
-            # Find the JSON in the content (handle case where LLM might add additional text)
             json_start = content.find("{")
             json_end = content.rfind("}") + 1
             if json_start >= 0 and json_end > json_start:
                 json_str = content[json_start:json_end]
-
-                # Parse the JSON string
                 parsed_data = json.loads(json_str)
-
-                # Convert to Pydantic model
                 podcast_transcript = PodcastTranscripts.model_validate(parsed_data)
-
                 print("Successfully parsed podcast transcript using fallback approach")
             else:
-                # If JSON structure not found, raise a clear error
                 error_message = f"Could not find valid JSON in LLM response. Raw response: {content}"
                 print(error_message)
                 raise ValueError(error_message)
 
-        except (json.JSONDecodeError, ValueError) as e2:
-            # Log the error and re-raise it
+        except (json.JSONDecodeError, TypeError, ValueError) as e2:
             error_message = f"Error parsing LLM response (fallback also failed): {e2!s}"
             print(f"Error parsing LLM response: {e2!s}")
-            print(f"Raw response: {llm_response.content}")
+            print(f"Raw response: {content}")
             raise
 
     return {"podcast_transcript": podcast_transcript.podcast_transcripts}

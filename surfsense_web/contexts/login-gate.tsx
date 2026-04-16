@@ -44,7 +44,7 @@ export function LoginGateProvider({ children }: { children: ReactNode }) {
 					<DialogHeader>
 						<DialogTitle>Create a free account to {feature}</DialogTitle>
 						<DialogDescription>
-							Get 5 million tokens, save chat history, upload documents, use all AI tools, and
+							Get 3 million tokens, save chat history, upload documents, use all AI tools, and
 							connect 30+ integrations.
 						</DialogDescription>
 					</DialogHeader>

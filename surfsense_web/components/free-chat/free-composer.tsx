@@ -222,7 +222,10 @@ export const FreeComposer: FC = () => {
 
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<label htmlFor="free-web-search-toggle" className="flex items-center gap-1.5 cursor-pointer select-none rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors">
+							<label
+								htmlFor="free-web-search-toggle"
+								className="flex items-center gap-1.5 cursor-pointer select-none rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+							>
 								<Globe className="size-3.5" />
 								<span className="hidden sm:inline">Web</span>
 								<Switch

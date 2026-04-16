@@ -187,24 +187,82 @@ def load_image_gen_router_settings():
         return default_settings
 
 
+def load_openrouter_integration_settings() -> dict | None:
+    """
+    Load OpenRouter integration settings from the YAML config.
+
+    Returns:
+        dict with settings if present and enabled, None otherwise
+    """
+    global_config_file = BASE_DIR / "app" / "config" / "global_llm_config.yaml"
+
+    if not global_config_file.exists():
+        return None
+
+    try:
+        with open(global_config_file, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+            settings = data.get("openrouter_integration")
+            if settings and settings.get("enabled"):
+                return settings
+            return None
+    except Exception as e:
+        print(f"Warning: Failed to load OpenRouter integration settings: {e}")
+        return None
+
+
+def initialize_openrouter_integration():
+    """
+    If enabled, fetch all OpenRouter models and append them to
+    config.GLOBAL_LLM_CONFIGS as dynamic premium entries.
+    Should be called BEFORE initialize_llm_router() so the router
+    correctly excludes premium models from Auto mode.
+    """
+    settings = load_openrouter_integration_settings()
+    if not settings:
+        return
+
+    try:
+        from app.services.openrouter_integration_service import (
+            OpenRouterIntegrationService,
+        )
+
+        service = OpenRouterIntegrationService.get_instance()
+        new_configs = service.initialize(settings)
+
+        if new_configs:
+            config.GLOBAL_LLM_CONFIGS.extend(new_configs)
+            print(
+                f"Info: OpenRouter integration added {len(new_configs)} models "
+                f"(billing_tier={settings.get('billing_tier', 'premium')})"
+            )
+        else:
+            print("Info: OpenRouter integration enabled but no models fetched")
+    except Exception as e:
+        print(f"Warning: Failed to initialize OpenRouter integration: {e}")
+
+
 def initialize_llm_router():
     """
     Initialize the LLM Router service for Auto mode.
-    This should be called during application startup.
+    This should be called during application startup, AFTER
+    initialize_openrouter_integration() so dynamic models are included.
+    Uses config.GLOBAL_LLM_CONFIGS (in-memory) which includes both
+    static YAML configs and dynamic OpenRouter models.
     """
-    global_configs = load_global_llm_configs()
+    all_configs = config.GLOBAL_LLM_CONFIGS
     router_settings = load_router_settings()
 
-    if not global_configs:
+    if not all_configs:
         print("Info: No global LLM configs found, Auto mode will not be available")
         return
 
     try:
         from app.services.llm_router_service import LLMRouterService
 
-        LLMRouterService.initialize(global_configs, router_settings)
+        LLMRouterService.initialize(all_configs, router_settings)
         print(
-            f"Info: LLM Router initialized with {len(global_configs)} models "
+            f"Info: LLM Router initialized with {len(all_configs)} models "
             f"(strategy: {router_settings.get('routing_strategy', 'usage-based-routing')})"
         )
     except Exception as e:
@@ -326,7 +384,7 @@ class Config:
     )
 
     # Premium token quota settings
-    PREMIUM_TOKEN_LIMIT = int(os.getenv("PREMIUM_TOKEN_LIMIT", "5000000"))
+    PREMIUM_TOKEN_LIMIT = int(os.getenv("PREMIUM_TOKEN_LIMIT", "3000000"))
     STRIPE_PREMIUM_TOKEN_PRICE_ID = os.getenv("STRIPE_PREMIUM_TOKEN_PRICE_ID")
     STRIPE_TOKENS_PER_UNIT = int(os.getenv("STRIPE_TOKENS_PER_UNIT", "1000000"))
     STRIPE_TOKEN_BUYING_ENABLED = (
@@ -335,9 +393,9 @@ class Config:
 
     # Anonymous / no-login mode settings
     NOLOGIN_MODE_ENABLED = os.getenv("NOLOGIN_MODE_ENABLED", "FALSE").upper() == "TRUE"
-    ANON_TOKEN_LIMIT = int(os.getenv("ANON_TOKEN_LIMIT", "1000000"))
+    ANON_TOKEN_LIMIT = int(os.getenv("ANON_TOKEN_LIMIT", "500000"))
     ANON_TOKEN_WARNING_THRESHOLD = int(
-        os.getenv("ANON_TOKEN_WARNING_THRESHOLD", "800000")
+        os.getenv("ANON_TOKEN_WARNING_THRESHOLD", "400000")
     )
     ANON_TOKEN_QUOTA_TTL_DAYS = int(os.getenv("ANON_TOKEN_QUOTA_TTL_DAYS", "30"))
     ANON_MAX_UPLOAD_SIZE_MB = int(os.getenv("ANON_MAX_UPLOAD_SIZE_MB", "5"))
@@ -449,6 +507,9 @@ class Config:
 
     # Router settings for Vision LLM Auto mode
     VISION_LLM_ROUTER_SETTINGS = load_vision_llm_router_settings()
+
+    # OpenRouter Integration settings (optional)
+    OPENROUTER_INTEGRATION_SETTINGS = load_openrouter_integration_settings()
 
     # Chonkie Configuration | Edit this to your needs
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")

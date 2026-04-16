@@ -22,6 +22,20 @@ if TYPE_CHECKING:
     from app.db import ChatVisibility
 
 
+import re
+
+_FENCE_RE = re.compile(
+    r"^```(?:\w+)?\s*\n(.*?)```\s*$",
+    re.DOTALL,
+)
+
+
+def strip_markdown_fences(text: str) -> str:
+    """Remove a single markdown code fence (```json ... ```) wrapper if present."""
+    m = _FENCE_RE.match(text.strip())
+    return m.group(1).strip() if m else text
+
+
 def extract_text_content(content: str | dict | list) -> str:
     """Extract plain text content from various message formats."""
     if isinstance(content, str):

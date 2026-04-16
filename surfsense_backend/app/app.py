@@ -30,6 +30,7 @@ from app.config import (
     config,
     initialize_image_gen_router,
     initialize_llm_router,
+    initialize_openrouter_integration,
     initialize_vision_llm_router,
 )
 from app.db import User, create_db_and_tables, get_async_session
@@ -368,6 +369,26 @@ def _enable_slow_callback_logging(threshold_sec: float = 0.5) -> None:
     )
 
 
+def _start_openrouter_background_refresh() -> None:
+    """Start periodic OpenRouter model refresh if integration is enabled."""
+    from app.services.openrouter_integration_service import OpenRouterIntegrationService
+
+    if not OpenRouterIntegrationService.is_initialized():
+        return
+    settings = config.OPENROUTER_INTEGRATION_SETTINGS
+    if settings:
+        interval = settings.get("refresh_interval_hours", 24)
+        OpenRouterIntegrationService.get_instance().start_background_refresh(interval)
+
+
+def _stop_openrouter_background_refresh() -> None:
+    """Cancel the periodic OpenRouter refresh task on shutdown."""
+    from app.services.openrouter_integration_service import OpenRouterIntegrationService
+
+    if OpenRouterIntegrationService.is_initialized():
+        OpenRouterIntegrationService.get_instance().stop_background_refresh()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Tune GC: lower gen-2 threshold so long-lived garbage is collected
@@ -378,6 +399,8 @@ async def lifespan(app: FastAPI):
     _enable_slow_callback_logging(threshold_sec=0.5)
     await create_db_and_tables()
     await setup_checkpointer_tables()
+    initialize_openrouter_integration()
+    _start_openrouter_background_refresh()
     initialize_llm_router()
     initialize_image_gen_router()
     initialize_vision_llm_router()
@@ -393,6 +416,7 @@ async def lifespan(app: FastAPI):
 
     yield
 
+    _stop_openrouter_background_refresh()
     await close_checkpointer()
 
 

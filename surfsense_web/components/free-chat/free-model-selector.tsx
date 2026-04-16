@@ -40,16 +40,21 @@ export function FreeModelSelector({ className }: { className?: string }) {
 		[models, currentSlug]
 	);
 
+	const sortedModels = useMemo(
+		() => [...models].sort((a, b) => Number(a.is_premium) - Number(b.is_premium)),
+		[models]
+	);
+
 	const filteredModels = useMemo(() => {
-		if (!searchQuery.trim()) return models;
+		if (!searchQuery.trim()) return sortedModels;
 		const q = searchQuery.toLowerCase();
-		return models.filter(
+		return sortedModels.filter(
 			(m) =>
 				m.name.toLowerCase().includes(q) ||
 				m.model_name.toLowerCase().includes(q) ||
 				m.provider.toLowerCase().includes(q)
 		);
-	}, [models, searchQuery]);
+	}, [sortedModels, searchQuery]);
 
 	const handleSelect = useCallback(
 		(model: AnonModel) => {
@@ -170,12 +175,19 @@ export function FreeModelSelector({ className }: { className?: string }) {
 									<div className="flex-1 min-w-0">
 										<div className="flex items-center gap-1.5">
 											<span className="font-medium text-sm truncate">{model.name}</span>
-											{model.is_premium && (
+											{model.is_premium ? (
 												<Badge
 													variant="secondary"
 													className="text-[9px] px-1 py-0 h-3.5 bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 border-0"
 												>
 													Premium
+												</Badge>
+											) : (
+												<Badge
+													variant="secondary"
+													className="text-[9px] px-1 py-0 h-3.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-0"
+												>
+													Free
 												</Badge>
 											)}
 										</div>

@@ -57,7 +57,7 @@ function buildModelFaq(model: AnonModel) {
 		},
 		{
 			question: `Is ${model.name} really free on SurfSense?`,
-			answer: `Yes! You can use ${model.name} completely free without login or sign-up. SurfSense gives you 1 million free tokens to use across any model, including ${model.name}.`,
+			answer: `Yes! You can use ${model.name} completely free without login or sign-up. SurfSense gives you 500,000 free tokens to use across any model, including ${model.name}.`,
 		},
 		{
 			question: `How do I use ${model.name} with no login?`,

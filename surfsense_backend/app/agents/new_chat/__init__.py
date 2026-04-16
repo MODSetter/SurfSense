@@ -22,7 +22,11 @@ from .chat_deepagent import create_surfsense_deep_agent
 from .context import SurfSenseContextSchema
 
 # LLM config
-from .llm_config import create_chat_litellm_from_config, load_llm_config_from_yaml
+from .llm_config import (
+    create_chat_litellm_from_config,
+    load_global_llm_config_by_id,
+    load_llm_config_from_yaml,
+)
 
 # Middleware
 from .middleware import (
@@ -81,6 +85,7 @@ __all__ = [
     "get_all_tool_names",
     "get_default_enabled_tools",
     "get_tool_by_name",
+    "load_global_llm_config_by_id",
     "load_llm_config_from_yaml",
     "search_knowledge_base_async",
 ]

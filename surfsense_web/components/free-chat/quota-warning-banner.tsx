@@ -40,7 +40,7 @@ export function QuotaWarningBanner({
 						</p>
 						<p className="text-xs text-red-600 dark:text-red-300">
 							You&apos;ve used all {limit.toLocaleString()} free tokens. Create a free account to
-							get 5 million tokens and access to all models.
+							get 3 million tokens and access to all models.
 						</p>
 						<Link
 							href="/register"

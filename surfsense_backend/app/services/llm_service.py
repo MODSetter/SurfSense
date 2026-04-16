@@ -6,6 +6,7 @@ from langchain_litellm import ChatLiteLLM
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from app.agents.new_chat.llm_config import SanitizedChatLiteLLM
 from app.config import config
 from app.db import NewLLMConfig, SearchSpace
 from app.services.llm_router_service import (
@@ -150,7 +151,7 @@ async def validate_llm_config(
         if litellm_params:
             litellm_kwargs.update(litellm_params)
 
-        llm = ChatLiteLLM(**litellm_kwargs)
+        llm = SanitizedChatLiteLLM(**litellm_kwargs)
 
         # Make a simple test call
         test_message = HumanMessage(content="Hello")
@@ -302,7 +303,7 @@ async def get_search_space_llm_instance(
             if disable_streaming:
                 litellm_kwargs["disable_streaming"] = True
 
-            return ChatLiteLLM(**litellm_kwargs)
+            return SanitizedChatLiteLLM(**litellm_kwargs)
 
         # Get the LLM configuration from database (NewLLMConfig)
         result = await session.execute(
@@ -379,7 +380,7 @@ async def get_search_space_llm_instance(
         if disable_streaming:
             litellm_kwargs["disable_streaming"] = True
 
-        return ChatLiteLLM(**litellm_kwargs)
+        return SanitizedChatLiteLLM(**litellm_kwargs)
 
     except Exception as e:
         logger.error(
@@ -480,7 +481,7 @@ async def get_vision_llm(
             if global_cfg.get("litellm_params"):
                 litellm_kwargs.update(global_cfg["litellm_params"])
 
-            return ChatLiteLLM(**litellm_kwargs)
+            return SanitizedChatLiteLLM(**litellm_kwargs)
 
         result = await session.execute(
             select(VisionLLMConfig).where(
@@ -513,7 +514,7 @@ async def get_vision_llm(
         if vision_cfg.litellm_params:
             litellm_kwargs.update(vision_cfg.litellm_params)
 
-        return ChatLiteLLM(**litellm_kwargs)
+        return SanitizedChatLiteLLM(**litellm_kwargs)
 
     except Exception as e:
         logger.error(

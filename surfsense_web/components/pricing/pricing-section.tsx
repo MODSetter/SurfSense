@@ -12,10 +12,11 @@ const demoPlans = [
 		price: "0",
 		yearlyPrice: "0",
 		period: "",
-		billingText: "500 pages included",
+		billingText: "500 pages + 3M premium tokens included",
 		features: [
 			"Self Hostable",
 			"500 pages included to start",
+			"3 million premium tokens to start",
 			"Earn up to 3,000+ bonus pages for free",
 			"Includes access to OpenAI text, audio and image models",
 			"Realtime Collaborative Group Chats with teammates",
@@ -30,11 +31,13 @@ const demoPlans = [
 		name: "PAY AS YOU GO",
 		price: "1",
 		yearlyPrice: "1",
-		period: "1,000 pages",
+		period: "pack",
 		billingText: "No subscription, buy only when you need more",
 		features: [
 			"Everything in Free",
 			"Buy 1,000-page packs at $1 each",
+			"Buy 1M premium token packs at $1 each",
+			"Use premium AI models like GPT-5.4, Claude Sonnet 4.6, Gemini 2.5 Pro & 100+ more via OpenRouter",
 			"Priority support on Discord",
 		],
 		description: "",
@@ -77,7 +80,7 @@ interface FAQSection {
 
 const faqData: FAQSection[] = [
 	{
-		title: "Pages & Billing",
+		title: "Pages & Document Billing",
 		items: [
 			{
 				question: 'What exactly is a "page" in SurfSense?',
@@ -127,12 +130,37 @@ const faqData: FAQSection[] = [
 		],
 	},
 	{
+		title: "Premium Tokens",
+		items: [
+			{
+				question: 'What are "premium tokens"?',
+				answer:
+					"Premium tokens are the billing unit for using premium AI models like GPT-5.4, Claude Sonnet 4.6, and Gemini 2.5 Pro in SurfSense. Each AI request consumes tokens based on the length of your conversation. Non-premium models (such as free-tier models available without login) do not consume premium tokens.",
+			},
+			{
+				question: "How many premium tokens do I get for free?",
+				answer:
+					"Every registered SurfSense account starts with 3 million premium tokens at no cost. Anonymous users (no login) get 500,000 free tokens across all models. Once your free tokens are used up, you can purchase more at any time.",
+			},
+			{
+				question: "How does purchasing premium tokens work?",
+				answer:
+					"Just like pages, there's no subscription. You buy 1-million-token packs at $1 each whenever you need more. Purchased tokens are added to your account immediately. You can buy up to 100 packs at a time.",
+			},
+			{
+				question: "What happens if I run out of premium tokens?",
+				answer:
+					"When your premium token balance runs low (below 20%), you'll see a warning. Once you run out, premium model requests are paused until you purchase more tokens. You can always switch to non-premium models which don't consume premium tokens.",
+			},
+		],
+	},
+	{
 		title: "Self-Hosting",
 		items: [
 			{
-				question: "Can I self-host SurfSense with unlimited pages?",
+				question: "Can I self-host SurfSense with unlimited pages and tokens?",
 				answer:
-					"Yes! When self-hosting, you have full control over your page limits. The default self-hosted setup gives you effectively unlimited pages, so you can index as much data as your infrastructure supports.",
+					"Yes! When self-hosting, you have full control over your page and token limits. The default self-hosted setup gives you effectively unlimited pages and tokens, so you can index as much data and use as many AI queries as your infrastructure supports.",
 			},
 		],
 	},
@@ -223,8 +251,8 @@ function PricingFAQ() {
 					Frequently Asked Questions
 				</h2>
 				<p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-					Everything you need to know about SurfSense pages and billing. Can&apos;t find what you
-					need? Reach out at{" "}
+					Everything you need to know about SurfSense pages, premium tokens, and billing. Can&apos;t
+					find what you need? Reach out at{" "}
 					<a href="mailto:rohan@surfsense.com" className="text-blue-500 underline">
 						rohan@surfsense.com
 					</a>
@@ -308,7 +336,7 @@ function PricingBasic() {
 			<Pricing
 				plans={demoPlans}
 				title="SurfSense Pricing"
-				description="Start free with 500 pages and pay as you go."
+				description="Start free with 500 pages & 3M premium tokens. Pay as you go."
 			/>
 			<PricingFAQ />
 		</>

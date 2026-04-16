@@ -13,7 +13,7 @@ const changelogSource = loader({
 	source: changelog.toFumadocsSource(),
 });
 
-const BASE_URL = "https://surfsense.com";
+const BASE_URL = "https://www.surfsense.com";
 const BACKEND_URL = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
 
 async function getFreeModelSlugs(): Promise<string[]> {
