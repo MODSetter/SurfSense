@@ -237,6 +237,7 @@ export default function RegisterPage() {
 								type="email"
 								autoComplete="email"
 								required
+								maxLength={254}
 								placeholder="you@example.com"
 								value={email}
 								onChange={(e) => setEmail(e.target.value)}
