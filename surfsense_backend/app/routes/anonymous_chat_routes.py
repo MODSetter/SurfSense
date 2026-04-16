@@ -26,6 +26,16 @@ router = APIRouter(prefix="/api/v1/public/anon-chat", tags=["anonymous-chat"])
 ANON_COOKIE_NAME = "surfsense_anon_session"
 ANON_COOKIE_MAX_AGE = config.ANON_TOKEN_QUOTA_TTL_DAYS * 86400
 
+# Cross-site cookie settings: when the backend runs on a different domain
+# than the frontend (e.g. api.x.com vs www.y.com), browsers reject
+# SameSite=Lax cookies on fetch() calls.  Use SameSite=None + Secure
+# in production (HTTPS) so the cookie is sent cross-site.
+_IS_SECURE_CONTEXT = bool(
+    config.BACKEND_URL and config.BACKEND_URL.startswith("https://")
+)
+_COOKIE_SAMESITE: str = "none" if _IS_SECURE_CONTEXT else "lax"
+_COOKIE_SECURE: bool = _IS_SECURE_CONTEXT
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -43,8 +53,8 @@ def _get_or_create_session_id(request: Request, response: Response) -> str:
         value=session_id,
         max_age=ANON_COOKIE_MAX_AGE,
         httponly=True,
-        samesite="lax",
-        secure=request.url.scheme == "https",
+        samesite=_COOKIE_SAMESITE,
+        secure=_COOKIE_SECURE,
         path="/",
     )
     return session_id
