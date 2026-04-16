@@ -1,15 +1,14 @@
 "use client";
 
-import { ChevronLeftIcon, ChevronRightIcon, ZoomInIcon, ZoomOutIcon } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
-import { Document, Page, pdfjs } from "react-pdf";
-import "react-pdf/dist/Page/AnnotationLayer.css";
-import "react-pdf/dist/Page/TextLayer.css";
+import { ZoomInIcon, ZoomOutIcon } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import * as pdfjsLib from "pdfjs-dist";
+import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { getAuthHeaders } from "@/lib/auth-utils";
 
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 	"pdfjs-dist/build/pdf.worker.min.mjs",
 	import.meta.url
 ).toString();
@@ -21,39 +20,164 @@ interface PdfViewerProps {
 const ZOOM_STEP = 0.15;
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 3;
+const PAGE_GAP = 12;
 
 export function PdfViewer({ pdfUrl }: PdfViewerProps) {
-	const [numPages, setNumPages] = useState<number>(0);
-	const [pageNumber, setPageNumber] = useState(1);
+	const [numPages, setNumPages] = useState(0);
 	const [scale, setScale] = useState(1);
+	const [loading, setLoading] = useState(true);
 	const [loadError, setLoadError] = useState<string | null>(null);
-	const containerRef = useRef<HTMLDivElement>(null);
-	const documentOptionsRef = useRef({ httpHeaders: getAuthHeaders() });
+	const [currentPage, setCurrentPage] = useState(1);
 
-	const onDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
-		setNumPages(numPages);
-		setPageNumber(1);
-		setLoadError(null);
+	const scrollContainerRef = useRef<HTMLDivElement>(null);
+	const pagesContainerRef = useRef<HTMLDivElement>(null);
+	const pdfDocRef = useRef<PDFDocumentProxy | null>(null);
+	const canvasRefs = useRef<Map<number, HTMLCanvasElement>>(new Map());
+	const renderTasksRef = useRef<Map<number, RenderTask>>(new Map());
+	const renderedScalesRef = useRef<Map<number, number>>(new Map());
+
+	const renderPage = useCallback(async (pageNum: number, currentScale: number) => {
+		const pdf = pdfDocRef.current;
+		const canvas = canvasRefs.current.get(pageNum);
+		if (!pdf || !canvas) return;
+
+		if (renderedScalesRef.current.get(pageNum) === currentScale) return;
+
+		const existing = renderTasksRef.current.get(pageNum);
+		if (existing) {
+			existing.cancel();
+			renderTasksRef.current.delete(pageNum);
+		}
+
+		try {
+			const page = await pdf.getPage(pageNum);
+			const viewport = page.getViewport({ scale: currentScale });
+			const dpr = window.devicePixelRatio || 1;
+
+			canvas.width = Math.floor(viewport.width * dpr);
+			canvas.height = Math.floor(viewport.height * dpr);
+			canvas.style.width = `${Math.floor(viewport.width)}px`;
+			canvas.style.height = `${Math.floor(viewport.height)}px`;
+
+			const renderTask = page.render({
+				canvas,
+				viewport,
+				transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined,
+			});
+
+			renderTasksRef.current.set(pageNum, renderTask);
+
+			await renderTask.promise;
+			renderTasksRef.current.delete(pageNum);
+			renderedScalesRef.current.set(pageNum, currentScale);
+		} catch (err: unknown) {
+			if (err instanceof Error && err.message?.includes("cancelled")) return;
+			console.error(`Failed to render page ${pageNum}:`, err);
+		}
 	}, []);
 
-	const onDocumentLoadError = useCallback((error: Error) => {
-		setLoadError(error.message || "Failed to load PDF");
-	}, []);
+	useEffect(() => {
+		let cancelled = false;
 
-	const goToPrevPage = useCallback(() => {
-		setPageNumber((prev) => Math.max(1, prev - 1));
-	}, []);
+		const loadDocument = async () => {
+			setLoading(true);
+			setLoadError(null);
+			setNumPages(0);
+			setCurrentPage(1);
 
-	const goToNextPage = useCallback(() => {
-		setPageNumber((prev) => Math.min(numPages, prev + 1));
+			try {
+				const loadingTask = pdfjsLib.getDocument({
+					url: pdfUrl,
+					httpHeaders: getAuthHeaders(),
+				});
+
+				const pdf = await loadingTask.promise;
+				if (cancelled) {
+					pdf.destroy();
+					return;
+				}
+
+				pdfDocRef.current = pdf;
+				setNumPages(pdf.numPages);
+				setLoading(false);
+			} catch (err: unknown) {
+				if (cancelled) return;
+				const message = err instanceof Error ? err.message : "Failed to load PDF";
+				setLoadError(message);
+				setLoading(false);
+			}
+		};
+
+		loadDocument();
+
+		return () => {
+			cancelled = true;
+			for (const task of renderTasksRef.current.values()) {
+				task.cancel();
+			}
+			renderTasksRef.current.clear();
+			renderedScalesRef.current.clear();
+			pdfDocRef.current?.destroy();
+			pdfDocRef.current = null;
+		};
+	}, [pdfUrl]);
+
+	useEffect(() => {
+		if (!pdfDocRef.current || numPages === 0) return;
+
+		renderedScalesRef.current.clear();
+
+		for (let i = 1; i <= numPages; i++) {
+			renderPage(i, scale);
+		}
+	}, [scale, numPages, renderPage]);
+
+	useEffect(() => {
+		const container = scrollContainerRef.current;
+		if (!container || numPages <= 1) return;
+
+		const handleScroll = () => {
+			const canvases = canvasRefs.current;
+			const containerTop = container.scrollTop;
+			const containerMid = containerTop + container.clientHeight / 2;
+
+			let closest = 1;
+			let closestDist = Number.POSITIVE_INFINITY;
+
+			for (let i = 1; i <= numPages; i++) {
+				const canvas = canvases.get(i);
+				if (!canvas) continue;
+				const rect = canvas.getBoundingClientRect();
+				const containerRect = container.getBoundingClientRect();
+				const canvasMid = rect.top - containerRect.top + containerTop + rect.height / 2;
+				const dist = Math.abs(canvasMid - containerMid);
+				if (dist < closestDist) {
+					closestDist = dist;
+					closest = i;
+				}
+			}
+
+			setCurrentPage(closest);
+		};
+
+		container.addEventListener("scroll", handleScroll, { passive: true });
+		return () => container.removeEventListener("scroll", handleScroll);
 	}, [numPages]);
 
+	const setCanvasRef = useCallback((pageNum: number, el: HTMLCanvasElement | null) => {
+		if (el) {
+			canvasRefs.current.set(pageNum, el);
+		} else {
+			canvasRefs.current.delete(pageNum);
+		}
+	}, []);
+
 	const zoomIn = useCallback(() => {
-		setScale((prev) => Math.min(MAX_ZOOM, prev + ZOOM_STEP));
+		setScale((prev) => Math.min(MAX_ZOOM, +(prev + ZOOM_STEP).toFixed(2)));
 	}, []);
 
 	const zoomOut = useCallback(() => {
-		setScale((prev) => Math.max(MIN_ZOOM, prev - ZOOM_STEP));
+		setScale((prev) => Math.max(MIN_ZOOM, +(prev - ZOOM_STEP).toFixed(2)));
 	}, []);
 
 	if (loadError) {
@@ -67,32 +191,13 @@ export function PdfViewer({ pdfUrl }: PdfViewerProps) {
 
 	return (
 		<div className="flex flex-col h-full">
-			{/* Controls bar */}
 			{numPages > 0 && (
 				<div className="flex items-center justify-center gap-2 px-4 py-2 border-b bg-sidebar shrink-0">
 					{numPages > 1 && (
 						<>
-							<Button
-								variant="ghost"
-								size="icon"
-								onClick={goToPrevPage}
-								disabled={pageNumber <= 1}
-								className="size-7"
-							>
-								<ChevronLeftIcon className="size-4" />
-							</Button>
 							<span className="text-xs text-muted-foreground tabular-nums min-w-[60px] text-center">
-								{pageNumber} / {numPages}
+								{currentPage} / {numPages}
 							</span>
-							<Button
-								variant="ghost"
-								size="icon"
-								onClick={goToNextPage}
-								disabled={pageNumber >= numPages}
-								className="size-7"
-							>
-								<ChevronRightIcon className="size-4" />
-							</Button>
 							<div className="w-px h-4 bg-border mx-1" />
 						</>
 					)}
@@ -108,32 +213,29 @@ export function PdfViewer({ pdfUrl }: PdfViewerProps) {
 				</div>
 			)}
 
-			{/* PDF content */}
-		<div ref={containerRef} className="relative flex-1 overflow-auto flex justify-center bg-sidebar p-0">
-			<Document
-				file={pdfUrl}
-				onLoadSuccess={onDocumentLoadSuccess}
-				onLoadError={onDocumentLoadError}
-				options={documentOptionsRef.current}
-			loading={
-			<div className="absolute inset-0 flex items-center justify-center text-sidebar-foreground">
-				<Spinner size="md" />
-			</div>
-			}
-				>
-					<Page
-						pageNumber={pageNumber}
-						scale={scale}
-						renderTextLayer
-						renderAnnotationLayer
-						className="shadow-lg"
-						error={
-							<div className="flex items-center justify-center h-64 text-sm text-muted-foreground">
-								Failed to render page {pageNumber}
-							</div>
-						}
-					/>
-				</Document>
+			<div
+				ref={scrollContainerRef}
+				className="relative flex-1 overflow-auto bg-sidebar"
+			>
+				{loading ? (
+					<div className="absolute inset-0 flex items-center justify-center text-sidebar-foreground">
+						<Spinner size="md" />
+					</div>
+				) : (
+					<div
+						ref={pagesContainerRef}
+						className="flex flex-col items-center py-4"
+						style={{ gap: `${PAGE_GAP}px` }}
+					>
+						{Array.from({ length: numPages }, (_, i) => i + 1).map((pageNum) => (
+							<canvas
+								key={pageNum}
+								ref={(el) => setCanvasRef(pageNum, el)}
+								className="shadow-lg"
+							/>
+						))}
+					</div>
+				)}
 			</div>
 		</div>
 	);
