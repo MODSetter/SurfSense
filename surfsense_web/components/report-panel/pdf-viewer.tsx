@@ -109,16 +109,16 @@ export function PdfViewer({ pdfUrl }: PdfViewerProps) {
 			)}
 
 			{/* PDF content */}
-		<div ref={containerRef} className="flex-1 overflow-auto flex justify-center bg-sidebar p-0">
+		<div ref={containerRef} className="relative flex-1 overflow-auto flex justify-center bg-sidebar p-0">
 			<Document
 				file={pdfUrl}
 				onLoadSuccess={onDocumentLoadSuccess}
 				onLoadError={onDocumentLoadError}
 				options={documentOptionsRef.current}
 			loading={
-				<div className="flex items-center justify-center h-64 text-sidebar-foreground">
-					<Spinner size="md" />
-				</div>
+			<div className="absolute inset-0 flex items-center justify-center text-sidebar-foreground">
+				<Spinner size="md" />
+			</div>
 			}
 				>
 					<Page

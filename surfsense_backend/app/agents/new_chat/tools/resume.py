@@ -2,8 +2,12 @@
 Resume generation tool for the SurfSense agent.
 
 Generates a structured resume as Typst source code using the rendercv package.
-The LLM outputs Typst markup which is validated via typst.compile() before
-persisting.  The compiled PDF is served on-demand by the preview endpoint.
+The LLM outputs only the content body (= heading, sections, entries) while
+the template header (import + show rule) is hardcoded and prepended by the
+backend.  This eliminates LLM errors in the complex configuration block.
+
+Templates are stored in a registry so new designs can be added by defining
+a new entry in _TEMPLATES.
 
 Uses the same short-lived session pattern as generate_report so no DB
 connection is held during the long LLM call.
@@ -11,6 +15,7 @@ connection is held during the long LLM call.
 
 import logging
 import re
+from datetime import UTC, datetime
 from typing import Any
 
 import typst
@@ -23,111 +28,317 @@ from app.services.llm_service import get_document_summary_llm
 
 logger = logging.getLogger(__name__)
 
-# ─── Typst / rendercv Reference ──────────────────────────────────────────────
-# Embedded in the generation prompt so the LLM knows the exact API.
 
-_RENDERCV_REFERENCE = """\
-You MUST output valid Typst source code using the rendercv package.
-The file MUST start with the import and show rule below.
+# ─── Template Registry ───────────────────────────────────────────────────────
+# Each template defines:
+#   header              - Typst import + show rule with {name}, {year}, {month}, {day} placeholders
+#   component_reference - component docs shown to the LLM
+#   rules               - generation rules for the LLM
 
-```typst
+_TEMPLATES: dict[str, dict[str, str]] = {
+    "classic": {
+        "header": """\
 #import "@preview/rendercv:0.3.0": *
 
 #show: rendercv.with(
-  name: "Full Name",
-  section-titles-type: "with_partial_line",
+  name: "{name}",
+  title: "{name} - Resume",
+  footer: context {{ [#emph[{name} -- #str(here().page())\\/#str(counter(page).final().first())]] }},
+  top-note: [ #emph[Last updated in {month_name} {year}] ],
+  locale-catalog-language: "en",
+  text-direction: ltr,
+  page-size: "us-letter",
+  page-top-margin: 0.7in,
+  page-bottom-margin: 0.7in,
+  page-left-margin: 0.7in,
+  page-right-margin: 0.7in,
+  page-show-footer: false,
+  page-show-top-note: true,
+  colors-body: rgb(0, 0, 0),
+  colors-name: rgb(0, 0, 0),
+  colors-headline: rgb(0, 0, 0),
+  colors-connections: rgb(0, 0, 0),
+  colors-section-titles: rgb(0, 0, 0),
+  colors-links: rgb(0, 0, 0),
+  colors-footer: rgb(128, 128, 128),
+  colors-top-note: rgb(128, 128, 128),
+  typography-line-spacing: 0.6em,
+  typography-alignment: "justified",
+  typography-date-and-location-column-alignment: right,
+  typography-font-family-body: "XCharter",
+  typography-font-family-name: "XCharter",
+  typography-font-family-headline: "XCharter",
+  typography-font-family-connections: "XCharter",
+  typography-font-family-section-titles: "XCharter",
+  typography-font-size-body: 10pt,
+  typography-font-size-name: 25pt,
+  typography-font-size-headline: 10pt,
+  typography-font-size-connections: 10pt,
+  typography-font-size-section-titles: 1.2em,
+  typography-small-caps-name: false,
+  typography-small-caps-headline: false,
+  typography-small-caps-connections: false,
+  typography-small-caps-section-titles: false,
+  typography-bold-name: false,
+  typography-bold-headline: false,
+  typography-bold-connections: false,
+  typography-bold-section-titles: true,
+  links-underline: true,
+  links-show-external-link-icon: false,
+  header-alignment: center,
+  header-photo-width: 3.5cm,
+  header-space-below-name: 0.7cm,
+  header-space-below-headline: 0.7cm,
+  header-space-below-connections: 0.7cm,
+  header-connections-hyperlink: true,
+  header-connections-show-icons: false,
+  header-connections-display-urls-instead-of-usernames: true,
+  header-connections-separator: "|",
+  header-connections-space-between-connections: 0.5cm,
+  section-titles-type: "with_full_line",
+  section-titles-line-thickness: 0.5pt,
+  section-titles-space-above: 0.5cm,
+  section-titles-space-below: 0.3cm,
+  sections-allow-page-break: true,
+  sections-space-between-text-based-entries: 0.15cm,
+  sections-space-between-regular-entries: 0.42cm,
+  entries-date-and-location-width: 4.15cm,
+  entries-side-space: 0cm,
+  entries-space-between-columns: 0.1cm,
+  entries-allow-page-break: false,
+  entries-short-second-row: false,
+  entries-degree-width: 1cm,
+  entries-summary-space-left: 0cm,
+  entries-summary-space-above: 0.08cm,
+  entries-highlights-bullet: text(13pt, [\\u{2022}], baseline: -0.6pt),
+  entries-highlights-nested-bullet: text(13pt, [\\u{2022}], baseline: -0.6pt),
+  entries-highlights-space-left: 0cm,
+  entries-highlights-space-above: 0.08cm,
+  entries-highlights-space-between-items: 0.08cm,
+  entries-highlights-space-between-bullet-and-text: 0.3em,
+  date: datetime(
+    year: {year},
+    month: {month},
+    day: {day},
+  ),
 )
-```
 
+""",
+        "component_reference": """\
 Available components (use ONLY these):
 
-= Full Name                              // Top-level heading — the person's name
-#headline([Job Title or Tagline])        // Subtitle below the name
-#connections(                            // Contact info row
+= Full Name                              // Top-level heading — person's full name
+
+#connections(                            // Contact info row (pipe-separated)
   [City, Country],
-  [#link("mailto:email@example.com")[email\\@example.com]],
-  [#link("https://github.com/user")[github.com/user]],
-  [#link("https://linkedin.com/in/user")[linkedin.com/in/user]],
+  [#link("mailto:email@example.com", icon: false, if-underline: false, if-color: false)[email\\@example.com]],
+  [#link("https://linkedin.com/in/user", icon: false, if-underline: false, if-color: false)[linkedin.com\\/in\\/user]],
+  [#link("https://github.com/user", icon: false, if-underline: false, if-color: false)[github.com\\/user]],
 )
 
-== Section Title                         // Section heading (Experience, Education, Skills, etc.)
+== Section Title                         // Section heading (arbitrary name)
 
-#regular-entry(                          // Work experience, projects, publications
-  [*Role/Title*, Company Name -- Location],
-  [Start -- End],
+#regular-entry(                          // Work experience, projects, publications, etc.
+  [
+    #strong[Role/Title], Company Name -- Location
+  ],
+  [
+    Start -- End
+  ],
   main-column-second-row: [
-    - Bullet point achievement
-    - Another achievement
+    - Achievement or responsibility
+    - Another bullet point
   ],
 )
 
-#education-entry(                        // Education
-  [*Institution*, Degree in Field -- Location],
-  [Start -- End],
+#education-entry(                        // Education entries
+  [
+    #strong[Institution], Degree in Field -- Location
+  ],
+  [
+    Start -- End
+  ],
   main-column-second-row: [
     - GPA, honours, relevant coursework
   ],
 )
 
-#summary([Short paragraph summary])     // Optional summary/objective
+#summary([Short paragraph summary])     // Optional summary inside an entry
 #content-area([Free-form content])       // Freeform text block
 
+For skills sections, use bold labels directly:
+#strong[Category:] item1, item2, item3
+
+For simple list sections (e.g. Honors), use plain bullet points:
+- Item one
+- Item two
+""",
+        "rules": """\
 RULES:
-- Output ONLY valid Typst code. No explanatory text before or after.
+- Do NOT include any #import or #show lines. Start directly with = Full Name.
+- Output ONLY valid Typst content. No explanatory text before or after.
 - Do NOT wrap output in ```typst code fences.
+- The = heading MUST use the person's COMPLETE full name exactly as provided. NEVER shorten or abbreviate.
 - Escape @ symbols inside link labels with a backslash: email\\@example.com
+- Escape forward slashes in link display text: linkedin.com\\/in\\/user
 - Every section MUST use == heading.
-- Use #regular-entry() for experience, projects, publications, certifications.
+- Use #regular-entry() for experience, projects, publications, certifications, and similar entries.
 - Use #education-entry() for education.
-- For skills, use plain bold + text: *Languages:* Python, TypeScript
+- Use #strong[Label:] for skills categories.
 - Keep content professional, concise, and achievement-oriented.
 - Use action verbs for bullet points (Led, Built, Designed, Reduced, etc.).
-"""
+- This template works for ALL professions — adapt sections to the user's field.
+""",
+    },
+}
+
+DEFAULT_TEMPLATE = "classic"
+
+
+# ─── Template Helpers ─────────────────────────────────────────────────────────
+
+
+def _get_template(template_id: str | None = None) -> dict[str, str]:
+    """Get a template by ID, falling back to default."""
+    return _TEMPLATES.get(template_id or DEFAULT_TEMPLATE, _TEMPLATES[DEFAULT_TEMPLATE])
+
+
+_MONTH_NAMES = [
+    "", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+]
+
+
+def _build_header(template: dict[str, str], name: str) -> str:
+    """Build the template header with the person's name and current date."""
+    now = datetime.now(tz=UTC)
+    return (
+        template["header"]
+        .replace("{name}", name)
+        .replace("{year}", str(now.year))
+        .replace("{month}", str(now.month))
+        .replace("{day}", str(now.day))
+        .replace("{month_name}", _MONTH_NAMES[now.month])
+    )
+
+
+def _strip_header(full_source: str) -> str:
+    """Strip the import + show rule from stored source to get the body only.
+
+    Finds the closing parenthesis of the rendercv.with(...) block by tracking
+    nesting depth, then returns everything after it.
+    """
+    show_match = re.search(r"#show:\s*rendercv\.with\(", full_source)
+    if not show_match:
+        return full_source
+
+    start = show_match.end()
+    depth = 1
+    i = start
+    while i < len(full_source) and depth > 0:
+        if full_source[i] == "(":
+            depth += 1
+        elif full_source[i] == ")":
+            depth -= 1
+        i += 1
+
+    return full_source[i:].lstrip("\n")
+
+
+def _extract_name(body: str) -> str | None:
+    """Extract the person's full name from the = heading in the body."""
+    match = re.search(r"^=\s+(.+)$", body, re.MULTILINE)
+    return match.group(1).strip() if match else None
+
+
+def _strip_imports(body: str) -> str:
+    """Remove any #import or #show lines the LLM might accidentally include."""
+    lines = body.split("\n")
+    cleaned: list[str] = []
+    skip_show = False
+    depth = 0
+
+    for line in lines:
+        stripped = line.strip()
+
+        if stripped.startswith("#import"):
+            continue
+
+        if skip_show:
+            depth += stripped.count("(") - stripped.count(")")
+            if depth <= 0:
+                skip_show = False
+            continue
+
+        if stripped.startswith("#show:") and "rendercv" in stripped:
+            depth = stripped.count("(") - stripped.count(")")
+            if depth > 0:
+                skip_show = True
+            continue
+
+        cleaned.append(line)
+
+    result = "\n".join(cleaned).strip()
+    return result
+
+
+def _build_llm_reference(template: dict[str, str]) -> str:
+    """Build the LLM prompt reference from a template."""
+    return f"""\
+You MUST output valid Typst content for a resume.
+Do NOT include any #import or #show lines — those are handled automatically.
+Start directly with the = Full Name heading.
+
+{template["component_reference"]}
+
+{template["rules"]}"""
+
 
 # ─── Prompts ─────────────────────────────────────────────────────────────────
 
 _RESUME_PROMPT = """\
-You are an expert resume writer. Generate a professional resume as Typst source code.
+You are an expert resume writer. Generate professional resume content as Typst markup.
 
-{rendercv_reference}
+{llm_reference}
 
 **User Information:**
 {user_info}
 
 {user_instructions_section}
 
-Generate the complete Typst source file now:
+Generate the resume content now (starting with = Full Name):
 """
 
 _REVISION_PROMPT = """\
 You are an expert resume editor. Modify the existing resume according to the instructions.
 Apply ONLY the requested changes — do NOT rewrite sections that are not affected.
 
-{rendercv_reference}
+{llm_reference}
 
 **Modification Instructions:** {user_instructions}
 
-**EXISTING RESUME (Typst source):**
+**EXISTING RESUME CONTENT:**
 
 {previous_content}
 
 ---
 
-Output the complete, updated Typst source file with the changes applied:
+Output the complete, updated resume content with the changes applied (starting with = Full Name):
 """
 
 _FIX_COMPILE_PROMPT = """\
-The Typst source you generated failed to compile. Fix the error while preserving all content.
+The resume content you generated failed to compile. Fix the error while preserving all content.
+
+{llm_reference}
 
 **Compilation Error:**
 {error}
 
-**Your Previous Output:**
-{source}
+**Full Typst Source (for context — error line numbers refer to this):**
+{full_source}
 
-{rendercv_reference}
-
-Output the corrected Typst source file:
+**Your content starts after the template header. Output ONLY the content portion \
+(starting with = Full Name), NOT the #import or #show rule:**
 """
 
 
@@ -163,6 +374,8 @@ def create_generate_resume_tool(
 
     Generates a Typst-based resume, validates it via compilation,
     and stores the source in the Report table with content_type='typst'.
+    The LLM generates only the content body; the template header is
+    prepended by the backend.
     """
 
     @tool
@@ -208,6 +421,9 @@ def create_generate_resume_tool(
         """
         report_group_id: int | None = None
         parent_content: str | None = None
+
+        template = _get_template()
+        llm_reference = _build_llm_reference(template)
 
         async def _save_failed_report(error_msg: str) -> int | None:
             try:
@@ -278,10 +494,11 @@ def create_generate_resume_tool(
                     "report_progress",
                     {"phase": "writing", "message": "Updating your resume"},
                 )
+                parent_body = _strip_header(parent_content)
                 prompt = _REVISION_PROMPT.format(
-                    rendercv_reference=_RENDERCV_REFERENCE,
+                    llm_reference=llm_reference,
                     user_instructions=user_instructions or "Improve and refine the resume.",
-                    previous_content=parent_content,
+                    previous_content=parent_body,
                 )
             else:
                 dispatch_custom_event(
@@ -289,15 +506,15 @@ def create_generate_resume_tool(
                     {"phase": "writing", "message": "Building your resume"},
                 )
                 prompt = _RESUME_PROMPT.format(
-                    rendercv_reference=_RENDERCV_REFERENCE,
+                    llm_reference=llm_reference,
                     user_info=user_info,
                     user_instructions_section=user_instructions_section,
                 )
 
             response = await llm.ainvoke([HumanMessage(content=prompt)])
-            typst_source = response.content
+            body = response.content
 
-            if not typst_source or not isinstance(typst_source, str):
+            if not body or not isinstance(body, str):
                 error_msg = "LLM returned empty or invalid content"
                 report_id = await _save_failed_report(error_msg)
                 return {
@@ -308,14 +525,18 @@ def create_generate_resume_tool(
                     "content_type": "typst",
                 }
 
-            typst_source = _strip_typst_fences(typst_source)
+            body = _strip_typst_fences(body)
+            body = _strip_imports(body)
 
-            # ── Phase 3: COMPILE-VALIDATE-RETRY ───────────────────────────
-            # Attempt 1
+            # ── Phase 3: ASSEMBLE + COMPILE ───────────────────────────────
             dispatch_custom_event(
                 "report_progress",
                 {"phase": "compiling", "message": "Compiling resume..."},
             )
+
+            name = _extract_name(body) or "Resume"
+            header = _build_header(template, name)
+            typst_source = header + body
 
             compile_error: str | None = None
             for attempt in range(2):
@@ -335,15 +556,19 @@ def create_generate_resume_tool(
                             {"phase": "fixing", "message": "Fixing compilation issue..."},
                         )
                         fix_prompt = _FIX_COMPILE_PROMPT.format(
+                            llm_reference=llm_reference,
                             error=compile_error,
-                            source=typst_source,
-                            rendercv_reference=_RENDERCV_REFERENCE,
+                            full_source=typst_source,
                         )
                         fix_response = await llm.ainvoke(
                             [HumanMessage(content=fix_prompt)]
                         )
                         if fix_response.content and isinstance(fix_response.content, str):
-                            typst_source = _strip_typst_fences(fix_response.content)
+                            body = _strip_typst_fences(fix_response.content)
+                            body = _strip_imports(body)
+                            name = _extract_name(body) or name
+                            header = _build_header(template, name)
+                            typst_source = header + body
 
             if compile_error:
                 error_msg = f"Typst compilation failed after 2 attempts: {compile_error}"
@@ -362,10 +587,7 @@ def create_generate_resume_tool(
                 {"phase": "saving", "message": "Saving your resume"},
             )
 
-            # Extract a title from the Typst source (the = heading is the person's name)
-            title_match = re.search(r"^=\s+(.+)$", typst_source, re.MULTILINE)
-            name = title_match.group(1).strip() if title_match else None
-            resume_title = f"{name} - Resume" if name else "Resume"
+            resume_title = f"{name} - Resume" if name != "Resume" else "Resume"
 
             metadata: dict[str, Any] = {
                 "status": "ready",

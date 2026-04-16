@@ -452,7 +452,15 @@ _TOOL_INSTRUCTIONS["generate_resume"] = """
   - The tool produces Typst source code that is compiled to a PDF preview automatically.
   - Args:
     - user_info: The user's resume content — work experience, education, skills, contact
-      info, etc. Can be structured or unstructured text. Pass everything the user provides.
+      info, etc. Can be structured or unstructured text.
+      CRITICAL: user_info must be COMPREHENSIVE. Do NOT just pass the user's raw message.
+      You MUST gather and consolidate ALL available information:
+        * Content from referenced/mentioned documents (e.g., uploaded resumes, CVs, LinkedIn profiles)
+          that appear in the conversation context — extract and include their FULL content.
+        * Information the user shared across multiple messages in the conversation.
+        * Any relevant details from knowledge base search results in the context.
+      The more complete the user_info, the better the resume. Include names, contact info,
+      work experience with dates, education, skills, projects, certifications — everything available.
     - user_instructions: Optional style or content preferences (e.g. "emphasize leadership",
       "keep it to one page"). For revisions, describe what to change.
     - parent_report_id: Set this when the user wants to MODIFY an existing resume from
@@ -469,6 +477,10 @@ _TOOL_EXAMPLES["generate_resume"] = """
   - WHY: Has creation verb "build" + resume → call the tool.
 - User: "Create my CV with this info: [experience, education, skills]"
   - Call: `generate_resume(user_info="[experience, education, skills]")`
+- User: "Build me a resume" (and there is a resume/CV document in the conversation context)
+  - Extract the FULL content from the document in context, then call:
+    `generate_resume(user_info="Name: John Doe\\nEmail: john@example.com\\n\\nExperience:\\n- Senior Engineer at Acme Corp (2020-2024)\\n  Led team of 5...\\n\\nEducation:\\n- BS Computer Science, MIT (2016-2020)\\n\\nSkills: Python, TypeScript, AWS...")`
+  - WHY: Document content is available in context — extract ALL of it into user_info. Do NOT ignore referenced documents.
 - User: (after resume generated) "Change my title to Senior Engineer"
   - Call: `generate_resume(user_info="", user_instructions="Change the job title to Senior Engineer", parent_report_id=<previous_report_id>)`
   - WHY: Modification verb "change" + refers to existing resume → set parent_report_id.
