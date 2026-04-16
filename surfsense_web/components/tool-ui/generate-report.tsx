@@ -96,8 +96,10 @@ function ReportErrorState({ title, error }: { title: string; error: string }) {
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4">
-				<p className="text-sm font-medium text-foreground line-clamp-2">{title}</p>
-				<p className="text-sm text-muted-foreground mt-1">{error}</p>
+				{title && title !== "Report" && (
+					<p className="text-sm font-medium text-foreground line-clamp-2">{title}</p>
+				)}
+				<p className={`text-sm text-muted-foreground${title && title !== "Report" ? " mt-1" : ""}`}>{error}</p>
 			</div>
 		</div>
 	);

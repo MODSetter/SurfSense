@@ -286,22 +286,26 @@ export function ReportPanelContent({
 	}, [activeReportId, currentMarkdown]);
 
 	const activeVersionIndex = versions.findIndex((v) => v.id === activeReportId);
+	const isPublic = !!shareToken;
+	const btnBg = isPublic ? "bg-main-panel" : "bg-sidebar";
 
 	return (
 		<>
 			{/* Action bar — always visible; buttons are disabled while loading */}
 			<div className="flex items-center justify-between px-4 py-2 shrink-0">
 				<div className="flex items-center gap-2">
-					{/* Copy button */}
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={handleCopy}
-						disabled={isLoading || !reportContent?.content}
-						className="h-8 min-w-[80px] px-3.5 py-4 text-[15px] bg-sidebar select-none"
-					>
-						{copied ? "Copied" : "Copy"}
-					</Button>
+					{/* Copy button — hidden for Typst (resume) */}
+					{reportContent?.content_type !== "typst" && (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={handleCopy}
+							disabled={isLoading || !reportContent?.content}
+							className={`h-8 min-w-[80px] px-3.5 py-4 text-[15px] ${btnBg} select-none`}
+						>
+							{copied ? "Copied" : "Copy"}
+						</Button>
+					)}
 
 					{/* Export dropdown */}
 					<DropdownMenu modal={insideDrawer ? false : undefined}>
@@ -310,7 +314,7 @@ export function ReportPanelContent({
 								variant="outline"
 								size="sm"
 								disabled={isLoading || !reportContent?.content}
-								className="h-8 px-3.5 py-4 text-[15px] gap-1.5 bg-sidebar select-none"
+								className={`h-8 px-3.5 py-4 text-[15px] gap-1.5 ${btnBg} select-none`}
 							>
 								Export
 								<ChevronDownIcon className="size-3" />
@@ -336,7 +340,7 @@ export function ReportPanelContent({
 								<Button
 									variant="outline"
 									size="sm"
-									className="h-8 px-3.5 py-4 text-[15px] gap-1.5 bg-sidebar select-none"
+									className={`h-8 px-3.5 py-4 text-[15px] gap-1.5 ${btnBg} select-none`}
 								>
 									v{activeVersionIndex + 1}
 									<ChevronDownIcon className="size-3" />
@@ -381,6 +385,7 @@ export function ReportPanelContent({
 				) : reportContent.content_type === "typst" ? (
 				<PdfViewer
 					pdfUrl={`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}${shareToken ? `/api/v1/public/${shareToken}/reports/${activeReportId}/preview` : `/api/v1/reports/${activeReportId}/preview`}`}
+					isPublic={isPublic}
 				/>
 				) : reportContent.content ? (
 					isReadOnly ? (
@@ -432,10 +437,12 @@ function DesktopReportPanel() {
 
 	if (!panelState.isOpen || !panelState.reportId) return null;
 
+	const isPublic = !!panelState.shareToken;
+
 	return (
 		<div
 			ref={panelRef}
-			className="flex w-[50%] max-w-[700px] min-w-[380px] flex-col border-l bg-sidebar text-sidebar-foreground animate-in slide-in-from-right-4 duration-300 ease-out"
+			className={`flex w-[50%] max-w-[700px] min-w-[380px] flex-col border-l animate-in slide-in-from-right-4 duration-300 ease-out ${isPublic ? "bg-main-panel text-foreground" : "bg-sidebar text-sidebar-foreground"}`}
 		>
 			<ReportPanelContent
 				reportId={panelState.reportId}
@@ -456,6 +463,8 @@ function MobileReportDrawer() {
 
 	if (!panelState.reportId) return null;
 
+	const isPublic = !!panelState.shareToken;
+
 	return (
 		<Drawer
 			open={panelState.isOpen}
@@ -465,7 +474,7 @@ function MobileReportDrawer() {
 			shouldScaleBackground={false}
 		>
 			<DrawerContent
-				className="h-[90vh] max-h-[90vh] z-80 bg-sidebar overflow-hidden"
+				className={`h-[90vh] max-h-[90vh] z-80 overflow-hidden ${isPublic ? "bg-main-panel" : "bg-sidebar"}`}
 				overlayClassName="z-80"
 			>
 				<DrawerHandle />

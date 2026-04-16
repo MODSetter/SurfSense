@@ -67,8 +67,10 @@ function ResumeErrorState({ title, error }: { title: string; error: string }) {
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4">
-				<p className="text-sm font-medium text-foreground line-clamp-2">{title}</p>
-				<p className="text-sm text-muted-foreground mt-1">{error}</p>
+				{title && title !== "Resume" && (
+					<p className="text-sm font-medium text-foreground line-clamp-2">{title}</p>
+				)}
+				<p className={`text-sm text-muted-foreground${title && title !== "Resume" ? " mt-1" : ""}`}>{error}</p>
 			</div>
 		</div>
 	);
@@ -231,7 +233,7 @@ function ResumeCard({
 				<div className="px-5 pt-3 pb-4">
 					{thumbState === "loading" && <ThumbnailSkeleton />}
 					{thumbState === "error" && (
-						<p className="text-sm text-muted-foreground italic">Preview unavailable</p>
+						<p className="text-sm text-muted-foreground">Preview unavailable</p>
 					)}
 					{pdfUrl && (
 						<div

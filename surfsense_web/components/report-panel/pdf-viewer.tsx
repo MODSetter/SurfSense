@@ -15,6 +15,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 
 interface PdfViewerProps {
 	pdfUrl: string;
+	isPublic?: boolean;
 }
 
 const ZOOM_STEP = 0.15;
@@ -22,7 +23,7 @@ const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 3;
 const PAGE_GAP = 12;
 
-export function PdfViewer({ pdfUrl }: PdfViewerProps) {
+export function PdfViewer({ pdfUrl, isPublic = false }: PdfViewerProps) {
 	const [numPages, setNumPages] = useState(0);
 	const [scale, setScale] = useState(1);
 	const [loading, setLoading] = useState(true);
@@ -192,7 +193,7 @@ export function PdfViewer({ pdfUrl }: PdfViewerProps) {
 	return (
 		<div className="flex flex-col h-full">
 			{numPages > 0 && (
-				<div className="flex items-center justify-center gap-2 px-4 py-2 border-b bg-sidebar shrink-0">
+				<div className={`flex items-center justify-center gap-2 px-4 py-2 border-b shrink-0 ${isPublic ? "bg-main-panel" : "bg-sidebar"}`}>
 					{numPages > 1 && (
 						<>
 							<span className="text-xs text-muted-foreground tabular-nums min-w-[60px] text-center">
@@ -215,10 +216,10 @@ export function PdfViewer({ pdfUrl }: PdfViewerProps) {
 
 			<div
 				ref={scrollContainerRef}
-				className="relative flex-1 overflow-auto bg-sidebar"
+				className={`relative flex-1 overflow-auto ${isPublic ? "bg-main-panel" : "bg-sidebar"}`}
 			>
 				{loading ? (
-					<div className="absolute inset-0 flex items-center justify-center text-sidebar-foreground">
+					<div className={`absolute inset-0 flex items-center justify-center ${isPublic ? "text-foreground" : "text-sidebar-foreground"}`}>
 						<Spinner size="md" />
 					</div>
 				) : (
