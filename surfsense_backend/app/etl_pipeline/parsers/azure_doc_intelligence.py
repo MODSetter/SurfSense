@@ -62,10 +62,13 @@ async def parse_with_azure_doc_intelligence(
                     f"after {len(attempt_errors)} failures"
                 )
 
-            if not result.content:
-                return ""
+            content = result.content or ""
+            if not content.strip():
+                raise RuntimeError(
+                    "Azure Document Intelligence returned empty/whitespace-only content"
+                )
 
-            return result.content
+            return content
 
         except ClientAuthenticationError:
             raise

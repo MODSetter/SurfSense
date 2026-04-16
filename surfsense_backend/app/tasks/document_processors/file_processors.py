@@ -436,7 +436,7 @@ async def _extract_file_content(
     with contextlib.suppress(Exception):
         os.unlink(file_path)
 
-    if not result.markdown_content:
+    if not result.markdown_content or not result.markdown_content.strip():
         raise RuntimeError(f"Failed to extract content from file: {filename}")
 
     return result.markdown_content, result.etl_service, billable_pages

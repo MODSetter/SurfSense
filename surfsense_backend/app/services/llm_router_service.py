@@ -186,8 +186,12 @@ class LLMRouterService:
             if deployment:
                 model_list.append(deployment)
                 if config.get("billing_tier") == "premium":
-                    model_string = deployment["litellm_params"]["model"]
+                    params = deployment["litellm_params"]
+                    model_string = params["model"]
                     premium_models.add(model_string)
+                    base = params.get("base_model") or config.get("model_name", "")
+                    if base and base != model_string:
+                        premium_models.add(base)
 
         if not model_list:
             logger.warning("No valid LLM configs found for router initialization")
@@ -197,9 +201,9 @@ class LLMRouterService:
         instance._premium_model_strings = premium_models
         instance._router_settings = router_settings or {}
         logger.info(
-            "Router pool: %d deployments (%d premium)",
+            "Router pool: %d deployments, premium model strings: %s",
             len(model_list),
-            len(premium_models),
+            sorted(premium_models),
         )
 
         # Default router settings optimized for rate limit handling
@@ -258,9 +262,18 @@ class LLMRouterService:
     def compute_premium_tokens(cls, calls: list) -> int:
         """Sum ``total_tokens`` for calls whose model is premium."""
         instance = cls.get_instance()
-        return sum(
+        total = sum(
             c.total_tokens for c in calls if c.model in instance._premium_model_strings
         )
+        if calls:
+            call_models = [c.model for c in calls]
+            logger.info(
+                "[premium_tokens] call models=%s, premium_set=%s, result=%d",
+                call_models,
+                sorted(instance._premium_model_strings),
+                total,
+            )
+        return total
 
     @classmethod
     def _build_context_fallback_groups(
