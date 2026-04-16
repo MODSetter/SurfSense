@@ -237,6 +237,7 @@ export default function RegisterPage() {
 								type="email"
 								autoComplete="email"
 								required
+								maxLength={254}
 								placeholder="you@example.com"
 								value={email}
 								onChange={(e) => setEmail(e.target.value)}
@@ -258,6 +259,7 @@ export default function RegisterPage() {
 								type="password"
 								autoComplete="new-password"
 								required
+								minLength={8}
 								placeholder="Enter your password"
 								value={password}
 								onChange={(e) => setPassword(e.target.value)}
@@ -282,6 +284,7 @@ export default function RegisterPage() {
 								type="password"
 								autoComplete="new-password"
 								required
+								minLength={8}
 								placeholder="Confirm your password"
 								value={confirmPassword}
 								onChange={(e) => setConfirmPassword(e.target.value)}
