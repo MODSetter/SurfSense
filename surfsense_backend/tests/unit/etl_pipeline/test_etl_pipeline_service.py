@@ -862,7 +862,7 @@ async def test_azure_di_premium_uses_prebuilt_layout(tmp_path, mocker):
 
 
 async def test_llamacloud_basic_uses_cost_effective_tier(tmp_path, mocker):
-    """Basic mode should use cost_effective tier for LlamaCloud."""
+    """Basic mode should use parse_page_with_llm parse_mode for LlamaCloud."""
     pdf_file = tmp_path / "report.pdf"
     pdf_file.write_bytes(b"%PDF-1.4 fake content " * 10)
 
@@ -890,11 +890,12 @@ async def test_llamacloud_basic_uses_cost_effective_tier(tmp_path, mocker):
 
     assert result.markdown_content == "# Llama basic"
     call_kwargs = llama_parse_cls.call_args[1]
-    assert call_kwargs["tier"] == "cost_effective"
+    assert call_kwargs["parse_mode"] == "parse_page_with_llm"
+    assert "tier" not in call_kwargs
 
 
 async def test_llamacloud_premium_uses_agentic_plus_tier(tmp_path, mocker):
-    """Premium mode should use agentic_plus tier for LlamaCloud."""
+    """Premium mode should use parse_page_with_agent parse_mode for LlamaCloud."""
     pdf_file = tmp_path / "report.pdf"
     pdf_file.write_bytes(b"%PDF-1.4 fake content " * 10)
 
@@ -922,4 +923,5 @@ async def test_llamacloud_premium_uses_agentic_plus_tier(tmp_path, mocker):
 
     assert result.markdown_content == "# Llama premium"
     call_kwargs = llama_parse_cls.call_args[1]
-    assert call_kwargs["tier"] == "agentic_plus"
+    assert call_kwargs["parse_mode"] == "parse_page_with_agent"
+    assert "tier" not in call_kwargs
