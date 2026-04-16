@@ -135,9 +135,12 @@ class LLMRouterService:
             logger.debug("LLM Router already initialized, skipping")
             return
 
-        # Build model list from global configs
+        auto_configs = [
+            c for c in global_configs if c.get("billing_tier", "free") != "premium"
+        ]
+
         model_list = []
-        for config in global_configs:
+        for config in auto_configs:
             deployment = cls._config_to_deployment(config)
             if deployment:
                 model_list.append(deployment)

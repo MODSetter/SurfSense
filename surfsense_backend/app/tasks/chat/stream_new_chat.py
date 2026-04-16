@@ -1175,6 +1175,10 @@ async def stream_new_chat(
 
     accumulator = start_turn()
 
+    # Premium quota tracking state
+    _premium_reserved = 0
+    _premium_request_id: str | None = None
+
     session = async_session_maker()
     try:
         # Mark AI as responding to this user for live collaboration
@@ -1219,6 +1223,34 @@ async def stream_new_chat(
             time.perf_counter() - _t0,
             llm_config_id,
         )
+
+        # Premium quota reservation
+        if agent_config and agent_config.is_premium and user_id:
+            import uuid as _uuid
+
+            from app.config import config as _app_config
+            from app.services.token_quota_service import TokenQuotaService
+
+            _premium_request_id = _uuid.uuid4().hex[:16]
+            reserve_amount = min(
+                agent_config.quota_reserve_tokens
+                or _app_config.QUOTA_MAX_RESERVE_PER_CALL,
+                _app_config.QUOTA_MAX_RESERVE_PER_CALL,
+            )
+            async with shielded_async_session() as quota_session:
+                quota_result = await TokenQuotaService.premium_reserve(
+                    db_session=quota_session,
+                    user_id=UUID(user_id),
+                    request_id=_premium_request_id,
+                    reserve_tokens=reserve_amount,
+                )
+            _premium_reserved = reserve_amount
+            if not quota_result.allowed:
+                yield streaming_service.format_error(
+                    "Premium token quota exceeded. Please purchase more tokens to continue using premium models."
+                )
+                yield streaming_service.format_done()
+                return
 
         if not llm:
             yield streaming_service.format_error("Failed to create LLM instance")
@@ -1626,6 +1658,26 @@ async def stream_new_chat(
                     chat_id, generated_title
                 )
 
+        # Finalize premium quota with actual tokens
+        if _premium_request_id and user_id:
+            try:
+                from app.services.token_quota_service import TokenQuotaService
+
+                async with shielded_async_session() as quota_session:
+                    await TokenQuotaService.premium_finalize(
+                        db_session=quota_session,
+                        user_id=UUID(user_id),
+                        request_id=_premium_request_id,
+                        actual_tokens=accumulator.grand_total,
+                        reserved_tokens=_premium_reserved,
+                    )
+            except Exception:
+                logging.getLogger(__name__).warning(
+                    "Failed to finalize premium quota for user %s",
+                    user_id,
+                    exc_info=True,
+                )
+
         usage_summary = accumulator.per_message_summary()
         _perf_log.info(
             "[token_usage] normal new_chat: calls=%d total=%d summary=%s",
@@ -1700,6 +1752,23 @@ async def stream_new_chat(
         # (CancelledError is a BaseException), and the rest of the
         # finally block — including session.close() — would never run.
         with anyio.CancelScope(shield=True):
+            # Release premium reservation if not finalized
+            if _premium_request_id and _premium_reserved > 0 and user_id:
+                try:
+                    from app.services.token_quota_service import TokenQuotaService
+
+                    async with shielded_async_session() as quota_session:
+                        await TokenQuotaService.premium_release(
+                            db_session=quota_session,
+                            user_id=UUID(user_id),
+                            reserved_tokens=_premium_reserved,
+                        )
+                    _premium_reserved = 0
+                except Exception:
+                    logging.getLogger(__name__).warning(
+                        "Failed to release premium quota for user %s", user_id
+                    )
+
             try:
                 await session.rollback()
                 await clear_ai_responding(session, chat_id)

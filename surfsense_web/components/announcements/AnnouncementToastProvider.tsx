@@ -76,9 +76,7 @@ export function AnnouncementToastProvider() {
 
 			for (let i = 0; i < importantUntoasted.length; i++) {
 				const announcement = importantUntoasted[i];
-				staggerTimers.push(
-					setTimeout(() => showAnnouncementToast(announcement), i * 800)
-				);
+				staggerTimers.push(setTimeout(() => showAnnouncementToast(announcement), i * 800));
 			}
 		}, 1500);
 

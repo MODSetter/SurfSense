@@ -819,6 +819,34 @@ async def build_scoped_filesystem(
     return files, doc_id_to_path
 
 
+def _build_anon_scoped_filesystem(
+    documents: Sequence[dict[str, Any]],
+) -> dict[str, dict[str, str]]:
+    """Build a scoped filesystem for anonymous documents without DB queries.
+
+    Anonymous uploads have no folders, so all files go under /documents.
+    """
+    files: dict[str, dict[str, str]] = {}
+    for document in documents:
+        doc_meta = document.get("document") or {}
+        title = str(doc_meta.get("title") or "untitled")
+        file_name = _safe_filename(title)
+        path = f"/documents/{file_name}"
+        if path in files:
+            doc_id = doc_meta.get("id", "dup")
+            stem = file_name.removesuffix(".xml")
+            path = f"/documents/{stem} ({doc_id}).xml"
+        matched_ids = set(document.get("matched_chunk_ids") or [])
+        xml_content = _build_document_xml(document, matched_chunk_ids=matched_ids)
+        files[path] = {
+            "content": xml_content.split("\n"),
+            "encoding": "utf-8",
+            "created_at": "",
+            "modified_at": "",
+        }
+    return files
+
+
 class KnowledgeBaseSearchMiddleware(AgentMiddleware):  # type: ignore[type-arg]
     """Pre-agent middleware that always searches the KB and seeds a scoped filesystem."""
 
@@ -833,6 +861,7 @@ class KnowledgeBaseSearchMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         available_document_types: list[str] | None = None,
         top_k: int = 10,
         mentioned_document_ids: list[int] | None = None,
+        anon_session_id: str | None = None,
     ) -> None:
         self.llm = llm
         self.search_space_id = search_space_id
@@ -840,6 +869,7 @@ class KnowledgeBaseSearchMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         self.available_document_types = available_document_types
         self.top_k = top_k
         self.mentioned_document_ids = mentioned_document_ids or []
+        self.anon_session_id = anon_session_id
 
     async def _plan_search_inputs(
         self,
@@ -913,6 +943,50 @@ class KnowledgeBaseSearchMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             pass
         return asyncio.run(self.abefore_agent(state, runtime))
 
+    async def _load_anon_document(self) -> dict[str, Any] | None:
+        """Load the anonymous user's uploaded document from Redis."""
+        if not self.anon_session_id:
+            return None
+        try:
+            import redis.asyncio as aioredis
+
+            from app.config import config
+
+            redis_client = aioredis.from_url(
+                config.REDIS_APP_URL, decode_responses=True
+            )
+            try:
+                redis_key = f"anon:doc:{self.anon_session_id}"
+                data = await redis_client.get(redis_key)
+                if not data:
+                    return None
+                doc = json.loads(data)
+                return {
+                    "document_id": -1,
+                    "content": doc.get("content", ""),
+                    "score": 1.0,
+                    "chunks": [
+                        {
+                            "chunk_id": -1,
+                            "content": doc.get("content", ""),
+                        }
+                    ],
+                    "matched_chunk_ids": [-1],
+                    "document": {
+                        "id": -1,
+                        "title": doc.get("filename", "uploaded_document"),
+                        "document_type": "FILE",
+                        "metadata": {"source": "anonymous_upload"},
+                    },
+                    "source": "FILE",
+                    "_user_mentioned": True,
+                }
+            finally:
+                await redis_client.aclose()
+        except Exception as exc:
+            logger.warning("Failed to load anonymous document from Redis: %s", exc)
+            return None
+
     async def abefore_agent(  # type: ignore[override]
         self,
         state: AgentState,
@@ -937,6 +1011,35 @@ class KnowledgeBaseSearchMiddleware(AgentMiddleware):  # type: ignore[type-arg]
 
         t0 = _perf_log and asyncio.get_event_loop().time()
         existing_files = state.get("files")
+
+        # --- Anonymous session: load Redis doc and skip DB queries ---
+        if self.anon_session_id:
+            merged: list[dict[str, Any]] = []
+            anon_doc = await self._load_anon_document()
+            if anon_doc:
+                merged.append(anon_doc)
+
+            if merged:
+                new_files = _build_anon_scoped_filesystem(merged)
+                mentioned_paths = set(new_files.keys())
+            else:
+                new_files = {}
+                mentioned_paths = set()
+
+            ai_msg, tool_msg = _build_synthetic_ls(
+                existing_files,
+                new_files,
+                mentioned_paths=mentioned_paths,
+            )
+            if t0 is not None:
+                _perf_log.info(
+                    "[kb_fs_middleware] anon completed in %.3fs new_files=%d",
+                    asyncio.get_event_loop().time() - t0,
+                    len(new_files),
+                )
+            return {"files": new_files, "messages": [ai_msg, tool_msg]}
+
+        # --- Authenticated session: full KB search ---
         (
             planned_query,
             start_date,
@@ -954,8 +1057,6 @@ class KnowledgeBaseSearchMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                 document_ids=self.mentioned_document_ids,
                 search_space_id=self.search_space_id,
             )
-            # Clear after first turn so they are not re-fetched on subsequent
-            # messages within the same agent instance.
             self.mentioned_document_ids = []
 
         # --- 2. Run KB search (recency browse or hybrid) ---
@@ -983,26 +1084,24 @@ class KnowledgeBaseSearchMiddleware(AgentMiddleware):  # type: ignore[type-arg]
 
         # --- 3. Merge: mentioned first, then search (dedup by doc id) ---
         seen_doc_ids: set[int] = set()
-        merged: list[dict[str, Any]] = []
+        merged_auth: list[dict[str, Any]] = []
         for doc in mentioned_results:
             doc_id = (doc.get("document") or {}).get("id")
             if doc_id is not None:
                 seen_doc_ids.add(doc_id)
-            merged.append(doc)
+            merged_auth.append(doc)
         for doc in search_results:
             doc_id = (doc.get("document") or {}).get("id")
             if doc_id is not None and doc_id in seen_doc_ids:
                 continue
-            merged.append(doc)
+            merged_auth.append(doc)
 
         # --- 4. Build scoped filesystem ---
         new_files, doc_id_to_path = await build_scoped_filesystem(
-            documents=merged,
+            documents=merged_auth,
             search_space_id=self.search_space_id,
         )
 
-        # Identify which paths belong to user-mentioned documents using
-        # the authoritative doc_id -> path mapping (no title guessing).
         mentioned_doc_ids = {
             (d.get("document") or {}).get("id") for d in mentioned_results
         }

@@ -2,10 +2,23 @@
 
 import { useQuery } from "@rocicorp/zero/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { ChevronLeft, ChevronRight, FolderClock, Trash2, Unplug } from "lucide-react";
+import {
+	ChevronLeft,
+	ChevronRight,
+	FileText,
+	FolderClock,
+	Lock,
+	Paperclip,
+	Trash2,
+	Unplug,
+	Upload,
+	X,
+} from "lucide-react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import type React from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { sidebarSelectedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
@@ -45,8 +58,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAnonymousMode, useIsAnonymous } from "@/contexts/anonymous-mode";
+import { useLoginGate } from "@/contexts/login-gate";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -56,6 +72,7 @@ import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
+import { BACKEND_URL } from "@/lib/env-config";
 import { uploadFolderScan } from "@/lib/folder-sync-upload";
 import { getSupportedExtensionsSet } from "@/lib/supported-extensions";
 import { queries } from "@/zero/queries/index";
@@ -86,7 +103,15 @@ interface DocumentsSidebarProps {
 	headerAction?: React.ReactNode;
 }
 
-export function DocumentsSidebar({
+export function DocumentsSidebar(props: DocumentsSidebarProps) {
+	const isAnonymous = useIsAnonymous();
+	if (isAnonymous) {
+		return <AnonymousDocumentsSidebar {...props} />;
+	}
+	return <AuthenticatedDocumentsSidebar {...props} />;
+}
+
+function AuthenticatedDocumentsSidebar({
 	open,
 	onOpenChange,
 	isDocked = false,
@@ -1161,6 +1186,433 @@ export function DocumentsSidebar({
 			onOpenChange={onOpenChange}
 			ariaLabel={t("title") || "Documents"}
 			width={isMobile ? undefined : 380}
+		>
+			{documentsContent}
+		</SidebarSlideOutPanel>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Anonymous Documents Sidebar
+// ---------------------------------------------------------------------------
+
+const ANON_ALLOWED_EXTENSIONS = new Set([
+	".md",
+	".markdown",
+	".txt",
+	".text",
+	".json",
+	".jsonl",
+	".yaml",
+	".yml",
+	".toml",
+	".ini",
+	".cfg",
+	".conf",
+	".xml",
+	".css",
+	".scss",
+	".py",
+	".js",
+	".jsx",
+	".ts",
+	".tsx",
+	".java",
+	".kt",
+	".go",
+	".rs",
+	".rb",
+	".php",
+	".c",
+	".h",
+	".cpp",
+	".hpp",
+	".cs",
+	".swift",
+	".sh",
+	".sql",
+	".log",
+	".rst",
+	".tex",
+	".vue",
+	".svelte",
+	".astro",
+	".tf",
+	".proto",
+	".csv",
+	".tsv",
+	".html",
+	".htm",
+	".xhtml",
+]);
+
+const ANON_ACCEPT = Array.from(ANON_ALLOWED_EXTENSIONS).join(",");
+
+function AnonymousDocumentsSidebar({
+	open,
+	onOpenChange,
+	isDocked = false,
+	onDockedChange,
+	embedded = false,
+	headerAction,
+}: DocumentsSidebarProps) {
+	const t = useTranslations("documents");
+	const tSidebar = useTranslations("sidebar");
+	const isMobile = !useMediaQuery("(min-width: 640px)");
+	const setRightPanelCollapsed = useSetAtom(rightPanelCollapsedAtom);
+	const anonMode = useAnonymousMode();
+	const { gate } = useLoginGate();
+
+	const fileInputRef = useRef<HTMLInputElement>(null);
+	const [isUploading, setIsUploading] = useState(false);
+	const [search, setSearch] = useState("");
+
+	const [sidebarDocs, setSidebarDocs] = useAtom(sidebarSelectedDocumentsAtom);
+	const mentionedDocIds = useMemo(() => new Set(sidebarDocs.map((d) => d.id)), [sidebarDocs]);
+
+	const handleToggleChatMention = useCallback(
+		(doc: { id: number; title: string; document_type: string }, isMentioned: boolean) => {
+			if (isMentioned) {
+				setSidebarDocs((prev) => prev.filter((d) => d.id !== doc.id));
+			} else {
+				setSidebarDocs((prev) => {
+					if (prev.some((d) => d.id === doc.id)) return prev;
+					return [
+						...prev,
+						{ id: doc.id, title: doc.title, document_type: doc.document_type as DocumentTypeEnum },
+					];
+				});
+			}
+		},
+		[setSidebarDocs]
+	);
+
+	const uploadedDoc = anonMode.isAnonymous ? anonMode.uploadedDoc : null;
+	const hasDoc = uploadedDoc !== null;
+
+	const handleAnonUploadClick = useCallback(() => {
+		if (hasDoc) {
+			gate("upload more documents");
+			return;
+		}
+		fileInputRef.current?.click();
+	}, [hasDoc, gate]);
+
+	const handleFileChange = useCallback(
+		async (e: React.ChangeEvent<HTMLInputElement>) => {
+			const file = e.target.files?.[0];
+			if (!file) return;
+			e.target.value = "";
+
+			const ext = `.${file.name.split(".").pop()?.toLowerCase()}`;
+			if (!ANON_ALLOWED_EXTENSIONS.has(ext)) {
+				gate("upload PDFs, Word documents, images, and more");
+				return;
+			}
+
+			setIsUploading(true);
+			try {
+				const formData = new FormData();
+				formData.append("file", file);
+				const res = await fetch(`${BACKEND_URL}/api/v1/public/anon-chat/upload`, {
+					method: "POST",
+					credentials: "include",
+					body: formData,
+				});
+
+				if (res.status === 409) {
+					gate("upload more documents");
+					return;
+				}
+				if (!res.ok) {
+					const body = await res.json().catch(() => ({}));
+					throw new Error(body.detail || `Upload failed: ${res.status}`);
+				}
+
+				const data = await res.json();
+				if (anonMode.isAnonymous) {
+					anonMode.setUploadedDoc({
+						filename: data.filename,
+						sizeBytes: data.size_bytes,
+					});
+				}
+				toast.success(`Uploaded "${data.filename}"`);
+			} catch (err) {
+				console.error("Upload failed:", err);
+				toast.error(err instanceof Error ? err.message : "Upload failed");
+			} finally {
+				setIsUploading(false);
+			}
+		},
+		[gate, anonMode]
+	);
+
+	const handleRemoveDoc = useCallback(() => {
+		if (anonMode.isAnonymous) {
+			anonMode.setUploadedDoc(null);
+		}
+	}, [anonMode]);
+
+	const treeDocuments: DocumentNodeDoc[] = useMemo(() => {
+		if (!anonMode.isAnonymous || !anonMode.uploadedDoc) return [];
+		return [
+			{
+				id: -1,
+				title: anonMode.uploadedDoc.filename,
+				document_type: "FILE",
+				folderId: null,
+				status: { state: "ready" } as { state: string; reason?: string | null },
+			},
+		];
+	}, [anonMode]);
+
+	const searchFilteredDocs = useMemo(() => {
+		const q = search.trim().toLowerCase();
+		if (!q) return treeDocuments;
+		return treeDocuments.filter((d) => d.title.toLowerCase().includes(q));
+	}, [treeDocuments, search]);
+
+	useEffect(() => {
+		const handleEscape = (e: KeyboardEvent) => {
+			if (e.key === "Escape" && open) {
+				if (isMobile) {
+					onOpenChange(false);
+				} else {
+					setRightPanelCollapsed(true);
+				}
+			}
+		};
+		document.addEventListener("keydown", handleEscape);
+		return () => document.removeEventListener("keydown", handleEscape);
+	}, [open, onOpenChange, isMobile, setRightPanelCollapsed]);
+
+	const documentsContent = (
+		<>
+			<input
+				ref={fileInputRef}
+				type="file"
+				accept={ANON_ACCEPT}
+				className="hidden"
+				onChange={handleFileChange}
+				disabled={isUploading}
+			/>
+
+			{/* Header */}
+			<div className="shrink-0 flex h-14 items-center px-4">
+				<div className="flex w-full items-center justify-between">
+					<div className="flex items-center gap-2">
+						<h2 className="select-none text-lg font-semibold">{t("title") || "Documents"}</h2>
+					</div>
+					<div className="flex items-center gap-1">
+						{isMobile && (
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 rounded-full"
+								onClick={() => onOpenChange(false)}
+							>
+								<X className="h-4 w-4 text-muted-foreground" />
+								<span className="sr-only">{tSidebar("close") || "Close"}</span>
+							</Button>
+						)}
+						{!isMobile && onDockedChange && (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-8 w-8 rounded-full"
+										onClick={() => {
+											if (isDocked) {
+												onDockedChange(false);
+												onOpenChange(false);
+											} else {
+												onDockedChange(true);
+											}
+										}}
+									>
+										{isDocked ? (
+											<ChevronLeft className="h-4 w-4 text-muted-foreground" />
+										) : (
+											<ChevronRight className="h-4 w-4 text-muted-foreground" />
+										)}
+										<span className="sr-only">{isDocked ? "Collapse panel" : "Expand panel"}</span>
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent className="z-80">
+									{isDocked ? "Collapse panel" : "Expand panel"}
+								</TooltipContent>
+							</Tooltip>
+						)}
+						{headerAction}
+					</div>
+				</div>
+			</div>
+
+			{/* Connectors strip (gated) */}
+			<div className="shrink-0 mx-4 mt-4 mb-4 flex select-none items-center gap-2 rounded-lg border bg-muted/50 transition-colors hover:bg-muted/80">
+				<button
+					type="button"
+					onClick={() => gate("connect your data sources")}
+					className="flex items-center gap-2 min-w-0 flex-1 text-left px-3 py-2"
+				>
+					<Unplug className="size-4 shrink-0 text-muted-foreground" />
+					<span className="truncate text-xs text-muted-foreground">Connect your connectors</span>
+					<AvatarGroup className="ml-auto shrink-0">
+						{(isMobile ? SHOWCASE_CONNECTORS.slice(0, 5) : SHOWCASE_CONNECTORS).map(
+							({ type, label }, i) => {
+								const avatar = (
+									<Avatar
+										key={type}
+										className="size-6"
+										style={{ zIndex: SHOWCASE_CONNECTORS.length - i }}
+									>
+										<AvatarFallback className="bg-muted text-[10px]">
+											{getConnectorIcon(type, "size-3.5")}
+										</AvatarFallback>
+									</Avatar>
+								);
+								if (isMobile) return avatar;
+								return (
+									<Tooltip key={type}>
+										<TooltipTrigger asChild>{avatar}</TooltipTrigger>
+										<TooltipContent side="top" className="text-xs">
+											{label}
+										</TooltipContent>
+									</Tooltip>
+								);
+							}
+						)}
+					</AvatarGroup>
+				</button>
+			</div>
+
+			{/* Filters & upload */}
+			<div className="flex-1 min-h-0 pt-0 flex flex-col">
+				<div className="px-4 pb-2">
+					<DocumentsFilters
+						typeCounts={hasDoc ? { FILE: 1 } : {}}
+						onSearch={setSearch}
+						searchValue={search}
+						onToggleType={() => {}}
+						activeTypes={[]}
+						onCreateFolder={() => gate("create folders")}
+						aiSortEnabled={false}
+						onUploadClick={handleAnonUploadClick}
+					/>
+				</div>
+
+				<div className="relative flex-1 min-h-0 overflow-auto">
+					<FolderTreeView
+						folders={[]}
+						documents={searchFilteredDocs}
+						expandedIds={new Set()}
+						onToggleExpand={() => {}}
+						mentionedDocIds={mentionedDocIds}
+						onToggleChatMention={handleToggleChatMention}
+						onToggleFolderSelect={() => {}}
+						onRenameFolder={() => gate("rename folders")}
+						onDeleteFolder={() => gate("delete folders")}
+						onMoveFolder={() => gate("organize folders")}
+						onCreateFolder={() => gate("create folders")}
+						searchQuery={search.trim() || undefined}
+						onPreviewDocument={() => gate("preview documents")}
+						onEditDocument={() => gate("edit documents")}
+						onDeleteDocument={async () => {
+							handleRemoveDoc();
+							setSidebarDocs((prev) => prev.filter((d) => d.id !== -1));
+							return true;
+						}}
+						onMoveDocument={() => gate("organize documents")}
+						onExportDocument={() => gate("export documents")}
+						onVersionHistory={() => gate("view version history")}
+						activeTypes={[]}
+						onDropIntoFolder={async () => gate("organize documents")}
+						onReorderFolder={async () => gate("organize folders")}
+						watchedFolderIds={new Set()}
+						onRescanFolder={() => gate("watch local folders")}
+						onStopWatchingFolder={() => gate("watch local folders")}
+						onExportFolder={() => gate("export folders")}
+					/>
+
+					{!hasDoc && (
+						<div className="px-4 py-8 text-center">
+							<button
+								type="button"
+								onClick={handleAnonUploadClick}
+								disabled={isUploading}
+								className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-primary/30 px-4 py-6 text-sm text-primary transition-colors hover:border-primary/60 hover:bg-primary/5 cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+							>
+								<Upload className="size-4" />
+								{isUploading ? "Uploading..." : "Upload a document"}
+							</button>
+							<p className="mt-2 text-[11px] text-muted-foreground leading-relaxed">
+								Text, code, CSV, and HTML files only. Create an account for PDFs, images, and 30+
+								connectors.
+							</p>
+						</div>
+					)}
+				</div>
+			</div>
+
+			{/* CTA footer */}
+			<div className="border-t p-4 space-y-3">
+				<div className="flex items-center gap-2 text-xs text-muted-foreground">
+					<Lock className="size-3.5 shrink-0" />
+					<span>Create an account to unlock:</span>
+				</div>
+				<ul className="space-y-1.5 text-xs text-muted-foreground pl-5">
+					<li className="flex items-center gap-1.5">
+						<Paperclip className="size-3 shrink-0" /> PDF, Word, images, audio uploads
+					</li>
+					<li className="flex items-center gap-1.5">
+						<FileText className="size-3 shrink-0" /> Unlimited documents
+					</li>
+				</ul>
+				<Button size="sm" className="w-full" asChild>
+					<Link href="/register">Create Free Account</Link>
+				</Button>
+			</div>
+		</>
+	);
+
+	if (embedded) {
+		return (
+			<div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
+				{documentsContent}
+			</div>
+		);
+	}
+
+	if (isDocked && open && !isMobile) {
+		return (
+			<aside
+				className="h-full w-[380px] shrink-0 bg-sidebar text-sidebar-foreground flex flex-col border-r"
+				aria-label={t("title") || "Documents"}
+			>
+				{documentsContent}
+			</aside>
+		);
+	}
+
+	if (isMobile) {
+		return (
+			<Drawer open={open} onOpenChange={onOpenChange}>
+				<DrawerContent className="max-h-[75vh] flex flex-col">
+					<DrawerTitle className="sr-only">{t("title") || "Documents"}</DrawerTitle>
+					<DrawerHandle />
+					<div className="flex-1 min-h-0 flex flex-col overflow-hidden">{documentsContent}</div>
+				</DrawerContent>
+			</Drawer>
+		);
+	}
+
+	return (
+		<SidebarSlideOutPanel
+			open={open}
+			onOpenChange={onOpenChange}
+			ariaLabel={t("title") || "Documents"}
+			width={380}
 		>
 			{documentsContent}
 		</SidebarSlideOutPanel>

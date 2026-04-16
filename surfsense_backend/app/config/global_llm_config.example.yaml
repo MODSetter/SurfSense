@@ -48,6 +48,11 @@ global_llm_configs:
   - id: -1
     name: "Global GPT-4 Turbo"
     description: "OpenAI's GPT-4 Turbo with default prompts and citations"
+    billing_tier: "free"
+    anonymous_enabled: true
+    seo_enabled: true
+    seo_slug: "gpt-4-turbo"
+    quota_reserve_tokens: 4000
     provider: "OPENAI"
     model_name: "gpt-4-turbo-preview"
     api_key: "sk-your-openai-api-key-here"
@@ -67,6 +72,11 @@ global_llm_configs:
   - id: -2
     name: "Global Claude 3 Opus"
     description: "Anthropic's most capable model with citations"
+    billing_tier: "free"
+    anonymous_enabled: true
+    seo_enabled: true
+    seo_slug: "claude-3-opus"
+    quota_reserve_tokens: 4000
     provider: "ANTHROPIC"
     model_name: "claude-3-opus-20240229"
     api_key: "sk-ant-your-anthropic-api-key-here"
@@ -84,6 +94,11 @@ global_llm_configs:
   - id: -3
     name: "Global GPT-3.5 Turbo (Fast)"
     description: "Fast responses without citations for quick queries"
+    billing_tier: "free"
+    anonymous_enabled: true
+    seo_enabled: true
+    seo_slug: "gpt-3.5-turbo-fast"
+    quota_reserve_tokens: 2000
     provider: "OPENAI"
     model_name: "gpt-3.5-turbo"
     api_key: "sk-your-openai-api-key-here"
@@ -101,6 +116,11 @@ global_llm_configs:
   - id: -4
     name: "Global DeepSeek Chat (Chinese)"
     description: "DeepSeek optimized for Chinese language responses"
+    billing_tier: "free"
+    anonymous_enabled: true
+    seo_enabled: true
+    seo_slug: "deepseek-chat-chinese"
+    quota_reserve_tokens: 4000
     provider: "DEEPSEEK"
     model_name: "deepseek-chat"
     api_key: "your-deepseek-api-key-here"
@@ -128,6 +148,11 @@ global_llm_configs:
   - id: -5
     name: "Global Azure GPT-4o"
     description: "Azure OpenAI GPT-4o deployment"
+    billing_tier: "free"
+    anonymous_enabled: true
+    seo_enabled: true
+    seo_slug: "azure-gpt-4o"
+    quota_reserve_tokens: 4000
     provider: "AZURE"
     # model_name format for Azure: azure/<your-deployment-name>
     model_name: "azure/gpt-4o-deployment"
@@ -151,6 +176,11 @@ global_llm_configs:
   - id: -6
     name: "Global Azure GPT-4 Turbo"
     description: "Azure OpenAI GPT-4 Turbo deployment"
+    billing_tier: "free"
+    anonymous_enabled: true
+    seo_enabled: true
+    seo_slug: "azure-gpt-4-turbo"
+    quota_reserve_tokens: 4000
     provider: "AZURE"
     model_name: "azure/gpt-4-turbo-deployment"
     api_key: "your-azure-api-key-here"
@@ -170,6 +200,11 @@ global_llm_configs:
   - id: -7
     name: "Global Groq Llama 3"
     description: "Ultra-fast Llama 3 70B via Groq"
+    billing_tier: "free"
+    anonymous_enabled: true
+    seo_enabled: true
+    seo_slug: "groq-llama-3"
+    quota_reserve_tokens: 8000
     provider: "GROQ"
     model_name: "llama3-70b-8192"
     api_key: "your-groq-api-key-here"
@@ -187,6 +222,11 @@ global_llm_configs:
   - id: -8
     name: "Global MiniMax M2.5"
     description: "MiniMax M2.5 with 204K context window and competitive pricing"
+    billing_tier: "free"
+    anonymous_enabled: true
+    seo_enabled: true
+    seo_slug: "minimax-m2.5"
+    quota_reserve_tokens: 4000
     provider: "MINIMAX"
     model_name: "MiniMax-M2.5"
     api_key: "your-minimax-api-key-here"
@@ -365,3 +405,13 @@ global_vision_llm_configs:
 # - Only use vision-capable models (GPT-4o, Gemini, Claude 3, etc.)
 # - Lower temperature (0.3) is recommended for accurate screenshot analysis
 # - Lower max_tokens (1000) is sufficient since autocomplete produces short suggestions
+#
+# TOKEN QUOTA & ANONYMOUS ACCESS NOTES:
+# - billing_tier: "free" or "premium". Controls whether registered users need premium token quota.
+# - anonymous_enabled: true/false. Whether the model appears in the public no-login catalog.
+# - seo_enabled: true/false. Whether a /free/<seo_slug> landing page is generated.
+# - seo_slug: Stable URL slug for SEO pages. Must be unique. Do NOT change once public.
+# - seo_title: Optional HTML title tag override for the model's /free/<slug> page.
+# - seo_description: Optional meta description override for the model's /free/<slug> page.
+# - quota_reserve_tokens: Tokens reserved before each LLM call for quota enforcement.
+#   Independent of litellm_params.max_tokens. Used by the token quota service.

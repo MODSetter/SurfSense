@@ -1,15 +1,21 @@
 "use client";
 
-import { PenSquare } from "lucide-react";
+import { CreditCard, PenSquare, Zap } from "lucide-react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useIsAnonymous } from "@/contexts/anonymous-mode";
 import { cn } from "@/lib/utils";
 import { SIDEBAR_MIN_WIDTH } from "../../hooks/useSidebarResize";
 import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
 import { ChatListItem } from "./ChatListItem";
 import { NavSection } from "./NavSection";
 import { PageUsageDisplay } from "./PageUsageDisplay";
+import { PremiumTokenUsageDisplay } from "./PremiumTokenUsageDisplay";
 import { SidebarButton } from "./SidebarButton";
 import { SidebarCollapseButton } from "./SidebarCollapseButton";
 import { SidebarHeader } from "./SidebarHeader";
@@ -267,9 +273,7 @@ export function Sidebar({
 					<NavSection items={navItems} onItemClick={onNavItemClick} isCollapsed={isCollapsed} />
 				)}
 
-				{pageUsage && !isCollapsed && (
-					<PageUsageDisplay pagesUsed={pageUsage.pagesUsed} pagesLimit={pageUsage.pagesLimit} />
-				)}
+				<SidebarUsageFooter pageUsage={pageUsage} isCollapsed={isCollapsed} />
 
 				<SidebarUserProfile
 					user={user}
@@ -279,6 +283,89 @@ export function Sidebar({
 					theme={theme}
 					setTheme={setTheme}
 				/>
+			</div>
+		</div>
+	);
+}
+
+function SidebarUsageFooter({
+	pageUsage,
+	isCollapsed,
+}: {
+	pageUsage?: PageUsage;
+	isCollapsed: boolean;
+}) {
+	const params = useParams();
+	const searchSpaceId = params?.search_space_id ?? "";
+	const isAnonymous = useIsAnonymous();
+
+	if (isCollapsed) return null;
+
+	if (isAnonymous) {
+		return (
+			<div className="px-3 py-3 border-t space-y-3">
+				{pageUsage && (
+					<div className="space-y-1.5">
+						<div className="flex justify-between items-center text-xs">
+							<span className="text-muted-foreground">
+								{pageUsage.pagesUsed.toLocaleString()} / {pageUsage.pagesLimit.toLocaleString()}{" "}
+								tokens
+							</span>
+							<span className="font-medium">
+								{Math.min(
+									(pageUsage.pagesUsed / Math.max(pageUsage.pagesLimit, 1)) * 100,
+									100
+								).toFixed(0)}
+								%
+							</span>
+						</div>
+						<Progress
+							value={Math.min((pageUsage.pagesUsed / Math.max(pageUsage.pagesLimit, 1)) * 100, 100)}
+							className="h-1.5"
+						/>
+					</div>
+				)}
+				<Link
+					href="/register"
+					className="flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
+				>
+					Create Free Account
+				</Link>
+			</div>
+		);
+	}
+
+	return (
+		<div className="px-3 py-3 border-t space-y-3">
+			<PremiumTokenUsageDisplay />
+			{pageUsage && (
+				<PageUsageDisplay pagesUsed={pageUsage.pagesUsed} pagesLimit={pageUsage.pagesLimit} />
+			)}
+			<div className="space-y-0.5">
+				<Link
+					href={`/dashboard/${searchSpaceId}/more-pages`}
+					className="group flex w-full items-center justify-between rounded-md px-1.5 py-1 transition-colors hover:bg-accent"
+				>
+					<span className="flex items-center gap-1.5 text-xs text-muted-foreground group-hover:text-accent-foreground">
+						<Zap className="h-3 w-3 shrink-0" />
+						Get Free Pages
+					</span>
+					<Badge className="h-4 rounded px-1 text-[10px] font-semibold leading-none bg-emerald-600 text-white border-transparent hover:bg-emerald-600">
+						FREE
+					</Badge>
+				</Link>
+				<Link
+					href={`/dashboard/${searchSpaceId}/buy-more`}
+					className="group flex w-full items-center justify-between rounded-md px-1.5 py-1 transition-colors hover:bg-accent"
+				>
+					<span className="flex items-center gap-1.5 text-xs text-muted-foreground group-hover:text-accent-foreground">
+						<CreditCard className="h-3 w-3 shrink-0" />
+						Buy More
+					</span>
+					<span className="text-[10px] font-medium text-muted-foreground">
+						$1/1k &middot; $1/1M
+					</span>
+				</Link>
 			</div>
 		</div>
 	);

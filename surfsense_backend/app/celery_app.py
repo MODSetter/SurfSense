@@ -187,4 +187,11 @@ celery_app.conf.beat_schedule = {
             "expires": 60,
         },
     },
+    "reconcile-pending-stripe-token-purchases": {
+        "task": "reconcile_pending_stripe_token_purchases",
+        "schedule": crontab(**stripe_reconciliation_schedule_params),
+        "options": {
+            "expires": 60,
+        },
+    },
 }

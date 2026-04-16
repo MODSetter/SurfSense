@@ -12,6 +12,7 @@ from sqlalchemy import (
     ARRAY,
     JSON,
     TIMESTAMP,
+    BigInteger,
     Boolean,
     Column,
     Enum as SQLAlchemyEnum,
@@ -313,6 +314,12 @@ class IncentiveTaskType(StrEnum):
 
 
 class PagePurchaseStatus(StrEnum):
+    PENDING = "pending"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class PremiumTokenPurchaseStatus(StrEnum):
     PENDING = "pending"
     COMPLETED = "completed"
     FAILED = "failed"
@@ -1739,6 +1746,38 @@ class PagePurchase(Base, TimestampMixin):
     user = relationship("User", back_populates="page_purchases")
 
 
+class PremiumTokenPurchase(Base, TimestampMixin):
+    """Tracks Stripe checkout sessions used to grant additional premium token credits."""
+
+    __tablename__ = "premium_token_purchases"
+    __allow_unmapped__ = True
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    stripe_checkout_session_id = Column(
+        String(255), nullable=False, unique=True, index=True
+    )
+    stripe_payment_intent_id = Column(String(255), nullable=True, index=True)
+    quantity = Column(Integer, nullable=False)
+    tokens_granted = Column(BigInteger, nullable=False)
+    amount_total = Column(Integer, nullable=True)
+    currency = Column(String(10), nullable=True)
+    status = Column(
+        SQLAlchemyEnum(PremiumTokenPurchaseStatus),
+        nullable=False,
+        default=PremiumTokenPurchaseStatus.PENDING,
+        index=True,
+    )
+    completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+    user = relationship("User", back_populates="premium_token_purchases")
+
+
 class SearchSpaceRole(BaseModel, TimestampMixin):
     """
     Custom roles that can be defined per search space.
@@ -2009,6 +2048,11 @@ if config.AUTH_TYPE == "GOOGLE":
             back_populates="user",
             cascade="all, delete-orphan",
         )
+        premium_token_purchases = relationship(
+            "PremiumTokenPurchase",
+            back_populates="user",
+            cascade="all, delete-orphan",
+        )
 
         # Page usage tracking for ETL services
         pages_limit = Column(
@@ -2018,6 +2062,19 @@ if config.AUTH_TYPE == "GOOGLE":
             server_default=str(config.PAGES_LIMIT),
         )
         pages_used = Column(Integer, nullable=False, default=0, server_default="0")
+
+        premium_tokens_limit = Column(
+            BigInteger,
+            nullable=False,
+            default=config.PREMIUM_TOKEN_LIMIT,
+            server_default=str(config.PREMIUM_TOKEN_LIMIT),
+        )
+        premium_tokens_used = Column(
+            BigInteger, nullable=False, default=0, server_default="0"
+        )
+        premium_tokens_reserved = Column(
+            BigInteger, nullable=False, default=0, server_default="0"
+        )
 
         # User profile from OAuth
         display_name = Column(String, nullable=True)
@@ -2123,6 +2180,11 @@ else:
             back_populates="user",
             cascade="all, delete-orphan",
         )
+        premium_token_purchases = relationship(
+            "PremiumTokenPurchase",
+            back_populates="user",
+            cascade="all, delete-orphan",
+        )
 
         # Page usage tracking for ETL services
         pages_limit = Column(
@@ -2132,6 +2194,19 @@ else:
             server_default=str(config.PAGES_LIMIT),
         )
         pages_used = Column(Integer, nullable=False, default=0, server_default="0")
+
+        premium_tokens_limit = Column(
+            BigInteger,
+            nullable=False,
+            default=config.PREMIUM_TOKEN_LIMIT,
+            server_default=str(config.PREMIUM_TOKEN_LIMIT),
+        )
+        premium_tokens_used = Column(
+            BigInteger, nullable=False, default=0, server_default="0"
+        )
+        premium_tokens_reserved = Column(
+            BigInteger, nullable=False, default=0, server_default="0"
+        )
 
         # User profile (can be set manually for non-OAuth users)
         display_name = Column(String, nullable=True)

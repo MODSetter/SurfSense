@@ -36,12 +36,14 @@ interface DocumentUploadDialogContextType {
 
 const DocumentUploadDialogContext = createContext<DocumentUploadDialogContextType | null>(null);
 
-export const useDocumentUploadDialog = () => {
+const NOOP_DIALOG: DocumentUploadDialogContextType = {
+	openDialog: () => {},
+	closeDialog: () => {},
+};
+
+export const useDocumentUploadDialog = (): DocumentUploadDialogContextType => {
 	const context = useContext(DocumentUploadDialogContext);
-	if (!context) {
-		throw new Error("useDocumentUploadDialog must be used within DocumentUploadDialogProvider");
-	}
-	return context;
+	return context ?? NOOP_DIALOG;
 };
 
 // Provider component

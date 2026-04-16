@@ -76,6 +76,14 @@ async def get_global_new_llm_configs(
                     "citations_enabled": True,
                     "is_global": True,
                     "is_auto_mode": True,
+                    "billing_tier": "free",
+                    "is_premium": False,
+                    "anonymous_enabled": False,
+                    "seo_enabled": False,
+                    "seo_slug": None,
+                    "seo_title": None,
+                    "seo_description": None,
+                    "quota_reserve_tokens": None,
                 }
             )
 
@@ -97,6 +105,14 @@ async def get_global_new_llm_configs(
                 ),
                 "citations_enabled": cfg.get("citations_enabled", True),
                 "is_global": True,
+                "billing_tier": cfg.get("billing_tier", "free"),
+                "is_premium": cfg.get("billing_tier", "free") == "premium",
+                "anonymous_enabled": cfg.get("anonymous_enabled", False),
+                "seo_enabled": cfg.get("seo_enabled", False),
+                "seo_slug": cfg.get("seo_slug"),
+                "seo_title": cfg.get("seo_title"),
+                "seo_description": cfg.get("seo_description"),
+                "quota_reserve_tokens": cfg.get("quota_reserve_tokens"),
             }
             safe_configs.append(safe_config)
 

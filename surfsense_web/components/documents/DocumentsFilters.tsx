@@ -27,6 +27,7 @@ export function DocumentsFilters({
 	aiSortEnabled = false,
 	aiSortBusy = false,
 	onToggleAiSort,
+	onUploadClick,
 }: {
 	typeCounts: Partial<Record<DocumentTypeEnum, number>>;
 	onSearch: (v: string) => void;
@@ -37,12 +38,14 @@ export function DocumentsFilters({
 	aiSortEnabled?: boolean;
 	aiSortBusy?: boolean;
 	onToggleAiSort?: () => void;
+	onUploadClick?: () => void;
 }) {
 	const t = useTranslations("documents");
 	const id = React.useId();
 	const inputRef = useRef<HTMLInputElement>(null);
 
 	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
+	const handleUpload = onUploadClick ?? openUploadDialog;
 
 	const [typeSearchQuery, setTypeSearchQuery] = useState("");
 	const [scrollPos, setScrollPos] = useState<"top" | "middle" | "bottom">("top");
@@ -254,7 +257,7 @@ export function DocumentsFilters({
 				{/* Upload Button */}
 				<Button
 					data-joyride="upload-button"
-					onClick={openUploadDialog}
+					onClick={handleUpload}
 					variant="outline"
 					size="sm"
 					className="h-9 shrink-0 gap-1.5 bg-white text-gray-700 border-white hover:bg-gray-50 dark:bg-white dark:text-gray-800 dark:hover:bg-gray-100"

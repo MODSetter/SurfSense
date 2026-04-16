@@ -53,7 +53,7 @@ export function ZeroProvider({ children }: { children: React.ReactNode }) {
 
 	const context = useMemo(
 		() => (hasUser ? { userId: String(userId) } : undefined),
-		[hasUser, userId],
+		[hasUser, userId]
 	);
 
 	const opts = useMemo(
@@ -65,7 +65,7 @@ export function ZeroProvider({ children }: { children: React.ReactNode }) {
 			cacheURL,
 			auth,
 		}),
-		[userID, context, auth],
+		[userID, context, auth]
 	);
 
 	return (

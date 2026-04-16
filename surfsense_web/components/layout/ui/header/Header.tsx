@@ -22,6 +22,7 @@ export function Header({ mobileMenuTrigger }: HeaderProps) {
 	const activeTab = useAtomValue(activeTabAtom);
 	const tabs = useAtomValue(tabsAtom);
 
+	const isFreePage = pathname?.startsWith("/free") ?? false;
 	const isChatPage = pathname?.includes("/new-chat") ?? false;
 	const isDocumentTab = activeTab?.type === "document";
 	const hasTabBar = tabs.length > 1;
@@ -29,6 +30,16 @@ export function Header({ mobileMenuTrigger }: HeaderProps) {
 	const currentThreadState = useAtomValue(currentThreadAtom);
 
 	const hasThread = isChatPage && !isDocumentTab && currentThreadState.id !== null;
+
+	// Free chat pages have their own header with model selector; only render mobile trigger
+	if (isFreePage) {
+		if (!mobileMenuTrigger) return null;
+		return (
+			<header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 bg-main-panel/95 backdrop-blur supports-backdrop-filter:bg-main-panel/60 px-4">
+				{mobileMenuTrigger}
+			</header>
+		);
+	}
 
 	const threadForButton: ThreadRecord | null =
 		hasThread && currentThreadState.id !== null

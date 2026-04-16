@@ -27,6 +27,7 @@
 		"@assistant-ui/react-markdown": "^0.12.6",
 		"@babel/standalone": "^7.29.2",
 		"@hookform/resolvers": "^5.2.2",
+		"@marsidev/react-turnstile": "^1.5.0",
 		"@number-flow/react": "^0.5.10",
 		"@platejs/autoformat": "^52.0.11",
 		"@platejs/basic-nodes": "^52.0.11",

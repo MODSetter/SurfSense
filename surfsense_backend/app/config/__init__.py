@@ -42,7 +42,25 @@ def load_global_llm_configs():
     try:
         with open(global_config_file, encoding="utf-8") as f:
             data = yaml.safe_load(f)
-            return data.get("global_llm_configs", [])
+            configs = data.get("global_llm_configs", [])
+
+        seen_slugs: dict[str, int] = {}
+        for cfg in configs:
+            cfg.setdefault("billing_tier", "free")
+            cfg.setdefault("anonymous_enabled", False)
+            cfg.setdefault("seo_enabled", False)
+
+            if cfg.get("seo_enabled") and cfg.get("seo_slug"):
+                slug = cfg["seo_slug"]
+                if slug in seen_slugs:
+                    print(
+                        f"Warning: Duplicate seo_slug '{slug}' in global LLM configs "
+                        f"(ids {seen_slugs[slug]} and {cfg.get('id')})"
+                    )
+                else:
+                    seen_slugs[slug] = cfg.get("id", 0)
+
+        return configs
     except Exception as e:
         print(f"Warning: Failed to load global LLM configs: {e}")
         return []
@@ -306,6 +324,36 @@ class Config:
     STRIPE_RECONCILIATION_BATCH_SIZE = int(
         os.getenv("STRIPE_RECONCILIATION_BATCH_SIZE", "100")
     )
+
+    # Premium token quota settings
+    PREMIUM_TOKEN_LIMIT = int(os.getenv("PREMIUM_TOKEN_LIMIT", "5000000"))
+    STRIPE_PREMIUM_TOKEN_PRICE_ID = os.getenv("STRIPE_PREMIUM_TOKEN_PRICE_ID")
+    STRIPE_TOKENS_PER_UNIT = int(os.getenv("STRIPE_TOKENS_PER_UNIT", "1000000"))
+    STRIPE_TOKEN_BUYING_ENABLED = (
+        os.getenv("STRIPE_TOKEN_BUYING_ENABLED", "FALSE").upper() == "TRUE"
+    )
+
+    # Anonymous / no-login mode settings
+    NOLOGIN_MODE_ENABLED = os.getenv("NOLOGIN_MODE_ENABLED", "FALSE").upper() == "TRUE"
+    ANON_TOKEN_LIMIT = int(os.getenv("ANON_TOKEN_LIMIT", "1000000"))
+    ANON_TOKEN_WARNING_THRESHOLD = int(
+        os.getenv("ANON_TOKEN_WARNING_THRESHOLD", "800000")
+    )
+    ANON_TOKEN_QUOTA_TTL_DAYS = int(os.getenv("ANON_TOKEN_QUOTA_TTL_DAYS", "30"))
+    ANON_MAX_UPLOAD_SIZE_MB = int(os.getenv("ANON_MAX_UPLOAD_SIZE_MB", "5"))
+
+    # Default quota reserve tokens when not specified per-model
+    QUOTA_MAX_RESERVE_PER_CALL = int(os.getenv("QUOTA_MAX_RESERVE_PER_CALL", "8000"))
+
+    # Abuse prevention: concurrent stream cap and CAPTCHA
+    ANON_MAX_CONCURRENT_STREAMS = int(os.getenv("ANON_MAX_CONCURRENT_STREAMS", "2"))
+    ANON_CAPTCHA_REQUEST_THRESHOLD = int(
+        os.getenv("ANON_CAPTCHA_REQUEST_THRESHOLD", "5")
+    )
+
+    # Cloudflare Turnstile CAPTCHA
+    TURNSTILE_ENABLED = os.getenv("TURNSTILE_ENABLED", "FALSE").upper() == "TRUE"
+    TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY", "")
 
     # Auth
     AUTH_TYPE = os.getenv("AUTH_TYPE")

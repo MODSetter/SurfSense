@@ -13,8 +13,6 @@ from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from limits.storage import MemoryStorage
-from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
@@ -36,6 +34,7 @@ from app.config import (
 )
 from app.db import User, create_db_and_tables, get_async_session
 from app.exceptions import GENERIC_5XX_MESSAGE, ISSUES_URL, SurfSenseError
+from app.rate_limiter import limiter
 from app.routes import router as crud_router
 from app.routes.auth_routes import router as auth_router
 from app.schemas import UserCreate, UserRead, UserUpdate
@@ -54,17 +53,7 @@ rate_limit_logger = logging.getLogger("surfsense.rate_limit")
 # Uses the same Redis instance as Celery for zero additional infrastructure.
 # Protects auth endpoints from brute force and user enumeration attacks.
 
-# SlowAPI limiter — provides default rate limits (1024/min) for ALL routes
-# via the ASGI middleware. This is the general safety net.
-# in_memory_fallback ensures requests are still served (with per-worker
-# in-memory limiting) when Redis is unreachable, instead of hanging.
-limiter = Limiter(
-    key_func=get_remote_address,
-    storage_uri=config.REDIS_APP_URL,
-    default_limits=["1024/minute"],
-    in_memory_fallback_enabled=True,
-    in_memory_fallback=[MemoryStorage()],
-)
+# limiter is imported from app.rate_limiter (shared module to avoid circular imports)
 
 
 def _get_request_id(request: Request) -> str:
@@ -126,6 +115,39 @@ def _surfsense_error_handler(request: Request, exc: SurfSenseError) -> JSONRespo
 def _http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
     """Wrap FastAPI/Starlette HTTPExceptions into the standard envelope."""
     rid = _get_request_id(request)
+
+    # Structured dict details (e.g. {"code": "CAPTCHA_REQUIRED", "message": "..."})
+    # are preserved so the frontend can parse them.
+    if isinstance(exc.detail, dict):
+        err_code = exc.detail.get("code", _status_to_code(exc.status_code))
+        message = exc.detail.get("message", str(exc.detail))
+        if exc.status_code >= 500:
+            _error_logger.error(
+                "[%s] %s - HTTPException %d: %s",
+                rid,
+                request.url.path,
+                exc.status_code,
+                message,
+            )
+            message = GENERIC_5XX_MESSAGE
+            err_code = "INTERNAL_ERROR"
+        body = {
+            "error": {
+                "code": err_code,
+                "message": message,
+                "status": exc.status_code,
+                "request_id": rid,
+                "timestamp": datetime.now(UTC).isoformat(),
+                "report_url": ISSUES_URL,
+            },
+            "detail": exc.detail,
+        }
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=body,
+            headers={"X-Request-ID": rid},
+        )
+
     detail = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
     if exc.status_code >= 500:
         _error_logger.error(
@@ -662,6 +684,13 @@ if config.AUTH_TYPE == "GOOGLE":
 
         return response
 
+
+# Anonymous (no-login) chat routes — mounted at /api/v1/public/anon-chat
+from app.routes.anonymous_chat_routes import (  # noqa: E402
+    router as anonymous_chat_router,
+)
+
+app.include_router(anonymous_chat_router)
 
 app.include_router(crud_router, prefix="/api/v1", tags=["crud"])
 

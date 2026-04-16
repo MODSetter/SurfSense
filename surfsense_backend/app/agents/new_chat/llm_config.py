@@ -109,6 +109,12 @@ class AgentConfig:
     # Auto mode flag
     is_auto_mode: bool = False
 
+    # Token quota and policy
+    billing_tier: str = "free"
+    is_premium: bool = False
+    anonymous_enabled: bool = False
+    quota_reserve_tokens: int | None = None
+
     @classmethod
     def from_auto_mode(cls) -> "AgentConfig":
         """
@@ -130,6 +136,10 @@ class AgentConfig:
             config_id=AUTO_MODE_ID,
             config_name="Auto (Fastest)",
             is_auto_mode=True,
+            billing_tier="free",
+            is_premium=False,
+            anonymous_enabled=False,
+            quota_reserve_tokens=None,
         )
 
     @classmethod
@@ -158,6 +168,10 @@ class AgentConfig:
             config_id=config.id,
             config_name=config.name,
             is_auto_mode=False,
+            billing_tier="free",
+            is_premium=False,
+            anonymous_enabled=False,
+            quota_reserve_tokens=None,
         )
 
     @classmethod
@@ -195,6 +209,10 @@ class AgentConfig:
             config_id=yaml_config.get("id"),
             config_name=yaml_config.get("name"),
             is_auto_mode=False,
+            billing_tier=yaml_config.get("billing_tier", "free"),
+            is_premium=yaml_config.get("billing_tier", "free") == "premium",
+            anonymous_enabled=yaml_config.get("anonymous_enabled", False),
+            quota_reserve_tokens=yaml_config.get("quota_reserve_tokens"),
         )
 
 

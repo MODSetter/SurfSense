@@ -164,6 +164,15 @@ class GlobalNewLLMConfigRead(BaseModel):
     is_global: bool = True  # Always true for global configs
     is_auto_mode: bool = False  # True only for Auto mode (ID 0)
 
+    billing_tier: str = "free"
+    is_premium: bool = False
+    anonymous_enabled: bool = False
+    seo_enabled: bool = False
+    seo_slug: str | None = None
+    seo_title: str | None = None
+    seo_description: str | None = None
+    quota_reserve_tokens: int | None = None
+
 
 # =============================================================================
 # LLM Preferences Schemas (for role assignments)

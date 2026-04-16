@@ -859,6 +859,14 @@ export function ModelSelector({
 								Recommended
 							</Badge>
 						)}
+						{"is_premium" in config && (config as Record<string, unknown>).is_premium && (
+							<Badge
+								variant="secondary"
+								className="text-[9px] px-1 py-0 h-3.5 bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 border-0"
+							>
+								Premium
+							</Badge>
+						)}
 					</div>
 					<div className="flex items-center gap-1.5 mt-0.5">
 						<span className="text-xs text-muted-foreground truncate">
