@@ -152,7 +152,6 @@ export function clearAllTokens(): void {
 }
 
 /**
-<<<<<<< HEAD
  * Pushes the current localStorage tokens into the Electron main process
  * so that other BrowserWindows (Quick Ask, Autocomplete) can access them.
  */
@@ -191,9 +190,6 @@ export async function ensureTokensFromElectron(): Promise<boolean> {
 }
 
 /**
- * Logout the current user by revoking the refresh token and clearing localStorage.
- * Returns true if logout was successful (or tokens were cleared), false otherwise.
-=======
  * Reads the short-lived SSO handoff cookies set by /auth/jwt/proxy-login.
  * Returns null for each if not present.
  */
@@ -219,11 +215,9 @@ export function clearSSOCookies(): void {
 /**
  * Logout the current user.
  *
- * Always performs 3-layer SSO logout (proxy auth is the only auth mode):
  *   Layer 1 — revoke JWT refresh tokens server-side
  *   Layer 2 — clear _oauth2_proxy cookie via /oauth2/sign_out
- *   Layer 3 — clear Cognito session via rd= redirect
->>>>>>> 8c3ff62c (feat(auth): mPass SSO via oauth2-proxy ForwardAuth with cookie-handoff)
+ *   Layer 3 (optional) — clear Cognito session via rd= redirect when OIDC_LOGOUT_URL configured
  */
 export async function logout(): Promise<boolean> {
 	const refreshToken = getRefreshToken();
@@ -247,38 +241,35 @@ export async function logout(): Promise<boolean> {
 
 	clearAllTokens();
 
-	// Layers 2 + 3 — SSO logout via oauth2-proxy → Cognito
+	// Layer 2 (+ optional Layer 3) — oauth2-proxy sign_out, with Cognito hop if configured.
 	if (typeof window !== "undefined") {
+		const oauthProxyUrl = process.env.NEXT_PUBLIC_OAUTH2_PROXY_URL || window.location.origin;
+		const logoutRedirect = process.env.NEXT_PUBLIC_LOGOUT_REDIRECT_URL || window.location.origin;
 		const oidcLogoutUrl = process.env.NEXT_PUBLIC_OIDC_LOGOUT_URL;
 		const oidcClientId = process.env.NEXT_PUBLIC_OIDC_CLIENT_ID;
 
+		let rdParam: string;
 		if (oidcLogoutUrl && oidcClientId) {
+			// Full 3-layer logout: oauth2-proxy → Cognito → landing page.
+			// Single-encode query params so oauth2-proxy decodes once and passes clean args
+			// to Cognito; encodeURIComponent would double-encode and Cognito would reject.
 			const cognitoUrl = new URL(oidcLogoutUrl);
 			cognitoUrl.searchParams.set("client_id", oidcClientId);
-			// Redirect to the platform landing page after Cognito clears its session.
-			// The landing page is NOT behind ForwardAuth, so the user sees it instead
-			// of being bounced back to Cognito login. Falls back to current origin
-			// for deployments without the env var.
-			const logoutRedirect = process.env.NEXT_PUBLIC_LOGOUT_REDIRECT_URL || window.location.origin;
 			cognitoUrl.searchParams.set("logout_uri", logoutRedirect);
-
-			// Full SSO logout: oauth2-proxy sign_out clears _oauth2_proxy cookie,
-			// then rd= redirects to Cognito to clear the Cognito session.
-			// Uses the dedicated auth domain (foss-auth.localhost) so the sign_out
-			// URL is consistent regardless of which app initiates the logout.
-			const oauthProxyUrl = process.env.NEXT_PUBLIC_OAUTH2_PROXY_URL || window.location.origin;
-			// Single-encode the Cognito URL so oauth2-proxy decodes it once
-			// and passes a clean logout_uri to Cognito (matching Plane's pattern).
-			// encodeURIComponent would double-encode the query params, causing
-			// Cognito to reject the logout_uri as unregistered.
-			const cognitoStr = cognitoUrl.toString();
-			const rdParam = cognitoStr.replace(/\?/, "%3F").replace(/&/g, "%26").replace(/=/g, "%3D");
-			window.location.href = `${oauthProxyUrl}/oauth2/sign_out?rd=${rdParam}`;
-			return true; // browser is already navigating away
+			rdParam = cognitoUrl
+				.toString()
+				.replace(/\?/, "%3F")
+				.replace(/&/g, "%26")
+				.replace(/=/g, "%3D");
+		} else {
+			// No Cognito hosted logout — clear oauth2-proxy cookie and land on portal.
+			rdParam = encodeURIComponent(logoutRedirect);
 		}
+		window.location.href = `${oauthProxyUrl}/oauth2/sign_out?rd=${rdParam}`;
+		return true; // browser is already navigating away
 	}
 
-	return false; // no SSO redirect — caller should navigate
+	return false; // SSR — caller should navigate
 }
 
 /**

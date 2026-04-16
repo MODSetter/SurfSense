@@ -4,6 +4,11 @@ node_modules
 .next
 out
 .DS_Store
+# Next.js reads these at build time and inlines NEXT_PUBLIC_* values into the
+# JS bundle, bypassing Dockerfile ARG defaults + entrypoint runtime substitution.
+# Exclude from build context so the image stays portable across .env.local contents.
+.env.local
+.env.*.local
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
