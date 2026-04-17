@@ -7,4 +7,5 @@ node_modules/
 .pnpm-store
 .DS_Store
 deepagents/
+.env.yaml
 debug.log

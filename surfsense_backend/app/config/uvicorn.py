@@ -30,7 +30,7 @@ def load_uvicorn_config(args=None):
     config_kwargs = {
         "app": "app.app:app",
         "host": os.getenv("UVICORN_HOST", "0.0.0.0"),
-        "port": int(os.getenv("UVICORN_PORT", 8000)),
+        "port": int(os.getenv("UVICORN_PORT", os.getenv("PORT", 8000))),
         "log_level": os.getenv("UVICORN_LOG_LEVEL", "info"),
         "reload": args.reload if args else False,
         "reload_dirs": ["app"] if (args and args.reload) else None,

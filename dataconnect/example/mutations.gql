@@ -1,0 +1,24 @@
+mutation CreateMovie($title: String!, $genre: String!, $imageUrl: String!)
+@auth(level: USER_EMAIL_VERIFIED, insecureReason: "Any email verified users can create a new movie.") {
+  movie_insert(data: { title: $title, genre: $genre, imageUrl: $imageUrl })
+}
+
+mutation UpsertUser($username: String!) @auth(level: USER) {
+  user_upsert(data: { id_expr: "auth.uid", username: $username })
+}
+
+mutation AddReview($movieId: UUID!, $rating: Int!, $reviewText: String!)
+@auth(level: USER) {
+  review_upsert(
+    data: {
+      userId_expr: "auth.uid"
+      movieId: $movieId
+      rating: $rating
+      reviewText: $reviewText
+    }
+  )
+}
+
+mutation DeleteReview($movieId: UUID!) @auth(level: USER) {
+  review_delete(key: { userId_expr: "auth.uid", movieId: $movieId })
+}

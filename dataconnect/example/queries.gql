@@ -1,0 +1,67 @@
+query ListMovies @auth(level: PUBLIC, insecureReason: "Anyone can list all movies.") {
+  movies {
+    id
+    title
+    imageUrl
+    genre
+  }
+}
+
+query ListUsers @auth(level: NO_ACCESS) {
+  users {
+    id
+    username
+  }
+}
+
+query ListUserReviews @auth(level: USER) {
+  user(key: { id_expr: "auth.uid" }) {
+    id
+    username
+    reviews: reviews_on_user {
+      rating
+      reviewDate
+      reviewText
+      movie {
+        id
+        title
+      }
+    }
+  }
+}
+
+query GetMovieById($id: UUID!) @auth(level: PUBLIC, insecureReason: "Anyone can get a movie by id.") {
+  movie(id: $id) {
+    id
+    title
+    imageUrl
+    genre
+    metadata: movieMetadata_on_movie {
+      rating
+      releaseYear
+      description
+    }
+    reviews: reviews_on_movie {
+      reviewText
+      reviewDate
+      rating
+      user {
+        id
+        username
+      }
+    }
+  }
+}
+
+query SearchMovie($titleInput: String, $genre: String) @auth(level: PUBLIC, insecureReason: "Anyone can search for movies.") {
+  movies(
+    where: {
+      _and: [{ genre: { eq: $genre } }, { title: { contains: $titleInput } }]
+    }
+  ) {
+    id
+    title
+    genre
+    imageUrl
+  }
+}

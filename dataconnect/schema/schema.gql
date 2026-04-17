@@ -1,0 +1,25 @@
+type User @table {
+  id: String! @default(expr: "auth.uid")
+  username: String! @col(dataType: "varchar(50)")
+}
+
+type Movie @table {
+  title: String!
+  imageUrl: String!
+  genre: String
+}
+
+type MovieMetadata @table {
+  movie: Movie! @unique
+  rating: Float
+  releaseYear: Int
+  description: String
+}
+
+type Review @table(name: "Reviews", key: ["movie", "user"]) {
+  user: User!
+  movie: Movie!
+  rating: Int
+  reviewText: String
+  reviewDate: Date! @default(expr: "request.time")
+}

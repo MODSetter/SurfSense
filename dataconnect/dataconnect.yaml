@@ -1,0 +1,11 @@
+specVersion: "v1"
+serviceId: "surfsense-db"
+location: "us-east4"
+schemas:
+  - source: "./schema"
+    datasource:
+      postgresql:
+        database: "fdcdb"
+        cloudSql:
+          instanceId: "surfsense-db-fdc"
+connectorDirs: ["./example"]

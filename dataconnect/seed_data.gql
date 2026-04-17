@@ -1,0 +1,12 @@
+mutation @transaction {
+  movie_insertMany(
+    data: [
+      {
+        id: "550e8400-e29b-41d4-a716-446655440000",
+        title: "Quantum Paradox",
+        imageUrl: "https://firebasestorage.googleapis.com/v0/b/fdc-web-quickstart.appspot.com/o/movie%2Fquantum_paradox.jpeg?alt=media&token=4142e2a1-bf43-43b5-b7cf-6616be3fd4e3",
+        genre: "sci-fi"
+      }
+    ]
+  )
+}
