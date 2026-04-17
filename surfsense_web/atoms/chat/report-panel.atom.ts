@@ -42,7 +42,13 @@ export const openReportPanelAtom = atom(
 			wordCount,
 			shareToken,
 			contentType,
-		}: { reportId: number; title: string; wordCount?: number; shareToken?: string | null; contentType?: string }
+		}: {
+			reportId: number;
+			title: string;
+			wordCount?: number;
+			shareToken?: string | null;
+			contentType?: string;
+		}
 	) => {
 		if (!get(reportPanelAtom).isOpen) {
 			set(preReportCollapsedAtom, get(rightPanelCollapsedAtom));

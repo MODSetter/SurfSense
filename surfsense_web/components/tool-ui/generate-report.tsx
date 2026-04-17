@@ -99,7 +99,9 @@ function ReportErrorState({ title, error }: { title: string; error: string }) {
 				{title && title !== "Report" && (
 					<p className="text-sm font-medium text-foreground line-clamp-2">{title}</p>
 				)}
-				<p className={`text-sm text-muted-foreground${title && title !== "Report" ? " mt-1" : ""}`}>{error}</p>
+				<p className={`text-sm text-muted-foreground${title && title !== "Report" ? " mt-1" : ""}`}>
+					{error}
+				</p>
 			</div>
 		</div>
 	);
@@ -217,11 +219,11 @@ function ReportCard({
 		<div
 			className={`my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-[box-shadow] duration-300 ${isActive ? "ring-1 ring-primary/50" : ""}`}
 		>
-		<button
-			type="button"
-			onClick={handleOpen}
-			className="w-full text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:outline-none cursor-pointer"
-		>
+			<button
+				type="button"
+				onClick={handleOpen}
+				className="w-full text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:outline-none cursor-pointer"
+			>
 				<div className="px-5 pt-5 pb-4 select-none">
 					<p className="text-sm font-semibold text-foreground line-clamp-2">
 						{isLoading ? title : metadata.title}

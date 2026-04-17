@@ -1,9 +1,9 @@
 "use client";
 
 import { ZoomInIcon, ZoomOutIcon } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import * as pdfjsLib from "pdfjs-dist";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
+import * as pdfjsLib from "pdfjs-dist";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { getAuthHeaders } from "@/lib/auth-utils";
@@ -50,7 +50,7 @@ export function PdfViewer({ pdfUrl, isPublic = false }: PdfViewerProps) {
 			const dims = pageDimsRef.current[pageIndex];
 			return dims ? Math.floor(dims.height * scale) : 0;
 		},
-		[scale],
+		[scale]
 	);
 
 	const getVisibleRange = useCallback(() => {
@@ -285,14 +285,28 @@ export function PdfViewer({ pdfUrl, isPublic = false }: PdfViewerProps) {
 	return (
 		<div className="flex flex-col h-full">
 			{numPages > 0 && (
-				<div className={`flex items-center justify-center gap-2 px-4 py-2 border-b shrink-0 select-none ${isPublic ? "bg-main-panel" : "bg-sidebar"}`}>
-					<Button variant="ghost" size="icon" onClick={zoomOut} disabled={scale <= MIN_ZOOM} className="size-7">
+				<div
+					className={`flex items-center justify-center gap-2 px-4 py-2 border-b shrink-0 select-none ${isPublic ? "bg-main-panel" : "bg-sidebar"}`}
+				>
+					<Button
+						variant="ghost"
+						size="icon"
+						onClick={zoomOut}
+						disabled={scale <= MIN_ZOOM}
+						className="size-7"
+					>
 						<ZoomOutIcon className="size-4" />
 					</Button>
 					<span className="text-xs text-muted-foreground tabular-nums min-w-[40px] text-center">
 						{Math.round(scale * 100)}%
 					</span>
-					<Button variant="ghost" size="icon" onClick={zoomIn} disabled={scale >= MAX_ZOOM} className="size-7">
+					<Button
+						variant="ghost"
+						size="icon"
+						onClick={zoomIn}
+						disabled={scale >= MAX_ZOOM}
+						className="size-7"
+					>
 						<ZoomInIcon className="size-4" />
 					</Button>
 				</div>
@@ -303,7 +317,9 @@ export function PdfViewer({ pdfUrl, isPublic = false }: PdfViewerProps) {
 				className={`relative flex-1 overflow-auto ${isPublic ? "bg-main-panel" : "bg-sidebar"}`}
 			>
 				{loading ? (
-					<div className={`absolute inset-0 flex items-center justify-center ${isPublic ? "text-foreground" : "text-sidebar-foreground"}`}>
+					<div
+						className={`absolute inset-0 flex items-center justify-center ${isPublic ? "text-foreground" : "text-sidebar-foreground"}`}
+					>
 						<Spinner size="md" />
 					</div>
 				) : (

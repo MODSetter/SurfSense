@@ -308,42 +308,42 @@ export function ReportPanelContent({
 						</Button>
 					)}
 
-				{/* Export — plain button for resume (typst), dropdown for others */}
-				{reportContent?.content_type === "typst" ? (
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => handleExport("pdf")}
-						disabled={isLoading || !reportContent?.content || exporting !== null}
-						className={`h-8 min-w-[100px] px-3.5 py-4 text-[15px] ${btnBg} select-none`}
-					>
-						{exporting === "pdf" ? <Spinner size="xs" /> : "Download"}
-					</Button>
-				) : (
-					<DropdownMenu modal={insideDrawer ? false : undefined}>
-						<DropdownMenuTrigger asChild>
-							<Button
-								variant="outline"
-								size="sm"
-								disabled={isLoading || !reportContent?.content}
-								className={`h-8 px-3.5 py-4 text-[15px] gap-1.5 ${btnBg} select-none`}
-							>
-								Export
-								<ChevronDownIcon className="size-3" />
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent
-							align="start"
-							className={`min-w-[200px] select-none${insideDrawer ? " z-[100]" : ""}`}
+					{/* Export — plain button for resume (typst), dropdown for others */}
+					{reportContent?.content_type === "typst" ? (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => handleExport("pdf")}
+							disabled={isLoading || !reportContent?.content || exporting !== null}
+							className={`h-8 min-w-[100px] px-3.5 py-4 text-[15px] ${btnBg} select-none`}
 						>
-							<ExportDropdownItems
-								onExport={handleExport}
-								exporting={exporting}
-								showAllFormats={!shareToken}
-							/>
-						</DropdownMenuContent>
-					</DropdownMenu>
-				)}
+							{exporting === "pdf" ? <Spinner size="xs" /> : "Download"}
+						</Button>
+					) : (
+						<DropdownMenu modal={insideDrawer ? false : undefined}>
+							<DropdownMenuTrigger asChild>
+								<Button
+									variant="outline"
+									size="sm"
+									disabled={isLoading || !reportContent?.content}
+									className={`h-8 px-3.5 py-4 text-[15px] gap-1.5 ${btnBg} select-none`}
+								>
+									Export
+									<ChevronDownIcon className="size-3" />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent
+								align="start"
+								className={`min-w-[200px] select-none${insideDrawer ? " z-[100]" : ""}`}
+							>
+								<ExportDropdownItems
+									onExport={handleExport}
+									exporting={exporting}
+									showAllFormats={!shareToken}
+								/>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					)}
 
 					{/* Version switcher — only shown when multiple versions exist */}
 					{versions.length > 1 && (
@@ -395,10 +395,10 @@ export function ReportPanelContent({
 						</div>
 					</div>
 				) : reportContent.content_type === "typst" ? (
-				<PdfViewer
-					pdfUrl={`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}${shareToken ? `/api/v1/public/${shareToken}/reports/${activeReportId}/preview` : `/api/v1/reports/${activeReportId}/preview`}`}
-					isPublic={isPublic}
-				/>
+					<PdfViewer
+						pdfUrl={`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}${shareToken ? `/api/v1/public/${shareToken}/reports/${activeReportId}/preview` : `/api/v1/reports/${activeReportId}/preview`}`}
+						isPublic={isPublic}
+					/>
 				) : reportContent.content ? (
 					isReadOnly ? (
 						<div className="h-full overflow-y-auto px-5 py-4">

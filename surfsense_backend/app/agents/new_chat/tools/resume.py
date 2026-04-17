@@ -204,8 +204,19 @@ def _get_template(template_id: str | None = None) -> dict[str, str]:
 
 
 _MONTH_NAMES = [
-    "", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    "",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
 ]
 
 
@@ -452,7 +463,9 @@ def create_generate_resume_tool(
                     )
                     return failed.id
             except Exception:
-                logger.exception("[generate_resume] Could not persist failed report row")
+                logger.exception(
+                    "[generate_resume] Could not persist failed report row"
+                )
                 return None
 
         try:
@@ -471,7 +484,9 @@ def create_generate_resume_tool(
                 llm = await get_document_summary_llm(read_session, search_space_id)
 
             if not llm:
-                error_msg = "No LLM configured. Please configure a language model in Settings."
+                error_msg = (
+                    "No LLM configured. Please configure a language model in Settings."
+                )
                 report_id = await _save_failed_report(error_msg)
                 return {
                     "status": "failed",
@@ -497,7 +512,8 @@ def create_generate_resume_tool(
                 parent_body = _strip_header(parent_content)
                 prompt = _REVISION_PROMPT.format(
                     llm_reference=llm_reference,
-                    user_instructions=user_instructions or "Improve and refine the resume.",
+                    user_instructions=user_instructions
+                    or "Improve and refine the resume.",
                     previous_content=parent_body,
                 )
             else:
@@ -553,7 +569,10 @@ def create_generate_resume_tool(
                     if attempt == 0:
                         dispatch_custom_event(
                             "report_progress",
-                            {"phase": "fixing", "message": "Fixing compilation issue..."},
+                            {
+                                "phase": "fixing",
+                                "message": "Fixing compilation issue...",
+                            },
                         )
                         fix_prompt = _FIX_COMPILE_PROMPT.format(
                             llm_reference=llm_reference,
@@ -563,7 +582,9 @@ def create_generate_resume_tool(
                         fix_response = await llm.ainvoke(
                             [HumanMessage(content=fix_prompt)]
                         )
-                        if fix_response.content and isinstance(fix_response.content, str):
+                        if fix_response.content and isinstance(
+                            fix_response.content, str
+                        ):
                             body = _strip_typst_fences(fix_response.content)
                             body = _strip_imports(body)
                             name = _extract_name(body) or name
@@ -571,7 +592,9 @@ def create_generate_resume_tool(
                             typst_source = header + body
 
             if compile_error:
-                error_msg = f"Typst compilation failed after 2 attempts: {compile_error}"
+                error_msg = (
+                    f"Typst compilation failed after 2 attempts: {compile_error}"
+                )
                 report_id = await _save_failed_report(error_msg)
                 return {
                     "status": "failed",

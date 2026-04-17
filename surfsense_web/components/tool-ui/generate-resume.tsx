@@ -3,8 +3,8 @@
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useParams, usePathname } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { openReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
@@ -70,7 +70,9 @@ function ResumeErrorState({ title, error }: { title: string; error: string }) {
 				{title && title !== "Resume" && (
 					<p className="text-sm font-medium text-foreground line-clamp-2">{title}</p>
 				)}
-				<p className={`text-sm text-muted-foreground${title && title !== "Resume" ? " mt-1" : ""}`}>{error}</p>
+				<p className={`text-sm text-muted-foreground${title && title !== "Resume" ? " mt-1" : ""}`}>
+					{error}
+				</p>
 			</div>
 		</div>
 	);
@@ -101,7 +103,15 @@ function ThumbnailSkeleton() {
 	);
 }
 
-function PdfThumbnail({ pdfUrl, onLoad, onError }: { pdfUrl: string; onLoad: () => void; onError: () => void }) {
+function PdfThumbnail({
+	pdfUrl,
+	onLoad,
+	onError,
+}: {
+	pdfUrl: string;
+	onLoad: () => void;
+	onError: () => void;
+}) {
 	const wrapperRef = useRef<HTMLDivElement>(null);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const [ready, setReady] = useState(false);
@@ -117,13 +127,22 @@ function PdfThumbnail({ pdfUrl, onLoad, onError }: { pdfUrl: string; onLoad: () 
 				});
 
 				const pdf = await loadingTask.promise;
-				if (cancelled) { pdf.destroy(); return; }
+				if (cancelled) {
+					pdf.destroy();
+					return;
+				}
 
 				const page = await pdf.getPage(1);
-				if (cancelled) { pdf.destroy(); return; }
+				if (cancelled) {
+					pdf.destroy();
+					return;
+				}
 
 				const canvas = canvasRef.current;
-				if (!canvas) { pdf.destroy(); return; }
+				if (!canvas) {
+					pdf.destroy();
+					return;
+				}
 
 				const containerWidth = wrapperRef.current?.clientWidth || 400;
 				const unscaledViewport = page.getViewport({ scale: 1 });
@@ -152,15 +171,14 @@ function PdfThumbnail({ pdfUrl, onLoad, onError }: { pdfUrl: string; onLoad: () 
 		};
 
 		renderThumbnail();
-		return () => { cancelled = true; };
+		return () => {
+			cancelled = true;
+		};
 	}, [pdfUrl, onLoad, onError]);
 
 	return (
 		<div ref={wrapperRef}>
-			<canvas
-				ref={canvasRef}
-				className={ready ? "w-full h-auto" : "hidden"}
-			/>
+			<canvas ref={canvasRef} className={ready ? "w-full h-auto" : "hidden"} />
 		</div>
 	);
 }
@@ -294,7 +312,9 @@ export const GenerateResumeToolUI = ({
 		return (
 			<ResumeErrorState
 				title={result.title || "Resume"}
-				error={result.error || "Resume generation failed. Please try again or rephrase your request."}
+				error={
+					result.error || "Resume generation failed. Please try again or rephrase your request."
+				}
 			/>
 		);
 	}
