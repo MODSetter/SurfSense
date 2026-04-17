@@ -18,6 +18,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Spinner } from "@/components/ui/spinner";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
@@ -292,7 +293,7 @@ export function ReportPanelContent({
 	return (
 		<>
 			{/* Action bar — always visible; buttons are disabled while loading */}
-			<div className="flex items-center justify-between px-4 py-2 shrink-0">
+			<div className="flex h-14 items-center justify-between px-4 shrink-0">
 				<div className="flex items-center gap-2">
 					{/* Copy button — hidden for Typst (resume) */}
 					{reportContent?.content_type !== "typst" && (
@@ -307,7 +308,18 @@ export function ReportPanelContent({
 						</Button>
 					)}
 
-					{/* Export dropdown */}
+				{/* Export — plain button for resume (typst), dropdown for others */}
+				{reportContent?.content_type === "typst" ? (
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={() => handleExport("pdf")}
+						disabled={isLoading || !reportContent?.content || exporting !== null}
+						className={`h-8 min-w-[100px] px-3.5 py-4 text-[15px] ${btnBg} select-none`}
+					>
+						{exporting === "pdf" ? <Spinner size="xs" /> : "Download"}
+					</Button>
+				) : (
 					<DropdownMenu modal={insideDrawer ? false : undefined}>
 						<DropdownMenuTrigger asChild>
 							<Button
@@ -328,10 +340,10 @@ export function ReportPanelContent({
 								onExport={handleExport}
 								exporting={exporting}
 								showAllFormats={!shareToken}
-								pdfOnly={reportContent?.content_type === "typst"}
 							/>
 						</DropdownMenuContent>
 					</DropdownMenu>
+				)}
 
 					{/* Version switcher — only shown when multiple versions exist */}
 					{versions.length > 1 && (

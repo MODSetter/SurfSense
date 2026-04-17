@@ -545,7 +545,7 @@ const AssistantMessageInner: FC = () => {
 				</div>
 			)}
 
-			<div className="aui-assistant-message-footer mt-1 mb-5 ml-2 flex items-center gap-2">
+			<div className="aui-assistant-message-footer mt-3 mb-5 ml-2 flex items-center gap-2">
 				<AssistantActionBar />
 			</div>
 		</CitationMetadataProvider>
