@@ -213,16 +213,13 @@ export function clearSSOCookies(): void {
 }
 
 /**
- * Logout the current user.
- *
- *   Layer 1 — revoke JWT refresh tokens server-side
- *   Layer 2 — clear _oauth2_proxy cookie via /oauth2/sign_out
- *   Layer 3 (optional) — clear Cognito session via rd= redirect when OIDC_LOGOUT_URL configured
+ * Logout the current user: revoke JWT refresh token server-side, clear local
+ * tokens, navigate to home. Returns true when the browser is already navigating
+ * so callers can skip their own redirect.
  */
 export async function logout(): Promise<boolean> {
 	const refreshToken = getRefreshToken();
 
-	// Layer 1 — revoke the refresh token server-side
 	if (refreshToken) {
 		try {
 			const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
@@ -241,35 +238,15 @@ export async function logout(): Promise<boolean> {
 
 	clearAllTokens();
 
-	// Layer 2 (+ optional Layer 3) — oauth2-proxy sign_out, with Cognito hop if configured.
 	if (typeof window !== "undefined") {
-		const oauthProxyUrl = process.env.NEXT_PUBLIC_OAUTH2_PROXY_URL || window.location.origin;
-		const logoutRedirect = process.env.NEXT_PUBLIC_LOGOUT_REDIRECT_URL || window.location.origin;
-		const oidcLogoutUrl = process.env.NEXT_PUBLIC_OIDC_LOGOUT_URL;
-		const oidcClientId = process.env.NEXT_PUBLIC_OIDC_CLIENT_ID;
-
-		let rdParam: string;
-		if (oidcLogoutUrl && oidcClientId) {
-			// Full 3-layer logout: oauth2-proxy → Cognito → landing page.
-			// Single-encode query params so oauth2-proxy decodes once and passes clean args
-			// to Cognito; encodeURIComponent would double-encode and Cognito would reject.
-			const cognitoUrl = new URL(oidcLogoutUrl);
-			cognitoUrl.searchParams.set("client_id", oidcClientId);
-			cognitoUrl.searchParams.set("logout_uri", logoutRedirect);
-			rdParam = cognitoUrl
-				.toString()
-				.replace(/\?/, "%3F")
-				.replace(/&/g, "%26")
-				.replace(/=/g, "%3D");
-		} else {
-			// No Cognito hosted logout — clear oauth2-proxy cookie and land on portal.
-			rdParam = encodeURIComponent(logoutRedirect);
-		}
-		window.location.href = `${oauthProxyUrl}/oauth2/sign_out?rd=${rdParam}`;
-		return true; // browser is already navigating away
+		// Rewrite "foss-<app>.<domain>" → "foss.<domain>" so we land on the portal
+		// (outside ForwardAuth) instead of SurfSense's own root, which would silently re-auth.
+		const portalHost = window.location.hostname.replace(/^[^.]*\./, "foss.");
+		window.location.href = `${window.location.protocol}//${portalHost}`;
+		return true;
 	}
 
-	return false; // SSR — caller should navigate
+	return false;
 }
 
 /**
