@@ -150,6 +150,7 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 							id="search-space-name"
 							placeholder={t("general_name_placeholder")}
 							value={name}
+							maxLength={100}
 							onChange={(e) => setName(e.target.value)}
 						/>
 						<p className="text-xs text-muted-foreground">{t("general_name_description")}</p>

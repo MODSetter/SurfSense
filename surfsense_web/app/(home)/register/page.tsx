@@ -239,6 +239,7 @@ export default function RegisterPage() {
 								required
 								placeholder="you@example.com"
 								value={email}
+								maxLength={254}
 								onChange={(e) => setEmail(e.target.value)}
 								className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-1 bg-background text-foreground transition-all ${
 									error.title
@@ -260,6 +261,8 @@ export default function RegisterPage() {
 								required
 								placeholder="Enter your password"
 								value={password}
+								minLength={8}
+								maxLength={50}
 								onChange={(e) => setPassword(e.target.value)}
 								className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-1 bg-background text-foreground transition-all ${
 									error.title
@@ -282,6 +285,8 @@ export default function RegisterPage() {
 								type="password"
 								autoComplete="new-password"
 								required
+								minLength={8}
+								maxLength={50}
 								placeholder="Confirm your password"
 								value={confirmPassword}
 								onChange={(e) => setConfirmPassword(e.target.value)}

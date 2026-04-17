@@ -878,6 +878,7 @@ function CreateRoleDialog({
 									id="role-name"
 									placeholder="e.g., Content Manager"
 									value={name}
+									maxLength={100}
 									onChange={(e) => setName(e.target.value)}
 								/>
 							</div>
@@ -887,6 +888,7 @@ function CreateRoleDialog({
 									id="role-description"
 									placeholder="Brief description of this role"
 									value={description}
+									maxLength={500}
 									onChange={(e) => setDescription(e.target.value)}
 								/>
 							</div>
@@ -1036,6 +1038,7 @@ function EditRoleDialog({
 									id="edit-role-name"
 									placeholder="e.g., Content Manager"
 									value={name}
+									maxLength={100}
 									onChange={(e) => setName(e.target.value)}
 								/>
 							</div>
@@ -1045,6 +1048,7 @@ function EditRoleDialog({
 									id="edit-role-description"
 									placeholder="Brief description of this role"
 									value={description}
+									maxLength={500}
 									onChange={(e) => setDescription(e.target.value)}
 								/>
 							</div>

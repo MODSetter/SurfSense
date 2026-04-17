@@ -160,6 +160,7 @@ export function LocalLoginForm() {
 						required
 						placeholder="you@example.com"
 						value={username}
+						maxLength={254}
 						onChange={(e) => setUsername(e.target.value)}
 						className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-1 bg-background text-foreground transition-all ${
 							error.title

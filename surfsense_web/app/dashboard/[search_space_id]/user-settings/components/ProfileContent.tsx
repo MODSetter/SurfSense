@@ -96,6 +96,7 @@ export function ProfileContent() {
 									autoComplete="name"
 									placeholder={user?.email?.split("@")[0]}
 									value={displayName}
+									maxLength={100}
 									onChange={(e) => setDisplayName(e.target.value)}
 								/>
 								<p className="text-xs text-muted-foreground">{t("profile_display_name_hint")}</p>
