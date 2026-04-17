@@ -133,7 +133,6 @@ export function SourceDetailPanel({
 	const scrollTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 	const [activeChunkIndex, setActiveChunkIndex] = useState<number | null>(null);
 	const [mounted, setMounted] = useState(false);
-	const [_hasScrolledToCited, setHasScrolledToCited] = useState(false);
 	const shouldReduceMotion = useReducedMotion();
 
 	useEffect(() => {
@@ -322,11 +321,10 @@ export function SourceDetailPanel({
 					);
 				});
 
-				// After final attempt, mark state as scrolled
+				// After final attempt, mark the cited chunk as active
 				scrollTimersRef.current.push(
 					setTimeout(
 						() => {
-							setHasScrolledToCited(true);
 							setActiveChunkIndex(citedChunkIndex);
 						},
 						scrollAttempts[scrollAttempts.length - 1] + 50
@@ -343,7 +341,6 @@ export function SourceDetailPanel({
 			scrollTimersRef.current.forEach(clearTimeout);
 			scrollTimersRef.current = [];
 			hasScrolledRef.current = false;
-			setHasScrolledToCited(false);
 			setActiveChunkIndex(null);
 		}
 		return () => {
