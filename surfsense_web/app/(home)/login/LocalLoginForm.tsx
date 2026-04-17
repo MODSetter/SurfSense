@@ -158,6 +158,7 @@ export function LocalLoginForm() {
 						type="email"
 						autoComplete="username"
 						required
+						maxLength={254}
 						placeholder="you@example.com"
 						value={username}
 						onChange={(e) => setUsername(e.target.value)}

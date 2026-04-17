@@ -349,7 +349,7 @@ async def stream_anonymous_chat(
         raise
 
     async def _generate():
-        from langchain_core.messages import HumanMessage
+        from langchain_core.messages import AIMessage, HumanMessage
 
         from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
         from app.agents.new_chat.checkpointer import get_checkpointer
@@ -383,13 +383,17 @@ async def stream_anonymous_chat(
                     anon_session_id=session_id,
                 )
 
+                langchain_messages = []
                 user_query = ""
-                for msg in reversed(body.messages):
-                    if msg.get("role") == "user":
-                        user_query = msg.get("content", "")
-                        break
+                for msg in body.messages:
+                    role = msg.get("role", "")
+                    content = msg.get("content", "")
+                    if role == "user":
+                        langchain_messages.append(HumanMessage(content=content))
+                        user_query = content
+                    elif role == "assistant":
+                        langchain_messages.append(AIMessage(content=content))
 
-                langchain_messages = [HumanMessage(content=user_query)]
                 input_state = {
                     "messages": langchain_messages,
                     "search_space_id": 0,

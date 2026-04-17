@@ -1,0 +1,111 @@
+---
+title: "SurfSense v0.0.15 - Watch Local Folders, Vision Autocomplete & New Document Pipeline"
+description: "SurfSense v0.0.15 turns your laptop into a living knowledge base: watch any local folder and keep it auto-synced, a vision-powered quick-assist autocomplete in the desktop app, a brand new document processing pipeline with Docling, LlamaCloud, Unstructured, and Azure Document Intelligence, full document version history, and per-user page limits across every connector."
+date: "2026-04-08"
+tags: ["Desktop App", "Local Folder", "Document Pipeline", "Vision AI", "Version History", "Azure Document Intelligence"]
+version: "0.0.15"
+---
+
+## What's New in v0.0.15
+
+This release continues to push SurfSense as a fully self-hostable, open source **ChatGPT alternative** and **NotebookLM alternative** for teams who care about where their data lives. v0.0.15 is all about **bringing your local files into the knowledge base effortlessly** and making the SurfSense desktop app a first-class always-on assistant.
+
+### Watch Local Folder
+
+Your files already live in folders. Now SurfSense can watch them.
+
+- **Real-Time Folder Sync**: Pick any folder on your computer, and SurfSense automatically keeps it indexed as files are added, edited, or removed.
+- **Nothing Gets Lost**: Even across restarts or network blips, pending file changes are safely queued until they're fully processed.
+- **Smart Batching**: Many files at once? SurfSense now processes them in smart batches with progress feedback, so large folders stay responsive.
+- **Clean Folder Cleanup**: Deleted or emptied folders are cleaned up automatically in the background.
+- **Fast First Sync**: Existing folders seed their file timestamps in a single pass, so the first sync is both fast and correct.
+- **Upload-Based Sync Too**: Don't want the desktop watcher? Upload a folder from the web app and your folder structure is preserved automatically.
+- **Local Files as First-Class Documents**: Locally-watched files show up clearly in the documents list as their own category.
+
+### Document Version History
+
+- **Full Version History**: Every document now keeps a versioned history. View, compare, and restore older versions directly from the documents UI.
+- **Restore + Reindex**: Restoring an old version automatically triggers reindexing so search and chat results stay accurate.
+- **Built-In**: Versioning is automatic. You don't have to configure anything.
+
+### New Document Processing Pipeline
+
+We've rebuilt how SurfSense turns raw files into searchable knowledge.
+
+- **Pluggable Parsers**: Choose the best extractor for each document with built-in support for **Docling**, **LlamaCloud**, **Unstructured**, and plain text. Configure it globally or per connector.
+- **Azure Document Intelligence**: Added as a premium parsing option for high-accuracy PDF and scanned document parsing, available per upload.
+- **Audio Transcription**: Upload audio files and SurfSense will transcribe them for you.
+- **Fast Path for Common Files**: CSV, TSV, HTML, and XHTML files now skip heavier parsing and convert directly, cutting indexing time.
+- **Smart Routing**: Each file is automatically routed to the parser best suited for it.
+- **Vision Model Is Opt-In**: Vision models are now opt-in per upload/connector, with safer size limits and better fallbacks when an image can't be processed.
+
+### Vision-Powered Quick Assist (Desktop App)
+
+The SurfSense desktop app becomes a serious always-on **AI like ChatGPT** that actually sees your screen, without leaving your current window.
+
+- **Screenshot-Based Autocomplete**: Press a shortcut and SurfSense captures a screenshot, sends it to a vision model, and returns context-aware suggestions right where you're typing.
+- **Multi-Suggestion UI**: The suggestion popup now offers up to **3 options** to pick from, with clean cards and quick-assist detection.
+- **Knowledge Base Grounding**: Suggestions are grounded in your connected knowledge base, not just generic model output.
+- **macOS Permission Onboarding**: A clearer onboarding page walks macOS users through the permissions the app needs, only when they're actually needed.
+- **Switch Search Spaces from the Overlay**: Change the active search space without opening the main app.
+- **General Assist**: A new general-purpose assist mode with cleaner shortcut icons and descriptions.
+- **Stay Signed In Everywhere**: Sign-in is now synchronized between the desktop app and the web app.
+- **Vision Model Settings**: A dedicated Vision Models tab in Settings lets you pick and manage vision models, including a dynamic model list from OpenRouter.
+- **Smart Download Button**: The marketing site auto-detects your OS and offers the right desktop installer.
+
+### Connectors
+
+- **Dropbox Delta Sync**: A smarter incremental sync for Dropbox that preserves your place across re-authentication. Big Dropbox workspaces sync dramatically faster.
+- **Stronger Google OAuth**: Native Google sign-in now uses modern, best-practice security (PKCE).
+
+### Page Limits & Quotas
+
+- **Per-User Page Limits**: SurfSense now estimates and enforces per-user page limits before indexing begins, so usage stays predictable on cloud and self-hosted deployments.
+- **Consistent Across the App**: Local folder indexing respects the same page-limit checks as cloud connectors.
+
+### Document Upload
+
+- **Unified Picker**: Upload files and folders from one clean dropdown, with clearer size limits and properly localized messages.
+- **Better Processing Feedback**: Improved upload progress and processing indicators, plus a cleaner drag-and-drop area.
+
+### Performance
+
+- **Faster Startup**: Analytics and some dev tooling only load when needed, keeping the app lighter for end users.
+- **Leaner Pages**: Shared libraries now load smaller, more focused bundles.
+- **Smoother Self-Hosted Setup**: New installs of the real-time sync service now set themselves up automatically.
+
+<Accordion type="multiple" className="w-full not-prose">
+  <AccordionItem value="item-1">
+    <AccordionTrigger>Bug Fixes</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4 text-balance">
+      <ul className="list-disc space-y-2 pl-4">
+        <li>Fixed several memory leaks when leaving pages during active work</li>
+        <li>Upload progress bar now clears correctly when leaving the upload screen</li>
+        <li>Smoother, less jittery thread list and chat refreshes</li>
+        <li>Smoother client-side navigation in several places</li>
+        <li>Improved responsiveness of the documents sidebar</li>
+        <li>Debounced search on the logs page to stop UI jank</li>
+        <li>Correct browser autocomplete hints on sign-in and register forms</li>
+        <li>Vision model is no longer triggered unnecessarily by the desktop folder watcher</li>
+        <li>Silenced noisy auto-updater errors in the desktop app</li>
+      </ul>
+    </AccordionContent>
+  </AccordionItem>
+  <AccordionItem value="item-2">
+    <AccordionTrigger>Performance & Reliability</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4 text-balance">
+      <ul className="list-disc space-y-2 pl-4">
+        <li>Faster local folder indexing thanks to smarter content hashing</li>
+        <li>Smoother sidebar open/close animations</li>
+        <li>Long lists now scroll more smoothly on the documents and logs pages</li>
+        <li>Search and filter inputs feel snappier while typing</li>
+        <li>Unified version numbering across the web app, backend, and desktop app</li>
+        <li>Event tracking now includes the platform (web/desktop) for better analytics</li>
+      </ul>
+    </AccordionContent>
+  </AccordionItem>
+</Accordion>
+
+If you've been looking for a tool that works across your cloud connectors **and** your local machine, v0.0.15 is exactly that. It's also one of the most compelling **NotebookLM alternatives** and **free ChatGPT alternatives** for private team use, with full control over your data, your parsers, and your models.
+
+SurfSense connects all your knowledge sources in one place.

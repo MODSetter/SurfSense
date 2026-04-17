@@ -94,6 +94,7 @@ export function ProfileContent() {
 									id="display-name"
 									type="text"
 									autoComplete="name"
+									maxLength={100}
 									placeholder={user?.email?.split("@")[0]}
 									value={displayName}
 									onChange={(e) => setDisplayName(e.target.value)}

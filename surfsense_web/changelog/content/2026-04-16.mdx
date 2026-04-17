@@ -1,0 +1,136 @@
+---
+title: "SurfSense v0.0.16 - Try SurfSense With No Login, Long-Term Memory, Token Tracking & AI File Sorting"
+description: "SurfSense v0.0.16 introduces a no-login online experience so anyone can try this free ChatGPT alternative in seconds, long-term user and team memory, a reworked model selector with full token usage tracking, AI-powered file sorting, one-click Knowledge Base export as ZIP, trusted MCP tools, and OpenRouter integration."
+date: "2026-04-16"
+tags: ["No Login", "Memory", "Token Usage", "AI File Sorting", "KB Export", "OpenRouter", "MCP"]
+version: "0.0.16"
+---
+
+## What's New in v0.0.16
+
+If you've ever wanted to try an **online ChatGPT alternative** or a **free AI chatbot like ChatGPT** without creating an account, v0.0.16 is for you. This release makes SurfSense instantly accessible with a **no-login** online experience, adds durable long-term memory for users and teams, brings full token-usage visibility to every chat, introduces AI file sorting, and ships a brand-new knowledge base export feature. It turns SurfSense into an even more practical **free alternative to ChatGPT** for real knowledge work.
+
+### No-Login Online Experience
+
+- **ChatGPT Online, No Login Required**: Try SurfSense online for free without signing up. First-time visitors can chat and test the **free ChatGPT alternative** experience instantly, with free tokens included.
+- **Anonymous-Friendly**: Sign-in is now optional on the public experience, while your authenticated data stays fully protected.
+- **Cleaner Behind the Scenes**: Removed leftover artifacts from the older sync system for a smoother experience.
+
+### Long-Term Memory for Users & Teams
+
+SurfSense agents now actually **remember**.
+
+- **Personal & Team Memory**: SurfSense can now remember durable information about you and your team across chats, stored cleanly as markdown you can read and edit yourself.
+- **Natural Greetings**: Memory now includes your display name and first-name context, so replies feel more personal.
+- **One Simple Memory Tool**: A single, unified "update memory" action handles personal and shared memory, with sensible size limits.
+- **Runs in the Background**: Memory extraction happens in the background, so it never slows down your chat.
+- **Smart Team Memory Policy**: Team memory only captures durable, relevant context and ignores noise, so shared memory stays useful.
+- **Memory Management UI**: A clean screen for viewing, pinning, and editing personal and team memory, with helpful empty states and limit warnings.
+- **Export Memory as Markdown**: Download your personal or team memory as a markdown file with one click.
+- **Clean Migration**: Old memory storage has been fully migrated to the new format.
+
+### Token Usage Tracking Across Chat
+
+Token visibility is now first-class.
+
+- **Usage Per Call**: SurfSense now tracks how many tokens every AI call uses.
+- **Complete Coverage**: Token usage is captured for both streaming and non-streaming AI responses.
+- **Inline in Chat**: See token usage for any message via a simple info dropdown on the message itself.
+- **Better Response Handling**: Cleaner response behavior and chat title generation built around token tracking.
+
+### Reworked Model Selector
+
+- **Redesigned Model Picker**: A cleaner UI with a new GitHub Models icon and per-agent model management for power users.
+- **OpenRouter Integration**: Hundreds of models (including **free Claude**-compatible routes) are now available through a single OpenRouter configuration.
+- **Clearer Model Display**: Message info now shows which model was used for every reply, with simpler settings and improved icons.
+
+### AI File Sorting
+
+- **AI Sort Button**: A new AI-powered sort in the documents table. Let the AI rank and group your documents semantically. It's a real quality-of-life win for anyone with a large knowledge base.
+
+### Knowledge Base Export
+
+- **Export Your Knowledge Base as ZIP**: One click downloads your entire knowledge base as a ZIP with your folder structure preserved.
+- **Folder-Level Export**: Right-click any folder to export just that folder.
+- **Processing Warning**: SurfSense warns you if documents are still processing, so you never ship an incomplete archive.
+- **Prominent Export Buttons**: Export is easy to find in both the documents toolbar and the sidebar, with a loading spinner during large exports.
+
+### Trusted MCP Tools
+
+- **Trust Sensitive Tools Once**: Mark specific MCP tools as trusted and skip repeated approval prompts for actions you've already decided are safe.
+- **Cleanup on Delete**: Removing an MCP connector now correctly clears related caches, so stale entries never hang around.
+
+### Document Upload & Processing Modes
+
+- **Pick Your Processing Mode**: Document uploads now let you choose how each file is parsed, with clearer error messages if something goes wrong.
+- **LlamaCloud v2**: Upgraded to the new LlamaCloud integration.
+- **Smarter Image Handling**: Uploaded images now automatically go through a vision model, with a document-parser fallback and clearer behavior when vision models aren't configured.
+
+### Code Execution Sandbox
+
+- **Cleaner Code Tool**: The built-in "execute code" tool is simpler and more reliable, with helpful hints when your code produces no output.
+- **Run in Parallel, Download Files**: The sandbox now supports multi-threaded execution and lets you download files produced by your code back into chat.
+- **No More Orphans**: Broken sandboxes are cleaned up before a replacement is created, so nothing piles up in the background.
+- **Hardened Security**: Tighter security settings, safer file syncing, and a fix for potential path traversal issues.
+
+### Unified Approvals
+
+- **One Approval Flow Everywhere**: Approvals across Confluence, Dropbox, Gmail, Google Calendar, Google Drive, Jira, Linear, Notion, and OneDrive are now consistent, with a shared approval UI.
+- **Smarter Deduplication**: Duplicate approval requests are filtered out, so you're never prompted twice for the same action.
+
+### Connectors & Desktop
+
+- **Obsidian Connector Visibility**: The Obsidian connector is now easier to discover and set up on desktop.
+- **Cross-OS Download Buttons**: The sidebar profile and a new download button automatically show the right desktop installer for your OS, in your language.
+
+### Marketing & SEO
+
+- **New Blog Section**: Added a dedicated blog section to the marketing site for deeper guides on **ChatGPT alternatives**, **Claude alternatives**, and **NotebookLM alternatives**.
+- **Improved SEO Metadata**: Updated metadata across key pages to emphasize privacy, data limits, and open source positioning.
+- **Pricing FAQ**: New FAQ section in pricing with dynamic questions.
+- **Pricing Clarity**: Updated pricing to clearly show the 500 pages included in the free plan.
+
+### UI Polish
+
+- **Safer Error Recovery**: A dedicated error boundary around the dashboard prevents isolated errors from crashing the full page.
+- **Animated Report Skeleton**: A new animated loading state in the Report Panel while reports are being generated.
+- **Composer & Layout**: Loading placeholders in the composer, a better mention picker experience, and refined settings layout.
+- **Better Editing**: Trailing empty lines in the rich-text editor make long-form writing smoother.
+
+<Accordion type="multiple" className="w-full not-prose">
+  <AccordionItem value="item-1">
+    <AccordionTrigger>Bug Fixes</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4 text-balance">
+      <ul className="list-disc space-y-2 pl-4">
+        <li>Fixed knowledge base search being skipped in certain chat sequences</li>
+        <li>Fixed a button nesting issue in the mobile upload area</li>
+        <li>Clearer logs and behavior when a vision model isn't available vs. not configured</li>
+        <li>Added a safety check for very large images before vision processing</li>
+        <li>Better fallback when an image can't be processed by the vision model</li>
+        <li>Fixed duplicate filename collisions during folder upload</li>
+        <li>Cleaner filenames on folder uploads</li>
+        <li>More accurate "documents still processing" warning during folder export</li>
+        <li>Handled display names that are just whitespace without crashing</li>
+        <li>Added user feedback when snapshot deletion fails</li>
+        <li>Updated billing text to reflect 500 pages included in demo plans</li>
+      </ul>
+    </AccordionContent>
+  </AccordionItem>
+  <AccordionItem value="item-2">
+    <AccordionTrigger>Under the Hood</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4 text-balance">
+      <ul className="list-disc space-y-2 pl-4">
+        <li>Old memory storage fully migrated and retired</li>
+        <li>Smaller bundles on public marketing pages</li>
+        <li>Consistent approval handling across all connectors</li>
+        <li>Cleaner file type detection using explicit, well-defined rules</li>
+        <li>Rich-text editor now powers memory input, with inline alerts and a better layout</li>
+        <li>Localized folder-upload messages and download button text</li>
+      </ul>
+    </AccordionContent>
+  </AccordionItem>
+</Accordion>
+
+v0.0.16 makes SurfSense the easiest open source AI assistant to actually try: zero friction, no login, online. Whether you're searching for a **ChatGPT alternative free online**, a **free Claude AI alternative**, or a **NotebookLM alternative** you can self-host, SurfSense v0.0.16 is built for you.
+
+SurfSense connects all your knowledge sources in one place.
