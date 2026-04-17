@@ -1198,12 +1198,13 @@ class VideoPresentation(BaseModel, TimestampMixin):
 
 
 class Report(BaseModel, TimestampMixin):
-    """Report model for storing generated Markdown reports."""
+    """Report model for storing generated reports (Markdown or Typst)."""
 
     __tablename__ = "reports"
 
     title = Column(String(500), nullable=False)
-    content = Column(Text, nullable=True)  # Markdown body
+    content = Column(Text, nullable=True)
+    content_type = Column(String(20), nullable=False, server_default="markdown")
     report_metadata = Column(JSONB, nullable=True)  # section headings, word count, etc.
     report_style = Column(
         String(100), nullable=True

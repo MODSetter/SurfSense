@@ -162,6 +162,7 @@ const TOOLS_WITH_UI = new Set([
 	"web_search",
 	"generate_podcast",
 	"generate_report",
+	"generate_resume",
 	"generate_video_presentation",
 	"display_image",
 	"generate_image",

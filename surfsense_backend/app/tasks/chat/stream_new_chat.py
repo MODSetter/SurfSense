@@ -953,6 +953,31 @@ async def _stream_agent_events(
                         f"Report generation failed: {error_msg}",
                         "error",
                     )
+            elif tool_name == "generate_resume":
+                yield streaming_service.format_tool_output_available(
+                    tool_call_id,
+                    tool_output
+                    if isinstance(tool_output, dict)
+                    else {"result": tool_output},
+                )
+                if (
+                    isinstance(tool_output, dict)
+                    and tool_output.get("status") == "ready"
+                ):
+                    yield streaming_service.format_terminal_info(
+                        f"Resume generated: {tool_output.get('title', 'Resume')}",
+                        "success",
+                    )
+                else:
+                    error_msg = (
+                        tool_output.get("error", "Unknown error")
+                        if isinstance(tool_output, dict)
+                        else "Unknown error"
+                    )
+                    yield streaming_service.format_terminal_info(
+                        f"Resume generation failed: {error_msg}",
+                        "error",
+                    )
             elif tool_name in (
                 "create_notion_page",
                 "update_notion_page",

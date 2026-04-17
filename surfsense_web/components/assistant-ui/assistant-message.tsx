@@ -71,6 +71,13 @@ const GenerateReportToolUI = dynamic(
 		})),
 	{ ssr: false }
 );
+const GenerateResumeToolUI = dynamic(
+	() =>
+		import("@/components/tool-ui/generate-resume").then((m) => ({
+			default: m.GenerateResumeToolUI,
+		})),
+	{ ssr: false }
+);
 const GeneratePodcastToolUI = dynamic(
 	() =>
 		import("@/components/tool-ui/generate-podcast").then((m) => ({
@@ -487,6 +494,7 @@ const AssistantMessageInner: FC = () => {
 						tools: {
 							by_name: {
 								generate_report: GenerateReportToolUI,
+								generate_resume: GenerateResumeToolUI,
 								generate_podcast: GeneratePodcastToolUI,
 								generate_video_presentation: GenerateVideoPresentationToolUI,
 								display_image: GenerateImageToolUI,
@@ -537,7 +545,7 @@ const AssistantMessageInner: FC = () => {
 				</div>
 			)}
 
-			<div className="aui-assistant-message-footer mt-1 mb-5 ml-2 flex items-center gap-2">
+			<div className="aui-assistant-message-footer mt-3 mb-5 ml-2 flex items-center gap-2">
 				<AssistantActionBar />
 			</div>
 		</CitationMetadataProvider>
