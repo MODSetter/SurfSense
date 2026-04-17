@@ -1,0 +1,132 @@
+---
+title: "SurfSense v0.0.14 - Dropbox, OneDrive, Agent Approvals, Reports & Self-Hosted Docker"
+description: "SurfSense v0.0.14 is a massive release: new Dropbox and Microsoft OneDrive connectors, human-in-the-loop approvals across Gmail, Google Calendar, Jira, Confluence, Linear, and Notion, a full report generation system with multi-format export, a faster real-time sync engine, a new desktop app, one-command self-hosted Docker install, and built-in private web search."
+date: "2026-03-31"
+tags: ["Connectors", "Approvals", "Reports", "Desktop App", "Docker", "Dropbox", "OneDrive"]
+version: "0.0.14"
+---
+
+## What's New in v0.0.14
+
+This release pushes SurfSense further as an open source, privacy-first, self-hostable knowledge platform and a serious **ChatGPT alternative** for teams. It ships two major connectors (Dropbox and Microsoft OneDrive), a new approval system for sensitive AI actions, a full report generation and export pipeline, a brand new desktop app, a one-command self-hosted installer, and a faster real-time sync backbone.
+
+### New Connectors
+
+#### Dropbox Integration
+
+- **Full Dropbox Connector**: Connect Dropbox in one click, then pick exactly which folders and files SurfSense should index.
+- **Incremental Sync**: Only re-index what actually changed, so syncs stay fast and cheap even on huge Dropbox workspaces.
+- **Dropbox Paper Support**: Dropbox Paper docs are now exported as clean, readable text so AI answers stay accurate.
+- **Write Actions in Chat**: Ask SurfSense to create or delete Dropbox files directly from chat, with a confirmation step before anything is changed.
+- **New Docs**: Dropbox connector documentation added to the site.
+
+#### Microsoft OneDrive Integration
+
+- **OneDrive Connector**: A native Microsoft OneDrive connector with secure sign-in and a built-in file picker.
+- **Folder Management UI**: Browse and select OneDrive folders visually, with proper handling of different file types.
+- **Create & Delete Files from Chat**: AI agents can create and delete OneDrive files for you. Newly created documents are auto-converted to Word format when appropriate, and expired sign-ins are handled gracefully.
+- **Instant Knowledge Base Sync**: Any OneDrive file created through SurfSense is synced into your knowledge base right away, so it's immediately searchable.
+- **New Docs**: OneDrive connector documentation added to the site.
+
+### Human-in-the-Loop Approvals
+
+SurfSense now treats every sensitive AI action as an explicit, reviewable step. This is the right default when you're letting an AI agent send emails, create calendar events, or edit tickets on your behalf.
+
+- **Unified Approval Flow**: One consistent approval experience across every connector, with built-in deduplication so you never get prompted twice for the same action.
+- **Rich Approval Card**: Edit anything before approving, including dates, times, email recipients, and formatted content (for Confluence pages).
+- **Approvals Across Connectors**: Gmail (drafts and updates), Google Calendar (events), Google Drive, Jira (issue creation with a direct link in the response), Confluence (page creation with a direct link), Linear (write actions), and Notion.
+- **Graceful Re-authentication**: When a connector's sign-in expires, SurfSense now asks you to re-authenticate inline without breaking the conversation.
+
+### Reports & Multi-Format Export
+
+- **New Reports System**: Generate versioned, editable Markdown reports from any chat. Edit them in a full rich-text editor with save, leave, and read-only viewing modes.
+- **Public Report Links**: Share reports publicly with a clear indicator and one-click markdown download.
+- **Multi-Format Export**: Export reports and documents to **PDF, Word (DOCX), HTML, LaTeX, EPUB, OpenDocument (ODT), and plain text**.
+- **Smarter Follow-Ups**: Chat now remembers recent report context, so follow-up questions feel natural and stay grounded in what you were just working on.
+- **Math & Code Rendering**: Markdown rendering now supports beautiful math equations and syntax-highlighted code out of the box.
+
+### Desktop App
+
+- **New SurfSense Desktop App**: First release of the SurfSense desktop client.
+- **Quick Ask Panel**: A floating mini-window opens at your cursor, doesn't steal focus from your current app, and can grab selected text and paste answers back for you.
+- **Global Shortcuts**: Keyboard shortcuts that feel right on each OS, with press-Escape-to-hide and smart positioning that stays on-screen.
+- **Cross-Platform**: A non-focus-stealing floating panel on macOS with a matching experience on Windows and Linux.
+
+### Faster Real-Time Sync
+
+- **Upgraded Sync Engine**: Moved to a faster real-time sync engine behind the scenes, so the inbox, documents, comments, chats, and connector status all update instantly.
+- **Production-Ready**: Self-hosted deployments get a dedicated sync service with Docker configuration and CI workflows included.
+
+### Self-Hosted Docker Installation
+
+- **One-Command Installer**: New Docker configuration and install script for Linux and macOS, plus a **Windows install script**.
+- **Background Workers Included**: Background indexing services are now part of the default Docker setup, so documents keep processing reliably without extra setup.
+- **Automated Releases**: Each release now builds official multi-platform images, tagged cleanly for every version, and ready to use with auto-update tools.
+- **Easy Migration**: An automatic migration script helps users move off the old all-in-one deployment.
+- **Stripe Config**: Optional Stripe configuration added for paid self-hosted tiers.
+
+### Web Search & Knowledge Base
+
+- **Private Web Search (SearxNG)**: Built-in private web search so AI answers can reference the live web without sending queries to third-party search providers.
+- **Citations with Hover Previews**: New citation cards with hover popovers on desktop and a dedicated drawer on mobile.
+- **Date-Filtered Knowledge Base Search**: Narrow knowledge base searches by time range for more precise answers.
+- **YouTube Playlist Support**: Index entire YouTube playlists, not just single videos.
+- **Faster Indexing**: Documents now index significantly faster thanks to batched embedding under the hood.
+
+### Faster Connectors
+
+- **Parallel Indexing**: Confluence, Jira, Linear, Notion, Gmail, Google Calendar, and Google Drive now index files in parallel, noticeably faster than before.
+- **Google Drive Upgrades**: Parallel file downloads, native Excel parsing, streaming downloads, and the ability to index just the files you pick.
+- **Skipped File Tracking**: Google connectors now clearly surface any files or messages that were skipped, so you always know what made it in.
+
+### UI & Mobile
+
+- **Mobile-First Polish**: Mobile citation drawer, long-press actions in chats and documents, a responsive documents sidebar, and a mobile-friendly onboarding tour.
+- **Reworked Composer**: Tool actions are grouped into a cleaner menu with better icons, plus a helpful "connect tools" banner.
+- **Settings & Team**: New tabbed user settings page (profile + API keys), team roles management with pagination, and a search space settings dialog.
+- **Right Panel & Docked Sidebar**: A tabbed Sources/Report panel with smooth transitions, plus an optional docked documents sidebar.
+- **Community Prompts**: Public prompt library with copy support, inline share toggles, and a see-more/less toggle for long prompts.
+- **New Homepage**: Smooth scrolling, a use-cases grid, an updated walkthrough hero, a GitHub stars badge, and a new carousel for AI-generated video.
+- **More Power**: Bulk document deletion, folder creation and organization, document metadata viewer (Ctrl+Click), and document preview right inside the sidebar.
+
+### New LLM Provider
+
+- **MiniMax**: Complete MiniMax LLM integration joins the growing list of supported models.
+
+<Accordion type="multiple" className="w-full not-prose">
+  <AccordionItem value="item-1">
+    <AccordionTrigger>Bug Fixes</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4 text-balance">
+      <ul className="list-disc space-y-2 pl-4">
+        <li>Fixed citations for live connectors</li>
+        <li>Fixed Google Drive handling of failed documents and unsupported file types</li>
+        <li>Fixed Dropbox path retrieval and error handling during indexing</li>
+        <li>Fixed a build failure in the roles manager page</li>
+        <li>Re-enabled legacy AI image handling so older chats still render correctly</li>
+        <li>Fixed sign-in state syncing between the desktop app and web app</li>
+        <li>Fixed nested button accessibility issues across the roles manager, link toolbar, and hero section</li>
+        <li>Fixed several memory leaks (onboarding tour, Spotlight, register page)</li>
+        <li>Fixed Google Calendar event update behavior</li>
+        <li>Smoother client-side navigation in several places</li>
+      </ul>
+    </AccordionContent>
+  </AccordionItem>
+  <AccordionItem value="item-2">
+    <AccordionTrigger>Performance & Reliability</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4 text-balance">
+      <ul className="list-disc space-y-2 pl-4">
+        <li>Large document migrations now run in batches to reduce memory usage</li>
+        <li>Smoother streaming in chat thanks to batched UI updates</li>
+        <li>Rate limiting now falls back gracefully when the cache is unavailable</li>
+        <li>Better error tracking and referral attribution</li>
+        <li>Smaller page bundles for the web app, with heavy editors loaded only when needed</li>
+        <li>End-to-end tests for the document upload pipeline</li>
+        <li>Health check endpoint and safer default rate limits</li>
+      </ul>
+    </AccordionContent>
+  </AccordionItem>
+</Accordion>
+
+v0.0.14 is one of the largest SurfSense releases to date. If you're looking for a **NotebookLM alternative** or comparing **free alternatives to ChatGPT** that you can actually self-host, this release is built for you.
+
+SurfSense connects all your knowledge sources in one place.
