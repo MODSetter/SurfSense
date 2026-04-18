@@ -43,4 +43,9 @@ export const IPC_CHANNELS = {
   // Active search space
   GET_ACTIVE_SEARCH_SPACE: 'search-space:get-active',
   SET_ACTIVE_SEARCH_SPACE: 'search-space:set-active',
+  // Analytics (PostHog) bridge: renderer <-> main
+  ANALYTICS_IDENTIFY: 'analytics:identify',
+  ANALYTICS_RESET: 'analytics:reset',
+  ANALYTICS_CAPTURE: 'analytics:capture',
+  ANALYTICS_GET_CONTEXT: 'analytics:get-context',
 } as const;

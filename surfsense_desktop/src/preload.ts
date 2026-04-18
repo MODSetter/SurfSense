@@ -86,4 +86,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getActiveSearchSpace: () => ipcRenderer.invoke(IPC_CHANNELS.GET_ACTIVE_SEARCH_SPACE),
   setActiveSearchSpace: (id: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.SET_ACTIVE_SEARCH_SPACE, id),
+
+  // Analytics bridge — lets posthog-js running inside the Next.js renderer
+  // mirror identify/reset/capture into the Electron main-process PostHog
+  // client so desktop-only events are attributed to the logged-in user.
+  analyticsIdentify: (userId: string, properties?: Record<string, unknown>) =>
+    ipcRenderer.invoke(IPC_CHANNELS.ANALYTICS_IDENTIFY, { userId, properties }),
+  analyticsReset: () => ipcRenderer.invoke(IPC_CHANNELS.ANALYTICS_RESET),
+  analyticsCapture: (event: string, properties?: Record<string, unknown>) =>
+    ipcRenderer.invoke(IPC_CHANNELS.ANALYTICS_CAPTURE, { event, properties }),
+  getAnalyticsContext: () => ipcRenderer.invoke(IPC_CHANNELS.ANALYTICS_GET_CONTEXT),
 });

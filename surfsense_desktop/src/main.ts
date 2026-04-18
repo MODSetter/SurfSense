@@ -55,6 +55,7 @@ app.whenReady().then(async () => {
 
   app.on('activate', () => {
     const mw = getMainWindow();
+    trackEvent('desktop_app_activated');
     if (!mw || mw.isDestroyed()) {
       createMainWindow('/dashboard');
     } else {
@@ -71,6 +72,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   isQuitting = true;
+  trackEvent('desktop_app_quit');
 });
 
 let didCleanup = false;

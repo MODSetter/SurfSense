@@ -105,6 +105,16 @@ interface ElectronAPI {
 	// Active search space
 	getActiveSearchSpace: () => Promise<string | null>;
 	setActiveSearchSpace: (id: string) => Promise<void>;
+	// Analytics bridge (PostHog mirror into the Electron main process)
+	analyticsIdentify: (userId: string, properties?: Record<string, unknown>) => Promise<void>;
+	analyticsReset: () => Promise<void>;
+	analyticsCapture: (event: string, properties?: Record<string, unknown>) => Promise<void>;
+	getAnalyticsContext: () => Promise<{
+		distinctId: string;
+		machineId: string;
+		appVersion: string;
+		platform: string;
+	}>;
 }
 
 declare global {
