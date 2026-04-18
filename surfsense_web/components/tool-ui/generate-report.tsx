@@ -96,8 +96,12 @@ function ReportErrorState({ title, error }: { title: string; error: string }) {
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4">
-				<p className="text-sm font-medium text-foreground line-clamp-2">{title}</p>
-				<p className="text-sm text-muted-foreground mt-1">{error}</p>
+				{title && title !== "Report" && (
+					<p className="text-sm font-medium text-foreground line-clamp-2">{title}</p>
+				)}
+				<p className={`text-sm text-muted-foreground${title && title !== "Report" ? " mt-1" : ""}`}>
+					{error}
+				</p>
 			</div>
 		</div>
 	);
@@ -215,17 +219,9 @@ function ReportCard({
 		<div
 			className={`my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-[box-shadow] duration-300 ${isActive ? "ring-1 ring-primary/50" : ""}`}
 		>
-			{/* biome-ignore lint/a11y/useSemanticElements: can't use <button> here because PlateEditor renders nested <button> elements (e.g. CopyButton) */}
-			<div
-				role="button"
-				tabIndex={0}
+			<button
+				type="button"
 				onClick={handleOpen}
-				onKeyDown={(e) => {
-					if (e.key === "Enter" || e.key === " ") {
-						e.preventDefault();
-						handleOpen();
-					}
-				}}
 				className="w-full text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:outline-none cursor-pointer"
 			>
 				<div className="px-5 pt-5 pb-4 select-none">
@@ -272,7 +268,7 @@ function ReportCard({
 						<p className="text-sm text-muted-foreground italic">No content available</p>
 					)}
 				</div>
-			</div>
+			</button>
 		</div>
 	);
 }

@@ -8,6 +8,8 @@ interface ReportPanelState {
 	wordCount: number | null;
 	/** When set, uses public endpoints for fetching report data (public shared chat) */
 	shareToken: string | null;
+	/** Content type of the report — "markdown" (default) or "typst" (resume) */
+	contentType: string;
 }
 
 const initialState: ReportPanelState = {
@@ -16,6 +18,7 @@ const initialState: ReportPanelState = {
 	title: null,
 	wordCount: null,
 	shareToken: null,
+	contentType: "markdown",
 };
 
 /** Core atom holding the report panel state */
@@ -38,7 +41,14 @@ export const openReportPanelAtom = atom(
 			title,
 			wordCount,
 			shareToken,
-		}: { reportId: number; title: string; wordCount?: number; shareToken?: string | null }
+			contentType,
+		}: {
+			reportId: number;
+			title: string;
+			wordCount?: number;
+			shareToken?: string | null;
+			contentType?: string;
+		}
 	) => {
 		if (!get(reportPanelAtom).isOpen) {
 			set(preReportCollapsedAtom, get(rightPanelCollapsedAtom));
@@ -49,6 +59,7 @@ export const openReportPanelAtom = atom(
 			title,
 			wordCount: wordCount ?? null,
 			shareToken: shareToken ?? null,
+			contentType: contentType ?? "markdown",
 		});
 		set(rightPanelTabAtom, "report");
 		set(rightPanelCollapsedAtom, false);
