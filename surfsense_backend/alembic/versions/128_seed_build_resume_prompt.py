@@ -1,7 +1,7 @@
-"""127_seed_build_resume_prompt
+"""128_seed_build_resume_prompt
 
-Revision ID: 127
-Revises: 126
+Revision ID: 128
+Revises: 127
 Create Date: 2026-04-15
 
 Seeds the 'Build Resume' default prompt for all existing users.
@@ -16,8 +16,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "127"
-down_revision: str | None = "126"
+revision: str = "128"
+down_revision: str | None = "127"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
