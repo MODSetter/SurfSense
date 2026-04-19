@@ -22,6 +22,27 @@ export default tseslint.config(
 		},
 	},
 	...obsidianmd.configs.recommended,
+	{
+		plugins: { obsidianmd },
+		rules: {
+			"obsidianmd/ui/sentence-case": [
+				"error",
+				{
+					brands: [
+						"Surfsense",
+						"iOS",
+						"iPadOS",
+						"macOS",
+						"Windows",
+						"Android",
+						"Linux",
+						"Obsidian",
+						"Markdown",
+					],
+				},
+			],
+		},
+	},
 	globalIgnores([
 		"node_modules",
 		"dist",

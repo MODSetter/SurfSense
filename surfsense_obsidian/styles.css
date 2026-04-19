@@ -1,8 +1,66 @@
 /*
+ * SurfSense Obsidian plugin styles. Kept tiny on purpose — Obsidian
+ * theming should drive most of the look; we only add the bits we
+ * cannot express via the standard PluginSettingTab/Setting components.
+ */
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.surfsense-status {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 0 6px;
+	cursor: default;
+}
 
-If your plugin does not need CSS, delete this file.
+.surfsense-status__icon {
+	display: inline-flex;
+	width: 14px;
+	height: 14px;
+}
 
-*/
+.surfsense-status__icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+.surfsense-status__text {
+	font-size: var(--font-ui-smaller);
+}
+
+.surfsense-status--ok .surfsense-status__icon {
+	color: var(--color-green);
+}
+
+.surfsense-status--syncing .surfsense-status__icon {
+	color: var(--color-blue);
+}
+
+.surfsense-status--warn .surfsense-status__icon {
+	color: var(--color-yellow);
+}
+
+.surfsense-status--err .surfsense-status__icon {
+	color: var(--color-red);
+}
+
+.surfsense-settings__status {
+	display: grid;
+	grid-template-columns: minmax(120px, max-content) 1fr;
+	row-gap: 4px;
+	column-gap: 12px;
+	margin: 8px 0 16px;
+}
+
+.surfsense-settings__status-row {
+	display: contents;
+}
+
+.surfsense-settings__status-label {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.surfsense-settings__status-value {
+	font-size: var(--font-ui-smaller);
+	word-break: break-word;
+}
