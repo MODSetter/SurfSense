@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -29,12 +29,16 @@ export function CreateFolderDialog({
 	const [name, setName] = useState("");
 	const inputRef = useRef<HTMLInputElement>(null);
 
-	useEffect(() => {
-		if (open) {
-			setName("");
-			setTimeout(() => inputRef.current?.focus(), 0);
-		}
-	}, [open]);
+	const handleOpenChange = useCallback(
+		(next: boolean) => {
+			if (next) {
+				setName("");
+				setTimeout(() => inputRef.current?.focus(), 0);
+			}
+			onOpenChange(next);
+		},
+		[onOpenChange]
+	);
 
 	const handleSubmit = useCallback(
 		(e?: React.FormEvent) => {
@@ -50,7 +54,7 @@ export function CreateFolderDialog({
 	const isSubfolder = !!parentFolderName;
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
+		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogContent className="select-none max-w-[90vw] sm:max-w-sm p-4 sm:p-5 data-[state=open]:animate-none data-[state=closed]:animate-none">
 				<DialogHeader className="space-y-2 pb-2">
 					<div className="flex items-center gap-2 sm:gap-3">
