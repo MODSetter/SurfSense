@@ -1,0 +1,102 @@
+name: Release Obsidian Plugin
+
+# Triggered on tags of the form `obsidian-v0.1.0`. The version after the
+# prefix MUST exactly equal `surfsense_obsidian/manifest.json`'s `version`
+# (no leading `v`) — this is what BRAT and the Obsidian community plugin
+# store both verify.
+on:
+  push:
+    tags:
+      - "obsidian-v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build (e.g. obsidian-v0.1.0). Dry-run only when run manually."
+        required: true
+        default: "obsidian-v0.0.0-test"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: surfsense_obsidian
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Need write access for the manifest/versions.json mirror commit
+          # back to main further down.
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: npm
+          cache-dependency-path: surfsense_obsidian/package-lock.json
+
+      - name: Resolve plugin version
+        id: version
+        run: |
+          tag="${GITHUB_REF_NAME:-${{ github.event.inputs.tag }}}"
+          version="${tag#obsidian-v}"
+          manifest_version=$(node -p "require('./manifest.json').version")
+          if [ "$version" != "$manifest_version" ]; then
+            echo "::error::Tag version '$version' does not match manifest version '$manifest_version'"
+            exit 1
+          fi
+          echo "tag=$tag"            >> "$GITHUB_OUTPUT"
+          echo "version=$version"    >> "$GITHUB_OUTPUT"
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      - run: npm run build
+
+      - name: Verify build artifacts
+        run: |
+          for f in main.js manifest.json styles.css; do
+            test -f "$f" || (echo "::error::Missing release artifact: $f" && exit 1)
+          done
+
+      - name: Mirror manifest.json + versions.json to repo root
+        if: github.event_name == 'push'
+        working-directory: ${{ github.workspace }}
+        run: |
+          cp surfsense_obsidian/manifest.json manifest.json
+          cp surfsense_obsidian/versions.json versions.json
+          if git diff --quiet manifest.json versions.json; then
+            echo "Root manifest/versions already up to date."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add manifest.json versions.json
+          git commit -m "chore(obsidian-plugin): mirror manifest+versions for ${{ steps.version.outputs.tag }}"
+          # Push to the default branch so Obsidian can fetch raw files from HEAD.
+          git push origin HEAD:${{ github.event.repository.default_branch }}
+
+      # IMPORTANT: BRAT and the Obsidian community plugin store look up the
+      # release by the bare manifest `version` (e.g. `0.1.0`), NOT by the
+      # build-trigger tag (`obsidian-v0.1.0`). So we publish the GitHub
+      # release with `tag_name: <version>` — `softprops/action-gh-release`
+      # will create that tag if it doesn't already exist, pointing at the
+      # commit referenced by the build-trigger tag. Verified against
+      # https://github.com/khoj-ai/khoj/releases (their tags are bare
+      # versions like `2.0.0-beta.28`, no prefix).
+      - name: Create GitHub release
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: SurfSense Obsidian Plugin ${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: |
+            surfsense_obsidian/main.js
+            surfsense_obsidian/manifest.json
+            surfsense_obsidian/styles.css
