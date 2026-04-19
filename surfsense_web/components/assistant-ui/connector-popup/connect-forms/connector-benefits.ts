@@ -104,11 +104,11 @@ export function getConnectorBenefits(connectorType: string): string[] | null {
 			"No manual indexing required - meetings are added automatically",
 		],
 		OBSIDIAN_CONNECTOR: [
-			"Search through all your Obsidian notes and knowledge base",
-			"Access note content with YAML frontmatter metadata preserved",
-			"Wiki-style links ([[note]]) and #tags are indexed",
-			"Connect your personal knowledge base directly to your search space",
-			"Incremental sync - only changed files are re-indexed",
+			"Search through all of your Obsidian notes",
+			"Realtime sync as you create, edit, rename, or delete notes",
+			"YAML frontmatter, [[wiki links]], and #tags are preserved and indexed",
+			"Open any chat citation straight back in Obsidian via deep links",
+			"Each device is identifiable, so you can revoke a vault from one machine",
 			"Full support for your vault's folder structure",
 		],
 	};
