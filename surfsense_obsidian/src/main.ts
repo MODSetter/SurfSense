@@ -11,6 +11,7 @@ import {
 	type StatusState,
 	type SurfsensePluginSettings,
 } from "./types";
+import { generateVaultUuid } from "./vault-identity";
 
 /** SurfSense plugin entry point. */
 export default class SurfSensePlugin extends Plugin {
@@ -167,6 +168,25 @@ export default class SurfSensePlugin extends Plugin {
 		this.queue?.requestStop();
 	}
 
+	/**
+	 * Obsidian fires this when another device rewrites our data.json.
+	 * If the synced vault_id differs from ours, adopt it and
+	 * re-handshake so the server routes us to the right row.
+	 */
+	async onExternalSettingsChange(): Promise<void> {
+		const previousVaultId = this.settings.vaultId;
+		const previousConnectorId = this.settings.connectorId;
+		await this.loadSettings();
+		const changed =
+			this.settings.vaultId !== previousVaultId ||
+			this.settings.connectorId !== previousConnectorId;
+		if (!changed) return;
+		this.notifyStatusChange();
+		if (this.settings.searchSpaceId !== null) {
+			void this.engine.ensureConnected();
+		}
+	}
+
 	get queueDepth(): number {
 		return this.queue?.size ?? 0;
 	}
@@ -238,10 +258,15 @@ export default class SurfSensePlugin extends Plugin {
 		await this.saveData(this.settings);
 	}
 
-	/** Mint vault_id (in data.json, travels with the vault) on first run. */
+	/**
+	 * Mint a tentative vault_id locally on first run. The server's
+	 * fingerprint dedup (see /obsidian/connect) may overwrite it on the
+	 * first /connect when another device of the same vault has already
+	 * registered; we always trust the server's response.
+	 */
 	private seedIdentity(): void {
 		if (!this.settings.vaultId) {
-			this.settings.vaultId = generateUuid();
+			this.settings.vaultId = generateVaultUuid();
 		}
 	}
 }
@@ -251,18 +276,4 @@ interface NetworkConnection {
 	type?: string;
 	addEventListener?: (event: string, handler: () => void) => void;
 	removeEventListener?: (event: string, handler: () => void) => void;
-}
-
-function generateUuid(): string {
-	const c = globalThis.crypto;
-	if (c?.randomUUID) return c.randomUUID();
-	const buf = new Uint8Array(16);
-	c.getRandomValues(buf);
-	buf[6] = ((buf[6] ?? 0) & 0x0f) | 0x40;
-	buf[8] = ((buf[8] ?? 0) & 0x3f) | 0x80;
-	const hex = Array.from(buf, (b) => b.toString(16).padStart(2, "0")).join("");
-	return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(
-		16,
-		20,
-	)}-${hex.slice(20)}`;
 }

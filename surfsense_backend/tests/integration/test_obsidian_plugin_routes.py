@@ -1,15 +1,18 @@
 """Integration tests for the Obsidian plugin HTTP wire contract.
 
-Two concerns:
+Three concerns:
 
 1. The /connect upsert really collapses concurrent first-time connects to
-   exactly one row. This locks the partial unique index in migration 129
+   exactly one row. This locks the partial unique index from migration 129
    to its purpose.
-2. The end-to-end response shapes returned by /connect /sync /rename
+2. The fingerprint dedup path: a second device connecting with a fresh
+   ``vault_id`` but the same ``vault_fingerprint`` adopts the existing
+   connector instead of creating a duplicate.
+3. The end-to-end response shapes returned by /connect /sync /rename
    /notes /manifest /stats match the schemas the plugin's TypeScript
-   decoders expect. Each new field renamed (results -> items, accepted ->
-   indexed, etc.) is a contract change, and a smoke pass like this is
-   the cheapest way to catch a future drift before it ships.
+   decoders expect. Each renamed field is a contract change, and a smoke
+   pass like this is the cheapest way to catch a future drift before it
+   ships.
 """
 
 from __future__ import annotations
@@ -26,8 +29,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import (
-    Document,
-    DocumentType,
     SearchSourceConnector,
     SearchSourceConnectorType,
     SearchSpace,
@@ -135,12 +136,14 @@ class TestConnectRace:
     async def test_concurrent_first_connects_collapse_to_one_row(
         self, async_engine, race_user_and_space
     ):
-        """Two simultaneous /connect calls for the same vault_id should
-        produce exactly one row, not two. This relies on the partial
-        unique index added in migration 129 plus the
-        ON CONFLICT DO UPDATE in obsidian_connect."""
+        """Two simultaneous /connect calls for the same vault should
+        produce exactly one row, not two. Same vault_id + same
+        fingerprint funnels through both partial unique indexes; the
+        loser falls back to the survivor row via the IntegrityError
+        branch in obsidian_connect."""
         user_id, space_id = race_user_and_space
         vault_id = str(uuid.uuid4())
+        fingerprint = "fp-" + uuid.uuid4().hex
 
         async def _call(name_suffix: str) -> None:
             async with AsyncSession(async_engine) as s:
@@ -149,21 +152,16 @@ class TestConnectRace:
                     vault_id=vault_id,
                     vault_name=f"My Vault {name_suffix}",
                     search_space_id=space_id,
+                    vault_fingerprint=fingerprint,
                 )
                 await obsidian_connect(payload, user=fresh_user, session=s)
 
         results = await asyncio.gather(
             _call("a"), _call("b"), return_exceptions=True
         )
-        # Both calls should succeed (ON CONFLICT collapses, doesn't raise).
         for r in results:
             assert not isinstance(r, Exception), f"Connect raised: {r!r}"
 
-        # The fixture creates a fresh user per test, so a count scoped to
-        # ``user_id`` is equivalent to "rows for this vault" without
-        # needing the JSON-path filter (which only works against a real
-        # postgres dialect at compile time, not against a bare model
-        # expression in a test).
         async with AsyncSession(async_engine) as verify:
             count = (
                 await verify.execute(
@@ -177,11 +175,8 @@ class TestConnectRace:
     async def test_partial_unique_index_blocks_raw_duplicate(
         self, async_engine, race_user_and_space
     ):
-        """If the partial unique index were missing, two raw INSERTs of
-        plugin-Obsidian rows for the same (user_id, vault_id) would both
-        succeed. With the index in place the second one must raise
-        IntegrityError. This guards the schema regardless of whether the
-        route logic is correct."""
+        """Raw INSERTs that bypass the route must still be blocked by
+        the partial unique indexes from migration 129."""
         user_id, space_id = race_user_and_space
         vault_id = str(uuid.uuid4())
 
@@ -195,6 +190,7 @@ class TestConnectRace:
                         "vault_id": vault_id,
                         "vault_name": "First",
                         "source": "plugin",
+                        "vault_fingerprint": "fp-1",
                     },
                     user_id=user_id,
                     search_space_id=space_id,
@@ -213,12 +209,109 @@ class TestConnectRace:
                             "vault_id": vault_id,
                             "vault_name": "Second",
                             "source": "plugin",
+                            "vault_fingerprint": "fp-2",
                         },
                         user_id=user_id,
                         search_space_id=space_id,
                     )
                 )
                 await s.commit()
+
+    async def test_fingerprint_blocks_raw_cross_device_duplicate(
+        self, async_engine, race_user_and_space
+    ):
+        """Two connectors for the same user with different vault_ids but
+        the same fingerprint cannot coexist."""
+        user_id, space_id = race_user_and_space
+        fingerprint = "fp-" + uuid.uuid4().hex
+
+        async with AsyncSession(async_engine) as s:
+            s.add(
+                SearchSourceConnector(
+                    name="Obsidian \u2014 Desktop",
+                    connector_type=SearchSourceConnectorType.OBSIDIAN_CONNECTOR,
+                    is_indexable=False,
+                    config={
+                        "vault_id": str(uuid.uuid4()),
+                        "vault_name": "Vault",
+                        "source": "plugin",
+                        "vault_fingerprint": fingerprint,
+                    },
+                    user_id=user_id,
+                    search_space_id=space_id,
+                )
+            )
+            await s.commit()
+
+        with pytest.raises(IntegrityError):
+            async with AsyncSession(async_engine) as s:
+                s.add(
+                    SearchSourceConnector(
+                        name="Obsidian \u2014 Mobile",
+                        connector_type=SearchSourceConnectorType.OBSIDIAN_CONNECTOR,
+                        is_indexable=False,
+                        config={
+                            "vault_id": str(uuid.uuid4()),
+                            "vault_name": "Vault",
+                            "source": "plugin",
+                            "vault_fingerprint": fingerprint,
+                        },
+                        user_id=user_id,
+                        search_space_id=space_id,
+                    )
+                )
+                await s.commit()
+
+    async def test_second_device_adopts_existing_connector_via_fingerprint(
+        self, async_engine, race_user_and_space
+    ):
+        """Device A connects with vault_id=A. Device B then connects with
+        a fresh vault_id=B but the same fingerprint. The route must
+        return A's identity (not create a B row), proving cross-device
+        dedup happens transparently to the plugin."""
+        user_id, space_id = race_user_and_space
+        vault_id_a = str(uuid.uuid4())
+        vault_id_b = str(uuid.uuid4())
+        fingerprint = "fp-" + uuid.uuid4().hex
+
+        async with AsyncSession(async_engine) as s:
+            fresh_user = await s.get(User, user_id)
+            resp_a = await obsidian_connect(
+                ConnectRequest(
+                    vault_id=vault_id_a,
+                    vault_name="Shared Vault",
+                    search_space_id=space_id,
+                    vault_fingerprint=fingerprint,
+                ),
+                user=fresh_user,
+                session=s,
+            )
+
+        async with AsyncSession(async_engine) as s:
+            fresh_user = await s.get(User, user_id)
+            resp_b = await obsidian_connect(
+                ConnectRequest(
+                    vault_id=vault_id_b,
+                    vault_name="Shared Vault",
+                    search_space_id=space_id,
+                    vault_fingerprint=fingerprint,
+                ),
+                user=fresh_user,
+                session=s,
+            )
+
+        assert resp_b.vault_id == vault_id_a
+        assert resp_b.connector_id == resp_a.connector_id
+
+        async with AsyncSession(async_engine) as verify:
+            count = (
+                await verify.execute(
+                    select(func.count(SearchSourceConnector.id)).where(
+                        SearchSourceConnector.user_id == user_id,
+                    )
+                )
+            ).scalar_one()
+            assert count == 1
 
 
 # ---------------------------------------------------------------------------
@@ -244,6 +337,7 @@ class TestWireContractSmoke:
                 vault_id=vault_id,
                 vault_name="Smoke Vault",
                 search_space_id=db_search_space.id,
+                vault_fingerprint="fp-" + uuid.uuid4().hex,
             ),
             user=db_user,
             session=db_session,

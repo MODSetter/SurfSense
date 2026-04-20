@@ -110,6 +110,7 @@ export class SurfSenseApiClient {
 		searchSpaceId: number;
 		vaultId: string;
 		vaultName: string;
+		vaultFingerprint: string;
 	}): Promise<ConnectResponse> {
 		return await this.request<ConnectResponse>(
 			"POST",
@@ -118,6 +119,7 @@ export class SurfSenseApiClient {
 				vault_id: input.vaultId,
 				vault_name: input.vaultName,
 				search_space_id: input.searchSpaceId,
+				vault_fingerprint: input.vaultFingerprint,
 			}
 		);
 	}

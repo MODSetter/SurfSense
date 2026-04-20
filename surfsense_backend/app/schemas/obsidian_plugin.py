@@ -92,6 +92,14 @@ class ConnectRequest(_PluginBase):
     vault_id: str
     vault_name: str
     search_space_id: int
+    vault_fingerprint: str = Field(
+        ...,
+        description=(
+            "Deterministic SHA-256 over the sorted markdown paths in the vault "
+            "(plus vault_name). Same vault content on any device produces the "
+            "same value; the server uses it to dedup connectors across devices."
+        ),
+    )
 
 
 class ConnectResponse(_PluginBase):

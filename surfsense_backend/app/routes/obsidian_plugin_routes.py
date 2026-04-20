@@ -10,7 +10,6 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 
-import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import and_, case, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -45,6 +44,7 @@ from app.schemas.obsidian_plugin import (
 from app.services.obsidian_plugin_indexer import (
     delete_note,
     get_manifest,
+    merge_obsidian_connectors,
     rename_note,
     upsert_note,
 )
@@ -144,33 +144,139 @@ async def obsidian_health(
     )
 
 
+async def _find_by_vault_id(
+    session: AsyncSession, *, user_id, vault_id: str
+) -> SearchSourceConnector | None:
+    stmt = select(SearchSourceConnector).where(
+        and_(
+            SearchSourceConnector.user_id == user_id,
+            SearchSourceConnector.connector_type
+            == SearchSourceConnectorType.OBSIDIAN_CONNECTOR,
+            SearchSourceConnector.config["source"].as_string() == "plugin",
+            SearchSourceConnector.config["vault_id"].as_string() == vault_id,
+        )
+    )
+    return (await session.execute(stmt)).scalars().first()
+
+
+async def _find_by_fingerprint(
+    session: AsyncSession, *, user_id, vault_fingerprint: str
+) -> SearchSourceConnector | None:
+    stmt = select(SearchSourceConnector).where(
+        and_(
+            SearchSourceConnector.user_id == user_id,
+            SearchSourceConnector.connector_type
+            == SearchSourceConnectorType.OBSIDIAN_CONNECTOR,
+            SearchSourceConnector.config["source"].as_string() == "plugin",
+            SearchSourceConnector.config["vault_fingerprint"].as_string()
+            == vault_fingerprint,
+        )
+    )
+    return (await session.execute(stmt)).scalars().first()
+
+
+def _build_config(
+    payload: ConnectRequest, *, now_iso: str
+) -> dict[str, object]:
+    return {
+        "vault_id": payload.vault_id,
+        "vault_name": payload.vault_name,
+        "vault_fingerprint": payload.vault_fingerprint,
+        "source": "plugin",
+        "last_connect_at": now_iso,
+    }
+
+
+def _display_name(vault_name: str) -> str:
+    return f"Obsidian \u2014 {vault_name}"
+
+
 @router.post("/connect", response_model=ConnectResponse)
 async def obsidian_connect(
     payload: ConnectRequest,
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> ConnectResponse:
-    """Register a vault, or refresh the existing connector row.
+    """Register a vault, refresh an existing one, or adopt another device's row.
 
-    Idempotent on ``(user_id, OBSIDIAN_CONNECTOR, vault_id)`` via the partial
-    unique index from migration 129. Called on every plugin onload.
+    Resolution order:
+      1. ``(user_id, vault_id)`` → known device, refresh metadata.
+      2. ``(user_id, vault_fingerprint)`` → another device of the same vault,
+         caller adopts the surviving ``vault_id``.
+      3. Insert a new row.
+
+    Fingerprint collisions on (1) trigger ``merge_obsidian_connectors`` so
+    the partial unique index can never produce two live rows for one vault.
     """
     await _ensure_search_space_access(
         session, user=user, search_space_id=payload.search_space_id
     )
 
     now_iso = datetime.now(UTC).isoformat()
-    cfg = {
-        "vault_id": payload.vault_id,
-        "vault_name": payload.vault_name,
-        "source": "plugin",
-        "last_connect_at": now_iso,
-    }
-    display_name = f"Obsidian \u2014 {payload.vault_name}"
+    cfg = _build_config(payload, now_iso=now_iso)
+    display_name = _display_name(payload.vault_name)
 
-    # ``index_elements`` + ``index_where`` matches the partial unique index
-    # by shape; ``ON CONFLICT ON CONSTRAINT`` doesn't work for partial indexes.
-    stmt = (
+    existing_by_vid = await _find_by_vault_id(
+        session, user_id=user.id, vault_id=payload.vault_id
+    )
+    if existing_by_vid is not None:
+        collision = await _find_by_fingerprint(
+            session, user_id=user.id, vault_fingerprint=payload.vault_fingerprint
+        )
+        if collision is not None and collision.id != existing_by_vid.id:
+            await merge_obsidian_connectors(
+                session, source=existing_by_vid, target=collision
+            )
+            collision_cfg = dict(collision.config or {})
+            collision_cfg["vault_name"] = payload.vault_name
+            collision_cfg["last_connect_at"] = now_iso
+            collision.config = collision_cfg
+            collision.name = _display_name(payload.vault_name)
+            response = ConnectResponse(
+                connector_id=collision.id,
+                vault_id=collision_cfg["vault_id"],
+                search_space_id=collision.search_space_id,
+                **_build_handshake(),
+            )
+            await session.commit()
+            return response
+
+        existing_by_vid.name = display_name
+        existing_by_vid.config = cfg
+        existing_by_vid.search_space_id = payload.search_space_id
+        existing_by_vid.is_indexable = False
+        response = ConnectResponse(
+            connector_id=existing_by_vid.id,
+            vault_id=payload.vault_id,
+            search_space_id=existing_by_vid.search_space_id,
+            **_build_handshake(),
+        )
+        await session.commit()
+        return response
+
+    existing_by_fp = await _find_by_fingerprint(
+        session, user_id=user.id, vault_fingerprint=payload.vault_fingerprint
+    )
+    if existing_by_fp is not None:
+        survivor_cfg = dict(existing_by_fp.config or {})
+        survivor_cfg["vault_name"] = payload.vault_name
+        survivor_cfg["last_connect_at"] = now_iso
+        existing_by_fp.config = survivor_cfg
+        existing_by_fp.name = display_name
+        response = ConnectResponse(
+            connector_id=existing_by_fp.id,
+            vault_id=survivor_cfg["vault_id"],
+            search_space_id=existing_by_fp.search_space_id,
+            **_build_handshake(),
+        )
+        await session.commit()
+        return response
+
+    # ON CONFLICT DO NOTHING matches any unique index (vault_id OR
+    # fingerprint), so concurrent first-time connects from two devices
+    # of the same vault never raise IntegrityError — the loser just
+    # gets an empty RETURNING and falls through to re-fetch the winner.
+    insert_stmt = (
         pg_insert(SearchSourceConnector)
         .values(
             name=display_name,
@@ -180,40 +286,43 @@ async def obsidian_connect(
             user_id=user.id,
             search_space_id=payload.search_space_id,
         )
-        .on_conflict_do_update(
-            index_elements=[
-                SearchSourceConnector.user_id,
-                sa.text("(config->>'vault_id')"),
-            ],
-            index_where=sa.text(
-                "connector_type = 'OBSIDIAN_CONNECTOR' "
-                "AND config->>'source' = 'plugin' "
-                "AND config->>'vault_id' IS NOT NULL"
-            ),
-            set_={
-                "name": display_name,
-                "config": cfg,
-                "search_space_id": payload.search_space_id,
-                "is_indexable": False,
-            },
+        .on_conflict_do_nothing()
+        .returning(
+            SearchSourceConnector.id,
+            SearchSourceConnector.search_space_id,
         )
-        .returning(SearchSourceConnector)
     )
+    inserted = (await session.execute(insert_stmt)).first()
+    if inserted is not None:
+        response = ConnectResponse(
+            connector_id=inserted.id,
+            vault_id=payload.vault_id,
+            search_space_id=inserted.search_space_id,
+            **_build_handshake(),
+        )
+        await session.commit()
+        return response
 
-    result = await session.execute(stmt)
-    connector = result.scalar_one()
-    # Read attrs before commit; ``expire_on_commit=True`` would force a
-    # lazy refresh that fails with ``MissingGreenlet`` during serialization.
-    connector_id = connector.id
-    connector_search_space_id = connector.search_space_id
-    await session.commit()
-
-    return ConnectResponse(
-        connector_id=connector_id,
-        vault_id=payload.vault_id,
-        search_space_id=connector_search_space_id,
+    winner = await _find_by_fingerprint(
+        session, user_id=user.id, vault_fingerprint=payload.vault_fingerprint
+    )
+    if winner is None:
+        winner = await _find_by_vault_id(
+            session, user_id=user.id, vault_id=payload.vault_id
+        )
+    if winner is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="vault registration conflicted but winning row could not be located",
+        )
+    response = ConnectResponse(
+        connector_id=winner.id,
+        vault_id=(winner.config or {})["vault_id"],
+        search_space_id=winner.search_space_id,
         **_build_handshake(),
     )
+    await session.commit()
+    return response
 
 
 @router.post("/sync", response_model=SyncAck)

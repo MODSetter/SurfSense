@@ -1,14 +1,18 @@
-"""129_deactivate_legacy_obsidian_connectors
+"""129_obsidian_plugin_vault_identity
 
 Revision ID: 129
 Revises: 128
-Create Date: 2026-04-18
+Create Date: 2026-04-21
 
-Deactivates pre-plugin OBSIDIAN_CONNECTOR rows (keeping them and their
-Documents, but flagging ``config.legacy = true`` and disabling scheduling)
-and creates the partial unique index on
-``(user_id, (config->>'vault_id'))`` for plugin-Obsidian rows that backs
-the ``/obsidian/connect`` upsert.
+Locks down vault identity for the Obsidian plugin connector:
+
+- Deactivates pre-plugin OBSIDIAN_CONNECTOR rows.
+- Partial unique index on ``(user_id, (config->>'vault_id'))`` for the
+  ``/obsidian/connect`` upsert fast path.
+- Partial unique index on ``(user_id, (config->>'vault_fingerprint'))``
+  so two devices observing the same vault content can never produce
+  two connector rows. Collisions are caught by the route handler and
+  routed through the merge path.
 """
 
 from __future__ import annotations
@@ -27,6 +31,7 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     conn = op.get_bind()
+
     conn.execute(
         sa.text(
             """
@@ -61,9 +66,27 @@ def upgrade() -> None:
         )
     )
 
+    conn.execute(
+        sa.text(
+            """
+            CREATE UNIQUE INDEX search_source_connectors_obsidian_plugin_fingerprint_uniq
+            ON search_source_connectors (user_id, ((config->>'vault_fingerprint')))
+            WHERE connector_type = 'OBSIDIAN_CONNECTOR'
+              AND config->>'source' = 'plugin'
+              AND config->>'vault_fingerprint' IS NOT NULL
+            """
+        )
+    )
+
 
 def downgrade() -> None:
     conn = op.get_bind()
+    conn.execute(
+        sa.text(
+            "DROP INDEX IF EXISTS "
+            "search_source_connectors_obsidian_plugin_fingerprint_uniq"
+        )
+    )
     conn.execute(
         sa.text(
             "DROP INDEX IF EXISTS "

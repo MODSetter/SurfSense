@@ -17,6 +17,7 @@ import type {
 	StatusKind,
 	StatusState,
 } from "./types";
+import { computeVaultFingerprint } from "./vault-identity";
 
 /**
  * Owner of "what does the vault look like vs the server" reasoning.
@@ -110,7 +111,14 @@ export class SyncEngine {
 		this.setStatus(this.queueStatusKind(), undefined);
 	}
 
-	/** Public entry point used after settings save to (re)connect the vault. */
+	/**
+	 * (Re)register the vault with the server.
+	 *
+	 * Always trusts the server's response: when fingerprint dedup routes
+	 * us to another device's connector, ``resp.vault_id`` may differ from
+	 * what we sent and we adopt it locally so future /sync calls land on
+	 * the right row.
+	 */
 	async ensureConnected(): Promise<void> {
 		const settings = this.deps.getSettings();
 		if (!settings.searchSpaceId) {
@@ -118,13 +126,16 @@ export class SyncEngine {
 			return;
 		}
 		try {
+			const fingerprint = await computeVaultFingerprint(this.deps.app);
 			const resp = await this.deps.apiClient.connect({
 				searchSpaceId: settings.searchSpaceId,
 				vaultId: settings.vaultId,
 				vaultName: this.deps.app.vault.getName(),
+				vaultFingerprint: fingerprint,
 			});
 			this.applyHealth(resp);
 			await this.deps.saveSettings((s) => {
+				s.vaultId = resp.vault_id;
 				s.connectorId = resp.connector_id;
 			});
 		} catch (err) {
@@ -385,11 +396,19 @@ export class SyncEngine {
 			if (Date.now() - settings.lastReconcileAt < RECONCILE_MIN_INTERVAL_MS) return;
 		}
 
+		// Re-handshake first so the server sees this device's current
+		// fingerprint. If the vault grew since last connect and now
+		// matches another device's row, the server merges and routes us
+		// to the survivor; subsequent /manifest call uses the adopted id.
+		await this.ensureConnected();
+		const refreshed = this.deps.getSettings();
+		if (!refreshed.connectorId) return;
+
 		this.setStatus("syncing", "Reconciling vault with server…");
 		try {
-			const manifest = await this.deps.apiClient.getManifest(settings.vaultId);
+			const manifest = await this.deps.apiClient.getManifest(refreshed.vaultId);
 			const remote = manifest.items ?? {};
-			const enqueued = this.diffAndQueue(settings, remote);
+			const enqueued = this.diffAndQueue(refreshed, remote);
 			await this.deps.saveSettings((s) => {
 				s.lastReconcileAt = Date.now();
 				s.tombstones = pruneTombstones(s.tombstones);

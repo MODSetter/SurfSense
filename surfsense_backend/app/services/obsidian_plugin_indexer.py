@@ -355,6 +355,78 @@ async def delete_note(
     return True
 
 
+async def merge_obsidian_connectors(
+    session: AsyncSession,
+    *,
+    source: SearchSourceConnector,
+    target: SearchSourceConnector,
+) -> None:
+    """Fold ``source``'s documents into ``target`` and delete ``source``.
+
+    Triggered when the fingerprint dedup detects two plugin connectors
+    pointing at the same vault (e.g. a mobile install raced with iCloud
+    hydration and got a partial fingerprint, then caught up). Path
+    collisions resolve in favour of ``target`` (the surviving row);
+    ``source``'s duplicate documents are hard-deleted along with their
+    chunks via the ``cascade='all, delete-orphan'`` on ``Document.chunks``.
+    """
+    if source.id == target.id:
+        return
+
+    target_vault_id = (target.config or {}).get("vault_id")
+    target_search_space_id = target.search_space_id
+    if not target_vault_id:
+        raise RuntimeError("merge target is missing vault_id")
+
+    target_paths_result = await session.execute(
+        select(Document).where(
+            and_(
+                Document.connector_id == target.id,
+                Document.document_type == DocumentType.OBSIDIAN_CONNECTOR,
+            )
+        )
+    )
+    target_paths: set[str] = set()
+    for doc in target_paths_result.scalars().all():
+        meta = doc.document_metadata or {}
+        path = meta.get("file_path")
+        if path:
+            target_paths.add(path)
+
+    source_docs_result = await session.execute(
+        select(Document).where(
+            and_(
+                Document.connector_id == source.id,
+                Document.document_type == DocumentType.OBSIDIAN_CONNECTOR,
+            )
+        )
+    )
+
+    for doc in source_docs_result.scalars().all():
+        meta = dict(doc.document_metadata or {})
+        path = meta.get("file_path")
+        if not path or path in target_paths:
+            await session.delete(doc)
+            continue
+
+        new_unique_id = _vault_path_unique_id(target_vault_id, path)
+        new_uid_hash = generate_unique_identifier_hash(
+            DocumentType.OBSIDIAN_CONNECTOR,
+            new_unique_id,
+            target_search_space_id,
+        )
+        meta["vault_id"] = target_vault_id
+        meta["connector_id"] = target.id
+        doc.document_metadata = meta
+        doc.connector_id = target.id
+        doc.search_space_id = target_search_space_id
+        doc.unique_identifier_hash = new_uid_hash
+        target_paths.add(path)
+
+    await session.flush()
+    await session.delete(source)
+
+
 async def get_manifest(
     session: AsyncSession,
     *,
