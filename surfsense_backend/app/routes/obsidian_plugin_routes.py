@@ -11,11 +11,13 @@ import logging
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import and_
+from sqlalchemy import and_, case, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.db import (
+    Document,
+    DocumentType,
     SearchSourceConnector,
     SearchSourceConnectorType,
     SearchSpace,
@@ -48,7 +50,7 @@ router = APIRouter(prefix="/obsidian", tags=["obsidian-plugin"])
 OBSIDIAN_API_VERSION = "1"
 
 # Plugins feature-gate on these. Add entries, never rename or remove.
-OBSIDIAN_CAPABILITIES: list[str] = ["sync", "rename", "delete", "manifest"]
+OBSIDIAN_CAPABILITIES: list[str] = ["sync", "rename", "delete", "manifest", "stats"]
 
 
 # ---------------------------------------------------------------------------
@@ -63,47 +65,13 @@ def _build_handshake() -> dict[str, object]:
     }
 
 
-def _upsert_device(
-    existing_devices: object,
-    device_id: str,
-    now_iso: str,
-) -> dict[str, dict[str, str]]:
-    """Upsert ``device_id`` into ``{device_id: {first_seen_at, last_seen_at}}``.
-
-    Keyed by device_id for O(1) dedup; ``len(devices)`` is the count.
-    Timestamps are kept for a future stale-device pruner.
-    """
-    devices: dict[str, dict[str, str]] = {}
-    if isinstance(existing_devices, dict):
-        for key, val in existing_devices.items():
-            if not isinstance(key, str) or not key or not isinstance(val, dict):
-                continue
-            devices[key] = {
-                "first_seen_at": str(val.get("first_seen_at") or now_iso),
-                "last_seen_at": str(val.get("last_seen_at") or now_iso),
-            }
-
-    prev = devices.get(device_id)
-    devices[device_id] = {
-        "first_seen_at": prev["first_seen_at"] if prev else now_iso,
-        "last_seen_at": now_iso,
-    }
-    return devices
-
-
 async def _resolve_vault_connector(
     session: AsyncSession,
     *,
     user: User,
     vault_id: str,
-    for_update: bool = False,
 ) -> SearchSourceConnector:
-    """Find the OBSIDIAN_CONNECTOR row that owns ``vault_id`` for this user.
-
-    Callers that mutate ``connector.config`` MUST pass ``for_update=True`` or
-    concurrent heartbeats will race and lose writes on ``config.devices`` /
-    ``config.files_synced``.
-    """
+    """Find the OBSIDIAN_CONNECTOR row that owns ``vault_id`` for this user."""
     stmt = select(SearchSourceConnector).where(
         and_(
             SearchSourceConnector.user_id == user.id,
@@ -113,8 +81,6 @@ async def _resolve_vault_connector(
             SearchSourceConnector.config["source"].astext == "plugin",
         )
     )
-    if for_update:
-        stmt = stmt.with_for_update()
 
     connector = (await session.execute(stmt)).scalars().first()
     if connector is not None:
@@ -182,14 +148,13 @@ async def obsidian_connect(
     """Register a vault, or return the existing connector row.
 
     Idempotent on (user_id, OBSIDIAN_CONNECTOR, vault_id). Called on every
-    plugin onload as a heartbeat — upserts ``device_id`` into
-    ``config['devices']`` so the web UI can show a "Devices: N" tile.
+    plugin onload as a heartbeat.
     """
     await _ensure_search_space_access(
         session, user=user, search_space_id=payload.search_space_id
     )
 
-    # FOR UPDATE so concurrent heartbeats can't clobber each other's device entry.
+    # FOR UPDATE so concurrent /connect calls for the same vault can't race.
     existing: SearchSourceConnector | None = (
         (
             await session.execute(
@@ -211,19 +176,14 @@ async def obsidian_connect(
     )
 
     now_iso = datetime.now(UTC).isoformat()
+    cfg = {
+        "vault_id": payload.vault_id,
+        "vault_name": payload.vault_name,
+        "source": "plugin",
+        "last_connect_at": now_iso,
+    }
 
     if existing is not None:
-        cfg = dict(existing.config or {})
-        devices = _upsert_device(cfg.get("devices"), payload.device_id, now_iso)
-        cfg.update(
-            {
-                "vault_id": payload.vault_id,
-                "vault_name": payload.vault_name,
-                "source": "plugin",
-                "devices": devices,
-                "last_connect_at": now_iso,
-            }
-        )
         existing.config = cfg
         # Re-stamp on every connect so vault renames in Obsidian propagate;
         # the web UI hides the Name input for Obsidian connectors.
@@ -234,19 +194,11 @@ async def obsidian_connect(
         await session.refresh(existing)
         connector = existing
     else:
-        devices = _upsert_device(None, payload.device_id, now_iso)
         connector = SearchSourceConnector(
             name=f"Obsidian — {payload.vault_name}",
             connector_type=SearchSourceConnectorType.OBSIDIAN_CONNECTOR,
             is_indexable=False,
-            config={
-                "vault_id": payload.vault_id,
-                "vault_name": payload.vault_name,
-                "source": "plugin",
-                "devices": devices,
-                "files_synced": 0,
-                "last_connect_at": now_iso,
-            },
+            config=cfg,
             user_id=user.id,
             search_space_id=payload.search_space_id,
         )
@@ -270,7 +222,7 @@ async def obsidian_sync(
 ) -> dict[str, object]:
     """Batch-upsert notes; returns per-note ack so the plugin can dequeue/retry."""
     connector = await _resolve_vault_connector(
-        session, user=user, vault_id=payload.vault_id, for_update=True
+        session, user=user, vault_id=payload.vault_id
     )
 
     results: list[dict[str, object]] = []
@@ -299,12 +251,6 @@ async def obsidian_sync(
                 {"path": note.path, "status": "error", "error": str(exc)[:300]}
             )
 
-    cfg = dict(connector.config or {})
-    cfg["last_sync_at"] = datetime.now(UTC).isoformat()
-    cfg["files_synced"] = int(cfg.get("files_synced", 0)) + indexed
-    connector.config = cfg
-    await session.commit()
-
     return {
         "vault_id": payload.vault_id,
         "indexed": indexed,
@@ -321,7 +267,7 @@ async def obsidian_rename(
 ) -> dict[str, object]:
     """Apply a batch of vault rename events."""
     connector = await _resolve_vault_connector(
-        session, user=user, vault_id=payload.vault_id, for_update=True
+        session, user=user, vault_id=payload.vault_id
     )
 
     results: list[dict[str, object]] = []
@@ -388,7 +334,7 @@ async def obsidian_delete_notes(
 ) -> dict[str, object]:
     """Soft-delete a batch of notes by vault-relative path."""
     connector = await _resolve_vault_connector(
-        session, user=user, vault_id=payload.vault_id, for_update=True
+        session, user=user, vault_id=payload.vault_id
     )
 
     deleted = 0
@@ -437,3 +383,41 @@ async def obsidian_manifest(
         session, user=user, vault_id=vault_id
     )
     return await get_manifest(session, connector=connector, vault_id=vault_id)
+
+
+@router.get("/stats")
+async def obsidian_stats(
+    vault_id: str = Query(..., description="Plugin-side stable vault UUID"),
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> dict[str, object]:
+    """Active-note count + last sync time for the web tile.
+
+    ``files_synced`` excludes tombstones so it matches ``/manifest``;
+    ``last_sync_at`` includes them so deletes advance the freshness signal.
+    """
+    connector = await _resolve_vault_connector(
+        session, user=user, vault_id=vault_id
+    )
+
+    is_active = Document.document_metadata["deleted_at"].astext.is_(None)
+
+    row = (
+        await session.execute(
+            select(
+                func.count(case((is_active, 1))).label("files_synced"),
+                func.max(Document.updated_at).label("last_sync_at"),
+            ).where(
+                and_(
+                    Document.connector_id == connector.id,
+                    Document.document_type == DocumentType.OBSIDIAN_CONNECTOR,
+                )
+            )
+        )
+    ).first()
+
+    return {
+        "vault_id": vault_id,
+        "files_synced": int(row[0] or 0),
+        "last_sync_at": row[1].isoformat() if row[1] else None,
+    }

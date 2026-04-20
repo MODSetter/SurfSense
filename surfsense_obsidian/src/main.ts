@@ -17,12 +17,6 @@ export default class SurfSensePlugin extends Plugin {
 	api!: SurfSenseApiClient;
 	queue!: PersistentQueue;
 	engine!: SyncEngine;
-	/**
-	 * Per-install identifier kept in `app.saveLocalStorage` rather than
-	 * `data.json`, so it does NOT travel through Obsidian Sync — each
-	 * machine on a synced vault stays distinguishable.
-	 */
-	deviceId = "";
 	private statusBar: StatusBar | null = null;
 	lastStatus: StatusState = { kind: "idle", queueDepth: 0 };
 	serverCapabilities: string[] = [];
@@ -56,7 +50,6 @@ export default class SurfSensePlugin extends Plugin {
 				await this.saveSettings();
 				this.settingTab?.renderStatus();
 			},
-			getDeviceId: () => this.deviceId,
 			setStatus: (s) => {
 				this.lastStatus = s;
 				this.statusBar?.update(s);
@@ -174,28 +167,11 @@ export default class SurfSensePlugin extends Plugin {
 		await this.saveData(this.settings);
 	}
 
-	/**
-	 * Mint vault_id (in data.json, travels with the vault) and device_id
-	 * (in `app.saveLocalStorage`, stays per-install) on first run.
-	 */
+	/** Mint vault_id (in data.json, travels with the vault) on first run. */
 	private seedIdentity(): void {
 		if (!this.settings.vaultId) {
 			this.settings.vaultId = generateUuid();
 		}
-
-		// loadLocalStorage / saveLocalStorage aren't in the d.ts; cast at the boundary.
-		const localStore = this.app as unknown as {
-			loadLocalStorage: (key: string) => string | null;
-			saveLocalStorage: (key: string, value: string | null) => void;
-		};
-		const storageKey = "surfsense:deviceId";
-		let deviceId = localStore.loadLocalStorage(storageKey);
-		if (!deviceId) {
-			deviceId = generateUuid();
-			localStore.saveLocalStorage(storageKey, deviceId);
-		}
-		this.deviceId = deviceId;
-
 		if (!this.settings.vaultName) {
 			this.settings.vaultName = this.app.vault.getName();
 		}

@@ -83,7 +83,6 @@ class ConnectRequest(_PluginBase):
     vault_id: str
     vault_name: str
     search_space_id: int
-    device_id: str
 
 
 class ConnectResponse(_PluginBase):

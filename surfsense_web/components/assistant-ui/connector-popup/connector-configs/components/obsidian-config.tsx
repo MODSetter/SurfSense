@@ -1,9 +1,10 @@
 "use client";
 
 import { AlertTriangle, Download, Info } from "lucide-react";
-import { type FC, useMemo } from "react";
+import { type FC, useEffect, useMemo, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { connectorsApiService, type ObsidianStats } from "@/lib/apis/connectors-api.service";
 import type { ConnectorConfigProps } from "../index";
 
 const PLUGIN_RELEASES_URL =
@@ -98,29 +99,49 @@ const LegacyBanner: FC = () => {
 };
 
 const PluginStats: FC<{ config: Record<string, unknown> }> = ({ config }) => {
-	const stats: { label: string; value: string }[] = useMemo(() => {
-		const filesSynced = config.files_synced;
-		// Derive from config.devices — a stored counter could drift under concurrent heartbeats.
-		const deviceCount =
-			config.devices && typeof config.devices === "object"
-				? Object.keys(config.devices as Record<string, unknown>).length
-				: null;
+	const vaultId = typeof config.vault_id === "string" ? config.vault_id : null;
+	const [stats, setStats] = useState<ObsidianStats | null>(null);
+	const [statsError, setStatsError] = useState(false);
+
+	useEffect(() => {
+		if (!vaultId) return;
+		let cancelled = false;
+		setStats(null);
+		setStatsError(false);
+		connectorsApiService
+			.getObsidianStats(vaultId)
+			.then((result) => {
+				if (!cancelled) setStats(result);
+			})
+			.catch((err) => {
+				if (!cancelled) {
+					console.error("Failed to fetch Obsidian stats", err);
+					setStatsError(true);
+				}
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [vaultId]);
+
+	const tileRows = useMemo(() => {
+		const placeholder = statsError ? "—" : stats ? null : "…";
 		return [
 			{ label: "Vault", value: (config.vault_name as string) || "—" },
 			{
-				label: "Devices",
-				value: deviceCount !== null ? deviceCount.toLocaleString() : "—",
-			},
-			{
 				label: "Last sync",
-				value: formatTimestamp(config.last_sync_at),
+				value: placeholder ?? formatTimestamp(stats?.last_sync_at ?? null),
 			},
 			{
 				label: "Files synced",
-				value: typeof filesSynced === "number" ? filesSynced.toLocaleString() : "—",
+				value:
+					placeholder ??
+					(typeof stats?.files_synced === "number"
+						? stats.files_synced.toLocaleString()
+						: "—"),
 			},
 		];
-	}, [config]);
+	}, [config.vault_name, stats, statsError]);
 
 	return (
 		<div className="space-y-4">
@@ -136,7 +157,7 @@ const PluginStats: FC<{ config: Record<string, unknown> }> = ({ config }) => {
 			<div className="rounded-xl border border-border bg-slate-400/5 p-3 sm:p-6 dark:bg-white/5">
 				<h3 className="mb-3 text-sm font-medium sm:text-base">Vault status</h3>
 				<dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-					{stats.map((stat) => (
+					{tileRows.map((stat) => (
 						<div
 							key={stat.label}
 							className="rounded-lg border border-slate-400/20 bg-background/50 p-3"

@@ -8,8 +8,6 @@ export interface SurfsensePluginSettings {
 	/** UUID for the vault — lives here so Obsidian Sync replicates it across devices. */
 	vaultId: string;
 	vaultName: string;
-	// Per-install deviceId is NOT in this interface on purpose: it lives in
-	// app.saveLocalStorage so it stays distinct on each device. See seedIdentity().
 	syncMode: "auto" | "manual";
 	excludePatterns: string[];
 	includeAttachments: boolean;

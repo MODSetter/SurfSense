@@ -4,6 +4,7 @@ import {
 	PermanentError,
 	type SurfSenseApiClient,
 	TransientError,
+	VaultNotRegisteredError,
 } from "./api-client";
 import { isExcluded } from "./excludes";
 import { buildNotePayload, computeContentHash } from "./payload";
@@ -29,8 +30,6 @@ export interface SyncEngineDeps {
 	queue: PersistentQueue;
 	getSettings: () => SyncEngineSettings;
 	saveSettings: (mut: (s: SyncEngineSettings) => void) => Promise<void>;
-	/** Per-install id sourced from app.saveLocalStorage (not synced data.json). */
-	getDeviceId: () => string;
 	setStatus: (s: StatusState) => void;
 	onCapabilities: (caps: string[], apiVersion: string) => void;
 }
@@ -89,11 +88,10 @@ export class SyncEngine {
 			return;
 		}
 
-		// Re-announce on every load: /connect doubles as the device heartbeat
-		// that bumps last_seen_at and powers the "Devices: N" tile in the web UI.
+		// Re-announce so the backend sees the latest vault_name + last_connect_at.
+		// flushQueue owns the connectorId gate, so a failed connect here still
+		// leaves the queue stable for the next trigger.
 		await this.ensureConnected();
-
-		if (!this.deps.getSettings().connectorId) return;
 
 		await this.flushQueue();
 		await this.maybeReconcile();
@@ -112,7 +110,6 @@ export class SyncEngine {
 				searchSpaceId: settings.searchSpaceId,
 				vaultId: settings.vaultId,
 				vaultName: settings.vaultName,
-				deviceId: this.deps.getDeviceId(),
 			});
 			this.applyHealth(resp);
 			await this.deps.saveSettings((s) => {
@@ -205,6 +202,11 @@ export class SyncEngine {
 
 	async flushQueue(): Promise<void> {
 		if (this.deps.queue.size === 0) return;
+		// Shared gate for every flush trigger so the first /sync can't race /connect.
+		if (!this.deps.getSettings().connectorId) {
+			await this.ensureConnected();
+			if (!this.deps.getSettings().connectorId) return;
+		}
 		this.setStatus("syncing", `Syncing ${this.deps.queue.size} item(s)…`);
 		const summary = await this.deps.queue.drain({
 			processBatch: (batch) => this.processBatch(batch),
@@ -237,10 +239,14 @@ export class SyncEngine {
 				});
 				acked.push(...renames);
 			} catch (err) {
-				const verdict = this.classify(err);
-				if (verdict === "stop") return { acked, retry: [...retry, ...renames], dropped, stop: true };
-				if (verdict === "retry") retry.push(...renames);
-				else dropped.push(...renames);
+				if (await this.handleVaultNotRegistered(err)) {
+					retry.push(...renames);
+				} else {
+					const verdict = this.classify(err);
+					if (verdict === "stop") return { acked, retry: [...retry, ...renames], dropped, stop: true };
+					if (verdict === "retry") retry.push(...renames);
+					else dropped.push(...renames);
+				}
 			}
 		}
 
@@ -252,10 +258,14 @@ export class SyncEngine {
 				});
 				acked.push(...deletes);
 			} catch (err) {
-				const verdict = this.classify(err);
-				if (verdict === "stop") return { acked, retry: [...retry, ...deletes], dropped, stop: true };
-				if (verdict === "retry") retry.push(...deletes);
-				else dropped.push(...deletes);
+				if (await this.handleVaultNotRegistered(err)) {
+					retry.push(...deletes);
+				} else {
+					const verdict = this.classify(err);
+					if (verdict === "stop") return { acked, retry: [...retry, ...deletes], dropped, stop: true };
+					if (verdict === "retry") retry.push(...deletes);
+					else dropped.push(...deletes);
+				}
 			}
 		}
 
@@ -292,11 +302,18 @@ export class SyncEngine {
 						else acked.push(item);
 					}
 				} catch (err) {
-					const verdict = this.classify(err);
-					if (verdict === "stop")
-						return { acked, retry: [...retry, ...upserts], dropped, stop: true };
-					if (verdict === "retry") retry.push(...upserts);
-					else dropped.push(...upserts);
+					if (await this.handleVaultNotRegistered(err)) {
+						for (const item of upserts) {
+							if (retry.find((r) => r === item)) continue;
+							retry.push(item);
+						}
+					} else {
+						const verdict = this.classify(err);
+						if (verdict === "stop")
+							return { acked, retry: [...retry, ...upserts], dropped, stop: true };
+						if (verdict === "retry") retry.push(...upserts);
+						else dropped.push(...upserts);
+					}
 				}
 			}
 		}
@@ -425,6 +442,14 @@ export class SyncEngine {
 			return;
 		}
 		this.setStatus("error", (err as Error).message ?? "Unknown error");
+	}
+
+	/** Re-connect on VAULT_NOT_REGISTERED so the next drain sees the new row. */
+	private async handleVaultNotRegistered(err: unknown): Promise<boolean> {
+		if (!(err instanceof VaultNotRegisteredError)) return false;
+		console.warn("SurfSense: vault not registered, re-connecting before retry", err);
+		await this.ensureConnected();
+		return true;
 	}
 
 	private classify(err: unknown): "ack" | "retry" | "drop" | "stop" {

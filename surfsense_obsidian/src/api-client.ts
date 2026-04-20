@@ -55,6 +55,14 @@ export class PermanentError extends Error {
 	}
 }
 
+/** 404 `VAULT_NOT_REGISTERED` — `/connect` hasn't committed yet; retry after reconnect. */
+export class VaultNotRegisteredError extends TransientError {
+	constructor(message: string) {
+		super(404, message);
+		this.name = "VaultNotRegisteredError";
+	}
+}
+
 export interface ApiClientOptions {
 	getServerUrl: () => string;
 	getToken: () => string;
@@ -99,7 +107,6 @@ export class SurfSenseApiClient {
 		searchSpaceId: number;
 		vaultId: string;
 		vaultName: string;
-		deviceId: string;
 	}): Promise<ConnectResponse> {
 		return await this.request<ConnectResponse>(
 			"POST",
@@ -108,7 +115,6 @@ export class SurfSenseApiClient {
 				vault_id: input.vaultId,
 				vault_name: input.vaultName,
 				search_space_id: input.searchSpaceId,
-				device_id: input.deviceId,
 			}
 		);
 	}
@@ -210,6 +216,10 @@ export class SurfSenseApiClient {
 			throw new TransientError(resp.status, detail || `HTTP ${resp.status}`);
 		}
 
+		if (resp.status === 404 && extractCode(resp) === "VAULT_NOT_REGISTERED") {
+			throw new VaultNotRegisteredError(detail || "Vault not registered yet");
+		}
+
 		throw new PermanentError(resp.status, detail || `HTTP ${resp.status}`);
 	}
 }
@@ -235,5 +245,20 @@ function extractDetail(resp: RequestUrlResponse): string {
 	const json = safeJson(resp);
 	if (typeof json.detail === "string") return json.detail;
 	if (typeof json.message === "string") return json.message;
+	const detailObj = json.detail;
+	if (detailObj && typeof detailObj === "object") {
+		const obj = detailObj as Record<string, unknown>;
+		if (typeof obj.message === "string") return obj.message;
+	}
 	return resp.text?.slice(0, 200) ?? "";
+}
+
+function extractCode(resp: RequestUrlResponse): string | undefined {
+	const json = safeJson(resp);
+	const detailObj = json.detail;
+	if (detailObj && typeof detailObj === "object") {
+		const code = (detailObj as Record<string, unknown>).code;
+		if (typeof code === "string") return code;
+	}
+	return undefined;
 }
