@@ -105,7 +105,6 @@ export class SurfSenseApiClient {
 		vaultId: string;
 		vaultName: string;
 		deviceId: string;
-		deviceLabel: string;
 	}): Promise<ConnectResponse> {
 		return await this.request<ConnectResponse>(
 			"POST",
@@ -117,7 +116,6 @@ export class SurfSenseApiClient {
 				vault_name: input.vaultName,
 				plugin_version: this.opts.pluginVersion,
 				device_id: input.deviceId,
-				device_label: input.deviceLabel,
 			}
 		);
 	}

@@ -11,28 +11,18 @@ import {
 	type SurfsensePluginSettings,
 } from "./types";
 
-/**
- * SurfSense plugin entry point.
- *
- * Replaces the obsidian-sample-plugin SampleModal/ribbon stub. Lifecycle:
- *
- *   onload():
- *     load settings → seed identity (vault_id, device_id) →
- *     wire api client + queue + sync engine + status bar →
- *     register settings tab → register vault + metadataCache events →
- *     register commands (resync, sync current note, open settings) →
- *     register status bar item →
- *     kick off engine.start() (health → drain → reconcile).
- *
- *   onunload():
- *     stop the queue's debounce timer; unregistered events and DOM
- *     handles auto-clean via the Plugin base class.
- */
+/** SurfSense plugin entry point. */
 export default class SurfSensePlugin extends Plugin {
 	settings!: SurfsensePluginSettings;
 	api!: SurfSenseApiClient;
 	queue!: PersistentQueue;
 	engine!: SyncEngine;
+	/**
+	 * Per-install identifier kept in `app.saveLocalStorage` rather than
+	 * `data.json`, so it does NOT travel through Obsidian Sync — each
+	 * machine on a synced vault stays distinguishable.
+	 */
+	deviceId = "";
 	private statusBar: StatusBar | null = null;
 	lastStatus: StatusState = { kind: "idle", queueDepth: 0 };
 	serverCapabilities: string[] = [];
@@ -69,6 +59,7 @@ export default class SurfSensePlugin extends Plugin {
 				await this.saveSettings();
 				this.settingTab?.renderStatus();
 			},
+			getDeviceId: () => this.deviceId,
 			setStatus: (s) => {
 				this.lastStatus = s;
 				this.statusBar?.update(s);
@@ -143,8 +134,7 @@ export default class SurfSensePlugin extends Plugin {
 			id: "open-settings",
 			name: "Open settings",
 			callback: () => {
-				// Obsidian exposes this through the Setting host on the workspace;
-				// fall back silently if the API moves so we never throw.
+				// `app.setting` isn't in the d.ts; fall back silently if it moves.
 				type SettingHost = {
 					open?: () => void;
 					openTabById?: (id: string) => void;
@@ -155,8 +145,7 @@ export default class SurfSensePlugin extends Plugin {
 			},
 		});
 
-		// Kick off the start sequence after Obsidian finishes its own
-		// startup work, so the metadataCache is warm before reconcile.
+		// Wait for layout so the metadataCache is warm before reconcile.
 		this.app.workspace.onLayoutReady(() => {
 			void this.engine.start();
 		});
@@ -188,13 +177,28 @@ export default class SurfSensePlugin extends Plugin {
 		await this.saveData(this.settings);
 	}
 
+	/**
+	 * Mint vault_id (in data.json, travels with the vault) and device_id
+	 * (in `app.saveLocalStorage`, stays per-install) on first run.
+	 */
 	private seedIdentity(): void {
 		if (!this.settings.vaultId) {
 			this.settings.vaultId = generateUuid();
 		}
-		if (!this.settings.deviceId) {
-			this.settings.deviceId = generateUuid();
+
+		// loadLocalStorage / saveLocalStorage aren't in the d.ts; cast at the boundary.
+		const localStore = this.app as unknown as {
+			loadLocalStorage: (key: string) => string | null;
+			saveLocalStorage: (key: string, value: string | null) => void;
+		};
+		const storageKey = "surfsense:deviceId";
+		let deviceId = localStore.loadLocalStorage(storageKey);
+		if (!deviceId) {
+			deviceId = generateUuid();
+			localStore.saveLocalStorage(storageKey, deviceId);
 		}
+		this.deviceId = deviceId;
+
 		if (!this.settings.vaultName) {
 			this.settings.vaultName = this.app.vault.getName();
 		}

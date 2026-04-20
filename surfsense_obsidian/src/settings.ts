@@ -9,22 +9,7 @@ import { parseExcludePatterns } from "./excludes";
 import type SurfSensePlugin from "./main";
 import type { SearchSpace } from "./types";
 
-/**
- * Plugin settings tab.
- *
- * Replaces the obsidian-sample-plugin SampleSettingTab stub. Same module
- * path so existing imports from main.ts keep resolving.
- *
- * Surface mirrors the per-plan list:
- *   server URL · api token · search space · vault name · sync mode ·
- *   exclude patterns · include attachments · status panel.
- *
- * Vault id, device id, and device label are auto-generated UUIDs the
- * first time settings load — they're displayed (read-only) so users can
- * audit them, but never editable. Vault id is decoupled from the OS
- * folder name so renaming the vault doesn't invalidate the connector
- * (edge case #5 from the plan).
- */
+/** Plugin settings tab. */
 
 export class SurfSenseSettingTab extends PluginSettingTab {
 	private readonly plugin: SurfSensePlugin;
@@ -152,21 +137,6 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Device label")
-			.setDesc(
-				"Optional human-readable label shown next to the device ID in the Surfsense web app.",
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder("My laptop")
-					.setValue(settings.deviceLabel)
-					.onChange(async (value) => {
-						this.plugin.settings.deviceLabel = value.trim();
-						await this.plugin.saveSettings();
-					}),
-			);
-
-		new Setting(containerEl)
 			.setName("Sync mode")
 			.setDesc("Auto syncs on every edit. Manual only syncs when you trigger it via the command palette.")
 			.addDropdown((drop) =>
@@ -214,19 +184,16 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Vault ID")
-			.setDesc("Stable identifier for this vault. Used by the backend to keep separate vaults distinct even if their folder names change.")
+			.setDesc(
+				"Stable identifier for this vault. Used by the backend to keep separate vaults distinct even if their folder names change.",
+			)
 			.addText((text) => {
 				text.inputEl.disabled = true;
 				text.setValue(settings.vaultId);
 			});
 
-		new Setting(containerEl)
-			.setName("Device ID")
-			.setDesc("Stable identifier for this install. Used by the backend so you can revoke a single device without disconnecting the others.")
-			.addText((text) => {
-				text.inputEl.disabled = true;
-				text.setValue(settings.deviceId);
-			});
+		// Device ID is deliberately not exposed: it's an opaque per-install UUID
+		// (see seedIdentity in main.ts) and the web UI only shows a device count.
 
 		new Setting(containerEl).setName("Status").setHeading();
 		this.statusEl = containerEl.createDiv({ cls: "surfsense-settings__status" });

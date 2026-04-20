@@ -1,31 +1,8 @@
-"""
-Obsidian plugin ingestion routes.
+"""Obsidian plugin ingestion routes (``/api/v1/obsidian/*``).
 
-This is the public surface that the SurfSense Obsidian plugin
-(``surfsense_obsidian/``) speaks to. It is a separate router from the
-legacy server-path Obsidian connector — the legacy code stays in place
-until the ``obsidian-legacy-cleanup`` plan ships.
-
-Endpoints
----------
-
-- ``GET    /api/v1/obsidian/health``     — version handshake
-- ``POST   /api/v1/obsidian/connect``    — register or get a vault row
-- ``POST   /api/v1/obsidian/sync``       — batch upsert
-- ``POST   /api/v1/obsidian/rename``     — batch rename
-- ``DELETE /api/v1/obsidian/notes``      — batch soft-delete
-- ``GET    /api/v1/obsidian/manifest``   — reconcile manifest
-
-Auth contract
--------------
-
-Every endpoint requires ``Depends(current_active_user)`` — the same JWT
-bearer the rest of the API uses; future PAT migration is transparent.
-
-API stability is provided by the ``/api/v1/...`` URL prefix and the
-``capabilities`` array advertised on ``/health`` (additive only). There
-is no plugin-version gate; "your plugin is out of date" notices are
-delegated to Obsidian's built-in community-store updater.
+Wire surface for the ``surfsense_obsidian/`` plugin. API stability is the
+``/api/v1/`` prefix plus the additive ``capabilities`` array on /health;
+no plugin-version gate.
 """
 
 from __future__ import annotations
@@ -67,14 +44,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/obsidian", tags=["obsidian-plugin"])
 
 
-# Bumped manually whenever the wire contract gains a non-additive change.
-# Additive (extra='ignore'-safe) changes do NOT bump this.
+# Bumped only on non-additive wire changes; additive ones ride extra='ignore'.
 OBSIDIAN_API_VERSION = "1"
 
-# Capabilities advertised on /health and /connect. Plugins use this list
-# for feature gating ("does this server understand attachments_v2?"). Add
-# new strings, never rename/remove existing ones — older plugins ignore
-# unknown entries safely.
+# Plugins feature-gate on these. Add entries, never rename or remove.
 OBSIDIAN_CAPABILITIES: list[str] = ["sync", "rename", "delete", "manifest"]
 
 
@@ -90,18 +63,41 @@ def _build_handshake() -> dict[str, object]:
     }
 
 
+def _upsert_device(
+    existing_devices: object,
+    device_id: str,
+    now_iso: str,
+) -> dict[str, dict[str, str]]:
+    """Upsert ``device_id`` into ``{device_id: {first_seen_at, last_seen_at}}``.
+
+    Keyed by device_id for O(1) dedup; ``len(devices)`` is the count.
+    Timestamps are kept for a future stale-device pruner.
+    """
+    devices: dict[str, dict[str, str]] = {}
+    if isinstance(existing_devices, dict):
+        for key, val in existing_devices.items():
+            if not isinstance(key, str) or not key or not isinstance(val, dict):
+                continue
+            devices[key] = {
+                "first_seen_at": str(val.get("first_seen_at") or now_iso),
+                "last_seen_at": str(val.get("last_seen_at") or now_iso),
+            }
+
+    prev = devices.get(device_id)
+    devices[device_id] = {
+        "first_seen_at": prev["first_seen_at"] if prev else now_iso,
+        "last_seen_at": now_iso,
+    }
+    return devices
+
+
 async def _resolve_vault_connector(
     session: AsyncSession,
     *,
     user: User,
     vault_id: str,
 ) -> SearchSourceConnector:
-    """Find the OBSIDIAN_CONNECTOR row that owns ``vault_id`` for this user.
-
-    Looked up by the (user_id, connector_type, config['vault_id']) tuple
-    so users can have multiple vaults each backed by its own connector
-    row (one per search space).
-    """
+    """Find the OBSIDIAN_CONNECTOR row that owns ``vault_id`` for this user."""
     result = await session.execute(
         select(SearchSourceConnector).where(
             and_(
@@ -136,12 +132,7 @@ async def _ensure_search_space_access(
     user: User,
     search_space_id: int,
 ) -> SearchSpace:
-    """Confirm the user owns the requested search space.
-
-    Plugin currently does not support shared search spaces (RBAC roles)
-    — that's a follow-up. Restricting to owner-only here keeps the
-    surface narrow and avoids leaking other members' connectors.
-    """
+    """Owner-only access to the search space (shared spaces are a follow-up)."""
     result = await session.execute(
         select(SearchSpace).where(
             and_(SearchSpace.id == search_space_id, SearchSpace.user_id == user.id)
@@ -168,11 +159,7 @@ async def _ensure_search_space_access(
 async def obsidian_health(
     user: User = Depends(current_active_user),
 ) -> HealthResponse:
-    """Return the API contract handshake.
-
-    The plugin calls this once per ``onload`` and caches the result for
-    capability-gating decisions.
-    """
+    """Return the API contract handshake; plugin caches it per onload."""
     return HealthResponse(
         **_build_handshake(),
         server_time_utc=datetime.now(UTC),
@@ -187,9 +174,9 @@ async def obsidian_connect(
 ) -> ConnectResponse:
     """Register a vault, or return the existing connector row.
 
-    Idempotent on the (user_id, OBSIDIAN_CONNECTOR, vault_id) tuple so
-    re-installing the plugin or reconnecting from a new device picks up
-    the same connector — and therefore the same documents.
+    Idempotent on (user_id, OBSIDIAN_CONNECTOR, vault_id). Called on every
+    plugin onload as a heartbeat — upserts ``device_id`` into
+    ``config['devices']`` so the web UI can show a "Devices: N" tile.
     """
     await _ensure_search_space_access(
         session, user=user, search_space_id=payload.search_space_id
@@ -215,27 +202,31 @@ async def obsidian_connect(
 
     if existing is not None:
         cfg = dict(existing.config or {})
+        devices = _upsert_device(cfg.get("devices"), payload.device_id, now_iso)
         cfg.update(
             {
                 "vault_id": payload.vault_id,
                 "vault_name": payload.vault_name,
                 "source": "plugin",
                 "plugin_version": payload.plugin_version,
-                "device_id": payload.device_id,
+                "devices": devices,
+                "device_count": len(devices),
                 "last_connect_at": now_iso,
             }
         )
-        if payload.device_label:
-            cfg["device_label"] = payload.device_label
         cfg.pop("legacy", None)
         cfg.pop("vault_path", None)
         existing.config = cfg
+        # Re-stamp on every connect so vault renames in Obsidian propagate;
+        # the web UI hides the Name input for Obsidian connectors.
+        existing.name = f"Obsidian — {payload.vault_name}"
         existing.is_indexable = False
         existing.search_space_id = payload.search_space_id
         await session.commit()
         await session.refresh(existing)
         connector = existing
     else:
+        devices = _upsert_device(None, payload.device_id, now_iso)
         connector = SearchSourceConnector(
             name=f"Obsidian — {payload.vault_name}",
             connector_type=SearchSourceConnectorType.OBSIDIAN_CONNECTOR,
@@ -245,8 +236,8 @@ async def obsidian_connect(
                 "vault_name": payload.vault_name,
                 "source": "plugin",
                 "plugin_version": payload.plugin_version,
-                "device_id": payload.device_id,
-                "device_label": payload.device_label,
+                "devices": devices,
+                "device_count": len(devices),
                 "files_synced": 0,
                 "last_connect_at": now_iso,
             },
@@ -271,11 +262,7 @@ async def obsidian_sync(
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> dict[str, object]:
-    """Batch-upsert notes pushed by the plugin.
-
-    Returns per-note ack so the plugin can dequeue successes and retry
-    failures.
-    """
+    """Batch-upsert notes; returns per-note ack so the plugin can dequeue/retry."""
     connector = await _resolve_vault_connector(
         session, user=user, vault_id=payload.vault_id
     )
@@ -439,11 +426,7 @@ async def obsidian_manifest(
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> ManifestResponse:
-    """Return the server-side ``{path: {hash, mtime}}`` manifest.
-
-    Used by the plugin's ``onload`` reconcile to find files that were
-    edited or deleted while the plugin was offline.
-    """
+    """Return ``{path: {hash, mtime}}`` for the plugin's onload reconcile diff."""
     connector = await _resolve_vault_connector(
         session, user=user, vault_id=vault_id
     )

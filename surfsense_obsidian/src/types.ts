@@ -1,20 +1,15 @@
-/**
- * Shared types for the SurfSense Obsidian plugin.
- *
- * Kept in a leaf module with no other src/ imports so it can be imported
- * from anywhere (settings, api-client, sync-engine, status-bar, main)
- * without creating cycles.
- */
+/** Shared types for the SurfSense Obsidian plugin. Leaf module — no src/ imports. */
 
 export interface SurfsensePluginSettings {
 	serverUrl: string;
 	apiToken: string;
 	searchSpaceId: number | null;
 	connectorId: number | null;
+	/** UUID for the vault — lives here so Obsidian Sync replicates it across devices. */
 	vaultId: string;
 	vaultName: string;
-	deviceId: string;
-	deviceLabel: string;
+	// Per-install deviceId is NOT in this interface on purpose: it lives in
+	// app.saveLocalStorage so it stays distinct on each device. See seedIdentity().
 	syncMode: "auto" | "manual";
 	excludePatterns: string[];
 	includeAttachments: boolean;
@@ -32,8 +27,6 @@ export const DEFAULT_SETTINGS: SurfsensePluginSettings = {
 	connectorId: null,
 	vaultId: "",
 	vaultName: "",
-	deviceId: "",
-	deviceLabel: "",
 	syncMode: "auto",
 	excludePatterns: [".trash", "_attachments", "templates"],
 	includeAttachments: false,

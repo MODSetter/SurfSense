@@ -87,6 +87,10 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	const isAuthExpired = connector.config?.auth_expired === true;
 	const reauthEndpoint = REAUTH_ENDPOINTS[connector.connector_type];
 	const [reauthing, setReauthing] = useState(false);
+	// Obsidian is plugin-driven: name + config are owned by the plugin, so
+	// the web edit view has nothing the user can persist back. Hide Save
+	// (and re-auth, which Obsidian never uses) entirely for that type.
+	const isPluginManagedReadOnly = connector.connector_type === EnumConnectorName.OBSIDIAN_CONNECTOR;
 
 	const handleReauth = useCallback(async () => {
 		const spaceId = searchSpaceId ?? searchSpaceIdAtom;
@@ -412,7 +416,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						Disconnect
 					</Button>
 				)}
-				{isAuthExpired && reauthEndpoint ? (
+				{isPluginManagedReadOnly ? null : isAuthExpired && reauthEndpoint ? (
 					<Button
 						onClick={handleReauth}
 						disabled={reauthing || isDisconnecting}

@@ -19,20 +19,8 @@ import type {
 /**
  * Owner of "what does the vault look like vs the server" reasoning.
  *
- * Onload sequence (per plan §p4_plugin_sync_engine, in this exact order):
- *   1. apiClient.health() — proves connectivity and pulls the capabilities
- *      handshake before we issue any sync traffic.
- *   2. Cache health.capabilities + api_version on the plugin instance
- *      so feature gating (e.g. "attachments_v2" before syncing binaries)
- *      reads from local state instead of round-tripping.
- *   3. Drain queue — items persisted from the previous session land first.
- *   4. Reconcile — GET /manifest, diff against vault, queue uploads/deletes.
- *   5. Subscribe events — only after the above so the user's first edit
- *      after launching Obsidian doesn't race with the manifest diff.
- *
- * Reconcile skips itself if last successful reconcile is < RECONCILE_MIN_INTERVAL_MS
- * ago. ConnectResponse already carries handshake fields so first connect
- * does not need a separate /health round-trip.
+ * Start order: connect (or fall back to /health) → drain queue → reconcile →
+ * subscribe events. Reconcile no-ops if last run was < RECONCILE_MIN_INTERVAL_MS ago.
  */
 
 export interface SyncEngineDeps {
@@ -41,6 +29,8 @@ export interface SyncEngineDeps {
 	queue: PersistentQueue;
 	getSettings: () => SyncEngineSettings;
 	saveSettings: (mut: (s: SyncEngineSettings) => void) => Promise<void>;
+	/** Per-install id sourced from app.saveLocalStorage (not synced data.json). */
+	getDeviceId: () => string;
 	setStatus: (s: StatusState) => void;
 	onCapabilities: (caps: string[], apiVersion: string) => void;
 }
@@ -50,8 +40,6 @@ export interface SyncEngineSettings {
 	vaultName: string;
 	connectorId: number | null;
 	searchSpaceId: number | null;
-	deviceId: string;
-	deviceLabel: string;
 	excludePatterns: string[];
 	includeAttachments: boolean;
 	syncMode: "auto" | "manual";
@@ -86,21 +74,26 @@ export class SyncEngine {
 	/** Run the onload sequence described in this file's docstring. */
 	async start(): Promise<void> {
 		this.setStatus("syncing", "Connecting to SurfSense…");
-		try {
-			const health = await this.deps.apiClient.health();
-			this.applyHealth(health);
-		} catch (err) {
-			this.handleStartupError(err);
-			return;
-		}
 
 		const settings = this.deps.getSettings();
-		if (!settings.connectorId || !settings.searchSpaceId) {
-			// No connector yet — settings tab will trigger ensureConnect once
-			// the user picks a search space, then re-call start().
+		if (!settings.searchSpaceId) {
+			// No target yet — bare /health probe still surfaces auth/network errors.
+			try {
+				const health = await this.deps.apiClient.health();
+				this.applyHealth(health);
+			} catch (err) {
+				this.handleStartupError(err);
+				return;
+			}
 			this.setStatus("idle", "Pick a search space in settings to start syncing.");
 			return;
 		}
+
+		// Re-announce on every load: /connect doubles as the device heartbeat
+		// that bumps last_seen_at and powers the "Devices: N" tile in the web UI.
+		await this.ensureConnected();
+
+		if (!this.deps.getSettings().connectorId) return;
 
 		await this.flushQueue();
 		await this.maybeReconcile();
@@ -119,8 +112,7 @@ export class SyncEngine {
 				searchSpaceId: settings.searchSpaceId,
 				vaultId: settings.vaultId,
 				vaultName: settings.vaultName,
-				deviceId: settings.deviceId,
-				deviceLabel: settings.deviceLabel,
+				deviceId: this.deps.getDeviceId(),
 			});
 			this.applyHealth(resp);
 			await this.deps.saveSettings((s) => {
