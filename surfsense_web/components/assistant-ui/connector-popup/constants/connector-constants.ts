@@ -38,7 +38,7 @@ export const OAUTH_CONNECTORS = [
 		title: "Notion",
 		description: "Search your Notion pages",
 		connectorType: EnumConnectorName.NOTION_CONNECTOR,
-		authEndpoint: "/api/v1/auth/notion/connector/add/",
+		authEndpoint: "/api/v1/auth/notion-mcp/connector/add",
 	},
 	{
 		id: "linear-connector",
