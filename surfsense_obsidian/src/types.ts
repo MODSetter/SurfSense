@@ -7,7 +7,10 @@ export interface SurfsensePluginSettings {
 	connectorId: number | null;
 	/** UUID for the vault — lives here so Obsidian Sync replicates it across devices. */
 	vaultId: string;
-	syncMode: "auto" | "manual";
+	/** 0 disables periodic reconcile (Force sync still works). */
+	syncIntervalMinutes: number;
+	/** Mobile-only: pause auto-sync when on cellular. iOS can't detect network type, so the toggle is a no-op there. */
+	wifiOnly: boolean;
 	includeFolders: string[];
 	excludeFolders: string[];
 	excludePatterns: string[];
@@ -25,7 +28,8 @@ export const DEFAULT_SETTINGS: SurfsensePluginSettings = {
 	searchSpaceId: null,
 	connectorId: null,
 	vaultId: "",
-	syncMode: "auto",
+	syncIntervalMinutes: 10,
+	wifiOnly: false,
 	includeFolders: [],
 	excludeFolders: [],
 	excludePatterns: [".trash", "_attachments", "templates"],
@@ -77,6 +81,8 @@ export interface NotePayload {
 	embeds: string[];
 	aliases: string[];
 	content_hash: string;
+	/** Byte size of the local file; pairs with mtime for the reconcile short-circuit. */
+	size: number;
 	mtime: number;
 	ctime: number;
 	[key: string]: unknown;
@@ -112,12 +118,14 @@ export interface HealthResponse {
 export interface ManifestEntry {
 	hash: string;
 	mtime: number;
+	/** Optional: byte size of stored content. Enables mtime+size short-circuit; falls back to upsert when missing. */
+	size?: number;
 	[key: string]: unknown;
 }
 
 export interface ManifestResponse {
 	vault_id: string;
-	entries: Record<string, ManifestEntry>;
+	items: Record<string, ManifestEntry>;
 	[key: string]: unknown;
 }
 

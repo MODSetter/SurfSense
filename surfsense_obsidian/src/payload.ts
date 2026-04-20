@@ -53,6 +53,7 @@ export async function buildNotePayload(
 		embeds,
 		aliases,
 		content_hash: contentHash,
+		size: file.stat.size,
 		mtime: file.stat.mtime,
 		ctime: file.stat.ctime,
 	};

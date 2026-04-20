@@ -1,4 +1,4 @@
-import { Notice, Plugin } from "obsidian";
+import { Notice, Platform, Plugin } from "obsidian";
 import { SurfSenseApiClient } from "./api-client";
 import { PersistentQueue } from "./queue";
 import { SurfSenseSettingTab } from "./settings";
@@ -23,6 +23,7 @@ export default class SurfSensePlugin extends Plugin {
 	serverCapabilities: string[] = [];
 	private settingTab: SurfSenseSettingTab | null = null;
 	private statusListeners = new Set<() => void>();
+	private reconcileTimerId: number | null = null;
 
 	async onload() {
 		await this.loadSettings();
@@ -60,10 +61,13 @@ export default class SurfSensePlugin extends Plugin {
 				this.serverCapabilities = [...caps];
 				this.notifyStatusChange();
 			},
+			onReconcileBackoffChanged: () => {
+				this.restartReconcileTimer();
+			},
 		});
 
 		this.queue.setFlushHandler(() => {
-			if (this.settings.syncMode !== "auto") return;
+			if (!this.shouldAutoSync()) return;
 			void this.engine.flushQueue();
 		});
 
@@ -141,9 +145,20 @@ export default class SurfSensePlugin extends Plugin {
 			},
 		});
 
+		const onNetChange = () => {
+			if (this.shouldAutoSync()) void this.engine.flushQueue();
+		};
+		this.registerDomEvent(window, "online", onNetChange);
+		const conn = (navigator as unknown as { connection?: NetworkConnection }).connection;
+		if (conn && typeof conn.addEventListener === "function") {
+			conn.addEventListener("change", onNetChange);
+			this.register(() => conn.removeEventListener?.("change", onNetChange));
+		}
+
 		// Wait for layout so the metadataCache is warm before reconcile.
 		this.app.workspace.onLayoutReady(() => {
 			void this.engine.start();
+			this.restartReconcileTimer();
 		});
 	}
 
@@ -158,6 +173,38 @@ export default class SurfSensePlugin extends Plugin {
 
 	openStatusModal(): void {
 		new StatusModal(this.app, this).open();
+	}
+
+	restartReconcileTimer(): void {
+		if (this.reconcileTimerId !== null) {
+			window.clearInterval(this.reconcileTimerId);
+			this.reconcileTimerId = null;
+		}
+		const minutes = this.settings.syncIntervalMinutes ?? 10;
+		if (minutes <= 0) return;
+		const baseMs = minutes * 60 * 1000;
+		// Idle vaults back off (×2 → ×4 → ×8); resets on the first edit or non-empty reconcile.
+		const effectiveMs = this.engine?.getReconcileBackoffMs(baseMs) ?? baseMs;
+		const id = window.setInterval(
+			() => {
+				if (!this.shouldAutoSync()) return;
+				void this.engine.maybeReconcile();
+			},
+			effectiveMs,
+		);
+		this.reconcileTimerId = id;
+		this.registerInterval(id);
+	}
+
+	/** Gate for background network activity; per-edit flush + periodic reconcile both consult this. */
+	shouldAutoSync(): boolean {
+		if (!this.settings.wifiOnly) return true;
+		if (!Platform.isMobileApp) return true;
+		// navigator.connection is supported on Android Capacitor; undefined on iOS.
+		// When unavailable, behave permissively so iOS users aren't blocked outright.
+		const conn = (navigator as unknown as { connection?: NetworkConnection }).connection;
+		if (!conn || typeof conn.type !== "string") return true;
+		return conn.type === "wifi" || conn.type === "ethernet";
 	}
 
 	onStatusChange(listener: () => void): void {
@@ -197,6 +244,13 @@ export default class SurfSensePlugin extends Plugin {
 			this.settings.vaultId = generateUuid();
 		}
 	}
+}
+
+/** Subset of the Network Information API used to detect WiFi vs cellular on Android. */
+interface NetworkConnection {
+	type?: string;
+	addEventListener?: (event: string, handler: () => void) => void;
+	removeEventListener?: (event: string, handler: () => void) => void;
 }
 
 function generateUuid(): string {

@@ -7,10 +7,11 @@ import {
 	VaultNotRegisteredError,
 } from "./api-client";
 import { isExcluded, isFolderFiltered } from "./excludes";
-import { buildNotePayload, computeContentHash } from "./payload";
+import { buildNotePayload } from "./payload";
 import { type BatchResult, PersistentQueue } from "./queue";
 import type {
 	HealthResponse,
+	ManifestEntry,
 	NotePayload,
 	QueueItem,
 	StatusKind,
@@ -32,6 +33,8 @@ export interface SyncEngineDeps {
 	saveSettings: (mut: (s: SyncEngineSettings) => void) => Promise<void>;
 	setStatus: (s: StatusState) => void;
 	onCapabilities: (caps: string[]) => void;
+	/** Fired when the adaptive backoff multiplier may have changed; main.ts uses it to reschedule. */
+	onReconcileBackoffChanged?: () => void;
 }
 
 export interface SyncEngineSettings {
@@ -42,7 +45,6 @@ export interface SyncEngineSettings {
 	excludeFolders: string[];
 	excludePatterns: string[];
 	includeAttachments: boolean;
-	syncMode: "auto" | "manual";
 	lastReconcileAt: number | null;
 	lastSyncAt: number | null;
 	filesSynced: number;
@@ -57,9 +59,19 @@ export class SyncEngine {
 	private readonly deps: SyncEngineDeps;
 	private capabilities: string[] = [];
 	private pendingMdEdits = new Map<string, ReturnType<typeof setTimeout>>();
+	/** Consecutive reconciles that found no work; powers the adaptive interval. */
+	private idleReconcileStreak = 0;
+	/** 2^streak is capped at this value (e.g. 8 → max ×8 backoff). */
+	private readonly maxBackoffMultiplier = 8;
 
 	constructor(deps: SyncEngineDeps) {
 		this.deps = deps;
+	}
+
+	/** Returns the next-tick interval given the user's base, scaled by the idle streak. */
+	getReconcileBackoffMs(baseMs: number): number {
+		const multiplier = Math.min(2 ** this.idleReconcileStreak, this.maxBackoffMultiplier);
+		return baseMs * multiplier;
 	}
 
 	getCapabilities(): readonly string[] {
@@ -131,6 +143,7 @@ export class SyncEngine {
 		if (!this.shouldTrack(file)) return;
 		const settings = this.deps.getSettings();
 		if (this.isExcluded(file.path, settings)) return;
+		this.resetIdleStreak();
 		if (this.isMarkdown(file)) {
 			this.scheduleMdUpsert(file.path);
 			return;
@@ -142,6 +155,7 @@ export class SyncEngine {
 		if (!this.shouldTrack(file)) return;
 		const settings = this.deps.getSettings();
 		if (this.isExcluded(file.path, settings)) return;
+		this.resetIdleStreak();
 		if (this.isMarkdown(file)) {
 			// Defer to metadataCache.changed so payload fields are fresh.
 			this.scheduleMdUpsert(file.path);
@@ -152,6 +166,7 @@ export class SyncEngine {
 
 	onDelete(file: TAbstractFile): void {
 		if (!this.shouldTrack(file)) return;
+		this.resetIdleStreak();
 		this.deps.queue.enqueueDelete(file.path);
 		void this.deps.saveSettings((s) => {
 			s.tombstones[file.path] = Date.now();
@@ -160,6 +175,7 @@ export class SyncEngine {
 
 	onRename(file: TAbstractFile, oldPath: string): void {
 		if (!this.shouldTrack(file)) return;
+		this.resetIdleStreak();
 		const settings = this.deps.getSettings();
 		if (this.isExcluded(file.path, settings)) {
 			this.deps.queue.enqueueDelete(oldPath);
@@ -341,6 +357,7 @@ export class SyncEngine {
 			embeds: [],
 			aliases: [],
 			content_hash: hash,
+			size: file.stat.size,
 			mtime: file.stat.mtime,
 			ctime: file.stat.ctime,
 			is_binary: true,
@@ -359,47 +376,59 @@ export class SyncEngine {
 		this.setStatus("syncing", "Reconciling vault with server…");
 		try {
 			const manifest = await this.deps.apiClient.getManifest(settings.vaultId);
-			const remote = manifest.entries ?? {};
-			await this.diffAndQueue(settings, remote);
+			const remote = manifest.items ?? {};
+			const enqueued = this.diffAndQueue(settings, remote);
 			await this.deps.saveSettings((s) => {
 				s.lastReconcileAt = Date.now();
 				s.tombstones = pruneTombstones(s.tombstones);
 			});
+			this.updateIdleStreak(enqueued);
 			await this.flushQueue();
 		} catch (err) {
 			this.classifyAndStatus(err, "Reconcile failed");
 		}
 	}
 
-	private async diffAndQueue(
+	/**
+	 * Compare local vault to server manifest and enqueue diffs.
+	 *
+	 * Performance: short-circuits on `mtime + size` for every file. We trust the
+	 * pair as a "no change" signal because (a) content edits move mtime, and
+	 * (b) same-mtime/different-content requires deliberate filesystem trickery.
+	 * False positives (mtime moved, content identical) collapse to a no-op
+	 * upsert on the server via its `content_hash` check. Net effect: zero disk
+	 * reads on idle reconciles.
+	 *
+	 * Returns the number of items enqueued so the caller can drive the
+	 * adaptive backoff.
+	 */
+	private diffAndQueue(
 		settings: SyncEngineSettings,
-		remote: Record<string, { hash: string; mtime: number }>,
-	): Promise<void> {
+		remote: Record<string, ManifestEntry>,
+	): number {
 		const localFiles = this.deps.app.vault.getFiles().filter((f) => {
 			if (!this.shouldTrack(f)) return false;
 			if (this.isExcluded(f.path, settings)) return false;
 			return true;
 		});
 		const localPaths = new Set(localFiles.map((f) => f.path));
+		let enqueued = 0;
 
-		// Local-only or content-changed → upsert.
 		for (const file of localFiles) {
 			const remoteEntry = remote[file.path];
 			if (!remoteEntry) {
 				this.deps.queue.enqueueUpsert(file.path);
+				enqueued++;
 				continue;
 			}
-			if (file.stat.mtime > remoteEntry.mtime + 1000) {
-				this.deps.queue.enqueueUpsert(file.path);
-				continue;
-			}
-			if (this.isMarkdown(file)) {
-				const content = await this.deps.app.vault.cachedRead(file);
-				const hash = await computeContentHash(content);
-				if (hash !== remoteEntry.hash) {
-					this.deps.queue.enqueueUpsert(file.path);
-				}
-			}
+			const remoteMtimeMs = toMillis(remoteEntry.mtime);
+			const mtimeMatches = file.stat.mtime <= remoteMtimeMs + 1000;
+			// Older server rows lack `size`; treat as "unknown" → fall through to upsert.
+			const sizeMatches =
+				typeof remoteEntry.size === "number" && file.stat.size === remoteEntry.size;
+			if (mtimeMatches && sizeMatches) continue;
+			this.deps.queue.enqueueUpsert(file.path);
+			enqueued++;
 		}
 
 		// Remote-only → delete, but only if NOT a fresh tombstone (which
@@ -409,7 +438,28 @@ export class SyncEngine {
 			const tombstone = settings.tombstones[path];
 			if (tombstone && Date.now() - tombstone < TOMBSTONE_TTL_MS) continue;
 			this.deps.queue.enqueueDelete(path);
+			enqueued++;
 		}
+
+		return enqueued;
+	}
+
+	/** Bump (idle) or reset (active) the streak; notify only when the cap-aware multiplier changes. */
+	private updateIdleStreak(enqueued: number): void {
+		const previousStreak = this.idleReconcileStreak;
+		if (enqueued === 0) this.idleReconcileStreak++;
+		else this.idleReconcileStreak = 0;
+		const cap = Math.log2(this.maxBackoffMultiplier);
+		const cappedPrev = Math.min(previousStreak, cap);
+		const cappedNow = Math.min(this.idleReconcileStreak, cap);
+		if (cappedPrev !== cappedNow) this.deps.onReconcileBackoffChanged?.();
+	}
+
+	/** Vault edit happened — drop back to the base interval immediately. */
+	private resetIdleStreak(): void {
+		if (this.idleReconcileStreak === 0) return;
+		this.idleReconcileStreak = 0;
+		this.deps.onReconcileBackoffChanged?.();
 	}
 
 	// ---- status helpers ---------------------------------------------------
@@ -512,6 +562,14 @@ function formatRelative(ts: number): string {
 	if (diff < 3600_000) return `${Math.round(diff / 60_000)}m ago`;
 	if (diff < 86_400_000) return `${Math.round(diff / 3600_000)}h ago`;
 	return `${Math.round(diff / 86_400_000)}d ago`;
+}
+
+/** Manifest mtimes are Pydantic-serialised ISO strings; vault stats are epoch ms. Normalise to ms. */
+function toMillis(value: number | string | Date): number {
+	if (typeof value === "number") return value;
+	if (value instanceof Date) return value.getTime();
+	const parsed = Date.parse(value);
+	return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function pruneTombstones(tombstones: Record<string, number>): Record<string, number> {

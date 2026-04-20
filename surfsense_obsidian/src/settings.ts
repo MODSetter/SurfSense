@@ -1,6 +1,7 @@
 import {
 	type App,
 	Notice,
+	Platform,
 	PluginSettingTab,
 	Setting,
 } from "obsidian";
@@ -121,18 +122,33 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 		new Setting(containerEl).setName("Vault").setHeading();
 
 		new Setting(containerEl)
-			.setName("Sync mode")
-			.setDesc("Auto syncs on every edit. Manual only syncs when you trigger it via the command palette.")
-			.addDropdown((drop) =>
-				drop
-					.addOption("auto", "Auto")
-					.addOption("manual", "Manual")
-					.setValue(settings.syncMode)
-					.onChange(async (value) => {
-						this.plugin.settings.syncMode = value === "manual" ? "manual" : "auto";
-						await this.plugin.saveSettings();
-					}),
-			);
+			.setName("Sync interval")
+			.setDesc(
+				"How often to check for changes made outside Obsidian. Set to off to only sync manually.",
+			)
+			.addDropdown((drop) => {
+				const options: Array<[number, string]> = [
+					[0, "Off"],
+					[5, "5 minutes"],
+					[10, "10 minutes"],
+					[15, "15 minutes"],
+					[30, "30 minutes"],
+					[60, "60 minutes"],
+					[120, "2 hours"],
+					[360, "6 hours"],
+					[720, "12 hours"],
+					[1440, "24 hours"],
+				];
+				for (const [value, label] of options) {
+					drop.addOption(String(value), label);
+				}
+				drop.setValue(String(settings.syncIntervalMinutes));
+				drop.onChange(async (value) => {
+					this.plugin.settings.syncIntervalMinutes = Number(value);
+					await this.plugin.saveSettings();
+					this.plugin.restartReconcileTimer();
+				});
+			});
 
 		this.renderFolderList(
 			containerEl,
@@ -184,6 +200,39 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 					}),
 			);
 
+		if (Platform.isMobileApp) {
+			new Setting(containerEl)
+				.setName("Sync only on WiFi")
+				.setDesc(
+					"Pause automatic syncing on cellular. Note: only Android can detect network type — on iOS this toggle has no effect.",
+				)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(settings.wifiOnly)
+						.onChange(async (value) => {
+							this.plugin.settings.wifiOnly = value;
+							await this.plugin.saveSettings();
+						}),
+				);
+		}
+
+		new Setting(containerEl)
+			.setName("Force sync")
+			.setDesc("Manually re-index the entire vault now.")
+			.addButton((btn) =>
+				btn.setButtonText("Update").onClick(async () => {
+					btn.setDisabled(true);
+					try {
+						await this.plugin.engine.maybeReconcile(true);
+						new Notice("Surfsense: re-sync requested.");
+					} catch (err) {
+						this.handleApiError(err);
+					} finally {
+						btn.setDisabled(false);
+					}
+				}),
+			);
+
 		new Setting(containerEl)
 			.addButton((btn) =>
 				btn
@@ -231,7 +280,7 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 
 		setting.addButton((btn) =>
 			btn
-				.setButtonText("Add Folder")
+				.setButtonText("Add folder")
 				.setCta()
 				.onClick(() => {
 					new FolderSuggestModal(

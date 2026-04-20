@@ -39,6 +39,11 @@ class NotePayload(_PluginBase):
     aliases: list[str] = Field(default_factory=list)
 
     content_hash: str = Field(..., description="Plugin-computed SHA-256 of the raw content")
+    size: int | None = Field(
+        default=None,
+        ge=0,
+        description="Byte size of the local file (mtime+size short-circuit signal). Optional for forward compatibility.",
+    )
     mtime: datetime
     ctime: datetime
 
@@ -68,6 +73,10 @@ class DeleteBatchRequest(_PluginBase):
 class ManifestEntry(_PluginBase):
     hash: str
     mtime: datetime
+    size: int | None = Field(
+        default=None,
+        description="Byte size last seen by the server. Enables mtime+size short-circuit; absent when not yet recorded.",
+    )
 
 
 class ManifestResponse(_PluginBase):

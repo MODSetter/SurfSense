@@ -15,9 +15,9 @@ Responsibilities:
 - ``delete_note``  — soft delete with a tombstone in ``document_metadata``
   so reconciliation can distinguish "user explicitly killed this in the UI"
   from "plugin hasn't synced yet".
-- ``get_manifest`` — return ``{path: {hash, mtime}}`` for every non-deleted
-  note belonging to a vault, used by the plugin's reconcile pass on
-  ``onload``.
+- ``get_manifest`` — return ``{path: {hash, mtime, size}}`` for every
+  non-deleted note belonging to a vault, used by the plugin's reconcile
+  pass on ``onload``.
 
 Design notes
 ------------
@@ -108,6 +108,7 @@ def _build_metadata(
         "embeds": payload.embeds,
         "aliases": payload.aliases,
         "plugin_content_hash": payload.content_hash,
+        "plugin_file_size": payload.size,
         "mtime": payload.mtime.isoformat(),
         "ctime": payload.ctime.isoformat(),
         "connector_id": connector_id,
@@ -360,8 +361,8 @@ async def get_manifest(
     connector: SearchSourceConnector,
     vault_id: str,
 ) -> ManifestResponse:
-    """Return ``{path: {hash, mtime}}`` for every non-deleted note in this
-    vault.
+    """Return ``{path: {hash, mtime, size}}`` for every non-deleted note in
+    this vault.
 
     The plugin compares this against its local vault on every ``onload`` to
     catch up edits made while offline. Rows missing ``plugin_content_hash``
@@ -395,6 +396,8 @@ async def get_manifest(
             mtime = datetime.fromisoformat(mtime_raw)
         except ValueError:
             continue
-        items[path] = ManifestEntry(hash=plugin_hash, mtime=mtime)
+        size_raw = meta.get("plugin_file_size")
+        size = int(size_raw) if isinstance(size_raw, int) else None
+        items[path] = ManifestEntry(hash=plugin_hash, mtime=mtime, size=size)
 
     return ManifestResponse(vault_id=vault_id, items=items)
