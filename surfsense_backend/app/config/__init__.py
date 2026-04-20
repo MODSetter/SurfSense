@@ -451,13 +451,13 @@ class Config:
     # OAuth JWT
     SECRET_KEY = os.getenv("SECRET_KEY")
 
-    # JWT Token Lifetimes
+    # JWT Token Lifetimes (defaults match FOSS devstack SESSION_* unified envs when unset)
     ACCESS_TOKEN_LIFETIME_SECONDS = int(
-        os.getenv("ACCESS_TOKEN_LIFETIME_SECONDS", str(24 * 60 * 60))  # 1 day
-    )
+        os.getenv("ACCESS_TOKEN_LIFETIME_SECONDS", str(7 * 24 * 60 * 60))
+    )  # 604800s = 7d
     REFRESH_TOKEN_LIFETIME_SECONDS = int(
-        os.getenv("REFRESH_TOKEN_LIFETIME_SECONDS", str(14 * 24 * 60 * 60))  # 2 weeks
-    )
+        os.getenv("REFRESH_TOKEN_LIFETIME_SECONDS", str(14 * 24 * 60 * 60))
+    )  # 1209600s = 14d
 
     # ETL Service
     ETL_SERVICE = os.getenv("ETL_SERVICE")
