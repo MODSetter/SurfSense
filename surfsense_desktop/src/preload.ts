@@ -82,6 +82,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setShortcuts: (config: Record<string, string>) =>
     ipcRenderer.invoke(IPC_CHANNELS.SET_SHORTCUTS, config),
 
+  // Launch on system startup
+  getAutoLaunch: () => ipcRenderer.invoke(IPC_CHANNELS.GET_AUTO_LAUNCH),
+  setAutoLaunch: (enabled: boolean, openAsHidden?: boolean) =>
+    ipcRenderer.invoke(IPC_CHANNELS.SET_AUTO_LAUNCH, { enabled, openAsHidden }),
+
   // Active search space
   getActiveSearchSpace: () => ipcRenderer.invoke(IPC_CHANNELS.GET_ACTIVE_SEARCH_SPACE),
   setActiveSearchSpace: (id: string) =>

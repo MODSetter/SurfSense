@@ -69,3 +69,10 @@ export function handlePendingDeepLink(): void {
     deepLinkUrl = null;
   }
 }
+
+// True when a deep link arrived before the main window existed. Callers can
+// use this to force-create a window even on a "started hidden" boot, so we
+// don't silently swallow a `surfsense://` URL the user actually clicked on.
+export function hasPendingDeepLink(): boolean {
+  return deepLinkUrl !== null;
+}

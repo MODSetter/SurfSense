@@ -43,6 +43,9 @@ export const IPC_CHANNELS = {
   // Active search space
   GET_ACTIVE_SEARCH_SPACE: 'search-space:get-active',
   SET_ACTIVE_SEARCH_SPACE: 'search-space:set-active',
+  // Launch on system startup
+  GET_AUTO_LAUNCH: 'auto-launch:get',
+  SET_AUTO_LAUNCH: 'auto-launch:set',
   // Analytics (PostHog) bridge: renderer <-> main
   ANALYTICS_IDENTIFY: 'analytics:identify',
   ANALYTICS_RESET: 'analytics:reset',

@@ -24,6 +24,7 @@ import {
   type WatchedFolderConfig,
 } from '../modules/folder-watcher';
 import { getShortcuts, setShortcuts, type ShortcutConfig } from '../modules/shortcuts';
+import { getAutoLaunchState, setAutoLaunch } from '../modules/auto-launch';
 import { getActiveSearchSpaceId, setActiveSearchSpaceId } from '../modules/active-search-space';
 import { reregisterQuickAsk } from '../modules/quick-ask';
 import { reregisterAutocomplete } from '../modules/autocomplete';
@@ -126,6 +127,21 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(IPC_CHANNELS.GET_SHORTCUTS, () => getShortcuts());
+
+  ipcMain.handle(IPC_CHANNELS.GET_AUTO_LAUNCH, () => getAutoLaunchState());
+
+  ipcMain.handle(
+    IPC_CHANNELS.SET_AUTO_LAUNCH,
+    async (_event, payload: { enabled: boolean; openAsHidden?: boolean }) => {
+      const next = await setAutoLaunch(payload.enabled, payload.openAsHidden);
+      trackEvent('desktop_auto_launch_toggled', {
+        enabled: next.enabled,
+        open_as_hidden: next.openAsHidden,
+        supported: next.supported,
+      });
+      return next;
+    },
+  );
 
   ipcMain.handle(IPC_CHANNELS.GET_ACTIVE_SEARCH_SPACE, () => getActiveSearchSpaceId());
 

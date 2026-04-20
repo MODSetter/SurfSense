@@ -102,6 +102,16 @@ interface ElectronAPI {
 	setShortcuts: (
 		config: Partial<{ generalAssist: string; quickAsk: string; autocomplete: string }>
 	) => Promise<{ generalAssist: string; quickAsk: string; autocomplete: string }>;
+	// Launch on system startup
+	getAutoLaunch: () => Promise<{
+		enabled: boolean;
+		openAsHidden: boolean;
+		supported: boolean;
+	}>;
+	setAutoLaunch: (
+		enabled: boolean,
+		openAsHidden?: boolean
+	) => Promise<{ enabled: boolean; openAsHidden: boolean; supported: boolean }>;
 	// Active search space
 	getActiveSearchSpace: () => Promise<string | null>;
 	setActiveSearchSpace: (id: string) => Promise<void>;

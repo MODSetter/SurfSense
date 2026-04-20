@@ -1,10 +1,9 @@
-import { app, BrowserWindow } from 'electron';
+import { app } from 'electron';
 
-let isQuitting = false;
 import { registerGlobalErrorHandlers, showErrorDialog } from './modules/errors';
 import { startNextServer } from './modules/server';
-import { createMainWindow, getMainWindow } from './modules/window';
-import { setupDeepLinks, handlePendingDeepLink } from './modules/deep-links';
+import { createMainWindow, getMainWindow, markQuitting } from './modules/window';
+import { setupDeepLinks, handlePendingDeepLink, hasPendingDeepLink } from './modules/deep-links';
 import { setupAutoUpdater } from './modules/auto-updater';
 import { setupMenu } from './modules/menu';
 import { registerQuickAsk, unregisterQuickAsk } from './modules/quick-ask';
@@ -13,6 +12,12 @@ import { registerFolderWatcher, unregisterFolderWatcher } from './modules/folder
 import { registerIpcHandlers } from './ipc/handlers';
 import { createTray, destroyTray } from './modules/tray';
 import { initAnalytics, shutdownAnalytics, trackEvent } from './modules/analytics';
+import {
+  applyAutoLaunchDefaults,
+  shouldStartHidden,
+  syncAutoLaunchOnStartup,
+  wasLaunchedAtLogin,
+} from './modules/auto-launch';
 
 registerGlobalErrorHandlers();
 
@@ -24,7 +29,12 @@ registerIpcHandlers();
 
 app.whenReady().then(async () => {
   initAnalytics();
-  trackEvent('desktop_app_launched');
+  const launchedAtLogin = wasLaunchedAtLogin();
+  const startedHidden = shouldStartHidden();
+  trackEvent('desktop_app_launched', {
+    launched_at_login: launchedAtLogin,
+    started_hidden: startedHidden,
+  });
   setupMenu();
   try {
     await startNextServer();
@@ -35,16 +45,19 @@ app.whenReady().then(async () => {
   }
 
   await createTray();
+  const defaultsApplied = await applyAutoLaunchDefaults();
+  if (defaultsApplied) {
+    trackEvent('desktop_auto_launch_defaulted_on');
+  }
+  await syncAutoLaunchOnStartup();
 
-  const win = createMainWindow('/dashboard');
-
-  // Minimize to tray instead of closing the app
-  win.on('close', (e) => {
-    if (!isQuitting) {
-      e.preventDefault();
-      win.hide();
-    }
-  });
+  // When started by the OS at login we stay quietly in the tray. The window
+  // is created lazily on first user interaction (tray click / activate).
+  // Exception: if a deep link is queued, the user explicitly asked to land
+  // in the app — don't swallow it.
+  if (!startedHidden || hasPendingDeepLink()) {
+    createMainWindow('/dashboard');
+  }
 
   await registerQuickAsk();
   await registerAutocomplete();
@@ -71,7 +84,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
-  isQuitting = true;
+  markQuitting();
   trackEvent('desktop_app_quit');
 });
 
