@@ -86,6 +86,11 @@ from .notion import (
     create_delete_notion_page_tool,
     create_update_notion_page_tool,
 )
+from .notion_mcp import (
+    create_page as notion_mcp_create_page_mod,
+    delete_page as notion_mcp_delete_page_mod,
+    update_page as notion_mcp_update_page_mod,
+)
 from .onedrive import (
     create_create_onedrive_file_tool,
     create_delete_onedrive_file_tool,
@@ -309,6 +314,40 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         name="delete_notion_page",
         description="Delete an existing Notion page",
         factory=lambda deps: create_delete_notion_page_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    # =========================================================================
+    # NOTION MCP TOOLS - MCP-backed variants (disabled until swap)
+    # These route through Notion's hosted MCP server instead of direct API.
+    # =========================================================================
+    ToolDefinition(
+        name="create_notion_page_mcp",
+        description="Create a new page in Notion via MCP server",
+        factory=lambda deps: notion_mcp_create_page_mod.create_create_notion_page_mcp_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    ToolDefinition(
+        name="update_notion_page_mcp",
+        description="Append new content to an existing Notion page via MCP server",
+        factory=lambda deps: notion_mcp_update_page_mod.create_update_notion_page_mcp_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    ToolDefinition(
+        name="delete_notion_page_mcp",
+        description="Delete an existing Notion page via MCP server",
+        factory=lambda deps: notion_mcp_delete_page_mod.create_delete_notion_page_mcp_tool(
             db_session=deps["db_session"],
             search_space_id=deps["search_space_id"],
             user_id=deps["user_id"],
