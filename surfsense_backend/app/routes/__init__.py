@@ -37,6 +37,7 @@ from .new_llm_config_routes import router as new_llm_config_router
 from .notes_routes import router as notes_router
 from .notifications_routes import router as notifications_router
 from .notion_add_connector_route import router as notion_add_connector_router
+from .notion_mcp_connector_route import router as notion_mcp_connector_router
 from .onedrive_add_connector_route import router as onedrive_add_connector_router
 from .podcasts_routes import router as podcasts_router
 from .prompts_routes import router as prompts_router
@@ -81,6 +82,7 @@ router.include_router(airtable_add_connector_router)
 router.include_router(linear_add_connector_router)
 router.include_router(luma_add_connector_router)
 router.include_router(notion_add_connector_router)
+router.include_router(notion_mcp_connector_router)
 router.include_router(slack_add_connector_router)
 router.include_router(teams_add_connector_router)
 router.include_router(onedrive_add_connector_router)
