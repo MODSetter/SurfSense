@@ -57,7 +57,8 @@ def upgrade() -> None:
     conn.execute(
         sa.text(
             """
-            CREATE UNIQUE INDEX search_source_connectors_obsidian_plugin_vault_uniq
+            CREATE UNIQUE INDEX IF NOT EXISTS
+                search_source_connectors_obsidian_plugin_vault_uniq
             ON search_source_connectors (user_id, ((config->>'vault_id')))
             WHERE connector_type = 'OBSIDIAN_CONNECTOR'
               AND config->>'source' = 'plugin'
@@ -69,7 +70,8 @@ def upgrade() -> None:
     conn.execute(
         sa.text(
             """
-            CREATE UNIQUE INDEX search_source_connectors_obsidian_plugin_fingerprint_uniq
+            CREATE UNIQUE INDEX IF NOT EXISTS
+                search_source_connectors_obsidian_plugin_fingerprint_uniq
             ON search_source_connectors (user_id, ((config->>'vault_fingerprint')))
             WHERE connector_type = 'OBSIDIAN_CONNECTOR'
               AND config->>'source' = 'plugin'
