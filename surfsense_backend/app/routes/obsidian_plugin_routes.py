@@ -96,22 +96,29 @@ async def _resolve_vault_connector(
     *,
     user: User,
     vault_id: str,
+    for_update: bool = False,
 ) -> SearchSourceConnector:
-    """Find the OBSIDIAN_CONNECTOR row that owns ``vault_id`` for this user."""
-    result = await session.execute(
-        select(SearchSourceConnector).where(
-            and_(
-                SearchSourceConnector.user_id == user.id,
-                SearchSourceConnector.connector_type
-                == SearchSourceConnectorType.OBSIDIAN_CONNECTOR,
-            )
+    """Find the OBSIDIAN_CONNECTOR row that owns ``vault_id`` for this user.
+
+    Callers that mutate ``connector.config`` MUST pass ``for_update=True`` or
+    concurrent heartbeats will race and lose writes on ``config.devices`` /
+    ``config.files_synced``.
+    """
+    stmt = select(SearchSourceConnector).where(
+        and_(
+            SearchSourceConnector.user_id == user.id,
+            SearchSourceConnector.connector_type
+            == SearchSourceConnectorType.OBSIDIAN_CONNECTOR,
+            SearchSourceConnector.config["vault_id"].astext == vault_id,
+            SearchSourceConnector.config["source"].astext == "plugin",
         )
     )
-    candidates = result.scalars().all()
-    for connector in candidates:
-        cfg = connector.config or {}
-        if cfg.get("vault_id") == vault_id and cfg.get("source") == "plugin":
-            return connector
+    if for_update:
+        stmt = stmt.with_for_update()
+
+    connector = (await session.execute(stmt)).scalars().first()
+    if connector is not None:
+        return connector
 
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
@@ -182,21 +189,26 @@ async def obsidian_connect(
         session, user=user, search_space_id=payload.search_space_id
     )
 
-    result = await session.execute(
-        select(SearchSourceConnector).where(
-            and_(
-                SearchSourceConnector.user_id == user.id,
-                SearchSourceConnector.connector_type
-                == SearchSourceConnectorType.OBSIDIAN_CONNECTOR,
+    # FOR UPDATE so concurrent heartbeats can't clobber each other's device entry.
+    existing: SearchSourceConnector | None = (
+        (
+            await session.execute(
+                select(SearchSourceConnector)
+                .where(
+                    and_(
+                        SearchSourceConnector.user_id == user.id,
+                        SearchSourceConnector.connector_type
+                        == SearchSourceConnectorType.OBSIDIAN_CONNECTOR,
+                        SearchSourceConnector.config["vault_id"].astext
+                        == payload.vault_id,
+                    )
+                )
+                .with_for_update()
             )
         )
+        .scalars()
+        .first()
     )
-    existing: SearchSourceConnector | None = None
-    for candidate in result.scalars().all():
-        cfg = candidate.config or {}
-        if cfg.get("vault_id") == payload.vault_id:
-            existing = candidate
-            break
 
     now_iso = datetime.now(UTC).isoformat()
 
@@ -210,12 +222,9 @@ async def obsidian_connect(
                 "source": "plugin",
                 "plugin_version": payload.plugin_version,
                 "devices": devices,
-                "device_count": len(devices),
                 "last_connect_at": now_iso,
             }
         )
-        cfg.pop("legacy", None)
-        cfg.pop("vault_path", None)
         existing.config = cfg
         # Re-stamp on every connect so vault renames in Obsidian propagate;
         # the web UI hides the Name input for Obsidian connectors.
@@ -237,7 +246,6 @@ async def obsidian_connect(
                 "source": "plugin",
                 "plugin_version": payload.plugin_version,
                 "devices": devices,
-                "device_count": len(devices),
                 "files_synced": 0,
                 "last_connect_at": now_iso,
             },
@@ -264,7 +272,7 @@ async def obsidian_sync(
 ) -> dict[str, object]:
     """Batch-upsert notes; returns per-note ack so the plugin can dequeue/retry."""
     connector = await _resolve_vault_connector(
-        session, user=user, vault_id=payload.vault_id
+        session, user=user, vault_id=payload.vault_id, for_update=True
     )
 
     results: list[dict[str, object]] = []
@@ -315,7 +323,7 @@ async def obsidian_rename(
 ) -> dict[str, object]:
     """Apply a batch of vault rename events."""
     connector = await _resolve_vault_connector(
-        session, user=user, vault_id=payload.vault_id
+        session, user=user, vault_id=payload.vault_id, for_update=True
     )
 
     results: list[dict[str, object]] = []
@@ -382,7 +390,7 @@ async def obsidian_delete_notes(
 ) -> dict[str, object]:
     """Soft-delete a batch of notes by vault-relative path."""
     connector = await _resolve_vault_connector(
-        session, user=user, vault_id=payload.vault_id
+        session, user=user, vault_id=payload.vault_id, for_update=True
     )
 
     deleted = 0

@@ -108,12 +108,11 @@ export class SurfSenseApiClient {
 	}): Promise<ConnectResponse> {
 		return await this.request<ConnectResponse>(
 			"POST",
-			`/api/v1/obsidian/connect?search_space_id=${encodeURIComponent(
-				String(input.searchSpaceId)
-			)}`,
+			"/api/v1/obsidian/connect",
 			{
 				vault_id: input.vaultId,
 				vault_name: input.vaultName,
+				search_space_id: input.searchSpaceId,
 				plugin_version: this.opts.pluginVersion,
 				device_id: input.deviceId,
 			}

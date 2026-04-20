@@ -100,14 +100,11 @@ const LegacyBanner: FC = () => {
 const PluginStats: FC<{ config: Record<string, unknown> }> = ({ config }) => {
 	const stats: { label: string; value: string }[] = useMemo(() => {
 		const filesSynced = config.files_synced;
-		// Prefer the stamped count; fall back to len(devices) for rows the
-		// backend hasn't re-stamped yet.
+		// Derive from config.devices — a stored counter could drift under concurrent heartbeats.
 		const deviceCount =
-			typeof config.device_count === "number"
-				? config.device_count
-				: config.devices && typeof config.devices === "object"
-					? Object.keys(config.devices as Record<string, unknown>).length
-					: null;
+			config.devices && typeof config.devices === "object"
+				? Object.keys(config.devices as Record<string, unknown>).length
+				: null;
 		return [
 			{ label: "Vault", value: (config.vault_name as string) || "—" },
 			{
