@@ -6,7 +6,7 @@ import {
 	TransientError,
 	VaultNotRegisteredError,
 } from "./api-client";
-import { isExcluded } from "./excludes";
+import { isExcluded, isFolderFiltered } from "./excludes";
 import { buildNotePayload, computeContentHash } from "./payload";
 import { type BatchResult, PersistentQueue } from "./queue";
 import type {
@@ -31,14 +31,15 @@ export interface SyncEngineDeps {
 	getSettings: () => SyncEngineSettings;
 	saveSettings: (mut: (s: SyncEngineSettings) => void) => Promise<void>;
 	setStatus: (s: StatusState) => void;
-	onCapabilities: (caps: string[], apiVersion: string) => void;
+	onCapabilities: (caps: string[]) => void;
 }
 
 export interface SyncEngineSettings {
 	vaultId: string;
-	vaultName: string;
 	connectorId: number | null;
 	searchSpaceId: number | null;
+	includeFolders: string[];
+	excludeFolders: string[];
 	excludePatterns: string[];
 	includeAttachments: boolean;
 	syncMode: "auto" | "manual";
@@ -55,7 +56,6 @@ const PENDING_DEBOUNCE_MS = 1500;
 export class SyncEngine {
 	private readonly deps: SyncEngineDeps;
 	private capabilities: string[] = [];
-	private apiVersion: string | null = null;
 	private pendingMdEdits = new Map<string, ReturnType<typeof setTimeout>>();
 
 	constructor(deps: SyncEngineDeps) {
@@ -109,7 +109,7 @@ export class SyncEngine {
 			const resp = await this.deps.apiClient.connect({
 				searchSpaceId: settings.searchSpaceId,
 				vaultId: settings.vaultId,
-				vaultName: settings.vaultName,
+				vaultName: this.deps.app.vault.getName(),
 			});
 			this.applyHealth(resp);
 			await this.deps.saveSettings((s) => {
@@ -122,8 +122,7 @@ export class SyncEngine {
 
 	applyHealth(h: HealthResponse): void {
 		this.capabilities = Array.isArray(h.capabilities) ? [...h.capabilities] : [];
-		this.apiVersion = h.api_version ?? null;
-		this.deps.onCapabilities(this.capabilities, this.apiVersion ?? "?");
+		this.deps.onCapabilities(this.capabilities);
 	}
 
 	// ---- vault event handlers --------------------------------------------
@@ -485,6 +484,9 @@ export class SyncEngine {
 	}
 
 	private isExcluded(path: string, settings: SyncEngineSettings): boolean {
+		if (isFolderFiltered(path, settings.includeFolders, settings.excludeFolders)) {
+			return true;
+		}
 		return isExcluded(path, settings.excludePatterns);
 	}
 

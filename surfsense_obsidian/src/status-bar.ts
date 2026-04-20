@@ -28,11 +28,15 @@ export class StatusBar {
 	private readonly icon: HTMLElement;
 	private readonly text: HTMLElement;
 
-	constructor(host: HTMLElement) {
+	constructor(host: HTMLElement, onClick?: () => void) {
 		this.el = host;
 		this.el.addClass("surfsense-status");
 		this.icon = this.el.createSpan({ cls: "surfsense-status__icon" });
 		this.text = this.el.createSpan({ cls: "surfsense-status__text" });
+		if (onClick) {
+			this.el.addClass("surfsense-status--clickable");
+			this.el.addEventListener("click", onClick);
+		}
 		this.update({ kind: "idle", queueDepth: 0 });
 	}
 

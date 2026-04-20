@@ -3,6 +3,7 @@ import { SurfSenseApiClient } from "./api-client";
 import { PersistentQueue } from "./queue";
 import { SurfSenseSettingTab } from "./settings";
 import { StatusBar } from "./status-bar";
+import { StatusModal } from "./status-modal";
 import { SyncEngine } from "./sync-engine";
 import {
 	DEFAULT_SETTINGS,
@@ -20,8 +21,8 @@ export default class SurfSensePlugin extends Plugin {
 	private statusBar: StatusBar | null = null;
 	lastStatus: StatusState = { kind: "idle", queueDepth: 0 };
 	serverCapabilities: string[] = [];
-	serverApiVersion: string | null = null;
 	private settingTab: SurfSenseSettingTab | null = null;
+	private statusListeners = new Set<() => void>();
 
 	async onload() {
 		await this.loadSettings();
@@ -48,17 +49,16 @@ export default class SurfSensePlugin extends Plugin {
 			saveSettings: async (mut) => {
 				mut(this.settings);
 				await this.saveSettings();
-				this.settingTab?.renderStatus();
+				this.notifyStatusChange();
 			},
 			setStatus: (s) => {
 				this.lastStatus = s;
 				this.statusBar?.update(s);
-				this.settingTab?.renderStatus();
+				this.notifyStatusChange();
 			},
-			onCapabilities: (caps, apiVersion) => {
+			onCapabilities: (caps) => {
 				this.serverCapabilities = [...caps];
-				this.serverApiVersion = apiVersion;
-				this.settingTab?.renderStatus();
+				this.notifyStatusChange();
 			},
 		});
 
@@ -71,7 +71,7 @@ export default class SurfSensePlugin extends Plugin {
 		this.addSettingTab(this.settingTab);
 
 		const statusHost = this.addStatusBarItem();
-		this.statusBar = new StatusBar(statusHost);
+		this.statusBar = new StatusBar(statusHost, () => this.openStatusModal());
 		this.statusBar.update(this.lastStatus);
 
 		this.registerEvent(
@@ -121,6 +121,12 @@ export default class SurfSensePlugin extends Plugin {
 		});
 
 		this.addCommand({
+			id: "open-status",
+			name: "Open sync status",
+			callback: () => this.openStatusModal(),
+		});
+
+		this.addCommand({
 			id: "open-settings",
 			name: "Open settings",
 			callback: () => {
@@ -150,6 +156,22 @@ export default class SurfSensePlugin extends Plugin {
 		return this.queue?.size ?? 0;
 	}
 
+	openStatusModal(): void {
+		new StatusModal(this.app, this).open();
+	}
+
+	onStatusChange(listener: () => void): void {
+		this.statusListeners.add(listener);
+	}
+
+	offStatusChange(listener: () => void): void {
+		this.statusListeners.delete(listener);
+	}
+
+	private notifyStatusChange(): void {
+		for (const fn of this.statusListeners) fn();
+	}
+
 	async loadSettings() {
 		const data = (await this.loadData()) as Partial<SurfsensePluginSettings> | null;
 		this.settings = {
@@ -157,6 +179,8 @@ export default class SurfSensePlugin extends Plugin {
 			...(data ?? {}),
 			queue: (data?.queue ?? []).map((i: QueueItem) => ({ ...i })),
 			tombstones: { ...(data?.tombstones ?? {}) },
+			includeFolders: [...(data?.includeFolders ?? [])],
+			excludeFolders: [...(data?.excludeFolders ?? [])],
 			excludePatterns: data?.excludePatterns?.length
 				? [...data.excludePatterns]
 				: [...DEFAULT_SETTINGS.excludePatterns],
@@ -171,9 +195,6 @@ export default class SurfSensePlugin extends Plugin {
 	private seedIdentity(): void {
 		if (!this.settings.vaultId) {
 			this.settings.vaultId = generateUuid();
-		}
-		if (!this.settings.vaultName) {
-			this.settings.vaultName = this.app.vault.getName();
 		}
 	}
 }

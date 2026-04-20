@@ -64,3 +64,31 @@ export function parseExcludePatterns(raw: string): string[] {
 		.map((line) => line.trim())
 		.filter((line) => line.length > 0 && !line.startsWith("#"));
 }
+
+/** Normalize a folder path: strip leading/trailing slashes; "" or "/" means vault root. */
+export function normalizeFolder(folder: string): string {
+	return folder.replace(/^\/+|\/+$/g, "");
+}
+
+/** True if `path` lives inside `folder` (or `folder` is the vault root). */
+export function isInFolder(path: string, folder: string): boolean {
+	const f = normalizeFolder(folder);
+	if (f === "") return true;
+	return path === f || path.startsWith(`${f}/`);
+}
+
+/** Exclude wins over include. Empty includeFolders means "include everything". */
+export function isFolderFiltered(
+	path: string,
+	includeFolders: string[],
+	excludeFolders: string[],
+): boolean {
+	for (const f of excludeFolders) {
+		if (isInFolder(path, f)) return true;
+	}
+	if (includeFolders.length === 0) return false;
+	for (const f of includeFolders) {
+		if (isInFolder(path, f)) return false;
+	}
+	return true;
+}

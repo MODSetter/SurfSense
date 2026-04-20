@@ -92,13 +92,11 @@ class ConnectResponse(_PluginBase):
     connector_id: int
     vault_id: str
     search_space_id: int
-    api_version: str
     capabilities: list[str]
 
 
 class HealthResponse(_PluginBase):
     """API contract handshake. ``capabilities`` is additive-only string list."""
 
-    api_version: str
     capabilities: list[str]
     server_time_utc: datetime

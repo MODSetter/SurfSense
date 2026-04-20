@@ -5,7 +5,8 @@ import {
 	Setting,
 } from "obsidian";
 import { AuthError } from "./api-client";
-import { parseExcludePatterns } from "./excludes";
+import { normalizeFolder, parseExcludePatterns } from "./excludes";
+import { FolderSuggestModal } from "./folder-suggest-modal";
 import type SurfSensePlugin from "./main";
 import type { SearchSpace } from "./types";
 
@@ -15,7 +16,6 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 	private readonly plugin: SurfSensePlugin;
 	private searchSpaces: SearchSpace[] = [];
 	private loadingSpaces = false;
-	private statusEl: HTMLElement | null = null;
 
 	constructor(app: App, plugin: SurfSensePlugin) {
 		super(app, plugin);
@@ -25,7 +25,6 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
-		containerEl.addClass("surfsense-settings");
 
 		const settings = this.plugin.settings;
 
@@ -107,7 +106,6 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 							this.handleApiError(err);
 						}
 					}
-					this.renderStatus();
 				});
 			})
 			.addExtraButton((btn) =>
@@ -123,20 +121,6 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 		new Setting(containerEl).setName("Vault").setHeading();
 
 		new Setting(containerEl)
-			.setName("Vault name")
-			.setDesc(
-				"Friendly name for this vault. Defaults to your Obsidian vault folder name.",
-			)
-			.addText((text) =>
-				text
-					.setValue(settings.vaultName)
-					.onChange(async (value) => {
-						this.plugin.settings.vaultName = value.trim() || this.app.vault.getName();
-						await this.plugin.saveSettings();
-					}),
-			);
-
-		new Setting(containerEl)
 			.setName("Sync mode")
 			.setDesc("Auto syncs on every edit. Manual only syncs when you trigger it via the command palette.")
 			.addDropdown((drop) =>
@@ -150,10 +134,30 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 					}),
 			);
 
+		this.renderFolderList(
+			containerEl,
+			"Include folders",
+			"Folders to sync (leave empty to sync entire vault).",
+			settings.includeFolders,
+			(next) => {
+				this.plugin.settings.includeFolders = next;
+			},
+		);
+
+		this.renderFolderList(
+			containerEl,
+			"Exclude folders",
+			"Folders to exclude from sync (takes precedence over includes).",
+			settings.excludeFolders,
+			(next) => {
+				this.plugin.settings.excludeFolders = next;
+			},
+		);
+
 		new Setting(containerEl)
-			.setName("Exclude patterns")
+			.setName("Advanced exclude patterns")
 			.setDesc(
-				"One pattern per line. Supports * and **. Lines starting with # are comments. Files matching any pattern are skipped.",
+				"Glob fallback for power users. One pattern per line, supports * and **. Lines starting with # are comments. Applied on top of the folder lists above.",
 			)
 			.addTextArea((area) => {
 				area.inputEl.rows = 4;
@@ -180,41 +184,12 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 					}),
 			);
 
-		new Setting(containerEl).setName("Identity").setHeading();
-
-		new Setting(containerEl)
-			.setName("Vault ID")
-			.setDesc(
-				"Stable identifier for this vault. Used by the backend to keep separate vaults distinct even if their folder names change.",
-			)
-			.addText((text) => {
-				text.inputEl.disabled = true;
-				text.setValue(settings.vaultId);
-			});
-
-		// Device ID is deliberately not exposed: it's an opaque per-install UUID
-		// (see seedIdentity in main.ts) and the web UI only shows a device count.
-
-		new Setting(containerEl).setName("Status").setHeading();
-		this.statusEl = containerEl.createDiv({ cls: "surfsense-settings__status" });
-		this.renderStatus();
-
 		new Setting(containerEl)
 			.addButton((btn) =>
 				btn
-					.setButtonText("Re-sync entire vault")
-					.onClick(async () => {
-						btn.setDisabled(true);
-						try {
-							await this.plugin.engine.maybeReconcile(true);
-							new Notice("Surfsense: re-sync requested.");
-						} catch (err) {
-							this.handleApiError(err);
-						} finally {
-							btn.setDisabled(false);
-							this.renderStatus();
-						}
-					}),
+					.setButtonText("View sync status")
+					.setCta()
+					.onClick(() => this.plugin.openStatusModal()),
 			)
 			.addButton((btn) =>
 				btn.setButtonText("Open releases").onClick(() => {
@@ -224,10 +199,6 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 					);
 				}),
 			);
-	}
-
-	hide(): void {
-		this.statusEl = null;
 	}
 
 	private async refreshSearchSpaces(): Promise<void> {
@@ -242,38 +213,46 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 		}
 	}
 
-	renderStatus(): void {
-		if (!this.statusEl) return;
-		const s = this.plugin.settings;
-		this.statusEl.empty();
+	private renderFolderList(
+		containerEl: HTMLElement,
+		title: string,
+		desc: string,
+		current: string[],
+		write: (next: string[]) => void,
+	): void {
+		const setting = new Setting(containerEl).setName(title).setDesc(desc);
 
-		const rows: { label: string; value: string }[] = [
-			{ label: "Status", value: this.plugin.lastStatus.kind },
-			{
-				label: "Last sync",
-				value: s.lastSyncAt ? new Date(s.lastSyncAt).toLocaleString() : "—",
-			},
-			{
-				label: "Last reconcile",
-				value: s.lastReconcileAt ? new Date(s.lastReconcileAt).toLocaleString() : "—",
-			},
-			{ label: "Files synced", value: String(s.filesSynced ?? 0) },
-			{ label: "Queue depth", value: String(this.plugin.queueDepth) },
-			{
-				label: "API version",
-				value: this.plugin.serverApiVersion ?? "(not yet handshaken)",
-			},
-			{
-				label: "Capabilities",
-				value: this.plugin.serverCapabilities.length
-					? this.plugin.serverCapabilities.join(", ")
-					: "(not yet handshaken)",
-			},
-		];
-		for (const row of rows) {
-			const wrap = this.statusEl.createDiv({ cls: "surfsense-settings__status-row" });
-			wrap.createSpan({ cls: "surfsense-settings__status-label", text: row.label });
-			wrap.createSpan({ cls: "surfsense-settings__status-value", text: row.value });
+		const persist = async (next: string[]): Promise<void> => {
+			const dedup = Array.from(new Set(next.map(normalizeFolder)));
+			write(dedup);
+			await this.plugin.saveSettings();
+			this.display();
+		};
+
+		setting.addButton((btn) =>
+			btn
+				.setButtonText("Add Folder")
+				.setCta()
+				.onClick(() => {
+					new FolderSuggestModal(
+						this.app,
+						(picked) => {
+							void persist([...current, picked]);
+						},
+						current,
+					).open();
+				}),
+		);
+
+		for (const folder of current) {
+			new Setting(containerEl).setName(folder || "/").addExtraButton((btn) =>
+				btn
+					.setIcon("cross")
+					.setTooltip("Remove")
+					.onClick(() => {
+						void persist(current.filter((f) => f !== folder));
+					}),
+			);
 		}
 	}
 

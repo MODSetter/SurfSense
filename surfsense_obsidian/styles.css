@@ -1,15 +1,14 @@
 /*
- * SurfSense Obsidian plugin styles. Kept tiny on purpose — Obsidian
- * theming should drive most of the look; we only add the bits we
- * cannot express via the standard PluginSettingTab/Setting components.
+ * SurfSense Obsidian plugin styles. Status-bar widget only — the settings
+ * tab uses Obsidian's stock Setting rows, no custom CSS needed.
  */
 
 .surfsense-status {
-	display: inline-flex;
-	align-items: center;
 	gap: 6px;
-	padding: 0 6px;
-	cursor: default;
+}
+
+.surfsense-status--clickable {
+	cursor: pointer;
 }
 
 .surfsense-status__icon {
@@ -21,10 +20,6 @@
 .surfsense-status__icon svg {
 	width: 14px;
 	height: 14px;
-}
-
-.surfsense-status__text {
-	font-size: var(--font-ui-smaller);
 }
 
 .surfsense-status--ok .surfsense-status__icon {
@@ -41,26 +36,4 @@
 
 .surfsense-status--err .surfsense-status__icon {
 	color: var(--color-red);
-}
-
-.surfsense-settings__status {
-	display: grid;
-	grid-template-columns: minmax(120px, max-content) 1fr;
-	row-gap: 4px;
-	column-gap: 12px;
-	margin: 8px 0 16px;
-}
-
-.surfsense-settings__status-row {
-	display: contents;
-}
-
-.surfsense-settings__status-label {
-	color: var(--text-muted);
-	font-size: var(--font-ui-smaller);
-}
-
-.surfsense-settings__status-value {
-	font-size: var(--font-ui-smaller);
-	word-break: break-word;
 }

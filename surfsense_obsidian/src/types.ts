@@ -7,8 +7,9 @@ export interface SurfsensePluginSettings {
 	connectorId: number | null;
 	/** UUID for the vault — lives here so Obsidian Sync replicates it across devices. */
 	vaultId: string;
-	vaultName: string;
 	syncMode: "auto" | "manual";
+	includeFolders: string[];
+	excludeFolders: string[];
 	excludePatterns: string[];
 	includeAttachments: boolean;
 	lastSyncAt: number | null;
@@ -24,8 +25,9 @@ export const DEFAULT_SETTINGS: SurfsensePluginSettings = {
 	searchSpaceId: null,
 	connectorId: null,
 	vaultId: "",
-	vaultName: "",
 	syncMode: "auto",
+	includeFolders: [],
+	excludeFolders: [],
 	excludePatterns: [".trash", "_attachments", "templates"],
 	includeAttachments: false,
 	lastSyncAt: null,
@@ -96,14 +98,12 @@ export interface ConnectResponse {
 	connector_id: number;
 	vault_id: string;
 	search_space_id: number;
-	api_version: string;
 	capabilities: string[];
 	server_time_utc: string;
 	[key: string]: unknown;
 }
 
 export interface HealthResponse {
-	api_version: string;
 	capabilities: string[];
 	server_time_utc: string;
 	[key: string]: unknown;

@@ -1,8 +1,8 @@
 """Obsidian plugin ingestion routes (``/api/v1/obsidian/*``).
 
-Wire surface for the ``surfsense_obsidian/`` plugin. API stability is the
-``/api/v1/`` prefix plus the additive ``capabilities`` array on /health;
-no plugin-version gate.
+Wire surface for the ``surfsense_obsidian/`` plugin. Versioning anchor is
+the ``/api/v1/`` URL prefix; additive feature detection rides the
+``capabilities`` array on /health and /connect.
 """
 
 from __future__ import annotations
@@ -46,9 +46,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/obsidian", tags=["obsidian-plugin"])
 
 
-# Bumped only on non-additive wire changes; additive ones ride extra='ignore'.
-OBSIDIAN_API_VERSION = "1"
-
 # Plugins feature-gate on these. Add entries, never rename or remove.
 OBSIDIAN_CAPABILITIES: list[str] = ["sync", "rename", "delete", "manifest", "stats"]
 
@@ -59,10 +56,7 @@ OBSIDIAN_CAPABILITIES: list[str] = ["sync", "rename", "delete", "manifest", "sta
 
 
 def _build_handshake() -> dict[str, object]:
-    return {
-        "api_version": OBSIDIAN_API_VERSION,
-        "capabilities": list(OBSIDIAN_CAPABILITIES),
-    }
+    return {"capabilities": list(OBSIDIAN_CAPABILITIES)}
 
 
 async def _resolve_vault_connector(
