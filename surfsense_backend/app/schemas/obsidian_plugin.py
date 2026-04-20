@@ -8,7 +8,7 @@ prefix (``/api/v2/...``).
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -109,3 +109,58 @@ class HealthResponse(_PluginBase):
 
     capabilities: list[str]
     server_time_utc: datetime
+
+
+# Per-item batch ack schemas — wire shape is load-bearing for the plugin
+# queue (see api-client.ts / sync-engine.ts:processBatch).
+
+
+class SyncAckItem(_PluginBase):
+    path: str
+    status: Literal["ok", "error"]
+    document_id: int | None = None
+    error: str | None = None
+
+
+class SyncAck(_PluginBase):
+    vault_id: str
+    indexed: int
+    failed: int
+    items: list[SyncAckItem] = Field(default_factory=list)
+
+
+class RenameAckItem(_PluginBase):
+    old_path: str
+    new_path: str
+    # ``missing`` is treated as success client-side (end state reached).
+    status: Literal["ok", "error", "missing"]
+    document_id: int | None = None
+    error: str | None = None
+
+
+class RenameAck(_PluginBase):
+    vault_id: str
+    renamed: int
+    missing: int
+    items: list[RenameAckItem] = Field(default_factory=list)
+
+
+class DeleteAckItem(_PluginBase):
+    path: str
+    status: Literal["ok", "error", "missing"]
+    error: str | None = None
+
+
+class DeleteAck(_PluginBase):
+    vault_id: str
+    deleted: int
+    missing: int
+    items: list[DeleteAckItem] = Field(default_factory=list)
+
+
+class StatsResponse(_PluginBase):
+    """Backs the Obsidian connector tile in the web UI."""
+
+    vault_id: str
+    files_synced: int
+    last_sync_at: datetime | None = None

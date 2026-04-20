@@ -1510,6 +1510,18 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
             "name",
             name="uq_searchspace_user_connector_type_name",
         ),
+        # Mirrors migration 129; backs the ``/obsidian/connect`` upsert.
+        Index(
+            "search_source_connectors_obsidian_plugin_vault_uniq",
+            "user_id",
+            text("(config->>'vault_id')"),
+            unique=True,
+            postgresql_where=text(
+                "connector_type = 'OBSIDIAN_CONNECTOR' "
+                "AND config->>'source' = 'plugin' "
+                "AND config->>'vault_id' IS NOT NULL"
+            ),
+        ),
     )
 
     name = Column(String(100), nullable=False, index=True)

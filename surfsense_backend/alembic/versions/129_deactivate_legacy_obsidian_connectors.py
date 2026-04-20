@@ -4,22 +4,11 @@ Revision ID: 129
 Revises: 128
 Create Date: 2026-04-18
 
-Marks every pre-plugin OBSIDIAN_CONNECTOR row as legacy. We keep the
-rows (and their indexed Documents) so existing search results don't
-suddenly disappear, but we:
-
-* set ``is_indexable = false`` and ``periodic_indexing_enabled = false``
-  so the scheduler will never fire a server-side scan again,
-* clear ``next_scheduled_at`` so the scheduler stops considering the
-  row,
-* merge ``{"legacy": true, "deactivated_at": "<now>"}`` into ``config``
-  so the new ObsidianConfig view in the web UI can render the
-  migration banner (and so a future cleanup script can find them).
-
-A row is "pre-plugin" when its ``config`` does not already have
-``source = "plugin"``. The new plugin indexer always writes
-``config.source = "plugin"`` on first /obsidian/connect, so this
-predicate is stable.
+Deactivates pre-plugin OBSIDIAN_CONNECTOR rows (keeping them and their
+Documents, but flagging ``config.legacy = true`` and disabling scheduling)
+and creates the partial unique index on
+``(user_id, (config->>'vault_id'))`` for plugin-Obsidian rows that backs
+the ``/obsidian/connect`` upsert.
 """
 
 from __future__ import annotations
@@ -60,9 +49,27 @@ def upgrade() -> None:
         )
     )
 
+    conn.execute(
+        sa.text(
+            """
+            CREATE UNIQUE INDEX search_source_connectors_obsidian_plugin_vault_uniq
+            ON search_source_connectors (user_id, ((config->>'vault_id')))
+            WHERE connector_type = 'OBSIDIAN_CONNECTOR'
+              AND config->>'source' = 'plugin'
+              AND config->>'vault_id' IS NOT NULL
+            """
+        )
+    )
+
 
 def downgrade() -> None:
     conn = op.get_bind()
+    conn.execute(
+        sa.text(
+            "DROP INDEX IF EXISTS "
+            "search_source_connectors_obsidian_plugin_vault_uniq"
+        )
+    )
     conn.execute(
         sa.text(
             """

@@ -129,6 +129,49 @@ export interface ManifestResponse {
 	[key: string]: unknown;
 }
 
+/** Per-item ack shapes — mirror `app/schemas/obsidian_plugin.py` 1:1. */
+export interface SyncAckItem {
+	path: string;
+	status: "ok" | "error";
+	document_id?: number;
+	error?: string;
+}
+
+export interface SyncAck {
+	vault_id: string;
+	indexed: number;
+	failed: number;
+	items: SyncAckItem[];
+}
+
+export interface RenameAckItem {
+	old_path: string;
+	new_path: string;
+	status: "ok" | "error" | "missing";
+	document_id?: number;
+	error?: string;
+}
+
+export interface RenameAck {
+	vault_id: string;
+	renamed: number;
+	missing: number;
+	items: RenameAckItem[];
+}
+
+export interface DeleteAckItem {
+	path: string;
+	status: "ok" | "error" | "missing";
+	error?: string;
+}
+
+export interface DeleteAck {
+	vault_id: string;
+	deleted: number;
+	missing: number;
+	items: DeleteAckItem[];
+}
+
 export type StatusKind =
 	| "idle"
 	| "syncing"

@@ -246,13 +246,20 @@ export class SyncEngine {
 		const dropped: QueueItem[] = [];
 
 		// Renames first so paths line up server-side before content upserts.
+		// Per-item server errors go to retry; "missing" is treated as success.
 		if (renames.length > 0) {
 			try {
-				await this.deps.apiClient.renameBatch({
+				const resp = await this.deps.apiClient.renameBatch({
 					vaultId: settings.vaultId,
 					renames: renames.map((r) => ({ oldPath: r.oldPath, newPath: r.newPath })),
 				});
-				acked.push(...renames);
+				const failed = new Set(
+					resp.failed.map((f) => `${f.oldPath}\u0000${f.newPath}`),
+				);
+				for (const r of renames) {
+					if (failed.has(`${r.oldPath}\u0000${r.newPath}`)) retry.push(r);
+					else acked.push(r);
+				}
 			} catch (err) {
 				if (await this.handleVaultNotRegistered(err)) {
 					retry.push(...renames);
@@ -267,11 +274,15 @@ export class SyncEngine {
 
 		if (deletes.length > 0) {
 			try {
-				await this.deps.apiClient.deleteBatch({
+				const resp = await this.deps.apiClient.deleteBatch({
 					vaultId: settings.vaultId,
 					paths: deletes.map((d) => d.path),
 				});
-				acked.push(...deletes);
+				const failed = new Set(resp.failed);
+				for (const d of deletes) {
+					if (failed.has(d.path)) retry.push(d);
+					else acked.push(d);
+				}
 			} catch (err) {
 				if (await this.handleVaultNotRegistered(err)) {
 					retry.push(...deletes);
@@ -310,10 +321,11 @@ export class SyncEngine {
 						vaultId: settings.vaultId,
 						notes: payloads,
 					});
-					const rejected = new Set(resp.rejected ?? []);
+					// Per-note failures retry; the queue's maxAttempts eventually drops poison pills.
+					const failed = new Set(resp.failed);
 					for (const item of upserts) {
 						if (retry.find((r) => r === item)) continue;
-						if (rejected.has(item.path)) dropped.push(item);
+						if (failed.has(item.path)) retry.push(item);
 						else acked.push(item);
 					}
 				} catch (err) {

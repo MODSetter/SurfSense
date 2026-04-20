@@ -10,8 +10,10 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 
+import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import and_, case, func
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -27,10 +29,17 @@ from app.db import (
 from app.schemas.obsidian_plugin import (
     ConnectRequest,
     ConnectResponse,
+    DeleteAck,
+    DeleteAckItem,
     DeleteBatchRequest,
     HealthResponse,
     ManifestResponse,
+    RenameAck,
+    RenameAckItem,
     RenameBatchRequest,
+    StatsResponse,
+    SyncAck,
+    SyncAckItem,
     SyncBatchRequest,
 )
 from app.services.obsidian_plugin_indexer import (
@@ -66,13 +75,15 @@ async def _resolve_vault_connector(
     vault_id: str,
 ) -> SearchSourceConnector:
     """Find the OBSIDIAN_CONNECTOR row that owns ``vault_id`` for this user."""
+    # ``config`` is core ``JSON`` (not ``JSONB``); ``as_string()`` is the
+    # cross-dialect equivalent of ``.astext`` and compiles to ``->>``.
     stmt = select(SearchSourceConnector).where(
         and_(
             SearchSourceConnector.user_id == user.id,
             SearchSourceConnector.connector_type
             == SearchSourceConnectorType.OBSIDIAN_CONNECTOR,
-            SearchSourceConnector.config["vault_id"].astext == vault_id,
-            SearchSourceConnector.config["source"].astext == "plugin",
+            SearchSourceConnector.config["vault_id"].as_string() == vault_id,
+            SearchSourceConnector.config["source"].as_string() == "plugin",
         )
     )
 
@@ -139,34 +150,13 @@ async def obsidian_connect(
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> ConnectResponse:
-    """Register a vault, or return the existing connector row.
+    """Register a vault, or refresh the existing connector row.
 
-    Idempotent on (user_id, OBSIDIAN_CONNECTOR, vault_id). Called on every
-    plugin onload as a heartbeat.
+    Idempotent on ``(user_id, OBSIDIAN_CONNECTOR, vault_id)`` via the partial
+    unique index from migration 129. Called on every plugin onload.
     """
     await _ensure_search_space_access(
         session, user=user, search_space_id=payload.search_space_id
-    )
-
-    # FOR UPDATE so concurrent /connect calls for the same vault can't race.
-    existing: SearchSourceConnector | None = (
-        (
-            await session.execute(
-                select(SearchSourceConnector)
-                .where(
-                    and_(
-                        SearchSourceConnector.user_id == user.id,
-                        SearchSourceConnector.connector_type
-                        == SearchSourceConnectorType.OBSIDIAN_CONNECTOR,
-                        SearchSourceConnector.config["vault_id"].astext
-                        == payload.vault_id,
-                    )
-                )
-                .with_for_update()
-            )
-        )
-        .scalars()
-        .first()
     )
 
     now_iso = datetime.now(UTC).isoformat()
@@ -176,50 +166,68 @@ async def obsidian_connect(
         "source": "plugin",
         "last_connect_at": now_iso,
     }
+    display_name = f"Obsidian \u2014 {payload.vault_name}"
 
-    if existing is not None:
-        existing.config = cfg
-        # Re-stamp on every connect so vault renames in Obsidian propagate;
-        # the web UI hides the Name input for Obsidian connectors.
-        existing.name = f"Obsidian — {payload.vault_name}"
-        existing.is_indexable = False
-        existing.search_space_id = payload.search_space_id
-        await session.commit()
-        await session.refresh(existing)
-        connector = existing
-    else:
-        connector = SearchSourceConnector(
-            name=f"Obsidian — {payload.vault_name}",
+    # ``index_elements`` + ``index_where`` matches the partial unique index
+    # by shape; ``ON CONFLICT ON CONSTRAINT`` doesn't work for partial indexes.
+    stmt = (
+        pg_insert(SearchSourceConnector)
+        .values(
+            name=display_name,
             connector_type=SearchSourceConnectorType.OBSIDIAN_CONNECTOR,
             is_indexable=False,
             config=cfg,
             user_id=user.id,
             search_space_id=payload.search_space_id,
         )
-        session.add(connector)
-        await session.commit()
-        await session.refresh(connector)
+        .on_conflict_do_update(
+            index_elements=[
+                SearchSourceConnector.user_id,
+                sa.text("(config->>'vault_id')"),
+            ],
+            index_where=sa.text(
+                "connector_type = 'OBSIDIAN_CONNECTOR' "
+                "AND config->>'source' = 'plugin' "
+                "AND config->>'vault_id' IS NOT NULL"
+            ),
+            set_={
+                "name": display_name,
+                "config": cfg,
+                "search_space_id": payload.search_space_id,
+                "is_indexable": False,
+            },
+        )
+        .returning(SearchSourceConnector)
+    )
+
+    result = await session.execute(stmt)
+    connector = result.scalar_one()
+    # Read attrs before commit; ``expire_on_commit=True`` would force a
+    # lazy refresh that fails with ``MissingGreenlet`` during serialization.
+    connector_id = connector.id
+    connector_search_space_id = connector.search_space_id
+    await session.commit()
 
     return ConnectResponse(
-        connector_id=connector.id,
+        connector_id=connector_id,
         vault_id=payload.vault_id,
-        search_space_id=connector.search_space_id,
+        search_space_id=connector_search_space_id,
         **_build_handshake(),
     )
 
 
-@router.post("/sync")
+@router.post("/sync", response_model=SyncAck)
 async def obsidian_sync(
     payload: SyncBatchRequest,
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
-) -> dict[str, object]:
+) -> SyncAck:
     """Batch-upsert notes; returns per-note ack so the plugin can dequeue/retry."""
     connector = await _resolve_vault_connector(
         session, user=user, vault_id=payload.vault_id
     )
 
-    results: list[dict[str, object]] = []
+    items: list[SyncAckItem] = []
     indexed = 0
     failed = 0
 
@@ -229,8 +237,8 @@ async def obsidian_sync(
                 session, connector=connector, payload=note, user_id=str(user.id)
             )
             indexed += 1
-            results.append(
-                {"path": note.path, "status": "ok", "document_id": doc.id}
+            items.append(
+                SyncAckItem(path=note.path, status="ok", document_id=doc.id)
             )
         except HTTPException:
             raise
@@ -241,30 +249,30 @@ async def obsidian_sync(
                 note.path,
                 payload.vault_id,
             )
-            results.append(
-                {"path": note.path, "status": "error", "error": str(exc)[:300]}
+            items.append(
+                SyncAckItem(path=note.path, status="error", error=str(exc)[:300])
             )
 
-    return {
-        "vault_id": payload.vault_id,
-        "indexed": indexed,
-        "failed": failed,
-        "results": results,
-    }
+    return SyncAck(
+        vault_id=payload.vault_id,
+        indexed=indexed,
+        failed=failed,
+        items=items,
+    )
 
 
-@router.post("/rename")
+@router.post("/rename", response_model=RenameAck)
 async def obsidian_rename(
     payload: RenameBatchRequest,
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
-) -> dict[str, object]:
+) -> RenameAck:
     """Apply a batch of vault rename events."""
     connector = await _resolve_vault_connector(
         session, user=user, vault_id=payload.vault_id
     )
 
-    results: list[dict[str, object]] = []
+    items: list[RenameAckItem] = []
     renamed = 0
     missing = 0
 
@@ -279,22 +287,22 @@ async def obsidian_rename(
             )
             if doc is None:
                 missing += 1
-                results.append(
-                    {
-                        "old_path": item.old_path,
-                        "new_path": item.new_path,
-                        "status": "missing",
-                    }
+                items.append(
+                    RenameAckItem(
+                        old_path=item.old_path,
+                        new_path=item.new_path,
+                        status="missing",
+                    )
                 )
             else:
                 renamed += 1
-                results.append(
-                    {
-                        "old_path": item.old_path,
-                        "new_path": item.new_path,
-                        "status": "ok",
-                        "document_id": doc.id,
-                    }
+                items.append(
+                    RenameAckItem(
+                        old_path=item.old_path,
+                        new_path=item.new_path,
+                        status="ok",
+                        document_id=doc.id,
+                    )
                 )
         except Exception as exc:
             logger.exception(
@@ -303,29 +311,29 @@ async def obsidian_rename(
                 item.new_path,
                 payload.vault_id,
             )
-            results.append(
-                {
-                    "old_path": item.old_path,
-                    "new_path": item.new_path,
-                    "status": "error",
-                    "error": str(exc)[:300],
-                }
+            items.append(
+                RenameAckItem(
+                    old_path=item.old_path,
+                    new_path=item.new_path,
+                    status="error",
+                    error=str(exc)[:300],
+                )
             )
 
-    return {
-        "vault_id": payload.vault_id,
-        "renamed": renamed,
-        "missing": missing,
-        "results": results,
-    }
+    return RenameAck(
+        vault_id=payload.vault_id,
+        renamed=renamed,
+        missing=missing,
+        items=items,
+    )
 
 
-@router.delete("/notes")
+@router.delete("/notes", response_model=DeleteAck)
 async def obsidian_delete_notes(
     payload: DeleteBatchRequest,
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
-) -> dict[str, object]:
+) -> DeleteAck:
     """Soft-delete a batch of notes by vault-relative path."""
     connector = await _resolve_vault_connector(
         session, user=user, vault_id=payload.vault_id
@@ -333,7 +341,7 @@ async def obsidian_delete_notes(
 
     deleted = 0
     missing = 0
-    results: list[dict[str, object]] = []
+    items: list[DeleteAckItem] = []
     for path in payload.paths:
         try:
             ok = await delete_note(
@@ -344,26 +352,26 @@ async def obsidian_delete_notes(
             )
             if ok:
                 deleted += 1
-                results.append({"path": path, "status": "ok"})
+                items.append(DeleteAckItem(path=path, status="ok"))
             else:
                 missing += 1
-                results.append({"path": path, "status": "missing"})
+                items.append(DeleteAckItem(path=path, status="missing"))
         except Exception as exc:
             logger.exception(
                 "obsidian DELETE /notes failed for path=%s vault=%s",
                 path,
                 payload.vault_id,
             )
-            results.append(
-                {"path": path, "status": "error", "error": str(exc)[:300]}
+            items.append(
+                DeleteAckItem(path=path, status="error", error=str(exc)[:300])
             )
 
-    return {
-        "vault_id": payload.vault_id,
-        "deleted": deleted,
-        "missing": missing,
-        "results": results,
-    }
+    return DeleteAck(
+        vault_id=payload.vault_id,
+        deleted=deleted,
+        missing=missing,
+        items=items,
+    )
 
 
 @router.get("/manifest", response_model=ManifestResponse)
@@ -379,12 +387,12 @@ async def obsidian_manifest(
     return await get_manifest(session, connector=connector, vault_id=vault_id)
 
 
-@router.get("/stats")
+@router.get("/stats", response_model=StatsResponse)
 async def obsidian_stats(
     vault_id: str = Query(..., description="Plugin-side stable vault UUID"),
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
-) -> dict[str, object]:
+) -> StatsResponse:
     """Active-note count + last sync time for the web tile.
 
     ``files_synced`` excludes tombstones so it matches ``/manifest``;
@@ -394,7 +402,7 @@ async def obsidian_stats(
         session, user=user, vault_id=vault_id
     )
 
-    is_active = Document.document_metadata["deleted_at"].astext.is_(None)
+    is_active = Document.document_metadata["deleted_at"].as_string().is_(None)
 
     row = (
         await session.execute(
@@ -410,8 +418,8 @@ async def obsidian_stats(
         )
     ).first()
 
-    return {
-        "vault_id": vault_id,
-        "files_synced": int(row[0] or 0),
-        "last_sync_at": row[1].isoformat() if row[1] else None,
-    }
+    return StatsResponse(
+        vault_id=vault_id,
+        files_synced=int(row[0] or 0),
+        last_sync_at=row[1],
+    )

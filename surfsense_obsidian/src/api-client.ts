@@ -1,11 +1,14 @@
 import { Notice, requestUrl, type RequestUrlParam, type RequestUrlResponse } from "obsidian";
 import type {
 	ConnectResponse,
+	DeleteAck,
 	HealthResponse,
 	ManifestResponse,
 	NotePayload,
+	RenameAck,
 	RenameItem,
 	SearchSpace,
+	SyncAck,
 } from "./types";
 
 /**
@@ -119,26 +122,31 @@ export class SurfSenseApiClient {
 		);
 	}
 
+	/** POST /sync — `failed[]` are paths whose `status === "error"` for retry. */
 	async syncBatch(input: {
 		vaultId: string;
 		notes: NotePayload[];
-	}): Promise<{ accepted: number; rejected: string[] }> {
-		const resp = await this.request<{ accepted?: number; rejected?: string[] }>(
+	}): Promise<{ indexed: number; failed: string[] }> {
+		const resp = await this.request<SyncAck>(
 			"POST",
 			"/api/v1/obsidian/sync",
 			{ vault_id: input.vaultId, notes: input.notes }
 		);
-		return {
-			accepted: typeof resp.accepted === "number" ? resp.accepted : input.notes.length,
-			rejected: Array.isArray(resp.rejected) ? resp.rejected : [],
-		};
+		const failed = resp.items
+			.filter((it) => it.status === "error")
+			.map((it) => it.path);
+		return { indexed: resp.indexed, failed };
 	}
 
+	/** POST /rename — `"missing"` counts as success; only `"error"` is retried. */
 	async renameBatch(input: {
 		vaultId: string;
 		renames: Pick<RenameItem, "oldPath" | "newPath">[];
-	}): Promise<{ renamed: number }> {
-		const resp = await this.request<{ renamed?: number }>(
+	}): Promise<{
+		renamed: number;
+		failed: Array<{ oldPath: string; newPath: string }>;
+	}> {
+		const resp = await this.request<RenameAck>(
 			"POST",
 			"/api/v1/obsidian/rename",
 			{
@@ -149,19 +157,26 @@ export class SurfSenseApiClient {
 				})),
 			}
 		);
-		return { renamed: typeof resp.renamed === "number" ? resp.renamed : 0 };
+		const failed = resp.items
+			.filter((it) => it.status === "error")
+			.map((it) => ({ oldPath: it.old_path, newPath: it.new_path }));
+		return { renamed: resp.renamed, failed };
 	}
 
+	/** DELETE /notes — `"missing"` counts as success; only `"error"` is retried. */
 	async deleteBatch(input: {
 		vaultId: string;
 		paths: string[];
-	}): Promise<{ deleted: number }> {
-		const resp = await this.request<{ deleted?: number }>(
+	}): Promise<{ deleted: number; failed: string[] }> {
+		const resp = await this.request<DeleteAck>(
 			"DELETE",
 			"/api/v1/obsidian/notes",
 			{ vault_id: input.vaultId, paths: input.paths }
 		);
-		return { deleted: typeof resp.deleted === "number" ? resp.deleted : 0 };
+		const failed = resp.items
+			.filter((it) => it.status === "error")
+			.map((it) => it.path);
+		return { deleted: resp.deleted, failed };
 	}
 
 	async getManifest(vaultId: string): Promise<ManifestResponse> {
@@ -225,11 +240,16 @@ export class SurfSenseApiClient {
 }
 
 function parseJson<T>(resp: RequestUrlResponse): T {
-	if (resp.text === undefined || resp.text === "") return undefined as unknown as T;
+	// Plugin endpoints always return JSON; non-JSON 2xx is usually a
+	// captive portal or CDN page — surface as transient so we back off.
+	const text = resp.text ?? "";
 	try {
-		return JSON.parse(resp.text) as T;
+		return JSON.parse(text) as T;
 	} catch {
-		return undefined as unknown as T;
+		throw new TransientError(
+			resp.status,
+			`Invalid JSON from server (got: ${text.slice(0, 80)})`
+		);
 	}
 }
 
