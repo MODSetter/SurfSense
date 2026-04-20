@@ -108,10 +108,6 @@ const PluginStats: FC<{ config: Record<string, unknown> }> = ({ config }) => {
 		return [
 			{ label: "Vault", value: (config.vault_name as string) || "—" },
 			{
-				label: "Plugin version",
-				value: (config.plugin_version as string) || "—",
-			},
-			{
 				label: "Devices",
 				value: deviceCount !== null ? deviceCount.toLocaleString() : "—",
 			},

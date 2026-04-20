@@ -34,12 +34,9 @@ export default class SurfSensePlugin extends Plugin {
 		this.seedIdentity();
 		await this.saveSettings();
 
-		const pluginVersion = this.manifest.version;
-
 		this.api = new SurfSenseApiClient({
 			getServerUrl: () => this.settings.serverUrl,
 			getToken: () => this.settings.apiToken,
-			pluginVersion,
 		});
 
 		this.queue = new PersistentQueue(this.settings.queue ?? [], {

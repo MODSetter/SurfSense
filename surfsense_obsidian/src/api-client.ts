@@ -58,7 +58,6 @@ export class PermanentError extends Error {
 export interface ApiClientOptions {
 	getServerUrl: () => string;
 	getToken: () => string;
-	pluginVersion: string;
 	onAuthError?: () => void;
 }
 
@@ -71,10 +70,6 @@ export class SurfSenseApiClient {
 
 	updateOptions(partial: Partial<ApiClientOptions>): void {
 		Object.assign(this.opts, partial);
-	}
-
-	get pluginVersion(): string {
-		return this.opts.pluginVersion;
 	}
 
 	async health(): Promise<HealthResponse> {
@@ -113,7 +108,6 @@ export class SurfSenseApiClient {
 				vault_id: input.vaultId,
 				vault_name: input.vaultName,
 				search_space_id: input.searchSpaceId,
-				plugin_version: this.opts.pluginVersion,
 				device_id: input.deviceId,
 			}
 		);

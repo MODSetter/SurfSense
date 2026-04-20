@@ -220,7 +220,6 @@ async def obsidian_connect(
                 "vault_id": payload.vault_id,
                 "vault_name": payload.vault_name,
                 "source": "plugin",
-                "plugin_version": payload.plugin_version,
                 "devices": devices,
                 "last_connect_at": now_iso,
             }
@@ -244,7 +243,6 @@ async def obsidian_connect(
                 "vault_id": payload.vault_id,
                 "vault_name": payload.vault_name,
                 "source": "plugin",
-                "plugin_version": payload.plugin_version,
                 "devices": devices,
                 "files_synced": 0,
                 "last_connect_at": now_iso,
