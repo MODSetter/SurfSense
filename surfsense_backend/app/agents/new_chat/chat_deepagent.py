@@ -285,18 +285,33 @@ async def create_surfsense_deep_agent(
         "llm": llm,
     }
 
-    # Disable Notion action tools if no Notion connector is configured
+    # Disable Notion action tools if no Notion connector is configured.
+    # When an MCP-mode connector exists, use MCP tools; otherwise use direct-API tools.
     modified_disabled_tools = list(disabled_tools) if disabled_tools else []
     has_notion_connector = (
         available_connectors is not None and "NOTION_CONNECTOR" in available_connectors
     )
+    _notion_direct_tools = [
+        "create_notion_page",
+        "update_notion_page",
+        "delete_notion_page",
+    ]
+    _notion_mcp_tools = [
+        "create_notion_page_mcp",
+        "update_notion_page_mcp",
+        "delete_notion_page_mcp",
+    ]
     if not has_notion_connector:
-        notion_tools = [
-            "create_notion_page",
-            "update_notion_page",
-            "delete_notion_page",
-        ]
-        modified_disabled_tools.extend(notion_tools)
+        modified_disabled_tools.extend(_notion_direct_tools)
+        modified_disabled_tools.extend(_notion_mcp_tools)
+    else:
+        from app.services.notion_mcp import has_mcp_notion_connector
+
+        _use_mcp = await has_mcp_notion_connector(db_session, search_space_id)
+        if _use_mcp:
+            modified_disabled_tools.extend(_notion_direct_tools)
+        else:
+            modified_disabled_tools.extend(_notion_mcp_tools)
 
     # Disable Linear action tools if no Linear connector is configured
     has_linear_connector = (

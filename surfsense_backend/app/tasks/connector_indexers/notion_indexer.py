@@ -129,6 +129,18 @@ async def index_notion_pages(
                 f"Connector with ID {connector_id} not found or is not a Notion connector",
             )
 
+        if (connector.config or {}).get("mcp_mode"):
+            msg = (
+                f"Connector {connector_id} is an MCP-mode connector. "
+                "Background indexing is not supported for MCP connectors — "
+                "use a regular Notion connector for indexing."
+            )
+            logger.info(msg)
+            await task_logger.log_task_completion(
+                log_entry, msg, {"skipped": True, "reason": "mcp_mode"}
+            )
+            return 0, 0, None
+
         if not connector.config.get("access_token") and not connector.config.get(
             "NOTION_INTEGRATION_TOKEN"
         ):

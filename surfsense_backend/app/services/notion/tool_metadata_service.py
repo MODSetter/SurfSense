@@ -227,11 +227,30 @@ class NotionToolMetadataService:
     async def _check_account_health(self, connector_id: int) -> bool:
         """Check if a Notion connector's token is still valid.
 
-        Uses a lightweight ``users.me()`` call to verify the token.
+        For regular connectors: uses ``users.me()`` via the Notion SDK.
+        For MCP-mode connectors: uses ``notion-get-self`` via the MCP adapter.
 
         Returns True if the token is expired/invalid, False if healthy.
         """
         try:
+            result = await self._db_session.execute(
+                select(SearchSourceConnector).filter(
+                    SearchSourceConnector.id == connector_id
+                )
+            )
+            db_connector = result.scalars().first()
+            if not db_connector:
+                return True
+
+            if (db_connector.config or {}).get("mcp_mode"):
+                from app.services.notion_mcp.adapter import NotionMCPAdapter
+
+                adapter = NotionMCPAdapter(
+                    session=self._db_session, connector_id=connector_id
+                )
+                health = await adapter.health_check()
+                return health.get("status") != "success"
+
             connector = NotionHistoryConnector(
                 session=self._db_session, connector_id=connector_id
             )
