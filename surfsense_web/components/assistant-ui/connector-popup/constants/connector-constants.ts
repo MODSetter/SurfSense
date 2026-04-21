@@ -105,6 +105,31 @@ export const OAUTH_CONNECTORS = [
 	},
 ] as const;
 
+// MCP OAuth Connectors (one-click connect via official MCP servers)
+export const MCP_OAUTH_CONNECTORS = [
+	{
+		id: "linear-mcp-connector",
+		title: "Linear (MCP)",
+		description: "Interact with Linear issues via MCP",
+		connectorType: EnumConnectorName.MCP_CONNECTOR,
+		authEndpoint: "/api/v1/auth/mcp/linear/connector/add/",
+	},
+	{
+		id: "jira-mcp-connector",
+		title: "Jira (MCP)",
+		description: "Interact with Jira issues via MCP",
+		connectorType: EnumConnectorName.MCP_CONNECTOR,
+		authEndpoint: "/api/v1/auth/mcp/jira/connector/add/",
+	},
+	{
+		id: "clickup-mcp-connector",
+		title: "ClickUp (MCP)",
+		description: "Interact with ClickUp tasks via MCP",
+		connectorType: EnumConnectorName.MCP_CONNECTOR,
+		authEndpoint: "/api/v1/auth/mcp/clickup/connector/add/",
+	},
+] as const;
+
 // Content Sources (tools that extract and import content from external sources)
 export const CRAWLERS = [
 	{
