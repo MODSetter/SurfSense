@@ -1,9 +1,6 @@
 name: Release Obsidian Plugin
 
-# Triggered on tags of the form `obsidian-v0.1.0`. The version after the
-# prefix MUST exactly equal `surfsense_obsidian/manifest.json`'s `version`
-# (no leading `v`) — this is what BRAT and the Obsidian community plugin
-# store both verify.
+# Tag format: `obsidian-v<version>` and `<version>` must match `surfsense_obsidian/manifest.json` exactly.
 on:
   push:
     tags:
@@ -26,14 +23,14 @@ jobs:
         working-directory: surfsense_obsidian
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           # Need write access for the manifest/versions.json mirror commit
           # back to main further down.
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20.x
           cache: npm
@@ -42,7 +39,15 @@ jobs:
       - name: Resolve plugin version
         id: version
         run: |
-          tag="${GITHUB_REF_NAME:-${{ github.event.inputs.tag }}}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            tag="${{ github.event.inputs.tag }}"
+          else
+            tag="${GITHUB_REF_NAME}"
+          fi
+          if [ -z "$tag" ] || [[ "$tag" != obsidian-v* ]]; then
+            echo "::error::Invalid tag '$tag'. Expected format: obsidian-v<version>"
+            exit 1
+          fi
           version="${tag#obsidian-v}"
           manifest_version=$(node -p "require('./manifest.json').version")
           if [ "$version" != "$manifest_version" ]; then
@@ -79,19 +84,14 @@ jobs:
           git add manifest.json versions.json
           git commit -m "chore(obsidian-plugin): mirror manifest+versions for ${{ steps.version.outputs.tag }}"
           # Push to the default branch so Obsidian can fetch raw files from HEAD.
-          git push origin HEAD:${{ github.event.repository.default_branch }}
+          if ! git push origin HEAD:${{ github.event.repository.default_branch }}; then
+            echo "::warning::Failed to push mirrored manifest/versions to default branch (likely branch protection). Continuing release."
+          fi
 
-      # IMPORTANT: BRAT and the Obsidian community plugin store look up the
-      # release by the bare manifest `version` (e.g. `0.1.0`), NOT by the
-      # build-trigger tag (`obsidian-v0.1.0`). So we publish the GitHub
-      # release with `tag_name: <version>` — `softprops/action-gh-release`
-      # will create that tag if it doesn't already exist, pointing at the
-      # commit referenced by the build-trigger tag. Verified against
-      # https://github.com/khoj-ai/khoj/releases (their tags are bare
-      # versions like `2.0.0-beta.28`, no prefix).
+      # Publish release under bare `manifest.json` version (no `obsidian-v` prefix) for BRAT/store compatibility.
       - name: Create GitHub release
         if: github.event_name == 'push'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.version.outputs.version }}
           name: SurfSense Obsidian Plugin ${{ steps.version.outputs.version }}
