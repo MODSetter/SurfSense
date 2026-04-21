@@ -41,7 +41,7 @@ async function getAllModels(): Promise<AnonModel[]> {
 
 function buildSeoTitle(model: AnonModel): string {
 	if (model.seo_title) return model.seo_title;
-	return `${model.name} Free Online Without Login | No Sign-Up AI Chat | SurfSense`;
+	return `Chat with ${model.name} Free, No Login | SurfSense`;
 }
 
 function buildSeoDescription(model: AnonModel): string {
