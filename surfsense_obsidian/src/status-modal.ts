@@ -1,13 +1,7 @@
 import { type App, Modal, Notice, Setting } from "obsidian";
 import type SurfSensePlugin from "./main";
 
-/**
- * Read-only status panel. Mirrors what the settings tab used to embed inline,
- * but as a modal so it's reachable from the status bar / command palette.
- *
- * Subscribes to plugin status changes while open so the numbers stay live;
- * unsubscribes on close.
- */
+/** Live status panel reachable from the status bar / command palette. */
 export class StatusModal extends Modal {
 	private readonly plugin: SurfSensePlugin;
 	private readonly onChange = (): void => this.render();
@@ -18,7 +12,7 @@ export class StatusModal extends Modal {
 	}
 
 	onOpen(): void {
-		this.titleEl.setText("SurfSense status");
+		this.setTitle("Surfsense status");
 		this.plugin.onStatusChange(this.onChange);
 		this.render();
 	}
@@ -67,10 +61,10 @@ export class StatusModal extends Modal {
 						btn.setDisabled(true);
 						try {
 							await plugin.engine.maybeReconcile(true);
-							new Notice("SurfSense: re-sync requested.");
+							new Notice("Surfsense: re-sync requested.");
 						} catch (err) {
 							new Notice(
-								`SurfSense: re-sync failed — ${(err as Error).message}`,
+								`Surfsense: re-sync failed — ${(err as Error).message}`,
 							);
 						} finally {
 							btn.setDisabled(false);

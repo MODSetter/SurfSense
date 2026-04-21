@@ -1,4 +1,12 @@
-import { Notice, TFile, type App, type CachedMetadata, type TAbstractFile } from "obsidian";
+import {
+	type App,
+	type CachedMetadata,
+	type Debouncer,
+	Notice,
+	type TAbstractFile,
+	TFile,
+	debounce,
+} from "obsidian";
 import {
 	AuthError,
 	PermanentError,
@@ -20,10 +28,8 @@ import type {
 import { computeVaultFingerprint } from "./vault-identity";
 
 /**
- * Owner of "what does the vault look like vs the server" reasoning.
- *
- * Start order: connect (or fall back to /health) → drain queue → reconcile →
- * subscribe events. Reconcile no-ops if last run was < RECONCILE_MIN_INTERVAL_MS ago.
+ * Reconciles vault state with the server.
+ * Start order: connect (or /health) → drain queue → reconcile → subscribe events.
  */
 
 export interface SyncEngineDeps {
@@ -59,7 +65,7 @@ const PENDING_DEBOUNCE_MS = 1500;
 export class SyncEngine {
 	private readonly deps: SyncEngineDeps;
 	private capabilities: string[] = [];
-	private pendingMdEdits = new Map<string, ReturnType<typeof setTimeout>>();
+	private pendingMdEdits = new Map<string, Debouncer<[], void>>();
 	/** Consecutive reconciles that found no work; powers the adaptive interval. */
 	private idleReconcileStreak = 0;
 	/** 2^streak is capped at this value (e.g. 8 → max ×8 backoff). */
@@ -89,7 +95,7 @@ export class SyncEngine {
 
 		const settings = this.deps.getSettings();
 		if (!settings.searchSpaceId) {
-			// No target yet — bare /health probe still surfaces auth/network errors.
+			// No target yet — /health still surfaces auth/network errors.
 			try {
 				const health = await this.deps.apiClient.health();
 				this.applyHealth(health);
@@ -102,8 +108,7 @@ export class SyncEngine {
 		}
 
 		// Re-announce so the backend sees the latest vault_name + last_connect_at.
-		// flushQueue owns the connectorId gate, so a failed connect here still
-		// leaves the queue stable for the next trigger.
+		// flushQueue gates on connectorId, so a failed connect leaves the queue intact.
 		await this.ensureConnected();
 
 		await this.flushQueue();
@@ -112,12 +117,8 @@ export class SyncEngine {
 	}
 
 	/**
-	 * (Re)register the vault with the server.
-	 *
-	 * Always trusts the server's response: when fingerprint dedup routes
-	 * us to another device's connector, ``resp.vault_id`` may differ from
-	 * what we sent and we adopt it locally so future /sync calls land on
-	 * the right row.
+	 * (Re)register the vault. Adopts server's `vault_id` in case fingerprint
+	 * dedup routed us to an existing row from another device.
 	 */
 	async ensureConnected(): Promise<void> {
 		const settings = this.deps.getSettings();
@@ -168,7 +169,7 @@ export class SyncEngine {
 		if (this.isExcluded(file.path, settings)) return;
 		this.resetIdleStreak();
 		if (this.isMarkdown(file)) {
-			// Defer to metadataCache.changed so payload fields are fresh.
+			// Wait for metadataCache.changed so the payload sees fresh metadata.
 			this.scheduleMdUpsert(file.path);
 			return;
 		}
@@ -203,25 +204,30 @@ export class SyncEngine {
 		const settings = this.deps.getSettings();
 		if (this.isExcluded(file.path, settings)) return;
 		if (!this.isMarkdown(file)) return;
-		// Cancel any deferred upsert and enqueue with fresh metadata now.
+		// Metadata is fresh now — cancel the deferred upsert and enqueue immediately.
 		const pending = this.pendingMdEdits.get(file.path);
 		if (pending) {
-			clearTimeout(pending);
+			pending.cancel();
 			this.pendingMdEdits.delete(file.path);
 		}
 		this.deps.queue.enqueueUpsert(file.path);
 	}
 
 	private scheduleMdUpsert(path: string): void {
-		const existing = this.pendingMdEdits.get(path);
-		if (existing) clearTimeout(existing);
-		this.pendingMdEdits.set(
-			path,
-			setTimeout(() => {
-				this.pendingMdEdits.delete(path);
-				this.deps.queue.enqueueUpsert(path);
-			}, PENDING_DEBOUNCE_MS),
-		);
+		let pending = this.pendingMdEdits.get(path);
+		if (!pending) {
+			// resetTimer: true → each edit pushes the upsert out by another PENDING_DEBOUNCE_MS.
+			pending = debounce(
+				() => {
+					this.pendingMdEdits.delete(path);
+					this.deps.queue.enqueueUpsert(path);
+				},
+				PENDING_DEBOUNCE_MS,
+				true,
+			);
+			this.pendingMdEdits.set(path, pending);
+		}
+		pending();
 	}
 
 	// ---- queue draining ---------------------------------------------------
@@ -256,8 +262,7 @@ export class SyncEngine {
 		const retry: QueueItem[] = [];
 		const dropped: QueueItem[] = [];
 
-		// Renames first so paths line up server-side before content upserts.
-		// Per-item server errors go to retry; "missing" is treated as success.
+		// Renames first so paths line up before content upserts.
 		if (renames.length > 0) {
 			try {
 				const resp = await this.deps.apiClient.renameBatch({
@@ -309,9 +314,9 @@ export class SyncEngine {
 		if (upserts.length > 0) {
 			const payloads: NotePayload[] = [];
 			for (const item of upserts) {
-				const file = this.deps.app.vault.getAbstractFileByPath(item.path);
-				if (!file || !isTFile(file)) {
-					// File vanished; treat as ack (delete will follow if user removed it).
+				const file = this.deps.app.vault.getFileByPath(item.path);
+				if (!file) {
+					// Vanished — ack now; the delete event will follow if needed.
 					acked.push(item);
 					continue;
 				}
@@ -332,7 +337,7 @@ export class SyncEngine {
 						vaultId: settings.vaultId,
 						notes: payloads,
 					});
-					// Per-note failures retry; the queue's maxAttempts eventually drops poison pills.
+					// Per-note failures retry; queue maxAttempts drops poison pills.
 					const failed = new Set(resp.failed);
 					for (const item of upserts) {
 						if (retry.find((r) => r === item)) continue;
@@ -360,9 +365,8 @@ export class SyncEngine {
 	}
 
 	private async buildBinaryPayload(file: TFile, vaultId: string): Promise<NotePayload> {
-		// Plain attachments don't go through buildNotePayload (no markdown
-		// metadata to extract). We still need a stable hash + file stat so
-		// the backend can de-dupe and the manifest diff still works.
+		// Attachments skip buildNotePayload (no markdown metadata) but still
+		// need hash + stat so the server can de-dupe and manifest diff works.
 		const buf = await this.deps.app.vault.readBinary(file);
 		const digest = await crypto.subtle.digest("SHA-256", buf);
 		const hash = bufferToHex(digest);
@@ -396,10 +400,9 @@ export class SyncEngine {
 			if (Date.now() - settings.lastReconcileAt < RECONCILE_MIN_INTERVAL_MS) return;
 		}
 
-		// Re-handshake first so the server sees this device's current
-		// fingerprint. If the vault grew since last connect and now
-		// matches another device's row, the server merges and routes us
-		// to the survivor; subsequent /manifest call uses the adopted id.
+		// Re-handshake first: if the vault grew enough to match another
+		// device's fingerprint, the server merges and routes us to the
+		// survivor row, which the /manifest call below then uses.
 		await this.ensureConnected();
 		const refreshed = this.deps.getSettings();
 		if (!refreshed.connectorId) return;
@@ -421,17 +424,10 @@ export class SyncEngine {
 	}
 
 	/**
-	 * Compare local vault to server manifest and enqueue diffs.
-	 *
-	 * Performance: short-circuits on `mtime + size` for every file. We trust the
-	 * pair as a "no change" signal because (a) content edits move mtime, and
-	 * (b) same-mtime/different-content requires deliberate filesystem trickery.
-	 * False positives (mtime moved, content identical) collapse to a no-op
-	 * upsert on the server via its `content_hash` check. Net effect: zero disk
-	 * reads on idle reconciles.
-	 *
-	 * Returns the number of items enqueued so the caller can drive the
-	 * adaptive backoff.
+	 * Diff local vault vs server manifest and enqueue work. Skips disk reads
+	 * on idle reconciles by short-circuiting on `mtime + size`; false positives
+	 * collapse to a no-op upsert via the server's `content_hash` check.
+	 * Returns the enqueued count to drive adaptive backoff.
 	 */
 	private diffAndQueue(
 		settings: SyncEngineSettings,
@@ -454,7 +450,7 @@ export class SyncEngine {
 			}
 			const remoteMtimeMs = toMillis(remoteEntry.mtime);
 			const mtimeMatches = file.stat.mtime <= remoteMtimeMs + 1000;
-			// Older server rows lack `size`; treat as "unknown" → fall through to upsert.
+			// Older server rows lack `size` — treat as unknown and re-upsert.
 			const sizeMatches =
 				typeof remoteEntry.size === "number" && file.stat.size === remoteEntry.size;
 			if (mtimeMatches && sizeMatches) continue;
@@ -462,8 +458,7 @@ export class SyncEngine {
 			enqueued++;
 		}
 
-		// Remote-only → delete, but only if NOT a fresh tombstone (which
-		// the queue will deliver) and NOT a path we already plan to upsert.
+		// Remote-only → delete, unless a fresh tombstone is already in the queue.
 		for (const path of Object.keys(remote)) {
 			if (localPaths.has(path)) continue;
 			const tombstone = settings.tombstones[path];
@@ -475,7 +470,7 @@ export class SyncEngine {
 		return enqueued;
 	}
 
-	/** Bump (idle) or reset (active) the streak; notify only when the cap-aware multiplier changes. */
+	/** Bump (idle) or reset (active) the streak; notify only when the capped multiplier changes. */
 	private updateIdleStreak(enqueued: number): void {
 		const previousStreak = this.idleReconcileStreak;
 		if (enqueued === 0) this.idleReconcileStreak++;
@@ -486,7 +481,7 @@ export class SyncEngine {
 		if (cappedPrev !== cappedNow) this.deps.onReconcileBackoffChanged?.();
 	}
 
-	/** Vault edit happened — drop back to the base interval immediately. */
+	/** Vault edit — drop back to base interval immediately. */
 	private resetIdleStreak(): void {
 		if (this.idleReconcileStreak === 0) return;
 		this.idleReconcileStreak = 0;
@@ -543,7 +538,7 @@ export class SyncEngine {
 		}
 		if (err instanceof PermanentError) {
 			console.warn("SurfSense: permanent error, dropping batch", err);
-			new Notice(`SurfSense: ${err.message}`);
+			new Notice(`Surfsense: ${err.message}`);
 			return "drop";
 		}
 		console.error("SurfSense: unknown error", err);
@@ -595,7 +590,7 @@ function formatRelative(ts: number): string {
 	return `${Math.round(diff / 86_400_000)}d ago`;
 }
 
-/** Manifest mtimes are Pydantic-serialised ISO strings; vault stats are epoch ms. Normalise to ms. */
+/** Manifest mtimes arrive as ISO strings, vault stats as epoch ms — normalise. */
 function toMillis(value: number | string | Date): number {
 	if (typeof value === "number") return value;
 	if (value instanceof Date) return value.getTime();

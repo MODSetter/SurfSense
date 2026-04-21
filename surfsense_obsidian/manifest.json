@@ -2,8 +2,8 @@
 	"id": "surfsense",
 	"name": "SurfSense",
 	"version": "0.1.0",
-	"minAppVersion": "1.4.0",
-	"description": "Sync your Obsidian vault to SurfSense for AI-powered search across all your knowledge sources.",
+	"minAppVersion": "1.5.4",
+	"description": "Turn your vault into a searchable second brain with SurfSense.",
 	"author": "SurfSense",
 	"authorUrl": "https://github.com/MODSetter/SurfSense",
 	"isDesktopOnly": false

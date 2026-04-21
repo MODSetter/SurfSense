@@ -1,3 +1,4 @@
+import { type Debouncer, debounce } from "obsidian";
 import type { QueueItem } from "./types";
 
 /**
@@ -64,8 +65,7 @@ export class PersistentQueue {
 	};
 	private draining = false;
 	private stopRequested = false;
-	private flushTimer: ReturnType<typeof setTimeout> | null = null;
-	private onFlush: (() => void) | null = null;
+	private debouncedFlush: Debouncer<[], void> | null = null;
 
 	constructor(initial: QueueItem[], opts: PersistentQueueOptions) {
 		this.items = [...initial];
@@ -87,7 +87,8 @@ export class PersistentQueue {
 	}
 
 	setFlushHandler(handler: () => void): void {
-		this.onFlush = handler;
+		// resetTimer: true → each enqueue postpones the flush.
+		this.debouncedFlush = debounce(handler, this.opts.debounceMs, true);
 	}
 
 	enqueueUpsert(path: string): void {
@@ -131,8 +132,7 @@ export class PersistentQueue {
 			enqueuedAt: now,
 			attempt: 0,
 		});
-		// Also enqueue an upsert of the new path so its content/metadata
-		// reflects whatever the editor flushed alongside the rename.
+		// Pair with an upsert — content may have changed alongside the rename.
 		this.items.push({ op: "upsert", path: newPath, enqueuedAt: now, attempt: 0 });
 		void this.persist();
 		this.scheduleFlush();
@@ -143,19 +143,11 @@ export class PersistentQueue {
 	}
 
 	cancelFlush(): void {
-		if (this.flushTimer !== null) {
-			clearTimeout(this.flushTimer);
-			this.flushTimer = null;
-		}
+		this.debouncedFlush?.cancel();
 	}
 
 	private scheduleFlush(): void {
-		if (!this.onFlush) return;
-		if (this.flushTimer !== null) clearTimeout(this.flushTimer);
-		this.flushTimer = setTimeout(() => {
-			this.flushTimer = null;
-			this.onFlush?.();
-		}, this.opts.debounceMs);
+		this.debouncedFlush?.();
 	}
 
 	async drain(worker: QueueWorker): Promise<DrainSummary> {
@@ -181,8 +173,7 @@ export class PersistentQueue {
 				const dropKeys = new Set(result.dropped.map(itemKey));
 				const retryKeys = new Set(result.retry.map(itemKey));
 
-				// Keep any item we didn't explicitly account for in `retry`
-				// so a partial-batch drop never silently loses work.
+				// Items the worker didn't classify get retried — never silently dropped.
 				const unhandled = batch.filter(
 					(b) =>
 						!ackKeys.has(itemKey(b)) &&
