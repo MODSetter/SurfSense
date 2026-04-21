@@ -130,8 +130,9 @@ def _http_exception_handler(request: Request, exc: HTTPException) -> JSONRespons
                 exc.status_code,
                 message,
             )
-            message = GENERIC_5XX_MESSAGE
-            err_code = "INTERNAL_ERROR"
+            if exc.status_code == 500:
+                message = GENERIC_5XX_MESSAGE
+                err_code = "INTERNAL_ERROR"
         body = {
             "error": {
                 "code": err_code,
@@ -158,7 +159,8 @@ def _http_exception_handler(request: Request, exc: HTTPException) -> JSONRespons
             exc.status_code,
             detail,
         )
-        detail = GENERIC_5XX_MESSAGE
+        if exc.status_code == 500:
+            detail = GENERIC_5XX_MESSAGE
     code = _status_to_code(exc.status_code, detail)
     return _build_error_response(exc.status_code, detail, code=code, request_id=rid)
 
