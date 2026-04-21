@@ -6,7 +6,6 @@ description: Sync your Obsidian vault with the SurfSense plugin
 # Obsidian Plugin Setup Guide
 
 SurfSense integrates with Obsidian through the SurfSense Obsidian plugin.
-The old server-side vault path scanner is no longer supported.
 
 ## How it works
 
@@ -28,20 +27,22 @@ This works for cloud and self-hosted deployments, including desktop and mobile c
 1. Open **Connectors** in SurfSense and choose **Obsidian**.
 2. Click **Open plugin releases** and install the latest SurfSense Obsidian plugin.
 3. In Obsidian, open **Settings → SurfSense**.
-4. Paste your SurfSense API token from the connector setup panel.
-5. Paste your SurfSense backend URL in the plugin's **Server URL** setting.
-6. Choose the Search Space in the plugin, then run the first sync.
-7. Confirm the connector appears as **Obsidian — <vault>** in SurfSense.
+4. Paste your SurfSense API token from the user settings section.
+5. Paste your Server URL in the plugin setting: either your SurfSense main domain (if `/api/v1` rewrites are enabled) or your direct backend URL.
+6. Choose the Search Space in the plugin, then the first sync should run automatically.
+7. Confirm the connector appears as **Obsidian — &lt;vault&gt;** in SurfSense.
 
-<Callout type="info">
-    You do not create or configure a vault path in the web UI. The connector row is created automatically when the plugin calls `/api/v1/obsidian/connect`.
+## Migrating from the legacy connector
+
+If you previously used the legacy Obsidian connector architecture, migrate to the plugin flow:
+
+1. Delete the old legacy Obsidian connector from SurfSense.
+2. Install and configure the SurfSense Obsidian plugin using the quick start above.
+3. Run the first plugin sync and verify the new **Obsidian — &lt;vault&gt;** connector is active.
+
+<Callout type="warn">
+    Deleting the legacy connector also deletes all documents that were indexed by that connector. Always finish and verify plugin sync before deleting the old connector.
 </Callout>
-
-## Self-hosted notes
-
-- Use your public or LAN backend URL that your Obsidian device can reach.
-- No Docker bind mount for the vault is required.
-- If your instance is behind TLS, ensure the URL/certificate is valid for the device running Obsidian.
 
 ## Troubleshooting
 
@@ -49,6 +50,10 @@ This works for cloud and self-hosted deployments, including desktop and mobile c
 - Verify the plugin is pointed to the correct Search Space.
 - Trigger a manual sync from the plugin settings.
 - Confirm your API token is valid and not expired.
+
+**Self-hosted URL issues**
+- Use a public or LAN backend URL that your Obsidian device can reach.
+- If your instance is behind TLS, ensure the URL/certificate is valid for the device running Obsidian.
 
 **Unauthorized / 401 errors**
 - Regenerate and paste a fresh API token from SurfSense.
