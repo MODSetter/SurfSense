@@ -41,7 +41,13 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 					.setPlaceholder("https://surfsense.com")
 					.setValue(settings.serverUrl)
 					.onChange(async (value) => {
-						this.plugin.settings.serverUrl = value.trim();
+						const next = value.trim();
+						const previous = this.plugin.settings.serverUrl;
+						if (previous !== "" && next !== previous) {
+							this.plugin.settings.searchSpaceId = null;
+							this.plugin.settings.connectorId = null;
+						}
+						this.plugin.settings.serverUrl = next;
 						await this.plugin.saveSettings();
 					}),
 			);
@@ -59,7 +65,13 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 					.setPlaceholder("Paste token")
 					.setValue(settings.apiToken)
 					.onChange(async (value) => {
-						this.plugin.settings.apiToken = value.trim();
+						const next = value.trim();
+						const previous = this.plugin.settings.apiToken;
+						if (previous !== "" && next !== previous) {
+							this.plugin.settings.searchSpaceId = null;
+							this.plugin.settings.connectorId = null;
+						}
+						this.plugin.settings.apiToken = next;
 						await this.plugin.saveSettings();
 					});
 			})
