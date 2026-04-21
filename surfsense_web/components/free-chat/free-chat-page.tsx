@@ -28,6 +28,7 @@ import {
 	updateToolCall,
 } from "@/lib/chat/streaming-state";
 import { BACKEND_URL } from "@/lib/env-config";
+import { trackAnonymousChatMessageSent } from "@/lib/posthog/events";
 import { FreeModelSelector } from "./free-model-selector";
 import { FreeThread } from "./free-thread";
 
@@ -205,6 +206,14 @@ export function FreeChatPage() {
 				if (part.type === "text") userQuery += part.text;
 			}
 			if (!userQuery.trim()) return;
+
+			trackAnonymousChatMessageSent({
+				modelSlug,
+				messageLength: userQuery.trim().length,
+				hasUploadedDoc:
+					anonMode.isAnonymous && anonMode.uploadedDoc !== null ? true : false,
+				surface: "free_chat_page",
+			});
 
 			const userMsgId = `msg-user-${Date.now()}`;
 			setMessages((prev) => [

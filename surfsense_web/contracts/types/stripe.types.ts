@@ -49,6 +49,8 @@ export const tokenStripeStatusResponse = z.object({
 	premium_tokens_remaining: z.number().default(0),
 });
 
+export const tokenPurchaseStatusEnum = pagePurchaseStatusEnum;
+
 export const tokenPurchase = z.object({
 	id: z.uuid(),
 	stripe_checkout_session_id: z.string(),
@@ -57,7 +59,7 @@ export const tokenPurchase = z.object({
 	tokens_granted: z.number(),
 	amount_total: z.number().nullable(),
 	currency: z.string().nullable(),
-	status: z.string(),
+	status: tokenPurchaseStatusEnum,
 	completed_at: z.string().nullable(),
 	created_at: z.string(),
 });
@@ -75,5 +77,6 @@ export type GetPagePurchasesResponse = z.infer<typeof getPagePurchasesResponse>;
 export type CreateTokenCheckoutSessionRequest = z.infer<typeof createTokenCheckoutSessionRequest>;
 export type CreateTokenCheckoutSessionResponse = z.infer<typeof createTokenCheckoutSessionResponse>;
 export type TokenStripeStatusResponse = z.infer<typeof tokenStripeStatusResponse>;
+export type TokenPurchaseStatus = z.infer<typeof tokenPurchaseStatusEnum>;
 export type TokenPurchase = z.infer<typeof tokenPurchase>;
 export type GetTokenPurchasesResponse = z.infer<typeof getTokenPurchasesResponse>;

@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown, ChevronRight, Folder, FolderOpen, Home } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -36,12 +36,16 @@ export function FolderPickerDialog({
 	const [selectedId, setSelectedId] = useState<number | null>(null);
 	const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
 
-	useEffect(() => {
-		if (open) {
-			setSelectedId(null);
-			setExpandedIds(new Set());
-		}
-	}, [open]);
+	const handleOpenChange = useCallback(
+		(next: boolean) => {
+			if (next) {
+				setSelectedId(null);
+				setExpandedIds(new Set());
+			}
+			onOpenChange(next);
+		},
+		[onOpenChange]
+	);
 
 	const foldersByParent = useMemo(() => {
 		const map: Record<string, FolderDisplay[]> = {};
@@ -123,7 +127,7 @@ export function FolderPickerDialog({
 	}
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
+		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogContent className="select-none max-w-[90vw] sm:max-w-sm p-4 sm:p-5 data-[state=open]:animate-none data-[state=closed]:animate-none">
 				<DialogHeader className="space-y-2 pb-2">
 					<div className="flex items-center gap-2 sm:gap-3">

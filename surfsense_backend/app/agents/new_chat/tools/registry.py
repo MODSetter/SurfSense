@@ -92,6 +92,7 @@ from .onedrive import (
 )
 from .podcast import create_generate_podcast_tool
 from .report import create_generate_report_tool
+from .resume import create_generate_resume_tool
 from .scrape_webpage import create_scrape_webpage_tool
 from .search_surfsense_docs import create_search_surfsense_docs_tool
 from .update_memory import create_update_memory_tool, create_update_team_memory_tool
@@ -170,6 +171,16 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         # connector_service, available_connectors, and available_document_types
         # are optional — when missing, source_strategy="kb_search" degrades
         # gracefully to "provided"
+    ),
+    # Resume generation tool (Typst-based, uses rendercv package)
+    ToolDefinition(
+        name="generate_resume",
+        description="Generate a professional resume as a Typst document",
+        factory=lambda deps: create_generate_resume_tool(
+            search_space_id=deps["search_space_id"],
+            thread_id=deps["thread_id"],
+        ),
+        requires=["search_space_id", "thread_id"],
     ),
     # Generate image tool - creates images using AI models (DALL-E, GPT Image, etc.)
     ToolDefinition(

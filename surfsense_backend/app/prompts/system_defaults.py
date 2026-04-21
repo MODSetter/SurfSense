@@ -71,4 +71,11 @@ SYSTEM_PROMPT_DEFAULTS: list[dict] = [
         "prompt": "Search the web for information about:\n\n{selection}",
         "mode": "explore",
     },
+    {
+        "slug": "build-resume",
+        "version": 1,
+        "name": "Build Resume",
+        "prompt": "Build me a professional resume. Here is my information:\n\n{selection}",
+        "mode": "explore",
+    },
 ]

@@ -23,6 +23,7 @@ class ReportRead(BaseModel):
     report_style: str | None = None
     report_metadata: dict[str, Any] | None = None
     report_group_id: int | None = None
+    content_type: str = "markdown"
     created_at: datetime
 
     class Config:
@@ -40,11 +41,12 @@ class ReportVersionInfo(BaseModel):
 
 
 class ReportContentRead(BaseModel):
-    """Schema for reading a report with full Markdown content."""
+    """Schema for reading a report with full content (Markdown or Typst)."""
 
     id: int
     title: str
     content: str | None = None
+    content_type: str = "markdown"
     report_metadata: dict[str, Any] | None = None
     report_group_id: int | None = None
     versions: list[ReportVersionInfo] = []

@@ -68,7 +68,7 @@ export function PublicChatFooter({ shareToken }: PublicChatFooterProps) {
 				size="lg"
 				onClick={handleCopyAndContinue}
 				disabled={isCloning}
-				className="gap-2 rounded-full px-6 shadow-lg transition-all duration-200 hover:scale-[1.02] hover:shadow-xl hover:brightness-110 hover:bg-primary"
+				className="gap-2 rounded-full px-6 shadow-lg transition-al select-none duration-200 hover:scale-[1.02] hover:shadow-xl hover:brightness-110 hover:bg-primary"
 			>
 				{isCloning ? <Spinner size="sm" /> : <Copy className="size-4" />}
 				Copy and continue this chat

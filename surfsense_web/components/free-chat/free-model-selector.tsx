@@ -27,13 +27,14 @@ export function FreeModelSelector({ className }: { className?: string }) {
 		anonymousChatApiService.getModels().then(setModels).catch(console.error);
 	}, []);
 
-	useEffect(() => {
-		if (open) {
+	const handleOpenChange = useCallback((next: boolean) => {
+		if (next) {
 			setSearchQuery("");
 			setFocusedIndex(-1);
 			requestAnimationFrame(() => searchInputRef.current?.focus());
 		}
-	}, [open]);
+		setOpen(next);
+	}, []);
 
 	const currentModel = useMemo(
 		() => models.find((m) => m.seo_slug === currentSlug) ?? null,
@@ -94,7 +95,7 @@ export function FreeModelSelector({ className }: { className?: string }) {
 	);
 
 	return (
-		<Popover open={open} onOpenChange={setOpen}>
+		<Popover open={open} onOpenChange={handleOpenChange}>
 			<PopoverTrigger asChild>
 				<Button
 					variant="ghost"
