@@ -16,6 +16,7 @@ class MCPServiceConfig:
     name: str
     mcp_url: str
     supports_dcr: bool = True
+    oauth_discovery_origin: str | None = None
     client_id_env: str | None = None
     client_secret_env: str | None = None
     scopes: list[str] = field(default_factory=list)
@@ -33,6 +34,18 @@ MCP_SERVICES: dict[str, MCPServiceConfig] = {
     "clickup": MCPServiceConfig(
         name="ClickUp",
         mcp_url="https://mcp.clickup.com/mcp",
+    ),
+    "slack": MCPServiceConfig(
+        name="Slack",
+        mcp_url="https://mcp.slack.com/mcp",
+        supports_dcr=False,
+        client_id_env="SLACK_CLIENT_ID",
+        client_secret_env="SLACK_CLIENT_SECRET",
+    ),
+    "airtable": MCPServiceConfig(
+        name="Airtable",
+        mcp_url="https://mcp.airtable.com/mcp",
+        oauth_discovery_origin="https://airtable.com",
     ),
 }
 

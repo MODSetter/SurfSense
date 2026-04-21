@@ -11,14 +11,24 @@ import httpx
 logger = logging.getLogger(__name__)
 
 
-async def discover_oauth_metadata(mcp_url: str, *, timeout: float = 15.0) -> dict:
+async def discover_oauth_metadata(
+    mcp_url: str,
+    *,
+    origin_override: str | None = None,
+    timeout: float = 15.0,
+) -> dict:
     """Fetch OAuth 2.1 metadata from the MCP server's well-known endpoint.
 
     Per the MCP spec the discovery document lives at the *origin* of the
-    MCP server URL, not at the MCP endpoint path.
+    MCP server URL.  ``origin_override`` can be used when the OAuth server
+    lives on a different domain (e.g. Airtable: MCP at ``mcp.airtable.com``,
+    OAuth at ``airtable.com``).
     """
-    parsed = urlparse(mcp_url)
-    origin = f"{parsed.scheme}://{parsed.netloc}"
+    if origin_override:
+        origin = origin_override.rstrip("/")
+    else:
+        parsed = urlparse(mcp_url)
+        origin = f"{parsed.scheme}://{parsed.netloc}"
     discovery_url = f"{origin}/.well-known/oauth-authorization-server"
 
     async with httpx.AsyncClient(follow_redirects=True) as client:

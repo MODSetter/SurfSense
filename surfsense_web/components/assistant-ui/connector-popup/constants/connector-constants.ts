@@ -128,6 +128,20 @@ export const MCP_OAUTH_CONNECTORS = [
 		connectorType: EnumConnectorName.MCP_CONNECTOR,
 		authEndpoint: "/api/v1/auth/mcp/clickup/connector/add/",
 	},
+	{
+		id: "slack-mcp-connector",
+		title: "Slack (MCP)",
+		description: "Interact with Slack channels via MCP",
+		connectorType: EnumConnectorName.MCP_CONNECTOR,
+		authEndpoint: "/api/v1/auth/mcp/slack/connector/add/",
+	},
+	{
+		id: "airtable-mcp-connector",
+		title: "Airtable (MCP)",
+		description: "Interact with Airtable bases via MCP",
+		connectorType: EnumConnectorName.MCP_CONNECTOR,
+		authEndpoint: "/api/v1/auth/mcp/airtable/connector/add/",
+	},
 ] as const;
 
 // Content Sources (tools that extract and import content from external sources)

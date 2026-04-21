@@ -106,7 +106,9 @@ async def connect_mcp_service(
             register_client,
         )
 
-        metadata = await discover_oauth_metadata(svc.mcp_url)
+        metadata = await discover_oauth_metadata(
+            svc.mcp_url, origin_override=svc.oauth_discovery_origin,
+        )
         auth_endpoint = metadata.get("authorization_endpoint")
         token_endpoint = metadata.get("token_endpoint")
         registration_endpoint = metadata.get("registration_endpoint")
@@ -409,7 +411,9 @@ async def reauth_mcp_service(
             register_client,
         )
 
-        metadata = await discover_oauth_metadata(svc.mcp_url)
+        metadata = await discover_oauth_metadata(
+            svc.mcp_url, origin_override=svc.oauth_discovery_origin,
+        )
         auth_endpoint = metadata.get("authorization_endpoint")
         token_endpoint = metadata.get("token_endpoint")
         registration_endpoint = metadata.get("registration_endpoint")
