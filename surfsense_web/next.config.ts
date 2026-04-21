@@ -45,10 +45,10 @@ const nextConfig: NextConfig = {
 	},
 
 	// Proxy /api/v1/* to the FastAPI backend. Keeps the real backend host
-	// out of the client bundle. BACKEND_PROXY_TARGET is server-only.
+	// out of the client bundle. FASTAPI_BACKEND_INTERNAL_URL is server-only.
 	async rewrites() {
 		const target =
-			process.env.BACKEND_PROXY_TARGET ||
+			process.env.FASTAPI_BACKEND_INTERNAL_URL ||
 			process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL ||
 			"http://localhost:8000";
 		return [
