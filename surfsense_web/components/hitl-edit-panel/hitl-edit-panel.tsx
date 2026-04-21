@@ -65,16 +65,15 @@ function EmailsTagField({
 		setTags((prev) => (typeof newTags === "function" ? newTags(prev) : newTags));
 	}, []);
 
-	const handleAddTag = useCallback(
-		(text: string) => {
-			const trimmed = text.trim();
-			if (!trimmed) return;
-			if (tags.some((tag) => tag.text === trimmed)) return;
+	const handleAddTag = useCallback((text: string) => {
+		const trimmed = text.trim();
+		if (!trimmed) return;
+		setTags((prev) => {
+			if (prev.some((tag) => tag.text === trimmed)) return prev;
 			const newTag: TagType = { id: Date.now().toString(), text: trimmed };
-			setTags((prev) => [...prev, newTag]);
-		},
-		[tags]
-	);
+			return [...prev, newTag];
+		});
+	}, []);
 
 	return (
 		<TagInput
