@@ -269,6 +269,34 @@ export function ModelSelector({
 	const searchInputRef = useRef<HTMLInputElement>(null);
 	const isMobile = useIsMobile();
 
+	const handleOpenChange = useCallback(
+		(next: boolean) => {
+			if (next) {
+				setSearchQuery("");
+				setSelectedProvider("all");
+				if (!isMobile) {
+					requestAnimationFrame(() => searchInputRef.current?.focus());
+				}
+			}
+			setOpen(next);
+		},
+		[isMobile]
+	);
+
+	const handleTabChange = useCallback(
+		(next: "llm" | "image" | "vision") => {
+			setActiveTab(next);
+			setSelectedProvider("all");
+			setSearchQuery("");
+			setFocusedIndex(-1);
+			setModelScrollPos("top");
+			if (open && !isMobile) {
+				requestAnimationFrame(() => searchInputRef.current?.focus());
+			}
+		},
+		[open, isMobile]
+	);
+
 	const handleModelListScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
 		const el = e.currentTarget;
 		const atTop = el.scrollTop <= 2;
@@ -292,43 +320,19 @@ export function ModelSelector({
 		[isMobile]
 	);
 
-	// Reset search + provider when tab changes
-	// biome-ignore lint/correctness/useExhaustiveDependencies: activeTab is intentionally used as a trigger
-	useEffect(() => {
-		setSelectedProvider("all");
-		setSearchQuery("");
-		setFocusedIndex(-1);
-		setModelScrollPos("top");
-	}, [activeTab]);
-
-	// Reset on open
-	useEffect(() => {
-		if (open) {
-			setSearchQuery("");
-			setSelectedProvider("all");
-		}
-	}, [open]);
-
 	// Cmd/Ctrl+M shortcut (desktop only)
 	useEffect(() => {
 		if (isMobile) return;
 		const handler = (e: KeyboardEvent) => {
 			if ((e.metaKey || e.ctrlKey) && e.key === "m") {
 				e.preventDefault();
-				setOpen((prev) => !prev);
+				// setOpen((prev) => !prev);
+				handleOpenChange(!open);
 			}
 		};
 		document.addEventListener("keydown", handler);
 		return () => document.removeEventListener("keydown", handler);
-	}, [isMobile]);
-
-	// Focus search input on open
-	// biome-ignore lint/correctness/useExhaustiveDependencies: activeTab is intentionally used as a trigger to re-focus on tab switch
-	useEffect(() => {
-		if (open && !isMobile) {
-			requestAnimationFrame(() => searchInputRef.current?.focus());
-		}
-	}, [open, isMobile, activeTab]);
+	}, [isMobile, open, handleOpenChange]);
 
 	// ─── Data ───
 	const { data: llmUserConfigs, isLoading: llmUserLoading } = useAtomValue(newLLMConfigsAtom);
@@ -971,7 +975,8 @@ export function ModelSelector({
 							<button
 								key={value}
 								type="button"
-								onClick={() => setActiveTab(value)}
+								// onClick={() => setActiveTab(value)}
+								onClick={() => handleTabChange(value)}
 								className={cn(
 									"flex items-center justify-center gap-1.5 text-sm font-medium transition-all duration-200 border-b-[1.5px]",
 									activeTab === value
@@ -1208,7 +1213,7 @@ export function ModelSelector({
 	// ─── Shell: Drawer on mobile, Popover on desktop ───
 	if (isMobile) {
 		return (
-			<Drawer open={open} onOpenChange={setOpen}>
+			<Drawer open={open} onOpenChange={handleOpenChange}>
 				<DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
 				<DrawerContent className="max-h-[85vh]">
 					<DrawerHandle />
@@ -1222,7 +1227,7 @@ export function ModelSelector({
 	}
 
 	return (
-		<Popover open={open} onOpenChange={setOpen}>
+		<Popover open={open} onOpenChange={handleOpenChange}>
 			<PopoverTrigger asChild>{triggerButton}</PopoverTrigger>
 			<PopoverContent
 				className="w-[300px] md:w-[380px] p-0 rounded-lg shadow-lg overflow-hidden bg-white border-border/60 dark:bg-neutral-900 dark:border dark:border-white/5 select-none"

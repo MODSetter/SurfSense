@@ -18,6 +18,8 @@ import { authenticatedFetch } from "@/lib/auth-utils";
 import {
 	trackConnectorConnected,
 	trackConnectorDeleted,
+	trackConnectorSetupFailure,
+	trackConnectorSetupStarted,
 	trackIndexWithDateRangeOpened,
 	trackIndexWithDateRangeStarted,
 	trackPeriodicIndexingStarted,
@@ -222,9 +224,19 @@ export const useConnectorDialog = () => {
 
 		if (result.error) {
 			const oauthConnector = result.connector
-				? OAUTH_CONNECTORS.find((c) => c.id === result.connector)
+				? OAUTH_CONNECTORS.find((c) => c.id === result.connector) ||
+					COMPOSIO_CONNECTORS.find((c) => c.id === result.connector)
 				: null;
 			const name = oauthConnector?.title || "connector";
+
+			if (oauthConnector) {
+				trackConnectorSetupFailure(
+					Number(searchSpaceId),
+					oauthConnector.connectorType,
+					result.error,
+					"oauth_callback"
+				);
+			}
 
 			if (result.error === "duplicate_account") {
 				toast.error(`This ${name} account is already connected`, {
@@ -338,6 +350,12 @@ export const useConnectorDialog = () => {
 			// Set connecting state immediately to disable button and show spinner
 			setConnectingId(connector.id);
 
+			trackConnectorSetupStarted(
+				Number(searchSpaceId),
+				connector.connectorType,
+				"oauth_click"
+			);
+
 			try {
 				// Check if authEndpoint already has query parameters
 				const separator = connector.authEndpoint.includes("?") ? "&" : "?";
@@ -359,6 +377,12 @@ export const useConnectorDialog = () => {
 				window.location.href = validatedData.auth_url;
 			} catch (error) {
 				console.error(`Error connecting to ${connector.title}:`, error);
+				trackConnectorSetupFailure(
+					Number(searchSpaceId),
+					connector.connectorType,
+					error instanceof Error ? error.message : "oauth_initiation_failed",
+					"oauth_init"
+				);
 				if (error instanceof Error && error.message.includes("Invalid auth URL")) {
 					toast.error(`Invalid response from ${connector.title} OAuth endpoint`);
 				} else {
@@ -382,6 +406,11 @@ export const useConnectorDialog = () => {
 		if (!searchSpaceId) return;
 
 		setConnectingId("webcrawler-connector");
+		trackConnectorSetupStarted(
+			Number(searchSpaceId),
+			EnumConnectorName.WEBCRAWLER_CONNECTOR,
+			"webcrawler_quick_add"
+		);
 		try {
 			await createConnector({
 				data: {
@@ -431,6 +460,12 @@ export const useConnectorDialog = () => {
 			}
 		} catch (error) {
 			console.error("Error creating webcrawler connector:", error);
+			trackConnectorSetupFailure(
+				Number(searchSpaceId),
+				EnumConnectorName.WEBCRAWLER_CONNECTOR,
+				error instanceof Error ? error.message : "webcrawler_create_failed",
+				"webcrawler_quick_add"
+			);
 			toast.error("Failed to create web crawler connector");
 		} finally {
 			setConnectingId(null);
@@ -441,6 +476,13 @@ export const useConnectorDialog = () => {
 	const handleConnectNonOAuth = useCallback(
 		(connectorType: string) => {
 			if (!searchSpaceId) return;
+
+			trackConnectorSetupStarted(
+				Number(searchSpaceId),
+				connectorType,
+				"non_oauth_click"
+			);
+
 			setConnectingConnectorType(connectorType);
 		},
 		[searchSpaceId]
@@ -654,6 +696,12 @@ export const useConnectorDialog = () => {
 				}
 			} catch (error) {
 				console.error("Error creating connector:", error);
+				trackConnectorSetupFailure(
+					Number(searchSpaceId),
+					connectingConnectorType ?? formData.connector_type,
+					error instanceof Error ? error.message : "connector_create_failed",
+					"non_oauth_form"
+				);
 				toast.error(error instanceof Error ? error.message : "Failed to create connector");
 			} finally {
 				isCreatingConnectorRef.current = false;
