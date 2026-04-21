@@ -478,7 +478,7 @@ function AuthenticatedDocumentsSidebar({
 		setFolderPickerOpen(true);
 	}, []);
 
-	const [, setIsExportingKB] = useState(false);
+	const isExportingKBRef = useRef(false);
 	const [exportWarningOpen, setExportWarningOpen] = useState(false);
 	const [exportWarningContext, setExportWarningContext] = useState<{
 		folder: FolderDisplay;
@@ -508,7 +508,7 @@ function AuthenticatedDocumentsSidebar({
 		const ctx = exportWarningContext;
 		if (!ctx?.folder) return;
 
-		setIsExportingKB(true);
+		isExportingKBRef.current = true;
 		try {
 			const safeName =
 				ctx.folder.name
@@ -524,7 +524,7 @@ function AuthenticatedDocumentsSidebar({
 			console.error("Folder export failed:", err);
 			toast.error(err instanceof Error ? err.message : "Export failed");
 		} finally {
-			setIsExportingKB(false);
+			isExportingKBRef.current = false;
 		}
 		setExportWarningContext(null);
 	}, [exportWarningContext, searchSpaceId, doExport]);
@@ -560,7 +560,7 @@ function AuthenticatedDocumentsSidebar({
 				return;
 			}
 
-			setIsExportingKB(true);
+			isExportingKBRef.current = true;
 			try {
 				const safeName =
 					folder.name
@@ -576,7 +576,7 @@ function AuthenticatedDocumentsSidebar({
 				console.error("Folder export failed:", err);
 				toast.error(err instanceof Error ? err.message : "Export failed");
 			} finally {
-				setIsExportingKB(false);
+				isExportingKBRef.current = false;
 			}
 		},
 		[searchSpaceId, getPendingCountInSubtree, doExport]
