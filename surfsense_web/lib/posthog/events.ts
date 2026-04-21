@@ -1,4 +1,5 @@
 import posthog from "posthog-js";
+import { getConnectorTelemetryMeta } from "@/components/assistant-ui/connector-popup/constants/connector-constants";
 
 /**
  * PostHog Analytics Event Definitions
@@ -13,8 +14,8 @@ import posthog from "posthog-js";
  * - auth: Authentication events
  * - search_space: Search space management
  * - document: Document management
- * - chat: Chat and messaging
- * - connector: External connector events
+ * - chat: Chat and messaging (authenticated + anonymous)
+ * - connector: External connector events (all lifecycle stages)
  * - contact: Contact form events
  * - settings: Settings changes
  * - marketing: Marketing/referral tracking
@@ -26,6 +27,17 @@ function safeCapture(event: string, properties?: Record<string, unknown>) {
 	} catch {
 		// Silently ignore – analytics should never break the app
 	}
+}
+
+/**
+ * Drop undefined values so PostHog doesn't log `"foo": undefined` noise.
+ */
+function compact<T extends Record<string, unknown>>(obj: T): Record<string, unknown> {
+	const out: Record<string, unknown> = {};
+	for (const [k, v] of Object.entries(obj)) {
+		if (v !== undefined) out[k] = v;
+	}
+	return out;
 }
 
 // ============================================
@@ -127,6 +139,28 @@ export function trackChatError(searchSpaceId: number, chatId: number, error?: st
 	});
 }
 
+/**
+ * Track a message sent from the unauthenticated "free" / anonymous chat
+ * flow. This is intentionally a separate event from `chat_message_sent`
+ * so WAU / retention queries on the authenticated event stay clean while
+ * still giving us visibility into top-of-funnel usage on /free/*.
+ */
+export function trackAnonymousChatMessageSent(options: {
+	modelSlug: string;
+	messageLength?: number;
+	hasUploadedDoc?: boolean;
+	webSearchEnabled?: boolean;
+	surface?: "free_chat_page" | "free_model_page";
+}) {
+	safeCapture("anonymous_chat_message_sent", {
+		model_slug: options.modelSlug,
+		message_length: options.messageLength,
+		has_uploaded_doc: options.hasUploadedDoc ?? false,
+		web_search_enabled: options.webSearchEnabled,
+		surface: options.surface,
+	});
+}
+
 // ============================================
 // DOCUMENT EVENTS
 // ============================================
@@ -179,14 +213,68 @@ export function trackYouTubeImport(searchSpaceId: number, url: string) {
 }
 
 // ============================================
-// CONNECTOR EVENTS
+// CONNECTOR EVENTS (generic lifecycle dispatcher)
 // ============================================
+//
+// All connector events go through `trackConnectorEvent`. The connector's
+// human-readable title and its group (oauth/composio/crawler/other) are
+// auto-attached from the shared registry in `connector-constants.ts`, so
+// adding a new connector to that list is the only change required for it
+// to show up correctly in PostHog dashboards.
 
-export function trackConnectorSetupStarted(searchSpaceId: number, connectorType: string) {
-	safeCapture("connector_setup_started", {
-		search_space_id: searchSpaceId,
-		connector_type: connectorType,
+export type ConnectorEventStage =
+	| "setup_started"
+	| "setup_success"
+	| "setup_failure"
+	| "oauth_initiated"
+	| "connected"
+	| "deleted"
+	| "synced";
+
+export interface ConnectorEventOptions {
+	searchSpaceId?: number | null;
+	connectorId?: number | null;
+	/** Source of the action (e.g. "oauth_callback", "non_oauth_form", "webcrawler_quick_add"). */
+	source?: string;
+	/** Free-form error message for failure events. */
+	error?: string;
+	/** Extra properties specific to the stage (e.g. frequency_minutes for sync events). */
+	extra?: Record<string, unknown>;
+}
+
+/**
+ * Generic connector lifecycle tracker. Every connector analytics event
+ * should funnel through here so the enrichment stays consistent.
+ */
+export function trackConnectorEvent(
+	stage: ConnectorEventStage,
+	connectorType: string,
+	options: ConnectorEventOptions = {}
+) {
+	const meta = getConnectorTelemetryMeta(connectorType);
+	safeCapture(`connector_${stage}`, {
+		...compact({
+			search_space_id: options.searchSpaceId ?? undefined,
+			connector_id: options.connectorId ?? undefined,
+			source: options.source,
+			error: options.error,
+		}),
+		connector_type: meta.connector_type,
+		connector_title: meta.connector_title,
+		connector_group: meta.connector_group,
+		is_oauth: meta.is_oauth,
+		...(options.extra ?? {}),
 	});
+}
+
+// ---- Convenience wrappers kept for backward compatibility ----
+
+export function trackConnectorSetupStarted(
+	searchSpaceId: number,
+	connectorType: string,
+	source?: string
+) {
+	trackConnectorEvent("setup_started", connectorType, { searchSpaceId, source });
 }
 
 export function trackConnectorSetupSuccess(
@@ -194,22 +282,19 @@ export function trackConnectorSetupSuccess(
 	connectorType: string,
 	connectorId: number
 ) {
-	safeCapture("connector_setup_success", {
-		search_space_id: searchSpaceId,
-		connector_type: connectorType,
-		connector_id: connectorId,
-	});
+	trackConnectorEvent("setup_success", connectorType, { searchSpaceId, connectorId });
 }
 
 export function trackConnectorSetupFailure(
-	searchSpaceId: number,
+	searchSpaceId: number | null | undefined,
 	connectorType: string,
-	error?: string
+	error?: string,
+	source?: string
 ) {
-	safeCapture("connector_setup_failure", {
-		search_space_id: searchSpaceId,
-		connector_type: connectorType,
+	trackConnectorEvent("setup_failure", connectorType, {
+		searchSpaceId: searchSpaceId ?? undefined,
 		error,
+		source,
 	});
 }
 
@@ -218,11 +303,7 @@ export function trackConnectorDeleted(
 	connectorType: string,
 	connectorId: number
 ) {
-	safeCapture("connector_deleted", {
-		search_space_id: searchSpaceId,
-		connector_type: connectorType,
-		connector_id: connectorId,
-	});
+	trackConnectorEvent("deleted", connectorType, { searchSpaceId, connectorId });
 }
 
 export function trackConnectorSynced(
@@ -230,11 +311,7 @@ export function trackConnectorSynced(
 	connectorType: string,
 	connectorId: number
 ) {
-	safeCapture("connector_synced", {
-		search_space_id: searchSpaceId,
-		connector_type: connectorType,
-		connector_id: connectorId,
-	});
+	trackConnectorEvent("synced", connectorType, { searchSpaceId, connectorId });
 }
 
 // ============================================
@@ -345,10 +422,9 @@ export function trackConnectorConnected(
 	connectorType: string,
 	connectorId?: number
 ) {
-	safeCapture("connector_connected", {
-		search_space_id: searchSpaceId,
-		connector_type: connectorType,
-		connector_id: connectorId,
+	trackConnectorEvent("connected", connectorType, {
+		searchSpaceId,
+		connectorId: connectorId ?? undefined,
 	});
 }
 
@@ -467,8 +543,13 @@ export function trackReferralLanding(refCode: string, landingUrl: string) {
 // ============================================
 
 /**
- * Identify a user for PostHog analytics
- * Call this after successful authentication
+ * Identify a user for PostHog analytics.
+ * Call this after successful authentication.
+ *
+ * In the Electron desktop app the same call is mirrored into the
+ * main-process PostHog client so desktop-only events (e.g.
+ * `desktop_quick_ask_opened`, `desktop_autocomplete_accepted`) are
+ * attributed to the logged-in user rather than an anonymous machine ID.
  */
 export function identifyUser(userId: string, properties?: Record<string, unknown>) {
 	try {
@@ -476,15 +557,32 @@ export function identifyUser(userId: string, properties?: Record<string, unknown
 	} catch {
 		// Silently ignore – ad-blockers may break posthog
 	}
+
+	try {
+		if (typeof window !== "undefined" && window.electronAPI?.analyticsIdentify) {
+			void window.electronAPI.analyticsIdentify(userId, properties);
+		}
+	} catch {
+		// IPC errors must never break the app
+	}
 }
 
 /**
- * Reset user identity (call on logout)
+ * Reset user identity (call on logout). Mirrors the reset into the
+ * Electron main process when running inside the desktop app.
  */
 export function resetUser() {
 	try {
 		posthog.reset();
 	} catch {
 		// Silently ignore – ad-blockers may break posthog
+	}
+
+	try {
+		if (typeof window !== "undefined" && window.electronAPI?.analyticsReset) {
+			void window.electronAPI.analyticsReset();
+		}
+	} catch {
+		// IPC errors must never break the app
 	}
 }
