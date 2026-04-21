@@ -87,13 +87,13 @@ class ProxyAuthMiddleware(BaseHTTPMiddleware):
         raw_email = (request.headers.get("x-auth-request-email") or "").strip()
         if raw_email and "@" not in raw_email:
             # Header holds a bare username (user_id_claim=cognito:username).
-            domain = getattr(config, "SMB_NAME", "")
-            raw_email = f"{raw_email}@{domain}.com" if domain else ""
+            domain = getattr(config, "DEFAULT_EMAIL_DOMAIN", "askii.ai")
+            raw_email = f"{raw_email}@{domain}"
         if not raw_email:
             raw_username = (request.headers.get("x-auth-request-user") or "").strip()
-            domain = getattr(config, "SMB_NAME", "")
-            if raw_username and domain:
-                raw_email = f"{raw_username}@{domain}.com"
+            domain = getattr(config, "DEFAULT_EMAIL_DOMAIN", "askii.ai")
+            if raw_username:
+                raw_email = f"{raw_username}@{domain}"
         if not raw_email:
             logger.debug(
                 "ProxyAuth: x-auth-request-email missing on %s", request.url.path

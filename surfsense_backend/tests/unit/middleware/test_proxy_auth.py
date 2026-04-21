@@ -441,24 +441,24 @@ class TestProxyAuthMiddlewareDispatch:
 
     # ── SPEC 10: bare username → email synthesis ──────────────────────────────
 
-    async def test_bare_username_synthesizes_email_via_smb_name(self):
+    async def test_bare_username_synthesizes_email_via_default_email_domain(self):
         """
         GIVEN  X-Auth-Request-Email contains a bare username (no @)
-               AND config.SMB_NAME is set
+               AND config.DEFAULT_EMAIL_DOMAIN is set
         WHEN   request arrives
-        THEN   middleware synthesizes {username}@{SMB_NAME}.com
+        THEN   middleware synthesizes {username}@{DEFAULT_EMAIL_DOMAIN}
                AND passes it to _resolve_user
         """
         mw = _make_middleware()
-        resolved = _make_user(email="testuser@foss.com")
+        resolved = _make_user(email="testuser@askii.ai")
         mw._resolve_user = AsyncMock(return_value=resolved)
         request = _make_request(headers={"x-auth-request-email": "testuser"})
 
         with patch("app.middleware.proxy_auth.config") as mock_cfg:
-            mock_cfg.SMB_NAME = "foss"
+            mock_cfg.DEFAULT_EMAIL_DOMAIN = "askii.ai"
             await mw.dispatch(request, _ok_call_next)
 
         mw._resolve_user.assert_called_once()
         called_email = mw._resolve_user.call_args.args[0]
-        assert called_email == "testuser@foss.com"
+        assert called_email == "testuser@askii.ai"
         assert request.state.proxy_user is resolved
