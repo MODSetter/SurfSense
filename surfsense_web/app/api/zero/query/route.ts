@@ -5,7 +5,10 @@ import type { Context } from "@/types/zero";
 import { queries } from "@/zero/queries";
 import { schema } from "@/zero/schema";
 
-const backendURL = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+const backendURL =
+	process.env.FASTAPI_BACKEND_INTERNAL_URL ||
+	process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL ||
+	"http://localhost:8000";
 
 async function authenticateRequest(
 	request: Request

@@ -198,6 +198,7 @@ services:
       NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE: ${AUTH_TYPE:-LOCAL}
       NEXT_PUBLIC_ETL_SERVICE: ${ETL_SERVICE:-DOCLING}
       NEXT_PUBLIC_DEPLOYMENT_MODE: ${DEPLOYMENT_MODE:-self-hosted}
+      FASTAPI_BACKEND_INTERNAL_URL: ${FASTAPI_BACKEND_INTERNAL_URL:-http://backend:8000}
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     depends_on:
