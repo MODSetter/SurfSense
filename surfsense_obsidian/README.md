@@ -50,7 +50,7 @@ Open **Settings → SurfSense** in Obsidian and fill in:
 
 | Setting | Value |
 | --- | --- |
-| Server URL | `https://api.surfsense.com` for SurfSense Cloud, or your self-hosted URL |
+| Server URL | `https://surfsense.com` for SurfSense Cloud, or your self-hosted URL |
 | API token | Copy from the *Connectors → Obsidian* dialog in the SurfSense web app |
 | Search space | Pick the search space this vault should sync into |
 | Vault name | Defaults to your Obsidian vault name; rename if you have multiple vaults |

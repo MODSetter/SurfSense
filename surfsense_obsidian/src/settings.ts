@@ -34,11 +34,11 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Server URL")
 			.setDesc(
-				"https://api.surfsense.com for SurfSense Cloud, or your self-hosted URL.",
+				"https://surfsense.com for SurfSense Cloud, or your self-hosted URL.",
 			)
 			.addText((text) =>
 				text
-					.setPlaceholder("https://api.surfsense.com")
+					.setPlaceholder("https://surfsense.com")
 					.setValue(settings.serverUrl)
 					.onChange(async (value) => {
 						this.plugin.settings.serverUrl = value.trim();
@@ -189,7 +189,7 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Include attachments")
 			.setDesc(
-				"Sync non-Markdown files (images, PDFs, …). Off by default — Markdown only.",
+				"Also sync non-Markdown files such as images and PDFs.",
 			)
 			.addToggle((toggle) =>
 				toggle

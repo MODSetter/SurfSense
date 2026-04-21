@@ -23,7 +23,7 @@ export interface SurfsensePluginSettings {
 }
 
 export const DEFAULT_SETTINGS: SurfsensePluginSettings = {
-	serverUrl: "https://api.surfsense.com",
+	serverUrl: "https://surfsense.com",
 	apiToken: "",
 	searchSpaceId: null,
 	connectorId: null,

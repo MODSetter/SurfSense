@@ -44,6 +44,21 @@ const nextConfig: NextConfig = {
 		},
 	},
 
+	// Proxy /api/v1/* to the FastAPI backend. Keeps the real backend host
+	// out of the client bundle. BACKEND_PROXY_TARGET is server-only.
+	async rewrites() {
+		const target =
+			process.env.BACKEND_PROXY_TARGET ||
+			process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL ||
+			"http://localhost:8000";
+		return [
+			{
+				source: "/api/v1/:path*",
+				destination: `${target.replace(/\/+$/, "")}/api/v1/:path*`,
+			},
+		];
+	},
+
 	// Configure webpack (SVGR)
 	webpack: (config) => {
 		// SVGR: import *.svg as React components

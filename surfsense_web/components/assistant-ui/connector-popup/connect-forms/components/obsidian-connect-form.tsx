@@ -14,7 +14,7 @@ const PLUGIN_RELEASES_URL =
 	"https://github.com/MODSetter/SurfSense/releases?q=obsidian&expanded=true";
 
 const BACKEND_URL =
-	process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL ?? "https://api.surfsense.com";
+	process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL ?? "https://surfsense.com";
 
 /**
  * Obsidian connect form for the plugin-only architecture.
