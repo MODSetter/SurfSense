@@ -45,6 +45,7 @@ SCOPES = [
     "Team.ReadBasic.All",  # Read basic team information
     "Channel.ReadBasic.All",  # Read basic channel information
     "ChannelMessage.Read.All",  # Read messages in channels
+    "ChannelMessage.Send",  # Send messages in channels
 ]
 
 # Initialize security utilities
