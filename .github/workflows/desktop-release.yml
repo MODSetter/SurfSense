@@ -75,24 +75,6 @@ jobs:
             echo "Windows signing: skipped"
           fi
 
-      - name: Azure login (for Windows signing)
-        if: steps.sign.outputs.enabled == 'true'
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Fetch GitHub OIDC token for Azure signing SDK
-        if: steps.sign.outputs.enabled == 'true'
-        id: oidc
-        shell: pwsh
-        run: |
-          $token = (Invoke-RestMethod -Headers @{Authorization = "bearer $env:ACTIONS_ID_TOKEN_REQUEST_TOKEN"} `
-            -Uri "$env:ACTIONS_ID_TOKEN_REQUEST_URL&audience=api://AzureADTokenExchange").value
-          Write-Output "::add-mask::$token"
-          "token=$token" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-
       - name: Setup pnpm
         uses: pnpm/action-setup@v5
 
@@ -154,8 +136,10 @@ jobs:
           AZURE_CODESIGN_ENDPOINT: ${{ vars.AZURE_CODESIGN_ENDPOINT }}
           AZURE_CODESIGN_ACCOUNT: ${{ vars.AZURE_CODESIGN_ACCOUNT }}
           AZURE_CODESIGN_PROFILE: ${{ vars.AZURE_CODESIGN_PROFILE }}
-          # Env vars for Azure.Identity EnvironmentCredential used by the TrustedSigning PowerShell module.
-          # Only populated when signing is enabled; harmless when empty otherwise.
+          # Service principal credentials for Azure.Identity EnvironmentCredential used by the
+          # TrustedSigning PowerShell module. Only populated when signing is enabled.
+          # electron-builder 26 does not yet support OIDC federated tokens for Azure signing,
+          # so we fall back to client-secret auth. Rotate AZURE_CLIENT_SECRET before expiry.
           AZURE_TENANT_ID: ${{ steps.sign.outputs.enabled == 'true' && secrets.AZURE_TENANT_ID || '' }}
           AZURE_CLIENT_ID: ${{ steps.sign.outputs.enabled == 'true' && secrets.AZURE_CLIENT_ID || '' }}
-          AZURE_FEDERATED_TOKEN: ${{ steps.oidc.outputs.token }}
+          AZURE_CLIENT_SECRET: ${{ steps.sign.outputs.enabled == 'true' && secrets.AZURE_CLIENT_SECRET || '' }}
