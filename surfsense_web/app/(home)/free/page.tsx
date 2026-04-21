@@ -18,7 +18,7 @@ import type { AnonModel } from "@/contracts/types/anonymous-chat.types";
 import { BACKEND_URL } from "@/lib/env-config";
 
 export const metadata: Metadata = {
-	title: "ChatGPT Free Online Without Login | Chat GPT No Login, Claude AI Free | SurfSense",
+	title: "Free AI Chat, No Login Required | SurfSense",
 	description:
 		"Use ChatGPT free online without login. Chat with GPT-4, Claude AI, Gemini and more for free. No sign-up required. Open source NotebookLM alternative with free AI chat and document Q&A.",
 	keywords: [
@@ -67,7 +67,7 @@ export const metadata: Metadata = {
 		canonical: "https://surfsense.com/free",
 	},
 	openGraph: {
-		title: "ChatGPT Free Online Without Login | Claude AI Free No Login | SurfSense",
+		title: "Free AI Chat, No Login Required | SurfSense",
 		description:
 			"Use ChatGPT free online without login. Chat with GPT-4, Claude AI, Gemini and 100+ AI models. Open source NotebookLM alternative.",
 		url: "https://surfsense.com/free",
@@ -84,7 +84,7 @@ export const metadata: Metadata = {
 	},
 	twitter: {
 		card: "summary_large_image",
-		title: "ChatGPT Free Online Without Login | Claude AI Free No Login | SurfSense",
+		title: "Free AI Chat, No Login Required | SurfSense",
 		description:
 			"Use ChatGPT free online without login. Chat with GPT-4, Claude AI, Gemini and more. No sign-up needed.",
 		images: ["/og-image.png"],
