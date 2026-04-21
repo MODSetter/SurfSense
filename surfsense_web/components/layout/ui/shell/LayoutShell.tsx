@@ -2,8 +2,10 @@
 
 import { useAtomValue } from "jotai";
 import { AnimatePresence, motion } from "motion/react";
+import dynamic from "next/dynamic";
 import { useCallback, useMemo, useState } from "react";
 import { activeTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
+import { Spinner } from "@/components/ui/spinner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { InboxItem } from "@/hooks/use-inbox";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -25,8 +27,19 @@ import {
 	Sidebar,
 } from "../sidebar";
 import { SidebarSlideOutPanel } from "../sidebar/SidebarSlideOutPanel";
-import { DocumentTabContent } from "../tabs/DocumentTabContent";
 import { TabBar } from "../tabs/TabBar";
+
+const DocumentTabContent = dynamic(
+	() => import("../tabs/DocumentTabContent").then((m) => ({ default: m.DocumentTabContent })),
+	{
+		ssr: false,
+		loading: () => (
+			<div className="flex-1 flex items-center justify-center h-full">
+				<Spinner size="lg" />
+			</div>
+		),
+	}
+);
 
 // Per-tab data source
 interface TabDataSource {
