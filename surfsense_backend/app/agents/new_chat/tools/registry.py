@@ -50,6 +50,11 @@ from .confluence import (
     create_delete_confluence_page_tool,
     create_update_confluence_page_tool,
 )
+from .discord import (
+    create_list_discord_channels_tool,
+    create_read_discord_messages_tool,
+    create_send_discord_message_tool,
+)
 from .dropbox import (
     create_create_dropbox_file_tool,
     create_delete_dropbox_file_tool,
@@ -57,6 +62,8 @@ from .dropbox import (
 from .generate_image import create_generate_image_tool
 from .gmail import (
     create_create_gmail_draft_tool,
+    create_read_gmail_email_tool,
+    create_search_gmail_tool,
     create_send_gmail_email_tool,
     create_trash_gmail_email_tool,
     create_update_gmail_draft_tool,
@@ -64,6 +71,7 @@ from .gmail import (
 from .google_calendar import (
     create_create_calendar_event_tool,
     create_delete_calendar_event_tool,
+    create_search_calendar_events_tool,
     create_update_calendar_event_tool,
 )
 from .google_drive import (
@@ -80,6 +88,11 @@ from .linear import (
     create_delete_linear_issue_tool,
     create_update_linear_issue_tool,
 )
+from .luma import (
+    create_create_luma_event_tool,
+    create_list_luma_events_tool,
+    create_read_luma_event_tool,
+)
 from .mcp_tool import load_mcp_tools
 from .notion import (
     create_create_notion_page_tool,
@@ -95,6 +108,11 @@ from .report import create_generate_report_tool
 from .resume import create_generate_resume_tool
 from .scrape_webpage import create_scrape_webpage_tool
 from .search_surfsense_docs import create_search_surfsense_docs_tool
+from .teams import (
+    create_list_teams_channels_tool,
+    create_read_teams_messages_tool,
+    create_send_teams_message_tool,
+)
 from .update_memory import create_update_memory_tool, create_update_team_memory_tool
 from .video_presentation import create_generate_video_presentation_tool
 from .web_search import create_web_search_tool
@@ -403,9 +421,20 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         required_connector="ONEDRIVE_FILE",
     ),
     # =========================================================================
-    # GOOGLE CALENDAR TOOLS - create, update, delete events
+    # GOOGLE CALENDAR TOOLS - search, create, update, delete events
     # Auto-disabled when no Google Calendar connector is configured
     # =========================================================================
+    ToolDefinition(
+        name="search_calendar_events",
+        description="Search Google Calendar events within a date range",
+        factory=lambda deps: create_search_calendar_events_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+        required_connector="GOOGLE_CALENDAR_CONNECTOR",
+    ),
     ToolDefinition(
         name="create_calendar_event",
         description="Create a new event on Google Calendar",
@@ -440,9 +469,31 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         required_connector="GOOGLE_CALENDAR_CONNECTOR",
     ),
     # =========================================================================
-    # GMAIL TOOLS - create drafts, update drafts, send emails, trash emails
+    # GMAIL TOOLS - search, read, create drafts, update drafts, send, trash
     # Auto-disabled when no Gmail connector is configured
     # =========================================================================
+    ToolDefinition(
+        name="search_gmail",
+        description="Search emails in Gmail using Gmail search syntax",
+        factory=lambda deps: create_search_gmail_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+        required_connector="GOOGLE_GMAIL_CONNECTOR",
+    ),
+    ToolDefinition(
+        name="read_gmail_email",
+        description="Read the full content of a specific Gmail email",
+        factory=lambda deps: create_read_gmail_email_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+        required_connector="GOOGLE_GMAIL_CONNECTOR",
+    ),
     ToolDefinition(
         name="create_gmail_draft",
         description="Create a draft email in Gmail",
@@ -560,6 +611,117 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=["db_session", "search_space_id", "user_id"],
         required_connector="CONFLUENCE_CONNECTOR",
+    ),
+    # =========================================================================
+    # DISCORD TOOLS - list channels, read messages, send messages
+    # Auto-disabled when no Discord connector is configured
+    # =========================================================================
+    ToolDefinition(
+        name="list_discord_channels",
+        description="List text channels in the connected Discord server",
+        factory=lambda deps: create_list_discord_channels_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+        required_connector="DISCORD_CONNECTOR",
+    ),
+    ToolDefinition(
+        name="read_discord_messages",
+        description="Read recent messages from a Discord text channel",
+        factory=lambda deps: create_read_discord_messages_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+        required_connector="DISCORD_CONNECTOR",
+    ),
+    ToolDefinition(
+        name="send_discord_message",
+        description="Send a message to a Discord text channel",
+        factory=lambda deps: create_send_discord_message_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+        required_connector="DISCORD_CONNECTOR",
+    ),
+    # =========================================================================
+    # TEAMS TOOLS - list channels, read messages, send messages
+    # Auto-disabled when no Teams connector is configured
+    # =========================================================================
+    ToolDefinition(
+        name="list_teams_channels",
+        description="List Microsoft Teams and their channels",
+        factory=lambda deps: create_list_teams_channels_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+        required_connector="TEAMS_CONNECTOR",
+    ),
+    ToolDefinition(
+        name="read_teams_messages",
+        description="Read recent messages from a Microsoft Teams channel",
+        factory=lambda deps: create_read_teams_messages_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+        required_connector="TEAMS_CONNECTOR",
+    ),
+    ToolDefinition(
+        name="send_teams_message",
+        description="Send a message to a Microsoft Teams channel",
+        factory=lambda deps: create_send_teams_message_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+        required_connector="TEAMS_CONNECTOR",
+    ),
+    # =========================================================================
+    # LUMA TOOLS - list events, read event details, create events
+    # Auto-disabled when no Luma connector is configured
+    # =========================================================================
+    ToolDefinition(
+        name="list_luma_events",
+        description="List upcoming and recent Luma events",
+        factory=lambda deps: create_list_luma_events_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+        required_connector="LUMA_CONNECTOR",
+    ),
+    ToolDefinition(
+        name="read_luma_event",
+        description="Read detailed information about a specific Luma event",
+        factory=lambda deps: create_read_luma_event_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+        required_connector="LUMA_CONNECTOR",
+    ),
+    ToolDefinition(
+        name="create_luma_event",
+        description="Create a new event on Luma",
+        factory=lambda deps: create_create_luma_event_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+        required_connector="LUMA_CONNECTOR",
     ),
 ]
 
