@@ -152,7 +152,6 @@ celery_app.conf.update(
         "index_elasticsearch_documents": {"queue": CONNECTORS_QUEUE},
         "index_crawled_urls": {"queue": CONNECTORS_QUEUE},
         "index_bookstack_pages": {"queue": CONNECTORS_QUEUE},
-        "index_obsidian_vault": {"queue": CONNECTORS_QUEUE},
         "index_composio_connector": {"queue": CONNECTORS_QUEUE},
         # Everything else (document processing, podcasts, reindexing,
         # schedule checker, cleanup) stays on the default fast queue.

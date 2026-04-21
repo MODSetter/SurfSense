@@ -1,14 +1,10 @@
 "use client";
 
-import { AlertTriangle, Download, Info } from "lucide-react";
+import { Info } from "lucide-react";
 import { type FC, useEffect, useMemo, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { connectorsApiService, type ObsidianStats } from "@/lib/apis/connectors-api.service";
 import type { ConnectorConfigProps } from "../index";
-
-const PLUGIN_RELEASES_URL =
-	"https://github.com/MODSetter/SurfSense/releases?q=obsidian&expanded=true";
 
 function formatTimestamp(value: unknown): string {
 	if (typeof value !== "string" || !value) return "—";
@@ -26,76 +22,15 @@ function formatTimestamp(value: unknown): string {
  * web UI doesn't expose a Name input or a Save button for Obsidian (the
  * latter is suppressed in `connector-edit-view.tsx`).
  *
- * Renders one of three modes depending on the connector's `config`:
- *
- * 1. **Plugin connector** (`config.source === "plugin"`) — read-only stats
- *    panel showing what the plugin most recently reported.
- * 2. **Legacy server-path connector** (`config.legacy === true`, set by the
- *    Phase 3 alembic) — migration banner, an "Install Plugin" CTA, and a
- *    short "how to migrate" checklist that ends with the user pressing the
- *    standard Disconnect button (which deletes this connector along with
- *    every document it previously indexed).
- * 3. **Unknown** — fallback for rows that escaped the alembic; suggests a
- *    clean re-install.
+ * Renders plugin stats when connector metadata comes from the plugin.
+ * If metadata is missing or malformed, we show a recovery hint.
  */
 export const ObsidianConfig: FC<ConnectorConfigProps> = ({ connector }) => {
 	const config = (connector.config ?? {}) as Record<string, unknown>;
-	const isLegacy = config.legacy === true;
 	const isPlugin = config.source === "plugin";
 
-	if (isLegacy) return <LegacyBanner />;
 	if (isPlugin) return <PluginStats config={config} />;
 	return <UnknownConnectorState />;
-};
-
-const LegacyBanner: FC = () => {
-	return (
-		<div className="space-y-4">
-			<Alert className="border-amber-500/40 bg-amber-500/10">
-				<AlertTriangle className="size-4 shrink-0 text-amber-500" />
-				<AlertTitle className="text-xs sm:text-sm">
-					Sync stopped — install the plugin to migrate
-				</AlertTitle>
-				<AlertDescription className="text-[11px] sm:text-xs leading-relaxed">
-					This Obsidian connector used the legacy server-path scanner, which has been removed. The
-					notes already indexed remain searchable, but they no longer reflect changes made in your
-					vault.
-				</AlertDescription>
-			</Alert>
-
-			<a
-				href={PLUGIN_RELEASES_URL}
-				target="_blank"
-				rel="noopener noreferrer"
-				className="inline-flex"
-			>
-				<Button type="button" variant="outline" size="sm" className="gap-2">
-					<Download className="size-3.5" />
-					Install the plugin
-				</Button>
-			</a>
-
-			<div className="rounded-xl border border-border bg-slate-400/5 p-3 sm:p-6 dark:bg-white/5">
-				<h3 className="mb-3 text-sm font-medium sm:text-base">How to migrate</h3>
-				<ol className="list-decimal space-y-2 pl-5 text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
-					<li>Install the SurfSense Obsidian plugin using the button above.</li>
-					<li>
-						In Obsidian, open Settings → SurfSense, sign in, pick a search space, and wait for the
-						first sync to finish.
-					</li>
-					<li>
-						Confirm the new "Obsidian — &lt;vault&gt;" connector shows your notes, then return here
-						and use the Disconnect button below to remove this legacy connector.
-					</li>
-				</ol>
-				<p className="mt-3 text-[11px] leading-relaxed text-amber-600 dark:text-amber-400 sm:text-xs">
-					Heads up: Disconnect also deletes every document this connector previously indexed. Make
-					sure the plugin has finished its first sync before you disconnect, otherwise your Obsidian
-					notes will disappear from search until the plugin re-indexes them.
-				</p>
-			</div>
-		</div>
-	);
 };
 
 const PluginStats: FC<{ config: Record<string, unknown> }> = ({ config }) => {
@@ -179,8 +114,8 @@ const UnknownConnectorState: FC = () => (
 		<Info className="size-4 shrink-0" />
 		<AlertTitle className="text-xs sm:text-sm">Unrecognized config</AlertTitle>
 		<AlertDescription className="text-[11px] sm:text-xs">
-			This connector has neither plugin metadata nor a legacy marker. It may predate the migration —
-			you can safely delete it and re-install the SurfSense Obsidian plugin to resume syncing.
+			This connector is missing plugin metadata. Delete it, then reconnect your vault from the
+			SurfSense Obsidian plugin so sync can resume.
 		</AlertDescription>
 	</Alert>
 );

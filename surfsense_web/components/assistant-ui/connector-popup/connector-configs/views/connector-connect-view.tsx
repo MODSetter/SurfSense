@@ -111,7 +111,9 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 								: getConnectorTypeDisplay(connectorType)}
 						</h2>
 						<p className="text-xs sm:text-base text-muted-foreground mt-1">
-							Enter your connection details
+							{connectorType === "OBSIDIAN_CONNECTOR"
+								? "Follow the plugin setup steps below"
+								: "Enter your connection details"}
 						</p>
 					</div>
 				</div>
