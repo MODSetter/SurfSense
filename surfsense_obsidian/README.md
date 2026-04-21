@@ -1,90 +1,150 @@
-# Obsidian Sample Plugin
+# SurfSense for Obsidian
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+Sync your Obsidian vault to [SurfSense](https://github.com/MODSetter/SurfSense)
+so your notes become searchable alongside the rest of your knowledge sources
+(GitHub, Slack, Linear, Drive, web pages, etc.) from any SurfSense chat.
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+The plugin runs inside Obsidian itself, on desktop and mobile, so it works
+the same way for SurfSense Cloud and self-hosted deployments. There is no
+server-side vault mount and no Electron-only path; everything goes over HTTPS.
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open modal (simple)" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+## What it does
 
-## First time developing plugins?
+- Realtime sync as you create, edit, rename, or delete notes
+- Initial scan + reconciliation against the server manifest on startup,
+  so vault edits made while the plugin was offline still show up
+- Persistent upload queue, so a crash or offline window never loses changes
+- Frontmatter, `[[wiki links]]`, `#tags`, headings, and resolved/unresolved
+  links are extracted and indexed
+- Each chat citation links straight back into Obsidian via the
+  `obsidian://open?vault=…&file=…` deep link
+- Multi-vault aware: each vault you enable the plugin in becomes its own
+  connector row in SurfSense, named after the vault
 
-Quick starting guide for new plugin devs:
+## Install
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+### Via [BRAT](https://github.com/TfTHacker/obsidian42-brat) (current)
 
-## Releasing new releases
+1. Install the BRAT community plugin.
+2. Run **BRAT: Add a beta plugin for testing**.
+3. Paste `MODSetter/SurfSense` and pick the latest release.
+4. Enable **SurfSense** in *Settings → Community plugins*.
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+### Manual sideload
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+1. Download `main.js`, `manifest.json`, and `styles.css` from the latest
+   GitHub release tagged with the plugin version (e.g. `0.1.0`, with no `v`
+   prefix, matching the `version` field in `manifest.json`).
+2. Copy them into `<vault>/.obsidian/plugins/surfsense/`.
+3. Restart Obsidian and enable the plugin.
 
-## Adding your plugin to the community plugin list
+### Community plugin store
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
+Submission to the official Obsidian community plugin store is in progress.
+Once approved you will be able to install from *Settings → Community plugins*
+inside Obsidian.
 
-## How to use
+## Configure
 
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
+Open **Settings → SurfSense** in Obsidian and fill in:
 
-## Manually installing the plugin
+| Setting | Value |
+| --- | --- |
+| Server URL | `https://api.surfsense.com` for SurfSense Cloud, or your self-hosted URL |
+| API token | Copy from the *Connectors → Obsidian* dialog in the SurfSense web app |
+| Search space | Pick the search space this vault should sync into |
+| Vault name | Defaults to your Obsidian vault name; rename if you have multiple vaults |
+| Sync mode | *Auto* (recommended) or *Manual* |
+| Exclude patterns | Glob patterns of folders/files to skip (e.g. `.trash`, `_attachments`, `templates/**`) |
+| Include attachments | Off by default; enable to sync non-`.md` files |
 
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
+The connector row appears automatically inside SurfSense the first time the
+plugin successfully calls `/obsidian/connect`. You can manage or delete it
+from *Connectors → Obsidian* in the web app.
 
-## Improve code quality with eslint
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- This project already has eslint preconfigured, you can invoke a check by running`npm run lint`
-- Together with a custom eslint [plugin](https://github.com/obsidianmd/eslint-plugin) for Obsidan specific code guidelines.
-- A GitHub action is preconfigured to automatically lint every commit on all branches.
+> **Token lifetime.** The web app currently issues 24-hour JWTs. If you see
+> *"token expired"* in the plugin status bar, paste a fresh token from the
+> SurfSense web app. Long-lived personal access tokens are coming in a future
+> release.
 
-## Funding URL
+## Mobile
 
-You can include funding URLs where people who use your plugin can financially support it.
+The plugin works on Obsidian for iOS and Android. Sync runs whenever the
+app is in the foreground and once more on app close. Mobile OSes
+aggressively suspend background apps, so mobile sync is near-realtime rather
+than instant. Desktop is the source of truth for live editing.
 
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
+## Privacy & safety
 
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
+The SurfSense backend qualifies as server-side telemetry under Obsidian's
+[Developer policies](https://github.com/obsidianmd/obsidian-developer-docs/blob/main/en/Developer%20policies.md),
+so here is the full list of what the plugin sends and stores. The
+canonical SurfSense privacy policy lives at
+<https://surfsense.com/privacy>; this section is the plugin-specific
+addendum.
+
+**Sent on `/connect` (once per onload):**
+
+- `vault_id`: a random UUID minted in the plugin's `data.json` on first run
+- `vault_name`: the Obsidian vault folder name
+- `search_space_id`: the SurfSense search space you picked
+
+**Sent per note on `/sync`, `/rename`, `/delete`:**
+
+- `path`, `name`, `extension`
+- `content` (plain text of the note)
+- `frontmatter`, `tags`, `headings`, resolved and unresolved links,
+  `embeds`, `aliases`
+- `content_hash` (SHA-256 of the note body), `mtime`, `ctime`
+
+**Stored server-side per vault:**
+
+- One connector row keyed by `vault_id` with `{vault_name, source: "plugin",
+  last_connect_at}`. Nothing per-device, no plugin version, no analytics.
+- One `documents` row per note (soft-deleted rather than hard-deleted so
+  existing chat citations remain valid).
+
+**What never leaves the plugin:**
+
+- No remote code loading, no `eval`, no analytics.
+- All network traffic goes to your configured **Server URL** only.
+- The `Authorization: Bearer …` header is set per-request with the token
+  you paste; the plugin never reads cookies or other Obsidian state.
+- The plugin uses Obsidian's `requestUrl` (no `fetch`, no `node:http`,
+  no `node:https`) and Web Crypto for hashing, per Obsidian's mobile guidance.
+
+For retention, deletion, and contact details see
+<https://surfsense.com/privacy>.
+
+## Development
+
+This plugin lives in [`surfsense_obsidian/`](.) inside the SurfSense
+monorepo. To work on it locally:
+
+```sh
+cd surfsense_obsidian
+npm install
+npm run dev   # esbuild in watch mode → main.js
 ```
 
-If you have multiple URLs, you can also do:
+Symlink the folder into a test vault's `.obsidian/plugins/surfsense/`,
+enable the plugin, then **Cmd+R** in Obsidian whenever `main.js` rebuilds.
 
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
+Lint:
+
+```sh
+npm run lint
 ```
 
-## API Documentation
+The release pipeline lives at
+[`.github/workflows/release-obsidian-plugin.yml`](../.github/workflows/release-obsidian-plugin.yml)
+in the repo root and is triggered by tags of the form `obsidian-v0.1.0`.
+It verifies the tag matches `manifest.json`, builds the plugin, attaches
+`main.js` + `manifest.json` + `styles.css` to a GitHub release tagged with
+the bare version (e.g. `0.1.0`, the form BRAT and the Obsidian community
+store look for), and mirrors `manifest.json` + `versions.json` to the repo
+root so Obsidian's community plugin browser can discover them.
 
-See https://docs.obsidian.md
+## License
+
+[Apache-2.0](LICENSE), same as the rest of SurfSense.
