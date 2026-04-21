@@ -386,7 +386,7 @@ async def jira_callback(
         new_connector = SearchSourceConnector(
             name=connector_name,
             connector_type=SearchSourceConnectorType.JIRA_CONNECTOR,
-            is_indexable=True,
+            is_indexable=False,
             config=connector_config,
             search_space_id=space_id,
             user_id=user_id,
