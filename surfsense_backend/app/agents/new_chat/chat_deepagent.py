@@ -45,7 +45,7 @@ from app.agents.new_chat.system_prompt import (
     build_configurable_system_prompt,
     build_surfsense_system_prompt,
 )
-from app.agents.new_chat.tools.registry import build_tools_async
+from app.agents.new_chat.tools.registry import build_tools_async, get_connector_gated_tools
 from app.db import ChatVisibility
 from app.services.connector_service import ConnectorService
 from app.utils.perf import get_perf_logger
@@ -285,120 +285,31 @@ async def create_surfsense_deep_agent(
         "llm": llm,
     }
 
-    # Disable Notion action tools if no Notion connector is configured.
-    # When an MCP-mode connector exists, use MCP tools; otherwise use direct-API tools.
     modified_disabled_tools = list(disabled_tools) if disabled_tools else []
+    modified_disabled_tools.extend(
+        get_connector_gated_tools(available_connectors)
+    )
+
+    # TODO(phase-1): Remove Notion MCP gating after revert.
     has_notion_connector = (
         available_connectors is not None and "NOTION_CONNECTOR" in available_connectors
     )
-    _notion_direct_tools = [
-        "create_notion_page",
-        "update_notion_page",
-        "delete_notion_page",
-    ]
-    _notion_mcp_tools = [
-        "create_notion_page_mcp",
-        "update_notion_page_mcp",
-        "delete_notion_page_mcp",
-    ]
-    if not has_notion_connector:
-        modified_disabled_tools.extend(_notion_direct_tools)
-        modified_disabled_tools.extend(_notion_mcp_tools)
-    else:
+    if has_notion_connector:
         from app.services.notion_mcp import has_mcp_notion_connector
 
         _use_mcp = await has_mcp_notion_connector(db_session, search_space_id)
         if _use_mcp:
-            modified_disabled_tools.extend(_notion_direct_tools)
+            modified_disabled_tools.extend([
+                "create_notion_page",
+                "update_notion_page",
+                "delete_notion_page",
+            ])
         else:
-            modified_disabled_tools.extend(_notion_mcp_tools)
-
-    # Disable Linear action tools if no Linear connector is configured
-    has_linear_connector = (
-        available_connectors is not None and "LINEAR_CONNECTOR" in available_connectors
-    )
-    if not has_linear_connector:
-        linear_tools = [
-            "create_linear_issue",
-            "update_linear_issue",
-            "delete_linear_issue",
-        ]
-        modified_disabled_tools.extend(linear_tools)
-
-    # Disable Google Drive action tools if no Google Drive connector is configured
-    has_google_drive_connector = (
-        available_connectors is not None and "GOOGLE_DRIVE_FILE" in available_connectors
-    )
-    if not has_google_drive_connector:
-        google_drive_tools = [
-            "create_google_drive_file",
-            "delete_google_drive_file",
-        ]
-        modified_disabled_tools.extend(google_drive_tools)
-
-    has_dropbox_connector = (
-        available_connectors is not None and "DROPBOX_FILE" in available_connectors
-    )
-    if not has_dropbox_connector:
-        modified_disabled_tools.extend(["create_dropbox_file", "delete_dropbox_file"])
-
-    has_onedrive_connector = (
-        available_connectors is not None and "ONEDRIVE_FILE" in available_connectors
-    )
-    if not has_onedrive_connector:
-        modified_disabled_tools.extend(["create_onedrive_file", "delete_onedrive_file"])
-
-    # Disable Google Calendar action tools if no Google Calendar connector is configured
-    has_google_calendar_connector = (
-        available_connectors is not None
-        and "GOOGLE_CALENDAR_CONNECTOR" in available_connectors
-    )
-    if not has_google_calendar_connector:
-        calendar_tools = [
-            "create_calendar_event",
-            "update_calendar_event",
-            "delete_calendar_event",
-        ]
-        modified_disabled_tools.extend(calendar_tools)
-
-    # Disable Gmail action tools if no Gmail connector is configured
-    has_gmail_connector = (
-        available_connectors is not None
-        and "GOOGLE_GMAIL_CONNECTOR" in available_connectors
-    )
-    if not has_gmail_connector:
-        gmail_tools = [
-            "create_gmail_draft",
-            "update_gmail_draft",
-            "send_gmail_email",
-            "trash_gmail_email",
-        ]
-        modified_disabled_tools.extend(gmail_tools)
-
-    # Disable Jira action tools if no Jira connector is configured
-    has_jira_connector = (
-        available_connectors is not None and "JIRA_CONNECTOR" in available_connectors
-    )
-    if not has_jira_connector:
-        jira_tools = [
-            "create_jira_issue",
-            "update_jira_issue",
-            "delete_jira_issue",
-        ]
-        modified_disabled_tools.extend(jira_tools)
-
-    # Disable Confluence action tools if no Confluence connector is configured
-    has_confluence_connector = (
-        available_connectors is not None
-        and "CONFLUENCE_CONNECTOR" in available_connectors
-    )
-    if not has_confluence_connector:
-        confluence_tools = [
-            "create_confluence_page",
-            "update_confluence_page",
-            "delete_confluence_page",
-        ]
-        modified_disabled_tools.extend(confluence_tools)
+            modified_disabled_tools.extend([
+                "create_notion_page_mcp",
+                "update_notion_page_mcp",
+                "delete_notion_page_mcp",
+            ])
 
     # Remove direct KB search tool; we now pre-seed a scoped filesystem via middleware.
     if "search_knowledge_base" not in modified_disabled_tools:
