@@ -119,6 +119,8 @@ class ToolDefinition:
         factory: Callable that creates the tool. Receives a dict of dependencies.
         requires: List of dependency names this tool needs (e.g., "search_space_id", "db_session")
         enabled_by_default: Whether the tool is enabled when no explicit config is provided
+        required_connector: Searchable type string (e.g. ``"LINEAR_CONNECTOR"``)
+            that must be in ``available_connectors`` for the tool to be enabled.
 
     """
 
@@ -128,6 +130,7 @@ class ToolDefinition:
     requires: list[str] = field(default_factory=list)
     enabled_by_default: bool = True
     hidden: bool = False
+    required_connector: str | None = None
 
 
 # =============================================================================
@@ -265,6 +268,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="LINEAR_CONNECTOR",
     ),
     ToolDefinition(
         name="update_linear_issue",
@@ -275,6 +279,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="LINEAR_CONNECTOR",
     ),
     ToolDefinition(
         name="delete_linear_issue",
@@ -285,6 +290,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="LINEAR_CONNECTOR",
     ),
     # =========================================================================
     # NOTION TOOLS - create, update, delete pages
@@ -299,6 +305,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="NOTION_CONNECTOR",
     ),
     ToolDefinition(
         name="update_notion_page",
@@ -309,6 +316,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="NOTION_CONNECTOR",
     ),
     ToolDefinition(
         name="delete_notion_page",
@@ -319,6 +327,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="NOTION_CONNECTOR",
     ),
     # =========================================================================
     # NOTION MCP TOOLS - MCP-backed variants (disabled until swap)
@@ -333,6 +342,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="NOTION_CONNECTOR",
     ),
     ToolDefinition(
         name="update_notion_page_mcp",
@@ -343,6 +353,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="NOTION_CONNECTOR",
     ),
     ToolDefinition(
         name="delete_notion_page_mcp",
@@ -353,6 +364,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="NOTION_CONNECTOR",
     ),
     # =========================================================================
     # GOOGLE DRIVE TOOLS - create files, delete files
@@ -367,6 +379,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="GOOGLE_DRIVE_FILE",
     ),
     ToolDefinition(
         name="delete_google_drive_file",
@@ -377,6 +390,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="GOOGLE_DRIVE_FILE",
     ),
     # =========================================================================
     # DROPBOX TOOLS - create and trash files
@@ -391,6 +405,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="DROPBOX_FILE",
     ),
     ToolDefinition(
         name="delete_dropbox_file",
@@ -401,6 +416,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="DROPBOX_FILE",
     ),
     # =========================================================================
     # ONEDRIVE TOOLS - create and trash files
@@ -415,6 +431,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="ONEDRIVE_FILE",
     ),
     ToolDefinition(
         name="delete_onedrive_file",
@@ -425,6 +442,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="ONEDRIVE_FILE",
     ),
     # =========================================================================
     # GOOGLE CALENDAR TOOLS - create, update, delete events
@@ -439,6 +457,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="GOOGLE_CALENDAR_CONNECTOR",
     ),
     ToolDefinition(
         name="update_calendar_event",
@@ -449,6 +468,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="GOOGLE_CALENDAR_CONNECTOR",
     ),
     ToolDefinition(
         name="delete_calendar_event",
@@ -459,6 +479,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="GOOGLE_CALENDAR_CONNECTOR",
     ),
     # =========================================================================
     # GMAIL TOOLS - create drafts, update drafts, send emails, trash emails
@@ -473,6 +494,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="GOOGLE_GMAIL_CONNECTOR",
     ),
     ToolDefinition(
         name="send_gmail_email",
@@ -483,6 +505,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="GOOGLE_GMAIL_CONNECTOR",
     ),
     ToolDefinition(
         name="trash_gmail_email",
@@ -493,6 +516,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="GOOGLE_GMAIL_CONNECTOR",
     ),
     ToolDefinition(
         name="update_gmail_draft",
@@ -503,6 +527,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="GOOGLE_GMAIL_CONNECTOR",
     ),
     # =========================================================================
     # JIRA TOOLS - create, update, delete issues
@@ -517,6 +542,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="JIRA_CONNECTOR",
     ),
     ToolDefinition(
         name="update_jira_issue",
@@ -527,6 +553,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="JIRA_CONNECTOR",
     ),
     ToolDefinition(
         name="delete_jira_issue",
@@ -537,6 +564,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="JIRA_CONNECTOR",
     ),
     # =========================================================================
     # CONFLUENCE TOOLS - create, update, delete pages
@@ -551,6 +579,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="CONFLUENCE_CONNECTOR",
     ),
     ToolDefinition(
         name="update_confluence_page",
@@ -561,6 +590,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="CONFLUENCE_CONNECTOR",
     ),
     ToolDefinition(
         name="delete_confluence_page",
@@ -571,6 +601,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="CONFLUENCE_CONNECTOR",
     ),
 ]
 
@@ -586,6 +617,22 @@ def get_tool_by_name(name: str) -> ToolDefinition | None:
         if tool_def.name == name:
             return tool_def
     return None
+
+
+def get_connector_gated_tools(
+    available_connectors: list[str] | None,
+) -> list[str]:
+    """Return tool names to disable"""
+    if available_connectors is None:
+        available = set()
+    else:
+        available = set(available_connectors)
+
+    disabled: list[str] = []
+    for tool_def in BUILTIN_TOOLS:
+        if tool_def.required_connector and tool_def.required_connector not in available:
+            disabled.append(tool_def.name)
+    return disabled
 
 
 def get_all_tool_names() -> list[str]:
