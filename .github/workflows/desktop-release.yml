@@ -130,7 +130,6 @@ jobs:
             -c.extraMetadata.version="${{ steps.version.outputs.VERSION }}")
 
           if [ "${{ steps.sign.outputs.enabled }}" = "true" ]; then
-            CMD+=(-c.win.publisherName="$WINDOWS_PUBLISHER_NAME")
             CMD+=(-c.win.azureSignOptions.publisherName="$WINDOWS_PUBLISHER_NAME")
             CMD+=(-c.win.azureSignOptions.endpoint="$AZURE_CODESIGN_ENDPOINT")
             CMD+=(-c.win.azureSignOptions.codeSigningAccountName="$AZURE_CODESIGN_ACCOUNT")
