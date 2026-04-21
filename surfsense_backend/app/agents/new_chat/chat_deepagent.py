@@ -290,27 +290,6 @@ async def create_surfsense_deep_agent(
         get_connector_gated_tools(available_connectors)
     )
 
-    # TODO(phase-1): Remove Notion MCP gating after revert.
-    has_notion_connector = (
-        available_connectors is not None and "NOTION_CONNECTOR" in available_connectors
-    )
-    if has_notion_connector:
-        from app.services.notion_mcp import has_mcp_notion_connector
-
-        _use_mcp = await has_mcp_notion_connector(db_session, search_space_id)
-        if _use_mcp:
-            modified_disabled_tools.extend([
-                "create_notion_page",
-                "update_notion_page",
-                "delete_notion_page",
-            ])
-        else:
-            modified_disabled_tools.extend([
-                "create_notion_page_mcp",
-                "update_notion_page_mcp",
-                "delete_notion_page_mcp",
-            ])
-
     # Remove direct KB search tool; we now pre-seed a scoped filesystem via middleware.
     if "search_knowledge_base" not in modified_disabled_tools:
         modified_disabled_tools.append("search_knowledge_base")
