@@ -55,6 +55,7 @@ MCP_SERVICES: dict[str, MCPServiceConfig] = {
         supports_dcr=False,
         client_id_env="AIRTABLE_CLIENT_ID",
         client_secret_env="AIRTABLE_CLIENT_SECRET",
+        scopes=["data.records:read", "data.records:write", "schema.bases:read", "schema.bases:write"],
     ),
 }
 
