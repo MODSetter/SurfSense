@@ -53,7 +53,6 @@ from app.schemas.obsidian_plugin import (
     ManifestResponse,
     NotePayload,
 )
-from app.services.llm_service import get_user_long_context_llm
 from app.utils.document_converters import generate_unique_identifier_hash
 from app.utils.document_versioning import create_version_snapshot
 
@@ -102,7 +101,7 @@ def _build_metadata(
         "extension": payload.extension,
         "frontmatter": payload.frontmatter,
         "tags": payload.tags,
-        "headings": payload.headings,
+        "headings": [h.model_dump() for h in payload.headings],
         "outgoing_links": payload.resolved_links,
         "unresolved_links": payload.unresolved_links,
         "embeds": payload.embeds,
@@ -236,6 +235,8 @@ async def upsert_note(
         raise RuntimeError(f"Indexing pipeline rejected obsidian note {payload.path}")
 
     document = prepared[0]
+
+    from app.services.llm_service import get_user_long_context_llm
 
     llm = await get_user_long_context_llm(session, str(user_id), search_space_id)
     return await pipeline.index(document, connector_doc, llm)

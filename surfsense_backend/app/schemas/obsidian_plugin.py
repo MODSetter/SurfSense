@@ -21,6 +21,13 @@ class _PluginBase(BaseModel):
     model_config = _PLUGIN_MODEL_CONFIG
 
 
+class HeadingRef(_PluginBase):
+    """One markdown heading extracted from Obsidian metadata cache."""
+
+    heading: str
+    level: int = Field(ge=1, le=6)
+
+
 class NotePayload(_PluginBase):
     """One Obsidian note as pushed by the plugin (the source of truth)."""
 
@@ -36,7 +43,7 @@ class NotePayload(_PluginBase):
 
     frontmatter: dict[str, Any] = Field(default_factory=dict)
     tags: list[str] = Field(default_factory=list)
-    headings: list[str] = Field(default_factory=list)
+    headings: list[HeadingRef] = Field(default_factory=list)
     resolved_links: list[str] = Field(default_factory=list)
     unresolved_links: list[str] = Field(default_factory=list)
     embeds: list[str] = Field(default_factory=list)
