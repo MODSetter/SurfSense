@@ -25,12 +25,22 @@ This works for cloud and self-hosted deployments, including desktop and mobile c
 ## Quick start
 
 1. Open **Connectors** in SurfSense and choose **Obsidian**.
-2. Click **Open plugin releases** and install the latest SurfSense Obsidian plugin.
-3. In Obsidian, open **Settings → SurfSense**.
+2. Install the plugin (recommended via BRAT) using the steps below.
+3. In Obsidian, open **Settings → SurfSense**.  
 4. Paste your SurfSense API token from the user settings section.
 5. Paste your Server URL in the plugin setting: either your SurfSense main domain (if `/api/v1` rewrites are enabled) or your direct backend URL.
 6. Choose the Search Space in the plugin, then the first sync should run automatically.
 7. Confirm the connector appears as **Obsidian - &lt;vault&gt;** in SurfSense.
+
+## Install via BRAT (recommended)
+
+1. In Obsidian, open **Settings → Community plugins** and install **BRAT**.
+2. Open BRAT settings and click **Add beta plugin** button.
+3. Paste the repository: `https://github.com/modsetter/SurfSense/`.
+4. Select the latest plugin version, then enable **SurfSense**.
+5. Open **Settings → SurfSense** to finish setup.
+
+If BRAT is unavailable in your environment, use **Open plugin releases** in SurfSense and install manually from GitHub release assets.
 
 ## Migrating from the legacy connector
 
