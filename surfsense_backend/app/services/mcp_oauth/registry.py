@@ -46,6 +46,14 @@ MCP_SERVICES: dict[str, MCPServiceConfig] = {
         supports_dcr=False,
         client_id_env="SLACK_CLIENT_ID",
         client_secret_env="SLACK_CLIENT_SECRET",
+        scopes=[
+            "search:read.public", "search:read.private", "search:read.mpim",
+            "search:read.im", "search:read.files", "search:read.users",
+            "chat:write", "channels:history", "groups:history",
+            "mpim:history", "im:history",
+            "canvases:read", "canvases:write",
+            "users:read", "users:read.email",
+        ],
     ),
     "airtable": MCPServiceConfig(
         name="Airtable",
