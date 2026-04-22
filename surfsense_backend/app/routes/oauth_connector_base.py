@@ -430,7 +430,7 @@ class OAuthConnectorRoute:
             state_mgr = oauth._get_state_manager()
 
             extra: dict[str, Any] = {"connector_id": connector_id}
-            if return_url and return_url.startswith("/"):
+            if return_url and return_url.startswith("/") and not return_url.startswith("//"):
                 extra["return_url"] = return_url
 
             auth_params: dict[str, str] = {
@@ -498,7 +498,7 @@ class OAuthConnectorRoute:
                 data = state_mgr.validate_state(state)
             except Exception as e:
                 raise HTTPException(
-                    status_code=400, detail=f"Invalid state parameter: {e!s}"
+                    status_code=400, detail="Invalid or expired state parameter."
                 ) from e
 
             user_id = UUID(data["user_id"])
@@ -552,7 +552,7 @@ class OAuthConnectorRoute:
                     db_connector.id,
                     user_id,
                 )
-                if reauth_return_url and reauth_return_url.startswith("/"):
+                if reauth_return_url and reauth_return_url.startswith("/") and not reauth_return_url.startswith("//"):
                     return RedirectResponse(
                         url=f"{config.NEXT_FRONTEND_URL}{reauth_return_url}"
                     )
@@ -603,7 +603,7 @@ class OAuthConnectorRoute:
             except IntegrityError as e:
                 await session.rollback()
                 raise HTTPException(
-                    status_code=409, detail=f"Database integrity error: {e!s}"
+                    status_code=409, detail="A connector for this service already exists."
                 ) from e
 
             logger.info(

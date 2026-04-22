@@ -1,13 +1,9 @@
 """Shared auth helper for Luma agent tools."""
 
-import logging
-
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.db import SearchSourceConnector, SearchSourceConnectorType
-
-logger = logging.getLogger(__name__)
 
 LUMA_API = "https://public-api.luma.com/v1"
 

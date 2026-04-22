@@ -1,15 +1,11 @@
 """Shared auth helper for Discord agent tools (REST API, not gateway bot)."""
 
-import logging
-
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.config import config
 from app.db import SearchSourceConnector, SearchSourceConnectorType
 from app.utils.oauth_security import TokenEncryption
-
-logger = logging.getLogger(__name__)
 
 DISCORD_API = "https://discord.com/api/v10"
 

@@ -1,15 +1,9 @@
 """Shared auth helper for Teams agent tools (Microsoft Graph REST API)."""
 
-import logging
-
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.config import config
 from app.db import SearchSourceConnector, SearchSourceConnectorType
-from app.utils.oauth_security import TokenEncryption
-
-logger = logging.getLogger(__name__)
 
 GRAPH_API = "https://graph.microsoft.com/v1.0"
 

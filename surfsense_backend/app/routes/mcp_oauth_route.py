@@ -182,7 +182,7 @@ async def connect_mcp_service(
     except Exception as e:
         logger.error("Failed to initiate %s MCP OAuth: %s", service, e, exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to initiate {service} MCP OAuth: {e!s}",
+            status_code=500, detail=f"Failed to initiate {service} MCP OAuth.",
         ) from e
 
 
@@ -220,6 +220,9 @@ async def mcp_oauth_callback(
     user_id = UUID(data["user_id"])
     space_id = data["space_id"]
     svc_key = data.get("service", service)
+
+    if svc_key != service:
+        raise HTTPException(status_code=400, detail="State/path service mismatch")
 
     from app.services.mcp_oauth.registry import get_service
 
@@ -315,7 +318,7 @@ async def mcp_oauth_callback(
                 svc.name, db_connector.id, user_id,
             )
             reauth_return_url = data.get("return_url")
-            if reauth_return_url and reauth_return_url.startswith("/"):
+            if reauth_return_url and reauth_return_url.startswith("/") and not reauth_return_url.startswith("//"):
                 return RedirectResponse(
                     url=f"{config.NEXT_FRONTEND_URL}{reauth_return_url}"
                 )
@@ -347,7 +350,7 @@ async def mcp_oauth_callback(
         except IntegrityError as e:
             await session.rollback()
             raise HTTPException(
-                status_code=409, detail=f"Database integrity error: {e!s}",
+                status_code=409, detail="A connector for this service already exists.",
             ) from e
 
         _invalidate_cache(space_id)
@@ -368,7 +371,7 @@ async def mcp_oauth_callback(
         )
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to complete {service} MCP OAuth: {e!s}",
+            detail=f"Failed to complete {service} MCP OAuth.",
         ) from e
 
 
@@ -495,7 +498,7 @@ async def reauth_mcp_service(
         )
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to initiate {service} MCP re-auth: {e!s}",
+            detail=f"Failed to initiate {service} MCP re-auth.",
         ) from e
 
 

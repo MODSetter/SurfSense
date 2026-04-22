@@ -96,7 +96,7 @@ router.include_router(logs_router)
 router.include_router(circleback_webhook_router)  # Circleback meeting webhooks
 router.include_router(surfsense_docs_router)  # Surfsense documentation for citations
 router.include_router(notifications_router)  # Notifications with Zero sync
-router.include_router(mcp_oauth_router)  # MCP OAuth 2.1 for Linear, Jira, ClickUp
+router.include_router(mcp_oauth_router)  # MCP OAuth 2.1 for Linear, Jira, ClickUp, Slack, Airtable
 router.include_router(composio_router)  # Composio OAuth and toolkit management
 router.include_router(public_chat_router)  # Public chat sharing and cloning
 router.include_router(incentive_tasks_router)  # Incentive tasks for earning free pages
