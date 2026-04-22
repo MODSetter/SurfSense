@@ -7,10 +7,14 @@ on:
       - "obsidian-v*"
   workflow_dispatch:
     inputs:
-      tag:
-        description: "Tag to build (e.g. obsidian-v0.1.0). Dry-run only when run manually."
+      publish:
+        description: "Publish to GitHub Releases"
         required: true
-        default: "obsidian-v0.0.0-test"
+        type: choice
+        options:
+          - never
+          - always
+        default: "never"
 
 permissions:
   contents: write
@@ -39,23 +43,34 @@ jobs:
       - name: Resolve plugin version
         id: version
         run: |
+          manifest_version=$(node -p "require('./manifest.json').version")
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            tag="${{ github.event.inputs.tag }}"
+            # Manual runs derive the release version from manifest.json.
+            version="$manifest_version"
+            tag="obsidian-v$version"
           else
             tag="${GITHUB_REF_NAME}"
-          fi
-          if [ -z "$tag" ] || [[ "$tag" != obsidian-v* ]]; then
-            echo "::error::Invalid tag '$tag'. Expected format: obsidian-v<version>"
-            exit 1
-          fi
-          version="${tag#obsidian-v}"
-          manifest_version=$(node -p "require('./manifest.json').version")
-          if [ "$version" != "$manifest_version" ]; then
-            echo "::error::Tag version '$version' does not match manifest version '$manifest_version'"
-            exit 1
+            if [ -z "$tag" ] || [[ "$tag" != obsidian-v* ]]; then
+              echo "::error::Invalid tag '$tag'. Expected format: obsidian-v<version>"
+              exit 1
+            fi
+            version="${tag#obsidian-v}"
+            if [ "$version" != "$manifest_version" ]; then
+              echo "::error::Tag version '$version' does not match manifest version '$manifest_version'"
+              exit 1
+            fi
           fi
           echo "tag=$tag"            >> "$GITHUB_OUTPUT"
           echo "version=$version"    >> "$GITHUB_OUTPUT"
+
+      - name: Resolve publish mode
+        id: release_mode
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ inputs.publish }}" = "always" ]; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - run: npm ci
 
@@ -70,7 +85,7 @@ jobs:
           done
 
       - name: Mirror manifest.json + versions.json to repo root
-        if: github.event_name == 'push'
+        if: steps.release_mode.outputs.should_publish == 'true'
         working-directory: ${{ github.workspace }}
         run: |
           cp surfsense_obsidian/manifest.json manifest.json
@@ -90,7 +105,7 @@ jobs:
 
       # Publish release under bare `manifest.json` version (no `obsidian-v` prefix) for BRAT/store compatibility.
       - name: Create GitHub release
-        if: github.event_name == 'push'
+        if: steps.release_mode.outputs.should_publish == 'true'
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.version.outputs.version }}
