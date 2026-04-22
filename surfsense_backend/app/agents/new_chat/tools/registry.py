@@ -78,11 +78,7 @@ from .google_drive import (
     create_create_google_drive_file_tool,
     create_delete_google_drive_file_tool,
 )
-# NOTE: Native Jira CRUD tools (create/update/delete_jira_issue) have been
-# replaced by MCP equivalents (createJiraIssue, editJiraIssue). The native
-# tools used the REST API which is incompatible with MCP-scoped OAuth tokens.
 from .connected_accounts import create_get_connected_accounts_tool
-# NOTE: Native Linear delete tool disabled — see comment in BUILTIN_TOOLS.
 from .luma import (
     create_create_luma_event_tool,
     create_list_luma_events_tool,
@@ -278,12 +274,6 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             "llm",
         ],
     ),
-    # =========================================================================
-    # LINEAR TOOLS — create/update handled by MCP save_issue. Delete/archive
-    # is NOT available: the official Linear MCP server does not expose a
-    # delete tool, and the native tool's GraphQL API call fails with
-    # MCP-scoped tokens (401). Re-enable when Linear adds MCP delete support.
-    # =========================================================================
     # =========================================================================
     # NOTION TOOLS - create, update, delete pages
     # Auto-disabled when no Notion connector is configured (see chat_deepagent.py)
@@ -517,11 +507,6 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         requires=["db_session", "search_space_id", "user_id"],
         required_connector="GOOGLE_GMAIL_CONNECTOR",
     ),
-    # =========================================================================
-    # JIRA TOOLS — Now fully handled by MCP (createJiraIssue, editJiraIssue,
-    # searchJiraIssuesUsingJql, etc.). Native tools removed because the
-    # MCP-scoped OAuth token cannot call the Jira REST API.
-    # =========================================================================
     # =========================================================================
     # CONFLUENCE TOOLS - create, update, delete pages
     # Auto-disabled when no Confluence connector is configured (see chat_deepagent.py)
@@ -843,14 +828,15 @@ async def build_tools_async(
             )
             tools.extend(mcp_tools)
             logging.info(
-                f"Registered {len(mcp_tools)} MCP tools: {[t.name for t in mcp_tools]}",
+                "Registered %d MCP tools: %s",
+                len(mcp_tools), [t.name for t in mcp_tools],
             )
         except Exception as e:
-            # Log error but don't fail - just continue without MCP tools
-            logging.exception(f"Failed to load MCP tools: {e!s}")
+            logging.exception("Failed to load MCP tools: %s", e)
 
     logging.info(
-        f"Total tools for agent: {len(tools)} - {[t.name for t in tools]}",
+        "Total tools for agent: %d — %s",
+        len(tools), [t.name for t in tools],
     )
 
     return tools

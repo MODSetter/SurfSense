@@ -79,16 +79,15 @@ async def _fetch_account_metadata(
                     "https://api.airtable.com/v0/meta/whoami",
                     headers={"Authorization": f"Bearer {access_token}"},
                 )
-                if resp.status_code != 200:
-                    logger.warning(
-                        "Airtable whoami API response: status=%s body=%s",
-                        resp.status_code, resp.text[:300],
-                    )
                 if resp.status_code == 200:
                     whoami = resp.json()
                     meta["user_id"] = whoami.get("id", "")
                     meta["user_email"] = whoami.get("email", "")
                     meta["display_name"] = whoami.get("email", "Airtable")
+                else:
+                    logger.warning(
+                        "Airtable whoami API returned %d (non-blocking)", resp.status_code,
+                    )
 
     except Exception:
         logger.warning(
@@ -346,7 +345,6 @@ async def mcp_oauth_callback(
             "server_config": {
                 "transport": "streamable-http",
                 "url": mcp_url,
-                "headers": {"Authorization": f"Bearer {access_token}"},
             },
             "mcp_service": svc_key,
             "mcp_oauth": {
