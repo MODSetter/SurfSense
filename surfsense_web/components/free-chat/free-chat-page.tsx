@@ -210,8 +210,7 @@ export function FreeChatPage() {
 			trackAnonymousChatMessageSent({
 				modelSlug,
 				messageLength: userQuery.trim().length,
-				hasUploadedDoc:
-					anonMode.isAnonymous && anonMode.uploadedDoc !== null ? true : false,
+				hasUploadedDoc: anonMode.isAnonymous && anonMode.uploadedDoc !== null ? true : false,
 				surface: "free_chat_page",
 			});
 

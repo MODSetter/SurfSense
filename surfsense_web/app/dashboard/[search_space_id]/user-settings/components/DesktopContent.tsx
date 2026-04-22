@@ -200,8 +200,8 @@ export function DesktopContent() {
 						Launch on Startup
 					</CardTitle>
 					<CardDescription className="text-xs md:text-sm">
-						Automatically start SurfSense when you sign in to your computer so global
-						shortcuts and folder sync are always available.
+						Automatically start SurfSense when you sign in to your computer so global shortcuts and
+						folder sync are always available.
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="px-3 md:px-6 pb-3 md:pb-6 space-y-3">
@@ -232,8 +232,7 @@ export function DesktopContent() {
 								Start minimized to tray
 							</Label>
 							<p className="text-xs text-muted-foreground">
-								Skip the main window on boot — SurfSense lives in the system tray until you need
-								it.
+								Skip the main window on boot — SurfSense lives in the system tray until you need it.
 							</p>
 						</div>
 						<Switch

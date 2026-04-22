@@ -426,15 +426,50 @@ const AiSortIllustration = () => (
 			<title>AI File Sorting illustration showing automatic folder organization</title>
 			{/* Scattered documents on the left */}
 			<g opacity="0.5">
-				<rect x="20" y="40" width="35" height="45" rx="4" className="fill-neutral-200 dark:fill-neutral-700" transform="rotate(-8 37 62)" />
-				<rect x="50" y="80" width="35" height="45" rx="4" className="fill-neutral-200 dark:fill-neutral-700" transform="rotate(5 67 102)" />
-				<rect x="15" y="110" width="35" height="45" rx="4" className="fill-neutral-200 dark:fill-neutral-700" transform="rotate(-3 32 132)" />
+				<rect
+					x="20"
+					y="40"
+					width="35"
+					height="45"
+					rx="4"
+					className="fill-neutral-200 dark:fill-neutral-700"
+					transform="rotate(-8 37 62)"
+				/>
+				<rect
+					x="50"
+					y="80"
+					width="35"
+					height="45"
+					rx="4"
+					className="fill-neutral-200 dark:fill-neutral-700"
+					transform="rotate(5 67 102)"
+				/>
+				<rect
+					x="15"
+					y="110"
+					width="35"
+					height="45"
+					rx="4"
+					className="fill-neutral-200 dark:fill-neutral-700"
+					transform="rotate(-3 32 132)"
+				/>
 			</g>
 
 			{/* AI sparkle / magic in the center */}
 			<g transform="translate(140, 90)">
-				<path d="M 0,-18 L 4,-6 L 16,-4 L 6,4 L 8,16 L 0,10 L -8,16 L -6,4 L -16,-4 L -4,-6 Z" className="fill-emerald-500 dark:fill-emerald-400" opacity="0.85">
-					<animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="10s" repeatCount="indefinite" />
+				<path
+					d="M 0,-18 L 4,-6 L 16,-4 L 6,4 L 8,16 L 0,10 L -8,16 L -6,4 L -16,-4 L -4,-6 Z"
+					className="fill-emerald-500 dark:fill-emerald-400"
+					opacity="0.85"
+				>
+					<animateTransform
+						attributeName="transform"
+						type="rotate"
+						from="0"
+						to="360"
+						dur="10s"
+						repeatCount="indefinite"
+					/>
 				</path>
 				<circle cx="0" cy="0" r="3" className="fill-white dark:fill-emerald-200">
 					<animate attributeName="opacity" values="0.5;1;0.5" dur="2s" repeatCount="indefinite" />
@@ -442,51 +477,208 @@ const AiSortIllustration = () => (
 			</g>
 
 			{/* Animated sorting arrows */}
-			<g className="stroke-emerald-500 dark:stroke-emerald-400" strokeWidth="2" fill="none" opacity="0.6">
+			<g
+				className="stroke-emerald-500 dark:stroke-emerald-400"
+				strokeWidth="2"
+				fill="none"
+				opacity="0.6"
+			>
 				<path d="M 100 70 Q 140 60, 180 50" strokeDasharray="4,4">
-					<animate attributeName="stroke-dashoffset" from="8" to="0" dur="1s" repeatCount="indefinite" />
+					<animate
+						attributeName="stroke-dashoffset"
+						from="8"
+						to="0"
+						dur="1s"
+						repeatCount="indefinite"
+					/>
 				</path>
 				<path d="M 100 100 Q 140 100, 180 100" strokeDasharray="4,4">
-					<animate attributeName="stroke-dashoffset" from="8" to="0" dur="1s" repeatCount="indefinite" />
+					<animate
+						attributeName="stroke-dashoffset"
+						from="8"
+						to="0"
+						dur="1s"
+						repeatCount="indefinite"
+					/>
 				</path>
 				<path d="M 100 130 Q 140 140, 180 150" strokeDasharray="4,4">
-					<animate attributeName="stroke-dashoffset" from="8" to="0" dur="1s" repeatCount="indefinite" />
+					<animate
+						attributeName="stroke-dashoffset"
+						from="8"
+						to="0"
+						dur="1s"
+						repeatCount="indefinite"
+					/>
 				</path>
 			</g>
 
 			{/* Organized folder tree on the right */}
 			{/* Root folder */}
 			<g>
-				<rect x="220" y="30" width="160" height="28" rx="6" className="fill-white dark:fill-neutral-800" opacity="0.9" />
-				<rect x="228" y="36" width="16" height="14" rx="3" className="fill-emerald-500 dark:fill-emerald-400" />
-				<line x1="252" y1="43" x2="330" y2="43" className="stroke-neutral-400 dark:stroke-neutral-500" strokeWidth="2.5" strokeLinecap="round" />
+				<rect
+					x="220"
+					y="30"
+					width="160"
+					height="28"
+					rx="6"
+					className="fill-white dark:fill-neutral-800"
+					opacity="0.9"
+				/>
+				<rect
+					x="228"
+					y="36"
+					width="16"
+					height="14"
+					rx="3"
+					className="fill-emerald-500 dark:fill-emerald-400"
+				/>
+				<line
+					x1="252"
+					y1="43"
+					x2="330"
+					y2="43"
+					className="stroke-neutral-400 dark:stroke-neutral-500"
+					strokeWidth="2.5"
+					strokeLinecap="round"
+				/>
 			</g>
 
 			{/* Subfolder 1 */}
 			<g>
-				<line x1="240" y1="58" x2="240" y2="76" className="stroke-neutral-300 dark:stroke-neutral-600" strokeWidth="1.5" />
-				<line x1="240" y1="76" x2="250" y2="76" className="stroke-neutral-300 dark:stroke-neutral-600" strokeWidth="1.5" />
-				<rect x="250" y="64" width="130" height="24" rx="5" className="fill-white dark:fill-neutral-800" opacity="0.85" />
-				<rect x="257" y="70" width="12" height="11" rx="2" className="fill-teal-400 dark:fill-teal-500" />
-				<line x1="276" y1="76" x2="340" y2="76" className="stroke-neutral-400 dark:stroke-neutral-500" strokeWidth="2" strokeLinecap="round" />
+				<line
+					x1="240"
+					y1="58"
+					x2="240"
+					y2="76"
+					className="stroke-neutral-300 dark:stroke-neutral-600"
+					strokeWidth="1.5"
+				/>
+				<line
+					x1="240"
+					y1="76"
+					x2="250"
+					y2="76"
+					className="stroke-neutral-300 dark:stroke-neutral-600"
+					strokeWidth="1.5"
+				/>
+				<rect
+					x="250"
+					y="64"
+					width="130"
+					height="24"
+					rx="5"
+					className="fill-white dark:fill-neutral-800"
+					opacity="0.85"
+				/>
+				<rect
+					x="257"
+					y="70"
+					width="12"
+					height="11"
+					rx="2"
+					className="fill-teal-400 dark:fill-teal-500"
+				/>
+				<line
+					x1="276"
+					y1="76"
+					x2="340"
+					y2="76"
+					className="stroke-neutral-400 dark:stroke-neutral-500"
+					strokeWidth="2"
+					strokeLinecap="round"
+				/>
 			</g>
 
 			{/* Subfolder 2 */}
 			<g>
-				<line x1="240" y1="76" x2="240" y2="108" className="stroke-neutral-300 dark:stroke-neutral-600" strokeWidth="1.5" />
-				<line x1="240" y1="108" x2="250" y2="108" className="stroke-neutral-300 dark:stroke-neutral-600" strokeWidth="1.5" />
-				<rect x="250" y="96" width="130" height="24" rx="5" className="fill-white dark:fill-neutral-800" opacity="0.85" />
-				<rect x="257" y="102" width="12" height="11" rx="2" className="fill-cyan-400 dark:fill-cyan-500" />
-				<line x1="276" y1="108" x2="350" y2="108" className="stroke-neutral-400 dark:stroke-neutral-500" strokeWidth="2" strokeLinecap="round" />
+				<line
+					x1="240"
+					y1="76"
+					x2="240"
+					y2="108"
+					className="stroke-neutral-300 dark:stroke-neutral-600"
+					strokeWidth="1.5"
+				/>
+				<line
+					x1="240"
+					y1="108"
+					x2="250"
+					y2="108"
+					className="stroke-neutral-300 dark:stroke-neutral-600"
+					strokeWidth="1.5"
+				/>
+				<rect
+					x="250"
+					y="96"
+					width="130"
+					height="24"
+					rx="5"
+					className="fill-white dark:fill-neutral-800"
+					opacity="0.85"
+				/>
+				<rect
+					x="257"
+					y="102"
+					width="12"
+					height="11"
+					rx="2"
+					className="fill-cyan-400 dark:fill-cyan-500"
+				/>
+				<line
+					x1="276"
+					y1="108"
+					x2="350"
+					y2="108"
+					className="stroke-neutral-400 dark:stroke-neutral-500"
+					strokeWidth="2"
+					strokeLinecap="round"
+				/>
 			</g>
 
 			{/* Subfolder 3 */}
 			<g>
-				<line x1="240" y1="108" x2="240" y2="140" className="stroke-neutral-300 dark:stroke-neutral-600" strokeWidth="1.5" />
-				<line x1="240" y1="140" x2="250" y2="140" className="stroke-neutral-300 dark:stroke-neutral-600" strokeWidth="1.5" />
-				<rect x="250" y="128" width="130" height="24" rx="5" className="fill-white dark:fill-neutral-800" opacity="0.85" />
-				<rect x="257" y="134" width="12" height="11" rx="2" className="fill-emerald-400 dark:fill-emerald-500" />
-				<line x1="276" y1="140" x2="325" y2="140" className="stroke-neutral-400 dark:stroke-neutral-500" strokeWidth="2" strokeLinecap="round" />
+				<line
+					x1="240"
+					y1="108"
+					x2="240"
+					y2="140"
+					className="stroke-neutral-300 dark:stroke-neutral-600"
+					strokeWidth="1.5"
+				/>
+				<line
+					x1="240"
+					y1="140"
+					x2="250"
+					y2="140"
+					className="stroke-neutral-300 dark:stroke-neutral-600"
+					strokeWidth="1.5"
+				/>
+				<rect
+					x="250"
+					y="128"
+					width="130"
+					height="24"
+					rx="5"
+					className="fill-white dark:fill-neutral-800"
+					opacity="0.85"
+				/>
+				<rect
+					x="257"
+					y="134"
+					width="12"
+					height="11"
+					rx="2"
+					className="fill-emerald-400 dark:fill-emerald-500"
+				/>
+				<line
+					x1="276"
+					y1="140"
+					x2="325"
+					y2="140"
+					className="stroke-neutral-400 dark:stroke-neutral-500"
+					strokeWidth="2"
+					strokeLinecap="round"
+				/>
 			</g>
 
 			{/* Sparkle accents */}
@@ -495,10 +687,22 @@ const AiSortIllustration = () => (
 					<animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite" />
 				</circle>
 				<circle cx="190" cy="155" r="1.5" className="fill-teal-400">
-					<animate attributeName="opacity" values="0;1;0" dur="2.5s" begin="0.8s" repeatCount="indefinite" />
+					<animate
+						attributeName="opacity"
+						values="0;1;0"
+						dur="2.5s"
+						begin="0.8s"
+						repeatCount="indefinite"
+					/>
 				</circle>
 				<circle cx="155" cy="120" r="1.5" className="fill-cyan-400">
-					<animate attributeName="opacity" values="0;1;0" dur="3s" begin="0.4s" repeatCount="indefinite" />
+					<animate
+						attributeName="opacity"
+						values="0;1;0"
+						dur="3s"
+						begin="0.4s"
+						repeatCount="indefinite"
+					/>
 				</circle>
 			</g>
 		</svg>
