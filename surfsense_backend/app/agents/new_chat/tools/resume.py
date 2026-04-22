@@ -116,7 +116,7 @@ _TEMPLATES: dict[str, dict[str, str]] = {
   entries-highlights-nested-bullet: text(13pt, [\\u{2022}], baseline: -0.6pt),
   entries-highlights-space-left: 0cm,
   entries-highlights-space-above: 0.08cm,
-  entries-highlights-space-between-items: 0.08cm,
+  entries-highlights-space-between-items: 0.02cm,
   entries-highlights-space-between-bullet-and-text: 0.3em,
   date: datetime(
     year: {year},
