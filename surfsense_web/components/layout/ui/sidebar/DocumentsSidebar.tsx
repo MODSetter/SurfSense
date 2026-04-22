@@ -1541,10 +1541,13 @@ function AnonymousDocumentsSidebar({
 								type="button"
 								onClick={handleAnonUploadClick}
 								disabled={isUploading}
-								className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-primary/30 px-4 py-6 text-sm text-primary transition-colors hover:border-primary/60 hover:bg-primary/5 cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+								className="relative flex w-full items-center justify-center rounded-lg border-2 border-dashed border-primary/30 px-4 py-6 text-sm text-primary transition-colors hover:border-primary/60 hover:bg-primary/5 cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
 							>
-								<Upload className="size-4" />
-								{isUploading ? "Uploading..." : "Upload a document"}
+								<span className={`flex items-center gap-2 ${isUploading ? "opacity-0" : ""}`}>
+									<Upload className="size-4" />
+									Upload a document
+								</span>
+								{isUploading && <Spinner size="sm" className="absolute" />}
 							</button>
 							<p className="mt-2 text-[11px] text-muted-foreground leading-relaxed">
 								Text, code, CSV, and HTML files only. Create an account for PDFs, images, and 30+

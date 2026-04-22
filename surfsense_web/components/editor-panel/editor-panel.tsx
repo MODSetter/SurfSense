@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue, useSetAtom } from "jotai";
-import { Download, FileQuestionMark, FileText, Loader2, RefreshCw, XIcon } from "lucide-react";
+import { Download, FileQuestionMark, FileText, RefreshCw, XIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
+import { Spinner } from "@/components/ui/spinner";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 
@@ -247,7 +248,7 @@ export function EditorPanelContent({
 								<Button
 									variant="outline"
 									size="sm"
-									className="shrink-0 gap-1.5"
+									className="relative shrink-0"
 									disabled={downloading}
 									onClick={async () => {
 										setDownloading(true);
@@ -276,12 +277,13 @@ export function EditorPanelContent({
 										}
 									}}
 								>
-									{downloading ? (
-										<Loader2 className="size-3.5 animate-spin" />
-									) : (
+									<span
+										className={`flex items-center gap-1.5 ${downloading ? "opacity-0" : ""}`}
+									>
 										<Download className="size-3.5" />
-									)}
-									{downloading ? "Preparing..." : "Download .md"}
+										Download .md
+									</span>
+									{downloading && <Spinner size="sm" className="absolute" />}
 								</Button>
 							</AlertDescription>
 						</Alert>
