@@ -1,7 +1,7 @@
-"""126_add_report_content_type
+"""127_add_report_content_type
 
-Revision ID: 126
-Revises: 125
+Revision ID: 127
+Revises: 126
 Create Date: 2026-04-15
 
 Adds content_type column to reports table to distinguish between
@@ -16,8 +16,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "126"
-down_revision: str | None = "125"
+revision: str = "127"
+down_revision: str | None = "126"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
