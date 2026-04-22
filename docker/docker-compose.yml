@@ -60,6 +60,8 @@ services:
       - shared_temp:/shared_tmp
     env_file:
       - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://${DB_USER:-surfsense}:${DB_PASSWORD:-surfsense}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}}
       CELERY_BROKER_URL: ${REDIS_URL:-redis://redis:6379/0}
@@ -100,6 +102,8 @@ services:
       - shared_temp:/shared_tmp
     env_file:
       - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://${DB_USER:-surfsense}:${DB_PASSWORD:-surfsense}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}}
       CELERY_BROKER_URL: ${REDIS_URL:-redis://redis:6379/0}
@@ -198,6 +202,7 @@ services:
       NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE: ${AUTH_TYPE:-LOCAL}
       NEXT_PUBLIC_ETL_SERVICE: ${ETL_SERVICE:-DOCLING}
       NEXT_PUBLIC_DEPLOYMENT_MODE: ${DEPLOYMENT_MODE:-self-hosted}
+      FASTAPI_BACKEND_INTERNAL_URL: ${FASTAPI_BACKEND_INTERNAL_URL:-http://backend:8000}
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     depends_on:
