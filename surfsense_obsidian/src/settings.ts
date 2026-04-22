@@ -4,6 +4,7 @@ import {
 	Platform,
 	PluginSettingTab,
 	Setting,
+	setIcon,
 } from "obsidian";
 import { AuthError } from "./api-client";
 import { normalizeFolder, parseExcludePatterns } from "./excludes";
@@ -29,7 +30,7 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 
 		const settings = this.plugin.settings;
 
-		new Setting(containerEl).setName("Connection").setHeading();
+		this.renderConnectionHeading(containerEl);
 
 		new Setting(containerEl)
 			.setName("Server URL")
@@ -260,6 +261,53 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 					);
 				}),
 			);
+	}
+
+	private renderConnectionHeading(containerEl: HTMLElement): void {
+		const heading = new Setting(containerEl).setName("Connection").setHeading();
+		const indicator = heading.nameEl.createSpan({
+			cls: "surfsense-connection-indicator",
+		});
+		const visual = this.getConnectionVisual();
+		indicator.addClass(`surfsense-connection-indicator--${visual.tone}`);
+		setIcon(indicator, visual.icon);
+		indicator.setAttr("aria-label", visual.label);
+		indicator.setAttr("title", visual.label);
+	}
+
+	private getConnectionVisual(): {
+		icon: string;
+		label: string;
+		tone: "ok" | "syncing" | "warn" | "err" | "muted";
+	} {
+		const settings = this.plugin.settings;
+		const kind = this.plugin.lastStatus.kind;
+
+		if (kind === "auth-error") {
+			return { icon: "lock", label: "Token invalid or expired", tone: "err" };
+		}
+		if (kind === "error") {
+			return { icon: "alert-circle", label: "Connection error", tone: "err" };
+		}
+		if (kind === "offline") {
+			return { icon: "wifi-off", label: "Server unreachable", tone: "warn" };
+		}
+
+		if (!settings.apiToken) {
+			return { icon: "circle", label: "Missing API token", tone: "muted" };
+		}
+		if (!settings.searchSpaceId) {
+			return { icon: "circle", label: "Pick a search space", tone: "muted" };
+		}
+		if (!settings.connectorId) {
+			return { icon: "circle", label: "Not connected yet", tone: "muted" };
+		}
+
+		if (kind === "syncing" || kind === "queued") {
+			return { icon: "refresh-ccw", label: "Connected and syncing", tone: "syncing" };
+		}
+
+		return { icon: "check-circle", label: "Connected", tone: "ok" };
 	}
 
 	private async refreshSearchSpaces(): Promise<void> {
