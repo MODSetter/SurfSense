@@ -77,8 +77,32 @@ async def _check_and_trigger_schedules():
                 SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR: index_google_calendar_events_task,
             }
 
+            _LIVE_CONNECTOR_TYPES = {
+                SearchSourceConnectorType.SLACK_CONNECTOR,
+                SearchSourceConnectorType.TEAMS_CONNECTOR,
+                SearchSourceConnectorType.LINEAR_CONNECTOR,
+                SearchSourceConnectorType.JIRA_CONNECTOR,
+                SearchSourceConnectorType.CLICKUP_CONNECTOR,
+                SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
+                SearchSourceConnectorType.AIRTABLE_CONNECTOR,
+                SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
+                SearchSourceConnectorType.DISCORD_CONNECTOR,
+                SearchSourceConnectorType.LUMA_CONNECTOR,
+            }
+
             # Trigger indexing for each due connector
             for connector in due_connectors:
+                if connector.connector_type in _LIVE_CONNECTOR_TYPES:
+                    connector.periodic_indexing_enabled = False
+                    connector.next_scheduled_at = None
+                    await session.commit()
+                    logger.info(
+                        "Disabled obsolete periodic indexing for live connector %s (%s)",
+                        connector.id,
+                        connector.connector_type.value,
+                    )
+                    continue
+
                 # Primary guard: Redis lock indicates a task is currently running.
                 if is_connector_indexing_locked(connector.id):
                     logger.info(
