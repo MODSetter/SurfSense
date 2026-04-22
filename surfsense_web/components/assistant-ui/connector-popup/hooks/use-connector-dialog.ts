@@ -314,6 +314,9 @@ export const useConnectorDialog = () => {
 								oauthConnector.title,
 								oauthConnector.connectorType
 							);
+						} else if (!newConnector.is_indexable) {
+							toast.success(`${oauthConnector.title} connected successfully!`);
+							await refetchAllConnectors();
 						} else {
 							toast.dismiss("auto-index");
 							const config = validateIndexingConfigState({
