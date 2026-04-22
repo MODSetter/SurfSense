@@ -1,0 +1,90 @@
+---
+title: Connect Ollama
+description: Simple setup guide for using Ollama with SurfSense across local, Docker, remote, and cloud setups
+---
+
+# Connect Ollama
+
+Use this page to choose the correct **API Base URL** when adding an Ollama provider in SurfSense.
+
+## 1) Pick your API Base URL
+
+| Ollama location | SurfSense location | API Base URL |
+|---|---|---|
+| Same machine | No Docker | `http://localhost:11434` |
+| Host machine (macOS/Windows) | Docker Desktop | `http://host.docker.internal:11434` |
+| Host machine (Linux) | Docker Compose | `http://host.docker.internal:11434` |
+| Same Docker Compose stack | Docker Compose | `http://ollama:11434` |
+| Another machine in your network | Any | `http://<lan-ip>:11434` |
+| Public Ollama endpoint / proxy / cloud | Any | `http(s)://<your-domain-or-endpoint>` |
+
+If SurfSense runs in Docker, do not use `localhost` unless Ollama is in the same container.
+
+## 2) Add Ollama in SurfSense
+
+Go to **Search Space Settings -> Agent Models -> Add Model** and set:
+
+- Provider: `OLLAMA`
+- Model name: your model tag, for example `llama3.2` or `qwen3:8b`
+- API Base URL: from the table above
+- API key:
+  - local/self-hosted Ollama: any non-empty value
+  - Ollama cloud/proxied auth: real key or token required by that endpoint
+
+Save. SurfSense validates the connection immediately.
+
+## 3) Common setups
+
+### A) SurfSense in Docker Desktop, Ollama on your host
+
+Use:
+
+```text
+http://host.docker.internal:11434
+```
+
+### B) Ollama as a service in the same Compose
+
+Use API Base URL:
+
+```text
+http://ollama:11434
+```
+
+Minimal service example:
+
+```yaml
+ollama:
+  image: ollama/ollama:latest
+  volumes:
+    - ollama_data:/root/.ollama
+  ports:
+    - "11434:11434"
+```
+
+### C) Ollama on another machine
+
+Ollama binds to `127.0.0.1` by default. Make it reachable on the network:
+
+- Set `OLLAMA_HOST=0.0.0.0:11434` on the machine/service running Ollama
+- Open firewall port `11434`
+- Use `http://<lan-ip>:11434` in SurfSense's API Base URL
+
+## 4) Quick troubleshooting
+
+| Error | Cause | Fix |
+|---|---|---|
+| `Cannot connect to host localhost:11434` | Wrong URL from Dockerized backend | Use `host.docker.internal` or `ollama` |
+| `Cannot connect to host <lan-ip>:11434` | Ollama not exposed on network or firewall blocked | Set `OLLAMA_HOST=0.0.0.0:11434`, allow port 11434 |
+| URL starts with `/%20http://...` | Leading space in URL | Re-enter API Base URL without spaces |
+| `model not found` | Model not pulled on Ollama | Run `ollama pull <model>` |
+
+If needed, test from the backend container using the same host you put in **API Base URL**:
+
+```bash
+docker compose exec backend curl -v <YOUR_API_BASE_URL>/api/tags
+```
+
+## See also
+
+- [Docker Installation](/docs/docker-installation/docker-compose)
