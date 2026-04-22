@@ -7,6 +7,7 @@ import {
 	setIcon,
 } from "obsidian";
 import { AuthError } from "./api-client";
+import { AttachmentsConfirmModal } from "./attachments-confirm-modal";
 import { normalizeFolder, parseExcludePatterns } from "./excludes";
 import { FolderSuggestModal } from "./folder-suggest-modal";
 import type SurfSensePlugin from "./main";
@@ -210,6 +211,17 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 				toggle
 					.setValue(settings.includeAttachments)
 					.onChange(async (value) => {
+						const isEnabling =
+							value && !this.plugin.settings.includeAttachments;
+						if (isEnabling) {
+							const confirmed = await new AttachmentsConfirmModal(
+								this.app,
+							).waitForConfirmation();
+							if (!confirmed) {
+								this.display();
+								return;
+							}
+						}
 						this.plugin.settings.includeAttachments = value;
 						await this.plugin.saveSettings();
 					}),
