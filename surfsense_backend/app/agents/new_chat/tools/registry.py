@@ -78,16 +78,11 @@ from .google_drive import (
     create_create_google_drive_file_tool,
     create_delete_google_drive_file_tool,
 )
-from .jira import (
-    create_create_jira_issue_tool,
-    create_delete_jira_issue_tool,
-    create_update_jira_issue_tool,
-)
-from .linear import (
-    create_create_linear_issue_tool,
-    create_delete_linear_issue_tool,
-    create_update_linear_issue_tool,
-)
+# NOTE: Native Jira CRUD tools (create/update/delete_jira_issue) have been
+# replaced by MCP equivalents (createJiraIssue, editJiraIssue). The native
+# tools used the REST API which is incompatible with MCP-scoped OAuth tokens.
+from .connected_accounts import create_get_connected_accounts_tool
+# NOTE: Native Linear delete tool disabled — see comment in BUILTIN_TOOLS.
 from .luma import (
     create_create_luma_event_tool,
     create_list_luma_events_tool,
@@ -242,6 +237,21 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         requires=["db_session"],
     ),
     # =========================================================================
+    # SERVICE ACCOUNT DISCOVERY
+    # Generic tool for the LLM to discover connected accounts and resolve
+    # service-specific identifiers (e.g. Jira cloudId, Slack team, etc.)
+    # =========================================================================
+    ToolDefinition(
+        name="get_connected_accounts",
+        description="Discover connected accounts for a service and their metadata",
+        factory=lambda deps: create_get_connected_accounts_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    # =========================================================================
     # MEMORY TOOL - single update_memory, private or team by thread_visibility
     # =========================================================================
     ToolDefinition(
@@ -269,42 +279,11 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ],
     ),
     # =========================================================================
-    # LINEAR TOOLS - create, update, delete issues
-    # Auto-disabled when no Linear connector is configured (see chat_deepagent.py)
+    # LINEAR TOOLS — create/update handled by MCP save_issue. Delete/archive
+    # is NOT available: the official Linear MCP server does not expose a
+    # delete tool, and the native tool's GraphQL API call fails with
+    # MCP-scoped tokens (401). Re-enable when Linear adds MCP delete support.
     # =========================================================================
-    ToolDefinition(
-        name="create_linear_issue",
-        description="Create a new issue in the user's Linear workspace",
-        factory=lambda deps: create_create_linear_issue_tool(
-            db_session=deps["db_session"],
-            search_space_id=deps["search_space_id"],
-            user_id=deps["user_id"],
-        ),
-        requires=["db_session", "search_space_id", "user_id"],
-        required_connector="LINEAR_CONNECTOR",
-    ),
-    ToolDefinition(
-        name="update_linear_issue",
-        description="Update an existing indexed Linear issue",
-        factory=lambda deps: create_update_linear_issue_tool(
-            db_session=deps["db_session"],
-            search_space_id=deps["search_space_id"],
-            user_id=deps["user_id"],
-        ),
-        requires=["db_session", "search_space_id", "user_id"],
-        required_connector="LINEAR_CONNECTOR",
-    ),
-    ToolDefinition(
-        name="delete_linear_issue",
-        description="Archive (delete) an existing indexed Linear issue",
-        factory=lambda deps: create_delete_linear_issue_tool(
-            db_session=deps["db_session"],
-            search_space_id=deps["search_space_id"],
-            user_id=deps["user_id"],
-        ),
-        requires=["db_session", "search_space_id", "user_id"],
-        required_connector="LINEAR_CONNECTOR",
-    ),
     # =========================================================================
     # NOTION TOOLS - create, update, delete pages
     # Auto-disabled when no Notion connector is configured (see chat_deepagent.py)
@@ -539,42 +518,10 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         required_connector="GOOGLE_GMAIL_CONNECTOR",
     ),
     # =========================================================================
-    # JIRA TOOLS - create, update, delete issues
-    # Auto-disabled when no Jira connector is configured (see chat_deepagent.py)
+    # JIRA TOOLS — Now fully handled by MCP (createJiraIssue, editJiraIssue,
+    # searchJiraIssuesUsingJql, etc.). Native tools removed because the
+    # MCP-scoped OAuth token cannot call the Jira REST API.
     # =========================================================================
-    ToolDefinition(
-        name="create_jira_issue",
-        description="Create a new issue in the user's Jira project",
-        factory=lambda deps: create_create_jira_issue_tool(
-            db_session=deps["db_session"],
-            search_space_id=deps["search_space_id"],
-            user_id=deps["user_id"],
-        ),
-        requires=["db_session", "search_space_id", "user_id"],
-        required_connector="JIRA_CONNECTOR",
-    ),
-    ToolDefinition(
-        name="update_jira_issue",
-        description="Update an existing indexed Jira issue",
-        factory=lambda deps: create_update_jira_issue_tool(
-            db_session=deps["db_session"],
-            search_space_id=deps["search_space_id"],
-            user_id=deps["user_id"],
-        ),
-        requires=["db_session", "search_space_id", "user_id"],
-        required_connector="JIRA_CONNECTOR",
-    ),
-    ToolDefinition(
-        name="delete_jira_issue",
-        description="Delete an existing indexed Jira issue",
-        factory=lambda deps: create_delete_jira_issue_tool(
-            db_session=deps["db_session"],
-            search_space_id=deps["search_space_id"],
-            user_id=deps["user_id"],
-        ),
-        requires=["db_session", "search_space_id", "user_id"],
-        required_connector="JIRA_CONNECTOR",
-    ),
     # =========================================================================
     # CONFLUENCE TOOLS - create, update, delete pages
     # Auto-disabled when no Confluence connector is configured (see chat_deepagent.py)
@@ -902,7 +849,6 @@ async def build_tools_async(
             # Log error but don't fail - just continue without MCP tools
             logging.exception(f"Failed to load MCP tools: {e!s}")
 
-    # Log all tools being returned to agent
     logging.info(
         f"Total tools for agent: {len(tools)} - {[t.name for t in tools]}",
     )
