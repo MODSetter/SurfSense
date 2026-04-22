@@ -361,7 +361,12 @@ async def mcp_oauth_callback(
 
         account_meta = await _fetch_account_metadata(svc_key, access_token, token_json)
         if account_meta:
-            connector_config.update(account_meta)
+            _SAFE_META_KEYS = {"display_name", "team_id", "team_name", "user_id", "user_email",
+                               "workspace_id", "workspace_name", "organization_name",
+                               "organization_url_key", "cloud_id", "site_name", "base_url"}
+            for k, v in account_meta.items():
+                if k in _SAFE_META_KEYS:
+                    connector_config[k] = v
             logger.info(
                 "Stored account metadata for %s: display_name=%s",
                 svc_key, account_meta.get("display_name", ""),
