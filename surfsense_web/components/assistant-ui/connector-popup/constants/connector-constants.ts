@@ -31,7 +31,7 @@ export const OAUTH_CONNECTORS = [
 		title: "Airtable",
 		description: "Search your Airtable bases",
 		connectorType: EnumConnectorName.AIRTABLE_CONNECTOR,
-		authEndpoint: "/api/v1/auth/airtable/connector/add/",
+		authEndpoint: "/api/v1/auth/mcp/airtable/connector/add/",
 	},
 	{
 		id: "notion-connector",
@@ -45,14 +45,14 @@ export const OAUTH_CONNECTORS = [
 		title: "Linear",
 		description: "Search issues & projects",
 		connectorType: EnumConnectorName.LINEAR_CONNECTOR,
-		authEndpoint: "/api/v1/auth/linear/connector/add/",
+		authEndpoint: "/api/v1/auth/mcp/linear/connector/add/",
 	},
 	{
 		id: "slack-connector",
 		title: "Slack",
 		description: "Search Slack messages",
 		connectorType: EnumConnectorName.SLACK_CONNECTOR,
-		authEndpoint: "/api/v1/auth/slack/connector/add/",
+		authEndpoint: "/api/v1/auth/mcp/slack/connector/add/",
 	},
 	{
 		id: "teams-connector",
@@ -87,7 +87,7 @@ export const OAUTH_CONNECTORS = [
 		title: "Jira",
 		description: "Search Jira issues",
 		connectorType: EnumConnectorName.JIRA_CONNECTOR,
-		authEndpoint: "/api/v1/auth/jira/connector/add/",
+		authEndpoint: "/api/v1/auth/mcp/jira/connector/add/",
 	},
 	{
 		id: "confluence-connector",
@@ -101,46 +101,7 @@ export const OAUTH_CONNECTORS = [
 		title: "ClickUp",
 		description: "Search ClickUp tasks",
 		connectorType: EnumConnectorName.CLICKUP_CONNECTOR,
-		authEndpoint: "/api/v1/auth/clickup/connector/add/",
-	},
-] as const;
-
-// MCP OAuth Connectors (one-click connect via official MCP servers)
-export const MCP_OAUTH_CONNECTORS = [
-	{
-		id: "linear-mcp-connector",
-		title: "Linear (MCP)",
-		description: "Interact with Linear issues via MCP",
-		connectorType: EnumConnectorName.MCP_CONNECTOR,
-		authEndpoint: "/api/v1/auth/mcp/linear/connector/add/",
-	},
-	{
-		id: "jira-mcp-connector",
-		title: "Jira (MCP)",
-		description: "Interact with Jira issues via MCP",
-		connectorType: EnumConnectorName.MCP_CONNECTOR,
-		authEndpoint: "/api/v1/auth/mcp/jira/connector/add/",
-	},
-	{
-		id: "clickup-mcp-connector",
-		title: "ClickUp (MCP)",
-		description: "Interact with ClickUp tasks via MCP",
-		connectorType: EnumConnectorName.MCP_CONNECTOR,
 		authEndpoint: "/api/v1/auth/mcp/clickup/connector/add/",
-	},
-	{
-		id: "slack-mcp-connector",
-		title: "Slack (MCP)",
-		description: "Interact with Slack channels via MCP",
-		connectorType: EnumConnectorName.MCP_CONNECTOR,
-		authEndpoint: "/api/v1/auth/mcp/slack/connector/add/",
-	},
-	{
-		id: "airtable-mcp-connector",
-		title: "Airtable (MCP)",
-		description: "Interact with Airtable bases via MCP",
-		connectorType: EnumConnectorName.MCP_CONNECTOR,
-		authEndpoint: "/api/v1/auth/mcp/airtable/connector/add/",
 	},
 ] as const;
 

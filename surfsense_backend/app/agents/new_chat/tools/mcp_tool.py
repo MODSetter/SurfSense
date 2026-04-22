@@ -530,11 +530,12 @@ async def load_mcp_tools(
             return list(cached_tools)
 
     try:
+        # Find all connectors with MCP server config: generic MCP_CONNECTOR type
+        # and service-specific types (LINEAR_CONNECTOR, etc.) created via MCP OAuth.
         result = await session.execute(
             select(SearchSourceConnector).filter(
-                SearchSourceConnector.connector_type
-                == SearchSourceConnectorType.MCP_CONNECTOR,
                 SearchSourceConnector.search_space_id == search_space_id,
+                SearchSourceConnector.config.has_key("server_config"),  # noqa: W601
             ),
         )
 

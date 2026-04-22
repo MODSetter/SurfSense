@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 class MCPServiceConfig:
     name: str
     mcp_url: str
+    connector_type: str
     supports_dcr: bool = True
     oauth_discovery_origin: str | None = None
     client_id_env: str | None = None
@@ -26,18 +27,22 @@ MCP_SERVICES: dict[str, MCPServiceConfig] = {
     "linear": MCPServiceConfig(
         name="Linear",
         mcp_url="https://mcp.linear.app/mcp",
+        connector_type="LINEAR_CONNECTOR",
     ),
     "jira": MCPServiceConfig(
         name="Jira",
         mcp_url="https://mcp.atlassian.com/v1/mcp",
+        connector_type="JIRA_CONNECTOR",
     ),
     "clickup": MCPServiceConfig(
         name="ClickUp",
         mcp_url="https://mcp.clickup.com/mcp",
+        connector_type="CLICKUP_CONNECTOR",
     ),
     "slack": MCPServiceConfig(
         name="Slack",
         mcp_url="https://mcp.slack.com/mcp",
+        connector_type="SLACK_CONNECTOR",
         supports_dcr=False,
         client_id_env="SLACK_CLIENT_ID",
         client_secret_env="SLACK_CLIENT_SECRET",
@@ -45,6 +50,7 @@ MCP_SERVICES: dict[str, MCPServiceConfig] = {
     "airtable": MCPServiceConfig(
         name="Airtable",
         mcp_url="https://mcp.airtable.com/mcp",
+        connector_type="AIRTABLE_CONNECTOR",
         oauth_discovery_origin="https://airtable.com",
     ),
 }

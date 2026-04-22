@@ -10,14 +10,12 @@ import { ConnectorCard } from "../components/connector-card";
 import {
 	COMPOSIO_CONNECTORS,
 	CRAWLERS,
-	MCP_OAUTH_CONNECTORS,
 	OAUTH_CONNECTORS,
 	OTHER_CONNECTORS,
 } from "../constants/connector-constants";
 import { getDocumentCountForConnector } from "../utils/connector-document-mapping";
 
 type OAuthConnector = (typeof OAUTH_CONNECTORS)[number];
-type MCPOAuthConnector = (typeof MCP_OAUTH_CONNECTORS)[number];
 type ComposioConnector = (typeof COMPOSIO_CONNECTORS)[number];
 type OtherConnector = (typeof OTHER_CONNECTORS)[number];
 type CrawlerConnector = (typeof CRAWLERS)[number];
@@ -128,10 +126,6 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 	);
 	const otherDocumentAirtableConnectors = filteredOAuth.filter(
 		(c) => c.connectorType === EnumConnectorName.AIRTABLE_CONNECTOR
-	);
-
-	const filteredMCPOAuth = MCP_OAUTH_CONNECTORS.filter(
-		(c) => matchesSearch(c.title, c.description),
 	);
 
 	const moreIntegrationsComposio = filteredComposio.filter(
@@ -285,7 +279,6 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 		nativeGoogleDriveConnectors.length > 0 ||
 		composioGoogleDriveConnectors.length > 0 ||
 		fileStorageConnectors.length > 0;
-	const hasMCPOAuth = filteredMCPOAuth.length > 0;
 	const hasMoreIntegrations =
 		otherDocumentYouTubeConnectors.length > 0 ||
 		otherDocumentNotionConnectors.length > 0 ||
@@ -295,7 +288,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 		moreIntegrationsOther.length > 0 ||
 		moreIntegrationsCrawlers.length > 0;
 
-	const hasAnyResults = hasDocumentFileConnectors || hasMCPOAuth || hasMoreIntegrations;
+	const hasAnyResults = hasDocumentFileConnectors || hasMoreIntegrations;
 
 	if (!hasAnyResults && searchQuery) {
 		return (
@@ -321,20 +314,6 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 						{nativeGoogleDriveConnectors.map(renderOAuthCard)}
 						{composioGoogleDriveConnectors.map(renderOAuthCard)}
 						{fileStorageConnectors.map(renderOAuthCard)}
-					</div>
-				</section>
-			)}
-
-			{/* Live MCP Integrations */}
-			{hasMCPOAuth && (
-				<section>
-					<div className="flex items-center gap-2 mb-4">
-						<h3 className="text-sm font-semibold text-muted-foreground">
-							Live MCP Integrations
-						</h3>
-					</div>
-					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-						{filteredMCPOAuth.map((connector) => renderOAuthCard(connector as OAuthConnector | ComposioConnector))}
 					</div>
 				</section>
 			)}

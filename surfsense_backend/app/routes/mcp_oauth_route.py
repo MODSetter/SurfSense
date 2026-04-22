@@ -56,9 +56,7 @@ def _get_token_encryption() -> TokenEncryption:
 
 
 def _build_redirect_uri(service: str) -> str:
-    base = config.BACKEND_URL
-    if not base:
-        raise HTTPException(status_code=500, detail="BACKEND_URL not configured.")
+    base = config.BACKEND_URL or "http://localhost:8000"
     return f"{base.rstrip('/')}/api/v1/auth/mcp/{service}/connector/callback"
 
 
@@ -288,6 +286,7 @@ async def mcp_oauth_callback(
         }
 
         # ---- Re-auth path ----
+        db_connector_type = SearchSourceConnectorType(svc.connector_type)
         reauth_connector_id = data.get("connector_id")
         if reauth_connector_id:
             result = await session.execute(
@@ -295,8 +294,7 @@ async def mcp_oauth_callback(
                     SearchSourceConnector.id == reauth_connector_id,
                     SearchSourceConnector.user_id == user_id,
                     SearchSourceConnector.search_space_id == space_id,
-                    SearchSourceConnector.connector_type
-                    == SearchSourceConnectorType.MCP_CONNECTOR,
+                    SearchSourceConnector.connector_type == db_connector_type,
                 )
             )
             db_connector = result.scalars().first()
@@ -329,15 +327,15 @@ async def mcp_oauth_callback(
         # ---- New connector path ----
         connector_name = await generate_unique_connector_name(
             session,
-            SearchSourceConnectorType.MCP_CONNECTOR,
+            db_connector_type,
             space_id,
             user_id,
-            f"{svc.name} MCP",
+            svc.name,
         )
 
         new_connector = SearchSourceConnector(
             name=connector_name,
-            connector_type=SearchSourceConnectorType.MCP_CONNECTOR,
+            connector_type=db_connector_type,
             is_indexable=False,
             config=connector_config,
             search_space_id=space_id,
@@ -388,25 +386,25 @@ async def reauth_mcp_service(
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    result = await session.execute(
-        select(SearchSourceConnector).filter(
-            SearchSourceConnector.id == connector_id,
-            SearchSourceConnector.user_id == user.id,
-            SearchSourceConnector.search_space_id == space_id,
-            SearchSourceConnector.connector_type
-            == SearchSourceConnectorType.MCP_CONNECTOR,
-        )
-    )
-    if not result.scalars().first():
-        raise HTTPException(
-            status_code=404, detail="MCP connector not found or access denied",
-        )
-
     from app.services.mcp_oauth.registry import get_service
 
     svc = get_service(service)
     if not svc:
         raise HTTPException(status_code=404, detail=f"Unknown MCP service: {service}")
+
+    db_connector_type = SearchSourceConnectorType(svc.connector_type)
+    result = await session.execute(
+        select(SearchSourceConnector).filter(
+            SearchSourceConnector.id == connector_id,
+            SearchSourceConnector.user_id == user.id,
+            SearchSourceConnector.search_space_id == space_id,
+            SearchSourceConnector.connector_type == db_connector_type,
+        )
+    )
+    if not result.scalars().first():
+        raise HTTPException(
+            status_code=404, detail="Connector not found or access denied",
+        )
 
     try:
         from app.services.mcp_oauth.discovery import (
