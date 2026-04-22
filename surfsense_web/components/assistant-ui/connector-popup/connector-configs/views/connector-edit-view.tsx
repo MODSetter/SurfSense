@@ -16,6 +16,7 @@ import { DateRangeSelector } from "../../components/date-range-selector";
 import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
 import { SummaryConfig } from "../../components/summary-config";
 import { VisionLLMConfig } from "../../components/vision-llm-config";
+import { LIVE_CONNECTOR_TYPES } from "../../constants/connector-constants";
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
 import { type ConnectorConfigProps, getConnectorConfigComponent } from "../index";
 
@@ -119,6 +120,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	}, [searchSpaceId, searchSpaceIdAtom, reauthEndpoint, connector.id]);
 
 	const isMCPBacked = Boolean(connector.config?.server_config);
+	const isLive = isMCPBacked || LIVE_CONNECTOR_TYPES.has(connector.connector_type);
 
 	// Get connector-specific config component (MCP-backed connectors use a generic view)
 	const ConnectorConfigComponent = useMemo(() => {
@@ -228,8 +230,8 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 								{getConnectorDisplayName(connector.name)}
 							</h2>
 							<p className="text-xs sm:text-base text-muted-foreground mt-1">
-								{isMCPBacked
-									? "Connected — your agent can interact with this service in real time"
+								{isLive
+									? "Manage your connected account"
 									: "Manage your connector settings and sync configuration"}
 							</p>
 						</div>
@@ -381,10 +383,12 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 
 			{/* Fixed Footer - Action buttons */}
 			<div className="flex-shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0 px-6 sm:px-12 py-6 sm:py-6 bg-muted border-t border-border">
-				{showDisconnectConfirm ? (
-					<div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 sm:flex-initial">
+			{showDisconnectConfirm ? (
+				<div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 sm:flex-initial">
 						<span className="text-xs sm:text-sm text-muted-foreground sm:whitespace-nowrap">
-							Are you sure?
+							{isLive
+								? "Your agent will lose access to this service."
+								: "This will remove all indexed data."}
 						</span>
 						<div className="flex items-center gap-2 sm:gap-3">
 							<Button

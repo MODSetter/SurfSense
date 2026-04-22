@@ -1,5 +1,22 @@
 import { EnumConnectorName } from "@/contracts/enums/connector";
 
+/**
+ * Connectors that operate in real time (no background indexing).
+ * Used to adjust UI: hide sync controls, show "Connected" instead of doc counts.
+ */
+export const LIVE_CONNECTOR_TYPES = new Set<string>([
+	EnumConnectorName.LINEAR_CONNECTOR,
+	EnumConnectorName.SLACK_CONNECTOR,
+	EnumConnectorName.JIRA_CONNECTOR,
+	EnumConnectorName.CLICKUP_CONNECTOR,
+	EnumConnectorName.AIRTABLE_CONNECTOR,
+	EnumConnectorName.DISCORD_CONNECTOR,
+	EnumConnectorName.TEAMS_CONNECTOR,
+	EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR,
+	EnumConnectorName.GOOGLE_GMAIL_CONNECTOR,
+	EnumConnectorName.LUMA_CONNECTOR,
+]);
+
 // OAuth Connectors (Quick Connect)
 export const OAUTH_CONNECTORS = [
 	{
@@ -13,7 +30,7 @@ export const OAUTH_CONNECTORS = [
 	{
 		id: "google-gmail-connector",
 		title: "Gmail",
-		description: "Search through your emails",
+		description: "Search and read your emails",
 		connectorType: EnumConnectorName.GOOGLE_GMAIL_CONNECTOR,
 		authEndpoint: "/api/v1/auth/google/gmail/connector/add/",
 		selfHostedOnly: true,
@@ -21,7 +38,7 @@ export const OAUTH_CONNECTORS = [
 	{
 		id: "google-calendar-connector",
 		title: "Google Calendar",
-		description: "Search through your events",
+		description: "Search and manage your events",
 		connectorType: EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR,
 		authEndpoint: "/api/v1/auth/google/calendar/connector/add/",
 		selfHostedOnly: true,
@@ -29,7 +46,7 @@ export const OAUTH_CONNECTORS = [
 	{
 		id: "airtable-connector",
 		title: "Airtable",
-		description: "Search your Airtable bases",
+		description: "Search, read, and manage records",
 		connectorType: EnumConnectorName.AIRTABLE_CONNECTOR,
 		authEndpoint: "/api/v1/auth/mcp/airtable/connector/add/",
 	},
@@ -43,21 +60,21 @@ export const OAUTH_CONNECTORS = [
 	{
 		id: "linear-connector",
 		title: "Linear",
-		description: "Search issues & projects",
+		description: "Search, read, and manage issues & projects",
 		connectorType: EnumConnectorName.LINEAR_CONNECTOR,
 		authEndpoint: "/api/v1/auth/mcp/linear/connector/add/",
 	},
 	{
 		id: "slack-connector",
 		title: "Slack",
-		description: "Search Slack messages",
+		description: "Search, read, and send messages",
 		connectorType: EnumConnectorName.SLACK_CONNECTOR,
 		authEndpoint: "/api/v1/auth/mcp/slack/connector/add/",
 	},
 	{
 		id: "teams-connector",
 		title: "Microsoft Teams",
-		description: "Search Teams messages",
+		description: "Search, read, and send messages",
 		connectorType: EnumConnectorName.TEAMS_CONNECTOR,
 		authEndpoint: "/api/v1/auth/teams/connector/add/",
 	},
@@ -78,14 +95,14 @@ export const OAUTH_CONNECTORS = [
 	{
 		id: "discord-connector",
 		title: "Discord",
-		description: "Search Discord messages",
+		description: "Search, read, and send messages",
 		connectorType: EnumConnectorName.DISCORD_CONNECTOR,
 		authEndpoint: "/api/v1/auth/discord/connector/add/",
 	},
 	{
 		id: "jira-connector",
 		title: "Jira",
-		description: "Search Jira issues",
+		description: "Search, read, and manage issues",
 		connectorType: EnumConnectorName.JIRA_CONNECTOR,
 		authEndpoint: "/api/v1/auth/mcp/jira/connector/add/",
 	},
@@ -99,7 +116,7 @@ export const OAUTH_CONNECTORS = [
 	{
 		id: "clickup-connector",
 		title: "ClickUp",
-		description: "Search ClickUp tasks",
+		description: "Search, read, and manage tasks",
 		connectorType: EnumConnectorName.CLICKUP_CONNECTOR,
 		authEndpoint: "/api/v1/auth/mcp/clickup/connector/add/",
 	},
@@ -138,7 +155,7 @@ export const OTHER_CONNECTORS = [
 	{
 		id: "luma-connector",
 		title: "Luma",
-		description: "Search Luma events",
+		description: "Search and manage events",
 		connectorType: EnumConnectorName.LUMA_CONNECTOR,
 	},
 	{
