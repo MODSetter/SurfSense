@@ -126,6 +126,7 @@ export class SyncEngine {
 			this.setStatus("idle", "Pick a search space in settings.");
 			return;
 		}
+		this.setStatus("syncing", "Connecting to SurfSense");
 		try {
 			const fingerprint = await computeVaultFingerprint(this.deps.app);
 			const resp = await this.deps.apiClient.connect({
@@ -139,6 +140,7 @@ export class SyncEngine {
 				s.vaultId = resp.vault_id;
 				s.connectorId = resp.connector_id;
 			});
+			this.setStatus(this.queueStatusKind(), this.statusDetail());
 		} catch (err) {
 			this.handleStartupError(err);
 		}

@@ -115,7 +115,9 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 					if (this.plugin.settings.searchSpaceId !== null) {
 						try {
 							await this.plugin.engine.ensureConnected();
+							await this.plugin.engine.flushQueue();
 							new Notice("Surfsense: vault connected.");
+							this.display();
 						} catch (err) {
 							this.handleApiError(err);
 						}
