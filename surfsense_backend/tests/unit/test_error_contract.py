@@ -70,6 +70,20 @@ def _make_test_app():
     async def raise_http_500():
         raise HTTPException(status_code=500, detail="secret db password leaked")
 
+    @app.get("/http-503")
+    async def raise_http_503():
+        raise HTTPException(
+            status_code=503,
+            detail="Page purchases are temporarily unavailable.",
+        )
+
+    @app.get("/http-502")
+    async def raise_http_502():
+        raise HTTPException(
+            status_code=502,
+            detail="Unable to create Stripe checkout session.",
+        )
+
     @app.get("/surfsense-connector")
     async def raise_connector():
         raise ConnectorError("GitHub API returned 401")
@@ -183,6 +197,18 @@ class TestHTTPExceptionHandler:
         assert "password" not in body["error"]["message"]
         assert body["error"]["message"] == GENERIC_5XX_MESSAGE
         assert body["error"]["code"] == "INTERNAL_ERROR"
+
+    def test_503_preserves_detail(self, client):
+        # Intentional 503s (e.g. feature flag off) must surface the developer
+        # message so the frontend can render actionable copy.
+        body = _assert_envelope(client.get("/http-503"), 503)
+        assert body["error"]["message"] == "Page purchases are temporarily unavailable."
+        assert body["error"]["message"] != GENERIC_5XX_MESSAGE
+
+    def test_502_preserves_detail(self, client):
+        body = _assert_envelope(client.get("/http-502"), 502)
+        assert body["error"]["message"] == "Unable to create Stripe checkout session."
+        assert body["error"]["message"] != GENERIC_5XX_MESSAGE
 
 
 # ---------------------------------------------------------------------------

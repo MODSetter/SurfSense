@@ -24,7 +24,6 @@ from deepagents.backends import StateBackend
 from deepagents.graph import BASE_AGENT_PROMPT
 from deepagents.middleware.patch_tool_calls import PatchToolCallsMiddleware
 from deepagents.middleware.subagents import GENERAL_PURPOSE_SUBAGENT
-from deepagents.middleware.summarization import create_summarization_middleware
 from langchain.agents import create_agent
 from langchain.agents.middleware import TodoListMiddleware
 from langchain_anthropic.middleware import AnthropicPromptCachingMiddleware
@@ -40,6 +39,9 @@ from app.agents.new_chat.middleware import (
     KnowledgeBaseSearchMiddleware,
     MemoryInjectionMiddleware,
     SurfSenseFilesystemMiddleware,
+)
+from app.agents.new_chat.middleware.safe_summarization import (
+    create_safe_summarization_middleware,
 )
 from app.agents.new_chat.system_prompt import (
     build_configurable_system_prompt,
@@ -347,7 +349,7 @@ async def create_surfsense_deep_agent(
             created_by_id=user_id,
             thread_id=thread_id,
         ),
-        create_summarization_middleware(llm, StateBackend),
+        create_safe_summarization_middleware(llm, StateBackend),
         PatchToolCallsMiddleware(),
         AnthropicPromptCachingMiddleware(unsupported_model_behavior="ignore"),
     ]
@@ -377,7 +379,7 @@ async def create_surfsense_deep_agent(
             thread_id=thread_id,
         ),
         SubAgentMiddleware(backend=StateBackend, subagents=[general_purpose_spec]),
-        create_summarization_middleware(llm, StateBackend),
+        create_safe_summarization_middleware(llm, StateBackend),
         PatchToolCallsMiddleware(),
         DedupHITLToolCallsMiddleware(agent_tools=tools),
         AnthropicPromptCachingMiddleware(unsupported_model_behavior="ignore"),

@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import * as path from 'path';
 import * as fs from 'fs';
 import { IPC_CHANNELS } from '../ipc/channels';
+import { trackEvent } from './analytics';
 
 export interface WatchedFolderConfig {
   path: string;
@@ -401,6 +402,15 @@ export async function addWatchedFolder(
     await startWatcher(config);
   }
 
+  trackEvent('desktop_folder_watch_added', {
+    search_space_id: config.searchSpaceId,
+    root_folder_id: config.rootFolderId,
+    active: config.active,
+    has_exclude_patterns: (config.excludePatterns?.length ?? 0) > 0,
+    has_extension_filter: !!config.fileExtensions && config.fileExtensions.length > 0,
+    is_update: existing >= 0,
+  });
+
   return folders;
 }
 
@@ -409,6 +419,7 @@ export async function removeWatchedFolder(
 ): Promise<WatchedFolderConfig[]> {
   const s = await getStore();
   const folders: WatchedFolderConfig[] = s.get(STORE_KEY, []);
+  const removed = folders.find((f: WatchedFolderConfig) => f.path === folderPath);
   const updated = folders.filter((f: WatchedFolderConfig) => f.path !== folderPath);
   s.set(STORE_KEY, updated);
 
@@ -417,6 +428,13 @@ export async function removeWatchedFolder(
   mtimeMaps.delete(folderPath);
   const ms = await getMtimeStore();
   ms.delete(folderPath);
+
+  if (removed) {
+    trackEvent('desktop_folder_watch_removed', {
+      search_space_id: removed.searchSpaceId,
+      root_folder_id: removed.rootFolderId,
+    });
+  }
 
   return updated;
 }

@@ -24,10 +24,18 @@ import {
   type WatchedFolderConfig,
 } from '../modules/folder-watcher';
 import { getShortcuts, setShortcuts, type ShortcutConfig } from '../modules/shortcuts';
+import { getAutoLaunchState, setAutoLaunch } from '../modules/auto-launch';
 import { getActiveSearchSpaceId, setActiveSearchSpaceId } from '../modules/active-search-space';
 import { reregisterQuickAsk } from '../modules/quick-ask';
 import { reregisterAutocomplete } from '../modules/autocomplete';
 import { reregisterGeneralAssist } from '../modules/tray';
+import {
+  getDistinctId,
+  getMachineId,
+  identifyUser as analyticsIdentify,
+  resetUser as analyticsReset,
+  trackEvent,
+} from '../modules/analytics';
 
 let authTokens: { bearer: string; refresh: string } | null = null;
 
@@ -120,6 +128,21 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.GET_SHORTCUTS, () => getShortcuts());
 
+  ipcMain.handle(IPC_CHANNELS.GET_AUTO_LAUNCH, () => getAutoLaunchState());
+
+  ipcMain.handle(
+    IPC_CHANNELS.SET_AUTO_LAUNCH,
+    async (_event, payload: { enabled: boolean; openAsHidden?: boolean }) => {
+      const next = await setAutoLaunch(payload.enabled, payload.openAsHidden);
+      trackEvent('desktop_auto_launch_toggled', {
+        enabled: next.enabled,
+        open_as_hidden: next.openAsHidden,
+        supported: next.supported,
+      });
+      return next;
+    },
+  );
+
   ipcMain.handle(IPC_CHANNELS.GET_ACTIVE_SEARCH_SPACE, () => getActiveSearchSpaceId());
 
   ipcMain.handle(IPC_CHANNELS.SET_ACTIVE_SEARCH_SPACE, (_event, id: string) =>
@@ -131,6 +154,41 @@ export function registerIpcHandlers(): void {
     if (config.generalAssist) await reregisterGeneralAssist();
     if (config.quickAsk) await reregisterQuickAsk();
     if (config.autocomplete) await reregisterAutocomplete();
+    trackEvent('desktop_shortcut_updated', {
+      keys: Object.keys(config),
+    });
     return updated;
+  });
+
+  // Analytics bridge — the renderer (web UI) hands the logged-in user down
+  // to the main process so desktop-only events are attributed to the same
+  // PostHog person, not just an anonymous machine ID.
+  ipcMain.handle(
+    IPC_CHANNELS.ANALYTICS_IDENTIFY,
+    (_event, payload: { userId: string; properties?: Record<string, unknown> }) => {
+      if (!payload?.userId) return;
+      analyticsIdentify(String(payload.userId), payload.properties);
+    }
+  );
+
+  ipcMain.handle(IPC_CHANNELS.ANALYTICS_RESET, () => {
+    analyticsReset();
+  });
+
+  ipcMain.handle(
+    IPC_CHANNELS.ANALYTICS_CAPTURE,
+    (_event, payload: { event: string; properties?: Record<string, unknown> }) => {
+      if (!payload?.event) return;
+      trackEvent(payload.event, payload.properties);
+    }
+  );
+
+  ipcMain.handle(IPC_CHANNELS.ANALYTICS_GET_CONTEXT, () => {
+    return {
+      distinctId: getDistinctId(),
+      machineId: getMachineId(),
+      appVersion: app.getVersion(),
+      platform: process.platform,
+    };
   });
 }

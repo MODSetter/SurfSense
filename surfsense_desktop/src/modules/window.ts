@@ -8,9 +8,16 @@ const isDev = !app.isPackaged;
 const HOSTED_FRONTEND_URL = process.env.HOSTED_FRONTEND_URL as string;
 
 let mainWindow: BrowserWindow | null = null;
+let isQuitting = false;
 
 export function getMainWindow(): BrowserWindow | null {
   return mainWindow;
+}
+
+// Called from main.ts on `before-quit` so the close-to-tray handler knows
+// to actually let the window die instead of hiding it.
+export function markQuitting(): void {
+  isQuitting = true;
 }
 
 export function createMainWindow(initialPath = '/dashboard'): BrowserWindow {
@@ -69,6 +76,16 @@ export function createMainWindow(initialPath = '/dashboard'): BrowserWindow {
   if (isDev) {
     mainWindow.webContents.openDevTools();
   }
+
+  // Hide-to-tray on close (don't actually destroy the window unless the
+  // user really is quitting). Applies to every instance — including the one
+  // created lazily after a launch-at-login boot.
+  mainWindow.on('close', (e) => {
+    if (!isQuitting && mainWindow) {
+      e.preventDefault();
+      mainWindow.hide();
+    }
+  });
 
   mainWindow.on('closed', () => {
     mainWindow = null;

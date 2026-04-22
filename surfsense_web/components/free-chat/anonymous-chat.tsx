@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { AnonModel, AnonQuotaResponse } from "@/contracts/types/anonymous-chat.types";
 import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
 import { readSSEStream } from "@/lib/chat/streaming-state";
+import { trackAnonymousChatMessageSent } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
 import { QuotaBar } from "./quota-bar";
 import { QuotaWarningBanner } from "./quota-warning-banner";
@@ -60,6 +61,12 @@ export function AnonymousChat({ model }: AnonymousChatProps) {
 		if (textareaRef.current) {
 			textareaRef.current.style.height = "auto";
 		}
+
+		trackAnonymousChatMessageSent({
+			modelSlug: model.seo_slug,
+			messageLength: trimmed.length,
+			surface: "free_model_page",
+		});
 
 		const controller = new AbortController();
 		abortRef.current = controller;

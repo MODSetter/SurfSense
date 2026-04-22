@@ -114,8 +114,19 @@ def _surfsense_error_handler(request: Request, exc: SurfSenseError) -> JSONRespo
 
 
 def _http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
-    """Wrap FastAPI/Starlette HTTPExceptions into the standard envelope."""
+    """Wrap FastAPI/Starlette HTTPExceptions into the standard envelope.
+
+    5xx sanitization policy:
+    - 500 responses are sanitized (replaced with ``GENERIC_5XX_MESSAGE``) because
+      they usually wrap raw internal errors and may leak sensitive info.
+    - Other 5xx statuses (501, 502, 503, 504, ...) are raised explicitly by
+      route code to communicate a specific, user-safe operational state
+      (e.g. 503 "Page purchases are temporarily unavailable."). Those details
+      are preserved so the frontend can render them, but the error is still
+      logged server-side.
+    """
     rid = _get_request_id(request)
+    should_sanitize = exc.status_code == 500
 
     # Structured dict details (e.g. {"code": "CAPTCHA_REQUIRED", "message": "..."})
     # are preserved so the frontend can parse them.
@@ -130,6 +141,7 @@ def _http_exception_handler(request: Request, exc: HTTPException) -> JSONRespons
                 exc.status_code,
                 message,
             )
+        if should_sanitize:
             message = GENERIC_5XX_MESSAGE
             err_code = "INTERNAL_ERROR"
         body = {
@@ -158,6 +170,7 @@ def _http_exception_handler(request: Request, exc: HTTPException) -> JSONRespons
             exc.status_code,
             detail,
         )
+    if should_sanitize:
         detail = GENERIC_5XX_MESSAGE
     code = _status_to_code(exc.status_code, detail)
     return _build_error_response(exc.status_code, detail, code=code, request_id=rid)

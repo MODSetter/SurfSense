@@ -22,6 +22,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   build:
@@ -57,6 +58,22 @@ jobs:
             exit 1
           fi
           echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Detect Windows signing eligibility
+        id: sign
+        shell: bash
+        run: |
+          # Sign Windows builds only on production v* tags (not beta-v*, not workflow_dispatch).
+          # This matches the single OIDC federated credential configured in Entra ID.
+          if [ "${{ matrix.os }}" = "windows-latest" ] \
+            && [ "${{ github.event_name }}" = "push" ] \
+            && [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Windows signing: ENABLED (v* tag on windows-latest)"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Windows signing: skipped"
+          fi
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v5
@@ -98,7 +115,31 @@ jobs:
 
       - name: Package & Publish
         shell: bash
-        run: pnpm exec electron-builder ${{ matrix.platform }} --config electron-builder.yml --publish ${{ inputs.publish || 'always' }} -c.extraMetadata.version=${{ steps.version.outputs.VERSION }}
+        run: |
+          CMD=(pnpm exec electron-builder ${{ matrix.platform }} \
+            --config electron-builder.yml \
+            --publish "${{ inputs.publish || 'always' }}" \
+            -c.extraMetadata.version="${{ steps.version.outputs.VERSION }}")
+
+          if [ "${{ steps.sign.outputs.enabled }}" = "true" ]; then
+            CMD+=(-c.win.azureSignOptions.publisherName="$WINDOWS_PUBLISHER_NAME")
+            CMD+=(-c.win.azureSignOptions.endpoint="$AZURE_CODESIGN_ENDPOINT")
+            CMD+=(-c.win.azureSignOptions.codeSigningAccountName="$AZURE_CODESIGN_ACCOUNT")
+            CMD+=(-c.win.azureSignOptions.certificateProfileName="$AZURE_CODESIGN_PROFILE")
+          fi
+
+          "${CMD[@]}"
         working-directory: surfsense_desktop
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WINDOWS_PUBLISHER_NAME: ${{ vars.WINDOWS_PUBLISHER_NAME }}
+          AZURE_CODESIGN_ENDPOINT: ${{ vars.AZURE_CODESIGN_ENDPOINT }}
+          AZURE_CODESIGN_ACCOUNT: ${{ vars.AZURE_CODESIGN_ACCOUNT }}
+          AZURE_CODESIGN_PROFILE: ${{ vars.AZURE_CODESIGN_PROFILE }}
+          # Service principal credentials for Azure.Identity EnvironmentCredential used by the
+          # TrustedSigning PowerShell module. Only populated when signing is enabled.
+          # electron-builder 26 does not yet support OIDC federated tokens for Azure signing,
+          # so we fall back to client-secret auth. Rotate AZURE_CLIENT_SECRET before expiry.
+          AZURE_TENANT_ID: ${{ steps.sign.outputs.enabled == 'true' && secrets.AZURE_TENANT_ID || '' }}
+          AZURE_CLIENT_ID: ${{ steps.sign.outputs.enabled == 'true' && secrets.AZURE_CLIENT_ID || '' }}
+          AZURE_CLIENT_SECRET: ${{ steps.sign.outputs.enabled == 'true' && secrets.AZURE_CLIENT_SECRET || '' }}
