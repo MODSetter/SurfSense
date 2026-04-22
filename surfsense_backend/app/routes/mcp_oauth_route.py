@@ -1,13 +1,15 @@
 """Generic MCP OAuth 2.1 route for services with official MCP servers.
 
 Handles the full flow: discovery → DCR → PKCE authorization → token exchange
-→ MCP_CONNECTOR creation.  Currently supports Linear, Jira, and ClickUp.
+→ MCP_CONNECTOR creation.  Currently supports Linear, Jira, ClickUp, Slack,
+and Airtable.
 """
 
 from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from urllib.parse import urlencode
 from uuid import UUID
 
@@ -32,6 +34,70 @@ from app.utils.oauth_security import OAuthStateManager, TokenEncryption, generat
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+async def _fetch_account_metadata(
+    service_key: str, access_token: str, token_json: dict[str, Any],
+) -> dict[str, Any]:
+    """Fetch display-friendly account metadata after a successful token exchange.
+
+    DCR services (Linear, Jira, ClickUp) issue MCP-scoped tokens that cannot
+    call their standard REST/GraphQL APIs — metadata discovery for those
+    happens at runtime through MCP tools instead.
+
+    Pre-configured services (Slack, Airtable) use standard OAuth tokens that
+    *can* call their APIs, so we extract metadata here.
+
+    Failures are logged but never block connector creation.
+    """
+    from app.services.mcp_oauth.registry import MCP_SERVICES
+
+    svc = MCP_SERVICES.get(service_key)
+    if not svc or svc.supports_dcr:
+        return {}
+
+    import httpx
+
+    meta: dict[str, Any] = {}
+
+    try:
+        if service_key == "slack":
+            team_info = token_json.get("team", {})
+            meta["team_id"] = team_info.get("id", "")
+            # TODO: oauth.v2.user.access only returns team.id, not
+            # team.name.  To populate team_name, add "team:read" scope
+            # and call GET /api/team.info here.
+            meta["team_name"] = team_info.get("name", "")
+            if meta["team_name"]:
+                meta["display_name"] = meta["team_name"]
+            elif meta["team_id"]:
+                meta["display_name"] = f"Slack ({meta['team_id']})"
+
+        elif service_key == "airtable":
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.get(
+                    "https://api.airtable.com/v0/meta/whoami",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                )
+                if resp.status_code != 200:
+                    logger.warning(
+                        "Airtable whoami API response: status=%s body=%s",
+                        resp.status_code, resp.text[:300],
+                    )
+                if resp.status_code == 200:
+                    whoami = resp.json()
+                    meta["user_id"] = whoami.get("id", "")
+                    meta["user_email"] = whoami.get("email", "")
+                    meta["display_name"] = whoami.get("email", "Airtable")
+
+    except Exception:
+        logger.warning(
+            "Failed to fetch account metadata for %s (non-blocking)",
+            service_key,
+            exc_info=True,
+        )
+
+    return meta
 
 _state_manager: OAuthStateManager | None = None
 _token_encryption: TokenEncryption | None = None
@@ -295,6 +361,14 @@ async def mcp_oauth_callback(
             "_token_encrypted": True,
         }
 
+        account_meta = await _fetch_account_metadata(svc_key, access_token, token_json)
+        if account_meta:
+            connector_config.update(account_meta)
+            logger.info(
+                "Stored account metadata for %s: display_name=%s",
+                svc_key, account_meta.get("display_name", ""),
+            )
+
         # ---- Re-auth path ----
         db_connector_type = SearchSourceConnectorType(svc.connector_type)
         reauth_connector_id = data.get("connector_id")
@@ -335,12 +409,13 @@ async def mcp_oauth_callback(
             )
 
         # ---- New connector path ----
+        naming_identifier = account_meta.get("display_name")
         connector_name = await generate_unique_connector_name(
             session,
             db_connector_type,
             space_id,
             user_id,
-            svc.name,
+            naming_identifier,
         )
 
         new_connector = SearchSourceConnector(
