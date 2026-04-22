@@ -52,6 +52,9 @@ MCP_SERVICES: dict[str, MCPServiceConfig] = {
         mcp_url="https://mcp.airtable.com/mcp",
         connector_type="AIRTABLE_CONNECTOR",
         oauth_discovery_origin="https://airtable.com",
+        supports_dcr=False,
+        client_id_env="AIRTABLE_CLIENT_ID",
+        client_secret_env="AIRTABLE_CLIENT_SECRET",
     ),
 }
 
