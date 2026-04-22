@@ -14,10 +14,15 @@ clicking "Always Allow", which adds the tool name to the connector's
 ``config.trusted_tools`` allow-list.
 """
 
+from __future__ import annotations
+
 import logging
 import time
 from collections import defaultdict
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from app.utils.oauth_security import TokenEncryption
 
 from langchain_core.tools import StructuredTool
 from mcp import ClientSession
@@ -426,6 +431,18 @@ async def _load_http_mcp_tools(
 
 _TOKEN_REFRESH_BUFFER_SECONDS = 300  # refresh 5 min before expiry
 
+_token_enc: TokenEncryption | None = None
+
+
+def _get_token_enc() -> TokenEncryption:
+    global _token_enc
+    if _token_enc is None:
+        from app.config import config as app_config
+        from app.utils.oauth_security import TokenEncryption
+
+        _token_enc = TokenEncryption(app_config.SECRET_KEY)
+    return _token_enc
+
 
 def _inject_oauth_headers(
     cfg: dict[str, Any],
@@ -443,11 +460,7 @@ def _inject_oauth_headers(
         return server_config
 
     try:
-        from app.config import config as app_config
-        from app.utils.oauth_security import TokenEncryption
-
-        enc = TokenEncryption(app_config.SECRET_KEY)
-        access_token = enc.decrypt_token(encrypted_token)
+        access_token = _get_token_enc().decrypt_token(encrypted_token)
 
         result = dict(server_config)
         result["headers"] = {
@@ -500,11 +513,9 @@ async def _maybe_refresh_mcp_oauth_token(
         return server_config
 
     try:
-        from app.config import config as app_config
         from app.services.mcp_oauth.discovery import refresh_access_token
-        from app.utils.oauth_security import TokenEncryption
 
-        enc = TokenEncryption(app_config.SECRET_KEY)
+        enc = _get_token_enc()
         decrypted_refresh = enc.decrypt_token(refresh_token)
         decrypted_secret = (
             enc.decrypt_token(mcp_oauth["client_secret"])
