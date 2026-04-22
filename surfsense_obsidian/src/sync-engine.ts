@@ -368,10 +368,12 @@ export class SyncEngine {
 
 	private async buildBinaryPayload(file: TFile, vaultId: string): Promise<NotePayload> {
 		// Attachments skip buildNotePayload (no markdown metadata) but still
-		// need hash + stat so the server can de-dupe and manifest diff works.
+		// need raw bytes + hash + stat so the backend can ETL-extract text
+		// and manifest diff still works.
 		const buf = await this.deps.app.vault.readBinary(file);
 		const digest = await crypto.subtle.digest("SHA-256", buf);
 		const hash = bufferToHex(digest);
+		const binaryBase64 = arrayBufferToBase64(buf);
 		return {
 			vault_id: vaultId,
 			path: file.path,
@@ -390,6 +392,8 @@ export class SyncEngine {
 			mtime: file.stat.mtime,
 			ctime: file.stat.ctime,
 			is_binary: true,
+			binary_base64: binaryBase64,
+			mime_type: mimeTypeFromExtension(file.extension),
 		};
 	}
 
@@ -582,6 +586,36 @@ function bufferToHex(buf: ArrayBuffer): string {
 	let hex = "";
 	for (let i = 0; i < view.length; i++) hex += (view[i] ?? 0).toString(16).padStart(2, "0");
 	return hex;
+}
+
+function arrayBufferToBase64(buf: ArrayBuffer): string {
+	const bytes = new Uint8Array(buf);
+	const chunkSize = 0x8000;
+	let binary = "";
+	for (let i = 0; i < bytes.length; i += chunkSize) {
+		const chunk = bytes.subarray(i, i + chunkSize);
+		binary += String.fromCharCode(...Array.from(chunk));
+	}
+	return btoa(binary);
+}
+
+function mimeTypeFromExtension(extension: string): string | undefined {
+	const ext = extension.toLowerCase();
+	const mimeByExt: Record<string, string> = {
+		pdf: "application/pdf",
+		png: "image/png",
+		jpg: "image/jpeg",
+		jpeg: "image/jpeg",
+		gif: "image/gif",
+		webp: "image/webp",
+		svg: "image/svg+xml",
+		txt: "text/plain",
+		csv: "text/csv",
+		docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+		pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+		xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+	};
+	return mimeByExt[ext];
 }
 
 function formatRelative(ts: number): string {

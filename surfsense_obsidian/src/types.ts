@@ -85,6 +85,12 @@ export interface NotePayload {
 	size: number;
 	mtime: number;
 	ctime: number;
+	/** Non-markdown attachment marker; enables backend ETL path. */
+	is_binary?: boolean;
+	/** Base64-encoded file bytes for binary attachments. */
+	binary_base64?: string;
+	/** Optional MIME type hint for backend parsers. */
+	mime_type?: string;
 	[key: string]: unknown;
 }
 
