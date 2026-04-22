@@ -49,8 +49,8 @@ MCP_SERVICES: dict[str, MCPServiceConfig] = {
         scopes=[
             "search:read.public", "search:read.private", "search:read.mpim",
             "search:read.im", "search:read.files", "search:read.users",
-            "chat:write", "channels:history", "groups:history",
-            "mpim:history", "im:history",
+            "chat:write",
+            "channels:history", "groups:history", "mpim:history", "im:history",
             "canvases:read", "canvases:write",
             "users:read", "users:read.email",
         ],
