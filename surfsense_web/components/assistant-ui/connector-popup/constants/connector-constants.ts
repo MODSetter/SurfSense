@@ -13,7 +13,9 @@ export const LIVE_CONNECTOR_TYPES = new Set<string>([
 	EnumConnectorName.DISCORD_CONNECTOR,
 	EnumConnectorName.TEAMS_CONNECTOR,
 	EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR,
+	EnumConnectorName.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
 	EnumConnectorName.GOOGLE_GMAIL_CONNECTOR,
+	EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR,
 	EnumConnectorName.LUMA_CONNECTOR,
 ]);
 
@@ -30,7 +32,7 @@ export const OAUTH_CONNECTORS = [
 	{
 		id: "google-gmail-connector",
 		title: "Gmail",
-		description: "Search and read your emails",
+		description: "Search, read, draft, and send emails",
 		connectorType: EnumConnectorName.GOOGLE_GMAIL_CONNECTOR,
 		authEndpoint: "/api/v1/auth/google/gmail/connector/add/",
 		selfHostedOnly: true,
@@ -46,7 +48,7 @@ export const OAUTH_CONNECTORS = [
 	{
 		id: "airtable-connector",
 		title: "Airtable",
-		description: "Search, read, and manage records",
+		description: "Browse bases, tables, and records",
 		connectorType: EnumConnectorName.AIRTABLE_CONNECTOR,
 		authEndpoint: "/api/v1/auth/mcp/airtable/connector/add/",
 	},
@@ -67,7 +69,7 @@ export const OAUTH_CONNECTORS = [
 	{
 		id: "slack-connector",
 		title: "Slack",
-		description: "Search, read, and send messages",
+		description: "Search and read channels and threads",
 		connectorType: EnumConnectorName.SLACK_CONNECTOR,
 		authEndpoint: "/api/v1/auth/mcp/slack/connector/add/",
 	},
@@ -116,7 +118,7 @@ export const OAUTH_CONNECTORS = [
 	{
 		id: "clickup-connector",
 		title: "ClickUp",
-		description: "Search, read, and manage tasks",
+		description: "Search and read tasks",
 		connectorType: EnumConnectorName.CLICKUP_CONNECTOR,
 		authEndpoint: "/api/v1/auth/mcp/clickup/connector/add/",
 	},
@@ -155,7 +157,7 @@ export const OTHER_CONNECTORS = [
 	{
 		id: "luma-connector",
 		title: "Luma",
-		description: "Search and manage events",
+		description: "Browse, read, and create events",
 		connectorType: EnumConnectorName.LUMA_CONNECTOR,
 	},
 	{
@@ -214,14 +216,14 @@ export const COMPOSIO_CONNECTORS = [
 	{
 		id: "composio-gmail",
 		title: "Gmail",
-		description: "Search through your emails via Composio",
+		description: "Search, read, draft, and send emails via Composio",
 		connectorType: EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR,
 		authEndpoint: "/api/v1/auth/composio/connector/add/?toolkit_id=gmail",
 	},
 	{
 		id: "composio-googlecalendar",
 		title: "Google Calendar",
-		description: "Search through your events via Composio",
+		description: "Search and manage your events via Composio",
 		connectorType: EnumConnectorName.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
 		authEndpoint: "/api/v1/auth/composio/connector/add/?toolkit_id=googlecalendar",
 	},
@@ -238,14 +240,14 @@ export const COMPOSIO_TOOLKITS = [
 	{
 		id: "gmail",
 		name: "Gmail",
-		description: "Search through your emails",
-		isIndexable: true,
+		description: "Search, read, draft, and send emails",
+		isIndexable: false,
 	},
 	{
 		id: "googlecalendar",
 		name: "Google Calendar",
-		description: "Search through your events",
-		isIndexable: true,
+		description: "Search and manage your events",
+		isIndexable: false,
 	},
 	{
 		id: "slack",
@@ -275,18 +277,6 @@ export interface AutoIndexConfig {
 }
 
 export const AUTO_INDEX_DEFAULTS: Record<string, AutoIndexConfig> = {
-	[EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR]: {
-		daysBack: 30,
-		daysForward: 0,
-		frequencyMinutes: 1440,
-		syncDescription: "Syncing your last 30 days of emails.",
-	},
-	[EnumConnectorName.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR]: {
-		daysBack: 90,
-		daysForward: 90,
-		frequencyMinutes: 1440,
-		syncDescription: "Syncing 90 days of past and upcoming events.",
-	},
 	[EnumConnectorName.NOTION_CONNECTOR]: {
 		daysBack: 365,
 		daysForward: 0,

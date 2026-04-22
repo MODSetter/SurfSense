@@ -1,11 +1,11 @@
 import logging
-from datetime import datetime
 from typing import Any
 
 from langchain_core.tools import tool
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from app.agents.new_chat.tools.gmail.search_emails import _build_credentials
 from app.db import SearchSourceConnector, SearchSourceConnectorType
 
 logger = logging.getLogger(__name__)
@@ -14,40 +14,6 @@ _CALENDAR_TYPES = [
     SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
     SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
 ]
-
-
-def _build_credentials(connector: SearchSourceConnector):
-    """Build Google OAuth Credentials from a Calendar connector's config."""
-    if connector.connector_type == SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR:
-        from app.utils.google_credentials import build_composio_credentials
-
-        cca_id = connector.config.get("composio_connected_account_id")
-        if not cca_id:
-            raise ValueError("Composio connected account ID not found.")
-        return build_composio_credentials(cca_id)
-
-    from google.oauth2.credentials import Credentials
-
-    from app.config import config
-    from app.utils.oauth_security import TokenEncryption
-
-    cfg = dict(connector.config)
-    if cfg.get("_token_encrypted") and config.SECRET_KEY:
-        enc = TokenEncryption(config.SECRET_KEY)
-        for key in ("token", "refresh_token", "client_secret"):
-            if cfg.get(key):
-                cfg[key] = enc.decrypt_token(cfg[key])
-
-    exp = (cfg.get("expiry") or "").replace("Z", "")
-    return Credentials(
-        token=cfg.get("token"),
-        refresh_token=cfg.get("refresh_token"),
-        token_uri=cfg.get("token_uri"),
-        client_id=cfg.get("client_id"),
-        client_secret=cfg.get("client_secret"),
-        scopes=cfg.get("scopes", []),
-        expiry=datetime.fromisoformat(exp) if exp else None,
-    )
 
 
 def create_search_calendar_events_tool(

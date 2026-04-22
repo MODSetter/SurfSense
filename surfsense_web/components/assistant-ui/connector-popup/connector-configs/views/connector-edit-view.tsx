@@ -236,8 +236,8 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 							</p>
 						</div>
 					</div>
-					{/* Quick Index Button - hidden when auth is expired */}
-					{connector.is_indexable && onQuickIndex && !isAuthExpired && (
+					{/* Quick Index Button - hidden for live connectors and when auth is expired */}
+					{connector.is_indexable && !isLive && onQuickIndex && !isAuthExpired && (
 						<Button
 							variant="secondary"
 							size="sm"
@@ -280,8 +280,8 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 							/>
 						)}
 
-						{/* Summary and sync settings - only shown for indexable connectors */}
-						{connector.is_indexable && (
+						{/* Summary and sync settings - hidden for live connectors */}
+						{connector.is_indexable && !isLive && (
 							<>
 								{/* AI Summary toggle */}
 								<SummaryConfig enabled={enableSummary} onEnabledChange={onEnableSummaryChange} />
@@ -352,8 +352,8 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 							</>
 						)}
 
-						{/* Info box - only shown for indexable connectors */}
-						{connector.is_indexable && (
+						{/* Info box - hidden for live connectors */}
+						{connector.is_indexable && !isLive && (
 							<div className="rounded-xl border border-border bg-primary/5 p-4 flex items-start gap-3">
 								<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0 mt-0.5">
 									<Info className="size-4" />
@@ -432,7 +432,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						<RefreshCw className={cn("size-3.5", reauthing && "animate-spin")} />
 						Re-authenticate
 					</Button>
-				) : !isMCPBacked ? (
+				) : !isLive ? (
 					<Button
 						onClick={onSave}
 						disabled={isSaving || isDisconnecting}

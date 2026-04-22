@@ -15,10 +15,30 @@ _GMAIL_TYPES = [
     SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
 ]
 
+_token_encryption_cache: object | None = None
+
+
+def _get_token_encryption():
+    global _token_encryption_cache
+    if _token_encryption_cache is None:
+        from app.config import config
+        from app.utils.oauth_security import TokenEncryption
+
+        if not config.SECRET_KEY:
+            raise RuntimeError("SECRET_KEY not configured for token decryption.")
+        _token_encryption_cache = TokenEncryption(config.SECRET_KEY)
+    return _token_encryption_cache
+
 
 def _build_credentials(connector: SearchSourceConnector):
-    """Build Google OAuth Credentials from a Gmail connector's config."""
-    if connector.connector_type == SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR:
+    """Build Google OAuth Credentials from a connector's stored config.
+
+    Handles both native OAuth connectors (with encrypted tokens) and
+    Composio-backed connectors. Shared by Gmail and Calendar tools.
+    """
+    from app.utils.google_credentials import COMPOSIO_GOOGLE_CONNECTOR_TYPES
+
+    if connector.connector_type in COMPOSIO_GOOGLE_CONNECTOR_TYPES:
         from app.utils.google_credentials import build_composio_credentials
 
         cca_id = connector.config.get("composio_connected_account_id")
@@ -28,12 +48,9 @@ def _build_credentials(connector: SearchSourceConnector):
 
     from google.oauth2.credentials import Credentials
 
-    from app.config import config
-    from app.utils.oauth_security import TokenEncryption
-
     cfg = dict(connector.config)
-    if cfg.get("_token_encrypted") and config.SECRET_KEY:
-        enc = TokenEncryption(config.SECRET_KEY)
+    if cfg.get("_token_encrypted"):
+        enc = _get_token_encryption()
         for key in ("token", "refresh_token", "client_secret"):
             if cfg.get(key):
                 cfg[key] = enc.decrypt_token(cfg[key])

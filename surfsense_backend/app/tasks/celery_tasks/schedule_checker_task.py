@@ -59,9 +59,7 @@ async def _check_and_trigger_schedules():
                 index_crawled_urls_task,
                 index_elasticsearch_documents_task,
                 index_github_repos_task,
-                index_google_calendar_events_task,
                 index_google_drive_files_task,
-                index_google_gmail_messages_task,
                 index_notion_pages_task,
             )
 
@@ -73,34 +71,29 @@ async def _check_and_trigger_schedules():
                 SearchSourceConnectorType.WEBCRAWLER_CONNECTOR: index_crawled_urls_task,
                 SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR: index_google_drive_files_task,
                 SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR: index_google_drive_files_task,
-                SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR: index_google_gmail_messages_task,
-                SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR: index_google_calendar_events_task,
             }
 
-            _LIVE_CONNECTOR_TYPES = {
-                SearchSourceConnectorType.SLACK_CONNECTOR,
-                SearchSourceConnectorType.TEAMS_CONNECTOR,
-                SearchSourceConnectorType.LINEAR_CONNECTOR,
-                SearchSourceConnectorType.JIRA_CONNECTOR,
-                SearchSourceConnectorType.CLICKUP_CONNECTOR,
-                SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
-                SearchSourceConnectorType.AIRTABLE_CONNECTOR,
-                SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
-                SearchSourceConnectorType.DISCORD_CONNECTOR,
-                SearchSourceConnectorType.LUMA_CONNECTOR,
-            }
+            from app.services.mcp_oauth.registry import LIVE_CONNECTOR_TYPES
+
+            # Disable obsolete periodic indexing for live connectors in one batch.
+            live_disabled = []
+            for connector in due_connectors:
+                if connector.connector_type in LIVE_CONNECTOR_TYPES:
+                    connector.periodic_indexing_enabled = False
+                    connector.next_scheduled_at = None
+                    live_disabled.append(connector)
+            if live_disabled:
+                await session.commit()
+                for c in live_disabled:
+                    logger.info(
+                        "Disabled obsolete periodic indexing for live connector %s (%s)",
+                        c.id,
+                        c.connector_type.value,
+                    )
 
             # Trigger indexing for each due connector
             for connector in due_connectors:
-                if connector.connector_type in _LIVE_CONNECTOR_TYPES:
-                    connector.periodic_indexing_enabled = False
-                    connector.next_scheduled_at = None
-                    await session.commit()
-                    logger.info(
-                        "Disabled obsolete periodic indexing for live connector %s (%s)",
-                        connector.id,
-                        connector.connector_type.value,
-                    )
+                if connector in live_disabled:
                     continue
 
                 # Primary guard: Redis lock indicates a task is currently running.

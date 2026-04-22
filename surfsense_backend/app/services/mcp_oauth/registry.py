@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from app.db import SearchSourceConnectorType
+
 
 @dataclass(frozen=True)
 class MCPServiceConfig:
@@ -133,6 +135,21 @@ MCP_SERVICES: dict[str, MCPServiceConfig] = {
 _CONNECTOR_TYPE_TO_SERVICE: dict[str, MCPServiceConfig] = {
     svc.connector_type: svc for svc in MCP_SERVICES.values()
 }
+
+LIVE_CONNECTOR_TYPES: frozenset[SearchSourceConnectorType] = frozenset({
+    SearchSourceConnectorType.SLACK_CONNECTOR,
+    SearchSourceConnectorType.TEAMS_CONNECTOR,
+    SearchSourceConnectorType.LINEAR_CONNECTOR,
+    SearchSourceConnectorType.JIRA_CONNECTOR,
+    SearchSourceConnectorType.CLICKUP_CONNECTOR,
+    SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
+    SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
+    SearchSourceConnectorType.AIRTABLE_CONNECTOR,
+    SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
+    SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
+    SearchSourceConnectorType.DISCORD_CONNECTOR,
+    SearchSourceConnectorType.LUMA_CONNECTOR,
+})
 
 
 def get_service(key: str) -> MCPServiceConfig | None:

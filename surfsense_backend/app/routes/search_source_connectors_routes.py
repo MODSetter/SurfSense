@@ -777,19 +777,9 @@ async def index_connector_content(
             # For non-calendar connectors, cap at today
             indexing_to = end_date if end_date else today_str
 
-        _LIVE_CONNECTOR_TYPES = {
-            SearchSourceConnectorType.SLACK_CONNECTOR,
-            SearchSourceConnectorType.TEAMS_CONNECTOR,
-            SearchSourceConnectorType.LINEAR_CONNECTOR,
-            SearchSourceConnectorType.JIRA_CONNECTOR,
-            SearchSourceConnectorType.CLICKUP_CONNECTOR,
-            SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
-            SearchSourceConnectorType.AIRTABLE_CONNECTOR,
-            SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
-            SearchSourceConnectorType.DISCORD_CONNECTOR,
-            SearchSourceConnectorType.LUMA_CONNECTOR,
-        }
-        if connector.connector_type in _LIVE_CONNECTOR_TYPES:
+        from app.services.mcp_oauth.registry import LIVE_CONNECTOR_TYPES
+
+        if connector.connector_type in LIVE_CONNECTOR_TYPES:
             return {
                 "message": (
                     f"{connector.connector_type.value} uses real-time agent tools; "

@@ -26,7 +26,7 @@ COMPOSIO_TOOLKIT_NAMES = {
 }
 
 # Toolkits that support indexing (Phase 1: Google services only)
-INDEXABLE_TOOLKITS = {"googledrive", "gmail", "googlecalendar"}
+INDEXABLE_TOOLKITS = {"googledrive"}
 
 # Mapping of toolkit IDs to connector types
 TOOLKIT_TO_CONNECTOR_TYPE = {
