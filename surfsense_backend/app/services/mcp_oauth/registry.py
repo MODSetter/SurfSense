@@ -21,6 +21,7 @@ class MCPServiceConfig:
     client_id_env: str | None = None
     client_secret_env: str | None = None
     scopes: list[str] = field(default_factory=list)
+    scope_param: str = "scope"
 
 
 MCP_SERVICES: dict[str, MCPServiceConfig] = {
@@ -46,6 +47,7 @@ MCP_SERVICES: dict[str, MCPServiceConfig] = {
         supports_dcr=False,
         client_id_env="SLACK_CLIENT_ID",
         client_secret_env="SLACK_CLIENT_SECRET",
+        scope_param="user_scope",
         scopes=[
             "search:read.public", "search:read.private", "search:read.mpim",
             "search:read.im", "search:read.files", "search:read.users",
