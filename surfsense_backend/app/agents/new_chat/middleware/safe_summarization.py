@@ -46,7 +46,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _sanitize_message_content(msg: "AnyMessage") -> "AnyMessage":
+def _sanitize_message_content(msg: AnyMessage) -> AnyMessage:
     """Return ``msg`` with ``content`` coerced to a non-``None`` value.
 
     ``get_buffer_string`` reads ``m.text`` which iterates ``self.content``;
@@ -90,16 +90,14 @@ class SafeSummarizationMiddleware(SummarizationMiddleware):
     implementations from upstream.
     """
 
-    def _filter_summary_messages(
-        self, messages: "list[AnyMessage]"
-    ) -> "list[AnyMessage]":
+    def _filter_summary_messages(self, messages: list[AnyMessage]) -> list[AnyMessage]:
         filtered = super()._filter_summary_messages(messages)
         return [_sanitize_message_content(m) for m in filtered]
 
 
 def create_safe_summarization_middleware(
-    model: "BaseChatModel",
-    backend: "BACKEND_TYPES",
+    model: BaseChatModel,
+    backend: BACKEND_TYPES,
 ) -> SafeSummarizationMiddleware:
     """Drop-in replacement for ``create_summarization_middleware``.
 

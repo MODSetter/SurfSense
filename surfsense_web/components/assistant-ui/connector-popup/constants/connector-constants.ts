@@ -349,12 +349,7 @@ export const AUTO_INDEX_CONNECTOR_TYPES = new Set<string>(Object.keys(AUTO_INDEX
 // `lib/posthog/events.ts` or per-connector tracking code.
 // ============================================================================
 
-export type ConnectorTelemetryGroup =
-	| "oauth"
-	| "composio"
-	| "crawler"
-	| "other"
-	| "unknown";
+export type ConnectorTelemetryGroup = "oauth" | "composio" | "crawler" | "other" | "unknown";
 
 export interface ConnectorTelemetryMeta {
 	connector_type: string;
@@ -363,45 +358,44 @@ export interface ConnectorTelemetryMeta {
 	is_oauth: boolean;
 }
 
-const CONNECTOR_TELEMETRY_REGISTRY: ReadonlyMap<string, ConnectorTelemetryMeta> =
-	(() => {
-		const map = new Map<string, ConnectorTelemetryMeta>();
+const CONNECTOR_TELEMETRY_REGISTRY: ReadonlyMap<string, ConnectorTelemetryMeta> = (() => {
+	const map = new Map<string, ConnectorTelemetryMeta>();
 
-		for (const c of OAUTH_CONNECTORS) {
-			map.set(c.connectorType, {
-				connector_type: c.connectorType,
-				connector_title: c.title,
-				connector_group: "oauth",
-				is_oauth: true,
-			});
-		}
-		for (const c of COMPOSIO_CONNECTORS) {
-			map.set(c.connectorType, {
-				connector_type: c.connectorType,
-				connector_title: c.title,
-				connector_group: "composio",
-				is_oauth: true,
-			});
-		}
-		for (const c of CRAWLERS) {
-			map.set(c.connectorType, {
-				connector_type: c.connectorType,
-				connector_title: c.title,
-				connector_group: "crawler",
-				is_oauth: false,
-			});
-		}
-		for (const c of OTHER_CONNECTORS) {
-			map.set(c.connectorType, {
-				connector_type: c.connectorType,
-				connector_title: c.title,
-				connector_group: "other",
-				is_oauth: false,
-			});
-		}
+	for (const c of OAUTH_CONNECTORS) {
+		map.set(c.connectorType, {
+			connector_type: c.connectorType,
+			connector_title: c.title,
+			connector_group: "oauth",
+			is_oauth: true,
+		});
+	}
+	for (const c of COMPOSIO_CONNECTORS) {
+		map.set(c.connectorType, {
+			connector_type: c.connectorType,
+			connector_title: c.title,
+			connector_group: "composio",
+			is_oauth: true,
+		});
+	}
+	for (const c of CRAWLERS) {
+		map.set(c.connectorType, {
+			connector_type: c.connectorType,
+			connector_title: c.title,
+			connector_group: "crawler",
+			is_oauth: false,
+		});
+	}
+	for (const c of OTHER_CONNECTORS) {
+		map.set(c.connectorType, {
+			connector_type: c.connectorType,
+			connector_title: c.title,
+			connector_group: "other",
+			is_oauth: false,
+		});
+	}
 
-		return map;
-	})();
+	return map;
+})();
 
 /**
  * Returns telemetry metadata for a connector_type, or a minimal "unknown"

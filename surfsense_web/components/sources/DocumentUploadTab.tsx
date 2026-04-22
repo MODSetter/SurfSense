@@ -546,35 +546,36 @@ export function DocumentUploadTab({
 						</button>
 					)
 				) : (
-				<div
-					role="button"
-					tabIndex={0}
-					className="flex flex-col items-center gap-4 py-12 px-4 cursor-pointer w-full bg-transparent outline-none select-none"
-					onClick={() => {
-						if (!isElectron) fileInputRef.current?.click();
-					}}
-					onKeyDown={(e) => {
-						if (e.key === "Enter" || e.key === " ") {
-							e.preventDefault();
+					// biome-ignore lint/a11y/useSemanticElements: cannot use <button> here because the contents include nested interactive elements (renderBrowseButton renders a Button), which would be invalid HTML.
+					<div
+						role="button"
+						tabIndex={0}
+						className="flex flex-col items-center gap-4 py-12 px-4 cursor-pointer w-full bg-transparent outline-none select-none"
+						onClick={() => {
 							if (!isElectron) fileInputRef.current?.click();
-						}
-					}}
-				>
-					<Upload className="h-10 w-10 text-muted-foreground" />
-					<div className="text-center space-y-1.5">
-						<p className="text-base font-medium">
-							{isElectron ? t("select_files_or_folder") : t("tap_select_files_or_folder")}
-						</p>
-						<p className="text-sm text-muted-foreground">{t("file_size_limit")}</p>
-					</div>
-					<fieldset
-						className="w-full mt-1 border-none p-0 m-0"
-						onClick={(e) => e.stopPropagation()}
-						onKeyDown={(e) => e.stopPropagation()}
+						}}
+						onKeyDown={(e) => {
+							if (e.key === "Enter" || e.key === " ") {
+								e.preventDefault();
+								if (!isElectron) fileInputRef.current?.click();
+							}
+						}}
 					>
-						{renderBrowseButton({ fullWidth: true })}
-					</fieldset>
-				</div>
+						<Upload className="h-10 w-10 text-muted-foreground" />
+						<div className="text-center space-y-1.5">
+							<p className="text-base font-medium">
+								{isElectron ? t("select_files_or_folder") : t("tap_select_files_or_folder")}
+							</p>
+							<p className="text-sm text-muted-foreground">{t("file_size_limit")}</p>
+						</div>
+						<fieldset
+							className="w-full mt-1 border-none p-0 m-0"
+							onClick={(e) => e.stopPropagation()}
+							onKeyDown={(e) => e.stopPropagation()}
+						>
+							{renderBrowseButton({ fullWidth: true })}
+						</fieldset>
+					</div>
 				)}
 			</div>
 
