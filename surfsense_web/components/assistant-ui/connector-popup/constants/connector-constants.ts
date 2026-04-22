@@ -180,7 +180,7 @@ export const OTHER_CONNECTORS = [
 	{
 		id: "obsidian-connector",
 		title: "Obsidian",
-		description: "Sync your Obsidian vault on desktop or mobile via the SurfSense plugin",
+		description: "Sync your Obsidian vault on desktop or mobile",
 		connectorType: EnumConnectorName.OBSIDIAN_CONNECTOR,
 	},
 ] as const;

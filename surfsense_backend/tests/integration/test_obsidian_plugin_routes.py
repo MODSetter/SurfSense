@@ -183,7 +183,7 @@ class TestConnectRace:
         async with AsyncSession(async_engine) as s:
             s.add(
                 SearchSourceConnector(
-                    name="Obsidian \u2014 First",
+                    name="Obsidian - First",
                     connector_type=SearchSourceConnectorType.OBSIDIAN_CONNECTOR,
                     is_indexable=False,
                     config={
@@ -202,7 +202,7 @@ class TestConnectRace:
             async with AsyncSession(async_engine) as s:
                 s.add(
                     SearchSourceConnector(
-                        name="Obsidian \u2014 Second",
+                        name="Obsidian - Second",
                         connector_type=SearchSourceConnectorType.OBSIDIAN_CONNECTOR,
                         is_indexable=False,
                         config={
@@ -228,7 +228,7 @@ class TestConnectRace:
         async with AsyncSession(async_engine) as s:
             s.add(
                 SearchSourceConnector(
-                    name="Obsidian \u2014 Desktop",
+                    name="Obsidian - Desktop",
                     connector_type=SearchSourceConnectorType.OBSIDIAN_CONNECTOR,
                     is_indexable=False,
                     config={
@@ -247,7 +247,7 @@ class TestConnectRace:
             async with AsyncSession(async_engine) as s:
                 s.add(
                     SearchSourceConnector(
-                        name="Obsidian \u2014 Mobile",
+                        name="Obsidian - Mobile",
                         connector_type=SearchSourceConnectorType.OBSIDIAN_CONNECTOR,
                         is_indexable=False,
                         config={
