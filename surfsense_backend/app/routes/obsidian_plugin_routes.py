@@ -49,6 +49,7 @@ from app.services.obsidian_plugin_indexer import (
     rename_note,
     upsert_note,
 )
+from app.tasks.celery_tasks.obsidian_tasks import index_obsidian_attachment_task
 from app.users import current_active_user
 
 logger = logging.getLogger(__name__)
@@ -201,6 +202,17 @@ async def _resolve_vault_connector(
             ),
             "vault_id": vault_id,
         },
+    )
+
+
+def _queue_obsidian_attachment(
+    *, connector_id: int, note_payload: dict, user_id: str
+) -> None:
+    """Enqueue one non-markdown Obsidian note for background ETL/indexing."""
+    index_obsidian_attachment_task.delay(
+        connector_id=connector_id,
+        payload_data=note_payload,
+        user_id=user_id,
     )
 
 
@@ -452,6 +464,16 @@ async def obsidian_sync(
 
     for note in payload.notes:
         try:
+            if note.is_binary:
+                _queue_obsidian_attachment(
+                    connector_id=connector.id,
+                    note_payload=note.model_dump(mode="json"),
+                    user_id=str(user.id),
+                )
+                indexed += 1
+                items.append(SyncAckItem(path=note.path, status="queued"))
+                continue
+
             doc = await upsert_note(
                 session, connector=connector, payload=note, user_id=str(user.id)
             )

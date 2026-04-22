@@ -52,6 +52,24 @@ class NotePayload(_PluginBase):
     content_hash: str = Field(
         ..., description="Plugin-computed SHA-256 of the raw content"
     )
+    is_binary: bool = Field(
+        default=False,
+        description=(
+            "True when payload represents a non-markdown attachment. "
+            "If set, the plugin may include binary_base64 for ETL extraction."
+        ),
+    )
+    binary_base64: str | None = Field(
+        default=None,
+        description=(
+            "Base64-encoded raw file bytes for binary attachments. "
+            "Used by the backend ETL pipeline."
+        ),
+    )
+    mime_type: str | None = Field(
+        default=None,
+        description="Optional MIME type hint for binary attachments.",
+    )
     size: int | None = Field(
         default=None,
         ge=0,
@@ -138,7 +156,7 @@ class HealthResponse(_PluginBase):
 
 class SyncAckItem(_PluginBase):
     path: str
-    status: Literal["ok", "error"]
+    status: Literal["ok", "queued", "error"]
     document_id: int | None = None
     error: str | None = None
 

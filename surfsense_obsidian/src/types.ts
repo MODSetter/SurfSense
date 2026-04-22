@@ -138,7 +138,7 @@ export interface ManifestResponse {
 /** Per-item ack shapes — mirror `app/schemas/obsidian_plugin.py` 1:1. */
 export interface SyncAckItem {
 	path: string;
-	status: "ok" | "error";
+	status: "ok" | "queued" | "error";
 	document_id?: number;
 	error?: string;
 }

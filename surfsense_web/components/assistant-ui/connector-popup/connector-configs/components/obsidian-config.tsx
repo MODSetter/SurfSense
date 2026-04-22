@@ -108,7 +108,7 @@ const PluginStats: FC<{ config: Record<string, unknown> }> = ({ config }) => {
 	const tileRows = useMemo(() => {
 		const placeholder = statsError ? "—" : stats ? null : "…";
 		return [
-			{ label: "Vault", value: (config.vault_name as string) || "—" },
+			{ label: "Vault name", value: (config.vault_name as string) || "—" },
 			{
 				label: "Last sync",
 				value: placeholder ?? formatTimestamp(stats?.last_sync_at ?? null),
@@ -134,7 +134,7 @@ const PluginStats: FC<{ config: Record<string, unknown> }> = ({ config }) => {
 			</Alert>
 
 			<div className="rounded-xl bg-slate-400/5 p-3 sm:p-6 dark:bg-white/5">
-				<h3 className="mb-3 text-sm font-medium sm:text-base">Vault status</h3>
+				<h3 className="mb-3 text-sm font-medium sm:text-base">Vault Status</h3>
 				<dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 					{tileRows.map((stat) => (
 						<div key={stat.label} className="rounded-lg bg-background/50 p-3">

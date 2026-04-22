@@ -469,3 +469,51 @@ class TestWireContractSmoke:
         assert stats_resp.vault_id == vault_id
         assert stats_resp.files_synced == 0
         assert stats_resp.last_sync_at is None
+
+    async def test_sync_queues_binary_attachments(
+        self, db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+    ):
+        vault_id = str(uuid.uuid4())
+        await obsidian_connect(
+            ConnectRequest(
+                vault_id=vault_id,
+                vault_name="Queue Vault",
+                search_space_id=db_search_space.id,
+                vault_fingerprint="fp-" + uuid.uuid4().hex,
+            ),
+            user=db_user,
+            session=db_session,
+        )
+
+        fake_doc = type("FakeDoc", (), {"id": 12345})()
+        binary_note = _make_note_payload(vault_id, "image.png", "hash-bin")
+        binary_note.extension = "png"
+        binary_note.is_binary = True
+        binary_note.binary_base64 = "aGVsbG8="
+        binary_note.content = ""
+
+        with (
+            patch(
+                "app.routes.obsidian_plugin_routes.upsert_note",
+                new=AsyncMock(return_value=fake_doc),
+            ) as upsert_mock,
+            patch("app.routes.obsidian_plugin_routes._queue_obsidian_attachment") as queue_mock,
+        ):
+            sync_resp = await obsidian_sync(
+                SyncBatchRequest(
+                    vault_id=vault_id,
+                    notes=[
+                        _make_note_payload(vault_id, "ok.md", "hash-ok"),
+                        binary_note,
+                    ],
+                ),
+                user=db_user,
+                session=db_session,
+            )
+
+        assert sync_resp.indexed == 2
+        assert sync_resp.failed == 0
+        statuses = {it.path: it.status for it in sync_resp.items}
+        assert statuses == {"ok.md": "ok", "image.png": "queued"}
+        assert upsert_mock.await_count == 1
+        queue_mock.assert_called_once()

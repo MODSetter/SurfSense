@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { ArrowLeft, Info, RefreshCw, Trash2 } from "lucide-react";
+import { ArrowLeft, Info, RefreshCw } from "lucide-react";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
@@ -18,6 +18,14 @@ import { SummaryConfig } from "../../components/summary-config";
 import { VisionLLMConfig } from "../../components/vision-llm-config";
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
 import { getConnectorConfigComponent } from "../index";
+
+const VISION_LLM_CONNECTOR_TYPES = new Set<SearchSourceConnector["connector_type"]>([
+	EnumConnectorName.GOOGLE_DRIVE_CONNECTOR,
+	EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+	EnumConnectorName.DROPBOX_CONNECTOR,
+	EnumConnectorName.ONEDRIVE_CONNECTOR,
+	EnumConnectorName.OBSIDIAN_CONNECTOR,
+]);
 
 const REAUTH_ENDPOINTS: Partial<Record<string, string>> = {
 	[EnumConnectorName.LINEAR_CONNECTOR]: "/api/v1/auth/linear/connector/reauth",
@@ -87,10 +95,9 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	const isAuthExpired = connector.config?.auth_expired === true;
 	const reauthEndpoint = REAUTH_ENDPOINTS[connector.connector_type];
 	const [reauthing, setReauthing] = useState(false);
-	// Obsidian is plugin-driven: name + config are owned by the plugin, so
-	// the web edit view has nothing the user can persist back. Hide Save
-	// (and re-auth, which Obsidian never uses) entirely for that type.
-	const isPluginManagedReadOnly = connector.connector_type === EnumConnectorName.OBSIDIAN_CONNECTOR;
+	const supportsVisionLlm = VISION_LLM_CONNECTOR_TYPES.has(connector.connector_type);
+	const showsAiToggles =
+		connector.is_indexable || connector.connector_type === EnumConnectorName.OBSIDIAN_CONNECTOR;
 
 	const handleReauth = useCallback(async () => {
 		const spaceId = searchSpaceId ?? searchSpaceIdAtom;
@@ -275,25 +282,23 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 							/>
 						)}
 
-						{/* Summary and sync settings - only shown for indexable connectors */}
-						{connector.is_indexable && (
+						{/* Summary + vision toggles (Obsidian is plugin-push, non-indexable by design) */}
+						{showsAiToggles && (
 							<>
 								{/* AI Summary toggle */}
 								<SummaryConfig enabled={enableSummary} onEnabledChange={onEnableSummaryChange} />
 
-								{/* Vision LLM toggle - only for file-based connectors */}
-								{(connector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ||
-									connector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" ||
-									connector.connector_type === "DROPBOX_CONNECTOR" ||
-									connector.connector_type === "ONEDRIVE_CONNECTOR") && (
+								{/* Vision LLM toggle for file/attachment connectors */}
+								{supportsVisionLlm && (
 									<VisionLLMConfig
 										enabled={enableVisionLlm}
 										onEnabledChange={onEnableVisionLlmChange}
 									/>
 								)}
 
-								{/* Date range selector - not shown for file-based connectors (Drive, Dropbox, OneDrive), Webcrawler, GitHub, or Local Folder */}
-								{connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" &&
+								{/* Date-range and periodic sync stay indexable-only */}
+								{connector.is_indexable &&
+									connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" &&
 									connector.connector_type !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&
 									connector.connector_type !== "DROPBOX_CONNECTOR" &&
 									connector.connector_type !== "ONEDRIVE_CONNECTOR" &&
@@ -313,37 +318,40 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 										/>
 									)}
 
-								{(() => {
-									const isGoogleDrive = connector.connector_type === "GOOGLE_DRIVE_CONNECTOR";
-									const isComposioGoogleDrive =
-										connector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR";
-									const requiresFolderSelection = isGoogleDrive || isComposioGoogleDrive;
-									const selectedFolders =
-										(connector.config?.selected_folders as
-											| Array<{ id: string; name: string }>
-											| undefined) || [];
-									const selectedFiles =
-										(connector.config?.selected_files as
-											| Array<{ id: string; name: string }>
-											| undefined) || [];
-									const hasItemsSelected = selectedFolders.length > 0 || selectedFiles.length > 0;
-									const isDisabled = requiresFolderSelection && !hasItemsSelected;
+								{connector.is_indexable &&
+									(() => {
+										const isGoogleDrive =
+											connector.connector_type === "GOOGLE_DRIVE_CONNECTOR";
+										const isComposioGoogleDrive =
+											connector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR";
+										const requiresFolderSelection = isGoogleDrive || isComposioGoogleDrive;
+										const selectedFolders =
+											(connector.config?.selected_folders as
+												| Array<{ id: string; name: string }>
+												| undefined) || [];
+										const selectedFiles =
+											(connector.config?.selected_files as
+												| Array<{ id: string; name: string }>
+												| undefined) || [];
+										const hasItemsSelected =
+											selectedFolders.length > 0 || selectedFiles.length > 0;
+										const isDisabled = requiresFolderSelection && !hasItemsSelected;
 
-									return (
-										<PeriodicSyncConfig
-											enabled={periodicEnabled}
-											frequencyMinutes={frequencyMinutes}
-											onEnabledChange={onPeriodicEnabledChange}
-											onFrequencyChange={onFrequencyChange}
-											disabled={isDisabled}
-											disabledMessage={
-												isDisabled
-													? "Select at least one folder or file above to enable periodic sync"
-													: undefined
-											}
-										/>
-									);
-								})()}
+										return (
+											<PeriodicSyncConfig
+												enabled={periodicEnabled}
+												frequencyMinutes={frequencyMinutes}
+												onEnabledChange={onPeriodicEnabledChange}
+												onFrequencyChange={onFrequencyChange}
+												disabled={isDisabled}
+												disabledMessage={
+													isDisabled
+														? "Select at least one folder or file above to enable periodic sync"
+														: undefined
+												}
+											/>
+										);
+									})()}
 							</>
 						)}
 
@@ -412,11 +420,10 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						disabled={isSaving || isDisconnecting}
 						className="text-xs sm:text-sm flex-1 sm:flex-initial h-12 sm:h-auto py-3 sm:py-2"
 					>
-						<Trash2 className="mr-2 h-4 w-4" />
 						Disconnect
 					</Button>
 				)}
-				{isPluginManagedReadOnly ? null : isAuthExpired && reauthEndpoint ? (
+				{isAuthExpired && reauthEndpoint ? (
 					<Button
 						onClick={handleReauth}
 						disabled={reauthing || isDisconnecting}

@@ -32,7 +32,11 @@ compare without re-downloading content.
 
 from __future__ import annotations
 
+import base64
+import contextlib
 import logging
+import os
+import tempfile
 from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import quote
@@ -113,12 +117,18 @@ def _build_metadata(
         "connector_id": connector_id,
         "url": _build_source_url(vault_name, payload.path),
     }
+    if payload.is_binary:
+        meta["is_binary"] = True
+        if payload.mime_type:
+            meta["mime_type"] = payload.mime_type
     if extra:
         meta.update(extra)
     return meta
 
 
-def _build_document_string(payload: NotePayload, vault_name: str) -> str:
+def _build_document_string(
+    payload: NotePayload, vault_name: str, *, content_override: str | None = None
+) -> str:
     """Compose the indexable string the pipeline embeds and chunks.
 
     Mirrors the legacy obsidian indexer's METADATA + CONTENT framing so
@@ -126,6 +136,7 @@ def _build_document_string(payload: NotePayload, vault_name: str) -> str:
     """
     tags_line = ", ".join(payload.tags) if payload.tags else "None"
     links_line = ", ".join(payload.resolved_links) if payload.resolved_links else "None"
+    body = payload.content if content_override is None else content_override
     return (
         "<METADATA>\n"
         f"Title: {payload.name}\n"
@@ -135,9 +146,118 @@ def _build_document_string(payload: NotePayload, vault_name: str) -> str:
         f"Links to: {links_line}\n"
         "</METADATA>\n\n"
         "<CONTENT>\n"
-        f"{payload.content}\n"
+        f"{body}\n"
         "</CONTENT>\n"
     )
+
+
+async def _extract_binary_attachment_markdown(
+    payload: NotePayload, *, vision_llm
+) -> tuple[str, dict[str, Any]]:
+    if not payload.binary_base64:
+        return "", {"attachment_extraction_status": "missing_binary_payload"}
+
+    try:
+        raw_bytes = base64.b64decode(payload.binary_base64, validate=True)
+    except Exception:
+        logger.warning("obsidian attachment payload had invalid base64: %s", payload.path)
+        return "", {"attachment_extraction_status": "invalid_binary_payload"}
+
+    suffix = f".{payload.extension.lstrip('.')}" if payload.extension else ""
+    temp_path: str | None = None
+    filename = payload.path.rsplit("/", 1)[-1] or payload.name
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(raw_bytes)
+            temp_path = tmp.name
+
+        result = await _run_etl_extract(
+            file_path=temp_path,
+            filename=filename,
+            vision_llm=vision_llm,
+        )
+        metadata: dict[str, Any] = {
+            "attachment_extraction_status": "ok",
+            "attachment_etl_service": result.etl_service,
+            "attachment_content_type": result.content_type,
+        }
+        return result.markdown_content, metadata
+    except Exception as exc:
+        logger.warning(
+            "obsidian attachment ETL failed for %s: %s", payload.path, exc, exc_info=True
+        )
+        return "", {
+            "attachment_extraction_status": "etl_failed",
+            "attachment_extraction_error": str(exc)[:300],
+        }
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            with contextlib.suppress(Exception):
+                os.unlink(temp_path)
+
+
+async def _run_etl_extract(*, file_path: str, filename: str, vision_llm):
+    """Lazy-load ETL dependencies to avoid module-import cycles."""
+    from app.etl_pipeline.etl_document import EtlRequest
+    from app.etl_pipeline.etl_pipeline_service import EtlPipelineService
+
+    return await EtlPipelineService(vision_llm=vision_llm).extract(
+        EtlRequest(file_path=file_path, filename=filename)
+    )
+
+
+def _is_image_attachment(payload: NotePayload) -> bool:
+    ext = payload.extension.lower().lstrip(".")
+    return ext in {"png", "jpg", "jpeg", "gif", "webp", "bmp", "tiff", "svg"}
+
+
+async def _resolve_attachment_vision_llm(
+    session: AsyncSession,
+    *,
+    connector: SearchSourceConnector,
+    search_space_id: int,
+    payload: NotePayload,
+):
+    """Match connector indexers: only fetch vision LLM for image attachments
+    when the connector has vision indexing enabled."""
+    if not payload.is_binary:
+        return None
+    if not _is_image_attachment(payload):
+        return None
+    if not getattr(connector, "enable_vision_llm", False):
+        return None
+
+    from app.services.llm_service import get_vision_llm
+
+    return await get_vision_llm(session, search_space_id)
+
+
+async def _resolve_summary_llm(
+    session: AsyncSession, *, user_id: str, search_space_id: int, should_summarize: bool
+):
+    """Fetch summary LLM only when indexing summary is enabled."""
+    if not should_summarize:
+        return None
+
+    from app.services.llm_service import get_user_long_context_llm
+
+    return await get_user_long_context_llm(session, user_id, search_space_id)
+
+
+def _require_extracted_attachment_content(
+    *, content: str, etl_meta: dict[str, Any], path: str
+) -> str:
+    extracted = content.strip()
+    if extracted:
+        return extracted
+
+    status = etl_meta.get("attachment_extraction_status", "unknown")
+    reason = etl_meta.get("attachment_extraction_error")
+    if reason:
+        raise RuntimeError(
+            f"Attachment extraction failed for {path} ({status}): {reason}"
+        )
+    raise RuntimeError(f"Attachment extraction failed for {path} ({status})")
 
 
 async def _find_existing_document(
@@ -207,11 +327,42 @@ async def upsert_note(
                 exc_info=True,
             )
 
-    document_string = _build_document_string(payload, vault_name)
+    content_for_index = payload.content
+    extra_meta: dict[str, Any] = {}
+    vision_llm = None
+    if payload.is_binary:
+        vision_llm = await _resolve_attachment_vision_llm(
+            session,
+            connector=connector,
+            search_space_id=search_space_id,
+            payload=payload,
+        )
+        content_for_index, etl_meta = await _extract_binary_attachment_markdown(
+            payload, vision_llm=vision_llm
+        )
+        extra_meta.update(etl_meta)
+        # Strict KB behavior: do not index metadata-only attachments.
+        content_for_index = _require_extracted_attachment_content(
+            content=content_for_index,
+            etl_meta=etl_meta,
+            path=payload.path,
+        )
+
+    llm = await _resolve_summary_llm(
+        session,
+        user_id=str(user_id),
+        search_space_id=search_space_id,
+        should_summarize=connector.enable_summary,
+    )
+
+    document_string = _build_document_string(
+        payload, vault_name, content_override=content_for_index
+    )
     metadata = _build_metadata(
         payload,
         vault_name=vault_name,
         connector_id=connector.id,
+        extra=extra_meta,
     )
 
     connector_doc = ConnectorDocument(
@@ -223,7 +374,7 @@ async def upsert_note(
         connector_id=connector.id,
         created_by_id=str(user_id),
         should_summarize=connector.enable_summary,
-        fallback_summary=f"Obsidian Note: {payload.name}\n\n{payload.content}",
+        fallback_summary=f"Obsidian Note: {payload.name}\n\n{content_for_index}",
         metadata=metadata,
     )
 
@@ -236,9 +387,6 @@ async def upsert_note(
 
     document = prepared[0]
 
-    from app.services.llm_service import get_user_long_context_llm
-
-    llm = await get_user_long_context_llm(session, str(user_id), search_space_id)
     return await pipeline.index(document, connector_doc, llm)
 
 
