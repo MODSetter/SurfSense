@@ -133,6 +133,44 @@ PROVIDER_MAP = {
 }
 
 
+# Default ``api_base`` per LiteLLM provider prefix.  Used as a safety net when
+# a global LLM config does *not* specify ``api_base``: without this, LiteLLM
+# happily picks up provider-agnostic env vars (e.g. ``AZURE_API_BASE``,
+# ``OPENAI_API_BASE``) and routes, say, an ``openrouter/anthropic/claude-3-haiku``
+# request to an Azure endpoint, which then 404s with ``Resource not found``.
+# Only providers with a well-known, stable public base URL are listed here —
+# self-hosted / BYO-endpoint providers (ollama, custom, bedrock, vertex_ai,
+# huggingface, databricks, cloudflare, replicate) are intentionally omitted
+# so their existing config-driven behaviour is preserved.
+PROVIDER_DEFAULT_API_BASE = {
+    "openrouter": "https://openrouter.ai/api/v1",
+    "groq": "https://api.groq.com/openai/v1",
+    "mistral": "https://api.mistral.ai/v1",
+    "perplexity": "https://api.perplexity.ai",
+    "xai": "https://api.x.ai/v1",
+    "cerebras": "https://api.cerebras.ai/v1",
+    "deepinfra": "https://api.deepinfra.com/v1/openai",
+    "fireworks_ai": "https://api.fireworks.ai/inference/v1",
+    "together_ai": "https://api.together.xyz/v1",
+    "anyscale": "https://api.endpoints.anyscale.com/v1",
+    "cometapi": "https://api.cometapi.com/v1",
+    "sambanova": "https://api.sambanova.ai/v1",
+}
+
+
+# Canonical provider → base URL when a config uses a generic ``openai``-style
+# prefix but the ``provider`` field tells us which API it really is
+# (e.g. DeepSeek/Alibaba/Moonshot/Zhipu/MiniMax all use ``openai`` compat but
+# each has its own base URL).
+PROVIDER_KEY_DEFAULT_API_BASE = {
+    "DEEPSEEK": "https://api.deepseek.com/v1",
+    "ALIBABA_QWEN": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+    "MOONSHOT": "https://api.moonshot.ai/v1",
+    "ZHIPU": "https://open.bigmodel.cn/api/paas/v4",
+    "MINIMAX": "https://api.minimax.io/v1",
+}
+
+
 class LLMRouterService:
     """
     Singleton service for managing LiteLLM Router.
@@ -224,6 +262,16 @@ class LLMRouterService:
         # hits ContextWindowExceededError.
         full_model_list, ctx_fallbacks = cls._build_context_fallback_groups(model_list)
 
+        # Build a general-purpose fallback list so NotFound/timeout/rate-limit
+        # style failures on one deployment don't bubble up as hard errors —
+        # the router retries with a sibling deployment in ``auto-large``.
+        # ``auto-large`` is the large-context subset of ``auto``; if it is
+        # empty we fall back to ``auto`` itself so the router at least picks a
+        # different deployment in the same group.
+        fallbacks: list[dict[str, list[str]]] | None = None
+        if ctx_fallbacks:
+            fallbacks = [{"auto": ["auto-large"]}]
+
         try:
             router_kwargs: dict[str, Any] = {
                 "model_list": full_model_list,
@@ -237,15 +285,18 @@ class LLMRouterService:
             }
             if ctx_fallbacks:
                 router_kwargs["context_window_fallbacks"] = ctx_fallbacks
+            if fallbacks:
+                router_kwargs["fallbacks"] = fallbacks
 
             instance._router = Router(**router_kwargs)
             instance._initialized = True
             logger.info(
                 "LLM Router initialized with %d deployments, "
-                "strategy: %s, context_window_fallbacks: %s",
+                "strategy: %s, context_window_fallbacks: %s, fallbacks: %s",
                 len(model_list),
                 final_settings.get("routing_strategy"),
                 ctx_fallbacks or "none",
+                fallbacks or "none",
             )
         except Exception as e:
             logger.error(f"Failed to initialize LLM Router: {e}")
@@ -348,10 +399,11 @@ class LLMRouterService:
                 return None
 
             # Build model string
+            provider = config.get("provider", "").upper()
             if config.get("custom_provider"):
-                model_string = f"{config['custom_provider']}/{config['model_name']}"
+                provider_prefix = config["custom_provider"]
+                model_string = f"{provider_prefix}/{config['model_name']}"
             else:
-                provider = config.get("provider", "").upper()
                 provider_prefix = PROVIDER_MAP.get(provider, provider.lower())
                 model_string = f"{provider_prefix}/{config['model_name']}"
 
@@ -361,9 +413,19 @@ class LLMRouterService:
                 "api_key": config.get("api_key"),
             }
 
-            # Add optional api_base
-            if config.get("api_base"):
-                litellm_params["api_base"] = config["api_base"]
+            # Resolve ``api_base``. Config value wins; otherwise apply a
+            # provider-aware default so the deployment does not silently
+            # inherit unrelated env vars (e.g. ``AZURE_API_BASE``) and route
+            # requests to the wrong endpoint.  See ``PROVIDER_DEFAULT_API_BASE``
+            # docstring for the motivating bug (OpenRouter models 404-ing
+            # against an Azure endpoint).
+            api_base = config.get("api_base")
+            if not api_base:
+                api_base = PROVIDER_KEY_DEFAULT_API_BASE.get(provider)
+            if not api_base:
+                api_base = PROVIDER_DEFAULT_API_BASE.get(provider_prefix)
+            if api_base:
+                litellm_params["api_base"] = api_base
 
             # Add any additional litellm parameters
             if config.get("litellm_params"):
