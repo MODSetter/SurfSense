@@ -128,7 +128,7 @@ async def connect_mcp_service(
                     status_code=502,
                     detail=f"DCR for {svc.name} did not return a client_id.",
                 )
-        elif not svc.supports_dcr and svc.client_id_env:
+        elif svc.client_id_env:
             client_id = getattr(config, svc.client_id_env, None)
             client_secret = getattr(config, svc.client_secret_env or "", None) or ""
             if not client_id:
@@ -446,7 +446,7 @@ async def reauth_mcp_service(
                     status_code=502,
                     detail=f"DCR for {svc.name} did not return a client_id.",
                 )
-        elif not svc.supports_dcr and svc.client_id_env:
+        elif svc.client_id_env:
             client_id = getattr(config, svc.client_id_env, None)
             client_secret = getattr(config, svc.client_secret_env or "", None) or ""
             if not client_id:

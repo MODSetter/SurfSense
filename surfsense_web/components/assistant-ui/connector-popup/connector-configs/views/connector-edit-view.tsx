@@ -17,7 +17,7 @@ import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
 import { SummaryConfig } from "../../components/summary-config";
 import { VisionLLMConfig } from "../../components/vision-llm-config";
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
-import { getConnectorConfigComponent } from "../index";
+import { type ConnectorConfigProps, getConnectorConfigComponent } from "../index";
 
 const REAUTH_ENDPOINTS: Partial<Record<string, string>> = {
 	[EnumConnectorName.LINEAR_CONNECTOR]: "/api/v1/auth/linear/connector/reauth",
@@ -118,11 +118,16 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 		}
 	}, [searchSpaceId, searchSpaceIdAtom, reauthEndpoint, connector.id]);
 
-	// Get connector-specific config component
-	const ConnectorConfigComponent = useMemo(
-		() => getConnectorConfigComponent(connector.connector_type),
-		[connector.connector_type]
-	);
+	const isMCPBacked = Boolean(connector.config?.server_config);
+
+	// Get connector-specific config component (MCP-backed connectors use a generic view)
+	const ConnectorConfigComponent = useMemo(() => {
+		if (isMCPBacked) {
+			const { MCPServiceConfig } = require("../components/mcp-service-config");
+			return MCPServiceConfig as FC<ConnectorConfigProps>;
+		}
+		return getConnectorConfigComponent(connector.connector_type);
+	}, [connector.connector_type, isMCPBacked]);
 	const [isScrolled, setIsScrolled] = useState(false);
 	const [hasMoreContent, setHasMoreContent] = useState(false);
 	const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
@@ -223,7 +228,9 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 								{getConnectorDisplayName(connector.name)}
 							</h2>
 							<p className="text-xs sm:text-base text-muted-foreground mt-1">
-								Manage your connector settings and sync configuration
+								{isMCPBacked
+									? "Connected — your agent can interact with this service in real time"
+									: "Manage your connector settings and sync configuration"}
 							</p>
 						</div>
 					</div>
@@ -421,7 +428,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						<RefreshCw className={cn("size-3.5", reauthing && "animate-spin")} />
 						Re-authenticate
 					</Button>
-				) : (
+				) : !isMCPBacked ? (
 					<Button
 						onClick={onSave}
 						disabled={isSaving || isDisconnecting}
@@ -430,7 +437,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						<span className={isSaving ? "opacity-0" : ""}>Save Changes</span>
 						{isSaving && <Spinner size="sm" className="absolute" />}
 					</Button>
-				)}
+				) : null}
 			</div>
 		</div>
 	);

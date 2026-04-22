@@ -1,9 +1,9 @@
-"""Registry of MCP services with OAuth 2.1 support.
+"""Registry of MCP services with OAuth support.
 
 Each entry maps a URL-safe service key to its MCP server endpoint and
-authentication strategy.  Services with ``supports_dcr=True`` will use
-RFC 7591 Dynamic Client Registration; the rest require pre-configured
-credentials via environment variables.
+authentication configuration.  Services with ``supports_dcr=True`` use
+RFC 7591 Dynamic Client Registration (the MCP server issues its own
+credentials); the rest use pre-configured credentials via env vars.
 """
 
 from __future__ import annotations
@@ -65,8 +65,8 @@ MCP_SERVICES: dict[str, MCPServiceConfig] = {
         name="Airtable",
         mcp_url="https://mcp.airtable.com/mcp",
         connector_type="AIRTABLE_CONNECTOR",
-        oauth_discovery_origin="https://airtable.com",
         supports_dcr=False,
+        oauth_discovery_origin="https://airtable.com",
         client_id_env="AIRTABLE_CLIENT_ID",
         client_secret_env="AIRTABLE_CLIENT_SECRET",
         scopes=["data.records:read", "data.records:write", "schema.bases:read", "schema.bases:write"],
