@@ -168,8 +168,8 @@ Available components (use ONLY these):
 #summary([Short paragraph summary])     // Optional summary inside an entry
 #content-area([Free-form content])       // Freeform text block
 
-For skills sections, use bold labels directly:
-#strong[Category:] item1, item2, item3
+For skills sections, use one bullet per category label:
+- #strong[Category:] item1, item2, item3
 
 For simple list sections (e.g. Honors), use plain bullet points:
 - Item one
@@ -186,7 +186,7 @@ RULES:
 - Every section MUST use == heading.
 - Use #regular-entry() for experience, projects, publications, certifications, and similar entries.
 - Use #education-entry() for education.
-- Use #strong[Label:] for skills categories.
+- For skills sections, use one bullet line per category with a bold label.
 - Keep content professional, concise, and achievement-oriented.
 - Use action verbs for bullet points (Led, Built, Designed, Reduced, etc.).
 - This template works for ALL professions — adapt sections to the user's field.
