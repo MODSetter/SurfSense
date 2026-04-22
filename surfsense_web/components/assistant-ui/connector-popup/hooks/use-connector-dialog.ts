@@ -350,11 +350,7 @@ export const useConnectorDialog = () => {
 			// Set connecting state immediately to disable button and show spinner
 			setConnectingId(connector.id);
 
-			trackConnectorSetupStarted(
-				Number(searchSpaceId),
-				connector.connectorType,
-				"oauth_click"
-			);
+			trackConnectorSetupStarted(Number(searchSpaceId), connector.connectorType, "oauth_click");
 
 			try {
 				// Check if authEndpoint already has query parameters
@@ -478,11 +474,7 @@ export const useConnectorDialog = () => {
 		(connectorType: string) => {
 			if (!searchSpaceId) return;
 
-			trackConnectorSetupStarted(
-				Number(searchSpaceId),
-				connectorType,
-				"non_oauth_click"
-			);
+			trackConnectorSetupStarted(Number(searchSpaceId), connectorType, "non_oauth_click");
 
 			setConnectingConnectorType(connectorType);
 		},

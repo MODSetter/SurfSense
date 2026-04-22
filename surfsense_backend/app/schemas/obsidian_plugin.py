@@ -24,10 +24,14 @@ class _PluginBase(BaseModel):
 class NotePayload(_PluginBase):
     """One Obsidian note as pushed by the plugin (the source of truth)."""
 
-    vault_id: str = Field(..., description="Stable plugin-generated UUID for this vault")
+    vault_id: str = Field(
+        ..., description="Stable plugin-generated UUID for this vault"
+    )
     path: str = Field(..., description="Vault-relative path, e.g. 'notes/foo.md'")
     name: str = Field(..., description="File stem (no extension)")
-    extension: str = Field(default="md", description="File extension without leading dot")
+    extension: str = Field(
+        default="md", description="File extension without leading dot"
+    )
     content: str = Field(default="", description="Raw markdown body (post-frontmatter)")
 
     frontmatter: dict[str, Any] = Field(default_factory=dict)
@@ -38,7 +42,9 @@ class NotePayload(_PluginBase):
     embeds: list[str] = Field(default_factory=list)
     aliases: list[str] = Field(default_factory=list)
 
-    content_hash: str = Field(..., description="Plugin-computed SHA-256 of the raw content")
+    content_hash: str = Field(
+        ..., description="Plugin-computed SHA-256 of the raw content"
+    )
     size: int | None = Field(
         default=None,
         ge=0,

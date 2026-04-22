@@ -33,10 +33,7 @@ function toClientHeaders(headers: Headers) {
 	return nextHeaders;
 }
 
-async function proxy(
-	request: NextRequest,
-	context: { params: Promise<{ path?: string[] }> }
-) {
+async function proxy(request: NextRequest, context: { params: Promise<{ path?: string[] }> }) {
 	const params = await context.params;
 	const path = params.path?.join("/") || "";
 	const upstreamUrl = new URL(`${getBackendBaseUrl()}/api/v1/${path}`);
@@ -62,4 +59,12 @@ async function proxy(
 	});
 }
 
-export { proxy as GET, proxy as POST, proxy as PUT, proxy as PATCH, proxy as DELETE, proxy as OPTIONS, proxy as HEAD };
+export {
+	proxy as GET,
+	proxy as POST,
+	proxy as PUT,
+	proxy as PATCH,
+	proxy as DELETE,
+	proxy as OPTIONS,
+	proxy as HEAD,
+};

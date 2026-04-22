@@ -117,9 +117,7 @@ const PluginStats: FC<{ config: Record<string, unknown> }> = ({ config }) => {
 				label: "Files synced",
 				value:
 					placeholder ??
-					(typeof stats?.files_synced === "number"
-						? stats.files_synced.toLocaleString()
-						: "—"),
+					(typeof stats?.files_synced === "number" ? stats.files_synced.toLocaleString() : "—"),
 			},
 		];
 	}, [config.vault_name, stats, statsError]);
@@ -139,10 +137,7 @@ const PluginStats: FC<{ config: Record<string, unknown> }> = ({ config }) => {
 				<h3 className="mb-3 text-sm font-medium sm:text-base">Vault status</h3>
 				<dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 					{tileRows.map((stat) => (
-						<div
-							key={stat.label}
-							className="rounded-lg bg-background/50 p-3"
-						>
+						<div key={stat.label} className="rounded-lg bg-background/50 p-3">
 							<dt className="text-xs tracking-wide text-muted-foreground sm:text-sm">
 								{stat.label}
 							</dt>
@@ -160,8 +155,8 @@ const UnknownConnectorState: FC = () => (
 		<Info className="size-4 shrink-0" />
 		<AlertTitle className="text-xs sm:text-sm">Unrecognized config</AlertTitle>
 		<AlertDescription className="text-[11px] sm:text-xs">
-			This connector has neither plugin metadata nor a legacy marker. It may predate migration —
-			you can safely delete it and re-install the SurfSense Obsidian plugin to resume syncing.
+			This connector has neither plugin metadata nor a legacy marker. It may predate migration — you
+			can safely delete it and re-install the SurfSense Obsidian plugin to resume syncing.
 		</AlertDescription>
 	</Alert>
 );

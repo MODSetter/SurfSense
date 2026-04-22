@@ -202,9 +202,7 @@ class TestHTTPExceptionHandler:
         # Intentional 503s (e.g. feature flag off) must surface the developer
         # message so the frontend can render actionable copy.
         body = _assert_envelope(client.get("/http-503"), 503)
-        assert (
-            body["error"]["message"] == "Page purchases are temporarily unavailable."
-        )
+        assert body["error"]["message"] == "Page purchases are temporarily unavailable."
         assert body["error"]["message"] != GENERIC_5XX_MESSAGE
 
     def test_502_preserves_detail(self, client):

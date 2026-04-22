@@ -4,17 +4,16 @@ import { Check, Copy, Info } from "lucide-react";
 import { type FC, useCallback, useRef, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { EnumConnectorName } from "@/contracts/enums/connector";
 import { useApiKey } from "@/hooks/use-api-key";
 import { copyToClipboard as copyToClipboardUtil } from "@/lib/utils";
-import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorBenefits } from "../connector-benefits";
 import type { ConnectFormProps } from "../index";
 
 const PLUGIN_RELEASES_URL =
 	"https://github.com/MODSetter/SurfSense/releases?q=obsidian&expanded=true";
 
-const BACKEND_URL =
-	process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL ?? "https://surfsense.com";
+const BACKEND_URL = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL ?? "https://surfsense.com";
 
 /**
  * Obsidian connect form for the plugin-only architecture.
@@ -32,9 +31,7 @@ const BACKEND_URL =
 export const ObsidianConnectForm: FC<ConnectFormProps> = ({ onBack }) => {
 	const { apiKey, isLoading, copied, copyToClipboard } = useApiKey();
 	const [copiedUrl, setCopiedUrl] = useState(false);
-	const urlCopyTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
-		undefined
-	);
+	const urlCopyTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
 	const copyServerUrl = useCallback(async () => {
 		const ok = await copyToClipboardUtil(BACKEND_URL);
@@ -59,9 +56,8 @@ export const ObsidianConnectForm: FC<ConnectFormProps> = ({ onBack }) => {
 				<Info className="size-4 shrink-0 text-purple-500" />
 				<AlertTitle className="text-xs sm:text-sm">Plugin-based sync</AlertTitle>
 				<AlertDescription className="text-[10px] sm:text-xs">
-					SurfSense now syncs Obsidian via an official plugin that runs inside
-					Obsidian itself. Works on desktop and mobile, in cloud and self-hosted
-					deployments.
+					SurfSense now syncs Obsidian via an official plugin that runs inside Obsidian itself.
+					Works on desktop and mobile, in cloud and self-hosted deployments.
 				</AlertDescription>
 			</Alert>
 
@@ -76,10 +72,9 @@ export const ObsidianConnectForm: FC<ConnectFormProps> = ({ onBack }) => {
 							<h3 className="text-sm font-medium sm:text-base">Install the plugin</h3>
 						</header>
 						<p className="mb-3 text-[11px] text-muted-foreground sm:text-xs">
-							Grab the latest SurfSense plugin release. Once it's in the community
-							store, you'll also be able to install it from{" "}
-							<span className="font-medium">Settings → Community plugins</span>{" "}
-							inside Obsidian.
+							Grab the latest SurfSense plugin release. Once it's in the community store, you'll
+							also be able to install it from{" "}
+							<span className="font-medium">Settings → Community plugins</span> inside Obsidian.
 						</p>
 						<a
 							href={PLUGIN_RELEASES_URL}
@@ -87,7 +82,12 @@ export const ObsidianConnectForm: FC<ConnectFormProps> = ({ onBack }) => {
 							rel="noopener noreferrer"
 							className="inline-flex"
 						>
-							<Button type="button" variant="secondary" size="sm" className="gap-2 text-xs sm:text-sm">
+							<Button
+								type="button"
+								variant="secondary"
+								size="sm"
+								className="gap-2 text-xs sm:text-sm"
+							>
 								Open plugin releases
 							</Button>
 						</a>
@@ -104,9 +104,9 @@ export const ObsidianConnectForm: FC<ConnectFormProps> = ({ onBack }) => {
 							<h3 className="text-sm font-medium sm:text-base">Copy your API key</h3>
 						</header>
 						<p className="mb-3 text-[11px] text-muted-foreground sm:text-xs">
-							Paste this into the plugin's <span className="font-medium">API token</span>{" "}
-							setting. The token expires after 24 hours. Long-lived personal access
-							tokens are coming in a future release.
+							Paste this into the plugin's <span className="font-medium">API token</span> setting.
+							The token expires after 24 hours. Long-lived personal access tokens are coming in a
+							future release.
 						</p>
 
 						{isLoading ? (
@@ -151,9 +151,9 @@ export const ObsidianConnectForm: FC<ConnectFormProps> = ({ onBack }) => {
 							<h3 className="text-sm font-medium sm:text-base">Point the plugin at this server</h3>
 						</header>
 						<p className="text-[11px] text-muted-foreground sm:text-xs">
-							For SurfSense Cloud, use the default <span className="font-medium">surfsense.com</span>.
-							If you are self-hosting, set the plugin's{" "}
-							<span className="font-medium">Server URL</span> to your frontend domain.
+							For SurfSense Cloud, use the default{" "}
+							<span className="font-medium">surfsense.com</span>. If you are self-hosting, set the
+							plugin's <span className="font-medium">Server URL</span> to your frontend domain.
 						</p>
 					</article>
 
@@ -168,10 +168,9 @@ export const ObsidianConnectForm: FC<ConnectFormProps> = ({ onBack }) => {
 							<h3 className="text-sm font-medium sm:text-base">Pick this search space</h3>
 						</header>
 						<p className="text-[11px] text-muted-foreground sm:text-xs">
-							In the plugin's <span className="font-medium">Search space</span>{" "}
-							setting, choose the search space you want this vault to sync into.
-							The connector will appear here automatically once the plugin makes
-							its first sync.
+							In the plugin's <span className="font-medium">Search space</span> setting, choose the
+							search space you want this vault to sync into. The connector will appear here
+							automatically once the plugin makes its first sync.
 						</p>
 					</article>
 				</div>
@@ -183,11 +182,9 @@ export const ObsidianConnectForm: FC<ConnectFormProps> = ({ onBack }) => {
 						What you get with Obsidian integration:
 					</h4>
 					<ul className="list-disc space-y-1 pl-5 text-[10px] text-muted-foreground sm:text-xs">
-						{getConnectorBenefits(EnumConnectorName.OBSIDIAN_CONNECTOR)?.map(
-							(benefit) => (
-								<li key={benefit}>{benefit}</li>
-							)
-						)}
+						{getConnectorBenefits(EnumConnectorName.OBSIDIAN_CONNECTOR)?.map((benefit) => (
+							<li key={benefit}>{benefit}</li>
+						))}
 					</ul>
 				</div>
 			)}

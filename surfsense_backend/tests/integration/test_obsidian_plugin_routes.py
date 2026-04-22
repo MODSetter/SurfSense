@@ -111,9 +111,7 @@ async def race_user_and_space(async_engine):
         # connectors test creates documents, so we wipe them too. The
         # CASCADE on user_id catches anything we missed.
         await cleanup.execute(
-            text(
-                'DELETE FROM search_source_connectors WHERE user_id = :uid'
-            ),
+            text("DELETE FROM search_source_connectors WHERE user_id = :uid"),
             {"uid": user_id},
         )
         await cleanup.execute(
@@ -156,9 +154,7 @@ class TestConnectRace:
                 )
                 await obsidian_connect(payload, user=fresh_user, session=s)
 
-        results = await asyncio.gather(
-            _call("a"), _call("b"), return_exceptions=True
-        )
+        results = await asyncio.gather(_call("a"), _call("b"), return_exceptions=True)
         for r in results:
             assert not isinstance(r, Exception), f"Connect raised: {r!r}"
 
@@ -430,9 +426,7 @@ class TestWireContractSmoke:
         assert {it.status for it in rename_resp.items} == {"ok", "missing"}
         # snake_case fields are deliberate — the plugin decoder maps them
         # to camelCase explicitly.
-        assert all(
-            it.old_path and it.new_path for it in rename_resp.items
-        )
+        assert all(it.old_path and it.new_path for it in rename_resp.items)
 
         # 4. /notes DELETE
         async def _delete(*args, **kwargs) -> bool:

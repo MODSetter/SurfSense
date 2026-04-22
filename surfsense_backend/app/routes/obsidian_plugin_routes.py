@@ -129,7 +129,9 @@ async def _finish_obsidian_sync_notification(
 ):
     """Mark the rolling Obsidian sync inbox item complete or failed."""
     handler = NotificationService.connector_indexing
-    connector_name = notification.notification_metadata.get("connector_name", "Obsidian")
+    connector_name = notification.notification_metadata.get(
+        "connector_name", "Obsidian"
+    )
     if failed > 0 and indexed == 0:
         title = f"Failed: {connector_name}"
         message = (
@@ -273,9 +275,7 @@ async def _find_by_fingerprint(
     return (await session.execute(stmt)).scalars().first()
 
 
-def _build_config(
-    payload: ConnectRequest, *, now_iso: str
-) -> dict[str, object]:
+def _build_config(payload: ConnectRequest, *, now_iso: str) -> dict[str, object]:
     return {
         "vault_id": payload.vault_id,
         "vault_name": payload.vault_name,
@@ -456,9 +456,7 @@ async def obsidian_sync(
                 session, connector=connector, payload=note, user_id=str(user.id)
             )
             indexed += 1
-            items.append(
-                SyncAckItem(path=note.path, status="ok", document_id=doc.id)
-            )
+            items.append(SyncAckItem(path=note.path, status="ok", document_id=doc.id))
         except HTTPException:
             raise
         except Exception as exc:
@@ -597,9 +595,7 @@ async def obsidian_delete_notes(
                 path,
                 payload.vault_id,
             )
-            items.append(
-                DeleteAckItem(path=path, status="error", error=str(exc)[:300])
-            )
+            items.append(DeleteAckItem(path=path, status="error", error=str(exc)[:300]))
 
     return DeleteAck(
         vault_id=payload.vault_id,
@@ -616,9 +612,7 @@ async def obsidian_manifest(
     session: AsyncSession = Depends(get_async_session),
 ) -> ManifestResponse:
     """Return ``{path: {hash, mtime}}`` for the plugin's onload reconcile diff."""
-    connector = await _resolve_vault_connector(
-        session, user=user, vault_id=vault_id
-    )
+    connector = await _resolve_vault_connector(session, user=user, vault_id=vault_id)
     return await get_manifest(session, connector=connector, vault_id=vault_id)
 
 
@@ -633,9 +627,7 @@ async def obsidian_stats(
     ``files_synced`` excludes tombstones so it matches ``/manifest``;
     ``last_sync_at`` includes them so deletes advance the freshness signal.
     """
-    connector = await _resolve_vault_connector(
-        session, user=user, vault_id=vault_id
-    )
+    connector = await _resolve_vault_connector(session, user=user, vault_id=vault_id)
 
     is_active = Document.document_metadata["deleted_at"].as_string().is_(None)
 

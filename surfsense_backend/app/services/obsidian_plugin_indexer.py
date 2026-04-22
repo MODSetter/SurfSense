@@ -126,9 +126,7 @@ def _build_document_string(payload: NotePayload, vault_name: str) -> str:
     existing search relevance heuristics keep working unchanged.
     """
     tags_line = ", ".join(payload.tags) if payload.tags else "None"
-    links_line = (
-        ", ".join(payload.resolved_links) if payload.resolved_links else "None"
-    )
+    links_line = ", ".join(payload.resolved_links) if payload.resolved_links else "None"
     return (
         "<METADATA>\n"
         f"Title: {payload.name}\n"
@@ -235,9 +233,7 @@ async def upsert_note(
     if not prepared:
         if existing is not None:
             return existing
-        raise RuntimeError(
-            f"Indexing pipeline rejected obsidian note {payload.path}"
-        )
+        raise RuntimeError(f"Indexing pipeline rejected obsidian note {payload.path}")
 
     document = prepared[0]
 

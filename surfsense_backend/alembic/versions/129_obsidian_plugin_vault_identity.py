@@ -91,8 +91,7 @@ def downgrade() -> None:
     )
     conn.execute(
         sa.text(
-            "DROP INDEX IF EXISTS "
-            "search_source_connectors_obsidian_plugin_vault_uniq"
+            "DROP INDEX IF EXISTS search_source_connectors_obsidian_plugin_vault_uniq"
         )
     )
     conn.execute(
