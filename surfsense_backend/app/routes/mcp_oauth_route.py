@@ -165,7 +165,7 @@ async def connect_mcp_service(
             "state": state,
         }
         if svc.scopes:
-            auth_params[svc.scope_param] = " ".join(svc.scopes)
+            auth_params["scope"] = " ".join(svc.scopes)
 
         auth_url = f"{auth_endpoint}?{urlencode(auth_params)}"
 
@@ -478,7 +478,7 @@ async def reauth_mcp_service(
             "state": state,
         }
         if svc.scopes:
-            auth_params[svc.scope_param] = " ".join(svc.scopes)
+            auth_params["scope"] = " ".join(svc.scopes)
 
         auth_url = f"{auth_endpoint}?{urlencode(auth_params)}"
 
