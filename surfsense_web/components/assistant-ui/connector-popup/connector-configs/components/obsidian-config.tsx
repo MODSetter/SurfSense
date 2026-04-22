@@ -130,20 +130,20 @@ const PluginStats: FC<{ config: Record<string, unknown> }> = ({ config }) => {
 				<Info className="size-4 shrink-0 text-emerald-500" />
 				<AlertTitle className="text-xs sm:text-sm">Plugin connected</AlertTitle>
 				<AlertDescription className="text-[11px] sm:text-xs">
-					Edits in Obsidian sync over HTTPS. To stop syncing, disable or uninstall the plugin in
+					Your notes stay synced automatically. To stop syncing, disable or uninstall the plugin in
 					Obsidian, or delete this connector.
 				</AlertDescription>
 			</Alert>
 
-			<div className="rounded-xl border border-border bg-slate-400/5 p-3 sm:p-6 dark:bg-white/5">
+			<div className="rounded-xl bg-slate-400/5 p-3 sm:p-6 dark:bg-white/5">
 				<h3 className="mb-3 text-sm font-medium sm:text-base">Vault status</h3>
 				<dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 					{tileRows.map((stat) => (
 						<div
 							key={stat.label}
-							className="rounded-lg border border-slate-400/20 bg-background/50 p-3"
+							className="rounded-lg bg-background/50 p-3"
 						>
-							<dt className="text-[10px] uppercase tracking-wide text-muted-foreground sm:text-xs">
+							<dt className="text-xs tracking-wide text-muted-foreground sm:text-sm">
 								{stat.label}
 							</dt>
 							<dd className="mt-1 truncate text-xs font-medium sm:text-sm">{stat.value}</dd>

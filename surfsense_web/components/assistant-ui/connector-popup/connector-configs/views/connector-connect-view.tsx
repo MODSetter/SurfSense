@@ -151,7 +151,9 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 					<span className={isSubmitting ? "opacity-0" : ""}>
 						{connectorType === "MCP_CONNECTOR"
 							? "Connect"
-							: `Connect ${getConnectorTypeDisplay(connectorType)}`}
+							: connectorType === "OBSIDIAN_CONNECTOR"
+								? "Done"
+								: `Connect ${getConnectorTypeDisplay(connectorType)}`}
 					</span>
 					{isSubmitting && <Spinner size="sm" className="absolute" />}
 				</Button>
