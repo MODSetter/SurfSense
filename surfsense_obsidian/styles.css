@@ -40,10 +40,14 @@
 
 .surfsense-connection-indicator {
 	display: inline-flex;
-	margin-left: 8px;
-	vertical-align: middle;
 	width: 14px;
 	height: 14px;
+}
+
+.surfsense-connection-heading {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
 }
 
 .surfsense-connection-indicator svg {

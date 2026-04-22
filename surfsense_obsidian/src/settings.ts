@@ -115,7 +115,7 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 					if (this.plugin.settings.searchSpaceId !== null) {
 						try {
 							await this.plugin.engine.ensureConnected();
-							await this.plugin.engine.flushQueue();
+							await this.plugin.engine.maybeReconcile(true);
 							new Notice("Surfsense: vault connected.");
 							this.display();
 						} catch (err) {
@@ -267,6 +267,7 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 
 	private renderConnectionHeading(containerEl: HTMLElement): void {
 		const heading = new Setting(containerEl).setName("Connection").setHeading();
+		heading.nameEl.addClass("surfsense-connection-heading");
 		const indicator = heading.nameEl.createSpan({
 			cls: "surfsense-connection-indicator",
 		});
