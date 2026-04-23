@@ -122,7 +122,7 @@ function toVirtualPath(rootPath: string, absolutePath: string): string {
 	return `/${rel.replace(/\\/g, "/")}`;
 }
 
-type LocalRootMount = {
+export type LocalRootMount = {
 	mount: string;
 	rootPath: string;
 };
@@ -143,6 +143,11 @@ function buildRootMounts(rootPaths: string[]): LocalRootMount[] {
 		mounts.push({ mount, rootPath: normalizedRoot });
 	}
 	return mounts;
+}
+
+export async function getAgentFilesystemMounts(): Promise<LocalRootMount[]> {
+	const rootPaths = await resolveCurrentRootPaths();
+	return buildRootMounts(rootPaths);
 }
 
 function parseMountedVirtualPath(virtualPath: string): {

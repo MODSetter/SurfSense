@@ -34,6 +34,11 @@ interface LocalFolderNode {
 	files: LocalFolderFileEntry[];
 }
 
+type LocalRootMount = {
+	mount: string;
+	rootPath: string;
+};
+
 const getFolderDisplayName = (rootPath: string): string =>
 	rootPath.split(/[\\/]/).at(-1) || rootPath;
 
@@ -50,6 +55,20 @@ function getFileName(pathValue: string): string {
 	return pathValue.split(/[\\/]/).at(-1) || pathValue;
 }
 
+function toVirtualPath(relativePath: string): string {
+	const normalized = relativePath.replace(/\\/g, "/").replace(/^\/+/, "");
+	return `/${normalized}`;
+}
+
+function normalizeRootPathForLookup(rootPath: string, isWindows: boolean): string {
+	const normalized = rootPath.replace(/\\/g, "/").replace(/\/+$/, "");
+	return isWindows ? normalized.toLowerCase() : normalized;
+}
+
+function toMountedVirtualPath(mount: string, relativePath: string): string {
+	return `/${mount}${toVirtualPath(relativePath)}`;
+}
+
 export function LocalFilesystemBrowser({
 	rootPaths,
 	searchSpaceId,
@@ -59,7 +78,9 @@ export function LocalFilesystemBrowser({
 	const electronAPI = useElectronAPI();
 	const [rootStateMap, setRootStateMap] = useState<Record<string, RootLoadState>>({});
 	const [expandedFolderKeys, setExpandedFolderKeys] = useState<Set<string>>(new Set());
+	const [mountByRootKey, setMountByRootKey] = useState<Map<string, string>>(new Map());
 	const supportedExtensions = useMemo(() => Array.from(getSupportedExtensionsSet()), []);
+	const isWindowsPlatform = electronAPI?.versions.platform === "win32";
 
 	useEffect(() => {
 		if (!electronAPI?.listFolderFiles) return;
@@ -116,6 +137,31 @@ export function LocalFilesystemBrowser({
 		};
 	}, [electronAPI, rootPaths, searchSpaceId, supportedExtensions]);
 
+	useEffect(() => {
+		if (!electronAPI?.getAgentFilesystemMounts) {
+			setMountByRootKey(new Map());
+			return;
+		}
+		let cancelled = false;
+		void electronAPI
+			.getAgentFilesystemMounts()
+			.then((mounts: LocalRootMount[]) => {
+				if (cancelled) return;
+				const next = new Map<string, string>();
+				for (const entry of mounts) {
+					next.set(normalizeRootPathForLookup(entry.rootPath, isWindowsPlatform), entry.mount);
+				}
+				setMountByRootKey(next);
+			})
+			.catch(() => {
+				if (cancelled) return;
+				setMountByRootKey(new Map());
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [electronAPI, isWindowsPlatform, rootPaths]);
+
 	const treeByRoot = useMemo(() => {
 		const query = searchQuery?.trim().toLowerCase() ?? "";
 		const hasQuery = query.length > 0;
@@ -160,7 +206,7 @@ export function LocalFilesystemBrowser({
 	}, []);
 
 	const renderFolder = useCallback(
-		(folder: LocalFolderNode, depth: number) => {
+		(folder: LocalFolderNode, depth: number, mount: string) => {
 			const isExpanded = expandedFolderKeys.has(folder.key);
 			const childFolders = Array.from(folder.folders.values()).sort((a, b) =>
 				a.name.localeCompare(b.name)
@@ -185,12 +231,12 @@ export function LocalFilesystemBrowser({
 					</button>
 					{isExpanded && (
 						<>
-							{childFolders.map((childFolder) => renderFolder(childFolder, depth + 1))}
+							{childFolders.map((childFolder) => renderFolder(childFolder, depth + 1, mount))}
 							{files.map((file) => (
 								<button
 									key={file.fullPath}
 									type="button"
-									onClick={() => onOpenFile(file.fullPath)}
+									onClick={() => onOpenFile(toMountedVirtualPath(mount, file.relativePath))}
 									className="flex h-8 w-full items-center gap-1.5 rounded-md px-2 text-left text-sm transition-colors hover:bg-muted/60"
 									style={{ paddingInlineStart: `${(depth + 1) * 12 + 22}px` }}
 									title={file.fullPath}
@@ -223,6 +269,8 @@ export function LocalFilesystemBrowser({
 		<div className="flex-1 min-h-0 overflow-y-auto px-2 py-2">
 			{treeByRoot.map(({ rootPath, rootNode, matchCount, totalCount }) => {
 				const state = rootStateMap[rootPath];
+				const rootKey = normalizeRootPathForLookup(rootPath, isWindowsPlatform);
+				const mount = mountByRootKey.get(rootKey);
 				if (!state || state.loading) {
 					return (
 						<div key={rootPath} className="flex h-16 items-center gap-2 px-3 text-sm text-muted-foreground">
@@ -242,7 +290,12 @@ export function LocalFilesystemBrowser({
 				const isEmpty = totalCount === 0;
 				return (
 					<div key={rootPath} className="mb-1">
-						{renderFolder(rootNode, 0)}
+						{mount ? renderFolder(rootNode, 0, mount) : null}
+						{!mount && (
+							<div className="px-3 pb-2 text-xs text-muted-foreground/80">
+								Unable to resolve mounted root for this folder.
+							</div>
+						)}
 						{isEmpty && (
 							<div className="px-3 pb-2 text-xs text-muted-foreground/80">
 								No supported files found in this folder.

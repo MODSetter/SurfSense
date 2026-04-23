@@ -39,6 +39,7 @@ import {
 import {
   readAgentLocalFileText,
   writeAgentLocalFileText,
+  getAgentFilesystemMounts,
   getAgentFilesystemSettings,
   pickAgentFilesystemRoot,
   setAgentFilesystemSettings,
@@ -224,6 +225,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.AGENT_FILESYSTEM_GET_SETTINGS, () =>
     getAgentFilesystemSettings()
+  );
+
+  ipcMain.handle(IPC_CHANNELS.AGENT_FILESYSTEM_GET_MOUNTS, () =>
+    getAgentFilesystemMounts()
   );
 
   ipcMain.handle(

@@ -49,6 +49,11 @@ interface AgentFilesystemSettings {
 	updatedAt: string;
 }
 
+interface AgentFilesystemMount {
+	mount: string;
+	rootPath: string;
+}
+
 interface LocalTextFileResult {
 	ok: boolean;
 	path: string;
@@ -147,6 +152,7 @@ interface ElectronAPI {
 	}>;
 	// Agent filesystem mode
 	getAgentFilesystemSettings: () => Promise<AgentFilesystemSettings>;
+	getAgentFilesystemMounts: () => Promise<AgentFilesystemMount[]>;
 	setAgentFilesystemSettings: (settings: {
 		mode?: AgentFilesystemMode;
 		localRootPaths?: string[] | null;
