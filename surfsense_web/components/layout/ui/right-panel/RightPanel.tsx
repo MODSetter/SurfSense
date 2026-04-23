@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { PanelRight, PanelRightClose } from "lucide-react";
+import { PanelRight } from "lucide-react";
 import dynamic from "next/dynamic";
 import { startTransition, useEffect } from "react";
 import { closeHitlEditPanelAtom, hitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
@@ -49,7 +49,7 @@ function CollapseButton({ onClick }: { onClick: () => void }) {
 		<Tooltip>
 			<TooltipTrigger asChild>
 				<Button variant="ghost" size="icon" onClick={onClick} className="h-8 w-8 shrink-0">
-					<PanelRightClose className="h-4 w-4" />
+					<PanelRight className="h-4 w-4" />
 					<span className="sr-only">Collapse panel</span>
 				</Button>
 			</TooltipTrigger>

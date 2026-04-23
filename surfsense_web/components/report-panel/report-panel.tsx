@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue, useSetAtom } from "jotai";
-import { ChevronDownIcon, Pencil, XIcon } from "lucide-react";
+import { Check, ChevronDownIcon, Copy, Pencil, XIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -306,7 +306,6 @@ export function ReportPanelContent({
 
 	const activeVersionIndex = versions.findIndex((v) => v.id === activeReportId);
 	const isPublic = !!shareToken;
-	const btnBg = isPublic ? "bg-main-panel" : "bg-sidebar";
 	const isResume = reportContent?.content_type === "typst";
 	const showReportEditingTier = !isResume;
 	const hasUnsavedChanges = editedMarkdown !== null;
@@ -322,19 +321,6 @@ export function ReportPanelContent({
 			{/* Action bar — always visible; buttons are disabled while loading */}
 			<div className="flex h-14 items-center justify-between px-4 shrink-0">
 				<div className="flex items-center gap-2">
-					{/* Copy button — hidden for Typst (resume) */}
-					{reportContent?.content_type !== "typst" && (
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={handleCopy}
-							disabled={isLoading || !reportContent?.content}
-							className={`h-8 min-w-[80px] px-3.5 py-4 text-[15px] ${btnBg} select-none`}
-						>
-							{copied ? "Copied" : "Copy"}
-						</Button>
-					)}
-
 					{/* Export — plain button for resume (typst), dropdown for others */}
 					{reportContent?.content_type === "typst" ? (
 						<Button
@@ -342,7 +328,7 @@ export function ReportPanelContent({
 							size="sm"
 							onClick={() => handleExport("pdf")}
 							disabled={isLoading || !reportContent?.content || exporting !== null}
-							className={`h-8 min-w-[100px] px-3.5 py-4 text-[15px] ${btnBg} select-none`}
+							className={`h-8 min-w-[100px] px-3.5 py-4 text-[15px] ${isPublic ? "bg-main-panel" : "bg-sidebar"} select-none`}
 						>
 							{exporting === "pdf" ? <Spinner size="xs" /> : "Download"}
 						</Button>
@@ -353,7 +339,7 @@ export function ReportPanelContent({
 									variant="outline"
 									size="sm"
 									disabled={isLoading || !reportContent?.content}
-									className={`h-8 px-3.5 py-4 text-[15px] gap-1.5 ${btnBg} select-none`}
+									className={`h-8 px-3.5 py-4 text-[15px] gap-1.5 ${isPublic ? "bg-main-panel" : "bg-sidebar"} select-none`}
 								>
 									Export
 									<ChevronDownIcon className="size-3" />
@@ -379,7 +365,7 @@ export function ReportPanelContent({
 								<Button
 									variant="outline"
 									size="sm"
-									className={`h-8 px-3.5 py-4 text-[15px] gap-1.5 ${btnBg} select-none`}
+									className={`h-8 px-3.5 py-4 text-[15px] gap-1.5 ${isPublic ? "bg-main-panel" : "bg-sidebar"} select-none`}
 								>
 									v{activeVersionIndex + 1}
 									<ChevronDownIcon className="size-3" />
@@ -418,6 +404,22 @@ export function ReportPanelContent({
 						</p>
 					</div>
 					<div className="flex items-center gap-1 shrink-0">
+						{!isEditing && (
+							<Button
+								variant="ghost"
+								size="icon"
+								className="size-6"
+								onClick={() => {
+									void handleCopy();
+								}}
+								disabled={isLoading || !reportContent?.content}
+							>
+								{copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+								<span className="sr-only">
+									{copied ? "Copied report content" : "Copy report content"}
+								</span>
+							</Button>
+						)}
 						{!isReadOnly &&
 							(isEditing ? (
 								<>

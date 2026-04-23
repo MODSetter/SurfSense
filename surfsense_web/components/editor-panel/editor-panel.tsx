@@ -311,7 +311,7 @@ export function EditorPanelContent({
 		<>
 			{showDesktopHeader ? (
 				<div className="shrink-0 border-b">
-					<div className="flex h-12 items-center justify-between px-4">
+					<div className="flex h-14 items-center justify-between px-4">
 						<h2 className="text-lg font-medium text-muted-foreground select-none">File</h2>
 						<div className="flex items-center gap-1 shrink-0">
 							<Button variant="ghost" size="icon" onClick={onClose} className="size-7 shrink-0">
