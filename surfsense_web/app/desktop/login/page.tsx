@@ -152,7 +152,7 @@ export default function DesktopLoginPage() {
 						{shortcutsLoaded ? (
 							<div className="flex flex-col gap-2">
 								<p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-									Keyboard Shortcuts
+									Hotkeys
 								</p>
 								<div className="flex flex-col gap-1.5">
 									<ShortcutRecorder

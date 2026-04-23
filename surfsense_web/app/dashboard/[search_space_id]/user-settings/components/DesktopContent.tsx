@@ -1,9 +1,7 @@
 "use client";
 
-import { BrainCog, Power, Rocket, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { DEFAULT_SHORTCUTS, ShortcutRecorder } from "@/components/desktop/shortcut-recorder";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
@@ -24,9 +22,6 @@ export function DesktopContent() {
 	const [loading, setLoading] = useState(true);
 	const [enabled, setEnabled] = useState(true);
 
-	const [shortcuts, setShortcuts] = useState(DEFAULT_SHORTCUTS);
-	const [shortcutsLoaded, setShortcutsLoaded] = useState(false);
-
 	const [searchSpaces, setSearchSpaces] = useState<SearchSpace[]>([]);
 	const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
 
@@ -37,7 +32,6 @@ export function DesktopContent() {
 	useEffect(() => {
 		if (!api) {
 			setLoading(false);
-			setShortcutsLoaded(true);
 			return;
 		}
 
@@ -48,15 +42,13 @@ export function DesktopContent() {
 
 		Promise.all([
 			api.getAutocompleteEnabled(),
-			api.getShortcuts?.() ?? Promise.resolve(null),
 			api.getActiveSearchSpace?.() ?? Promise.resolve(null),
 			searchSpacesApiService.getSearchSpaces(),
 			hasAutoLaunchApi ? api.getAutoLaunch() : Promise.resolve(null),
 		])
-			.then(([autoEnabled, config, spaceId, spaces, autoLaunch]) => {
+			.then(([autoEnabled, spaceId, spaces, autoLaunch]) => {
 				if (!mounted) return;
 				setEnabled(autoEnabled);
-				if (config) setShortcuts(config);
 				setActiveSpaceId(spaceId);
 				if (spaces) setSearchSpaces(spaces);
 				if (autoLaunch) {
@@ -65,12 +57,10 @@ export function DesktopContent() {
 					setAutoLaunchSupported(autoLaunch.supported);
 				}
 				setLoading(false);
-				setShortcutsLoaded(true);
 			})
 			.catch(() => {
 				if (!mounted) return;
 				setLoading(false);
-				setShortcutsLoaded(true);
 			});
 
 		return () => {
@@ -99,24 +89,6 @@ export function DesktopContent() {
 	const handleToggle = async (checked: boolean) => {
 		setEnabled(checked);
 		await api.setAutocompleteEnabled(checked);
-	};
-
-	const updateShortcut = (
-		key: "generalAssist" | "quickAsk" | "autocomplete",
-		accelerator: string
-	) => {
-		setShortcuts((prev) => {
-			const updated = { ...prev, [key]: accelerator };
-			api.setShortcuts?.({ [key]: accelerator }).catch(() => {
-				toast.error("Failed to update shortcut");
-			});
-			return updated;
-		});
-		toast.success("Shortcut updated");
-	};
-
-	const resetShortcut = (key: "generalAssist" | "quickAsk" | "autocomplete") => {
-		updateShortcut(key, DEFAULT_SHORTCUTS[key]);
 	};
 
 	const handleAutoLaunchToggle = async (checked: boolean) => {
@@ -196,7 +168,6 @@ export function DesktopContent() {
 			<Card>
 				<CardHeader className="px-3 md:px-6 pt-3 md:pt-6 pb-2 md:pb-3">
 					<CardTitle className="text-base md:text-lg flex items-center gap-2">
-						<Power className="h-4 w-4" />
 						Launch on Startup
 					</CardTitle>
 					<CardDescription className="text-xs md:text-sm">
@@ -242,56 +213,6 @@ export function DesktopContent() {
 							disabled={!autoLaunchSupported || !autoLaunchEnabled}
 						/>
 					</div>
-				</CardContent>
-			</Card>
-
-			{/* Keyboard Shortcuts */}
-			<Card>
-				<CardHeader className="px-3 md:px-6 pt-3 md:pt-6 pb-2 md:pb-3">
-					<CardTitle className="text-base md:text-lg">Keyboard Shortcuts</CardTitle>
-					<CardDescription className="text-xs md:text-sm">
-						Customize the global keyboard shortcuts for desktop features.
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="px-3 md:px-6 pb-3 md:pb-6">
-					{shortcutsLoaded ? (
-						<div className="flex flex-col gap-3">
-							<ShortcutRecorder
-								value={shortcuts.generalAssist}
-								onChange={(accel) => updateShortcut("generalAssist", accel)}
-								onReset={() => resetShortcut("generalAssist")}
-								defaultValue={DEFAULT_SHORTCUTS.generalAssist}
-								label="General Assist"
-								description="Launch SurfSense instantly from any application"
-								icon={Rocket}
-							/>
-							<ShortcutRecorder
-								value={shortcuts.quickAsk}
-								onChange={(accel) => updateShortcut("quickAsk", accel)}
-								onReset={() => resetShortcut("quickAsk")}
-								defaultValue={DEFAULT_SHORTCUTS.quickAsk}
-								label="Quick Assist"
-								description="Select text anywhere, then ask AI to explain, rewrite, or act on it"
-								icon={Zap}
-							/>
-							<ShortcutRecorder
-								value={shortcuts.autocomplete}
-								onChange={(accel) => updateShortcut("autocomplete", accel)}
-								onReset={() => resetShortcut("autocomplete")}
-								defaultValue={DEFAULT_SHORTCUTS.autocomplete}
-								label="Extreme Assist"
-								description="AI drafts text using your screen context and knowledge base"
-								icon={BrainCog}
-							/>
-							<p className="text-[11px] text-muted-foreground">
-								Click a shortcut and press a new key combination to change it.
-							</p>
-						</div>
-					) : (
-						<div className="flex justify-center py-4">
-							<Spinner size="sm" />
-						</div>
-					)}
 				</CardContent>
 			</Card>
 
