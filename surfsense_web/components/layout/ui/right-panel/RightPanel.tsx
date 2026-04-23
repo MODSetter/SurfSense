@@ -53,7 +53,7 @@ function CollapseButton({ onClick }: { onClick: () => void }) {
 					<span className="sr-only">Collapse panel</span>
 				</Button>
 			</TooltipTrigger>
-			<TooltipContent side="left">Collapse panel</TooltipContent>
+			<TooltipContent side="bottom">Collapse panel</TooltipContent>
 		</Tooltip>
 	);
 }

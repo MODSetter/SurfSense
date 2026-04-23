@@ -187,7 +187,7 @@ export function EditorPanelContent({
 		setEditedMarkdown(md);
 	}, []);
 
-	const handleSave = useCallback(async () => {
+	const handleSave = useCallback(async (options?: { silent?: boolean }) => {
 		setSaving(true);
 		try {
 			if (isLocalFileMode) {
@@ -197,18 +197,18 @@ export function EditorPanelContent({
 				if (!electronAPI?.writeAgentLocalFileText) {
 					throw new Error("Local file editor is available only in desktop mode.");
 				}
+				const contentToSave = markdownRef.current;
 				const writeResult = await electronAPI.writeAgentLocalFileText(
 					localFilePath,
-					markdownRef.current
+					contentToSave
 				);
 				if (!writeResult.ok) {
 					throw new Error(writeResult.error || "Failed to save local file");
 				}
 				setEditorDoc((prev) =>
-					prev ? { ...prev, source_markdown: markdownRef.current } : prev
+					prev ? { ...prev, source_markdown: contentToSave } : prev
 				);
-				setEditedMarkdown(null);
-				toast.success("File saved");
+				setEditedMarkdown(markdownRef.current === contentToSave ? null : markdownRef.current);
 				return;
 			}
 			if (!searchSpaceId || !documentId) {
@@ -363,6 +363,8 @@ export function EditorPanelContent({
 							path={localFilePath ?? "local-file.txt"}
 							language={localFileLanguage}
 							value={localFileContent}
+							onSave={() => handleSave({ silent: true })}
+							saveMode="auto"
 							onChange={(next) => {
 								markdownRef.current = next;
 								setLocalFileContent(next);

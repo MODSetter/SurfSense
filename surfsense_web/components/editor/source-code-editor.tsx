@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useEffect, useRef } from "react";
 import { useTheme } from "next-themes";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -15,6 +16,9 @@ interface SourceCodeEditorProps {
 	language?: string;
 	readOnly?: boolean;
 	fontSize?: number;
+	onSave?: () => Promise<void> | void;
+	saveMode?: "manual" | "auto" | "both";
+	autoSaveDelayMs?: number;
 }
 
 export function SourceCodeEditor({
@@ -24,8 +28,50 @@ export function SourceCodeEditor({
 	language = "plaintext",
 	readOnly = false,
 	fontSize = 12,
+	onSave,
+	saveMode = "manual",
+	autoSaveDelayMs = 800,
 }: SourceCodeEditorProps) {
 	const { resolvedTheme } = useTheme();
+	const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const onSaveRef = useRef(onSave);
+	const skipNextAutoSaveRef = useRef(true);
+
+	useEffect(() => {
+		onSaveRef.current = onSave;
+	}, [onSave]);
+
+	useEffect(() => {
+		skipNextAutoSaveRef.current = true;
+	}, [path]);
+
+	useEffect(() => {
+		if (readOnly || !onSaveRef.current) return;
+		if (saveMode !== "auto" && saveMode !== "both") return;
+
+		if (skipNextAutoSaveRef.current) {
+			skipNextAutoSaveRef.current = false;
+			return;
+		}
+
+		if (saveTimerRef.current) {
+			clearTimeout(saveTimerRef.current);
+		}
+
+		saveTimerRef.current = setTimeout(() => {
+			void onSaveRef.current?.();
+			saveTimerRef.current = null;
+		}, autoSaveDelayMs);
+
+		return () => {
+			if (saveTimerRef.current) {
+				clearTimeout(saveTimerRef.current);
+				saveTimerRef.current = null;
+			}
+		};
+	}, [autoSaveDelayMs, readOnly, saveMode, value]);
+
+	const isManualSaveEnabled = !!onSave && !readOnly && (saveMode === "manual" || saveMode === "both");
 
 	return (
 		<div className="h-full w-full overflow-hidden bg-sidebar">
@@ -40,6 +86,12 @@ export function SourceCodeEditor({
 						<Spinner size="sm" className="text-muted-foreground" />
 					</div>
 				}
+				onMount={(editor, monaco) => {
+					if (!isManualSaveEnabled) return;
+					editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+						void onSaveRef.current?.();
+					});
+				}}
 				options={{
 					automaticLayout: true,
 					minimap: { enabled: false },
@@ -51,6 +103,9 @@ export function SourceCodeEditor({
 					overviewRulerLanes: 0,
 					hideCursorInOverviewRuler: true,
 					scrollBeyondLastLine: false,
+					renderLineHighlight: "none",
+					selectionHighlight: false,
+					occurrencesHighlight: "off",
 					wordWrap: "off",
 					scrollbar: {
 						vertical: "hidden",
