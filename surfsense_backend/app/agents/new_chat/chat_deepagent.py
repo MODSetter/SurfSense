@@ -314,6 +314,20 @@ async def create_surfsense_deep_agent(
     _t0 = time.perf_counter()
     _enabled_tool_names = {t.name for t in tools}
     _user_disabled_tool_names = set(disabled_tools) if disabled_tools else set()
+
+    # Collect generic MCP connector info so the system prompt can route queries
+    # to their tools instead of falling back to "not in knowledge base".
+    _mcp_connector_tools: dict[str, list[str]] = {}
+    for t in tools:
+        meta = getattr(t, "metadata", None) or {}
+        if meta.get("mcp_is_generic") and meta.get("mcp_connector_name"):
+            _mcp_connector_tools.setdefault(
+                meta["mcp_connector_name"], [],
+            ).append(t.name)
+
+    if _mcp_connector_tools:
+        _perf_log.info("MCP connector tool routing: %s", _mcp_connector_tools)
+
     if agent_config is not None:
         system_prompt = build_configurable_system_prompt(
             custom_system_instructions=agent_config.system_instructions,
@@ -322,12 +336,14 @@ async def create_surfsense_deep_agent(
             thread_visibility=thread_visibility,
             enabled_tool_names=_enabled_tool_names,
             disabled_tool_names=_user_disabled_tool_names,
+            mcp_connector_tools=_mcp_connector_tools,
         )
     else:
         system_prompt = build_surfsense_system_prompt(
             thread_visibility=thread_visibility,
             enabled_tool_names=_enabled_tool_names,
             disabled_tool_names=_user_disabled_tool_names,
+            mcp_connector_tools=_mcp_connector_tools,
         )
     _perf_log.info(
         "[create_agent] System prompt built in %.3fs", time.perf_counter() - _t0
