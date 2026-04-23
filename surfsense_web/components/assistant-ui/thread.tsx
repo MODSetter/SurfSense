@@ -12,15 +12,11 @@ import {
 	AlertCircle,
 	ArrowDownIcon,
 	ArrowUpIcon,
-	Check,
 	ChevronDown,
 	ChevronUp,
 	Clipboard,
 	Dot,
-	Folder,
-	FolderPlus,
 	Globe,
-	Laptop,
 	Plus,
 	Settings2,
 	SquareIcon,
@@ -70,16 +66,6 @@ import {
 } from "@/components/new-chat/document-mention-picker";
 import { PromptPicker, type PromptPickerRef } from "@/components/new-chat/prompt-picker";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
 import {
@@ -107,18 +93,6 @@ import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/lib/layout-events";
 import { cn } from "@/lib/utils";
 
 const COMPOSER_PLACEHOLDER = "Ask anything, type / for prompts, type @ to mention docs";
-
-type ComposerFilesystemSettings = {
-	mode: "cloud" | "desktop_local_folder";
-	localRootPaths: string[];
-	updatedAt: string;
-};
-
-const LOCAL_FILESYSTEM_TRUST_KEY = "surfsense.local-filesystem-trust.v1";
-const MAX_LOCAL_FILESYSTEM_ROOTS = 5;
-
-const getFolderDisplayName = (rootPath: string): string =>
-	rootPath.split(/[\\/]/).at(-1) || rootPath;
 
 export const Thread: FC = () => {
 	return <ThreadContent />;
@@ -388,12 +362,6 @@ const Composer: FC = () => {
 	}, []);
 
 	const electronAPI = useElectronAPI();
-	const [filesystemSettings, setFilesystemSettings] = useState<ComposerFilesystemSettings | null>(
-		null
-	);
-	const [localTrustDialogOpen, setLocalTrustDialogOpen] = useState(false);
-	const [localFoldersOpen, setLocalFoldersOpen] = useState(false);
-	const [pendingLocalPath, setPendingLocalPath] = useState<string | null>(null);
 	const [clipboardInitialText, setClipboardInitialText] = useState<string | undefined>();
 	const clipboardLoadedRef = useRef(false);
 	useEffect(() => {
@@ -404,116 +372,6 @@ const Composer: FC = () => {
 				setClipboardInitialText(text);
 			}
 		});
-	}, [electronAPI]);
-
-	useEffect(() => {
-		if (!electronAPI?.getAgentFilesystemSettings) return;
-		let mounted = true;
-		electronAPI
-			.getAgentFilesystemSettings()
-			.then((settings: ComposerFilesystemSettings) => {
-				if (!mounted) return;
-				setFilesystemSettings(settings);
-			})
-			.catch(() => {
-				if (!mounted) return;
-				setFilesystemSettings({
-					mode: "cloud",
-					localRootPaths: [],
-					updatedAt: new Date().toISOString(),
-				});
-			});
-		return () => {
-			mounted = false;
-		};
-	}, [electronAPI]);
-
-	const hasLocalFilesystemTrust = useCallback(() => {
-		try {
-			return window.localStorage.getItem(LOCAL_FILESYSTEM_TRUST_KEY) === "true";
-		} catch {
-			return false;
-		}
-	}, []);
-
-	const localRootPaths = filesystemSettings?.localRootPaths ?? [];
-	const primaryLocalRootPath = localRootPaths[0] ?? null;
-	const extraLocalRootCount = Math.max(0, localRootPaths.length - 1);
-	const canAddMoreLocalRoots = localRootPaths.length < MAX_LOCAL_FILESYSTEM_ROOTS;
-
-	const applyLocalRootPath = useCallback(
-		async (path: string) => {
-			if (!electronAPI?.setAgentFilesystemSettings) return;
-			const nextLocalRootPaths = [...localRootPaths, path]
-				.filter((rootPath, index, allPaths) => allPaths.indexOf(rootPath) === index)
-				.slice(0, MAX_LOCAL_FILESYSTEM_ROOTS);
-			if (nextLocalRootPaths.length === localRootPaths.length) {
-				return;
-			}
-			const updated = await electronAPI.setAgentFilesystemSettings({
-				mode: "desktop_local_folder",
-				localRootPaths: nextLocalRootPaths,
-			});
-			setFilesystemSettings(updated);
-		},
-		[electronAPI, localRootPaths]
-	);
-
-	const runSwitchToLocalMode = useCallback(async () => {
-		if (!electronAPI?.setAgentFilesystemSettings) return;
-		const updated = await electronAPI.setAgentFilesystemSettings({ mode: "desktop_local_folder" });
-		setFilesystemSettings(updated);
-	}, [electronAPI]);
-
-	const runPickLocalRoot = useCallback(async () => {
-		if (!electronAPI?.pickAgentFilesystemRoot) return;
-		const picked = await electronAPI.pickAgentFilesystemRoot();
-		if (!picked) return;
-		await applyLocalRootPath(picked);
-	}, [applyLocalRootPath, electronAPI]);
-
-	const handleFilesystemModeChange = useCallback(
-		async (mode: "cloud" | "desktop_local_folder") => {
-			if (!electronAPI?.setAgentFilesystemSettings) return;
-			if (mode === "desktop_local_folder") return void runSwitchToLocalMode();
-			const updated = await electronAPI.setAgentFilesystemSettings({ mode });
-			setFilesystemSettings(updated);
-		},
-		[electronAPI, runSwitchToLocalMode]
-	);
-
-	const handlePickFilesystemRoot = useCallback(async () => {
-		if (!canAddMoreLocalRoots) return;
-		if (hasLocalFilesystemTrust()) {
-			await runPickLocalRoot();
-			return;
-		}
-		if (!electronAPI?.pickAgentFilesystemRoot) return;
-		const picked = await electronAPI.pickAgentFilesystemRoot();
-		if (!picked) return;
-		setPendingLocalPath(picked);
-		setLocalTrustDialogOpen(true);
-	}, [canAddMoreLocalRoots, electronAPI, hasLocalFilesystemTrust, runPickLocalRoot]);
-
-	const handleRemoveFilesystemRoot = useCallback(
-		async (rootPathToRemove: string) => {
-			if (!electronAPI?.setAgentFilesystemSettings) return;
-			const updated = await electronAPI.setAgentFilesystemSettings({
-				mode: "desktop_local_folder",
-				localRootPaths: localRootPaths.filter((rootPath) => rootPath !== rootPathToRemove),
-			});
-			setFilesystemSettings(updated);
-		},
-		[electronAPI, localRootPaths]
-	);
-
-	const handleClearFilesystemRoots = useCallback(async () => {
-		if (!electronAPI?.setAgentFilesystemSettings) return;
-		const updated = await electronAPI.setAgentFilesystemSettings({
-			mode: "desktop_local_folder",
-			localRootPaths: [],
-		});
-		setFilesystemSettings(updated);
 	}, [electronAPI]);
 
 	const isThreadEmpty = useAuiState(({ thread }) => thread.isEmpty);
@@ -810,225 +668,6 @@ const Composer: FC = () => {
 				currentUserId={currentUser?.id ?? null}
 				members={members ?? []}
 			/>
-			{electronAPI && filesystemSettings ? (
-				<div className="mx-3 flex items-center gap-1.5 pt-2 pb-0.5">
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button
-								type="button"
-								variant="ghost"
-								size="sm"
-								className="h-7 gap-1.5 rounded-md bg-muted px-2.5 font-medium text-xs select-none hover:bg-muted/90"
-							>
-								{filesystemSettings.mode === "cloud" ? (
-									<>
-										<Globe className="size-3.5" />
-										Cloud
-									</>
-								) : (
-									<>
-										<Laptop className="size-3.5" />
-										Local
-									</>
-								)}
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent side="top" align="start" className="min-w-[180px]">
-							<DropdownMenuItem
-								onClick={() => handleFilesystemModeChange("cloud")}
-								className="flex items-center justify-between"
-							>
-								<span className="flex items-center gap-2">
-									<Globe className="size-4" />
-									Cloud
-								</span>
-								{filesystemSettings.mode === "cloud" && <Check className="size-4 text-primary" />}
-							</DropdownMenuItem>
-							<DropdownMenuItem
-								onClick={() => handleFilesystemModeChange("desktop_local_folder")}
-								className="flex items-center justify-between"
-							>
-								<span className="flex items-center gap-2">
-									<Laptop className="size-4" />
-									Local
-								</span>
-								{filesystemSettings.mode === "desktop_local_folder" && (
-									<Check className="size-4 text-primary" />
-								)}
-							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
-
-					{filesystemSettings.mode === "desktop_local_folder" && (
-						<>
-							<div className="h-4 w-px bg-muted" />
-							<div className="flex min-w-0 flex-1 items-center gap-1.5">
-								{primaryLocalRootPath ? (
-									<>
-										<div
-											className="inline-flex h-7 max-w-[190px] shrink-0 items-center gap-1.5 rounded-md bg-muted px-2.5 text-xs"
-											title={primaryLocalRootPath}
-										>
-											<Folder className="size-3.5 shrink-0 text-muted-foreground" />
-											<span className="truncate">
-												{getFolderDisplayName(primaryLocalRootPath)}
-											</span>
-											<button
-												type="button"
-												onClick={(event) => {
-													event.stopPropagation();
-													void handleRemoveFilesystemRoot(primaryLocalRootPath);
-												}}
-												className="ml-0.5 shrink-0 text-muted-foreground transition-colors hover:text-foreground"
-												aria-label="Remove local folder"
-												title="Remove local folder"
-											>
-												<X className="size-3.5" />
-											</button>
-										</div>
-										{extraLocalRootCount > 0 && (
-											<Popover open={localFoldersOpen} onOpenChange={setLocalFoldersOpen}>
-												<PopoverTrigger asChild>
-													<Button
-														type="button"
-														variant="ghost"
-														size="sm"
-														className="h-7 shrink-0 rounded-md bg-muted px-2 text-xs hover:bg-muted/90"
-														title="View selected folders"
-														aria-label="View selected folders"
-													>
-														+{extraLocalRootCount}
-													</Button>
-												</PopoverTrigger>
-												<PopoverContent
-													side="top"
-													align="start"
-													className="w-[320px] max-w-[calc(100vw-2rem)] p-2"
-												>
-													<div className="space-y-1.5">
-														{localRootPaths.map((rootPath) => (
-															<div
-																key={rootPath}
-																className="flex h-8 items-center gap-2 rounded-md bg-muted px-2"
-																title={rootPath}
-															>
-																<Folder className="size-3.5 shrink-0 text-muted-foreground" />
-																<span className="min-w-0 flex-1 truncate text-xs">
-																	{getFolderDisplayName(rootPath)}
-																</span>
-																<button
-																	type="button"
-																	onClick={() => {
-																		void handleRemoveFilesystemRoot(rootPath);
-																	}}
-																	className="text-muted-foreground transition-colors hover:text-foreground"
-																	aria-label={`Remove ${rootPath}`}
-																>
-																	<X className="size-3.5" />
-																</button>
-															</div>
-														))}
-														<div className="mt-2 flex items-center justify-end gap-2">
-															<Button
-																type="button"
-																variant="ghost"
-																size="sm"
-																className="h-7 px-2.5 text-xs"
-																onClick={() => {
-																	void handleClearFilesystemRoots();
-																}}
-															>
-																Clear all
-															</Button>
-														</div>
-													</div>
-												</PopoverContent>
-											</Popover>
-										)}
-										<Button
-											type="button"
-											variant="ghost"
-											size="icon"
-											className="size-7 shrink-0 rounded-md bg-muted hover:bg-muted/90"
-											onClick={() => {
-												void handlePickFilesystemRoot();
-											}}
-											title={
-												canAddMoreLocalRoots
-													? "Select local folder"
-													: `Maximum ${MAX_LOCAL_FILESYSTEM_ROOTS} folders`
-											}
-											aria-label="Select local folder"
-											disabled={!canAddMoreLocalRoots}
-										>
-											<FolderPlus className="size-3.5" />
-										</Button>
-									</>
-								) : (
-									<Button
-										type="button"
-										variant="ghost"
-										size="sm"
-										className="h-7 max-w-[190px] shrink-0 justify-start gap-1.5 rounded-md bg-muted px-2.5 font-medium text-xs select-none hover:bg-muted/90"
-										onClick={() => {
-											void handlePickFilesystemRoot();
-										}}
-										title="Select local folder"
-										aria-label="Select local folder"
-									>
-										<Folder className="size-3.5 shrink-0 text-muted-foreground" />
-										<span className="truncate">Select a folder</span>
-									</Button>
-								)}
-							</div>
-						</>
-					)}
-				</div>
-			) : null}
-			<AlertDialog
-				open={localTrustDialogOpen}
-				onOpenChange={(open) => {
-					setLocalTrustDialogOpen(open);
-					if (!open) {
-						setPendingLocalPath(null);
-					}
-				}}
-			>
-				<AlertDialogContent className="sm:max-w-md select-none">
-					<AlertDialogHeader>
-						<AlertDialogTitle>Trust this workspace?</AlertDialogTitle>
-						<AlertDialogDescription>
-							Local mode can read and edit files inside the folders you select. Continue only if
-							you trust this workspace and its contents.
-						</AlertDialogDescription>
-						{(pendingLocalPath || primaryLocalRootPath) && (
-							<AlertDialogDescription className="mt-1 whitespace-pre-wrap break-words font-mono text-xs">
-								Folder path: {pendingLocalPath || primaryLocalRootPath}
-							</AlertDialogDescription>
-						)}
-					</AlertDialogHeader>
-					<AlertDialogFooter>
-						<AlertDialogCancel>Cancel</AlertDialogCancel>
-						<AlertDialogAction
-							onClick={async () => {
-								try {
-									window.localStorage.setItem(LOCAL_FILESYSTEM_TRUST_KEY, "true");
-								} catch {}
-								setLocalTrustDialogOpen(false);
-								const path = pendingLocalPath;
-								setPendingLocalPath(null);
-								if (path) {
-									await applyLocalRootPath(path);
-								} else {
-									await runPickLocalRoot();
-								}
-							}}
-						>
-							I trust this workspace
-						</AlertDialogAction>
-					</AlertDialogFooter>
-				</AlertDialogContent>
-			</AlertDialog>
 			{showDocumentPopover && (
 				<div className="absolute bottom-full left-0 z-[9999] mb-2">
 					<DocumentMentionPicker
