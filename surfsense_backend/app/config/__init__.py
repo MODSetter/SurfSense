@@ -315,10 +315,10 @@ class Config:
     # Comma-separated path prefixes that bypass proxy auth (default: /health).
     MPASS_BYPASS_PATHS = os.getenv("MPASS_BYPASS_PATHS", None)
 
-    # SMB tenant name — used to synthesize {username}@{SMB_NAME}.com email
-    # addresses when the OIDC provider sends a bare username (e.g. Cognito
-    # cognito:username claim) instead of an email.
-    SMB_NAME = os.getenv("SMB_NAME", "")
+    # Email domain used to synthesize {username}@{DEFAULT_EMAIL_DOMAIN} when
+    # the OIDC provider sends a bare username (e.g. Cognito cognito:username
+    # claim) instead of a full email address.
+    DEFAULT_EMAIL_DOMAIN = os.getenv("DEFAULT_EMAIL_DOMAIN", "askii.ai")
 
     # Google OAuth
     GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
