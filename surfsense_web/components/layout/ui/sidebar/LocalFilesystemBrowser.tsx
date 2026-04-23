@@ -62,16 +62,6 @@ export function LocalFilesystemBrowser({
 	const supportedExtensions = useMemo(() => Array.from(getSupportedExtensionsSet()), []);
 
 	useEffect(() => {
-		setExpandedFolderKeys((prev) => {
-			const next = new Set(prev);
-			for (const rootPath of rootPaths) {
-				next.add(rootPath);
-			}
-			return next;
-		});
-	}, [rootPaths]);
-
-	useEffect(() => {
 		if (!electronAPI?.listFolderFiles) return;
 		let cancelled = false;
 

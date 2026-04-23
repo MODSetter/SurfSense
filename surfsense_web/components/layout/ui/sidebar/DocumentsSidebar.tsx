@@ -7,11 +7,13 @@ import {
 	ChevronRight,
 	FileText,
 	Folder,
+	FolderPlus,
 	FolderClock,
-	Globe,
+	Laptop,
 	Lock,
 	Paperclip,
 	Search,
+	Server,
 	Trash2,
 	Unplug,
 	Upload,
@@ -61,8 +63,17 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -1135,76 +1146,93 @@ function AuthenticatedDocumentsSidebar({
 	);
 
 	const localContent = (
-		<div className="flex min-h-0 flex-1 flex-col">
-			<div className="mx-4 mt-4 mb-3 flex flex-wrap items-center gap-2">
-				{localRootPaths.length > 0 ? (
-					<>
-						{localRootPaths.map((rootPath) => (
-							<div
-								key={rootPath}
-								className="inline-flex h-8 max-w-full items-center gap-1.5 rounded-md bg-muted px-2 text-xs"
-								title={rootPath}
-							>
-								<FolderClock className="size-3.5 shrink-0 text-muted-foreground" />
-								<span className="truncate max-w-[180px]">{getFolderDisplayName(rootPath)}</span>
+		<div className="flex min-h-0 flex-1 flex-col select-none">
+			<div className="mx-4 mt-4 mb-3">
+				<div className="flex h-7 w-full items-stretch rounded-lg border bg-muted/50 text-[11px] text-muted-foreground">
+					{localRootPaths.length > 0 ? (
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
 								<button
 									type="button"
-									onClick={() => {
-										void handleRemoveFilesystemRoot(rootPath);
-									}}
-									className="text-muted-foreground transition-colors hover:text-foreground"
-									aria-label={`Remove ${rootPath}`}
+									className="min-w-0 flex-1 flex items-center gap-1 rounded-l-lg px-2 text-left transition-colors hover:bg-muted/80 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+									title={localRootPaths.join("\n")}
+									aria-label="Manage selected folders"
 								>
-									<X className="size-3.5" />
+									<Folder className="size-3 shrink-0 text-muted-foreground" />
+									<span className="truncate">
+										{localRootPaths.length === 1
+											? "1 folder selected"
+											: `${localRootPaths.length} folders selected`}
+									</span>
 								</button>
-							</div>
-						))}
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							className="h-8 text-xs"
-							onClick={() => {
-								void handlePickFilesystemRoot();
-							}}
-							disabled={!canAddMoreLocalRoots}
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="start" className="w-56 select-none p-0.5">
+								<DropdownMenuLabel className="px-1.5 pt-1.5 pb-0.5 text-xs font-medium text-muted-foreground">
+									Selected folders
+								</DropdownMenuLabel>
+								<DropdownMenuSeparator className="mx-1 my-0.5" />
+								{localRootPaths.map((rootPath) => (
+									<DropdownMenuItem
+										key={rootPath}
+										onClick={() => {
+											void handleRemoveFilesystemRoot(rootPath);
+										}}
+										className="group h-8 gap-1.5 px-1.5 text-sm text-foreground"
+									>
+										<Folder className="size-3.5 text-muted-foreground" />
+										<span className="min-w-0 flex-1 truncate">
+											{getFolderDisplayName(rootPath)}
+										</span>
+										<X className="size-3 text-muted-foreground transition-colors group-hover:text-foreground" />
+									</DropdownMenuItem>
+								))}
+								<DropdownMenuSeparator className="mx-1 my-0.5" />
+								<DropdownMenuItem
+									variant="destructive"
+									className="h-8 px-1.5 text-xs text-destructive focus:text-destructive"
+									onClick={() => {
+										void handleClearFilesystemRoots();
+									}}
+								>
+									Clear all folders
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					) : (
+						<div
+							className="min-w-0 flex-1 flex items-center gap-1 px-2"
+							title="No local folders selected"
 						>
-							Add folder
-						</Button>
-						<Button
-							type="button"
-							variant="ghost"
-							size="sm"
-							className="h-8 text-xs"
-							onClick={() => {
-								void handleClearFilesystemRoots();
-							}}
-						>
-							Clear all
-						</Button>
-					</>
-				) : (
-					<Button
+							<Folder className="size-3 shrink-0 text-muted-foreground" />
+							<span className="truncate">No local folders selected</span>
+						</div>
+					)}
+					<Separator
+						orientation="vertical"
+						className="data-[orientation=vertical]:h-3 self-center bg-border"
+					/>
+					<button
 						type="button"
-						variant="outline"
-						size="sm"
-						className="h-8 text-xs"
+						className="flex w-8 items-center justify-center rounded-r-lg text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-50"
 						onClick={() => {
 							void handlePickFilesystemRoot();
 						}}
+						disabled={!canAddMoreLocalRoots}
+						aria-label="Add folder"
+						title="Add folder"
 					>
-						Select local folder
-					</Button>
-				)}
+						<FolderPlus className="size-3.5" />
+					</button>
+				</div>
 			</div>
 			<div className="mx-4 mb-2">
 				<div className="relative flex-1 min-w-0">
 					<div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
-						<Search size={14} aria-hidden="true" />
+						<Search size={13} aria-hidden="true" />
 					</div>
 					<Input
 						ref={localSearchInputRef}
-						className="peer h-9 w-full pl-9 pr-9 text-sm bg-sidebar border-border/60 select-none focus:select-text"
+						className="peer h-8 w-full pl-8 pr-8 text-sm bg-sidebar border-border/60 select-none focus:select-text"
 						value={localSearch}
 						onChange={(e) => setLocalSearch(e.target.value)}
 						placeholder="Search local files"
@@ -1214,14 +1242,14 @@ function AuthenticatedDocumentsSidebar({
 					{Boolean(localSearch) && (
 						<button
 							type="button"
-							className="absolute inset-y-0 right-0 flex h-full w-9 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground transition-colors"
+							className="absolute inset-y-0 right-0 flex h-full w-8 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground transition-colors"
 							aria-label="Clear local search"
 							onClick={() => {
 								setLocalSearch("");
 								localSearchInputRef.current?.focus();
 							}}
 						>
-							<X size={14} strokeWidth={2} aria-hidden="true" />
+							<X size={13} strokeWidth={2} aria-hidden="true" />
 						</button>
 					)}
 				</div>
@@ -1266,21 +1294,21 @@ function AuthenticatedDocumentsSidebar({
 									void handleFilesystemTabChange(value === "local" ? "local" : "cloud");
 								}}
 							>
-								<TabsList className="h-6 gap-0 rounded-md bg-muted/60 p-0.5">
+								<TabsList className="h-6 gap-0 rounded-md bg-muted/60 p-0.5 select-none">
 									<TabsTrigger
 										value="cloud"
-										className="h-5 gap-1 px-1.5 text-[11px] focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:bg-muted-foreground/25 data-[state=active]:text-foreground data-[state=active]:shadow-none"
+										className="h-5 gap-1 px-1.5 text-[11px] select-none focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:bg-muted-foreground/25 data-[state=active]:text-foreground data-[state=active]:shadow-none"
 										title="Cloud"
 									>
-										<Globe className="size-3" />
+										<Server className="size-3" />
 										<span>Cloud</span>
 									</TabsTrigger>
 									<TabsTrigger
 										value="local"
-										className="h-5 gap-1 px-1.5 text-[11px] focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:bg-muted-foreground/25 data-[state=active]:text-foreground data-[state=active]:shadow-none"
+										className="h-5 gap-1 px-1.5 text-[11px] select-none focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:bg-muted-foreground/25 data-[state=active]:text-foreground data-[state=active]:shadow-none"
 										title="Local"
 									>
-										<Folder className="size-3" />
+										<Laptop className="size-3" />
 										<span>Local</span>
 									</TabsTrigger>
 								</TabsList>
