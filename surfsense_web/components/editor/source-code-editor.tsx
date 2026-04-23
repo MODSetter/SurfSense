@@ -2,29 +2,44 @@
 
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
+import { Spinner } from "@/components/ui/spinner";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
 	ssr: false,
 });
 
-interface LocalFileMonacoProps {
-	filePath: string;
-	language: string;
+interface SourceCodeEditorProps {
 	value: string;
 	onChange: (next: string) => void;
+	path?: string;
+	language?: string;
+	readOnly?: boolean;
+	fontSize?: number;
 }
 
-export function LocalFileMonaco({ filePath, language, value, onChange }: LocalFileMonacoProps) {
+export function SourceCodeEditor({
+	value,
+	onChange,
+	path,
+	language = "plaintext",
+	readOnly = false,
+	fontSize = 12,
+}: SourceCodeEditorProps) {
 	const { resolvedTheme } = useTheme();
 
 	return (
 		<div className="h-full w-full overflow-hidden bg-sidebar">
 			<MonacoEditor
-				path={filePath}
+				path={path}
 				language={language}
 				value={value}
 				theme={resolvedTheme === "dark" ? "vs-dark" : "vs"}
 				onChange={(next) => onChange(next ?? "")}
+				loading={
+					<div className="flex h-full w-full items-center justify-center">
+						<Spinner size="sm" className="text-muted-foreground" />
+					</div>
+				}
 				options={{
 					automaticLayout: true,
 					minimap: { enabled: false },
@@ -44,11 +59,12 @@ export function LocalFileMonaco({ filePath, language, value, onChange }: LocalFi
 					},
 					tabSize: 2,
 					insertSpaces: true,
-					fontSize: 12,
+					fontSize,
 					fontFamily:
 						"ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace",
 					renderWhitespace: "selection",
 					smoothScrolling: true,
+					readOnly,
 				}}
 			/>
 		</div>

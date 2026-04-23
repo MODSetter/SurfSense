@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { closeEditorPanelAtom, editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { VersionHistoryButton } from "@/components/documents/version-history";
-import { LocalFileMonaco } from "@/components/editor/local-file-monaco";
+import { SourceCodeEditor } from "@/components/editor/source-code-editor";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,7 @@ interface EditorContent {
 }
 
 const EDITABLE_DOCUMENT_TYPES = new Set(["FILE", "NOTE"]);
+type EditorRenderMode = "rich_markdown" | "source_code";
 
 function EditorPanelSkeleton() {
 	return (
@@ -85,6 +86,7 @@ export function EditorPanelContent({
 	const changeCountRef = useRef(0);
 	const [displayTitle, setDisplayTitle] = useState(title || "Untitled");
 	const isLocalFileMode = kind === "local_file";
+	const editorRenderMode: EditorRenderMode = isLocalFileMode ? "source_code" : "rich_markdown";
 
 	const isLargeDocument = (editorDoc?.content_size_bytes ?? 0) > LARGE_DOCUMENT_THRESHOLD;
 
@@ -246,7 +248,8 @@ export function EditorPanelContent({
 	}, [documentId, electronAPI, isLocalFileMode, localFilePath, searchSpaceId]);
 
 	const isEditableType = editorDoc
-		? (isLocalFileMode || EDITABLE_DOCUMENT_TYPES.has(editorDoc.document_type ?? "")) &&
+		? (editorRenderMode === "source_code" ||
+				EDITABLE_DOCUMENT_TYPES.has(editorDoc.document_type ?? "")) &&
 			!isLargeDocument
 		: false;
 	const localFileLanguage = inferMonacoLanguageFromPath(localFilePath);
@@ -354,10 +357,10 @@ export function EditorPanelContent({
 						</Alert>
 						<MarkdownViewer content={editorDoc.source_markdown} />
 					</div>
-				) : isLocalFileMode ? (
+				) : editorRenderMode === "source_code" ? (
 					<div className="h-full overflow-hidden">
-						<LocalFileMonaco
-							filePath={localFilePath ?? "local-file.txt"}
+						<SourceCodeEditor
+							path={localFilePath ?? "local-file.txt"}
 							language={localFileLanguage}
 							value={localFileContent}
 							onChange={(next) => {
