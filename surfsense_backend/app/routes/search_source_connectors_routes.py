@@ -3105,13 +3105,18 @@ async def trust_mcp_tool(
     """Add a tool to the MCP connector's trusted (always-allow) list.
 
     Once trusted, the tool executes without HITL approval on subsequent calls.
+    Works for both generic MCP_CONNECTOR and OAuth-backed MCP connectors
+    (LINEAR_CONNECTOR, JIRA_CONNECTOR, etc.) by checking for ``server_config``.
     """
     try:
+        from sqlalchemy import cast
+        from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
+
         result = await session.execute(
             select(SearchSourceConnector).filter(
                 SearchSourceConnector.id == connector_id,
-                SearchSourceConnector.connector_type
-                == SearchSourceConnectorType.MCP_CONNECTOR,
+                SearchSourceConnector.user_id == user.id,
+                cast(SearchSourceConnector.config, PG_JSONB).has_key("server_config"),  # noqa: W601
             )
         )
         connector = result.scalars().first()
@@ -3156,13 +3161,17 @@ async def untrust_mcp_tool(
     """Remove a tool from the MCP connector's trusted list.
 
     The tool will require HITL approval again on subsequent calls.
+    Works for both generic MCP_CONNECTOR and OAuth-backed MCP connectors.
     """
     try:
+        from sqlalchemy import cast
+        from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
+
         result = await session.execute(
             select(SearchSourceConnector).filter(
                 SearchSourceConnector.id == connector_id,
-                SearchSourceConnector.connector_type
-                == SearchSourceConnectorType.MCP_CONNECTOR,
+                SearchSourceConnector.user_id == user.id,
+                cast(SearchSourceConnector.config, PG_JSONB).has_key("server_config"),  # noqa: W601
             )
         )
         connector = result.scalars().first()
