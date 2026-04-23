@@ -72,7 +72,7 @@ export function DesktopContent() {
 		return (
 			<div className="flex flex-col items-center justify-center py-12 text-center">
 				<p className="text-sm text-muted-foreground">
-					Desktop settings are only available in the SurfSense desktop app.
+					App preferences are only available in the SurfSense desktop app.
 				</p>
 			</div>
 		);

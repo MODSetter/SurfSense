@@ -101,7 +101,11 @@ export function UserSettingsDialog() {
 			},
 			...(isDesktop
 				? [
-						{ value: "desktop", label: "Desktop", icon: <Monitor className="h-4 w-4" /> },
+						{
+							value: "desktop",
+							label: "App Preferences",
+							icon: <Monitor className="h-4 w-4" />,
+						},
 						{
 							value: "desktop-shortcuts",
 							label: "Hotkeys",
