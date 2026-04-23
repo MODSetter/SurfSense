@@ -12,11 +12,15 @@ import {
 	AlertCircle,
 	ArrowDownIcon,
 	ArrowUpIcon,
+	Check,
 	ChevronDown,
 	ChevronUp,
 	Clipboard,
 	Dot,
+	Folder,
+	FolderPlus,
 	Globe,
+	Laptop,
 	Plus,
 	Settings2,
 	SquareIcon,
@@ -66,6 +70,16 @@ import {
 } from "@/components/new-chat/document-mention-picker";
 import { PromptPicker, type PromptPickerRef } from "@/components/new-chat/prompt-picker";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
 import {
@@ -99,6 +113,8 @@ type ComposerFilesystemSettings = {
 	localRootPath: string | null;
 	updatedAt: string;
 };
+
+const LOCAL_FILESYSTEM_TRUST_KEY = "surfsense.local-filesystem-trust.v1";
 
 export const Thread: FC = () => {
 	return <ThreadContent />;
@@ -371,6 +387,8 @@ const Composer: FC = () => {
 	const [filesystemSettings, setFilesystemSettings] = useState<ComposerFilesystemSettings | null>(
 		null
 	);
+	const [localTrustDialogOpen, setLocalTrustDialogOpen] = useState(false);
+	const [pendingLocalPath, setPendingLocalPath] = useState<string | null>(null);
 	const [clipboardInitialText, setClipboardInitialText] = useState<string | undefined>();
 	const clipboardLoadedRef = useRef(false);
 	useEffect(() => {
@@ -388,7 +406,7 @@ const Composer: FC = () => {
 		let mounted = true;
 		electronAPI
 			.getAgentFilesystemSettings()
-			.then((settings) => {
+			.then((settings: ComposerFilesystemSettings) => {
 				if (!mounted) return;
 				setFilesystemSettings(settings);
 			})
@@ -405,22 +423,66 @@ const Composer: FC = () => {
 		};
 	}, [electronAPI]);
 
-	const handleFilesystemModeChange = useCallback(
-		async (mode: "cloud" | "desktop_local_folder") => {
+	const hasLocalFilesystemTrust = useCallback(() => {
+		try {
+			return window.localStorage.getItem(LOCAL_FILESYSTEM_TRUST_KEY) === "true";
+		} catch {
+			return false;
+		}
+	}, []);
+
+	const applyLocalRootPath = useCallback(
+		async (path: string) => {
 			if (!electronAPI?.setAgentFilesystemSettings) return;
-			const updated = await electronAPI.setAgentFilesystemSettings({ mode });
+			const updated = await electronAPI.setAgentFilesystemSettings({
+				mode: "desktop_local_folder",
+				localRootPath: path,
+			});
 			setFilesystemSettings(updated);
 		},
 		[electronAPI]
 	);
 
-	const handlePickFilesystemRoot = useCallback(async () => {
-		if (!electronAPI?.pickAgentFilesystemRoot || !electronAPI?.setAgentFilesystemSettings) return;
+	const runSwitchToLocalMode = useCallback(async () => {
+		if (!electronAPI?.setAgentFilesystemSettings) return;
+		const updated = await electronAPI.setAgentFilesystemSettings({ mode: "desktop_local_folder" });
+		setFilesystemSettings(updated);
+	}, [electronAPI]);
+
+	const runPickLocalRoot = useCallback(async () => {
+		if (!electronAPI?.pickAgentFilesystemRoot) return;
 		const picked = await electronAPI.pickAgentFilesystemRoot();
 		if (!picked) return;
+		await applyLocalRootPath(picked);
+	}, [applyLocalRootPath, electronAPI]);
+
+	const handleFilesystemModeChange = useCallback(
+		async (mode: "cloud" | "desktop_local_folder") => {
+			if (!electronAPI?.setAgentFilesystemSettings) return;
+			if (mode === "desktop_local_folder") return void runSwitchToLocalMode();
+			const updated = await electronAPI.setAgentFilesystemSettings({ mode });
+			setFilesystemSettings(updated);
+		},
+		[electronAPI, runSwitchToLocalMode]
+	);
+
+	const handlePickFilesystemRoot = useCallback(async () => {
+		if (hasLocalFilesystemTrust()) {
+			await runPickLocalRoot();
+			return;
+		}
+		if (!electronAPI?.pickAgentFilesystemRoot) return;
+		const picked = await electronAPI.pickAgentFilesystemRoot();
+		if (!picked) return;
+		setPendingLocalPath(picked);
+		setLocalTrustDialogOpen(true);
+	}, [electronAPI, hasLocalFilesystemTrust, runPickLocalRoot]);
+
+	const handleClearFilesystemRoot = useCallback(async () => {
+		if (!electronAPI?.setAgentFilesystemSettings) return;
 		const updated = await electronAPI.setAgentFilesystemSettings({
 			mode: "desktop_local_folder",
-			localRootPath: picked,
+			localRootPath: null,
 		});
 		setFilesystemSettings(updated);
 	}, [electronAPI]);
@@ -720,44 +782,161 @@ const Composer: FC = () => {
 				members={members ?? []}
 			/>
 			{electronAPI && filesystemSettings ? (
-				<div className="mx-3 flex items-center gap-2 rounded-xl border border-border/60 bg-background/60 p-1.5">
-					<button
-						type="button"
-						onClick={() => handleFilesystemModeChange("cloud")}
-						className={cn(
-							"rounded-lg px-2.5 py-1 text-xs font-medium transition-colors",
-							filesystemSettings.mode === "cloud"
-								? "bg-accent text-foreground"
-								: "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
-						)}
-					>
-						Cloud
-					</button>
-					<button
-						type="button"
-						onClick={() => handleFilesystemModeChange("desktop_local_folder")}
-						className={cn(
-							"rounded-lg px-2.5 py-1 text-xs font-medium transition-colors",
-							filesystemSettings.mode === "desktop_local_folder"
-								? "bg-accent text-foreground"
-								: "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
-						)}
-					>
-						Local
-					</button>
-					<div className="h-4 w-px bg-border/70" />
-					<button
-						type="button"
-						onClick={handlePickFilesystemRoot}
-						className="min-w-0 flex-1 rounded-lg px-2.5 py-1 text-left text-xs text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors"
-						title={filesystemSettings.localRootPath ?? "Select local folder"}
-					>
-						{filesystemSettings.localRootPath
-							? filesystemSettings.localRootPath.split("/").at(-1) || filesystemSettings.localRootPath
-							: "Select folder..."}
-					</button>
+				<div className="mx-3 flex items-center gap-1.5 pt-2 pb-0.5">
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								className="h-7 gap-1.5 rounded-md bg-muted px-2.5 font-medium text-xs select-none hover:bg-muted/90"
+							>
+								{filesystemSettings.mode === "cloud" ? (
+									<>
+										<Globe className="size-3.5" />
+										Cloud
+									</>
+								) : (
+									<>
+										<Laptop className="size-3.5" />
+										Local
+									</>
+								)}
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent side="top" align="start" className="min-w-[180px]">
+							<DropdownMenuItem
+								onClick={() => handleFilesystemModeChange("cloud")}
+								className="flex items-center justify-between"
+							>
+								<span className="flex items-center gap-2">
+									<Globe className="size-4" />
+									Cloud
+								</span>
+								{filesystemSettings.mode === "cloud" && <Check className="size-4 text-primary" />}
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								onClick={() => handleFilesystemModeChange("desktop_local_folder")}
+								className="flex items-center justify-between"
+							>
+								<span className="flex items-center gap-2">
+									<Laptop className="size-4" />
+									Local
+								</span>
+								{filesystemSettings.mode === "desktop_local_folder" && (
+									<Check className="size-4 text-primary" />
+								)}
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+
+					{filesystemSettings.mode === "desktop_local_folder" && (
+						<>
+							<div className="h-4 w-px bg-muted" />
+							<div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto scrollbar-hide">
+								{filesystemSettings.localRootPath ? (
+									<>
+										<div
+											className="inline-flex h-7 max-w-[190px] shrink-0 items-center gap-1.5 rounded-md bg-muted px-2.5 text-xs"
+											title={filesystemSettings.localRootPath}
+										>
+											<Folder className="size-3.5 shrink-0 text-muted-foreground" />
+											<span className="truncate">
+												{filesystemSettings.localRootPath.split("/").at(-1) ||
+													filesystemSettings.localRootPath}
+											</span>
+											<button
+												type="button"
+												onClick={(event) => {
+													event.stopPropagation();
+													void handleClearFilesystemRoot();
+												}}
+												className="ml-0.5 shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+												aria-label="Clear local folder"
+												title="Clear local folder"
+											>
+												<X className="size-3.5" />
+											</button>
+										</div>
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon"
+											className="size-7 shrink-0 rounded-md bg-muted hover:bg-muted/90"
+											onClick={() => {
+												void handlePickFilesystemRoot();
+											}}
+											title="Select local folder"
+											aria-label="Select local folder"
+										>
+											<FolderPlus className="size-3.5" />
+										</Button>
+									</>
+								) : (
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										className="h-7 max-w-[190px] shrink-0 justify-start gap-1.5 rounded-md bg-muted px-2.5 font-medium text-xs select-none hover:bg-muted/90"
+										onClick={() => {
+											void handlePickFilesystemRoot();
+										}}
+										title="Select local folder"
+										aria-label="Select local folder"
+									>
+										<Folder className="size-3.5 shrink-0 text-muted-foreground" />
+										<span className="truncate">Select a folder</span>
+									</Button>
+								)}
+							</div>
+						</>
+					)}
 				</div>
 			) : null}
+			<AlertDialog
+				open={localTrustDialogOpen}
+				onOpenChange={(open) => {
+					setLocalTrustDialogOpen(open);
+					if (!open) {
+						setPendingLocalPath(null);
+					}
+				}}
+			>
+				<AlertDialogContent className="sm:max-w-md select-none">
+					<AlertDialogHeader>
+						<AlertDialogTitle>Trust this workspace?</AlertDialogTitle>
+						<AlertDialogDescription>
+							Local mode can read and edit files inside the folders you select. Continue only if
+							you trust this workspace and its contents.
+						</AlertDialogDescription>
+						{(pendingLocalPath || filesystemSettings?.localRootPath) && (
+							<AlertDialogDescription className="mt-1 whitespace-pre-wrap break-words font-mono text-xs">
+								Folder path: {pendingLocalPath || filesystemSettings?.localRootPath}
+							</AlertDialogDescription>
+						)}
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={async () => {
+								try {
+									window.localStorage.setItem(LOCAL_FILESYSTEM_TRUST_KEY, "true");
+								} catch {}
+								setLocalTrustDialogOpen(false);
+								const path = pendingLocalPath;
+								setPendingLocalPath(null);
+								if (path) {
+									await applyLocalRootPath(path);
+								} else {
+									await runPickLocalRoot();
+								}
+							}}
+						>
+							I trust this workspace
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 			{showDocumentPopover && (
 				<div className="absolute bottom-full left-0 z-[9999] mb-2">
 					<DocumentMentionPicker
