@@ -74,7 +74,7 @@ export function SourceCodeEditor({
 	const isManualSaveEnabled = !!onSave && !readOnly && (saveMode === "manual" || saveMode === "both");
 
 	return (
-		<div className="h-full w-full overflow-hidden bg-sidebar">
+		<div className="h-full w-full overflow-hidden bg-sidebar [&_.monaco-scrollable-element_.scrollbar_.slider]:rounded-full [&_.monaco-scrollable-element_.scrollbar_.slider]:bg-foreground/25 [&_.monaco-scrollable-element_.scrollbar_.slider:hover]:bg-foreground/40">
 			<MonacoEditor
 				path={path}
 				language={language}
@@ -106,10 +106,17 @@ export function SourceCodeEditor({
 					renderLineHighlight: "none",
 					selectionHighlight: false,
 					occurrencesHighlight: "off",
+					quickSuggestions: false,
+					suggestOnTriggerCharacters: false,
+					acceptSuggestionOnEnter: "off",
+					parameterHints: { enabled: false },
+					wordBasedSuggestions: "off",
 					wordWrap: "off",
 					scrollbar: {
-						vertical: "hidden",
-						horizontal: "hidden",
+						vertical: "auto",
+						horizontal: "auto",
+						verticalScrollbarSize: 8,
+						horizontalScrollbarSize: 8,
 						alwaysConsumeMouseWheel: false,
 					},
 					tabSize: 2,

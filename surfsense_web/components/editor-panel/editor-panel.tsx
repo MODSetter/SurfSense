@@ -256,12 +256,9 @@ export function EditorPanelContent({
 
 	return (
 		<>
-			<div className="flex items-center justify-between px-4 py-2 shrink-0 border-b">
+			<div className="flex h-14 items-center justify-between px-4 shrink-0 border-b">
 				<div className="flex-1 min-w-0">
 					<h2 className="text-sm font-semibold truncate">{displayTitle}</h2>
-					{isEditableType && editedMarkdown !== null && (
-						<p className="text-[10px] text-muted-foreground">Unsaved changes</p>
-					)}
 				</div>
 				<div className="flex items-center gap-1 shrink-0">
 					{!isLocalFileMode && editorDoc?.document_type && documentId && (
