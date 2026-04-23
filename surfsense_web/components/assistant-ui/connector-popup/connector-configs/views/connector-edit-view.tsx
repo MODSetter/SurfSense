@@ -17,6 +17,7 @@ import { SummaryConfig } from "../../components/summary-config";
 import { VisionLLMConfig } from "../../components/vision-llm-config";
 import { LIVE_CONNECTOR_TYPES, getReauthEndpoint } from "../../constants/connector-constants";
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
+import { MCPServiceConfig } from "../components/mcp-service-config";
 import { type ConnectorConfigProps, getConnectorConfigComponent } from "../index";
 
 interface ConnectorEditViewProps {
@@ -110,10 +111,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 
 	// Get connector-specific config component (MCP-backed connectors use a generic view)
 	const ConnectorConfigComponent = useMemo(() => {
-		if (isMCPBacked) {
-			const { MCPServiceConfig } = require("../components/mcp-service-config");
-			return MCPServiceConfig as FC<ConnectorConfigProps>;
-		}
+		if (isMCPBacked) return MCPServiceConfig;
 		return getConnectorConfigComponent(connector.connector_type);
 	}, [connector.connector_type, isMCPBacked]);
 	const [isScrolled, setIsScrolled] = useState(false);
