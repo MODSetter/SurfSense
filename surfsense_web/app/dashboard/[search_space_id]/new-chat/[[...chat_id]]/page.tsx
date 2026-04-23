@@ -46,6 +46,7 @@ import {
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
 import { useMessagesSync } from "@/hooks/use-messages-sync";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
+import { getAgentFilesystemSelection } from "@/lib/agent-filesystem";
 import { getBearerToken } from "@/lib/auth-utils";
 import { convertToThreadMessage } from "@/lib/chat/message-utils";
 import {
@@ -656,6 +657,14 @@ export default function NewChatPage() {
 
 			try {
 				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+				const selection = await getAgentFilesystemSelection();
+				if (
+					selection.filesystem_mode === "desktop_local_folder" &&
+					!selection.local_filesystem_root
+				) {
+					toast.error("Select a local folder before using Local Folder mode.");
+					return;
+				}
 
 				// Build message history for context
 				const messageHistory = messages
@@ -691,6 +700,9 @@ export default function NewChatPage() {
 						chat_id: currentThreadId,
 						user_query: userQuery.trim(),
 						search_space_id: searchSpaceId,
+						filesystem_mode: selection.filesystem_mode,
+						client_platform: selection.client_platform,
+						local_filesystem_root: selection.local_filesystem_root,
 						messages: messageHistory,
 						mentioned_document_ids: hasDocumentIds ? mentionedDocumentIds.document_ids : undefined,
 						mentioned_surfsense_doc_ids: hasSurfsenseDocIds
@@ -1074,6 +1086,7 @@ export default function NewChatPage() {
 
 			try {
 				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+				const selection = await getAgentFilesystemSelection();
 				const response = await fetch(`${backendUrl}/api/v1/threads/${resumeThreadId}/resume`, {
 					method: "POST",
 					headers: {
@@ -1083,6 +1096,9 @@ export default function NewChatPage() {
 					body: JSON.stringify({
 						search_space_id: searchSpaceId,
 						decisions,
+						filesystem_mode: selection.filesystem_mode,
+						client_platform: selection.client_platform,
+						local_filesystem_root: selection.local_filesystem_root,
 					}),
 					signal: controller.signal,
 				});
@@ -1406,6 +1422,7 @@ export default function NewChatPage() {
 			]);
 
 			try {
+				const selection = await getAgentFilesystemSelection();
 				const response = await fetch(getRegenerateUrl(threadId), {
 					method: "POST",
 					headers: {
@@ -1416,6 +1433,9 @@ export default function NewChatPage() {
 						search_space_id: searchSpaceId,
 						user_query: newUserQuery || null,
 						disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
+						filesystem_mode: selection.filesystem_mode,
+						client_platform: selection.client_platform,
+						local_filesystem_root: selection.local_filesystem_root,
 					}),
 					signal: controller.signal,
 				});

@@ -94,6 +94,12 @@ import { cn } from "@/lib/utils";
 
 const COMPOSER_PLACEHOLDER = "Ask anything, type / for prompts, type @ to mention docs";
 
+type ComposerFilesystemSettings = {
+	mode: "cloud" | "desktop_local_folder";
+	localRootPath: string | null;
+	updatedAt: string;
+};
+
 export const Thread: FC = () => {
 	return <ThreadContent />;
 };
@@ -362,6 +368,9 @@ const Composer: FC = () => {
 	}, []);
 
 	const electronAPI = useElectronAPI();
+	const [filesystemSettings, setFilesystemSettings] = useState<ComposerFilesystemSettings | null>(
+		null
+	);
 	const [clipboardInitialText, setClipboardInitialText] = useState<string | undefined>();
 	const clipboardLoadedRef = useRef(false);
 	useEffect(() => {
@@ -372,6 +381,48 @@ const Composer: FC = () => {
 				setClipboardInitialText(text);
 			}
 		});
+	}, [electronAPI]);
+
+	useEffect(() => {
+		if (!electronAPI?.getAgentFilesystemSettings) return;
+		let mounted = true;
+		electronAPI
+			.getAgentFilesystemSettings()
+			.then((settings) => {
+				if (!mounted) return;
+				setFilesystemSettings(settings);
+			})
+			.catch(() => {
+				if (!mounted) return;
+				setFilesystemSettings({
+					mode: "cloud",
+					localRootPath: null,
+					updatedAt: new Date().toISOString(),
+				});
+			});
+		return () => {
+			mounted = false;
+		};
+	}, [electronAPI]);
+
+	const handleFilesystemModeChange = useCallback(
+		async (mode: "cloud" | "desktop_local_folder") => {
+			if (!electronAPI?.setAgentFilesystemSettings) return;
+			const updated = await electronAPI.setAgentFilesystemSettings({ mode });
+			setFilesystemSettings(updated);
+		},
+		[electronAPI]
+	);
+
+	const handlePickFilesystemRoot = useCallback(async () => {
+		if (!electronAPI?.pickAgentFilesystemRoot || !electronAPI?.setAgentFilesystemSettings) return;
+		const picked = await electronAPI.pickAgentFilesystemRoot();
+		if (!picked) return;
+		const updated = await electronAPI.setAgentFilesystemSettings({
+			mode: "desktop_local_folder",
+			localRootPath: picked,
+		});
+		setFilesystemSettings(updated);
 	}, [electronAPI]);
 
 	const isThreadEmpty = useAuiState(({ thread }) => thread.isEmpty);
@@ -668,6 +719,45 @@ const Composer: FC = () => {
 				currentUserId={currentUser?.id ?? null}
 				members={members ?? []}
 			/>
+			{electronAPI && filesystemSettings ? (
+				<div className="mx-3 flex items-center gap-2 rounded-xl border border-border/60 bg-background/60 p-1.5">
+					<button
+						type="button"
+						onClick={() => handleFilesystemModeChange("cloud")}
+						className={cn(
+							"rounded-lg px-2.5 py-1 text-xs font-medium transition-colors",
+							filesystemSettings.mode === "cloud"
+								? "bg-accent text-foreground"
+								: "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+						)}
+					>
+						Cloud
+					</button>
+					<button
+						type="button"
+						onClick={() => handleFilesystemModeChange("desktop_local_folder")}
+						className={cn(
+							"rounded-lg px-2.5 py-1 text-xs font-medium transition-colors",
+							filesystemSettings.mode === "desktop_local_folder"
+								? "bg-accent text-foreground"
+								: "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+						)}
+					>
+						Local
+					</button>
+					<div className="h-4 w-px bg-border/70" />
+					<button
+						type="button"
+						onClick={handlePickFilesystemRoot}
+						className="min-w-0 flex-1 rounded-lg px-2.5 py-1 text-left text-xs text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors"
+						title={filesystemSettings.localRootPath ?? "Select local folder"}
+					>
+						{filesystemSettings.localRootPath
+							? filesystemSettings.localRootPath.split("/").at(-1) || filesystemSettings.localRootPath
+							: "Select folder..."}
+					</button>
+				</div>
+			) : null}
 			{showDocumentPopover && (
 				<div className="absolute bottom-full left-0 z-[9999] mb-2">
 					<DocumentMentionPicker
@@ -1104,7 +1194,13 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 																group.tools.flatMap((t, i) =>
 																	i === 0
 																		? [t.description]
-																		: [<Dot key={i} className="inline h-4 w-4" />, t.description]
+																		: [
+																				<Dot
+																					key={`dot-${group.label}-${t.description}`}
+																					className="inline h-4 w-4"
+																				/>,
+																				t.description,
+																			]
 																)}
 														</TooltipContent>
 													</Tooltip>

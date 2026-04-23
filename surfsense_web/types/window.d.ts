@@ -41,6 +41,14 @@ interface FolderFileEntry {
 	mtimeMs: number;
 }
 
+type AgentFilesystemMode = "cloud" | "desktop_local_folder";
+
+interface AgentFilesystemSettings {
+	mode: AgentFilesystemMode;
+	localRootPath: string | null;
+	updatedAt: string;
+}
+
 interface ElectronAPI {
 	versions: {
 		electron: string;
@@ -125,6 +133,13 @@ interface ElectronAPI {
 		appVersion: string;
 		platform: string;
 	}>;
+	// Agent filesystem mode
+	getAgentFilesystemSettings: () => Promise<AgentFilesystemSettings>;
+	setAgentFilesystemSettings: (settings: {
+		mode?: AgentFilesystemMode;
+		localRootPath?: string | null;
+	}) => Promise<AgentFilesystemSettings>;
+	pickAgentFilesystemRoot: () => Promise<string | null>;
 }
 
 declare global {
