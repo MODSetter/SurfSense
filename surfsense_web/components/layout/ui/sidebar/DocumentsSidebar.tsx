@@ -68,11 +68,11 @@ import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
+import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
-import { BACKEND_URL } from "@/lib/env-config";
 import { uploadFolderScan } from "@/lib/folder-sync-upload";
 import { getSupportedExtensionsSet } from "@/lib/supported-extensions";
 import { queries } from "@/zero/queries/index";
@@ -1312,24 +1312,12 @@ function AnonymousDocumentsSidebar({
 
 			setIsUploading(true);
 			try {
-				const formData = new FormData();
-				formData.append("file", file);
-				const res = await fetch(`${BACKEND_URL}/api/v1/public/anon-chat/upload`, {
-					method: "POST",
-					credentials: "include",
-					body: formData,
-				});
-
-				if (res.status === 409) {
-					gate("upload more documents");
+				const result = await anonymousChatApiService.uploadDocument(file);
+				if (!result.ok) {
+					if (result.reason === "quota_exceeded") gate("upload more documents");
 					return;
 				}
-				if (!res.ok) {
-					const body = await res.json().catch(() => ({}));
-					throw new Error(body.detail || `Upload failed: ${res.status}`);
-				}
-
-				const data = await res.json();
+				const data = result.data;
 				if (anonMode.isAnonymous) {
 					anonMode.setUploadedDoc({
 						filename: data.filename,
