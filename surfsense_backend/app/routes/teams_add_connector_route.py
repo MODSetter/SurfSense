@@ -45,6 +45,7 @@ SCOPES = [
     "Team.ReadBasic.All",  # Read basic team information
     "Channel.ReadBasic.All",  # Read basic channel information
     "ChannelMessage.Read.All",  # Read messages in channels
+    "ChannelMessage.Send",  # Send messages in channels
 ]
 
 # Initialize security utilities
@@ -320,7 +321,7 @@ async def teams_callback(
         new_connector = SearchSourceConnector(
             name=connector_name,
             connector_type=SearchSourceConnectorType.TEAMS_CONNECTOR,
-            is_indexable=True,
+            is_indexable=False,
             config=connector_config,
             search_space_id=space_id,
             user_id=user_id,

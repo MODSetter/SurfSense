@@ -340,7 +340,7 @@ async def calendar_callback(
                 config=creds_dict,
                 search_space_id=space_id,
                 user_id=user_id,
-                is_indexable=True,
+                is_indexable=False,
             )
             session.add(db_connector)
             await session.commit()

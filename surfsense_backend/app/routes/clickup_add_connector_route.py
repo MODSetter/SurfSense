@@ -301,7 +301,7 @@ async def clickup_callback(
             # Update existing connector
             existing_connector.config = connector_config
             existing_connector.name = "ClickUp Connector"
-            existing_connector.is_indexable = True
+            existing_connector.is_indexable = False
             logger.info(
                 f"Updated existing ClickUp connector for user {user_id} in space {space_id}"
             )
@@ -310,7 +310,7 @@ async def clickup_callback(
             new_connector = SearchSourceConnector(
                 name="ClickUp Connector",
                 connector_type=SearchSourceConnectorType.CLICKUP_CONNECTOR,
-                is_indexable=True,
+                is_indexable=False,
                 config=connector_config,
                 search_space_id=space_id,
                 user_id=user_id,

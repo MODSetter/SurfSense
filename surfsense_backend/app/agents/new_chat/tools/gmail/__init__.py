@@ -1,6 +1,12 @@
 from app.agents.new_chat.tools.gmail.create_draft import (
     create_create_gmail_draft_tool,
 )
+from app.agents.new_chat.tools.gmail.read_email import (
+    create_read_gmail_email_tool,
+)
+from app.agents.new_chat.tools.gmail.search_emails import (
+    create_search_gmail_tool,
+)
 from app.agents.new_chat.tools.gmail.send_email import (
     create_send_gmail_email_tool,
 )
@@ -13,6 +19,8 @@ from app.agents.new_chat.tools.gmail.update_draft import (
 
 __all__ = [
     "create_create_gmail_draft_tool",
+    "create_read_gmail_email_tool",
+    "create_search_gmail_tool",
     "create_send_gmail_email_tool",
     "create_trash_gmail_email_tool",
     "create_update_gmail_draft_tool",

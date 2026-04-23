@@ -38,6 +38,7 @@ import {
 	AUTO_INDEX_CONNECTOR_TYPES,
 	AUTO_INDEX_DEFAULTS,
 	COMPOSIO_CONNECTORS,
+	LIVE_CONNECTOR_TYPES,
 	OAUTH_CONNECTORS,
 	OTHER_CONNECTORS,
 } from "../constants/connector-constants";
@@ -317,7 +318,12 @@ export const useConnectorDialog = () => {
 							newConnector.id
 						);
 
-						if (
+						const isLiveConnector = LIVE_CONNECTOR_TYPES.has(oauthConnector.connectorType);
+
+						if (isLiveConnector) {
+							toast.success(`${oauthConnector.title} connected successfully!`);
+							await refetchAllConnectors();
+						} else if (
 							newConnector.is_indexable &&
 							AUTO_INDEX_CONNECTOR_TYPES.has(oauthConnector.connectorType)
 						) {
@@ -326,6 +332,9 @@ export const useConnectorDialog = () => {
 								oauthConnector.title,
 								oauthConnector.connectorType
 							);
+						} else if (!newConnector.is_indexable) {
+							toast.success(`${oauthConnector.title} connected successfully!`);
+							await refetchAllConnectors();
 						} else {
 							toast.dismiss("auto-index");
 							const config = validateIndexingConfigState({

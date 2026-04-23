@@ -11,7 +11,7 @@ import { DateRangeSelector } from "../../components/date-range-selector";
 import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
 import { SummaryConfig } from "../../components/summary-config";
 import { VisionLLMConfig } from "../../components/vision-llm-config";
-import type { IndexingConfigState } from "../../constants/connector-constants";
+import { LIVE_CONNECTOR_TYPES, type IndexingConfigState } from "../../constants/connector-constants";
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
 import { getConnectorConfigComponent } from "../index";
 
@@ -58,6 +58,8 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 	onStartIndexing,
 	onSkip,
 }) => {
+	const isLive = LIVE_CONNECTOR_TYPES.has(config.connectorType);
+
 	// Get connector-specific config component
 	const ConnectorConfigComponent = useMemo(
 		() => (connector ? getConnectorConfigComponent(connector.connector_type) : null),
@@ -138,7 +140,9 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 							)}
 						</div>
 						<p className="text-xs sm:text-base text-muted-foreground mt-1">
-							Configure when to start syncing your data
+							{isLive
+								? "Your account is ready to use"
+								: "Configure when to start syncing your data"}
 						</p>
 					</div>
 				</div>
@@ -157,8 +161,8 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 							<ConnectorConfigComponent connector={connector} onConfigChange={onConfigChange} />
 						)}
 
-						{/* Summary and sync settings - only shown for indexable connectors */}
-						{connector?.is_indexable && (
+						{/* Summary and sync settings - hidden for live connectors */}
+						{connector?.is_indexable && !isLive && (
 							<>
 								{/* AI Summary toggle */}
 								<SummaryConfig enabled={enableSummary} onEnabledChange={onEnableSummaryChange} />
@@ -209,8 +213,8 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 							</>
 						)}
 
-						{/* Info box - only shown for indexable connectors */}
-						{connector?.is_indexable && (
+						{/* Info box - hidden for live connectors */}
+						{connector?.is_indexable && !isLive && (
 							<div className="rounded-xl border border-border bg-primary/5 p-4 flex items-start gap-3">
 								<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0 mt-0.5">
 									<Info className="size-4" />
@@ -238,14 +242,20 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 
 			{/* Fixed Footer - Action buttons */}
 			<div className="flex-shrink-0 flex items-center justify-end px-6 sm:px-12 py-6 bg-muted">
-				<Button
-					onClick={onStartIndexing}
-					disabled={isStartingIndexing}
-					className="text-xs sm:text-sm relative"
-				>
-					<span className={isStartingIndexing ? "opacity-0" : ""}>Start Indexing</span>
-					{isStartingIndexing && <Spinner size="sm" className="absolute" />}
-				</Button>
+				{isLive ? (
+					<Button onClick={onSkip} className="text-xs sm:text-sm">
+						Done
+					</Button>
+				) : (
+					<Button
+						onClick={onStartIndexing}
+						disabled={isStartingIndexing}
+						className="text-xs sm:text-sm relative"
+					>
+						<span className={isStartingIndexing ? "opacity-0" : ""}>Start Indexing</span>
+						{isStartingIndexing && <Spinner size="sm" className="absolute" />}
+					</Button>
+				)}
 			</div>
 		</div>
 	);

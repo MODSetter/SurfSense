@@ -13,6 +13,7 @@ import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import { formatRelativeDate } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
+import { LIVE_CONNECTOR_TYPES } from "../constants/connector-constants";
 import { useConnectorStatus } from "../hooks/use-connector-status";
 import { getConnectorDisplayName } from "../tabs/all-connectors-tab";
 
@@ -43,12 +44,8 @@ interface ConnectorAccountsListViewProps {
 	addButtonText?: string;
 }
 
-/**
- * Check if a connector type is indexable
- */
-function isIndexableConnector(connectorType: string): boolean {
-	const nonIndexableTypes = ["MCP_CONNECTOR"];
-	return !nonIndexableTypes.includes(connectorType);
+function isLiveConnector(connectorType: string): boolean {
+	return LIVE_CONNECTOR_TYPES.has(connectorType) || connectorType === "MCP_CONNECTOR";
 }
 
 export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
@@ -149,7 +146,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 								{connectorTitle}
 							</h2>
 							<p className="text-xs sm:text-base text-muted-foreground mt-1">
-								{statusMessage || "Manage your connector settings and sync configuration"}
+								{statusMessage || "Manage your connected accounts"}
 							</p>
 						</div>
 					</div>
@@ -234,15 +231,13 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 												<Spinner size="xs" />
 												Syncing
 											</p>
-										) : (
-											<p className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap truncate">
-												{isIndexableConnector(connector.connector_type)
-													? connector.last_indexed_at
-														? `Last indexed: ${formatRelativeDate(connector.last_indexed_at)}`
-														: "Never indexed"
-													: "Active"}
+										) : !isLiveConnector(connector.connector_type) ? (
+											<p className="text-[10px] mt-1 whitespace-nowrap truncate text-muted-foreground">
+												{connector.last_indexed_at
+													? `Last indexed: ${formatRelativeDate(connector.last_indexed_at)}`
+													: "Never indexed"}
 											</p>
-										)}
+										) : null}
 									</div>
 									{isAuthExpired ? (
 										<Button
