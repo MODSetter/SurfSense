@@ -2,7 +2,7 @@
 
 import { IconBrandGoogleFilled } from "@tabler/icons-react";
 import { useAtom } from "jotai";
-import { ArrowBigUp, BrainCog, Command, Eye, EyeOff, Option, Rocket, RotateCcw, Zap } from "lucide-react";
+import { BrainCog, Eye, EyeOff, Rocket, RotateCcw, Zap } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { ShortcutKbd } from "@/components/ui/shortcut-kbd";
 import { Spinner } from "@/components/ui/spinner";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
@@ -22,10 +23,6 @@ import { AUTH_TYPE, BACKEND_URL } from "@/lib/env-config";
 const isGoogleAuth = AUTH_TYPE === "GOOGLE";
 type ShortcutKey = "generalAssist" | "quickAsk" | "autocomplete";
 type ShortcutMap = typeof DEFAULT_SHORTCUTS;
-
-type ShortcutToken =
-	| { kind: "text"; value: string }
-	| { kind: "icon"; value: "command" | "option" | "shift" };
 
 const HOTKEY_ROWS: Array<{ key: ShortcutKey; label: string; description: string; icon: React.ElementType }> = [
 	{
@@ -48,20 +45,20 @@ const HOTKEY_ROWS: Array<{ key: ShortcutKey; label: string; description: string;
 	},
 ];
 
-function acceleratorToTokens(accel: string, isMac: boolean): ShortcutToken[] {
+function acceleratorToKeys(accel: string, isMac: boolean): string[] {
 	if (!accel) return [];
 	return accel.split("+").map((part) => {
 		if (part === "CommandOrControl") {
-			return isMac ? { kind: "icon", value: "command" as const } : { kind: "text", value: "Ctrl" };
+			return isMac ? "⌘" : "Ctrl";
 		}
 		if (part === "Alt") {
-			return isMac ? { kind: "icon", value: "option" as const } : { kind: "text", value: "Alt" };
+			return isMac ? "⌥" : "Alt";
 		}
 		if (part === "Shift") {
-			return isMac ? { kind: "icon", value: "shift" as const } : { kind: "text", value: "Shift" };
+			return isMac ? "⇧" : "Shift";
 		}
-		if (part === "Space") return { kind: "text", value: "Space" };
-		return { kind: "text", value: part.length === 1 ? part.toUpperCase() : part };
+		if (part === "Space") return "Space";
+		return part.length === 1 ? part.toUpperCase() : part;
 	});
 }
 
@@ -87,7 +84,7 @@ function HotkeyRow({
 	const [recording, setRecording] = useState(false);
 	const inputRef = useRef<HTMLButtonElement>(null);
 	const isDefault = value === defaultValue;
-	const displayTokens = useMemo(() => acceleratorToTokens(value, isMac), [value, isMac]);
+	const displayKeys = useMemo(() => acceleratorToKeys(value, isMac), [value, isMac]);
 
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
@@ -135,36 +132,20 @@ function HotkeyRow({
 				<button
 					ref={inputRef}
 					type="button"
+					title={recording ? "Press shortcut keys" : "Click to edit shortcut"}
 					onClick={() => setRecording(true)}
 					onKeyDown={handleKeyDown}
 					onBlur={() => setRecording(false)}
 					className={
 						recording
-							? "flex h-7 items-center rounded-md border border-primary bg-primary/5 ring-2 ring-primary/20"
-							: "flex h-7 items-center rounded-md border border-input bg-muted/50 hover:bg-muted"
+							? "flex h-7 items-center rounded-md border border-transparent bg-primary/5 outline-none ring-0 focus:outline-none focus-visible:outline-none focus-visible:ring-0"
+							: "flex h-7 cursor-pointer items-center rounded-md border border-transparent bg-transparent outline-none ring-0 transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:outline-none focus-visible:ring-0"
 					}
 				>
 					{recording ? (
 						<span className="px-2 text-[9px] text-primary whitespace-nowrap">Press hotkeys...</span>
 					) : (
-						<>
-							{displayTokens.map((token, idx) => (
-								<span
-									key={`${token.kind}-${idx}`}
-									className="inline-flex h-full min-w-7 items-center justify-center border-border/60 border-r px-1.5 text-[11px] font-medium text-muted-foreground"
-								>
-									{token.kind === "text" ? (
-										token.value
-									) : token.value === "command" ? (
-										<Command className="size-3" />
-									) : token.value === "option" ? (
-										<Option className="size-3" />
-									) : (
-										<ArrowBigUp className="size-3" />
-									)}
-								</span>
-							))}
-						</>
+						<ShortcutKbd keys={displayKeys} className="ml-0 px-1.5 text-foreground/85" />
 					)}
 				</button>
 			</div>
