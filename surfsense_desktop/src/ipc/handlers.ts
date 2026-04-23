@@ -37,6 +37,8 @@ import {
   trackEvent,
 } from '../modules/analytics';
 import {
+  readAgentLocalFileText,
+  writeAgentLocalFileText,
   getAgentFilesystemSettings,
   pickAgentFilesystemRoot,
   setAgentFilesystemSettings,
@@ -121,6 +123,29 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.READ_LOCAL_FILES, (_event, paths: string[]) =>
     readLocalFiles(paths)
+  );
+
+  ipcMain.handle(IPC_CHANNELS.READ_AGENT_LOCAL_FILE_TEXT, async (_event, virtualPath: string) => {
+    try {
+      const result = await readAgentLocalFileText(virtualPath);
+      return { ok: true, path: result.path, content: result.content };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to read local file';
+      return { ok: false, path: virtualPath, error: message };
+    }
+  });
+
+  ipcMain.handle(
+    IPC_CHANNELS.WRITE_AGENT_LOCAL_FILE_TEXT,
+    async (_event, virtualPath: string, content: string) => {
+      try {
+        const result = await writeAgentLocalFileText(virtualPath, content);
+        return { ok: true, path: result.path };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to write local file';
+        return { ok: false, path: virtualPath, error: message };
+      }
+    }
   );
 
   ipcMain.handle(IPC_CHANNELS.SET_AUTH_TOKENS, (_event, tokens: { bearer: string; refresh: string }) => {

@@ -49,6 +49,13 @@ interface AgentFilesystemSettings {
 	updatedAt: string;
 }
 
+interface LocalTextFileResult {
+	ok: boolean;
+	path: string;
+	content?: string;
+	error?: string;
+}
+
 interface ElectronAPI {
 	versions: {
 		electron: string;
@@ -102,6 +109,11 @@ interface ElectronAPI {
 	// Browse files/folders via native dialogs
 	browseFiles: () => Promise<string[] | null>;
 	readLocalFiles: (paths: string[]) => Promise<LocalFileData[]>;
+	readAgentLocalFileText: (virtualPath: string) => Promise<LocalTextFileResult>;
+	writeAgentLocalFileText: (
+		virtualPath: string,
+		content: string
+	) => Promise<LocalTextFileResult>;
 	// Auth token sync across windows
 	getAuthTokens: () => Promise<{ bearer: string; refresh: string } | null>;
 	setAuthTokens: (bearer: string, refresh: string) => Promise<void>;

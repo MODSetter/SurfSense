@@ -34,6 +34,8 @@ export const IPC_CHANNELS = {
   FOLDER_SYNC_SEED_MTIMES: 'folder-sync:seed-mtimes',
   BROWSE_FILES: 'browse:files',
   READ_LOCAL_FILES: 'browse:read-local-files',
+  READ_AGENT_LOCAL_FILE_TEXT: 'agent-filesystem:read-local-file-text',
+  WRITE_AGENT_LOCAL_FILE_TEXT: 'agent-filesystem:write-local-file-text',
   // Auth token sync across windows
   GET_AUTH_TOKENS: 'auth:get-tokens',
   SET_AUTH_TOKENS: 'auth:set-tokens',

@@ -70,7 +70,11 @@ export function RightPanelExpandButton() {
 	const editorState = useAtomValue(editorPanelAtom);
 	const hitlEditState = useAtomValue(hitlEditPanelAtom);
 	const reportOpen = reportState.isOpen && !!reportState.reportId;
-	const editorOpen = editorState.isOpen && !!editorState.documentId;
+	const editorOpen =
+		editorState.isOpen &&
+		(editorState.kind === "document"
+			? !!editorState.documentId
+			: !!editorState.localFilePath);
 	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
 	const hasContent = documentsOpen || reportOpen || editorOpen || hitlEditOpen;
 
@@ -110,7 +114,11 @@ export function RightPanel({ documentsPanel }: RightPanelProps) {
 
 	const documentsOpen = documentsPanel?.open ?? false;
 	const reportOpen = reportState.isOpen && !!reportState.reportId;
-	const editorOpen = editorState.isOpen && !!editorState.documentId;
+	const editorOpen =
+		editorState.isOpen &&
+		(editorState.kind === "document"
+			? !!editorState.documentId
+			: !!editorState.localFilePath);
 	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
 
 	useEffect(() => {
@@ -179,8 +187,10 @@ export function RightPanel({ documentsPanel }: RightPanelProps) {
 				{effectiveTab === "editor" && editorOpen && (
 					<div className="h-full flex flex-col">
 						<EditorPanelContent
-							documentId={editorState.documentId as number}
-							searchSpaceId={editorState.searchSpaceId as number}
+							kind={editorState.kind}
+							documentId={editorState.documentId ?? undefined}
+							localFilePath={editorState.localFilePath ?? undefined}
+							searchSpaceId={editorState.searchSpaceId ?? undefined}
 							title={editorState.title}
 							onClose={closeEditor}
 						/>

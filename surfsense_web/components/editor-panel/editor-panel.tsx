@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useElectronAPI } from "@/hooks/use-platform";
 import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 
 const PlateEditor = dynamic(
@@ -54,16 +55,21 @@ function EditorPanelSkeleton() {
 }
 
 export function EditorPanelContent({
+	kind = "document",
 	documentId,
+	localFilePath,
 	searchSpaceId,
 	title,
 	onClose,
 }: {
-	documentId: number;
-	searchSpaceId: number;
+	kind?: "document" | "local_file";
+	documentId?: number;
+	localFilePath?: string;
+	searchSpaceId?: number;
 	title: string | null;
 	onClose?: () => void;
 }) {
+	const electronAPI = useElectronAPI();
 	const [editorDoc, setEditorDoc] = useState<EditorContent | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -75,6 +81,7 @@ export function EditorPanelContent({
 	const initialLoadDone = useRef(false);
 	const changeCountRef = useRef(0);
 	const [displayTitle, setDisplayTitle] = useState(title || "Untitled");
+	const isLocalFileMode = kind === "local_file";
 
 	const isLargeDocument = (editorDoc?.content_size_bytes ?? 0) > LARGE_DOCUMENT_THRESHOLD;
 
@@ -88,13 +95,40 @@ export function EditorPanelContent({
 		changeCountRef.current = 0;
 
 		const doFetch = async () => {
-			const token = getBearerToken();
-			if (!token) {
-				redirectToLogin();
-				return;
-			}
-
 			try {
+				if (isLocalFileMode) {
+					if (!localFilePath) {
+						throw new Error("Missing local file path");
+					}
+					if (!electronAPI?.readAgentLocalFileText) {
+						throw new Error("Local file editor is available only in desktop mode.");
+					}
+					const readResult = await electronAPI.readAgentLocalFileText(localFilePath);
+					if (!readResult.ok) {
+						throw new Error(readResult.error || "Failed to read local file");
+					}
+					const inferredTitle = localFilePath.split("/").pop() || localFilePath;
+					const content: EditorContent = {
+						document_id: -1,
+						title: inferredTitle,
+						document_type: "NOTE",
+						source_markdown: readResult.content,
+					};
+					markdownRef.current = content.source_markdown;
+					setDisplayTitle(title || inferredTitle);
+					setEditorDoc(content);
+					initialLoadDone.current = true;
+					return;
+				}
+				if (!documentId || !searchSpaceId) {
+					throw new Error("Missing document context");
+				}
+				const token = getBearerToken();
+				if (!token) {
+					redirectToLogin();
+					return;
+				}
+
 				const url = new URL(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`
 				);
@@ -136,7 +170,7 @@ export function EditorPanelContent({
 
 		doFetch().catch(() => {});
 		return () => controller.abort();
-	}, [documentId, searchSpaceId, title]);
+	}, [documentId, electronAPI, isLocalFileMode, localFilePath, searchSpaceId, title]);
 
 	const handleMarkdownChange = useCallback((md: string) => {
 		markdownRef.current = md;
@@ -147,15 +181,38 @@ export function EditorPanelContent({
 	}, []);
 
 	const handleSave = useCallback(async () => {
-		const token = getBearerToken();
-		if (!token) {
-			toast.error("Please login to save");
-			redirectToLogin();
-			return;
-		}
-
 		setSaving(true);
 		try {
+			if (isLocalFileMode) {
+				if (!localFilePath) {
+					throw new Error("Missing local file path");
+				}
+				if (!electronAPI?.writeAgentLocalFileText) {
+					throw new Error("Local file editor is available only in desktop mode.");
+				}
+				const writeResult = await electronAPI.writeAgentLocalFileText(
+					localFilePath,
+					markdownRef.current
+				);
+				if (!writeResult.ok) {
+					throw new Error(writeResult.error || "Failed to save local file");
+				}
+				setEditorDoc((prev) =>
+					prev ? { ...prev, source_markdown: markdownRef.current } : prev
+				);
+				setEditedMarkdown(null);
+				toast.success("File saved");
+				return;
+			}
+			if (!searchSpaceId || !documentId) {
+				throw new Error("Missing document context");
+			}
+			const token = getBearerToken();
+			if (!token) {
+				toast.error("Please login to save");
+				redirectToLogin();
+				return;
+			}
 			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/save`,
 				{
@@ -181,10 +238,11 @@ export function EditorPanelContent({
 		} finally {
 			setSaving(false);
 		}
-	}, [documentId, searchSpaceId]);
+	}, [documentId, electronAPI, isLocalFileMode, localFilePath, searchSpaceId]);
 
 	const isEditableType = editorDoc
-		? EDITABLE_DOCUMENT_TYPES.has(editorDoc.document_type ?? "") && !isLargeDocument
+		? (isLocalFileMode || EDITABLE_DOCUMENT_TYPES.has(editorDoc.document_type ?? "")) &&
+			!isLargeDocument
 		: false;
 
 	return (
@@ -197,7 +255,7 @@ export function EditorPanelContent({
 					)}
 				</div>
 				<div className="flex items-center gap-1 shrink-0">
-					{editorDoc?.document_type && (
+					{!isLocalFileMode && editorDoc?.document_type && documentId && (
 						<VersionHistoryButton documentId={documentId} documentType={editorDoc.document_type} />
 					)}
 					{onClose && (
@@ -234,7 +292,7 @@ export function EditorPanelContent({
 							</p>
 						</div>
 					</div>
-				) : isLargeDocument ? (
+				) : isLargeDocument && !isLocalFileMode ? (
 					<div className="h-full overflow-y-auto px-5 py-4">
 						<Alert className="mb-4">
 							<FileText className="size-4" />
@@ -252,6 +310,9 @@ export function EditorPanelContent({
 									onClick={async () => {
 										setDownloading(true);
 										try {
+											if (!searchSpaceId || !documentId) {
+												throw new Error("Missing document context");
+											}
 											const response = await authenticatedFetch(
 												`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/download-markdown`,
 												{ method: "GET" }
@@ -289,7 +350,7 @@ export function EditorPanelContent({
 					</div>
 				) : isEditableType ? (
 					<PlateEditor
-						key={documentId}
+						key={isLocalFileMode ? localFilePath ?? "local-file" : documentId}
 						preset="full"
 						markdown={editorDoc.source_markdown}
 						onMarkdownChange={handleMarkdownChange}
@@ -324,13 +385,19 @@ function DesktopEditorPanel() {
 		return () => document.removeEventListener("keydown", handleKeyDown);
 	}, [closePanel]);
 
-	if (!panelState.isOpen || !panelState.documentId || !panelState.searchSpaceId) return null;
+	const hasTarget =
+		panelState.kind === "document"
+			? !!panelState.documentId && !!panelState.searchSpaceId
+			: !!panelState.localFilePath;
+	if (!panelState.isOpen || !hasTarget) return null;
 
 	return (
 		<div className="flex w-[50%] max-w-[700px] min-w-[380px] flex-col border-l bg-sidebar text-sidebar-foreground animate-in slide-in-from-right-4 duration-300 ease-out">
 			<EditorPanelContent
-				documentId={panelState.documentId}
-				searchSpaceId={panelState.searchSpaceId}
+				kind={panelState.kind}
+				documentId={panelState.documentId ?? undefined}
+				localFilePath={panelState.localFilePath ?? undefined}
+				searchSpaceId={panelState.searchSpaceId ?? undefined}
 				title={panelState.title}
 				onClose={closePanel}
 			/>
@@ -342,7 +409,11 @@ function MobileEditorDrawer() {
 	const panelState = useAtomValue(editorPanelAtom);
 	const closePanel = useSetAtom(closeEditorPanelAtom);
 
-	if (!panelState.documentId || !panelState.searchSpaceId) return null;
+	const hasTarget =
+		panelState.kind === "document"
+			? !!panelState.documentId && !!panelState.searchSpaceId
+			: !!panelState.localFilePath;
+	if (!hasTarget) return null;
 
 	return (
 		<Drawer
@@ -360,8 +431,10 @@ function MobileEditorDrawer() {
 				<DrawerTitle className="sr-only">{panelState.title || "Editor"}</DrawerTitle>
 				<div className="min-h-0 flex-1 flex flex-col overflow-hidden">
 					<EditorPanelContent
-						documentId={panelState.documentId}
-						searchSpaceId={panelState.searchSpaceId}
+						kind={panelState.kind}
+						documentId={panelState.documentId ?? undefined}
+						localFilePath={panelState.localFilePath ?? undefined}
+						searchSpaceId={panelState.searchSpaceId ?? undefined}
 						title={panelState.title}
 					/>
 				</div>
@@ -373,8 +446,12 @@ function MobileEditorDrawer() {
 export function EditorPanel() {
 	const panelState = useAtomValue(editorPanelAtom);
 	const isDesktop = useMediaQuery("(min-width: 1024px)");
+	const hasTarget =
+		panelState.kind === "document"
+			? !!panelState.documentId && !!panelState.searchSpaceId
+			: !!panelState.localFilePath;
 
-	if (!panelState.isOpen || !panelState.documentId) return null;
+	if (!panelState.isOpen || !hasTarget) return null;
 
 	if (isDesktop) {
 		return <DesktopEditorPanel />;
@@ -386,8 +463,12 @@ export function EditorPanel() {
 export function MobileEditorPanel() {
 	const panelState = useAtomValue(editorPanelAtom);
 	const isDesktop = useMediaQuery("(min-width: 1024px)");
+	const hasTarget =
+		panelState.kind === "document"
+			? !!panelState.documentId && !!panelState.searchSpaceId
+			: !!panelState.localFilePath;
 
-	if (isDesktop || !panelState.isOpen || !panelState.documentId) return null;
+	if (isDesktop || !panelState.isOpen || !hasTarget) return null;
 
 	return <MobileEditorDrawer />;
 }

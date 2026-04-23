@@ -525,11 +525,6 @@ async def get_thread_messages(
 
         # Check thread-level access based on visibility
         await check_thread_access(session, thread, user)
-        filesystem_selection = _resolve_filesystem_selection(
-            mode=request.filesystem_mode,
-            client_platform=request.client_platform,
-            local_root=request.local_filesystem_root,
-        )
 
         # Get messages with their authors and token usage loaded
         messages_result = await session.execute(

@@ -7,16 +7,20 @@ import {
 	unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
 	useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
+import { useSetAtom } from "jotai";
 import { ExternalLinkIcon } from "lucide-react";
 import dynamic from "next/dynamic";
+import { useParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import { memo, type ReactNode } from "react";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
+import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { ImagePreview, ImageRoot, ImageZoom } from "@/components/assistant-ui/image";
 import "katex/dist/katex.min.css";
 import { InlineCitation, UrlCitation } from "@/components/assistant-ui/inline-citation";
+import { useElectronAPI } from "@/hooks/use-platform";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
@@ -222,6 +226,12 @@ function extractDomain(url: string): string {
 	}
 }
 
+const LOCAL_FILE_PATH_REGEX = /^\/(?:[^/\s`]+\/)*[^/\s`]+\.[^/\s`]+$/;
+
+function isVirtualFilePathToken(value: string): boolean {
+	return LOCAL_FILE_PATH_REGEX.test(value);
+}
+
 function MarkdownImage({ src, alt }: { src?: string; alt?: string }) {
 	if (!src) return null;
 
@@ -392,7 +402,43 @@ const defaultComponents = memoizeMarkdownComponents({
 	code: function Code({ className, children, ...props }) {
 		const isCodeBlock = useIsMarkdownCodeBlock();
 		const { resolvedTheme } = useTheme();
+		const openEditorPanel = useSetAtom(openEditorPanelAtom);
+		const params = useParams();
+		const electronAPI = useElectronAPI();
 		if (!isCodeBlock) {
+			const inlineValue = String(children ?? "").trim();
+			const isLocalPath =
+				!!electronAPI && isVirtualFilePathToken(inlineValue) && !inlineValue.startsWith("//");
+			const displayLocalPath = inlineValue.replace(/^\/+/, "");
+			const searchSpaceIdParam = params?.search_space_id;
+			const parsedSearchSpaceId = Array.isArray(searchSpaceIdParam)
+				? Number(searchSpaceIdParam[0])
+				: Number(searchSpaceIdParam);
+			if (isLocalPath) {
+				return (
+					<button
+						type="button"
+						className={cn(
+							"cursor-pointer font-mono text-[0.9em] font-medium text-primary underline underline-offset-4 transition-colors hover:text-primary/80"
+						)}
+						onClick={(event) => {
+							event.preventDefault();
+							event.stopPropagation();
+							openEditorPanel({
+								kind: "local_file",
+								localFilePath: inlineValue,
+								title: inlineValue.split("/").pop() || inlineValue,
+								searchSpaceId: Number.isFinite(parsedSearchSpaceId)
+									? parsedSearchSpaceId
+									: undefined,
+							});
+						}}
+						title="Open in editor panel"
+					>
+						{displayLocalPath}
+					</button>
+				);
+			}
 			return (
 				<code
 					className={cn(

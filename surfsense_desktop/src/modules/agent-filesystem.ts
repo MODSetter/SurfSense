@@ -1,6 +1,6 @@
 import { app, dialog } from "electron";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 
 export type AgentFilesystemMode = "cloud" | "desktop_local_folder";
 
@@ -71,4 +71,63 @@ export async function pickAgentFilesystemRoot(): Promise<string | null> {
 		return null;
 	}
 	return result.filePaths[0] ?? null;
+}
+
+function resolveVirtualPath(rootPath: string, virtualPath: string): string {
+	if (!virtualPath.startsWith("/")) {
+		throw new Error("Path must start with '/'");
+	}
+	const normalizedRoot = resolve(rootPath);
+	const relativePath = virtualPath.replace(/^\/+/, "");
+	if (!relativePath) {
+		throw new Error("Path must refer to a file under the selected root");
+	}
+	const absolutePath = resolve(normalizedRoot, relativePath);
+	const rel = relative(normalizedRoot, absolutePath);
+	if (!rel || rel.startsWith("..") || isAbsolute(rel)) {
+		throw new Error("Path escapes selected local root");
+	}
+	return absolutePath;
+}
+
+function toVirtualPath(rootPath: string, absolutePath: string): string {
+	const normalizedRoot = resolve(rootPath);
+	const rel = relative(normalizedRoot, absolutePath);
+	if (!rel || rel.startsWith("..") || isAbsolute(rel)) {
+		return "/";
+	}
+	return `/${rel.replace(/\\/g, "/")}`;
+}
+
+async function resolveCurrentRootPath(): Promise<string> {
+	const settings = await getAgentFilesystemSettings();
+	if (!settings.localRootPath) {
+		throw new Error("No local filesystem root selected");
+	}
+	return settings.localRootPath;
+}
+
+export async function readAgentLocalFileText(
+	virtualPath: string
+): Promise<{ path: string; content: string }> {
+	const rootPath = await resolveCurrentRootPath();
+	const absolutePath = resolveVirtualPath(rootPath, virtualPath);
+	const content = await readFile(absolutePath, "utf8");
+	return {
+		path: toVirtualPath(rootPath, absolutePath),
+		content,
+	};
+}
+
+export async function writeAgentLocalFileText(
+	virtualPath: string,
+	content: string
+): Promise<{ path: string }> {
+	const rootPath = await resolveCurrentRootPath();
+	const absolutePath = resolveVirtualPath(rootPath, virtualPath);
+	await mkdir(dirname(absolutePath), { recursive: true });
+	await writeFile(absolutePath, content, "utf8");
+	return {
+		path: toVirtualPath(rootPath, absolutePath),
+	};
 }
