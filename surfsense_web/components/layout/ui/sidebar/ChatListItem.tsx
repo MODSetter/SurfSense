@@ -1,6 +1,6 @@
 "use client";
 
-import { ArchiveIcon, MoreHorizontal, PenLine, RotateCcwIcon, Trash2 } from "lucide-react";
+import { ArchiveIcon, MoreHorizontal, Pencil, RotateCcwIcon, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -106,7 +106,7 @@ export function ChatListItem({
 									onRename();
 								}}
 							>
-								<PenLine className="mr-2 h-4 w-4" />
+								<Pencil className="mr-2 h-4 w-4" />
 								<span>{t("rename") || "Rename"}</span>
 							</DropdownMenuItem>
 						)}

@@ -8,7 +8,7 @@ import {
 	ChevronLeft,
 	MessageCircleMore,
 	MoreHorizontal,
-	PenLine,
+	Pencil,
 	RotateCcwIcon,
 	Search,
 	Trash2,
@@ -429,7 +429,7 @@ export function AllPrivateChatsSidebarContent({
 												<DropdownMenuItem
 													onClick={() => handleStartRename(thread.id, thread.title || "New Chat")}
 												>
-													<PenLine className="mr-2 h-4 w-4" />
+													<Pencil className="mr-2 h-4 w-4" />
 													<span>{t("rename") || "Rename"}</span>
 												</DropdownMenuItem>
 											)}

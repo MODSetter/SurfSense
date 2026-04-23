@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { AlertTriangle, Globe, Lock, PenLine, Sparkles, Trash2 } from "lucide-react";
+import { AlertTriangle, Globe, Lock, Pencil, Sparkles, Trash2 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -308,7 +308,7 @@ export function PromptsContent() {
 									className="size-7"
 									onClick={() => handleEdit(prompt)}
 								>
-									<PenLine className="size-3.5" />
+									<Pencil className="size-3.5" />
 								</Button>
 								<Button
 									variant="ghost"

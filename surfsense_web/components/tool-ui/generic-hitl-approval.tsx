@@ -1,7 +1,7 @@
 "use client";
 
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
-import { CornerDownLeftIcon, Pen } from "lucide-react";
+import { CornerDownLeftIcon, Pencil } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
@@ -167,7 +167,7 @@ function GenericApprovalCard({
 						className="rounded-lg text-muted-foreground -mt-1 -mr-2"
 						onClick={() => setIsEditing(true)}
 					>
-						<Pen className="size-3.5" />
+						<Pencil className="size-3.5" />
 						Edit
 					</Button>
 				)}

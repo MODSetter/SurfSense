@@ -1,6 +1,6 @@
 import { ActionBarPrimitive, AuiIf, MessagePrimitive, useAuiState } from "@assistant-ui/react";
 import { useAtomValue } from "jotai";
-import { CheckIcon, CopyIcon, FileText, Pen } from "lucide-react";
+import { CheckIcon, CopyIcon, FileText, Pencil } from "lucide-react";
 import Image from "next/image";
 import { type FC, useState } from "react";
 import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
@@ -136,7 +136,7 @@ const UserActionBar: FC = () => {
 			{canEdit && (
 				<ActionBarPrimitive.Edit asChild>
 					<TooltipIconButton tooltip="Edit" className="aui-user-action-edit">
-						<Pen />
+						<Pencil />
 					</TooltipIconButton>
 				</ActionBarPrimitive.Edit>
 			)}
