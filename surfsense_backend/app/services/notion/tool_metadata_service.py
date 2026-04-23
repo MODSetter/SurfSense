@@ -227,8 +227,6 @@ class NotionToolMetadataService:
     async def _check_account_health(self, connector_id: int) -> bool:
         """Check if a Notion connector's token is still valid.
 
-        Uses a lightweight ``users.me()`` call to verify the token.
-
         Returns True if the token is expired/invalid, False if healthy.
         """
         try:

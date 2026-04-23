@@ -290,6 +290,12 @@ class LLMRouterService:
 
             instance._router = Router(**router_kwargs)
             instance._initialized = True
+
+            global _cached_context_profile, _cached_context_profile_computed
+            _cached_context_profile = None
+            _cached_context_profile_computed = False
+            _router_instance_cache.clear()
+
             logger.info(
                 "LLM Router initialized with %d deployments, "
                 "strategy: %s, context_window_fallbacks: %s, fallbacks: %s",

@@ -135,20 +135,12 @@ celery_app.conf.update(
     # never block fast user-facing tasks (file uploads, podcasts, etc.)
     task_routes={
         # Connector indexing tasks → connectors queue
-        "index_slack_messages": {"queue": CONNECTORS_QUEUE},
         "index_notion_pages": {"queue": CONNECTORS_QUEUE},
         "index_github_repos": {"queue": CONNECTORS_QUEUE},
-        "index_linear_issues": {"queue": CONNECTORS_QUEUE},
-        "index_jira_issues": {"queue": CONNECTORS_QUEUE},
         "index_confluence_pages": {"queue": CONNECTORS_QUEUE},
-        "index_clickup_tasks": {"queue": CONNECTORS_QUEUE},
         "index_google_calendar_events": {"queue": CONNECTORS_QUEUE},
-        "index_airtable_records": {"queue": CONNECTORS_QUEUE},
         "index_google_gmail_messages": {"queue": CONNECTORS_QUEUE},
         "index_google_drive_files": {"queue": CONNECTORS_QUEUE},
-        "index_discord_messages": {"queue": CONNECTORS_QUEUE},
-        "index_teams_messages": {"queue": CONNECTORS_QUEUE},
-        "index_luma_events": {"queue": CONNECTORS_QUEUE},
         "index_elasticsearch_documents": {"queue": CONNECTORS_QUEUE},
         "index_crawled_urls": {"queue": CONNECTORS_QUEUE},
         "index_bookstack_pages": {"queue": CONNECTORS_QUEUE},

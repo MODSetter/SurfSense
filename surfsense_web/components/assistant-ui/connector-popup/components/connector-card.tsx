@@ -8,6 +8,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { cn } from "@/lib/utils";
+import { LIVE_CONNECTOR_TYPES } from "../constants/connector-constants";
 import { useConnectorStatus } from "../hooks/use-connector-status";
 import { ConnectorStatusBadge } from "./connector-status-badge";
 
@@ -55,6 +56,7 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 	onManage,
 }) => {
 	const isMCP = connectorType === EnumConnectorName.MCP_CONNECTOR;
+	const isLive = !!connectorType && LIVE_CONNECTOR_TYPES.has(connectorType);
 	// Get connector status
 	const { getConnectorStatus, isConnectorEnabled, getConnectorStatusMessage, shouldShowWarnings } =
 		useConnectorStatus();
@@ -123,14 +125,14 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 							</span>
 						) : (
 							<>
-								<span>{formatDocumentCount(documentCount)}</span>
+								{!isLive && <span>{formatDocumentCount(documentCount)}</span>}
+								{!isLive && accountCount !== undefined && accountCount > 0 && (
+									<span className="text-muted-foreground/50">•</span>
+								)}
 								{accountCount !== undefined && accountCount > 0 && (
-									<>
-										<span className="text-muted-foreground/50">•</span>
-										<span>
-											{accountCount} {accountCount === 1 ? "Account" : "Accounts"}
-										</span>
-									</>
+									<span>
+										{accountCount} {accountCount === 1 ? "Account" : "Accounts"}
+									</span>
 								)}
 							</>
 						)}
