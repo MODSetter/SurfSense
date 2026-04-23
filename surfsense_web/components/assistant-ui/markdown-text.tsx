@@ -405,6 +405,14 @@ const defaultComponents = memoizeMarkdownComponents({
 		const openEditorPanel = useSetAtom(openEditorPanelAtom);
 		const params = useParams();
 		const electronAPI = useElectronAPI();
+		const language = /language-(\w+)/.exec(className || "")?.[1] ?? "text";
+		const codeString = String(children).replace(/\n$/, "");
+		const isWebLocalFileCodeBlock =
+			isCodeBlock &&
+			!electronAPI &&
+			isVirtualFilePathToken(codeString.trim()) &&
+			!codeString.trim().startsWith("//") &&
+			!codeString.includes("\n");
 		if (!isCodeBlock) {
 			const inlineValue = String(children ?? "").trim();
 			const isLocalPath =
@@ -451,8 +459,19 @@ const defaultComponents = memoizeMarkdownComponents({
 				</code>
 			);
 		}
-		const language = /language-(\w+)/.exec(className || "")?.[1] ?? "text";
-		const codeString = String(children).replace(/\n$/, "");
+		if (isWebLocalFileCodeBlock) {
+			return (
+				<code
+					className={cn(
+						"aui-md-inline-code rounded-md border bg-muted px-1.5 py-0.5 font-mono text-[0.9em] font-normal",
+						className
+					)}
+					{...props}
+				>
+					{codeString.trim()}
+				</code>
+			);
+		}
 		return (
 			<LazyMarkdownCodeBlock
 				className={className}
