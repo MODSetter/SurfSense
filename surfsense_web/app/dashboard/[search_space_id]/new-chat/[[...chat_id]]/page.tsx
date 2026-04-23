@@ -660,7 +660,7 @@ export default function NewChatPage() {
 				const selection = await getAgentFilesystemSelection();
 				if (
 					selection.filesystem_mode === "desktop_local_folder" &&
-					!selection.local_filesystem_root
+					(!selection.local_filesystem_roots || selection.local_filesystem_roots.length === 0)
 				) {
 					toast.error("Select a local folder before using Local Folder mode.");
 					return;
@@ -702,7 +702,7 @@ export default function NewChatPage() {
 						search_space_id: searchSpaceId,
 						filesystem_mode: selection.filesystem_mode,
 						client_platform: selection.client_platform,
-						local_filesystem_root: selection.local_filesystem_root,
+						local_filesystem_roots: selection.local_filesystem_roots,
 						messages: messageHistory,
 						mentioned_document_ids: hasDocumentIds ? mentionedDocumentIds.document_ids : undefined,
 						mentioned_surfsense_doc_ids: hasSurfsenseDocIds
@@ -1098,7 +1098,7 @@ export default function NewChatPage() {
 						decisions,
 						filesystem_mode: selection.filesystem_mode,
 						client_platform: selection.client_platform,
-						local_filesystem_root: selection.local_filesystem_root,
+						local_filesystem_roots: selection.local_filesystem_roots,
 					}),
 					signal: controller.signal,
 				});
@@ -1435,7 +1435,7 @@ export default function NewChatPage() {
 						disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
 						filesystem_mode: selection.filesystem_mode,
 						client_platform: selection.client_platform,
-						local_filesystem_root: selection.local_filesystem_root,
+						local_filesystem_roots: selection.local_filesystem_roots,
 					}),
 					signal: controller.signal,
 				});

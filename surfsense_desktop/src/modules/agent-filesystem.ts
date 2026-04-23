@@ -1,16 +1,17 @@
 import { app, dialog } from "electron";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 
 export type AgentFilesystemMode = "cloud" | "desktop_local_folder";
 
 export interface AgentFilesystemSettings {
 	mode: AgentFilesystemMode;
-	localRootPath: string | null;
+	localRootPaths: string[];
 	updatedAt: string;
 }
 
 const SETTINGS_FILENAME = "agent-filesystem-settings.json";
+const MAX_LOCAL_ROOTS = 5;
 
 function getSettingsPath(): string {
 	return join(app.getPath("userData"), SETTINGS_FILENAME);
@@ -19,9 +20,26 @@ function getSettingsPath(): string {
 function getDefaultSettings(): AgentFilesystemSettings {
 	return {
 		mode: "cloud",
-		localRootPath: null,
+		localRootPaths: [],
 		updatedAt: new Date().toISOString(),
 	};
+}
+
+function normalizeLocalRootPaths(paths: unknown): string[] {
+	if (!Array.isArray(paths)) {
+		return [];
+	}
+	const uniquePaths = new Set<string>();
+	for (const path of paths) {
+		if (typeof path !== "string") continue;
+		const trimmed = path.trim();
+		if (!trimmed) continue;
+		uniquePaths.add(trimmed);
+		if (uniquePaths.size >= MAX_LOCAL_ROOTS) {
+			break;
+		}
+	}
+	return [...uniquePaths];
 }
 
 export async function getAgentFilesystemSettings(): Promise<AgentFilesystemSettings> {
@@ -33,7 +51,7 @@ export async function getAgentFilesystemSettings(): Promise<AgentFilesystemSetti
 		}
 		return {
 			mode: parsed.mode,
-			localRootPath: parsed.localRootPath ?? null,
+			localRootPaths: normalizeLocalRootPaths(parsed.localRootPaths),
 			updatedAt: parsed.updatedAt ?? new Date().toISOString(),
 		};
 	} catch {
@@ -42,7 +60,10 @@ export async function getAgentFilesystemSettings(): Promise<AgentFilesystemSetti
 }
 
 export async function setAgentFilesystemSettings(
-	settings: Partial<Pick<AgentFilesystemSettings, "mode" | "localRootPath">>
+	settings: {
+		mode?: AgentFilesystemMode;
+		localRootPaths?: string[] | null;
+	}
 ): Promise<AgentFilesystemSettings> {
 	const current = await getAgentFilesystemSettings();
 	const nextMode =
@@ -51,8 +72,10 @@ export async function setAgentFilesystemSettings(
 			: current.mode;
 	const next: AgentFilesystemSettings = {
 		mode: nextMode,
-		localRootPath:
-			settings.localRootPath === undefined ? current.localRootPath : settings.localRootPath,
+		localRootPaths:
+			settings.localRootPaths === undefined
+				? current.localRootPaths
+				: normalizeLocalRootPaths(settings.localRootPaths ?? []),
 		updatedAt: new Date().toISOString(),
 	};
 
@@ -101,20 +124,45 @@ function toVirtualPath(rootPath: string, absolutePath: string): string {
 
 async function resolveCurrentRootPath(): Promise<string> {
 	const settings = await getAgentFilesystemSettings();
-	if (!settings.localRootPath) {
-		throw new Error("No local filesystem root selected");
+	if (settings.localRootPaths.length === 0) {
+		throw new Error("No local filesystem roots selected");
 	}
-	return settings.localRootPath;
+	return settings.localRootPaths[0];
+}
+
+async function resolveCurrentRootPaths(): Promise<string[]> {
+	const settings = await getAgentFilesystemSettings();
+	if (settings.localRootPaths.length === 0) {
+		throw new Error("No local filesystem roots selected");
+	}
+	return settings.localRootPaths;
 }
 
 export async function readAgentLocalFileText(
 	virtualPath: string
 ): Promise<{ path: string; content: string }> {
-	const rootPath = await resolveCurrentRootPath();
-	const absolutePath = resolveVirtualPath(rootPath, virtualPath);
-	const content = await readFile(absolutePath, "utf8");
+	const rootPaths = await resolveCurrentRootPaths();
+	for (const rootPath of rootPaths) {
+		const absolutePath = resolveVirtualPath(rootPath, virtualPath);
+		try {
+			const content = await readFile(absolutePath, "utf8");
+			return {
+				path: toVirtualPath(rootPath, absolutePath),
+				content,
+			};
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+				continue;
+			}
+			throw error;
+		}
+	}
+	// Keep the same relative virtual path in the error context.
+	const fallbackRootPath = await resolveCurrentRootPath();
+	const fallbackAbsolutePath = resolveVirtualPath(fallbackRootPath, virtualPath);
+	const content = await readFile(fallbackAbsolutePath, "utf8");
 	return {
-		path: toVirtualPath(rootPath, absolutePath),
+		path: toVirtualPath(fallbackRootPath, fallbackAbsolutePath),
 		content,
 	};
 }
@@ -123,11 +171,25 @@ export async function writeAgentLocalFileText(
 	virtualPath: string,
 	content: string
 ): Promise<{ path: string }> {
-	const rootPath = await resolveCurrentRootPath();
-	const absolutePath = resolveVirtualPath(rootPath, virtualPath);
-	await mkdir(dirname(absolutePath), { recursive: true });
-	await writeFile(absolutePath, content, "utf8");
+	const rootPaths = await resolveCurrentRootPaths();
+	let selectedRootPath = rootPaths[0];
+	let selectedAbsolutePath = resolveVirtualPath(selectedRootPath, virtualPath);
+
+	for (const rootPath of rootPaths) {
+		const absolutePath = resolveVirtualPath(rootPath, virtualPath);
+		try {
+			await access(absolutePath);
+			selectedRootPath = rootPath;
+			selectedAbsolutePath = absolutePath;
+			break;
+		} catch {
+			// Keep searching for an existing file path across selected roots.
+		}
+	}
+
+	await mkdir(dirname(selectedAbsolutePath), { recursive: true });
+	await writeFile(selectedAbsolutePath, content, "utf8");
 	return {
-		path: toVirtualPath(rootPath, absolutePath),
+		path: toVirtualPath(selectedRootPath, selectedAbsolutePath),
 	};
 }

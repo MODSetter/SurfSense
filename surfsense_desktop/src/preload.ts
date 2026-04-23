@@ -110,7 +110,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke(IPC_CHANNELS.AGENT_FILESYSTEM_GET_SETTINGS),
   setAgentFilesystemSettings: (settings: {
     mode?: "cloud" | "desktop_local_folder";
-    localRootPath?: string | null;
+    localRootPaths?: string[] | null;
   }) => ipcRenderer.invoke(IPC_CHANNELS.AGENT_FILESYSTEM_SET_SETTINGS, settings),
   pickAgentFilesystemRoot: () => ipcRenderer.invoke(IPC_CHANNELS.AGENT_FILESYSTEM_PICK_ROOT),
 });

@@ -228,7 +228,7 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(
     IPC_CHANNELS.AGENT_FILESYSTEM_SET_SETTINGS,
-    (_event, settings: { mode?: 'cloud' | 'desktop_local_folder'; localRootPath?: string | null }) =>
+    (_event, settings: { mode?: 'cloud' | 'desktop_local_folder'; localRootPaths?: string[] | null }) =>
       setAgentFilesystemSettings(settings)
   );
 

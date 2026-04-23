@@ -45,7 +45,7 @@ type AgentFilesystemMode = "cloud" | "desktop_local_folder";
 
 interface AgentFilesystemSettings {
 	mode: AgentFilesystemMode;
-	localRootPath: string | null;
+	localRootPaths: string[];
 	updatedAt: string;
 }
 
@@ -149,7 +149,7 @@ interface ElectronAPI {
 	getAgentFilesystemSettings: () => Promise<AgentFilesystemSettings>;
 	setAgentFilesystemSettings: (settings: {
 		mode?: AgentFilesystemMode;
-		localRootPath?: string | null;
+		localRootPaths?: string[] | null;
 	}) => Promise<AgentFilesystemSettings>;
 	pickAgentFilesystemRoot: () => Promise<string | null>;
 }
