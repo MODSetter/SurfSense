@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { closeEditorPanelAtom, editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { VersionHistoryButton } from "@/components/documents/version-history";
+import { LocalFileMonaco } from "@/components/editor/local-file-monaco";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/u
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
+import { inferMonacoLanguageFromPath } from "@/lib/editor-language";
 
 const PlateEditor = dynamic(
 	() => import("@/components/editor/plate-editor").then((m) => ({ default: m.PlateEditor })),
@@ -77,6 +79,7 @@ export function EditorPanelContent({
 	const [downloading, setDownloading] = useState(false);
 
 	const [editedMarkdown, setEditedMarkdown] = useState<string | null>(null);
+	const [localFileContent, setLocalFileContent] = useState("");
 	const markdownRef = useRef<string>("");
 	const initialLoadDone = useRef(false);
 	const changeCountRef = useRef(0);
@@ -91,6 +94,7 @@ export function EditorPanelContent({
 		setError(null);
 		setEditorDoc(null);
 		setEditedMarkdown(null);
+		setLocalFileContent("");
 		initialLoadDone.current = false;
 		changeCountRef.current = 0;
 
@@ -115,6 +119,7 @@ export function EditorPanelContent({
 						source_markdown: readResult.content,
 					};
 					markdownRef.current = content.source_markdown;
+					setLocalFileContent(content.source_markdown);
 					setDisplayTitle(title || inferredTitle);
 					setEditorDoc(content);
 					initialLoadDone.current = true;
@@ -244,6 +249,7 @@ export function EditorPanelContent({
 		? (isLocalFileMode || EDITABLE_DOCUMENT_TYPES.has(editorDoc.document_type ?? "")) &&
 			!isLargeDocument
 		: false;
+	const localFileLanguage = inferMonacoLanguageFromPath(localFilePath);
 
 	return (
 		<>
@@ -347,6 +353,20 @@ export function EditorPanelContent({
 							</AlertDescription>
 						</Alert>
 						<MarkdownViewer content={editorDoc.source_markdown} />
+					</div>
+				) : isLocalFileMode ? (
+					<div className="h-full overflow-hidden">
+						<LocalFileMonaco
+							filePath={localFilePath ?? "local-file.txt"}
+							language={localFileLanguage}
+							value={localFileContent}
+							onChange={(next) => {
+								markdownRef.current = next;
+								setLocalFileContent(next);
+								if (!initialLoadDone.current) return;
+								setEditedMarkdown(next === (editorDoc?.source_markdown ?? "") ? null : next);
+							}}
+						/>
 					</div>
 				) : isEditableType ? (
 					<PlateEditor
