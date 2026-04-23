@@ -116,6 +116,7 @@ export function ReportPanelContent({
 	const [exporting, setExporting] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
 	const copyTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+	const changeCountRef = useRef(0);
 
 	useEffect(() => {
 		return () => {
@@ -190,7 +191,20 @@ export function ReportPanelContent({
 	useEffect(() => {
 		setEditedMarkdown(null);
 		setIsEditing(false);
+		changeCountRef.current = 0;
 	}, [activeReportId]);
+
+	const handleReportMarkdownChange = useCallback(
+		(nextMarkdown: string) => {
+			if (!isEditing) return;
+			changeCountRef.current += 1;
+			// Plate may emit an initial normalize/serialize change on mount.
+			if (changeCountRef.current <= 1) return;
+			const savedMarkdown = reportContent?.content ?? "";
+			setEditedMarkdown(nextMarkdown === savedMarkdown ? null : nextMarkdown);
+		},
+		[isEditing, reportContent?.content]
+	);
 
 	// Copy markdown content (uses latest editor content)
 	const handleCopy = useCallback(async () => {
@@ -299,6 +313,7 @@ export function ReportPanelContent({
 
 	const handleCancelEditing = useCallback(() => {
 		setEditedMarkdown(null);
+		changeCountRef.current = 0;
 		setIsEditing(false);
 	}, []);
 
@@ -436,6 +451,7 @@ export function ReportPanelContent({
 									className="size-6"
 									onClick={() => {
 										setEditedMarkdown(null);
+										changeCountRef.current = 0;
 										setIsEditing(true);
 									}}
 								>
@@ -473,11 +489,12 @@ export function ReportPanelContent({
 							key={`report-${activeReportId}-${isEditing ? "editing" : "viewing"}`}
 							preset="full"
 							markdown={reportContent.content}
-							onMarkdownChange={setEditedMarkdown}
+							onMarkdownChange={handleReportMarkdownChange}
 							readOnly={!isEditing}
 							placeholder="Report content..."
 							editorVariant="default"
 							allowModeToggle={false}
+							reserveToolbarSpace
 							defaultEditing={isEditing}
 							className="[&_[role=toolbar]]:!bg-sidebar"
 						/>

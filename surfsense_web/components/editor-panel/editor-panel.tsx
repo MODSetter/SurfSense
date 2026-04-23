@@ -572,6 +572,7 @@ export function EditorPanelContent({
 						placeholder="Start writing..."
 						editorVariant="default"
 						allowModeToggle={false}
+						reserveToolbarSpace
 						defaultEditing={isEditing}
 						className="[&_[role=toolbar]]:!bg-sidebar"
 					/>

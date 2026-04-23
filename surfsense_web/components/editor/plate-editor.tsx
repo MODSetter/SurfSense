@@ -44,6 +44,8 @@ export interface PlateEditorProps {
 	isSaving?: boolean;
 	/** Whether edit/view mode toggle UI should be available in toolbars. */
 	allowModeToggle?: boolean;
+	/** Reserve fixed-toolbar vertical space even when controls are hidden. */
+	reserveToolbarSpace?: boolean;
 	/** Start the editor in editing mode instead of viewing mode. Ignored when readOnly is true. */
 	defaultEditing?: boolean;
 	/**
@@ -94,6 +96,7 @@ export function PlateEditor({
 	hasUnsavedChanges = false,
 	isSaving = false,
 	allowModeToggle = true,
+	reserveToolbarSpace = false,
 	defaultEditing = false,
 	preset = "full",
 	extraPlugins = [],
@@ -185,8 +188,9 @@ export function PlateEditor({
 			hasUnsavedChanges,
 			isSaving,
 			canToggleMode,
+			reserveToolbarSpace,
 		}),
-		[onSave, hasUnsavedChanges, isSaving, canToggleMode]
+		[onSave, hasUnsavedChanges, isSaving, canToggleMode, reserveToolbarSpace]
 	);
 
 	return (

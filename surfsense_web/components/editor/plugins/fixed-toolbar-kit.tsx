@@ -9,12 +9,19 @@ import { FixedToolbarButtons } from "@/components/ui/fixed-toolbar-buttons";
 
 function ConditionalFixedToolbar() {
 	const readOnly = useEditorReadOnly();
-	const { onSave, hasUnsavedChanges, canToggleMode } = useEditorSave();
+	const { onSave, hasUnsavedChanges, canToggleMode, reserveToolbarSpace } = useEditorSave();
 
 	const hasVisibleControls =
 		!readOnly || canToggleMode || (!!onSave && hasUnsavedChanges && !readOnly);
 
-	if (!hasVisibleControls) return null;
+	if (!hasVisibleControls) {
+		if (!reserveToolbarSpace) return null;
+		return (
+			<FixedToolbar className="pointer-events-none opacity-0">
+				<div className="h-8 w-full" />
+			</FixedToolbar>
+		);
+	}
 
 	return (
 		<FixedToolbar>
