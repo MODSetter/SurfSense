@@ -7,7 +7,6 @@ import {
 	Download,
 	FileQuestionMark,
 	FileText,
-	Loader2,
 	Pencil,
 	RefreshCw,
 	XIcon,
@@ -22,6 +21,7 @@ import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
+import { Spinner } from "@/components/ui/spinner";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
@@ -346,8 +346,8 @@ export function EditorPanelContent({
 										}}
 										disabled={saving || !hasUnsavedChanges}
 									>
-										<span className={saving ? "invisible" : ""}>Save</span>
-										{saving && <Loader2 className="absolute size-3 animate-spin" />}
+										<span className={saving ? "opacity-0" : ""}>Save</span>
+										{saving && <Spinner size="xs" className="absolute" />}
 									</Button>
 								</>
 							) : (
@@ -416,8 +416,8 @@ export function EditorPanelContent({
 									}}
 									disabled={saving || !hasUnsavedChanges}
 								>
-									<span className={saving ? "invisible" : ""}>Save</span>
-									{saving && <Loader2 className="absolute size-3 animate-spin" />}
+									<span className={saving ? "opacity-0" : ""}>Save</span>
+									{saving && <Spinner size="xs" className="absolute" />}
 								</Button>
 							</>
 						) : (
@@ -534,7 +534,7 @@ export function EditorPanelContent({
 									}}
 								>
 									{downloading ? (
-										<Loader2 className="size-3.5 animate-spin" />
+										<Spinner size="xs" />
 									) : (
 										<Download className="size-3.5" />
 									)}
