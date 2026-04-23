@@ -895,6 +895,7 @@ async def load_mcp_tools(
                             "Skipping MCP connector %d — OAuth token decryption failed",
                             connector.id,
                         )
+                        await _mark_connector_auth_expired(connector.id)
                         continue
 
                 trusted_tools = cfg.get("trusted_tools", [])
