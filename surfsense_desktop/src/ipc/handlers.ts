@@ -36,6 +36,11 @@ import {
   resetUser as analyticsReset,
   trackEvent,
 } from '../modules/analytics';
+import {
+  getAgentFilesystemSettings,
+  pickAgentFilesystemRoot,
+  setAgentFilesystemSettings,
+} from '../modules/agent-filesystem';
 
 let authTokens: { bearer: string; refresh: string } | null = null;
 
@@ -191,4 +196,18 @@ export function registerIpcHandlers(): void {
       platform: process.platform,
     };
   });
+
+  ipcMain.handle(IPC_CHANNELS.AGENT_FILESYSTEM_GET_SETTINGS, () =>
+    getAgentFilesystemSettings()
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.AGENT_FILESYSTEM_SET_SETTINGS,
+    (_event, settings: { mode?: 'cloud' | 'desktop_local_folder'; localRootPath?: string | null }) =>
+      setAgentFilesystemSettings(settings)
+  );
+
+  ipcMain.handle(IPC_CHANNELS.AGENT_FILESYSTEM_PICK_ROOT, () =>
+    pickAgentFilesystemRoot()
+  );
 }

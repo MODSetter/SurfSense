@@ -101,4 +101,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   analyticsCapture: (event: string, properties?: Record<string, unknown>) =>
     ipcRenderer.invoke(IPC_CHANNELS.ANALYTICS_CAPTURE, { event, properties }),
   getAnalyticsContext: () => ipcRenderer.invoke(IPC_CHANNELS.ANALYTICS_GET_CONTEXT),
+  // Agent filesystem mode
+  getAgentFilesystemSettings: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.AGENT_FILESYSTEM_GET_SETTINGS),
+  setAgentFilesystemSettings: (settings: {
+    mode?: "cloud" | "desktop_local_folder";
+    localRootPath?: string | null;
+  }) => ipcRenderer.invoke(IPC_CHANNELS.AGENT_FILESYSTEM_SET_SETTINGS, settings),
+  pickAgentFilesystemRoot: () => ipcRenderer.invoke(IPC_CHANNELS.AGENT_FILESYSTEM_PICK_ROOT),
 });

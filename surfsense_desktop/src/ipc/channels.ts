@@ -51,4 +51,8 @@ export const IPC_CHANNELS = {
   ANALYTICS_RESET: 'analytics:reset',
   ANALYTICS_CAPTURE: 'analytics:capture',
   ANALYTICS_GET_CONTEXT: 'analytics:get-context',
+  // Agent filesystem mode
+  AGENT_FILESYSTEM_GET_SETTINGS: 'agent-filesystem:get-settings',
+  AGENT_FILESYSTEM_SET_SETTINGS: 'agent-filesystem:set-settings',
+  AGENT_FILESYSTEM_PICK_ROOT: 'agent-filesystem:pick-root',
 } as const;
