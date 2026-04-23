@@ -122,12 +122,55 @@ function toVirtualPath(rootPath: string, absolutePath: string): string {
 	return `/${rel.replace(/\\/g, "/")}`;
 }
 
-async function resolveCurrentRootPath(): Promise<string> {
-	const settings = await getAgentFilesystemSettings();
-	if (settings.localRootPaths.length === 0) {
-		throw new Error("No local filesystem roots selected");
+type LocalRootMount = {
+	mount: string;
+	rootPath: string;
+};
+
+function buildRootMounts(rootPaths: string[]): LocalRootMount[] {
+	const mounts: LocalRootMount[] = [];
+	const usedMounts = new Set<string>();
+	for (const rawRootPath of rootPaths) {
+		const normalizedRoot = resolve(rawRootPath);
+		const baseMount = normalizedRoot.split(/[\\/]/).at(-1) || "root";
+		let mount = baseMount;
+		let suffix = 2;
+		while (usedMounts.has(mount)) {
+			mount = `${baseMount}-${suffix}`;
+			suffix += 1;
+		}
+		usedMounts.add(mount);
+		mounts.push({ mount, rootPath: normalizedRoot });
 	}
-	return settings.localRootPaths[0];
+	return mounts;
+}
+
+function parseMountedVirtualPath(virtualPath: string): {
+	mount: string;
+	subPath: string;
+} {
+	if (!virtualPath.startsWith("/")) {
+		throw new Error("Path must start with '/'");
+	}
+	const trimmed = virtualPath.replace(/^\/+/, "");
+	if (!trimmed) {
+		throw new Error("Path must include a mounted root segment");
+	}
+	const [mount, ...rest] = trimmed.split("/");
+	const remainder = rest.join("/");
+	if (!remainder) {
+		throw new Error("Path must include a file path under the mounted root");
+	}
+	return { mount, subPath: `/${remainder}` };
+}
+
+function findMountByName(mounts: LocalRootMount[], mountName: string): LocalRootMount | undefined {
+	return mounts.find((entry) => entry.mount === mountName);
+}
+
+function toMountedVirtualPath(mount: string, rootPath: string, absolutePath: string): string {
+	const relativePath = toVirtualPath(rootPath, absolutePath);
+	return `/${mount}${relativePath}`;
 }
 
 async function resolveCurrentRootPaths(): Promise<string[]> {
@@ -142,27 +185,18 @@ export async function readAgentLocalFileText(
 	virtualPath: string
 ): Promise<{ path: string; content: string }> {
 	const rootPaths = await resolveCurrentRootPaths();
-	for (const rootPath of rootPaths) {
-		const absolutePath = resolveVirtualPath(rootPath, virtualPath);
-		try {
-			const content = await readFile(absolutePath, "utf8");
-			return {
-				path: toVirtualPath(rootPath, absolutePath),
-				content,
-			};
-		} catch (error) {
-			if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-				continue;
-			}
-			throw error;
-		}
+	const mounts = buildRootMounts(rootPaths);
+	const { mount, subPath } = parseMountedVirtualPath(virtualPath);
+	const rootMount = findMountByName(mounts, mount);
+	if (!rootMount) {
+		throw new Error(
+			`Unknown mounted root '${mount}'. Available roots: ${mounts.map((entry) => `/${entry.mount}`).join(", ")}`
+		);
 	}
-	// Keep the same relative virtual path in the error context.
-	const fallbackRootPath = await resolveCurrentRootPath();
-	const fallbackAbsolutePath = resolveVirtualPath(fallbackRootPath, virtualPath);
-	const content = await readFile(fallbackAbsolutePath, "utf8");
+	const absolutePath = resolveVirtualPath(rootMount.rootPath, subPath);
+	const content = await readFile(absolutePath, "utf8");
 	return {
-		path: toVirtualPath(fallbackRootPath, fallbackAbsolutePath),
+		path: toMountedVirtualPath(rootMount.mount, rootMount.rootPath, absolutePath),
 		content,
 	};
 }
@@ -172,24 +206,24 @@ export async function writeAgentLocalFileText(
 	content: string
 ): Promise<{ path: string }> {
 	const rootPaths = await resolveCurrentRootPaths();
-	let selectedRootPath = rootPaths[0];
-	let selectedAbsolutePath = resolveVirtualPath(selectedRootPath, virtualPath);
-
-	for (const rootPath of rootPaths) {
-		const absolutePath = resolveVirtualPath(rootPath, virtualPath);
-		try {
-			await access(absolutePath);
-			selectedRootPath = rootPath;
-			selectedAbsolutePath = absolutePath;
-			break;
-		} catch {
-			// Keep searching for an existing file path across selected roots.
-		}
+	const mounts = buildRootMounts(rootPaths);
+	const { mount, subPath } = parseMountedVirtualPath(virtualPath);
+	const rootMount = findMountByName(mounts, mount);
+	if (!rootMount) {
+		throw new Error(
+			`Unknown mounted root '${mount}'. Available roots: ${mounts.map((entry) => `/${entry.mount}`).join(", ")}`
+		);
 	}
+	let selectedAbsolutePath = resolveVirtualPath(rootMount.rootPath, subPath);
 
+	try {
+		await access(selectedAbsolutePath);
+	} catch {
+		// New files are created under the selected mounted root.
+	}
 	await mkdir(dirname(selectedAbsolutePath), { recursive: true });
 	await writeFile(selectedAbsolutePath, content, "utf8");
 	return {
-		path: toVirtualPath(selectedRootPath, selectedAbsolutePath),
+		path: toMountedVirtualPath(rootMount.mount, rootMount.rootPath, selectedAbsolutePath),
 	};
 }

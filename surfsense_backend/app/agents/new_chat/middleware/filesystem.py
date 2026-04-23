@@ -782,6 +782,27 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
             return f"/{backend.default_mount()}"
         return ""
 
+    def _normalize_local_mount_path(
+        self, candidate: str, runtime: ToolRuntime[None, FilesystemState]
+    ) -> str:
+        backend = self._get_backend(runtime)
+        mount_prefix = self._default_mount_prefix(runtime)
+        if not mount_prefix or not isinstance(backend, MultiRootLocalFolderBackend):
+            return candidate if candidate.startswith("/") else f"/{candidate.lstrip('/')}"
+
+        mount_names = set(backend.list_mounts())
+        if candidate.startswith("/"):
+            first_segment = candidate.lstrip("/").split("/", 1)[0]
+            if first_segment in mount_names:
+                return candidate
+            return f"{mount_prefix}{candidate}"
+
+        relative = candidate.lstrip("/")
+        first_segment = relative.split("/", 1)[0]
+        if first_segment in mount_names:
+            return f"/{relative}"
+        return f"{mount_prefix}/{relative}"
+
     def _get_contract_suggested_path(
         self, runtime: ToolRuntime[None, FilesystemState]
     ) -> str:
@@ -790,11 +811,7 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         if isinstance(suggested, str) and suggested.strip():
             cleaned = suggested.strip()
             if self._filesystem_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER:
-                mount_prefix = self._default_mount_prefix(runtime)
-                if mount_prefix and cleaned.startswith("/") and not cleaned.startswith(
-                    f"{mount_prefix}/"
-                ):
-                    return f"{mount_prefix}{cleaned}"
+                return self._normalize_local_mount_path(cleaned, runtime)
             return cleaned
         if self._filesystem_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER:
             mount_prefix = self._default_mount_prefix(runtime)
@@ -811,19 +828,7 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         if not candidate:
             return self._get_contract_suggested_path(runtime)
         if self._filesystem_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER:
-            backend = self._get_backend(runtime)
-            mount_prefix = self._default_mount_prefix(runtime)
-            if mount_prefix and not candidate.startswith("/"):
-                return f"{mount_prefix}/{candidate.lstrip('/')}"
-            if (
-                mount_prefix
-                and isinstance(backend, MultiRootLocalFolderBackend)
-                and candidate.startswith("/")
-            ):
-                mount_names = backend.list_mounts()
-                first_segment = candidate.lstrip("/").split("/", 1)[0]
-                if first_segment not in mount_names:
-                    return f"{mount_prefix}{candidate}"
+            return self._normalize_local_mount_path(candidate, runtime)
         if not candidate.startswith("/"):
             return f"/{candidate.lstrip('/')}"
         return candidate

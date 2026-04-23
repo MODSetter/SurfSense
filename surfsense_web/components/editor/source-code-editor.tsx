@@ -89,7 +89,7 @@ export function SourceCodeEditor({
 				onChange={(next) => onChange(next ?? "")}
 				loading={
 					<div className="flex h-full w-full items-center justify-center">
-						<Spinner size="sm" className="text-muted-foreground" />
+						<Spinner size="md" className="text-muted-foreground" />
 					</div>
 				}
 				beforeMount={(monaco) => {
