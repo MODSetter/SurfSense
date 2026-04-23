@@ -5,7 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.connectors.confluence_history import ConfluenceHistoryConnector
 from app.db import Document, DocumentType
-from app.services.llm_service import get_user_long_context_llm
 from app.utils.document_converters import (
     create_document_chunks,
     embed_text,
@@ -65,6 +64,8 @@ class ConfluenceKBSyncService:
                 )
             if dup:
                 content_hash = unique_hash
+
+            from app.services.llm_service import get_user_long_context_llm
 
             user_llm = await get_user_long_context_llm(
                 self.db_session,
@@ -183,6 +184,8 @@ class ConfluenceKBSyncService:
                 return {"status": "error", "message": "Page produced empty content"}
 
             space_id = (document.document_metadata or {}).get("space_id", "")
+
+            from app.services.llm_service import get_user_long_context_llm
 
             user_llm = await get_user_long_context_llm(
                 self.db_session, user_id, search_space_id, disable_streaming=True
