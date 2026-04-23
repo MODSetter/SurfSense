@@ -26,7 +26,7 @@ class FilesystemSelection:
 
     mode: FilesystemMode = FilesystemMode.CLOUD
     client_platform: ClientPlatform = ClientPlatform.WEB
-    local_root_path: str | None = None
+    local_root_paths: tuple[str, ...] = ()
 
     @property
     def is_local_mode(self) -> bool:

@@ -73,7 +73,7 @@ def _resolve_filesystem_selection(
     *,
     mode: str,
     client_platform: str,
-    local_root: str | None,
+    local_roots: list[str] | None,
 ) -> FilesystemSelection:
     """Validate and normalize filesystem mode settings from request payload."""
     try:
@@ -96,21 +96,29 @@ def _resolve_filesystem_selection(
                 status_code=400,
                 detail="desktop_local_folder mode is only available on desktop runtime.",
             )
-        if not local_root or not local_root.strip():
+        normalized_roots: list[str] = []
+        for root in local_roots or []:
+            trimmed = root.strip()
+            if trimmed and trimmed not in normalized_roots:
+                normalized_roots.append(trimmed)
+        if not normalized_roots:
             raise HTTPException(
                 status_code=400,
-                detail="local_filesystem_root is required for desktop_local_folder mode.",
+                detail=(
+                    "local_filesystem_roots must include at least one root for "
+                    "desktop_local_folder mode."
+                ),
             )
         return FilesystemSelection(
             mode=resolved_mode,
             client_platform=resolved_platform,
-            local_root_path=local_root.strip(),
+            local_root_paths=tuple(normalized_roots),
         )
 
     return FilesystemSelection(
         mode=FilesystemMode.CLOUD,
         client_platform=resolved_platform,
-        local_root_path=None,
+        local_root_paths=(),
     )
 
 
@@ -1188,7 +1196,7 @@ async def handle_new_chat(
         filesystem_selection = _resolve_filesystem_selection(
             mode=request.filesystem_mode,
             client_platform=request.client_platform,
-            local_root=request.local_filesystem_root,
+            local_roots=request.local_filesystem_roots,
         )
 
         # Get search space to check LLM config preferences
@@ -1310,7 +1318,7 @@ async def regenerate_response(
         filesystem_selection = _resolve_filesystem_selection(
             mode=request.filesystem_mode,
             client_platform=request.client_platform,
-            local_root=request.local_filesystem_root,
+            local_roots=request.local_filesystem_roots,
         )
 
         # Get the checkpointer and state history
@@ -1569,7 +1577,7 @@ async def resume_chat(
         filesystem_selection = _resolve_filesystem_selection(
             mode=request.filesystem_mode,
             client_platform=request.client_platform,
-            local_root=request.local_filesystem_root,
+            local_roots=request.local_filesystem_roots,
         )
 
         search_space_result = await session.execute(

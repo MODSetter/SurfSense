@@ -26,13 +26,16 @@ from langchain_core.tools import BaseTool, StructuredTool
 from langgraph.types import Command
 from sqlalchemy import delete, select
 
+from app.agents.new_chat.filesystem_selection import FilesystemMode
+from app.agents.new_chat.middleware.multi_root_local_folder_backend import (
+    MultiRootLocalFolderBackend,
+)
 from app.agents.new_chat.sandbox import (
     _evict_sandbox_cache,
     delete_sandbox,
     get_or_create_sandbox,
     is_sandbox_enabled,
 )
-from app.agents.new_chat.filesystem_selection import FilesystemMode
 from app.db import Chunk, Document, DocumentType, Folder, shielded_async_session
 from app.indexing_pipeline.document_chunker import chunk_text
 from app.utils.document_converters import (
@@ -222,6 +225,8 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
                 "\n\n## Local Folder Mode"
                 "\n\nThis chat is running in desktop local-folder mode."
                 " Keep all file operations local. Do not use save_document."
+                " Always use mount-prefixed absolute paths like /<folder>/file.ext."
+                " If you are unsure which mounts are available, call ls('/') first."
             )
 
         super().__init__(
@@ -771,12 +776,30 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         """Only cloud mode persists file content to Document/Chunk tables."""
         return self._filesystem_mode == FilesystemMode.CLOUD
 
-    @staticmethod
-    def _get_contract_suggested_path(runtime: ToolRuntime[None, FilesystemState]) -> str:
+    def _default_mount_prefix(self, runtime: ToolRuntime[None, FilesystemState]) -> str:
+        backend = self._get_backend(runtime)
+        if isinstance(backend, MultiRootLocalFolderBackend):
+            return f"/{backend.default_mount()}"
+        return ""
+
+    def _get_contract_suggested_path(
+        self, runtime: ToolRuntime[None, FilesystemState]
+    ) -> str:
         contract = runtime.state.get("file_operation_contract") or {}
         suggested = contract.get("suggested_path")
         if isinstance(suggested, str) and suggested.strip():
-            return suggested.strip()
+            cleaned = suggested.strip()
+            if self._filesystem_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER:
+                mount_prefix = self._default_mount_prefix(runtime)
+                if mount_prefix and cleaned.startswith("/") and not cleaned.startswith(
+                    f"{mount_prefix}/"
+                ):
+                    return f"{mount_prefix}{cleaned}"
+            return cleaned
+        if self._filesystem_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER:
+            mount_prefix = self._default_mount_prefix(runtime)
+            if mount_prefix:
+                return f"{mount_prefix}/notes.md"
         return "/notes.md"
 
     def _resolve_write_target_path(
@@ -787,6 +810,20 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         candidate = file_path.strip()
         if not candidate:
             return self._get_contract_suggested_path(runtime)
+        if self._filesystem_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER:
+            backend = self._get_backend(runtime)
+            mount_prefix = self._default_mount_prefix(runtime)
+            if mount_prefix and not candidate.startswith("/"):
+                return f"{mount_prefix}/{candidate.lstrip('/')}"
+            if (
+                mount_prefix
+                and isinstance(backend, MultiRootLocalFolderBackend)
+                and candidate.startswith("/")
+            ):
+                mount_names = backend.list_mounts()
+                first_segment = candidate.lstrip("/").split("/", 1)[0]
+                if first_segment not in mount_names:
+                    return f"{mount_prefix}{candidate}"
         if not candidate.startswith("/"):
             return f"/{candidate.lstrip('/')}"
         return candidate

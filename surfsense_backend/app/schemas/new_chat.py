@@ -186,7 +186,7 @@ class NewChatRequest(BaseModel):
     )
     filesystem_mode: Literal["cloud", "desktop_local_folder"] = "cloud"
     client_platform: Literal["web", "desktop"] = "web"
-    local_filesystem_root: str | None = None
+    local_filesystem_roots: list[str] | None = None
 
 
 class RegenerateRequest(BaseModel):
@@ -209,7 +209,7 @@ class RegenerateRequest(BaseModel):
     disabled_tools: list[str] | None = None
     filesystem_mode: Literal["cloud", "desktop_local_folder"] = "cloud"
     client_platform: Literal["web", "desktop"] = "web"
-    local_filesystem_root: str | None = None
+    local_filesystem_roots: list[str] | None = None
 
 
 # =============================================================================
@@ -235,7 +235,7 @@ class ResumeRequest(BaseModel):
     decisions: list[ResumeDecision]
     filesystem_mode: Literal["cloud", "desktop_local_folder"] = "cloud"
     client_platform: Literal["web", "desktop"] = "web"
-    local_filesystem_root: str | None = None
+    local_filesystem_roots: list[str] | None = None
 
 
 # =============================================================================
