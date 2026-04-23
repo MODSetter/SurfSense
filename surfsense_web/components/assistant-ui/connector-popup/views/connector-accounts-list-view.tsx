@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { ArrowLeft, Plus, RefreshCw, Server } from "lucide-react";
+import { ArrowLeft, Plus, RefreshCw, Server, Trash2 } from "lucide-react";
 import { type FC, useCallback, useState } from "react";
 import { toast } from "sonner";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
@@ -24,13 +24,10 @@ interface ConnectorAccountsListViewProps {
 	indexingConnectorIds: Set<number>;
 	onBack: () => void;
 	onManage: (connector: SearchSourceConnector) => void;
+	onDisconnect?: (connector: SearchSourceConnector) => Promise<void> | void;
 	onAddAccount: () => void;
 	isConnecting?: boolean;
 	addButtonText?: string;
-}
-
-function isLiveConnector(connectorType: string): boolean {
-	return LIVE_CONNECTOR_TYPES.has(connectorType) || connectorType === "MCP_CONNECTOR";
 }
 
 export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
@@ -40,12 +37,15 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 	indexingConnectorIds,
 	onBack,
 	onManage,
+	onDisconnect,
 	onAddAccount,
 	isConnecting = false,
 	addButtonText,
 }) => {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const [reauthingId, setReauthingId] = useState<number | null>(null);
+	const [confirmDisconnectId, setConfirmDisconnectId] = useState<number | null>(null);
+	const [disconnectingId, setDisconnectingId] = useState<number | null>(null);
 
 	// Get connector status
 	const { isConnectorEnabled, getConnectorStatusMessage } = useConnectorStatus();
@@ -182,10 +182,11 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 					</div>
 				) : (
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-						{typeConnectors.map((connector) => {
-							const isIndexing = indexingConnectorIds.has(connector.id);
-							const connectorReauthEndpoint = getReauthEndpoint(connector);
-							const isAuthExpired = !!connectorReauthEndpoint && connector.config?.auth_expired === true;
+					{typeConnectors.map((connector) => {
+						const isIndexing = indexingConnectorIds.has(connector.id);
+						const connectorReauthEndpoint = getReauthEndpoint(connector);
+						const isAuthExpired = !!connectorReauthEndpoint && connector.config?.auth_expired === true;
+						const isLive = LIVE_CONNECTOR_TYPES.has(connector.connector_type) || Boolean(connector.config?.server_config);
 
 							return (
 								<div
@@ -216,7 +217,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 												<Spinner size="xs" />
 												Syncing
 											</p>
-										) : !isLiveConnector(connector.connector_type) ? (
+										) : !isLive ? (
 											<p className="text-[10px] mt-1 whitespace-nowrap truncate text-muted-foreground">
 												{connector.last_indexed_at
 													? `Last indexed: ${formatRelativeDate(connector.last_indexed_at)}`
@@ -224,28 +225,73 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 											</p>
 										) : null}
 									</div>
-									{isAuthExpired ? (
-										<Button
-											size="sm"
-											className="h-8 text-[11px] px-3 rounded-lg font-medium bg-amber-600 hover:bg-amber-700 text-white border-0 shadow-xs shrink-0"
-											onClick={() => handleReauth(connector)}
-											disabled={reauthingId === connector.id}
-										>
-											<RefreshCw
-												className={cn("size-3.5", reauthingId === connector.id && "animate-spin")}
-											/>
-											Re-authenticate
-										</Button>
+								{isAuthExpired ? (
+									<Button
+										size="sm"
+										className="h-8 text-[11px] px-3 rounded-lg font-medium bg-amber-600 hover:bg-amber-700 text-white border-0 shadow-xs shrink-0"
+										onClick={() => handleReauth(connector)}
+										disabled={reauthingId === connector.id}
+									>
+										<RefreshCw
+											className={cn("size-3.5", reauthingId === connector.id && "animate-spin")}
+										/>
+										Re-authenticate
+									</Button>
+								) : isLive && onDisconnect ? (
+									confirmDisconnectId === connector.id ? (
+										<div className="flex items-center gap-1.5 shrink-0">
+											<Button
+												variant="destructive"
+												size="sm"
+												className="h-8 text-[11px] px-3 rounded-lg font-medium shadow-xs"
+											onClick={async () => {
+												setDisconnectingId(connector.id);
+												setConfirmDisconnectId(null);
+												try {
+													await onDisconnect(connector);
+												} finally {
+													setDisconnectingId(null);
+												}
+											}}
+												disabled={disconnectingId === connector.id}
+											>
+												{disconnectingId === connector.id ? (
+													<RefreshCw className="size-3.5 animate-spin" />
+												) : (
+													"Confirm"
+												)}
+											</Button>
+											<Button
+												variant="ghost"
+												size="sm"
+												className="h-8 text-[11px] px-2 rounded-lg"
+												onClick={() => setConfirmDisconnectId(null)}
+												disabled={disconnectingId === connector.id}
+											>
+												Cancel
+											</Button>
+										</div>
 									) : (
 										<Button
 											variant="secondary"
 											size="sm"
-											className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80 shrink-0"
-											onClick={() => onManage(connector)}
+											className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-red-50 hover:text-red-700 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-red-950 dark:hover:text-red-400 shrink-0"
+											onClick={() => setConfirmDisconnectId(connector.id)}
 										>
-											Manage
+											<Trash2 className="size-3.5" />
+											Disconnect
 										</Button>
-									)}
+									)
+								) : (
+									<Button
+										variant="secondary"
+										size="sm"
+										className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80 shrink-0"
+										onClick={() => onManage(connector)}
+									>
+										Manage
+									</Button>
+								)}
 								</div>
 							);
 						})}
