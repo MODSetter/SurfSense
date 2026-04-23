@@ -42,6 +42,8 @@ export interface PlateEditorProps {
 	hasUnsavedChanges?: boolean;
 	/** Whether a save is in progress */
 	isSaving?: boolean;
+	/** Whether edit/view mode toggle UI should be available in toolbars. */
+	allowModeToggle?: boolean;
 	/** Start the editor in editing mode instead of viewing mode. Ignored when readOnly is true. */
 	defaultEditing?: boolean;
 	/**
@@ -91,6 +93,7 @@ export function PlateEditor({
 	onSave,
 	hasUnsavedChanges = false,
 	isSaving = false,
+	allowModeToggle = true,
 	defaultEditing = false,
 	preset = "full",
 	extraPlugins = [],
@@ -174,7 +177,7 @@ export function PlateEditor({
 	}, [html, markdown, editor]);
 
 	// When not forced read-only, the user can toggle between editing/viewing.
-	const canToggleMode = !readOnly;
+	const canToggleMode = !readOnly && allowModeToggle;
 
 	const contextProviderValue = useMemo(
 		() => ({

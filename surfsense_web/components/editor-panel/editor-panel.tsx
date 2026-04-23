@@ -88,7 +88,7 @@ export function EditorPanelContent({
 	const [error, setError] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
 	const [downloading, setDownloading] = useState(false);
-	const [isSourceEditing, setIsSourceEditing] = useState(false);
+	const [isEditing, setIsEditing] = useState(false);
 
 	const [editedMarkdown, setEditedMarkdown] = useState<string | null>(null);
 	const [localFileContent, setLocalFileContent] = useState("");
@@ -111,7 +111,7 @@ export function EditorPanelContent({
 		setEditedMarkdown(null);
 		setLocalFileContent("");
 		setHasCopied(false);
-		setIsSourceEditing(false);
+		setIsEditing(false);
 		initialLoadDone.current = false;
 		changeCountRef.current = 0;
 
@@ -295,9 +295,17 @@ export function EditorPanelContent({
 		: false;
 	const hasUnsavedChanges = editedMarkdown !== null;
 	const showDesktopHeader = !!onClose;
-	const isSourceCodeMode = editorRenderMode === "source_code";
-	const showEditingActions = isSourceCodeMode && isSourceEditing;
+	const showEditingActions = isEditableType && isEditing;
 	const localFileLanguage = inferMonacoLanguageFromPath(localFilePath);
+
+	const handleCancelEditing = useCallback(() => {
+		const savedContent = editorDoc?.source_markdown ?? "";
+		markdownRef.current = savedContent;
+		setLocalFileContent(savedContent);
+		setEditedMarkdown(null);
+		changeCountRef.current = 0;
+		setIsEditing(false);
+	}, [editorDoc?.source_markdown]);
 
 	return (
 		<>
@@ -323,13 +331,7 @@ export function EditorPanelContent({
 										variant="ghost"
 										size="sm"
 										className="h-6 px-2 text-xs"
-										onClick={() => {
-											const savedContent = editorDoc?.source_markdown ?? "";
-											markdownRef.current = savedContent;
-											setLocalFileContent(savedContent);
-											setEditedMarkdown(null);
-											setIsSourceEditing(false);
-										}}
+										onClick={handleCancelEditing}
 										disabled={saving}
 									>
 										Cancel
@@ -340,7 +342,7 @@ export function EditorPanelContent({
 										className="relative h-6 w-[56px] px-0 text-xs"
 										onClick={async () => {
 											const saveSucceeded = await handleSave({ silent: true });
-											if (saveSucceeded) setIsSourceEditing(false);
+											if (saveSucceeded) setIsEditing(false);
 										}}
 										disabled={saving || !hasUnsavedChanges}
 									>
@@ -364,15 +366,19 @@ export function EditorPanelContent({
 											{hasCopied ? "Copied file contents" : "Copy file contents"}
 										</span>
 									</Button>
-									{isSourceCodeMode && (
+									{isEditableType && (
 										<Button
 											variant="ghost"
 											size="icon"
 											className="size-6"
-											onClick={() => setIsSourceEditing(true)}
+											onClick={() => {
+												changeCountRef.current = 0;
+												setEditedMarkdown(null);
+												setIsEditing(true);
+											}}
 										>
 											<Pencil className="size-3.5" />
-											<span className="sr-only">Edit file</span>
+											<span className="sr-only">Edit document</span>
 										</Button>
 									)}
 								</>
@@ -389,11 +395,69 @@ export function EditorPanelContent({
 						<h2 className="text-sm font-semibold truncate">{displayTitle}</h2>
 					</div>
 					<div className="flex items-center gap-1 shrink-0">
-						{!isLocalFileMode && editorDoc?.document_type && documentId && (
-							<VersionHistoryButton
-								documentId={documentId}
-								documentType={editorDoc.document_type}
-							/>
+						{showEditingActions ? (
+							<>
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-6 px-2 text-xs"
+									onClick={handleCancelEditing}
+									disabled={saving}
+								>
+									Cancel
+								</Button>
+								<Button
+									variant="secondary"
+									size="sm"
+									className="relative h-6 w-[56px] px-0 text-xs"
+									onClick={async () => {
+										const saveSucceeded = await handleSave({ silent: true });
+										if (saveSucceeded) setIsEditing(false);
+									}}
+									disabled={saving || !hasUnsavedChanges}
+								>
+									<span className={saving ? "invisible" : ""}>Save</span>
+									{saving && <Loader2 className="absolute size-3 animate-spin" />}
+								</Button>
+							</>
+						) : (
+							<>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="size-6"
+									onClick={() => {
+										void handleCopy();
+									}}
+									disabled={isLoading || !editorDoc}
+								>
+									{hasCopied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+									<span className="sr-only">
+										{hasCopied ? "Copied file contents" : "Copy file contents"}
+									</span>
+								</Button>
+								{isEditableType && (
+									<Button
+										variant="ghost"
+										size="icon"
+										className="size-6"
+										onClick={() => {
+											changeCountRef.current = 0;
+											setEditedMarkdown(null);
+											setIsEditing(true);
+										}}
+									>
+										<Pencil className="size-3.5" />
+										<span className="sr-only">Edit document</span>
+									</Button>
+								)}
+								{!isLocalFileMode && editorDoc?.document_type && documentId && (
+									<VersionHistoryButton
+										documentId={documentId}
+										documentType={editorDoc.document_type}
+									/>
+								)}
+							</>
 						)}
 					</div>
 				</div>
@@ -489,7 +553,7 @@ export function EditorPanelContent({
 							onSave={() => {
 								void handleSave({ silent: true });
 							}}
-							readOnly={!isSourceEditing}
+							readOnly={!isEditing}
 							onChange={(next) => {
 								markdownRef.current = next;
 								setLocalFileContent(next);
@@ -500,19 +564,15 @@ export function EditorPanelContent({
 					</div>
 				) : isEditableType ? (
 					<PlateEditor
-						key={isLocalFileMode ? localFilePath ?? "local-file" : documentId}
+						key={`${isLocalFileMode ? localFilePath ?? "local-file" : documentId}-${isEditing ? "editing" : "viewing"}`}
 						preset="full"
 						markdown={editorDoc.source_markdown}
 						onMarkdownChange={handleMarkdownChange}
-						readOnly={false}
+						readOnly={!isEditing}
 						placeholder="Start writing..."
 						editorVariant="default"
-						onSave={() => {
-							void handleSave();
-						}}
-						hasUnsavedChanges={editedMarkdown !== null}
-						isSaving={saving}
-						defaultEditing={true}
+						allowModeToggle={false}
+						defaultEditing={isEditing}
 						className="[&_[role=toolbar]]:!bg-sidebar"
 					/>
 				) : (
@@ -561,6 +621,8 @@ function MobileEditorDrawer() {
 	const panelState = useAtomValue(editorPanelAtom);
 	const closePanel = useSetAtom(closeEditorPanelAtom);
 
+	if (panelState.kind === "local_file") return null;
+
 	const hasTarget =
 		panelState.kind === "document"
 			? !!panelState.documentId && !!panelState.searchSpaceId
@@ -604,6 +666,7 @@ export function EditorPanel() {
 			: !!panelState.localFilePath;
 
 	if (!panelState.isOpen || !hasTarget) return null;
+	if (!isDesktop && panelState.kind === "local_file") return null;
 
 	if (isDesktop) {
 		return <DesktopEditorPanel />;
@@ -620,7 +683,7 @@ export function MobileEditorPanel() {
 			? !!panelState.documentId && !!panelState.searchSpaceId
 			: !!panelState.localFilePath;
 
-	if (isDesktop || !panelState.isOpen || !hasTarget) return null;
+	if (isDesktop || !panelState.isOpen || !hasTarget || panelState.kind === "local_file") return null;
 
 	return <MobileEditorDrawer />;
 }
