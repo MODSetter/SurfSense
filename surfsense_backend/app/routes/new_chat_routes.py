@@ -22,6 +22,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
+from app.agents.new_chat.filesystem_selection import (
+    ClientPlatform,
+    FilesystemMode,
+    FilesystemSelection,
+)
+from app.config import config
 from app.db import (
     ChatComment,
     ChatVisibility,
@@ -61,6 +67,51 @@ _logger = logging.getLogger(__name__)
 _background_tasks: set[asyncio.Task] = set()
 
 router = APIRouter()
+
+
+def _resolve_filesystem_selection(
+    *,
+    mode: str,
+    client_platform: str,
+    local_root: str | None,
+) -> FilesystemSelection:
+    """Validate and normalize filesystem mode settings from request payload."""
+    try:
+        resolved_mode = FilesystemMode(mode)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid filesystem_mode") from exc
+    try:
+        resolved_platform = ClientPlatform(client_platform)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid client_platform") from exc
+
+    if resolved_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER:
+        if not config.ENABLE_DESKTOP_LOCAL_FILESYSTEM:
+            raise HTTPException(
+                status_code=400,
+                detail="Desktop local filesystem mode is disabled on this deployment.",
+            )
+        if resolved_platform != ClientPlatform.DESKTOP:
+            raise HTTPException(
+                status_code=400,
+                detail="desktop_local_folder mode is only available on desktop runtime.",
+            )
+        if not local_root or not local_root.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="local_filesystem_root is required for desktop_local_folder mode.",
+            )
+        return FilesystemSelection(
+            mode=resolved_mode,
+            client_platform=resolved_platform,
+            local_root_path=local_root.strip(),
+        )
+
+    return FilesystemSelection(
+        mode=FilesystemMode.CLOUD,
+        client_platform=resolved_platform,
+        local_root_path=None,
+    )
 
 
 def _try_delete_sandbox(thread_id: int) -> None:
@@ -474,6 +525,11 @@ async def get_thread_messages(
 
         # Check thread-level access based on visibility
         await check_thread_access(session, thread, user)
+        filesystem_selection = _resolve_filesystem_selection(
+            mode=request.filesystem_mode,
+            client_platform=request.client_platform,
+            local_root=request.local_filesystem_root,
+        )
 
         # Get messages with their authors and token usage loaded
         messages_result = await session.execute(
@@ -1098,6 +1154,7 @@ async def list_agent_tools(
 @router.post("/new_chat")
 async def handle_new_chat(
     request: NewChatRequest,
+    http_request: Request,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
@@ -1133,6 +1190,11 @@ async def handle_new_chat(
 
         # Check thread-level access based on visibility
         await check_thread_access(session, thread, user)
+        filesystem_selection = _resolve_filesystem_selection(
+            mode=request.filesystem_mode,
+            client_platform=request.client_platform,
+            local_root=request.local_filesystem_root,
+        )
 
         # Get search space to check LLM config preferences
         search_space_result = await session.execute(
@@ -1175,6 +1237,8 @@ async def handle_new_chat(
                 thread_visibility=thread.visibility,
                 current_user_display_name=user.display_name or "A team member",
                 disabled_tools=request.disabled_tools,
+                filesystem_selection=filesystem_selection,
+                request_id=getattr(http_request.state, "request_id", "unknown"),
             ),
             media_type="text/event-stream",
             headers={
@@ -1202,6 +1266,7 @@ async def handle_new_chat(
 async def regenerate_response(
     thread_id: int,
     request: RegenerateRequest,
+    http_request: Request,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
@@ -1247,6 +1312,11 @@ async def regenerate_response(
 
         # Check thread-level access based on visibility
         await check_thread_access(session, thread, user)
+        filesystem_selection = _resolve_filesystem_selection(
+            mode=request.filesystem_mode,
+            client_platform=request.client_platform,
+            local_root=request.local_filesystem_root,
+        )
 
         # Get the checkpointer and state history
         checkpointer = await get_checkpointer()
@@ -1412,6 +1482,8 @@ async def regenerate_response(
                     thread_visibility=thread.visibility,
                     current_user_display_name=user.display_name or "A team member",
                     disabled_tools=request.disabled_tools,
+                    filesystem_selection=filesystem_selection,
+                    request_id=getattr(http_request.state, "request_id", "unknown"),
                 ):
                     yield chunk
                 streaming_completed = True
@@ -1477,6 +1549,7 @@ async def regenerate_response(
 async def resume_chat(
     thread_id: int,
     request: ResumeRequest,
+    http_request: Request,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
@@ -1498,6 +1571,11 @@ async def resume_chat(
         )
 
         await check_thread_access(session, thread, user)
+        filesystem_selection = _resolve_filesystem_selection(
+            mode=request.filesystem_mode,
+            client_platform=request.client_platform,
+            local_root=request.local_filesystem_root,
+        )
 
         search_space_result = await session.execute(
             select(SearchSpace).filter(SearchSpace.id == request.search_space_id)
@@ -1526,6 +1604,8 @@ async def resume_chat(
                 user_id=str(user.id),
                 llm_config_id=llm_config_id,
                 thread_visibility=thread.visibility,
+                filesystem_selection=filesystem_selection,
+                request_id=getattr(http_request.state, "request_id", "unknown"),
             ),
             media_type="text/event-stream",
             headers={
