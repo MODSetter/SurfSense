@@ -1,7 +1,17 @@
 "use client";
 
 import { useAtomValue, useSetAtom } from "jotai";
-import { Download, FileQuestionMark, FileText, Loader2, RefreshCw, XIcon } from "lucide-react";
+import {
+	Check,
+	Copy,
+	Download,
+	FileQuestionMark,
+	FileText,
+	Loader2,
+	Pencil,
+	RefreshCw,
+	XIcon,
+} from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -78,10 +88,13 @@ export function EditorPanelContent({
 	const [error, setError] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
 	const [downloading, setDownloading] = useState(false);
+	const [isSourceEditing, setIsSourceEditing] = useState(false);
 
 	const [editedMarkdown, setEditedMarkdown] = useState<string | null>(null);
 	const [localFileContent, setLocalFileContent] = useState("");
+	const [hasCopied, setHasCopied] = useState(false);
 	const markdownRef = useRef<string>("");
+	const copyResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const initialLoadDone = useRef(false);
 	const changeCountRef = useRef(0);
 	const [displayTitle, setDisplayTitle] = useState(title || "Untitled");
@@ -97,6 +110,8 @@ export function EditorPanelContent({
 		setEditorDoc(null);
 		setEditedMarkdown(null);
 		setLocalFileContent("");
+		setHasCopied(false);
+		setIsSourceEditing(false);
 		initialLoadDone.current = false;
 		changeCountRef.current = 0;
 
@@ -179,6 +194,14 @@ export function EditorPanelContent({
 		return () => controller.abort();
 	}, [documentId, electronAPI, isLocalFileMode, localFilePath, searchSpaceId, title]);
 
+	useEffect(() => {
+		return () => {
+			if (copyResetTimeoutRef.current) {
+				clearTimeout(copyResetTimeoutRef.current);
+			}
+		};
+	}, []);
+
 	const handleMarkdownChange = useCallback((md: string) => {
 		markdownRef.current = md;
 		if (!initialLoadDone.current) return;
@@ -186,6 +209,22 @@ export function EditorPanelContent({
 		if (changeCountRef.current <= 1) return;
 		setEditedMarkdown(md);
 	}, []);
+
+	const handleCopy = useCallback(async () => {
+		try {
+			const textToCopy = markdownRef.current ?? editorDoc?.source_markdown ?? "";
+			await navigator.clipboard.writeText(textToCopy);
+			setHasCopied(true);
+			if (copyResetTimeoutRef.current) {
+				clearTimeout(copyResetTimeoutRef.current);
+			}
+			copyResetTimeoutRef.current = setTimeout(() => {
+				setHasCopied(false);
+			}, 1400);
+		} catch (err) {
+			console.error("Error copying content:", err);
+		}
+	}, [editorDoc?.source_markdown]);
 
 	const handleSave = useCallback(async (options?: { silent?: boolean }) => {
 		setSaving(true);
@@ -209,7 +248,7 @@ export function EditorPanelContent({
 					prev ? { ...prev, source_markdown: contentToSave } : prev
 				);
 				setEditedMarkdown(markdownRef.current === contentToSave ? null : markdownRef.current);
-				return;
+				return true;
 			}
 			if (!searchSpaceId || !documentId) {
 				throw new Error("Missing document context");
@@ -239,9 +278,11 @@ export function EditorPanelContent({
 			setEditorDoc((prev) => (prev ? { ...prev, source_markdown: markdownRef.current } : prev));
 			setEditedMarkdown(null);
 			toast.success("Document saved! Reindexing in background...");
+			return true;
 		} catch (err) {
 			console.error("Error saving document:", err);
 			toast.error(err instanceof Error ? err.message : "Failed to save document");
+			return false;
 		} finally {
 			setSaving(false);
 		}
@@ -252,26 +293,111 @@ export function EditorPanelContent({
 				EDITABLE_DOCUMENT_TYPES.has(editorDoc.document_type ?? "")) &&
 			!isLargeDocument
 		: false;
+	const hasUnsavedChanges = editedMarkdown !== null;
+	const showDesktopHeader = !!onClose;
+	const isSourceCodeMode = editorRenderMode === "source_code";
+	const showEditingActions = isSourceCodeMode && isSourceEditing;
 	const localFileLanguage = inferMonacoLanguageFromPath(localFilePath);
 
 	return (
 		<>
-			<div className="flex h-14 items-center justify-between px-4 shrink-0 border-b">
-				<div className="flex-1 min-w-0">
-					<h2 className="text-sm font-semibold truncate">{displayTitle}</h2>
+			{showDesktopHeader ? (
+				<div className="shrink-0 border-b">
+					<div className="flex h-12 items-center justify-between px-4">
+						<h2 className="text-lg font-medium text-muted-foreground">File</h2>
+						<div className="flex items-center gap-1 shrink-0">
+							<Button variant="ghost" size="icon" onClick={onClose} className="size-7 shrink-0">
+								<XIcon className="size-4" />
+								<span className="sr-only">Close editor panel</span>
+							</Button>
+						</div>
+					</div>
+					<div className="flex h-10 items-center justify-between gap-2 border-t px-4">
+						<div className="min-w-0 flex-1">
+							<p className="truncate text-sm text-muted-foreground">{displayTitle}</p>
+						</div>
+						<div className="flex items-center gap-1 shrink-0">
+							{showEditingActions ? (
+								<>
+									<Button
+										variant="ghost"
+										size="sm"
+										className="h-6 px-2 text-xs"
+										onClick={() => {
+											const savedContent = editorDoc?.source_markdown ?? "";
+											markdownRef.current = savedContent;
+											setLocalFileContent(savedContent);
+											setEditedMarkdown(null);
+											setIsSourceEditing(false);
+										}}
+										disabled={saving}
+									>
+										Cancel
+									</Button>
+									<Button
+										variant="secondary"
+										size="sm"
+										className="relative h-6 w-[56px] px-0 text-xs"
+										onClick={async () => {
+											const saveSucceeded = await handleSave({ silent: true });
+											if (saveSucceeded) setIsSourceEditing(false);
+										}}
+										disabled={saving || !hasUnsavedChanges}
+									>
+										<span className={saving ? "invisible" : ""}>Save</span>
+										{saving && <Loader2 className="absolute size-3 animate-spin" />}
+									</Button>
+								</>
+							) : (
+								<>
+									<Button
+										variant="ghost"
+										size="icon"
+										className="size-6"
+										onClick={() => {
+											void handleCopy();
+										}}
+										disabled={isLoading || !editorDoc}
+									>
+										{hasCopied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+										<span className="sr-only">
+											{hasCopied ? "Copied file contents" : "Copy file contents"}
+										</span>
+									</Button>
+									{isSourceCodeMode && (
+										<Button
+											variant="ghost"
+											size="icon"
+											className="size-6"
+											onClick={() => setIsSourceEditing(true)}
+										>
+											<Pencil className="size-3.5" />
+											<span className="sr-only">Edit file</span>
+										</Button>
+									)}
+								</>
+							)}
+							{!showEditingActions && !isLocalFileMode && editorDoc?.document_type && documentId && (
+								<VersionHistoryButton documentId={documentId} documentType={editorDoc.document_type} />
+							)}
+						</div>
+					</div>
 				</div>
-				<div className="flex items-center gap-1 shrink-0">
-					{!isLocalFileMode && editorDoc?.document_type && documentId && (
-						<VersionHistoryButton documentId={documentId} documentType={editorDoc.document_type} />
-					)}
-					{onClose && (
-						<Button variant="ghost" size="icon" onClick={onClose} className="size-7 shrink-0">
-							<XIcon className="size-4" />
-							<span className="sr-only">Close editor panel</span>
-						</Button>
-					)}
+			) : (
+				<div className="flex h-14 items-center justify-between border-b px-4 shrink-0">
+					<div className="flex-1 min-w-0">
+						<h2 className="text-sm font-semibold truncate">{displayTitle}</h2>
+					</div>
+					<div className="flex items-center gap-1 shrink-0">
+						{!isLocalFileMode && editorDoc?.document_type && documentId && (
+							<VersionHistoryButton
+								documentId={documentId}
+								documentType={editorDoc.document_type}
+							/>
+						)}
+					</div>
 				</div>
-			</div>
+			)}
 
 			<div className="flex-1 overflow-hidden">
 				{isLoading ? (
@@ -360,8 +486,10 @@ export function EditorPanelContent({
 							path={localFilePath ?? "local-file.txt"}
 							language={localFileLanguage}
 							value={localFileContent}
-							onSave={() => handleSave({ silent: true })}
-							saveMode="auto"
+							onSave={() => {
+								void handleSave({ silent: true });
+							}}
+							readOnly={!isSourceEditing}
 							onChange={(next) => {
 								markdownRef.current = next;
 								setLocalFileContent(next);
@@ -379,7 +507,9 @@ export function EditorPanelContent({
 						readOnly={false}
 						placeholder="Start writing..."
 						editorVariant="default"
-						onSave={handleSave}
+						onSave={() => {
+							void handleSave();
+						}}
 						hasUnsavedChanges={editedMarkdown !== null}
 						isSaving={saving}
 						defaultEditing={true}

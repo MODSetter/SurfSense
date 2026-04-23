@@ -17,8 +17,6 @@ interface SourceCodeEditorProps {
 	readOnly?: boolean;
 	fontSize?: number;
 	onSave?: () => Promise<void> | void;
-	saveMode?: "manual" | "auto" | "both";
-	autoSaveDelayMs?: number;
 }
 
 export function SourceCodeEditor({
@@ -29,64 +27,78 @@ export function SourceCodeEditor({
 	readOnly = false,
 	fontSize = 12,
 	onSave,
-	saveMode = "manual",
-	autoSaveDelayMs = 800,
 }: SourceCodeEditorProps) {
 	const { resolvedTheme } = useTheme();
-	const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const onSaveRef = useRef(onSave);
-	const skipNextAutoSaveRef = useRef(true);
+	const monacoRef = useRef<any>(null);
 
 	useEffect(() => {
 		onSaveRef.current = onSave;
 	}, [onSave]);
 
-	useEffect(() => {
-		skipNextAutoSaveRef.current = true;
-	}, [path]);
+	const resolveCssColorToHex = (cssColorValue: string): string | null => {
+		if (typeof document === "undefined") return null;
+		const probe = document.createElement("div");
+		probe.style.color = cssColorValue;
+		probe.style.position = "absolute";
+		probe.style.pointerEvents = "none";
+		probe.style.opacity = "0";
+		document.body.appendChild(probe);
+		const computedColor = getComputedStyle(probe).color;
+		probe.remove();
+		const match = computedColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+		if (!match) return null;
+		const toHex = (value: string) => Number(value).toString(16).padStart(2, "0");
+		return `#${toHex(match[1])}${toHex(match[2])}${toHex(match[3])}`;
+	};
+
+	const applySidebarTheme = (monaco: any) => {
+		const isDark = resolvedTheme === "dark";
+		const themeName = isDark ? "surfsense-dark" : "surfsense-light";
+		const fallbackBg = isDark ? "#1e1e1e" : "#ffffff";
+		const sidebarBgHex = resolveCssColorToHex("var(--sidebar)") ?? fallbackBg;
+		monaco.editor.defineTheme(themeName, {
+			base: isDark ? "vs-dark" : "vs",
+			inherit: true,
+			rules: [],
+			colors: {
+				"editor.background": sidebarBgHex,
+				"editorGutter.background": sidebarBgHex,
+				"minimap.background": sidebarBgHex,
+				"editorLineNumber.background": sidebarBgHex,
+				"editor.lineHighlightBackground": "#00000000",
+			},
+		});
+		monaco.editor.setTheme(themeName);
+	};
 
 	useEffect(() => {
-		if (readOnly || !onSaveRef.current) return;
-		if (saveMode !== "auto" && saveMode !== "both") return;
+		if (!monacoRef.current) return;
+		applySidebarTheme(monacoRef.current);
+	}, [resolvedTheme]);
 
-		if (skipNextAutoSaveRef.current) {
-			skipNextAutoSaveRef.current = false;
-			return;
-		}
-
-		if (saveTimerRef.current) {
-			clearTimeout(saveTimerRef.current);
-		}
-
-		saveTimerRef.current = setTimeout(() => {
-			void onSaveRef.current?.();
-			saveTimerRef.current = null;
-		}, autoSaveDelayMs);
-
-		return () => {
-			if (saveTimerRef.current) {
-				clearTimeout(saveTimerRef.current);
-				saveTimerRef.current = null;
-			}
-		};
-	}, [autoSaveDelayMs, readOnly, saveMode, value]);
-
-	const isManualSaveEnabled = !!onSave && !readOnly && (saveMode === "manual" || saveMode === "both");
+	const isManualSaveEnabled = !!onSave && !readOnly;
 
 	return (
-		<div className="h-full w-full overflow-hidden bg-sidebar [&_.monaco-scrollable-element_.scrollbar_.slider]:rounded-full [&_.monaco-scrollable-element_.scrollbar_.slider]:bg-foreground/25 [&_.monaco-scrollable-element_.scrollbar_.slider:hover]:bg-foreground/40">
+		<div className="h-full w-full overflow-hidden bg-sidebar [&_.monaco-editor]:!bg-sidebar [&_.monaco-editor_.margin]:!bg-sidebar [&_.monaco-editor_.monaco-editor-background]:!bg-sidebar [&_.monaco-editor-background]:!bg-sidebar [&_.monaco-scrollable-element_.scrollbar_.slider]:rounded-full [&_.monaco-scrollable-element_.scrollbar_.slider]:bg-foreground/25 [&_.monaco-scrollable-element_.scrollbar_.slider:hover]:bg-foreground/40">
 			<MonacoEditor
 				path={path}
 				language={language}
 				value={value}
-				theme={resolvedTheme === "dark" ? "vs-dark" : "vs"}
+				theme={resolvedTheme === "dark" ? "surfsense-dark" : "surfsense-light"}
 				onChange={(next) => onChange(next ?? "")}
 				loading={
 					<div className="flex h-full w-full items-center justify-center">
 						<Spinner size="sm" className="text-muted-foreground" />
 					</div>
 				}
+				beforeMount={(monaco) => {
+					monacoRef.current = monaco;
+					applySidebarTheme(monaco);
+				}}
 				onMount={(editor, monaco) => {
+					monacoRef.current = monaco;
+					applySidebarTheme(monaco);
 					if (!isManualSaveEnabled) return;
 					editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
 						void onSaveRef.current?.();

@@ -94,7 +94,7 @@ export function RightPanelExpandButton() {
 						<span className="sr-only">Expand panel</span>
 					</Button>
 				</TooltipTrigger>
-				<TooltipContent side="left">Expand panel</TooltipContent>
+				<TooltipContent side="bottom">Expand panel</TooltipContent>
 			</Tooltip>
 		</div>
 	);
