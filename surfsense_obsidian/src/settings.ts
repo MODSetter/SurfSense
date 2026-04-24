@@ -75,6 +75,7 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 						}
 						this.plugin.settings.apiToken = next;
 						await this.plugin.saveSettings();
+						this.plugin.api.resetAuthBlock();
 					});
 			})
 			.addButton((btn) =>
@@ -299,7 +300,7 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 		const kind = this.plugin.lastStatus.kind;
 
 		if (kind === "auth-error") {
-			return { icon: "lock", label: "Token invalid or expired", tone: "err" };
+			return { icon: "lock", label: "API token invalid or expired", tone: "err" };
 		}
 		if (kind === "error") {
 			return { icon: "alert-circle", label: "Connection error", tone: "err" };
@@ -381,10 +382,7 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 	}
 
 	private handleApiError(err: unknown): void {
-		if (err instanceof AuthError) {
-			new Notice(`SurfSense: ${err.message}`);
-			return;
-		}
+		if (err instanceof AuthError) return;
 		new Notice(
 			`SurfSense: request failed — ${(err as Error).message ?? "unknown error"}`,
 		);

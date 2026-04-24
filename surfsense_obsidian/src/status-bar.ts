@@ -15,11 +15,11 @@ interface StatusVisual {
 }
 
 const VISUALS: Record<StatusKind, StatusVisual> = {
-	idle: { icon: "check-circle", label: "Synced", cls: "surfsense-status--ok" },
-	syncing: { icon: "refresh-ccw", label: "Syncing", cls: "surfsense-status--syncing" },
-	queued: { icon: "upload", label: "Queued", cls: "surfsense-status--syncing" },
-	offline: { icon: "wifi-off", label: "Offline", cls: "surfsense-status--warn" },
-	"auth-error": { icon: "lock", label: "Auth error", cls: "surfsense-status--err" },
+	idle: { icon: "check-circle", label: "Synced", cls: "" },
+	syncing: { icon: "refresh-ccw", label: "Syncing", cls: "" },
+	queued: { icon: "clock", label: "Queued", cls: "" },
+	offline: { icon: "wifi-off", label: "Offline", cls: "" },
+	"auth-error": { icon: "user-x", label: "Auth error", cls: "surfsense-status--err" },
 	error: { icon: "alert-circle", label: "Error", cls: "surfsense-status--err" },
 };
 
@@ -42,13 +42,8 @@ export class StatusBar {
 
 	update(state: StatusState): void {
 		const visual = VISUALS[state.kind];
-		this.el.removeClass(
-			"surfsense-status--ok",
-			"surfsense-status--syncing",
-			"surfsense-status--warn",
-			"surfsense-status--err",
-		);
-		this.el.addClass(visual.cls);
+		this.el.removeClass("surfsense-status--err");
+		if (visual.cls) this.el.addClass(visual.cls);
 		setIcon(this.icon, visual.icon);
 
 		let label = `SurfSense: ${visual.label}`;

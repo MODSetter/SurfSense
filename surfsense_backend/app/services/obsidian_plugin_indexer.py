@@ -159,7 +159,7 @@ async def _extract_binary_attachment_markdown(
         logger.warning("obsidian attachment payload had invalid base64: %s", payload.path)
         return "", {"attachment_extraction_status": "invalid_binary_payload"}
 
-    suffix = f".{payload.extension.lstrip('.')}" if payload.extension else ""
+    suffix = f".{payload.extension.lstrip('.')}"
     temp_path: str | None = None
     filename = payload.path.rsplit("/", 1)[-1] or payload.name
     try:

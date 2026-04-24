@@ -120,11 +120,11 @@ export class SyncEngine {
 	 * (Re)register the vault. Adopts server's `vault_id` in case fingerprint
 	 * dedup routed us to an existing row from another device.
 	 */
-	async ensureConnected(): Promise<void> {
+	async ensureConnected(): Promise<boolean> {
 		const settings = this.deps.getSettings();
 		if (!settings.searchSpaceId) {
 			this.setStatus("idle", "Pick a search space in settings.");
-			return;
+			return false;
 		}
 		this.setStatus("syncing", "Connecting to SurfSense");
 		try {
@@ -141,8 +141,10 @@ export class SyncEngine {
 				s.connectorId = resp.connector_id;
 			});
 			this.setStatus(this.queueStatusKind(), this.statusDetail());
+			return true;
 		} catch (err) {
 			this.handleStartupError(err);
+			return false;
 		}
 	}
 
@@ -238,7 +240,8 @@ export class SyncEngine {
 		if (this.deps.queue.size === 0) return;
 		// Shared gate for every flush trigger so the first /sync can't race /connect.
 		if (!this.deps.getSettings().connectorId) {
-			await this.ensureConnected();
+			const connected = await this.ensureConnected();
+			if (!connected) return;
 			if (!this.deps.getSettings().connectorId) return;
 		}
 		this.setStatus("syncing", `Syncing ${this.deps.queue.size} item(s)…`);
@@ -409,7 +412,8 @@ export class SyncEngine {
 		// Re-handshake first: if the vault grew enough to match another
 		// device's fingerprint, the server merges and routes us to the
 		// survivor row, which the /manifest call below then uses.
-		await this.ensureConnected();
+		const connected = await this.ensureConnected();
+		if (!connected) return;
 		const refreshed = this.deps.getSettings();
 		if (!refreshed.connectorId) return;
 
@@ -552,7 +556,8 @@ export class SyncEngine {
 	}
 
 	private classifyAndStatus(err: unknown, prefix: string): void {
-		this.classify(err);
+		const verdict = this.classify(err);
+		if (verdict === "stop") return;
 		this.setStatus(this.queueStatusKind(), `${prefix}: ${(err as Error).message}`);
 	}
 

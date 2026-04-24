@@ -22,18 +22,6 @@
 	height: 14px;
 }
 
-.surfsense-status--ok .surfsense-status__icon {
-	color: var(--color-green);
-}
-
-.surfsense-status--syncing .surfsense-status__icon {
-	color: var(--color-blue);
-}
-
-.surfsense-status--warn .surfsense-status__icon {
-	color: var(--color-yellow);
-}
-
 .surfsense-status--err .surfsense-status__icon {
 	color: var(--color-red);
 }
@@ -53,18 +41,6 @@
 .surfsense-connection-indicator svg {
 	width: 14px;
 	height: 14px;
-}
-
-.surfsense-connection-indicator--ok {
-	color: var(--color-green);
-}
-
-.surfsense-connection-indicator--syncing {
-	color: var(--color-blue);
-}
-
-.surfsense-connection-indicator--warn {
-	color: var(--color-yellow);
 }
 
 .surfsense-connection-indicator--err {

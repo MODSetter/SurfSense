@@ -1,4 +1,4 @@
-import { Notice, requestUrl, type RequestUrlParam, type RequestUrlResponse } from "obsidian";
+import { requestUrl, type RequestUrlParam, type RequestUrlResponse } from "obsidian";
 import type {
 	ConnectResponse,
 	DeleteAck,
@@ -72,8 +72,11 @@ export interface ApiClientOptions {
 	onAuthError?: () => void;
 }
 
+const AUTH_BLOCK_MS = 60_000;
+
 export class SurfSenseApiClient {
 	private readonly opts: ApiClientOptions;
+	private authBlockedUntil = 0;
 
 	constructor(opts: ApiClientOptions) {
 		this.opts = opts;
@@ -81,6 +84,10 @@ export class SurfSenseApiClient {
 
 	updateOptions(partial: Partial<ApiClientOptions>): void {
 		Object.assign(this.opts, partial);
+	}
+
+	resetAuthBlock(): void {
+		this.authBlockedUntil = 0;
 	}
 
 	async health(): Promise<HealthResponse> {
@@ -198,6 +205,9 @@ export class SurfSenseApiClient {
 		if (!token) {
 			throw new AuthError("Missing API token. Open SurfSense settings to paste one.");
 		}
+		if (Date.now() < this.authBlockedUntil) {
+			throw new AuthError("Token rejected. Paste a fresh one in settings.");
+		}
 		const headers: Record<string, string> = {
 			Authorization: `Bearer ${token}`,
 			Accept: "application/json",
@@ -224,8 +234,8 @@ export class SurfSenseApiClient {
 		const detail = extractDetail(resp);
 
 		if (resp.status === 401) {
+			this.authBlockedUntil = Date.now() + AUTH_BLOCK_MS;
 			this.opts.onAuthError?.();
-			new Notice("Surfsense: token expired or invalid. Paste a fresh token in settings.");
 			throw new AuthError(detail || "Unauthorized");
 		}
 
