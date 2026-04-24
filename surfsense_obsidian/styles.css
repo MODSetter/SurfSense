@@ -46,7 +46,3 @@
 .surfsense-connection-indicator--err {
 	color: var(--color-red);
 }
-
-.surfsense-connection-indicator--muted {
-	color: var(--text-muted);
-}

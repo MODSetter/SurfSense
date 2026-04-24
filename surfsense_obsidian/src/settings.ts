@@ -11,6 +11,7 @@ import { AttachmentsConfirmModal } from "./attachments-confirm-modal";
 import { normalizeFolder, parseExcludePatterns } from "./excludes";
 import { FolderSuggestModal } from "./folder-suggest-modal";
 import type SurfSensePlugin from "./main";
+import { STATUS_VISUALS } from "./status-visuals";
 import type { SearchSpace } from "./types";
 
 /** Plugin settings tab. */
@@ -284,46 +285,13 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 		const indicator = heading.nameEl.createSpan({
 			cls: "surfsense-connection-indicator",
 		});
-		const visual = this.getConnectionVisual();
-		indicator.addClass(`surfsense-connection-indicator--${visual.tone}`);
+		const visual = STATUS_VISUALS[this.plugin.lastStatus.kind];
+		if (visual.isError) {
+			indicator.addClass("surfsense-connection-indicator--err");
+		}
 		setIcon(indicator, visual.icon);
 		indicator.setAttr("aria-label", visual.label);
 		indicator.setAttr("title", visual.label);
-	}
-
-	private getConnectionVisual(): {
-		icon: string;
-		label: string;
-		tone: "ok" | "syncing" | "warn" | "err" | "muted";
-	} {
-		const settings = this.plugin.settings;
-		const kind = this.plugin.lastStatus.kind;
-
-		if (kind === "auth-error") {
-			return { icon: "lock", label: "API token invalid or expired", tone: "err" };
-		}
-		if (kind === "error") {
-			return { icon: "alert-circle", label: "Connection error", tone: "err" };
-		}
-		if (kind === "offline") {
-			return { icon: "wifi-off", label: "Server unreachable", tone: "warn" };
-		}
-
-		if (!settings.apiToken) {
-			return { icon: "circle", label: "Missing API token", tone: "muted" };
-		}
-		if (!settings.searchSpaceId) {
-			return { icon: "circle", label: "Pick a search space", tone: "muted" };
-		}
-		if (!settings.connectorId) {
-			return { icon: "circle", label: "Not connected yet", tone: "muted" };
-		}
-
-		if (kind === "syncing" || kind === "queued") {
-			return { icon: "refresh-ccw", label: "Connected and syncing", tone: "syncing" };
-		}
-
-		return { icon: "check-circle", label: "Connected", tone: "ok" };
 	}
 
 	private async refreshSearchSpaces(): Promise<void> {

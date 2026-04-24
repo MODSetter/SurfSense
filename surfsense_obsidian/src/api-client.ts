@@ -203,7 +203,7 @@ export class SurfSenseApiClient {
 		const baseUrl = this.opts.getServerUrl().replace(/\/+$/, "");
 		const token = this.opts.getToken();
 		if (!token) {
-			throw new AuthError("Missing API token. Open SurfSense settings to paste one.");
+			throw new AuthError("Missing API token. Open plugin settings to paste one.");
 		}
 		if (Date.now() < this.authBlockedUntil) {
 			throw new AuthError("Token rejected. Paste a fresh one in settings.");
