@@ -499,7 +499,6 @@ export default function NewChatPage() {
 			}
 
 			const urlsSnapshot = [...pendingUserImageUrls];
-			setPendingUserImageUrls([]);
 			const { userQuery, userImages } = extractUserTurnForNewChatApi(message, urlsSnapshot);
 
 			if (!userQuery.trim() && userImages.length === 0) return;
@@ -542,6 +541,10 @@ export default function NewChatPage() {
 					toast.error("Failed to start chat. Please try again.");
 					return;
 				}
+			}
+
+			if (urlsSnapshot.length > 0) {
+				setPendingUserImageUrls((prev) => prev.filter((u) => !urlsSnapshot.includes(u)));
 			}
 
 			// Add user message to state
