@@ -226,13 +226,13 @@ export function DocumentsFilters({
 
 				{/* Search Input */}
 				<div className="relative flex-1 min-w-0">
-					<div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
+					<div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
 						<Search size={14} aria-hidden="true" />
 					</div>
 					<Input
 						id={`${id}-input`}
 						ref={inputRef}
-						className="peer h-9 w-full pl-9 pr-9 text-sm bg-sidebar border-border/60 select-none focus:select-text"
+						className="h-9 w-full pl-9 pr-8 text-sm select-none focus:select-text"
 						value={searchValue}
 						onChange={(e) => onSearch(e.target.value)}
 						placeholder="Search docs"
@@ -242,7 +242,7 @@ export function DocumentsFilters({
 					{Boolean(searchValue) && (
 						<button
 							type="button"
-							className="absolute inset-y-0 right-0 flex h-full w-9 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground transition-colors"
+							className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
 							aria-label="Clear filter"
 							onClick={() => {
 								onSearch("");
@@ -260,7 +260,7 @@ export function DocumentsFilters({
 					onClick={handleUpload}
 					variant="outline"
 					size="sm"
-					className="h-9 shrink-0 gap-1.5 bg-white text-gray-700 border-white hover:bg-gray-50 dark:bg-white dark:text-gray-800 dark:hover:bg-gray-100"
+					className="h-9 shrink-0 gap-1.5 border-0 shadow-none bg-white text-gray-700 hover:bg-gray-50 dark:bg-white dark:text-gray-800 dark:hover:bg-gray-100"
 				>
 					<Upload size={14} />
 					<span>Upload</span>
