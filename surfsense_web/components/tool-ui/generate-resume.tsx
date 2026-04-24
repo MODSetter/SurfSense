@@ -2,6 +2,7 @@
 
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { useAtomValue, useSetAtom } from "jotai";
+import { Dot } from "lucide-react";
 import { useParams, usePathname } from "next/navigation";
 import * as pdfjsLib from "pdfjs-dist";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -9,6 +10,7 @@ import { z } from "zod";
 import { openReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { baseApiService } from "@/lib/apis/base-api.service";
 import { getAuthHeaders } from "@/lib/auth-utils";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -30,6 +32,18 @@ const GenerateResumeResultSchema = z.object({
 	content_type: z.string().nullish(),
 	message: z.string().nullish(),
 	error: z.string().nullish(),
+});
+
+const ResumeVersionsResponseSchema = z.object({
+	id: z.number(),
+	versions: z
+		.array(
+			z.object({
+				id: z.number(),
+				created_at: z.string().nullish(),
+			})
+		)
+		.nullish(),
 });
 
 type GenerateResumeArgs = z.infer<typeof GenerateResumeArgsSchema>;
@@ -201,6 +215,7 @@ function ResumeCard({
 	const autoOpenedRef = useRef(false);
 	const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 	const [thumbState, setThumbState] = useState<"loading" | "ready" | "error">("loading");
+	const [versionLabel, setVersionLabel] = useState<string | null>(null);
 
 	useEffect(() => {
 		const previewPath = shareToken
@@ -218,6 +233,35 @@ function ResumeCard({
 			});
 		}
 	}, [reportId, title, shareToken, autoOpen, isDesktop, openPanel]);
+
+	useEffect(() => {
+		let cancelled = false;
+		const fetchVersions = async () => {
+			try {
+				const url = shareToken
+					? `/api/v1/public/${shareToken}/reports/${reportId}/content`
+					: `/api/v1/reports/${reportId}/content`;
+				const rawData = await baseApiService.get<unknown>(url);
+				if (cancelled) return;
+				const parsed = ResumeVersionsResponseSchema.safeParse(rawData);
+				if (parsed.success) {
+					const versions = parsed.data.versions;
+					if (versions && versions.length > 1) {
+						const idx = versions.findIndex((v) => v.id === reportId);
+						if (idx >= 0) {
+							setVersionLabel(`version ${idx + 1}`);
+						}
+					}
+				}
+			} catch {
+				// silently ignore — version label is non-critical
+			}
+		};
+		fetchVersions();
+		return () => {
+			cancelled = true;
+		};
+	}, [reportId, shareToken]);
 
 	const onThumbLoad = useCallback(() => setThumbState("ready"), []);
 	const onThumbError = useCallback(() => setThumbState("error"), []);
@@ -243,8 +287,12 @@ function ResumeCard({
 				className="w-full text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:outline-none cursor-pointer select-none"
 			>
 				<div className="px-5 pt-5 pb-4">
-					<p className="text-base font-semibold text-foreground line-clamp-2">{title}</p>
-					<p className="text-sm text-muted-foreground mt-0.5">PDF</p>
+					<p className="text-sm font-semibold text-foreground line-clamp-2">{title}</p>
+					<p className="text-xs text-muted-foreground mt-0.5">
+						PDF
+						{versionLabel && <Dot className="inline size-4" />}
+						{versionLabel}
+					</p>
 				</div>
 
 				<div className="mx-5 h-px bg-border/50" />

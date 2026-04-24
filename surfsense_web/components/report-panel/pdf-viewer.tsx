@@ -3,7 +3,7 @@
 import { ZoomInIcon, ZoomOutIcon } from "lucide-react";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import * as pdfjsLib from "pdfjs-dist";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { getAuthHeaders } from "@/lib/auth-utils";
@@ -16,6 +16,8 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 interface PdfViewerProps {
 	pdfUrl: string;
 	isPublic?: boolean;
+	/** Extra actions rendered on the right side of the zoom toolbar (e.g. download, version switcher) */
+	toolbarActions?: ReactNode;
 }
 
 interface PageDimensions {
@@ -30,7 +32,7 @@ const PAGE_GAP = 12;
 const SCROLL_DEBOUNCE_MS = 30;
 const BUFFER_PAGES = 1;
 
-export function PdfViewer({ pdfUrl, isPublic = false }: PdfViewerProps) {
+export function PdfViewer({ pdfUrl, isPublic = false, toolbarActions }: PdfViewerProps) {
 	const [numPages, setNumPages] = useState(0);
 	const [scale, setScale] = useState(1);
 	const [loading, setLoading] = useState(true);
@@ -286,29 +288,33 @@ export function PdfViewer({ pdfUrl, isPublic = false }: PdfViewerProps) {
 		<div className="flex flex-col h-full">
 			{numPages > 0 && (
 				<div
-					className={`flex items-center justify-center gap-2 px-4 py-2 border-b shrink-0 select-none ${isPublic ? "bg-main-panel" : "bg-sidebar"}`}
+					className={`flex items-center px-4 py-2 border-b shrink-0 select-none ${isPublic ? "bg-main-panel" : "bg-sidebar"}`}
 				>
-					<Button
-						variant="ghost"
-						size="icon"
-						onClick={zoomOut}
-						disabled={scale <= MIN_ZOOM}
-						className="size-7"
-					>
-						<ZoomOutIcon className="size-4" />
-					</Button>
-					<span className="text-xs text-muted-foreground tabular-nums min-w-[40px] text-center">
-						{Math.round(scale * 100)}%
-					</span>
-					<Button
-						variant="ghost"
-						size="icon"
-						onClick={zoomIn}
-						disabled={scale >= MAX_ZOOM}
-						className="size-7"
-					>
-						<ZoomInIcon className="size-4" />
-					</Button>
+					<div className="flex-1" aria-hidden="true" />
+					<div className="flex items-center justify-center gap-2">
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={zoomOut}
+							disabled={scale <= MIN_ZOOM}
+							className="size-7"
+						>
+							<ZoomOutIcon className="size-4" />
+						</Button>
+						<span className="text-xs text-muted-foreground tabular-nums min-w-[40px] text-center">
+							{Math.round(scale * 100)}%
+						</span>
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={zoomIn}
+							disabled={scale >= MAX_ZOOM}
+							className="size-7"
+						>
+							<ZoomInIcon className="size-4" />
+						</Button>
+					</div>
+					<div className="flex flex-1 items-center justify-end gap-1">{toolbarActions}</div>
 				</div>
 			)}
 

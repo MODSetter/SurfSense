@@ -84,7 +84,7 @@ export function DocumentsFilters({
 							<TooltipTrigger asChild>
 								<ToggleGroupItem
 									value="folder"
-									className="h-9 w-9 shrink-0 border-sidebar-border text-muted-foreground hover:text-foreground hover:border-sidebar-border bg-sidebar"
+									className="h-9 w-9 shrink-0 border bg-muted/50 text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
 									onClick={(e) => {
 										e.preventDefault();
 										onCreateFolder();
@@ -104,11 +104,11 @@ export function DocumentsFilters({
 									value="ai-sort"
 									disabled={aiSortBusy}
 									className={cn(
-										"h-9 w-9 shrink-0 border-sidebar-border bg-sidebar",
+										"h-9 w-9 shrink-0 border bg-muted/50 transition-colors",
 										"disabled:pointer-events-none disabled:opacity-50",
 										aiSortEnabled
-											? "bg-accent text-accent-foreground"
-											: "text-muted-foreground hover:text-foreground hover:border-sidebar-border"
+											? "bg-accent text-accent-foreground hover:bg-accent"
+											: "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
 									)}
 									onClick={(e) => {
 										e.preventDefault();
@@ -142,11 +142,11 @@ export function DocumentsFilters({
 								<PopoverTrigger asChild>
 									<ToggleGroupItem
 										value="filter"
-										className="relative h-9 w-9 shrink-0 border-sidebar-border text-muted-foreground hover:text-foreground hover:border-sidebar-border bg-sidebar overflow-visible"
+										className="relative h-9 w-9 shrink-0 border bg-muted/50 text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground overflow-visible"
 									>
 										<ListFilter size={14} />
 										{activeTypes.length > 0 && (
-											<span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-sidebar-border text-[9px] font-medium text-sidebar-foreground">
+											<span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-neutral-300 text-[9px] font-medium text-neutral-700 dark:bg-neutral-700 dark:text-neutral-200">
 												{activeTypes.length}
 											</span>
 										)}
