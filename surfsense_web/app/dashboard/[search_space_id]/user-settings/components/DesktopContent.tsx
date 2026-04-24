@@ -20,7 +20,6 @@ import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 export function DesktopContent() {
 	const api = useElectronAPI();
 	const [loading, setLoading] = useState(true);
-	const [enabled, setEnabled] = useState(true);
 
 	const [searchSpaces, setSearchSpaces] = useState<SearchSpace[]>([]);
 	const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
@@ -41,14 +40,12 @@ export function DesktopContent() {
 		setAutoLaunchSupported(hasAutoLaunchApi);
 
 		Promise.all([
-			api.getAutocompleteEnabled(),
 			api.getActiveSearchSpace?.() ?? Promise.resolve(null),
 			searchSpacesApiService.getSearchSpaces(),
 			hasAutoLaunchApi ? api.getAutoLaunch() : Promise.resolve(null),
 		])
-			.then(([autoEnabled, spaceId, spaces, autoLaunch]) => {
+			.then(([spaceId, spaces, autoLaunch]) => {
 				if (!mounted) return;
-				setEnabled(autoEnabled);
 				setActiveSpaceId(spaceId);
 				if (spaces) setSearchSpaces(spaces);
 				if (autoLaunch) {
@@ -85,11 +82,6 @@ export function DesktopContent() {
 			</div>
 		);
 	}
-
-	const handleToggle = async (checked: boolean) => {
-		setEnabled(checked);
-		await api.setAutocompleteEnabled(checked);
-	};
 
 	const handleAutoLaunchToggle = async (checked: boolean) => {
 		if (!autoLaunchSupported || !api.setAutoLaunch) {
@@ -133,13 +125,11 @@ export function DesktopContent() {
 
 	return (
 		<div className="space-y-4 md:space-y-6">
-			{/* Default Search Space */}
 			<Card>
 				<CardHeader className="px-3 md:px-6 pt-3 md:pt-6 pb-2 md:pb-3">
 					<CardTitle className="text-base md:text-lg">Default Search Space</CardTitle>
 					<CardDescription className="text-xs md:text-sm">
-						Choose which search space General Assist, Quick Assist, and Extreme Assist operate
-						against.
+						Choose which search space General Assist and Quick Assist use by default.
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="px-3 md:px-6 pb-3 md:pb-6">
@@ -164,7 +154,6 @@ export function DesktopContent() {
 				</CardContent>
 			</Card>
 
-			{/* Launch on Startup */}
 			<Card>
 				<CardHeader className="px-3 md:px-6 pt-3 md:pt-6 pb-2 md:pb-3">
 					<CardTitle className="text-base md:text-lg flex items-center gap-2">
@@ -212,29 +201,6 @@ export function DesktopContent() {
 							onCheckedChange={handleAutoLaunchHiddenToggle}
 							disabled={!autoLaunchSupported || !autoLaunchEnabled}
 						/>
-					</div>
-				</CardContent>
-			</Card>
-
-			{/* Extreme Assist Toggle */}
-			<Card>
-				<CardHeader className="px-3 md:px-6 pt-3 md:pt-6 pb-2 md:pb-3">
-					<CardTitle className="text-base md:text-lg">Extreme Assist</CardTitle>
-					<CardDescription className="text-xs md:text-sm">
-						Get inline writing suggestions powered by your knowledge base as you type in any app.
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="px-3 md:px-6 pb-3 md:pb-6">
-					<div className="flex items-center justify-between rounded-lg border p-4">
-						<div className="space-y-0.5">
-							<Label htmlFor="autocomplete-toggle" className="text-sm font-medium cursor-pointer">
-								Enable Extreme Assist
-							</Label>
-							<p className="text-xs text-muted-foreground">
-								Show suggestions while typing in other applications.
-							</p>
-						</div>
-						<Switch id="autocomplete-toggle" checked={enabled} onCheckedChange={handleToggle} />
 					</div>
 				</CardContent>
 			</Card>

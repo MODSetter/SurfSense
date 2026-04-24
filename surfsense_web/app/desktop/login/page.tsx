@@ -2,7 +2,7 @@
 
 import { IconBrandGoogleFilled } from "@tabler/icons-react";
 import { useAtom } from "jotai";
-import { BrainCog, Eye, EyeOff, Rocket, RotateCcw, Zap } from "lucide-react";
+import { Eye, EyeOff, Rocket, RotateCcw, Zap } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -21,10 +21,15 @@ import { setBearerToken } from "@/lib/auth-utils";
 import { AUTH_TYPE, BACKEND_URL } from "@/lib/env-config";
 
 const isGoogleAuth = AUTH_TYPE === "GOOGLE";
-type ShortcutKey = "generalAssist" | "quickAsk" | "autocomplete";
+type ShortcutKey = "generalAssist" | "quickAsk";
 type ShortcutMap = typeof DEFAULT_SHORTCUTS;
 
-const HOTKEY_ROWS: Array<{ key: ShortcutKey; label: string; description: string; icon: React.ElementType }> = [
+const HOTKEY_ROWS: Array<{
+	key: ShortcutKey;
+	label: string;
+	description: string;
+	icon: React.ElementType;
+}> = [
 	{
 		key: "generalAssist",
 		label: "General Assist",
@@ -36,12 +41,6 @@ const HOTKEY_ROWS: Array<{ key: ShortcutKey; label: string; description: string;
 		label: "Quick Assist",
 		description: "Select text anywhere, then ask AI to explain, rewrite, or act on it",
 		icon: Zap,
-	},
-	{
-		key: "autocomplete",
-		label: "Extreme Assist",
-		description: "AI drafts text using your screen context and knowledge base",
-		icon: BrainCog,
 	},
 ];
 
@@ -182,7 +181,7 @@ export default function DesktopLoginPage() {
 	}, [api]);
 
 	const updateShortcut = useCallback(
-		(key: "generalAssist" | "quickAsk" | "autocomplete", accelerator: string) => {
+		(key: ShortcutKey, accelerator: string) => {
 			setShortcuts((prev) => {
 				const updated = { ...prev, [key]: accelerator };
 				api?.setShortcuts?.({ [key]: accelerator }).catch(() => {
@@ -196,7 +195,7 @@ export default function DesktopLoginPage() {
 	);
 
 	const resetShortcut = useCallback(
-		(key: "generalAssist" | "quickAsk" | "autocomplete") => {
+		(key: ShortcutKey) => {
 			updateShortcut(key, DEFAULT_SHORTCUTS[key]);
 		},
 		[updateShortcut]
@@ -369,7 +368,9 @@ export default function DesktopLoginPage() {
 
 									<Button type="submit" disabled={isLoggingIn} className="relative h-9 mt-1">
 										<span className={isLoggingIn ? "opacity-0" : ""}>Sign in</span>
-										{isLoggingIn && <Spinner size="sm" className="absolute text-primary-foreground" />}
+										{isLoggingIn && (
+											<Spinner size="sm" className="absolute text-primary-foreground" />
+										)}
 									</Button>
 								</form>
 							)}

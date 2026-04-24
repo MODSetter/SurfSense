@@ -36,9 +36,8 @@ export function acceleratorToDisplay(accel: string): string[] {
 }
 
 export const DEFAULT_SHORTCUTS = {
-	generalAssist: "CommandOrControl+Shift+S",
-	quickAsk: "CommandOrControl+Alt+S",
-	autocomplete: "CommandOrControl+Shift+Space",
+	generalAssist: "Alt+Shift+G",
+	quickAsk: "Alt+Shift+Q",
 };
 
 // ---------------------------------------------------------------------------
