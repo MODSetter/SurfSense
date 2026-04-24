@@ -458,6 +458,7 @@ export class SyncEngine {
 			});
 			this.updateIdleStreak(enqueued);
 			await this.flushQueue();
+			this.refreshStatus({ force: true });
 		} catch (err) {
 			this.classifyAndStatus(err, "Reconcile failed");
 		}
