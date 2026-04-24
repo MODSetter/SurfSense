@@ -190,6 +190,7 @@ export type StatusKind =
 	| "idle"
 	| "syncing"
 	| "queued"
+	| "needs-setup"
 	| "offline"
 	| "auth-error"
 	| "error";

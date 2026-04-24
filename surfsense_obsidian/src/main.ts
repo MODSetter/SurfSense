@@ -20,7 +20,7 @@ export default class SurfSensePlugin extends Plugin {
 	queue!: PersistentQueue;
 	engine!: SyncEngine;
 	private statusBar: StatusBar | null = null;
-	lastStatus: StatusState = { kind: "idle", queueDepth: 0 };
+	lastStatus: StatusState = { kind: "needs-setup", queueDepth: 0 };
 	serverCapabilities: string[] = [];
 	private settingTab: SurfSenseSettingTab | null = null;
 	private statusListeners = new Set<() => void>();
@@ -265,6 +265,9 @@ export default class SurfSensePlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+		// Ensures the indicator reacts to settings edits (token paste, search-space pick)
+		// without waiting for the next sync trigger.
+		this.engine?.refreshStatus();
 	}
 
 	/**

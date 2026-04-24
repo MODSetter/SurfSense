@@ -20,6 +20,8 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 	private readonly plugin: SurfSensePlugin;
 	private searchSpaces: SearchSpace[] = [];
 	private loadingSpaces = false;
+	private connectionIndicator: HTMLElement | null = null;
+	private readonly onStatusChange = (): void => this.updateConnectionIndicator();
 
 	constructor(app: App, plugin: SurfSensePlugin) {
 		super(app, plugin);
@@ -29,6 +31,7 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
+		this.plugin.onStatusChange(this.onStatusChange);
 
 		const settings = this.plugin.settings;
 
@@ -279,13 +282,26 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 			);
 	}
 
+	hide(): void {
+		this.plugin.offStatusChange(this.onStatusChange);
+		this.connectionIndicator = null;
+	}
+
 	private renderConnectionHeading(containerEl: HTMLElement): void {
 		const heading = new Setting(containerEl).setName("Connection").setHeading();
 		heading.nameEl.addClass("surfsense-connection-heading");
-		const indicator = heading.nameEl.createSpan({
+		this.connectionIndicator = heading.nameEl.createSpan({
 			cls: "surfsense-connection-indicator",
 		});
+		this.updateConnectionIndicator();
+	}
+
+	private updateConnectionIndicator(): void {
+		const indicator = this.connectionIndicator;
+		if (!indicator) return;
 		const visual = STATUS_VISUALS[this.plugin.lastStatus.kind];
+		indicator.empty();
+		indicator.removeClass("surfsense-connection-indicator--err");
 		if (visual.isError) {
 			indicator.addClass("surfsense-connection-indicator--err");
 		}
