@@ -1,11 +1,6 @@
 import type { StatusKind } from "./types";
 
-/**
- * Single source of truth for status icons + labels. Both the status bar
- * and the settings "Connection" heading render from this table so a change
- * here updates both surfaces.
- */
-
+/** Shared by the status bar and the settings "Connection" heading. */
 export interface StatusVisual {
 	icon: string;
 	label: string;

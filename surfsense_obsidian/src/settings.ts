@@ -91,6 +91,7 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 						try {
 							await this.plugin.api.verifyToken();
 							new Notice("Surfsense: token verified.");
+							this.plugin.engine.refreshStatus({ force: true });
 							await this.refreshSearchSpaces();
 							this.display();
 						} catch (err) {

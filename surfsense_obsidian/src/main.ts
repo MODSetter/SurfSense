@@ -183,6 +183,7 @@ export default class SurfSensePlugin extends Plugin {
 			this.settings.vaultId !== previousVaultId ||
 			this.settings.connectorId !== previousConnectorId;
 		if (!changed) return;
+		this.engine?.refreshStatus();
 		this.notifyStatusChange();
 		if (this.settings.searchSpaceId !== null) {
 			void this.engine.ensureConnected();
@@ -242,6 +243,7 @@ export default class SurfSensePlugin extends Plugin {
 	}
 
 	private notifyAuthError(): void {
+		this.engine?.reportAuthError();
 		const now = Date.now();
 		if (now - this.lastAuthToastAt < 10_000) return;
 		this.lastAuthToastAt = now;
@@ -265,8 +267,6 @@ export default class SurfSensePlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
-		// Ensures the indicator reacts to settings edits (token paste, search-space pick)
-		// without waiting for the next sync trigger.
 		this.engine?.refreshStatus();
 	}
 

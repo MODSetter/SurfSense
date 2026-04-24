@@ -1,5 +1,6 @@
 import { type App, Modal, Notice, Setting } from "obsidian";
 import type SurfSensePlugin from "./main";
+import { STATUS_VISUALS } from "./status-visuals";
 
 /** Live status panel reachable from the status bar / command palette. */
 export class StatusModal extends Modal {
@@ -28,7 +29,7 @@ export class StatusModal extends Modal {
 		const s = plugin.settings;
 
 		const rows: Array<[string, string]> = [
-			["Status", plugin.lastStatus.kind],
+			["Status", STATUS_VISUALS[plugin.lastStatus.kind].label],
 			[
 				"Last sync",
 				s.lastSyncAt ? new Date(s.lastSyncAt).toLocaleString() : "—",

@@ -71,6 +71,7 @@ export class SyncEngine {
 	private idleReconcileStreak = 0;
 	/** 2^streak is capped at this value (e.g. 8 → max ×8 backoff). */
 	private readonly maxBackoffMultiplier = 8;
+	private lastAppliedKind: StatusKind = "needs-setup";
 
 	constructor(deps: SyncEngineDeps) {
 		this.deps = deps;
@@ -502,24 +503,38 @@ export class SyncEngine {
 	// ---- status helpers ---------------------------------------------------
 
 	/**
-	 * Recomputes status from settings + queue depth. Call from main.ts after
-	 * settings change so the indicator reacts to token paste / search-space
-	 * pick without waiting for the next sync trigger.
+	 * Conservative by default: real errors are preserved while setup is
+	 * complete, so unrelated edits don't optimistically clear the indicator.
+	 * Pass `force: true` after an explicit verify/reconcile confirmation.
 	 */
-	refreshStatus(): void {
+	refreshStatus(opts: { force?: boolean } = {}): void {
+		if (!opts.force) {
+			const last = this.lastAppliedKind;
+			const isError =
+				last === "auth-error" || last === "offline" || last === "error";
+			const s = this.deps.getSettings();
+			const setupComplete = !!(s.apiToken && s.searchSpaceId && s.connectorId);
+			if (isError && setupComplete) return;
+		}
 		this.setStatus(this.queueStatusKind(), this.statusDetail());
 	}
 
+	reportAuthError(message?: string): void {
+		this.setStatus("auth-error", message ?? "API token expired or invalid");
+	}
+
 	private setStatus(kind: StatusKind, detail?: string): void {
-		// Errors carry meaningful signal; only "happy" kinds get downgraded
-		// to needs-setup when prerequisites are missing.
-		if (kind !== "auth-error" && kind !== "offline" && kind !== "error") {
-			const s = this.deps.getSettings();
-			if (!s.apiToken || !s.searchSpaceId || !s.connectorId) {
+		const s = this.deps.getSettings();
+		if (!s.apiToken) {
+			kind = "needs-setup";
+			detail = this.setupHint(s);
+		} else if (kind !== "auth-error" && kind !== "offline" && kind !== "error") {
+			if (!s.searchSpaceId || !s.connectorId) {
 				kind = "needs-setup";
 				detail = this.setupHint(s);
 			}
 		}
+		this.lastAppliedKind = kind;
 		this.deps.setStatus({ kind, detail, queueDepth: this.deps.queue.size });
 	}
 
