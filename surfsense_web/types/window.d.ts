@@ -41,6 +41,26 @@ interface FolderFileEntry {
 	mtimeMs: number;
 }
 
+type AgentFilesystemMode = "cloud" | "desktop_local_folder";
+
+interface AgentFilesystemSettings {
+	mode: AgentFilesystemMode;
+	localRootPaths: string[];
+	updatedAt: string;
+}
+
+interface AgentFilesystemMount {
+	mount: string;
+	rootPath: string;
+}
+
+interface LocalTextFileResult {
+	ok: boolean;
+	path: string;
+	content?: string;
+	error?: string;
+}
+
 interface ElectronAPI {
 	versions: {
 		electron: string;
@@ -94,6 +114,11 @@ interface ElectronAPI {
 	// Browse files/folders via native dialogs
 	browseFiles: () => Promise<string[] | null>;
 	readLocalFiles: (paths: string[]) => Promise<LocalFileData[]>;
+	readAgentLocalFileText: (virtualPath: string) => Promise<LocalTextFileResult>;
+	writeAgentLocalFileText: (
+		virtualPath: string,
+		content: string
+	) => Promise<LocalTextFileResult>;
 	// Auth token sync across windows
 	getAuthTokens: () => Promise<{ bearer: string; refresh: string } | null>;
 	setAuthTokens: (bearer: string, refresh: string) => Promise<void>;
@@ -125,6 +150,14 @@ interface ElectronAPI {
 		appVersion: string;
 		platform: string;
 	}>;
+	// Agent filesystem mode
+	getAgentFilesystemSettings: () => Promise<AgentFilesystemSettings>;
+	getAgentFilesystemMounts: () => Promise<AgentFilesystemMount[]>;
+	setAgentFilesystemSettings: (settings: {
+		mode?: AgentFilesystemMode;
+		localRootPaths?: string[] | null;
+	}) => Promise<AgentFilesystemSettings>;
+	pickAgentFilesystemRoot: () => Promise<string | null>;
 }
 
 declare global {

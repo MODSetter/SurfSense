@@ -815,11 +815,36 @@ Your goal is to provide helpful, informative answers in a clean, readable format
 """
 
 
+def _build_mcp_routing_block(
+    mcp_connector_tools: dict[str, list[str]] | None,
+) -> str:
+    """Build an additional tool routing block for generic MCP connectors.
+
+    When users add MCP servers (e.g. GitLab, GitHub), the LLM needs to know
+    those tools exist and should be called directly — not searched in the
+    knowledge base.
+    """
+    if not mcp_connector_tools:
+        return ""
+
+    lines = [
+        "\n<mcp_tool_routing>",
+        "You also have direct tools from these user-connected MCP servers.",
+        "Their data is NEVER in the knowledge base — call their tools directly.",
+        "",
+    ]
+    for server_name, tool_names in mcp_connector_tools.items():
+        lines.append(f"- {server_name} → {', '.join(tool_names)}")
+    lines.append("</mcp_tool_routing>\n")
+    return "\n".join(lines)
+
+
 def build_surfsense_system_prompt(
     today: datetime | None = None,
     thread_visibility: ChatVisibility | None = None,
     enabled_tool_names: set[str] | None = None,
     disabled_tool_names: set[str] | None = None,
+    mcp_connector_tools: dict[str, list[str]] | None = None,
 ) -> str:
     """
     Build the SurfSense system prompt with default settings.
@@ -834,6 +859,9 @@ def build_surfsense_system_prompt(
         thread_visibility: Optional; when provided, used for conditional prompt (e.g. private vs shared memory wording). Defaults to private behavior when None.
         enabled_tool_names: Set of tool names actually bound to the agent. When None all tools are included.
         disabled_tool_names: Set of tool names the user explicitly disabled. Included as a note so the model can inform the user.
+        mcp_connector_tools: Mapping of MCP server display name → list of tool names
+            for generic MCP connectors. Injected into the system prompt so the LLM
+            knows to call these tools directly.
 
     Returns:
         Complete system prompt string
@@ -841,6 +869,7 @@ def build_surfsense_system_prompt(
 
     visibility = thread_visibility or ChatVisibility.PRIVATE
     system_instructions = _get_system_instructions(visibility, today)
+    system_instructions += _build_mcp_routing_block(mcp_connector_tools)
     tools_instructions = _get_tools_instructions(
         visibility, enabled_tool_names, disabled_tool_names
     )
@@ -856,6 +885,7 @@ def build_configurable_system_prompt(
     thread_visibility: ChatVisibility | None = None,
     enabled_tool_names: set[str] | None = None,
     disabled_tool_names: set[str] | None = None,
+    mcp_connector_tools: dict[str, list[str]] | None = None,
 ) -> str:
     """
     Build a configurable SurfSense system prompt based on NewLLMConfig settings.
@@ -877,6 +907,9 @@ def build_configurable_system_prompt(
         thread_visibility: Optional; when provided, used for conditional prompt (e.g. private vs shared memory wording). Defaults to private behavior when None.
         enabled_tool_names: Set of tool names actually bound to the agent. When None all tools are included.
         disabled_tool_names: Set of tool names the user explicitly disabled. Included as a note so the model can inform the user.
+        mcp_connector_tools: Mapping of MCP server display name → list of tool names
+            for generic MCP connectors. Injected into the system prompt so the LLM
+            knows to call these tools directly.
 
     Returns:
         Complete system prompt string
@@ -893,6 +926,8 @@ def build_configurable_system_prompt(
         system_instructions = _get_system_instructions(visibility, today)
     else:
         system_instructions = ""
+
+    system_instructions += _build_mcp_routing_block(mcp_connector_tools)
 
     # Tools instructions: only include enabled tools, note disabled ones
     tools_instructions = _get_tools_instructions(

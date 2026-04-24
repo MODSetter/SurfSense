@@ -1,4 +1,5 @@
 import { EnumConnectorName } from "@/contracts/enums/connector";
+import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 
 /**
  * Connectors that operate in real time (no background indexing).
@@ -365,6 +366,46 @@ export function getConnectorTelemetryMeta(connectorType: string): ConnectorTelem
 		connector_group: "unknown",
 		is_oauth: false,
 	};
+}
+
+// =============================================================================
+// REAUTH ENDPOINTS
+// =============================================================================
+
+/**
+ * Legacy (non-MCP) OAuth reauth endpoints, keyed by connector type.
+ * These are used for connectors that were NOT created via MCP OAuth.
+ */
+export const LEGACY_REAUTH_ENDPOINTS: Partial<Record<string, string>> = {
+	[EnumConnectorName.LINEAR_CONNECTOR]: "/api/v1/auth/linear/connector/reauth",
+	[EnumConnectorName.JIRA_CONNECTOR]: "/api/v1/auth/jira/connector/reauth",
+	[EnumConnectorName.NOTION_CONNECTOR]: "/api/v1/auth/notion/connector/reauth",
+	[EnumConnectorName.GOOGLE_DRIVE_CONNECTOR]: "/api/v1/auth/google/drive/connector/reauth",
+	[EnumConnectorName.GOOGLE_GMAIL_CONNECTOR]: "/api/v1/auth/google/gmail/connector/reauth",
+	[EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR]: "/api/v1/auth/google/calendar/connector/reauth",
+	[EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
+	[EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
+	[EnumConnectorName.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
+	[EnumConnectorName.ONEDRIVE_CONNECTOR]: "/api/v1/auth/onedrive/connector/reauth",
+	[EnumConnectorName.DROPBOX_CONNECTOR]: "/api/v1/auth/dropbox/connector/reauth",
+	[EnumConnectorName.CONFLUENCE_CONNECTOR]: "/api/v1/auth/confluence/connector/reauth",
+	[EnumConnectorName.TEAMS_CONNECTOR]: "/api/v1/auth/teams/connector/reauth",
+	[EnumConnectorName.DISCORD_CONNECTOR]: "/api/v1/auth/discord/connector/reauth",
+};
+
+/**
+ * Resolve the reauth endpoint for a connector.
+ *
+ * MCP OAuth connectors (those with ``config.mcp_service``) dynamically build
+ * the URL from the service key. Legacy OAuth connectors fall back to the
+ * static ``LEGACY_REAUTH_ENDPOINTS`` map.
+ */
+export function getReauthEndpoint(connector: SearchSourceConnector): string | undefined {
+	const mcpService = connector.config?.mcp_service as string | undefined;
+	if (mcpService) {
+		return `/api/v1/auth/mcp/${mcpService}/connector/reauth`;
+	}
+	return LEGACY_REAUTH_ENDPOINTS[connector.connector_type];
 }
 
 // Re-export IndexingConfigState from schemas for backward compatibility

@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtom } from "jotai";
-import { Brain, CircleUser, Globe, KeyRound, Monitor, ReceiptText, Sparkles } from "lucide-react";
+import { Brain, CircleUser, Globe, Keyboard, KeyRound, Monitor, ReceiptText, Sparkles } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
@@ -51,6 +51,13 @@ const DesktopContent = dynamic(
 		),
 	{ ssr: false }
 );
+const DesktopShortcutsContent = dynamic(
+	() =>
+		import("@/app/dashboard/[search_space_id]/user-settings/components/DesktopShortcutsContent").then(
+			(m) => ({ default: m.DesktopShortcutsContent })
+		),
+	{ ssr: false }
+);
 const MemoryContent = dynamic(
 	() =>
 		import("@/app/dashboard/[search_space_id]/user-settings/components/MemoryContent").then(
@@ -93,7 +100,18 @@ export function UserSettingsDialog() {
 				icon: <ReceiptText className="h-4 w-4" />,
 			},
 			...(isDesktop
-				? [{ value: "desktop", label: "Desktop", icon: <Monitor className="h-4 w-4" /> }]
+				? [
+						{
+							value: "desktop",
+							label: "App Preferences",
+							icon: <Monitor className="h-4 w-4" />,
+						},
+						{
+							value: "desktop-shortcuts",
+							label: "Hotkeys",
+							icon: <Keyboard className="h-4 w-4" />,
+						},
+					]
 				: []),
 		],
 		[t, isDesktop]
@@ -116,6 +134,7 @@ export function UserSettingsDialog() {
 				{state.initialTab === "memory" && <MemoryContent />}
 				{state.initialTab === "purchases" && <PurchaseHistoryContent />}
 				{state.initialTab === "desktop" && <DesktopContent />}
+				{state.initialTab === "desktop-shortcuts" && <DesktopShortcutsContent />}
 			</div>
 		</SettingsDialog>
 	);

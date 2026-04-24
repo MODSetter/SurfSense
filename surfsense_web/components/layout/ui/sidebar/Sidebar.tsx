@@ -1,6 +1,6 @@
 "use client";
 
-import { CreditCard, PenSquare, Zap } from "lucide-react";
+import { CreditCard, SquarePen, Zap } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -139,7 +139,7 @@ export function Sidebar({
 			{/* New chat button */}
 			<div className={cn("flex flex-col gap-0.5 py-2", isCollapsed && "items-center")}>
 				<SidebarButton
-					icon={PenSquare}
+					icon={SquarePen}
 					label={t("new_chat")}
 					onClick={onNewChat}
 					isCollapsed={isCollapsed}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { ArrowUp, ChevronDown, ClipboardCopy, Download, Info, Pen } from "lucide-react";
+import { ArrowUp, ChevronDown, ClipboardCopy, Download, Info, Pencil } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -241,7 +241,7 @@ export function MemoryContent() {
 						onClick={openInput}
 						className="absolute bottom-3 right-3 z-10 h-[54px] w-[54px] rounded-full border bg-muted/60 backdrop-blur-sm shadow-sm"
 					>
-						<Pen className="!h-5 !w-5" />
+						<Pencil className="!h-5 !w-5" />
 					</Button>
 				)}
 			</div>

@@ -33,9 +33,12 @@ from langgraph.types import Checkpointer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.new_chat.context import SurfSenseContextSchema
+from app.agents.new_chat.filesystem_backends import build_backend_resolver
+from app.agents.new_chat.filesystem_selection import FilesystemSelection
 from app.agents.new_chat.llm_config import AgentConfig
 from app.agents.new_chat.middleware import (
     DedupHITLToolCallsMiddleware,
+    FileIntentMiddleware,
     KnowledgeBaseSearchMiddleware,
     MemoryInjectionMiddleware,
     SurfSenseFilesystemMiddleware,
@@ -164,6 +167,7 @@ async def create_surfsense_deep_agent(
     thread_visibility: ChatVisibility | None = None,
     mentioned_document_ids: list[int] | None = None,
     anon_session_id: str | None = None,
+    filesystem_selection: FilesystemSelection | None = None,
 ):
     """
     Create a SurfSense deep agent with configurable tools and prompts.
@@ -238,6 +242,8 @@ async def create_surfsense_deep_agent(
         )
     """
     _t_agent_total = time.perf_counter()
+    filesystem_selection = filesystem_selection or FilesystemSelection()
+    backend_resolver = build_backend_resolver(filesystem_selection)
 
     # Discover available connectors and document types for this search space
     available_connectors: list[str] | None = None
@@ -314,6 +320,20 @@ async def create_surfsense_deep_agent(
     _t0 = time.perf_counter()
     _enabled_tool_names = {t.name for t in tools}
     _user_disabled_tool_names = set(disabled_tools) if disabled_tools else set()
+
+    # Collect generic MCP connector info so the system prompt can route queries
+    # to their tools instead of falling back to "not in knowledge base".
+    _mcp_connector_tools: dict[str, list[str]] = {}
+    for t in tools:
+        meta = getattr(t, "metadata", None) or {}
+        if meta.get("mcp_is_generic") and meta.get("mcp_connector_name"):
+            _mcp_connector_tools.setdefault(
+                meta["mcp_connector_name"], [],
+            ).append(t.name)
+
+    if _mcp_connector_tools:
+        _perf_log.info("MCP connector tool routing: %s", _mcp_connector_tools)
+
     if agent_config is not None:
         system_prompt = build_configurable_system_prompt(
             custom_system_instructions=agent_config.system_instructions,
@@ -322,12 +342,14 @@ async def create_surfsense_deep_agent(
             thread_visibility=thread_visibility,
             enabled_tool_names=_enabled_tool_names,
             disabled_tool_names=_user_disabled_tool_names,
+            mcp_connector_tools=_mcp_connector_tools,
         )
     else:
         system_prompt = build_surfsense_system_prompt(
             thread_visibility=thread_visibility,
             enabled_tool_names=_enabled_tool_names,
             disabled_tool_names=_user_disabled_tool_names,
+            mcp_connector_tools=_mcp_connector_tools,
         )
     _perf_log.info(
         "[create_agent] System prompt built in %.3fs", time.perf_counter() - _t0
@@ -344,7 +366,10 @@ async def create_surfsense_deep_agent(
     gp_middleware = [
         TodoListMiddleware(),
         _memory_middleware,
+        FileIntentMiddleware(llm=llm),
         SurfSenseFilesystemMiddleware(
+            backend=backend_resolver,
+            filesystem_mode=filesystem_selection.mode,
             search_space_id=search_space_id,
             created_by_id=user_id,
             thread_id=thread_id,
@@ -365,15 +390,19 @@ async def create_surfsense_deep_agent(
     deepagent_middleware = [
         TodoListMiddleware(),
         _memory_middleware,
+        FileIntentMiddleware(llm=llm),
         KnowledgeBaseSearchMiddleware(
             llm=llm,
             search_space_id=search_space_id,
+            filesystem_mode=filesystem_selection.mode,
             available_connectors=available_connectors,
             available_document_types=available_document_types,
             mentioned_document_ids=mentioned_document_ids,
             anon_session_id=anon_session_id,
         ),
         SurfSenseFilesystemMiddleware(
+            backend=backend_resolver,
+            filesystem_mode=filesystem_selection.mode,
             search_space_id=search_space_id,
             created_by_id=user_id,
             thread_id=thread_id,

@@ -11,12 +11,15 @@ interface EditorSaveContextValue {
 	isSaving: boolean;
 	/** Whether the user can toggle between editing and viewing modes */
 	canToggleMode: boolean;
+	/** Whether fixed-toolbar space should be reserved even when controls are hidden */
+	reserveToolbarSpace: boolean;
 }
 
 export const EditorSaveContext = createContext<EditorSaveContextValue>({
 	hasUnsavedChanges: false,
 	isSaving: false,
 	canToggleMode: false,
+	reserveToolbarSpace: false,
 });
 
 export function useEditorSave() {

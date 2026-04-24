@@ -141,6 +141,15 @@ def _http_exception_handler(request: Request, exc: HTTPException) -> JSONRespons
                 exc.status_code,
                 message,
             )
+        elif exc.status_code >= 400:
+            _error_logger.warning(
+                "[%s] %s %s - HTTPException %d: %s",
+                rid,
+                request.method,
+                request.url.path,
+                exc.status_code,
+                message,
+            )
         if should_sanitize:
             message = GENERIC_5XX_MESSAGE
             err_code = "INTERNAL_ERROR"
@@ -166,6 +175,15 @@ def _http_exception_handler(request: Request, exc: HTTPException) -> JSONRespons
         _error_logger.error(
             "[%s] %s - HTTPException %d: %s",
             rid,
+            request.url.path,
+            exc.status_code,
+            detail,
+        )
+    elif exc.status_code >= 400:
+        _error_logger.warning(
+            "[%s] %s %s - HTTPException %d: %s",
+            rid,
+            request.method,
             request.url.path,
             exc.status_code,
             detail,

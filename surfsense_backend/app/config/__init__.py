@@ -339,6 +339,9 @@ class Config:
     # self-hosted: Full access to local file system connectors (Obsidian, etc.)
     # cloud: Only cloud-based connectors available
     DEPLOYMENT_MODE = os.getenv("SURFSENSE_DEPLOYMENT_MODE", "self-hosted")
+    ENABLE_DESKTOP_LOCAL_FILESYSTEM = (
+        os.getenv("ENABLE_DESKTOP_LOCAL_FILESYSTEM", "FALSE").upper() == "TRUE"
+    )
 
     @classmethod
     def is_self_hosted(cls) -> bool:

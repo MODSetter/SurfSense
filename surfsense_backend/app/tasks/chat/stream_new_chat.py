@@ -30,6 +30,8 @@ from sqlalchemy.orm import selectinload
 
 from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
 from app.agents.new_chat.checkpointer import get_checkpointer
+from app.agents.new_chat.filesystem_selection import FilesystemSelection
+from app.config import config
 from app.agents.new_chat.llm_config import (
     AgentConfig,
     create_chat_litellm_from_agent_config,
@@ -145,6 +147,102 @@ class StreamResult:
     interrupt_value: dict[str, Any] | None = None
     sandbox_files: list[str] = field(default_factory=list)
     agent_called_update_memory: bool = False
+    request_id: str | None = None
+    turn_id: str = ""
+    filesystem_mode: str = "cloud"
+    client_platform: str = "web"
+    intent_detected: str = "chat_only"
+    intent_confidence: float = 0.0
+    write_attempted: bool = False
+    write_succeeded: bool = False
+    verification_succeeded: bool = False
+    commit_gate_passed: bool = True
+    commit_gate_reason: str = ""
+
+
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _tool_output_to_text(tool_output: Any) -> str:
+    if isinstance(tool_output, dict):
+        if isinstance(tool_output.get("result"), str):
+            return tool_output["result"]
+        if isinstance(tool_output.get("error"), str):
+            return tool_output["error"]
+        return json.dumps(tool_output, ensure_ascii=False)
+    return str(tool_output)
+
+
+def _tool_output_has_error(tool_output: Any) -> bool:
+    if isinstance(tool_output, dict):
+        if tool_output.get("error"):
+            return True
+        result = tool_output.get("result")
+        if isinstance(result, str) and result.strip().lower().startswith("error:"):
+            return True
+        return False
+    if isinstance(tool_output, str):
+        return tool_output.strip().lower().startswith("error:")
+    return False
+
+
+def _extract_resolved_file_path(*, tool_name: str, tool_output: Any) -> str | None:
+    if isinstance(tool_output, dict):
+        path_value = tool_output.get("path")
+        if isinstance(path_value, str) and path_value.strip():
+            return path_value.strip()
+    text = _tool_output_to_text(tool_output)
+    if tool_name == "write_file":
+        match = re.search(r"Updated file\s+(.+)$", text.strip())
+        if match:
+            return match.group(1).strip()
+    if tool_name == "edit_file":
+        match = re.search(r"in '([^']+)'", text)
+        if match:
+            return match.group(1).strip()
+    return None
+
+
+def _contract_enforcement_active(result: StreamResult) -> bool:
+    # Keep policy deterministic with no env-driven progression modes:
+    # enforce the file-operation contract only in desktop local-folder mode.
+    return result.filesystem_mode == "desktop_local_folder"
+
+
+def _evaluate_file_contract_outcome(result: StreamResult) -> tuple[bool, str]:
+    if result.intent_detected != "file_write":
+        return True, ""
+    if not result.write_attempted:
+        return False, "no_write_attempt"
+    if not result.write_succeeded:
+        return False, "write_failed"
+    if not result.verification_succeeded:
+        return False, "verification_failed"
+    return True, ""
+
+
+def _log_file_contract(stage: str, result: StreamResult, **extra: Any) -> None:
+    payload: dict[str, Any] = {
+        "stage": stage,
+        "request_id": result.request_id or "unknown",
+        "turn_id": result.turn_id or "unknown",
+        "chat_id": result.turn_id.split(":", 1)[0] if ":" in result.turn_id else "unknown",
+        "filesystem_mode": result.filesystem_mode,
+        "client_platform": result.client_platform,
+        "intent_detected": result.intent_detected,
+        "intent_confidence": result.intent_confidence,
+        "write_attempted": result.write_attempted,
+        "write_succeeded": result.write_succeeded,
+        "verification_succeeded": result.verification_succeeded,
+        "commit_gate_passed": result.commit_gate_passed,
+        "commit_gate_reason": result.commit_gate_reason or None,
+    }
+    payload.update(extra)
+    _perf_log.info("[file_operation_contract] %s", json.dumps(payload, ensure_ascii=False))
 
 
 async def _stream_agent_events(
@@ -239,6 +337,8 @@ async def _stream_agent_events(
             tool_name = event.get("name", "unknown_tool")
             run_id = event.get("run_id", "")
             tool_input = event.get("data", {}).get("input", {})
+            if tool_name in ("write_file", "edit_file"):
+                result.write_attempted = True
 
             if current_text_id is not None:
                 yield streaming_service.format_text_end(current_text_id)
@@ -513,6 +613,14 @@ async def _stream_agent_events(
                 tool_output = raw_output
             else:
                 tool_output = {"result": str(raw_output) if raw_output else "completed"}
+
+            if tool_name in ("write_file", "edit_file"):
+                if _tool_output_has_error(tool_output):
+                    # Keep successful evidence if a previous write/edit in this turn succeeded.
+                    pass
+                else:
+                    result.write_succeeded = True
+                    result.verification_succeeded = True
 
             tool_call_id = f"call_{run_id[:32]}" if run_id else "call_unknown"
             original_step_id = tool_step_ids.get(
@@ -925,6 +1033,30 @@ async def _stream_agent_events(
                         f"Scrape failed: {error_msg}",
                         "error",
                     )
+            elif tool_name in ("write_file", "edit_file"):
+                resolved_path = _extract_resolved_file_path(
+                    tool_name=tool_name,
+                    tool_output=tool_output,
+                )
+                result_text = _tool_output_to_text(tool_output)
+                if _tool_output_has_error(tool_output):
+                    yield streaming_service.format_tool_output_available(
+                        tool_call_id,
+                        {
+                            "status": "error",
+                            "error": result_text,
+                            "path": resolved_path,
+                        },
+                    )
+                else:
+                    yield streaming_service.format_tool_output_available(
+                        tool_call_id,
+                        {
+                            "status": "completed",
+                            "path": resolved_path,
+                            "result": result_text,
+                        },
+                    )
             elif tool_name == "generate_report":
                 # Stream the full report result so frontend can render the ReportCard
                 yield streaming_service.format_tool_output_available(
@@ -1143,10 +1275,59 @@ async def _stream_agent_events(
     if completion_event:
         yield completion_event
 
+    state = await agent.aget_state(config)
+    state_values = getattr(state, "values", {}) or {}
+    contract_state = state_values.get("file_operation_contract") or {}
+    contract_turn_id = contract_state.get("turn_id")
+    current_turn_id = config.get("configurable", {}).get("turn_id", "")
+    intent_value = contract_state.get("intent")
+    if (
+        isinstance(intent_value, str)
+        and intent_value in ("chat_only", "file_write", "file_read")
+        and contract_turn_id == current_turn_id
+    ):
+        result.intent_detected = intent_value
+    if (
+        isinstance(intent_value, str)
+        and intent_value in (
+            "chat_only",
+            "file_write",
+            "file_read",
+        )
+        and contract_turn_id != current_turn_id
+    ):
+        # Ignore stale intent contracts from previous turns/checkpoints.
+        result.intent_detected = "chat_only"
+    result.intent_confidence = (
+        _safe_float(contract_state.get("confidence"), default=0.0)
+        if contract_turn_id == current_turn_id
+        else 0.0
+    )
+
+    if result.intent_detected == "file_write":
+        result.commit_gate_passed, result.commit_gate_reason = (
+            _evaluate_file_contract_outcome(result)
+        )
+        if not result.commit_gate_passed:
+            if _contract_enforcement_active(result):
+                gate_notice = (
+                    "I could not complete the requested file write because no successful "
+                    "write_file/edit_file operation was confirmed."
+                )
+                gate_text_id = streaming_service.generate_text_id()
+                yield streaming_service.format_text_start(gate_text_id)
+                yield streaming_service.format_text_delta(gate_text_id, gate_notice)
+                yield streaming_service.format_text_end(gate_text_id)
+                yield streaming_service.format_terminal_info(gate_notice, "error")
+                accumulated_text = gate_notice
+    else:
+        result.commit_gate_passed = True
+        result.commit_gate_reason = ""
+
     result.accumulated_text = accumulated_text
     result.agent_called_update_memory = called_update_memory
+    _log_file_contract("turn_outcome", result)
 
-    state = await agent.aget_state(config)
     is_interrupted = state.tasks and any(task.interrupts for task in state.tasks)
     if is_interrupted:
         result.is_interrupted = True
@@ -1167,6 +1348,8 @@ async def stream_new_chat(
     thread_visibility: ChatVisibility | None = None,
     current_user_display_name: str | None = None,
     disabled_tools: list[str] | None = None,
+    filesystem_selection: FilesystemSelection | None = None,
+    request_id: str | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Stream chat responses from the new SurfSense deep agent.
@@ -1194,6 +1377,20 @@ async def stream_new_chat(
     streaming_service = VercelStreamingService()
     stream_result = StreamResult()
     _t_total = time.perf_counter()
+    fs_mode = filesystem_selection.mode.value if filesystem_selection else "cloud"
+    fs_platform = (
+        filesystem_selection.client_platform.value if filesystem_selection else "web"
+    )
+    stream_result.request_id = request_id
+    stream_result.turn_id = f"{chat_id}:{int(time.time() * 1000)}"
+    stream_result.filesystem_mode = fs_mode
+    stream_result.client_platform = fs_platform
+    _log_file_contract("turn_start", stream_result)
+    _perf_log.info(
+        "[stream_new_chat] filesystem_mode=%s client_platform=%s",
+        fs_mode,
+        fs_platform,
+    )
     log_system_snapshot("stream_new_chat_START")
 
     from app.services.token_tracking_service import start_turn
@@ -1329,6 +1526,7 @@ async def stream_new_chat(
             thread_visibility=visibility,
             disabled_tools=disabled_tools,
             mentioned_document_ids=mentioned_document_ids,
+            filesystem_selection=filesystem_selection,
         )
         _perf_log.info(
             "[stream_new_chat] Agent created in %.3fs", time.perf_counter() - _t0
@@ -1435,6 +1633,8 @@ async def stream_new_chat(
             # We will use this to simulate group chat functionality in the future
             "messages": langchain_messages,
             "search_space_id": search_space_id,
+            "request_id": request_id or "unknown",
+            "turn_id": stream_result.turn_id,
         }
 
         _perf_log.info(
@@ -1464,6 +1664,8 @@ async def stream_new_chat(
         # Configure LangGraph with thread_id for memory
         # If checkpoint_id is provided, fork from that checkpoint (for edit/reload)
         configurable = {"thread_id": str(chat_id)}
+        configurable["request_id"] = request_id or "unknown"
+        configurable["turn_id"] = stream_result.turn_id
         if checkpoint_id:
             configurable["checkpoint_id"] = checkpoint_id
 
@@ -1871,10 +2073,26 @@ async def stream_resume_chat(
     user_id: str | None = None,
     llm_config_id: int = -1,
     thread_visibility: ChatVisibility | None = None,
+    filesystem_selection: FilesystemSelection | None = None,
+    request_id: str | None = None,
 ) -> AsyncGenerator[str, None]:
     streaming_service = VercelStreamingService()
     stream_result = StreamResult()
     _t_total = time.perf_counter()
+    fs_mode = filesystem_selection.mode.value if filesystem_selection else "cloud"
+    fs_platform = (
+        filesystem_selection.client_platform.value if filesystem_selection else "web"
+    )
+    stream_result.request_id = request_id
+    stream_result.turn_id = f"{chat_id}:{int(time.time() * 1000)}"
+    stream_result.filesystem_mode = fs_mode
+    stream_result.client_platform = fs_platform
+    _log_file_contract("turn_start", stream_result)
+    _perf_log.info(
+        "[stream_resume] filesystem_mode=%s client_platform=%s",
+        fs_mode,
+        fs_platform,
+    )
 
     from app.services.token_tracking_service import start_turn
 
@@ -1991,6 +2209,7 @@ async def stream_resume_chat(
             agent_config=agent_config,
             firecrawl_api_key=firecrawl_api_key,
             thread_visibility=visibility,
+            filesystem_selection=filesystem_selection,
         )
         _perf_log.info(
             "[stream_resume] Agent created in %.3fs", time.perf_counter() - _t0
@@ -2009,7 +2228,11 @@ async def stream_resume_chat(
         from langgraph.types import Command
 
         config = {
-            "configurable": {"thread_id": str(chat_id)},
+            "configurable": {
+                "thread_id": str(chat_id),
+                "request_id": request_id or "unknown",
+                "turn_id": stream_result.turn_id,
+            },
             "recursion_limit": 80,
         }
 

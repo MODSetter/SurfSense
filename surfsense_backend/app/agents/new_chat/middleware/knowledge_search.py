@@ -28,6 +28,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.new_chat.utils import parse_date_or_datetime, resolve_date_range
+from app.agents.new_chat.filesystem_selection import FilesystemMode
 from app.db import (
     NATIVE_TO_LEGACY_DOCTYPE,
     Chunk,
@@ -857,6 +858,7 @@ class KnowledgeBaseSearchMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         *,
         llm: BaseChatModel | None = None,
         search_space_id: int,
+        filesystem_mode: FilesystemMode = FilesystemMode.CLOUD,
         available_connectors: list[str] | None = None,
         available_document_types: list[str] | None = None,
         top_k: int = 10,
@@ -865,6 +867,7 @@ class KnowledgeBaseSearchMiddleware(AgentMiddleware):  # type: ignore[type-arg]
     ) -> None:
         self.llm = llm
         self.search_space_id = search_space_id
+        self.filesystem_mode = filesystem_mode
         self.available_connectors = available_connectors
         self.available_document_types = available_document_types
         self.top_k = top_k
@@ -995,6 +998,9 @@ class KnowledgeBaseSearchMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         del runtime
         messages = state.get("messages") or []
         if not messages:
+            return None
+        if self.filesystem_mode != FilesystemMode.CLOUD:
+            # Local-folder mode should not seed cloud KB documents into filesystem.
             return None
 
         last_human = None

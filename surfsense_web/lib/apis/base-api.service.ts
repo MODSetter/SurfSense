@@ -1,4 +1,5 @@
 import type { ZodType } from "zod";
+import { getClientPlatform } from "../agent-filesystem";
 import { getBearerToken, handleUnauthorized, refreshAccessToken } from "../auth-utils";
 import {
 	AbortedError,
@@ -75,6 +76,8 @@ class BaseApiService {
 			const defaultOptions: RequestOptions = {
 				headers: {
 					Authorization: `Bearer ${this.bearerToken || ""}`,
+					"X-SurfSense-Client-Platform":
+						typeof window === "undefined" ? "web" : getClientPlatform(),
 				},
 				method: "GET",
 				responseType: ResponseType.JSON,
