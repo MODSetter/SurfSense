@@ -7,12 +7,13 @@ These schemas follow the assistant-ui ThreadHistoryAdapter pattern:
 """
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Literal, Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.db import ChatVisibility, NewChatMessageRole
+from app.utils.user_message_multimodal import decode_base64_image, to_data_url
 
 from .base import IDModel, TimestampModel
 
@@ -173,6 +174,26 @@ class LocalFilesystemMountPayload(BaseModel):
     root_path: str
 
 
+MAX_NEW_CHAT_IMAGE_BYTES = 8 * 1024 * 1024
+MAX_NEW_CHAT_IMAGES = 4
+
+
+class NewChatUserImagePart(BaseModel):
+    """One inline image for a user turn (raw base64 body, no data: URL prefix)."""
+
+    media_type: Literal["image/png", "image/jpeg", "image/webp"]
+    data: str = Field(..., min_length=1)
+
+    @field_validator("data")
+    @classmethod
+    def _validate_payload(cls, v: str) -> str:
+        decode_base64_image(v, max_bytes=MAX_NEW_CHAT_IMAGE_BYTES)
+        return v
+
+    def as_data_url(self) -> str:
+        return to_data_url(self.media_type, self.data)
+
+
 class NewChatRequest(BaseModel):
     """Request schema for the deep agent chat endpoint."""
 
@@ -192,6 +213,20 @@ class NewChatRequest(BaseModel):
     filesystem_mode: Literal["cloud", "desktop_local_folder"] = "cloud"
     client_platform: Literal["web", "desktop"] = "web"
     local_filesystem_mounts: list[LocalFilesystemMountPayload] | None = None
+    user_images: list[NewChatUserImagePart] | None = Field(
+        default=None,
+        description="Optional images for this user turn",
+    )
+
+    @model_validator(mode="after")
+    def _require_text_or_images(self) -> Self:
+        has_text = bool(self.user_query.strip())
+        has_images = bool(self.user_images)
+        if not has_text and not has_images:
+            raise ValueError("Provide non-empty user_query and/or user_images")
+        if self.user_images is not None and len(self.user_images) > MAX_NEW_CHAT_IMAGES:
+            raise ValueError(f"At most {MAX_NEW_CHAT_IMAGES} images allowed")
+        return self
 
 
 class RegenerateRequest(BaseModel):
