@@ -1,0 +1,123 @@
+# =============================================================================
+# SurfSense — Dependencies only (no backend / frontend / Celery images)
+# =============================================================================
+# Postgres, Redis, SearXNG, pgAdmin, Zero — run API + Next + Celery on the host.
+# Celery is not Dockerized here: use `uv run` from surfsense_backend/ (no extra
+# backend image build just for workers).
+#
+# From repo root (SurfSense/):
+#   docker compose -f docker/docker-compose.deps-only.yml up -d
+#
+# Compose variable substitution uses `docker/.env` (copy from .env.example).
+# Bind mounts use ./postgresql.conf and ./searxng in this directory.
+#
+# Local Celery (from surfsense_backend/, after Redis is up):
+#   uv run celery -A celery_worker.celery_app worker --loglevel=info --concurrency=1 --pool=solo --queues=surfsense,surfsense.connectors
+#   uv run celery -A celery_worker.celery_app beat --loglevel=info
+#
+# Host setup:
+#   - Backend .env: DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/surfsense
+#   - Backend .env: SEARXNG_DEFAULT_HOST=http://localhost:${SEARXNG_PORT:-8888}
+#   - Backend .env: CELERY_BROKER_URL / REDIS_APP_URL → redis://localhost:6379/0
+#   - Web .env: NEXT_PUBLIC_ZERO_CACHE_URL=http://localhost:${ZERO_CACHE_PORT:-4848}
+# =============================================================================
+
+name: surfsense-deps
+
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    environment:
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+      - POSTGRES_DB=${DB_NAME:-surfsense}
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-surfsense}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL:-admin@surfsense.com}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD:-surfsense}
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - db
+
+  redis:
+    image: redis:8-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  searxng:
+    image: searxng/searxng:2026.3.13-3c1f68c59
+    ports:
+      - "${SEARXNG_PORT:-8888}:8080"
+    volumes:
+      - ./searxng:/etc/searxng
+    environment:
+      - SEARXNG_SECRET=${SEARXNG_SECRET:-surfsense-searxng-secret}
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  zero-cache:
+    image: rocicorp/zero:0.26.2
+    ports:
+      - "${ZERO_CACHE_PORT:-4848}:4848"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - ZERO_UPSTREAM_DB=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-surfsense}?sslmode=${DB_SSLMODE:-disable}
+      - ZERO_CVR_DB=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-surfsense}?sslmode=${DB_SSLMODE:-disable}
+      - ZERO_CHANGE_DB=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-surfsense}?sslmode=${DB_SSLMODE:-disable}
+      - ZERO_REPLICA_FILE=/data/zero.db
+      - ZERO_ADMIN_PASSWORD=${ZERO_ADMIN_PASSWORD:-surfsense-zero-admin}
+      - ZERO_APP_PUBLICATIONS=${ZERO_APP_PUBLICATIONS:-zero_publication}
+      - ZERO_NUM_SYNC_WORKERS=${ZERO_NUM_SYNC_WORKERS:-4}
+      - ZERO_UPSTREAM_MAX_CONNS=${ZERO_UPSTREAM_MAX_CONNS:-20}
+      - ZERO_CVR_MAX_CONNS=${ZERO_CVR_MAX_CONNS:-30}
+      - ZERO_QUERY_URL=${ZERO_QUERY_URL:-http://host.docker.internal:3000/api/zero/query}
+      - ZERO_MUTATE_URL=${ZERO_MUTATE_URL:-http://host.docker.internal:3000/api/zero/mutate}
+    volumes:
+      - zero_cache_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4848/keepalive"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    name: surfsense-deps-postgres
+  pgadmin_data:
+    name: surfsense-deps-pgadmin
+  redis_data:
+    name: surfsense-deps-redis
+  zero_cache_data:
+    name: surfsense-deps-zero-cache
