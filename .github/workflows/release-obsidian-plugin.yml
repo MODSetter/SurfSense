@@ -104,6 +104,7 @@ jobs:
           fi
 
       # Publish release under bare `manifest.json` version (no `obsidian-v` prefix) for BRAT/store compatibility.
+      # `make_latest: "false"` keeps the desktop app's `v*` release headlined since Obsidian and BRAT resolve plugins via getReleaseByTag, not the latest flag.
       - name: Create GitHub release
         if: steps.release_mode.outputs.should_publish == 'true'
         uses: softprops/action-gh-release@v3
@@ -111,6 +112,7 @@ jobs:
           tag_name: ${{ steps.version.outputs.version }}
           name: SurfSense Obsidian Plugin ${{ steps.version.outputs.version }}
           generate_release_notes: true
+          make_latest: "false"
           files: |
             surfsense_obsidian/main.js
             surfsense_obsidian/manifest.json
