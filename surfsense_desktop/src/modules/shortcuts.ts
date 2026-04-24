@@ -4,8 +4,8 @@ export interface ShortcutConfig {
 }
 
 const DEFAULTS: ShortcutConfig = {
-  generalAssist: 'Alt+Shift+G',
-  quickAsk: 'Alt+Shift+Q',
+  generalAssist: 'CommandOrControl+Shift+S',
+  quickAsk: 'CommandOrControl+Alt+S',
 };
 
 const STORE_KEY = 'shortcuts';
@@ -23,10 +23,20 @@ async function getStore() {
   return store;
 }
 
+/** One-time fix if both shortcuts match the mistaken Alt+Shift pair. */
+function wasRegressionAltPair(rest: Record<string, string>): boolean {
+  return rest.generalAssist === 'Alt+Shift+G' && rest.quickAsk === 'Alt+Shift+Q';
+}
+
 export async function getShortcuts(): Promise<ShortcutConfig> {
   const s = await getStore();
   const raw = (s.get(STORE_KEY) as Record<string, string> | undefined) ?? {};
   const { autocomplete: _drop, ...rest } = raw;
+  if (wasRegressionAltPair(rest)) {
+    const fixed = { ...DEFAULTS };
+    s.set(STORE_KEY, { ...fixed });
+    return fixed;
+  }
   return { ...DEFAULTS, ...rest };
 }
 
