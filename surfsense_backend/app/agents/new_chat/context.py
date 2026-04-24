@@ -4,7 +4,15 @@ Context schema definitions for SurfSense agents.
 This module defines the custom state schema used by the SurfSense deep agent.
 """
 
-from typing import TypedDict
+from typing import NotRequired, TypedDict
+
+
+class FileOperationContractState(TypedDict):
+    intent: str
+    confidence: float
+    suggested_path: str
+    timestamp: str
+    turn_id: str
 
 
 class SurfSenseContextSchema(TypedDict):
@@ -24,5 +32,8 @@ class SurfSenseContextSchema(TypedDict):
     """
 
     search_space_id: int
+    file_operation_contract: NotRequired[FileOperationContractState]
+    turn_id: NotRequired[str]
+    request_id: NotRequired[str]
     # These are runtime-injected and won't be serialized
     # db_session and connector_service are passed when invoking the agent

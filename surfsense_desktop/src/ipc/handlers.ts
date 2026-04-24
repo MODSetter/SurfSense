@@ -36,6 +36,14 @@ import {
   resetUser as analyticsReset,
   trackEvent,
 } from '../modules/analytics';
+import {
+  readAgentLocalFileText,
+  writeAgentLocalFileText,
+  getAgentFilesystemMounts,
+  getAgentFilesystemSettings,
+  pickAgentFilesystemRoot,
+  setAgentFilesystemSettings,
+} from '../modules/agent-filesystem';
 
 let authTokens: { bearer: string; refresh: string } | null = null;
 
@@ -118,6 +126,29 @@ export function registerIpcHandlers(): void {
     readLocalFiles(paths)
   );
 
+  ipcMain.handle(IPC_CHANNELS.READ_AGENT_LOCAL_FILE_TEXT, async (_event, virtualPath: string) => {
+    try {
+      const result = await readAgentLocalFileText(virtualPath);
+      return { ok: true, path: result.path, content: result.content };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to read local file';
+      return { ok: false, path: virtualPath, error: message };
+    }
+  });
+
+  ipcMain.handle(
+    IPC_CHANNELS.WRITE_AGENT_LOCAL_FILE_TEXT,
+    async (_event, virtualPath: string, content: string) => {
+      try {
+        const result = await writeAgentLocalFileText(virtualPath, content);
+        return { ok: true, path: result.path };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to write local file';
+        return { ok: false, path: virtualPath, error: message };
+      }
+    }
+  );
+
   ipcMain.handle(IPC_CHANNELS.SET_AUTH_TOKENS, (_event, tokens: { bearer: string; refresh: string }) => {
     authTokens = tokens;
   });
@@ -191,4 +222,22 @@ export function registerIpcHandlers(): void {
       platform: process.platform,
     };
   });
+
+  ipcMain.handle(IPC_CHANNELS.AGENT_FILESYSTEM_GET_SETTINGS, () =>
+    getAgentFilesystemSettings()
+  );
+
+  ipcMain.handle(IPC_CHANNELS.AGENT_FILESYSTEM_GET_MOUNTS, () =>
+    getAgentFilesystemMounts()
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.AGENT_FILESYSTEM_SET_SETTINGS,
+    (_event, settings: { mode?: 'cloud' | 'desktop_local_folder'; localRootPaths?: string[] | null }) =>
+      setAgentFilesystemSettings(settings)
+  );
+
+  ipcMain.handle(IPC_CHANNELS.AGENT_FILESYSTEM_PICK_ROOT, () =>
+    pickAgentFilesystemRoot()
+  );
 }

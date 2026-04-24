@@ -2,7 +2,7 @@
 
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { useSetAtom } from "jotai";
-import { CornerDownLeftIcon, FileIcon, Pen } from "lucide-react";
+import { CornerDownLeftIcon, FileIcon, Pencil } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 import { PlateEditor } from "@/components/editor/plate-editor";
@@ -240,7 +240,7 @@ function ApprovalCard({
 							});
 						}}
 					>
-						<Pen className="size-3.5" />
+						<Pencil className="size-3.5" />
 						Edit
 					</Button>
 				)}

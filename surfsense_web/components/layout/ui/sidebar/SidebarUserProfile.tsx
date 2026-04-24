@@ -7,8 +7,8 @@ import {
 	ExternalLink,
 	Info,
 	Languages,
-	Laptop,
 	LogOut,
+	Monitor,
 	Moon,
 	Sun,
 	UserCog,
@@ -49,7 +49,7 @@ const LANGUAGES = [
 const THEMES = [
 	{ value: "light" as const, name: "Light", icon: Sun },
 	{ value: "dark" as const, name: "Dark", icon: Moon },
-	{ value: "system" as const, name: "System", icon: Laptop },
+	{ value: "system" as const, name: "System", icon: Monitor },
 ];
 
 const LEARN_MORE_LINKS = [

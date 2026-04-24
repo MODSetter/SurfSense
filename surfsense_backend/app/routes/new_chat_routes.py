@@ -22,6 +22,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
+from app.agents.new_chat.filesystem_selection import (
+    ClientPlatform,
+    LocalFilesystemMount,
+    FilesystemMode,
+    FilesystemSelection,
+)
+from app.config import config
 from app.db import (
     ChatComment,
     ChatVisibility,
@@ -36,6 +43,7 @@ from app.db import (
 )
 from app.schemas.new_chat import (
     AgentToolInfo,
+    LocalFilesystemMountPayload,
     NewChatMessageRead,
     NewChatRequest,
     NewChatThreadCreate,
@@ -61,6 +69,67 @@ _logger = logging.getLogger(__name__)
 _background_tasks: set[asyncio.Task] = set()
 
 router = APIRouter()
+
+
+def _resolve_filesystem_selection(
+    *,
+    mode: str,
+    client_platform: str,
+    local_mounts: list[LocalFilesystemMountPayload] | None,
+) -> FilesystemSelection:
+    """Validate and normalize filesystem mode settings from request payload."""
+    try:
+        resolved_mode = FilesystemMode(mode)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid filesystem_mode") from exc
+    try:
+        resolved_platform = ClientPlatform(client_platform)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid client_platform") from exc
+
+    if resolved_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER:
+        if not config.ENABLE_DESKTOP_LOCAL_FILESYSTEM:
+            raise HTTPException(
+                status_code=400,
+                detail="Desktop local filesystem mode is disabled on this deployment.",
+            )
+        if resolved_platform != ClientPlatform.DESKTOP:
+            raise HTTPException(
+                status_code=400,
+                detail="desktop_local_folder mode is only available on desktop runtime.",
+            )
+        normalized_mounts: list[tuple[str, str]] = []
+        seen_mounts: set[str] = set()
+        for mount in local_mounts or []:
+            mount_id = mount.mount_id.strip()
+            root_path = mount.root_path.strip()
+            if not mount_id or not root_path:
+                continue
+            if mount_id in seen_mounts:
+                continue
+            seen_mounts.add(mount_id)
+            normalized_mounts.append((mount_id, root_path))
+        if not normalized_mounts:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "local_filesystem_mounts must include at least one mount for "
+                    "desktop_local_folder mode."
+                ),
+            )
+        return FilesystemSelection(
+            mode=resolved_mode,
+            client_platform=resolved_platform,
+            local_mounts=tuple(
+                LocalFilesystemMount(mount_id=mount_id, root_path=root_path)
+                for mount_id, root_path in normalized_mounts
+            ),
+        )
+
+    return FilesystemSelection(
+        mode=FilesystemMode.CLOUD,
+        client_platform=resolved_platform,
+    )
 
 
 def _try_delete_sandbox(thread_id: int) -> None:
@@ -1098,6 +1167,7 @@ async def list_agent_tools(
 @router.post("/new_chat")
 async def handle_new_chat(
     request: NewChatRequest,
+    http_request: Request,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
@@ -1133,6 +1203,11 @@ async def handle_new_chat(
 
         # Check thread-level access based on visibility
         await check_thread_access(session, thread, user)
+        filesystem_selection = _resolve_filesystem_selection(
+            mode=request.filesystem_mode,
+            client_platform=request.client_platform,
+            local_mounts=request.local_filesystem_mounts,
+        )
 
         # Get search space to check LLM config preferences
         search_space_result = await session.execute(
@@ -1175,6 +1250,8 @@ async def handle_new_chat(
                 thread_visibility=thread.visibility,
                 current_user_display_name=user.display_name or "A team member",
                 disabled_tools=request.disabled_tools,
+                filesystem_selection=filesystem_selection,
+                request_id=getattr(http_request.state, "request_id", "unknown"),
             ),
             media_type="text/event-stream",
             headers={
@@ -1202,6 +1279,7 @@ async def handle_new_chat(
 async def regenerate_response(
     thread_id: int,
     request: RegenerateRequest,
+    http_request: Request,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
@@ -1247,6 +1325,11 @@ async def regenerate_response(
 
         # Check thread-level access based on visibility
         await check_thread_access(session, thread, user)
+        filesystem_selection = _resolve_filesystem_selection(
+            mode=request.filesystem_mode,
+            client_platform=request.client_platform,
+            local_mounts=request.local_filesystem_mounts,
+        )
 
         # Get the checkpointer and state history
         checkpointer = await get_checkpointer()
@@ -1412,6 +1495,8 @@ async def regenerate_response(
                     thread_visibility=thread.visibility,
                     current_user_display_name=user.display_name or "A team member",
                     disabled_tools=request.disabled_tools,
+                    filesystem_selection=filesystem_selection,
+                    request_id=getattr(http_request.state, "request_id", "unknown"),
                 ):
                     yield chunk
                 streaming_completed = True
@@ -1477,6 +1562,7 @@ async def regenerate_response(
 async def resume_chat(
     thread_id: int,
     request: ResumeRequest,
+    http_request: Request,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
@@ -1498,6 +1584,11 @@ async def resume_chat(
         )
 
         await check_thread_access(session, thread, user)
+        filesystem_selection = _resolve_filesystem_selection(
+            mode=request.filesystem_mode,
+            client_platform=request.client_platform,
+            local_mounts=request.local_filesystem_mounts,
+        )
 
         search_space_result = await session.execute(
             select(SearchSpace).filter(SearchSpace.id == request.search_space_id)
@@ -1526,6 +1617,8 @@ async def resume_chat(
                 user_id=str(user.id),
                 llm_config_id=llm_config_id,
                 thread_visibility=thread.visibility,
+                filesystem_selection=filesystem_selection,
+                request_id=getattr(http_request.state, "request_id", "unknown"),
             ),
             media_type="text/event-stream",
             headers={

@@ -33,9 +33,12 @@ from langgraph.types import Checkpointer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.new_chat.context import SurfSenseContextSchema
+from app.agents.new_chat.filesystem_backends import build_backend_resolver
+from app.agents.new_chat.filesystem_selection import FilesystemSelection
 from app.agents.new_chat.llm_config import AgentConfig
 from app.agents.new_chat.middleware import (
     DedupHITLToolCallsMiddleware,
+    FileIntentMiddleware,
     KnowledgeBaseSearchMiddleware,
     MemoryInjectionMiddleware,
     SurfSenseFilesystemMiddleware,
@@ -164,6 +167,7 @@ async def create_surfsense_deep_agent(
     thread_visibility: ChatVisibility | None = None,
     mentioned_document_ids: list[int] | None = None,
     anon_session_id: str | None = None,
+    filesystem_selection: FilesystemSelection | None = None,
 ):
     """
     Create a SurfSense deep agent with configurable tools and prompts.
@@ -238,6 +242,8 @@ async def create_surfsense_deep_agent(
         )
     """
     _t_agent_total = time.perf_counter()
+    filesystem_selection = filesystem_selection or FilesystemSelection()
+    backend_resolver = build_backend_resolver(filesystem_selection)
 
     # Discover available connectors and document types for this search space
     available_connectors: list[str] | None = None
@@ -360,7 +366,10 @@ async def create_surfsense_deep_agent(
     gp_middleware = [
         TodoListMiddleware(),
         _memory_middleware,
+        FileIntentMiddleware(llm=llm),
         SurfSenseFilesystemMiddleware(
+            backend=backend_resolver,
+            filesystem_mode=filesystem_selection.mode,
             search_space_id=search_space_id,
             created_by_id=user_id,
             thread_id=thread_id,
@@ -381,15 +390,19 @@ async def create_surfsense_deep_agent(
     deepagent_middleware = [
         TodoListMiddleware(),
         _memory_middleware,
+        FileIntentMiddleware(llm=llm),
         KnowledgeBaseSearchMiddleware(
             llm=llm,
             search_space_id=search_space_id,
+            filesystem_mode=filesystem_selection.mode,
             available_connectors=available_connectors,
             available_document_types=available_document_types,
             mentioned_document_ids=mentioned_document_ids,
             anon_session_id=anon_session_id,
         ),
         SurfSenseFilesystemMiddleware(
+            backend=backend_resolver,
+            filesystem_mode=filesystem_selection.mode,
             search_space_id=search_space_id,
             created_by_id=user_id,
             thread_id=thread_id,

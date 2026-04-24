@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpenIcon, PenLineIcon } from "lucide-react";
+import { BookOpenIcon, Pencil } from "lucide-react";
 import { usePlateState } from "platejs/react";
 
 import { ToolbarButton } from "./toolbar";
@@ -13,7 +13,7 @@ export function ModeToolbarButton() {
 			tooltip={readOnly ? "Click to edit" : "Click to view"}
 			onClick={() => setReadOnly(!readOnly)}
 		>
-			{readOnly ? <BookOpenIcon /> : <PenLineIcon />}
+			{readOnly ? <BookOpenIcon /> : <Pencil />}
 		</ToolbarButton>
 	);
 }

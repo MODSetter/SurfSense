@@ -168,6 +168,11 @@ class ChatMessage(BaseModel):
     content: str
 
 
+class LocalFilesystemMountPayload(BaseModel):
+    mount_id: str
+    root_path: str
+
+
 class NewChatRequest(BaseModel):
     """Request schema for the deep agent chat endpoint."""
 
@@ -184,6 +189,9 @@ class NewChatRequest(BaseModel):
     disabled_tools: list[str] | None = (
         None  # Optional list of tool names the user has disabled from the UI
     )
+    filesystem_mode: Literal["cloud", "desktop_local_folder"] = "cloud"
+    client_platform: Literal["web", "desktop"] = "web"
+    local_filesystem_mounts: list[LocalFilesystemMountPayload] | None = None
 
 
 class RegenerateRequest(BaseModel):
@@ -204,6 +212,9 @@ class RegenerateRequest(BaseModel):
     mentioned_document_ids: list[int] | None = None
     mentioned_surfsense_doc_ids: list[int] | None = None
     disabled_tools: list[str] | None = None
+    filesystem_mode: Literal["cloud", "desktop_local_folder"] = "cloud"
+    client_platform: Literal["web", "desktop"] = "web"
+    local_filesystem_mounts: list[LocalFilesystemMountPayload] | None = None
 
 
 # =============================================================================
@@ -227,6 +238,9 @@ class ResumeDecision(BaseModel):
 class ResumeRequest(BaseModel):
     search_space_id: int
     decisions: list[ResumeDecision]
+    filesystem_mode: Literal["cloud", "desktop_local_folder"] = "cloud"
+    client_platform: Literal["web", "desktop"] = "web"
+    local_filesystem_mounts: list[LocalFilesystemMountPayload] | None = None
 
 
 # =============================================================================

@@ -71,6 +71,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Browse files via native dialog
   browseFiles: () => ipcRenderer.invoke(IPC_CHANNELS.BROWSE_FILES),
   readLocalFiles: (paths: string[]) => ipcRenderer.invoke(IPC_CHANNELS.READ_LOCAL_FILES, paths),
+  readAgentLocalFileText: (virtualPath: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.READ_AGENT_LOCAL_FILE_TEXT, virtualPath),
+  writeAgentLocalFileText: (virtualPath: string, content: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.WRITE_AGENT_LOCAL_FILE_TEXT, virtualPath, content),
 
   // Auth token sync across windows
   getAuthTokens: () => ipcRenderer.invoke(IPC_CHANNELS.GET_AUTH_TOKENS),
@@ -101,4 +105,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   analyticsCapture: (event: string, properties?: Record<string, unknown>) =>
     ipcRenderer.invoke(IPC_CHANNELS.ANALYTICS_CAPTURE, { event, properties }),
   getAnalyticsContext: () => ipcRenderer.invoke(IPC_CHANNELS.ANALYTICS_GET_CONTEXT),
+  // Agent filesystem mode
+  getAgentFilesystemSettings: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.AGENT_FILESYSTEM_GET_SETTINGS),
+  getAgentFilesystemMounts: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.AGENT_FILESYSTEM_GET_MOUNTS),
+  setAgentFilesystemSettings: (settings: {
+    mode?: "cloud" | "desktop_local_folder";
+    localRootPaths?: string[] | null;
+  }) => ipcRenderer.invoke(IPC_CHANNELS.AGENT_FILESYSTEM_SET_SETTINGS, settings),
+  pickAgentFilesystemRoot: () => ipcRenderer.invoke(IPC_CHANNELS.AGENT_FILESYSTEM_PICK_ROOT),
 });

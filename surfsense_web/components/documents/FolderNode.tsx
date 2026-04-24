@@ -12,7 +12,7 @@ import {
 	FolderPlus,
 	MoreHorizontal,
 	Move,
-	PenLine,
+	Pencil,
 	RefreshCw,
 	Trash2,
 } from "lucide-react";
@@ -399,7 +399,7 @@ export const FolderNode = React.memo(function FolderNode({
 										startRename();
 									}}
 								>
-									<PenLine className="mr-2 h-4 w-4" />
+									<Pencil className="mr-2 h-4 w-4" />
 									Rename
 								</DropdownMenuItem>
 								<DropdownMenuItem
@@ -456,7 +456,7 @@ export const FolderNode = React.memo(function FolderNode({
 						New subfolder
 					</ContextMenuItem>
 					<ContextMenuItem onClick={() => startRename()}>
-						<PenLine className="mr-2 h-4 w-4" />
+						<Pencil className="mr-2 h-4 w-4" />
 						Rename
 					</ContextMenuItem>
 					<ContextMenuItem onClick={() => onMove(folder)}>

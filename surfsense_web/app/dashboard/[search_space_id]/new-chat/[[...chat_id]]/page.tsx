@@ -46,6 +46,7 @@ import {
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
 import { useMessagesSync } from "@/hooks/use-messages-sync";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
+import { getAgentFilesystemSelection } from "@/lib/agent-filesystem";
 import { getBearerToken } from "@/lib/auth-utils";
 import { convertToThreadMessage } from "@/lib/chat/message-utils";
 import {
@@ -158,7 +159,7 @@ function extractMentionedDocuments(content: unknown): MentionedDocumentInfo[] {
 /**
  * Tools that should render custom UI in the chat.
  */
-const TOOLS_WITH_UI = new Set([
+const BASE_TOOLS_WITH_UI = new Set([
 	"web_search",
 	"generate_podcast",
 	"generate_report",
@@ -210,6 +211,7 @@ export default function NewChatPage() {
 		assistantMsgId: string;
 		interruptData: Record<string, unknown>;
 	} | null>(null);
+	const toolsWithUI = useMemo(() => new Set([...BASE_TOOLS_WITH_UI]), []);
 
 	// Get disabled tools from the tool toggle UI
 	const disabledTools = useAtomValue(disabledToolsAtom);
@@ -656,6 +658,15 @@ export default function NewChatPage() {
 
 			try {
 				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+				const selection = await getAgentFilesystemSelection();
+				if (
+					selection.filesystem_mode === "desktop_local_folder" &&
+					(!selection.local_filesystem_mounts ||
+						selection.local_filesystem_mounts.length === 0)
+				) {
+					toast.error("Select a local folder before using Local Folder mode.");
+					return;
+				}
 
 				// Build message history for context
 				const messageHistory = messages
@@ -691,6 +702,9 @@ export default function NewChatPage() {
 						chat_id: currentThreadId,
 						user_query: userQuery.trim(),
 						search_space_id: searchSpaceId,
+						filesystem_mode: selection.filesystem_mode,
+						client_platform: selection.client_platform,
+						local_filesystem_mounts: selection.local_filesystem_mounts,
 						messages: messageHistory,
 						mentioned_document_ids: hasDocumentIds ? mentionedDocumentIds.document_ids : undefined,
 						mentioned_surfsense_doc_ids: hasSurfsenseDocIds
@@ -709,7 +723,7 @@ export default function NewChatPage() {
 					setMessages((prev) =>
 						prev.map((m) =>
 							m.id === assistantMsgId
-								? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+								? { ...m, content: buildContentForUI(contentPartsState, toolsWithUI) }
 								: m
 						)
 					);
@@ -724,7 +738,7 @@ export default function NewChatPage() {
 							break;
 
 						case "tool-input-start":
-							addToolCall(contentPartsState, TOOLS_WITH_UI, parsed.toolCallId, parsed.toolName, {});
+							addToolCall(contentPartsState, toolsWithUI, parsed.toolCallId, parsed.toolName, {});
 							batcher.flush();
 							break;
 
@@ -734,7 +748,7 @@ export default function NewChatPage() {
 							} else {
 								addToolCall(
 									contentPartsState,
-									TOOLS_WITH_UI,
+									toolsWithUI,
 									parsed.toolCallId,
 									parsed.toolName,
 									parsed.input || {}
@@ -830,7 +844,7 @@ export default function NewChatPage() {
 									const tcId = `interrupt-${action.name}`;
 									addToolCall(
 										contentPartsState,
-										TOOLS_WITH_UI,
+										toolsWithUI,
 										tcId,
 										action.name,
 										action.args,
@@ -844,7 +858,7 @@ export default function NewChatPage() {
 							setMessages((prev) =>
 								prev.map((m) =>
 									m.id === assistantMsgId
-										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										? { ...m, content: buildContentForUI(contentPartsState, toolsWithUI) }
 										: m
 								)
 							);
@@ -871,7 +885,7 @@ export default function NewChatPage() {
 				batcher.flush();
 
 				// Skip persistence for interrupted messages -- handleResume will persist the final version
-				const finalContent = buildContentForPersistence(contentPartsState, TOOLS_WITH_UI);
+				const finalContent = buildContentForPersistence(contentPartsState, toolsWithUI);
 				if (contentParts.length > 0 && !wasInterrupted) {
 					try {
 						const savedMessage = await appendMessage(currentThreadId, {
@@ -907,10 +921,10 @@ export default function NewChatPage() {
 					const hasContent = contentParts.some(
 						(part) =>
 							(part.type === "text" && part.text.length > 0) ||
-							(part.type === "tool-call" && TOOLS_WITH_UI.has(part.toolName))
+							(part.type === "tool-call" && toolsWithUI.has(part.toolName))
 					);
 					if (hasContent && currentThreadId) {
-						const partialContent = buildContentForPersistence(contentPartsState, TOOLS_WITH_UI);
+						const partialContent = buildContentForPersistence(contentPartsState, toolsWithUI);
 						try {
 							const savedMessage = await appendMessage(currentThreadId, {
 								role: "assistant",
@@ -1074,6 +1088,7 @@ export default function NewChatPage() {
 
 			try {
 				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+				const selection = await getAgentFilesystemSelection();
 				const response = await fetch(`${backendUrl}/api/v1/threads/${resumeThreadId}/resume`, {
 					method: "POST",
 					headers: {
@@ -1083,6 +1098,9 @@ export default function NewChatPage() {
 					body: JSON.stringify({
 						search_space_id: searchSpaceId,
 						decisions,
+						filesystem_mode: selection.filesystem_mode,
+						client_platform: selection.client_platform,
+						local_filesystem_mounts: selection.local_filesystem_mounts,
 					}),
 					signal: controller.signal,
 				});
@@ -1095,7 +1113,7 @@ export default function NewChatPage() {
 					setMessages((prev) =>
 						prev.map((m) =>
 							m.id === assistantMsgId
-								? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+								? { ...m, content: buildContentForUI(contentPartsState, toolsWithUI) }
 								: m
 						)
 					);
@@ -1110,7 +1128,7 @@ export default function NewChatPage() {
 							break;
 
 						case "tool-input-start":
-							addToolCall(contentPartsState, TOOLS_WITH_UI, parsed.toolCallId, parsed.toolName, {});
+							addToolCall(contentPartsState, toolsWithUI, parsed.toolCallId, parsed.toolName, {});
 							batcher.flush();
 							break;
 
@@ -1122,7 +1140,7 @@ export default function NewChatPage() {
 							} else {
 								addToolCall(
 									contentPartsState,
-									TOOLS_WITH_UI,
+									toolsWithUI,
 									parsed.toolCallId,
 									parsed.toolName,
 									parsed.input || {}
@@ -1173,7 +1191,7 @@ export default function NewChatPage() {
 									const tcId = `interrupt-${action.name}`;
 									addToolCall(
 										contentPartsState,
-										TOOLS_WITH_UI,
+										toolsWithUI,
 										tcId,
 										action.name,
 										action.args,
@@ -1190,7 +1208,7 @@ export default function NewChatPage() {
 							setMessages((prev) =>
 								prev.map((m) =>
 									m.id === assistantMsgId
-										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										? { ...m, content: buildContentForUI(contentPartsState, toolsWithUI) }
 										: m
 								)
 							);
@@ -1214,7 +1232,7 @@ export default function NewChatPage() {
 
 				batcher.flush();
 
-				const finalContent = buildContentForPersistence(contentPartsState, TOOLS_WITH_UI);
+				const finalContent = buildContentForPersistence(contentPartsState, toolsWithUI);
 				if (contentParts.length > 0) {
 					try {
 						const savedMessage = await appendMessage(resumeThreadId, {
@@ -1406,6 +1424,7 @@ export default function NewChatPage() {
 			]);
 
 			try {
+				const selection = await getAgentFilesystemSelection();
 				const response = await fetch(getRegenerateUrl(threadId), {
 					method: "POST",
 					headers: {
@@ -1416,6 +1435,9 @@ export default function NewChatPage() {
 						search_space_id: searchSpaceId,
 						user_query: newUserQuery || null,
 						disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
+						filesystem_mode: selection.filesystem_mode,
+						client_platform: selection.client_platform,
+						local_filesystem_mounts: selection.local_filesystem_mounts,
 					}),
 					signal: controller.signal,
 				});
@@ -1428,7 +1450,7 @@ export default function NewChatPage() {
 					setMessages((prev) =>
 						prev.map((m) =>
 							m.id === assistantMsgId
-								? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+								? { ...m, content: buildContentForUI(contentPartsState, toolsWithUI) }
 								: m
 						)
 					);
@@ -1443,7 +1465,7 @@ export default function NewChatPage() {
 							break;
 
 						case "tool-input-start":
-							addToolCall(contentPartsState, TOOLS_WITH_UI, parsed.toolCallId, parsed.toolName, {});
+							addToolCall(contentPartsState, toolsWithUI, parsed.toolCallId, parsed.toolName, {});
 							batcher.flush();
 							break;
 
@@ -1453,7 +1475,7 @@ export default function NewChatPage() {
 							} else {
 								addToolCall(
 									contentPartsState,
-									TOOLS_WITH_UI,
+									toolsWithUI,
 									parsed.toolCallId,
 									parsed.toolName,
 									parsed.input || {}
@@ -1502,7 +1524,7 @@ export default function NewChatPage() {
 				batcher.flush();
 
 				// Persist messages after streaming completes
-				const finalContent = buildContentForPersistence(contentPartsState, TOOLS_WITH_UI);
+				const finalContent = buildContentForPersistence(contentPartsState, toolsWithUI);
 				if (contentParts.length > 0) {
 					try {
 						// Persist user message (for both edit and reload modes, since backend deleted it)

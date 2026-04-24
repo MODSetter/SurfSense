@@ -1104,7 +1104,13 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 																group.tools.flatMap((t, i) =>
 																	i === 0
 																		? [t.description]
-																		: [<Dot key={i} className="inline h-4 w-4" />, t.description]
+																		: [
+																				<Dot
+																					key={`dot-${group.label}-${t.description}`}
+																					className="inline h-4 w-4"
+																				/>,
+																				t.description,
+																			]
 																)}
 														</TooltipContent>
 													</Tooltip>

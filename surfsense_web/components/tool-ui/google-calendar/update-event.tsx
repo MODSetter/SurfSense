@@ -7,7 +7,7 @@ import {
 	ClockIcon,
 	CornerDownLeftIcon,
 	MapPinIcon,
-	Pen,
+	Pencil,
 	UsersIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -415,7 +415,7 @@ function ApprovalCard({
 							});
 						}}
 					>
-						<Pen className="size-3.5" />
+						<Pencil className="size-3.5" />
 						Edit
 					</Button>
 				)}
