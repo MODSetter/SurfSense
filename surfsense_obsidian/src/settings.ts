@@ -1,5 +1,6 @@
 import {
 	type App,
+	type ButtonComponent,
 	Notice,
 	Platform,
 	PluginSettingTab,
@@ -58,6 +59,11 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 					}),
 			);
 
+		let verifyButton: ButtonComponent | null = null;
+		const updateVerifyDisabled = (): void => {
+			verifyButton?.setDisabled(this.plugin.settings.apiToken.trim().length === 0);
+		};
+
 		new Setting(containerEl)
 			.setName("API token")
 			.setDesc(
@@ -78,29 +84,33 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 							this.plugin.settings.connectorId = null;
 						}
 						this.plugin.settings.apiToken = next;
+						updateVerifyDisabled();
 						await this.plugin.saveSettings();
 						this.plugin.api.resetAuthBlock();
 					});
 			})
-			.addButton((btn) =>
-				btn
-					.setButtonText("Verify")
-					.setCta()
-					.onClick(async () => {
-						btn.setDisabled(true);
-						try {
-							await this.plugin.api.verifyToken();
-							new Notice("Surfsense: token verified.");
-							this.plugin.engine.refreshStatus({ force: true });
-							await this.refreshSearchSpaces();
-							this.display();
-						} catch (err) {
-							this.handleApiError(err);
-						} finally {
-							btn.setDisabled(false);
-						}
-					}),
-			);
+			.addButton((btn) => {
+				verifyButton = btn;
+				updateVerifyDisabled();
+				btn.setButtonText("Verify").setCta().onClick(async () => {
+					if (this.plugin.settings.apiToken.trim().length === 0) {
+						new Notice("Surfsense: paste an API token before verifying.");
+						return;
+					}
+					btn.setDisabled(true);
+					try {
+						await this.plugin.api.verifyToken();
+						new Notice("Surfsense: token verified.");
+						this.plugin.engine.refreshStatus({ force: true });
+						await this.refreshSearchSpaces();
+						this.display();
+					} catch (err) {
+						this.handleApiError(err);
+					} finally {
+						updateVerifyDisabled();
+					}
+				});
+			});
 
 		new Setting(containerEl)
 			.setName("Search space")
@@ -233,12 +243,10 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 					}),
 			);
 
-		if (Platform.isMobileApp) {
+		if (Platform.isAndroidApp) {
 			new Setting(containerEl)
 				.setName("Sync only on WiFi")
-				.setDesc(
-					"Pause automatic syncing on cellular. Note: only Android can detect network type, on iOS this toggle has no effect.",
-				)
+				.setDesc("Pause automatic syncing on cellular.")
 				.addToggle((toggle) =>
 					toggle
 						.setValue(settings.wifiOnly)
@@ -367,7 +375,13 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 	}
 
 	private handleApiError(err: unknown): void {
-		if (err instanceof AuthError) return;
+		if (err instanceof AuthError) {
+			if (err.message.startsWith("Missing API token")) {
+				new Notice("Surfsense: paste an API token before verifying.");
+			}
+			return;
+		}
+		this.plugin.engine.reportError(err);
 		new Notice(
 			`SurfSense: request failed — ${(err as Error).message ?? "unknown error"}`,
 		);

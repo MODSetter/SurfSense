@@ -343,6 +343,7 @@ class TestWireContractSmoke:
         assert connect_resp.connector_id > 0
         assert connect_resp.vault_id == vault_id
         assert "sync" in connect_resp.capabilities
+        assert connect_resp.server_time_utc is not None
 
         # 2. /sync — stub the indexer so the call doesn't drag the LLM /
         # embedding pipeline in. We're testing the wire contract, not the

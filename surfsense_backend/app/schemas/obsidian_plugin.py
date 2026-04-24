@@ -169,6 +169,7 @@ class ConnectResponse(_PluginBase):
     vault_id: str
     search_space_id: int
     capabilities: list[str]
+    server_time_utc: datetime
 
 
 class HealthResponse(_PluginBase):

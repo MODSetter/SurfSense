@@ -348,6 +348,7 @@ async def obsidian_connect(
                 connector_id=collision.id,
                 vault_id=collision_cfg["vault_id"],
                 search_space_id=collision.search_space_id,
+                server_time_utc=datetime.now(UTC),
                 **_build_handshake(),
             )
             await session.commit()
@@ -361,6 +362,7 @@ async def obsidian_connect(
             connector_id=existing_by_vid.id,
             vault_id=payload.vault_id,
             search_space_id=existing_by_vid.search_space_id,
+            server_time_utc=datetime.now(UTC),
             **_build_handshake(),
         )
         await session.commit()
@@ -379,6 +381,7 @@ async def obsidian_connect(
             connector_id=existing_by_fp.id,
             vault_id=survivor_cfg["vault_id"],
             search_space_id=existing_by_fp.search_space_id,
+            server_time_utc=datetime.now(UTC),
             **_build_handshake(),
         )
         await session.commit()
@@ -410,6 +413,7 @@ async def obsidian_connect(
             connector_id=inserted.id,
             vault_id=payload.vault_id,
             search_space_id=inserted.search_space_id,
+            server_time_utc=datetime.now(UTC),
             **_build_handshake(),
         )
         await session.commit()
@@ -431,6 +435,7 @@ async def obsidian_connect(
         connector_id=winner.id,
         vault_id=(winner.config or {})["vault_id"],
         search_space_id=winner.search_space_id,
+        server_time_utc=datetime.now(UTC),
         **_build_handshake(),
     )
     await session.commit()

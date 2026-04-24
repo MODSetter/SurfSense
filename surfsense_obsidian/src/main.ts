@@ -149,6 +149,7 @@ export default class SurfSensePlugin extends Plugin {
 		});
 
 		const onNetChange = () => {
+			void this.engine.recoverConnectivityStatus();
 			if (this.shouldAutoSync()) void this.engine.flushQueue();
 		};
 		this.registerDomEvent(window, "online", onNetChange);
