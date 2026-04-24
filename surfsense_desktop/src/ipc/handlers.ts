@@ -27,7 +27,6 @@ import { getShortcuts, setShortcuts, type ShortcutConfig } from '../modules/shor
 import { getAutoLaunchState, setAutoLaunch } from '../modules/auto-launch';
 import { getActiveSearchSpaceId, setActiveSearchSpaceId } from '../modules/active-search-space';
 import { reregisterQuickAsk } from '../modules/quick-ask';
-import { reregisterAutocomplete } from '../modules/autocomplete';
 import { reregisterGeneralAssist } from '../modules/tray';
 import {
   getDistinctId,
@@ -184,7 +183,6 @@ export function registerIpcHandlers(): void {
     const updated = await setShortcuts(config);
     if (config.generalAssist) await reregisterGeneralAssist();
     if (config.quickAsk) await reregisterQuickAsk();
-    if (config.autocomplete) await reregisterAutocomplete();
     trackEvent('desktop_shortcut_updated', {
       keys: Object.keys(config),
     });

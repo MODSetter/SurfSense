@@ -11,12 +11,9 @@ export const IPC_CHANNELS = {
   REQUEST_ACCESSIBILITY: 'request-accessibility',
   REQUEST_SCREEN_RECORDING: 'request-screen-recording',
   RESTART_APP: 'restart-app',
-  // Autocomplete
-  AUTOCOMPLETE_CONTEXT: 'autocomplete-context',
-  ACCEPT_SUGGESTION: 'accept-suggestion',
-  DISMISS_SUGGESTION: 'dismiss-suggestion',
-  SET_AUTOCOMPLETE_ENABLED: 'set-autocomplete-enabled',
-  GET_AUTOCOMPLETE_ENABLED: 'get-autocomplete-enabled',
+  SCREEN_REGION_SUBMIT: 'screen-region:submit',
+  SCREEN_REGION_CANCEL: 'screen-region:cancel',
+  CHAT_SCREEN_CAPTURE: 'chat:screen-capture',
   // Folder sync channels
   FOLDER_SYNC_SELECT_FOLDER: 'folder-sync:select-folder',
   FOLDER_SYNC_ADD_FOLDER: 'folder-sync:add-folder',
