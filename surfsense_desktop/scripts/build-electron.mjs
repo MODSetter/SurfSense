@@ -132,6 +132,12 @@ async function buildElectron() {
     outfile: 'dist/preload.js',
   });
 
+  await build({
+    ...shared,
+    entryPoints: ['src/screen-region-preload.ts'],
+    outfile: 'dist/screen-region-preload.js',
+  });
+
   console.log('Electron build complete');
   resolveStandaloneSymlinks();
 }
