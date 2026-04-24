@@ -20,6 +20,7 @@ const GenerateResumeArgsSchema = z.object({
 	user_info: z.string(),
 	user_instructions: z.string().nullish(),
 	parent_report_id: z.number().nullish(),
+	max_pages: z.number().int().min(1).max(5).optional(),
 });
 
 const GenerateResumeResultSchema = z.object({

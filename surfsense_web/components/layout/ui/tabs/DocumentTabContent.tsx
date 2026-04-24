@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, FileQuestionMark, FileText, PenLine, RefreshCw } from "lucide-react";
+import { Download, FileQuestionMark, FileText, Pencil, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -259,7 +259,7 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 						onClick={() => setIsEditing(true)}
 						className="gap-1.5"
 					>
-						<PenLine className="size-3.5" />
+						<Pencil className="size-3.5" />
 						Edit
 					</Button>
 				)}

@@ -9,7 +9,7 @@ import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { getDocumentTypeLabel } from "@/lib/documents/document-type-labels";
 import { cn } from "@/lib/utils";
-import { COMPOSIO_CONNECTORS, OAUTH_CONNECTORS } from "../constants/connector-constants";
+import { COMPOSIO_CONNECTORS, LIVE_CONNECTOR_TYPES, OAUTH_CONNECTORS } from "../constants/connector-constants";
 import { getDocumentCountForConnector } from "../utils/connector-document-mapping";
 import { getConnectorDisplayName } from "./all-connectors-tab";
 
@@ -156,6 +156,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 								{/* OAuth Connectors - Grouped by Type */}
 								{filteredOAuthConnectorTypes.map(([connectorType, typeConnectors]) => {
 									const { title } = getOAuthConnectorTypeInfo(connectorType);
+									const isLive = LIVE_CONNECTOR_TYPES.has(connectorType);
 									const isAnyIndexing = typeConnectors.some((c: SearchSourceConnector) =>
 										indexingConnectorIds.has(c.id)
 									);
@@ -202,8 +203,12 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 													</p>
 												) : (
 													<p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1.5">
-														<span>{formatDocumentCount(documentCount)}</span>
-														<span className="text-muted-foreground/50">•</span>
+														{!isLive && (
+															<>
+																<span>{formatDocumentCount(documentCount)}</span>
+																<span className="text-muted-foreground/50">•</span>
+															</>
+														)}
 														<span>
 															{accountCount} {accountCount === 1 ? "Account" : "Accounts"}
 														</span>
@@ -230,6 +235,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 										documentTypeCounts
 									);
 									const isMCPConnector = connector.connector_type === "MCP_CONNECTOR";
+									const isLive = LIVE_CONNECTOR_TYPES.has(connector.connector_type);
 									return (
 										<div
 											key={`connector-${connector.id}`}
@@ -261,7 +267,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 														<Spinner size="xs" />
 														Syncing
 													</p>
-												) : !isMCPConnector ? (
+												) : !isLive && !isMCPConnector ? (
 													<p className="text-[10px] text-muted-foreground mt-1">
 														{formatDocumentCount(documentCount)}
 													</p>

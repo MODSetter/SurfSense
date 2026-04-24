@@ -24,7 +24,6 @@ from deepagents.backends import StateBackend
 from deepagents.graph import BASE_AGENT_PROMPT
 from deepagents.middleware.patch_tool_calls import PatchToolCallsMiddleware
 from deepagents.middleware.subagents import GENERAL_PURPOSE_SUBAGENT
-from deepagents.middleware.summarization import create_summarization_middleware
 from langchain.agents import create_agent
 from langchain.agents.middleware import TodoListMiddleware
 from langchain_anthropic.middleware import AnthropicPromptCachingMiddleware
@@ -34,18 +33,24 @@ from langgraph.types import Checkpointer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.new_chat.context import SurfSenseContextSchema
+from app.agents.new_chat.filesystem_backends import build_backend_resolver
+from app.agents.new_chat.filesystem_selection import FilesystemSelection
 from app.agents.new_chat.llm_config import AgentConfig
 from app.agents.new_chat.middleware import (
     DedupHITLToolCallsMiddleware,
+    FileIntentMiddleware,
     KnowledgeBaseSearchMiddleware,
     MemoryInjectionMiddleware,
     SurfSenseFilesystemMiddleware,
+)
+from app.agents.new_chat.middleware.safe_summarization import (
+    create_safe_summarization_middleware,
 )
 from app.agents.new_chat.system_prompt import (
     build_configurable_system_prompt,
     build_surfsense_system_prompt,
 )
-from app.agents.new_chat.tools.registry import build_tools_async
+from app.agents.new_chat.tools.registry import build_tools_async, get_connector_gated_tools
 from app.db import ChatVisibility
 from app.services.connector_service import ConnectorService
 from app.utils.perf import get_perf_logger
@@ -162,6 +167,7 @@ async def create_surfsense_deep_agent(
     thread_visibility: ChatVisibility | None = None,
     mentioned_document_ids: list[int] | None = None,
     anon_session_id: str | None = None,
+    filesystem_selection: FilesystemSelection | None = None,
 ):
     """
     Create a SurfSense deep agent with configurable tools and prompts.
@@ -236,6 +242,8 @@ async def create_surfsense_deep_agent(
         )
     """
     _t_agent_total = time.perf_counter()
+    filesystem_selection = filesystem_selection or FilesystemSelection()
+    backend_resolver = build_backend_resolver(filesystem_selection)
 
     # Discover available connectors and document types for this search space
     available_connectors: list[str] | None = None
@@ -285,105 +293,10 @@ async def create_surfsense_deep_agent(
         "llm": llm,
     }
 
-    # Disable Notion action tools if no Notion connector is configured
     modified_disabled_tools = list(disabled_tools) if disabled_tools else []
-    has_notion_connector = (
-        available_connectors is not None and "NOTION_CONNECTOR" in available_connectors
+    modified_disabled_tools.extend(
+        get_connector_gated_tools(available_connectors)
     )
-    if not has_notion_connector:
-        notion_tools = [
-            "create_notion_page",
-            "update_notion_page",
-            "delete_notion_page",
-        ]
-        modified_disabled_tools.extend(notion_tools)
-
-    # Disable Linear action tools if no Linear connector is configured
-    has_linear_connector = (
-        available_connectors is not None and "LINEAR_CONNECTOR" in available_connectors
-    )
-    if not has_linear_connector:
-        linear_tools = [
-            "create_linear_issue",
-            "update_linear_issue",
-            "delete_linear_issue",
-        ]
-        modified_disabled_tools.extend(linear_tools)
-
-    # Disable Google Drive action tools if no Google Drive connector is configured
-    has_google_drive_connector = (
-        available_connectors is not None and "GOOGLE_DRIVE_FILE" in available_connectors
-    )
-    if not has_google_drive_connector:
-        google_drive_tools = [
-            "create_google_drive_file",
-            "delete_google_drive_file",
-        ]
-        modified_disabled_tools.extend(google_drive_tools)
-
-    has_dropbox_connector = (
-        available_connectors is not None and "DROPBOX_FILE" in available_connectors
-    )
-    if not has_dropbox_connector:
-        modified_disabled_tools.extend(["create_dropbox_file", "delete_dropbox_file"])
-
-    has_onedrive_connector = (
-        available_connectors is not None and "ONEDRIVE_FILE" in available_connectors
-    )
-    if not has_onedrive_connector:
-        modified_disabled_tools.extend(["create_onedrive_file", "delete_onedrive_file"])
-
-    # Disable Google Calendar action tools if no Google Calendar connector is configured
-    has_google_calendar_connector = (
-        available_connectors is not None
-        and "GOOGLE_CALENDAR_CONNECTOR" in available_connectors
-    )
-    if not has_google_calendar_connector:
-        calendar_tools = [
-            "create_calendar_event",
-            "update_calendar_event",
-            "delete_calendar_event",
-        ]
-        modified_disabled_tools.extend(calendar_tools)
-
-    # Disable Gmail action tools if no Gmail connector is configured
-    has_gmail_connector = (
-        available_connectors is not None
-        and "GOOGLE_GMAIL_CONNECTOR" in available_connectors
-    )
-    if not has_gmail_connector:
-        gmail_tools = [
-            "create_gmail_draft",
-            "update_gmail_draft",
-            "send_gmail_email",
-            "trash_gmail_email",
-        ]
-        modified_disabled_tools.extend(gmail_tools)
-
-    # Disable Jira action tools if no Jira connector is configured
-    has_jira_connector = (
-        available_connectors is not None and "JIRA_CONNECTOR" in available_connectors
-    )
-    if not has_jira_connector:
-        jira_tools = [
-            "create_jira_issue",
-            "update_jira_issue",
-            "delete_jira_issue",
-        ]
-        modified_disabled_tools.extend(jira_tools)
-
-    # Disable Confluence action tools if no Confluence connector is configured
-    has_confluence_connector = (
-        available_connectors is not None
-        and "CONFLUENCE_CONNECTOR" in available_connectors
-    )
-    if not has_confluence_connector:
-        confluence_tools = [
-            "create_confluence_page",
-            "update_confluence_page",
-            "delete_confluence_page",
-        ]
-        modified_disabled_tools.extend(confluence_tools)
 
     # Remove direct KB search tool; we now pre-seed a scoped filesystem via middleware.
     if "search_knowledge_base" not in modified_disabled_tools:
@@ -407,6 +320,20 @@ async def create_surfsense_deep_agent(
     _t0 = time.perf_counter()
     _enabled_tool_names = {t.name for t in tools}
     _user_disabled_tool_names = set(disabled_tools) if disabled_tools else set()
+
+    # Collect generic MCP connector info so the system prompt can route queries
+    # to their tools instead of falling back to "not in knowledge base".
+    _mcp_connector_tools: dict[str, list[str]] = {}
+    for t in tools:
+        meta = getattr(t, "metadata", None) or {}
+        if meta.get("mcp_is_generic") and meta.get("mcp_connector_name"):
+            _mcp_connector_tools.setdefault(
+                meta["mcp_connector_name"], [],
+            ).append(t.name)
+
+    if _mcp_connector_tools:
+        _perf_log.info("MCP connector tool routing: %s", _mcp_connector_tools)
+
     if agent_config is not None:
         system_prompt = build_configurable_system_prompt(
             custom_system_instructions=agent_config.system_instructions,
@@ -415,12 +342,14 @@ async def create_surfsense_deep_agent(
             thread_visibility=thread_visibility,
             enabled_tool_names=_enabled_tool_names,
             disabled_tool_names=_user_disabled_tool_names,
+            mcp_connector_tools=_mcp_connector_tools,
         )
     else:
         system_prompt = build_surfsense_system_prompt(
             thread_visibility=thread_visibility,
             enabled_tool_names=_enabled_tool_names,
             disabled_tool_names=_user_disabled_tool_names,
+            mcp_connector_tools=_mcp_connector_tools,
         )
     _perf_log.info(
         "[create_agent] System prompt built in %.3fs", time.perf_counter() - _t0
@@ -437,12 +366,15 @@ async def create_surfsense_deep_agent(
     gp_middleware = [
         TodoListMiddleware(),
         _memory_middleware,
+        FileIntentMiddleware(llm=llm),
         SurfSenseFilesystemMiddleware(
+            backend=backend_resolver,
+            filesystem_mode=filesystem_selection.mode,
             search_space_id=search_space_id,
             created_by_id=user_id,
             thread_id=thread_id,
         ),
-        create_summarization_middleware(llm, StateBackend),
+        create_safe_summarization_middleware(llm, StateBackend),
         PatchToolCallsMiddleware(),
         AnthropicPromptCachingMiddleware(unsupported_model_behavior="ignore"),
     ]
@@ -458,21 +390,25 @@ async def create_surfsense_deep_agent(
     deepagent_middleware = [
         TodoListMiddleware(),
         _memory_middleware,
+        FileIntentMiddleware(llm=llm),
         KnowledgeBaseSearchMiddleware(
             llm=llm,
             search_space_id=search_space_id,
+            filesystem_mode=filesystem_selection.mode,
             available_connectors=available_connectors,
             available_document_types=available_document_types,
             mentioned_document_ids=mentioned_document_ids,
             anon_session_id=anon_session_id,
         ),
         SurfSenseFilesystemMiddleware(
+            backend=backend_resolver,
+            filesystem_mode=filesystem_selection.mode,
             search_space_id=search_space_id,
             created_by_id=user_id,
             thread_id=thread_id,
         ),
         SubAgentMiddleware(backend=StateBackend, subagents=[general_purpose_spec]),
-        create_summarization_middleware(llm, StateBackend),
+        create_safe_summarization_middleware(llm, StateBackend),
         PatchToolCallsMiddleware(),
         DedupHITLToolCallsMiddleware(agent_tools=tools),
         AnthropicPromptCachingMiddleware(unsupported_model_behavior="ignore"),

@@ -546,6 +546,7 @@ export function DocumentUploadTab({
 						</button>
 					)
 				) : (
+					// biome-ignore lint/a11y/useSemanticElements: cannot use <button> here because the contents include nested interactive elements (renderBrowseButton renders a Button), which would be invalid HTML.
 					<div
 						role="button"
 						tabIndex={0}

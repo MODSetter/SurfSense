@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, ChevronDown, ChevronUp, Server, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronUp, Loader2, Server, XCircle } from "lucide-react";
 import type { FC } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -217,7 +217,14 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 							variant="secondary"
 							className="w-full h-8 text-[13px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80"
 						>
-							{isTesting ? "Testing Connection" : "Test Connection"}
+							{isTesting ? (
+							<>
+								<Loader2 className="h-3.5 w-3.5 animate-spin" />
+								Testing Connection...
+							</>
+						) : (
+							"Test Connection"
+						)}
 						</Button>
 					</div>
 

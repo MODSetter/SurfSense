@@ -1,6 +1,6 @@
 "use client";
 
-import { MoreHorizontal, PenLine, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -29,7 +29,7 @@ export function CommentActions({ canEdit, canDelete, onEdit, onDelete }: Comment
 			<DropdownMenuContent align="end">
 				{canEdit && (
 					<DropdownMenuItem onClick={onEdit}>
-						<PenLine className="mr-2 size-4" />
+						<Pencil className="mr-2 size-4" />
 						Edit
 					</DropdownMenuItem>
 				)}

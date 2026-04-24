@@ -123,8 +123,9 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 			handleSkipIndexing,
 			handleStartEdit,
 			handleSaveConnector,
-			handleDisconnectConnector,
-			handleBackFromEdit,
+		handleDisconnectConnector,
+		handleDisconnectFromList,
+		handleBackFromEdit,
 			handleBackFromConnect,
 			handleBackFromYouTube,
 			handleViewAccountsList,
@@ -225,25 +226,27 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 					{isYouTubeView && searchSpaceId ? (
 						<YouTubeCrawlerView searchSpaceId={searchSpaceId} onBack={handleBackFromYouTube} />
 					) : viewingMCPList ? (
-						<ConnectorAccountsListView
-							connectorType="MCP_CONNECTOR"
-							connectorTitle="MCP Connectors"
-							connectors={(allConnectors || []) as SearchSourceConnector[]}
-							indexingConnectorIds={indexingConnectorIds}
-							onBack={handleBackFromMCPList}
-							onManage={handleStartEdit}
-							onAddAccount={handleAddNewMCPFromList}
-							addButtonText="Add New MCP Server"
-						/>
+					<ConnectorAccountsListView
+						connectorType="MCP_CONNECTOR"
+						connectorTitle="MCP Connectors"
+						connectors={(allConnectors || []) as SearchSourceConnector[]}
+						indexingConnectorIds={indexingConnectorIds}
+						onBack={handleBackFromMCPList}
+						onManage={handleStartEdit}
+						onDisconnect={(connector) => handleDisconnectFromList(connector, () => refreshConnectors())}
+						onAddAccount={handleAddNewMCPFromList}
+						addButtonText="Add New MCP Server"
+					/>
 					) : viewingAccountsType ? (
-						<ConnectorAccountsListView
-							connectorType={viewingAccountsType.connectorType}
-							connectorTitle={viewingAccountsType.connectorTitle}
-							connectors={(connectors || []) as SearchSourceConnector[]}
-							indexingConnectorIds={indexingConnectorIds}
-							onBack={handleBackFromAccountsList}
-							onManage={handleStartEdit}
-							onAddAccount={() => {
+					<ConnectorAccountsListView
+						connectorType={viewingAccountsType.connectorType}
+						connectorTitle={viewingAccountsType.connectorTitle}
+						connectors={(connectors || []) as SearchSourceConnector[]}
+						indexingConnectorIds={indexingConnectorIds}
+						onBack={handleBackFromAccountsList}
+						onManage={handleStartEdit}
+						onDisconnect={(connector) => handleDisconnectFromList(connector, () => refreshConnectors())}
+						onAddAccount={() => {
 								// Check both OAUTH_CONNECTORS and COMPOSIO_CONNECTORS
 								const oauthConnector =
 									OAUTH_CONNECTORS.find(

@@ -61,7 +61,7 @@ async def add_luma_connector(
         if existing_connector:
             # Update existing connector with new API key
             existing_connector.config = {"api_key": request.api_key}
-            existing_connector.is_indexable = True
+            existing_connector.is_indexable = False
             await session.commit()
             await session.refresh(existing_connector)
 
@@ -82,7 +82,7 @@ async def add_luma_connector(
             config={"api_key": request.api_key},
             search_space_id=request.space_id,
             user_id=user.id,
-            is_indexable=True,
+            is_indexable=False,
         )
 
         session.add(db_connector)

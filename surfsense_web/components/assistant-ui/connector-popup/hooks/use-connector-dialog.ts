@@ -32,6 +32,7 @@ import {
 	AUTO_INDEX_CONNECTOR_TYPES,
 	AUTO_INDEX_DEFAULTS,
 	COMPOSIO_CONNECTORS,
+	LIVE_CONNECTOR_TYPES,
 	OAUTH_CONNECTORS,
 	OTHER_CONNECTORS,
 } from "../constants/connector-constants";
@@ -307,7 +308,12 @@ export const useConnectorDialog = () => {
 							newConnector.id
 						);
 
-						if (
+						const isLiveConnector = LIVE_CONNECTOR_TYPES.has(oauthConnector.connectorType);
+
+						if (isLiveConnector) {
+							toast.success(`${oauthConnector.title} connected successfully!`);
+							await refetchAllConnectors();
+						} else if (
 							newConnector.is_indexable &&
 							AUTO_INDEX_CONNECTOR_TYPES.has(oauthConnector.connectorType)
 						) {
@@ -316,6 +322,9 @@ export const useConnectorDialog = () => {
 								oauthConnector.title,
 								oauthConnector.connectorType
 							);
+						} else if (!newConnector.is_indexable) {
+							toast.success(`${oauthConnector.title} connected successfully!`);
+							await refetchAllConnectors();
 						} else {
 							toast.dismiss("auto-index");
 							const config = validateIndexingConfigState({
@@ -1279,6 +1288,25 @@ export const useConnectorDialog = () => {
 		[editingConnector, searchSpaceId, deleteConnector, cameFromMCPList, setIsOpen]
 	);
 
+	const handleDisconnectFromList = useCallback(
+		async (connector: SearchSourceConnector, refreshConnectors: () => void) => {
+			if (!searchSpaceId) return;
+			try {
+				await deleteConnector({ id: connector.id });
+				trackConnectorDeleted(Number(searchSpaceId), connector.connector_type, connector.id);
+				toast.success(`${connector.name} disconnected successfully`);
+				refreshConnectors();
+				queryClient.invalidateQueries({
+					queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+				});
+			} catch (error) {
+				console.error("Error disconnecting connector:", error);
+				toast.error("Failed to disconnect connector");
+			}
+		},
+		[searchSpaceId, deleteConnector]
+	);
+
 	// Handle quick index (index with selected date range, or backend defaults if none selected)
 	const handleQuickIndexConnector = useCallback(
 		async (
@@ -1452,6 +1480,7 @@ export const useConnectorDialog = () => {
 		handleStartEdit,
 		handleSaveConnector,
 		handleDisconnectConnector,
+		handleDisconnectFromList,
 		handleBackFromEdit,
 		handleBackFromConnect,
 		handleBackFromYouTube,

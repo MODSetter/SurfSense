@@ -1,4 +1,24 @@
 import { EnumConnectorName } from "@/contracts/enums/connector";
+import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+
+/**
+ * Connectors that operate in real time (no background indexing).
+ * Used to adjust UI: hide sync controls, show "Connected" instead of doc counts.
+ */
+export const LIVE_CONNECTOR_TYPES = new Set<string>([
+	EnumConnectorName.LINEAR_CONNECTOR,
+	EnumConnectorName.SLACK_CONNECTOR,
+	EnumConnectorName.JIRA_CONNECTOR,
+	EnumConnectorName.CLICKUP_CONNECTOR,
+	EnumConnectorName.AIRTABLE_CONNECTOR,
+	EnumConnectorName.DISCORD_CONNECTOR,
+	EnumConnectorName.TEAMS_CONNECTOR,
+	EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR,
+	EnumConnectorName.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
+	EnumConnectorName.GOOGLE_GMAIL_CONNECTOR,
+	EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR,
+	EnumConnectorName.LUMA_CONNECTOR,
+]);
 
 // OAuth Connectors (Quick Connect)
 export const OAUTH_CONNECTORS = [
@@ -13,7 +33,7 @@ export const OAUTH_CONNECTORS = [
 	{
 		id: "google-gmail-connector",
 		title: "Gmail",
-		description: "Search through your emails",
+		description: "Search, read, draft, and send emails",
 		connectorType: EnumConnectorName.GOOGLE_GMAIL_CONNECTOR,
 		authEndpoint: "/api/v1/auth/google/gmail/connector/add/",
 		selfHostedOnly: true,
@@ -21,7 +41,7 @@ export const OAUTH_CONNECTORS = [
 	{
 		id: "google-calendar-connector",
 		title: "Google Calendar",
-		description: "Search through your events",
+		description: "Search and manage your events",
 		connectorType: EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR,
 		authEndpoint: "/api/v1/auth/google/calendar/connector/add/",
 		selfHostedOnly: true,
@@ -29,35 +49,35 @@ export const OAUTH_CONNECTORS = [
 	{
 		id: "airtable-connector",
 		title: "Airtable",
-		description: "Search your Airtable bases",
+		description: "Browse bases, tables, and records",
 		connectorType: EnumConnectorName.AIRTABLE_CONNECTOR,
-		authEndpoint: "/api/v1/auth/airtable/connector/add/",
+		authEndpoint: "/api/v1/auth/mcp/airtable/connector/add/",
 	},
 	{
 		id: "notion-connector",
 		title: "Notion",
 		description: "Search your Notion pages",
 		connectorType: EnumConnectorName.NOTION_CONNECTOR,
-		authEndpoint: "/api/v1/auth/notion/connector/add/",
+		authEndpoint: "/api/v1/auth/notion/connector/add",
 	},
 	{
 		id: "linear-connector",
 		title: "Linear",
-		description: "Search issues & projects",
+		description: "Search, read, and manage issues & projects",
 		connectorType: EnumConnectorName.LINEAR_CONNECTOR,
-		authEndpoint: "/api/v1/auth/linear/connector/add/",
+		authEndpoint: "/api/v1/auth/mcp/linear/connector/add/",
 	},
 	{
 		id: "slack-connector",
 		title: "Slack",
-		description: "Search Slack messages",
+		description: "Search and read channels and threads",
 		connectorType: EnumConnectorName.SLACK_CONNECTOR,
-		authEndpoint: "/api/v1/auth/slack/connector/add/",
+		authEndpoint: "/api/v1/auth/mcp/slack/connector/add/",
 	},
 	{
 		id: "teams-connector",
 		title: "Microsoft Teams",
-		description: "Search Teams messages",
+		description: "Search, read, and send messages",
 		connectorType: EnumConnectorName.TEAMS_CONNECTOR,
 		authEndpoint: "/api/v1/auth/teams/connector/add/",
 	},
@@ -78,16 +98,16 @@ export const OAUTH_CONNECTORS = [
 	{
 		id: "discord-connector",
 		title: "Discord",
-		description: "Search Discord messages",
+		description: "Search, read, and send messages",
 		connectorType: EnumConnectorName.DISCORD_CONNECTOR,
 		authEndpoint: "/api/v1/auth/discord/connector/add/",
 	},
 	{
 		id: "jira-connector",
 		title: "Jira",
-		description: "Search Jira issues",
+		description: "Search, read, and manage issues",
 		connectorType: EnumConnectorName.JIRA_CONNECTOR,
-		authEndpoint: "/api/v1/auth/jira/connector/add/",
+		authEndpoint: "/api/v1/auth/mcp/jira/connector/add/",
 	},
 	{
 		id: "confluence-connector",
@@ -99,9 +119,9 @@ export const OAUTH_CONNECTORS = [
 	{
 		id: "clickup-connector",
 		title: "ClickUp",
-		description: "Search ClickUp tasks",
+		description: "Search and read tasks",
 		connectorType: EnumConnectorName.CLICKUP_CONNECTOR,
-		authEndpoint: "/api/v1/auth/clickup/connector/add/",
+		authEndpoint: "/api/v1/auth/mcp/clickup/connector/add/",
 	},
 ] as const;
 
@@ -138,7 +158,7 @@ export const OTHER_CONNECTORS = [
 	{
 		id: "luma-connector",
 		title: "Luma",
-		description: "Search Luma events",
+		description: "Browse, read, and create events",
 		connectorType: EnumConnectorName.LUMA_CONNECTOR,
 	},
 	{
@@ -197,14 +217,14 @@ export const COMPOSIO_CONNECTORS = [
 	{
 		id: "composio-gmail",
 		title: "Gmail",
-		description: "Search through your emails via Composio",
+		description: "Search, read, draft, and send emails via Composio",
 		connectorType: EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR,
 		authEndpoint: "/api/v1/auth/composio/connector/add/?toolkit_id=gmail",
 	},
 	{
 		id: "composio-googlecalendar",
 		title: "Google Calendar",
-		description: "Search through your events via Composio",
+		description: "Search and manage your events via Composio",
 		connectorType: EnumConnectorName.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
 		authEndpoint: "/api/v1/auth/composio/connector/add/?toolkit_id=googlecalendar",
 	},
@@ -221,14 +241,14 @@ export const COMPOSIO_TOOLKITS = [
 	{
 		id: "gmail",
 		name: "Gmail",
-		description: "Search through your emails",
-		isIndexable: true,
+		description: "Search, read, draft, and send emails",
+		isIndexable: false,
 	},
 	{
 		id: "googlecalendar",
 		name: "Google Calendar",
-		description: "Search through your events",
-		isIndexable: true,
+		description: "Search and manage your events",
+		isIndexable: false,
 	},
 	{
 		id: "slack",
@@ -258,66 +278,6 @@ export interface AutoIndexConfig {
 }
 
 export const AUTO_INDEX_DEFAULTS: Record<string, AutoIndexConfig> = {
-	[EnumConnectorName.GOOGLE_GMAIL_CONNECTOR]: {
-		daysBack: 30,
-		daysForward: 0,
-		frequencyMinutes: 1440,
-		syncDescription: "Syncing your last 30 days of emails.",
-	},
-	[EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR]: {
-		daysBack: 30,
-		daysForward: 0,
-		frequencyMinutes: 1440,
-		syncDescription: "Syncing your last 30 days of emails.",
-	},
-	[EnumConnectorName.SLACK_CONNECTOR]: {
-		daysBack: 30,
-		daysForward: 0,
-		frequencyMinutes: 1440,
-		syncDescription: "Syncing your last 30 days of messages.",
-	},
-	[EnumConnectorName.DISCORD_CONNECTOR]: {
-		daysBack: 30,
-		daysForward: 0,
-		frequencyMinutes: 1440,
-		syncDescription: "Syncing your last 30 days of messages.",
-	},
-	[EnumConnectorName.TEAMS_CONNECTOR]: {
-		daysBack: 30,
-		daysForward: 0,
-		frequencyMinutes: 1440,
-		syncDescription: "Syncing your last 30 days of messages.",
-	},
-	[EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR]: {
-		daysBack: 90,
-		daysForward: 90,
-		frequencyMinutes: 1440,
-		syncDescription: "Syncing 90 days of past and upcoming events.",
-	},
-	[EnumConnectorName.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR]: {
-		daysBack: 90,
-		daysForward: 90,
-		frequencyMinutes: 1440,
-		syncDescription: "Syncing 90 days of past and upcoming events.",
-	},
-	[EnumConnectorName.LINEAR_CONNECTOR]: {
-		daysBack: 90,
-		daysForward: 0,
-		frequencyMinutes: 1440,
-		syncDescription: "Syncing your last 90 days of issues.",
-	},
-	[EnumConnectorName.JIRA_CONNECTOR]: {
-		daysBack: 90,
-		daysForward: 0,
-		frequencyMinutes: 1440,
-		syncDescription: "Syncing your last 90 days of issues.",
-	},
-	[EnumConnectorName.CLICKUP_CONNECTOR]: {
-		daysBack: 90,
-		daysForward: 0,
-		frequencyMinutes: 1440,
-		syncDescription: "Syncing your last 90 days of tasks.",
-	},
 	[EnumConnectorName.NOTION_CONNECTOR]: {
 		daysBack: 365,
 		daysForward: 0,
@@ -329,12 +289,6 @@ export const AUTO_INDEX_DEFAULTS: Record<string, AutoIndexConfig> = {
 		daysForward: 0,
 		frequencyMinutes: 1440,
 		syncDescription: "Syncing your documentation.",
-	},
-	[EnumConnectorName.AIRTABLE_CONNECTOR]: {
-		daysBack: 365,
-		daysForward: 0,
-		frequencyMinutes: 1440,
-		syncDescription: "Syncing your bases.",
 	},
 };
 
@@ -412,6 +366,46 @@ export function getConnectorTelemetryMeta(connectorType: string): ConnectorTelem
 		connector_group: "unknown",
 		is_oauth: false,
 	};
+}
+
+// =============================================================================
+// REAUTH ENDPOINTS
+// =============================================================================
+
+/**
+ * Legacy (non-MCP) OAuth reauth endpoints, keyed by connector type.
+ * These are used for connectors that were NOT created via MCP OAuth.
+ */
+export const LEGACY_REAUTH_ENDPOINTS: Partial<Record<string, string>> = {
+	[EnumConnectorName.LINEAR_CONNECTOR]: "/api/v1/auth/linear/connector/reauth",
+	[EnumConnectorName.JIRA_CONNECTOR]: "/api/v1/auth/jira/connector/reauth",
+	[EnumConnectorName.NOTION_CONNECTOR]: "/api/v1/auth/notion/connector/reauth",
+	[EnumConnectorName.GOOGLE_DRIVE_CONNECTOR]: "/api/v1/auth/google/drive/connector/reauth",
+	[EnumConnectorName.GOOGLE_GMAIL_CONNECTOR]: "/api/v1/auth/google/gmail/connector/reauth",
+	[EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR]: "/api/v1/auth/google/calendar/connector/reauth",
+	[EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
+	[EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
+	[EnumConnectorName.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
+	[EnumConnectorName.ONEDRIVE_CONNECTOR]: "/api/v1/auth/onedrive/connector/reauth",
+	[EnumConnectorName.DROPBOX_CONNECTOR]: "/api/v1/auth/dropbox/connector/reauth",
+	[EnumConnectorName.CONFLUENCE_CONNECTOR]: "/api/v1/auth/confluence/connector/reauth",
+	[EnumConnectorName.TEAMS_CONNECTOR]: "/api/v1/auth/teams/connector/reauth",
+	[EnumConnectorName.DISCORD_CONNECTOR]: "/api/v1/auth/discord/connector/reauth",
+};
+
+/**
+ * Resolve the reauth endpoint for a connector.
+ *
+ * MCP OAuth connectors (those with ``config.mcp_service``) dynamically build
+ * the URL from the service key. Legacy OAuth connectors fall back to the
+ * static ``LEGACY_REAUTH_ENDPOINTS`` map.
+ */
+export function getReauthEndpoint(connector: SearchSourceConnector): string | undefined {
+	const mcpService = connector.config?.mcp_service as string | undefined;
+	if (mcpService) {
+		return `/api/v1/auth/mcp/${mcpService}/connector/reauth`;
+	}
+	return LEGACY_REAUTH_ENDPOINTS[connector.connector_type];
 }
 
 // Re-export IndexingConfigState from schemas for backward compatibility

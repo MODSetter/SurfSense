@@ -60,6 +60,8 @@ services:
       - shared_temp:/shared_tmp
     env_file:
       - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://${DB_USER:-surfsense}:${DB_PASSWORD:-surfsense}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}}
       CELERY_BROKER_URL: ${REDIS_URL:-redis://redis:6379/0}
@@ -100,6 +102,8 @@ services:
       - shared_temp:/shared_tmp
     env_file:
       - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://${DB_USER:-surfsense}:${DB_PASSWORD:-surfsense}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}}
       CELERY_BROKER_URL: ${REDIS_URL:-redis://redis:6379/0}

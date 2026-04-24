@@ -311,7 +311,7 @@ async def airtable_callback(
         new_connector = SearchSourceConnector(
             name=connector_name,
             connector_type=SearchSourceConnectorType.AIRTABLE_CONNECTOR,
-            is_indexable=True,
+            is_indexable=False,
             config=credentials_dict,
             search_space_id=space_id,
             user_id=user_id,

@@ -18,19 +18,9 @@ logger = logging.getLogger(__name__)
 
 # Mapping of connector types to their corresponding Celery task names
 CONNECTOR_TASK_MAP = {
-    SearchSourceConnectorType.SLACK_CONNECTOR: "index_slack_messages",
-    SearchSourceConnectorType.TEAMS_CONNECTOR: "index_teams_messages",
     SearchSourceConnectorType.NOTION_CONNECTOR: "index_notion_pages",
     SearchSourceConnectorType.GITHUB_CONNECTOR: "index_github_repos",
-    SearchSourceConnectorType.LINEAR_CONNECTOR: "index_linear_issues",
-    SearchSourceConnectorType.JIRA_CONNECTOR: "index_jira_issues",
     SearchSourceConnectorType.CONFLUENCE_CONNECTOR: "index_confluence_pages",
-    SearchSourceConnectorType.CLICKUP_CONNECTOR: "index_clickup_tasks",
-    SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR: "index_google_calendar_events",
-    SearchSourceConnectorType.AIRTABLE_CONNECTOR: "index_airtable_records",
-    SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR: "index_google_gmail_messages",
-    SearchSourceConnectorType.DISCORD_CONNECTOR: "index_discord_messages",
-    SearchSourceConnectorType.LUMA_CONNECTOR: "index_luma_events",
     SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR: "index_elasticsearch_documents",
     SearchSourceConnectorType.WEBCRAWLER_CONNECTOR: "index_crawled_urls",
     SearchSourceConnectorType.BOOKSTACK_CONNECTOR: "index_bookstack_pages",
@@ -83,39 +73,19 @@ def create_periodic_schedule(
             f"(frequency: {frequency_minutes} minutes). Triggering first run..."
         )
 
-        # Import all indexing tasks
         from app.tasks.celery_tasks.connector_tasks import (
-            index_airtable_records_task,
             index_bookstack_pages_task,
-            index_clickup_tasks_task,
             index_confluence_pages_task,
             index_crawled_urls_task,
-            index_discord_messages_task,
             index_elasticsearch_documents_task,
             index_github_repos_task,
-            index_google_calendar_events_task,
-            index_google_gmail_messages_task,
-            index_jira_issues_task,
-            index_linear_issues_task,
-            index_luma_events_task,
             index_notion_pages_task,
-            index_slack_messages_task,
         )
 
-        # Map connector type to task
         task_map = {
-            SearchSourceConnectorType.SLACK_CONNECTOR: index_slack_messages_task,
             SearchSourceConnectorType.NOTION_CONNECTOR: index_notion_pages_task,
             SearchSourceConnectorType.GITHUB_CONNECTOR: index_github_repos_task,
-            SearchSourceConnectorType.LINEAR_CONNECTOR: index_linear_issues_task,
-            SearchSourceConnectorType.JIRA_CONNECTOR: index_jira_issues_task,
             SearchSourceConnectorType.CONFLUENCE_CONNECTOR: index_confluence_pages_task,
-            SearchSourceConnectorType.CLICKUP_CONNECTOR: index_clickup_tasks_task,
-            SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR: index_google_calendar_events_task,
-            SearchSourceConnectorType.AIRTABLE_CONNECTOR: index_airtable_records_task,
-            SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR: index_google_gmail_messages_task,
-            SearchSourceConnectorType.DISCORD_CONNECTOR: index_discord_messages_task,
-            SearchSourceConnectorType.LUMA_CONNECTOR: index_luma_events_task,
             SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR: index_elasticsearch_documents_task,
             SearchSourceConnectorType.WEBCRAWLER_CONNECTOR: index_crawled_urls_task,
             SearchSourceConnectorType.BOOKSTACK_CONNECTOR: index_bookstack_pages_task,

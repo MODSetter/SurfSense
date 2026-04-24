@@ -26,6 +26,10 @@ from langchain_core.tools import BaseTool, StructuredTool
 from langgraph.types import Command
 from sqlalchemy import delete, select
 
+from app.agents.new_chat.filesystem_selection import FilesystemMode
+from app.agents.new_chat.middleware.multi_root_local_folder_backend import (
+    MultiRootLocalFolderBackend,
+)
 from app.agents.new_chat.sandbox import (
     _evict_sandbox_cache,
     delete_sandbox,
@@ -50,6 +54,8 @@ SURFSENSE_FILESYSTEM_SYSTEM_PROMPT = """## Following Conventions
 
 - Read files before editing — understand existing content before making changes.
 - Mimic existing style, naming conventions, and patterns.
+- Never claim a file was created/updated unless filesystem tool output confirms success.
+- If a file write/edit fails, explicitly report the failure.
 
 ## Filesystem Tools
 
@@ -109,13 +115,20 @@ Usage:
 - Use chunk IDs (`<chunk id='...'>`) as citations in answers.
 """
 
-SURFSENSE_WRITE_FILE_TOOL_DESCRIPTION = """Writes a new file to the in-memory filesystem (session-only).
+SURFSENSE_WRITE_FILE_TOOL_DESCRIPTION = """Writes a new text file to the in-memory filesystem (session-only).
 
 Use this to create scratch/working files during the conversation. Files created
 here are ephemeral and will not be saved to the user's knowledge base.
 
 To permanently save a document to the user's knowledge base, use the
 `save_document` tool instead.
+
+Supported outputs include common LLM-friendly text formats like markdown, json,
+yaml, csv, xml, html, css, sql, and code files.
+
+When creating content from open-ended prompts, produce concrete and useful text,
+not placeholders. Avoid adding dates/timestamps unless the user explicitly asks
+for them.
 """
 
 SURFSENSE_EDIT_FILE_TOOL_DESCRIPTION = """Performs exact string replacements in files.
@@ -182,11 +195,14 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
     def __init__(
         self,
         *,
+        backend: Any = None,
+        filesystem_mode: FilesystemMode = FilesystemMode.CLOUD,
         search_space_id: int | None = None,
         created_by_id: str | None = None,
         thread_id: int | str | None = None,
         tool_token_limit_before_evict: int | None = 20000,
     ) -> None:
+        self._filesystem_mode = filesystem_mode
         self._search_space_id = search_space_id
         self._created_by_id = created_by_id
         self._thread_id = thread_id
@@ -204,8 +220,17 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
                 " extract the data, write it as a clean file (CSV, JSON, etc.),"
                 " and then run your code against it."
             )
+        if filesystem_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER:
+            system_prompt += (
+                "\n\n## Local Folder Mode"
+                "\n\nThis chat is running in desktop local-folder mode."
+                " Keep all file operations local. Do not use save_document."
+                " Always use mount-prefixed absolute paths like /<folder>/file.ext."
+                " If you are unsure which mounts are available, call ls('/') first."
+            )
 
         super().__init__(
+            backend=backend,
             system_prompt=system_prompt,
             custom_tool_descriptions={
                 "ls": SURFSENSE_LIST_FILES_TOOL_DESCRIPTION,
@@ -219,7 +244,8 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
             max_execute_timeout=self._MAX_EXECUTE_TIMEOUT,
         )
         self.tools = [t for t in self.tools if t.name != "execute"]
-        self.tools.append(self._create_save_document_tool())
+        if self._should_persist_documents():
+            self.tools.append(self._create_save_document_tool())
         if self._sandbox_available:
             self.tools.append(self._create_execute_code_tool())
 
@@ -637,15 +663,25 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
             runtime: ToolRuntime[None, FilesystemState],
         ) -> Command | str:
             resolved_backend = self._get_backend(runtime)
+            target_path = self._resolve_write_target_path(file_path, runtime)
             try:
-                validated_path = validate_path(file_path)
+                validated_path = validate_path(target_path)
             except ValueError as exc:
                 return f"Error: {exc}"
             res: WriteResult = resolved_backend.write(validated_path, content)
             if res.error:
                 return res.error
+            verify_error = self._verify_written_content_sync(
+                backend=resolved_backend,
+                path=validated_path,
+                expected_content=content,
+            )
+            if verify_error:
+                return verify_error
 
-            if not self._is_kb_document(validated_path):
+            if self._should_persist_documents() and not self._is_kb_document(
+                validated_path
+            ):
                 persist_result = self._run_async_blocking(
                     self._persist_new_document(
                         file_path=validated_path, content=content
@@ -682,15 +718,25 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
             runtime: ToolRuntime[None, FilesystemState],
         ) -> Command | str:
             resolved_backend = self._get_backend(runtime)
+            target_path = self._resolve_write_target_path(file_path, runtime)
             try:
-                validated_path = validate_path(file_path)
+                validated_path = validate_path(target_path)
             except ValueError as exc:
                 return f"Error: {exc}"
             res: WriteResult = await resolved_backend.awrite(validated_path, content)
             if res.error:
                 return res.error
+            verify_error = await self._verify_written_content_async(
+                backend=resolved_backend,
+                path=validated_path,
+                expected_content=content,
+            )
+            if verify_error:
+                return verify_error
 
-            if not self._is_kb_document(validated_path):
+            if self._should_persist_documents() and not self._is_kb_document(
+                validated_path
+            ):
                 persist_result = await self._persist_new_document(
                     file_path=validated_path,
                     content=content,
@@ -726,6 +772,164 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         """Return True for paths under /documents/ (KB-sourced, XML-wrapped)."""
         return path.startswith("/documents/")
 
+    def _should_persist_documents(self) -> bool:
+        """Only cloud mode persists file content to Document/Chunk tables."""
+        return self._filesystem_mode == FilesystemMode.CLOUD
+
+    def _default_mount_prefix(self, runtime: ToolRuntime[None, FilesystemState]) -> str:
+        backend = self._get_backend(runtime)
+        if isinstance(backend, MultiRootLocalFolderBackend):
+            return f"/{backend.default_mount()}"
+        return ""
+
+    def _normalize_local_mount_path(
+        self, candidate: str, runtime: ToolRuntime[None, FilesystemState]
+    ) -> str:
+        backend = self._get_backend(runtime)
+        mount_prefix = self._default_mount_prefix(runtime)
+        normalized_candidate = re.sub(r"/+", "/", candidate.strip().replace("\\", "/"))
+        if not mount_prefix or not isinstance(backend, MultiRootLocalFolderBackend):
+            if normalized_candidate.startswith("/"):
+                return normalized_candidate
+            return f"/{normalized_candidate.lstrip('/')}"
+
+        mount_names = set(backend.list_mounts())
+        if normalized_candidate.startswith("/"):
+            first_segment = normalized_candidate.lstrip("/").split("/", 1)[0]
+            if first_segment in mount_names:
+                return normalized_candidate
+            return f"{mount_prefix}{normalized_candidate}"
+
+        relative = normalized_candidate.lstrip("/")
+        first_segment = relative.split("/", 1)[0]
+        if first_segment in mount_names:
+            return f"/{relative}"
+        return f"{mount_prefix}/{relative}"
+
+    def _get_contract_suggested_path(
+        self, runtime: ToolRuntime[None, FilesystemState]
+    ) -> str:
+        contract = runtime.state.get("file_operation_contract") or {}
+        suggested = contract.get("suggested_path")
+        if isinstance(suggested, str) and suggested.strip():
+            cleaned = suggested.strip()
+            if self._filesystem_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER:
+                return self._normalize_local_mount_path(cleaned, runtime)
+            return cleaned
+        if self._filesystem_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER:
+            mount_prefix = self._default_mount_prefix(runtime)
+            if mount_prefix:
+                return f"{mount_prefix}/notes.md"
+        return "/notes.md"
+
+    def _resolve_write_target_path(
+        self,
+        file_path: str,
+        runtime: ToolRuntime[None, FilesystemState],
+    ) -> str:
+        candidate = file_path.strip()
+        if not candidate:
+            return self._get_contract_suggested_path(runtime)
+        if self._filesystem_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER:
+            return self._normalize_local_mount_path(candidate, runtime)
+        if not candidate.startswith("/"):
+            return f"/{candidate.lstrip('/')}"
+        return candidate
+
+    @staticmethod
+    def _is_error_text(value: str) -> bool:
+        return value.startswith("Error:")
+
+    @staticmethod
+    def _read_for_verification_sync(backend: Any, path: str) -> str:
+        read_raw = getattr(backend, "read_raw", None)
+        if callable(read_raw):
+            return read_raw(path)
+        return backend.read(path, offset=0, limit=200000)
+
+    @staticmethod
+    async def _read_for_verification_async(backend: Any, path: str) -> str:
+        aread_raw = getattr(backend, "aread_raw", None)
+        if callable(aread_raw):
+            return await aread_raw(path)
+        return await backend.aread(path, offset=0, limit=200000)
+
+    def _verify_written_content_sync(
+        self,
+        *,
+        backend: Any,
+        path: str,
+        expected_content: str,
+    ) -> str | None:
+        actual = self._read_for_verification_sync(backend, path)
+        if self._is_error_text(actual):
+            return f"Error: could not verify written file '{path}'."
+        if actual.rstrip() != expected_content.rstrip():
+            return (
+                "Error: file write verification failed; expected content was not fully written "
+                f"to '{path}'."
+            )
+        return None
+
+    async def _verify_written_content_async(
+        self,
+        *,
+        backend: Any,
+        path: str,
+        expected_content: str,
+    ) -> str | None:
+        actual = await self._read_for_verification_async(backend, path)
+        if self._is_error_text(actual):
+            return f"Error: could not verify written file '{path}'."
+        if actual.rstrip() != expected_content.rstrip():
+            return (
+                "Error: file write verification failed; expected content was not fully written "
+                f"to '{path}'."
+            )
+        return None
+
+    def _verify_edited_content_sync(
+        self,
+        *,
+        backend: Any,
+        path: str,
+        new_string: str,
+    ) -> tuple[str | None, str | None]:
+        updated_content = self._read_for_verification_sync(backend, path)
+        if self._is_error_text(updated_content):
+            return (
+                f"Error: could not verify edited file '{path}'.",
+                None,
+            )
+        if new_string and new_string not in updated_content:
+            return (
+                "Error: edit verification failed; updated content was not found in "
+                f"'{path}'.",
+                None,
+            )
+        return None, updated_content
+
+    async def _verify_edited_content_async(
+        self,
+        *,
+        backend: Any,
+        path: str,
+        new_string: str,
+    ) -> tuple[str | None, str | None]:
+        updated_content = await self._read_for_verification_async(backend, path)
+        if self._is_error_text(updated_content):
+            return (
+                f"Error: could not verify edited file '{path}'.",
+                None,
+            )
+        if new_string and new_string not in updated_content:
+            return (
+                "Error: edit verification failed; updated content was not found in "
+                f"'{path}'.",
+                None,
+            )
+        return None, updated_content
+
     def _create_edit_file_tool(self) -> BaseTool:
         """Create edit_file with DB persistence (skipped for KB documents)."""
         tool_description = (
@@ -754,8 +958,9 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
             ] = False,
         ) -> Command | str:
             resolved_backend = self._get_backend(runtime)
+            target_path = self._resolve_write_target_path(file_path, runtime)
             try:
-                validated_path = validate_path(file_path)
+                validated_path = validate_path(target_path)
             except ValueError as exc:
                 return f"Error: {exc}"
             res: EditResult = resolved_backend.edit(
@@ -767,13 +972,22 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
             if res.error:
                 return res.error
 
-            if not self._is_kb_document(validated_path):
-                read_result = resolved_backend.read(
-                    validated_path, offset=0, limit=200000
-                )
-                if read_result.error or read_result.file_data is None:
-                    return f"Error: could not reload edited file '{validated_path}' for persistence."
-                updated_content = read_result.file_data["content"]
+            verify_error, updated_content = self._verify_edited_content_sync(
+                backend=resolved_backend,
+                path=validated_path,
+                new_string=new_string,
+            )
+            if verify_error:
+                return verify_error
+
+            if self._should_persist_documents() and not self._is_kb_document(
+                validated_path
+            ):
+                if updated_content is None:
+                    return (
+                        f"Error: could not reload edited file '{validated_path}' for "
+                        "persistence."
+                    )
                 persist_result = self._run_async_blocking(
                     self._persist_edited_document(
                         file_path=validated_path,
@@ -818,8 +1032,9 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
             ] = False,
         ) -> Command | str:
             resolved_backend = self._get_backend(runtime)
+            target_path = self._resolve_write_target_path(file_path, runtime)
             try:
-                validated_path = validate_path(file_path)
+                validated_path = validate_path(target_path)
             except ValueError as exc:
                 return f"Error: {exc}"
             res: EditResult = await resolved_backend.aedit(
@@ -831,13 +1046,22 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
             if res.error:
                 return res.error
 
-            if not self._is_kb_document(validated_path):
-                read_result = await resolved_backend.aread(
-                    validated_path, offset=0, limit=200000
-                )
-                if read_result.error or read_result.file_data is None:
-                    return f"Error: could not reload edited file '{validated_path}' for persistence."
-                updated_content = read_result.file_data["content"]
+            verify_error, updated_content = await self._verify_edited_content_async(
+                backend=resolved_backend,
+                path=validated_path,
+                new_string=new_string,
+            )
+            if verify_error:
+                return verify_error
+
+            if self._should_persist_documents() and not self._is_kb_document(
+                validated_path
+            ):
+                if updated_content is None:
+                    return (
+                        f"Error: could not reload edited file '{validated_path}' for "
+                        "persistence."
+                    )
                 persist_error = await self._persist_edited_document(
                     file_path=validated_path,
                     updated_content=updated_content,

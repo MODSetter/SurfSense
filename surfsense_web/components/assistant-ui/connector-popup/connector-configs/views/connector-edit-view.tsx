@@ -16,7 +16,9 @@ import { DateRangeSelector } from "../../components/date-range-selector";
 import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
 import { SummaryConfig } from "../../components/summary-config";
 import { VisionLLMConfig } from "../../components/vision-llm-config";
+import { LIVE_CONNECTOR_TYPES, getReauthEndpoint } from "../../constants/connector-constants";
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
+import { MCPServiceConfig } from "../components/mcp-service-config";
 import { getConnectorConfigComponent } from "../index";
 
 const VISION_LLM_CONNECTOR_TYPES = new Set<SearchSourceConnector["connector_type"]>([
@@ -26,19 +28,6 @@ const VISION_LLM_CONNECTOR_TYPES = new Set<SearchSourceConnector["connector_type
 	EnumConnectorName.ONEDRIVE_CONNECTOR,
 	EnumConnectorName.OBSIDIAN_CONNECTOR,
 ]);
-
-const REAUTH_ENDPOINTS: Partial<Record<string, string>> = {
-	[EnumConnectorName.LINEAR_CONNECTOR]: "/api/v1/auth/linear/connector/reauth",
-	[EnumConnectorName.NOTION_CONNECTOR]: "/api/v1/auth/notion/connector/reauth",
-	[EnumConnectorName.GOOGLE_DRIVE_CONNECTOR]: "/api/v1/auth/google/drive/connector/reauth",
-	[EnumConnectorName.GOOGLE_GMAIL_CONNECTOR]: "/api/v1/auth/google/gmail/connector/reauth",
-	[EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR]: "/api/v1/auth/google/calendar/connector/reauth",
-	[EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
-	[EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
-	[EnumConnectorName.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
-	[EnumConnectorName.ONEDRIVE_CONNECTOR]: "/api/v1/auth/onedrive/connector/reauth",
-	[EnumConnectorName.DROPBOX_CONNECTOR]: "/api/v1/auth/dropbox/connector/reauth",
-};
 
 interface ConnectorEditViewProps {
 	connector: SearchSourceConnector;
@@ -93,7 +82,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 }) => {
 	const searchSpaceIdAtom = useAtomValue(activeSearchSpaceIdAtom);
 	const isAuthExpired = connector.config?.auth_expired === true;
-	const reauthEndpoint = REAUTH_ENDPOINTS[connector.connector_type];
+	const reauthEndpoint = getReauthEndpoint(connector);
 	const [reauthing, setReauthing] = useState(false);
 	const supportsVisionLlm = VISION_LLM_CONNECTOR_TYPES.has(connector.connector_type);
 	const showsAiToggles =
@@ -129,11 +118,14 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 		}
 	}, [searchSpaceId, searchSpaceIdAtom, reauthEndpoint, connector.id]);
 
-	// Get connector-specific config component
-	const ConnectorConfigComponent = useMemo(
-		() => getConnectorConfigComponent(connector.connector_type),
-		[connector.connector_type]
-	);
+	const isMCPBacked = Boolean(connector.config?.server_config);
+	const isLive = isMCPBacked || LIVE_CONNECTOR_TYPES.has(connector.connector_type);
+
+	// Get connector-specific config component (MCP-backed connectors use a generic view)
+	const ConnectorConfigComponent = useMemo(() => {
+		if (isMCPBacked) return MCPServiceConfig;
+		return getConnectorConfigComponent(connector.connector_type);
+	}, [connector.connector_type, isMCPBacked]);
 	const [isScrolled, setIsScrolled] = useState(false);
 	const [hasMoreContent, setHasMoreContent] = useState(false);
 	const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
@@ -234,12 +226,14 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 								{getConnectorDisplayName(connector.name)}
 							</h2>
 							<p className="text-xs sm:text-base text-muted-foreground mt-1">
-								Manage your connector settings and sync configuration
+								{isLive
+									? "Manage your connected account"
+									: "Manage your connector settings and sync configuration"}
 							</p>
 						</div>
 					</div>
-					{/* Quick Index Button - hidden when auth is expired */}
-					{connector.is_indexable && onQuickIndex && !isAuthExpired && (
+					{/* Quick Index Button - hidden for live connectors and when auth is expired */}
+					{connector.is_indexable && !isLive && onQuickIndex && !isAuthExpired && (
 						<Button
 							variant="secondary"
 							size="sm"
@@ -283,7 +277,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						)}
 
 						{/* Summary + vision toggles (Obsidian is plugin-push, non-indexable by design) */}
-						{showsAiToggles && (
+						{showsAiToggles && !isLive && (
 							<>
 								{/* AI Summary toggle */}
 								<SummaryConfig enabled={enableSummary} onEnabledChange={onEnableSummaryChange} />
@@ -355,8 +349,8 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 							</>
 						)}
 
-						{/* Info box - only shown for indexable connectors */}
-						{connector.is_indexable && (
+						{/* Info box - hidden for live connectors */}
+						{connector.is_indexable && !isLive && (
 							<div className="rounded-xl border border-border bg-primary/5 p-4 flex items-start gap-3">
 								<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0 mt-0.5">
 									<Info className="size-4" />
@@ -386,10 +380,12 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 
 			{/* Fixed Footer - Action buttons */}
 			<div className="flex-shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0 px-6 sm:px-12 py-6 sm:py-6 bg-muted border-t border-border">
-				{showDisconnectConfirm ? (
-					<div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 sm:flex-initial">
+			{showDisconnectConfirm ? (
+				<div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 sm:flex-initial">
 						<span className="text-xs sm:text-sm text-muted-foreground sm:whitespace-nowrap">
-							Are you sure?
+							{isLive
+								? "Your agent will lose access to this service."
+								: "This will remove all indexed data."}
 						</span>
 						<div className="flex items-center gap-2 sm:gap-3">
 							<Button
@@ -432,7 +428,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						<RefreshCw className={cn("size-3.5", reauthing && "animate-spin")} />
 						Re-authenticate
 					</Button>
-				) : (
+				) : !isLive ? (
 					<Button
 						onClick={onSave}
 						disabled={isSaving || isDisconnecting}
@@ -441,7 +437,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						<span className={isSaving ? "opacity-0" : ""}>Save Changes</span>
 						{isSaving && <Spinner size="sm" className="absolute" />}
 					</Button>
-				)}
+				) : null}
 			</div>
 		</div>
 	);

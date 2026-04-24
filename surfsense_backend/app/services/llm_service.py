@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 import litellm
@@ -6,7 +7,6 @@ from langchain_litellm import ChatLiteLLM
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.agents.new_chat.llm_config import SanitizedChatLiteLLM
 from app.config import config
 from app.db import NewLLMConfig, SearchSpace
 from app.services.llm_router_service import (
@@ -30,6 +30,39 @@ litellm.input_callback = []
 litellm.callbacks = [token_tracker]
 
 logger = logging.getLogger(__name__)
+
+
+# Providers that require an interactive OAuth / device-flow login before
+# issuing any completion. LiteLLM implements these with blocking sync polling
+# (requests + time.sleep), which would freeze the FastAPI event loop if
+# invoked from validation. They are never usable from a headless backend,
+# so we reject them at the edge.
+_INTERACTIVE_AUTH_PROVIDERS: frozenset[str] = frozenset(
+    {
+        "github_copilot",
+        "github-copilot",
+        "githubcopilot",
+        "copilot",
+    }
+)
+
+# Hard upper bound for a single validation call. Must exceed the ChatLiteLLM
+# request timeout (30s) by a small margin so a well-behaved provider never
+# trips the watchdog, while any pathological/blocking provider is killed.
+_VALIDATION_TIMEOUT_SECONDS: float = 35.0
+
+
+def _is_interactive_auth_provider(
+    provider: str | None, custom_provider: str | None
+) -> bool:
+    """Return True if the given provider triggers interactive OAuth in LiteLLM."""
+    for raw in (custom_provider, provider):
+        if not raw:
+            continue
+        normalized = raw.strip().lower().replace(" ", "_")
+        if normalized in _INTERACTIVE_AUTH_PROVIDERS:
+            return True
+    return False
 
 
 class LLMRole:
@@ -93,6 +126,25 @@ async def validate_llm_config(
         - is_valid: True if config works, False otherwise
         - error_message: Empty string if valid, error description if invalid
     """
+    # Reject providers that require interactive OAuth/device-flow auth.
+    # LiteLLM's github_copilot provider (and similar) uses a blocking sync
+    # Authenticator that polls GitHub for up to several minutes and prints a
+    # device code to stdout. Running it on the FastAPI event loop will freeze
+    # the entire backend, so we refuse them up front.
+    if _is_interactive_auth_provider(provider, custom_provider):
+        msg = (
+            "Provider requires interactive OAuth/device-flow authentication "
+            "(e.g. github_copilot) and cannot be used in a hosted backend. "
+            "Please choose a provider that authenticates via API key."
+        )
+        logger.warning(
+            "Rejected LLM config validation for interactive-auth provider "
+            "(provider=%r, custom_provider=%r)",
+            provider,
+            custom_provider,
+        )
+        return False, msg
+
     try:
         # Build the model string for litellm
         if custom_provider:
@@ -151,11 +203,34 @@ async def validate_llm_config(
         if litellm_params:
             litellm_kwargs.update(litellm_params)
 
+        from app.agents.new_chat.llm_config import SanitizedChatLiteLLM
+
         llm = SanitizedChatLiteLLM(**litellm_kwargs)
 
-        # Make a simple test call
+        # Run the test call in a worker thread with a hard timeout. Some
+        # LiteLLM providers have synchronous blocking code paths (e.g. OAuth
+        # authenticators that call time.sleep and requests.post) that would
+        # otherwise freeze the asyncio event loop. Offloading to a thread and
+        # bounding the wait keeps the server responsive even if a provider
+        # misbehaves.
         test_message = HumanMessage(content="Hello")
-        response = await llm.ainvoke([test_message])
+        try:
+            response = await asyncio.wait_for(
+                asyncio.to_thread(llm.invoke, [test_message]),
+                timeout=_VALIDATION_TIMEOUT_SECONDS,
+            )
+        except TimeoutError:
+            logger.warning(
+                "LLM config validation timed out after %ss for model: %s",
+                _VALIDATION_TIMEOUT_SECONDS,
+                model_string,
+            )
+            return (
+                False,
+                f"Validation timed out after {int(_VALIDATION_TIMEOUT_SECONDS)}s. "
+                "The provider is unreachable or requires interactive "
+                "authentication that is not supported by the backend.",
+            )
 
         # If we got here without exception, the config is valid
         if response and response.content:
@@ -303,6 +378,8 @@ async def get_search_space_llm_instance(
             if disable_streaming:
                 litellm_kwargs["disable_streaming"] = True
 
+            from app.agents.new_chat.llm_config import SanitizedChatLiteLLM
+
             return SanitizedChatLiteLLM(**litellm_kwargs)
 
         # Get the LLM configuration from database (NewLLMConfig)
@@ -379,6 +456,8 @@ async def get_search_space_llm_instance(
 
         if disable_streaming:
             litellm_kwargs["disable_streaming"] = True
+
+        from app.agents.new_chat.llm_config import SanitizedChatLiteLLM
 
         return SanitizedChatLiteLLM(**litellm_kwargs)
 
@@ -481,6 +560,8 @@ async def get_vision_llm(
             if global_cfg.get("litellm_params"):
                 litellm_kwargs.update(global_cfg["litellm_params"])
 
+            from app.agents.new_chat.llm_config import SanitizedChatLiteLLM
+
             return SanitizedChatLiteLLM(**litellm_kwargs)
 
         result = await session.execute(
@@ -513,6 +594,8 @@ async def get_vision_llm(
             litellm_kwargs["api_base"] = vision_cfg.api_base
         if vision_cfg.litellm_params:
             litellm_kwargs.update(vision_cfg.litellm_params)
+
+        from app.agents.new_chat.llm_config import SanitizedChatLiteLLM
 
         return SanitizedChatLiteLLM(**litellm_kwargs)
 

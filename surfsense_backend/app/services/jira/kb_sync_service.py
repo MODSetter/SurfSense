@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.connectors.jira_history import JiraHistoryConnector
 from app.db import Document, DocumentType
-from app.services.llm_service import get_user_long_context_llm
 from app.utils.document_converters import (
     create_document_chunks,
     embed_text,
@@ -74,6 +73,8 @@ class JiraKBSyncService:
                 )
             if dup:
                 content_hash = unique_hash
+
+            from app.services.llm_service import get_user_long_context_llm
 
             user_llm = await get_user_long_context_llm(
                 self.db_session,
@@ -189,6 +190,8 @@ class JiraKBSyncService:
             issue_title = formatted.get("title", "")
             state = formatted.get("status", "Unknown")
             comment_count = len(formatted.get("comments", []))
+
+            from app.services.llm_service import get_user_long_context_llm
 
             user_llm = await get_user_long_context_llm(
                 self.db_session, user_id, search_space_id, disable_streaming=True

@@ -38,7 +38,65 @@ CRITICAL RULE — KNOWLEDGE BASE FIRST, NEVER DEFAULT TO GENERAL KNOWLEDGE:
   * Formatting, summarization, or analysis of content already present in the conversation
   * Following user instructions that are clearly task-oriented (e.g., "rewrite this in bullet points")
   * Tool-usage actions like generating reports, podcasts, images, or scraping webpages
+  * Queries about services that have direct tools (Linear, ClickUp, Jira, Slack, Airtable) — see <tool_routing> below
 </knowledge_base_only_policy>
+
+<tool_routing>
+CRITICAL — You have direct tools for these services: Linear, ClickUp, Jira, Slack, Airtable.
+Their data is NEVER in the knowledge base. You MUST call their tools immediately — never
+say "I don't see it in the knowledge base" or ask the user if they want you to check.
+Ignore any knowledge base results for these services.
+
+When to use which tool:
+- Linear (issues) → list_issues, get_issue, save_issue (create/update)
+- ClickUp (tasks) → clickup_search, clickup_get_task
+- Jira (issues) → getAccessibleAtlassianResources (cloudId discovery), getVisibleJiraProjects (project discovery), getJiraProjectIssueTypesMetadata (issue type discovery), searchJiraIssuesUsingJql, createJiraIssue, editJiraIssue
+- Slack (messages, channels) → slack_search_channels, slack_read_channel, slack_read_thread
+- Airtable (bases, tables, records) → list_bases, list_tables_for_base, list_records_for_table
+- Knowledge base content (Notion, GitHub, files, notes) → automatically searched
+- Real-time public web data → call web_search
+- Reading a specific webpage → call scrape_webpage
+</tool_routing>
+
+<parameter_resolution>
+Some service tools require identifiers or context you do not have (account IDs,
+workspace names, channel IDs, project keys, etc.). NEVER ask the user for raw
+IDs or technical identifiers — they cannot memorise them.
+
+Instead, follow this discovery pattern:
+1. Call a listing/discovery tool to find available options.
+2. ONE result → use it silently, no question to the user.
+3. MULTIPLE results → present the options by their display names and let the
+   user choose. Never show raw UUIDs — always use friendly names.
+
+Discovery tools by level:
+- Which account/workspace? → get_connected_accounts("<service>")
+- Which Jira site (cloudId)? → getAccessibleAtlassianResources
+- Which Jira project?  → getVisibleJiraProjects (after resolving cloudId)
+- Which Jira issue type? → getJiraProjectIssueTypesMetadata (after resolving project)
+- Which channel?  → slack_search_channels
+- Which base?     → list_bases
+- Which table?    → list_tables_for_base (after resolving baseId)
+- Which task?     → clickup_search
+- Which issue?    → list_issues (Linear) or searchJiraIssuesUsingJql (Jira)
+
+For Jira specifically: ALWAYS call getAccessibleAtlassianResources first to
+obtain the cloudId, then pass it to other Jira tools. When creating an issue,
+chain: getAccessibleAtlassianResources → getVisibleJiraProjects → createJiraIssue.
+If there is only one option at each step, use it silently. If multiple, present
+friendly names.
+
+Chain discovery when needed — e.g. for Airtable records: list_bases → pick
+base → list_tables_for_base → pick table → list_records_for_table.
+
+MULTI-ACCOUNT TOOL NAMING: When the user has multiple accounts connected for
+the same service, tool names are prefixed to avoid collisions — e.g.
+linear_25_list_issues and linear_30_list_issues instead of two list_issues.
+Each prefixed tool's description starts with [Account: <display_name>] so you
+know which account it targets. Use get_connected_accounts("<service>") to see
+the full list of accounts with their connector IDs and display names.
+When only one account is connected, tools have their normal unprefixed names.
+</parameter_resolution>
 
 <memory_protocol>
 IMPORTANT — After understanding each user message, ALWAYS check: does this message
@@ -76,7 +134,65 @@ CRITICAL RULE — KNOWLEDGE BASE FIRST, NEVER DEFAULT TO GENERAL KNOWLEDGE:
   * Formatting, summarization, or analysis of content already present in the conversation
   * Following user instructions that are clearly task-oriented (e.g., "rewrite this in bullet points")
   * Tool-usage actions like generating reports, podcasts, images, or scraping webpages
+  * Queries about services that have direct tools (Linear, ClickUp, Jira, Slack, Airtable) — see <tool_routing> below
 </knowledge_base_only_policy>
+
+<tool_routing>
+CRITICAL — You have direct tools for these services: Linear, ClickUp, Jira, Slack, Airtable.
+Their data is NEVER in the knowledge base. You MUST call their tools immediately — never
+say "I don't see it in the knowledge base" or ask if they want you to check.
+Ignore any knowledge base results for these services.
+
+When to use which tool:
+- Linear (issues) → list_issues, get_issue, save_issue (create/update)
+- ClickUp (tasks) → clickup_search, clickup_get_task
+- Jira (issues) → getAccessibleAtlassianResources (cloudId discovery), getVisibleJiraProjects (project discovery), getJiraProjectIssueTypesMetadata (issue type discovery), searchJiraIssuesUsingJql, createJiraIssue, editJiraIssue
+- Slack (messages, channels) → slack_search_channels, slack_read_channel, slack_read_thread
+- Airtable (bases, tables, records) → list_bases, list_tables_for_base, list_records_for_table
+- Knowledge base content (Notion, GitHub, files, notes) → automatically searched
+- Real-time public web data → call web_search
+- Reading a specific webpage → call scrape_webpage
+</tool_routing>
+
+<parameter_resolution>
+Some service tools require identifiers or context you do not have (account IDs,
+workspace names, channel IDs, project keys, etc.). NEVER ask the user for raw
+IDs or technical identifiers — they cannot memorise them.
+
+Instead, follow this discovery pattern:
+1. Call a listing/discovery tool to find available options.
+2. ONE result → use it silently, no question to the user.
+3. MULTIPLE results → present the options by their display names and let the
+   user choose. Never show raw UUIDs — always use friendly names.
+
+Discovery tools by level:
+- Which account/workspace? → get_connected_accounts("<service>")
+- Which Jira site (cloudId)? → getAccessibleAtlassianResources
+- Which Jira project?  → getVisibleJiraProjects (after resolving cloudId)
+- Which Jira issue type? → getJiraProjectIssueTypesMetadata (after resolving project)
+- Which channel?  → slack_search_channels
+- Which base?     → list_bases
+- Which table?    → list_tables_for_base (after resolving baseId)
+- Which task?     → clickup_search
+- Which issue?    → list_issues (Linear) or searchJiraIssuesUsingJql (Jira)
+
+For Jira specifically: ALWAYS call getAccessibleAtlassianResources first to
+obtain the cloudId, then pass it to other Jira tools. When creating an issue,
+chain: getAccessibleAtlassianResources → getVisibleJiraProjects → createJiraIssue.
+If there is only one option at each step, use it silently. If multiple, present
+friendly names.
+
+Chain discovery when needed — e.g. for Airtable records: list_bases → pick
+base → list_tables_for_base → pick table → list_records_for_table.
+
+MULTI-ACCOUNT TOOL NAMING: When the user has multiple accounts connected for
+the same service, tool names are prefixed to avoid collisions — e.g.
+linear_25_list_issues and linear_30_list_issues instead of two list_issues.
+Each prefixed tool's description starts with [Account: <display_name>] so you
+know which account it targets. Use get_connected_accounts("<service>") to see
+the full list of accounts with their connector IDs and display names.
+When only one account is connected, tools have their normal unprefixed names.
+</parameter_resolution>
 
 <memory_protocol>
 IMPORTANT — After understanding each user message, ALWAYS check: does this message
@@ -450,6 +566,9 @@ _TOOL_INSTRUCTIONS["generate_resume"] = """
   - WHEN NOT TO CALL: General career advice, resume tips, cover letters, or reviewing
     a resume without making changes. For cover letters, use generate_report instead.
   - The tool produces Typst source code that is compiled to a PDF preview automatically.
+  - PAGE POLICY:
+    - Default behavior is ONE PAGE. For new resume creation, set max_pages=1 unless the user explicitly asks for more.
+    - If the user requests a longer resume (e.g., "make it 2 pages"), set max_pages to that value.
   - Args:
     - user_info: The user's resume content — work experience, education, skills, contact
       info, etc. Can be structured or unstructured text.
@@ -465,6 +584,7 @@ _TOOL_INSTRUCTIONS["generate_resume"] = """
       "keep it to one page"). For revisions, describe what to change.
     - parent_report_id: Set this when the user wants to MODIFY an existing resume from
       this conversation. Use the report_id from a previous generate_resume result.
+    - max_pages: Maximum resume length in pages (integer 1-5). Default is 1.
   - Returns: Dict with status, report_id, title, and content_type.
   - After calling: Give a brief confirmation. Do NOT paste resume content in chat. Do NOT mention report_id or any internal IDs — the resume card is shown automatically.
   - VERSIONING: Same rules as generate_report — set parent_report_id for modifications
@@ -473,17 +593,20 @@ _TOOL_INSTRUCTIONS["generate_resume"] = """
 
 _TOOL_EXAMPLES["generate_resume"] = """
 - User: "Build me a resume. I'm John Doe, engineer at Acme Corp..."
-  - Call: `generate_resume(user_info="John Doe, engineer at Acme Corp...")`
+  - Call: `generate_resume(user_info="John Doe, engineer at Acme Corp...", max_pages=1)`
   - WHY: Has creation verb "build" + resume → call the tool.
 - User: "Create my CV with this info: [experience, education, skills]"
-  - Call: `generate_resume(user_info="[experience, education, skills]")`
+  - Call: `generate_resume(user_info="[experience, education, skills]", max_pages=1)`
 - User: "Build me a resume" (and there is a resume/CV document in the conversation context)
   - Extract the FULL content from the document in context, then call:
-    `generate_resume(user_info="Name: John Doe\\nEmail: john@example.com\\n\\nExperience:\\n- Senior Engineer at Acme Corp (2020-2024)\\n  Led team of 5...\\n\\nEducation:\\n- BS Computer Science, MIT (2016-2020)\\n\\nSkills: Python, TypeScript, AWS...")`
+    `generate_resume(user_info="Name: John Doe\\nEmail: john@example.com\\n\\nExperience:\\n- Senior Engineer at Acme Corp (2020-2024)\\n  Led team of 5...\\n\\nEducation:\\n- BS Computer Science, MIT (2016-2020)\\n\\nSkills: Python, TypeScript, AWS...", max_pages=1)`
   - WHY: Document content is available in context — extract ALL of it into user_info. Do NOT ignore referenced documents.
 - User: (after resume generated) "Change my title to Senior Engineer"
-  - Call: `generate_resume(user_info="", user_instructions="Change the job title to Senior Engineer", parent_report_id=<previous_report_id>)`
+  - Call: `generate_resume(user_info="", user_instructions="Change the job title to Senior Engineer", parent_report_id=<previous_report_id>, max_pages=1)`
   - WHY: Modification verb "change" + refers to existing resume → set parent_report_id.
+- User: (after resume generated) "Make this 2 pages and expand projects"
+  - Call: `generate_resume(user_info="", user_instructions="Expand projects and keep this to at most 2 pages", parent_report_id=<previous_report_id>, max_pages=2)`
+  - WHY: Explicit page increase request → set max_pages to 2.
 - User: "How should I structure my resume?"
   - Do NOT call generate_resume. Answer in chat with advice.
   - WHY: No creation/modification verb.
@@ -692,11 +815,36 @@ Your goal is to provide helpful, informative answers in a clean, readable format
 """
 
 
+def _build_mcp_routing_block(
+    mcp_connector_tools: dict[str, list[str]] | None,
+) -> str:
+    """Build an additional tool routing block for generic MCP connectors.
+
+    When users add MCP servers (e.g. GitLab, GitHub), the LLM needs to know
+    those tools exist and should be called directly — not searched in the
+    knowledge base.
+    """
+    if not mcp_connector_tools:
+        return ""
+
+    lines = [
+        "\n<mcp_tool_routing>",
+        "You also have direct tools from these user-connected MCP servers.",
+        "Their data is NEVER in the knowledge base — call their tools directly.",
+        "",
+    ]
+    for server_name, tool_names in mcp_connector_tools.items():
+        lines.append(f"- {server_name} → {', '.join(tool_names)}")
+    lines.append("</mcp_tool_routing>\n")
+    return "\n".join(lines)
+
+
 def build_surfsense_system_prompt(
     today: datetime | None = None,
     thread_visibility: ChatVisibility | None = None,
     enabled_tool_names: set[str] | None = None,
     disabled_tool_names: set[str] | None = None,
+    mcp_connector_tools: dict[str, list[str]] | None = None,
 ) -> str:
     """
     Build the SurfSense system prompt with default settings.
@@ -711,6 +859,9 @@ def build_surfsense_system_prompt(
         thread_visibility: Optional; when provided, used for conditional prompt (e.g. private vs shared memory wording). Defaults to private behavior when None.
         enabled_tool_names: Set of tool names actually bound to the agent. When None all tools are included.
         disabled_tool_names: Set of tool names the user explicitly disabled. Included as a note so the model can inform the user.
+        mcp_connector_tools: Mapping of MCP server display name → list of tool names
+            for generic MCP connectors. Injected into the system prompt so the LLM
+            knows to call these tools directly.
 
     Returns:
         Complete system prompt string
@@ -718,6 +869,7 @@ def build_surfsense_system_prompt(
 
     visibility = thread_visibility or ChatVisibility.PRIVATE
     system_instructions = _get_system_instructions(visibility, today)
+    system_instructions += _build_mcp_routing_block(mcp_connector_tools)
     tools_instructions = _get_tools_instructions(
         visibility, enabled_tool_names, disabled_tool_names
     )
@@ -733,6 +885,7 @@ def build_configurable_system_prompt(
     thread_visibility: ChatVisibility | None = None,
     enabled_tool_names: set[str] | None = None,
     disabled_tool_names: set[str] | None = None,
+    mcp_connector_tools: dict[str, list[str]] | None = None,
 ) -> str:
     """
     Build a configurable SurfSense system prompt based on NewLLMConfig settings.
@@ -754,6 +907,9 @@ def build_configurable_system_prompt(
         thread_visibility: Optional; when provided, used for conditional prompt (e.g. private vs shared memory wording). Defaults to private behavior when None.
         enabled_tool_names: Set of tool names actually bound to the agent. When None all tools are included.
         disabled_tool_names: Set of tool names the user explicitly disabled. Included as a note so the model can inform the user.
+        mcp_connector_tools: Mapping of MCP server display name → list of tool names
+            for generic MCP connectors. Injected into the system prompt so the LLM
+            knows to call these tools directly.
 
     Returns:
         Complete system prompt string
@@ -770,6 +926,8 @@ def build_configurable_system_prompt(
         system_instructions = _get_system_instructions(visibility, today)
     else:
         system_instructions = ""
+
+    system_instructions += _build_mcp_routing_block(mcp_connector_tools)
 
     # Tools instructions: only include enabled tools, note disabled ones
     tools_instructions = _get_tools_instructions(

@@ -1,6 +1,6 @@
 "use client";
 
-import { PanelLeft, PanelLeftClose } from "lucide-react";
+import { PanelLeft } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { ShortcutKbd } from "@/components/ui/shortcut-kbd";
@@ -23,7 +23,7 @@ export function SidebarCollapseButton({
 
 	const button = (
 		<Button variant="ghost" size="icon" onClick={onToggle} className="h-8 w-8 shrink-0">
-			{isCollapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+			<PanelLeft className="h-4 w-4" />
 			<span className="sr-only">{isCollapsed ? t("expand_sidebar") : t("collapse_sidebar")}</span>
 		</Button>
 	);

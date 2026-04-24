@@ -693,27 +693,10 @@ async def index_connector_content(
     user: User = Depends(current_active_user),
 ):
     """
-    Index content from a connector to a search space.
-    Requires CONNECTORS_UPDATE permission (to trigger indexing).
+    Index content from a KB connector to a search space.
 
-    Currently supports:
-    - SLACK_CONNECTOR: Indexes messages from all accessible Slack channels
-    - TEAMS_CONNECTOR: Indexes messages from all accessible Microsoft Teams channels
-    - NOTION_CONNECTOR: Indexes pages from all accessible Notion pages
-    - GITHUB_CONNECTOR: Indexes code and documentation from GitHub repositories
-    - LINEAR_CONNECTOR: Indexes issues and comments from Linear
-    - JIRA_CONNECTOR: Indexes issues and comments from Jira
-    - DISCORD_CONNECTOR: Indexes messages from all accessible Discord channels
-    - LUMA_CONNECTOR: Indexes events from Luma
-    - ELASTICSEARCH_CONNECTOR: Indexes documents from Elasticsearch
-    - WEBCRAWLER_CONNECTOR: Indexes web pages from crawled websites
-
-    Args:
-        connector_id: ID of the connector to use
-        search_space_id: ID of the search space to store indexed content
-
-    Returns:
-        Dictionary with indexing status
+    Live connectors (Slack, Teams, Linear, Jira, ClickUp, Calendar, Airtable,
+    Gmail, Discord, Luma) use real-time agent tools instead.
     """
     try:
         # Get the connector first
@@ -770,9 +753,7 @@ async def index_connector_content(
 
         # For calendar connectors, default to today but allow future dates if explicitly provided
         if connector.connector_type in [
-            SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
             SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
-            SearchSourceConnectorType.LUMA_CONNECTOR,
         ]:
             # Default to today if no end_date provided (users can manually select future dates)
             indexing_to = today_str if end_date is None else end_date
@@ -796,33 +777,22 @@ async def index_connector_content(
             # For non-calendar connectors, cap at today
             indexing_to = end_date if end_date else today_str
 
-        if connector.connector_type == SearchSourceConnectorType.SLACK_CONNECTOR:
-            from app.tasks.celery_tasks.connector_tasks import (
-                index_slack_messages_task,
-            )
+        from app.services.mcp_oauth.registry import LIVE_CONNECTOR_TYPES
 
-            logger.info(
-                f"Triggering Slack indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
-            )
-            index_slack_messages_task.delay(
-                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
-            )
-            response_message = "Slack indexing started in the background."
+        if connector.connector_type in LIVE_CONNECTOR_TYPES:
+            return {
+                "message": (
+                    f"{connector.connector_type.value} uses real-time agent tools; "
+                    "background indexing is disabled."
+                ),
+                "indexing_started": False,
+                "connector_id": connector_id,
+                "search_space_id": search_space_id,
+                "indexing_from": indexing_from,
+                "indexing_to": indexing_to,
+            }
 
-        elif connector.connector_type == SearchSourceConnectorType.TEAMS_CONNECTOR:
-            from app.tasks.celery_tasks.connector_tasks import (
-                index_teams_messages_task,
-            )
-
-            logger.info(
-                f"Triggering Teams indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
-            )
-            index_teams_messages_task.delay(
-                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
-            )
-            response_message = "Teams indexing started in the background."
-
-        elif connector.connector_type == SearchSourceConnectorType.NOTION_CONNECTOR:
+        if connector.connector_type == SearchSourceConnectorType.NOTION_CONNECTOR:
             from app.tasks.celery_tasks.connector_tasks import index_notion_pages_task
 
             logger.info(
@@ -843,28 +813,6 @@ async def index_connector_content(
                 connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "GitHub indexing started in the background."
-
-        elif connector.connector_type == SearchSourceConnectorType.LINEAR_CONNECTOR:
-            from app.tasks.celery_tasks.connector_tasks import index_linear_issues_task
-
-            logger.info(
-                f"Triggering Linear indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
-            )
-            index_linear_issues_task.delay(
-                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
-            )
-            response_message = "Linear indexing started in the background."
-
-        elif connector.connector_type == SearchSourceConnectorType.JIRA_CONNECTOR:
-            from app.tasks.celery_tasks.connector_tasks import index_jira_issues_task
-
-            logger.info(
-                f"Triggering Jira indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
-            )
-            index_jira_issues_task.delay(
-                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
-            )
-            response_message = "Jira indexing started in the background."
 
         elif connector.connector_type == SearchSourceConnectorType.CONFLUENCE_CONNECTOR:
             from app.tasks.celery_tasks.connector_tasks import (
@@ -891,59 +839,6 @@ async def index_connector_content(
                 connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "BookStack indexing started in the background."
-
-        elif connector.connector_type == SearchSourceConnectorType.CLICKUP_CONNECTOR:
-            from app.tasks.celery_tasks.connector_tasks import index_clickup_tasks_task
-
-            logger.info(
-                f"Triggering ClickUp indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
-            )
-            index_clickup_tasks_task.delay(
-                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
-            )
-            response_message = "ClickUp indexing started in the background."
-
-        elif (
-            connector.connector_type
-            == SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR
-        ):
-            from app.tasks.celery_tasks.connector_tasks import (
-                index_google_calendar_events_task,
-            )
-
-            logger.info(
-                f"Triggering Google Calendar indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
-            )
-            index_google_calendar_events_task.delay(
-                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
-            )
-            response_message = "Google Calendar indexing started in the background."
-        elif connector.connector_type == SearchSourceConnectorType.AIRTABLE_CONNECTOR:
-            from app.tasks.celery_tasks.connector_tasks import (
-                index_airtable_records_task,
-            )
-
-            logger.info(
-                f"Triggering Airtable indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
-            )
-            index_airtable_records_task.delay(
-                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
-            )
-            response_message = "Airtable indexing started in the background."
-        elif (
-            connector.connector_type == SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR
-        ):
-            from app.tasks.celery_tasks.connector_tasks import (
-                index_google_gmail_messages_task,
-            )
-
-            logger.info(
-                f"Triggering Google Gmail indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
-            )
-            index_google_gmail_messages_task.delay(
-                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
-            )
-            response_message = "Google Gmail indexing started in the background."
 
         elif (
             connector.connector_type == SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR
@@ -1088,30 +983,6 @@ async def index_connector_content(
                 items_dict,
             )
             response_message = "Dropbox indexing started in the background."
-
-        elif connector.connector_type == SearchSourceConnectorType.DISCORD_CONNECTOR:
-            from app.tasks.celery_tasks.connector_tasks import (
-                index_discord_messages_task,
-            )
-
-            logger.info(
-                f"Triggering Discord indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
-            )
-            index_discord_messages_task.delay(
-                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
-            )
-            response_message = "Discord indexing started in the background."
-
-        elif connector.connector_type == SearchSourceConnectorType.LUMA_CONNECTOR:
-            from app.tasks.celery_tasks.connector_tasks import index_luma_events_task
-
-            logger.info(
-                f"Triggering Luma indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
-            )
-            index_luma_events_task.delay(
-                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
-            )
-            response_message = "Luma indexing started in the background."
 
         elif (
             connector.connector_type
@@ -1317,57 +1188,6 @@ async def _update_connector_timestamp_by_id(session: AsyncSession, connector_id:
             f"Failed to update last_indexed_at for connector {connector_id}: {e!s}"
         )
         await session.rollback()
-
-
-async def run_slack_indexing_with_new_session(
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """
-    Create a new session and run the Slack indexing task.
-    This prevents session leaks by creating a dedicated session for the background task.
-    """
-    async with async_session_maker() as session:
-        await run_slack_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
-        )
-
-
-async def run_slack_indexing(
-    session: AsyncSession,
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """
-    Background task to run Slack indexing.
-
-    Args:
-        session: Database session
-        connector_id: ID of the Slack connector
-        search_space_id: ID of the search space
-        user_id: ID of the user
-        start_date: Start date for indexing
-        end_date: End date for indexing
-    """
-    from app.tasks.connector_indexers import index_slack_messages
-
-    await _run_indexing_with_notifications(
-        session=session,
-        connector_id=connector_id,
-        search_space_id=search_space_id,
-        user_id=user_id,
-        start_date=start_date,
-        end_date=end_date,
-        indexing_function=index_slack_messages,
-        update_timestamp_func=_update_connector_timestamp_by_id,
-        supports_heartbeat_callback=True,
-    )
 
 
 _AUTH_ERROR_PATTERNS = (
@@ -1908,215 +1728,6 @@ async def run_github_indexing(
     )
 
 
-# Add new helper functions for Linear indexing
-async def run_linear_indexing_with_new_session(
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """Wrapper to run Linear indexing with its own database session."""
-    logger.info(
-        f"Background task started: Indexing Linear connector {connector_id} into space {search_space_id} from {start_date} to {end_date}"
-    )
-    async with async_session_maker() as session:
-        await run_linear_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
-        )
-    logger.info(f"Background task finished: Indexing Linear connector {connector_id}")
-
-
-async def run_linear_indexing(
-    session: AsyncSession,
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """
-    Background task to run Linear indexing.
-
-    Args:
-        session: Database session
-        connector_id: ID of the Linear connector
-        search_space_id: ID of the search space
-        user_id: ID of the user
-        start_date: Start date for indexing
-        end_date: End date for indexing
-    """
-    from app.tasks.connector_indexers import index_linear_issues
-
-    await _run_indexing_with_notifications(
-        session=session,
-        connector_id=connector_id,
-        search_space_id=search_space_id,
-        user_id=user_id,
-        start_date=start_date,
-        end_date=end_date,
-        indexing_function=index_linear_issues,
-        update_timestamp_func=_update_connector_timestamp_by_id,
-        supports_heartbeat_callback=True,
-    )
-
-
-# Add new helper functions for discord indexing
-async def run_discord_indexing_with_new_session(
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """
-    Create a new session and run the Discord indexing task.
-    This prevents session leaks by creating a dedicated session for the background task.
-    """
-    async with async_session_maker() as session:
-        await run_discord_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
-        )
-
-
-async def run_discord_indexing(
-    session: AsyncSession,
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """
-    Background task to run Discord indexing.
-
-    Args:
-        session: Database session
-        connector_id: ID of the Discord connector
-        search_space_id: ID of the search space
-        user_id: ID of the user
-        start_date: Start date for indexing
-        end_date: End date for indexing
-    """
-    from app.tasks.connector_indexers import index_discord_messages
-
-    await _run_indexing_with_notifications(
-        session=session,
-        connector_id=connector_id,
-        search_space_id=search_space_id,
-        user_id=user_id,
-        start_date=start_date,
-        end_date=end_date,
-        indexing_function=index_discord_messages,
-        update_timestamp_func=_update_connector_timestamp_by_id,
-        supports_heartbeat_callback=True,
-    )
-
-
-async def run_teams_indexing_with_new_session(
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """
-    Create a new session and run the Microsoft Teams indexing task.
-    This prevents session leaks by creating a dedicated session for the background task.
-    """
-    async with async_session_maker() as session:
-        await run_teams_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
-        )
-
-
-async def run_teams_indexing(
-    session: AsyncSession,
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """
-    Background task to run Microsoft Teams indexing.
-
-    Args:
-        session: Database session
-        connector_id: ID of the Teams connector
-        search_space_id: ID of the search space
-        user_id: ID of the user
-        start_date: Start date for indexing
-        end_date: End date for indexing
-    """
-    from app.tasks.connector_indexers.teams_indexer import index_teams_messages
-
-    await _run_indexing_with_notifications(
-        session=session,
-        connector_id=connector_id,
-        search_space_id=search_space_id,
-        user_id=user_id,
-        start_date=start_date,
-        end_date=end_date,
-        indexing_function=index_teams_messages,
-        update_timestamp_func=_update_connector_timestamp_by_id,
-        supports_heartbeat_callback=True,
-    )
-
-
-# Add new helper functions for Jira indexing
-async def run_jira_indexing_with_new_session(
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """Wrapper to run Jira indexing with its own database session."""
-    logger.info(
-        f"Background task started: Indexing Jira connector {connector_id} into space {search_space_id} from {start_date} to {end_date}"
-    )
-    async with async_session_maker() as session:
-        await run_jira_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
-        )
-    logger.info(f"Background task finished: Indexing Jira connector {connector_id}")
-
-
-async def run_jira_indexing(
-    session: AsyncSession,
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """
-    Background task to run Jira indexing.
-
-    Args:
-        session: Database session
-        connector_id: ID of the Jira connector
-        search_space_id: ID of the search space
-        user_id: ID of the user
-        start_date: Start date for indexing
-        end_date: End date for indexing
-    """
-    from app.tasks.connector_indexers import index_jira_issues
-
-    await _run_indexing_with_notifications(
-        session=session,
-        connector_id=connector_id,
-        search_space_id=search_space_id,
-        user_id=user_id,
-        start_date=start_date,
-        end_date=end_date,
-        indexing_function=index_jira_issues,
-        update_timestamp_func=_update_connector_timestamp_by_id,
-        supports_heartbeat_callback=True,
-    )
-
-
 # Add new helper functions for Confluence indexing
 async def run_confluence_indexing_with_new_session(
     connector_id: int,
@@ -2167,112 +1778,6 @@ async def run_confluence_indexing(
         start_date=start_date,
         end_date=end_date,
         indexing_function=index_confluence_pages,
-        update_timestamp_func=_update_connector_timestamp_by_id,
-        supports_heartbeat_callback=True,
-    )
-
-
-# Add new helper functions for ClickUp indexing
-async def run_clickup_indexing_with_new_session(
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """Wrapper to run ClickUp indexing with its own database session."""
-    logger.info(
-        f"Background task started: Indexing ClickUp connector {connector_id} into space {search_space_id} from {start_date} to {end_date}"
-    )
-    async with async_session_maker() as session:
-        await run_clickup_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
-        )
-    logger.info(f"Background task finished: Indexing ClickUp connector {connector_id}")
-
-
-async def run_clickup_indexing(
-    session: AsyncSession,
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """
-    Background task to run ClickUp indexing.
-
-    Args:
-        session: Database session
-        connector_id: ID of the ClickUp connector
-        search_space_id: ID of the search space
-        user_id: ID of the user
-        start_date: Start date for indexing
-        end_date: End date for indexing
-    """
-    from app.tasks.connector_indexers import index_clickup_tasks
-
-    await _run_indexing_with_notifications(
-        session=session,
-        connector_id=connector_id,
-        search_space_id=search_space_id,
-        user_id=user_id,
-        start_date=start_date,
-        end_date=end_date,
-        indexing_function=index_clickup_tasks,
-        update_timestamp_func=_update_connector_timestamp_by_id,
-        supports_heartbeat_callback=True,
-    )
-
-
-# Add new helper functions for Airtable indexing
-async def run_airtable_indexing_with_new_session(
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """Wrapper to run Airtable indexing with its own database session."""
-    logger.info(
-        f"Background task started: Indexing Airtable connector {connector_id} into space {search_space_id} from {start_date} to {end_date}"
-    )
-    async with async_session_maker() as session:
-        await run_airtable_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
-        )
-    logger.info(f"Background task finished: Indexing Airtable connector {connector_id}")
-
-
-async def run_airtable_indexing(
-    session: AsyncSession,
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """
-    Background task to run Airtable indexing.
-
-    Args:
-        session: Database session
-        connector_id: ID of the Airtable connector
-        search_space_id: ID of the search space
-        user_id: ID of the user
-        start_date: Start date for indexing
-        end_date: End date for indexing
-    """
-    from app.tasks.connector_indexers import index_airtable_records
-
-    await _run_indexing_with_notifications(
-        session=session,
-        connector_id=connector_id,
-        search_space_id=search_space_id,
-        user_id=user_id,
-        start_date=start_date,
-        end_date=end_date,
-        indexing_function=index_airtable_records,
         update_timestamp_func=_update_connector_timestamp_by_id,
         supports_heartbeat_callback=True,
     )
@@ -2814,58 +2319,6 @@ async def run_dropbox_indexing(
                 )
             except Exception as notif_error:
                 logger.error(f"Failed to update notification: {notif_error!s}")
-
-
-# Add new helper functions for luma indexing
-async def run_luma_indexing_with_new_session(
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """
-    Create a new session and run the Luma indexing task.
-    This prevents session leaks by creating a dedicated session for the background task.
-    """
-    async with async_session_maker() as session:
-        await run_luma_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
-        )
-
-
-async def run_luma_indexing(
-    session: AsyncSession,
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """
-    Background task to run Luma indexing.
-
-    Args:
-        session: Database session
-        connector_id: ID of the Luma connector
-        search_space_id: ID of the search space
-        user_id: ID of the user
-        start_date: Start date for indexing
-        end_date: End date for indexing
-    """
-    from app.tasks.connector_indexers import index_luma_events
-
-    await _run_indexing_with_notifications(
-        session=session,
-        connector_id=connector_id,
-        search_space_id=search_space_id,
-        user_id=user_id,
-        start_date=start_date,
-        end_date=end_date,
-        indexing_function=index_luma_events,
-        update_timestamp_func=_update_connector_timestamp_by_id,
-        supports_heartbeat_callback=True,
-    )
 
 
 async def run_elasticsearch_indexing_with_new_session(
@@ -3580,13 +3033,18 @@ async def trust_mcp_tool(
     """Add a tool to the MCP connector's trusted (always-allow) list.
 
     Once trusted, the tool executes without HITL approval on subsequent calls.
+    Works for both generic MCP_CONNECTOR and OAuth-backed MCP connectors
+    (LINEAR_CONNECTOR, JIRA_CONNECTOR, etc.) by checking for ``server_config``.
     """
     try:
+        from sqlalchemy import cast
+        from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
+
         result = await session.execute(
             select(SearchSourceConnector).filter(
                 SearchSourceConnector.id == connector_id,
-                SearchSourceConnector.connector_type
-                == SearchSourceConnectorType.MCP_CONNECTOR,
+                SearchSourceConnector.user_id == user.id,
+                cast(SearchSourceConnector.config, PG_JSONB).has_key("server_config"),  # noqa: W601
             )
         )
         connector = result.scalars().first()
@@ -3631,13 +3089,17 @@ async def untrust_mcp_tool(
     """Remove a tool from the MCP connector's trusted list.
 
     The tool will require HITL approval again on subsequent calls.
+    Works for both generic MCP_CONNECTOR and OAuth-backed MCP connectors.
     """
     try:
+        from sqlalchemy import cast
+        from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
+
         result = await session.execute(
             select(SearchSourceConnector).filter(
                 SearchSourceConnector.id == connector_id,
-                SearchSourceConnector.connector_type
-                == SearchSourceConnectorType.MCP_CONNECTOR,
+                SearchSourceConnector.user_id == user.id,
+                cast(SearchSourceConnector.config, PG_JSONB).has_key("server_config"),  # noqa: W601
             )
         )
         connector = result.scalars().first()

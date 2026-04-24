@@ -6,9 +6,14 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	FileText,
+	Folder,
+	FolderPlus,
 	FolderClock,
+	Laptop,
 	Lock,
 	Paperclip,
+	Search,
+	Server,
 	Trash2,
 	Unplug,
 	Upload,
@@ -58,8 +63,19 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAnonymousMode, useIsAnonymous } from "@/contexts/anonymous-mode";
 import { useLoginGate } from "@/contexts/login-gate";
@@ -68,17 +84,39 @@ import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
+import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
-import { BACKEND_URL } from "@/lib/env-config";
 import { uploadFolderScan } from "@/lib/folder-sync-upload";
 import { getSupportedExtensionsSet } from "@/lib/supported-extensions";
 import { queries } from "@/zero/queries/index";
+import { LocalFilesystemBrowser } from "./LocalFilesystemBrowser";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 
 const NON_DELETABLE_DOCUMENT_TYPES: readonly string[] = ["SURFSENSE_DOCS"];
+const LOCAL_FILESYSTEM_TRUST_KEY = "surfsense.local-filesystem-trust.v1";
+const MAX_LOCAL_FILESYSTEM_ROOTS = 5;
+
+type FilesystemSettings = {
+	mode: "cloud" | "desktop_local_folder";
+	localRootPaths: string[];
+	updatedAt: string;
+};
+
+interface WatchedFolderEntry {
+	path: string;
+	name: string;
+	excludePatterns: string[];
+	fileExtensions: string[] | null;
+	rootFolderId: number | null;
+	searchSpaceId: number;
+	active: boolean;
+}
+
+const getFolderDisplayName = (rootPath: string): string =>
+	rootPath.split(/[\\/]/).at(-1) || rootPath;
 
 const SHOWCASE_CONNECTORS = [
 	{ type: "GOOGLE_DRIVE_CONNECTOR", label: "Google Drive" },
@@ -133,11 +171,118 @@ function AuthenticatedDocumentsSidebar({
 
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebouncedValue(search, 250);
+	const [localSearch, setLocalSearch] = useState("");
+	const debouncedLocalSearch = useDebouncedValue(localSearch, 250);
+	const localSearchInputRef = useRef<HTMLInputElement>(null);
 	const [activeTypes, setActiveTypes] = useState<DocumentTypeEnum[]>([]);
+	const [filesystemSettings, setFilesystemSettings] = useState<FilesystemSettings | null>(null);
+	const [localTrustDialogOpen, setLocalTrustDialogOpen] = useState(false);
+	const [pendingLocalPath, setPendingLocalPath] = useState<string | null>(null);
 	const [watchedFolderIds, setWatchedFolderIds] = useState<Set<number>>(new Set());
 	const [folderWatchOpen, setFolderWatchOpen] = useAtom(folderWatchDialogOpenAtom);
 	const [watchInitialFolder, setWatchInitialFolder] = useAtom(folderWatchInitialFolderAtom);
 	const isElectron = typeof window !== "undefined" && !!window.electronAPI;
+
+	useEffect(() => {
+		if (!electronAPI?.getAgentFilesystemSettings) return;
+		let mounted = true;
+		electronAPI
+			.getAgentFilesystemSettings()
+			.then((settings: FilesystemSettings) => {
+				if (!mounted) return;
+				setFilesystemSettings(settings);
+			})
+			.catch(() => {
+				if (!mounted) return;
+				setFilesystemSettings({
+					mode: "cloud",
+					localRootPaths: [],
+					updatedAt: new Date().toISOString(),
+				});
+			});
+		return () => {
+			mounted = false;
+		};
+	}, [electronAPI]);
+
+	const hasLocalFilesystemTrust = useCallback(() => {
+		try {
+			return window.localStorage.getItem(LOCAL_FILESYSTEM_TRUST_KEY) === "true";
+		} catch {
+			return false;
+		}
+	}, []);
+
+	const localRootPaths = filesystemSettings?.localRootPaths ?? [];
+	const canAddMoreLocalRoots = localRootPaths.length < MAX_LOCAL_FILESYSTEM_ROOTS;
+
+	const applyLocalRootPath = useCallback(
+		async (path: string) => {
+			if (!electronAPI?.setAgentFilesystemSettings) return;
+			const nextLocalRootPaths = [...localRootPaths, path]
+				.filter((rootPath, index, allPaths) => allPaths.indexOf(rootPath) === index)
+				.slice(0, MAX_LOCAL_FILESYSTEM_ROOTS);
+			if (nextLocalRootPaths.length === localRootPaths.length) return;
+			const updated = await electronAPI.setAgentFilesystemSettings({
+				mode: "desktop_local_folder",
+				localRootPaths: nextLocalRootPaths,
+			});
+			setFilesystemSettings(updated);
+		},
+		[electronAPI, localRootPaths]
+	);
+
+	const runPickLocalRoot = useCallback(async () => {
+		if (!electronAPI?.pickAgentFilesystemRoot) return;
+		const picked = await electronAPI.pickAgentFilesystemRoot();
+		if (!picked) return;
+		await applyLocalRootPath(picked);
+	}, [applyLocalRootPath, electronAPI]);
+
+	const handlePickFilesystemRoot = useCallback(async () => {
+		if (!canAddMoreLocalRoots) return;
+		if (hasLocalFilesystemTrust()) {
+			await runPickLocalRoot();
+			return;
+		}
+		if (!electronAPI?.pickAgentFilesystemRoot) return;
+		const picked = await electronAPI.pickAgentFilesystemRoot();
+		if (!picked) return;
+		setPendingLocalPath(picked);
+		setLocalTrustDialogOpen(true);
+	}, [canAddMoreLocalRoots, electronAPI, hasLocalFilesystemTrust, runPickLocalRoot]);
+
+	const handleRemoveFilesystemRoot = useCallback(
+		async (rootPathToRemove: string) => {
+			if (!electronAPI?.setAgentFilesystemSettings) return;
+			const updated = await electronAPI.setAgentFilesystemSettings({
+				mode: "desktop_local_folder",
+				localRootPaths: localRootPaths.filter((rootPath) => rootPath !== rootPathToRemove),
+			});
+			setFilesystemSettings(updated);
+		},
+		[electronAPI, localRootPaths]
+	);
+
+	const handleClearFilesystemRoots = useCallback(async () => {
+		if (!electronAPI?.setAgentFilesystemSettings) return;
+		const updated = await electronAPI.setAgentFilesystemSettings({
+			mode: "desktop_local_folder",
+			localRootPaths: [],
+		});
+		setFilesystemSettings(updated);
+	}, [electronAPI]);
+
+	const handleFilesystemTabChange = useCallback(
+		async (tab: "cloud" | "local") => {
+			if (!electronAPI?.setAgentFilesystemSettings) return;
+			const updated = await electronAPI.setAgentFilesystemSettings({
+				mode: tab === "cloud" ? "cloud" : "desktop_local_folder",
+			});
+			setFilesystemSettings(updated);
+		},
+		[electronAPI]
+	);
 
 	// AI File Sort state
 	const { data: searchSpaces, refetch: refetchSearchSpaces } = useAtomValue(searchSpacesAtom);
@@ -196,7 +341,7 @@ function AuthenticatedDocumentsSidebar({
 		if (!electronAPI?.getWatchedFolders) return;
 		const api = electronAPI;
 
-		const folders = await api.getWatchedFolders();
+		const folders = (await api.getWatchedFolders()) as WatchedFolderEntry[];
 
 		if (folders.length === 0) {
 			try {
@@ -214,9 +359,11 @@ function AuthenticatedDocumentsSidebar({
 						active: true,
 					});
 				}
-				const recovered = await api.getWatchedFolders();
+				const recovered = (await api.getWatchedFolders()) as WatchedFolderEntry[];
 				const ids = new Set(
-					recovered.filter((f) => f.rootFolderId != null).map((f) => f.rootFolderId as number)
+					recovered
+						.filter((f: WatchedFolderEntry) => f.rootFolderId != null)
+						.map((f: WatchedFolderEntry) => f.rootFolderId as number)
 				);
 				setWatchedFolderIds(ids);
 				return;
@@ -226,7 +373,9 @@ function AuthenticatedDocumentsSidebar({
 		}
 
 		const ids = new Set(
-			folders.filter((f) => f.rootFolderId != null).map((f) => f.rootFolderId as number)
+			folders
+				.filter((f: WatchedFolderEntry) => f.rootFolderId != null)
+				.map((f: WatchedFolderEntry) => f.rootFolderId as number)
 		);
 		setWatchedFolderIds(ids);
 	}, [searchSpaceId, electronAPI]);
@@ -375,8 +524,8 @@ function AuthenticatedDocumentsSidebar({
 		async (folder: FolderDisplay) => {
 			if (!electronAPI) return;
 
-			const watchedFolders = await electronAPI.getWatchedFolders();
-			const matched = watchedFolders.find((wf) => wf.rootFolderId === folder.id);
+			const watchedFolders = (await electronAPI.getWatchedFolders()) as WatchedFolderEntry[];
+			const matched = watchedFolders.find((wf: WatchedFolderEntry) => wf.rootFolderId === folder.id);
 			if (!matched) {
 				toast.error("This folder is not being watched");
 				return;
@@ -405,8 +554,8 @@ function AuthenticatedDocumentsSidebar({
 		async (folder: FolderDisplay) => {
 			if (!electronAPI) return;
 
-			const watchedFolders = await electronAPI.getWatchedFolders();
-			const matched = watchedFolders.find((wf) => wf.rootFolderId === folder.id);
+			const watchedFolders = (await electronAPI.getWatchedFolders()) as WatchedFolderEntry[];
+			const matched = watchedFolders.find((wf: WatchedFolderEntry) => wf.rootFolderId === folder.id);
 			if (!matched) {
 				toast.error("This folder is not being watched");
 				return;
@@ -438,8 +587,10 @@ function AuthenticatedDocumentsSidebar({
 			if (!confirm(`Delete folder "${folder.name}" and all its contents?`)) return;
 			try {
 				if (electronAPI) {
-					const watchedFolders = await electronAPI.getWatchedFolders();
-					const matched = watchedFolders.find((wf) => wf.rootFolderId === folder.id);
+					const watchedFolders = (await electronAPI.getWatchedFolders()) as WatchedFolderEntry[];
+					const matched = watchedFolders.find(
+						(wf: WatchedFolderEntry) => wf.rootFolderId === folder.id
+					);
 					if (matched) {
 						await electronAPI.removeWatchedFolder(matched.path);
 					}
@@ -836,59 +987,11 @@ function AuthenticatedDocumentsSidebar({
 		return () => document.removeEventListener("keydown", handleEscape);
 	}, [open, onOpenChange, isMobile, setRightPanelCollapsed]);
 
-	const documentsContent = (
-		<>
-			<div className="shrink-0 flex h-14 items-center px-4">
-				<div className="flex w-full items-center justify-between">
-					<div className="flex items-center gap-2">
-						{isMobile && (
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8 rounded-full"
-								onClick={() => onOpenChange(false)}
-							>
-								<ChevronLeft className="h-4 w-4 text-muted-foreground" />
-								<span className="sr-only">{tSidebar("close") || "Close"}</span>
-							</Button>
-						)}
-						<h2 className="select-none text-lg font-semibold">{t("title") || "Documents"}</h2>
-					</div>
-					<div className="flex items-center gap-1">
-						{!isMobile && onDockedChange && (
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-8 w-8 rounded-full"
-										onClick={() => {
-											if (isDocked) {
-												onDockedChange(false);
-												onOpenChange(false);
-											} else {
-												onDockedChange(true);
-											}
-										}}
-									>
-										{isDocked ? (
-											<ChevronLeft className="h-4 w-4 text-muted-foreground" />
-										) : (
-											<ChevronRight className="h-4 w-4 text-muted-foreground" />
-										)}
-										<span className="sr-only">{isDocked ? "Collapse panel" : "Expand panel"}</span>
-									</Button>
-								</TooltipTrigger>
-								<TooltipContent className="z-80">
-									{isDocked ? "Collapse panel" : "Expand panel"}
-								</TooltipContent>
-							</Tooltip>
-						)}
-						{headerAction}
-					</div>
-				</div>
-			</div>
+	const showFilesystemTabs = !isMobile && !!electronAPI && !!filesystemSettings;
+	const currentFilesystemTab = filesystemSettings?.mode === "desktop_local_folder" ? "local" : "cloud";
 
+	const cloudContent = (
+		<>
 			{/* Connected tools strip */}
 			<div className="shrink-0 mx-4 mt-4 mb-4 flex select-none items-center gap-2 rounded-lg border bg-muted/50 transition-colors hover:bg-muted/80">
 				<button
@@ -1039,6 +1142,231 @@ function AuthenticatedDocumentsSidebar({
 					/>
 				</div>
 			</div>
+		</>
+	);
+
+	const localContent = (
+		<div className="flex min-h-0 flex-1 flex-col select-none">
+			<div className="mx-4 mt-4 mb-3">
+				<div className="flex h-7 w-full items-stretch rounded-lg border bg-muted/50 text-[11px] text-muted-foreground">
+					{localRootPaths.length > 0 ? (
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<button
+									type="button"
+									className="min-w-0 flex-1 flex items-center gap-1 rounded-l-lg px-2 text-left transition-colors hover:bg-muted/80 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+									title={localRootPaths.join("\n")}
+									aria-label="Manage selected folders"
+								>
+									<Folder className="size-3 shrink-0 text-muted-foreground" />
+									<span className="truncate">
+										{localRootPaths.length === 1
+											? "1 folder selected"
+											: `${localRootPaths.length} folders selected`}
+									</span>
+								</button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="start" className="w-56 select-none p-0.5">
+								<DropdownMenuLabel className="px-1.5 pt-1.5 pb-0.5 text-xs font-medium text-muted-foreground">
+									Selected folders
+								</DropdownMenuLabel>
+								<DropdownMenuSeparator className="mx-1 my-0.5" />
+								{localRootPaths.map((rootPath) => (
+									<DropdownMenuItem
+										key={rootPath}
+										onClick={() => {
+											void handleRemoveFilesystemRoot(rootPath);
+										}}
+										className="group h-8 gap-1.5 px-1.5 text-sm text-foreground"
+									>
+										<Folder className="size-3.5 text-muted-foreground" />
+										<span className="min-w-0 flex-1 truncate">
+											{getFolderDisplayName(rootPath)}
+										</span>
+										<X className="size-3 text-muted-foreground transition-colors group-hover:text-foreground" />
+									</DropdownMenuItem>
+								))}
+								<DropdownMenuSeparator className="mx-1 my-0.5" />
+								<DropdownMenuItem
+									variant="destructive"
+									className="h-8 px-1.5 text-xs text-destructive focus:text-destructive"
+									onClick={() => {
+										void handleClearFilesystemRoots();
+									}}
+								>
+									Clear all folders
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					) : (
+						<div
+							className="min-w-0 flex-1 flex items-center gap-1 px-2"
+							title="No local folders selected"
+						>
+							<Folder className="size-3 shrink-0 text-muted-foreground" />
+							<span className="truncate">No local folders selected</span>
+						</div>
+					)}
+					<Separator
+						orientation="vertical"
+						className="data-[orientation=vertical]:h-3 self-center bg-border"
+					/>
+					<button
+						type="button"
+						className="flex w-8 items-center justify-center rounded-r-lg text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-50"
+						onClick={() => {
+							void handlePickFilesystemRoot();
+						}}
+						disabled={!canAddMoreLocalRoots}
+						aria-label="Add folder"
+						title="Add folder"
+					>
+						<FolderPlus className="size-3.5" />
+					</button>
+				</div>
+			</div>
+			<div className="mx-4 mb-2">
+				<div className="relative flex-1 min-w-0">
+					<div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
+						<Search size={13} aria-hidden="true" />
+					</div>
+					<Input
+						ref={localSearchInputRef}
+						className="peer h-8 w-full pl-8 pr-8 text-sm bg-sidebar border-border/60 select-none focus:select-text"
+						value={localSearch}
+						onChange={(e) => setLocalSearch(e.target.value)}
+						placeholder="Search local files"
+						type="text"
+						aria-label="Search local files"
+					/>
+					{Boolean(localSearch) && (
+						<button
+							type="button"
+							className="absolute inset-y-0 right-0 flex h-full w-8 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground transition-colors"
+							aria-label="Clear local search"
+							onClick={() => {
+								setLocalSearch("");
+								localSearchInputRef.current?.focus();
+							}}
+						>
+							<X size={13} strokeWidth={2} aria-hidden="true" />
+						</button>
+					)}
+				</div>
+			</div>
+			<LocalFilesystemBrowser
+				rootPaths={localRootPaths}
+				searchSpaceId={searchSpaceId}
+				searchQuery={debouncedLocalSearch.trim() || undefined}
+				onOpenFile={(localFilePath) => {
+					openEditorPanel({
+						kind: "local_file",
+						localFilePath,
+						title: localFilePath.split("/").pop() || localFilePath,
+						searchSpaceId,
+					});
+				}}
+			/>
+		</div>
+	);
+
+	const documentsContent = (
+		<>
+			<div className="shrink-0 flex h-14 items-center px-4">
+				<div className="flex w-full items-center justify-between">
+					<div className="flex items-center gap-3">
+						{isMobile && (
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 rounded-full"
+								onClick={() => onOpenChange(false)}
+							>
+								<ChevronLeft className="h-4 w-4 text-muted-foreground" />
+								<span className="sr-only">{tSidebar("close") || "Close"}</span>
+							</Button>
+						)}
+						<h2 className="select-none text-lg font-semibold">{t("title") || "Documents"}</h2>
+						{showFilesystemTabs && (
+							<Tabs
+								value={currentFilesystemTab}
+								onValueChange={(value) => {
+									void handleFilesystemTabChange(value === "local" ? "local" : "cloud");
+								}}
+							>
+								<TabsList className="h-6 gap-0 rounded-md bg-muted/60 p-0.5 select-none">
+									<TabsTrigger
+										value="cloud"
+										className="h-5 gap-1 px-1.5 text-[11px] select-none focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:bg-muted-foreground/25 data-[state=active]:text-foreground data-[state=active]:shadow-none"
+										title="Cloud"
+									>
+										<Server className="size-3" />
+										<span>Cloud</span>
+									</TabsTrigger>
+									<TabsTrigger
+										value="local"
+										className="h-5 gap-1 px-1.5 text-[11px] select-none focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:bg-muted-foreground/25 data-[state=active]:text-foreground data-[state=active]:shadow-none"
+										title="Local"
+									>
+										<Laptop className="size-3" />
+										<span>Local</span>
+									</TabsTrigger>
+								</TabsList>
+							</Tabs>
+						)}
+					</div>
+					<div className="flex items-center gap-1">
+						{!isMobile && onDockedChange && (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-8 w-8 rounded-full"
+										onClick={() => {
+											if (isDocked) {
+												onDockedChange(false);
+												onOpenChange(false);
+											} else {
+												onDockedChange(true);
+											}
+										}}
+									>
+										{isDocked ? (
+											<ChevronLeft className="h-4 w-4 text-muted-foreground" />
+										) : (
+											<ChevronRight className="h-4 w-4 text-muted-foreground" />
+										)}
+										<span className="sr-only">{isDocked ? "Collapse panel" : "Expand panel"}</span>
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent className="z-80">
+									{isDocked ? "Collapse panel" : "Expand panel"}
+								</TooltipContent>
+							</Tooltip>
+						)}
+						{headerAction}
+					</div>
+				</div>
+			</div>
+			{showFilesystemTabs ? (
+				<Tabs
+					value={currentFilesystemTab}
+					onValueChange={(value) => {
+						void handleFilesystemTabChange(value === "local" ? "local" : "cloud");
+					}}
+					className="flex min-h-0 flex-1 flex-col"
+				>
+					<TabsContent value="cloud" className="mt-0 flex min-h-0 flex-1 flex-col">
+						{cloudContent}
+					</TabsContent>
+					<TabsContent value="local" className="mt-0 flex min-h-0 flex-1 flex-col">
+						{localContent}
+					</TabsContent>
+				</Tabs>
+			) : (
+				cloudContent
+			)}
 
 			{versionDocId !== null && (
 				<VersionHistoryDialog
@@ -1062,6 +1390,48 @@ function AuthenticatedDocumentsSidebar({
 					onSuccess={refreshWatchedIds}
 				/>
 			)}
+			<AlertDialog
+				open={localTrustDialogOpen}
+				onOpenChange={(nextOpen) => {
+					setLocalTrustDialogOpen(nextOpen);
+					if (!nextOpen) setPendingLocalPath(null);
+				}}
+			>
+				<AlertDialogContent className="sm:max-w-md select-none">
+					<AlertDialogHeader>
+						<AlertDialogTitle>Trust this workspace?</AlertDialogTitle>
+						<AlertDialogDescription>
+							Local mode can read and edit files inside the folders you select. Continue only if
+							you trust this workspace and its contents.
+						</AlertDialogDescription>
+						{pendingLocalPath && (
+							<AlertDialogDescription className="mt-1 whitespace-pre-wrap break-words font-mono text-xs">
+								Folder path: {pendingLocalPath}
+							</AlertDialogDescription>
+						)}
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={async () => {
+								try {
+									window.localStorage.setItem(LOCAL_FILESYSTEM_TRUST_KEY, "true");
+								} catch {}
+								setLocalTrustDialogOpen(false);
+								const path = pendingLocalPath;
+								setPendingLocalPath(null);
+								if (path) {
+									await applyLocalRootPath(path);
+								} else {
+									await runPickLocalRoot();
+								}
+							}}
+						>
+							I trust this workspace
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 
 			<FolderPickerDialog
 				open={folderPickerOpen}
@@ -1312,24 +1682,12 @@ function AnonymousDocumentsSidebar({
 
 			setIsUploading(true);
 			try {
-				const formData = new FormData();
-				formData.append("file", file);
-				const res = await fetch(`${BACKEND_URL}/api/v1/public/anon-chat/upload`, {
-					method: "POST",
-					credentials: "include",
-					body: formData,
-				});
-
-				if (res.status === 409) {
-					gate("upload more documents");
+				const result = await anonymousChatApiService.uploadDocument(file);
+				if (!result.ok) {
+					if (result.reason === "quota_exceeded") gate("upload more documents");
 					return;
 				}
-				if (!res.ok) {
-					const body = await res.json().catch(() => ({}));
-					throw new Error(body.detail || `Upload failed: ${res.status}`);
-				}
-
-				const data = await res.json();
+				const data = result.data;
 				if (anonMode.isAnonymous) {
 					anonMode.setUploadedDoc({
 						filename: data.filename,
