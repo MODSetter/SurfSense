@@ -7,8 +7,8 @@ import {
 	ChevronRight,
 	FileText,
 	Folder,
-	FolderPlus,
 	FolderClock,
+	FolderPlus,
 	Laptop,
 	Lock,
 	Paperclip,
@@ -63,6 +63,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -71,7 +72,6 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
@@ -525,7 +525,9 @@ function AuthenticatedDocumentsSidebar({
 			if (!electronAPI) return;
 
 			const watchedFolders = (await electronAPI.getWatchedFolders()) as WatchedFolderEntry[];
-			const matched = watchedFolders.find((wf: WatchedFolderEntry) => wf.rootFolderId === folder.id);
+			const matched = watchedFolders.find(
+				(wf: WatchedFolderEntry) => wf.rootFolderId === folder.id
+			);
 			if (!matched) {
 				toast.error("This folder is not being watched");
 				return;
@@ -555,7 +557,9 @@ function AuthenticatedDocumentsSidebar({
 			if (!electronAPI) return;
 
 			const watchedFolders = (await electronAPI.getWatchedFolders()) as WatchedFolderEntry[];
-			const matched = watchedFolders.find((wf: WatchedFolderEntry) => wf.rootFolderId === folder.id);
+			const matched = watchedFolders.find(
+				(wf: WatchedFolderEntry) => wf.rootFolderId === folder.id
+			);
 			if (!matched) {
 				toast.error("This folder is not being watched");
 				return;
@@ -988,7 +992,8 @@ function AuthenticatedDocumentsSidebar({
 	}, [open, onOpenChange, isMobile, setRightPanelCollapsed]);
 
 	const showFilesystemTabs = !isMobile && !!electronAPI && !!filesystemSettings;
-	const currentFilesystemTab = filesystemSettings?.mode === "desktop_local_folder" ? "local" : "cloud";
+	const currentFilesystemTab =
+		filesystemSettings?.mode === "desktop_local_folder" ? "local" : "cloud";
 
 	const cloudContent = (
 		<>
@@ -1401,8 +1406,8 @@ function AuthenticatedDocumentsSidebar({
 					<AlertDialogHeader>
 						<AlertDialogTitle>Trust this workspace?</AlertDialogTitle>
 						<AlertDialogDescription>
-							Local mode can read and edit files inside the folders you select. Continue only if
-							you trust this workspace and its contents.
+							Local mode can read and edit files inside the folders you select. Continue only if you
+							trust this workspace and its contents.
 						</AlertDialogDescription>
 						{pendingLocalPath && (
 							<AlertDialogDescription className="mt-1 whitespace-pre-wrap break-words font-mono text-xs">

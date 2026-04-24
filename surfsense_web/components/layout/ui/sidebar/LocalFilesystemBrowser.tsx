@@ -273,7 +273,10 @@ export function LocalFilesystemBrowser({
 				const mount = mountByRootKey.get(rootKey);
 				if (!state || state.loading) {
 					return (
-						<div key={rootPath} className="flex h-16 items-center gap-2 px-3 text-sm text-muted-foreground">
+						<div
+							key={rootPath}
+							className="flex h-16 items-center gap-2 px-3 text-sm text-muted-foreground"
+						>
 							<Spinner size="sm" />
 							<span>Loading {getFolderDisplayName(rootPath)}...</span>
 						</div>
@@ -281,7 +284,10 @@ export function LocalFilesystemBrowser({
 				}
 				if (state.error) {
 					return (
-						<div key={rootPath} className="rounded-md border border-destructive/20 bg-destructive/5 p-3">
+						<div
+							key={rootPath}
+							className="rounded-md border border-destructive/20 bg-destructive/5 p-3"
+						>
 							<p className="text-sm font-medium text-destructive">Failed to load local folder</p>
 							<p className="mt-1 text-xs text-muted-foreground">{state.error}</p>
 						</div>

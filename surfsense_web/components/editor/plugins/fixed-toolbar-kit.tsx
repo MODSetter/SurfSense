@@ -1,7 +1,6 @@
 "use client";
 
-import { createPlatePlugin } from "platejs/react";
-import { useEditorReadOnly } from "platejs/react";
+import { createPlatePlugin, useEditorReadOnly } from "platejs/react";
 
 import { useEditorSave } from "@/components/editor/editor-save-context";
 import { FixedToolbar } from "@/components/ui/fixed-toolbar";

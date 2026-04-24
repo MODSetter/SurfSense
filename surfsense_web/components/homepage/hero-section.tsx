@@ -63,9 +63,9 @@ const TAB_ITEMS = [
 		featured: true,
 	},
 	{
-		title: "Extreme Assist",
+		title: "Screen capture in chat",
 		description:
-			"Get inline writing suggestions powered by your knowledge base as you type in any app.",
+			"Capture your screen and send it with your message so the AI can see what you see.",
 		src: "/homepage/hero_tutorial/extreme_assist.mp4",
 		featured: true,
 	},
