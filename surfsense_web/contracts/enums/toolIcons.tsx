@@ -1,6 +1,7 @@
 import {
 	BookOpen,
 	Brain,
+	FileUser,
 	FileText,
 	Film,
 	Globe,
@@ -15,6 +16,7 @@ const TOOL_ICONS: Record<string, LucideIcon> = {
 	generate_podcast: Podcast,
 	generate_video_presentation: Film,
 	generate_report: FileText,
+	generate_resume: FileUser,
 	generate_image: ImageIcon,
 	scrape_webpage: ScanLine,
 	web_search: Globe,

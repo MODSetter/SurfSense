@@ -787,17 +787,20 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
     ) -> str:
         backend = self._get_backend(runtime)
         mount_prefix = self._default_mount_prefix(runtime)
+        normalized_candidate = re.sub(r"/+", "/", candidate.strip().replace("\\", "/"))
         if not mount_prefix or not isinstance(backend, MultiRootLocalFolderBackend):
-            return candidate if candidate.startswith("/") else f"/{candidate.lstrip('/')}"
+            if normalized_candidate.startswith("/"):
+                return normalized_candidate
+            return f"/{normalized_candidate.lstrip('/')}"
 
         mount_names = set(backend.list_mounts())
-        if candidate.startswith("/"):
-            first_segment = candidate.lstrip("/").split("/", 1)[0]
+        if normalized_candidate.startswith("/"):
+            first_segment = normalized_candidate.lstrip("/").split("/", 1)[0]
             if first_segment in mount_names:
-                return candidate
-            return f"{mount_prefix}{candidate}"
+                return normalized_candidate
+            return f"{mount_prefix}{normalized_candidate}"
 
-        relative = candidate.lstrip("/")
+        relative = normalized_candidate.lstrip("/")
         first_segment = relative.split("/", 1)[0]
         if first_segment in mount_names:
             return f"/{relative}"

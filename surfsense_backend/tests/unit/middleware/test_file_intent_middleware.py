@@ -4,6 +4,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from app.agents.new_chat.middleware.file_intent import (
     FileIntentMiddleware,
     FileOperationIntent,
+    _fallback_path,
 )
 
 pytestmark = pytest.mark.unit
@@ -170,4 +171,44 @@ async def test_file_write_infers_directory_from_user_text_when_missing():
     contract = result["file_operation_contract"]
     assert contract["intent"] == FileOperationIntent.FILE_WRITE.value
     assert contract["suggested_path"] == "/pc_backups/random.md"
+
+
+def test_fallback_path_normalizes_windows_slashes() -> None:
+    resolved = _fallback_path(
+        suggested_filename="summary.md",
+        suggested_path=r"\reports\q2\summary.md",
+        user_text="create report",
+    )
+
+    assert resolved == "/reports/q2/summary.md"
+
+
+def test_fallback_path_normalizes_windows_drive_path() -> None:
+    resolved = _fallback_path(
+        suggested_filename=None,
+        suggested_path=r"C:\Users\anish\notes\todo.md",
+        user_text="create note",
+    )
+
+    assert resolved == "/C/Users/anish/notes/todo.md"
+
+
+def test_fallback_path_normalizes_mixed_separators_and_duplicate_slashes() -> None:
+    resolved = _fallback_path(
+        suggested_filename="summary.md",
+        suggested_path=r"\\reports\\q2//summary.md",
+        user_text="create report",
+    )
+
+    assert resolved == "/reports/q2/summary.md"
+
+
+def test_fallback_path_keeps_posix_style_absolute_path_for_linux_and_macos() -> None:
+    resolved = _fallback_path(
+        suggested_filename=None,
+        suggested_path="/var/log/surfsense/notes.md",
+        user_text="create note",
+    )
+
+    assert resolved == "/var/log/surfsense/notes.md"
 

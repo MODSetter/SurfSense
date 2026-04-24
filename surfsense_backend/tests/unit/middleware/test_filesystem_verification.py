@@ -97,3 +97,68 @@ def test_normalize_local_mount_path_keeps_explicit_mount(tmp_path: Path) -> None
     )
 
     assert resolved == "/pc_backups/notes/random-note.md"
+
+
+def test_normalize_local_mount_path_windows_backslashes(tmp_path: Path) -> None:
+    root = tmp_path / "PC Backups"
+    root.mkdir()
+    backend = MultiRootLocalFolderBackend((("pc_backups", str(root)),))
+    runtime = _RuntimeNoSuggestedPath()
+    middleware = SurfSenseFilesystemMiddleware.__new__(SurfSenseFilesystemMiddleware)
+    middleware._get_backend = lambda _runtime: backend  # type: ignore[method-assign]
+
+    resolved = middleware._normalize_local_mount_path(  # type: ignore[arg-type]
+        r"\notes\random-note.md",
+        runtime,
+    )
+
+    assert resolved == "/pc_backups/notes/random-note.md"
+
+
+def test_normalize_local_mount_path_normalizes_mixed_separators(tmp_path: Path) -> None:
+    root = tmp_path / "PC Backups"
+    root.mkdir()
+    backend = MultiRootLocalFolderBackend((("pc_backups", str(root)),))
+    runtime = _RuntimeNoSuggestedPath()
+    middleware = SurfSenseFilesystemMiddleware.__new__(SurfSenseFilesystemMiddleware)
+    middleware._get_backend = lambda _runtime: backend  # type: ignore[method-assign]
+
+    resolved = middleware._normalize_local_mount_path(  # type: ignore[arg-type]
+        r"\\notes//nested\\random-note.md",
+        runtime,
+    )
+
+    assert resolved == "/pc_backups/notes/nested/random-note.md"
+
+
+def test_normalize_local_mount_path_keeps_explicit_mount_with_backslashes(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "PC Backups"
+    root.mkdir()
+    backend = MultiRootLocalFolderBackend((("pc_backups", str(root)),))
+    runtime = _RuntimeNoSuggestedPath()
+    middleware = SurfSenseFilesystemMiddleware.__new__(SurfSenseFilesystemMiddleware)
+    middleware._get_backend = lambda _runtime: backend  # type: ignore[method-assign]
+
+    resolved = middleware._normalize_local_mount_path(  # type: ignore[arg-type]
+        r"\pc_backups\notes\random-note.md",
+        runtime,
+    )
+
+    assert resolved == "/pc_backups/notes/random-note.md"
+
+
+def test_normalize_local_mount_path_prefixes_posix_absolute_path_for_linux_and_macos(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "PC Backups"
+    root.mkdir()
+    backend = MultiRootLocalFolderBackend((("pc_backups", str(root)),))
+    runtime = _RuntimeNoSuggestedPath()
+    middleware = SurfSenseFilesystemMiddleware.__new__(SurfSenseFilesystemMiddleware)
+    middleware._get_backend = lambda _runtime: backend  # type: ignore[method-assign]
+
+    resolved = middleware._normalize_local_mount_path("/var/log/app.log", runtime)  # type: ignore[arg-type]
+
+    assert resolved == "/pc_backups/var/log/app.log"
