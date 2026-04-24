@@ -1,5 +1,11 @@
+from pathlib import Path
+
 import pytest
 
+from app.agents.new_chat.middleware.multi_root_local_folder_backend import (
+    MultiRootLocalFolderBackend,
+)
+from app.agents.new_chat.filesystem_selection import FilesystemMode
 from app.agents.new_chat.middleware.filesystem import SurfSenseFilesystemMiddleware
 
 pytestmark = pytest.mark.unit
@@ -43,9 +49,9 @@ def test_verify_written_content_prefers_raw_sync() -> None:
 
 
 def test_contract_suggested_path_falls_back_to_notes_md() -> None:
-    suggested = SurfSenseFilesystemMiddleware._get_contract_suggested_path(
-        _RuntimeNoSuggestedPath()
-    )
+    middleware = SurfSenseFilesystemMiddleware.__new__(SurfSenseFilesystemMiddleware)
+    middleware._filesystem_mode = FilesystemMode.CLOUD
+    suggested = middleware._get_contract_suggested_path(_RuntimeNoSuggestedPath())  # type: ignore[arg-type]
     assert suggested == "/notes.md"
 
 
@@ -62,3 +68,32 @@ async def test_verify_written_content_prefers_raw_async() -> None:
     )
 
     assert verify_error is None
+
+
+def test_normalize_local_mount_path_prefixes_default_mount(tmp_path: Path) -> None:
+    root = tmp_path / "PC Backups"
+    root.mkdir()
+    backend = MultiRootLocalFolderBackend((("pc_backups", str(root)),))
+    runtime = _RuntimeNoSuggestedPath()
+    middleware = SurfSenseFilesystemMiddleware.__new__(SurfSenseFilesystemMiddleware)
+    middleware._get_backend = lambda _runtime: backend  # type: ignore[method-assign]
+
+    resolved = middleware._normalize_local_mount_path("/random-note.md", runtime)  # type: ignore[arg-type]
+
+    assert resolved == "/pc_backups/random-note.md"
+
+
+def test_normalize_local_mount_path_keeps_explicit_mount(tmp_path: Path) -> None:
+    root = tmp_path / "PC Backups"
+    root.mkdir()
+    backend = MultiRootLocalFolderBackend((("pc_backups", str(root)),))
+    runtime = _RuntimeNoSuggestedPath()
+    middleware = SurfSenseFilesystemMiddleware.__new__(SurfSenseFilesystemMiddleware)
+    middleware._get_backend = lambda _runtime: backend  # type: ignore[method-assign]
+
+    resolved = middleware._normalize_local_mount_path(  # type: ignore[arg-type]
+        "/pc_backups/notes/random-note.md",
+        runtime,
+    )
+
+    assert resolved == "/pc_backups/notes/random-note.md"

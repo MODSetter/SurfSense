@@ -114,3 +114,60 @@ async def test_file_write_txt_suggestion_is_normalized_to_markdown():
     assert contract["intent"] == FileOperationIntent.FILE_WRITE.value
     assert contract["suggested_path"] == "/random.md"
 
+
+@pytest.mark.asyncio
+async def test_file_write_with_suggested_directory_preserves_folder():
+    llm = _FakeLLM(
+        '{"intent":"file_write","confidence":0.86,"suggested_filename":"random.md","suggested_directory":"pc backups","suggested_path":null}'
+    )
+    middleware = FileIntentMiddleware(llm=llm)
+    state = {
+        "messages": [HumanMessage(content="create a random file in pc backups folder")],
+        "turn_id": "turn:4",
+    }
+
+    result = await middleware.abefore_agent(state, runtime=None)  # type: ignore[arg-type]
+
+    assert result is not None
+    contract = result["file_operation_contract"]
+    assert contract["intent"] == FileOperationIntent.FILE_WRITE.value
+    assert contract["suggested_path"] == "/pc_backups/random.md"
+
+
+@pytest.mark.asyncio
+async def test_file_write_with_suggested_path_takes_precedence():
+    llm = _FakeLLM(
+        '{"intent":"file_write","confidence":0.9,"suggested_filename":"ignored.md","suggested_directory":"docs","suggested_path":"/reports/q2/summary.md"}'
+    )
+    middleware = FileIntentMiddleware(llm=llm)
+    state = {
+        "messages": [HumanMessage(content="create report")],
+        "turn_id": "turn:5",
+    }
+
+    result = await middleware.abefore_agent(state, runtime=None)  # type: ignore[arg-type]
+
+    assert result is not None
+    contract = result["file_operation_contract"]
+    assert contract["intent"] == FileOperationIntent.FILE_WRITE.value
+    assert contract["suggested_path"] == "/reports/q2/summary.md"
+
+
+@pytest.mark.asyncio
+async def test_file_write_infers_directory_from_user_text_when_missing():
+    llm = _FakeLLM(
+        '{"intent":"file_write","confidence":0.83,"suggested_filename":"random.md","suggested_directory":null,"suggested_path":null}'
+    )
+    middleware = FileIntentMiddleware(llm=llm)
+    state = {
+        "messages": [HumanMessage(content="create a random file in pc backups folder")],
+        "turn_id": "turn:6",
+    }
+
+    result = await middleware.abefore_agent(state, runtime=None)  # type: ignore[arg-type]
+
+    assert result is not None
+    contract = result["file_operation_contract"]
+    assert contract["intent"] == FileOperationIntent.FILE_WRITE.value
+    assert contract["suggested_path"] == "/pc_backups/random.md"
+

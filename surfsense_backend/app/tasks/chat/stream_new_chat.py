@@ -190,6 +190,23 @@ def _tool_output_has_error(tool_output: Any) -> bool:
     return False
 
 
+def _extract_resolved_file_path(*, tool_name: str, tool_output: Any) -> str | None:
+    if isinstance(tool_output, dict):
+        path_value = tool_output.get("path")
+        if isinstance(path_value, str) and path_value.strip():
+            return path_value.strip()
+    text = _tool_output_to_text(tool_output)
+    if tool_name == "write_file":
+        match = re.search(r"Updated file\s+(.+)$", text.strip())
+        if match:
+            return match.group(1).strip()
+    if tool_name == "edit_file":
+        match = re.search(r"in '([^']+)'", text)
+        if match:
+            return match.group(1).strip()
+    return None
+
+
 def _contract_enforcement_active(result: StreamResult) -> bool:
     # Keep policy deterministic with no env-driven progression modes:
     # enforce the file-operation contract only in desktop local-folder mode.
@@ -1015,6 +1032,30 @@ async def _stream_agent_events(
                     yield streaming_service.format_terminal_info(
                         f"Scrape failed: {error_msg}",
                         "error",
+                    )
+            elif tool_name in ("write_file", "edit_file"):
+                resolved_path = _extract_resolved_file_path(
+                    tool_name=tool_name,
+                    tool_output=tool_output,
+                )
+                result_text = _tool_output_to_text(tool_output)
+                if _tool_output_has_error(tool_output):
+                    yield streaming_service.format_tool_output_available(
+                        tool_call_id,
+                        {
+                            "status": "error",
+                            "error": result_text,
+                            "path": resolved_path,
+                        },
+                    )
+                else:
+                    yield streaming_service.format_tool_output_available(
+                        tool_call_id,
+                        {
+                            "status": "completed",
+                            "path": resolved_path,
+                            "result": result_text,
+                        },
                     )
             elif tool_name == "generate_report":
                 # Stream the full report result so frontend can render the ReportCard

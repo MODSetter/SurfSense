@@ -1,10 +1,15 @@
 export type AgentFilesystemMode = "cloud" | "desktop_local_folder";
 export type ClientPlatform = "web" | "desktop";
 
+export interface AgentFilesystemMountSelection {
+	mount_id: string;
+	root_path: string;
+}
+
 export interface AgentFilesystemSelection {
 	filesystem_mode: AgentFilesystemMode;
 	client_platform: ClientPlatform;
-	local_filesystem_roots?: string[];
+	local_filesystem_mounts?: AgentFilesystemMountSelection[];
 }
 
 const DEFAULT_SELECTION: AgentFilesystemSelection = {
@@ -24,12 +29,23 @@ export async function getAgentFilesystemSelection(): Promise<AgentFilesystemSele
 	}
 	try {
 		const settings = await window.electronAPI.getAgentFilesystemSettings();
-		const firstLocalRootPath = settings.localRootPaths[0];
-		if (settings.mode === "desktop_local_folder" && firstLocalRootPath) {
+		if (settings.mode === "desktop_local_folder") {
+			const mounts = await window.electronAPI.getAgentFilesystemMounts?.();
+			const localFilesystemMounts =
+				mounts?.map((entry) => ({
+					mount_id: entry.mount,
+					root_path: entry.rootPath,
+				})) ?? [];
+			if (localFilesystemMounts.length === 0) {
+				return {
+					filesystem_mode: "cloud",
+					client_platform: "desktop",
+				};
+			}
 			return {
 				filesystem_mode: "desktop_local_folder",
 				client_platform: "desktop",
-				local_filesystem_roots: settings.localRootPaths,
+				local_filesystem_mounts: localFilesystemMounts,
 			};
 		}
 		return {

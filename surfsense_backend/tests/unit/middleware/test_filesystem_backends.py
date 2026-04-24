@@ -7,6 +7,7 @@ from app.agents.new_chat.filesystem_selection import (
     ClientPlatform,
     FilesystemMode,
     FilesystemSelection,
+    LocalFilesystemMount,
 )
 from app.agents.new_chat.middleware.multi_root_local_folder_backend import (
     MultiRootLocalFolderBackend,
@@ -23,7 +24,7 @@ def test_backend_resolver_returns_multi_root_backend_for_single_root(tmp_path: P
     selection = FilesystemSelection(
         mode=FilesystemMode.DESKTOP_LOCAL_FOLDER,
         client_platform=ClientPlatform.DESKTOP,
-        local_root_paths=(str(tmp_path),),
+        local_mounts=(LocalFilesystemMount(mount_id="tmp", root_path=str(tmp_path)),),
     )
     resolver = build_backend_resolver(selection)
 
@@ -47,7 +48,10 @@ def test_backend_resolver_returns_multi_root_backend_for_multiple_roots(tmp_path
     selection = FilesystemSelection(
         mode=FilesystemMode.DESKTOP_LOCAL_FOLDER,
         client_platform=ClientPlatform.DESKTOP,
-        local_root_paths=(str(root_one), str(root_two)),
+        local_mounts=(
+            LocalFilesystemMount(mount_id="resume", root_path=str(root_one)),
+            LocalFilesystemMount(mount_id="notes", root_path=str(root_two)),
+        ),
     )
     resolver = build_backend_resolver(selection)
 

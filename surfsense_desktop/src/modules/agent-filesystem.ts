@@ -127,12 +127,22 @@ export type LocalRootMount = {
 	rootPath: string;
 };
 
+function sanitizeMountName(rawMount: string): string {
+	const normalized = rawMount
+		.trim()
+		.toLowerCase()
+		.replace(/[^a-z0-9_-]+/g, "_")
+		.replace(/_+/g, "_")
+		.replace(/^[_-]+|[_-]+$/g, "");
+	return normalized || "root";
+}
+
 function buildRootMounts(rootPaths: string[]): LocalRootMount[] {
 	const mounts: LocalRootMount[] = [];
 	const usedMounts = new Set<string>();
 	for (const rawRootPath of rootPaths) {
 		const normalizedRoot = resolve(rawRootPath);
-		const baseMount = normalizedRoot.split(/[\\/]/).at(-1) || "root";
+		const baseMount = sanitizeMountName(normalizedRoot.split(/[\\/]/).at(-1) || "root");
 		let mount = baseMount;
 		let suffix = 2;
 		while (usedMounts.has(mount)) {
@@ -150,7 +160,10 @@ export async function getAgentFilesystemMounts(): Promise<LocalRootMount[]> {
 	return buildRootMounts(rootPaths);
 }
 
-function parseMountedVirtualPath(virtualPath: string): {
+function parseMountedVirtualPath(
+	virtualPath: string,
+	mounts: LocalRootMount[]
+): {
 	mount: string;
 	subPath: string;
 } {
@@ -161,8 +174,15 @@ function parseMountedVirtualPath(virtualPath: string): {
 	if (!trimmed) {
 		throw new Error("Path must include a mounted root segment");
 	}
+
 	const [mount, ...rest] = trimmed.split("/");
 	const remainder = rest.join("/");
+	const directMount = mounts.find((entry) => entry.mount === mount);
+	if (!directMount) {
+		throw new Error(
+			`Unknown mounted root '${mount}'. Available roots: ${mounts.map((entry) => `/${entry.mount}`).join(", ")}`
+		);
+	}
 	if (!remainder) {
 		throw new Error("Path must include a file path under the mounted root");
 	}
@@ -191,7 +211,7 @@ export async function readAgentLocalFileText(
 ): Promise<{ path: string; content: string }> {
 	const rootPaths = await resolveCurrentRootPaths();
 	const mounts = buildRootMounts(rootPaths);
-	const { mount, subPath } = parseMountedVirtualPath(virtualPath);
+	const { mount, subPath } = parseMountedVirtualPath(virtualPath, mounts);
 	const rootMount = findMountByName(mounts, mount);
 	if (!rootMount) {
 		throw new Error(
@@ -212,7 +232,7 @@ export async function writeAgentLocalFileText(
 ): Promise<{ path: string }> {
 	const rootPaths = await resolveCurrentRootPaths();
 	const mounts = buildRootMounts(rootPaths);
-	const { mount, subPath } = parseMountedVirtualPath(virtualPath);
+	const { mount, subPath } = parseMountedVirtualPath(virtualPath, mounts);
 	const rootMount = findMountByName(mounts, mount);
 	if (!rootMount) {
 		throw new Error(

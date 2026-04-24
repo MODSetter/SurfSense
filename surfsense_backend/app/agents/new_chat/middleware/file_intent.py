@@ -48,6 +48,20 @@ class FileIntentPlan(BaseModel):
         default=None,
         description="Optional filename (e.g. notes.md) inferred from user request.",
     )
+    suggested_directory: str | None = Field(
+        default=None,
+        description=(
+            "Optional directory path (e.g. /reports/q2 or reports/q2) inferred from "
+            "user request."
+        ),
+    )
+    suggested_path: str | None = Field(
+        default=None,
+        description=(
+            "Optional full file path (e.g. /reports/q2/summary.md). If present, this "
+            "takes precedence over suggested_directory + suggested_filename."
+        ),
+    )
 
 
 def _extract_text_from_message(message: BaseMessage) -> str:
@@ -88,6 +102,13 @@ def _sanitize_filename(value: str) -> str:
     return name
 
 
+def _sanitize_path_segment(value: str) -> str:
+    segment = re.sub(r"[\\/:*?\"<>|]+", "_", value).strip()
+    segment = re.sub(r"\s+", "_", segment)
+    segment = segment.strip("._-")
+    return segment
+
+
 def _infer_text_file_extension(user_text: str) -> str:
     lowered = user_text.lower()
     if any(token in lowered for token in ("json", ".json")):
@@ -119,29 +140,102 @@ def _infer_text_file_extension(user_text: str) -> str:
     return ".md"
 
 
-def _fallback_path(suggested_filename: str | None, *, user_text: str) -> str:
+def _normalize_directory(value: str) -> str:
+    raw = value.strip().replace("\\", "/")
+    raw = raw.strip("/")
+    if not raw:
+        return ""
+    parts = [_sanitize_path_segment(part) for part in raw.split("/") if part.strip()]
+    parts = [part for part in parts if part]
+    return "/".join(parts)
+
+
+def _normalize_file_path(value: str) -> str:
+    raw = value.strip().replace("\\", "/").strip()
+    if not raw:
+        return ""
+    had_trailing_slash = raw.endswith("/")
+    raw = raw.strip("/")
+    if not raw:
+        return ""
+    parts = [_sanitize_path_segment(part) for part in raw.split("/") if part.strip()]
+    parts = [part for part in parts if part]
+    if not parts:
+        return ""
+    if had_trailing_slash:
+        return f"/{'/'.join(parts)}/"
+    return f"/{'/'.join(parts)}"
+
+
+def _infer_directory_from_user_text(user_text: str) -> str | None:
+    patterns = (
+        r"\b(?:in|inside|under)\s+(?:the\s+)?([a-zA-Z0-9 _\-/]+?)\s+folder\b",
+        r"\b(?:in|inside|under)\s+([a-zA-Z0-9 _\-/]+?)\b",
+    )
+    lowered = user_text.lower()
+    for pattern in patterns:
+        match = re.search(pattern, lowered, flags=re.IGNORECASE)
+        if not match:
+            continue
+        candidate = match.group(1).strip()
+        if candidate in {"the", "a", "an"}:
+            continue
+        normalized = _normalize_directory(candidate)
+        if normalized:
+            return normalized
+    return None
+
+
+def _fallback_path(
+    suggested_filename: str | None,
+    *,
+    suggested_directory: str | None = None,
+    suggested_path: str | None = None,
+    user_text: str,
+) -> str:
     default_extension = _infer_text_file_extension(user_text)
+    inferred_dir = _infer_directory_from_user_text(user_text)
+
+    sanitized_filename = ""
     if suggested_filename:
-        sanitized = _sanitize_filename(suggested_filename)
-        if sanitized.lower().endswith(".txt"):
-            sanitized = f"{sanitized[:-4]}.md"
-        if "." not in sanitized:
-            sanitized = f"{sanitized}{default_extension}"
-        return f"/{sanitized}"
-    return f"/notes{default_extension}"
+        sanitized_filename = _sanitize_filename(suggested_filename)
+        if sanitized_filename.lower().endswith(".txt"):
+            sanitized_filename = f"{sanitized_filename[:-4]}.md"
+    if not sanitized_filename:
+        sanitized_filename = f"notes{default_extension}"
+    elif "." not in sanitized_filename:
+        sanitized_filename = f"{sanitized_filename}{default_extension}"
+
+    normalized_suggested_path = (
+        _normalize_file_path(suggested_path) if suggested_path else ""
+    )
+    if normalized_suggested_path:
+        if normalized_suggested_path.endswith("/"):
+            return f"{normalized_suggested_path.rstrip('/')}/{sanitized_filename}"
+        return normalized_suggested_path
+
+    directory = _normalize_directory(suggested_directory or "")
+    if not directory and inferred_dir:
+        directory = inferred_dir
+    if directory:
+        return f"/{directory}/{sanitized_filename}"
+
+    return f"/{sanitized_filename}"
 
 
 def _build_classifier_prompt(*, recent_conversation: str, user_text: str) -> str:
     return (
         "Classify the latest user request into a filesystem intent for an AI agent.\n"
         "Return JSON only with this exact schema:\n"
-        '{"intent":"chat_only|file_write|file_read","confidence":0.0,"suggested_filename":"string or null"}\n\n'
+        '{"intent":"chat_only|file_write|file_read","confidence":0.0,"suggested_filename":"string or null","suggested_directory":"string or null","suggested_path":"string or null"}\n\n'
         "Rules:\n"
         "- Use semantic intent, not literal keywords.\n"
         "- file_write: user asks to create/save/write/update/edit content as a file.\n"
         "- file_read: user asks to open/read/list/search existing files.\n"
         "- chat_only: conversational/analysis responses without required file operations.\n"
         "- For file_write, choose a concise semantic suggested_filename and match the requested format.\n"
+        "- If the user mentions a folder/directory, populate suggested_directory.\n"
+        "- If user specifies an explicit full path, populate suggested_path.\n"
         "- Use extensions that match user intent (e.g. .md, .json, .yaml, .csv, .py, .ts, .js, .html, .css, .sql).\n"
         "- Do not use .txt; prefer .md for generic text notes.\n"
         "- Do not include dates or timestamps in suggested_filename unless explicitly requested.\n"
@@ -217,7 +311,12 @@ class FileIntentMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             return None
 
         plan = await self._classify_intent(messages=messages, user_text=user_text)
-        suggested_path = _fallback_path(plan.suggested_filename, user_text=user_text)
+        suggested_path = _fallback_path(
+            plan.suggested_filename,
+            suggested_directory=plan.suggested_directory,
+            suggested_path=plan.suggested_path,
+            user_text=user_text,
+        )
         contract = {
             "intent": plan.intent.value,
             "confidence": plan.confidence,

@@ -226,10 +226,16 @@ function extractDomain(url: string): string {
 	}
 }
 
-const LOCAL_FILE_PATH_REGEX = /^\/(?:[^/\s`]+\/)*[^/\s`]+\.[^/\s`]+$/;
+// Canonical local-file virtual paths are mount-prefixed: /<mount>/<relative/path>
+const LOCAL_FILE_PATH_REGEX = /^\/[a-z0-9_-]+\/[^\s`]+(?:\/[^\s`]+)*$/;
 
 function isVirtualFilePathToken(value: string): boolean {
-	return LOCAL_FILE_PATH_REGEX.test(value);
+	if (!LOCAL_FILE_PATH_REGEX.test(value) || value.startsWith("//")) {
+		return false;
+	}
+	const normalized = value.replace(/\/+$/, "");
+	const segments = normalized.split("/").filter(Boolean);
+	return segments.length >= 2;
 }
 
 function MarkdownImage({ src, alt }: { src?: string; alt?: string }) {

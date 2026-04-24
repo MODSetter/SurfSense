@@ -31,6 +31,12 @@ export function SourceCodeEditor({
 	const { resolvedTheme } = useTheme();
 	const onSaveRef = useRef(onSave);
 	const monacoRef = useRef<any>(null);
+	const normalizedModelPath = (() => {
+		const raw = (path || "local-file.txt").trim();
+		const withLeadingSlash = raw.startsWith("/") ? raw : `/${raw}`;
+		// Monaco model paths should be stable and POSIX-like across platforms.
+		return withLeadingSlash.replace(/\\/g, "/").replace(/\/{2,}/g, "/");
+	})();
 
 	useEffect(() => {
 		onSaveRef.current = onSave;
@@ -82,7 +88,7 @@ export function SourceCodeEditor({
 	return (
 		<div className="h-full w-full overflow-hidden bg-sidebar [&_.monaco-editor]:!bg-sidebar [&_.monaco-editor_.margin]:!bg-sidebar [&_.monaco-editor_.monaco-editor-background]:!bg-sidebar [&_.monaco-editor-background]:!bg-sidebar [&_.monaco-scrollable-element_.scrollbar_.slider]:rounded-full [&_.monaco-scrollable-element_.scrollbar_.slider]:bg-foreground/25 [&_.monaco-scrollable-element_.scrollbar_.slider:hover]:bg-foreground/40">
 			<MonacoEditor
-				path={path}
+				path={normalizedModelPath}
 				language={language}
 				value={value}
 				theme={resolvedTheme === "dark" ? "surfsense-dark" : "surfsense-light"}

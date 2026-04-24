@@ -24,6 +24,7 @@ from sqlalchemy.orm import selectinload
 
 from app.agents.new_chat.filesystem_selection import (
     ClientPlatform,
+    LocalFilesystemMount,
     FilesystemMode,
     FilesystemSelection,
 )
@@ -42,6 +43,7 @@ from app.db import (
 )
 from app.schemas.new_chat import (
     AgentToolInfo,
+    LocalFilesystemMountPayload,
     NewChatMessageRead,
     NewChatRequest,
     NewChatThreadCreate,
@@ -73,7 +75,7 @@ def _resolve_filesystem_selection(
     *,
     mode: str,
     client_platform: str,
-    local_roots: list[str] | None,
+    local_mounts: list[LocalFilesystemMountPayload] | None,
 ) -> FilesystemSelection:
     """Validate and normalize filesystem mode settings from request payload."""
     try:
@@ -96,29 +98,37 @@ def _resolve_filesystem_selection(
                 status_code=400,
                 detail="desktop_local_folder mode is only available on desktop runtime.",
             )
-        normalized_roots: list[str] = []
-        for root in local_roots or []:
-            trimmed = root.strip()
-            if trimmed and trimmed not in normalized_roots:
-                normalized_roots.append(trimmed)
-        if not normalized_roots:
+        normalized_mounts: list[tuple[str, str]] = []
+        seen_mounts: set[str] = set()
+        for mount in local_mounts or []:
+            mount_id = mount.mount_id.strip()
+            root_path = mount.root_path.strip()
+            if not mount_id or not root_path:
+                continue
+            if mount_id in seen_mounts:
+                continue
+            seen_mounts.add(mount_id)
+            normalized_mounts.append((mount_id, root_path))
+        if not normalized_mounts:
             raise HTTPException(
                 status_code=400,
                 detail=(
-                    "local_filesystem_roots must include at least one root for "
+                    "local_filesystem_mounts must include at least one mount for "
                     "desktop_local_folder mode."
                 ),
             )
         return FilesystemSelection(
             mode=resolved_mode,
             client_platform=resolved_platform,
-            local_root_paths=tuple(normalized_roots),
+            local_mounts=tuple(
+                LocalFilesystemMount(mount_id=mount_id, root_path=root_path)
+                for mount_id, root_path in normalized_mounts
+            ),
         )
 
     return FilesystemSelection(
         mode=FilesystemMode.CLOUD,
         client_platform=resolved_platform,
-        local_root_paths=(),
     )
 
 
@@ -1196,7 +1206,7 @@ async def handle_new_chat(
         filesystem_selection = _resolve_filesystem_selection(
             mode=request.filesystem_mode,
             client_platform=request.client_platform,
-            local_roots=request.local_filesystem_roots,
+            local_mounts=request.local_filesystem_mounts,
         )
 
         # Get search space to check LLM config preferences
@@ -1318,7 +1328,7 @@ async def regenerate_response(
         filesystem_selection = _resolve_filesystem_selection(
             mode=request.filesystem_mode,
             client_platform=request.client_platform,
-            local_roots=request.local_filesystem_roots,
+            local_mounts=request.local_filesystem_mounts,
         )
 
         # Get the checkpointer and state history
@@ -1577,7 +1587,7 @@ async def resume_chat(
         filesystem_selection = _resolve_filesystem_selection(
             mode=request.filesystem_mode,
             client_platform=request.client_platform,
-            local_roots=request.local_filesystem_roots,
+            local_mounts=request.local_filesystem_mounts,
         )
 
         search_space_result = await session.execute(

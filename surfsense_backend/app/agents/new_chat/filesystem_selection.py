@@ -21,12 +21,20 @@ class ClientPlatform(StrEnum):
 
 
 @dataclass(slots=True)
+class LocalFilesystemMount:
+    """Canonical mount mapping provided by desktop runtime."""
+
+    mount_id: str
+    root_path: str
+
+
+@dataclass(slots=True)
 class FilesystemSelection:
     """Resolved filesystem selection for a single chat request."""
 
     mode: FilesystemMode = FilesystemMode.CLOUD
     client_platform: ClientPlatform = ClientPlatform.WEB
-    local_root_paths: tuple[str, ...] = ()
+    local_mounts: tuple[LocalFilesystemMount, ...] = ()
 
     @property
     def is_local_mode(self) -> bool:

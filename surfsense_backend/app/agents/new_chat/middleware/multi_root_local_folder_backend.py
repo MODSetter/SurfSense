@@ -30,19 +30,20 @@ class MultiRootLocalFolderBackend:
     where `<mount>` is derived from each selected root folder name.
     """
 
-    def __init__(self, root_paths: tuple[str, ...]) -> None:
-        if not root_paths:
-            msg = "At least one local root path is required"
+    def __init__(self, mounts: tuple[tuple[str, str], ...]) -> None:
+        if not mounts:
+            msg = "At least one local mount is required"
             raise ValueError(msg)
         self._mount_to_backend: dict[str, LocalFolderBackend] = {}
-        for raw_root in root_paths:
+        for raw_mount, raw_root in mounts:
+            mount = raw_mount.strip()
+            if not mount:
+                msg = "Mount id cannot be empty"
+                raise ValueError(msg)
+            if mount in self._mount_to_backend:
+                msg = f"Duplicate mount id: {mount}"
+                raise ValueError(msg)
             normalized_root = str(Path(raw_root).expanduser().resolve())
-            base_mount = Path(normalized_root).name or "root"
-            mount = base_mount
-            suffix = 2
-            while mount in self._mount_to_backend:
-                mount = f"{base_mount}-{suffix}"
-                suffix += 1
             self._mount_to_backend[mount] = LocalFolderBackend(normalized_root)
         self._mount_order = tuple(self._mount_to_backend.keys())
 

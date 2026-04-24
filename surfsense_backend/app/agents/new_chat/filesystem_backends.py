@@ -16,9 +16,9 @@ from app.agents.new_chat.middleware.multi_root_local_folder_backend import (
 
 @lru_cache(maxsize=64)
 def _cached_multi_root_backend(
-    root_paths: tuple[str, ...],
+    mounts: tuple[tuple[str, str], ...],
 ) -> MultiRootLocalFolderBackend:
-    return MultiRootLocalFolderBackend(root_paths)
+    return MultiRootLocalFolderBackend(mounts)
 
 
 def build_backend_resolver(
@@ -26,10 +26,13 @@ def build_backend_resolver(
 ) -> Callable[[ToolRuntime], StateBackend | MultiRootLocalFolderBackend]:
     """Create deepagents backend resolver for the selected filesystem mode."""
 
-    if selection.mode == FilesystemMode.DESKTOP_LOCAL_FOLDER and selection.local_root_paths:
+    if selection.mode == FilesystemMode.DESKTOP_LOCAL_FOLDER and selection.local_mounts:
 
         def _resolve_local(_runtime: ToolRuntime) -> MultiRootLocalFolderBackend:
-            return _cached_multi_root_backend(selection.local_root_paths)
+            mounts = tuple(
+                (entry.mount_id, entry.root_path) for entry in selection.local_mounts
+            )
+            return _cached_multi_root_backend(mounts)
 
         return _resolve_local
 
