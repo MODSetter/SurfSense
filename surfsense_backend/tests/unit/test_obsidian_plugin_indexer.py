@@ -4,6 +4,7 @@ import base64
 from datetime import UTC, datetime
 
 import pytest
+from pydantic import ValidationError
 
 from app.etl_pipeline.etl_document import EtlResult
 from app.schemas.obsidian_plugin import HeadingRef, NotePayload
@@ -13,6 +14,9 @@ from app.services.obsidian_plugin_indexer import (
     _is_image_attachment,
     _require_extracted_attachment_content,
 )
+
+
+_FAKE_PNG_B64 = base64.b64encode(b"\x89PNG\r\n\x1a\n").decode("ascii")
 
 
 def test_build_metadata_serializes_headings_to_plain_json() -> None:
@@ -46,6 +50,7 @@ def test_build_metadata_marks_binary_attachment_fields() -> None:
         mtime=now,
         ctime=now,
         is_binary=True,
+        binary_base64=_FAKE_PNG_B64,
         mime_type="image/png",
     )
 
@@ -69,6 +74,7 @@ async def test_extract_binary_attachment_markdown_handles_invalid_base64() -> No
         ctime=now,
         is_binary=True,
         binary_base64="not-valid-base64!!",
+        mime_type="image/png",
     )
 
     content, metadata = await _extract_binary_attachment_markdown(
@@ -93,6 +99,7 @@ async def test_extract_binary_attachment_markdown_uses_etl(monkeypatch) -> None:
         ctime=now,
         is_binary=True,
         binary_base64=base64.b64encode(b"%PDF-1.7 fake bytes").decode("ascii"),
+        mime_type="application/pdf",
     )
 
     async def _fake_run_etl_extract(  # noqa: ANN001
@@ -133,6 +140,8 @@ def test_is_image_attachment_detects_image_extensions() -> None:
         mtime=now,
         ctime=now,
         is_binary=True,
+        binary_base64=_FAKE_PNG_B64,
+        mime_type="image/png",
     )
     pdf_payload = NotePayload(
         vault_id="vault-1",
@@ -144,10 +153,65 @@ def test_is_image_attachment_detects_image_extensions() -> None:
         mtime=now,
         ctime=now,
         is_binary=True,
+        binary_base64=_FAKE_PNG_B64,
+        mime_type="application/pdf",
     )
 
     assert _is_image_attachment(image_payload) is True
     assert _is_image_attachment(pdf_payload) is False
+
+
+def test_note_payload_rejects_binary_without_base64() -> None:
+    now = datetime.now(UTC)
+    with pytest.raises(ValidationError, match="binary_base64 is required"):
+        NotePayload(
+            vault_id="vault-1",
+            path="assets/diagram.png",
+            name="diagram",
+            extension="png",
+            content="",
+            content_hash="abc123",
+            mtime=now,
+            ctime=now,
+            is_binary=True,
+            mime_type="image/png",
+        )
+
+
+def test_note_payload_rejects_binary_without_mime_type() -> None:
+    now = datetime.now(UTC)
+    with pytest.raises(ValidationError, match="mime_type is required"):
+        NotePayload(
+            vault_id="vault-1",
+            path="assets/diagram.png",
+            name="diagram",
+            extension="png",
+            content="",
+            content_hash="abc123",
+            mtime=now,
+            ctime=now,
+            is_binary=True,
+            binary_base64=_FAKE_PNG_B64,
+        )
+
+
+def test_note_payload_rejects_markdown_with_binary_fields() -> None:
+    now = datetime.now(UTC)
+    with pytest.raises(
+        ValidationError,
+        match="binary_base64 and mime_type must be omitted when is_binary is False",
+    ):
+        NotePayload(
+            vault_id="vault-1",
+            path="notes.md",
+            name="notes",
+            extension="md",
+            content="# Notes",
+            content_hash="abc123",
+            mtime=now,
+            ctime=now,
+            binary_base64=_FAKE_PNG_B64,
+        )
 
 
 def test_require_extracted_attachment_content_rejects_empty_content() -> None:

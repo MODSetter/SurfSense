@@ -140,7 +140,7 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Sync interval")
 			.setDesc(
-				"How often to check for changes made outside Obsidian. Set to off to only sync manually.",
+				"How often to check for changes made outside Obsidian.",
 			)
 			.addDropdown((drop) => {
 				const options: Array<[number, string]> = [
@@ -205,7 +205,7 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Include attachments")
 			.setDesc(
-				"Also sync non-Markdown files such as images and PDFs.",
+				"Also sync non-Markdown files such as images and PDFs. Other file types are skipped.",
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -231,7 +231,7 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 			new Setting(containerEl)
 				.setName("Sync only on WiFi")
 				.setDesc(
-					"Pause automatic syncing on cellular. Note: only Android can detect network type — on iOS this toggle has no effect.",
+					"Pause automatic syncing on cellular. Note: only Android can detect network type, on iOS this toggle has no effect.",
 				)
 				.addToggle((toggle) =>
 					toggle

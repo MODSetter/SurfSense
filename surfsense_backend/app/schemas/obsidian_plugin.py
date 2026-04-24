@@ -10,9 +10,24 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 _PLUGIN_MODEL_CONFIG = ConfigDict(extra="ignore")
+
+
+# Source of truth for the attachment whitelist. Mirrors MIME_BY_EXTENSION in
+# surfsense_obsidian/src/sync-engine.ts — keep in sync.
+ATTACHMENT_MIME_TYPES: dict[str, str] = {
+    "pdf": "application/pdf",
+    "png": "image/png",
+    "jpg": "image/jpeg",
+    "jpeg": "image/jpeg",
+    "gif": "image/gif",
+    "webp": "image/webp",
+    "svg": "image/svg+xml",
+    "txt": "text/plain",
+}
+ALLOWED_ATTACHMENT_EXTENSIONS: frozenset[str] = frozenset(ATTACHMENT_MIME_TYPES)
 
 
 class _PluginBase(BaseModel):
@@ -77,6 +92,19 @@ class NotePayload(_PluginBase):
     )
     mtime: datetime
     ctime: datetime
+
+    @model_validator(mode="after")
+    def _enforce_binary_invariants(self) -> NotePayload:
+        if self.is_binary:
+            if not self.binary_base64:
+                raise ValueError("binary_base64 is required when is_binary is True")
+            if not self.mime_type:
+                raise ValueError("mime_type is required when is_binary is True")
+        elif self.binary_base64 is not None or self.mime_type is not None:
+            raise ValueError(
+                "binary_base64 and mime_type must be omitted when is_binary is False",
+            )
+        return self
 
 
 class SyncBatchRequest(_PluginBase):

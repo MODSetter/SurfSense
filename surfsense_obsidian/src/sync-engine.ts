@@ -393,7 +393,7 @@ export class SyncEngine {
 			ctime: file.stat.ctime,
 			is_binary: true,
 			binary_base64: binaryBase64,
-			mime_type: mimeTypeFromExtension(file.extension),
+			mime_type: mimeTypeFor(file.extension),
 		};
 	}
 
@@ -560,9 +560,10 @@ export class SyncEngine {
 
 	private shouldTrack(file: TAbstractFile): boolean {
 		if (!isTFile(file)) return false;
+		if (this.isMarkdown(file)) return true;
 		const settings = this.deps.getSettings();
-		if (!settings.includeAttachments && !this.isMarkdown(file)) return false;
-		return true;
+		if (!settings.includeAttachments) return false;
+		return ALLOWED_ATTACHMENT_EXTENSIONS.has(file.extension.toLowerCase());
 	}
 
 	private isExcluded(path: string, settings: SyncEngineSettings): boolean {
@@ -599,23 +600,29 @@ function arrayBufferToBase64(buf: ArrayBuffer): string {
 	return btoa(binary);
 }
 
-function mimeTypeFromExtension(extension: string): string | undefined {
-	const ext = extension.toLowerCase();
-	const mimeByExt: Record<string, string> = {
-		pdf: "application/pdf",
-		png: "image/png",
-		jpg: "image/jpeg",
-		jpeg: "image/jpeg",
-		gif: "image/gif",
-		webp: "image/webp",
-		svg: "image/svg+xml",
-		txt: "text/plain",
-		csv: "text/csv",
-		docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-		pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-		xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-	};
-	return mimeByExt[ext];
+/** Source of truth for the attachment whitelist. Mirrors ATTACHMENT_MIME_TYPES on the backend. */
+export const MIME_BY_EXTENSION = {
+	pdf: "application/pdf",
+	png: "image/png",
+	jpg: "image/jpeg",
+	jpeg: "image/jpeg",
+	gif: "image/gif",
+	webp: "image/webp",
+	svg: "image/svg+xml",
+	txt: "text/plain",
+} as const satisfies Record<string, string>;
+
+export const ALLOWED_ATTACHMENT_EXTENSIONS: ReadonlySet<string> = new Set(
+	Object.keys(MIME_BY_EXTENSION),
+);
+
+function mimeTypeFor(extension: string): string {
+	const ext = extension.toLowerCase() as keyof typeof MIME_BY_EXTENSION;
+	const mime = MIME_BY_EXTENSION[ext];
+	if (!mime) {
+		throw new Error(`Unsupported attachment extension: .${extension}`);
+	}
+	return mime;
 }
 
 function formatRelative(ts: number): string {

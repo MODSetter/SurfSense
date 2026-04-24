@@ -67,7 +67,7 @@ export interface RenameItem {
 
 export type QueueItem = UpsertItem | DeleteItem | RenameItem;
 
-export interface NotePayload {
+interface NotePayloadBase {
 	vault_id: string;
 	path: string;
 	name: string;
@@ -85,14 +85,22 @@ export interface NotePayload {
 	size: number;
 	mtime: number;
 	ctime: number;
-	/** Non-markdown attachment marker; enables backend ETL path. */
-	is_binary?: boolean;
-	/** Base64-encoded file bytes for binary attachments. */
-	binary_base64?: string;
-	/** Optional MIME type hint for backend parsers. */
-	mime_type?: string;
-	[key: string]: unknown;
 }
+
+export interface MarkdownNotePayload extends NotePayloadBase {
+	is_binary?: false;
+}
+
+export interface BinaryNotePayload extends NotePayloadBase {
+	/** Non-markdown attachment marker; enables backend ETL path. */
+	is_binary: true;
+	/** Base64-encoded file bytes for binary attachments. */
+	binary_base64: string;
+	/** Canonical MIME type for the extension; required by the backend. */
+	mime_type: string;
+}
+
+export type NotePayload = MarkdownNotePayload | BinaryNotePayload;
 
 export interface HeadingRef {
 	heading: string;

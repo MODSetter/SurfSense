@@ -490,6 +490,7 @@ class TestWireContractSmoke:
         binary_note.extension = "png"
         binary_note.is_binary = True
         binary_note.binary_base64 = "aGVsbG8="
+        binary_note.mime_type = "image/png"
         binary_note.content = ""
 
         with (
@@ -517,3 +518,107 @@ class TestWireContractSmoke:
         assert statuses == {"ok.md": "ok", "image.png": "queued"}
         assert upsert_mock.await_count == 1
         queue_mock.assert_called_once()
+
+    async def test_sync_rejects_unsupported_attachment_extension(
+        self, db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+    ):
+        vault_id = str(uuid.uuid4())
+        await obsidian_connect(
+            ConnectRequest(
+                vault_id=vault_id,
+                vault_name="Reject Vault",
+                search_space_id=db_search_space.id,
+                vault_fingerprint="fp-" + uuid.uuid4().hex,
+            ),
+            user=db_user,
+            session=db_session,
+        )
+
+        fake_doc = type("FakeDoc", (), {"id": 12345})()
+        bad_note = _make_note_payload(vault_id, "photo.heic", "hash-heic")
+        bad_note.extension = "heic"
+        bad_note.is_binary = True
+        bad_note.binary_base64 = "aGVsbG8="
+        bad_note.mime_type = "image/heic"
+        bad_note.content = ""
+
+        with (
+            patch(
+                "app.routes.obsidian_plugin_routes.upsert_note",
+                new=AsyncMock(return_value=fake_doc),
+            ),
+            patch("app.routes.obsidian_plugin_routes._queue_obsidian_attachment") as queue_mock,
+        ):
+            sync_resp = await obsidian_sync(
+                SyncBatchRequest(
+                    vault_id=vault_id,
+                    notes=[
+                        _make_note_payload(vault_id, "ok.md", "hash-ok"),
+                        bad_note,
+                    ],
+                ),
+                user=db_user,
+                session=db_session,
+            )
+
+        assert sync_resp.indexed == 1
+        assert sync_resp.failed == 1
+        items_by_path = {it.path: it for it in sync_resp.items}
+        assert items_by_path["ok.md"].status == "ok"
+        assert items_by_path["photo.heic"].status == "error"
+        assert "unsupported attachment extension" in (
+            items_by_path["photo.heic"].error or ""
+        )
+        queue_mock.assert_not_called()
+
+    async def test_sync_rejects_mime_extension_mismatch(
+        self, db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+    ):
+        vault_id = str(uuid.uuid4())
+        await obsidian_connect(
+            ConnectRequest(
+                vault_id=vault_id,
+                vault_name="Mismatch Vault",
+                search_space_id=db_search_space.id,
+                vault_fingerprint="fp-" + uuid.uuid4().hex,
+            ),
+            user=db_user,
+            session=db_session,
+        )
+
+        fake_doc = type("FakeDoc", (), {"id": 12345})()
+        mismatched = _make_note_payload(vault_id, "image.png", "hash-png")
+        mismatched.extension = "png"
+        mismatched.is_binary = True
+        mismatched.binary_base64 = "aGVsbG8="
+        mismatched.mime_type = "application/pdf"
+        mismatched.content = ""
+
+        with (
+            patch(
+                "app.routes.obsidian_plugin_routes.upsert_note",
+                new=AsyncMock(return_value=fake_doc),
+            ),
+            patch("app.routes.obsidian_plugin_routes._queue_obsidian_attachment") as queue_mock,
+        ):
+            sync_resp = await obsidian_sync(
+                SyncBatchRequest(
+                    vault_id=vault_id,
+                    notes=[
+                        _make_note_payload(vault_id, "ok.md", "hash-ok"),
+                        mismatched,
+                    ],
+                ),
+                user=db_user,
+                session=db_session,
+            )
+
+        assert sync_resp.indexed == 1
+        assert sync_resp.failed == 1
+        items_by_path = {it.path: it for it in sync_resp.items}
+        assert items_by_path["ok.md"].status == "ok"
+        assert items_by_path["image.png"].status == "error"
+        assert "does not match extension" in (
+            items_by_path["image.png"].error or ""
+        )
+        queue_mock.assert_not_called()

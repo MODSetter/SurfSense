@@ -26,6 +26,8 @@ from app.db import (
     get_async_session,
 )
 from app.schemas.obsidian_plugin import (
+    ALLOWED_ATTACHMENT_EXTENSIONS,
+    ATTACHMENT_MIME_TYPES,
     ConnectRequest,
     ConnectResponse,
     DeleteAck,
@@ -465,6 +467,31 @@ async def obsidian_sync(
     for note in payload.notes:
         try:
             if note.is_binary:
+                ext = note.extension.lstrip(".").lower()
+                if ext not in ALLOWED_ATTACHMENT_EXTENSIONS:
+                    failed += 1
+                    items.append(
+                        SyncAckItem(
+                            path=note.path,
+                            status="error",
+                            error=f"unsupported attachment extension: .{ext}",
+                        )
+                    )
+                    continue
+                expected_mime = ATTACHMENT_MIME_TYPES[ext]
+                if note.mime_type != expected_mime:
+                    failed += 1
+                    items.append(
+                        SyncAckItem(
+                            path=note.path,
+                            status="error",
+                            error=(
+                                f"mime_type '{note.mime_type}' does not match "
+                                f"extension .{ext}"
+                            ),
+                        )
+                    )
+                    continue
                 _queue_obsidian_attachment(
                     connector_id=connector.id,
                     note_payload=note.model_dump(mode="json"),

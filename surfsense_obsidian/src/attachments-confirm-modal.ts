@@ -16,10 +16,10 @@ export class AttachmentsConfirmModal extends Modal {
 		this.contentEl.empty();
 
 		new Setting(this.contentEl).setDesc(
-			"Syncing attachments (images, PDFs, and other non-Markdown files) can make indexing slower, especially on large vaults.",
+			"Syncing attachments (images & PDFs) can make indexing slower, especially on large vaults."
 		);
 		new Setting(this.contentEl).setDesc(
-			"You can disable this anytime in settings if syncing becomes too slow.",
+			"Syncing attachments can make indexing slower on large vaults. You can disable this anytime.",
 		);
 
 		new Setting(this.contentEl)
