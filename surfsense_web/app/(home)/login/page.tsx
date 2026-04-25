@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 import { getAuthErrorDetails, shouldRetry } from "@/lib/auth-errors";
+import { getBearerToken } from "@/lib/auth-utils";
 import { AUTH_TYPE, isSSOAuth } from "@/lib/env-config";
 import { AmbientBackground } from "./AmbientBackground";
 import { GoogleLoginButton } from "./GoogleLoginButton";
@@ -30,7 +31,16 @@ function LoginContent() {
 	// Hook is unconditional (rules-of-hooks); the early-return that skips
 	// rendering the form lives below, after every other hook has run.
 	useEffect(() => {
-		if (typeof window !== "undefined" && isSSOAuth()) {
+		if (typeof window === "undefined") return;
+
+		// Already signed in — never show the login surface. Hand off to the
+		// home route which will redirect to /dashboard.
+		if (getBearerToken()) {
+			window.location.replace("/");
+			return;
+		}
+
+		if (isSSOAuth()) {
 			const oauthProxyUrl = process.env.NEXT_PUBLIC_OAUTH2_PROXY_URL || window.location.origin;
 			const rd = `${window.location.origin}/`;
 			window.location.replace(`${oauthProxyUrl}/oauth2/sign_in?rd=${encodeURIComponent(rd)}`);
