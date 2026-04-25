@@ -8,7 +8,7 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	ChevronUp,
-	Edit3,
+	Pencil,
 	ImageIcon,
 	Layers,
 	Plus,
@@ -923,7 +923,7 @@ export function ModelSelector({
 							className="size-7 rounded-md hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
 							onClick={(e) => handleEditItem(e, item)}
 						>
-							<Edit3 className="size-3.5 text-muted-foreground" />
+							<Pencil className="size-3.5 text-muted-foreground" />
 						</Button>
 					)}
 					{isSelected && <Check className="size-4 text-primary shrink-0" />}

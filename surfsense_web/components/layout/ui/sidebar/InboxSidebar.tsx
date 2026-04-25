@@ -14,7 +14,7 @@ import {
 	Inbox,
 	LayoutGrid,
 	ListFilter,
-	MessageSquare,
+	MessageCircleReply,
 	Search,
 	X,
 } from "lucide-react";
@@ -847,7 +847,7 @@ export function InboxSidebarContent({
 				<TabsList stretch showBottomBorder size="sm">
 					<TabsTrigger value="comments">
 						<span className="inline-flex items-center gap-1.5">
-							<MessageSquare className="h-4 w-4" />
+							<MessageCircleReply className="h-4 w-4" />
 							<span>{t("comments") || "Comments"}</span>
 							<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
 								{formatInboxCount(comments.unreadCount)}
@@ -1032,7 +1032,7 @@ export function InboxSidebarContent({
 				) : (
 					<div className="text-center py-8">
 						{activeTab === "comments" ? (
-							<MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+							<MessageCircleReply className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
 						) : (
 							<History className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
 						)}
