@@ -1,5 +1,5 @@
 "use client";
-import { IconBrandDiscord, IconBrandReddit, IconMenu2, IconX } from "@tabler/icons-react";
+import { IconMenu2, IconX } from "@tabler/icons-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -17,12 +17,7 @@ interface NavbarProps {
 export const Navbar = ({ scrolledBgClassName }: NavbarProps = {}) => {
 	const [isScrolled, setIsScrolled] = useState(false);
 
-	const navItems = [
-		{ name: "Pricing", link: "/pricing" },
-		{ name: "Changelog", link: "/changelog" },
-		{ name: "Docs", link: "/docs" },
-		{ name: "Contact\u00A0Us", link: "/contact" },
-	];
+	const navItems = [{ name: "Docs", link: "/docs" }];
 
 	useEffect(() => {
 		if (typeof window === "undefined") return;
@@ -94,22 +89,6 @@ const DesktopNav = ({ navItems, isScrolled, scrolledBgClassName }: any) => {
 				))}
 			</div>
 			<div className="flex flex-1 items-center justify-end gap-2">
-				<Link
-					href="https://discord.gg/ejRNvftDp9"
-					target="_blank"
-					rel="noopener noreferrer"
-					className="hidden rounded-full p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors md:flex items-center justify-center"
-				>
-					<IconBrandDiscord className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
-				</Link>
-				<Link
-					href="https://www.reddit.com/r/SurfSense/"
-					target="_blank"
-					rel="noopener noreferrer"
-					className="hidden rounded-full p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors md:flex items-center justify-center"
-				>
-					<IconBrandReddit className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
-				</Link>
 				<NavbarGitHubStars className="hidden md:flex" />
 				<ThemeTogglerComponent />
 				<SignInButton variant="desktop" />
@@ -193,22 +172,6 @@ const MobileNav = ({ navItems, isScrolled, scrolledBgClassName }: any) => {
 							</Link>
 						))}
 						<div className="flex w-full items-center gap-2 pt-2">
-							<Link
-								href="https://discord.gg/ejRNvftDp9"
-								target="_blank"
-								rel="noopener noreferrer"
-								className="flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors touch-manipulation"
-							>
-								<IconBrandDiscord className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
-							</Link>
-							<Link
-								href="https://www.reddit.com/r/SurfSense/"
-								target="_blank"
-								rel="noopener noreferrer"
-								className="flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors touch-manipulation"
-							>
-								<IconBrandReddit className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
-							</Link>
 							<NavbarGitHubStars className="rounded-lg" />
 							<ThemeTogglerComponent />
 						</div>
