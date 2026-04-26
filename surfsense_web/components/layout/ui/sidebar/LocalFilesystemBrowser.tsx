@@ -1,8 +1,9 @@
 "use client";
 
 import { ChevronDown, ChevronRight, FileText, Folder } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_EXCLUDE_PATTERNS } from "@/components/sources/FolderWatchDialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { getSupportedExtensionsSet } from "@/lib/supported-extensions";
@@ -38,6 +39,8 @@ type LocalRootMount = {
 	mount: string;
 	rootPath: string;
 };
+
+type MountLoadStatus = "idle" | "loading" | "complete" | "error";
 
 const getFolderDisplayName = (rootPath: string): string =>
 	rootPath.split(/[\\/]/).at(-1) || rootPath;
@@ -79,6 +82,10 @@ export function LocalFilesystemBrowser({
 	const [rootStateMap, setRootStateMap] = useState<Record<string, RootLoadState>>({});
 	const [expandedFolderKeys, setExpandedFolderKeys] = useState<Set<string>>(new Set());
 	const [mountByRootKey, setMountByRootKey] = useState<Map<string, string>>(new Map());
+	const [mountStatus, setMountStatus] = useState<MountLoadStatus>("idle");
+	const [mountRefreshInFlight, setMountRefreshInFlight] = useState(false);
+	const hasLoadedMountsOnceRef = useRef(false);
+	const hasResolvedAtLeastOneRootRef = useRef(false);
 	const supportedExtensions = useMemo(() => Array.from(getSupportedExtensionsSet()), []);
 	const isWindowsPlatform = electronAPI?.versions.platform === "win32";
 
@@ -139,23 +146,44 @@ export function LocalFilesystemBrowser({
 
 	useEffect(() => {
 		if (!electronAPI?.getAgentFilesystemMounts) {
+			setMountStatus("error");
 			setMountByRootKey(new Map());
 			return;
 		}
 		let cancelled = false;
+		const isInitialMountLoad = !hasLoadedMountsOnceRef.current;
+		if (isInitialMountLoad) {
+			setMountStatus("loading");
+		} else {
+			setMountRefreshInFlight(true);
+		}
 		void electronAPI
 			.getAgentFilesystemMounts()
 			.then((mounts: LocalRootMount[]) => {
 				if (cancelled) return;
+				const knownRootKeys = new Set(
+					rootPaths.map((rootPath) => normalizeRootPathForLookup(rootPath, isWindowsPlatform))
+				);
 				const next = new Map<string, string>();
 				for (const entry of mounts) {
-					next.set(normalizeRootPathForLookup(entry.rootPath, isWindowsPlatform), entry.mount);
+					const normalizedRootKey = normalizeRootPathForLookup(entry.rootPath, isWindowsPlatform);
+					if (!knownRootKeys.has(normalizedRootKey)) continue;
+					next.set(normalizedRootKey, entry.mount);
 				}
 				setMountByRootKey(next);
+				setMountStatus("complete");
+				hasLoadedMountsOnceRef.current = true;
 			})
 			.catch(() => {
 				if (cancelled) return;
-				setMountByRootKey(new Map());
+				if (isInitialMountLoad) {
+					setMountByRootKey(new Map());
+					setMountStatus("error");
+				}
+			})
+			.finally(() => {
+				if (cancelled) return;
+				setMountRefreshInFlight(false);
 			});
 		return () => {
 			cancelled = true;
@@ -265,6 +293,43 @@ export function LocalFilesystemBrowser({
 		);
 	}
 
+	const allRootsLoaded = rootPaths.every((rootPath) => {
+		const state = rootStateMap[rootPath];
+		return !!state && !state.loading;
+	});
+	const mountsSettled = mountStatus === "complete" || mountStatus === "error";
+	if (allRootsLoaded && mountsSettled && rootPaths.length > 0) {
+		hasResolvedAtLeastOneRootRef.current = true;
+	}
+	const showInitialLoading =
+		!hasResolvedAtLeastOneRootRef.current && (!allRootsLoaded || !mountsSettled);
+
+	if (showInitialLoading) {
+		const rows = [
+			{ id: "local-row-1", widthClass: "w-44" },
+			{ id: "local-row-2", widthClass: "w-32" },
+			{ id: "local-row-3", widthClass: "w-32" },
+			{ id: "local-row-4", widthClass: "w-44" },
+			{ id: "local-row-5", widthClass: "w-32" },
+			{ id: "local-row-6", widthClass: "w-32" },
+			{ id: "local-row-7", widthClass: "w-44" },
+			{ id: "local-row-8", widthClass: "w-32" },
+		];
+
+		return (
+			<div className="flex-1 min-h-0 overflow-y-auto px-2 py-2">
+				<div className="space-y-1">
+					{rows.map((row) => (
+						<div key={row.id} className="flex h-8 items-center gap-2 px-2">
+							<Skeleton className="h-4 w-4 rounded-sm" />
+							<Skeleton className={`h-4 ${row.widthClass}`} />
+						</div>
+					))}
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<div className="flex-1 min-h-0 overflow-y-auto px-2 py-2">
 			{treeByRoot.map(({ rootPath, rootNode, matchCount, totalCount }) => {
@@ -273,9 +338,11 @@ export function LocalFilesystemBrowser({
 				const mount = mountByRootKey.get(rootKey);
 				if (!state || state.loading) {
 					return (
-						<div key={rootPath} className="flex h-16 items-center gap-2 px-3 text-sm text-muted-foreground">
-							<Spinner size="sm" />
-							<span>Loading {getFolderDisplayName(rootPath)}...</span>
+						<div key={rootPath} className="mb-1 px-3 py-2 text-xs text-muted-foreground/80">
+							<div className="flex items-center gap-2">
+								<Spinner className="size-3.5" />
+								<span>Loading {getFolderDisplayName(rootPath)}...</span>
+							</div>
 						</div>
 					);
 				}
@@ -291,9 +358,22 @@ export function LocalFilesystemBrowser({
 				return (
 					<div key={rootPath} className="mb-1">
 						{mount ? renderFolder(rootNode, 0, mount) : null}
-						{!mount && (
+						{!mount && (mountRefreshInFlight || mountStatus === "loading") && (
+							<div className="px-3 pb-2 text-xs text-muted-foreground/80">
+								<div className="flex items-center gap-2">
+									<Spinner className="size-3.5" />
+									<span>Loading {getFolderDisplayName(rootPath)}...</span>
+								</div>
+							</div>
+						)}
+						{!mount && mountStatus === "complete" && !mountRefreshInFlight && (
 							<div className="px-3 pb-2 text-xs text-muted-foreground/80">
 								Unable to resolve mounted root for this folder.
+							</div>
+						)}
+						{!mount && mountStatus === "error" && (
+							<div className="px-3 pb-2 text-xs text-muted-foreground/80">
+								Failed to resolve local folder mounts.
 							</div>
 						)}
 						{isEmpty && (

@@ -73,6 +73,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -98,6 +99,32 @@ import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 const NON_DELETABLE_DOCUMENT_TYPES: readonly string[] = ["SURFSENSE_DOCS"];
 const LOCAL_FILESYSTEM_TRUST_KEY = "surfsense.local-filesystem-trust.v1";
 const MAX_LOCAL_FILESYSTEM_ROOTS = 5;
+
+function CloudDocumentsSkeleton() {
+	const rows = [
+		{ id: "row-1", widthClass: "w-44" },
+		{ id: "row-2", widthClass: "w-32" },
+		{ id: "row-3", widthClass: "w-32" },
+		{ id: "row-4", widthClass: "w-44" },
+		{ id: "row-5", widthClass: "w-32" },
+		{ id: "row-6", widthClass: "w-32" },
+		{ id: "row-7", widthClass: "w-44" },
+		{ id: "row-8", widthClass: "w-32" },
+	];
+
+	return (
+		<div className="flex-1 min-h-0 overflow-y-auto px-2 py-1">
+			<div className="space-y-1">
+				{rows.map((row) => (
+					<div key={row.id} className="flex h-8 items-center gap-2 px-2">
+						<Skeleton className="h-4 w-4 rounded-sm" />
+						<Skeleton className={`h-4 ${row.widthClass}`} />
+					</div>
+				))}
+			</div>
+		</div>
+	);
+}
 
 type FilesystemSettings = {
 	mode: "cloud" | "desktop_local_folder";
@@ -407,8 +434,8 @@ function AuthenticatedDocumentsSidebar({
 	);
 
 	// Zero queries for tree data
-	const [zeroFolders] = useQuery(queries.folders.bySpace({ searchSpaceId }));
-	const [zeroAllDocs] = useQuery(queries.documents.bySpace({ searchSpaceId }));
+	const [zeroFolders, zeroFoldersResult] = useQuery(queries.folders.bySpace({ searchSpaceId }));
+	const [zeroAllDocs, zeroAllDocsResult] = useQuery(queries.documents.bySpace({ searchSpaceId }));
 	const [agentCreatedDocs, setAgentCreatedDocs] = useAtom(agentCreatedDocumentsAtom);
 
 	const treeFolders: FolderDisplay[] = useMemo(
@@ -989,6 +1016,9 @@ function AuthenticatedDocumentsSidebar({
 
 	const showFilesystemTabs = !isMobile && !!electronAPI && !!filesystemSettings;
 	const currentFilesystemTab = filesystemSettings?.mode === "desktop_local_folder" ? "local" : "cloud";
+	const showCloudSkeleton =
+		currentFilesystemTab === "cloud" &&
+		(zeroFoldersResult.type !== "complete" || zeroAllDocsResult.type !== "complete");
 
 	const cloudContent = (
 		<>
@@ -1101,45 +1131,49 @@ function AuthenticatedDocumentsSidebar({
 						</div>
 					)}
 
-					<FolderTreeView
-						folders={treeFolders}
-						documents={searchFilteredDocuments}
-						expandedIds={expandedIds}
-						onToggleExpand={toggleFolderExpand}
-						mentionedDocIds={mentionedDocIds}
-						onToggleChatMention={handleToggleChatMention}
-						onToggleFolderSelect={handleToggleFolderSelect}
-						onRenameFolder={handleRenameFolder}
-						onDeleteFolder={handleDeleteFolder}
-						onMoveFolder={handleMoveFolder}
-						onCreateFolder={handleCreateFolder}
-						searchQuery={debouncedSearch.trim() || undefined}
-						onPreviewDocument={(doc) => {
-							openEditorPanel({
-								documentId: doc.id,
-								searchSpaceId,
-								title: doc.title,
-							});
-						}}
-						onEditDocument={(doc) => {
-							openEditorPanel({
-								documentId: doc.id,
-								searchSpaceId,
-								title: doc.title,
-							});
-						}}
-						onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
-						onMoveDocument={handleMoveDocument}
-						onExportDocument={handleExportDocument}
-						onVersionHistory={(doc) => setVersionDocId(doc.id)}
-						activeTypes={activeTypes}
-						onDropIntoFolder={handleDropIntoFolder}
-						onReorderFolder={handleReorderFolder}
-						watchedFolderIds={watchedFolderIds}
-						onRescanFolder={handleRescanFolder}
-						onStopWatchingFolder={handleStopWatching}
-						onExportFolder={handleExportFolder}
-					/>
+					{showCloudSkeleton ? (
+						<CloudDocumentsSkeleton />
+					) : (
+						<FolderTreeView
+							folders={treeFolders}
+							documents={searchFilteredDocuments}
+							expandedIds={expandedIds}
+							onToggleExpand={toggleFolderExpand}
+							mentionedDocIds={mentionedDocIds}
+							onToggleChatMention={handleToggleChatMention}
+							onToggleFolderSelect={handleToggleFolderSelect}
+							onRenameFolder={handleRenameFolder}
+							onDeleteFolder={handleDeleteFolder}
+							onMoveFolder={handleMoveFolder}
+							onCreateFolder={handleCreateFolder}
+							searchQuery={debouncedSearch.trim() || undefined}
+							onPreviewDocument={(doc) => {
+								openEditorPanel({
+									documentId: doc.id,
+									searchSpaceId,
+									title: doc.title,
+								});
+							}}
+							onEditDocument={(doc) => {
+								openEditorPanel({
+									documentId: doc.id,
+									searchSpaceId,
+									title: doc.title,
+								});
+							}}
+							onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
+							onMoveDocument={handleMoveDocument}
+							onExportDocument={handleExportDocument}
+							onVersionHistory={(doc) => setVersionDocId(doc.id)}
+							activeTypes={activeTypes}
+							onDropIntoFolder={handleDropIntoFolder}
+							onReorderFolder={handleReorderFolder}
+							watchedFolderIds={watchedFolderIds}
+							onRescanFolder={handleRescanFolder}
+							onStopWatchingFolder={handleStopWatching}
+							onExportFolder={handleExportFolder}
+						/>
+					)}
 				</div>
 			</div>
 		</>
