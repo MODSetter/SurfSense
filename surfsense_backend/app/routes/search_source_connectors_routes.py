@@ -103,9 +103,7 @@ async def _run_indexing_heartbeat_loop(notification_id: int) -> None:
         while True:
             await asyncio.sleep(HEARTBEAT_REFRESH_INTERVAL)
             try:
-                get_heartbeat_redis_client().setex(
-                    key, HEARTBEAT_TTL_SECONDS, "alive"
-                )
+                get_heartbeat_redis_client().setex(key, HEARTBEAT_TTL_SECONDS, "alive")
             except Exception as e:
                 logger.warning(
                     f"Failed to refresh Redis heartbeat for notification "
