@@ -1211,18 +1211,42 @@ function AuthenticatedDocumentsSidebar({
 						orientation="vertical"
 						className="data-[orientation=vertical]:h-3 self-center bg-border"
 					/>
-					<button
-						type="button"
-						className="flex w-8 items-center justify-center rounded-r-lg text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-50"
-						onClick={() => {
-							void handlePickFilesystemRoot();
-						}}
-						disabled={!canAddMoreLocalRoots}
-						aria-label="Add folder"
-						title="Add folder"
-					>
-						<FolderPlus className="size-3.5" />
-					</button>
+					{electronAPI ? (
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<span className="inline-flex">
+									<button
+										type="button"
+										className="flex w-8 items-center justify-center rounded-r-lg text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-50"
+										onClick={() => {
+											void handlePickFilesystemRoot();
+										}}
+										disabled={!canAddMoreLocalRoots}
+										aria-label="Add folder"
+									>
+										<FolderPlus className="size-3.5" />
+									</button>
+								</span>
+							</TooltipTrigger>
+							<TooltipContent side="top" className="text-xs">
+								{canAddMoreLocalRoots
+									? "Add folder"
+									: `You can add up to ${MAX_LOCAL_FILESYSTEM_ROOTS} folders`}
+							</TooltipContent>
+						</Tooltip>
+					) : (
+						<button
+							type="button"
+							className="flex w-8 items-center justify-center rounded-r-lg text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-50"
+							onClick={() => {
+								void handlePickFilesystemRoot();
+							}}
+							disabled={!canAddMoreLocalRoots}
+							aria-label="Add folder"
+						>
+							<FolderPlus className="size-3.5" />
+						</button>
+					)}
 				</div>
 			</div>
 			<div className="mx-4 mb-2">
