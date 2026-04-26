@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
@@ -10,17 +10,11 @@ import {
 	updateConnectorMutationAtom,
 } from "@/atoms/connectors/connector-mutation.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
-import {
-	folderWatchDialogOpenAtom,
-	folderWatchInitialFolderAtom,
-} from "@/atoms/folder-sync/folder-sync.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { searchSourceConnector } from "@/contracts/types/connector.types";
-import { usePlatform } from "@/hooks/use-platform";
 import { authenticatedFetch } from "@/lib/auth-utils";
-import { isSelfHosted } from "@/lib/env-config";
 import {
 	trackConnectorConnected,
 	trackConnectorDeleted,
@@ -71,10 +65,6 @@ export const useConnectorDialog = () => {
 	const { mutateAsync: updateConnector } = useAtomValue(updateConnectorMutationAtom);
 	const { mutateAsync: deleteConnector } = useAtomValue(deleteConnectorMutationAtom);
 	const { mutateAsync: createConnector } = useAtomValue(createConnectorMutationAtom);
-	const setFolderWatchOpen = useSetAtom(folderWatchDialogOpenAtom);
-	const setFolderWatchInitialFolder = useSetAtom(folderWatchInitialFolderAtom);
-	const { isDesktop } = usePlatform();
-	const selfHosted = isSelfHosted();
 
 	// Use global atom for dialog open state so it can be controlled from anywhere
 	const [isOpen, setIsOpen] = useAtom(connectorDialogOpenAtom);
@@ -439,6 +429,7 @@ export const useConnectorDialog = () => {
 					indexing_frequency_minutes: null,
 					next_scheduled_at: null,
 					enable_summary: false,
+					enable_vision_llm: false,
 				},
 				queryParams: {
 					search_space_id: searchSpaceId,
@@ -487,31 +478,16 @@ export const useConnectorDialog = () => {
 		}
 	}, [searchSpaceId, createConnector, refetchAllConnectors, setIsOpen]);
 
-	// Handle connecting non-OAuth connectors (like Tavily API)
+	// Handle connecting non-OAuth connectors (like Tavily API, Obsidian plugin, etc.)
 	const handleConnectNonOAuth = useCallback(
 		(connectorType: string) => {
 			if (!searchSpaceId) return;
 
 			trackConnectorSetupStarted(Number(searchSpaceId), connectorType, "non_oauth_click");
 
-			// Handle Obsidian specifically on Desktop & Cloud
-			if (connectorType === EnumConnectorName.OBSIDIAN_CONNECTOR && !selfHosted && isDesktop) {
-				setIsOpen(false);
-				setFolderWatchInitialFolder(null);
-				setFolderWatchOpen(true);
-				return;
-			}
-
 			setConnectingConnectorType(connectorType);
 		},
-		[
-			searchSpaceId,
-			selfHosted,
-			isDesktop,
-			setIsOpen,
-			setFolderWatchOpen,
-			setFolderWatchInitialFolder,
-		]
+		[searchSpaceId]
 	);
 
 	// Handle submitting connect form
@@ -555,6 +531,7 @@ export const useConnectorDialog = () => {
 						is_active: true,
 						next_scheduled_at: connectorData.next_scheduled_at as string | null,
 						enable_summary: false,
+						enable_vision_llm: false,
 					},
 					queryParams: {
 						search_space_id: searchSpaceId,

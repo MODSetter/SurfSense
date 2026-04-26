@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue, useSetAtom } from "jotai";
-import { MessageSquare } from "lucide-react";
+import { MessageCircleReply } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { clearTargetCommentIdAtom, targetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -216,7 +216,7 @@ export function CommentItem({
 						className="mt-1 h-7 w-fit px-2 text-xs text-muted-foreground hover:text-foreground"
 						onClick={() => onReply(comment.id)}
 					>
-						<MessageSquare className="mr-1 size-3" />
+						<MessageCircleReply className="mr-1 size-3" />
 						Reply
 					</Button>
 				)}

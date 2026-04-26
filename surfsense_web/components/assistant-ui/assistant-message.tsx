@@ -15,7 +15,7 @@ import {
 	DownloadIcon,
 	ExternalLink,
 	Globe,
-	MessageSquare,
+	MessageCircleReply,
 	MoreHorizontalIcon,
 	RefreshCwIcon,
 } from "lucide-react";
@@ -657,7 +657,7 @@ export const AssistantMessage: FC = () => {
 									: "text-muted-foreground hover:text-foreground hover:bg-muted"
 						)}
 					>
-						<MessageSquare className={cn("size-3.5", hasComments && "fill-current")} />
+						<MessageCircleReply className={cn("size-3.5", hasComments && "fill-current")} />
 						{hasComments ? (
 							<span>
 								{commentCount} {commentCount === 1 ? "comment" : "comments"}

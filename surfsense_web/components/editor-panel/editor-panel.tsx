@@ -321,7 +321,7 @@ export function EditorPanelContent({
 						</div>
 					</div>
 					<div className="flex h-10 items-center justify-between gap-2 border-t px-4">
-						<div className="min-w-0 flex-1">
+						<div className="min-w-0 flex flex-1 items-center gap-2">
 							<p className="truncate text-sm text-muted-foreground">{displayTitle}</p>
 						</div>
 						<div className="flex items-center gap-1 shrink-0">
@@ -352,6 +352,12 @@ export function EditorPanelContent({
 								</>
 							) : (
 								<>
+									{!isLocalFileMode && editorDoc?.document_type && documentId && (
+										<VersionHistoryButton
+											documentId={documentId}
+											documentType={editorDoc.document_type}
+										/>
+									)}
 									<Button
 										variant="ghost"
 										size="icon"
@@ -383,15 +389,12 @@ export function EditorPanelContent({
 									)}
 								</>
 							)}
-							{!showEditingActions && !isLocalFileMode && editorDoc?.document_type && documentId && (
-								<VersionHistoryButton documentId={documentId} documentType={editorDoc.document_type} />
-							)}
 						</div>
 					</div>
 				</div>
 			) : (
 				<div className="flex h-14 items-center justify-between border-b px-4 shrink-0">
-					<div className="flex-1 min-w-0">
+					<div className="flex flex-1 min-w-0 items-center gap-2">
 						<h2 className="text-sm font-semibold truncate">{displayTitle}</h2>
 					</div>
 					<div className="flex items-center gap-1 shrink-0">
@@ -422,6 +425,12 @@ export function EditorPanelContent({
 							</>
 						) : (
 							<>
+								{!isLocalFileMode && editorDoc?.document_type && documentId && (
+									<VersionHistoryButton
+										documentId={documentId}
+										documentType={editorDoc.document_type}
+									/>
+								)}
 								<Button
 									variant="ghost"
 									size="icon"
@@ -450,12 +459,6 @@ export function EditorPanelContent({
 										<Pencil className="size-3.5" />
 										<span className="sr-only">Edit document</span>
 									</Button>
-								)}
-								{!isLocalFileMode && editorDoc?.document_type && documentId && (
-									<VersionHistoryButton
-										documentId={documentId}
-										documentType={editorDoc.document_type}
-									/>
 								)}
 							</>
 						)}
@@ -501,7 +504,7 @@ export function EditorPanelContent({
 								<Button
 									variant="outline"
 									size="sm"
-									className="shrink-0 gap-1.5"
+									className="relative shrink-0"
 									disabled={downloading}
 									onClick={async () => {
 										setDownloading(true);
@@ -533,12 +536,13 @@ export function EditorPanelContent({
 										}
 									}}
 								>
-									{downloading ? (
-										<Spinner size="xs" />
-									) : (
+									<span
+										className={`flex items-center gap-1.5 ${downloading ? "opacity-0" : ""}`}
+									>
 										<Download className="size-3.5" />
-									)}
-									{downloading ? "Preparing..." : "Download .md"}
+										Download .md
+									</span>
+									{downloading && <Spinner size="sm" className="absolute" />}
 								</Button>
 							</AlertDescription>
 						</Alert>

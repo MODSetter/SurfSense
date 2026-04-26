@@ -427,6 +427,19 @@ class ConnectorsApiService {
 			body: { tool_name: toolName },
 		});
 	};
+
+	/** Live stats for the Obsidian connector tile. */
+	getObsidianStats = async (vaultId: string): Promise<ObsidianStats> => {
+		return baseApiService.get<ObsidianStats>(
+			`/api/v1/obsidian/stats?vault_id=${encodeURIComponent(vaultId)}`
+		);
+	};
+}
+
+export interface ObsidianStats {
+	vault_id: string;
+	files_synced: number;
+	last_sync_at: string | null;
 }
 
 export type { SlackChannel, DiscordChannel };
