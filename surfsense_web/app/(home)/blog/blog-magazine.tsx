@@ -3,7 +3,7 @@
 import { format } from "date-fns";
 import FuzzySearch from "fuzzy-search";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Container } from "@/components/container";
 import type { BlogEntry } from "./page";
 
@@ -127,10 +127,7 @@ function MagazineSearchGrid({
 		[allBlogs]
 	);
 
-	const [results, setResults] = useState(allBlogs);
-	useEffect(() => {
-		setResults(searcher.search(search));
-	}, [search, searcher]);
+	const results = useMemo(() => searcher.search(search), [search, searcher]);
 
 	const gridItems = useMemo(() => {
 		if (search.trim()) {
