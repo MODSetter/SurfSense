@@ -28,6 +28,9 @@ from langgraph.types import Command
 from sqlalchemy import delete, select
 
 from app.agents.new_chat.filesystem_selection import FilesystemMode
+from app.agents.new_chat.middleware.multi_root_local_folder_backend import (
+    MultiRootLocalFolderBackend,
+)
 from app.agents.new_chat.sandbox import (
     _evict_sandbox_cache,
     delete_sandbox,
@@ -816,6 +819,89 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
             return normalized
         return f"/{normalized.lstrip('/')}"
 
+    @staticmethod
+    def _extract_mount_from_path(path: str, mounts: tuple[str, ...]) -> str | None:
+        rel = path.lstrip("/")
+        if not rel:
+            return None
+        mount, _, _ = rel.partition("/")
+        if mount in mounts:
+            return mount
+        return None
+
+    @staticmethod
+    def _local_parent_path(path: str) -> str:
+        rel = path.lstrip("/")
+        if "/" not in rel:
+            return "/"
+        parent = rel.rsplit("/", 1)[0].strip("/")
+        if not parent:
+            return "/"
+        return f"/{parent}"
+
+    @staticmethod
+    def _path_exists_under_mount(
+        backend: MultiRootLocalFolderBackend,
+        mount: str,
+        local_path: str,
+    ) -> bool:
+        result = backend.list_tree(
+            f"/{mount}{local_path}",
+            max_depth=0,
+            page_size=1,
+            include_files=True,
+            include_dirs=True,
+        )
+        return not bool(result.get("error"))
+
+    def _normalize_local_mount_path(
+        self,
+        candidate: str,
+        runtime: ToolRuntime[None, FilesystemState],
+    ) -> str:
+        normalized = self._normalize_absolute_path(candidate)
+        backend = self._get_backend(runtime)
+        if not isinstance(backend, MultiRootLocalFolderBackend):
+            return normalized
+
+        mounts = backend.list_mounts()
+        explicit_mount = self._extract_mount_from_path(normalized, mounts)
+        if explicit_mount:
+            return normalized
+
+        if len(mounts) == 1:
+            return f"/{mounts[0]}{normalized}"
+
+        suggested_mount: str | None = None
+        contract = runtime.state.get("file_operation_contract") or {}
+        suggested_path = contract.get("suggested_path")
+        if isinstance(suggested_path, str) and suggested_path.strip():
+            normalized_suggested = self._normalize_absolute_path(suggested_path)
+            suggested_mount = self._extract_mount_from_path(normalized_suggested, mounts)
+
+        matching_mounts = [
+            mount
+            for mount in mounts
+            if self._path_exists_under_mount(backend, mount, normalized)
+        ]
+        if len(matching_mounts) == 1:
+            return f"/{matching_mounts[0]}{normalized}"
+
+        parent_path = self._local_parent_path(normalized)
+        if parent_path != "/":
+            parent_matching_mounts = [
+                mount
+                for mount in mounts
+                if self._path_exists_under_mount(backend, mount, parent_path)
+            ]
+            if len(parent_matching_mounts) == 1:
+                return f"/{parent_matching_mounts[0]}{normalized}"
+
+        if suggested_mount:
+            return f"/{suggested_mount}{normalized}"
+
+        return f"/{backend.default_mount()}{normalized}"
+
     def _get_contract_suggested_path(
         self, runtime: ToolRuntime[None, FilesystemState]
     ) -> str:
@@ -834,7 +920,7 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         if not candidate:
             return self._get_contract_suggested_path(runtime)
         if self._filesystem_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER:
-            return self._normalize_absolute_path(candidate)
+            return self._normalize_local_mount_path(candidate, runtime)
         if not candidate.startswith("/"):
             return f"/{candidate.lstrip('/')}"
         return candidate
@@ -848,7 +934,7 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         if not candidate:
             return ""
         if self._filesystem_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER:
-            return self._normalize_absolute_path(candidate)
+            return self._normalize_local_mount_path(candidate, runtime)
         if not candidate.startswith("/"):
             return f"/{candidate.lstrip('/')}"
         return candidate
@@ -862,7 +948,7 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         if candidate == "/":
             return "/"
         if self._filesystem_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER:
-            return self._normalize_absolute_path(candidate)
+            return self._normalize_local_mount_path(candidate, runtime)
         if not candidate.startswith("/"):
             return f"/{candidate.lstrip('/')}"
         return candidate

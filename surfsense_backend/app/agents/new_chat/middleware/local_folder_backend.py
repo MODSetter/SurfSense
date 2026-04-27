@@ -180,6 +180,14 @@ class LocalFolderBackend:
                         "Read and then make an edit, or write to a new path."
                     )
                 )
+            parent = path.parent
+            if not parent.exists() or not parent.is_dir():
+                return WriteResult(
+                    error=(
+                        f"Error: parent directory for '{file_path}' does not exist. "
+                        "Create the folder first or write to an existing directory."
+                    )
+                )
             self._write_text_atomic(path, content)
         return WriteResult(path=file_path, files_update=None)
 

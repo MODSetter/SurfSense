@@ -9,6 +9,7 @@ pytestmark = pytest.mark.unit
 
 def test_local_backend_write_read_edit_roundtrip(tmp_path: Path):
     backend = LocalFolderBackend(str(tmp_path))
+    (tmp_path / "notes").mkdir()
 
     write = backend.write("/notes/test.md", "line1\nline2")
     assert write.error is None
@@ -51,9 +52,20 @@ def test_local_backend_glob_and_grep(tmp_path: Path):
 
 def test_local_backend_read_raw_returns_exact_content(tmp_path: Path):
     backend = LocalFolderBackend(str(tmp_path))
+    (tmp_path / "notes").mkdir()
     expected = "# Title\n\nline 1\nline 2\n"
     write = backend.write("/notes/raw.md", expected)
     assert write.error is None
 
     raw = backend.read_raw("/notes/raw.md")
     assert raw == expected
+
+
+def test_local_backend_write_rejects_missing_parent_directory(tmp_path: Path):
+    backend = LocalFolderBackend(str(tmp_path))
+
+    write = backend.write("/tempoo/new-note.md", "# New note")
+
+    assert write.error is not None
+    assert "parent directory" in write.error
+    assert not (tmp_path / "tempoo").exists()
