@@ -214,7 +214,7 @@ function AuthenticatedDocumentsSidebar({
 		if (!electronAPI?.getAgentFilesystemSettings) return;
 		let mounted = true;
 		electronAPI
-			.getAgentFilesystemSettings()
+			.getAgentFilesystemSettings(searchSpaceId)
 			.then((settings: FilesystemSettings) => {
 				if (!mounted) return;
 				setFilesystemSettings(settings);
@@ -230,7 +230,7 @@ function AuthenticatedDocumentsSidebar({
 		return () => {
 			mounted = false;
 		};
-	}, [electronAPI]);
+	}, [electronAPI, searchSpaceId]);
 
 	const hasLocalFilesystemTrust = useCallback(() => {
 		try {
@@ -253,10 +253,10 @@ function AuthenticatedDocumentsSidebar({
 			const updated = await electronAPI.setAgentFilesystemSettings({
 				mode: "desktop_local_folder",
 				localRootPaths: nextLocalRootPaths,
-			});
+			}, searchSpaceId);
 			setFilesystemSettings(updated);
 		},
-		[electronAPI, localRootPaths]
+		[electronAPI, localRootPaths, searchSpaceId]
 	);
 
 	const runPickLocalRoot = useCallback(async () => {
@@ -285,10 +285,10 @@ function AuthenticatedDocumentsSidebar({
 			const updated = await electronAPI.setAgentFilesystemSettings({
 				mode: "desktop_local_folder",
 				localRootPaths: localRootPaths.filter((rootPath) => rootPath !== rootPathToRemove),
-			});
+			}, searchSpaceId);
 			setFilesystemSettings(updated);
 		},
-		[electronAPI, localRootPaths]
+		[electronAPI, localRootPaths, searchSpaceId]
 	);
 
 	const handleClearFilesystemRoots = useCallback(async () => {
@@ -296,19 +296,19 @@ function AuthenticatedDocumentsSidebar({
 		const updated = await electronAPI.setAgentFilesystemSettings({
 			mode: "desktop_local_folder",
 			localRootPaths: [],
-		});
+		}, searchSpaceId);
 		setFilesystemSettings(updated);
-	}, [electronAPI]);
+	}, [electronAPI, searchSpaceId]);
 
 	const handleFilesystemTabChange = useCallback(
 		async (tab: "cloud" | "local") => {
 			if (!electronAPI?.setAgentFilesystemSettings) return;
 			const updated = await electronAPI.setAgentFilesystemSettings({
 				mode: tab === "cloud" ? "cloud" : "desktop_local_folder",
-			});
+			}, searchSpaceId);
 			setFilesystemSettings(updated);
 		},
-		[electronAPI]
+		[electronAPI, searchSpaceId]
 	);
 
 	// AI File Sort state
@@ -1323,6 +1323,7 @@ function AuthenticatedDocumentsSidebar({
 			<LocalFilesystemBrowser
 				rootPaths={localRootPaths}
 				searchSpaceId={searchSpaceId}
+				active={currentFilesystemTab === "local"}
 				searchQuery={debouncedLocalSearch.trim() || undefined}
 				onOpenFile={(localFilePath) => {
 					openEditorPanel({

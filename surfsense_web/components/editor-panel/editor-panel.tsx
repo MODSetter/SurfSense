@@ -124,7 +124,10 @@ export function EditorPanelContent({
 					if (!electronAPI?.readAgentLocalFileText) {
 						throw new Error("Local file editor is available only in desktop mode.");
 					}
-					const readResult = await electronAPI.readAgentLocalFileText(localFilePath);
+					const readResult = await electronAPI.readAgentLocalFileText(
+						localFilePath,
+						searchSpaceId
+					);
 					if (!readResult.ok) {
 						throw new Error(readResult.error || "Failed to read local file");
 					}
@@ -226,7 +229,7 @@ export function EditorPanelContent({
 		}
 	}, [editorDoc?.source_markdown]);
 
-	const handleSave = useCallback(async (options?: { silent?: boolean }) => {
+	const handleSave = useCallback(async (_options?: { silent?: boolean }) => {
 		setSaving(true);
 		try {
 			if (isLocalFileMode) {
@@ -239,7 +242,8 @@ export function EditorPanelContent({
 				const contentToSave = markdownRef.current;
 				const writeResult = await electronAPI.writeAgentLocalFileText(
 					localFilePath,
-					contentToSave
+					contentToSave,
+					searchSpaceId
 				);
 				if (!writeResult.ok) {
 					throw new Error(writeResult.error || "Failed to save local file");

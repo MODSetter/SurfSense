@@ -11,6 +11,7 @@ import { getSupportedExtensionsSet } from "@/lib/supported-extensions";
 interface LocalFilesystemBrowserProps {
 	rootPaths: string[];
 	searchSpaceId: number;
+	active?: boolean;
 	searchQuery?: string;
 	onOpenFile: (fullPath: string) => void;
 }
@@ -75,6 +76,7 @@ function toMountedVirtualPath(mount: string, relativePath: string): string {
 export function LocalFilesystemBrowser({
 	rootPaths,
 	searchSpaceId,
+	active = true,
 	searchQuery,
 	onOpenFile,
 }: LocalFilesystemBrowserProps) {
@@ -84,13 +86,36 @@ export function LocalFilesystemBrowser({
 	const [mountByRootKey, setMountByRootKey] = useState<Map<string, string>>(new Map());
 	const [mountStatus, setMountStatus] = useState<MountLoadStatus>("idle");
 	const [mountRefreshInFlight, setMountRefreshInFlight] = useState(false);
+	const lastLoadedRootsSignatureRef = useRef<string>("");
 	const hasLoadedMountsOnceRef = useRef(false);
 	const hasResolvedAtLeastOneRootRef = useRef(false);
 	const supportedExtensions = useMemo(() => Array.from(getSupportedExtensionsSet()), []);
 	const isWindowsPlatform = electronAPI?.versions.platform === "win32";
 
 	useEffect(() => {
-		if (!electronAPI?.listFolderFiles) return;
+		if (!active) return;
+		if (!electronAPI?.listAgentFilesystemFiles) {
+			for (const rootPath of rootPaths) {
+				setRootStateMap((prev) => ({
+					...prev,
+					[rootPath]: {
+						loading: false,
+						error: "Desktop app update required for local mode browsing.",
+						files: [],
+					},
+				}));
+			}
+			return;
+		}
+		const rootsSignature = rootPaths
+			.map((rootPath) => normalizeRootPathForLookup(rootPath, isWindowsPlatform))
+			.sort()
+			.join("|");
+		const settingsSignature = `${searchSpaceId}:${rootsSignature}`;
+		if (settingsSignature === lastLoadedRootsSignatureRef.current) {
+			return;
+		}
+		lastLoadedRootsSignatureRef.current = settingsSignature;
 		let cancelled = false;
 
 		for (const rootPath of rootPaths) {
@@ -107,14 +132,11 @@ export function LocalFilesystemBrowser({
 		void Promise.all(
 			rootPaths.map(async (rootPath) => {
 				try {
-					const files = (await electronAPI.listFolderFiles({
-						path: rootPath,
-						name: getFolderDisplayName(rootPath),
+					const files = (await electronAPI.listAgentFilesystemFiles({
+						rootPath,
+						searchSpaceId,
 						excludePatterns: DEFAULT_EXCLUDE_PATTERNS,
 						fileExtensions: supportedExtensions,
-						rootFolderId: null,
-						searchSpaceId,
-						active: true,
 					})) as LocalFolderFileEntry[];
 					if (cancelled) return;
 					setRootStateMap((prev) => ({
@@ -142,7 +164,7 @@ export function LocalFilesystemBrowser({
 		return () => {
 			cancelled = true;
 		};
-	}, [electronAPI, rootPaths, searchSpaceId, supportedExtensions]);
+	}, [active, electronAPI, isWindowsPlatform, rootPaths, searchSpaceId, supportedExtensions]);
 
 	useEffect(() => {
 		if (!electronAPI?.getAgentFilesystemMounts) {
@@ -165,7 +187,7 @@ export function LocalFilesystemBrowser({
 			setMountRefreshInFlight(true);
 		}
 		void electronAPI
-			.getAgentFilesystemMounts()
+			.getAgentFilesystemMounts(searchSpaceId)
 			.then((mounts: LocalRootMount[]) => {
 				if (cancelled) return;
 				const next = new Map<string, string>();
@@ -191,7 +213,7 @@ export function LocalFilesystemBrowser({
 		return () => {
 			cancelled = true;
 		};
-	}, [electronAPI, isWindowsPlatform, rootPaths]);
+	}, [electronAPI, isWindowsPlatform, rootPaths, searchSpaceId]);
 
 	const treeByRoot = useMemo(() => {
 		const query = searchQuery?.trim().toLowerCase() ?? "";
