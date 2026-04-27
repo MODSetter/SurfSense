@@ -19,14 +19,15 @@ const STEPS = [
 		id: "screen-recording",
 		title: "Screen Recording",
 		description:
-			"Lets SurfSense capture your screen to understand context and provide smart writing suggestions.",
+			"Lets SurfSense capture a region of your screen, full display, or browser (where supported) to attach to chat in Screenshot Assist, or to capture the full display from the composer.",
 		action: "requestScreenRecording",
 		field: "screenRecording" as const,
 	},
 	{
 		id: "accessibility",
 		title: "Accessibility",
-		description: "Lets SurfSense insert suggestions seamlessly, right where you\u2019re typing.",
+		description:
+			"Lets SurfSense bring the app to the foreground and work with the active application (for example Quick Assist) when you use desktop shortcuts.",
 		action: "requestAccessibility",
 		field: "accessibility" as const,
 	},
@@ -131,7 +132,8 @@ export default function DesktopPermissionsPage() {
 					<div className="space-y-1">
 						<h1 className="text-2xl font-semibold tracking-tight">System Permissions</h1>
 						<p className="text-sm text-muted-foreground">
-							SurfSense needs two macOS permissions to provide context-aware writing suggestions.
+							SurfSense needs two macOS permissions for Screenshot Assist and for desktop features that
+							require focusing the app or the active application.
 						</p>
 					</div>
 				</div>

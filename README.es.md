@@ -41,7 +41,7 @@ NotebookLM es una de las mejores y más útiles plataformas de IA que existen, p
 - **Sin Dependencia de Proveedores** - Configura cualquier modelo LLM, de imagen, TTS y STT.
 - **25+ Fuentes de Datos Externas** - Agrega tus fuentes desde Google Drive, OneDrive, Dropbox, Notion y muchos otros servicios externos.
 - **Soporte Multijugador en Tiempo Real** - Trabaja fácilmente con los miembros de tu equipo en un notebook compartido.
-- **Aplicación de Escritorio** - Obtén asistencia de IA en cualquier aplicación con Quick Assist, General Assist, Extreme Assist y sincronización de carpetas locales.
+- **Aplicación de Escritorio** - Obtén asistencia de IA en cualquier aplicación con Quick Assist, General Assist, Screenshot Assist y sincronización de carpetas locales.
 
 ...y más por venir.
 
@@ -84,9 +84,9 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/quick_assist.gif" alt="Quick Assist" /></p>
 
-   - Aplicación de Escritorio — Extreme Assist
+   - Aplicación de Escritorio — Screenshot Assist
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/extreme_assist.gif" alt="Extreme Assist" /></p>
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/screenshot_assist.gif" alt="Screenshot Assist" /></p>
 
    - Aplicación de Escritorio — Watch Local Folder
 
@@ -150,7 +150,7 @@ La aplicación de escritorio incluye estas potentes funciones:
 
 - **General Assist** — Lanza SurfSense al instante desde cualquier aplicación con un atajo global.
 - **Quick Assist** — Selecciona texto en cualquier lugar, luego pide a la IA que lo explique, reescriba o actúe sobre él.
-- **Extreme Assist** — Obtén sugerencias de escritura en línea impulsadas por tu base de conocimiento mientras escribes en cualquier aplicación.
+- **Screenshot Assist** — Selecciona una región de tu pantalla y adjúntala al chat para que las respuestas se basen en tu base de conocimiento.
 - **Watch Local Folder** — Vigila una carpeta local y sincroniza automáticamente los cambios de archivos con tu base de conocimiento. **Pro tip:** Apúntalo a tu bóveda de Obsidian para mantener tus notas buscables en SurfSense.
 
 Todas las funciones operan contra tu espacio de búsqueda elegido, por lo que tus respuestas siempre están basadas en tus propios datos.
@@ -199,7 +199,7 @@ Todas las funciones operan contra tu espacio de búsqueda elegido, por lo que tu
 | **Generación de Videos** | Resúmenes en video cinemáticos vía Veo 3 (solo Ultra) | Disponible (NotebookLM es mejor aquí, mejorando activamente) |
 | **Generación de Presentaciones** | Diapositivas más atractivas pero no editables | Crea presentaciones editables basadas en diapositivas |
 | **Generación de Podcasts** | Resúmenes de audio con hosts e idiomas personalizables | Disponible con múltiples proveedores TTS (NotebookLM es mejor aquí, mejorando activamente) |
-| **Aplicación de Escritorio** | No | Aplicación nativa con General Assist, Quick Assist, Extreme Assist y sincronización de carpetas locales |
+| **Aplicación de Escritorio** | No | Aplicación nativa con General Assist, Quick Assist, Screenshot Assist y sincronización de carpetas locales |
 | **Extensión de Navegador** | No | Extensión multi-navegador para guardar cualquier página web, incluyendo páginas protegidas por autenticación |
 
 <details>

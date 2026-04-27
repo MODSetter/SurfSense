@@ -132,6 +132,18 @@ async function buildElectron() {
     outfile: 'dist/preload.js',
   });
 
+  await build({
+    ...shared,
+    entryPoints: ['src/modules/screen-capture/screen-region-preload.ts'],
+    outfile: 'dist/modules/screen-capture/screen-region-preload.js',
+  });
+
+  await build({
+    ...shared,
+    entryPoints: ['src/modules/screen-capture/window-picker-preload.ts'],
+    outfile: 'dist/modules/screen-capture/window-picker-preload.js',
+  });
+
   console.log('Electron build complete');
   resolveStandaloneSymlinks();
 }
