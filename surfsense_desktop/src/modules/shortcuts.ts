@@ -1,11 +1,13 @@
 export interface ShortcutConfig {
   generalAssist: string;
   quickAsk: string;
+  screenshotAssist: string;
 }
 
 const DEFAULTS: ShortcutConfig = {
   generalAssist: 'CommandOrControl+Shift+S',
   quickAsk: 'CommandOrControl+Alt+S',
+  screenshotAssist: 'CommandOrControl+Shift+Space',
 };
 
 const STORE_KEY = 'shortcuts';
@@ -23,21 +25,25 @@ async function getStore() {
   return store;
 }
 
-/** One-time fix if both shortcuts match the mistaken Alt+Shift pair. */
-function wasRegressionAltPair(rest: Record<string, string>): boolean {
-  return rest.generalAssist === 'Alt+Shift+G' && rest.quickAsk === 'Alt+Shift+Q';
-}
-
 export async function getShortcuts(): Promise<ShortcutConfig> {
   const s = await getStore();
   const raw = (s.get(STORE_KEY) as Record<string, string> | undefined) ?? {};
+  const legacyAutocomplete = raw.autocomplete;
   const { autocomplete: _drop, ...rest } = raw;
-  if (wasRegressionAltPair(rest)) {
-    const fixed = { ...DEFAULTS };
-    s.set(STORE_KEY, { ...fixed });
-    return fixed;
+  let merged: ShortcutConfig = { ...DEFAULTS, ...rest };
+  if (
+    typeof legacyAutocomplete === 'string' &&
+    legacyAutocomplete.length > 0 &&
+    !('screenshotAssist' in raw)
+  ) {
+    merged = { ...merged, screenshotAssist: legacyAutocomplete };
+    s.set(STORE_KEY, {
+      generalAssist: merged.generalAssist,
+      quickAsk: merged.quickAsk,
+      screenshotAssist: merged.screenshotAssist,
+    });
   }
-  return { ...DEFAULTS, ...rest };
+  return merged;
 }
 
 export async function setShortcuts(config: Partial<ShortcutConfig>): Promise<ShortcutConfig> {
