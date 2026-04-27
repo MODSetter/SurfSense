@@ -81,6 +81,7 @@ _heartbeat_redis_client: redis.Redis | None = None
 
 # Redis key TTL - notification is stale if no heartbeat in this time
 HEARTBEAT_TTL_SECONDS = 120  # 2 minutes
+HEARTBEAT_REFRESH_INTERVAL = 60  # Refresh every 60 seconds while indexing runs
 
 
 def get_heartbeat_redis_client() -> redis.Redis:
@@ -96,6 +97,33 @@ def get_heartbeat_redis_client() -> redis.Redis:
 def _get_heartbeat_key(notification_id: int) -> str:
     """Generate Redis key for notification heartbeat."""
     return f"indexing:heartbeat:{notification_id}"
+
+
+async def _run_heartbeat_loop(notification_id: int) -> None:
+    """Refresh the Redis heartbeat key while a connector indexing task runs.
+
+    Some indexing phases (e.g. GitHub's ``gitingest`` subprocess) are blocking
+    and never call ``on_heartbeat_callback``. Without a background refresher
+    the heartbeat key expires after ``HEARTBEAT_TTL_SECONDS`` and the stale-
+    notification reaper marks the document as failed even though the task is
+    still healthy.
+
+    Mirrors ``_run_heartbeat_loop`` in ``app/tasks/celery_tasks/document_tasks``.
+    Cancelled by the caller's ``finally`` block when the task completes; if
+    the worker crashes the coroutine dies with it and the key expires.
+    """
+    key = _get_heartbeat_key(notification_id)
+    try:
+        while True:
+            await asyncio.sleep(HEARTBEAT_REFRESH_INTERVAL)
+            try:
+                get_heartbeat_redis_client().expire(key, HEARTBEAT_TTL_SECONDS)
+            except Exception as e:
+                logger.warning(
+                    f"Failed to refresh heartbeat for notification {notification_id}: {e}"
+                )
+    except asyncio.CancelledError:
+        pass  # Normal cancellation when the task completes
 
 
 router = APIRouter()
@@ -1464,6 +1492,7 @@ async def _run_indexing_with_notifications(
 
     notification = None
     connector_lock_acquired = False
+    heartbeat_task: asyncio.Task | None = None
     # Track indexed count for retry notifications and heartbeat
     current_indexed_count = 0
 
@@ -1508,6 +1537,13 @@ async def _run_indexing_with_notifications(
                     )
                 except Exception as e:
                     logger.warning(f"Failed to set initial Redis heartbeat: {e}")
+
+                # Refresh the heartbeat in the background so phases that don't
+                # call ``on_heartbeat_callback`` (e.g. GitHub's blocking
+                # ``gitingest`` subprocess) don't trigger the stale-task reaper.
+                heartbeat_task = asyncio.create_task(
+                    _run_heartbeat_loop(notification.id)
+                )
 
         # Update notification to fetching stage
         if notification:
@@ -1799,6 +1835,11 @@ async def _run_indexing_with_notifications(
             except Exception as notif_error:
                 logger.error(f"Failed to update notification: {notif_error!s}")
     finally:
+        # Stop the background heartbeat refresher before deleting the key
+        if heartbeat_task is not None:
+            heartbeat_task.cancel()
+            with suppress(Exception):
+                await heartbeat_task
         # Clean up Redis heartbeat key when task completes (success or failure)
         if notification:
             try:
