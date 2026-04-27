@@ -23,16 +23,24 @@ def create_list_discord_channels_tool(
             Dictionary with status and a list of channels (id, name).
         """
         if db_session is None or search_space_id is None or user_id is None:
-            return {"status": "error", "message": "Discord tool not properly configured."}
+            return {
+                "status": "error",
+                "message": "Discord tool not properly configured.",
+            }
 
         try:
-            connector = await get_discord_connector(db_session, search_space_id, user_id)
+            connector = await get_discord_connector(
+                db_session, search_space_id, user_id
+            )
             if not connector:
                 return {"status": "error", "message": "No Discord connector found."}
 
             guild_id = get_guild_id(connector)
             if not guild_id:
-                return {"status": "error", "message": "No guild ID in Discord connector config."}
+                return {
+                    "status": "error",
+                    "message": "No guild ID in Discord connector config.",
+                }
 
             token = get_bot_token(connector)
 
@@ -44,9 +52,16 @@ def create_list_discord_channels_tool(
                 )
 
             if resp.status_code == 401:
-                return {"status": "auth_error", "message": "Discord bot token is invalid.", "connector_type": "discord"}
+                return {
+                    "status": "auth_error",
+                    "message": "Discord bot token is invalid.",
+                    "connector_type": "discord",
+                }
             if resp.status_code != 200:
-                return {"status": "error", "message": f"Discord API error: {resp.status_code}"}
+                return {
+                    "status": "error",
+                    "message": f"Discord API error: {resp.status_code}",
+                }
 
             # Type 0 = text channel
             channels = [
@@ -54,7 +69,12 @@ def create_list_discord_channels_tool(
                 for ch in resp.json()
                 if ch.get("type") == 0
             ]
-            return {"status": "success", "guild_id": guild_id, "channels": channels, "total": len(channels)}
+            return {
+                "status": "success",
+                "guild_id": guild_id,
+                "channels": channels,
+                "total": len(channels),
+            }
 
         except Exception as e:
             from langgraph.errors import GraphInterrupt

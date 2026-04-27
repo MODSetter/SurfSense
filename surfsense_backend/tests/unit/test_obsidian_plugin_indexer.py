@@ -15,7 +15,6 @@ from app.services.obsidian_plugin_indexer import (
     _require_extracted_attachment_content,
 )
 
-
 _FAKE_PNG_B64 = base64.b64encode(b"\x89PNG\r\n\x1a\n").decode("ascii")
 
 
@@ -102,9 +101,7 @@ async def test_extract_binary_attachment_markdown_uses_etl(monkeypatch) -> None:
         mime_type="application/pdf",
     )
 
-    async def _fake_run_etl_extract(  # noqa: ANN001
-        *, file_path, filename, vision_llm
-    ):
+    async def _fake_run_etl_extract(*, file_path, filename, vision_llm):
         assert filename == "spec.pdf"
         assert file_path
         assert vision_llm is None
@@ -216,7 +213,7 @@ def test_note_payload_rejects_markdown_with_binary_fields() -> None:
 
 def test_require_extracted_attachment_content_rejects_empty_content() -> None:
     with pytest.raises(
-        RuntimeError, match="Attachment extraction failed for assets/img.png"
+        RuntimeError, match=r"Attachment extraction failed for assets/img\.png"
     ):
         _require_extracted_attachment_content(
             content="   ",

@@ -24,7 +24,12 @@ const isGoogleAuth = AUTH_TYPE === "GOOGLE";
 type ShortcutKey = "generalAssist" | "quickAsk" | "autocomplete";
 type ShortcutMap = typeof DEFAULT_SHORTCUTS;
 
-const HOTKEY_ROWS: Array<{ key: ShortcutKey; label: string; description: string; icon: React.ElementType }> = [
+const HOTKEY_ROWS: Array<{
+	key: ShortcutKey;
+	label: string;
+	description: string;
+	icon: React.ElementType;
+}> = [
 	{
 		key: "generalAssist",
 		label: "General Assist",
@@ -369,7 +374,9 @@ export default function DesktopLoginPage() {
 
 									<Button type="submit" disabled={isLoggingIn} className="relative h-9 mt-1">
 										<span className={isLoggingIn ? "opacity-0" : ""}>Sign in</span>
-										{isLoggingIn && <Spinner size="sm" className="absolute text-primary-foreground" />}
+										{isLoggingIn && (
+											<Spinner size="sm" className="absolute text-primary-foreground" />
+										)}
 									</Button>
 								</form>
 							)}

@@ -1,8 +1,8 @@
 import {
 	BookOpen,
 	Brain,
-	FileUser,
 	FileText,
+	FileUser,
 	Film,
 	Globe,
 	ImageIcon,

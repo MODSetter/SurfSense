@@ -213,7 +213,9 @@ def _build_classifier_prompt(*, recent_conversation: str, user_text: str) -> str
     )
 
 
-def _build_recent_conversation(messages: list[BaseMessage], *, max_messages: int = 6) -> str:
+def _build_recent_conversation(
+    messages: list[BaseMessage], *, max_messages: int = 6
+) -> str:
     rows: list[str] = []
     for msg in messages[-max_messages:]:
         role = "user" if isinstance(msg, HumanMessage) else "assistant"
@@ -246,7 +248,9 @@ class FileIntentMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                 [HumanMessage(content=prompt)],
                 config={"tags": ["surfsense:internal"]},
             )
-            payload = json.loads(_extract_json_payload(_extract_text_from_message(response)))
+            payload = json.loads(
+                _extract_json_payload(_extract_text_from_message(response))
+            )
             plan = FileIntentPlan.model_validate(payload)
             return plan
         except (json.JSONDecodeError, ValidationError, ValueError) as exc:
@@ -317,4 +321,3 @@ class FileIntentMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         insert_at = max(len(new_messages) - 1, 0)
         new_messages.insert(insert_at, contract_msg)
         return {"messages": new_messages, "file_operation_contract": contract}
-

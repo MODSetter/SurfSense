@@ -9,6 +9,7 @@ Call ``build_router()`` to get a FastAPI ``APIRouter`` with ``/connector/add``,
 from __future__ import annotations
 
 import base64
+import contextlib
 import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -41,7 +42,6 @@ logger = logging.getLogger(__name__)
 
 
 class OAuthConnectorRoute:
-
     def __init__(
         self,
         *,
@@ -244,10 +244,8 @@ class OAuthConnectorRoute:
 
         if resp.status_code != 200:
             detail = resp.text
-            try:
+            with contextlib.suppress(Exception):
                 detail = resp.json().get("error_description", detail)
-            except Exception:
-                pass
             raise HTTPException(
                 status_code=400, detail=f"Token exchange failed: {detail}"
             )
@@ -430,7 +428,11 @@ class OAuthConnectorRoute:
             state_mgr = oauth._get_state_manager()
 
             extra: dict[str, Any] = {"connector_id": connector_id}
-            if return_url and return_url.startswith("/") and not return_url.startswith("//"):
+            if (
+                return_url
+                and return_url.startswith("/")
+                and not return_url.startswith("//")
+            ):
                 extra["return_url"] = return_url
 
             auth_params: dict[str, str] = {
@@ -450,9 +452,7 @@ class OAuthConnectorRoute:
 
             auth_params.update(oauth.extra_auth_params)
 
-            state_encoded = state_mgr.generate_secure_state(
-                space_id, user.id, **extra
-            )
+            state_encoded = state_mgr.generate_secure_state(space_id, user.id, **extra)
             auth_params["state"] = state_encoded
             auth_url = f"{oauth.authorize_url}?{urlencode(auth_params)}"
 
@@ -489,9 +489,7 @@ class OAuthConnectorRoute:
                     status_code=400, detail="Missing authorization code"
                 )
             if not state:
-                raise HTTPException(
-                    status_code=400, detail="Missing state parameter"
-                )
+                raise HTTPException(status_code=400, detail="Missing state parameter")
 
             state_mgr = oauth._get_state_manager()
             try:
@@ -552,7 +550,11 @@ class OAuthConnectorRoute:
                     db_connector.id,
                     user_id,
                 )
-                if reauth_return_url and reauth_return_url.startswith("/") and not reauth_return_url.startswith("//"):
+                if (
+                    reauth_return_url
+                    and reauth_return_url.startswith("/")
+                    and not reauth_return_url.startswith("//")
+                ):
                     return RedirectResponse(
                         url=f"{config.NEXT_FRONTEND_URL}{reauth_return_url}"
                     )
@@ -603,7 +605,8 @@ class OAuthConnectorRoute:
             except IntegrityError as e:
                 await session.rollback()
                 raise HTTPException(
-                    status_code=409, detail="A connector for this service already exists."
+                    status_code=409,
+                    detail="A connector for this service already exists.",
                 ) from e
 
             logger.info(

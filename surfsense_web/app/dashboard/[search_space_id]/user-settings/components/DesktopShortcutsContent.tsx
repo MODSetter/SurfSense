@@ -111,9 +111,7 @@ function HotkeyRow({
 					}
 				>
 					{recording ? (
-						<span className="px-2 text-[9px] text-primary whitespace-nowrap">
-							Press hotkeys...
-						</span>
+						<span className="px-2 text-[9px] text-primary whitespace-nowrap">Press hotkeys...</span>
 					) : (
 						<ShortcutKbd keys={displayKeys} className="ml-0 px-1.5 text-foreground/85" />
 					)}
@@ -155,7 +153,9 @@ export function DesktopShortcutsContent() {
 	if (!api) {
 		return (
 			<div className="flex flex-col items-center justify-center py-12 text-center">
-				<p className="text-sm text-muted-foreground">Hotkeys are only available in the SurfSense desktop app.</p>
+				<p className="text-sm text-muted-foreground">
+					Hotkeys are only available in the SurfSense desktop app.
+				</p>
 			</div>
 		);
 	}
@@ -178,28 +178,26 @@ export function DesktopShortcutsContent() {
 		updateShortcut(key, DEFAULT_SHORTCUTS[key]);
 	};
 
-	return (
-		shortcutsLoaded ? (
-			<div className="flex flex-col gap-3">
-				<div>
-					{HOTKEY_ROWS.map((row) => (
-						<HotkeyRow
-							key={row.key}
-							label={row.label}
-							value={shortcuts[row.key]}
-							defaultValue={DEFAULT_SHORTCUTS[row.key]}
-							icon={row.icon}
-							isMac={isMac}
-							onChange={(accel) => updateShortcut(row.key, accel)}
-							onReset={() => resetShortcut(row.key)}
-						/>
-					))}
-				</div>
+	return shortcutsLoaded ? (
+		<div className="flex flex-col gap-3">
+			<div>
+				{HOTKEY_ROWS.map((row) => (
+					<HotkeyRow
+						key={row.key}
+						label={row.label}
+						value={shortcuts[row.key]}
+						defaultValue={DEFAULT_SHORTCUTS[row.key]}
+						icon={row.icon}
+						isMac={isMac}
+						onChange={(accel) => updateShortcut(row.key, accel)}
+						onReset={() => resetShortcut(row.key)}
+					/>
+				))}
 			</div>
-		) : (
-			<div className="flex justify-center py-4">
-				<Spinner size="sm" />
-			</div>
-		)
+		</div>
+	) : (
+		<div className="flex justify-center py-4">
+			<Spinner size="sm" />
+		</div>
 	);
 }

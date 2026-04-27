@@ -141,7 +141,9 @@ export function LocalFilesystemBrowser({
 }: LocalFilesystemBrowserProps) {
 	const electronAPI = useElectronAPI();
 	const [rootStateMap, setRootStateMap] = useState<Record<string, RootLoadState>>({});
-	const [internalExpandedFolderKeys, setInternalExpandedFolderKeys] = useState<Set<string>>(new Set());
+	const [internalExpandedFolderKeys, setInternalExpandedFolderKeys] = useState<Set<string>>(
+		new Set()
+	);
 	const [mountByRootKey, setMountByRootKey] = useState<Map<string, string>>(new Map());
 	const [mountStatus, setMountStatus] = useState<MountLoadStatus>("idle");
 	const [mountRefreshInFlight, setMountRefreshInFlight] = useState(false);
@@ -188,10 +190,7 @@ export function LocalFilesystemBrowser({
 		}
 		for (const { rootKey } of rootsToReload) {
 			const nonce = reloadNonceByRoot[rootKey] ?? 0;
-			lastLoadedSignatureByRootRef.current.set(
-				rootKey,
-				`${searchSpaceId}:${rootKey}:${nonce}`
-			);
+			lastLoadedSignatureByRootRef.current.set(rootKey, `${searchSpaceId}:${rootKey}:${nonce}`);
 		}
 		let cancelled = false;
 
@@ -257,35 +256,37 @@ export function LocalFilesystemBrowser({
 			return;
 		}
 
-		const unsubscribe = electronAPI.onAgentFilesystemTreeDirty((event: {
-			searchSpaceId: number | null;
-			reason: "watcher_event" | "safety_poll";
-			rootPath: string;
-			changedPath: string | null;
-			timestamp: number;
-		}) => {
-			if ((event.searchSpaceId ?? null) !== (searchSpaceId ?? null)) {
-				return;
+		const unsubscribe = electronAPI.onAgentFilesystemTreeDirty(
+			(event: {
+				searchSpaceId: number | null;
+				reason: "watcher_event" | "safety_poll";
+				rootPath: string;
+				changedPath: string | null;
+				timestamp: number;
+			}) => {
+				if ((event.searchSpaceId ?? null) !== (searchSpaceId ?? null)) {
+					return;
+				}
+				const eventRootKey = normalizeRootPathForLookup(event.rootPath, isWindowsPlatform);
+				const knownRootKeys = new Set(
+					rootPaths.map((rootPath) => normalizeRootPathForLookup(rootPath, isWindowsPlatform))
+				);
+				if (!knownRootKeys.has(eventRootKey)) {
+					setReloadNonceByRoot((prev) => {
+						const next = { ...prev };
+						for (const rootKey of knownRootKeys) {
+							next[rootKey] = (prev[rootKey] ?? 0) + 1;
+						}
+						return next;
+					});
+					return;
+				}
+				setReloadNonceByRoot((prev) => ({
+					...prev,
+					[eventRootKey]: (prev[eventRootKey] ?? 0) + 1,
+				}));
 			}
-			const eventRootKey = normalizeRootPathForLookup(event.rootPath, isWindowsPlatform);
-			const knownRootKeys = new Set(
-				rootPaths.map((rootPath) => normalizeRootPathForLookup(rootPath, isWindowsPlatform))
-			);
-			if (!knownRootKeys.has(eventRootKey)) {
-				setReloadNonceByRoot((prev) => {
-					const next = { ...prev };
-					for (const rootKey of knownRootKeys) {
-						next[rootKey] = (prev[rootKey] ?? 0) + 1;
-					}
-					return next;
-				});
-				return;
-			}
-			setReloadNonceByRoot((prev) => ({
-				...prev,
-				[eventRootKey]: (prev[eventRootKey] ?? 0) + 1,
-			}));
-		});
+		);
 		void electronAPI.startAgentFilesystemTreeWatch({
 			searchSpaceId,
 			rootPaths,
@@ -378,22 +379,25 @@ export function LocalFilesystemBrowser({
 		});
 	}, [rootPaths, rootStateMap, searchQuery]);
 
-	const toggleFolder = useCallback((folderKey: string) => {
-		const update = (prev: Set<string>) => {
-			const next = new Set(prev);
-			if (next.has(folderKey)) {
-				next.delete(folderKey);
-			} else {
-				next.add(folderKey);
+	const toggleFolder = useCallback(
+		(folderKey: string) => {
+			const update = (prev: Set<string>) => {
+				const next = new Set(prev);
+				if (next.has(folderKey)) {
+					next.delete(folderKey);
+				} else {
+					next.add(folderKey);
+				}
+				return next;
+			};
+			if (onExpandedFolderKeysChange) {
+				onExpandedFolderKeysChange(update(effectiveExpandedFolderKeys));
+				return;
 			}
-			return next;
-		};
-		if (onExpandedFolderKeysChange) {
-			onExpandedFolderKeysChange(update(effectiveExpandedFolderKeys));
-			return;
-		}
-		setInternalExpandedFolderKeys(update);
-	}, [effectiveExpandedFolderKeys, onExpandedFolderKeysChange]);
+			setInternalExpandedFolderKeys(update);
+		},
+		[effectiveExpandedFolderKeys, onExpandedFolderKeysChange]
+	);
 
 	const renderFolder = useCallback(
 		(folder: LocalFolderNode, depth: number, mount: string) => {
@@ -436,9 +440,7 @@ export function LocalFilesystemBrowser({
 												: undefined
 										}
 										className={`flex h-8 w-full items-center gap-1.5 rounded-md px-2 text-left text-sm transition-colors ${
-											isOpenable
-												? "hover:bg-muted/60"
-												: "cursor-not-allowed opacity-60"
+											isOpenable ? "hover:bg-muted/60" : "cursor-not-allowed opacity-60"
 										}`}
 										style={{ paddingInlineStart: `${(depth + 1) * 12 + 22}px` }}
 										title={
@@ -528,7 +530,10 @@ export function LocalFilesystemBrowser({
 				}
 				if (state.error) {
 					return (
-						<div key={rootPath} className="rounded-md border border-destructive/20 bg-destructive/5 p-3">
+						<div
+							key={rootPath}
+							className="rounded-md border border-destructive/20 bg-destructive/5 p-3"
+						>
 							<p className="text-sm font-medium text-destructive">Failed to load local folder</p>
 							<p className="mt-1 text-xs text-muted-foreground">{state.error}</p>
 						</div>

@@ -179,9 +179,7 @@ interface ElectronAPI {
 	// Agent filesystem mode
 	getAgentFilesystemSettings: (searchSpaceId?: number | null) => Promise<AgentFilesystemSettings>;
 	getAgentFilesystemMounts: (searchSpaceId?: number | null) => Promise<AgentFilesystemMount[]>;
-	listAgentFilesystemFiles: (
-		options: AgentFilesystemListOptions
-	) => Promise<FolderFileEntry[]>;
+	listAgentFilesystemFiles: (options: AgentFilesystemListOptions) => Promise<FolderFileEntry[]>;
 	startAgentFilesystemTreeWatch: (
 		options: AgentFilesystemTreeWatchOptions
 	) => Promise<{ ok: true }>;
@@ -189,10 +187,13 @@ interface ElectronAPI {
 	onAgentFilesystemTreeDirty: (
 		callback: (data: AgentFilesystemTreeDirtyEvent) => void
 	) => () => void;
-	setAgentFilesystemSettings: (settings: {
-		mode?: AgentFilesystemMode;
-		localRootPaths?: string[] | null;
-	}, searchSpaceId?: number | null) => Promise<AgentFilesystemSettings>;
+	setAgentFilesystemSettings: (
+		settings: {
+			mode?: AgentFilesystemMode;
+			localRootPaths?: string[] | null;
+		},
+		searchSpaceId?: number | null
+	) => Promise<AgentFilesystemSettings>;
 	pickAgentFilesystemRoot: () => Promise<string | null>;
 }
 

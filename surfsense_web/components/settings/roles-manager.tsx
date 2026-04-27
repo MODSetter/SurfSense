@@ -5,10 +5,8 @@ import { useAtomValue } from "jotai";
 import {
 	Bot,
 	ChevronRight,
-	ScanEye,
-	Pencil,
-	FileText,
 	Earth,
+	FileText,
 	Image,
 	Logs,
 	type LucideIcon,
@@ -16,11 +14,13 @@ import {
 	MessageSquare,
 	Mic,
 	MoreHorizontal,
-	Unplug,
+	Pencil,
+	ScanEye,
 	Settings,
 	Shield,
 	SlidersHorizontal,
 	Trash2,
+	Unplug,
 	Users,
 	Video,
 } from "lucide-react";
@@ -462,9 +462,19 @@ function RolesContent({
 
 					return (
 						<div key={role.id} className="rounded-lg border border-border/60 overflow-hidden">
+							{/* biome-ignore lint/a11y/useSemanticElements: row contains nested interactive elements (DropdownMenu); using a <button> would produce invalid nested-button markup */}
 							<div
-								className="flex items-center gap-4 p-4 transition-colors hover:bg-muted/30 cursor-pointer"
+								role="button"
+								tabIndex={0}
+								aria-expanded={isExpanded}
+								className="flex items-center gap-4 p-4 transition-colors hover:bg-muted/30 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 								onClick={() => setExpandedRoleId(isExpanded ? null : role.id)}
+								onKeyDown={(e) => {
+									if (e.key === "Enter" || e.key === " ") {
+										e.preventDefault();
+										setExpandedRoleId(isExpanded ? null : role.id);
+									}
+								}}
 							>
 								<div className="flex-1 min-w-0 text-left">
 									<div className="flex items-center gap-2">
@@ -682,9 +692,19 @@ function PermissionsEditor({
 
 					return (
 						<div key={category} className="rounded-lg border border-border/60 overflow-hidden">
+							{/* biome-ignore lint/a11y/useSemanticElements: row contains a nested interactive Checkbox; using a <button> would produce invalid nested-button markup */}
 							<div
-								className="flex items-center justify-between px-3 py-2.5 hover:bg-muted/40 transition-colors cursor-pointer"
+								role="button"
+								tabIndex={0}
+								aria-expanded={isExpanded}
+								className="flex items-center justify-between px-3 py-2.5 hover:bg-muted/40 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 								onClick={() => toggleCategoryExpanded(category)}
+								onKeyDown={(e) => {
+									if (e.key === "Enter" || e.key === " ") {
+										e.preventDefault();
+										toggleCategoryExpanded(category);
+									}
+								}}
 							>
 								<div className="flex-1 flex items-center gap-2.5">
 									<IconComponent className="h-4 w-4 text-muted-foreground shrink-0" />

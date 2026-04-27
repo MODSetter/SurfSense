@@ -39,7 +39,10 @@ def create_search_calendar_events_tool(
             event_id, summary, start, end, location, attendees.
         """
         if db_session is None or search_space_id is None or user_id is None:
-            return {"status": "error", "message": "Calendar tool not properly configured."}
+            return {
+                "status": "error",
+                "message": "Calendar tool not properly configured.",
+            }
 
         max_results = min(max_results, 50)
 
@@ -76,10 +79,22 @@ def create_search_calendar_events_tool(
             )
 
             if error:
-                if "re-authenticate" in error.lower() or "authentication failed" in error.lower():
-                    return {"status": "auth_error", "message": error, "connector_type": "google_calendar"}
+                if (
+                    "re-authenticate" in error.lower()
+                    or "authentication failed" in error.lower()
+                ):
+                    return {
+                        "status": "auth_error",
+                        "message": error,
+                        "connector_type": "google_calendar",
+                    }
                 if "no events found" in error.lower():
-                    return {"status": "success", "events": [], "total": 0, "message": error}
+                    return {
+                        "status": "success",
+                        "events": [],
+                        "total": 0,
+                        "message": error,
+                    }
                 return {"status": "error", "message": error}
 
             events = []
@@ -87,19 +102,19 @@ def create_search_calendar_events_tool(
                 start = ev.get("start", {})
                 end = ev.get("end", {})
                 attendees_raw = ev.get("attendees", [])
-                events.append({
-                    "event_id": ev.get("id"),
-                    "summary": ev.get("summary", "No Title"),
-                    "start": start.get("dateTime") or start.get("date", ""),
-                    "end": end.get("dateTime") or end.get("date", ""),
-                    "location": ev.get("location", ""),
-                    "description": ev.get("description", ""),
-                    "html_link": ev.get("htmlLink", ""),
-                    "attendees": [
-                        a.get("email", "") for a in attendees_raw[:10]
-                    ],
-                    "status": ev.get("status", ""),
-                })
+                events.append(
+                    {
+                        "event_id": ev.get("id"),
+                        "summary": ev.get("summary", "No Title"),
+                        "start": start.get("dateTime") or start.get("date", ""),
+                        "end": end.get("dateTime") or end.get("date", ""),
+                        "location": ev.get("location", ""),
+                        "description": ev.get("description", ""),
+                        "html_link": ev.get("htmlLink", ""),
+                        "attendees": [a.get("email", "") for a in attendees_raw[:10]],
+                        "status": ev.get("status", ""),
+                    }
+                )
 
             return {"status": "success", "events": events, "total": len(events)}
 
@@ -109,6 +124,9 @@ def create_search_calendar_events_tool(
             if isinstance(e, GraphInterrupt):
                 raise
             logger.error("Error searching calendar events: %s", e, exc_info=True)
-            return {"status": "error", "message": "Failed to search calendar events. Please try again."}
+            return {
+                "status": "error",
+                "message": "Failed to search calendar events. Please try again.",
+            }
 
     return search_calendar_events

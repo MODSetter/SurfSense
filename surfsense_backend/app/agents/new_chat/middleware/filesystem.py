@@ -877,7 +877,9 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         suggested_path = contract.get("suggested_path")
         if isinstance(suggested_path, str) and suggested_path.strip():
             normalized_suggested = self._normalize_absolute_path(suggested_path)
-            suggested_mount = self._extract_mount_from_path(normalized_suggested, mounts)
+            suggested_mount = self._extract_mount_from_path(
+                normalized_suggested, mounts
+            )
 
         matching_mounts = [
             mount
@@ -1071,14 +1073,18 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
             ] = False,
         ) -> Command | str:
             if self._filesystem_mode != FilesystemMode.DESKTOP_LOCAL_FOLDER:
-                return "Error: move_file is only available in desktop local-folder mode."
+                return (
+                    "Error: move_file is only available in desktop local-folder mode."
+                )
 
             if not source_path.strip() or not destination_path.strip():
                 return "Error: source_path and destination_path are required."
 
             resolved_backend = self._get_backend(runtime)
             source_target = self._resolve_move_target_path(source_path, runtime)
-            destination_target = self._resolve_move_target_path(destination_path, runtime)
+            destination_target = self._resolve_move_target_path(
+                destination_path, runtime
+            )
             try:
                 validated_source = validate_path(source_target)
                 validated_destination = validate_path(destination_target)
@@ -1106,7 +1112,9 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
                         ],
                     }
                 )
-            return f"Moved '{validated_source}' to '{res.path or validated_destination}'"
+            return (
+                f"Moved '{validated_source}' to '{res.path or validated_destination}'"
+            )
 
         async def async_move_file(
             source_path: Annotated[
@@ -1125,14 +1133,18 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
             ] = False,
         ) -> Command | str:
             if self._filesystem_mode != FilesystemMode.DESKTOP_LOCAL_FOLDER:
-                return "Error: move_file is only available in desktop local-folder mode."
+                return (
+                    "Error: move_file is only available in desktop local-folder mode."
+                )
 
             if not source_path.strip() or not destination_path.strip():
                 return "Error: source_path and destination_path are required."
 
             resolved_backend = self._get_backend(runtime)
             source_target = self._resolve_move_target_path(source_path, runtime)
-            destination_target = self._resolve_move_target_path(destination_path, runtime)
+            destination_target = self._resolve_move_target_path(
+                destination_path, runtime
+            )
             try:
                 validated_source = validate_path(source_target)
                 validated_destination = validate_path(destination_target)
@@ -1160,7 +1172,9 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
                         ],
                     }
                 )
-            return f"Moved '{validated_source}' to '{res.path or validated_destination}'"
+            return (
+                f"Moved '{validated_source}' to '{res.path or validated_destination}'"
+            )
 
         return StructuredTool.from_function(
             name="move_file",
@@ -1201,7 +1215,9 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
             ] = True,
         ) -> str:
             if self._filesystem_mode != FilesystemMode.DESKTOP_LOCAL_FOLDER:
-                return "Error: list_tree is only available in desktop local-folder mode."
+                return (
+                    "Error: list_tree is only available in desktop local-folder mode."
+                )
             if max_depth < 0:
                 return "Error: max_depth must be >= 0."
             if page_size < 1:
@@ -1253,7 +1269,9 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
             ] = True,
         ) -> str:
             if self._filesystem_mode != FilesystemMode.DESKTOP_LOCAL_FOLDER:
-                return "Error: list_tree is only available in desktop local-folder mode."
+                return (
+                    "Error: list_tree is only available in desktop local-folder mode."
+                )
             if max_depth < 0:
                 return "Error: max_depth must be >= 0."
             if page_size < 1:

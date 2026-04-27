@@ -499,7 +499,9 @@ class TestWireContractSmoke:
                 "app.routes.obsidian_plugin_routes.upsert_note",
                 new=AsyncMock(return_value=fake_doc),
             ) as upsert_mock,
-            patch("app.routes.obsidian_plugin_routes._queue_obsidian_attachment") as queue_mock,
+            patch(
+                "app.routes.obsidian_plugin_routes._queue_obsidian_attachment"
+            ) as queue_mock,
         ):
             sync_resp = await obsidian_sync(
                 SyncBatchRequest(
@@ -548,7 +550,9 @@ class TestWireContractSmoke:
                 "app.routes.obsidian_plugin_routes.upsert_note",
                 new=AsyncMock(return_value=fake_doc),
             ),
-            patch("app.routes.obsidian_plugin_routes._queue_obsidian_attachment") as queue_mock,
+            patch(
+                "app.routes.obsidian_plugin_routes._queue_obsidian_attachment"
+            ) as queue_mock,
         ):
             sync_resp = await obsidian_sync(
                 SyncBatchRequest(
@@ -600,7 +604,9 @@ class TestWireContractSmoke:
                 "app.routes.obsidian_plugin_routes.upsert_note",
                 new=AsyncMock(return_value=fake_doc),
             ),
-            patch("app.routes.obsidian_plugin_routes._queue_obsidian_attachment") as queue_mock,
+            patch(
+                "app.routes.obsidian_plugin_routes._queue_obsidian_attachment"
+            ) as queue_mock,
         ):
             sync_resp = await obsidian_sync(
                 SyncBatchRequest(
@@ -619,7 +625,5 @@ class TestWireContractSmoke:
         items_by_path = {it.path: it for it in sync_resp.items}
         assert items_by_path["ok.md"].status == "ok"
         assert items_by_path["image.png"].status == "error"
-        assert "does not match extension" in (
-            items_by_path["image.png"].error or ""
-        )
+        assert "does not match extension" in (items_by_path["image.png"].error or "")
         queue_mock.assert_not_called()

@@ -16,7 +16,7 @@ import { DateRangeSelector } from "../../components/date-range-selector";
 import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
 import { SummaryConfig } from "../../components/summary-config";
 import { VisionLLMConfig } from "../../components/vision-llm-config";
-import { LIVE_CONNECTOR_TYPES, getReauthEndpoint } from "../../constants/connector-constants";
+import { getReauthEndpoint, LIVE_CONNECTOR_TYPES } from "../../constants/connector-constants";
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
 import { MCPServiceConfig } from "../components/mcp-service-config";
 import { getConnectorConfigComponent } from "../index";
@@ -314,8 +314,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 
 								{connector.is_indexable &&
 									(() => {
-										const isGoogleDrive =
-											connector.connector_type === "GOOGLE_DRIVE_CONNECTOR";
+										const isGoogleDrive = connector.connector_type === "GOOGLE_DRIVE_CONNECTOR";
 										const isComposioGoogleDrive =
 											connector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR";
 										const requiresFolderSelection = isGoogleDrive || isComposioGoogleDrive;
@@ -327,8 +326,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 											(connector.config?.selected_files as
 												| Array<{ id: string; name: string }>
 												| undefined) || [];
-										const hasItemsSelected =
-											selectedFolders.length > 0 || selectedFiles.length > 0;
+										const hasItemsSelected = selectedFolders.length > 0 || selectedFiles.length > 0;
 										const isDisabled = requiresFolderSelection && !hasItemsSelected;
 
 										return (
@@ -380,8 +378,8 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 
 			{/* Fixed Footer - Action buttons */}
 			<div className="flex-shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0 px-6 sm:px-12 py-6 sm:py-6 bg-muted border-t border-border">
-			{showDisconnectConfirm ? (
-				<div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 sm:flex-initial">
+				{showDisconnectConfirm ? (
+					<div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 sm:flex-initial">
 						<span className="text-xs sm:text-sm text-muted-foreground sm:whitespace-nowrap">
 							{isLive
 								? "Your agent will lose access to this service."

@@ -29,7 +29,11 @@ from app.db import (
 )
 from app.users import current_active_user
 from app.utils.connector_naming import generate_unique_connector_name
-from app.utils.oauth_security import OAuthStateManager, TokenEncryption, generate_pkce_pair
+from app.utils.oauth_security import (
+    OAuthStateManager,
+    TokenEncryption,
+    generate_pkce_pair,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +41,9 @@ router = APIRouter()
 
 
 async def _fetch_account_metadata(
-    service_key: str, access_token: str, token_json: dict[str, Any],
+    service_key: str,
+    access_token: str,
+    token_json: dict[str, Any],
 ) -> dict[str, Any]:
     """Fetch display-friendly account metadata after a successful token exchange.
 
@@ -86,7 +92,8 @@ async def _fetch_account_metadata(
                     meta["display_name"] = whoami.get("email", "Airtable")
                 else:
                     logger.warning(
-                        "Airtable whoami API returned %d (non-blocking)", resp.status_code,
+                        "Airtable whoami API returned %d (non-blocking)",
+                        resp.status_code,
                     )
 
     except Exception:
@@ -97,6 +104,7 @@ async def _fetch_account_metadata(
         )
 
     return meta
+
 
 _state_manager: OAuthStateManager | None = None
 _token_encryption: TokenEncryption | None = None
@@ -151,6 +159,7 @@ def _frontend_redirect(
 # /add — start MCP OAuth flow
 # ---------------------------------------------------------------------------
 
+
 @router.get("/auth/mcp/{service}/connector/add")
 async def connect_mcp_service(
     service: str,
@@ -170,9 +179,12 @@ async def connect_mcp_service(
         )
 
         metadata = await discover_oauth_metadata(
-            svc.mcp_url, origin_override=svc.oauth_discovery_origin,
+            svc.mcp_url,
+            origin_override=svc.oauth_discovery_origin,
         )
-        auth_endpoint = svc.auth_endpoint_override or metadata.get("authorization_endpoint")
+        auth_endpoint = svc.auth_endpoint_override or metadata.get(
+            "authorization_endpoint"
+        )
         token_endpoint = svc.token_endpoint_override or metadata.get("token_endpoint")
         registration_endpoint = metadata.get("registration_endpoint")
 
@@ -236,7 +248,9 @@ async def connect_mcp_service(
 
         logger.info(
             "Generated %s MCP OAuth URL for user %s, space %s",
-            svc.name, user.id, space_id,
+            svc.name,
+            user.id,
+            space_id,
         )
         return {"auth_url": auth_url}
 
@@ -245,13 +259,15 @@ async def connect_mcp_service(
     except Exception as e:
         logger.error("Failed to initiate %s MCP OAuth: %s", service, e, exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to initiate {service} MCP OAuth.",
+            status_code=500,
+            detail=f"Failed to initiate {service} MCP OAuth.",
         ) from e
 
 
 # ---------------------------------------------------------------------------
 # /callback — handle OAuth redirect
 # ---------------------------------------------------------------------------
+
 
 @router.get("/auth/mcp/{service}/connector/callback")
 async def mcp_oauth_callback(
@@ -271,7 +287,9 @@ async def mcp_oauth_callback(
             except Exception:
                 pass
         return _frontend_redirect(
-            space_id, error=f"{service}_mcp_oauth_denied", service=service,
+            space_id,
+            error=f"{service}_mcp_oauth_denied",
+            service=service,
         )
 
     if not code:
@@ -337,9 +355,7 @@ async def mcp_oauth_callback(
 
         expires_at = None
         if expires_in:
-            expires_at = datetime.now(UTC) + timedelta(
-                seconds=int(expires_in)
-            )
+            expires_at = datetime.now(UTC) + timedelta(seconds=int(expires_in))
 
         connector_config = {
             "server_config": {
@@ -349,10 +365,14 @@ async def mcp_oauth_callback(
             "mcp_service": svc_key,
             "mcp_oauth": {
                 "client_id": client_id,
-                "client_secret": enc.encrypt_token(client_secret) if client_secret else "",
+                "client_secret": enc.encrypt_token(client_secret)
+                if client_secret
+                else "",
                 "token_endpoint": token_endpoint,
                 "access_token": enc.encrypt_token(access_token),
-                "refresh_token": enc.encrypt_token(refresh_token) if refresh_token else None,
+                "refresh_token": enc.encrypt_token(refresh_token)
+                if refresh_token
+                else None,
                 "expires_at": expires_at.isoformat() if expires_at else None,
                 "scope": scope,
             },
@@ -361,15 +381,27 @@ async def mcp_oauth_callback(
 
         account_meta = await _fetch_account_metadata(svc_key, access_token, token_json)
         if account_meta:
-            _SAFE_META_KEYS = {"display_name", "team_id", "team_name", "user_id", "user_email",
-                               "workspace_id", "workspace_name", "organization_name",
-                               "organization_url_key", "cloud_id", "site_name", "base_url"}
+            safe_meta_keys = {
+                "display_name",
+                "team_id",
+                "team_name",
+                "user_id",
+                "user_email",
+                "workspace_id",
+                "workspace_name",
+                "organization_name",
+                "organization_url_key",
+                "cloud_id",
+                "site_name",
+                "base_url",
+            }
             for k, v in account_meta.items():
-                if k in _SAFE_META_KEYS:
+                if k in safe_meta_keys:
                     connector_config[k] = v
             logger.info(
                 "Stored account metadata for %s: display_name=%s",
-                svc_key, account_meta.get("display_name", ""),
+                svc_key,
+                account_meta.get("display_name", ""),
             )
 
         # ---- Re-auth path ----
@@ -400,15 +432,24 @@ async def mcp_oauth_callback(
 
             logger.info(
                 "Re-authenticated %s MCP connector %s for user %s",
-                svc.name, db_connector.id, user_id,
+                svc.name,
+                db_connector.id,
+                user_id,
             )
             reauth_return_url = data.get("return_url")
-            if reauth_return_url and reauth_return_url.startswith("/") and not reauth_return_url.startswith("//"):
+            if (
+                reauth_return_url
+                and reauth_return_url.startswith("/")
+                and not reauth_return_url.startswith("//")
+            ):
                 return RedirectResponse(
                     url=f"{config.NEXT_FRONTEND_URL}{reauth_return_url}"
                 )
             return _frontend_redirect(
-                space_id, success=True, connector_id=db_connector.id, service=service,
+                space_id,
+                success=True,
+                connector_id=db_connector.id,
+                service=service,
             )
 
         # ---- New connector path ----
@@ -436,24 +477,34 @@ async def mcp_oauth_callback(
         except IntegrityError as e:
             await session.rollback()
             raise HTTPException(
-                status_code=409, detail="A connector for this service already exists.",
+                status_code=409,
+                detail="A connector for this service already exists.",
             ) from e
 
         _invalidate_cache(space_id)
 
         logger.info(
             "Created %s MCP connector %s for user %s in space %s",
-            svc.name, new_connector.id, user_id, space_id,
+            svc.name,
+            new_connector.id,
+            user_id,
+            space_id,
         )
         return _frontend_redirect(
-            space_id, success=True, connector_id=new_connector.id, service=service,
+            space_id,
+            success=True,
+            connector_id=new_connector.id,
+            service=service,
         )
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(
-            "Failed to complete %s MCP OAuth: %s", service, e, exc_info=True,
+            "Failed to complete %s MCP OAuth: %s",
+            service,
+            e,
+            exc_info=True,
         )
         raise HTTPException(
             status_code=500,
@@ -464,6 +515,7 @@ async def mcp_oauth_callback(
 # ---------------------------------------------------------------------------
 # /reauth — re-authenticate an existing MCP connector
 # ---------------------------------------------------------------------------
+
 
 @router.get("/auth/mcp/{service}/connector/reauth")
 async def reauth_mcp_service(
@@ -491,7 +543,8 @@ async def reauth_mcp_service(
     )
     if not result.scalars().first():
         raise HTTPException(
-            status_code=404, detail="Connector not found or access denied",
+            status_code=404,
+            detail="Connector not found or access denied",
         )
 
     try:
@@ -501,9 +554,12 @@ async def reauth_mcp_service(
         )
 
         metadata = await discover_oauth_metadata(
-            svc.mcp_url, origin_override=svc.oauth_discovery_origin,
+            svc.mcp_url,
+            origin_override=svc.oauth_discovery_origin,
         )
-        auth_endpoint = svc.auth_endpoint_override or metadata.get("authorization_endpoint")
+        auth_endpoint = svc.auth_endpoint_override or metadata.get(
+            "authorization_endpoint"
+        )
         token_endpoint = svc.token_endpoint_override or metadata.get("token_endpoint")
         registration_endpoint = metadata.get("registration_endpoint")
 
@@ -545,7 +601,9 @@ async def reauth_mcp_service(
             "service": service,
             "code_verifier": verifier,
             "mcp_client_id": client_id,
-            "mcp_client_secret": enc.encrypt_token(client_secret) if client_secret else "",
+            "mcp_client_secret": enc.encrypt_token(client_secret)
+            if client_secret
+            else "",
             "mcp_token_endpoint": token_endpoint,
             "mcp_url": svc.mcp_url,
             "connector_id": connector_id,
@@ -554,7 +612,9 @@ async def reauth_mcp_service(
             extra["return_url"] = return_url
 
         state = _get_state_manager().generate_secure_state(
-            space_id, user.id, **extra,
+            space_id,
+            user.id,
+            **extra,
         )
 
         auth_params: dict[str, str] = {
@@ -572,7 +632,9 @@ async def reauth_mcp_service(
 
         logger.info(
             "Initiating %s MCP re-auth for user %s, connector %s",
-            svc.name, user.id, connector_id,
+            svc.name,
+            user.id,
+            connector_id,
         )
         return {"auth_url": auth_url}
 
@@ -580,7 +642,10 @@ async def reauth_mcp_service(
         raise
     except Exception as e:
         logger.error(
-            "Failed to initiate %s MCP re-auth: %s", service, e, exc_info=True,
+            "Failed to initiate %s MCP re-auth: %s",
+            service,
+            e,
+            exc_info=True,
         )
         raise HTTPException(
             status_code=500,
@@ -591,6 +656,7 @@ async def reauth_mcp_service(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _invalidate_cache(space_id: int) -> None:
     try:

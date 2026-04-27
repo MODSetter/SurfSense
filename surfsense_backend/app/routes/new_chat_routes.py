@@ -24,9 +24,9 @@ from sqlalchemy.orm import selectinload
 
 from app.agents.new_chat.filesystem_selection import (
     ClientPlatform,
-    LocalFilesystemMount,
     FilesystemMode,
     FilesystemSelection,
+    LocalFilesystemMount,
 )
 from app.config import config
 from app.db import (

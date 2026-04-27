@@ -1,15 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import {
-	AlertCircle,
-	Dot,
-	FileText,
-	Info,
-	Pencil,
-	RefreshCw,
-	Trash2,
-} from "lucide-react";
+import { AlertCircle, Dot, FileText, Info, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { membersAtom, myAccessAtom } from "@/atoms/members/members-query.atoms";
 import { deleteNewLLMConfigMutationAtom } from "@/atoms/new-llm-config/new-llm-config-mutation.atoms";

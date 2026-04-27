@@ -45,8 +45,8 @@ import {
 } from "@/components/assistant-ui/token-usage-context";
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
 import { useMessagesSync } from "@/hooks/use-messages-sync";
-import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { getAgentFilesystemSelection } from "@/lib/agent-filesystem";
+import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { getBearerToken } from "@/lib/auth-utils";
 import { convertToThreadMessage } from "@/lib/chat/message-utils";
 import {
@@ -661,8 +661,7 @@ export default function NewChatPage() {
 				const selection = await getAgentFilesystemSelection(searchSpaceId);
 				if (
 					selection.filesystem_mode === "desktop_local_folder" &&
-					(!selection.local_filesystem_mounts ||
-						selection.local_filesystem_mounts.length === 0)
+					(!selection.local_filesystem_mounts || selection.local_filesystem_mounts.length === 0)
 				) {
 					toast.error("Select a local folder before using Local Folder mode.");
 					return;
@@ -842,14 +841,7 @@ export default function NewChatPage() {
 									});
 								} else {
 									const tcId = `interrupt-${action.name}`;
-									addToolCall(
-										contentPartsState,
-										toolsWithUI,
-										tcId,
-										action.name,
-										action.args,
-										true
-									);
+									addToolCall(contentPartsState, toolsWithUI, tcId, action.name, action.args, true);
 									updateToolCall(contentPartsState, tcId, {
 										result: { __interrupt__: true, ...interruptData },
 									});
@@ -1189,14 +1181,7 @@ export default function NewChatPage() {
 									});
 								} else {
 									const tcId = `interrupt-${action.name}`;
-									addToolCall(
-										contentPartsState,
-										toolsWithUI,
-										tcId,
-										action.name,
-										action.args,
-										true
-									);
+									addToolCall(contentPartsState, toolsWithUI, tcId, action.name, action.args, true);
 									updateToolCall(contentPartsState, tcId, {
 										result: {
 											__interrupt__: true,

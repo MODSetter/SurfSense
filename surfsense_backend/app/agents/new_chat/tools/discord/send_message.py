@@ -35,13 +35,21 @@ def create_send_discord_message_tool(
             - If status is "rejected", the user explicitly declined. Do NOT retry.
         """
         if db_session is None or search_space_id is None or user_id is None:
-            return {"status": "error", "message": "Discord tool not properly configured."}
+            return {
+                "status": "error",
+                "message": "Discord tool not properly configured.",
+            }
 
         if len(content) > 2000:
-            return {"status": "error", "message": "Message exceeds Discord's 2000-character limit."}
+            return {
+                "status": "error",
+                "message": "Message exceeds Discord's 2000-character limit.",
+            }
 
         try:
-            connector = await get_discord_connector(db_session, search_space_id, user_id)
+            connector = await get_discord_connector(
+                db_session, search_space_id, user_id
+            )
             if not connector:
                 return {"status": "error", "message": "No Discord connector found."}
 
@@ -53,7 +61,10 @@ def create_send_discord_message_tool(
             )
 
             if result.rejected:
-                return {"status": "rejected", "message": "User declined. Message was not sent."}
+                return {
+                    "status": "rejected",
+                    "message": "User declined. Message was not sent.",
+                }
 
             final_content = result.params.get("content", content)
             final_channel = result.params.get("channel_id", channel_id)
@@ -72,11 +83,21 @@ def create_send_discord_message_tool(
                 )
 
             if resp.status_code == 401:
-                return {"status": "auth_error", "message": "Discord bot token is invalid.", "connector_type": "discord"}
+                return {
+                    "status": "auth_error",
+                    "message": "Discord bot token is invalid.",
+                    "connector_type": "discord",
+                }
             if resp.status_code == 403:
-                return {"status": "error", "message": "Bot lacks permission to send messages in this channel."}
+                return {
+                    "status": "error",
+                    "message": "Bot lacks permission to send messages in this channel.",
+                }
             if resp.status_code not in (200, 201):
-                return {"status": "error", "message": f"Discord API error: {resp.status_code}"}
+                return {
+                    "status": "error",
+                    "message": f"Discord API error: {resp.status_code}",
+                }
 
             msg_data = resp.json()
             return {

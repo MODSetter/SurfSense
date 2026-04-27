@@ -13,7 +13,7 @@ import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import { formatRelativeDate } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
-import { LIVE_CONNECTOR_TYPES, getReauthEndpoint } from "../constants/connector-constants";
+import { getReauthEndpoint, LIVE_CONNECTOR_TYPES } from "../constants/connector-constants";
 import { useConnectorStatus } from "../hooks/use-connector-status";
 import { getConnectorDisplayName } from "../tabs/all-connectors-tab";
 
@@ -182,11 +182,14 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 					</div>
 				) : (
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-					{typeConnectors.map((connector) => {
-						const isIndexing = indexingConnectorIds.has(connector.id);
-						const connectorReauthEndpoint = getReauthEndpoint(connector);
-						const isAuthExpired = !!connectorReauthEndpoint && connector.config?.auth_expired === true;
-						const isLive = LIVE_CONNECTOR_TYPES.has(connector.connector_type) || Boolean(connector.config?.server_config);
+						{typeConnectors.map((connector) => {
+							const isIndexing = indexingConnectorIds.has(connector.id);
+							const connectorReauthEndpoint = getReauthEndpoint(connector);
+							const isAuthExpired =
+								!!connectorReauthEndpoint && connector.config?.auth_expired === true;
+							const isLive =
+								LIVE_CONNECTOR_TYPES.has(connector.connector_type) ||
+								Boolean(connector.config?.server_config);
 
 							return (
 								<div
@@ -225,73 +228,73 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 											</p>
 										) : null}
 									</div>
-								{isAuthExpired ? (
-									<Button
-										size="sm"
-										className="h-8 text-[11px] px-3 rounded-lg font-medium bg-amber-600 hover:bg-amber-700 text-white border-0 shadow-xs shrink-0"
-										onClick={() => handleReauth(connector)}
-										disabled={reauthingId === connector.id}
-									>
-										<RefreshCw
-											className={cn("size-3.5", reauthingId === connector.id && "animate-spin")}
-										/>
-										Re-authenticate
-									</Button>
-								) : isLive && onDisconnect ? (
-									confirmDisconnectId === connector.id ? (
-										<div className="flex items-center gap-1.5 shrink-0">
+									{isAuthExpired ? (
+										<Button
+											size="sm"
+											className="h-8 text-[11px] px-3 rounded-lg font-medium bg-amber-600 hover:bg-amber-700 text-white border-0 shadow-xs shrink-0"
+											onClick={() => handleReauth(connector)}
+											disabled={reauthingId === connector.id}
+										>
+											<RefreshCw
+												className={cn("size-3.5", reauthingId === connector.id && "animate-spin")}
+											/>
+											Re-authenticate
+										</Button>
+									) : isLive && onDisconnect ? (
+										confirmDisconnectId === connector.id ? (
+											<div className="flex items-center gap-1.5 shrink-0">
+												<Button
+													variant="destructive"
+													size="sm"
+													className="h-8 text-[11px] px-3 rounded-lg font-medium shadow-xs"
+													onClick={async () => {
+														setDisconnectingId(connector.id);
+														setConfirmDisconnectId(null);
+														try {
+															await onDisconnect(connector);
+														} finally {
+															setDisconnectingId(null);
+														}
+													}}
+													disabled={disconnectingId === connector.id}
+												>
+													{disconnectingId === connector.id ? (
+														<RefreshCw className="size-3.5 animate-spin" />
+													) : (
+														"Confirm"
+													)}
+												</Button>
+												<Button
+													variant="ghost"
+													size="sm"
+													className="h-8 text-[11px] px-2 rounded-lg"
+													onClick={() => setConfirmDisconnectId(null)}
+													disabled={disconnectingId === connector.id}
+												>
+													Cancel
+												</Button>
+											</div>
+										) : (
 											<Button
-												variant="destructive"
+												variant="secondary"
 												size="sm"
-												className="h-8 text-[11px] px-3 rounded-lg font-medium shadow-xs"
-											onClick={async () => {
-												setDisconnectingId(connector.id);
-												setConfirmDisconnectId(null);
-												try {
-													await onDisconnect(connector);
-												} finally {
-													setDisconnectingId(null);
-												}
-											}}
-												disabled={disconnectingId === connector.id}
+												className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-red-50 hover:text-red-700 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-red-950 dark:hover:text-red-400 shrink-0"
+												onClick={() => setConfirmDisconnectId(connector.id)}
 											>
-												{disconnectingId === connector.id ? (
-													<RefreshCw className="size-3.5 animate-spin" />
-												) : (
-													"Confirm"
-												)}
+												<Trash2 className="size-3.5" />
+												Disconnect
 											</Button>
-											<Button
-												variant="ghost"
-												size="sm"
-												className="h-8 text-[11px] px-2 rounded-lg"
-												onClick={() => setConfirmDisconnectId(null)}
-												disabled={disconnectingId === connector.id}
-											>
-												Cancel
-											</Button>
-										</div>
+										)
 									) : (
 										<Button
 											variant="secondary"
 											size="sm"
-											className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-red-50 hover:text-red-700 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-red-950 dark:hover:text-red-400 shrink-0"
-											onClick={() => setConfirmDisconnectId(connector.id)}
+											className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80 shrink-0"
+											onClick={() => onManage(connector)}
 										>
-											<Trash2 className="size-3.5" />
-											Disconnect
+											Manage
 										</Button>
-									)
-								) : (
-									<Button
-										variant="secondary"
-										size="sm"
-										className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80 shrink-0"
-										onClick={() => onManage(connector)}
-									>
-										Manage
-									</Button>
-								)}
+									)}
 								</div>
 							);
 						})}

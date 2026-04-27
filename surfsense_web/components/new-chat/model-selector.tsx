@@ -8,9 +8,9 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	ChevronUp,
-	Pencil,
 	ImageIcon,
 	Layers,
+	Pencil,
 	Plus,
 	ScanEye,
 	Search,
@@ -741,9 +741,7 @@ export function ModelSelector({
 			<div
 				className={cn(
 					"shrink-0 border-border/50 flex relative",
-					isMobile
-						? "flex-row items-center border-b border-border/40"
-						: "flex-col w-10 border-r"
+					isMobile ? "flex-row items-center border-b border-border/40" : "flex-col w-10 border-r"
 				)}
 			>
 				{!isMobile && (
@@ -769,9 +767,7 @@ export function ModelSelector({
 					<div
 						className={cn(
 							"absolute left-0 top-0 bottom-0 z-10 w-5 flex items-center justify-center transition-all duration-200 ease-out pointer-events-none",
-							sidebarScrollPos === "top"
-								? "opacity-0 -translate-x-1"
-								: "opacity-100 translate-x-0"
+							sidebarScrollPos === "top" ? "opacity-0 -translate-x-1" : "opacity-100 translate-x-0"
 						)}
 					>
 						<ChevronLeft className="size-3 text-muted-foreground" />

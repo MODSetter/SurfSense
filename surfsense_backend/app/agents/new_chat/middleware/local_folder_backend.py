@@ -120,7 +120,9 @@ class LocalFolderBackend:
         if not target.exists() or not target.is_dir():
             return []
         infos: list[FileInfo] = []
-        for child in sorted(target.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())):
+        for child in sorted(
+            target.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())
+        ):
             infos.append(
                 FileInfo(
                     path=self._to_virtual(child, self._root),
@@ -317,7 +319,9 @@ class LocalFolderBackend:
             return WriteResult(error="Error: source and destination paths are the same")
         with self._acquire_path_locks(source_path, destination_path):
             if not source.exists():
-                return WriteResult(error=f"Error: source path '{source_path}' not found")
+                return WriteResult(
+                    error=f"Error: source path '{source_path}' not found"
+                )
             if destination.exists():
                 if not overwrite:
                     return WriteResult(
@@ -339,8 +343,12 @@ class LocalFolderBackend:
                 else:
                     source.rename(destination)
             except OSError as exc:
-                return WriteResult(error=f"Error: failed to move '{source_path}': {exc}")
-        return WriteResult(path=self._to_virtual(destination, self._root), files_update=None)
+                return WriteResult(
+                    error=f"Error: failed to move '{source_path}': {exc}"
+                )
+        return WriteResult(
+            path=self._to_virtual(destination, self._root), files_update=None
+        )
 
     async def amove(
         self,
@@ -368,12 +376,16 @@ class LocalFolderBackend:
             if not path.exists() or not path.is_file():
                 return EditResult(error=f"Error: File '{file_path}' not found")
             content = path.read_text(encoding="utf-8", errors="replace")
-            result = perform_string_replacement(content, old_string, new_string, replace_all)
+            result = perform_string_replacement(
+                content, old_string, new_string, replace_all
+            )
             if isinstance(result, str):
                 return EditResult(error=result)
             updated_content, occurrences = result
             self._write_text_atomic(path, updated_content)
-        return EditResult(path=file_path, files_update=None, occurrences=int(occurrences))
+        return EditResult(
+            path=file_path, files_update=None, occurrences=int(occurrences)
+        )
 
     async def aedit(
         self,
@@ -447,7 +459,9 @@ class LocalFolderBackend:
         matches: list[GrepMatch] = []
         for file_path in self._iter_candidate_files(path, glob):
             try:
-                lines = file_path.read_text(encoding="utf-8", errors="replace").splitlines()
+                lines = file_path.read_text(
+                    encoding="utf-8", errors="replace"
+                ).splitlines()
             except Exception:
                 continue
             for idx, line in enumerate(lines, start=1):
@@ -481,12 +495,18 @@ class LocalFolderBackend:
                     FileUploadResponse(path=virtual_path, error=_FILE_NOT_FOUND)
                 )
             except IsADirectoryError:
-                responses.append(FileUploadResponse(path=virtual_path, error=_IS_DIRECTORY))
+                responses.append(
+                    FileUploadResponse(path=virtual_path, error=_IS_DIRECTORY)
+                )
             except Exception:
-                responses.append(FileUploadResponse(path=virtual_path, error=_INVALID_PATH))
+                responses.append(
+                    FileUploadResponse(path=virtual_path, error=_INVALID_PATH)
+                )
         return responses
 
-    async def aupload_files(self, files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
+    async def aupload_files(
+        self, files: list[tuple[str, bytes]]
+    ) -> list[FileUploadResponse]:
         return await asyncio.to_thread(self.upload_files, files)
 
     def download_files(self, paths: list[str]) -> list[FileDownloadResponse]:
@@ -515,7 +535,9 @@ class LocalFolderBackend:
                 )
             except Exception:
                 responses.append(
-                    FileDownloadResponse(path=virtual_path, content=None, error=_INVALID_PATH)
+                    FileDownloadResponse(
+                        path=virtual_path, content=None, error=_INVALID_PATH
+                    )
                 )
         return responses
 

@@ -31,7 +31,6 @@ from sqlalchemy.orm import selectinload
 from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
 from app.agents.new_chat.checkpointer import get_checkpointer
 from app.agents.new_chat.filesystem_selection import FilesystemSelection
-from app.config import config
 from app.agents.new_chat.llm_config import (
     AgentConfig,
     create_chat_litellm_from_agent_config,
@@ -182,9 +181,9 @@ def _tool_output_has_error(tool_output: Any) -> bool:
         if tool_output.get("error"):
             return True
         result = tool_output.get("result")
-        if isinstance(result, str) and result.strip().lower().startswith("error:"):
-            return True
-        return False
+        return bool(
+            isinstance(result, str) and result.strip().lower().startswith("error:")
+        )
     if isinstance(tool_output, str):
         return tool_output.strip().lower().startswith("error:")
     return False
@@ -230,7 +229,9 @@ def _log_file_contract(stage: str, result: StreamResult, **extra: Any) -> None:
         "stage": stage,
         "request_id": result.request_id or "unknown",
         "turn_id": result.turn_id or "unknown",
-        "chat_id": result.turn_id.split(":", 1)[0] if ":" in result.turn_id else "unknown",
+        "chat_id": result.turn_id.split(":", 1)[0]
+        if ":" in result.turn_id
+        else "unknown",
         "filesystem_mode": result.filesystem_mode,
         "client_platform": result.client_platform,
         "intent_detected": result.intent_detected,
@@ -242,7 +243,9 @@ def _log_file_contract(stage: str, result: StreamResult, **extra: Any) -> None:
         "commit_gate_reason": result.commit_gate_reason or None,
     }
     payload.update(extra)
-    _perf_log.info("[file_operation_contract] %s", json.dumps(payload, ensure_ascii=False))
+    _perf_log.info(
+        "[file_operation_contract] %s", json.dumps(payload, ensure_ascii=False)
+    )
 
 
 async def _stream_agent_events(
@@ -1289,7 +1292,8 @@ async def _stream_agent_events(
         result.intent_detected = intent_value
     if (
         isinstance(intent_value, str)
-        and intent_value in (
+        and intent_value
+        in (
             "chat_only",
             "file_write",
             "file_read",
@@ -1308,18 +1312,17 @@ async def _stream_agent_events(
         result.commit_gate_passed, result.commit_gate_reason = (
             _evaluate_file_contract_outcome(result)
         )
-        if not result.commit_gate_passed:
-            if _contract_enforcement_active(result):
-                gate_notice = (
-                    "I could not complete the requested file write because no successful "
-                    "write_file/edit_file operation was confirmed."
-                )
-                gate_text_id = streaming_service.generate_text_id()
-                yield streaming_service.format_text_start(gate_text_id)
-                yield streaming_service.format_text_delta(gate_text_id, gate_notice)
-                yield streaming_service.format_text_end(gate_text_id)
-                yield streaming_service.format_terminal_info(gate_notice, "error")
-                accumulated_text = gate_notice
+        if not result.commit_gate_passed and _contract_enforcement_active(result):
+            gate_notice = (
+                "I could not complete the requested file write because no successful "
+                "write_file/edit_file operation was confirmed."
+            )
+            gate_text_id = streaming_service.generate_text_id()
+            yield streaming_service.format_text_start(gate_text_id)
+            yield streaming_service.format_text_delta(gate_text_id, gate_notice)
+            yield streaming_service.format_text_end(gate_text_id)
+            yield streaming_service.format_terminal_info(gate_notice, "error")
+            accumulated_text = gate_notice
     else:
         result.commit_gate_passed = True
         result.commit_gate_reason = ""

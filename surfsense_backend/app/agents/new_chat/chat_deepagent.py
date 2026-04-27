@@ -50,7 +50,10 @@ from app.agents.new_chat.system_prompt import (
     build_configurable_system_prompt,
     build_surfsense_system_prompt,
 )
-from app.agents.new_chat.tools.registry import build_tools_async, get_connector_gated_tools
+from app.agents.new_chat.tools.registry import (
+    build_tools_async,
+    get_connector_gated_tools,
+)
 from app.db import ChatVisibility
 from app.services.connector_service import ConnectorService
 from app.utils.perf import get_perf_logger
@@ -294,9 +297,7 @@ async def create_surfsense_deep_agent(
     }
 
     modified_disabled_tools = list(disabled_tools) if disabled_tools else []
-    modified_disabled_tools.extend(
-        get_connector_gated_tools(available_connectors)
-    )
+    modified_disabled_tools.extend(get_connector_gated_tools(available_connectors))
 
     # Remove direct KB search tool; we now pre-seed a scoped filesystem via middleware.
     if "search_knowledge_base" not in modified_disabled_tools:
@@ -328,7 +329,8 @@ async def create_surfsense_deep_agent(
         meta = getattr(t, "metadata", None) or {}
         if meta.get("mcp_is_generic") and meta.get("mcp_connector_name"):
             _mcp_connector_tools.setdefault(
-                meta["mcp_connector_name"], [],
+                meta["mcp_connector_name"],
+                [],
             ).append(t.name)
 
     if _mcp_connector_tools:

@@ -50,12 +50,19 @@ def create_send_teams_message_tool(
             result = request_approval(
                 action_type="teams_send_message",
                 tool_name="send_teams_message",
-                params={"team_id": team_id, "channel_id": channel_id, "content": content},
+                params={
+                    "team_id": team_id,
+                    "channel_id": channel_id,
+                    "content": content,
+                },
                 context={"connector_id": connector.id},
             )
 
             if result.rejected:
-                return {"status": "rejected", "message": "User declined. Message was not sent."}
+                return {
+                    "status": "rejected",
+                    "message": "User declined. Message was not sent.",
+                }
 
             final_content = result.params.get("content", content)
             final_team = result.params.get("team_id", team_id)
@@ -74,20 +81,27 @@ def create_send_teams_message_tool(
                 )
 
             if resp.status_code == 401:
-                return {"status": "auth_error", "message": "Teams token expired. Please re-authenticate.", "connector_type": "teams"}
+                return {
+                    "status": "auth_error",
+                    "message": "Teams token expired. Please re-authenticate.",
+                    "connector_type": "teams",
+                }
             if resp.status_code == 403:
                 return {
                     "status": "insufficient_permissions",
                     "message": "Missing ChannelMessage.Send permission. Please re-authenticate with updated scopes.",
                 }
             if resp.status_code not in (200, 201):
-                return {"status": "error", "message": f"Graph API error: {resp.status_code} — {resp.text[:200]}"}
+                return {
+                    "status": "error",
+                    "message": f"Graph API error: {resp.status_code} — {resp.text[:200]}",
+                }
 
             msg_data = resp.json()
             return {
                 "status": "success",
                 "message_id": msg_data.get("id"),
-                "message": f"Message sent to Teams channel.",
+                "message": "Message sent to Teams channel.",
             }
 
         except Exception as e:

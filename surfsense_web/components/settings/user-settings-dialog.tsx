@@ -1,7 +1,16 @@
 "use client";
 
 import { useAtom } from "jotai";
-import { Brain, CircleUser, Globe, Keyboard, KeyRound, Monitor, ReceiptText, Sparkles } from "lucide-react";
+import {
+	Brain,
+	CircleUser,
+	Globe,
+	Keyboard,
+	KeyRound,
+	Monitor,
+	ReceiptText,
+	Sparkles,
+} from "lucide-react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
@@ -53,9 +62,9 @@ const DesktopContent = dynamic(
 );
 const DesktopShortcutsContent = dynamic(
 	() =>
-		import("@/app/dashboard/[search_space_id]/user-settings/components/DesktopShortcutsContent").then(
-			(m) => ({ default: m.DesktopShortcutsContent })
-		),
+		import(
+			"@/app/dashboard/[search_space_id]/user-settings/components/DesktopShortcutsContent"
+		).then((m) => ({ default: m.DesktopShortcutsContent })),
 	{ ssr: false }
 );
 const MemoryContent = dynamic(

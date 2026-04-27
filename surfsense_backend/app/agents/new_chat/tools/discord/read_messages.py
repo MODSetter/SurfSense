@@ -31,12 +31,17 @@ def create_read_discord_messages_tool(
             id, author, content, timestamp.
         """
         if db_session is None or search_space_id is None or user_id is None:
-            return {"status": "error", "message": "Discord tool not properly configured."}
+            return {
+                "status": "error",
+                "message": "Discord tool not properly configured.",
+            }
 
         limit = min(limit, 50)
 
         try:
-            connector = await get_discord_connector(db_session, search_space_id, user_id)
+            connector = await get_discord_connector(
+                db_session, search_space_id, user_id
+            )
             if not connector:
                 return {"status": "error", "message": "No Discord connector found."}
 
@@ -51,11 +56,21 @@ def create_read_discord_messages_tool(
                 )
 
             if resp.status_code == 401:
-                return {"status": "auth_error", "message": "Discord bot token is invalid.", "connector_type": "discord"}
+                return {
+                    "status": "auth_error",
+                    "message": "Discord bot token is invalid.",
+                    "connector_type": "discord",
+                }
             if resp.status_code == 403:
-                return {"status": "error", "message": "Bot lacks permission to read this channel."}
+                return {
+                    "status": "error",
+                    "message": "Bot lacks permission to read this channel.",
+                }
             if resp.status_code != 200:
-                return {"status": "error", "message": f"Discord API error: {resp.status_code}"}
+                return {
+                    "status": "error",
+                    "message": f"Discord API error: {resp.status_code}",
+                }
 
             messages = [
                 {
@@ -67,7 +82,12 @@ def create_read_discord_messages_tool(
                 for m in resp.json()
             ]
 
-            return {"status": "success", "channel_id": channel_id, "messages": messages, "total": len(messages)}
+            return {
+                "status": "success",
+                "channel_id": channel_id,
+                "messages": messages,
+                "total": len(messages),
+            }
 
         except Exception as e:
             from langgraph.errors import GraphInterrupt

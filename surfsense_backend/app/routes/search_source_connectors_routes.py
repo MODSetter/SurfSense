@@ -3092,7 +3092,7 @@ async def trust_mcp_tool(
             select(SearchSourceConnector).filter(
                 SearchSourceConnector.id == connector_id,
                 SearchSourceConnector.user_id == user.id,
-                cast(SearchSourceConnector.config, PG_JSONB).has_key("server_config"),  # noqa: W601
+                cast(SearchSourceConnector.config, PG_JSONB).has_key("server_config"),
             )
         )
         connector = result.scalars().first()
@@ -3147,7 +3147,7 @@ async def untrust_mcp_tool(
             select(SearchSourceConnector).filter(
                 SearchSourceConnector.id == connector_id,
                 SearchSourceConnector.user_id == user.id,
-                cast(SearchSourceConnector.config, PG_JSONB).has_key("server_config"),  # noqa: W601
+                cast(SearchSourceConnector.config, PG_JSONB).has_key("server_config"),
             )
         )
         connector = result.scalars().first()

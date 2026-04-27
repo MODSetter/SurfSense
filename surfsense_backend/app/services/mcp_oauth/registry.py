@@ -70,12 +70,14 @@ MCP_SERVICES: dict[str, MCPServiceConfig] = {
             "createJiraIssue",
             "editJiraIssue",
         ],
-        readonly_tools=frozenset({
-            "getAccessibleAtlassianResources",
-            "searchJiraIssuesUsingJql",
-            "getVisibleJiraProjects",
-            "getJiraProjectIssueTypesMetadata",
-        }),
+        readonly_tools=frozenset(
+            {
+                "getAccessibleAtlassianResources",
+                "searchJiraIssuesUsingJql",
+                "getVisibleJiraProjects",
+                "getJiraProjectIssueTypesMetadata",
+            }
+        ),
         account_metadata_keys=["cloud_id", "site_name", "base_url"],
     ),
     "clickup": MCPServiceConfig(
@@ -99,15 +101,23 @@ MCP_SERVICES: dict[str, MCPServiceConfig] = {
         auth_endpoint_override="https://slack.com/oauth/v2_user/authorize",
         token_endpoint_override="https://slack.com/api/oauth.v2.user.access",
         scopes=[
-            "search:read.public", "search:read.private", "search:read.mpim", "search:read.im",
-            "channels:history", "groups:history", "mpim:history", "im:history",
+            "search:read.public",
+            "search:read.private",
+            "search:read.mpim",
+            "search:read.im",
+            "channels:history",
+            "groups:history",
+            "mpim:history",
+            "im:history",
         ],
         allowed_tools=[
             "slack_search_channels",
             "slack_read_channel",
             "slack_read_thread",
         ],
-        readonly_tools=frozenset({"slack_search_channels", "slack_read_channel", "slack_read_thread"}),
+        readonly_tools=frozenset(
+            {"slack_search_channels", "slack_read_channel", "slack_read_thread"}
+        ),
         # TODO: oauth.v2.user.access only returns team.id, not team.name.
         # To populate team_name, either add "team:read" scope and call
         # GET /api/team.info during OAuth callback, or switch to oauth.v2.access.
@@ -127,7 +137,9 @@ MCP_SERVICES: dict[str, MCPServiceConfig] = {
             "list_tables_for_base",
             "list_records_for_table",
         ],
-        readonly_tools=frozenset({"list_bases", "list_tables_for_base", "list_records_for_table"}),
+        readonly_tools=frozenset(
+            {"list_bases", "list_tables_for_base", "list_records_for_table"}
+        ),
         account_metadata_keys=["user_id", "user_email"],
     ),
 }
@@ -136,20 +148,22 @@ _CONNECTOR_TYPE_TO_SERVICE: dict[str, MCPServiceConfig] = {
     svc.connector_type: svc for svc in MCP_SERVICES.values()
 }
 
-LIVE_CONNECTOR_TYPES: frozenset[SearchSourceConnectorType] = frozenset({
-    SearchSourceConnectorType.SLACK_CONNECTOR,
-    SearchSourceConnectorType.TEAMS_CONNECTOR,
-    SearchSourceConnectorType.LINEAR_CONNECTOR,
-    SearchSourceConnectorType.JIRA_CONNECTOR,
-    SearchSourceConnectorType.CLICKUP_CONNECTOR,
-    SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
-    SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
-    SearchSourceConnectorType.AIRTABLE_CONNECTOR,
-    SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
-    SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
-    SearchSourceConnectorType.DISCORD_CONNECTOR,
-    SearchSourceConnectorType.LUMA_CONNECTOR,
-})
+LIVE_CONNECTOR_TYPES: frozenset[SearchSourceConnectorType] = frozenset(
+    {
+        SearchSourceConnectorType.SLACK_CONNECTOR,
+        SearchSourceConnectorType.TEAMS_CONNECTOR,
+        SearchSourceConnectorType.LINEAR_CONNECTOR,
+        SearchSourceConnectorType.JIRA_CONNECTOR,
+        SearchSourceConnectorType.CLICKUP_CONNECTOR,
+        SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
+        SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
+        SearchSourceConnectorType.AIRTABLE_CONNECTOR,
+        SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
+        SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
+        SearchSourceConnectorType.DISCORD_CONNECTOR,
+        SearchSourceConnectorType.LUMA_CONNECTOR,
+    }
+)
 
 
 def get_service(key: str) -> MCPServiceConfig | None:

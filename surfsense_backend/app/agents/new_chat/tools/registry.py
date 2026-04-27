@@ -50,6 +50,7 @@ from .confluence import (
     create_delete_confluence_page_tool,
     create_update_confluence_page_tool,
 )
+from .connected_accounts import create_get_connected_accounts_tool
 from .discord import (
     create_list_discord_channels_tool,
     create_read_discord_messages_tool,
@@ -78,7 +79,6 @@ from .google_drive import (
     create_create_google_drive_file_tool,
     create_delete_google_drive_file_tool,
 )
-from .connected_accounts import create_get_connected_accounts_tool
 from .luma import (
     create_create_luma_event_tool,
     create_list_luma_events_tool,
@@ -675,10 +675,7 @@ def get_connector_gated_tools(
     available_connectors: list[str] | None,
 ) -> list[str]:
     """Return tool names to disable"""
-    if available_connectors is None:
-        available = set()
-    else:
-        available = set(available_connectors)
+    available = set() if available_connectors is None else set(available_connectors)
 
     disabled: list[str] = []
     for tool_def in BUILTIN_TOOLS:
@@ -829,14 +826,16 @@ async def build_tools_async(
             tools.extend(mcp_tools)
             logging.info(
                 "Registered %d MCP tools: %s",
-                len(mcp_tools), [t.name for t in mcp_tools],
+                len(mcp_tools),
+                [t.name for t in mcp_tools],
             )
         except Exception as e:
             logging.exception("Failed to load MCP tools: %s", e)
 
     logging.info(
         "Total tools for agent: %d — %s",
-        len(tools), [t.name for t in tools],
+        len(tools),
+        [t.name for t in tools],
     )
 
     return tools
