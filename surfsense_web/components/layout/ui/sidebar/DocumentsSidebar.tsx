@@ -6,19 +6,17 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	FileText,
-	Folder,
-	FolderPlus,
 	FolderClock,
 	Laptop,
 	Lock,
 	Paperclip,
-	Search,
 	Server,
 	Trash2,
 	Unplug,
 	Upload,
 	X,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -49,7 +47,6 @@ import { EXPORT_FILE_EXTENSIONS } from "@/components/shared/ExportMenuItems";
 import {
 	DEFAULT_EXCLUDE_PATTERNS,
 	FolderWatchDialog,
-	type SelectedFolder,
 } from "@/components/sources/FolderWatchDialog";
 import {
 	AlertDialog,
@@ -63,17 +60,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -83,7 +71,7 @@ import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { useElectronAPI } from "@/hooks/use-platform";
+import { usePlatform, useElectronAPI } from "@/hooks/use-platform";
 import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
@@ -92,12 +80,42 @@ import { authenticatedFetch } from "@/lib/auth-utils";
 import { uploadFolderScan } from "@/lib/folder-sync-upload";
 import { getSupportedExtensionsSet } from "@/lib/supported-extensions";
 import { queries } from "@/zero/queries/index";
-import { LocalFilesystemBrowser } from "./LocalFilesystemBrowser";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
+
+const DesktopLocalTabContent = dynamic(
+	() => import("./DesktopLocalTabContent").then((mod) => mod.DesktopLocalTabContent),
+	{ ssr: false }
+);
 
 const NON_DELETABLE_DOCUMENT_TYPES: readonly string[] = ["SURFSENSE_DOCS"];
 const LOCAL_FILESYSTEM_TRUST_KEY = "surfsense.local-filesystem-trust.v1";
-const MAX_LOCAL_FILESYSTEM_ROOTS = 5;
+const MAX_LOCAL_FILESYSTEM_ROOTS = 10;
+
+function CloudDocumentsSkeleton() {
+	const rows = [
+		{ id: "row-1", widthClass: "w-44" },
+		{ id: "row-2", widthClass: "w-32" },
+		{ id: "row-3", widthClass: "w-32" },
+		{ id: "row-4", widthClass: "w-44" },
+		{ id: "row-5", widthClass: "w-32" },
+		{ id: "row-6", widthClass: "w-32" },
+		{ id: "row-7", widthClass: "w-44" },
+		{ id: "row-8", widthClass: "w-32" },
+	];
+
+	return (
+		<div className="flex-1 min-h-0 overflow-y-auto px-2 py-1">
+			<div className="space-y-1">
+				{rows.map((row) => (
+					<div key={row.id} className="flex h-8 items-center gap-2 px-2">
+						<Skeleton className="h-4 w-4 rounded-sm" />
+						<Skeleton className={`h-4 ${row.widthClass}`} />
+					</div>
+				))}
+			</div>
+		</div>
+	);
+}
 
 type FilesystemSettings = {
 	mode: "cloud" | "desktop_local_folder";
@@ -114,9 +132,6 @@ interface WatchedFolderEntry {
 	searchSpaceId: number;
 	active: boolean;
 }
-
-const getFolderDisplayName = (rootPath: string): string =>
-	rootPath.split(/[\\/]/).at(-1) || rootPath;
 
 const SHOWCASE_CONNECTORS = [
 	{ type: "GOOGLE_DRIVE_CONNECTOR", label: "Google Drive" },
@@ -143,25 +158,40 @@ interface DocumentsSidebarProps {
 
 export function DocumentsSidebar(props: DocumentsSidebarProps) {
 	const isAnonymous = useIsAnonymous();
+	const { isDesktop } = usePlatform();
 	if (isAnonymous) {
 		return <AnonymousDocumentsSidebar {...props} />;
 	}
-	return <AuthenticatedDocumentsSidebar {...props} />;
+	return isDesktop ? (
+		<AuthenticatedDesktopDocumentsSidebar {...props} />
+	) : (
+		<AuthenticatedWebDocumentsSidebar {...props} />
+	);
 }
 
-function AuthenticatedDocumentsSidebar({
+function AuthenticatedDesktopDocumentsSidebar(props: DocumentsSidebarProps) {
+	return <AuthenticatedDocumentsSidebarBase {...props} desktopFeaturesEnabled />;
+}
+
+function AuthenticatedWebDocumentsSidebar(props: DocumentsSidebarProps) {
+	return <AuthenticatedDocumentsSidebarBase {...props} desktopFeaturesEnabled={false} />;
+}
+
+function AuthenticatedDocumentsSidebarBase({
 	open,
 	onOpenChange,
 	isDocked = false,
 	onDockedChange,
 	embedded = false,
 	headerAction,
-}: DocumentsSidebarProps) {
+	desktopFeaturesEnabled,
+}: DocumentsSidebarProps & { desktopFeaturesEnabled: boolean }) {
 	const t = useTranslations("documents");
 	const tSidebar = useTranslations("sidebar");
 	const params = useParams();
 	const isMobile = !useMediaQuery("(min-width: 640px)");
-	const electronAPI = useElectronAPI();
+	const platformElectronAPI = useElectronAPI();
+	const electronAPI = desktopFeaturesEnabled ? platformElectronAPI : null;
 	const searchSpaceId = Number(params.search_space_id);
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 	const setRightPanelCollapsed = useSetAtom(rightPanelCollapsedAtom);
@@ -171,9 +201,6 @@ function AuthenticatedDocumentsSidebar({
 
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebouncedValue(search, 250);
-	const [localSearch, setLocalSearch] = useState("");
-	const debouncedLocalSearch = useDebouncedValue(localSearch, 250);
-	const localSearchInputRef = useRef<HTMLInputElement>(null);
 	const [activeTypes, setActiveTypes] = useState<DocumentTypeEnum[]>([]);
 	const [filesystemSettings, setFilesystemSettings] = useState<FilesystemSettings | null>(null);
 	const [localTrustDialogOpen, setLocalTrustDialogOpen] = useState(false);
@@ -181,13 +208,13 @@ function AuthenticatedDocumentsSidebar({
 	const [watchedFolderIds, setWatchedFolderIds] = useState<Set<number>>(new Set());
 	const [folderWatchOpen, setFolderWatchOpen] = useAtom(folderWatchDialogOpenAtom);
 	const [watchInitialFolder, setWatchInitialFolder] = useAtom(folderWatchInitialFolderAtom);
-	const isElectron = typeof window !== "undefined" && !!window.electronAPI;
+	const isElectron = desktopFeaturesEnabled && typeof window !== "undefined" && !!window.electronAPI;
 
 	useEffect(() => {
 		if (!electronAPI?.getAgentFilesystemSettings) return;
 		let mounted = true;
 		electronAPI
-			.getAgentFilesystemSettings()
+			.getAgentFilesystemSettings(searchSpaceId)
 			.then((settings: FilesystemSettings) => {
 				if (!mounted) return;
 				setFilesystemSettings(settings);
@@ -203,7 +230,7 @@ function AuthenticatedDocumentsSidebar({
 		return () => {
 			mounted = false;
 		};
-	}, [electronAPI]);
+	}, [electronAPI, searchSpaceId]);
 
 	const hasLocalFilesystemTrust = useCallback(() => {
 		try {
@@ -219,17 +246,17 @@ function AuthenticatedDocumentsSidebar({
 	const applyLocalRootPath = useCallback(
 		async (path: string) => {
 			if (!electronAPI?.setAgentFilesystemSettings) return;
-			const nextLocalRootPaths = [...localRootPaths, path]
+			const nextLocalRootPaths = [path, ...localRootPaths]
 				.filter((rootPath, index, allPaths) => allPaths.indexOf(rootPath) === index)
 				.slice(0, MAX_LOCAL_FILESYSTEM_ROOTS);
 			if (nextLocalRootPaths.length === localRootPaths.length) return;
 			const updated = await electronAPI.setAgentFilesystemSettings({
 				mode: "desktop_local_folder",
 				localRootPaths: nextLocalRootPaths,
-			});
+			}, searchSpaceId);
 			setFilesystemSettings(updated);
 		},
-		[electronAPI, localRootPaths]
+		[electronAPI, localRootPaths, searchSpaceId]
 	);
 
 	const runPickLocalRoot = useCallback(async () => {
@@ -258,10 +285,10 @@ function AuthenticatedDocumentsSidebar({
 			const updated = await electronAPI.setAgentFilesystemSettings({
 				mode: "desktop_local_folder",
 				localRootPaths: localRootPaths.filter((rootPath) => rootPath !== rootPathToRemove),
-			});
+			}, searchSpaceId);
 			setFilesystemSettings(updated);
 		},
-		[electronAPI, localRootPaths]
+		[electronAPI, localRootPaths, searchSpaceId]
 	);
 
 	const handleClearFilesystemRoots = useCallback(async () => {
@@ -269,19 +296,19 @@ function AuthenticatedDocumentsSidebar({
 		const updated = await electronAPI.setAgentFilesystemSettings({
 			mode: "desktop_local_folder",
 			localRootPaths: [],
-		});
+		}, searchSpaceId);
 		setFilesystemSettings(updated);
-	}, [electronAPI]);
+	}, [electronAPI, searchSpaceId]);
 
 	const handleFilesystemTabChange = useCallback(
 		async (tab: "cloud" | "local") => {
 			if (!electronAPI?.setAgentFilesystemSettings) return;
 			const updated = await electronAPI.setAgentFilesystemSettings({
 				mode: tab === "cloud" ? "cloud" : "desktop_local_folder",
-			});
+			}, searchSpaceId);
 			setFilesystemSettings(updated);
 		},
-		[electronAPI]
+		[electronAPI, searchSpaceId]
 	);
 
 	// AI File Sort state
@@ -407,8 +434,8 @@ function AuthenticatedDocumentsSidebar({
 	);
 
 	// Zero queries for tree data
-	const [zeroFolders] = useQuery(queries.folders.bySpace({ searchSpaceId }));
-	const [zeroAllDocs] = useQuery(queries.documents.bySpace({ searchSpaceId }));
+	const [zeroFolders, zeroFoldersResult] = useQuery(queries.folders.bySpace({ searchSpaceId }));
+	const [zeroAllDocs, zeroAllDocsResult] = useQuery(queries.documents.bySpace({ searchSpaceId }));
 	const [agentCreatedDocs, setAgentCreatedDocs] = useAtom(agentCreatedDocumentsAtom);
 
 	const treeFolders: FolderDisplay[] = useMemo(
@@ -989,6 +1016,9 @@ function AuthenticatedDocumentsSidebar({
 
 	const showFilesystemTabs = !isMobile && !!electronAPI && !!filesystemSettings;
 	const currentFilesystemTab = filesystemSettings?.mode === "desktop_local_folder" ? "local" : "cloud";
+	const showCloudSkeleton =
+		currentFilesystemTab === "cloud" &&
+		(zeroFoldersResult.type !== "complete" || zeroAllDocsResult.type !== "complete");
 
 	const cloudContent = (
 		<>
@@ -1101,173 +1131,73 @@ function AuthenticatedDocumentsSidebar({
 						</div>
 					)}
 
-					<FolderTreeView
-						folders={treeFolders}
-						documents={searchFilteredDocuments}
-						expandedIds={expandedIds}
-						onToggleExpand={toggleFolderExpand}
-						mentionedDocIds={mentionedDocIds}
-						onToggleChatMention={handleToggleChatMention}
-						onToggleFolderSelect={handleToggleFolderSelect}
-						onRenameFolder={handleRenameFolder}
-						onDeleteFolder={handleDeleteFolder}
-						onMoveFolder={handleMoveFolder}
-						onCreateFolder={handleCreateFolder}
-						searchQuery={debouncedSearch.trim() || undefined}
-						onPreviewDocument={(doc) => {
-							openEditorPanel({
-								documentId: doc.id,
-								searchSpaceId,
-								title: doc.title,
-							});
-						}}
-						onEditDocument={(doc) => {
-							openEditorPanel({
-								documentId: doc.id,
-								searchSpaceId,
-								title: doc.title,
-							});
-						}}
-						onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
-						onMoveDocument={handleMoveDocument}
-						onExportDocument={handleExportDocument}
-						onVersionHistory={(doc) => setVersionDocId(doc.id)}
-						activeTypes={activeTypes}
-						onDropIntoFolder={handleDropIntoFolder}
-						onReorderFolder={handleReorderFolder}
-						watchedFolderIds={watchedFolderIds}
-						onRescanFolder={handleRescanFolder}
-						onStopWatchingFolder={handleStopWatching}
-						onExportFolder={handleExportFolder}
-					/>
+					{showCloudSkeleton ? (
+						<CloudDocumentsSkeleton />
+					) : (
+						<FolderTreeView
+							folders={treeFolders}
+							documents={searchFilteredDocuments}
+							expandedIds={expandedIds}
+							onToggleExpand={toggleFolderExpand}
+							mentionedDocIds={mentionedDocIds}
+							onToggleChatMention={handleToggleChatMention}
+							onToggleFolderSelect={handleToggleFolderSelect}
+							onRenameFolder={handleRenameFolder}
+							onDeleteFolder={handleDeleteFolder}
+							onMoveFolder={handleMoveFolder}
+							onCreateFolder={handleCreateFolder}
+							searchQuery={debouncedSearch.trim() || undefined}
+							onPreviewDocument={(doc) => {
+								openEditorPanel({
+									documentId: doc.id,
+									searchSpaceId,
+									title: doc.title,
+								});
+							}}
+							onEditDocument={(doc) => {
+								openEditorPanel({
+									documentId: doc.id,
+									searchSpaceId,
+									title: doc.title,
+								});
+							}}
+							onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
+							onMoveDocument={handleMoveDocument}
+							onExportDocument={handleExportDocument}
+							onVersionHistory={(doc) => setVersionDocId(doc.id)}
+							activeTypes={activeTypes}
+							onDropIntoFolder={handleDropIntoFolder}
+							onReorderFolder={handleReorderFolder}
+							watchedFolderIds={watchedFolderIds}
+							onRescanFolder={handleRescanFolder}
+							onStopWatchingFolder={handleStopWatching}
+							onExportFolder={handleExportFolder}
+						/>
+					)}
 				</div>
 			</div>
 		</>
 	);
 
 	const localContent = (
-		<div className="flex min-h-0 flex-1 flex-col select-none">
-			<div className="mx-4 mt-4 mb-3">
-				<div className="flex h-7 w-full items-stretch rounded-lg border bg-muted/50 text-[11px] text-muted-foreground">
-					{localRootPaths.length > 0 ? (
-						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<button
-									type="button"
-									className="min-w-0 flex-1 flex items-center gap-1 rounded-l-lg px-2 text-left transition-colors hover:bg-muted/80 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-									title={localRootPaths.join("\n")}
-									aria-label="Manage selected folders"
-								>
-									<Folder className="size-3 shrink-0 text-muted-foreground" />
-									<span className="truncate">
-										{localRootPaths.length === 1
-											? "1 folder selected"
-											: `${localRootPaths.length} folders selected`}
-									</span>
-								</button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="start" className="w-56 select-none p-0.5">
-								<DropdownMenuLabel className="px-1.5 pt-1.5 pb-0.5 text-xs font-medium text-muted-foreground">
-									Selected folders
-								</DropdownMenuLabel>
-								<DropdownMenuSeparator className="mx-1 my-0.5" />
-								{localRootPaths.map((rootPath) => (
-									<DropdownMenuItem
-										key={rootPath}
-										onClick={() => {
-											void handleRemoveFilesystemRoot(rootPath);
-										}}
-										className="group h-8 gap-1.5 px-1.5 text-sm text-foreground"
-									>
-										<Folder className="size-3.5 text-muted-foreground" />
-										<span className="min-w-0 flex-1 truncate">
-											{getFolderDisplayName(rootPath)}
-										</span>
-										<X className="size-3 text-muted-foreground transition-colors group-hover:text-foreground" />
-									</DropdownMenuItem>
-								))}
-								<DropdownMenuSeparator className="mx-1 my-0.5" />
-								<DropdownMenuItem
-									variant="destructive"
-									className="h-8 px-1.5 text-xs text-destructive focus:text-destructive"
-									onClick={() => {
-										void handleClearFilesystemRoots();
-									}}
-								>
-									Clear all folders
-								</DropdownMenuItem>
-							</DropdownMenuContent>
-						</DropdownMenu>
-					) : (
-						<div
-							className="min-w-0 flex-1 flex items-center gap-1 px-2"
-							title="No local folders selected"
-						>
-							<Folder className="size-3 shrink-0 text-muted-foreground" />
-							<span className="truncate">No local folders selected</span>
-						</div>
-					)}
-					<Separator
-						orientation="vertical"
-						className="data-[orientation=vertical]:h-3 self-center bg-border"
-					/>
-					<button
-						type="button"
-						className="flex w-8 items-center justify-center rounded-r-lg text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-50"
-						onClick={() => {
-							void handlePickFilesystemRoot();
-						}}
-						disabled={!canAddMoreLocalRoots}
-						aria-label="Add folder"
-						title="Add folder"
-					>
-						<FolderPlus className="size-3.5" />
-					</button>
-				</div>
-			</div>
-			<div className="mx-4 mb-2">
-				<div className="relative flex-1 min-w-0">
-					<div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
-						<Search size={13} aria-hidden="true" />
-					</div>
-					<Input
-						ref={localSearchInputRef}
-						className="peer h-8 w-full pl-8 pr-8 text-sm bg-sidebar border-border/60 select-none focus:select-text"
-						value={localSearch}
-						onChange={(e) => setLocalSearch(e.target.value)}
-						placeholder="Search local files"
-						type="text"
-						aria-label="Search local files"
-					/>
-					{Boolean(localSearch) && (
-						<button
-							type="button"
-							className="absolute inset-y-0 right-0 flex h-full w-8 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground transition-colors"
-							aria-label="Clear local search"
-							onClick={() => {
-								setLocalSearch("");
-								localSearchInputRef.current?.focus();
-							}}
-						>
-							<X size={13} strokeWidth={2} aria-hidden="true" />
-						</button>
-					)}
-				</div>
-			</div>
-			<LocalFilesystemBrowser
-				rootPaths={localRootPaths}
-				searchSpaceId={searchSpaceId}
-				searchQuery={debouncedLocalSearch.trim() || undefined}
-				onOpenFile={(localFilePath) => {
-					openEditorPanel({
-						kind: "local_file",
-						localFilePath,
-						title: localFilePath.split("/").pop() || localFilePath,
-						searchSpaceId,
-					});
-				}}
-			/>
-		</div>
+		<DesktopLocalTabContent
+			localRootPaths={localRootPaths}
+			canAddMoreLocalRoots={canAddMoreLocalRoots}
+			maxLocalFilesystemRoots={MAX_LOCAL_FILESYSTEM_ROOTS}
+			searchSpaceId={searchSpaceId}
+			onPickFilesystemRoot={handlePickFilesystemRoot}
+			onRemoveFilesystemRoot={handleRemoveFilesystemRoot}
+			onClearFilesystemRoots={handleClearFilesystemRoots}
+			onOpenLocalFile={(localFilePath) => {
+				openEditorPanel({
+					kind: "local_file",
+					localFilePath,
+					title: localFilePath.split("/").pop() || localFilePath,
+					searchSpaceId,
+				});
+			}}
+			electronAvailable={!!electronAPI}
+		/>
 	);
 
 	const documentsContent = (
@@ -1300,16 +1230,16 @@ function AuthenticatedDocumentsSidebar({
 										className="h-5 gap-1 px-1.5 text-[11px] select-none focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:bg-muted-foreground/25 data-[state=active]:text-foreground data-[state=active]:shadow-none"
 										title="Cloud"
 									>
-										<Server className="size-3" />
-										<span>Cloud</span>
+										<Server className="size-3 shrink-0" />
+										<span className="leading-none">Cloud</span>
 									</TabsTrigger>
 									<TabsTrigger
 										value="local"
 										className="h-5 gap-1 px-1.5 text-[11px] select-none focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:bg-muted-foreground/25 data-[state=active]:text-foreground data-[state=active]:shadow-none"
 										title="Local"
 									>
-										<Laptop className="size-3" />
-										<span>Local</span>
+										<Laptop className="size-3 shrink-0" />
+										<span className="leading-none">Local</span>
 									</TabsTrigger>
 								</TabsList>
 							</Tabs>
@@ -1361,7 +1291,7 @@ function AuthenticatedDocumentsSidebar({
 						{cloudContent}
 					</TabsContent>
 					<TabsContent value="local" className="mt-0 flex min-h-0 flex-1 flex-col">
-						{localContent}
+						{currentFilesystemTab === "local" ? localContent : null}
 					</TabsContent>
 				</Tabs>
 			) : (

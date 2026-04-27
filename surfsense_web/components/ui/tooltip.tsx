@@ -6,20 +6,19 @@ import { useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
-const MOBILE_BREAKPOINT = 768;
-
-function useIsTouchDevice() {
-	const [isTouch, setIsTouch] = useState(false);
+function useCanHover() {
+	const [canHover, setCanHover] = useState(false);
 
 	useEffect(() => {
-		const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
-		const update = () => setIsTouch(mql.matches);
+		// Hover-capable pointers are a better cross-platform signal than viewport width.
+		const mql = window.matchMedia("(hover: hover) and (pointer: fine)");
+		const update = () => setCanHover(mql.matches);
 		update();
 		mql.addEventListener("change", update);
 		return () => mql.removeEventListener("change", update);
 	}, []);
 
-	return isTouch;
+	return canHover;
 }
 
 function TooltipProvider({
@@ -42,14 +41,14 @@ function Tooltip({
 	onOpenChange,
 	...props
 }: React.ComponentProps<typeof TooltipPrimitive.Root>) {
-	const isMobile = useIsTouchDevice();
+	const canHover = useCanHover();
 
 	return (
 		<TooltipProvider>
 			<TooltipPrimitive.Root
 				data-slot="tooltip"
-				open={isMobile ? false : open}
-				onOpenChange={isMobile ? undefined : onOpenChange}
+				open={canHover ? open : false}
+				onOpenChange={canHover ? onOpenChange : undefined}
 				{...props}
 			/>
 		</TooltipProvider>

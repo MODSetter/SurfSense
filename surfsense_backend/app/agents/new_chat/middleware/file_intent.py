@@ -109,37 +109,6 @@ def _sanitize_path_segment(value: str) -> str:
     return segment
 
 
-def _infer_text_file_extension(user_text: str) -> str:
-    lowered = user_text.lower()
-    if any(token in lowered for token in ("json", ".json")):
-        return ".json"
-    if any(token in lowered for token in ("yaml", "yml", ".yaml", ".yml")):
-        return ".yaml"
-    if any(token in lowered for token in ("csv", ".csv")):
-        return ".csv"
-    if any(token in lowered for token in ("python", ".py")):
-        return ".py"
-    if any(token in lowered for token in ("typescript", ".ts", ".tsx")):
-        return ".ts"
-    if any(token in lowered for token in ("javascript", ".js", ".mjs", ".cjs")):
-        return ".js"
-    if any(token in lowered for token in ("html", ".html")):
-        return ".html"
-    if any(token in lowered for token in ("css", ".css")):
-        return ".css"
-    if any(token in lowered for token in ("sql", ".sql")):
-        return ".sql"
-    if any(token in lowered for token in ("toml", ".toml")):
-        return ".toml"
-    if any(token in lowered for token in ("ini", ".ini")):
-        return ".ini"
-    if any(token in lowered for token in ("xml", ".xml")):
-        return ".xml"
-    if any(token in lowered for token in ("markdown", ".md", "readme")):
-        return ".md"
-    return ".md"
-
-
 def _normalize_directory(value: str) -> str:
     raw = value.strip().replace("\\", "/")
     raw = raw.strip("/")
@@ -193,7 +162,6 @@ def _fallback_path(
     suggested_path: str | None = None,
     user_text: str,
 ) -> str:
-    default_extension = _infer_text_file_extension(user_text)
     inferred_dir = _infer_directory_from_user_text(user_text)
 
     sanitized_filename = ""
@@ -202,9 +170,9 @@ def _fallback_path(
         if sanitized_filename.lower().endswith(".txt"):
             sanitized_filename = f"{sanitized_filename[:-4]}.md"
     if not sanitized_filename:
-        sanitized_filename = f"notes{default_extension}"
+        sanitized_filename = "notes.md"
     elif "." not in sanitized_filename:
-        sanitized_filename = f"{sanitized_filename}{default_extension}"
+        sanitized_filename = f"{sanitized_filename}.md"
 
     normalized_suggested_path = (
         _normalize_file_path(suggested_path) if suggested_path else ""

@@ -658,7 +658,7 @@ export default function NewChatPage() {
 
 			try {
 				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
-				const selection = await getAgentFilesystemSelection();
+				const selection = await getAgentFilesystemSelection(searchSpaceId);
 				if (
 					selection.filesystem_mode === "desktop_local_folder" &&
 					(!selection.local_filesystem_mounts ||
@@ -1088,7 +1088,7 @@ export default function NewChatPage() {
 
 			try {
 				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
-				const selection = await getAgentFilesystemSelection();
+				const selection = await getAgentFilesystemSelection(searchSpaceId);
 				const response = await fetch(`${backendUrl}/api/v1/threads/${resumeThreadId}/resume`, {
 					method: "POST",
 					headers: {
@@ -1424,7 +1424,7 @@ export default function NewChatPage() {
 			]);
 
 			try {
-				const selection = await getAgentFilesystemSelection();
+				const selection = await getAgentFilesystemSelection(searchSpaceId);
 				const response = await fetch(getRegenerateUrl(threadId), {
 					method: "POST",
 					headers: {

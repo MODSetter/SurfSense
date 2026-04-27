@@ -26,3 +26,12 @@ def test_mount_ids_preserve_client_mapping_order(tmp_path: Path) -> None:
     )
 
     assert backend.list_mounts() == ("pc_backups", "pc_backups_2", "notes_2026")
+
+
+def test_mount_id_is_authoritative_not_folder_name(tmp_path: Path) -> None:
+    root = tmp_path / "Resume Folder"
+    root.mkdir()
+
+    backend = MultiRootLocalFolderBackend((("custom_resume_mount", str(root)),))
+
+    assert backend.list_mounts() == ("custom_resume_mount",)
