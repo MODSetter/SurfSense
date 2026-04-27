@@ -1456,6 +1456,9 @@ async def regenerate_response(
                 user_query_to_use
             )
 
+        if request.user_images is not None:
+            regenerate_image_urls = [p.as_data_url() for p in request.user_images]
+
         if user_query_to_use is None:
             raise HTTPException(
                 status_code=400,

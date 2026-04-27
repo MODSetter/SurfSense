@@ -238,6 +238,9 @@ class RegenerateRequest(BaseModel):
     2. Reload: Leave user_query empty to regenerate the last AI response with the same query
 
     Both operations rewind the LangGraph checkpointer to the appropriate state.
+
+    For edit, optional user_images (when not None) replaces image URLs resolved from
+    checkpoint/DB so the client can send the full user turn (text and/or images).
     """
 
     search_space_id: int
@@ -250,6 +253,16 @@ class RegenerateRequest(BaseModel):
     filesystem_mode: Literal["cloud", "desktop_local_folder"] = "cloud"
     client_platform: Literal["web", "desktop"] = "web"
     local_filesystem_mounts: list[LocalFilesystemMountPayload] | None = None
+    user_images: list[NewChatUserImagePart] | None = Field(
+        default=None,
+        description="If set, use these images for the regenerated turn (edit); overrides checkpoint/DB",
+    )
+
+    @model_validator(mode="after")
+    def _validate_regenerate_user_images(self) -> Self:
+        if self.user_images is not None and len(self.user_images) > MAX_NEW_CHAT_IMAGES:
+            raise ValueError(f"At most {MAX_NEW_CHAT_IMAGES} images allowed")
+        return self
 
 
 # =============================================================================
