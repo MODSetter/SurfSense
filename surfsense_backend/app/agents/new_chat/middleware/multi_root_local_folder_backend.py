@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import base64
-import json
 from pathlib import Path
 from typing import Any
 
@@ -109,28 +107,6 @@ class MultiRootLocalFolderBackend:
             for mount in self._mount_order
         ]
 
-    @staticmethod
-    def _encode_tree_cursor(mount: str, local_cursor: str) -> str:
-        payload = json.dumps(
-            {"mount": mount, "cursor": local_cursor},
-            separators=(",", ":"),
-        ).encode("utf-8")
-        return base64.urlsafe_b64encode(payload).decode("ascii")
-
-    @staticmethod
-    def _decode_tree_cursor(cursor: str) -> tuple[str, str]:
-        try:
-            padded = cursor + "=" * ((4 - len(cursor) % 4) % 4)
-            data = base64.urlsafe_b64decode(padded.encode("ascii"))
-            parsed = json.loads(data.decode("utf-8"))
-        except Exception as exc:
-            raise ValueError("Invalid cursor") from exc
-        mount = parsed.get("mount")
-        local_cursor = parsed.get("cursor")
-        if not isinstance(mount, str) or not isinstance(local_cursor, str):
-            raise ValueError("Invalid cursor")
-        return mount, local_cursor
-
     def _transform_infos(self, mount: str, infos: list[FileInfo]) -> list[FileInfo]:
         transformed: list[FileInfo] = []
         for info in infos:
@@ -162,11 +138,10 @@ class MultiRootLocalFolderBackend:
         *,
         max_depth: int | None = 8,
         page_size: int = 500,
-        cursor: str | None = None,
         include_files: bool = True,
         include_dirs: bool = True,
     ) -> dict[str, Any]:
-        if path == "/" and not cursor:
+        if path == "/":
             entries = [
                 {
                     "path": f"/{mount}",
@@ -179,20 +154,11 @@ class MultiRootLocalFolderBackend:
             ]
             return {
                 "entries": entries if include_dirs else [],
-                "next_cursor": None,
-                "has_more": False,
                 "truncated": False,
             }
 
         try:
-            if cursor:
-                mount, local_cursor = self._decode_tree_cursor(cursor)
-                if mount not in self._mount_to_backend:
-                    return {"error": "Invalid or expired cursor"}
-                local_path = "/"
-            else:
-                mount, local_path = self._split_mount_path(path)
-                local_cursor = None
+            mount, local_path = self._split_mount_path(path)
         except ValueError as exc:
             return {"error": f"Error: {exc}"}
 
@@ -200,7 +166,6 @@ class MultiRootLocalFolderBackend:
             local_path,
             max_depth=max_depth,
             page_size=page_size,
-            cursor=local_cursor,
             include_files=include_files,
             include_dirs=include_dirs,
         )
@@ -220,16 +185,8 @@ class MultiRootLocalFolderBackend:
                 }
             )
 
-        local_next_cursor = self._get_str(result, "next_cursor")
-        next_cursor = (
-            self._encode_tree_cursor(mount, local_next_cursor)
-            if local_next_cursor
-            else None
-        )
         return {
             "entries": entries,
-            "next_cursor": next_cursor,
-            "has_more": self._get_bool(result, "has_more"),
             "truncated": self._get_bool(result, "truncated"),
         }
 
@@ -239,7 +196,6 @@ class MultiRootLocalFolderBackend:
         *,
         max_depth: int | None = 8,
         page_size: int = 500,
-        cursor: str | None = None,
         include_files: bool = True,
         include_dirs: bool = True,
     ) -> dict[str, Any]:
@@ -248,7 +204,6 @@ class MultiRootLocalFolderBackend:
             path,
             max_depth=max_depth,
             page_size=page_size,
-            cursor=cursor,
             include_files=include_files,
             include_dirs=include_dirs,
         )

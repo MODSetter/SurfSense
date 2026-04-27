@@ -28,9 +28,6 @@ from langgraph.types import Command
 from sqlalchemy import delete, select
 
 from app.agents.new_chat.filesystem_selection import FilesystemMode
-from app.agents.new_chat.middleware.multi_root_local_folder_backend import (
-    MultiRootLocalFolderBackend,
-)
 from app.agents.new_chat.sandbox import (
     _evict_sandbox_cache,
     delete_sandbox,
@@ -152,21 +149,19 @@ Notes:
 - Cross-mount moves are not supported.
 """
 
-SURFSENSE_LIST_TREE_TOOL_DESCRIPTION = """Lists files/folders recursively with cursor pagination.
+SURFSENSE_LIST_TREE_TOOL_DESCRIPTION = """Lists files/folders recursively in a single bounded call.
 
 Use this in desktop local-folder mode to discover nested files at scale.
 
 Args:
 - path: absolute mount-prefixed path (e.g., /<mount>/src) or "/" for mount roots.
 - max_depth: recursion depth limit (default 8).
-- page_size: number of entries to return per page (max 1000).
-- cursor: opaque continuation token from a previous call.
+- page_size: maximum number of entries returned (max 1000).
 - include_files/include_dirs: filter returned entry types.
 
 Returns JSON with:
 - entries: [{path, is_dir, size, modified_at, depth}]
-- next_cursor: continuation token or null
-- has_more: whether additional pages exist
+- truncated: true when additional entries were omitted due to page_size
 """
 
 SURFSENSE_GLOB_TOOL_DESCRIPTION = """Find files matching a glob pattern.
@@ -251,13 +246,13 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         if filesystem_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER:
             system_prompt += (
                 "\n- move_file: move or rename files/folders in local-folder mode."
-                "\n- list_tree: recursively list nested local paths with cursor pagination."
+                "\n- list_tree: recursively list nested local paths in one bounded response."
                 "\n\n## Local Folder Mode"
                 "\n\nThis chat is running in desktop local-folder mode."
                 " Keep all file operations local. Do not use save_document."
                 " Always use mount-prefixed absolute paths like /<folder>/file.ext."
                 " If you are unsure which mounts are available, call ls('/') first."
-                " For big trees: use list_tree pages, then grep, then read_file."
+                " For big trees: use list_tree, then grep, then read_file."
             )
 
         super().__init__(
@@ -812,35 +807,14 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         """Only cloud mode persists file content to Document/Chunk tables."""
         return self._filesystem_mode == FilesystemMode.CLOUD
 
-    def _default_mount_prefix(self, runtime: ToolRuntime[None, FilesystemState]) -> str:
-        backend = self._get_backend(runtime)
-        if isinstance(backend, MultiRootLocalFolderBackend):
-            return f"/{backend.default_mount()}"
-        return ""
-
-    def _normalize_local_mount_path(
-        self, candidate: str, runtime: ToolRuntime[None, FilesystemState]
-    ) -> str:
-        backend = self._get_backend(runtime)
-        mount_prefix = self._default_mount_prefix(runtime)
-        normalized_candidate = re.sub(r"/+", "/", candidate.strip().replace("\\", "/"))
-        if not mount_prefix or not isinstance(backend, MultiRootLocalFolderBackend):
-            if normalized_candidate.startswith("/"):
-                return normalized_candidate
-            return f"/{normalized_candidate.lstrip('/')}"
-
-        mount_names = set(backend.list_mounts())
-        if normalized_candidate.startswith("/"):
-            first_segment = normalized_candidate.lstrip("/").split("/", 1)[0]
-            if first_segment in mount_names:
-                return normalized_candidate
-            return f"{mount_prefix}{normalized_candidate}"
-
-        relative = normalized_candidate.lstrip("/")
-        first_segment = relative.split("/", 1)[0]
-        if first_segment in mount_names:
-            return f"/{relative}"
-        return f"{mount_prefix}/{relative}"
+    @staticmethod
+    def _normalize_absolute_path(candidate: str) -> str:
+        normalized = re.sub(r"/+", "/", candidate.strip().replace("\\", "/"))
+        if not normalized:
+            return "/"
+        if normalized.startswith("/"):
+            return normalized
+        return f"/{normalized.lstrip('/')}"
 
     def _get_contract_suggested_path(
         self, runtime: ToolRuntime[None, FilesystemState]
@@ -848,14 +822,7 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         contract = runtime.state.get("file_operation_contract") or {}
         suggested = contract.get("suggested_path")
         if isinstance(suggested, str) and suggested.strip():
-            cleaned = suggested.strip()
-            if self._filesystem_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER:
-                return self._normalize_local_mount_path(cleaned, runtime)
-            return cleaned
-        if self._filesystem_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER:
-            mount_prefix = self._default_mount_prefix(runtime)
-            if mount_prefix:
-                return f"{mount_prefix}/notes.md"
+            return self._normalize_absolute_path(suggested)
         return "/notes.md"
 
     def _resolve_write_target_path(
@@ -867,7 +834,7 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         if not candidate:
             return self._get_contract_suggested_path(runtime)
         if self._filesystem_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER:
-            return self._normalize_local_mount_path(candidate, runtime)
+            return self._normalize_absolute_path(candidate)
         if not candidate.startswith("/"):
             return f"/{candidate.lstrip('/')}"
         return candidate
@@ -881,7 +848,7 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         if not candidate:
             return ""
         if self._filesystem_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER:
-            return self._normalize_local_mount_path(candidate, runtime)
+            return self._normalize_absolute_path(candidate)
         if not candidate.startswith("/"):
             return f"/{candidate.lstrip('/')}"
         return candidate
@@ -895,7 +862,7 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         if candidate == "/":
             return "/"
         if self._filesystem_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER:
-            return self._normalize_local_mount_path(candidate, runtime)
+            return self._normalize_absolute_path(candidate)
         if not candidate.startswith("/"):
             return f"/{candidate.lstrip('/')}"
         return candidate
@@ -1136,12 +1103,8 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
             ] = 8,
             page_size: Annotated[
                 int,
-                "Number of entries to return per page. Defaults to 500 (max 1000).",
+                "Maximum number of entries to return. Defaults to 500 (max 1000).",
             ] = 500,
-            cursor: Annotated[
-                str | None,
-                "Opaque cursor from a previous list_tree call.",
-            ] = None,
             include_files: Annotated[
                 bool,
                 "Whether file entries should be included.",
@@ -1171,7 +1134,6 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
                 validated_path,
                 max_depth=max_depth,
                 page_size=page_size,
-                cursor=cursor,
                 include_files=include_files,
                 include_dirs=include_dirs,
             )
@@ -1193,12 +1155,8 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
             ] = 8,
             page_size: Annotated[
                 int,
-                "Number of entries to return per page. Defaults to 500 (max 1000).",
+                "Maximum number of entries to return. Defaults to 500 (max 1000).",
             ] = 500,
-            cursor: Annotated[
-                str | None,
-                "Opaque cursor from a previous list_tree call.",
-            ] = None,
             include_files: Annotated[
                 bool,
                 "Whether file entries should be included.",
@@ -1228,7 +1186,6 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
                 validated_path,
                 max_depth=max_depth,
                 page_size=page_size,
-                cursor=cursor,
                 include_files=include_files,
                 include_dirs=include_dirs,
             )

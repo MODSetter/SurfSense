@@ -9,9 +9,7 @@ import threading
 from collections import deque
 from contextlib import ExitStack
 from pathlib import Path
-from time import time
 from typing import Any
-from uuid import uuid4
 
 from deepagents.backends.protocol import (
     EditResult,
@@ -43,8 +41,6 @@ class LocalFolderBackend:
         self._root = root
         self._locks: dict[str, threading.Lock] = {}
         self._locks_mu = threading.Lock()
-        self._tree_sessions: dict[str, dict[str, Any]] = {}
-        self._tree_sessions_ttl_s = 900
 
     def _lock_for(self, path: str) -> threading.Lock:
         with self._locks_mu:
@@ -88,16 +84,6 @@ class LocalFolderBackend:
     @staticmethod
     def _clamp_page_size(page_size: int) -> int:
         return max(1, min(page_size, 1000))
-
-    def _prune_expired_tree_sessions(self) -> None:
-        now = time()
-        expired = [
-            cursor
-            for cursor, session in self._tree_sessions.items()
-            if now - float(session.get("last_accessed_at", now)) > self._tree_sessions_ttl_s
-        ]
-        for cursor in expired:
-            self._tree_sessions.pop(cursor, None)
 
     def _read_dir_entries(self, directory_path: str) -> list[dict[str, Any]]:
         directory = Path(directory_path)
@@ -206,148 +192,82 @@ class LocalFolderBackend:
         *,
         max_depth: int | None = 8,
         page_size: int = 500,
-        cursor: str | None = None,
         include_files: bool = True,
         include_dirs: bool = True,
     ) -> dict[str, Any]:
-        self._prune_expired_tree_sessions()
         if not include_files and not include_dirs:
             return {
                 "entries": [],
-                "next_cursor": None,
-                "has_more": False,
                 "truncated": False,
             }
 
         normalized_depth = None if max_depth is None else max(0, int(max_depth))
         page_limit = self._clamp_page_size(int(page_size))
-        now = time()
-
-        if cursor:
-            session = self._tree_sessions.get(cursor)
-            if not session:
-                return {"error": "Invalid or expired cursor"}
-            if (
-                session.get("path") != path
-                or session.get("max_depth") != normalized_depth
-                or session.get("include_files") != include_files
-                or session.get("include_dirs") != include_dirs
-            ):
-                return {"error": "Cursor options do not match request options"}
-            state = session
-        else:
-            try:
-                start = self._resolve_virtual(path, allow_root=True)
-            except ValueError:
-                return {"error": f"Error: invalid path '{path}'"}
-            if not start.exists():
-                return {"error": f"Error: path '{path}' not found"}
-            if start.is_file():
-                stat_result = start.stat()
-                if include_files:
-                    return {
-                        "entries": [
-                            {
-                                "path": self._to_virtual(start, self._root),
-                                "is_dir": False,
-                                "size": stat_result.st_size,
-                                "modified_at": str(stat_result.st_mtime),
-                                "depth": 0,
-                            }
-                        ],
-                        "next_cursor": None,
-                        "has_more": False,
-                        "truncated": False,
-                    }
+        try:
+            start = self._resolve_virtual(path, allow_root=True)
+        except ValueError:
+            return {"error": f"Error: invalid path '{path}'"}
+        if not start.exists():
+            return {"error": f"Error: path '{path}' not found"}
+        if start.is_file():
+            stat_result = start.stat()
+            if include_files:
                 return {
-                    "entries": [],
-                    "next_cursor": None,
-                    "has_more": False,
+                    "entries": [
+                        {
+                            "path": self._to_virtual(start, self._root),
+                            "is_dir": False,
+                            "size": stat_result.st_size,
+                            "modified_at": str(stat_result.st_mtime),
+                            "depth": 0,
+                        }
+                    ],
                     "truncated": False,
                 }
-            state = {
-                "path": path,
-                "max_depth": normalized_depth,
-                "include_files": include_files,
-                "include_dirs": include_dirs,
-                "pending_dirs": deque([(str(start), 0)]),
-                "active_dir": None,
-                "active_depth": 0,
-                "active_entries": [],
-                "active_index": 0,
+            return {
+                "entries": [],
+                "truncated": False,
             }
 
+        pending_dirs: deque[tuple[str, int]] = deque([(str(start), 0)])
         entries: list[dict[str, Any]] = []
         truncated = False
-        while len(entries) < page_limit:
-            active_entries = state.get("active_entries", [])
-            active_index = int(state.get("active_index", 0))
-            if active_index >= len(active_entries):
-                pending_dirs = state.get("pending_dirs", [])
-                if not pending_dirs:
-                    state["active_entries"] = []
-                    state["active_index"] = 0
-                    break
-                next_dir_path, next_depth = pending_dirs.popleft()
-                state["active_dir"] = next_dir_path
-                state["active_depth"] = next_depth
-                state["active_entries"] = self._read_dir_entries(next_dir_path)
-                state["active_index"] = 0
-                active_entries = state["active_entries"]
-                active_index = 0
-
-            if active_index >= len(active_entries):
-                continue
-
-            item = active_entries[active_index]
-            state["active_index"] = active_index + 1
-            item_depth = int(state.get("active_depth", 0)) + 1
-            if normalized_depth is not None and item_depth > normalized_depth:
-                continue
-            if item["is_dir"]:
-                if normalized_depth is None or item_depth <= normalized_depth:
-                    state["pending_dirs"].append((item["absolute_path"], item_depth))
-                if include_dirs:
+        while pending_dirs and not truncated:
+            next_dir_path, next_depth = pending_dirs.popleft()
+            active_entries = self._read_dir_entries(next_dir_path)
+            for item in active_entries:
+                item_depth = next_depth + 1
+                if normalized_depth is not None and item_depth > normalized_depth:
+                    continue
+                if item["is_dir"]:
+                    if normalized_depth is None or item_depth <= normalized_depth:
+                        pending_dirs.append((item["absolute_path"], item_depth))
+                    if include_dirs:
+                        entries.append(
+                            {
+                                "path": item["path"],
+                                "is_dir": True,
+                                "size": 0,
+                                "modified_at": item["modified_at"],
+                                "depth": item_depth,
+                            }
+                        )
+                elif include_files:
                     entries.append(
                         {
                             "path": item["path"],
-                            "is_dir": True,
-                            "size": 0,
+                            "is_dir": False,
+                            "size": item["size"],
                             "modified_at": item["modified_at"],
                             "depth": item_depth,
                         }
                     )
-            elif include_files:
-                entries.append(
-                    {
-                        "path": item["path"],
-                        "is_dir": False,
-                        "size": item["size"],
-                        "modified_at": item["modified_at"],
-                        "depth": item_depth,
-                    }
-                )
-
-            if len(entries) >= page_limit:
-                truncated = True
-                break
-
-        has_more = bool(state.get("pending_dirs")) or (
-            int(state.get("active_index", 0)) < len(state.get("active_entries", []))
-        )
-        if has_more:
-            next_cursor = cursor or uuid4().hex
-            state["last_accessed_at"] = now
-            self._tree_sessions[next_cursor] = state
-        else:
-            next_cursor = None
-            if cursor:
-                self._tree_sessions.pop(cursor, None)
+                if len(entries) >= page_limit:
+                    truncated = True
+                    break
 
         return {
             "entries": entries,
-            "next_cursor": next_cursor,
-            "has_more": has_more,
             "truncated": truncated,
         }
 
@@ -357,7 +277,6 @@ class LocalFolderBackend:
         *,
         max_depth: int | None = 8,
         page_size: int = 500,
-        cursor: str | None = None,
         include_files: bool = True,
         include_dirs: bool = True,
     ) -> dict[str, Any]:
@@ -366,7 +285,6 @@ class LocalFolderBackend:
             path,
             max_depth=max_depth,
             page_size=page_size,
-            cursor=cursor,
             include_files=include_files,
             include_dirs=include_dirs,
         )
