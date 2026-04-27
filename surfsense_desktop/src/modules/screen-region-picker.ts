@@ -6,11 +6,13 @@ import { IPC_CHANNELS } from '../ipc/channels';
 
 let pickInProgress = false;
 
-async function captureDisplayDataUrl(display: Electron.Display): Promise<{
+type DisplayCaptureSnapshot = {
   dataUrl: string;
   width: number;
   height: number;
-} | null> {
+};
+
+async function captureDisplaySnapshot(display: Electron.Display): Promise<DisplayCaptureSnapshot | null> {
   try {
     const sf = display.scaleFactor || 1;
     const tw = Math.max(1, Math.round(display.size.width * sf));
@@ -35,6 +37,12 @@ async function captureDisplayDataUrl(display: Electron.Display): Promise<{
   } catch {
     return null;
   }
+}
+
+export async function captureCurrentDisplayDataUrl(): Promise<string | null> {
+  const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+  const snapshot = await captureDisplaySnapshot(display);
+  return snapshot?.dataUrl ?? null;
 }
 
 function buildInjectScript(dataUrl: string, iw: number, ih: number): string {
@@ -166,7 +174,7 @@ export function pickScreenRegion(): Promise<string | null> {
       resolve(result);
     };
 
-    let snapshot: { dataUrl: string; width: number; height: number } | null = null;
+    let snapshot: DisplayCaptureSnapshot | null = null;
 
     const onSubmit = (
       _event: Electron.IpcMainEvent,
@@ -206,7 +214,7 @@ export function pickScreenRegion(): Promise<string | null> {
       }
     };
 
-    void captureDisplayDataUrl(display)
+    void captureDisplaySnapshot(display)
       .then((cap) => {
         if (!cap) {
           finish(null);
