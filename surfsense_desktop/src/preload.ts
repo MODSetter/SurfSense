@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getPermissionsStatus: () => ipcRenderer.invoke(IPC_CHANNELS.GET_PERMISSIONS_STATUS),
   requestAccessibility: () => ipcRenderer.invoke(IPC_CHANNELS.REQUEST_ACCESSIBILITY),
   requestScreenRecording: () => ipcRenderer.invoke(IPC_CHANNELS.REQUEST_SCREEN_RECORDING),
+  captureFullScreen: () => ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_FULL_SCREEN),
   restartApp: () => ipcRenderer.invoke(IPC_CHANNELS.RESTART_APP),
   // Folder sync
   selectFolder: () => ipcRenderer.invoke(IPC_CHANNELS.FOLDER_SYNC_SELECT_FOLDER),

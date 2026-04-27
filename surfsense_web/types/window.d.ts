@@ -83,6 +83,7 @@ interface ElectronAPI {
 	}>;
 	requestAccessibility: () => Promise<void>;
 	requestScreenRecording: () => Promise<void>;
+	captureFullScreen: () => Promise<string | null>;
 	restartApp: () => Promise<void>;
 	// Folder sync
 	selectFolder: () => Promise<string | null>;
@@ -108,10 +109,18 @@ interface ElectronAPI {
 	getAuthTokens: () => Promise<{ bearer: string; refresh: string } | null>;
 	setAuthTokens: (bearer: string, refresh: string) => Promise<void>;
 	// Keyboard shortcut configuration
-	getShortcuts: () => Promise<{ generalAssist: string; quickAsk: string }>;
+	getShortcuts: () => Promise<{
+		generalAssist: string;
+		quickAsk: string;
+		screenshotAssist: string;
+	}>;
 	setShortcuts: (
-		config: Partial<{ generalAssist: string; quickAsk: string }>
-	) => Promise<{ generalAssist: string; quickAsk: string }>;
+		config: Partial<{ generalAssist: string; quickAsk: string; screenshotAssist: string }>
+	) => Promise<{
+		generalAssist: string;
+		quickAsk: string;
+		screenshotAssist: string;
+	}>;
 	// Launch on system startup
 	getAutoLaunch: () => Promise<{
 		enabled: boolean;

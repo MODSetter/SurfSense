@@ -11,6 +11,7 @@ export const IPC_CHANNELS = {
   REQUEST_ACCESSIBILITY: 'request-accessibility',
   REQUEST_SCREEN_RECORDING: 'request-screen-recording',
   RESTART_APP: 'restart-app',
+  CAPTURE_FULL_SCREEN: 'capture-full-screen',
   SCREEN_REGION_SUBMIT: 'screen-region:submit',
   SCREEN_REGION_CANCEL: 'screen-region:cancel',
   CHAT_SCREEN_CAPTURE: 'chat:screen-capture',
