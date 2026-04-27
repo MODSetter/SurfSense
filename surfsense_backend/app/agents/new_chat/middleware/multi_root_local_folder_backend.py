@@ -132,6 +132,82 @@ class MultiRootLocalFolderBackend:
     async def als_info(self, path: str) -> list[FileInfo]:
         return await asyncio.to_thread(self.ls_info, path)
 
+    def list_tree(
+        self,
+        path: str = "/",
+        *,
+        max_depth: int | None = 8,
+        page_size: int = 500,
+        include_files: bool = True,
+        include_dirs: bool = True,
+    ) -> dict[str, Any]:
+        if path == "/":
+            entries = [
+                {
+                    "path": f"/{mount}",
+                    "is_dir": True,
+                    "size": 0,
+                    "modified_at": "0",
+                    "depth": 0,
+                }
+                for mount in self._mount_order
+            ]
+            return {
+                "entries": entries if include_dirs else [],
+                "truncated": False,
+            }
+
+        try:
+            mount, local_path = self._split_mount_path(path)
+        except ValueError as exc:
+            return {"error": f"Error: {exc}"}
+
+        result = self._mount_to_backend[mount].list_tree(
+            local_path,
+            max_depth=max_depth,
+            page_size=page_size,
+            include_files=include_files,
+            include_dirs=include_dirs,
+        )
+        if result.get("error"):
+            return result
+
+        entries: list[dict[str, Any]] = []
+        for entry in result.get("entries", []):
+            raw_path = self._get_str(entry, "path")
+            entries.append(
+                {
+                    "path": self._prefix_mount_path(mount, raw_path),
+                    "is_dir": self._get_bool(entry, "is_dir"),
+                    "size": self._get_int(entry, "size"),
+                    "modified_at": self._get_str(entry, "modified_at"),
+                    "depth": self._get_int(entry, "depth"),
+                }
+            )
+
+        return {
+            "entries": entries,
+            "truncated": self._get_bool(result, "truncated"),
+        }
+
+    async def alist_tree(
+        self,
+        path: str = "/",
+        *,
+        max_depth: int | None = 8,
+        page_size: int = 500,
+        include_files: bool = True,
+        include_dirs: bool = True,
+    ) -> dict[str, Any]:
+        return await asyncio.to_thread(
+            self.list_tree,
+            path,
+            max_depth=max_depth,
+            page_size=page_size,
+            include_files=include_files,
+            include_dirs=include_dirs,
+        )
+
     def read(self, file_path: str, offset: int = 0, limit: int = 2000) -> str:
         try:
             mount, local_path = self._split_mount_path(file_path)
@@ -164,6 +240,48 @@ class MultiRootLocalFolderBackend:
 
     async def awrite(self, file_path: str, content: str) -> WriteResult:
         return await asyncio.to_thread(self.write, file_path, content)
+
+    def move(
+        self,
+        source_path: str,
+        destination_path: str,
+        overwrite: bool = False,
+    ) -> WriteResult:
+        try:
+            source_mount, source_local_path = self._split_mount_path(source_path)
+            destination_mount, destination_local_path = self._split_mount_path(
+                destination_path
+            )
+        except ValueError as exc:
+            return WriteResult(error=f"Error: {exc}")
+        if source_mount != destination_mount:
+            return WriteResult(
+                error=(
+                    "Error: cross-mount moves are not supported. "
+                    "Source and destination must be under the same mounted root."
+                )
+            )
+        result = self._mount_to_backend[source_mount].move(
+            source_local_path,
+            destination_local_path,
+            overwrite=overwrite,
+        )
+        if result.path:
+            result.path = self._prefix_mount_path(source_mount, result.path)
+        return result
+
+    async def amove(
+        self,
+        source_path: str,
+        destination_path: str,
+        overwrite: bool = False,
+    ) -> WriteResult:
+        return await asyncio.to_thread(
+            self.move,
+            source_path,
+            destination_path,
+            overwrite,
+        )
 
     def edit(
         self,

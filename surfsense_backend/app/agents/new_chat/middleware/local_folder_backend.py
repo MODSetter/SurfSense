@@ -6,7 +6,10 @@ import asyncio
 import fnmatch
 import os
 import threading
+from collections import deque
+from contextlib import ExitStack
 from pathlib import Path
+from typing import Any
 
 from deepagents.backends.protocol import (
     EditResult,
@@ -70,6 +73,44 @@ class LocalFolderBackend:
         temp_path = path.with_suffix(f"{path.suffix}.tmp")
         temp_path.write_text(content, encoding="utf-8")
         os.replace(temp_path, path)
+
+    def _acquire_path_locks(self, *paths: str) -> ExitStack:
+        ordered_paths = sorted(set(paths))
+        stack = ExitStack()
+        for path in ordered_paths:
+            stack.enter_context(self._lock_for(path))
+        return stack
+
+    @staticmethod
+    def _clamp_page_size(page_size: int) -> int:
+        return max(1, min(page_size, 1000))
+
+    def _read_dir_entries(self, directory_path: str) -> list[dict[str, Any]]:
+        directory = Path(directory_path)
+        try:
+            children = sorted(
+                directory.iterdir(),
+                key=lambda p: (not p.is_dir(), p.name.lower()),
+            )
+        except OSError:
+            return []
+
+        entries: list[dict[str, Any]] = []
+        for child in children:
+            try:
+                stat_result = child.stat()
+            except OSError:
+                continue
+            entries.append(
+                {
+                    "path": self._to_virtual(child, self._root),
+                    "is_dir": child.is_dir(),
+                    "size": stat_result.st_size if child.is_file() else 0,
+                    "modified_at": str(stat_result.st_mtime),
+                    "absolute_path": str(child),
+                }
+            )
+        return entries
 
     def ls_info(self, path: str) -> list[FileInfo]:
         try:
@@ -144,6 +185,164 @@ class LocalFolderBackend:
 
     async def awrite(self, file_path: str, content: str) -> WriteResult:
         return await asyncio.to_thread(self.write, file_path, content)
+
+    def list_tree(
+        self,
+        path: str = "/",
+        *,
+        max_depth: int | None = 8,
+        page_size: int = 500,
+        include_files: bool = True,
+        include_dirs: bool = True,
+    ) -> dict[str, Any]:
+        if not include_files and not include_dirs:
+            return {
+                "entries": [],
+                "truncated": False,
+            }
+
+        normalized_depth = None if max_depth is None else max(0, int(max_depth))
+        page_limit = self._clamp_page_size(int(page_size))
+        try:
+            start = self._resolve_virtual(path, allow_root=True)
+        except ValueError:
+            return {"error": f"Error: invalid path '{path}'"}
+        if not start.exists():
+            return {"error": f"Error: path '{path}' not found"}
+        if start.is_file():
+            stat_result = start.stat()
+            if include_files:
+                return {
+                    "entries": [
+                        {
+                            "path": self._to_virtual(start, self._root),
+                            "is_dir": False,
+                            "size": stat_result.st_size,
+                            "modified_at": str(stat_result.st_mtime),
+                            "depth": 0,
+                        }
+                    ],
+                    "truncated": False,
+                }
+            return {
+                "entries": [],
+                "truncated": False,
+            }
+
+        pending_dirs: deque[tuple[str, int]] = deque([(str(start), 0)])
+        entries: list[dict[str, Any]] = []
+        truncated = False
+        while pending_dirs and not truncated:
+            next_dir_path, next_depth = pending_dirs.popleft()
+            active_entries = self._read_dir_entries(next_dir_path)
+            for item in active_entries:
+                item_depth = next_depth + 1
+                if normalized_depth is not None and item_depth > normalized_depth:
+                    continue
+                if item["is_dir"]:
+                    if normalized_depth is None or item_depth <= normalized_depth:
+                        pending_dirs.append((item["absolute_path"], item_depth))
+                    if include_dirs:
+                        entries.append(
+                            {
+                                "path": item["path"],
+                                "is_dir": True,
+                                "size": 0,
+                                "modified_at": item["modified_at"],
+                                "depth": item_depth,
+                            }
+                        )
+                elif include_files:
+                    entries.append(
+                        {
+                            "path": item["path"],
+                            "is_dir": False,
+                            "size": item["size"],
+                            "modified_at": item["modified_at"],
+                            "depth": item_depth,
+                        }
+                    )
+                if len(entries) >= page_limit:
+                    truncated = True
+                    break
+
+        return {
+            "entries": entries,
+            "truncated": truncated,
+        }
+
+    async def alist_tree(
+        self,
+        path: str = "/",
+        *,
+        max_depth: int | None = 8,
+        page_size: int = 500,
+        include_files: bool = True,
+        include_dirs: bool = True,
+    ) -> dict[str, Any]:
+        return await asyncio.to_thread(
+            self.list_tree,
+            path,
+            max_depth=max_depth,
+            page_size=page_size,
+            include_files=include_files,
+            include_dirs=include_dirs,
+        )
+
+    def move(
+        self,
+        source_path: str,
+        destination_path: str,
+        overwrite: bool = False,
+    ) -> WriteResult:
+        try:
+            source = self._resolve_virtual(source_path)
+            destination = self._resolve_virtual(destination_path)
+        except ValueError:
+            return WriteResult(
+                error=(
+                    f"Error: invalid source '{source_path}' or destination "
+                    f"'{destination_path}' path"
+                )
+            )
+        if source == destination:
+            return WriteResult(error="Error: source and destination paths are the same")
+        with self._acquire_path_locks(source_path, destination_path):
+            if not source.exists():
+                return WriteResult(error=f"Error: source path '{source_path}' not found")
+            if destination.exists():
+                if not overwrite:
+                    return WriteResult(
+                        error=(
+                            f"Error: destination path '{destination_path}' already exists. "
+                            "Set overwrite=True to replace files."
+                        )
+                    )
+                if source.is_dir() or destination.is_dir():
+                    return WriteResult(
+                        error=(
+                            "Error: overwrite=True is only supported for file-to-file moves."
+                        )
+                    )
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                if overwrite:
+                    os.replace(source, destination)
+                else:
+                    source.rename(destination)
+            except OSError as exc:
+                return WriteResult(error=f"Error: failed to move '{source_path}': {exc}")
+        return WriteResult(path=self._to_virtual(destination, self._root), files_update=None)
+
+    async def amove(
+        self,
+        source_path: str,
+        destination_path: str,
+        overwrite: bool = False,
+    ) -> WriteResult:
+        return await asyncio.to_thread(
+            self.move, source_path, destination_path, overwrite
+        )
 
     def edit(
         self,

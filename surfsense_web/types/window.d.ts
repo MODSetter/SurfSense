@@ -54,6 +54,28 @@ interface AgentFilesystemMount {
 	rootPath: string;
 }
 
+interface AgentFilesystemListOptions {
+	rootPath: string;
+	searchSpaceId?: number | null;
+	excludePatterns?: string[] | null;
+	fileExtensions?: string[] | null;
+}
+
+interface AgentFilesystemTreeWatchOptions {
+	searchSpaceId?: number | null;
+	rootPaths: string[];
+	excludePatterns?: string[] | null;
+	fileExtensions?: string[] | null;
+}
+
+interface AgentFilesystemTreeDirtyEvent {
+	searchSpaceId: number | null;
+	reason: "watcher_event" | "safety_poll";
+	rootPath: string;
+	changedPath: string | null;
+	timestamp: number;
+}
+
 interface LocalTextFileResult {
 	ok: boolean;
 	path: string;
@@ -114,10 +136,14 @@ interface ElectronAPI {
 	// Browse files/folders via native dialogs
 	browseFiles: () => Promise<string[] | null>;
 	readLocalFiles: (paths: string[]) => Promise<LocalFileData[]>;
-	readAgentLocalFileText: (virtualPath: string) => Promise<LocalTextFileResult>;
+	readAgentLocalFileText: (
+		virtualPath: string,
+		searchSpaceId?: number | null
+	) => Promise<LocalTextFileResult>;
 	writeAgentLocalFileText: (
 		virtualPath: string,
-		content: string
+		content: string,
+		searchSpaceId?: number | null
 	) => Promise<LocalTextFileResult>;
 	// Auth token sync across windows
 	getAuthTokens: () => Promise<{ bearer: string; refresh: string } | null>;
@@ -151,12 +177,22 @@ interface ElectronAPI {
 		platform: string;
 	}>;
 	// Agent filesystem mode
-	getAgentFilesystemSettings: () => Promise<AgentFilesystemSettings>;
-	getAgentFilesystemMounts: () => Promise<AgentFilesystemMount[]>;
+	getAgentFilesystemSettings: (searchSpaceId?: number | null) => Promise<AgentFilesystemSettings>;
+	getAgentFilesystemMounts: (searchSpaceId?: number | null) => Promise<AgentFilesystemMount[]>;
+	listAgentFilesystemFiles: (
+		options: AgentFilesystemListOptions
+	) => Promise<FolderFileEntry[]>;
+	startAgentFilesystemTreeWatch: (
+		options: AgentFilesystemTreeWatchOptions
+	) => Promise<{ ok: true }>;
+	stopAgentFilesystemTreeWatch: (searchSpaceId?: number | null) => Promise<{ ok: true }>;
+	onAgentFilesystemTreeDirty: (
+		callback: (data: AgentFilesystemTreeDirtyEvent) => void
+	) => () => void;
 	setAgentFilesystemSettings: (settings: {
 		mode?: AgentFilesystemMode;
 		localRootPaths?: string[] | null;
-	}) => Promise<AgentFilesystemSettings>;
+	}, searchSpaceId?: number | null) => Promise<AgentFilesystemSettings>;
 	pickAgentFilesystemRoot: () => Promise<string | null>;
 }
 
