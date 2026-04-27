@@ -9,7 +9,11 @@ import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { getDocumentTypeLabel } from "@/lib/documents/document-type-labels";
 import { cn } from "@/lib/utils";
-import { COMPOSIO_CONNECTORS, LIVE_CONNECTOR_TYPES, OAUTH_CONNECTORS } from "../constants/connector-constants";
+import {
+	COMPOSIO_CONNECTORS,
+	LIVE_CONNECTOR_TYPES,
+	OAUTH_CONNECTORS,
+} from "../constants/connector-constants";
 import { getDocumentCountForConnector } from "../utils/connector-document-mapping";
 import { getConnectorDisplayName } from "./all-connectors-tab";
 

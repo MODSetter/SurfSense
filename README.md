@@ -42,7 +42,7 @@ NotebookLM is one of the best and most useful AI platforms out there, but once y
 - **25+ External Data Sources** - Add your sources from Google Drive, OneDrive, Dropbox, Notion, and many other external services.
 - **Real-Time Multiplayer Support** - Work easily with your team members in a shared notebook.
 - **AI File Sorting** - Automatically organize your documents into a smart folder hierarchy using AI-powered categorization by source, date, and topic.
-- **Desktop App** - Get AI assistance in any application with Quick Assist, General Assist, Extreme Assist, and local folder sync.
+- **Desktop App** - Get AI assistance in any application with Quick Assist, General Assist, Screenshot Assist, and local folder sync.
 
 ...and more to come.
 
@@ -85,9 +85,9 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/quick_assist.gif" alt="Quick Assist" /></p>
 
-   - Desktop App — Extreme Assist
+   - Desktop App — Screenshot Assist
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/extreme_assist.gif" alt="Extreme Assist" /></p>
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/screenshot_assist.gif" alt="Screenshot Assist" /></p>
 
    - Desktop App — Watch Local Folder
 
@@ -151,7 +151,7 @@ The desktop app includes these powerful features:
 
 - **General Assist** — Launch SurfSense instantly from any application with a global shortcut.
 - **Quick Assist** — Select text anywhere, then ask AI to explain, rewrite, or act on it.
-- **Extreme Assist** — Get inline writing suggestions powered by your knowledge base as you type in any app.
+- **Screenshot Assist** — Select a region on your screen and attach it to chat so answers stay grounded in your knowledge base.
 - **Watch Local Folder** — Watch a local folder and automatically sync file changes to your knowledge base. **Pro tip:** Point it at your Obsidian vault to keep your notes searchable in SurfSense.
 
 All features operate against your chosen search space, so your answers are always grounded in your own data.
@@ -201,7 +201,7 @@ All features operate against your chosen search space, so your answers are alway
 | **Presentation Generation** | Better looking slides but not editable | Create editable, slide-based presentations |
 | **Podcast Generation** | Audio Overviews with customizable hosts and languages | Available with multiple TTS providers (NotebookLM is better here, actively improving) |
 | **AI File Sorting** | No | LLM-powered auto-categorization into source, date, category, and subcategory folders |
-| **Desktop App** | No | Native app with General Assist, Quick Assist, Extreme Assist, and local folder sync |
+| **Desktop App** | No | Native app with General Assist, Quick Assist, Screenshot Assist, and local folder sync |
 | **Browser Extension** | No | Cross-browser extension to save any webpage, including auth-protected pages |
 
 <details>

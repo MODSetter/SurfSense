@@ -2,10 +2,12 @@ import { app, ipcMain, shell } from 'electron';
 import { IPC_CHANNELS } from './channels';
 import {
   getPermissionsStatus,
+  hasScreenRecordingPermission,
   requestAccessibility,
   requestScreenRecording,
   restartApp,
 } from '../modules/permissions';
+import { pickOpenWindowCapture } from '../modules/screen-capture';
 import {
   selectFolder,
   addWatchedFolder,
@@ -27,8 +29,7 @@ import { getShortcuts, setShortcuts, type ShortcutConfig } from '../modules/shor
 import { getAutoLaunchState, setAutoLaunch } from '../modules/auto-launch';
 import { getActiveSearchSpaceId, setActiveSearchSpaceId } from '../modules/active-search-space';
 import { reregisterQuickAsk } from '../modules/quick-ask';
-import { reregisterAutocomplete } from '../modules/autocomplete';
-import { reregisterGeneralAssist } from '../modules/tray';
+import { reregisterGeneralAssist, reregisterScreenshotAssist } from '../modules/tray';
 import {
   getDistinctId,
   getMachineId,
@@ -77,6 +78,15 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.RESTART_APP, () => {
     restartApp();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CAPTURE_FULL_SCREEN, async () => {
+    if (!hasScreenRecordingPermission()) {
+      requestScreenRecording();
+      return null;
+    }
+    const picked = await pickOpenWindowCapture();
+    return picked?.dataUrl ?? null;
   });
 
   // Folder sync handlers
@@ -183,8 +193,8 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.SET_SHORTCUTS, async (_event, config: Partial<ShortcutConfig>) => {
     const updated = await setShortcuts(config);
     if (config.generalAssist) await reregisterGeneralAssist();
+    if (config.screenshotAssist) await reregisterScreenshotAssist();
     if (config.quickAsk) await reregisterQuickAsk();
-    if (config.autocomplete) await reregisterAutocomplete();
     trackEvent('desktop_shortcut_updated', {
       keys: Object.keys(config),
     });

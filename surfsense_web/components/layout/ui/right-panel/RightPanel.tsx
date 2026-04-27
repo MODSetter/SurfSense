@@ -72,9 +72,7 @@ export function RightPanelExpandButton() {
 	const reportOpen = reportState.isOpen && !!reportState.reportId;
 	const editorOpen =
 		editorState.isOpen &&
-		(editorState.kind === "document"
-			? !!editorState.documentId
-			: !!editorState.localFilePath);
+		(editorState.kind === "document" ? !!editorState.documentId : !!editorState.localFilePath);
 	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
 	const hasContent = documentsOpen || reportOpen || editorOpen || hitlEditOpen;
 
@@ -116,9 +114,7 @@ export function RightPanel({ documentsPanel }: RightPanelProps) {
 	const reportOpen = reportState.isOpen && !!reportState.reportId;
 	const editorOpen =
 		editorState.isOpen &&
-		(editorState.kind === "document"
-			? !!editorState.documentId
-			: !!editorState.localFilePath);
+		(editorState.kind === "document" ? !!editorState.documentId : !!editorState.localFilePath);
 	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
 
 	useEffect(() => {

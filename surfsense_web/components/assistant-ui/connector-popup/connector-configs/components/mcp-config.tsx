@@ -218,13 +218,13 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 							className="w-full h-8 text-[13px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80"
 						>
 							{isTesting ? (
-							<>
-								<Loader2 className="h-3.5 w-3.5 animate-spin" />
-								Testing Connection...
-							</>
-						) : (
-							"Test Connection"
-						)}
+								<>
+									<Loader2 className="h-3.5 w-3.5 animate-spin" />
+									Testing Connection...
+								</>
+							) : (
+								"Test Connection"
+							)}
 						</Button>
 					</div>
 

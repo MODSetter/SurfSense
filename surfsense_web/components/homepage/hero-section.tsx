@@ -63,10 +63,10 @@ const TAB_ITEMS = [
 		featured: true,
 	},
 	{
-		title: "Extreme Assist",
+		title: "Screenshot Assist",
 		description:
-			"Get inline writing suggestions powered by your knowledge base as you type in any app.",
-		src: "/homepage/hero_tutorial/extreme_assist.mp4",
+			"Use a global shortcut to select a region on your screen and attach it to your chat message.",
+		src: "/homepage/hero_tutorial/screenshot_assist.mp4",
 		featured: true,
 	},
 	{

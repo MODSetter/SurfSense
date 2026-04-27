@@ -1,6 +1,6 @@
 "use client";
 
-import { BrainCog, Rocket, RotateCcw, Zap } from "lucide-react";
+import { Crop, Rocket, RotateCcw, Zap } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { DEFAULT_SHORTCUTS, keyEventToAccelerator } from "@/components/desktop/shortcut-recorder";
@@ -9,13 +9,13 @@ import { ShortcutKbd } from "@/components/ui/shortcut-kbd";
 import { Spinner } from "@/components/ui/spinner";
 import { useElectronAPI } from "@/hooks/use-platform";
 
-type ShortcutKey = "generalAssist" | "quickAsk" | "autocomplete";
+type ShortcutKey = "generalAssist" | "quickAsk" | "screenshotAssist";
 type ShortcutMap = typeof DEFAULT_SHORTCUTS;
 
 const HOTKEY_ROWS: Array<{ key: ShortcutKey; label: string; icon: React.ElementType }> = [
 	{ key: "generalAssist", label: "General Assist", icon: Rocket },
+	{ key: "screenshotAssist", label: "Screenshot Assist", icon: Crop },
 	{ key: "quickAsk", label: "Quick Assist", icon: Zap },
-	{ key: "autocomplete", label: "Extreme Assist", icon: BrainCog },
 ];
 
 function acceleratorToKeys(accel: string, isMac: boolean): string[] {
@@ -111,9 +111,7 @@ function HotkeyRow({
 					}
 				>
 					{recording ? (
-						<span className="px-2 text-[9px] text-primary whitespace-nowrap">
-							Press hotkeys...
-						</span>
+						<span className="px-2 text-[9px] text-primary whitespace-nowrap">Press hotkeys...</span>
 					) : (
 						<ShortcutKbd keys={displayKeys} className="ml-0 px-1.5 text-foreground/85" />
 					)}
@@ -155,15 +153,14 @@ export function DesktopShortcutsContent() {
 	if (!api) {
 		return (
 			<div className="flex flex-col items-center justify-center py-12 text-center">
-				<p className="text-sm text-muted-foreground">Hotkeys are only available in the SurfSense desktop app.</p>
+				<p className="text-sm text-muted-foreground">
+					Hotkeys are only available in the SurfSense desktop app.
+				</p>
 			</div>
 		);
 	}
 
-	const updateShortcut = (
-		key: "generalAssist" | "quickAsk" | "autocomplete",
-		accelerator: string
-	) => {
+	const updateShortcut = (key: ShortcutKey, accelerator: string) => {
 		setShortcuts((prev) => {
 			const updated = { ...prev, [key]: accelerator };
 			api.setShortcuts?.({ [key]: accelerator }).catch(() => {
@@ -178,28 +175,26 @@ export function DesktopShortcutsContent() {
 		updateShortcut(key, DEFAULT_SHORTCUTS[key]);
 	};
 
-	return (
-		shortcutsLoaded ? (
-			<div className="flex flex-col gap-3">
-				<div>
-					{HOTKEY_ROWS.map((row) => (
-						<HotkeyRow
-							key={row.key}
-							label={row.label}
-							value={shortcuts[row.key]}
-							defaultValue={DEFAULT_SHORTCUTS[row.key]}
-							icon={row.icon}
-							isMac={isMac}
-							onChange={(accel) => updateShortcut(row.key, accel)}
-							onReset={() => resetShortcut(row.key)}
-						/>
-					))}
-				</div>
+	return shortcutsLoaded ? (
+		<div className="flex flex-col gap-3">
+			<div>
+				{HOTKEY_ROWS.map((row) => (
+					<HotkeyRow
+						key={row.key}
+						label={row.label}
+						value={shortcuts[row.key]}
+						defaultValue={DEFAULT_SHORTCUTS[row.key]}
+						icon={row.icon}
+						isMac={isMac}
+						onChange={(accel) => updateShortcut(row.key, accel)}
+						onReset={() => resetShortcut(row.key)}
+					/>
+				))}
 			</div>
-		) : (
-			<div className="flex justify-center py-4">
-				<Spinner size="sm" />
-			</div>
-		)
+		</div>
+	) : (
+		<div className="flex justify-center py-4">
+			<Spinner size="sm" />
+		</div>
 	);
 }

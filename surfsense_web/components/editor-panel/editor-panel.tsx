@@ -226,67 +226,68 @@ export function EditorPanelContent({
 		}
 	}, [editorDoc?.source_markdown]);
 
-	const handleSave = useCallback(async (options?: { silent?: boolean }) => {
-		setSaving(true);
-		try {
-			if (isLocalFileMode) {
-				if (!localFilePath) {
-					throw new Error("Missing local file path");
+	const handleSave = useCallback(
+		async (options?: { silent?: boolean }) => {
+			setSaving(true);
+			try {
+				if (isLocalFileMode) {
+					if (!localFilePath) {
+						throw new Error("Missing local file path");
+					}
+					if (!electronAPI?.writeAgentLocalFileText) {
+						throw new Error("Local file editor is available only in desktop mode.");
+					}
+					const contentToSave = markdownRef.current;
+					const writeResult = await electronAPI.writeAgentLocalFileText(
+						localFilePath,
+						contentToSave
+					);
+					if (!writeResult.ok) {
+						throw new Error(writeResult.error || "Failed to save local file");
+					}
+					setEditorDoc((prev) => (prev ? { ...prev, source_markdown: contentToSave } : prev));
+					setEditedMarkdown(markdownRef.current === contentToSave ? null : markdownRef.current);
+					return true;
 				}
-				if (!electronAPI?.writeAgentLocalFileText) {
-					throw new Error("Local file editor is available only in desktop mode.");
+				if (!searchSpaceId || !documentId) {
+					throw new Error("Missing document context");
 				}
-				const contentToSave = markdownRef.current;
-				const writeResult = await electronAPI.writeAgentLocalFileText(
-					localFilePath,
-					contentToSave
+				const token = getBearerToken();
+				if (!token) {
+					toast.error("Please login to save");
+					redirectToLogin();
+					return;
+				}
+				const response = await authenticatedFetch(
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/save`,
+					{
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ source_markdown: markdownRef.current }),
+					}
 				);
-				if (!writeResult.ok) {
-					throw new Error(writeResult.error || "Failed to save local file");
+
+				if (!response.ok) {
+					const errorData = await response
+						.json()
+						.catch(() => ({ detail: "Failed to save document" }));
+					throw new Error(errorData.detail || "Failed to save document");
 				}
-				setEditorDoc((prev) =>
-					prev ? { ...prev, source_markdown: contentToSave } : prev
-				);
-				setEditedMarkdown(markdownRef.current === contentToSave ? null : markdownRef.current);
+
+				setEditorDoc((prev) => (prev ? { ...prev, source_markdown: markdownRef.current } : prev));
+				setEditedMarkdown(null);
+				toast.success("Document saved! Reindexing in background...");
 				return true;
+			} catch (err) {
+				console.error("Error saving document:", err);
+				toast.error(err instanceof Error ? err.message : "Failed to save document");
+				return false;
+			} finally {
+				setSaving(false);
 			}
-			if (!searchSpaceId || !documentId) {
-				throw new Error("Missing document context");
-			}
-			const token = getBearerToken();
-			if (!token) {
-				toast.error("Please login to save");
-				redirectToLogin();
-				return;
-			}
-			const response = await authenticatedFetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/save`,
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ source_markdown: markdownRef.current }),
-				}
-			);
-
-			if (!response.ok) {
-				const errorData = await response
-					.json()
-					.catch(() => ({ detail: "Failed to save document" }));
-				throw new Error(errorData.detail || "Failed to save document");
-			}
-
-			setEditorDoc((prev) => (prev ? { ...prev, source_markdown: markdownRef.current } : prev));
-			setEditedMarkdown(null);
-			toast.success("Document saved! Reindexing in background...");
-			return true;
-		} catch (err) {
-			console.error("Error saving document:", err);
-			toast.error(err instanceof Error ? err.message : "Failed to save document");
-			return false;
-		} finally {
-			setSaving(false);
-		}
-	}, [documentId, electronAPI, isLocalFileMode, localFilePath, searchSpaceId]);
+		},
+		[documentId, electronAPI, isLocalFileMode, localFilePath, searchSpaceId]
+	);
 
 	const isEditableType = editorDoc
 		? (editorRenderMode === "source_code" ||
@@ -383,9 +384,15 @@ export function EditorPanelContent({
 									)}
 								</>
 							)}
-							{!showEditingActions && !isLocalFileMode && editorDoc?.document_type && documentId && (
-								<VersionHistoryButton documentId={documentId} documentType={editorDoc.document_type} />
-							)}
+							{!showEditingActions &&
+								!isLocalFileMode &&
+								editorDoc?.document_type &&
+								documentId && (
+									<VersionHistoryButton
+										documentId={documentId}
+										documentType={editorDoc.document_type}
+									/>
+								)}
 						</div>
 					</div>
 				</div>
@@ -533,11 +540,7 @@ export function EditorPanelContent({
 										}
 									}}
 								>
-									{downloading ? (
-										<Spinner size="xs" />
-									) : (
-										<Download className="size-3.5" />
-									)}
+									{downloading ? <Spinner size="xs" /> : <Download className="size-3.5" />}
 									{downloading ? "Preparing..." : "Download .md"}
 								</Button>
 							</AlertDescription>
@@ -564,7 +567,7 @@ export function EditorPanelContent({
 					</div>
 				) : isEditableType ? (
 					<PlateEditor
-						key={`${isLocalFileMode ? localFilePath ?? "local-file" : documentId}-${isEditing ? "editing" : "viewing"}`}
+						key={`${isLocalFileMode ? (localFilePath ?? "local-file") : documentId}-${isEditing ? "editing" : "viewing"}`}
 						preset="full"
 						markdown={editorDoc.source_markdown}
 						onMarkdownChange={handleMarkdownChange}
@@ -684,7 +687,8 @@ export function MobileEditorPanel() {
 			? !!panelState.documentId && !!panelState.searchSpaceId
 			: !!panelState.localFilePath;
 
-	if (isDesktop || !panelState.isOpen || !hasTarget || panelState.kind === "local_file") return null;
+	if (isDesktop || !panelState.isOpen || !hasTarget || panelState.kind === "local_file")
+		return null;
 
 	return <MobileEditorDrawer />;
 }

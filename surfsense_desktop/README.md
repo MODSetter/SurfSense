@@ -17,6 +17,8 @@ pnpm dev
 
 This starts the Next.js dev server and Electron concurrently. Hot reload works — edit the web app and changes appear immediately.
 
+On **Linux**, `pnpm dev` runs Electron through `scripts/electron-dev.mjs`: it sets `ELECTRON_DISABLE_SANDBOX=1` for the sandbox issue and passes **`--ozone-platform=x11`** (XWayland) unless **`SURFSENSE_ELECTRON_WAYLAND=1`** is set, so dev tends to behave closer to X11 for shortcuts and Ozone. Packaged Linux builds are unchanged.
+
 ## Configuration
 
 Two `.env` files control the build:
@@ -43,12 +45,13 @@ cd ../surfsense_desktop
 pnpm build
 ```
 
-**Step 3** — Package into a distributable:
+**Step 3** — Package into a distributable (after steps 1–2):
 
 ```bash
 pnpm dist:mac      # macOS (.dmg + .zip)
 pnpm dist:win      # Windows (.exe)
 pnpm dist:linux    # Linux (.deb + .AppImage)
+pnpm pack:dir      # optional: unpacked app only → release/… (run that binary yourself)
 ```
 
 **Step 4** — Find the output:
