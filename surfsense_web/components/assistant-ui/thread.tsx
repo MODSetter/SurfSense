@@ -12,11 +12,11 @@ import {
 	AlertCircle,
 	ArrowDownIcon,
 	ArrowUpIcon,
+	Camera,
 	ChevronDown,
 	ChevronUp,
 	Clipboard,
 	Dot,
-	Camera,
 	Globe,
 	Plus,
 	Settings2,
@@ -803,9 +803,11 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 		isComposerTextEmpty && mentionedDocuments.length === 0 && pendingScreenImages.length === 0;
 
 	const handleScreenCapture = useCallback(async () => {
-		const url = await captureDisplayToPngDataUrl();
+		const url = electronAPI?.captureFullScreen
+			? await electronAPI.captureFullScreen()
+			: await captureDisplayToPngDataUrl();
 		if (url) setPendingScreenImages((prev) => [...prev, url]);
-	}, [setPendingScreenImages]);
+	}, [electronAPI, setPendingScreenImages]);
 
 	const { data: userConfigs } = useAtomValue(newLLMConfigsAtom);
 	const { data: globalConfigs } = useAtomValue(globalNewLLMConfigsAtom);
@@ -1241,20 +1243,17 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 				</div>
 			)}
 			<div className="flex items-center gap-2">
-				{/* Electron: native shortcut → pending images; skip in-webview getDisplayMedia. */}
-				{!electronAPI && (
-					<TooltipIconButton
-						tooltip="Capture screen"
-						type="button"
-						variant="ghost"
-						size="icon"
-						className="size-8 rounded-full"
-						aria-label="Capture screen"
-						onClick={() => void handleScreenCapture()}
-					>
-						<Camera className="size-4" />
-					</TooltipIconButton>
-				)}
+				<TooltipIconButton
+					tooltip="Capture screen"
+					type="button"
+					variant="ghost"
+					size="icon"
+					className="size-8 rounded-full"
+					aria-label="Capture screen"
+					onClick={() => void handleScreenCapture()}
+				>
+					<Camera className="size-4" />
+				</TooltipIconButton>
 				<AuiIf condition={({ thread }) => !thread.isRunning}>
 					<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
 						<TooltipIconButton
