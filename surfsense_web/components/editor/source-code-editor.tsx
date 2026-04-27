@@ -143,6 +143,11 @@ export function SourceCodeEditor({
 					fontFamily:
 						"ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace",
 					renderWhitespace: "selection",
+					unicodeHighlight: {
+						ambiguousCharacters: false,
+						invisibleCharacters: false,
+						nonBasicASCII: false,
+					},
 					smoothScrolling: true,
 					readOnly,
 				}}

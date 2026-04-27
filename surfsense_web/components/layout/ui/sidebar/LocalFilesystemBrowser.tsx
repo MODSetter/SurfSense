@@ -6,7 +6,6 @@ import { DEFAULT_EXCLUDE_PATTERNS } from "@/components/sources/FolderWatchDialog
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { useElectronAPI } from "@/hooks/use-platform";
-import { getSupportedExtensionsSet } from "@/lib/supported-extensions";
 
 interface LocalFilesystemBrowserProps {
 	rootPaths: string[];
@@ -14,6 +13,8 @@ interface LocalFilesystemBrowserProps {
 	active?: boolean;
 	searchQuery?: string;
 	onOpenFile: (fullPath: string) => void;
+	expandedFolderKeys?: Set<string>;
+	onExpandedFolderKeysChange?: (nextExpandedKeys: Set<string>) => void;
 }
 
 interface LocalFolderFileEntry {
@@ -42,6 +43,51 @@ type LocalRootMount = {
 };
 
 type MountLoadStatus = "idle" | "loading" | "complete" | "error";
+
+const LOCAL_OPENABLE_EXTENSIONS = [
+	".md",
+	".markdown",
+	".txt",
+	".json",
+	".yaml",
+	".yml",
+	".csv",
+	".tsv",
+	".xml",
+	".html",
+	".htm",
+	".css",
+	".scss",
+	".sass",
+	".sql",
+	".toml",
+	".ini",
+	".conf",
+	".log",
+	".py",
+	".js",
+	".jsx",
+	".mjs",
+	".cjs",
+	".ts",
+	".tsx",
+	".java",
+	".kt",
+	".kts",
+	".go",
+	".rs",
+	".rb",
+	".php",
+	".swift",
+	".r",
+	".lua",
+	".sh",
+	".bash",
+	".zsh",
+	".fish",
+	".env",
+	".mk",
+];
 
 const getFolderDisplayName = (rootPath: string): string =>
 	rootPath.split(/[\\/]/).at(-1) || rootPath;
@@ -73,16 +119,29 @@ function toMountedVirtualPath(mount: string, relativePath: string): string {
 	return `/${mount}${toVirtualPath(relativePath)}`;
 }
 
+function getNormalizedExtension(pathValue: string): string {
+	const fileName = getFileName(pathValue).toLowerCase();
+	if (!fileName) return "";
+	if (fileName === "dockerfile" || fileName === "makefile") {
+		return `.${fileName}`;
+	}
+	const dotIndex = fileName.lastIndexOf(".");
+	if (dotIndex <= 0) return "";
+	return fileName.slice(dotIndex);
+}
+
 export function LocalFilesystemBrowser({
 	rootPaths,
 	searchSpaceId,
 	active = true,
 	searchQuery,
 	onOpenFile,
+	expandedFolderKeys,
+	onExpandedFolderKeysChange,
 }: LocalFilesystemBrowserProps) {
 	const electronAPI = useElectronAPI();
 	const [rootStateMap, setRootStateMap] = useState<Record<string, RootLoadState>>({});
-	const [expandedFolderKeys, setExpandedFolderKeys] = useState<Set<string>>(new Set());
+	const [internalExpandedFolderKeys, setInternalExpandedFolderKeys] = useState<Set<string>>(new Set());
 	const [mountByRootKey, setMountByRootKey] = useState<Map<string, string>>(new Map());
 	const [mountStatus, setMountStatus] = useState<MountLoadStatus>("idle");
 	const [mountRefreshInFlight, setMountRefreshInFlight] = useState(false);
@@ -90,8 +149,9 @@ export function LocalFilesystemBrowser({
 	const lastLoadedSignatureByRootRef = useRef<Map<string, string>>(new Map());
 	const hasLoadedMountsOnceRef = useRef(false);
 	const hasResolvedAtLeastOneRootRef = useRef(false);
-	const supportedExtensions = useMemo(() => Array.from(getSupportedExtensionsSet()), []);
+	const openableExtensions = useMemo(() => new Set(LOCAL_OPENABLE_EXTENSIONS), []);
 	const isWindowsPlatform = electronAPI?.versions.platform === "win32";
+	const effectiveExpandedFolderKeys = expandedFolderKeys ?? internalExpandedFolderKeys;
 
 	useEffect(() => {
 		if (!active) return;
@@ -153,7 +213,6 @@ export function LocalFilesystemBrowser({
 						rootPath,
 						searchSpaceId,
 						excludePatterns: DEFAULT_EXCLUDE_PATTERNS,
-						fileExtensions: supportedExtensions,
 					})) as LocalFolderFileEntry[];
 					if (cancelled) return;
 					setRootStateMap((prev) => ({
@@ -181,7 +240,7 @@ export function LocalFilesystemBrowser({
 		return () => {
 			cancelled = true;
 		};
-	}, [active, electronAPI, isWindowsPlatform, reloadNonceByRoot, rootPaths, searchSpaceId, supportedExtensions]);
+	}, [active, electronAPI, isWindowsPlatform, reloadNonceByRoot, rootPaths, searchSpaceId]);
 
 	useEffect(() => {
 		if (active) return;
@@ -198,7 +257,13 @@ export function LocalFilesystemBrowser({
 			return;
 		}
 
-		const unsubscribe = electronAPI.onAgentFilesystemTreeDirty((event) => {
+		const unsubscribe = electronAPI.onAgentFilesystemTreeDirty((event: {
+			searchSpaceId: number | null;
+			reason: "watcher_event" | "safety_poll";
+			rootPath: string;
+			changedPath: string | null;
+			timestamp: number;
+		}) => {
 			if ((event.searchSpaceId ?? null) !== (searchSpaceId ?? null)) {
 				return;
 			}
@@ -225,14 +290,13 @@ export function LocalFilesystemBrowser({
 			searchSpaceId,
 			rootPaths,
 			excludePatterns: DEFAULT_EXCLUDE_PATTERNS,
-			fileExtensions: supportedExtensions,
 		});
 
 		return () => {
 			unsubscribe();
 			void electronAPI.stopAgentFilesystemTreeWatch(searchSpaceId);
 		};
-	}, [active, electronAPI, isWindowsPlatform, rootPaths, searchSpaceId, supportedExtensions]);
+	}, [active, electronAPI, isWindowsPlatform, rootPaths, searchSpaceId]);
 
 	useEffect(() => {
 		if (!electronAPI?.getAgentFilesystemMounts) {
@@ -315,7 +379,7 @@ export function LocalFilesystemBrowser({
 	}, [rootPaths, rootStateMap, searchQuery]);
 
 	const toggleFolder = useCallback((folderKey: string) => {
-		setExpandedFolderKeys((prev) => {
+		const update = (prev: Set<string>) => {
 			const next = new Set(prev);
 			if (next.has(folderKey)) {
 				next.delete(folderKey);
@@ -323,12 +387,17 @@ export function LocalFilesystemBrowser({
 				next.add(folderKey);
 			}
 			return next;
-		});
-	}, []);
+		};
+		if (onExpandedFolderKeysChange) {
+			onExpandedFolderKeysChange(update(effectiveExpandedFolderKeys));
+			return;
+		}
+		setInternalExpandedFolderKeys(update);
+	}, [effectiveExpandedFolderKeys, onExpandedFolderKeysChange]);
 
 	const renderFolder = useCallback(
 		(folder: LocalFolderNode, depth: number, mount: string) => {
-			const isExpanded = expandedFolderKeys.has(folder.key);
+			const isExpanded = effectiveExpandedFolderKeys.has(folder.key);
 			const FolderIcon = isExpanded ? FolderOpen : Folder;
 			const childFolders = Array.from(folder.folders.values()).sort((a, b) =>
 				a.name.localeCompare(b.name)
@@ -354,26 +423,43 @@ export function LocalFilesystemBrowser({
 					{isExpanded && (
 						<>
 							{childFolders.map((childFolder) => renderFolder(childFolder, depth + 1, mount))}
-							{files.map((file) => (
-								<button
-									key={file.fullPath}
-									type="button"
-									onClick={() => onOpenFile(toMountedVirtualPath(mount, file.relativePath))}
-									className="flex h-8 w-full items-center gap-1.5 rounded-md px-2 text-left text-sm transition-colors hover:bg-muted/60"
-									style={{ paddingInlineStart: `${(depth + 1) * 12 + 22}px` }}
-									title={file.fullPath}
-									draggable={false}
-								>
-									<FileText className="size-3.5 shrink-0 text-muted-foreground" />
-									<span className="truncate">{getFileName(file.relativePath)}</span>
-								</button>
-							))}
+							{files.map((file) => {
+								const extension = getNormalizedExtension(file.relativePath);
+								const isOpenable = openableExtensions.has(extension);
+								return (
+									<button
+										key={file.fullPath}
+										type="button"
+										onClick={
+											isOpenable
+												? () => onOpenFile(toMountedVirtualPath(mount, file.relativePath))
+												: undefined
+										}
+										className={`flex h-8 w-full items-center gap-1.5 rounded-md px-2 text-left text-sm transition-colors ${
+											isOpenable
+												? "hover:bg-muted/60"
+												: "cursor-not-allowed opacity-60"
+										}`}
+										style={{ paddingInlineStart: `${(depth + 1) * 12 + 22}px` }}
+										title={
+											isOpenable
+												? file.fullPath
+												: `${file.fullPath}\nThis file type cannot be opened in the editor.`
+										}
+										draggable={false}
+										disabled={!isOpenable}
+									>
+										<FileText className="size-3.5 shrink-0 text-muted-foreground" />
+										<span className="truncate">{getFileName(file.relativePath)}</span>
+									</button>
+								);
+							})}
 						</>
 					)}
 				</div>
 			);
 		},
-		[expandedFolderKeys, onOpenFile, toggleFolder]
+		[effectiveExpandedFolderKeys, onOpenFile, openableExtensions, toggleFolder]
 	);
 
 	if (rootPaths.length === 0) {

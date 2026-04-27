@@ -21,6 +21,51 @@ const MAX_LOCAL_ROOTS = 10;
 const DEFAULT_SPACE_KEY = "default";
 let cachedSettingsStore: AgentFilesystemSettingsStore | null = null;
 
+const LOCAL_OPENABLE_TEXT_EXTENSIONS = new Set<string>([
+	".md",
+	".markdown",
+	".txt",
+	".json",
+	".yaml",
+	".yml",
+	".csv",
+	".tsv",
+	".xml",
+	".html",
+	".htm",
+	".css",
+	".scss",
+	".sass",
+	".sql",
+	".toml",
+	".ini",
+	".conf",
+	".log",
+	".py",
+	".js",
+	".jsx",
+	".mjs",
+	".cjs",
+	".ts",
+	".tsx",
+	".java",
+	".kt",
+	".kts",
+	".go",
+	".rs",
+	".rb",
+	".php",
+	".swift",
+	".r",
+	".lua",
+	".sh",
+	".bash",
+	".zsh",
+	".fish",
+	".env",
+	".mk",
+]);
+
 function getSettingsPath(): string {
 	return join(app.getPath("userData"), SETTINGS_FILENAME);
 }
@@ -227,6 +272,16 @@ function toVirtualPath(rootPath: string, absolutePath: string): string {
 		return "/";
 	}
 	return `/${rel.replace(/\\/g, "/")}`;
+}
+
+function assertLocalOpenableTextFile(absolutePath: string): void {
+	const extension = extname(absolutePath).toLowerCase();
+	if (!LOCAL_OPENABLE_TEXT_EXTENSIONS.has(extension)) {
+		throw new Error(
+			`Unsupported local file type '${extension || "(no extension)"}'. ` +
+				"Only text/code files can be opened in local mode."
+		);
+	}
 }
 
 export type LocalRootMount = {
@@ -441,6 +496,7 @@ export async function readAgentLocalFileText(
 		);
 	}
 	const absolutePath = resolveVirtualPath(rootMount.rootPath, subPath);
+	assertLocalOpenableTextFile(absolutePath);
 	const content = await readFile(absolutePath, "utf8");
 	return {
 		path: toMountedVirtualPath(rootMount.mount, rootMount.rootPath, absolutePath),

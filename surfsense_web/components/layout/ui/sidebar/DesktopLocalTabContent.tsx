@@ -1,7 +1,9 @@
 "use client";
 
 import { Folder, FolderPlus, Search, X } from "lucide-react";
-import { useRef, useState } from "react";
+import { useAtom } from "jotai";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { localExpandedFolderKeysAtom } from "@/atoms/documents/folder.atoms";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -45,6 +47,20 @@ export function DesktopLocalTabContent({
 	const [localSearch, setLocalSearch] = useState("");
 	const debouncedLocalSearch = useDebouncedValue(localSearch, 250);
 	const localSearchInputRef = useRef<HTMLInputElement>(null);
+	const [expandedFolderKeyMap, setExpandedFolderKeyMap] = useAtom(localExpandedFolderKeysAtom);
+	const expandedFolderKeys = useMemo(
+		() => new Set(expandedFolderKeyMap[searchSpaceId] ?? []),
+		[expandedFolderKeyMap, searchSpaceId]
+	);
+	const handleExpandedFolderKeysChange = useCallback(
+		(nextExpandedKeys: Set<string>) => {
+			setExpandedFolderKeyMap((prev) => ({
+				...prev,
+				[searchSpaceId]: Array.from(nextExpandedKeys),
+			}));
+		},
+		[searchSpaceId, setExpandedFolderKeyMap]
+	);
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col select-none">
@@ -181,6 +197,8 @@ export function DesktopLocalTabContent({
 				active
 				searchQuery={debouncedLocalSearch.trim() || undefined}
 				onOpenFile={onOpenLocalFile}
+				expandedFolderKeys={expandedFolderKeys}
+				onExpandedFolderKeysChange={handleExpandedFolderKeysChange}
 			/>
 		</div>
 	);
