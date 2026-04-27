@@ -2,7 +2,7 @@
 
 import { IconBrandGoogleFilled } from "@tabler/icons-react";
 import { useAtom } from "jotai";
-import { Eye, EyeOff, Rocket, RotateCcw, Zap } from "lucide-react";
+import { Crop, Eye, EyeOff, Rocket, RotateCcw, Zap } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -21,7 +21,7 @@ import { setBearerToken } from "@/lib/auth-utils";
 import { AUTH_TYPE, BACKEND_URL } from "@/lib/env-config";
 
 const isGoogleAuth = AUTH_TYPE === "GOOGLE";
-type ShortcutKey = "generalAssist" | "quickAsk";
+type ShortcutKey = "generalAssist" | "quickAsk" | "screenshotAssist";
 type ShortcutMap = typeof DEFAULT_SHORTCUTS;
 
 const HOTKEY_ROWS: Array<{
@@ -35,6 +35,12 @@ const HOTKEY_ROWS: Array<{
 		label: "General Assist",
 		description: "Launch SurfSense instantly from any application",
 		icon: Rocket,
+	},
+	{
+		key: "screenshotAssist",
+		label: "Screenshot Assist",
+		description: "Draw a region on screen to attach that capture to chat",
+		icon: Crop,
 	},
 	{
 		key: "quickAsk",

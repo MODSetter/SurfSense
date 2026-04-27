@@ -129,7 +129,8 @@ export function DesktopContent() {
 				<CardHeader className="px-3 md:px-6 pt-3 md:pt-6 pb-2 md:pb-3">
 					<CardTitle className="text-base md:text-lg">Default Search Space</CardTitle>
 					<CardDescription className="text-xs md:text-sm">
-						Choose which search space General Assist and Quick Assist use by default.
+						Choose which search space General Assist, Screenshot Assist, and Quick Assist use by
+						default.
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="px-3 md:px-6 pb-3 md:pb-6">
