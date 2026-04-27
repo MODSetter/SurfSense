@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronRight, FileText, Folder } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText, Folder, FolderOpen } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_EXCLUDE_PATTERNS } from "@/components/sources/FolderWatchDialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -329,6 +329,7 @@ export function LocalFilesystemBrowser({
 	const renderFolder = useCallback(
 		(folder: LocalFolderNode, depth: number, mount: string) => {
 			const isExpanded = expandedFolderKeys.has(folder.key);
+			const FolderIcon = isExpanded ? FolderOpen : Folder;
 			const childFolders = Array.from(folder.folders.values()).sort((a, b) =>
 				a.name.localeCompare(b.name)
 			);
@@ -347,7 +348,7 @@ export function LocalFilesystemBrowser({
 						) : (
 							<ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
 						)}
-						<Folder className="size-3.5 shrink-0 text-muted-foreground" />
+						<FolderIcon className="size-3.5 shrink-0 text-muted-foreground" />
 						<span className="truncate">{folder.name}</span>
 					</button>
 					{isExpanded && (
