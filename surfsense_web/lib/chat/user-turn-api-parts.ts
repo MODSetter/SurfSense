@@ -46,9 +46,8 @@ export function extractUserTurnForNewChatApi(
 	for (const url of merged) {
 		const p = dataUrlToPayload(url);
 		if (!p) continue;
-		const key = `${p.media_type}:${p.data.length}`;
-		if (seen.has(key)) continue;
-		seen.add(key);
+		if (seen.has(p.data)) continue;
+		seen.add(p.data);
 		payloads.push(p);
 		if (payloads.length >= MAX_IMAGES) break;
 	}
