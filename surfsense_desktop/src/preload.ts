@@ -116,6 +116,38 @@ contextBridge.exposeInMainWorld('electronAPI', {
     excludePatterns?: string[] | null;
     fileExtensions?: string[] | null;
   }) => ipcRenderer.invoke(IPC_CHANNELS.AGENT_FILESYSTEM_LIST_FILES, options),
+  startAgentFilesystemTreeWatch: (options: {
+    searchSpaceId?: number | null;
+    rootPaths: string[];
+    excludePatterns?: string[] | null;
+    fileExtensions?: string[] | null;
+  }) => ipcRenderer.invoke(IPC_CHANNELS.AGENT_FILESYSTEM_TREE_WATCH_START, options),
+  stopAgentFilesystemTreeWatch: (searchSpaceId?: number | null) =>
+    ipcRenderer.invoke(IPC_CHANNELS.AGENT_FILESYSTEM_TREE_WATCH_STOP, searchSpaceId),
+  onAgentFilesystemTreeDirty: (
+    callback: (data: {
+      searchSpaceId: number | null;
+      reason: 'watcher_event' | 'safety_poll';
+      rootPath: string;
+      changedPath: string | null;
+      timestamp: number;
+    }) => void
+  ) => {
+    const listener = (
+      _event: unknown,
+      data: {
+        searchSpaceId: number | null;
+        reason: 'watcher_event' | 'safety_poll';
+        rootPath: string;
+        changedPath: string | null;
+        timestamp: number;
+      }
+    ) => callback(data);
+    ipcRenderer.on(IPC_CHANNELS.AGENT_FILESYSTEM_TREE_DIRTY, listener);
+    return () => {
+      ipcRenderer.removeListener(IPC_CHANNELS.AGENT_FILESYSTEM_TREE_DIRTY, listener);
+    };
+  },
   setAgentFilesystemSettings: (settings: {
     mode?: "cloud" | "desktop_local_folder";
     localRootPaths?: string[] | null;

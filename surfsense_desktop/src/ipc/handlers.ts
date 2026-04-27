@@ -45,6 +45,11 @@ import {
   pickAgentFilesystemRoot,
   setAgentFilesystemSettings,
 } from '../modules/agent-filesystem';
+import {
+  startAgentFilesystemTreeWatch,
+  stopAgentFilesystemTreeWatch,
+  type AgentFilesystemTreeWatchOptions,
+} from '../modules/agent-filesystem-tree-watcher';
 
 let authTokens: { bearer: string; refresh: string } | null = null;
 
@@ -262,5 +267,17 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.AGENT_FILESYSTEM_PICK_ROOT, () =>
     pickAgentFilesystemRoot()
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.AGENT_FILESYSTEM_TREE_WATCH_START,
+    (_event, options: AgentFilesystemTreeWatchOptions) =>
+      startAgentFilesystemTreeWatch(options)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.AGENT_FILESYSTEM_TREE_WATCH_STOP,
+    (_event, searchSpaceId?: number | null) =>
+      stopAgentFilesystemTreeWatch(searchSpaceId)
   );
 }

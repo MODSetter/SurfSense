@@ -57,6 +57,9 @@ export const IPC_CHANNELS = {
   AGENT_FILESYSTEM_GET_SETTINGS: 'agent-filesystem:get-settings',
   AGENT_FILESYSTEM_GET_MOUNTS: 'agent-filesystem:get-mounts',
   AGENT_FILESYSTEM_LIST_FILES: 'agent-filesystem:list-files',
+  AGENT_FILESYSTEM_TREE_WATCH_START: 'agent-filesystem:tree-watch-start',
+  AGENT_FILESYSTEM_TREE_WATCH_STOP: 'agent-filesystem:tree-watch-stop',
+  AGENT_FILESYSTEM_TREE_DIRTY: 'agent-filesystem:tree-dirty',
   AGENT_FILESYSTEM_SET_SETTINGS: 'agent-filesystem:set-settings',
   AGENT_FILESYSTEM_PICK_ROOT: 'agent-filesystem:pick-root',
 } as const;

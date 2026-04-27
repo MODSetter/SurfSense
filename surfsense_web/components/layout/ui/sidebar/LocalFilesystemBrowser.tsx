@@ -86,7 +86,8 @@ export function LocalFilesystemBrowser({
 	const [mountByRootKey, setMountByRootKey] = useState<Map<string, string>>(new Map());
 	const [mountStatus, setMountStatus] = useState<MountLoadStatus>("idle");
 	const [mountRefreshInFlight, setMountRefreshInFlight] = useState(false);
-	const lastLoadedRootsSignatureRef = useRef<string>("");
+	const [reloadNonceByRoot, setReloadNonceByRoot] = useState<Record<string, number>>({});
+	const lastLoadedSignatureByRootRef = useRef<Map<string, string>>(new Map());
 	const hasLoadedMountsOnceRef = useRef(false);
 	const hasResolvedAtLeastOneRootRef = useRef(false);
 	const supportedExtensions = useMemo(() => Array.from(getSupportedExtensionsSet()), []);
@@ -107,18 +108,34 @@ export function LocalFilesystemBrowser({
 			}
 			return;
 		}
-		const rootsSignature = rootPaths
-			.map((rootPath) => normalizeRootPathForLookup(rootPath, isWindowsPlatform))
-			.sort()
-			.join("|");
-		const settingsSignature = `${searchSpaceId}:${rootsSignature}`;
-		if (settingsSignature === lastLoadedRootsSignatureRef.current) {
+		const rootEntries = rootPaths.map((rootPath) => ({
+			rootPath,
+			rootKey: normalizeRootPathForLookup(rootPath, isWindowsPlatform),
+		}));
+		const activeRootKeys = new Set(rootEntries.map((entry) => entry.rootKey));
+		for (const key of Array.from(lastLoadedSignatureByRootRef.current.keys())) {
+			if (!activeRootKeys.has(key)) {
+				lastLoadedSignatureByRootRef.current.delete(key);
+			}
+		}
+		const rootsToReload = rootEntries.filter(({ rootKey }) => {
+			const nonce = reloadNonceByRoot[rootKey] ?? 0;
+			const signature = `${searchSpaceId}:${rootKey}:${nonce}`;
+			return lastLoadedSignatureByRootRef.current.get(rootKey) !== signature;
+		});
+		if (rootsToReload.length === 0) {
 			return;
 		}
-		lastLoadedRootsSignatureRef.current = settingsSignature;
+		for (const { rootKey } of rootsToReload) {
+			const nonce = reloadNonceByRoot[rootKey] ?? 0;
+			lastLoadedSignatureByRootRef.current.set(
+				rootKey,
+				`${searchSpaceId}:${rootKey}:${nonce}`
+			);
+		}
 		let cancelled = false;
 
-		for (const rootPath of rootPaths) {
+		for (const { rootPath } of rootsToReload) {
 			setRootStateMap((prev) => ({
 				...prev,
 				[rootPath]: {
@@ -130,7 +147,7 @@ export function LocalFilesystemBrowser({
 		}
 
 		void Promise.all(
-			rootPaths.map(async (rootPath) => {
+			rootsToReload.map(async ({ rootPath }) => {
 				try {
 					const files = (await electronAPI.listAgentFilesystemFiles({
 						rootPath,
@@ -163,6 +180,57 @@ export function LocalFilesystemBrowser({
 
 		return () => {
 			cancelled = true;
+		};
+	}, [active, electronAPI, isWindowsPlatform, reloadNonceByRoot, rootPaths, searchSpaceId, supportedExtensions]);
+
+	useEffect(() => {
+		if (active) return;
+		lastLoadedSignatureByRootRef.current.clear();
+	}, [active]);
+
+	useEffect(() => {
+		if (!electronAPI?.startAgentFilesystemTreeWatch) return;
+		if (!electronAPI?.stopAgentFilesystemTreeWatch) return;
+		if (!electronAPI?.onAgentFilesystemTreeDirty) return;
+		if (!active) return;
+		if (rootPaths.length === 0) {
+			void electronAPI.stopAgentFilesystemTreeWatch(searchSpaceId);
+			return;
+		}
+
+		const unsubscribe = electronAPI.onAgentFilesystemTreeDirty((event) => {
+			if ((event.searchSpaceId ?? null) !== (searchSpaceId ?? null)) {
+				return;
+			}
+			const eventRootKey = normalizeRootPathForLookup(event.rootPath, isWindowsPlatform);
+			const knownRootKeys = new Set(
+				rootPaths.map((rootPath) => normalizeRootPathForLookup(rootPath, isWindowsPlatform))
+			);
+			if (!knownRootKeys.has(eventRootKey)) {
+				setReloadNonceByRoot((prev) => {
+					const next = { ...prev };
+					for (const rootKey of knownRootKeys) {
+						next[rootKey] = (prev[rootKey] ?? 0) + 1;
+					}
+					return next;
+				});
+				return;
+			}
+			setReloadNonceByRoot((prev) => ({
+				...prev,
+				[eventRootKey]: (prev[eventRootKey] ?? 0) + 1,
+			}));
+		});
+		void electronAPI.startAgentFilesystemTreeWatch({
+			searchSpaceId,
+			rootPaths,
+			excludePatterns: DEFAULT_EXCLUDE_PATTERNS,
+			fileExtensions: supportedExtensions,
+		});
+
+		return () => {
+			unsubscribe();
+			void electronAPI.stopAgentFilesystemTreeWatch(searchSpaceId);
 		};
 	}, [active, electronAPI, isWindowsPlatform, rootPaths, searchSpaceId, supportedExtensions]);
 

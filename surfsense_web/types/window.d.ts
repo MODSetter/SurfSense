@@ -61,6 +61,21 @@ interface AgentFilesystemListOptions {
 	fileExtensions?: string[] | null;
 }
 
+interface AgentFilesystemTreeWatchOptions {
+	searchSpaceId?: number | null;
+	rootPaths: string[];
+	excludePatterns?: string[] | null;
+	fileExtensions?: string[] | null;
+}
+
+interface AgentFilesystemTreeDirtyEvent {
+	searchSpaceId: number | null;
+	reason: "watcher_event" | "safety_poll";
+	rootPath: string;
+	changedPath: string | null;
+	timestamp: number;
+}
+
 interface LocalTextFileResult {
 	ok: boolean;
 	path: string;
@@ -167,6 +182,13 @@ interface ElectronAPI {
 	listAgentFilesystemFiles: (
 		options: AgentFilesystemListOptions
 	) => Promise<FolderFileEntry[]>;
+	startAgentFilesystemTreeWatch: (
+		options: AgentFilesystemTreeWatchOptions
+	) => Promise<{ ok: true }>;
+	stopAgentFilesystemTreeWatch: (searchSpaceId?: number | null) => Promise<{ ok: true }>;
+	onAgentFilesystemTreeDirty: (
+		callback: (data: AgentFilesystemTreeDirtyEvent) => void
+	) => () => void;
 	setAgentFilesystemSettings: (settings: {
 		mode?: AgentFilesystemMode;
 		localRootPaths?: string[] | null;
