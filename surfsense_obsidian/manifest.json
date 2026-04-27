@@ -1,0 +1,10 @@
+{
+	"id": "surfsense-obsidian",
+	"name": "SurfSense",
+	"version": "0.1.0",
+	"minAppVersion": "1.5.4",
+	"description": "Turn your vault into a searchable second brain with SurfSense.",
+	"author": "SurfSense",
+	"authorUrl": "https://www.surfsense.com",
+	"isDesktopOnly": false
+}

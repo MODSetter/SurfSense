@@ -14,18 +14,16 @@ from .google_calendar_indexer import index_google_calendar_events
 from .google_drive_indexer import index_google_drive_files
 from .google_gmail_indexer import index_google_gmail_messages
 from .notion_indexer import index_notion_pages
-from .obsidian_indexer import index_obsidian_vault
 from .webcrawler_indexer import index_crawled_urls
 
 __all__ = [
     "index_bookstack_pages",
     "index_confluence_pages",
+    "index_crawled_urls",
     "index_elasticsearch_documents",
     "index_github_repos",
     "index_google_calendar_events",
     "index_google_drive_files",
     "index_google_gmail_messages",
     "index_notion_pages",
-    "index_obsidian_vault",
-    "index_crawled_urls",
 ]

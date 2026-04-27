@@ -8,7 +8,7 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	ChevronUp,
-	Edit3,
+	Pencil,
 	ImageIcon,
 	Layers,
 	Plus,
@@ -316,6 +316,30 @@ export function ModelSelector({
 				const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
 				setSidebarScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
 			}
+		},
+		[isMobile]
+	);
+
+	const scrollProviderSidebar = useCallback(
+		(direction: "backward" | "forward") => {
+			const el = providerSidebarRef.current;
+			if (!el) return;
+			const delta = isMobile
+				? Math.max(56, Math.floor(el.clientWidth * 0.5))
+				: Math.max(44, Math.floor(el.clientHeight * 0.4));
+
+			if (isMobile) {
+				el.scrollBy({
+					left: direction === "backward" ? -delta : delta,
+					behavior: "smooth",
+				});
+				return;
+			}
+
+			el.scrollBy({
+				top: direction === "backward" ? -delta : delta,
+				behavior: "smooth",
+			});
 		},
 		[isMobile]
 	);
@@ -716,17 +740,40 @@ export function ModelSelector({
 		return (
 			<div
 				className={cn(
-					"shrink-0 border-border/50 flex",
-					isMobile ? "flex-row items-center border-b border-border/40" : "flex-col w-10 border-r"
+					"shrink-0 border-border/50 flex relative",
+					isMobile
+						? "flex-row items-center border-b border-border/40"
+						: "flex-col w-10 border-r"
 				)}
 			>
-				{!isMobile && sidebarScrollPos !== "top" && (
-					<div className="flex items-center justify-center py-0.5 pointer-events-none">
-						<ChevronUp className="size-3 text-muted-foreground" />
+				{!isMobile && (
+					<div
+						className={cn(
+							"absolute top-0 left-0 right-0 z-10 h-5 flex items-center justify-center transition-all duration-200 ease-out",
+							sidebarScrollPos === "top"
+								? "opacity-0 -translate-y-1 pointer-events-none"
+								: "opacity-100 translate-y-0 pointer-events-auto"
+						)}
+					>
+						<button
+							type="button"
+							aria-label="Scroll providers up"
+							onClick={() => scrollProviderSidebar("backward")}
+							className="flex h-4 w-4 items-center justify-center rounded-sm text-muted-foreground/90 hover:text-foreground hover:bg-accent/60 transition-colors"
+						>
+							<ChevronUp className="size-3" />
+						</button>
 					</div>
 				)}
-				{isMobile && sidebarScrollPos !== "top" && (
-					<div className="flex items-center justify-center px-0.5 shrink-0 pointer-events-none">
+				{isMobile && (
+					<div
+						className={cn(
+							"absolute left-0 top-0 bottom-0 z-10 w-5 flex items-center justify-center transition-all duration-200 ease-out pointer-events-none",
+							sidebarScrollPos === "top"
+								? "opacity-0 -translate-x-1"
+								: "opacity-100 translate-x-0"
+						)}
+					>
 						<ChevronLeft className="size-3 text-muted-foreground" />
 					</div>
 				)}
@@ -802,13 +849,34 @@ export function ModelSelector({
 						);
 					})}
 				</div>
-				{!isMobile && sidebarScrollPos !== "bottom" && (
-					<div className="flex items-center justify-center py-0.5 pointer-events-none">
-						<ChevronDown className="size-3 text-muted-foreground" />
+				{!isMobile && (
+					<div
+						className={cn(
+							"absolute bottom-0 left-0 right-0 z-10 h-5 flex items-center justify-center transition-all duration-200 ease-out",
+							sidebarScrollPos === "bottom"
+								? "opacity-0 translate-y-1 pointer-events-none"
+								: "opacity-100 translate-y-0 pointer-events-auto"
+						)}
+					>
+						<button
+							type="button"
+							aria-label="Scroll providers down"
+							onClick={() => scrollProviderSidebar("forward")}
+							className="flex h-4 w-4 items-center justify-center rounded-sm text-muted-foreground/90 hover:text-foreground hover:bg-accent/60 transition-colors"
+						>
+							<ChevronDown className="size-3" />
+						</button>
 					</div>
 				)}
-				{isMobile && sidebarScrollPos !== "bottom" && (
-					<div className="flex items-center justify-center px-0.5 shrink-0 pointer-events-none">
+				{isMobile && (
+					<div
+						className={cn(
+							"absolute right-0 top-0 bottom-0 z-10 w-5 flex items-center justify-center transition-all duration-200 ease-out pointer-events-none",
+							sidebarScrollPos === "bottom"
+								? "opacity-0 translate-x-1"
+								: "opacity-100 translate-x-0"
+						)}
+					>
 						<ChevronRight className="size-3 text-muted-foreground" />
 					</div>
 				)}
@@ -923,7 +991,7 @@ export function ModelSelector({
 							className="size-7 rounded-md hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
 							onClick={(e) => handleEditItem(e, item)}
 						>
-							<Edit3 className="size-3.5 text-muted-foreground" />
+							<Pencil className="size-3.5 text-muted-foreground" />
 						</Button>
 					)}
 					{isSelected && <Check className="size-4 text-primary shrink-0" />}

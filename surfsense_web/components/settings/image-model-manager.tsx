@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { AlertCircle, Dot, Edit3, Info, RefreshCw, Trash2 } from "lucide-react";
+import { AlertCircle, Dot, Info, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { deleteImageGenConfigMutationAtom } from "@/atoms/image-gen-config/image-gen-config-mutation.atoms";
 import {
@@ -116,8 +116,8 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 
 	return (
 		<div className="space-y-4 md:space-y-6">
-			{/* Header */}
-			<div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+			{/* Header actions */}
+			<div className="flex items-center justify-between">
 				<Button
 					variant="secondary"
 					size="sm"
@@ -284,7 +284,7 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 																				onClick={() => openEditDialog(config)}
 																				className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground"
 																			>
-																				<Edit3 className="h-3 w-3" />
+																				<Pencil className="h-3 w-3" />
 																			</Button>
 																		</TooltipTrigger>
 																		<TooltipContent>Edit</TooltipContent>

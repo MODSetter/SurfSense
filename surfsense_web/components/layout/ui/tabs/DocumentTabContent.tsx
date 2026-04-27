@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, FileQuestionMark, FileText, Loader2, Pencil, RefreshCw } from "lucide-react";
+import { Download, FileQuestionMark, FileText, Pencil, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -8,6 +8,7 @@ import { PlateEditor } from "@/components/editor/plate-editor";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 
 const LARGE_DOCUMENT_THRESHOLD = 2 * 1024 * 1024; // 2MB
@@ -278,7 +279,7 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 									<Button
 										variant="outline"
 										size="sm"
-										className="shrink-0 gap-1.5"
+										className="relative shrink-0"
 										disabled={downloading}
 										onClick={async () => {
 											setDownloading(true);
@@ -307,12 +308,13 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 											}
 										}}
 									>
-										{downloading ? (
-											<Loader2 className="size-3.5 animate-spin" />
-										) : (
+										<span
+											className={`flex items-center gap-1.5 ${downloading ? "opacity-0" : ""}`}
+										>
 											<Download className="size-3.5" />
-										)}
-										{downloading ? "Preparing..." : "Download .md"}
+											Download .md
+										</span>
+										{downloading && <Spinner size="sm" className="absolute" />}
 									</Button>
 								</AlertDescription>
 							</Alert>
