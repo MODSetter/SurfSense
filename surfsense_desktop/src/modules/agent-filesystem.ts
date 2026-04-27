@@ -1,5 +1,5 @@
 import { app, dialog } from "electron";
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 
 export type AgentFilesystemMode = "cloud" | "desktop_local_folder";
@@ -25,16 +25,26 @@ function getDefaultSettings(): AgentFilesystemSettings {
 	};
 }
 
-function normalizeLocalRootPaths(paths: unknown): string[] {
+async function canonicalizeRootPath(pathValue: string): Promise<string> {
+	const resolvedPath = resolve(pathValue);
+	try {
+		return await realpath(resolvedPath);
+	} catch {
+		return resolvedPath;
+	}
+}
+
+async function normalizeLocalRootPaths(paths: unknown): Promise<string[]> {
 	if (!Array.isArray(paths)) {
 		return [];
 	}
 	const uniquePaths = new Set<string>();
-	for (const path of paths) {
-		if (typeof path !== "string") continue;
-		const trimmed = path.trim();
+	for (const rawPath of paths) {
+		if (typeof rawPath !== "string") continue;
+		const trimmed = rawPath.trim();
 		if (!trimmed) continue;
-		uniquePaths.add(trimmed);
+		const canonicalRootPath = await canonicalizeRootPath(trimmed);
+		uniquePaths.add(canonicalRootPath);
 		if (uniquePaths.size >= MAX_LOCAL_ROOTS) {
 			break;
 		}
@@ -51,7 +61,7 @@ export async function getAgentFilesystemSettings(): Promise<AgentFilesystemSetti
 		}
 		return {
 			mode: parsed.mode,
-			localRootPaths: normalizeLocalRootPaths(parsed.localRootPaths),
+			localRootPaths: await normalizeLocalRootPaths(parsed.localRootPaths),
 			updatedAt: parsed.updatedAt ?? new Date().toISOString(),
 		};
 	} catch {
@@ -75,7 +85,7 @@ export async function setAgentFilesystemSettings(
 		localRootPaths:
 			settings.localRootPaths === undefined
 				? current.localRootPaths
-				: normalizeLocalRootPaths(settings.localRootPaths ?? []),
+				: await normalizeLocalRootPaths(settings.localRootPaths ?? []),
 		updatedAt: new Date().toISOString(),
 	};
 

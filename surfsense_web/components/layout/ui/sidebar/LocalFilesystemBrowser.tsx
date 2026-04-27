@@ -150,6 +150,13 @@ export function LocalFilesystemBrowser({
 			setMountByRootKey(new Map());
 			return;
 		}
+		if (rootPaths.length === 0) {
+			setMountByRootKey(new Map());
+			setMountStatus("complete");
+			setMountRefreshInFlight(false);
+			hasLoadedMountsOnceRef.current = true;
+			return;
+		}
 		let cancelled = false;
 		const isInitialMountLoad = !hasLoadedMountsOnceRef.current;
 		if (isInitialMountLoad) {
@@ -161,13 +168,9 @@ export function LocalFilesystemBrowser({
 			.getAgentFilesystemMounts()
 			.then((mounts: LocalRootMount[]) => {
 				if (cancelled) return;
-				const knownRootKeys = new Set(
-					rootPaths.map((rootPath) => normalizeRootPathForLookup(rootPath, isWindowsPlatform))
-				);
 				const next = new Map<string, string>();
 				for (const entry of mounts) {
 					const normalizedRootKey = normalizeRootPathForLookup(entry.rootPath, isWindowsPlatform);
-					if (!knownRootKeys.has(normalizedRootKey)) continue;
 					next.set(normalizedRootKey, entry.mount);
 				}
 				setMountByRootKey(next);

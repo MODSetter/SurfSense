@@ -98,7 +98,7 @@ import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 
 const NON_DELETABLE_DOCUMENT_TYPES: readonly string[] = ["SURFSENSE_DOCS"];
 const LOCAL_FILESYSTEM_TRUST_KEY = "surfsense.local-filesystem-trust.v1";
-const MAX_LOCAL_FILESYSTEM_ROOTS = 5;
+const MAX_LOCAL_FILESYSTEM_ROOTS = 10;
 
 function CloudDocumentsSkeleton() {
 	const rows = [
@@ -205,6 +205,7 @@ function AuthenticatedDocumentsSidebar({
 	const [filesystemSettings, setFilesystemSettings] = useState<FilesystemSettings | null>(null);
 	const [localTrustDialogOpen, setLocalTrustDialogOpen] = useState(false);
 	const [pendingLocalPath, setPendingLocalPath] = useState<string | null>(null);
+	const [draggedLocalRootPath, setDraggedLocalRootPath] = useState<string | null>(null);
 	const [watchedFolderIds, setWatchedFolderIds] = useState<Set<number>>(new Set());
 	const [folderWatchOpen, setFolderWatchOpen] = useAtom(folderWatchDialogOpenAtom);
 	const [watchInitialFolder, setWatchInitialFolder] = useAtom(folderWatchInitialFolderAtom);
@@ -246,10 +247,30 @@ function AuthenticatedDocumentsSidebar({
 	const applyLocalRootPath = useCallback(
 		async (path: string) => {
 			if (!electronAPI?.setAgentFilesystemSettings) return;
-			const nextLocalRootPaths = [...localRootPaths, path]
+			const nextLocalRootPaths = [path, ...localRootPaths]
 				.filter((rootPath, index, allPaths) => allPaths.indexOf(rootPath) === index)
 				.slice(0, MAX_LOCAL_FILESYSTEM_ROOTS);
 			if (nextLocalRootPaths.length === localRootPaths.length) return;
+			const updated = await electronAPI.setAgentFilesystemSettings({
+				mode: "desktop_local_folder",
+				localRootPaths: nextLocalRootPaths,
+			});
+			setFilesystemSettings(updated);
+		},
+		[electronAPI, localRootPaths]
+	);
+
+	const handleReorderFilesystemRoots = useCallback(
+		async (draggedPath: string, targetPath: string) => {
+			if (!electronAPI?.setAgentFilesystemSettings) return;
+			if (draggedPath === targetPath) return;
+			const fromIndex = localRootPaths.indexOf(draggedPath);
+			const toIndex = localRootPaths.indexOf(targetPath);
+			if (fromIndex < 0 || toIndex < 0) return;
+			const nextLocalRootPaths = [...localRootPaths];
+			const [movedPath] = nextLocalRootPaths.splice(fromIndex, 1);
+			if (!movedPath) return;
+			nextLocalRootPaths.splice(toIndex, 0, movedPath);
 			const updated = await electronAPI.setAgentFilesystemSettings({
 				mode: "desktop_local_folder",
 				localRootPaths: nextLocalRootPaths,
@@ -1208,16 +1229,47 @@ function AuthenticatedDocumentsSidebar({
 								{localRootPaths.map((rootPath) => (
 									<DropdownMenuItem
 										key={rootPath}
-										onClick={() => {
-											void handleRemoveFilesystemRoot(rootPath);
+										onSelect={(event) => event.preventDefault()}
+										draggable
+										onDragStart={(event) => {
+											event.dataTransfer.setData("text/plain", rootPath);
+											event.dataTransfer.effectAllowed = "move";
+											setDraggedLocalRootPath(rootPath);
 										}}
-										className="group h-8 gap-1.5 px-1.5 text-sm text-foreground"
+										onDragOver={(event) => {
+											event.preventDefault();
+											event.dataTransfer.dropEffect = "move";
+										}}
+										onDrop={(event) => {
+											event.preventDefault();
+											const sourcePath =
+												event.dataTransfer.getData("text/plain") || draggedLocalRootPath;
+											if (!sourcePath) return;
+											void handleReorderFilesystemRoots(sourcePath, rootPath);
+											setDraggedLocalRootPath(null);
+										}}
+										onDragEnd={() => {
+											setDraggedLocalRootPath(null);
+										}}
+										className={`group h-8 gap-1.5 px-1.5 text-sm text-foreground ${
+											draggedLocalRootPath === rootPath ? "bg-muted/60" : ""
+										}`}
 									>
 										<Folder className="size-3.5 text-muted-foreground" />
 										<span className="min-w-0 flex-1 truncate">
 											{getFolderDisplayName(rootPath)}
 										</span>
-										<X className="size-3 text-muted-foreground transition-colors group-hover:text-foreground" />
+										<button
+											type="button"
+											className="inline-flex size-5 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground"
+											onClick={(event) => {
+												event.stopPropagation();
+												void handleRemoveFilesystemRoot(rootPath);
+											}}
+											aria-label={`Remove ${getFolderDisplayName(rootPath)}`}
+										>
+											<X className="size-3" />
+										</button>
 									</DropdownMenuItem>
 								))}
 								<DropdownMenuSeparator className="mx-1 my-0.5" />
@@ -1358,16 +1410,16 @@ function AuthenticatedDocumentsSidebar({
 										className="h-5 gap-1 px-1.5 text-[11px] select-none focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:bg-muted-foreground/25 data-[state=active]:text-foreground data-[state=active]:shadow-none"
 										title="Cloud"
 									>
-										<Server className="size-3" />
-										<span>Cloud</span>
+										<Server className="size-3 shrink-0" />
+										<span className="leading-none">Cloud</span>
 									</TabsTrigger>
 									<TabsTrigger
 										value="local"
 										className="h-5 gap-1 px-1.5 text-[11px] select-none focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:bg-muted-foreground/25 data-[state=active]:text-foreground data-[state=active]:shadow-none"
 										title="Local"
 									>
-										<Laptop className="size-3" />
-										<span>Local</span>
+										<Laptop className="size-3 shrink-0" />
+										<span className="leading-none">Local</span>
 									</TabsTrigger>
 								</TabsList>
 							</Tabs>
