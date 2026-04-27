@@ -63,10 +63,10 @@ const TAB_ITEMS = [
 		featured: true,
 	},
 	{
-		title: "Screen capture in chat",
+		title: "Screenshot Assist",
 		description:
-			"Capture your screen and send it with your message so the AI can see what you see.",
-		src: "/homepage/hero_tutorial/extreme_assist.mp4",
+			"Use a global shortcut to select a region on your screen and attach it to your chat message.",
+		src: "/homepage/hero_tutorial/screenshot_assist.mp4",
 		featured: true,
 	},
 	{
