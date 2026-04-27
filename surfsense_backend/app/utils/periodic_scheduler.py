@@ -24,7 +24,6 @@ CONNECTOR_TASK_MAP = {
     SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR: "index_elasticsearch_documents",
     SearchSourceConnectorType.WEBCRAWLER_CONNECTOR: "index_crawled_urls",
     SearchSourceConnectorType.BOOKSTACK_CONNECTOR: "index_bookstack_pages",
-    SearchSourceConnectorType.OBSIDIAN_CONNECTOR: "index_obsidian_vault",
 }
 
 
@@ -81,7 +80,6 @@ def create_periodic_schedule(
             index_elasticsearch_documents_task,
             index_github_repos_task,
             index_notion_pages_task,
-            index_obsidian_vault_task,
         )
 
         task_map = {
@@ -91,7 +89,6 @@ def create_periodic_schedule(
             SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR: index_elasticsearch_documents_task,
             SearchSourceConnectorType.WEBCRAWLER_CONNECTOR: index_crawled_urls_task,
             SearchSourceConnectorType.BOOKSTACK_CONNECTOR: index_bookstack_pages_task,
-            SearchSourceConnectorType.OBSIDIAN_CONNECTOR: index_obsidian_vault_task,
         }
 
         # Trigger the first run immediately

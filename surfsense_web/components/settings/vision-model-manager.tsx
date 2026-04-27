@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { AlertCircle, Dot, Edit3, Info, RefreshCw, Trash2 } from "lucide-react";
+import { AlertCircle, Dot, Info, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { membersAtom, myAccessAtom } from "@/atoms/members/members-query.atoms";
 import { deleteVisionLLMConfigMutationAtom } from "@/atoms/vision-llm-config/vision-llm-config-mutation.atoms";
@@ -121,7 +121,7 @@ export function VisionModelManager({ searchSpaceId }: VisionModelManagerProps) {
 
 	return (
 		<div className="space-y-4 md:space-y-6">
-			<div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+			<div className="flex items-center justify-between">
 				<Button
 					variant="secondary"
 					size="sm"
@@ -282,7 +282,7 @@ export function VisionModelManager({ searchSpaceId }: VisionModelManagerProps) {
 																				onClick={() => openEditDialog(config)}
 																				className="h-6 w-6 text-muted-foreground hover:text-foreground"
 																			>
-																				<Edit3 className="h-3 w-3" />
+																				<Pencil className="h-3 w-3" />
 																			</Button>
 																		</TooltipTrigger>
 																		<TooltipContent>Edit</TooltipContent>

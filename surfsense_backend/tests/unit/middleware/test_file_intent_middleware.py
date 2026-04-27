@@ -79,7 +79,7 @@ async def test_file_write_null_filename_uses_semantic_default_path():
 
 
 @pytest.mark.asyncio
-async def test_file_write_null_filename_infers_json_extension():
+async def test_file_write_null_filename_defaults_to_markdown_path():
     llm = _FakeLLM(
         '{"intent":"file_write","confidence":0.71,"suggested_filename":null}'
     )
@@ -94,7 +94,7 @@ async def test_file_write_null_filename_infers_json_extension():
     assert result is not None
     contract = result["file_operation_contract"]
     assert contract["intent"] == FileOperationIntent.FILE_WRITE.value
-    assert contract["suggested_path"] == "/notes.json"
+    assert contract["suggested_path"] == "/notes.md"
 
 
 @pytest.mark.asyncio

@@ -79,8 +79,11 @@ export function PublicChatSnapshotRow({
 								variant="ghost"
 								size="icon"
 								className={cn(
-									"absolute right-0 h-6 w-6 shrink-0 hover:bg-transparent",
-									dropdownOpen ? "opacity-100" : "sm:opacity-0 sm:group-hover:opacity-100"
+									"absolute right-0 h-6 w-6 shrink-0",
+									"hover:bg-accent",
+									dropdownOpen
+										? "opacity-100 bg-accent hover:bg-accent"
+										: "sm:opacity-0 sm:group-hover:opacity-100"
 								)}
 							>
 								<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />

@@ -38,6 +38,7 @@ import {
   trackEvent,
 } from '../modules/analytics';
 import {
+  listAgentFilesystemFiles,
   readAgentLocalFileText,
   writeAgentLocalFileText,
   getAgentFilesystemMounts,
@@ -45,6 +46,11 @@ import {
   pickAgentFilesystemRoot,
   setAgentFilesystemSettings,
 } from '../modules/agent-filesystem';
+import {
+  startAgentFilesystemTreeWatch,
+  stopAgentFilesystemTreeWatch,
+  type AgentFilesystemTreeWatchOptions,
+} from '../modules/agent-filesystem-tree-watcher';
 
 let authTokens: { bearer: string; refresh: string } | null = null;
 
@@ -136,21 +142,24 @@ export function registerIpcHandlers(): void {
     readLocalFiles(paths)
   );
 
-  ipcMain.handle(IPC_CHANNELS.READ_AGENT_LOCAL_FILE_TEXT, async (_event, virtualPath: string) => {
+  ipcMain.handle(
+    IPC_CHANNELS.READ_AGENT_LOCAL_FILE_TEXT,
+    async (_event, virtualPath: string, searchSpaceId?: number | null) => {
     try {
-      const result = await readAgentLocalFileText(virtualPath);
+      const result = await readAgentLocalFileText(virtualPath, searchSpaceId);
       return { ok: true, path: result.path, content: result.content };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to read local file';
       return { ok: false, path: virtualPath, error: message };
     }
-  });
+    }
+  );
 
   ipcMain.handle(
     IPC_CHANNELS.WRITE_AGENT_LOCAL_FILE_TEXT,
-    async (_event, virtualPath: string, content: string) => {
+    async (_event, virtualPath: string, content: string, searchSpaceId?: number | null) => {
       try {
-        const result = await writeAgentLocalFileText(virtualPath, content);
+        const result = await writeAgentLocalFileText(virtualPath, content, searchSpaceId);
         return { ok: true, path: result.path };
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to write local file';
@@ -233,21 +242,52 @@ export function registerIpcHandlers(): void {
     };
   });
 
-  ipcMain.handle(IPC_CHANNELS.AGENT_FILESYSTEM_GET_SETTINGS, () =>
-    getAgentFilesystemSettings()
+  ipcMain.handle(IPC_CHANNELS.AGENT_FILESYSTEM_GET_SETTINGS, (_event, searchSpaceId?: number | null) =>
+    getAgentFilesystemSettings(searchSpaceId)
   );
 
-  ipcMain.handle(IPC_CHANNELS.AGENT_FILESYSTEM_GET_MOUNTS, () =>
-    getAgentFilesystemMounts()
+  ipcMain.handle(IPC_CHANNELS.AGENT_FILESYSTEM_GET_MOUNTS, (_event, searchSpaceId?: number | null) =>
+    getAgentFilesystemMounts(searchSpaceId)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.AGENT_FILESYSTEM_LIST_FILES,
+    (
+      _event,
+      options: {
+        rootPath: string;
+        searchSpaceId?: number | null;
+        excludePatterns?: string[] | null;
+        fileExtensions?: string[] | null;
+      }
+    ) =>
+      listAgentFilesystemFiles(options)
   );
 
   ipcMain.handle(
     IPC_CHANNELS.AGENT_FILESYSTEM_SET_SETTINGS,
-    (_event, settings: { mode?: 'cloud' | 'desktop_local_folder'; localRootPaths?: string[] | null }) =>
-      setAgentFilesystemSettings(settings)
+    (
+      _event,
+      payload: {
+        searchSpaceId?: number | null;
+        settings: { mode?: 'cloud' | 'desktop_local_folder'; localRootPaths?: string[] | null };
+      }
+    ) => setAgentFilesystemSettings(payload?.searchSpaceId, payload?.settings ?? {})
   );
 
   ipcMain.handle(IPC_CHANNELS.AGENT_FILESYSTEM_PICK_ROOT, () =>
     pickAgentFilesystemRoot()
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.AGENT_FILESYSTEM_TREE_WATCH_START,
+    (_event, options: AgentFilesystemTreeWatchOptions) =>
+      startAgentFilesystemTreeWatch(options)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.AGENT_FILESYSTEM_TREE_WATCH_STOP,
+    (_event, searchSpaceId?: number | null) =>
+      stopAgentFilesystemTreeWatch(searchSpaceId)
   );
 }

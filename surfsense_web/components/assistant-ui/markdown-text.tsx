@@ -229,6 +229,44 @@ function extractDomain(url: string): string {
 // Canonical local-file virtual paths are mount-prefixed: /<mount>/<relative/path>
 const LOCAL_FILE_PATH_REGEX = /^\/[a-z0-9_-]+\/[^\s`]+(?:\/[^\s`]+)*$/;
 
+type AgentFilesystemMount = {
+	mount: string;
+	rootPath: string;
+};
+
+function normalizeLocalVirtualPathForEditor(
+	candidatePath: string,
+	mounts: AgentFilesystemMount[]
+): string {
+	const normalizedCandidate = candidatePath.trim().replace(/\\/g, "/").replace(/\/+/g, "/");
+	if (!normalizedCandidate) {
+		return candidatePath;
+	}
+	const defaultMount = mounts[0]?.mount;
+	if (!defaultMount) {
+		return normalizedCandidate.startsWith("/")
+			? normalizedCandidate
+			: `/${normalizedCandidate.replace(/^\/+/, "")}`;
+	}
+
+	const mountNames = new Set(mounts.map((entry) => entry.mount));
+	if (normalizedCandidate.startsWith("/")) {
+		const relative = normalizedCandidate.replace(/^\/+/, "");
+		const [firstSegment] = relative.split("/", 1);
+		if (mountNames.has(firstSegment)) {
+			return `/${relative}`;
+		}
+		return `/${defaultMount}/${relative}`;
+	}
+
+	const relative = normalizedCandidate.replace(/^\/+/, "");
+	const [firstSegment] = relative.split("/", 1);
+	if (mountNames.has(firstSegment)) {
+		return `/${relative}`;
+	}
+	return `/${defaultMount}/${relative}`;
+}
+
 function isVirtualFilePathToken(value: string): boolean {
 	if (!LOCAL_FILE_PATH_REGEX.test(value) || value.startsWith("//")) {
 		return false;
@@ -421,8 +459,15 @@ const defaultComponents = memoizeMarkdownComponents({
 			!codeString.includes("\n");
 		if (!isCodeBlock) {
 			const inlineValue = String(children ?? "").trim();
+			const normalizedInlinePath = inlineValue.replace(/\/+$/, "");
+			const leafSegment = normalizedInlinePath.split("/").filter(Boolean).at(-1) ?? "";
+			const isLikelyFolder =
+				inlineValue.endsWith("/") || !leafSegment || !leafSegment.includes(".");
 			const isLocalPath =
-				!!electronAPI && isVirtualFilePathToken(inlineValue) && !inlineValue.startsWith("//");
+				!!electronAPI &&
+				isVirtualFilePathToken(inlineValue) &&
+				!inlineValue.startsWith("//") &&
+				!isLikelyFolder;
 			const displayLocalPath = inlineValue.replace(/^\/+/, "");
 			const searchSpaceIdParam = params?.search_space_id;
 			const parsedSearchSpaceId = Array.isArray(searchSpaceIdParam)
@@ -438,14 +483,31 @@ const defaultComponents = memoizeMarkdownComponents({
 						onClick={(event) => {
 							event.preventDefault();
 							event.stopPropagation();
-							openEditorPanel({
-								kind: "local_file",
-								localFilePath: inlineValue,
-								title: inlineValue.split("/").pop() || inlineValue,
-								searchSpaceId: Number.isFinite(parsedSearchSpaceId)
+							void (async () => {
+								let resolvedLocalPath = inlineValue;
+								const resolvedSearchSpaceId = Number.isFinite(parsedSearchSpaceId)
 									? parsedSearchSpaceId
-									: undefined,
-							});
+									: undefined;
+								if (electronAPI?.getAgentFilesystemMounts) {
+									try {
+										const mounts = (await electronAPI.getAgentFilesystemMounts(
+											resolvedSearchSpaceId
+										)) as AgentFilesystemMount[];
+										resolvedLocalPath = normalizeLocalVirtualPathForEditor(
+											inlineValue,
+											mounts
+										);
+									} catch {
+										// Fall back to the raw inline path if mount lookup fails.
+									}
+								}
+								openEditorPanel({
+									kind: "local_file",
+									localFilePath: resolvedLocalPath,
+									title: resolvedLocalPath.split("/").pop() || resolvedLocalPath,
+									searchSpaceId: resolvedSearchSpaceId,
+								});
+							})();
 						}}
 						title="Open in editor panel"
 					>

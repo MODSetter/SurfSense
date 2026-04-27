@@ -13,6 +13,15 @@ export const expandedFolderIdsAtom = atomWithStorage<Record<number, number[]>>(
 );
 
 /**
+ * Expanded folder keys for Local filesystem tree, keyed by search space ID.
+ * Persisted so local tree expansion survives remounts/reloads.
+ */
+export const localExpandedFolderKeysAtom = atomWithStorage<Record<number, string[]>>(
+	"surfsense:localExpandedFolderKeys",
+	{}
+);
+
+/**
  * Folder currently being renamed (inline edit mode).
  * null means no folder is being renamed.
  */

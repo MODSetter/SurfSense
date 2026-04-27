@@ -680,7 +680,7 @@ export default function NewChatPage() {
 
 			try {
 				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
-				const selection = await getAgentFilesystemSelection();
+				const selection = await getAgentFilesystemSelection(searchSpaceId);
 				if (
 					selection.filesystem_mode === "desktop_local_folder" &&
 					(!selection.local_filesystem_mounts || selection.local_filesystem_mounts.length === 0)
@@ -1106,7 +1106,7 @@ export default function NewChatPage() {
 
 			try {
 				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
-				const selection = await getAgentFilesystemSelection();
+				const selection = await getAgentFilesystemSelection(searchSpaceId);
 				const response = await fetch(`${backendUrl}/api/v1/threads/${resumeThreadId}/resume`, {
 					method: "POST",
 					headers: {
@@ -1427,9 +1427,7 @@ export default function NewChatPage() {
 				id: userMsgId,
 				role: "user",
 				content: isEdit
-					? (editExtras?.userMessageContent ?? [
-							{ type: "text", text: newUserQuery ?? "" },
-						])
+					? (editExtras?.userMessageContent ?? [{ type: "text", text: newUserQuery ?? "" }])
 					: originalUserMessageContent || [{ type: "text", text: userQueryToDisplay || "" }],
 				createdAt: new Date(),
 				metadata: isEdit ? undefined : originalUserMessageMetadata,
@@ -1448,7 +1446,7 @@ export default function NewChatPage() {
 			]);
 
 			try {
-				const selection = await getAgentFilesystemSelection();
+				const selection = await getAgentFilesystemSelection(searchSpaceId);
 				const requestBody: Record<string, unknown> = {
 					search_space_id: searchSpaceId,
 					user_query: newUserQuery,
@@ -1557,9 +1555,7 @@ export default function NewChatPage() {
 					try {
 						// Persist user message (for both edit and reload modes, since backend deleted it)
 						const userContentToPersist = isEdit
-							? (editExtras?.userMessageContent ?? [
-									{ type: "text", text: newUserQuery ?? "" },
-								])
+							? (editExtras?.userMessageContent ?? [{ type: "text", text: newUserQuery ?? "" }])
 							: originalUserMessageContent || [{ type: "text", text: userQueryToDisplay || "" }];
 
 						const savedUserMessage = await appendMessage(threadId, {

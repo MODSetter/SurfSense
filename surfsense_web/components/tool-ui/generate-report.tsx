@@ -137,10 +137,9 @@ function ReportCard({
 	const autoOpenedRef = useRef(false);
 	const [metadata, setMetadata] = useState<{
 		title: string;
-		wordCount: number | null;
 		versionLabel: string | null;
 		content: string | null;
-	}>({ title, wordCount: wordCount ?? null, versionLabel: null, content: null });
+	}>({ title, versionLabel: null, content: null });
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
@@ -169,10 +168,8 @@ function ReportCard({
 							}
 						}
 						const resolvedTitle = parsed.data.title || title;
-						const resolvedWordCount = parsed.data.report_metadata?.word_count ?? wordCount ?? null;
 						setMetadata({
 							title: resolvedTitle,
-							wordCount: resolvedWordCount,
 							versionLabel,
 							content: parsed.data.content ?? null,
 						});
@@ -182,7 +179,7 @@ function ReportCard({
 							openPanel({
 								reportId,
 								title: resolvedTitle,
-								wordCount: resolvedWordCount ?? undefined,
+								wordCount: parsed.data.report_metadata?.word_count ?? wordCount ?? undefined,
 								shareToken,
 							});
 						}
@@ -210,7 +207,6 @@ function ReportCard({
 		openPanel({
 			reportId,
 			title: metadata.title,
-			wordCount: metadata.wordCount ?? undefined,
 			shareToken,
 		});
 	};
@@ -233,10 +229,8 @@ function ReportCard({
 							<span className="inline-block h-3 w-24 rounded bg-muted/60 animate-pulse" />
 						) : (
 							<>
-								{metadata.wordCount != null && `${metadata.wordCount.toLocaleString()} words`}
-								{metadata.wordCount != null && metadata.versionLabel && (
-									<Dot className="inline size-4" />
-								)}
+								Markdown
+								{metadata.versionLabel && <Dot className="inline size-4" />}
 								{metadata.versionLabel}
 							</>
 						)}

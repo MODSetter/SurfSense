@@ -34,6 +34,11 @@ class _RuntimeNoSuggestedPath:
     state = {"file_operation_contract": {}}
 
 
+class _RuntimeWithSuggestedPath:
+    def __init__(self, suggested_path: str) -> None:
+        self.state = {"file_operation_contract": {"suggested_path": suggested_path}}
+
+
 def test_verify_written_content_prefers_raw_sync() -> None:
     middleware = SurfSenseFilesystemMiddleware.__new__(SurfSenseFilesystemMiddleware)
     expected = "line1\nline2"
@@ -162,3 +167,47 @@ def test_normalize_local_mount_path_prefixes_posix_absolute_path_for_linux_and_m
     resolved = middleware._normalize_local_mount_path("/var/log/app.log", runtime)  # type: ignore[arg-type]
 
     assert resolved == "/pc_backups/var/log/app.log"
+
+
+def test_normalize_local_mount_path_prefers_unique_existing_parent_mount(
+    tmp_path: Path,
+) -> None:
+    root_a = tmp_path / "RootA"
+    root_b = tmp_path / "RootB"
+    (root_a / "other").mkdir(parents=True)
+    (root_b / "nested" / "deep").mkdir(parents=True)
+    backend = MultiRootLocalFolderBackend(
+        (("root_a", str(root_a)), ("root_b", str(root_b)))
+    )
+    runtime = _RuntimeNoSuggestedPath()
+    middleware = SurfSenseFilesystemMiddleware.__new__(SurfSenseFilesystemMiddleware)
+    middleware._get_backend = lambda _runtime: backend  # type: ignore[method-assign]
+
+    resolved = middleware._normalize_local_mount_path(  # type: ignore[arg-type]
+        "/nested/deep/new-note.md",
+        runtime,
+    )
+
+    assert resolved == "/root_b/nested/deep/new-note.md"
+
+
+def test_normalize_local_mount_path_uses_suggested_mount_when_ambiguous(
+    tmp_path: Path,
+) -> None:
+    root_a = tmp_path / "RootA"
+    root_b = tmp_path / "RootB"
+    root_a.mkdir(parents=True)
+    root_b.mkdir(parents=True)
+    backend = MultiRootLocalFolderBackend(
+        (("root_a", str(root_a)), ("root_b", str(root_b)))
+    )
+    runtime = _RuntimeWithSuggestedPath("/root_b/notes/context.md")
+    middleware = SurfSenseFilesystemMiddleware.__new__(SurfSenseFilesystemMiddleware)
+    middleware._get_backend = lambda _runtime: backend  # type: ignore[method-assign]
+
+    resolved = middleware._normalize_local_mount_path(  # type: ignore[arg-type]
+        "/brand-new-note.md",
+        runtime,
+    )
+
+    assert resolved == "/root_b/brand-new-note.md"

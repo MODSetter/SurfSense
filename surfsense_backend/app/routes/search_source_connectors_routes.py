@@ -81,6 +81,36 @@ _heartbeat_redis_client: redis.Redis | None = None
 
 # Redis key TTL - notification is stale if no heartbeat in this time
 HEARTBEAT_TTL_SECONDS = 120  # 2 minutes
+# How often the background loop refreshes the Redis key. Must be < TTL so
+# the key cannot expire between refreshes when the indexing function is
+# doing blocking work (e.g. gitingest in Phase 1) that doesn't trigger
+# on_heartbeat_callback.
+HEARTBEAT_REFRESH_INTERVAL = 60
+
+
+async def _run_indexing_heartbeat_loop(notification_id: int) -> None:
+    """Background coroutine that refreshes the Redis heartbeat every
+    HEARTBEAT_REFRESH_INTERVAL seconds while a connector indexing task is
+    running.
+
+    Mirrors `_run_heartbeat_loop` in app/tasks/celery_tasks/document_tasks.py.
+    Cancelled via heartbeat_task.cancel() when the indexing call returns
+    (success or failure). If the worker dies, the coroutine dies with it
+    and the Redis key expires naturally on its TTL.
+    """
+    key = _get_heartbeat_key(notification_id)
+    try:
+        while True:
+            await asyncio.sleep(HEARTBEAT_REFRESH_INTERVAL)
+            try:
+                get_heartbeat_redis_client().setex(key, HEARTBEAT_TTL_SECONDS, "alive")
+            except Exception as e:
+                logger.warning(
+                    f"Failed to refresh Redis heartbeat for notification "
+                    f"{notification_id}: {e}"
+                )
+    except asyncio.CancelledError:
+        pass  # Normal cancellation when the indexing task completes
 
 
 def get_heartbeat_redis_client() -> redis.Redis:
@@ -1028,25 +1058,6 @@ async def index_connector_content(
                 )
                 response_message = "Web page indexing started in the background."
 
-        elif connector.connector_type == SearchSourceConnectorType.OBSIDIAN_CONNECTOR:
-            from app.config import config as app_config
-            from app.tasks.celery_tasks.connector_tasks import index_obsidian_vault_task
-
-            # Obsidian connector only available in self-hosted mode
-            if not app_config.is_self_hosted():
-                raise HTTPException(
-                    status_code=400,
-                    detail="Obsidian connector is only available in self-hosted mode",
-                )
-
-            logger.info(
-                f"Triggering Obsidian vault indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
-            )
-            index_obsidian_vault_task.delay(
-                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
-            )
-            response_message = "Obsidian vault indexing started in the background."
-
         elif (
             connector.connector_type
             == SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR
@@ -1284,6 +1295,7 @@ async def _run_indexing_with_notifications(
 
     notification = None
     connector_lock_acquired = False
+    heartbeat_task: asyncio.Task | None = None
     # Track indexed count for retry notifications and heartbeat
     current_indexed_count = 0
 
@@ -1328,6 +1340,16 @@ async def _run_indexing_with_notifications(
                     )
                 except Exception as e:
                     logger.warning(f"Failed to set initial Redis heartbeat: {e}")
+
+                # Start a background coroutine that refreshes the
+                # heartbeat every HEARTBEAT_REFRESH_INTERVAL seconds.
+                # Without this the cleanup_stale_indexing_notifications
+                # task can mark the doc failed when on_heartbeat_callback
+                # doesn't fire — for example during the GitHub
+                # connector's Phase 1 gitingest blocking call (#1295).
+                heartbeat_task = asyncio.create_task(
+                    _run_indexing_heartbeat_loop(notification.id)
+                )
 
         # Update notification to fetching stage
         if notification:
@@ -1619,6 +1641,13 @@ async def _run_indexing_with_notifications(
             except Exception as notif_error:
                 logger.error(f"Failed to update notification: {notif_error!s}")
     finally:
+        # Stop the background heartbeat refresher BEFORE deleting the
+        # Redis key, so the loop cannot race and re-create the key
+        # after we delete it.
+        if heartbeat_task is not None:
+            heartbeat_task.cancel()
+            with suppress(Exception):
+                await asyncio.gather(heartbeat_task, return_exceptions=True)
         # Clean up Redis heartbeat key when task completes (success or failure)
         if notification:
             try:
@@ -2496,59 +2525,6 @@ async def run_bookstack_indexing(
         start_date=start_date,
         end_date=end_date,
         indexing_function=index_bookstack_pages,
-        update_timestamp_func=_update_connector_timestamp_by_id,
-        supports_heartbeat_callback=True,
-    )
-
-
-# Add new helper functions for Obsidian indexing
-async def run_obsidian_indexing_with_new_session(
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """Wrapper to run Obsidian indexing with its own database session."""
-    logger.info(
-        f"Background task started: Indexing Obsidian connector {connector_id} into space {search_space_id} from {start_date} to {end_date}"
-    )
-    async with async_session_maker() as session:
-        await run_obsidian_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
-        )
-    logger.info(f"Background task finished: Indexing Obsidian connector {connector_id}")
-
-
-async def run_obsidian_indexing(
-    session: AsyncSession,
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """
-    Background task to run Obsidian vault indexing.
-
-    Args:
-        session: Database session
-        connector_id: ID of the Obsidian connector
-        search_space_id: ID of the search space
-        user_id: ID of the user
-        start_date: Start date for indexing
-        end_date: End date for indexing
-    """
-    from app.tasks.connector_indexers import index_obsidian_vault
-
-    await _run_indexing_with_notifications(
-        session=session,
-        connector_id=connector_id,
-        search_space_id=search_space_id,
-        user_id=user_id,
-        start_date=start_date,
-        end_date=end_date,
-        indexing_function=index_obsidian_vault,
         update_timestamp_func=_update_connector_timestamp_by_id,
         supports_heartbeat_callback=True,
     )

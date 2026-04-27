@@ -30,6 +30,7 @@ def test_backend_resolver_returns_multi_root_backend_for_single_root(tmp_path: P
 
     backend = resolver(_RuntimeStub())
     assert isinstance(backend, MultiRootLocalFolderBackend)
+    assert backend.list_mounts() == ("tmp",)
 
 
 def test_backend_resolver_uses_cloud_mode_by_default():
@@ -57,3 +58,4 @@ def test_backend_resolver_returns_multi_root_backend_for_multiple_roots(tmp_path
 
     backend = resolver(_RuntimeStub())
     assert isinstance(backend, MultiRootLocalFolderBackend)
+    assert backend.list_mounts() == ("resume", "notes")

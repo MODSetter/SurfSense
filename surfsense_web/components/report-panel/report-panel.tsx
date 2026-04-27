@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue, useSetAtom } from "jotai";
-import { Check, ChevronDownIcon, Copy, Pencil, XIcon } from "lucide-react";
+import { Check, ChevronDownIcon, Copy, Download, Pencil, XIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -309,6 +309,7 @@ export function ReportPanelContent({
 	const isResume = reportContent?.content_type === "typst";
 	const showReportEditingTier = !isResume;
 	const hasUnsavedChanges = editedMarkdown !== null;
+	const showDesktopHeader = !!onClose;
 
 	const handleCancelEditing = useCallback(() => {
 		setEditedMarkdown(null);
@@ -316,153 +317,177 @@ export function ReportPanelContent({
 		setIsEditing(false);
 	}, []);
 
+	const exportButton = !isEditing && (
+		<>
+			{isResume ? (
+				<Button
+					variant="ghost"
+					size="icon"
+					className="size-6"
+					onClick={() => handleExport("pdf")}
+					disabled={isLoading || !reportContent?.content || exporting !== null}
+				>
+					{exporting === "pdf" ? <Spinner size="xs" /> : <Download className="size-3.5" />}
+					<span className="sr-only">Download report</span>
+				</Button>
+			) : (
+				<DropdownMenu modal={insideDrawer ? false : undefined}>
+					<DropdownMenuTrigger asChild>
+						<Button
+							variant="ghost"
+							size="icon"
+							className="size-6"
+							disabled={isLoading || !reportContent?.content}
+						>
+							<Download className="size-3.5" />
+							<span className="sr-only">Export report</span>
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent
+						align="end"
+						className={`min-w-[200px] select-none${insideDrawer ? " z-[100]" : ""}`}
+					>
+						<ExportDropdownItems
+							onExport={handleExport}
+							exporting={exporting}
+							showAllFormats={!shareToken}
+						/>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			)}
+		</>
+	);
+
+	const versionSwitcher = !isEditing && versions.length > 1 && (
+		<DropdownMenu modal={insideDrawer ? false : undefined}>
+			<DropdownMenuTrigger asChild>
+				<Button variant="ghost" size="sm" className="h-6 gap-1 px-1.5 text-xs">
+					v{activeVersionIndex + 1}
+					<ChevronDownIcon className="size-3" />
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent
+				align="end"
+				className={`min-w-[120px] select-none${insideDrawer ? " z-[100]" : ""}`}
+			>
+				{versions.map((v, i) => (
+					<DropdownMenuItem
+						key={v.id}
+						onClick={() => setActiveReportId(v.id)}
+						className={v.id === activeReportId ? "bg-accent font-medium" : ""}
+					>
+						Version {i + 1}
+					</DropdownMenuItem>
+				))}
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+
+	const copyButton = !isEditing && showReportEditingTier && (
+		<Button
+			variant="ghost"
+			size="icon"
+			className="size-6"
+			onClick={() => {
+				void handleCopy();
+			}}
+			disabled={isLoading || !reportContent?.content}
+		>
+			{copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+			<span className="sr-only">{copied ? "Copied report content" : "Copy report content"}</span>
+		</Button>
+	);
+
+	const editingActions = showReportEditingTier &&
+		!isReadOnly &&
+		(isEditing ? (
+			<>
+				<Button
+					variant="ghost"
+					size="sm"
+					className="h-6 px-2 text-xs"
+					onClick={handleCancelEditing}
+					disabled={saving}
+				>
+					Cancel
+				</Button>
+				<Button
+					variant="secondary"
+					size="sm"
+					className="relative h-6 w-[56px] px-0 text-xs"
+					onClick={async () => {
+						const saveSucceeded = await handleSave();
+						if (saveSucceeded) setIsEditing(false);
+					}}
+					disabled={saving || !hasUnsavedChanges}
+				>
+					<span className={saving ? "opacity-0" : ""}>Save</span>
+					{saving && <Spinner size="xs" className="absolute" />}
+				</Button>
+			</>
+		) : (
+			<Button
+				variant="ghost"
+				size="icon"
+				className="size-6"
+				onClick={() => {
+					setEditedMarkdown(null);
+					changeCountRef.current = 0;
+					setIsEditing(true);
+				}}
+			>
+				<Pencil className="size-3.5" />
+				<span className="sr-only">Edit report</span>
+			</Button>
+		));
+
 	return (
 		<>
-			{/* Action bar — always visible; buttons are disabled while loading */}
-			<div className="flex h-14 items-center justify-between px-4 shrink-0">
-				<div className="flex items-center gap-2">
-					{/* Export — plain button for resume (typst), dropdown for others */}
-					{reportContent?.content_type === "typst" ? (
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => handleExport("pdf")}
-							disabled={isLoading || !reportContent?.content || exporting !== null}
-							className={`h-8 min-w-[100px] px-3.5 py-4 text-[15px] ${isPublic ? "bg-main-panel" : "bg-sidebar"} select-none`}
-						>
-							{exporting === "pdf" ? <Spinner size="xs" /> : "Download"}
-						</Button>
-					) : (
-						<DropdownMenu modal={insideDrawer ? false : undefined}>
-							<DropdownMenuTrigger asChild>
-								<Button
-									variant="outline"
-									size="sm"
-									disabled={isLoading || !reportContent?.content}
-									className={`h-8 px-3.5 py-4 text-[15px] gap-1.5 ${isPublic ? "bg-main-panel" : "bg-sidebar"} select-none`}
-								>
-									Export
-									<ChevronDownIcon className="size-3" />
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent
-								align="start"
-								className={`min-w-[200px] select-none${insideDrawer ? " z-[100]" : ""}`}
-							>
-								<ExportDropdownItems
-									onExport={handleExport}
-									exporting={exporting}
-									showAllFormats={!shareToken}
-								/>
-							</DropdownMenuContent>
-						</DropdownMenu>
-					)}
-
-					{/* Version switcher — only shown when multiple versions exist */}
-					{versions.length > 1 && (
-						<DropdownMenu modal={insideDrawer ? false : undefined}>
-							<DropdownMenuTrigger asChild>
-								<Button
-									variant="outline"
-									size="sm"
-									className={`h-8 px-3.5 py-4 text-[15px] gap-1.5 ${isPublic ? "bg-main-panel" : "bg-sidebar"} select-none`}
-								>
-									v{activeVersionIndex + 1}
-									<ChevronDownIcon className="size-3" />
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent
-								align="start"
-								className={`min-w-[120px] select-none${insideDrawer ? " z-[100]" : ""}`}
-							>
-								{versions.map((v, i) => (
-									<DropdownMenuItem
-										key={v.id}
-										onClick={() => setActiveReportId(v.id)}
-										className={v.id === activeReportId ? "bg-accent font-medium" : ""}
-									>
-										Version {i + 1}
-									</DropdownMenuItem>
-								))}
-							</DropdownMenuContent>
-						</DropdownMenu>
-					)}
-				</div>
-				{onClose && (
-					<Button variant="ghost" size="icon" onClick={onClose} className="size-7 shrink-0">
-						<XIcon className="size-4" />
-						<span className="sr-only">Close report panel</span>
-					</Button>
-				)}
-			</div>
-
-			{showReportEditingTier && (
-				<div className="flex h-10 items-center justify-between gap-2 border-t border-b px-4 shrink-0">
-					<div className="min-w-0 flex-1">
-						<p className="truncate text-sm text-muted-foreground">
-							{reportContent?.title || title}
-						</p>
-					</div>
-					<div className="flex items-center gap-1 shrink-0">
-						{!isEditing && (
-							<Button
-								variant="ghost"
-								size="icon"
-								className="size-6"
-								onClick={() => {
-									void handleCopy();
-								}}
-								disabled={isLoading || !reportContent?.content}
-							>
-								{copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-								<span className="sr-only">
-									{copied ? "Copied report content" : "Copy report content"}
-								</span>
+			{showDesktopHeader ? (
+				<>
+					{/* Header — matches the editor panel "File" header pattern */}
+					<div className="flex h-14 items-center justify-between px-4 shrink-0">
+						<h2 className="text-lg font-medium text-muted-foreground select-none">
+							{isResume ? "Resume" : "Report"}
+						</h2>
+						{onClose && (
+							<Button variant="ghost" size="icon" onClick={onClose} className="size-7 shrink-0">
+								<XIcon className="size-4" />
+								<span className="sr-only">Close report panel</span>
 							</Button>
 						)}
-						{!isReadOnly &&
-							(isEditing ? (
-								<>
-									<Button
-										variant="ghost"
-										size="sm"
-										className="h-6 px-2 text-xs"
-										onClick={handleCancelEditing}
-										disabled={saving}
-									>
-										Cancel
-									</Button>
-									<Button
-										variant="secondary"
-										size="sm"
-										className="relative h-6 w-[56px] px-0 text-xs"
-										onClick={async () => {
-											const saveSucceeded = await handleSave();
-											if (saveSucceeded) setIsEditing(false);
-										}}
-										disabled={saving || !hasUnsavedChanges}
-									>
-										<span className={saving ? "opacity-0" : ""}>Save</span>
-										{saving && <Spinner size="xs" className="absolute" />}
-									</Button>
-								</>
-							) : (
-								<Button
-									variant="ghost"
-									size="icon"
-									className="size-6"
-									onClick={() => {
-										setEditedMarkdown(null);
-										changeCountRef.current = 0;
-										setIsEditing(true);
-									}}
-								>
-									<Pencil className="size-3.5" />
-									<span className="sr-only">Edit report</span>
-								</Button>
-							))}
 					</div>
-				</div>
+
+					{!isResume && (
+						<div className="flex h-10 items-center justify-between gap-2 border-t border-b px-4 shrink-0">
+							<div className="min-w-0 flex-1">
+								<p className="truncate text-sm text-muted-foreground">
+									{reportContent?.title || title}
+								</p>
+							</div>
+							<div className="flex items-center gap-1 shrink-0">
+								{versionSwitcher}
+								{exportButton}
+								{copyButton}
+								{editingActions}
+							</div>
+						</div>
+					)}
+				</>
+			) : (
+				!isResume && (
+					<div className="flex h-14 items-center justify-between border-b px-4 shrink-0">
+						<div className="flex-1 min-w-0">
+							<h2 className="text-sm font-semibold truncate">{reportContent?.title || title}</h2>
+						</div>
+						<div className="flex items-center gap-1 shrink-0">
+							{versionSwitcher}
+							{exportButton}
+							{copyButton}
+							{editingActions}
+						</div>
+					</div>
+				)
 			)}
 
 			{/* Report content — skeleton/error/viewer/editor shown only in this area */}
@@ -480,6 +505,12 @@ export function ReportPanelContent({
 					<PdfViewer
 						pdfUrl={`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}${shareToken ? `/api/v1/public/${shareToken}/reports/${activeReportId}/preview` : `/api/v1/reports/${activeReportId}/preview`}`}
 						isPublic={isPublic}
+						toolbarActions={
+							<>
+								{versionSwitcher}
+								{exportButton}
+							</>
+						}
 					/>
 				) : reportContent.content ? (
 					isReadOnly ? (

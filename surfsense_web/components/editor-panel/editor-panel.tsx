@@ -47,6 +47,42 @@ interface EditorContent {
 const EDITABLE_DOCUMENT_TYPES = new Set(["FILE", "NOTE"]);
 type EditorRenderMode = "rich_markdown" | "source_code";
 
+type AgentFilesystemMount = {
+	mount: string;
+	rootPath: string;
+};
+
+function normalizeLocalVirtualPathForEditor(
+	candidatePath: string,
+	mounts: AgentFilesystemMount[]
+): string {
+	const normalizedCandidate = candidatePath.trim().replace(/\\/g, "/").replace(/\/+/g, "/");
+	if (!normalizedCandidate) return candidatePath;
+	const defaultMount = mounts[0]?.mount;
+	if (!defaultMount) {
+		return normalizedCandidate.startsWith("/")
+			? normalizedCandidate
+			: `/${normalizedCandidate.replace(/^\/+/, "")}`;
+	}
+
+	const mountNames = new Set(mounts.map((entry) => entry.mount));
+	if (normalizedCandidate.startsWith("/")) {
+		const relative = normalizedCandidate.replace(/^\/+/, "");
+		const [firstSegment] = relative.split("/", 1);
+		if (mountNames.has(firstSegment)) {
+			return `/${relative}`;
+		}
+		return `/${defaultMount}/${relative}`;
+	}
+
+	const relative = normalizedCandidate.replace(/^\/+/, "");
+	const [firstSegment] = relative.split("/", 1);
+	if (mountNames.has(firstSegment)) {
+		return `/${relative}`;
+	}
+	return `/${defaultMount}/${relative}`;
+}
+
 function EditorPanelSkeleton() {
 	return (
 		<div className="space-y-6 p-6">
@@ -100,6 +136,22 @@ export function EditorPanelContent({
 	const [displayTitle, setDisplayTitle] = useState(title || "Untitled");
 	const isLocalFileMode = kind === "local_file";
 	const editorRenderMode: EditorRenderMode = isLocalFileMode ? "source_code" : "rich_markdown";
+	const resolveLocalVirtualPath = useCallback(
+		async (candidatePath: string): Promise<string> => {
+			if (!electronAPI?.getAgentFilesystemMounts) {
+				return candidatePath;
+			}
+			try {
+				const mounts = (await electronAPI.getAgentFilesystemMounts(
+					searchSpaceId
+				)) as AgentFilesystemMount[];
+				return normalizeLocalVirtualPathForEditor(candidatePath, mounts);
+			} catch {
+				return candidatePath;
+			}
+		},
+		[electronAPI, searchSpaceId]
+	);
 
 	const isLargeDocument = (editorDoc?.content_size_bytes ?? 0) > LARGE_DOCUMENT_THRESHOLD;
 
@@ -124,11 +176,15 @@ export function EditorPanelContent({
 					if (!electronAPI?.readAgentLocalFileText) {
 						throw new Error("Local file editor is available only in desktop mode.");
 					}
-					const readResult = await electronAPI.readAgentLocalFileText(localFilePath);
+					const resolvedLocalPath = await resolveLocalVirtualPath(localFilePath);
+					const readResult = await electronAPI.readAgentLocalFileText(
+						resolvedLocalPath,
+						searchSpaceId
+					);
 					if (!readResult.ok) {
 						throw new Error(readResult.error || "Failed to read local file");
 					}
-					const inferredTitle = localFilePath.split("/").pop() || localFilePath;
+					const inferredTitle = resolvedLocalPath.split("/").pop() || resolvedLocalPath;
 					const content: EditorContent = {
 						document_id: -1,
 						title: inferredTitle,
@@ -192,7 +248,15 @@ export function EditorPanelContent({
 
 		doFetch().catch(() => {});
 		return () => controller.abort();
-	}, [documentId, electronAPI, isLocalFileMode, localFilePath, searchSpaceId, title]);
+	}, [
+		documentId,
+		electronAPI,
+		isLocalFileMode,
+		localFilePath,
+		resolveLocalVirtualPath,
+		searchSpaceId,
+		title,
+	]);
 
 	useEffect(() => {
 		return () => {
@@ -227,7 +291,7 @@ export function EditorPanelContent({
 	}, [editorDoc?.source_markdown]);
 
 	const handleSave = useCallback(
-		async (options?: { silent?: boolean }) => {
+		async (_options?: { silent?: boolean }) => {
 			setSaving(true);
 			try {
 				if (isLocalFileMode) {
@@ -237,10 +301,12 @@ export function EditorPanelContent({
 					if (!electronAPI?.writeAgentLocalFileText) {
 						throw new Error("Local file editor is available only in desktop mode.");
 					}
+					const resolvedLocalPath = await resolveLocalVirtualPath(localFilePath);
 					const contentToSave = markdownRef.current;
 					const writeResult = await electronAPI.writeAgentLocalFileText(
-						localFilePath,
-						contentToSave
+						resolvedLocalPath,
+						contentToSave,
+						searchSpaceId
 					);
 					if (!writeResult.ok) {
 						throw new Error(writeResult.error || "Failed to save local file");
@@ -286,7 +352,14 @@ export function EditorPanelContent({
 				setSaving(false);
 			}
 		},
-		[documentId, electronAPI, isLocalFileMode, localFilePath, searchSpaceId]
+		[
+			documentId,
+			electronAPI,
+			isLocalFileMode,
+			localFilePath,
+			resolveLocalVirtualPath,
+			searchSpaceId,
+		]
 	);
 
 	const isEditableType = editorDoc
@@ -322,7 +395,7 @@ export function EditorPanelContent({
 						</div>
 					</div>
 					<div className="flex h-10 items-center justify-between gap-2 border-t px-4">
-						<div className="min-w-0 flex-1">
+						<div className="min-w-0 flex flex-1 items-center gap-2">
 							<p className="truncate text-sm text-muted-foreground">{displayTitle}</p>
 						</div>
 						<div className="flex items-center gap-1 shrink-0">
@@ -353,6 +426,12 @@ export function EditorPanelContent({
 								</>
 							) : (
 								<>
+									{!isLocalFileMode && editorDoc?.document_type && documentId && (
+										<VersionHistoryButton
+											documentId={documentId}
+											documentType={editorDoc.document_type}
+										/>
+									)}
 									<Button
 										variant="ghost"
 										size="icon"
@@ -384,21 +463,12 @@ export function EditorPanelContent({
 									)}
 								</>
 							)}
-							{!showEditingActions &&
-								!isLocalFileMode &&
-								editorDoc?.document_type &&
-								documentId && (
-									<VersionHistoryButton
-										documentId={documentId}
-										documentType={editorDoc.document_type}
-									/>
-								)}
 						</div>
 					</div>
 				</div>
 			) : (
 				<div className="flex h-14 items-center justify-between border-b px-4 shrink-0">
-					<div className="flex-1 min-w-0">
+					<div className="flex flex-1 min-w-0 items-center gap-2">
 						<h2 className="text-sm font-semibold truncate">{displayTitle}</h2>
 					</div>
 					<div className="flex items-center gap-1 shrink-0">
@@ -429,6 +499,12 @@ export function EditorPanelContent({
 							</>
 						) : (
 							<>
+								{!isLocalFileMode && editorDoc?.document_type && documentId && (
+									<VersionHistoryButton
+										documentId={documentId}
+										documentType={editorDoc.document_type}
+									/>
+								)}
 								<Button
 									variant="ghost"
 									size="icon"
@@ -457,12 +533,6 @@ export function EditorPanelContent({
 										<Pencil className="size-3.5" />
 										<span className="sr-only">Edit document</span>
 									</Button>
-								)}
-								{!isLocalFileMode && editorDoc?.document_type && documentId && (
-									<VersionHistoryButton
-										documentId={documentId}
-										documentType={editorDoc.document_type}
-									/>
 								)}
 							</>
 						)}
@@ -508,7 +578,7 @@ export function EditorPanelContent({
 								<Button
 									variant="outline"
 									size="sm"
-									className="shrink-0 gap-1.5"
+									className="relative shrink-0"
 									disabled={downloading}
 									onClick={async () => {
 										setDownloading(true);
@@ -540,8 +610,11 @@ export function EditorPanelContent({
 										}
 									}}
 								>
-									{downloading ? <Spinner size="xs" /> : <Download className="size-3.5" />}
-									{downloading ? "Preparing..." : "Download .md"}
+									<span className={`flex items-center gap-1.5 ${downloading ? "opacity-0" : ""}`}>
+										<Download className="size-3.5" />
+										Download .md
+									</span>
+									{downloading && <Spinner size="sm" className="absolute" />}
 								</Button>
 							</AlertDescription>
 						</Alert>

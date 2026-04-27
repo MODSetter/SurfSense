@@ -22,15 +22,17 @@ export function getClientPlatform(): ClientPlatform {
 	return window.electronAPI ? "desktop" : "web";
 }
 
-export async function getAgentFilesystemSelection(): Promise<AgentFilesystemSelection> {
+export async function getAgentFilesystemSelection(
+	searchSpaceId?: number | null
+): Promise<AgentFilesystemSelection> {
 	const platform = getClientPlatform();
 	if (platform !== "desktop" || !window.electronAPI?.getAgentFilesystemSettings) {
 		return { ...DEFAULT_SELECTION, client_platform: platform };
 	}
 	try {
-		const settings = await window.electronAPI.getAgentFilesystemSettings();
+		const settings = await window.electronAPI.getAgentFilesystemSettings(searchSpaceId);
 		if (settings.mode === "desktop_local_folder") {
-			const mounts = await window.electronAPI.getAgentFilesystemMounts?.();
+			const mounts = await window.electronAPI.getAgentFilesystemMounts?.(searchSpaceId);
 			const localFilesystemMounts =
 				mounts?.map((entry) => ({
 					mount_id: entry.mount,

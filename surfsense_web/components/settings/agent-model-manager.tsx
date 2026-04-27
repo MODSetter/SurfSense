@@ -4,10 +4,9 @@ import { useAtomValue } from "jotai";
 import {
 	AlertCircle,
 	Dot,
-	Edit3,
 	FileText,
 	Info,
-	MessageSquareQuote,
+	Pencil,
 	RefreshCw,
 	Trash2,
 } from "lucide-react";
@@ -288,7 +287,7 @@ export function AgentModelManager({ searchSpaceId }: AgentModelManagerProps) {
 																				onClick={() => openEditDialog(config)}
 																				className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground"
 																			>
-																				<Edit3 className="h-3 w-3" />
+																				<Pencil className="h-3 w-3" />
 																			</Button>
 																		</TooltipTrigger>
 																		<TooltipContent>Edit</TooltipContent>
@@ -323,7 +322,6 @@ export function AgentModelManager({ searchSpaceId }: AgentModelManagerProps) {
 															variant="secondary"
 															className="text-[10px] px-1.5 py-0.5 border-0 text-muted-foreground bg-muted"
 														>
-															<MessageSquareQuote className="h-2.5 w-2.5 mr-1" />
 															Citations
 														</Badge>
 													)}
