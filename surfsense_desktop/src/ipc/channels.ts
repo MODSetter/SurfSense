@@ -14,6 +14,9 @@ export const IPC_CHANNELS = {
   CAPTURE_FULL_SCREEN: 'capture-full-screen',
   SCREEN_REGION_SUBMIT: 'screen-region:submit',
   SCREEN_REGION_CANCEL: 'screen-region:cancel',
+  WINDOW_PICK_LIST: 'window-pick:list',
+  WINDOW_PICK_SUBMIT: 'window-pick:submit',
+  WINDOW_PICK_CANCEL: 'window-pick:cancel',
   CHAT_SCREEN_CAPTURE: 'chat:screen-capture',
   // Folder sync channels
   FOLDER_SYNC_SELECT_FOLDER: 'folder-sync:select-folder',

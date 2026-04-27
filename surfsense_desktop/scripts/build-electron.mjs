@@ -138,6 +138,12 @@ async function buildElectron() {
     outfile: 'dist/screen-region-preload.js',
   });
 
+  await build({
+    ...shared,
+    entryPoints: ['src/window-picker-preload.ts'],
+    outfile: 'dist/window-picker-preload.js',
+  });
+
   console.log('Electron build complete');
   resolveStandaloneSymlinks();
 }

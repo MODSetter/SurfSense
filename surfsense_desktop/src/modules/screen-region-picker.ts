@@ -1,6 +1,17 @@
 import { BrowserWindow, desktopCapturer, nativeImage, screen } from 'electron';
 import path from 'path';
 import { IPC_CHANNELS } from '../ipc/channels';
+function fitNativeImageToWorkArea(img: Electron.NativeImage, display: Electron.Display): Electron.NativeImage {
+  const wa = display.workArea;
+  const { width: iw, height: ih } = img.getSize();
+  const scale = Math.min(1, wa.width / iw, wa.height / ih);
+  if (scale >= 1) return img;
+  return img.resize({
+    width: Math.max(1, Math.floor(iw * scale)),
+    height: Math.max(1, Math.floor(ih * scale)),
+    quality: 'best',
+  });
+}
 
 // One getSources per pick; overlay and final crop share that bitmap (avoids a second portal session, e.g. Wayland).
 
@@ -141,7 +152,7 @@ function buildInjectScript(dataUrl: string, iw: number, ih: number): string {
   })();`;
 }
 
-export function pickScreenRegion(): Promise<string | null> {
+export function pickScreenRegion(opts?: { windowDataUrl?: string }): Promise<string | null> {
   if (pickInProgress) return Promise.resolve(null);
   pickInProgress = true;
 
@@ -175,6 +186,7 @@ export function pickScreenRegion(): Promise<string | null> {
     };
 
     let snapshot: DisplayCaptureSnapshot | null = null;
+    let cropSource: Electron.NativeImage | null = null;
 
     const onSubmit = (
       _event: Electron.IpcMainEvent,
@@ -185,17 +197,25 @@ export function pickScreenRegion(): Promise<string | null> {
         finish(null);
         return;
       }
-      if (!snapshot) {
+      if (!snapshot || !cropSource) {
         finish(null);
         return;
       }
       try {
-        const full = nativeImage.createFromDataURL(snapshot.dataUrl);
-        const cropped = full.crop({
-          x: Math.floor(rect.x),
-          y: Math.floor(rect.y),
-          width: Math.floor(rect.width),
-          height: Math.floor(rect.height),
+        const iw = snapshot.width;
+        const ih = snapshot.height;
+        const { width: cw, height: ch } = cropSource.getSize();
+        const scaleX = cw / iw;
+        const scaleY = ch / ih;
+        const ox = Math.floor(rect.x * scaleX);
+        const oy = Math.floor(rect.y * scaleY);
+        const ow = Math.min(Math.floor(rect.width * scaleX), cw - ox);
+        const oh = Math.min(Math.floor(rect.height * scaleY), ch - oy);
+        const cropped = cropSource.crop({
+          x: ox,
+          y: oy,
+          width: Math.max(1, ow),
+          height: Math.max(1, oh),
         });
         finish(cropped.toDataURL());
       } catch {
@@ -214,66 +234,102 @@ export function pickScreenRegion(): Promise<string | null> {
       }
     };
 
-    void captureDisplaySnapshot(display)
-      .then((cap) => {
+    const openOverlay = (
+      cap: DisplayCaptureSnapshot,
+      crop: Electron.NativeImage,
+      bounds: { x: number; y: number; width: number; height: number }
+    ) => {
+      snapshot = cap;
+      cropSource = crop;
+
+      overlay = new BrowserWindow({
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds.width,
+        height: bounds.height,
+        frame: false,
+        transparent: true,
+        fullscreenable: false,
+        skipTaskbar: true,
+        alwaysOnTop: true,
+        focusable: true,
+        show: false,
+        autoHideMenuBar: true,
+        backgroundColor: '#00000000',
+        webPreferences: {
+          preload: path.join(__dirname, 'screen-region-preload.js'),
+          contextIsolation: true,
+          nodeIntegration: false,
+          sandbox: true,
+        },
+      });
+
+      overlayWc = overlay.webContents;
+      overlayWc.on('before-input-event', onBeforeInput);
+      overlayWc.ipc.on(IPC_CHANNELS.SCREEN_REGION_SUBMIT, onSubmit);
+      overlayWc.ipc.on(IPC_CHANNELS.SCREEN_REGION_CANCEL, onCancel);
+
+      overlay.setIgnoreMouseEvents(false);
+      overlay.loadURL(
+        'data:text/html;charset=utf-8,' +
+          encodeURIComponent('<!doctype html><html><head><meta charset="utf-8"/></head><body></body></html>')
+      );
+
+      overlay.on('closed', () => {
+        if (!settled) finish(null);
+      });
+
+      overlay.webContents.once('did-finish-load', () => {
+        if (!overlay || overlay.isDestroyed()) return;
+        overlay.webContents
+          .executeJavaScript(buildInjectScript(cap.dataUrl, cap.width, cap.height), true)
+          .then(() => {
+            overlay?.show();
+            overlay?.focus();
+          })
+          .catch(() => {
+            finish(null);
+          });
+      });
+    };
+
+    void (async () => {
+      try {
+        if (opts?.windowDataUrl) {
+          const fullRes = nativeImage.createFromDataURL(opts.windowDataUrl);
+          if (fullRes.isEmpty()) {
+            finish(null);
+            return;
+          }
+          const fitted = fitNativeImageToWorkArea(fullRes, display);
+          const fw = fitted.getSize().width;
+          const fh = fitted.getSize().height;
+          const wa = display.workArea;
+          const x = wa.x + Math.floor((wa.width - fw) / 2);
+          const y = wa.y + Math.floor((wa.height - fh) / 2);
+          openOverlay(
+            { dataUrl: fitted.toDataURL(), width: fw, height: fh },
+            fullRes,
+            { x, y, width: fw, height: fh }
+          );
+          return;
+        }
+
+        const cap = await captureDisplaySnapshot(display);
         if (!cap) {
           finish(null);
           return;
         }
-        snapshot = cap;
-
-        overlay = new BrowserWindow({
+        const crop = nativeImage.createFromDataURL(cap.dataUrl);
+        openOverlay(cap, crop, {
           x: display.bounds.x,
           y: display.bounds.y,
           width: display.bounds.width,
           height: display.bounds.height,
-          frame: false,
-          transparent: true,
-          fullscreenable: false,
-          skipTaskbar: true,
-          alwaysOnTop: true,
-          focusable: true,
-          show: false,
-          autoHideMenuBar: true,
-          backgroundColor: '#00000000',
-          webPreferences: {
-            preload: path.join(__dirname, 'screen-region-preload.js'),
-            contextIsolation: true,
-            nodeIntegration: false,
-            sandbox: true,
-          },
         });
-
-        overlayWc = overlay.webContents;
-        overlayWc.on('before-input-event', onBeforeInput);
-        overlayWc.ipc.on(IPC_CHANNELS.SCREEN_REGION_SUBMIT, onSubmit);
-        overlayWc.ipc.on(IPC_CHANNELS.SCREEN_REGION_CANCEL, onCancel);
-
-        overlay.setIgnoreMouseEvents(false);
-        overlay.loadURL(
-          'data:text/html;charset=utf-8,' +
-            encodeURIComponent('<!doctype html><html><head><meta charset="utf-8"/></head><body></body></html>')
-        );
-
-        overlay.on('closed', () => {
-          if (!settled) finish(null);
-        });
-
-        overlay.webContents.once('did-finish-load', () => {
-          if (!overlay || overlay.isDestroyed()) return;
-          overlay.webContents
-            .executeJavaScript(buildInjectScript(cap.dataUrl, cap.width, cap.height), true)
-            .then(() => {
-              overlay?.show();
-              overlay?.focus();
-            })
-            .catch(() => {
-              finish(null);
-            });
-        });
-      })
-      .catch(() => {
+      } catch {
         finish(null);
-      });
+      }
+    })();
   });
 }

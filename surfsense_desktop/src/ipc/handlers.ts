@@ -7,7 +7,7 @@ import {
   requestScreenRecording,
   restartApp,
 } from '../modules/permissions';
-import { captureCurrentDisplayDataUrl } from '../modules/screen-region-picker';
+import { pickOpenWindowCapture } from '../modules/window-picker';
 import {
   selectFolder,
   addWatchedFolder,
@@ -85,7 +85,8 @@ export function registerIpcHandlers(): void {
       requestScreenRecording();
       return null;
     }
-    return captureCurrentDisplayDataUrl();
+    const picked = await pickOpenWindowCapture();
+    return picked?.dataUrl ?? null;
   });
 
   // Folder sync handlers
