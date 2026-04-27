@@ -1,6 +1,6 @@
 import { BrowserWindow, desktopCapturer, nativeImage, screen } from 'electron';
 import path from 'path';
-import { IPC_CHANNELS } from '../ipc/channels';
+import { IPC_CHANNELS } from '../../ipc/channels';
 function fitNativeImageToWorkArea(img: Electron.NativeImage, display: Electron.Display): Electron.NativeImage {
   const wa = display.workArea;
   const { width: iw, height: ih } = img.getSize();
@@ -257,7 +257,7 @@ export function pickScreenRegion(opts?: { windowDataUrl?: string }): Promise<str
         autoHideMenuBar: true,
         backgroundColor: '#00000000',
         webPreferences: {
-          preload: path.join(__dirname, 'screen-region-preload.js'),
+            preload: path.join(__dirname, 'modules', 'screen-capture', 'screen-region-preload.js'),
           contextIsolation: true,
           nodeIntegration: false,
           sandbox: true,

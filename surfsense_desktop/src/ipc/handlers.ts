@@ -7,7 +7,7 @@ import {
   requestScreenRecording,
   restartApp,
 } from '../modules/permissions';
-import { pickOpenWindowCapture } from '../modules/window-picker';
+import { pickOpenWindowCapture } from '../modules/screen-capture';
 import {
   selectFolder,
   addWatchedFolder,

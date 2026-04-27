@@ -1,6 +1,6 @@
 import { BrowserWindow, desktopCapturer, ipcMain, screen } from 'electron';
 import path from 'path';
-import { IPC_CHANNELS } from '../ipc/channels';
+import { IPC_CHANNELS } from '../../ipc/channels';
 
 let pickInProgress = false;
 
@@ -181,7 +181,7 @@ export function pickOpenWindowCapture(): Promise<PickedWindowResult | null> {
       autoHideMenuBar: true,
       title: 'SurfSense — choose window',
       webPreferences: {
-        preload: path.join(__dirname, 'window-picker-preload.js'),
+        preload: path.join(__dirname, 'modules', 'screen-capture', 'window-picker-preload.js'),
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: true,

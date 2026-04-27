@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { IPC_CHANNELS } from './ipc/channels';
+import { IPC_CHANNELS } from '../../ipc/channels';
 
 contextBridge.exposeInMainWorld('surfsenseWindowPick', {
   list: () =>

@@ -1,9 +1,9 @@
-import { IPC_CHANNELS } from '../ipc/channels';
-import { trackEvent } from './analytics';
+import { IPC_CHANNELS } from '../../ipc/channels';
+import { trackEvent } from '../analytics';
 import { pickScreenRegion } from './screen-region-picker';
 import { pickOpenWindowCapture } from './window-picker';
-import { getMainWindow, showMainWindow } from './window';
-import { hasScreenRecordingPermission, requestScreenRecording } from './permissions';
+import { getMainWindow, showMainWindow } from '../window';
+import { hasScreenRecordingPermission, requestScreenRecording } from '../permissions';
 
 export async function runScreenshotAssistShortcut(): Promise<void> {
   if (!hasScreenRecordingPermission()) {

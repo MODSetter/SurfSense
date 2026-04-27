@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { IPC_CHANNELS } from './ipc/channels';
+import { IPC_CHANNELS } from '../../ipc/channels';
 
 contextBridge.exposeInMainWorld('surfsenseScreenRegion', {
   submit: (rect: { x: number; y: number; width: number; height: number }) => {
