@@ -205,7 +205,6 @@ function AuthenticatedDocumentsSidebar({
 	const [filesystemSettings, setFilesystemSettings] = useState<FilesystemSettings | null>(null);
 	const [localTrustDialogOpen, setLocalTrustDialogOpen] = useState(false);
 	const [pendingLocalPath, setPendingLocalPath] = useState<string | null>(null);
-	const [draggedLocalRootPath, setDraggedLocalRootPath] = useState<string | null>(null);
 	const [watchedFolderIds, setWatchedFolderIds] = useState<Set<number>>(new Set());
 	const [folderWatchOpen, setFolderWatchOpen] = useAtom(folderWatchDialogOpenAtom);
 	const [watchInitialFolder, setWatchInitialFolder] = useAtom(folderWatchInitialFolderAtom);
@@ -251,26 +250,6 @@ function AuthenticatedDocumentsSidebar({
 				.filter((rootPath, index, allPaths) => allPaths.indexOf(rootPath) === index)
 				.slice(0, MAX_LOCAL_FILESYSTEM_ROOTS);
 			if (nextLocalRootPaths.length === localRootPaths.length) return;
-			const updated = await electronAPI.setAgentFilesystemSettings({
-				mode: "desktop_local_folder",
-				localRootPaths: nextLocalRootPaths,
-			});
-			setFilesystemSettings(updated);
-		},
-		[electronAPI, localRootPaths]
-	);
-
-	const handleReorderFilesystemRoots = useCallback(
-		async (draggedPath: string, targetPath: string) => {
-			if (!electronAPI?.setAgentFilesystemSettings) return;
-			if (draggedPath === targetPath) return;
-			const fromIndex = localRootPaths.indexOf(draggedPath);
-			const toIndex = localRootPaths.indexOf(targetPath);
-			if (fromIndex < 0 || toIndex < 0) return;
-			const nextLocalRootPaths = [...localRootPaths];
-			const [movedPath] = nextLocalRootPaths.splice(fromIndex, 1);
-			if (!movedPath) return;
-			nextLocalRootPaths.splice(toIndex, 0, movedPath);
 			const updated = await electronAPI.setAgentFilesystemSettings({
 				mode: "desktop_local_folder",
 				localRootPaths: nextLocalRootPaths,
@@ -1230,30 +1209,7 @@ function AuthenticatedDocumentsSidebar({
 									<DropdownMenuItem
 										key={rootPath}
 										onSelect={(event) => event.preventDefault()}
-										draggable
-										onDragStart={(event) => {
-											event.dataTransfer.setData("text/plain", rootPath);
-											event.dataTransfer.effectAllowed = "move";
-											setDraggedLocalRootPath(rootPath);
-										}}
-										onDragOver={(event) => {
-											event.preventDefault();
-											event.dataTransfer.dropEffect = "move";
-										}}
-										onDrop={(event) => {
-											event.preventDefault();
-											const sourcePath =
-												event.dataTransfer.getData("text/plain") || draggedLocalRootPath;
-											if (!sourcePath) return;
-											void handleReorderFilesystemRoots(sourcePath, rootPath);
-											setDraggedLocalRootPath(null);
-										}}
-										onDragEnd={() => {
-											setDraggedLocalRootPath(null);
-										}}
-										className={`group h-8 gap-1.5 px-1.5 text-sm text-foreground ${
-											draggedLocalRootPath === rootPath ? "bg-muted/60" : ""
-										}`}
+										className="group h-8 gap-1.5 px-1.5 text-sm text-foreground"
 									>
 										<Folder className="size-3.5 text-muted-foreground" />
 										<span className="min-w-0 flex-1 truncate">
