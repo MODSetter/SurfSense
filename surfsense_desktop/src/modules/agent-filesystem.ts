@@ -11,7 +11,8 @@ export interface AgentFilesystemSettings {
 }
 
 const SETTINGS_FILENAME = "agent-filesystem-settings.json";
-const MAX_LOCAL_ROOTS = 5;
+const MAX_LOCAL_ROOTS = 10;
+let cachedSettings: AgentFilesystemSettings | null = null;
 
 function getSettingsPath(): string {
 	return join(app.getPath("userData"), SETTINGS_FILENAME);
@@ -34,7 +35,7 @@ async function canonicalizeRootPath(pathValue: string): Promise<string> {
 	}
 }
 
-async function normalizeLocalRootPaths(paths: unknown): Promise<string[]> {
+function normalizeLocalRootPaths(paths: unknown): string[] {
 	if (!Array.isArray(paths)) {
 		return [];
 	}
@@ -43,8 +44,22 @@ async function normalizeLocalRootPaths(paths: unknown): Promise<string[]> {
 		if (typeof rawPath !== "string") continue;
 		const trimmed = rawPath.trim();
 		if (!trimmed) continue;
-		const canonicalRootPath = await canonicalizeRootPath(trimmed);
-		uniquePaths.add(canonicalRootPath);
+		uniquePaths.add(trimmed);
+		if (uniquePaths.size >= MAX_LOCAL_ROOTS) {
+			break;
+		}
+	}
+	return [...uniquePaths];
+}
+
+async function normalizeLocalRootPathsCanonical(paths: unknown): Promise<string[]> {
+	const normalizedPaths = normalizeLocalRootPaths(paths);
+	const canonicalizedPaths = await Promise.all(
+		normalizedPaths.map((pathValue) => canonicalizeRootPath(pathValue))
+	);
+	const uniquePaths = new Set<string>();
+	for (const canonicalPath of canonicalizedPaths) {
+		uniquePaths.add(canonicalPath);
 		if (uniquePaths.size >= MAX_LOCAL_ROOTS) {
 			break;
 		}
@@ -53,19 +68,26 @@ async function normalizeLocalRootPaths(paths: unknown): Promise<string[]> {
 }
 
 export async function getAgentFilesystemSettings(): Promise<AgentFilesystemSettings> {
+	if (cachedSettings) {
+		return cachedSettings;
+	}
 	try {
 		const raw = await readFile(getSettingsPath(), "utf8");
 		const parsed = JSON.parse(raw) as Partial<AgentFilesystemSettings>;
 		if (parsed.mode !== "cloud" && parsed.mode !== "desktop_local_folder") {
-			return getDefaultSettings();
+			cachedSettings = getDefaultSettings();
+			return cachedSettings;
 		}
-		return {
+		cachedSettings = {
 			mode: parsed.mode,
-			localRootPaths: await normalizeLocalRootPaths(parsed.localRootPaths),
+			// Avoid filesystem I/O during reads; canonicalize paths on write.
+			localRootPaths: normalizeLocalRootPaths(parsed.localRootPaths),
 			updatedAt: parsed.updatedAt ?? new Date().toISOString(),
 		};
+		return cachedSettings;
 	} catch {
-		return getDefaultSettings();
+		cachedSettings = getDefaultSettings();
+		return cachedSettings;
 	}
 }
 
@@ -85,13 +107,14 @@ export async function setAgentFilesystemSettings(
 		localRootPaths:
 			settings.localRootPaths === undefined
 				? current.localRootPaths
-				: await normalizeLocalRootPaths(settings.localRootPaths ?? []),
+				: await normalizeLocalRootPathsCanonical(settings.localRootPaths ?? []),
 		updatedAt: new Date().toISOString(),
 	};
 
 	const settingsPath = getSettingsPath();
 	await mkdir(dirname(settingsPath), { recursive: true });
 	await writeFile(settingsPath, JSON.stringify(next, null, 2), "utf8");
+	cachedSettings = next;
 	return next;
 }
 
