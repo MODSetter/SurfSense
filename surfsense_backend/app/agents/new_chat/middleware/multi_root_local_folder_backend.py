@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import json
 from pathlib import Path
 from typing import Any
 
@@ -107,6 +109,28 @@ class MultiRootLocalFolderBackend:
             for mount in self._mount_order
         ]
 
+    @staticmethod
+    def _encode_tree_cursor(mount: str, local_cursor: str) -> str:
+        payload = json.dumps(
+            {"mount": mount, "cursor": local_cursor},
+            separators=(",", ":"),
+        ).encode("utf-8")
+        return base64.urlsafe_b64encode(payload).decode("ascii")
+
+    @staticmethod
+    def _decode_tree_cursor(cursor: str) -> tuple[str, str]:
+        try:
+            padded = cursor + "=" * ((4 - len(cursor) % 4) % 4)
+            data = base64.urlsafe_b64decode(padded.encode("ascii"))
+            parsed = json.loads(data.decode("utf-8"))
+        except Exception as exc:
+            raise ValueError("Invalid cursor") from exc
+        mount = parsed.get("mount")
+        local_cursor = parsed.get("cursor")
+        if not isinstance(mount, str) or not isinstance(local_cursor, str):
+            raise ValueError("Invalid cursor")
+        return mount, local_cursor
+
     def _transform_infos(self, mount: str, infos: list[FileInfo]) -> list[FileInfo]:
         transformed: list[FileInfo] = []
         for info in infos:
@@ -131,6 +155,103 @@ class MultiRootLocalFolderBackend:
 
     async def als_info(self, path: str) -> list[FileInfo]:
         return await asyncio.to_thread(self.ls_info, path)
+
+    def list_tree(
+        self,
+        path: str = "/",
+        *,
+        max_depth: int | None = 8,
+        page_size: int = 500,
+        cursor: str | None = None,
+        include_files: bool = True,
+        include_dirs: bool = True,
+    ) -> dict[str, Any]:
+        if path == "/" and not cursor:
+            entries = [
+                {
+                    "path": f"/{mount}",
+                    "is_dir": True,
+                    "size": 0,
+                    "modified_at": "0",
+                    "depth": 0,
+                }
+                for mount in self._mount_order
+            ]
+            return {
+                "entries": entries if include_dirs else [],
+                "next_cursor": None,
+                "has_more": False,
+                "truncated": False,
+            }
+
+        try:
+            if cursor:
+                mount, local_cursor = self._decode_tree_cursor(cursor)
+                if mount not in self._mount_to_backend:
+                    return {"error": "Invalid or expired cursor"}
+                local_path = "/"
+            else:
+                mount, local_path = self._split_mount_path(path)
+                local_cursor = None
+        except ValueError as exc:
+            return {"error": f"Error: {exc}"}
+
+        result = self._mount_to_backend[mount].list_tree(
+            local_path,
+            max_depth=max_depth,
+            page_size=page_size,
+            cursor=local_cursor,
+            include_files=include_files,
+            include_dirs=include_dirs,
+        )
+        if result.get("error"):
+            return result
+
+        entries: list[dict[str, Any]] = []
+        for entry in result.get("entries", []):
+            raw_path = self._get_str(entry, "path")
+            entries.append(
+                {
+                    "path": self._prefix_mount_path(mount, raw_path),
+                    "is_dir": self._get_bool(entry, "is_dir"),
+                    "size": self._get_int(entry, "size"),
+                    "modified_at": self._get_str(entry, "modified_at"),
+                    "depth": self._get_int(entry, "depth"),
+                }
+            )
+
+        local_next_cursor = self._get_str(result, "next_cursor")
+        next_cursor = (
+            self._encode_tree_cursor(mount, local_next_cursor)
+            if local_next_cursor
+            else None
+        )
+        return {
+            "entries": entries,
+            "next_cursor": next_cursor,
+            "has_more": self._get_bool(result, "has_more"),
+            "truncated": self._get_bool(result, "truncated"),
+        }
+
+    async def alist_tree(
+        self,
+        path: str = "/",
+        *,
+        max_depth: int | None = 8,
+        page_size: int = 500,
+        cursor: str | None = None,
+        include_files: bool = True,
+        include_dirs: bool = True,
+    ) -> dict[str, Any]:
+        return await asyncio.to_thread(
+            self.list_tree,
+            path,
+            max_depth=max_depth,
+            page_size=page_size,
+            cursor=cursor,
+            include_files=include_files,
+            include_dirs=include_dirs,
+        )
 
     def read(self, file_path: str, offset: int = 0, limit: int = 2000) -> str:
         try:
@@ -164,6 +285,48 @@ class MultiRootLocalFolderBackend:
 
     async def awrite(self, file_path: str, content: str) -> WriteResult:
         return await asyncio.to_thread(self.write, file_path, content)
+
+    def move(
+        self,
+        source_path: str,
+        destination_path: str,
+        overwrite: bool = False,
+    ) -> WriteResult:
+        try:
+            source_mount, source_local_path = self._split_mount_path(source_path)
+            destination_mount, destination_local_path = self._split_mount_path(
+                destination_path
+            )
+        except ValueError as exc:
+            return WriteResult(error=f"Error: {exc}")
+        if source_mount != destination_mount:
+            return WriteResult(
+                error=(
+                    "Error: cross-mount moves are not supported. "
+                    "Source and destination must be under the same mounted root."
+                )
+            )
+        result = self._mount_to_backend[source_mount].move(
+            source_local_path,
+            destination_local_path,
+            overwrite=overwrite,
+        )
+        if result.path:
+            result.path = self._prefix_mount_path(source_mount, result.path)
+        return result
+
+    async def amove(
+        self,
+        source_path: str,
+        destination_path: str,
+        overwrite: bool = False,
+    ) -> WriteResult:
+        return await asyncio.to_thread(
+            self.move,
+            source_path,
+            destination_path,
+            overwrite,
+        )
 
     def edit(
         self,

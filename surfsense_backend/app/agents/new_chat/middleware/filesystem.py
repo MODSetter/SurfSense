@@ -7,6 +7,7 @@ This middleware customizes prompts and persists write/edit operations for
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import re
 import secrets
@@ -141,6 +142,33 @@ IMPORTANT:
   content.
 """
 
+SURFSENSE_MOVE_FILE_TOOL_DESCRIPTION = """Moves or renames a file or folder.
+
+Use absolute paths for both source and destination.
+
+Notes:
+- In local-folder mode, paths should use mount prefixes (e.g., /<mount>/foo.txt).
+- Rename is a special case of move (same folder, different filename).
+- Cross-mount moves are not supported.
+"""
+
+SURFSENSE_LIST_TREE_TOOL_DESCRIPTION = """Lists files/folders recursively with cursor pagination.
+
+Use this in desktop local-folder mode to discover nested files at scale.
+
+Args:
+- path: absolute mount-prefixed path (e.g., /<mount>/src) or "/" for mount roots.
+- max_depth: recursion depth limit (default 8).
+- page_size: number of entries to return per page (max 1000).
+- cursor: opaque continuation token from a previous call.
+- include_files/include_dirs: filter returned entry types.
+
+Returns JSON with:
+- entries: [{path, is_dir, size, modified_at, depth}]
+- next_cursor: continuation token or null
+- has_more: whether additional pages exist
+"""
+
 SURFSENSE_GLOB_TOOL_DESCRIPTION = """Find files matching a glob pattern.
 
 Supports standard glob patterns: `*`, `**`, `?`.
@@ -222,11 +250,14 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
             )
         if filesystem_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER:
             system_prompt += (
+                "\n- move_file: move or rename files/folders in local-folder mode."
+                "\n- list_tree: recursively list nested local paths with cursor pagination."
                 "\n\n## Local Folder Mode"
                 "\n\nThis chat is running in desktop local-folder mode."
                 " Keep all file operations local. Do not use save_document."
                 " Always use mount-prefixed absolute paths like /<folder>/file.ext."
                 " If you are unsure which mounts are available, call ls('/') first."
+                " For big trees: use list_tree pages, then grep, then read_file."
             )
 
         super().__init__(
@@ -237,6 +268,8 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
                 "read_file": SURFSENSE_READ_FILE_TOOL_DESCRIPTION,
                 "write_file": SURFSENSE_WRITE_FILE_TOOL_DESCRIPTION,
                 "edit_file": SURFSENSE_EDIT_FILE_TOOL_DESCRIPTION,
+                "move_file": SURFSENSE_MOVE_FILE_TOOL_DESCRIPTION,
+                "list_tree": SURFSENSE_LIST_TREE_TOOL_DESCRIPTION,
                 "glob": SURFSENSE_GLOB_TOOL_DESCRIPTION,
                 "grep": SURFSENSE_GREP_TOOL_DESCRIPTION,
             },
@@ -244,6 +277,9 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
             max_execute_timeout=self._MAX_EXECUTE_TIMEOUT,
         )
         self.tools = [t for t in self.tools if t.name != "execute"]
+        if self._filesystem_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER:
+            self.tools.append(self._create_move_file_tool())
+            self.tools.append(self._create_list_tree_tool())
         if self._should_persist_documents():
             self.tools.append(self._create_save_document_tool())
         if self._sandbox_available:
@@ -836,6 +872,34 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
             return f"/{candidate.lstrip('/')}"
         return candidate
 
+    def _resolve_move_target_path(
+        self,
+        file_path: str,
+        runtime: ToolRuntime[None, FilesystemState],
+    ) -> str:
+        candidate = file_path.strip()
+        if not candidate:
+            return ""
+        if self._filesystem_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER:
+            return self._normalize_local_mount_path(candidate, runtime)
+        if not candidate.startswith("/"):
+            return f"/{candidate.lstrip('/')}"
+        return candidate
+
+    def _resolve_list_target_path(
+        self,
+        path: str,
+        runtime: ToolRuntime[None, FilesystemState],
+    ) -> str:
+        candidate = path.strip() or "/"
+        if candidate == "/":
+            return "/"
+        if self._filesystem_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER:
+            return self._normalize_local_mount_path(candidate, runtime)
+        if not candidate.startswith("/"):
+            return f"/{candidate.lstrip('/')}"
+        return candidate
+
     @staticmethod
     def _is_error_text(value: str) -> bool:
         return value.startswith("Error:")
@@ -929,6 +993,256 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
                 None,
             )
         return None, updated_content
+
+    def _create_move_file_tool(self) -> BaseTool:
+        """Create move_file for desktop local-folder mode."""
+        tool_description = (
+            self._custom_tool_descriptions.get("move_file")
+            or SURFSENSE_MOVE_FILE_TOOL_DESCRIPTION
+        )
+
+        def sync_move_file(
+            source_path: Annotated[
+                str,
+                "Absolute source path to move from.",
+            ],
+            destination_path: Annotated[
+                str,
+                "Absolute destination path to move to.",
+            ],
+            runtime: ToolRuntime[None, FilesystemState],
+            *,
+            overwrite: Annotated[
+                bool,
+                "If True, replace an existing destination file. Defaults to False.",
+            ] = False,
+        ) -> Command | str:
+            if self._filesystem_mode != FilesystemMode.DESKTOP_LOCAL_FOLDER:
+                return "Error: move_file is only available in desktop local-folder mode."
+
+            if not source_path.strip() or not destination_path.strip():
+                return "Error: source_path and destination_path are required."
+
+            resolved_backend = self._get_backend(runtime)
+            source_target = self._resolve_move_target_path(source_path, runtime)
+            destination_target = self._resolve_move_target_path(destination_path, runtime)
+            try:
+                validated_source = validate_path(source_target)
+                validated_destination = validate_path(destination_target)
+            except ValueError as exc:
+                return f"Error: {exc}"
+            res: WriteResult = resolved_backend.move(
+                validated_source,
+                validated_destination,
+                overwrite=overwrite,
+            )
+            if res.error:
+                return res.error
+            if res.files_update is not None:
+                return Command(
+                    update={
+                        "files": res.files_update,
+                        "messages": [
+                            ToolMessage(
+                                content=(
+                                    f"Moved '{validated_source}' to "
+                                    f"'{res.path or validated_destination}'"
+                                ),
+                                tool_call_id=runtime.tool_call_id,
+                            )
+                        ],
+                    }
+                )
+            return f"Moved '{validated_source}' to '{res.path or validated_destination}'"
+
+        async def async_move_file(
+            source_path: Annotated[
+                str,
+                "Absolute source path to move from.",
+            ],
+            destination_path: Annotated[
+                str,
+                "Absolute destination path to move to.",
+            ],
+            runtime: ToolRuntime[None, FilesystemState],
+            *,
+            overwrite: Annotated[
+                bool,
+                "If True, replace an existing destination file. Defaults to False.",
+            ] = False,
+        ) -> Command | str:
+            if self._filesystem_mode != FilesystemMode.DESKTOP_LOCAL_FOLDER:
+                return "Error: move_file is only available in desktop local-folder mode."
+
+            if not source_path.strip() or not destination_path.strip():
+                return "Error: source_path and destination_path are required."
+
+            resolved_backend = self._get_backend(runtime)
+            source_target = self._resolve_move_target_path(source_path, runtime)
+            destination_target = self._resolve_move_target_path(destination_path, runtime)
+            try:
+                validated_source = validate_path(source_target)
+                validated_destination = validate_path(destination_target)
+            except ValueError as exc:
+                return f"Error: {exc}"
+            res: WriteResult = await resolved_backend.amove(
+                validated_source,
+                validated_destination,
+                overwrite=overwrite,
+            )
+            if res.error:
+                return res.error
+            if res.files_update is not None:
+                return Command(
+                    update={
+                        "files": res.files_update,
+                        "messages": [
+                            ToolMessage(
+                                content=(
+                                    f"Moved '{validated_source}' to "
+                                    f"'{res.path or validated_destination}'"
+                                ),
+                                tool_call_id=runtime.tool_call_id,
+                            )
+                        ],
+                    }
+                )
+            return f"Moved '{validated_source}' to '{res.path or validated_destination}'"
+
+        return StructuredTool.from_function(
+            name="move_file",
+            description=tool_description,
+            func=sync_move_file,
+            coroutine=async_move_file,
+        )
+
+    def _create_list_tree_tool(self) -> BaseTool:
+        """Create list_tree for desktop local-folder mode."""
+        tool_description = (
+            self._custom_tool_descriptions.get("list_tree")
+            or SURFSENSE_LIST_TREE_TOOL_DESCRIPTION
+        )
+
+        def sync_list_tree(
+            runtime: ToolRuntime[None, FilesystemState],
+            *,
+            path: Annotated[
+                str,
+                "Absolute path to list from. Use '/' for mount roots.",
+            ] = "/",
+            max_depth: Annotated[
+                int,
+                "Maximum recursion depth to traverse. Defaults to 8.",
+            ] = 8,
+            page_size: Annotated[
+                int,
+                "Number of entries to return per page. Defaults to 500 (max 1000).",
+            ] = 500,
+            cursor: Annotated[
+                str | None,
+                "Opaque cursor from a previous list_tree call.",
+            ] = None,
+            include_files: Annotated[
+                bool,
+                "Whether file entries should be included.",
+            ] = True,
+            include_dirs: Annotated[
+                bool,
+                "Whether directory entries should be included.",
+            ] = True,
+        ) -> str:
+            if self._filesystem_mode != FilesystemMode.DESKTOP_LOCAL_FOLDER:
+                return "Error: list_tree is only available in desktop local-folder mode."
+            if max_depth < 0:
+                return "Error: max_depth must be >= 0."
+            if page_size < 1:
+                return "Error: page_size must be >= 1."
+            if not include_files and not include_dirs:
+                return "Error: include_files and include_dirs cannot both be false."
+
+            resolved_backend = self._get_backend(runtime)
+            target_path = self._resolve_list_target_path(path, runtime)
+            try:
+                validated_path = validate_path(target_path)
+            except ValueError as exc:
+                return f"Error: {exc}"
+
+            result = resolved_backend.list_tree(
+                validated_path,
+                max_depth=max_depth,
+                page_size=page_size,
+                cursor=cursor,
+                include_files=include_files,
+                include_dirs=include_dirs,
+            )
+            error = result.get("error") if isinstance(result, dict) else None
+            if isinstance(error, str) and error:
+                return error
+            return json.dumps(result, ensure_ascii=True)
+
+        async def async_list_tree(
+            runtime: ToolRuntime[None, FilesystemState],
+            *,
+            path: Annotated[
+                str,
+                "Absolute path to list from. Use '/' for mount roots.",
+            ] = "/",
+            max_depth: Annotated[
+                int,
+                "Maximum recursion depth to traverse. Defaults to 8.",
+            ] = 8,
+            page_size: Annotated[
+                int,
+                "Number of entries to return per page. Defaults to 500 (max 1000).",
+            ] = 500,
+            cursor: Annotated[
+                str | None,
+                "Opaque cursor from a previous list_tree call.",
+            ] = None,
+            include_files: Annotated[
+                bool,
+                "Whether file entries should be included.",
+            ] = True,
+            include_dirs: Annotated[
+                bool,
+                "Whether directory entries should be included.",
+            ] = True,
+        ) -> str:
+            if self._filesystem_mode != FilesystemMode.DESKTOP_LOCAL_FOLDER:
+                return "Error: list_tree is only available in desktop local-folder mode."
+            if max_depth < 0:
+                return "Error: max_depth must be >= 0."
+            if page_size < 1:
+                return "Error: page_size must be >= 1."
+            if not include_files and not include_dirs:
+                return "Error: include_files and include_dirs cannot both be false."
+
+            resolved_backend = self._get_backend(runtime)
+            target_path = self._resolve_list_target_path(path, runtime)
+            try:
+                validated_path = validate_path(target_path)
+            except ValueError as exc:
+                return f"Error: {exc}"
+
+            result = await resolved_backend.alist_tree(
+                validated_path,
+                max_depth=max_depth,
+                page_size=page_size,
+                cursor=cursor,
+                include_files=include_files,
+                include_dirs=include_dirs,
+            )
+            error = result.get("error") if isinstance(result, dict) else None
+            if isinstance(error, str) and error:
+                return error
+            return json.dumps(result, ensure_ascii=True)
+
+        return StructuredTool.from_function(
+            name="list_tree",
+            description=tool_description,
+            func=sync_list_tree,
+            coroutine=async_list_tree,
+        )
 
     def _create_edit_file_tool(self) -> BaseTool:
         """Create edit_file with DB persistence (skipped for KB documents)."""
