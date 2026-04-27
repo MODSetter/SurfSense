@@ -1,12 +1,14 @@
 import { app, globalShortcut, Menu, nativeImage, Tray, type NativeImage } from 'electron';
 import path from 'path';
 import { runGeneralAssistShortcut } from './general-assist';
+import { runScreenshotAssistShortcut } from './screenshot-assist';
 import { showMainWindow } from './window';
 import { getShortcuts } from './shortcuts';
 import { trackEvent } from './analytics';
 
 let tray: Tray | null = null;
-let currentShortcut: string | null = null;
+let registeredGeneralAssist: string | null = null;
+let registeredScreenshotAssist: string | null = null;
 
 function getTrayIcon(): NativeImage {
   const iconName = process.platform === 'win32' ? 'icon.ico' : 'icon.png';
@@ -17,25 +19,29 @@ function getTrayIcon(): NativeImage {
   return img.resize({ width: 16, height: 16 });
 }
 
-function registerShortcut(accelerator: string): void {
-  if (currentShortcut) {
-    globalShortcut.unregister(currentShortcut);
-    currentShortcut = null;
+function registerOne(
+  previous: string | null,
+  accelerator: string,
+  onFire: () => void | Promise<void>,
+  label: string
+): string | null {
+  if (previous) {
+    globalShortcut.unregister(previous);
   }
-  if (!accelerator) return;
+  if (!accelerator) return null;
   try {
     const ok = globalShortcut.register(accelerator, () => {
-      void runGeneralAssistShortcut();
+      void Promise.resolve(onFire());
     });
     if (ok) {
-      currentShortcut = accelerator;
-      console.log(`[general-assist] Register ${accelerator}: OK`);
-    } else {
-      console.warn(`[general-assist] Register ${accelerator}: FAILED (OS or another app may own this chord)`);
+      console.log(`[hotkeys] Register ${label} ${accelerator}: OK`);
+      return accelerator;
     }
+    console.warn(`[hotkeys] Register ${label} ${accelerator}: FAILED (OS or another app may own this chord)`);
   } catch (err) {
-    console.error(`[tray] Error registering General Assist shortcut:`, err);
+    console.error(`[tray] Error registering ${label} shortcut:`, err);
   }
+  return null;
 }
 
 export async function createTray(): Promise<void> {
@@ -60,18 +66,48 @@ export async function createTray(): Promise<void> {
   tray.on('double-click', () => showMainWindow('tray_click'));
 
   const shortcuts = await getShortcuts();
-  registerShortcut(shortcuts.generalAssist);
+  registeredGeneralAssist = registerOne(
+    null,
+    shortcuts.generalAssist,
+    runGeneralAssistShortcut,
+    'General Assist'
+  );
+  registeredScreenshotAssist = registerOne(
+    null,
+    shortcuts.screenshotAssist,
+    runScreenshotAssistShortcut,
+    'Screenshot Assist'
+  );
 }
 
 export async function reregisterGeneralAssist(): Promise<void> {
   const shortcuts = await getShortcuts();
-  registerShortcut(shortcuts.generalAssist);
+  registeredGeneralAssist = registerOne(
+    registeredGeneralAssist,
+    shortcuts.generalAssist,
+    runGeneralAssistShortcut,
+    'General Assist'
+  );
+}
+
+export async function reregisterScreenshotAssist(): Promise<void> {
+  const shortcuts = await getShortcuts();
+  registeredScreenshotAssist = registerOne(
+    registeredScreenshotAssist,
+    shortcuts.screenshotAssist,
+    runScreenshotAssistShortcut,
+    'Screenshot Assist'
+  );
 }
 
 export function destroyTray(): void {
-  if (currentShortcut) {
-    globalShortcut.unregister(currentShortcut);
-    currentShortcut = null;
+  if (registeredGeneralAssist) {
+    globalShortcut.unregister(registeredGeneralAssist);
+    registeredGeneralAssist = null;
+  }
+  if (registeredScreenshotAssist) {
+    globalShortcut.unregister(registeredScreenshotAssist);
+    registeredScreenshotAssist = null;
   }
   tray?.destroy();
   tray = null;
