@@ -11,11 +11,23 @@ export const mentionedDocumentsAtom = atom<Pick<Document, "id" | "title" | "docu
 
 /**
  * Atom to store documents selected via the sidebar checkboxes / row clicks.
- * These are NOT inserted as chips – the composer shows a count badge instead.
+ * These power the selected-sources badge and backend doc filters.
  */
 export const sidebarSelectedDocumentsAtom = atom<
 	Pick<Document, "id" | "title" | "document_type">[]
 >([]);
+
+export interface SidebarMentionEvent {
+	kind: "add" | "remove";
+	docs: Pick<Document, "id" | "title" | "document_type">[];
+	nonce: number;
+}
+
+/**
+ * Event atom used to tell the composer that documents were selected/unselected
+ * from sidebar checkboxes, so chips can be inserted/removed in-editor.
+ */
+export const sidebarMentionEventAtom = atom<SidebarMentionEvent | null>(null);
 
 /**
  * Derived read-only atom that merges @-mention chips and sidebar selections

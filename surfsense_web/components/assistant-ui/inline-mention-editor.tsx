@@ -44,7 +44,10 @@ export interface InlineMentionEditorRef {
 	setText: (text: string) => void;
 	getText: () => string;
 	getMentionedDocuments: () => MentionedDocument[];
-	insertDocumentChip: (doc: Pick<Document, "id" | "title" | "document_type">) => void;
+	insertDocumentChip: (
+		doc: Pick<Document, "id" | "title" | "document_type">,
+		options?: { removeTriggerText?: boolean }
+	) => void;
 	removeDocumentChip: (docId: number, docType?: string) => void;
 	setDocumentChipStatus: (
 		docId: number,
@@ -129,6 +132,40 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			() => new Map(initialDocuments.map((d) => [`${d.document_type ?? "UNKNOWN"}:${d.id}`, d]))
 		);
 		const isComposingRef = useRef(false);
+		const lastSelectionRangeRef = useRef<Range | null>(null);
+		const isSelectionInsideEditor = useCallback(
+			(selection: Selection | null): selection is Selection => {
+				if (!selection || selection.rangeCount === 0 || !editorRef.current) return false;
+				const range = selection.getRangeAt(0);
+				return editorRef.current.contains(range.startContainer);
+			},
+			[]
+		);
+
+		const rememberSelection = useCallback(() => {
+			const selection = window.getSelection();
+			if (!isSelectionInsideEditor(selection)) return;
+			lastSelectionRangeRef.current = selection.getRangeAt(0).cloneRange();
+		}, [isSelectionInsideEditor]);
+
+		const restoreRememberedSelection = useCallback((): Selection | null => {
+			const selection = window.getSelection();
+			if (!selection) return null;
+			if (!lastSelectionRangeRef.current) return selection;
+			selection.removeAllRanges();
+			selection.addRange(lastSelectionRangeRef.current.cloneRange());
+			return selection;
+		}, []);
+
+		useEffect(() => {
+			const handleSelectionChange = () => {
+				if (document.activeElement !== editorRef.current) return;
+				rememberSelection();
+			};
+			document.addEventListener("selectionchange", handleSelectionChange);
+			return () => document.removeEventListener("selectionchange", handleSelectionChange);
+		}, [rememberSelection]);
+
 
 		// Sync initial documents
 		useEffect(() => {
@@ -157,7 +194,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			range.insertNode(anchor);
 			anchor.scrollIntoView({ block: "end" });
 			anchor.remove();
-		}, [initialText]); // eslint-disable-line react-hooks/exhaustive-deps
+		}, [initialText]);
 
 		// Focus at the end of the editor
 		const focusAtEnd = useCallback(() => {
@@ -299,8 +336,12 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 
 		// Insert a document chip at the current cursor position
 		const insertDocumentChip = useCallback(
-			(doc: Pick<Document, "id" | "title" | "document_type">) => {
+			(
+				doc: Pick<Document, "id" | "title" | "document_type">,
+				options?: { removeTriggerText?: boolean }
+			) => {
 				if (!editorRef.current) return;
+				const removeTriggerText = options?.removeTriggerText ?? true;
 
 				// Validate required fields for type safety
 				if (typeof doc.id !== "number" || typeof doc.title !== "string") {
@@ -320,20 +361,23 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 
 				// Find and remove the @query text
 				const selection = window.getSelection();
-				if (!selection || selection.rangeCount === 0) {
+				const hasActiveSelection = isSelectionInsideEditor(selection);
+				const resolvedSelection = hasActiveSelection ? selection : restoreRememberedSelection();
+				if (!resolvedSelection || resolvedSelection.rangeCount === 0) {
 					// No selection, just append
 					const chip = createChipElement(mentionDoc);
 					editorRef.current.appendChild(chip);
 					editorRef.current.appendChild(document.createTextNode(" "));
 					focusAtEnd();
+					rememberSelection();
 					return;
 				}
 
 				// Find the @ symbol before the cursor and remove it along with any query text
-				const range = selection.getRangeAt(0);
+				const range = resolvedSelection.getRangeAt(0);
 				const textNode = range.startContainer;
 
-				if (textNode.nodeType === Node.TEXT_NODE) {
+				if (textNode.nodeType === Node.TEXT_NODE && removeTriggerText) {
 					const text = textNode.textContent || "";
 					const cursorPos = range.startOffset;
 
@@ -369,8 +413,9 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 							const newRange = document.createRange();
 							newRange.setStart(afterNode, 1);
 							newRange.collapse(true);
-							selection.removeAllRanges();
-							selection.addRange(newRange);
+							resolvedSelection.removeAllRanges();
+							resolvedSelection.addRange(newRange);
+							rememberSelection();
 						}
 					} else {
 						// No @ found, just insert at cursor
@@ -384,13 +429,23 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 						range.insertNode(space);
 						range.setStartAfter(space);
 						range.collapse(true);
+						resolvedSelection.removeAllRanges();
+						resolvedSelection.addRange(range);
+						rememberSelection();
 					}
 				} else {
-					// Not in a text node, append to editor
+					// Either explicit non-trigger insertion or no @query present.
 					const chip = createChipElement(mentionDoc);
-					editorRef.current.appendChild(chip);
-					editorRef.current.appendChild(document.createTextNode(" "));
-					focusAtEnd();
+					range.insertNode(chip);
+					range.setStartAfter(chip);
+					range.collapse(true);
+					const space = document.createTextNode(" ");
+					range.insertNode(space);
+					range.setStartAfter(space);
+					range.collapse(true);
+					resolvedSelection.removeAllRanges();
+					resolvedSelection.addRange(range);
+					rememberSelection();
 				}
 
 				// Update empty state
@@ -403,7 +458,16 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 					}, 0);
 				}
 			},
-			[createChipElement, focusAtEnd, getText, getMentionedDocuments, onChange]
+			[
+				createChipElement,
+				focusAtEnd,
+				getText,
+				getMentionedDocuments,
+				isSelectionInsideEditor,
+				onChange,
+				rememberSelection,
+				restoreRememberedSelection,
+			]
 		);
 
 		// Clear the editor
@@ -594,6 +658,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 
 			// Notify parent of change
 			onChange?.(text, Array.from(mentionedDocs.values()));
+			rememberSelection();
 		}, [
 			getText,
 			mentionedDocs,
@@ -602,6 +667,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			onMentionClose,
 			onActionTrigger,
 			onActionClose,
+			rememberSelection,
 		]);
 
 		// Handle keydown
@@ -713,7 +779,6 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 
 		return (
 			<div className="relative w-full">
-				{/** biome-ignore lint/a11y/useSemanticElements: <not important> */}
 				<div
 					ref={editorRef}
 					contentEditable={!disabled}
@@ -724,6 +789,9 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 					onPaste={handlePaste}
 					onCompositionStart={handleCompositionStart}
 					onCompositionEnd={handleCompositionEnd}
+					onKeyUp={rememberSelection}
+					onMouseUp={rememberSelection}
+					onBlur={rememberSelection}
 					className={cn(
 						"min-h-[24px] max-h-32 overflow-y-auto",
 						"text-sm outline-none",

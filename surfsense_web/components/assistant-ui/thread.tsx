@@ -38,6 +38,7 @@ import {
 import { chatSessionStateAtom } from "@/atoms/chat/chat-session-state.atom";
 import {
 	mentionedDocumentsAtom,
+	sidebarMentionEventAtom,
 	sidebarSelectedDocumentsAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
@@ -336,6 +337,7 @@ const Composer: FC = () => {
 	// Document mention state (atoms persist across component remounts)
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
 	const setSidebarDocs = useSetAtom(sidebarSelectedDocumentsAtom);
+	const [sidebarMentionEvent, setSidebarMentionEvent] = useAtom(sidebarMentionEventAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
 	const [showPromptPicker, setShowPromptPicker] = useState(false);
 	const [mentionQuery, setMentionQuery] = useState("");
@@ -659,6 +661,42 @@ const Composer: FC = () => {
 		},
 		[mentionedDocuments, setMentionedDocuments]
 	);
+
+	useEffect(() => {
+		if (!sidebarMentionEvent) return;
+
+		const eventDocs = sidebarMentionEvent.docs;
+		if (eventDocs.length === 0) {
+			setSidebarMentionEvent(null);
+			return;
+		}
+
+		const docKey = (doc: Pick<Document, "id" | "title" | "document_type">) =>
+			`${doc.document_type}:${doc.id}`;
+		const mentionedKeys = new Set(mentionedDocuments.map(docKey));
+
+		if (sidebarMentionEvent.kind === "add") {
+			const docsToAdd = eventDocs.filter((doc) => !mentionedKeys.has(docKey(doc)));
+			for (const doc of docsToAdd) {
+				editorRef.current?.insertDocumentChip(doc, { removeTriggerText: false });
+			}
+			if (docsToAdd.length > 0) {
+				setMentionedDocuments((prev) => {
+					const existing = new Set(prev.map(docKey));
+					const uniqueAdds = docsToAdd.filter((doc) => !existing.has(docKey(doc)));
+					return uniqueAdds.length > 0 ? [...prev, ...uniqueAdds] : prev;
+				});
+			}
+		} else {
+			const removeKeys = new Set(eventDocs.map(docKey));
+			for (const doc of eventDocs) {
+				editorRef.current?.removeDocumentChip(doc.id, doc.document_type);
+			}
+			setMentionedDocuments((prev) => prev.filter((doc) => !removeKeys.has(docKey(doc))));
+		}
+
+		setSidebarMentionEvent(null);
+	}, [sidebarMentionEvent, mentionedDocuments, setMentionedDocuments, setSidebarMentionEvent]);
 
 	return (
 		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col gap-2">
