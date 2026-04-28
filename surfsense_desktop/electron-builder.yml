@@ -81,4 +81,5 @@ linux:
       Categories: Utility;Office;
   target:
     - deb
+    - rpm
     - AppImage
