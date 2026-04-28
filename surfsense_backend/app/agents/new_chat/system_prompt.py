@@ -332,7 +332,7 @@ _TOOL_INSTRUCTIONS["scrape_webpage"] = """
     * When a user asks to "get", "fetch", "pull", "grab", "scrape", or "read" content from a URL
     * When the user wants live/dynamic data from a specific webpage (e.g., tables, scores, stats, prices)
     * When a URL was mentioned earlier in the conversation and the user asks for its actual content
-    * When preloaded `/documents/` data is insufficient and the user wants more
+    * When `/documents/` knowledge-base data is insufficient and the user wants more
   - Trigger scenarios:
     * "Read this article and summarize it"
     * "What does this page say about X?"

@@ -21,7 +21,7 @@ from typing import Any
 
 from langchain.agents.middleware import AgentMiddleware, AgentState
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langgraph.runtime import Runtime
 from pydantic import BaseModel, Field, ValidationError
 
@@ -217,8 +217,19 @@ def _build_recent_conversation(
     messages: list[BaseMessage], *, max_messages: int = 6
 ) -> str:
     rows: list[str] = []
-    for msg in messages[-max_messages:]:
-        role = "user" if isinstance(msg, HumanMessage) else "assistant"
+    filtered: list[tuple[str, BaseMessage]] = []
+    for msg in messages:
+        role: str | None = None
+        if isinstance(msg, HumanMessage):
+            role = "user"
+        elif isinstance(msg, AIMessage):
+            if getattr(msg, "tool_calls", None):
+                continue
+            role = "assistant"
+        else:
+            continue
+        filtered.append((role, msg))
+    for role, msg in filtered[-max_messages:]:
         text = re.sub(r"\s+", " ", _extract_text_from_message(msg)).strip()
         if text:
             rows.append(f"{role}: {text[:280]}")

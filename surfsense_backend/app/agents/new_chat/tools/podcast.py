@@ -11,7 +11,7 @@ from typing import Any
 from langchain_core.tools import tool
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import Podcast, PodcastStatus
+from app.db import Podcast, PodcastStatus, shielded_async_session
 
 
 def create_generate_podcast_tool(
@@ -27,12 +27,16 @@ def create_generate_podcast_tool(
 
     Args:
         search_space_id: The user's search space ID
-        db_session: Database session for creating the podcast record
+        db_session: Reserved for future read-side use; the row is written via a
+            fresh, tool-local session so parallel tool calls (e.g. podcast +
+            video presentation in the same agent step) don't share an
+            ``AsyncSession`` (which is not concurrency-safe).
         thread_id: The chat thread ID for associating the podcast
 
     Returns:
         A configured tool function for generating podcasts
     """
+    del db_session  # writes use a fresh tool-local session, see below
 
     @tool
     async def generate_podcast(
@@ -64,32 +68,40 @@ def create_generate_podcast_tool(
             - message: Status message (or "error" field if status is failed)
         """
         try:
-            podcast = Podcast(
-                title=podcast_title,
-                status=PodcastStatus.PENDING,
-                search_space_id=search_space_id,
-                thread_id=thread_id,
-            )
-            db_session.add(podcast)
-            await db_session.commit()
-            await db_session.refresh(podcast)
+            # Open a fresh session per call. The streaming task's session is
+            # shared between every tool, and ``AsyncSession`` is NOT safe for
+            # concurrent use: when the LLM emits parallel tool calls, two
+            # concurrent ``add()`` / ``commit()`` paths interleave and the
+            # second one hits "Session.add() during flush" → the transaction
+            # is poisoned for both tools.
+            async with shielded_async_session() as session:
+                podcast = Podcast(
+                    title=podcast_title,
+                    status=PodcastStatus.PENDING,
+                    search_space_id=search_space_id,
+                    thread_id=thread_id,
+                )
+                session.add(podcast)
+                await session.commit()
+                await session.refresh(podcast)
+                podcast_id = podcast.id
 
             from app.tasks.celery_tasks.podcast_tasks import (
                 generate_content_podcast_task,
             )
 
             task = generate_content_podcast_task.delay(
-                podcast_id=podcast.id,
+                podcast_id=podcast_id,
                 source_content=source_content,
                 search_space_id=search_space_id,
                 user_prompt=user_prompt,
             )
 
-            print(f"[generate_podcast] Created podcast {podcast.id}, task: {task.id}")
+            print(f"[generate_podcast] Created podcast {podcast_id}, task: {task.id}")
 
             return {
                 "status": PodcastStatus.PENDING.value,
-                "podcast_id": podcast.id,
+                "podcast_id": podcast_id,
                 "title": podcast_title,
                 "message": "Podcast generation started. This may take a few minutes.",
             }

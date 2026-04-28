@@ -34,12 +34,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.new_chat.context import SurfSenseContextSchema
 from app.agents.new_chat.filesystem_backends import build_backend_resolver
-from app.agents.new_chat.filesystem_selection import FilesystemSelection
+from app.agents.new_chat.filesystem_selection import FilesystemMode, FilesystemSelection
 from app.agents.new_chat.llm_config import AgentConfig
 from app.agents.new_chat.middleware import (
+    AnonymousDocumentMiddleware,
     DedupHITLToolCallsMiddleware,
     FileIntentMiddleware,
-    KnowledgeBaseSearchMiddleware,
+    KnowledgeBasePersistenceMiddleware,
+    KnowledgePriorityMiddleware,
+    KnowledgeTreeMiddleware,
     MemoryInjectionMiddleware,
     SurfSenseFilesystemMiddleware,
 )
@@ -246,7 +249,12 @@ async def create_surfsense_deep_agent(
     """
     _t_agent_total = time.perf_counter()
     filesystem_selection = filesystem_selection or FilesystemSelection()
-    backend_resolver = build_backend_resolver(filesystem_selection)
+    backend_resolver = build_backend_resolver(
+        filesystem_selection,
+        search_space_id=search_space_id
+        if filesystem_selection.mode == FilesystemMode.CLOUD
+        else None,
+    )
 
     # Discover available connectors and document types for this search space
     available_connectors: list[str] | None = None
@@ -299,7 +307,9 @@ async def create_surfsense_deep_agent(
     modified_disabled_tools = list(disabled_tools) if disabled_tools else []
     modified_disabled_tools.extend(get_connector_gated_tools(available_connectors))
 
-    # Remove direct KB search tool; we now pre-seed a scoped filesystem via middleware.
+    # Remove direct KB search tool; KnowledgePriorityMiddleware now runs hybrid
+    # search per turn and surfaces hits as a <priority_documents> hint plus
+    # `<chunk_index matched="true">` markers inside lazy-loaded XML.
     if "search_knowledge_base" not in modified_disabled_tools:
         modified_disabled_tools.append("search_knowledge_base")
 
@@ -365,6 +375,11 @@ async def create_surfsense_deep_agent(
     )
 
     # General-purpose subagent middleware
+    # Subagent omits AnonymousDocumentMiddleware, KnowledgeTreeMiddleware,
+    # KnowledgePriorityMiddleware, and KnowledgeBasePersistenceMiddleware - it
+    # inherits state and tools from the parent, but should not (a) re-load
+    # anon docs / re-render the tree / re-run hybrid search, or (b) commit at
+    # its own completion (only the top-level agent's aafter_agent commits).
     gp_middleware = [
         TodoListMiddleware(),
         _memory_middleware,
@@ -389,19 +404,35 @@ async def create_surfsense_deep_agent(
     }
 
     # Main agent middleware
+    # Order: AnonDoc -> Tree -> Priority -> FileIntent -> Filesystem -> Persistence -> ...
+    # before_agent hooks run in declared order; later injections sit closer to
+    # the latest human turn. Tree (large + cacheable) is injected earliest so
+    # provider-side prefix caching has more material to hit; FileIntent (most
+    # actionable per-turn contract) is injected closest to the user message.
     deepagent_middleware = [
         TodoListMiddleware(),
         _memory_middleware,
-        FileIntentMiddleware(llm=llm),
-        KnowledgeBaseSearchMiddleware(
+        AnonymousDocumentMiddleware(
+            anon_session_id=anon_session_id,
+        )
+        if filesystem_selection.mode == FilesystemMode.CLOUD
+        else None,
+        KnowledgeTreeMiddleware(
+            search_space_id=search_space_id,
+            filesystem_mode=filesystem_selection.mode,
+            llm=llm,
+        )
+        if filesystem_selection.mode == FilesystemMode.CLOUD
+        else None,
+        KnowledgePriorityMiddleware(
             llm=llm,
             search_space_id=search_space_id,
             filesystem_mode=filesystem_selection.mode,
             available_connectors=available_connectors,
             available_document_types=available_document_types,
             mentioned_document_ids=mentioned_document_ids,
-            anon_session_id=anon_session_id,
         ),
+        FileIntentMiddleware(llm=llm),
         SurfSenseFilesystemMiddleware(
             backend=backend_resolver,
             filesystem_mode=filesystem_selection.mode,
@@ -409,12 +440,20 @@ async def create_surfsense_deep_agent(
             created_by_id=user_id,
             thread_id=thread_id,
         ),
+        KnowledgeBasePersistenceMiddleware(
+            search_space_id=search_space_id,
+            created_by_id=user_id,
+            filesystem_mode=filesystem_selection.mode,
+        )
+        if filesystem_selection.mode == FilesystemMode.CLOUD
+        else None,
         SubAgentMiddleware(backend=StateBackend, subagents=[general_purpose_spec]),
         create_safe_summarization_middleware(llm, StateBackend),
         PatchToolCallsMiddleware(),
         DedupHITLToolCallsMiddleware(agent_tools=tools),
         AnthropicPromptCachingMiddleware(unsupported_model_behavior="ignore"),
     ]
+    deepagent_middleware = [m for m in deepagent_middleware if m is not None]
 
     # Combine system_prompt with BASE_AGENT_PROMPT (same as create_deep_agent)
     final_system_prompt = system_prompt + "\n\n" + BASE_AGENT_PROMPT

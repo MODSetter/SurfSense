@@ -20,7 +20,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import config
-from app.db import ImageGeneration, ImageGenerationConfig, SearchSpace
+from app.db import (
+    ImageGeneration,
+    ImageGenerationConfig,
+    SearchSpace,
+    shielded_async_session,
+)
 from app.services.image_gen_router_service import (
     IMAGE_GEN_AUTO_MODE_ID,
     ImageGenRouterService,
@@ -70,8 +75,13 @@ def create_generate_image_tool(
 
     Args:
         search_space_id: The search space ID (for config resolution)
-        db_session: Async database session
+        db_session: Reserved for compatibility with the tool registry.
+            The streaming task's ``AsyncSession`` is shared by every tool;
+            because AsyncSession is not concurrency-safe, parallel tool calls
+            would interleave flushes (e.g. podcast + image in the same step)
+            and poison the transaction. This tool opens its own session.
     """
+    del db_session  # use a fresh per-call session, see below
 
     @tool
     async def generate_image(
@@ -93,110 +103,119 @@ def create_generate_image_tool(
             A dictionary containing the generated image(s) for display in the chat.
         """
         try:
-            # Resolve the image generation config from the search space preference
-            result = await db_session.execute(
-                select(SearchSpace).filter(SearchSpace.id == search_space_id)
-            )
-            search_space = result.scalars().first()
-            if not search_space:
-                return {"error": "Search space not found"}
-
-            config_id = (
-                search_space.image_generation_config_id or IMAGE_GEN_AUTO_MODE_ID
-            )
-
-            # Build generation kwargs
-            # NOTE: size, quality, and style are intentionally NOT passed.
-            # Different models support different values for these params
-            # (e.g. DALL-E 3 wants "hd"/"standard" for quality while
-            # gpt-image-1 wants "high"/"medium"/"low"; size options also
-            # differ). Letting the model use its own defaults avoids errors.
-            gen_kwargs: dict[str, Any] = {}
-            if n is not None and n > 1:
-                gen_kwargs["n"] = n
-
-            # Call litellm based on config type
-            if is_image_gen_auto_mode(config_id):
-                if not ImageGenRouterService.is_initialized():
-                    return {
-                        "error": "No image generation models configured. "
-                        "Please add an image model in Settings > Image Models."
-                    }
-                response = await ImageGenRouterService.aimage_generation(
-                    prompt=prompt, model="auto", **gen_kwargs
+            # Use a per-call session so concurrent tool calls don't share an
+            # AsyncSession (which is not concurrency-safe). The streaming
+            # task's session is shared across every tool; without isolation,
+            # autoflushes from a concurrent writer poison this tool too.
+            async with shielded_async_session() as session:
+                result = await session.execute(
+                    select(SearchSpace).filter(SearchSpace.id == search_space_id)
                 )
-            elif config_id < 0:
-                cfg = _get_global_image_gen_config(config_id)
-                if not cfg:
-                    return {"error": f"Image generation config {config_id} not found"}
+                search_space = result.scalars().first()
+                if not search_space:
+                    return {"error": "Search space not found"}
 
-                model_string = _build_model_string(
-                    cfg.get("provider", ""),
-                    cfg["model_name"],
-                    cfg.get("custom_provider"),
+                config_id = (
+                    search_space.image_generation_config_id or IMAGE_GEN_AUTO_MODE_ID
                 )
-                gen_kwargs["api_key"] = cfg.get("api_key")
-                if cfg.get("api_base"):
-                    gen_kwargs["api_base"] = cfg["api_base"]
-                if cfg.get("api_version"):
-                    gen_kwargs["api_version"] = cfg["api_version"]
-                if cfg.get("litellm_params"):
-                    gen_kwargs.update(cfg["litellm_params"])
 
-                response = await aimage_generation(
-                    prompt=prompt, model=model_string, **gen_kwargs
-                )
-            else:
-                # Positive ID = user-created ImageGenerationConfig
-                cfg_result = await db_session.execute(
-                    select(ImageGenerationConfig).filter(
-                        ImageGenerationConfig.id == config_id
+                # Build generation kwargs
+                # NOTE: size, quality, and style are intentionally NOT passed.
+                # Different models support different values for these params
+                # (e.g. DALL-E 3 wants "hd"/"standard" for quality while
+                # gpt-image-1 wants "high"/"medium"/"low"; size options also
+                # differ). Letting the model use its own defaults avoids errors.
+                gen_kwargs: dict[str, Any] = {}
+                if n is not None and n > 1:
+                    gen_kwargs["n"] = n
+
+                # Call litellm based on config type
+                if is_image_gen_auto_mode(config_id):
+                    if not ImageGenRouterService.is_initialized():
+                        return {
+                            "error": "No image generation models configured. "
+                            "Please add an image model in Settings > Image Models."
+                        }
+                    response = await ImageGenRouterService.aimage_generation(
+                        prompt=prompt, model="auto", **gen_kwargs
                     )
+                elif config_id < 0:
+                    cfg = _get_global_image_gen_config(config_id)
+                    if not cfg:
+                        return {
+                            "error": f"Image generation config {config_id} not found"
+                        }
+
+                    model_string = _build_model_string(
+                        cfg.get("provider", ""),
+                        cfg["model_name"],
+                        cfg.get("custom_provider"),
+                    )
+                    gen_kwargs["api_key"] = cfg.get("api_key")
+                    if cfg.get("api_base"):
+                        gen_kwargs["api_base"] = cfg["api_base"]
+                    if cfg.get("api_version"):
+                        gen_kwargs["api_version"] = cfg["api_version"]
+                    if cfg.get("litellm_params"):
+                        gen_kwargs.update(cfg["litellm_params"])
+
+                    response = await aimage_generation(
+                        prompt=prompt, model=model_string, **gen_kwargs
+                    )
+                else:
+                    # Positive ID = user-created ImageGenerationConfig
+                    cfg_result = await session.execute(
+                        select(ImageGenerationConfig).filter(
+                            ImageGenerationConfig.id == config_id
+                        )
+                    )
+                    db_cfg = cfg_result.scalars().first()
+                    if not db_cfg:
+                        return {
+                            "error": f"Image generation config {config_id} not found"
+                        }
+
+                    model_string = _build_model_string(
+                        db_cfg.provider.value,
+                        db_cfg.model_name,
+                        db_cfg.custom_provider,
+                    )
+                    gen_kwargs["api_key"] = db_cfg.api_key
+                    if db_cfg.api_base:
+                        gen_kwargs["api_base"] = db_cfg.api_base
+                    if db_cfg.api_version:
+                        gen_kwargs["api_version"] = db_cfg.api_version
+                    if db_cfg.litellm_params:
+                        gen_kwargs.update(db_cfg.litellm_params)
+
+                    response = await aimage_generation(
+                        prompt=prompt, model=model_string, **gen_kwargs
+                    )
+
+                # Parse the response and store in DB
+                response_dict = (
+                    response.model_dump()
+                    if hasattr(response, "model_dump")
+                    else dict(response)
                 )
-                db_cfg = cfg_result.scalars().first()
-                if not db_cfg:
-                    return {"error": f"Image generation config {config_id} not found"}
 
-                model_string = _build_model_string(
-                    db_cfg.provider.value,
-                    db_cfg.model_name,
-                    db_cfg.custom_provider,
+                # Generate a random access token for this image
+                access_token = generate_image_token()
+
+                # Save to image_generations table for history
+                db_image_gen = ImageGeneration(
+                    prompt=prompt,
+                    model=getattr(response, "_hidden_params", {}).get("model"),
+                    n=n,
+                    image_generation_config_id=config_id,
+                    response_data=response_dict,
+                    search_space_id=search_space_id,
+                    access_token=access_token,
                 )
-                gen_kwargs["api_key"] = db_cfg.api_key
-                if db_cfg.api_base:
-                    gen_kwargs["api_base"] = db_cfg.api_base
-                if db_cfg.api_version:
-                    gen_kwargs["api_version"] = db_cfg.api_version
-                if db_cfg.litellm_params:
-                    gen_kwargs.update(db_cfg.litellm_params)
-
-                response = await aimage_generation(
-                    prompt=prompt, model=model_string, **gen_kwargs
-                )
-
-            # Parse the response and store in DB
-            response_dict = (
-                response.model_dump()
-                if hasattr(response, "model_dump")
-                else dict(response)
-            )
-
-            # Generate a random access token for this image
-            access_token = generate_image_token()
-
-            # Save to image_generations table for history
-            db_image_gen = ImageGeneration(
-                prompt=prompt,
-                model=getattr(response, "_hidden_params", {}).get("model"),
-                n=n,
-                image_generation_config_id=config_id,
-                response_data=response_dict,
-                search_space_id=search_space_id,
-                access_token=access_token,
-            )
-            db_session.add(db_image_gen)
-            await db_session.commit()
-            await db_session.refresh(db_image_gen)
+                session.add(db_image_gen)
+                await session.commit()
+                await session.refresh(db_image_gen)
+                db_image_gen_id = db_image_gen.id
 
             # Extract image URLs from response
             images = response_dict.get("data", [])
@@ -217,7 +236,7 @@ def create_generate_image_tool(
                 backend_url = config.BACKEND_URL or "http://localhost:8000"
                 image_url = (
                     f"{backend_url}/api/v1/image-generations/"
-                    f"{db_image_gen.id}/image?token={access_token}"
+                    f"{db_image_gen_id}/image?token={access_token}"
                 )
             else:
                 return {"error": "No displayable image data in the response"}

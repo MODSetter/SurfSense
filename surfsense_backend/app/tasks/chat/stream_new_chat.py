@@ -30,7 +30,7 @@ from sqlalchemy.orm import selectinload
 
 from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
 from app.agents.new_chat.checkpointer import get_checkpointer
-from app.agents.new_chat.filesystem_selection import FilesystemSelection
+from app.agents.new_chat.filesystem_selection import FilesystemMode, FilesystemSelection
 from app.agents.new_chat.llm_config import (
     AgentConfig,
     create_chat_litellm_from_agent_config,
@@ -41,6 +41,9 @@ from app.agents.new_chat.llm_config import (
 from app.agents.new_chat.memory_extraction import (
     extract_and_save_memory,
     extract_and_save_team_memory,
+)
+from app.agents.new_chat.middleware.kb_persistence import (
+    commit_staged_filesystem_state,
 )
 from app.db import (
     ChatVisibility,
@@ -258,6 +261,10 @@ async def _stream_agent_events(
     initial_step_id: str | None = None,
     initial_step_title: str = "",
     initial_step_items: list[str] | None = None,
+    *,
+    fallback_commit_search_space_id: int | None = None,
+    fallback_commit_created_by_id: str | None = None,
+    fallback_commit_filesystem_mode: FilesystemMode = FilesystemMode.CLOUD,
 ) -> AsyncGenerator[str, None]:
     """Shared async generator that streams and formats astream_events from the agent.
 
@@ -1280,6 +1287,40 @@ async def _stream_agent_events(
 
     state = await agent.aget_state(config)
     state_values = getattr(state, "values", {}) or {}
+
+    # Safety net: if astream_events was cancelled before
+    # KnowledgeBasePersistenceMiddleware.aafter_agent ran, any staged work
+    # (dirty_paths / staged_dirs / pending_moves) will still be in the
+    # checkpointed state. Run the SAME shared commit helper here so the
+    # turn's writes don't get lost on client disconnect, then push the
+    # delta back into the graph using `as_node=...` so reducers fire as if
+    # the after_agent hook produced it.
+    if (
+        fallback_commit_filesystem_mode == FilesystemMode.CLOUD
+        and fallback_commit_search_space_id is not None
+        and (
+            (state_values.get("dirty_paths") or [])
+            or (state_values.get("staged_dirs") or [])
+            or (state_values.get("pending_moves") or [])
+        )
+    ):
+        try:
+            delta = await commit_staged_filesystem_state(
+                state_values,
+                search_space_id=fallback_commit_search_space_id,
+                created_by_id=fallback_commit_created_by_id,
+                filesystem_mode=fallback_commit_filesystem_mode,
+                dispatch_events=False,
+            )
+            if delta:
+                await agent.aupdate_state(
+                    config,
+                    delta,
+                    as_node="KnowledgeBasePersistenceMiddleware.after_agent",
+                )
+        except Exception as exc:
+            _perf_log.warning("[stream_new_chat] safety-net commit failed: %s", exc)
+
     contract_state = state_values.get("file_operation_contract") or {}
     contract_turn_id = contract_state.get("turn_id")
     current_turn_id = config.get("configurable", {}).get("turn_id", "")
@@ -1814,6 +1855,13 @@ async def stream_new_chat(
             initial_step_id=initial_step_id,
             initial_step_title=initial_title,
             initial_step_items=initial_items,
+            fallback_commit_search_space_id=search_space_id,
+            fallback_commit_created_by_id=user_id,
+            fallback_commit_filesystem_mode=(
+                filesystem_selection.mode
+                if filesystem_selection
+                else FilesystemMode.CLOUD
+            ),
         ):
             if not _first_event_logged:
                 _perf_log.info(
@@ -2251,6 +2299,13 @@ async def stream_resume_chat(
             streaming_service=streaming_service,
             result=stream_result,
             step_prefix="thinking-resume",
+            fallback_commit_search_space_id=search_space_id,
+            fallback_commit_created_by_id=user_id,
+            fallback_commit_filesystem_mode=(
+                filesystem_selection.mode
+                if filesystem_selection
+                else FilesystemMode.CLOUD
+            ),
         ):
             if not _first_event_logged:
                 _perf_log.info(

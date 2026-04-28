@@ -28,12 +28,75 @@ from langchain_anthropic.middleware import AnthropicPromptCachingMiddleware
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, ToolMessage
 
+from app.agents.new_chat.document_xml import build_document_xml
 from app.agents.new_chat.middleware.filesystem import SurfSenseFilesystemMiddleware
 from app.agents.new_chat.middleware.knowledge_search import (
-    build_scoped_filesystem,
     search_knowledge_base,
 )
+from app.agents.new_chat.path_resolver import (
+    DOCUMENTS_ROOT,
+    build_path_index,
+    doc_to_virtual_path,
+)
+from app.db import shielded_async_session
 from app.services.new_streaming_service import VercelStreamingService
+
+try:
+    from deepagents.backends.utils import create_file_data
+except Exception:  # pragma: no cover - defensive
+
+    def create_file_data(content: str) -> dict[str, Any]:
+        return {"content": content.split("\n")}
+
+
+async def _build_autocomplete_filesystem(
+    *,
+    documents: Any,
+    search_space_id: int,
+) -> tuple[dict[str, Any], dict[int, str]]:
+    """Build a ``state['files']``-shaped dict from KB search results.
+
+    This is the autocomplete-specific replacement for the previous
+    ``build_scoped_filesystem`` helper. It uses the canonical path resolver
+    so paths line up with the rest of the system, including collision
+    suffixes for duplicate titles.
+    """
+    files: dict[str, Any] = {}
+    doc_id_to_path: dict[int, str] = {}
+
+    if not documents:
+        return files, doc_id_to_path
+
+    async with shielded_async_session() as session:
+        index = await build_path_index(session, search_space_id)
+
+    for document in documents:
+        if not isinstance(document, dict):
+            continue
+        meta = document.get("document") or {}
+        doc_id = meta.get("id")
+        if not isinstance(doc_id, int):
+            continue
+        title = str(meta.get("title") or "untitled")
+        folder_id = meta.get("folder_id")
+        path = doc_to_virtual_path(
+            doc_id=doc_id, title=title, folder_id=folder_id, index=index
+        )
+        chunk_ids = document.get("matched_chunk_ids") or []
+        try:
+            matched_set = {int(c) for c in chunk_ids}
+        except (TypeError, ValueError):
+            matched_set = set()
+        xml = build_document_xml(document, matched_chunk_ids=matched_set)
+        files[path] = create_file_data(xml)
+        doc_id_to_path[doc_id] = path
+
+    if not files:
+        # Ensure the synthetic /documents folder is visible even when empty.
+        files.setdefault(f"{DOCUMENTS_ROOT}/.placeholder", create_file_data(""))
+
+    return files, doc_id_to_path
+
 
 logger = logging.getLogger(__name__)
 
@@ -174,7 +237,7 @@ async def precompute_kb_filesystem(
         if not search_results:
             return _KBResult()
 
-        new_files, _ = await build_scoped_filesystem(
+        new_files, _ = await _build_autocomplete_filesystem(
             documents=search_results,
             search_space_id=search_space_id,
         )
@@ -215,13 +278,12 @@ async def precompute_kb_filesystem(
 class AutocompleteFilesystemMiddleware(SurfSenseFilesystemMiddleware):
     """Filesystem middleware for autocomplete — read-only exploration only.
 
-    Strips ``save_document`` (permanent KB persistence) and passes
-    ``search_space_id=None`` so ``write_file`` / ``edit_file`` stay ephemeral.
+    Passes ``search_space_id=None`` so the new persistence pipeline is
+    bypassed; the autocomplete flow only reads, never commits to Postgres.
     """
 
     def __init__(self) -> None:
         super().__init__(search_space_id=None, created_by_id=None)
-        self.tools = [t for t in self.tools if t.name != "save_document"]
 
 
 # ---------------------------------------------------------------------------
