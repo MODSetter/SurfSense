@@ -236,6 +236,19 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			return Array.from(mentionedDocs.values());
 		}, [mentionedDocs]);
 
+		const syncEditorState = useCallback(
+			(docsOverride?: Map<string, MentionedDocument>) => {
+				const docs = docsOverride
+					? Array.from(docsOverride.values())
+					: Array.from(mentionedDocs.values());
+				const text = getText();
+				const empty = text.length === 0 && docs.length === 0;
+				setIsEmpty(empty);
+				onChange?.(text, docs);
+			},
+			[getText, mentionedDocs, onChange]
+		);
+
 		// Create a chip element for a document
 		const createChipElement = useCallback(
 			(doc: MentionedDocument): HTMLSpanElement => {
@@ -275,6 +288,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 					setMentionedDocs((prev) => {
 						const next = new Map(prev);
 						next.delete(docKey);
+						syncEditorState(next);
 						return next;
 					});
 					onDocumentRemove?.(doc.id, doc.document_type);
@@ -319,7 +333,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 
 				return chip;
 			},
-			[focusAtEnd, onDocumentRemove]
+			[focusAtEnd, onDocumentRemove, syncEditorState]
 		);
 
 		// Insert a document chip at the current cursor position
@@ -346,6 +360,8 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				// Add to mentioned docs map using unique key
 				const docKey = `${doc.document_type ?? "UNKNOWN"}:${doc.id}`;
 				setMentionedDocs((prev) => new Map(prev).set(docKey, mentionDoc));
+				const nextDocs = new Map(mentionedDocs);
+				nextDocs.set(docKey, mentionDoc);
 
 				// Find and remove the @query text
 				const selection = window.getSelection();
@@ -436,25 +452,16 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 					rememberSelection();
 				}
 
-				// Update empty state
-				setIsEmpty(false);
-
-				// Trigger onChange
-				if (onChange) {
-					setTimeout(() => {
-						onChange(getText(), getMentionedDocuments());
-					}, 0);
-				}
+				syncEditorState(nextDocs);
 			},
 			[
 				createChipElement,
 				focusAtEnd,
-				getText,
-				getMentionedDocuments,
 				isSelectionInsideEditor,
-				onChange,
+				mentionedDocs,
 				rememberSelection,
 				restoreRememberedSelection,
+				syncEditorState,
 			]
 		);
 
@@ -462,22 +469,21 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 		const clear = useCallback(() => {
 			if (editorRef.current) {
 				editorRef.current.innerHTML = "";
-				setIsEmpty(true);
-				setMentionedDocs(new Map());
+				const emptyDocs = new Map<string, MentionedDocument>();
+				setMentionedDocs(emptyDocs);
+				syncEditorState(emptyDocs);
 			}
-		}, []);
+		}, [syncEditorState]);
 
 		// Replace editor content with plain text and place cursor at end
 		const setText = useCallback(
 			(text: string) => {
 				if (!editorRef.current) return;
 				editorRef.current.innerText = text;
-				const empty = text.length === 0;
-				setIsEmpty(empty);
-				onChange?.(text, Array.from(mentionedDocs.values()));
+				syncEditorState();
 				focusAtEnd();
 			},
-			[focusAtEnd, onChange, mentionedDocs]
+			[focusAtEnd, syncEditorState]
 		);
 
 		const setDocumentChipStatus = useCallback(
@@ -538,14 +544,11 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				setMentionedDocs((prev) => {
 					const next = new Map(prev);
 					next.delete(chipKey);
+					syncEditorState(next);
 					return next;
 				});
-
-				const text = getText();
-				const empty = text.length === 0 && mentionedDocs.size <= 1;
-				setIsEmpty(empty);
 			},
-			[getText, mentionedDocs.size]
+			[syncEditorState]
 		);
 
 		// Expose methods via ref
@@ -697,6 +700,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 										setMentionedDocs((prev) => {
 											const next = new Map(prev);
 											next.delete(chipKey);
+											syncEditorState(next);
 											return next;
 										});
 										// Notify parent that a document was removed
@@ -734,6 +738,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 										setMentionedDocs((prev) => {
 											const next = new Map(prev);
 											next.delete(chipKey);
+											syncEditorState(next);
 											return next;
 										});
 										// Notify parent that a document was removed
@@ -745,7 +750,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 					}
 				}
 			},
-			[onKeyDown, onSubmit, onDocumentRemove, onMentionClose]
+			[onKeyDown, onSubmit, onDocumentRemove, onMentionClose, syncEditorState]
 		);
 
 		// Handle paste - strip formatting
