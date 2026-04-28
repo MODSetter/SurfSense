@@ -25,6 +25,7 @@ import {
 	mentionedDocumentsAtom,
 	messageDocumentsMapAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
+import { pendingUserImageDataUrlsAtom } from "@/atoms/chat/pending-user-images.atom";
 import {
 	clearPlanOwnerRegistry,
 	// extractWriteTodosFromContent,
@@ -44,8 +45,8 @@ import {
 } from "@/components/assistant-ui/token-usage-context";
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
 import { useMessagesSync } from "@/hooks/use-messages-sync";
-import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { getAgentFilesystemSelection } from "@/lib/agent-filesystem";
+import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { getBearerToken } from "@/lib/auth-utils";
 import { convertToThreadMessage } from "@/lib/chat/message-utils";
 import {
@@ -75,6 +76,10 @@ import {
 	type ThreadListResponse,
 	type ThreadRecord,
 } from "@/lib/chat/thread-persistence";
+import {
+	extractUserTurnForNewChatApi,
+	type NewChatUserImagePayload,
+} from "@/lib/chat/user-turn-api-parts";
 import { NotFoundError } from "@/lib/error";
 import {
 	trackChatCreated,
@@ -228,6 +233,8 @@ export default function NewChatPage() {
 	const updateChatTabTitle = useSetAtom(updateChatTabTitleAtom);
 	const removeChatTab = useSetAtom(removeChatTabAtom);
 	const setAgentCreatedDocuments = useSetAtom(agentCreatedDocumentsAtom);
+	const pendingUserImageUrls = useAtomValue(pendingUserImageDataUrlsAtom);
+	const setPendingUserImageUrls = useSetAtom(pendingUserImageDataUrlsAtom);
 
 	// Get current user for author info in shared chats
 	const { data: currentUser } = useAtomValue(currentUserAtom);
@@ -489,18 +496,12 @@ export default function NewChatPage() {
 				abortControllerRef.current = null;
 			}
 
-			// Extract user query text from content parts
-			let userQuery = "";
-			for (const part of message.content) {
-				if (part.type === "text") {
-					userQuery += part.text;
-				}
-			}
+			const urlsSnapshot = [...pendingUserImageUrls];
+			const { userQuery, userImages } = extractUserTurnForNewChatApi(message, urlsSnapshot);
 
-			if (!userQuery.trim()) return;
+			if (!userQuery.trim() && userImages.length === 0) return;
 
-			// Check if podcast is already generating
-			if (isPodcastGenerating() && looksLikePodcastRequest(userQuery)) {
+			if (userQuery.trim() && isPodcastGenerating() && looksLikePodcastRequest(userQuery)) {
 				toast.warning("A podcast is already being generated.");
 				return;
 			}
@@ -540,6 +541,10 @@ export default function NewChatPage() {
 				}
 			}
 
+			if (urlsSnapshot.length > 0) {
+				setPendingUserImageUrls((prev) => prev.filter((u) => !urlsSnapshot.includes(u)));
+			}
+
 			// Add user message to state
 			const userMsgId = `msg-user-${Date.now()}`;
 
@@ -555,10 +560,27 @@ export default function NewChatPage() {
 					}
 				: undefined;
 
+			const existingImageUrls = new Set(
+				message.content
+					.filter(
+						(p): p is { type: "image"; image: string } =>
+							typeof p === "object" &&
+							p !== null &&
+							"type" in p &&
+							p.type === "image" &&
+							"image" in p
+					)
+					.map((p) => p.image)
+			);
+			const extraImageParts = urlsSnapshot
+				.filter((u) => !existingImageUrls.has(u))
+				.map((image) => ({ type: "image" as const, image }));
+			const userDisplayContent = [...message.content, ...extraImageParts];
+
 			const userMessage: ThreadMessageLike = {
 				id: userMsgId,
 				role: "user",
-				content: message.content,
+				content: userDisplayContent,
 				createdAt: new Date(),
 				metadata: authorMetadata,
 			};
@@ -566,7 +588,7 @@ export default function NewChatPage() {
 
 			// Track message sent
 			trackChatMessageSent(searchSpaceId, currentThreadId, {
-				hasAttachments: false,
+				hasAttachments: userImages.length > 0,
 				hasMentionedDocuments:
 					mentionedDocumentIds.surfsense_doc_ids.length > 0 ||
 					mentionedDocumentIds.document_ids.length > 0,
@@ -590,7 +612,7 @@ export default function NewChatPage() {
 				}));
 			}
 
-			const persistContent: unknown[] = [...message.content];
+			const persistContent: unknown[] = [...userDisplayContent];
 
 			if (allMentionedDocs.length > 0) {
 				persistContent.push({
@@ -655,8 +677,7 @@ export default function NewChatPage() {
 				const selection = await getAgentFilesystemSelection(searchSpaceId);
 				if (
 					selection.filesystem_mode === "desktop_local_folder" &&
-					(!selection.local_filesystem_mounts ||
-						selection.local_filesystem_mounts.length === 0)
+					(!selection.local_filesystem_mounts || selection.local_filesystem_mounts.length === 0)
 				) {
 					toast.error("Select a local folder before using Local Folder mode.");
 					return;
@@ -704,6 +725,7 @@ export default function NewChatPage() {
 							? mentionedDocumentIds.surfsense_doc_ids
 							: undefined,
 						disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
+						...(userImages.length > 0 ? { user_images: userImages } : {}),
 					}),
 					signal: controller.signal,
 				});
@@ -835,14 +857,7 @@ export default function NewChatPage() {
 									});
 								} else {
 									const tcId = `interrupt-${action.name}`;
-									addToolCall(
-										contentPartsState,
-										toolsWithUI,
-										tcId,
-										action.name,
-										action.args,
-										true
-									);
+									addToolCall(contentPartsState, toolsWithUI, tcId, action.name, action.args, true);
 									updateToolCall(contentPartsState, tcId, {
 										result: { __interrupt__: true, ...interruptData },
 									});
@@ -980,6 +995,9 @@ export default function NewChatPage() {
 			disabledTools,
 			updateChatTabTitle,
 			tokenUsageStore,
+			pendingUserImageUrls,
+			setPendingUserImageUrls,
+			toolsWithUI,
 		]
 	);
 
@@ -1180,14 +1198,7 @@ export default function NewChatPage() {
 									});
 								} else {
 									const tcId = `interrupt-${action.name}`;
-									addToolCall(
-										contentPartsState,
-										toolsWithUI,
-										tcId,
-										action.name,
-										action.args,
-										true
-									);
+									addToolCall(contentPartsState, toolsWithUI, tcId, action.name, action.args, true);
 									updateToolCall(contentPartsState, tcId, {
 										result: {
 											__interrupt__: true,
@@ -1252,7 +1263,7 @@ export default function NewChatPage() {
 				abortControllerRef.current = null;
 			}
 		},
-		[pendingInterrupt, messages, searchSpaceId, tokenUsageStore]
+		[pendingInterrupt, messages, searchSpaceId, tokenUsageStore, toolsWithUI]
 	);
 
 	useEffect(() => {
@@ -1320,14 +1331,23 @@ export default function NewChatPage() {
 	 * Handle regeneration (edit or reload) by calling the regenerate endpoint
 	 * and streaming the response. This rewinds the LangGraph checkpointer state.
 	 *
-	 * @param newUserQuery - The new user query (for edit). Pass null/undefined for reload.
+	 * @param newUserQuery - `null` = reload with same turn from the server. A string = edit
+	 *   (including an empty string when the edited turn is images-only); pass `editExtras` for images/content.
 	 */
 	const handleRegenerate = useCallback(
-		async (newUserQuery?: string | null) => {
+		async (
+			newUserQuery: string | null,
+			editExtras?: {
+				userMessageContent: ThreadMessageLike["content"];
+				userImages: NewChatUserImagePayload[];
+			}
+		) => {
 			if (!threadId) {
 				toast.error("Cannot regenerate: no active chat thread");
 				return;
 			}
+
+			const isEdit = newUserQuery !== null;
 
 			// Abort any previous streaming request
 			if (abortControllerRef.current) {
@@ -1342,11 +1362,11 @@ export default function NewChatPage() {
 			}
 
 			// Extract the original user query BEFORE removing messages (for reload mode)
-			let userQueryToDisplay = newUserQuery;
+			let userQueryToDisplay: string | undefined;
 			let originalUserMessageContent: ThreadMessageLike["content"] | null = null;
 			let originalUserMessageMetadata: ThreadMessageLike["metadata"] | undefined;
 
-			if (!newUserQuery) {
+			if (!isEdit) {
 				// Reload mode - find and preserve the last user message content
 				const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
 				if (lastUserMessage) {
@@ -1360,6 +1380,8 @@ export default function NewChatPage() {
 						}
 					}
 				}
+			} else {
+				userQueryToDisplay = newUserQuery;
 			}
 
 			// Remove the last two messages (user + assistant) from the UI immediately
@@ -1395,11 +1417,11 @@ export default function NewChatPage() {
 			const userMessage: ThreadMessageLike = {
 				id: userMsgId,
 				role: "user",
-				content: newUserQuery
-					? [{ type: "text", text: newUserQuery }]
+				content: isEdit
+					? (editExtras?.userMessageContent ?? [{ type: "text", text: newUserQuery ?? "" }])
 					: originalUserMessageContent || [{ type: "text", text: userQueryToDisplay || "" }],
 				createdAt: new Date(),
-				metadata: newUserQuery ? undefined : originalUserMessageMetadata,
+				metadata: isEdit ? undefined : originalUserMessageMetadata,
 			};
 			setMessages((prev) => [...prev, userMessage]);
 
@@ -1416,20 +1438,24 @@ export default function NewChatPage() {
 
 			try {
 				const selection = await getAgentFilesystemSelection(searchSpaceId);
+				const requestBody: Record<string, unknown> = {
+					search_space_id: searchSpaceId,
+					user_query: newUserQuery,
+					disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
+					filesystem_mode: selection.filesystem_mode,
+					client_platform: selection.client_platform,
+					local_filesystem_mounts: selection.local_filesystem_mounts,
+				};
+				if (isEdit) {
+					requestBody.user_images = editExtras?.userImages ?? [];
+				}
 				const response = await fetch(getRegenerateUrl(threadId), {
 					method: "POST",
 					headers: {
 						"Content-Type": "application/json",
 						Authorization: `Bearer ${token}`,
 					},
-					body: JSON.stringify({
-						search_space_id: searchSpaceId,
-						user_query: newUserQuery || null,
-						disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
-						filesystem_mode: selection.filesystem_mode,
-						client_platform: selection.client_platform,
-						local_filesystem_mounts: selection.local_filesystem_mounts,
-					}),
+					body: JSON.stringify(requestBody),
 					signal: controller.signal,
 				});
 
@@ -1519,8 +1545,8 @@ export default function NewChatPage() {
 				if (contentParts.length > 0) {
 					try {
 						// Persist user message (for both edit and reload modes, since backend deleted it)
-						const userContentToPersist = newUserQuery
-							? [{ type: "text", text: newUserQuery }]
+						const userContentToPersist = isEdit
+							? (editExtras?.userMessageContent ?? [{ type: "text", text: newUserQuery ?? "" }])
 							: originalUserMessageContent || [{ type: "text", text: userQueryToDisplay || "" }];
 
 						const savedUserMessage = await appendMessage(threadId, {
@@ -1579,27 +1605,21 @@ export default function NewChatPage() {
 				abortControllerRef.current = null;
 			}
 		},
-		[threadId, searchSpaceId, messages, disabledTools, tokenUsageStore]
+		[threadId, searchSpaceId, messages, disabledTools, tokenUsageStore, toolsWithUI]
 	);
 
 	// Handle editing a message - truncates history and regenerates with new query
 	const onEdit = useCallback(
 		async (message: AppendMessage) => {
-			// Extract the new user query from the message content
-			let newUserQuery = "";
-			for (const part of message.content) {
-				if (part.type === "text") {
-					newUserQuery += part.text;
-				}
-			}
-
-			if (!newUserQuery.trim()) {
+			const { userQuery, userImages } = extractUserTurnForNewChatApi(message, []);
+			const queryForApi = userQuery.trim();
+			if (!queryForApi && userImages.length === 0) {
 				toast.error("Cannot edit with empty message");
 				return;
 			}
 
-			// Call regenerate with the new query
-			await handleRegenerate(newUserQuery.trim());
+			const userMessageContent = message.content as unknown as ThreadMessageLike["content"];
+			await handleRegenerate(queryForApi, { userMessageContent, userImages });
 		},
 		[handleRegenerate]
 	);

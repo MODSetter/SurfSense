@@ -73,7 +73,7 @@ import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { usePlatform, useElectronAPI } from "@/hooks/use-platform";
+import { useElectronAPI, usePlatform } from "@/hooks/use-platform";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
@@ -211,7 +211,8 @@ function AuthenticatedDocumentsSidebarBase({
 	const [watchedFolderIds, setWatchedFolderIds] = useState<Set<number>>(new Set());
 	const [folderWatchOpen, setFolderWatchOpen] = useAtom(folderWatchDialogOpenAtom);
 	const [watchInitialFolder, setWatchInitialFolder] = useAtom(folderWatchInitialFolderAtom);
-	const isElectron = desktopFeaturesEnabled && typeof window !== "undefined" && !!window.electronAPI;
+	const isElectron =
+		desktopFeaturesEnabled && typeof window !== "undefined" && !!window.electronAPI;
 
 	useEffect(() => {
 		if (!electronAPI?.getAgentFilesystemSettings) return;
@@ -253,10 +254,13 @@ function AuthenticatedDocumentsSidebarBase({
 				.filter((rootPath, index, allPaths) => allPaths.indexOf(rootPath) === index)
 				.slice(0, MAX_LOCAL_FILESYSTEM_ROOTS);
 			if (nextLocalRootPaths.length === localRootPaths.length) return;
-			const updated = await electronAPI.setAgentFilesystemSettings({
-				mode: "desktop_local_folder",
-				localRootPaths: nextLocalRootPaths,
-			}, searchSpaceId);
+			const updated = await electronAPI.setAgentFilesystemSettings(
+				{
+					mode: "desktop_local_folder",
+					localRootPaths: nextLocalRootPaths,
+				},
+				searchSpaceId
+			);
 			setFilesystemSettings(updated);
 		},
 		[electronAPI, localRootPaths, searchSpaceId]
@@ -285,10 +289,13 @@ function AuthenticatedDocumentsSidebarBase({
 	const handleRemoveFilesystemRoot = useCallback(
 		async (rootPathToRemove: string) => {
 			if (!electronAPI?.setAgentFilesystemSettings) return;
-			const updated = await electronAPI.setAgentFilesystemSettings({
-				mode: "desktop_local_folder",
-				localRootPaths: localRootPaths.filter((rootPath) => rootPath !== rootPathToRemove),
-			}, searchSpaceId);
+			const updated = await electronAPI.setAgentFilesystemSettings(
+				{
+					mode: "desktop_local_folder",
+					localRootPaths: localRootPaths.filter((rootPath) => rootPath !== rootPathToRemove),
+				},
+				searchSpaceId
+			);
 			setFilesystemSettings(updated);
 		},
 		[electronAPI, localRootPaths, searchSpaceId]
@@ -296,19 +303,25 @@ function AuthenticatedDocumentsSidebarBase({
 
 	const handleClearFilesystemRoots = useCallback(async () => {
 		if (!electronAPI?.setAgentFilesystemSettings) return;
-		const updated = await electronAPI.setAgentFilesystemSettings({
-			mode: "desktop_local_folder",
-			localRootPaths: [],
-		}, searchSpaceId);
+		const updated = await electronAPI.setAgentFilesystemSettings(
+			{
+				mode: "desktop_local_folder",
+				localRootPaths: [],
+			},
+			searchSpaceId
+		);
 		setFilesystemSettings(updated);
 	}, [electronAPI, searchSpaceId]);
 
 	const handleFilesystemTabChange = useCallback(
 		async (tab: "cloud" | "local") => {
 			if (!electronAPI?.setAgentFilesystemSettings) return;
-			const updated = await electronAPI.setAgentFilesystemSettings({
-				mode: tab === "cloud" ? "cloud" : "desktop_local_folder",
-			}, searchSpaceId);
+			const updated = await electronAPI.setAgentFilesystemSettings(
+				{
+					mode: tab === "cloud" ? "cloud" : "desktop_local_folder",
+				},
+				searchSpaceId
+			);
 			setFilesystemSettings(updated);
 		},
 		[electronAPI, searchSpaceId]
@@ -558,7 +571,9 @@ function AuthenticatedDocumentsSidebarBase({
 			if (!electronAPI) return;
 
 			const watchedFolders = (await electronAPI.getWatchedFolders()) as WatchedFolderEntry[];
-			const matched = watchedFolders.find((wf: WatchedFolderEntry) => wf.rootFolderId === folder.id);
+			const matched = watchedFolders.find(
+				(wf: WatchedFolderEntry) => wf.rootFolderId === folder.id
+			);
 			if (!matched) {
 				toast.error("This folder is not being watched");
 				return;
@@ -588,7 +603,9 @@ function AuthenticatedDocumentsSidebarBase({
 			if (!electronAPI) return;
 
 			const watchedFolders = (await electronAPI.getWatchedFolders()) as WatchedFolderEntry[];
-			const matched = watchedFolders.find((wf: WatchedFolderEntry) => wf.rootFolderId === folder.id);
+			const matched = watchedFolders.find(
+				(wf: WatchedFolderEntry) => wf.rootFolderId === folder.id
+			);
 			if (!matched) {
 				toast.error("This folder is not being watched");
 				return;
@@ -1022,7 +1039,8 @@ function AuthenticatedDocumentsSidebarBase({
 	}, [open, onOpenChange, isMobile, setRightPanelCollapsed]);
 
 	const showFilesystemTabs = !isMobile && !!electronAPI && !!filesystemSettings;
-	const currentFilesystemTab = filesystemSettings?.mode === "desktop_local_folder" ? "local" : "cloud";
+	const currentFilesystemTab =
+		filesystemSettings?.mode === "desktop_local_folder" ? "local" : "cloud";
 	const showCloudSkeleton =
 		currentFilesystemTab === "cloud" &&
 		(zeroFoldersResult.type !== "complete" || zeroAllDocsResult.type !== "complete");
@@ -1338,8 +1356,8 @@ function AuthenticatedDocumentsSidebarBase({
 					<AlertDialogHeader>
 						<AlertDialogTitle>Trust this workspace?</AlertDialogTitle>
 						<AlertDialogDescription>
-							Local mode can read and edit files inside the folders you select. Continue only if
-							you trust this workspace and its contents.
+							Local mode can read and edit files inside the folders you select. Continue only if you
+							trust this workspace and its contents.
 						</AlertDialogDescription>
 						{pendingLocalPath && (
 							<AlertDialogDescription className="mt-1 whitespace-pre-wrap break-words font-mono text-xs">

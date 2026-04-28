@@ -7,7 +7,6 @@ import { setupDeepLinks, handlePendingDeepLink, hasPendingDeepLink } from './mod
 import { setupAutoUpdater } from './modules/auto-updater';
 import { setupMenu } from './modules/menu';
 import { registerQuickAsk, unregisterQuickAsk } from './modules/quick-ask';
-import { registerAutocomplete, unregisterAutocomplete } from './modules/autocomplete';
 import { registerFolderWatcher, unregisterFolderWatcher } from './modules/folder-watcher';
 import { registerIpcHandlers } from './ipc/handlers';
 import { createTray, destroyTray } from './modules/tray';
@@ -60,7 +59,6 @@ app.whenReady().then(async () => {
   }
 
   await registerQuickAsk();
-  await registerAutocomplete();
   registerFolderWatcher();
   setupAutoUpdater();
 
@@ -94,7 +92,6 @@ app.on('will-quit', async (e) => {
   didCleanup = true;
   e.preventDefault();
   unregisterQuickAsk();
-  unregisterAutocomplete();
   unregisterFolderWatcher();
   destroyTray();
   await shutdownAnalytics();

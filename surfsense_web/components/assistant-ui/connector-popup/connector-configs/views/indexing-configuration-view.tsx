@@ -12,7 +12,10 @@ import { DateRangeSelector } from "../../components/date-range-selector";
 import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
 import { SummaryConfig } from "../../components/summary-config";
 import { VisionLLMConfig } from "../../components/vision-llm-config";
-import { LIVE_CONNECTOR_TYPES, type IndexingConfigState } from "../../constants/connector-constants";
+import {
+	type IndexingConfigState,
+	LIVE_CONNECTOR_TYPES,
+} from "../../constants/connector-constants";
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
 import { getConnectorConfigComponent } from "../index";
 

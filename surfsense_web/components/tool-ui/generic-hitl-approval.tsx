@@ -118,7 +118,9 @@ function GenericApprovalCard({
 		setProcessing();
 		onDecision({ type: "approve" });
 		connectorsApiService.trustMCPTool(mcpConnectorId, toolName).catch(() => {
-			toast.error("Failed to save 'Always Allow' preference. The tool will still require approval next time.");
+			toast.error(
+				"Failed to save 'Always Allow' preference. The tool will still require approval next time."
+			);
 		});
 	}, [phase, setProcessing, onDecision, isMCPTool, mcpConnectorId, toolName]);
 

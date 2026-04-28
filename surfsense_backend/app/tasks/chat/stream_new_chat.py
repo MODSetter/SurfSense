@@ -31,7 +31,6 @@ from sqlalchemy.orm import selectinload
 from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
 from app.agents.new_chat.checkpointer import get_checkpointer
 from app.agents.new_chat.filesystem_selection import FilesystemSelection
-from app.config import config
 from app.agents.new_chat.llm_config import (
     AgentConfig,
     create_chat_litellm_from_agent_config,
@@ -62,6 +61,7 @@ from app.services.connector_service import ConnectorService
 from app.services.new_streaming_service import VercelStreamingService
 from app.utils.content_utils import bootstrap_history_from_db
 from app.utils.perf import get_perf_logger, log_system_snapshot, trim_native_heap
+from app.utils.user_message_multimodal import build_human_message_content
 
 _background_tasks: set[asyncio.Task] = set()
 _perf_log = get_perf_logger()
@@ -1350,6 +1350,7 @@ async def stream_new_chat(
     disabled_tools: list[str] | None = None,
     filesystem_selection: FilesystemSelection | None = None,
     request_id: str | None = None,
+    user_image_data_urls: list[str] | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Stream chat responses from the new SurfSense deep agent.
@@ -1625,8 +1626,10 @@ async def stream_new_chat(
         #         elif msg.role == "assistant":
         #             langchain_messages.append(AIMessage(content=msg.content))
         # else:
-        # Fallback: just use the current user query with attachment context
-        langchain_messages.append(HumanMessage(content=final_query))
+        human_content = build_human_message_content(
+            final_query, list(user_image_data_urls or ())
+        )
+        langchain_messages.append(HumanMessage(content=human_content))
 
         input_state = {
             # Lets not pass this message atm because we are using the checkpointer to manage the conversation history
@@ -1687,8 +1690,13 @@ async def stream_new_chat(
             action_verb = "Processing"
 
         processing_parts = []
-        query_text = user_query[:80] + ("..." if len(user_query) > 80 else "")
-        processing_parts.append(query_text)
+        if user_query.strip():
+            query_text = user_query[:80] + ("..." if len(user_query) > 80 else "")
+            processing_parts.append(query_text)
+        elif user_image_data_urls:
+            processing_parts.append(f"[{len(user_image_data_urls)} image(s)]")
+        else:
+            processing_parts.append("(message)")
 
         if mentioned_surfsense_docs:
             doc_names = []
@@ -1750,8 +1758,13 @@ async def stream_new_chat(
 
                     _turn_accumulator.set(None)
 
+                    title_seed = user_query.strip() or (
+                        f"[{len(user_image_data_urls or [])} image(s)]"
+                        if user_image_data_urls
+                        else ""
+                    )
                     prompt = TITLE_GENERATION_PROMPT.replace(
-                        "{user_query}", user_query[:500]
+                        "{user_query}", title_seed[:500] or "(message)"
                     )
                     messages = [{"role": "user", "content": prompt}]
 
@@ -1947,10 +1960,15 @@ async def stream_new_chat(
         # Fire background memory extraction if the agent didn't handle it.
         # Shared threads write to team memory; private threads write to user memory.
         if not stream_result.agent_called_update_memory:
+            memory_seed = user_query.strip() or (
+                f"[{len(user_image_data_urls or [])} image(s)]"
+                if user_image_data_urls
+                else "(message)"
+            )
             if visibility == ChatVisibility.SEARCH_SPACE:
                 task = asyncio.create_task(
                     extract_and_save_team_memory(
-                        user_message=user_query,
+                        user_message=memory_seed,
                         search_space_id=search_space_id,
                         llm=llm,
                         author_display_name=current_user_display_name,
@@ -1961,7 +1979,7 @@ async def stream_new_chat(
             elif user_id:
                 task = asyncio.create_task(
                     extract_and_save_memory(
-                        user_message=user_query,
+                        user_message=memory_seed,
                         user_id=user_id,
                         llm=llm,
                     )

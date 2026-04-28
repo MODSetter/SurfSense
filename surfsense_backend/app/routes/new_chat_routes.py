@@ -24,9 +24,9 @@ from sqlalchemy.orm import selectinload
 
 from app.agents.new_chat.filesystem_selection import (
     ClientPlatform,
-    LocalFilesystemMount,
     FilesystemMode,
     FilesystemSelection,
+    LocalFilesystemMount,
 )
 from app.config import config
 from app.db import (
@@ -64,6 +64,10 @@ from app.services.token_tracking_service import record_token_usage
 from app.tasks.chat.stream_new_chat import stream_new_chat, stream_resume_chat
 from app.users import current_active_user
 from app.utils.rbac import check_permission
+from app.utils.user_message_multimodal import (
+    split_langchain_human_content,
+    split_persisted_user_content_parts,
+)
 
 _logger = logging.getLogger(__name__)
 _background_tasks: set[asyncio.Task] = set()
@@ -1237,6 +1241,10 @@ async def handle_new_chat(
         # connection (the "Exception terminating connection" errors).
         await session.close()
 
+        image_urls = (
+            [p.as_data_url() for p in request.user_images] if request.user_images else None
+        )
+
         return StreamingResponse(
             stream_new_chat(
                 user_query=request.user_query,
@@ -1252,6 +1260,7 @@ async def handle_new_chat(
                 disabled_tools=request.disabled_tools,
                 filesystem_selection=filesystem_selection,
                 request_id=getattr(http_request.state, "request_id", "unknown"),
+                user_image_data_urls=image_urls,
             ),
             media_type="text/event-stream",
             headers={
@@ -1360,6 +1369,7 @@ async def regenerate_response(
 
         target_checkpoint_id = None
         user_query_to_use = request.user_query
+        regenerate_image_urls: list[str] = []
 
         # Look through checkpoints to find the right one
         # We want to find the checkpoint just before the last HumanMessage
@@ -1385,9 +1395,13 @@ async def regenerate_response(
                             prev_messages = prev_channel_values.get("messages", [])
                             for msg in reversed(prev_messages):
                                 if isinstance(msg, HumanMessage):
-                                    user_query_to_use = msg.content
+                                    q, imgs = split_langchain_human_content(msg.content)
+                                    user_query_to_use = q
+                                    regenerate_image_urls = imgs
                                     break
-                            if user_query_to_use:
+                            if user_query_to_use is not None and (
+                                str(user_query_to_use).strip() or regenerate_image_urls
+                            ):
                                 break
 
                     target_checkpoint_id = cp_tuple.config["configurable"][
@@ -1405,7 +1419,9 @@ async def regenerate_response(
                     state_messages = channel_values.get("messages", [])
                     for msg in state_messages:
                         if isinstance(msg, HumanMessage):
-                            user_query_to_use = msg.content
+                            q, imgs = split_langchain_human_content(msg.content)
+                            user_query_to_use = q
+                            regenerate_image_urls = imgs
                             break
             else:
                 # Use the oldest checkpoint
@@ -1431,16 +1447,24 @@ async def regenerate_response(
                 if isinstance(content, str):
                     user_query_to_use = content
                 elif isinstance(content, list):
-                    # Extract text from content parts
-                    for part in content:
-                        if isinstance(part, dict) and part.get("type") == "text":
-                            user_query_to_use = part.get("text", "")
-                            break
-                        elif isinstance(part, str):
-                            user_query_to_use = part
-                            break
+                    plain, imgs = split_persisted_user_content_parts(content)
+                    user_query_to_use = plain
+                    regenerate_image_urls = imgs
+
+        if isinstance(user_query_to_use, list):
+            user_query_to_use, regenerate_image_urls = split_langchain_human_content(
+                user_query_to_use
+            )
+
+        if request.user_images is not None:
+            regenerate_image_urls = [p.as_data_url() for p in request.user_images]
 
         if user_query_to_use is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Could not determine user query for regeneration. Please provide a user_query.",
+            )
+        if not str(user_query_to_use).strip() and not regenerate_image_urls:
             raise HTTPException(
                 status_code=400,
                 detail="Could not determine user query for regeneration. Please provide a user_query.",
@@ -1483,7 +1507,7 @@ async def regenerate_response(
             streaming_completed = False
             try:
                 async for chunk in stream_new_chat(
-                    user_query=user_query_to_use,
+                    user_query=str(user_query_to_use),
                     search_space_id=request.search_space_id,
                     chat_id=thread_id,
                     user_id=str(user.id),
@@ -1497,6 +1521,7 @@ async def regenerate_response(
                     disabled_tools=request.disabled_tools,
                     filesystem_selection=filesystem_selection,
                     request_id=getattr(http_request.state, "request_id", "unknown"),
+                    user_image_data_urls=regenerate_image_urls or None,
                 ):
                     yield chunk
                 streaming_completed = True

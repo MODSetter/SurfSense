@@ -12,6 +12,7 @@ import {
 	AlertCircle,
 	ArrowDownIcon,
 	ArrowUpIcon,
+	Camera,
 	ChevronDown,
 	ChevronUp,
 	Clipboard,
@@ -39,6 +40,7 @@ import { chatSessionStateAtom } from "@/atoms/chat/chat-session-state.atom";
 import {
 	mentionedDocumentsAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
+import { pendingUserImageDataUrlsAtom } from "@/atoms/chat/pending-user-images.atom";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
@@ -88,6 +90,7 @@ import { useCommentsSync } from "@/hooks/use-comments-sync";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
+import { captureDisplayToPngDataUrl } from "@/lib/chat/display-media-capture";
 import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/lib/layout-events";
 import { cn } from "@/lib/utils";
 
@@ -290,6 +293,32 @@ const ConnectToolsBanner: FC<{ isThreadEmpty: boolean }> = ({ isThreadEmpty }) =
 					<X className="size-3.5 text-muted-foreground" />
 				</button>
 			</div>
+		</div>
+	);
+};
+
+const PendingScreenImageStrip: FC = () => {
+	const [urls, setUrls] = useAtom(pendingUserImageDataUrlsAtom);
+	if (urls.length === 0) return null;
+	return (
+		<div className="mx-3 mt-2 flex flex-wrap gap-2">
+			{urls.map((url, index) => (
+				<div
+					key={url}
+					className="group relative h-14 w-14 shrink-0 overflow-hidden rounded-md border border-border/50 bg-muted"
+				>
+					{/* biome-ignore lint/performance/noImgElement: data URL thumbnails from capture */}
+					<img src={url} alt="" className="size-full object-cover" draggable={false} />
+					<button
+						type="button"
+						onClick={() => setUrls((prev) => prev.filter((_, i) => i !== index))}
+						className="absolute right-0.5 top-0.5 flex size-5 items-center justify-center rounded-full bg-background/90 text-muted-foreground shadow-sm transition-opacity hover:text-foreground sm:opacity-0 sm:group-hover:opacity-100"
+						aria-label="Remove screenshot"
+					>
+						<X className="size-3" />
+					</button>
+				</div>
+			))}
 		</div>
 	);
 };
@@ -730,6 +759,7 @@ const Composer: FC = () => {
 				</div>
 			)}
 			<div className="aui-composer-attachment-dropzone flex w-full flex-col overflow-hidden rounded-2xl border-input bg-muted pt-2 outline-none transition-shadow">
+				<PendingScreenImageStrip />
 				{clipboardInitialText && (
 					<ClipboardChip
 						text={clipboardInitialText}
@@ -787,11 +817,23 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 		},
 		[]
 	);
+	const pendingScreenImages = useAtomValue(pendingUserImageDataUrlsAtom);
+	const setPendingScreenImages = useSetAtom(pendingUserImageDataUrlsAtom);
+	const electronAPI = useElectronAPI();
+
 	const isComposerTextEmpty = useAuiState(({ composer }) => {
 		const text = composer.text?.trim() || "";
 		return text.length === 0;
 	});
-	const isComposerEmpty = isComposerTextEmpty && mentionedDocuments.length === 0;
+	const isComposerEmpty =
+		isComposerTextEmpty && mentionedDocuments.length === 0 && pendingScreenImages.length === 0;
+
+	const handleScreenCapture = useCallback(async () => {
+		const url = electronAPI?.captureFullScreen
+			? await electronAPI.captureFullScreen()
+			: await captureDisplayToPngDataUrl();
+		if (url) setPendingScreenImages((prev) => [...prev, url]);
+	}, [electronAPI, setPendingScreenImages]);
 
 	const { data: userConfigs } = useAtomValue(newLLMConfigsAtom);
 	const { data: globalConfigs } = useAtomValue(globalNewLLMConfigsAtom);
@@ -1218,6 +1260,17 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 				</div>
 			)}
 			<div className="flex items-center gap-2">
+				<TooltipIconButton
+					tooltip="Capture screen"
+					type="button"
+					variant="ghost"
+					size="icon"
+					className="size-8 rounded-full"
+					aria-label="Capture screen"
+					onClick={() => void handleScreenCapture()}
+				>
+					<Camera className="size-4" />
+				</TooltipIconButton>
 				<AuiIf condition={({ thread }) => !thread.isRunning}>
 					<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
 						<TooltipIconButton
@@ -1227,7 +1280,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									: !hasModelConfigured
 										? "Please select a model from the header to start chatting"
 										: isComposerEmpty
-											? "Enter a message to send"
+											? "Enter a message or add a screenshot to send"
 											: "Send message"
 							}
 							side="bottom"

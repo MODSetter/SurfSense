@@ -20,7 +20,6 @@ import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { ImagePreview, ImageRoot, ImageZoom } from "@/components/assistant-ui/image";
 import "katex/dist/katex.min.css";
 import { InlineCitation, UrlCitation } from "@/components/assistant-ui/inline-citation";
-import { useElectronAPI } from "@/hooks/use-platform";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
@@ -30,6 +29,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { useElectronAPI } from "@/hooks/use-platform";
 import { cn } from "@/lib/utils";
 
 function MarkdownCodeBlockSkeleton() {
