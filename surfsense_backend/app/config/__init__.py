@@ -342,6 +342,8 @@ class Config:
     ENABLE_DESKTOP_LOCAL_FILESYSTEM = (
         os.getenv("ENABLE_DESKTOP_LOCAL_FILESYSTEM", "FALSE").upper() == "TRUE"
     )
+    AGENT_ARCHITECTURE_MODE = os.getenv("AGENT_ARCHITECTURE_MODE", "single_agent")
+    FORCE_SINGLE_AGENT = os.getenv("FORCE_SINGLE_AGENT", "FALSE").upper() == "TRUE"
 
     @classmethod
     def is_self_hosted(cls) -> bool:
