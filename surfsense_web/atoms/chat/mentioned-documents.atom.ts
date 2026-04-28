@@ -10,29 +10,6 @@ import type { Document } from "@/contracts/types/document.types";
 export const mentionedDocumentsAtom = atom<Pick<Document, "id" | "title" | "document_type">[]>([]);
 
 /**
- * Back-compat alias for sidebar checkbox selection.
- * This now points to mentionedDocumentsAtom so the app has a single source
- * of truth for mentioned/selected documents.
- */
-export const sidebarSelectedDocumentsAtom = atom<
-	Pick<Document, "id" | "title" | "document_type">[],
-	[
-		| Pick<Document, "id" | "title" | "document_type">[]
-		| ((
-				prev: Pick<Document, "id" | "title" | "document_type">[]
-		  ) => Pick<Document, "id" | "title" | "document_type">[]),
-	],
-	void
->(
-	(get) => get(mentionedDocumentsAtom),
-	(get, set, update) => {
-		const prev = get(mentionedDocumentsAtom);
-		const next = typeof update === "function" ? update(prev) : update;
-		set(mentionedDocumentsAtom, next);
-	}
-);
-
-/**
  * Derived read-only atom that maps deduplicated mentioned docs
  * into backend payload fields.
  */

@@ -87,6 +87,7 @@ import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsSync } from "@/hooks/use-comments-sync";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
+import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/lib/layout-events";
 import { cn } from "@/lib/utils";
 
@@ -338,6 +339,9 @@ const Composer: FC = () => {
 	const [mentionQuery, setMentionQuery] = useState("");
 	const [actionQuery, setActionQuery] = useState("");
 	const editorRef = useRef<InlineMentionEditorRef>(null);
+	const prevMentionedDocsRef = useRef<
+		Map<string, Pick<Document, "id" | "title" | "document_type">>
+	>(new Map());
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
 	const promptPickerRef = useRef<PromptPickerRef>(null);
 	const viewportRef = useRef<Element | null>(null);
@@ -633,51 +637,50 @@ const Composer: FC = () => {
 
 	const handleDocumentsMention = useCallback(
 		(documents: Pick<Document, "id" | "title" | "document_type">[]) => {
-			const existingKeys = new Set(mentionedDocuments.map((d) => `${d.document_type}:${d.id}`));
-			const newDocs = documents.filter(
-				(doc) => !existingKeys.has(`${doc.document_type}:${doc.id}`)
-			);
+			const editorMentionedDocs = editorRef.current?.getMentionedDocuments() ?? [];
+			const editorDocKeys = new Set(editorMentionedDocs.map((doc) => getMentionDocKey(doc)));
 
-			for (const doc of newDocs) {
+			for (const doc of documents) {
+				const key = getMentionDocKey(doc);
+				if (editorDocKeys.has(key)) continue;
 				editorRef.current?.insertDocumentChip(doc);
 			}
 
 			setMentionedDocuments((prev) => {
-				const existingKeySet = new Set(prev.map((d) => `${d.document_type}:${d.id}`));
-				const uniqueNewDocs = documents.filter(
-					(doc) => !existingKeySet.has(`${doc.document_type}:${doc.id}`)
-				);
+				const existingKeySet = new Set(prev.map((d) => getMentionDocKey(d)));
+				const uniqueNewDocs = documents.filter((doc) => !existingKeySet.has(getMentionDocKey(doc)));
 				return [...prev, ...uniqueNewDocs];
 			});
 
 			setMentionQuery("");
 		},
-		[mentionedDocuments, setMentionedDocuments]
+		[setMentionedDocuments]
 	);
 
 	useEffect(() => {
 		const editor = editorRef.current;
-		if (!editor) return;
+		const nextDocsMap = new Map(mentionedDocuments.map((doc) => [getMentionDocKey(doc), doc]));
+		const prevDocsMap = prevMentionedDocsRef.current;
 
-		const toKey = (doc: { id: number; document_type?: string }) =>
-			`${doc.document_type ?? "UNKNOWN"}:${doc.id}`;
-
-		const atomDocs = mentionedDocuments;
-		const editorDocs = editor.getMentionedDocuments();
-		const atomKeys = new Set(atomDocs.map(toKey));
-		const editorKeys = new Set(editorDocs.map(toKey));
-
-		for (const doc of atomDocs) {
-			if (!editorKeys.has(toKey(doc))) {
-				editor.insertDocumentChip(doc, { removeTriggerText: false });
-			}
+		if (!editor) {
+			prevMentionedDocsRef.current = nextDocsMap;
+			return;
 		}
 
-		for (const doc of editorDocs) {
-			if (!atomKeys.has(toKey(doc))) {
+		const editorKeys = new Set(editor.getMentionedDocuments().map(getMentionDocKey));
+
+		for (const [key, doc] of nextDocsMap) {
+			if (prevDocsMap.has(key) || editorKeys.has(key)) continue;
+			editor.insertDocumentChip(doc, { removeTriggerText: false });
+		}
+
+		for (const [key, doc] of prevDocsMap) {
+			if (!nextDocsMap.has(key)) {
 				editor.removeDocumentChip(doc.id, doc.document_type);
 			}
 		}
+
+		prevMentionedDocsRef.current = nextDocsMap;
 	}, [mentionedDocuments]);
 
 	return (

@@ -14,6 +14,7 @@ import {
 import { renderToStaticMarkup } from "react-dom/server";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Document } from "@/contracts/types/document.types";
+import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { cn } from "@/lib/utils";
 
 function renderElementToHTML(element: ReactElement): string {
@@ -57,7 +58,6 @@ interface InlineMentionEditorProps {
 	onKeyDown?: (e: React.KeyboardEvent) => void;
 	disabled?: boolean;
 	className?: string;
-	initialDocuments?: MentionedDocument[];
 	initialText?: string;
 }
 
@@ -109,7 +109,6 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			onKeyDown,
 			disabled = false,
 			className,
-			initialDocuments = [],
 			initialText,
 		},
 		ref
@@ -117,17 +116,24 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 		const editorRef = useRef<HTMLDivElement>(null);
 		const [isEmpty, setIsEmpty] = useState(true);
 		const [mentionedDocs, setMentionedDocs] = useState<Map<string, MentionedDocument>>(
-			() => new Map(initialDocuments.map((d) => [`${d.document_type ?? "UNKNOWN"}:${d.id}`, d]))
+			() => new Map()
 		);
 		const isComposingRef = useRef(false);
 		const lastSelectionRangeRef = useRef<Range | null>(null);
+		const isRangeInsideEditor = useCallback((range: Range | null): range is Range => {
+			if (!range || !editorRef.current) return false;
+			return (
+				editorRef.current.contains(range.startContainer) &&
+				editorRef.current.contains(range.endContainer)
+			);
+		}, []);
 		const isSelectionInsideEditor = useCallback(
 			(selection: Selection | null): selection is Selection => {
 				if (!selection || selection.rangeCount === 0 || !editorRef.current) return false;
 				const range = selection.getRangeAt(0);
-				return editorRef.current.contains(range.startContainer);
+				return isRangeInsideEditor(range);
 			},
-			[]
+			[isRangeInsideEditor]
 		);
 
 		const rememberSelection = useCallback(() => {
@@ -139,11 +145,11 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 		const restoreRememberedSelection = useCallback((): Selection | null => {
 			const selection = window.getSelection();
 			if (!selection) return null;
-			if (!lastSelectionRangeRef.current) return selection;
+			if (!isRangeInsideEditor(lastSelectionRangeRef.current)) return null;
 			selection.removeAllRanges();
 			selection.addRange(lastSelectionRangeRef.current.cloneRange());
 			return selection;
-		}, []);
+		}, [isRangeInsideEditor]);
 
 		useEffect(() => {
 			const handleSelectionChange = () => {
@@ -154,23 +160,13 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			return () => document.removeEventListener("selectionchange", handleSelectionChange);
 		}, [rememberSelection]);
 
-
-		// Sync initial documents
-		useEffect(() => {
-			if (initialDocuments.length > 0) {
-				setMentionedDocs(
-					new Map(initialDocuments.map((d) => [`${d.document_type ?? "UNKNOWN"}:${d.id}`, d]))
-				);
-			}
-		}, [initialDocuments]);
-
 		useEffect(() => {
 			if (!initialText || !editorRef.current) return;
 			editorRef.current.innerText = initialText;
 			editorRef.current.appendChild(document.createElement("br"));
 			editorRef.current.appendChild(document.createElement("br"));
 			setIsEmpty(false);
-			onChange?.(initialText, initialDocuments);
+			onChange?.(initialText, []);
 			editorRef.current.focus();
 			const sel = window.getSelection();
 			const range = document.createRange();
@@ -182,7 +178,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			range.insertNode(anchor);
 			anchor.scrollIntoView({ block: "end" });
 			anchor.remove();
-		}, [initialText, initialDocuments, onChange]);
+		}, [initialText, onChange]);
 
 		// Focus at the end of the editor
 		const focusAtEnd = useCallback(() => {
@@ -284,7 +280,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 					e.preventDefault();
 					e.stopPropagation();
 					chip.remove();
-					const docKey = `${doc.document_type ?? "UNKNOWN"}:${doc.id}`;
+					const docKey = getMentionDocKey(doc);
 					setMentionedDocs((prev) => {
 						const next = new Map(prev);
 						next.delete(docKey);
@@ -358,7 +354,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				};
 
 				// Add to mentioned docs map using unique key
-				const docKey = `${doc.document_type ?? "UNKNOWN"}:${doc.id}`;
+				const docKey = getMentionDocKey(doc);
 				setMentionedDocs((prev) => new Map(prev).set(docKey, mentionDoc));
 				const nextDocs = new Map(mentionedDocs);
 				nextDocs.set(docKey, mentionDoc);
@@ -367,12 +363,33 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				const selection = window.getSelection();
 				const hasActiveSelection = isSelectionInsideEditor(selection);
 				const resolvedSelection = hasActiveSelection ? selection : restoreRememberedSelection();
-				if (!resolvedSelection || resolvedSelection.rangeCount === 0) {
-					// No selection, just append
+				if (
+					!resolvedSelection ||
+					resolvedSelection.rangeCount === 0 ||
+					!isSelectionInsideEditor(resolvedSelection)
+				) {
+					// No valid in-editor selection: deterministically insert at end.
+					editorRef.current.focus();
+					const endSelection = window.getSelection();
+					if (!endSelection) return;
+					const endRange = document.createRange();
+					endRange.selectNodeContents(editorRef.current);
+					endRange.collapse(false);
+					endSelection.removeAllRanges();
+					endSelection.addRange(endRange);
+
 					const chip = createChipElement(mentionDoc);
-					editorRef.current.appendChild(chip);
-					editorRef.current.appendChild(document.createTextNode(" "));
-					focusAtEnd();
+					endRange.insertNode(chip);
+					endRange.setStartAfter(chip);
+					endRange.collapse(true);
+					const space = document.createTextNode(" ");
+					endRange.insertNode(space);
+					endRange.setStartAfter(space);
+					endRange.collapse(true);
+					endSelection.removeAllRanges();
+					endSelection.addRange(endRange);
+
+					syncEditorState(nextDocs);
 					rememberSelection();
 					return;
 				}
@@ -456,7 +473,6 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			},
 			[
 				createChipElement,
-				focusAtEnd,
 				isSelectionInsideEditor,
 				mentionedDocs,
 				rememberSelection,
@@ -531,7 +547,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 		const removeDocumentChip = useCallback(
 			(docId: number, docType?: string) => {
 				if (!editorRef.current) return;
-				const chipKey = `${docType ?? "UNKNOWN"}:${docId}`;
+				const chipKey = getMentionDocKey({ id: docId, document_type: docType });
 				const chips = editorRef.current.querySelectorAll<HTMLSpanElement>(
 					`span[${CHIP_DATA_ATTR}="true"]`
 				);
@@ -696,7 +712,10 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 									const chipDocType = getChipDocType(prevSibling);
 									if (chipId !== null) {
 										prevSibling.remove();
-										const chipKey = `${chipDocType}:${chipId}`;
+										const chipKey = getMentionDocKey({
+											id: chipId,
+											document_type: chipDocType,
+										});
 										setMentionedDocs((prev) => {
 											const next = new Map(prev);
 											next.delete(chipKey);
@@ -734,7 +753,10 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 									const chipDocType = getChipDocType(prevChild);
 									if (chipId !== null) {
 										prevChild.remove();
-										const chipKey = `${chipDocType}:${chipId}`;
+										const chipKey = getMentionDocKey({
+											id: chipId,
+											document_type: chipDocType,
+										});
 										setMentionedDocs((prev) => {
 											const next = new Map(prev);
 											next.delete(chipKey);

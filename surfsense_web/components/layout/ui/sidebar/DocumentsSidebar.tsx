@@ -24,7 +24,7 @@ import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
-	sidebarSelectedDocumentsAtom,
+	mentionedDocumentsAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
@@ -74,6 +74,7 @@ import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { usePlatform, useElectronAPI } from "@/hooks/use-platform";
+import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
@@ -414,7 +415,7 @@ function AuthenticatedDocumentsSidebarBase({
 	}, [refreshWatchedIds]);
 	const { mutateAsync: deleteDocumentMutation } = useAtomValue(deleteDocumentMutationAtom);
 
-	const [sidebarDocs, setSidebarDocs] = useAtom(sidebarSelectedDocumentsAtom);
+	const [sidebarDocs, setSidebarDocs] = useAtom(mentionedDocumentsAtom);
 	const mentionedDocIds = useMemo(() => new Set(sidebarDocs.map((d) => d.id)), [sidebarDocs]);
 
 	// Folder state
@@ -859,12 +860,12 @@ function AuthenticatedDocumentsSidebarBase({
 
 	const handleToggleChatMention = useCallback(
 		(doc: { id: number; title: string; document_type: string }, isMentioned: boolean) => {
-			const key = `${doc.document_type}:${doc.id}`;
+			const key = getMentionDocKey(doc);
 			if (isMentioned) {
-				setSidebarDocs((prev) => prev.filter((d) => `${d.document_type}:${d.id}` !== key));
+				setSidebarDocs((prev) => prev.filter((d) => getMentionDocKey(d) !== key));
 			} else {
 				setSidebarDocs((prev) => {
-					if (prev.some((d) => `${d.document_type}:${d.id}` === key)) return prev;
+					if (prev.some((d) => getMentionDocKey(d) === key)) return prev;
 					return [
 						...prev,
 						{ id: doc.id, title: doc.title, document_type: doc.document_type as DocumentTypeEnum },
@@ -895,9 +896,9 @@ function AuthenticatedDocumentsSidebarBase({
 
 			if (selectAll) {
 				setSidebarDocs((prev) => {
-					const existingDocKeys = new Set(prev.map((d) => `${d.document_type}:${d.id}`));
+					const existingDocKeys = new Set(prev.map((d) => getMentionDocKey(d)));
 					const newDocs = subtreeDocs
-						.filter((d) => !existingDocKeys.has(`${d.document_type}:${d.id}`))
+						.filter((d) => !existingDocKeys.has(getMentionDocKey(d)))
 						.map((d) => ({
 							id: d.id,
 							title: d.title,
@@ -906,10 +907,8 @@ function AuthenticatedDocumentsSidebarBase({
 					return newDocs.length > 0 ? [...prev, ...newDocs] : prev;
 				});
 			} else {
-				const keysToRemove = new Set(subtreeDocs.map((d) => `${d.document_type}:${d.id}`));
-				setSidebarDocs((prev) =>
-					prev.filter((d) => !keysToRemove.has(`${d.document_type}:${d.id}`))
-				);
+				const keysToRemove = new Set(subtreeDocs.map((d) => getMentionDocKey(d)));
+				setSidebarDocs((prev) => prev.filter((d) => !keysToRemove.has(getMentionDocKey(d))));
 			}
 		},
 		[treeDocuments, foldersByParent, setSidebarDocs]
@@ -1572,17 +1571,17 @@ function AnonymousDocumentsSidebar({
 	const [isUploading, setIsUploading] = useState(false);
 	const [search, setSearch] = useState("");
 
-	const [sidebarDocs, setSidebarDocs] = useAtom(sidebarSelectedDocumentsAtom);
+	const [sidebarDocs, setSidebarDocs] = useAtom(mentionedDocumentsAtom);
 	const mentionedDocIds = useMemo(() => new Set(sidebarDocs.map((d) => d.id)), [sidebarDocs]);
 
 	const handleToggleChatMention = useCallback(
 		(doc: { id: number; title: string; document_type: string }, isMentioned: boolean) => {
-			const key = `${doc.document_type}:${doc.id}`;
+			const key = getMentionDocKey(doc);
 			if (isMentioned) {
-				setSidebarDocs((prev) => prev.filter((d) => `${d.document_type}:${d.id}` !== key));
+				setSidebarDocs((prev) => prev.filter((d) => getMentionDocKey(d) !== key));
 			} else {
 				setSidebarDocs((prev) => {
-					if (prev.some((d) => `${d.document_type}:${d.id}` === key)) return prev;
+					if (prev.some((d) => getMentionDocKey(d) === key)) return prev;
 					return [
 						...prev,
 						{ id: doc.id, title: doc.title, document_type: doc.document_type as DocumentTypeEnum },
