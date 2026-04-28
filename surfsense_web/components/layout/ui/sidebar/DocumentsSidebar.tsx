@@ -416,7 +416,10 @@ function AuthenticatedDocumentsSidebarBase({
 	const { mutateAsync: deleteDocumentMutation } = useAtomValue(deleteDocumentMutationAtom);
 
 	const [sidebarDocs, setSidebarDocs] = useAtom(mentionedDocumentsAtom);
-	const mentionedDocIds = useMemo(() => new Set(sidebarDocs.map((d) => d.id)), [sidebarDocs]);
+	const mentionedDocKeys = useMemo(
+		() => new Set(sidebarDocs.map((d) => getMentionDocKey(d))),
+		[sidebarDocs]
+	);
 
 	// Folder state
 	const [expandedFolderMap, setExpandedFolderMap] = useAtom(expandedFolderIdsAtom);
@@ -1143,7 +1146,7 @@ function AuthenticatedDocumentsSidebarBase({
 							documents={searchFilteredDocuments}
 							expandedIds={expandedIds}
 							onToggleExpand={toggleFolderExpand}
-							mentionedDocIds={mentionedDocIds}
+							mentionedDocKeys={mentionedDocKeys}
 							onToggleChatMention={handleToggleChatMention}
 							onToggleFolderSelect={handleToggleFolderSelect}
 							onRenameFolder={handleRenameFolder}
@@ -1572,7 +1575,10 @@ function AnonymousDocumentsSidebar({
 	const [search, setSearch] = useState("");
 
 	const [sidebarDocs, setSidebarDocs] = useAtom(mentionedDocumentsAtom);
-	const mentionedDocIds = useMemo(() => new Set(sidebarDocs.map((d) => d.id)), [sidebarDocs]);
+	const mentionedDocKeys = useMemo(
+		() => new Set(sidebarDocs.map((d) => getMentionDocKey(d))),
+		[sidebarDocs]
+	);
 
 	const handleToggleChatMention = useCallback(
 		(doc: { id: number; title: string; document_type: string }, isMentioned: boolean) => {
@@ -1801,7 +1807,7 @@ function AnonymousDocumentsSidebar({
 						documents={searchFilteredDocs}
 						expandedIds={new Set()}
 						onToggleExpand={() => {}}
-						mentionedDocIds={mentionedDocIds}
+						mentionedDocKeys={mentionedDocKeys}
 						onToggleChatMention={handleToggleChatMention}
 						onToggleFolderSelect={() => {}}
 						onRenameFolder={() => gate("rename folders")}

@@ -628,9 +628,14 @@ const Composer: FC = () => {
 
 	const handleDocumentRemove = useCallback(
 		(docId: number, docType?: string) => {
-			setMentionedDocuments((prev) =>
-				prev.filter((doc) => !(doc.id === docId && doc.document_type === docType))
-			);
+			setMentionedDocuments((prev) => {
+				if (!docType) {
+					// Defensive fallback: keep UI in sync even when chip type is unavailable.
+					return prev.filter((doc) => doc.id !== docId);
+				}
+				const removedKey = getMentionDocKey({ id: docId, document_type: docType });
+				return prev.filter((doc) => getMentionDocKey(doc) !== removedKey);
+			});
 		},
 		[setMentionedDocuments]
 	);
