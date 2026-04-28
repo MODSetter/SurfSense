@@ -33,7 +33,7 @@ F = TypeVar("F", bound=Callable)
 def _is_retryable(exc: BaseException) -> bool:
     if isinstance(exc, ConnectorError):
         return exc.retryable
-    return bool(isinstance(exc, (httpx.TimeoutException, httpx.ConnectError)))
+    return bool(isinstance(exc, httpx.TimeoutException | httpx.ConnectError))
 
 
 def build_retry(

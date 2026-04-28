@@ -1,5 +1,9 @@
 from fastapi import APIRouter
 
+from .agent_action_log_route import router as agent_action_log_router
+from .agent_flags_route import router as agent_flags_router
+from .agent_permissions_route import router as agent_permissions_router
+from .agent_revert_route import router as agent_revert_router
 from .airtable_add_connector_route import (
     router as airtable_add_connector_router,
 )
@@ -66,6 +70,12 @@ router.include_router(documents_router)
 router.include_router(folders_router)
 router.include_router(notes_router)
 router.include_router(new_chat_router)  # Chat with assistant-ui persistence
+router.include_router(agent_revert_router)  # POST /threads/{id}/revert/{action_id}
+router.include_router(agent_action_log_router)  # GET /threads/{id}/actions
+router.include_router(
+    agent_permissions_router
+)  # CRUD for /searchspaces/{id}/agent/permissions/rules
+router.include_router(agent_flags_router)  # GET /agent/flags
 router.include_router(sandbox_router)  # Sandbox file downloads (Daytona)
 router.include_router(chat_comments_router)
 router.include_router(podcasts_router)  # Podcast task status and audio

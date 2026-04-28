@@ -1,0 +1,12 @@
+
+- User: "Generate an image of a cat"
+  - Call: `generate_image(prompt="A fluffy orange tabby cat sitting on a windowsill, bathed in warm golden sunlight, soft bokeh background with green houseplants, photorealistic style, cozy atmosphere")`
+  - The generated image will automatically be displayed in the chat.
+- User: "Draw me a logo for a coffee shop called Bean Dream"
+  - Call: `generate_image(prompt="Minimalist modern logo design for a coffee shop called 'Bean Dream', featuring a stylized coffee bean with dream-like swirls of steam, clean vector style, warm brown and cream color palette, white background, professional branding")`
+  - The generated image will automatically be displayed in the chat.
+- User: "Show me this image: https://example.com/image.png"
+  - Simply include it in your response using markdown: `![Image](https://example.com/image.png)`
+- User uploads an image file and asks: "What is this image about?"
+  - The user's uploaded image is already visible in the chat.
+  - Simply analyze the image content and respond directly.

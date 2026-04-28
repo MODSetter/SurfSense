@@ -31,14 +31,17 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Any
 
+from langchain.agents import create_agent
 from langchain.agents.middleware import AgentMiddleware, AgentState
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
+from langchain_core.runnables import Runnable
 from langgraph.runtime import Runtime
 from litellm import token_counter
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import select
 
+from app.agents.new_chat.feature_flags import get_flags
 from app.agents.new_chat.filesystem_selection import FilesystemMode
 from app.agents.new_chat.filesystem_state import SurfSenseFilesystemState
 from app.agents.new_chat.path_resolver import (
@@ -589,6 +592,53 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         self.available_document_types = available_document_types
         self.top_k = top_k
         self.mentioned_document_ids = mentioned_document_ids or []
+        # Tier 4.2: build the kb-planner private Runnable ONCE here so we
+        # don't pay the create_agent compile cost (50–200ms) on every turn.
+        # Disabled by default behind ``enable_kb_planner_runnable``; when off
+        # the planner falls back to the legacy ``self.llm.ainvoke`` path.
+        self._planner: Runnable | None = None
+        self._planner_compile_failed = False
+
+    def _build_kb_planner_runnable(self) -> Runnable | None:
+        """Compile the kb-planner private :class:`Runnable` once.
+
+        Returns ``None`` when the feature flag is disabled, when the LLM is
+        unavailable, or when ``create_agent`` raises (we fall back to the
+        legacy ``self.llm.ainvoke`` path in that case). Compilation happens
+        lazily on first call, then memoized via ``self._planner``.
+
+        The compiled agent is constructed without tools — the planner's
+        contract is "answer with structured JSON" — but with ``RetryAfter``
+        + the OpenCode-port retry/limit middleware so it shares the parent
+        agent's resilience guarantees.
+        """
+        if self._planner is not None or self._planner_compile_failed:
+            return self._planner
+        if self.llm is None:
+            return None
+        flags = get_flags()
+        if (
+            not flags.enable_kb_planner_runnable
+            or flags.disable_new_agent_stack
+        ):
+            return None
+
+        from app.agents.new_chat.middleware.retry_after import RetryAfterMiddleware
+
+        try:
+            self._planner = create_agent(
+                self.llm,
+                tools=[],
+                middleware=[RetryAfterMiddleware(max_retries=2)],
+            )
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(
+                "kb-planner Runnable compile failed; falling back to llm.ainvoke: %s",
+                exc,
+            )
+            self._planner_compile_failed = True
+            self._planner = None
+        return self._planner
 
     async def _plan_search_inputs(
         self,
@@ -611,11 +661,32 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         loop = asyncio.get_running_loop()
         t0 = loop.time()
 
+        # Tier 4.2: prefer the compiled-once planner Runnable when enabled;
+        # otherwise fall back to ``self.llm.ainvoke``. The ``surfsense:internal``
+        # tag is preserved on both paths so ``_stream_agent_events`` still
+        # suppresses the planner's intermediate events from the UI.
+        planner = self._build_kb_planner_runnable()
         try:
-            response = await self.llm.ainvoke(
-                [HumanMessage(content=prompt)],
-                config={"tags": ["surfsense:internal"]},
-            )
+            if planner is not None:
+                planner_state = await planner.ainvoke(
+                    {"messages": [HumanMessage(content=prompt)]},
+                    config={"tags": ["surfsense:internal"]},
+                )
+                response_messages = (
+                    planner_state.get("messages", [])
+                    if isinstance(planner_state, dict)
+                    else []
+                )
+                response = (
+                    response_messages[-1]
+                    if response_messages
+                    else AIMessage(content="")
+                )
+            else:
+                response = await self.llm.ainvoke(
+                    [HumanMessage(content=prompt)],
+                    config={"tags": ["surfsense:internal"]},
+                )
             plan = _parse_kb_search_plan_response(_extract_text_from_message(response))
             optimized_query = (
                 re.sub(r"\s+", " ", plan.optimized_query).strip() or user_text

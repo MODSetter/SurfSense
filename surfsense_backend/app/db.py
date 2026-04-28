@@ -2250,6 +2250,202 @@ else:
         )
 
 
+class AgentActionLog(BaseModel):
+    """Append-only audit trail of every tool call dispatched by the agent.
+
+    One row per ``ToolMessage`` produced; written by ``ActionLogMiddleware``
+    in its ``aafter_tool`` hook. Rows are referenced by the
+    ``/api/threads/{thread_id}/revert/{action_id}`` route to look up an
+    action's stored ``reverse_descriptor`` and replay it.
+
+    The table is intentionally narrow: large tool outputs are NOT stored
+    here. Result text lives in the langgraph checkpoint; this row only
+    keeps a short ``result_id`` (the LangChain ``ToolMessage.id`` or a
+    spilled-content path) for correlation.
+    """
+
+    __tablename__ = "agent_action_log"
+
+    thread_id = Column(
+        Integer,
+        ForeignKey("new_chat_threads.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    search_space_id = Column(
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    turn_id = Column(String(64), nullable=True, index=True)
+    message_id = Column(String(128), nullable=True, index=True)
+    tool_name = Column(String(255), nullable=False, index=True)
+    args = Column(JSONB, nullable=True)
+    result_id = Column(String(255), nullable=True)
+    reversible = Column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    reverse_descriptor = Column(JSONB, nullable=True)
+    error = Column(JSONB, nullable=True)
+    reverse_of = Column(
+        Integer,
+        ForeignKey("agent_action_log.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    created_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        server_default=text("(now() AT TIME ZONE 'utc')"),
+        index=True,
+    )
+
+    __table_args__ = (
+        Index("ix_agent_action_log_thread_created", "thread_id", "created_at"),
+    )
+
+
+class DocumentRevision(BaseModel):
+    """Snapshot of a :class:`Document` row taken before a mutating tool call.
+
+    Written by :class:`KnowledgeBasePersistenceMiddleware` (or its safety-net
+    `commit_staged_filesystem_state`) ahead of any NOTE / FILE / EXTENSION
+    document write. The row is referenced by ``/revert/{action_id}`` to
+    restore the original content in place.
+    """
+
+    __tablename__ = "document_revisions"
+
+    document_id = Column(
+        Integer,
+        ForeignKey("documents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    search_space_id = Column(
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    content_before = Column(Text, nullable=True)
+    title_before = Column(String, nullable=True)
+    folder_id_before = Column(Integer, nullable=True)
+    chunks_before = Column(JSONB, nullable=True)
+    metadata_before = Column("metadata_before", JSONB, nullable=True)
+    created_by_turn_id = Column(String(64), nullable=True, index=True)
+    agent_action_id = Column(
+        Integer,
+        ForeignKey("agent_action_log.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    created_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        server_default=text("(now() AT TIME ZONE 'utc')"),
+        index=True,
+    )
+
+
+class FolderRevision(BaseModel):
+    """Snapshot of a :class:`Folder` row taken before a mkdir / move."""
+
+    __tablename__ = "folder_revisions"
+
+    folder_id = Column(
+        Integer,
+        ForeignKey("folders.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    search_space_id = Column(
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    name_before = Column(String(255), nullable=True)
+    parent_id_before = Column(Integer, nullable=True)
+    position_before = Column(String(50), nullable=True)
+    created_by_turn_id = Column(String(64), nullable=True, index=True)
+    agent_action_id = Column(
+        Integer,
+        ForeignKey("agent_action_log.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    created_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        server_default=text("(now() AT TIME ZONE 'utc')"),
+        index=True,
+    )
+
+
+class AgentPermissionRule(BaseModel):
+    """Persistent permission rule consumed by :class:`PermissionMiddleware`.
+
+    Scoped at one of: search-space-wide (``user_id`` and ``thread_id`` NULL),
+    user-wide (``user_id`` set, ``thread_id`` NULL), or per-thread
+    (``thread_id`` set). Loaded at agent build time and converted to
+    :class:`Rule` instances inside the agent factory.
+    """
+
+    __tablename__ = "agent_permission_rules"
+
+    search_space_id = Column(
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    thread_id = Column(
+        Integer,
+        ForeignKey("new_chat_threads.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    permission = Column(String(255), nullable=False)
+    pattern = Column(String(255), nullable=False, default="*", server_default="*")
+    action = Column(String(16), nullable=False)  # allow / deny / ask
+    created_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        server_default=text("(now() AT TIME ZONE 'utc')"),
+        index=True,
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "search_space_id",
+            "user_id",
+            "thread_id",
+            "permission",
+            "pattern",
+            "action",
+            name="uq_agent_permission_rules_scope",
+        ),
+    )
+
+
 class RefreshToken(Base, TimestampMixin):
     """
     Stores refresh tokens for user session management.

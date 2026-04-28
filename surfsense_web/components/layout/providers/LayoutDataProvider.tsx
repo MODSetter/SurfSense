@@ -28,6 +28,7 @@ import {
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { SearchSpaceSettingsDialog } from "@/components/settings/search-space-settings-dialog";
 import { TeamDialog } from "@/components/settings/team-dialog";
+import { ActionLogSheet } from "@/components/agent-action-log/action-log-sheet";
 import { UserSettingsDialog } from "@/components/settings/user-settings-dialog";
 import {
 	AlertDialog,
@@ -909,6 +910,9 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			<SearchSpaceSettingsDialog searchSpaceId={Number(searchSpaceId)} />
 			<UserSettingsDialog />
 			<TeamDialog searchSpaceId={Number(searchSpaceId)} />
+
+			{/* Agent action log + revert sheet */}
+			<ActionLogSheet />
 		</>
 	);
 }

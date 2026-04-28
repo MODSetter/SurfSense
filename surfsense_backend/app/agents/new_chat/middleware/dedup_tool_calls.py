@@ -2,17 +2,28 @@
 
 When the LLM emits multiple calls to the same HITL tool with the same
 primary argument (e.g. two ``delete_calendar_event("Doctor Appointment")``),
-only the first call is kept.  Non-HITL tools are never touched.
+only the first call is kept. Non-HITL tools are never touched.
 
 This runs in the ``after_model`` hook — **before** any tool executes — so
 the duplicate call is stripped from the AIMessage that gets checkpointed.
 That means it is also safe across LangGraph ``interrupt()`` boundaries:
 the removed call will never appear on graph resume.
+
+Dedup-key resolution order (Tier 2.3 / cleanup in the OpenCode-port plan):
+
+1. :class:`ToolDefinition.dedup_key` — callable provided by the registry
+   entry. This is the canonical mechanism after the cleanup-tier removal
+   of the legacy ``PRIMARY_ARG`` map.
+2. ``tool.metadata["hitl_dedup_key"]`` — string with a primary arg name;
+   used by MCP / Composio tools whose schemas the registry doesn't see.
+
+A tool with no resolver from either path simply opts out of dedup.
 """
 
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from typing import Any
 
 from langchain.agents.middleware import AgentMiddleware, AgentState
@@ -20,81 +31,84 @@ from langgraph.runtime import Runtime
 
 logger = logging.getLogger(__name__)
 
-_NATIVE_HITL_TOOL_DEDUP_KEYS: dict[str, str] = {
-    # Gmail
-    "send_gmail_email": "subject",
-    "create_gmail_draft": "subject",
-    "update_gmail_draft": "draft_subject_or_id",
-    "trash_gmail_email": "email_subject_or_id",
-    # Google Calendar
-    "create_calendar_event": "title",
-    "update_calendar_event": "event_title_or_id",
-    "delete_calendar_event": "event_title_or_id",
-    # Google Drive
-    "create_google_drive_file": "file_name",
-    "delete_google_drive_file": "file_name",
-    # OneDrive
-    "create_onedrive_file": "file_name",
-    "delete_onedrive_file": "file_name",
-    # Dropbox
-    "create_dropbox_file": "file_name",
-    "delete_dropbox_file": "file_name",
-    # Notion
-    "create_notion_page": "title",
-    "update_notion_page": "page_title",
-    "delete_notion_page": "page_title",
-    # Linear
-    "create_linear_issue": "title",
-    "update_linear_issue": "issue_ref",
-    "delete_linear_issue": "issue_ref",
-    # Jira
-    "create_jira_issue": "summary",
-    "update_jira_issue": "issue_title_or_key",
-    "delete_jira_issue": "issue_title_or_key",
-    # Confluence
-    "create_confluence_page": "title",
-    "update_confluence_page": "page_title_or_id",
-    "delete_confluence_page": "page_title_or_id",
-}
+# Resolver type — given the tool ``args`` dict returns a stable
+# string used to dedupe consecutive calls. ``None`` means no dedup.
+DedupResolver = Callable[[dict[str, Any]], str]
+
+
+def wrap_dedup_key_by_arg_name(arg_name: str) -> DedupResolver:
+    """Adapt a string-arg name into a :data:`DedupResolver`.
+
+    Convenience helper used by registry entries that just want to dedupe
+    on a single arg's lowercased value (the most common case for native
+    HITL tools like ``send_gmail_email`` keyed on ``subject``).
+
+    Example::
+
+        ToolDefinition(
+            name="send_gmail_email",
+            ...,
+            dedup_key=wrap_dedup_key_by_arg_name("subject"),
+        )
+    """
+
+    def _resolver(args: dict[str, Any]) -> str:
+        return str(args.get(arg_name, "")).lower()
+
+    return _resolver
+
+
+# Backwards-compatible alias for code that imported the original
+# private name. New callers should use :func:`wrap_dedup_key_by_arg_name`.
+_wrap_string_key = wrap_dedup_key_by_arg_name
 
 
 class DedupHITLToolCallsMiddleware(AgentMiddleware):  # type: ignore[type-arg]
     """Remove duplicate HITL tool calls from a single LLM response.
 
-    Only the **first** occurrence of each (tool-name, primary-arg-value)
+    Only the **first** occurrence of each ``(tool-name, dedup_key)``
     pair is kept; subsequent duplicates are silently dropped.
 
-    The dedup map is built from two sources:
+    The dedup-resolver map is built from two sources, in priority order:
 
-    1. A comprehensive list of native HITL tools (hardcoded above).
-    2. Any ``StructuredTool`` instances passed via *agent_tools* whose
-       ``metadata`` contains ``{"hitl": True, "hitl_dedup_key": "..."}``.
-       This is how MCP tools automatically get dedup support.
+    1. ``tool.metadata["dedup_key"]`` — callable provided by the registry's
+       ``ToolDefinition.dedup_key`` (Tier 2.3). Receives the args dict
+       and returns a string signature. This is the canonical mechanism
+       after the cleanup-tier removal of the legacy ``PRIMARY_ARG`` map.
+    2. ``tool.metadata["hitl_dedup_key"]`` — string with a primary arg
+       name; primarily used by MCP / Composio tools.
     """
 
     tools = ()
 
     def __init__(self, *, agent_tools: list[Any] | None = None) -> None:
-        self._dedup_keys: dict[str, str] = dict(_NATIVE_HITL_TOOL_DEDUP_KEYS)
+        self._resolvers: dict[str, DedupResolver] = {}
+
         for t in agent_tools or []:
             meta = getattr(t, "metadata", None) or {}
+            callable_key = meta.get("dedup_key")
+            if callable(callable_key):
+                self._resolvers[t.name] = callable_key
+                continue
             if meta.get("hitl") and meta.get("hitl_dedup_key"):
-                self._dedup_keys[t.name] = meta["hitl_dedup_key"]
+                self._resolvers[t.name] = wrap_dedup_key_by_arg_name(
+                    meta["hitl_dedup_key"]
+                )
 
     def after_model(
         self, state: AgentState, runtime: Runtime[Any]
     ) -> dict[str, Any] | None:
-        return self._dedup(state, self._dedup_keys)
+        return self._dedup(state, self._resolvers)
 
     async def aafter_model(
         self, state: AgentState, runtime: Runtime[Any]
     ) -> dict[str, Any] | None:
-        return self._dedup(state, self._dedup_keys)
+        return self._dedup(state, self._resolvers)
 
     @staticmethod
     def _dedup(
         state: AgentState,
-        dedup_keys: dict[str, str],  # type: ignore[type-arg]
+        resolvers: dict[str, DedupResolver],
     ) -> dict[str, Any] | None:
         messages = state.get("messages")
         if not messages:
@@ -110,9 +124,16 @@ class DedupHITLToolCallsMiddleware(AgentMiddleware):  # type: ignore[type-arg]
 
         for tc in tool_calls:
             name = tc.get("name", "")
-            dedup_key_arg = dedup_keys.get(name)
-            if dedup_key_arg is not None:
-                arg_val = str(tc.get("args", {}).get(dedup_key_arg, "")).lower()
+            resolver = resolvers.get(name)
+            if resolver is not None:
+                try:
+                    arg_val = resolver(tc.get("args", {}) or {})
+                except Exception:
+                    logger.exception(
+                        "Dedup resolver for tool %s raised; keeping call", name
+                    )
+                    deduped.append(tc)
+                    continue
                 key = (name, arg_val)
                 if key in seen:
                     logger.info(
