@@ -24,7 +24,6 @@ import {
 	mentionedDocumentIdsAtom,
 	mentionedDocumentsAtom,
 	messageDocumentsMapAtom,
-	sidebarSelectedDocumentsAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
 import {
 	clearPlanOwnerRegistry,
@@ -216,12 +215,10 @@ export default function NewChatPage() {
 	// Get disabled tools from the tool toggle UI
 	const disabledTools = useAtomValue(disabledToolsAtom);
 
-	// Get mentioned document IDs from the composer (derived from @ mentions + sidebar selections)
+	// Get mentioned document IDs from the composer.
 	const mentionedDocumentIds = useAtomValue(mentionedDocumentIdsAtom);
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
-	const sidebarDocuments = useAtomValue(sidebarSelectedDocumentsAtom);
 	const setMentionedDocuments = useSetAtom(mentionedDocumentsAtom);
-	const setSidebarDocuments = useSetAtom(sidebarSelectedDocumentsAtom);
 	const setMessageDocumentsMap = useSetAtom(messageDocumentsMapAtom);
 	const setCurrentThreadState = useSetAtom(currentThreadAtom);
 	const setTargetCommentId = useSetAtom(setTargetCommentIdAtom);
@@ -319,7 +316,6 @@ export default function NewChatPage() {
 		setCurrentThread(null);
 		setMentionedDocuments([]);
 		tokenUsageStore.clear();
-		setSidebarDocuments([]);
 		setMessageDocumentsMap({});
 		clearPlanOwnerRegistry();
 		closeReportPanel();
@@ -387,7 +383,6 @@ export default function NewChatPage() {
 		urlChatId,
 		setMessageDocumentsMap,
 		setMentionedDocuments,
-		setSidebarDocuments,
 		closeReportPanel,
 		closeEditorPanel,
 		removeChatTab,
@@ -578,15 +573,14 @@ export default function NewChatPage() {
 				messageLength: userQuery.length,
 			});
 
-			// Combine @-mention chips + sidebar selections for display & persistence
+			// Collect unique mentioned docs for display & persistence
 			const allMentionedDocs: MentionedDocumentInfo[] = [];
 			const seenDocKeys = new Set<string>();
-			for (const doc of [...mentionedDocuments, ...sidebarDocuments]) {
+			for (const doc of mentionedDocuments) {
 				const key = `${doc.document_type}:${doc.id}`;
-				if (!seenDocKeys.has(key)) {
-					seenDocKeys.add(key);
-					allMentionedDocs.push({ id: doc.id, title: doc.title, document_type: doc.document_type });
-				}
+				if (seenDocKeys.has(key)) continue;
+				seenDocKeys.add(key);
+				allMentionedDocs.push({ id: doc.id, title: doc.title, document_type: doc.document_type });
 			}
 
 			if (allMentionedDocs.length > 0) {
@@ -689,7 +683,6 @@ export default function NewChatPage() {
 				// Clear mentioned documents after capturing them
 				if (hasDocumentIds || hasSurfsenseDocIds) {
 					setMentionedDocuments([]);
-					setSidebarDocuments([]);
 				}
 
 				const response = await fetch(`${backendUrl}/api/v1/new_chat`, {
@@ -979,9 +972,7 @@ export default function NewChatPage() {
 			messages,
 			mentionedDocumentIds,
 			mentionedDocuments,
-			sidebarDocuments,
 			setMentionedDocuments,
-			setSidebarDocuments,
 			setMessageDocumentsMap,
 			setAgentCreatedDocuments,
 			queryClient,

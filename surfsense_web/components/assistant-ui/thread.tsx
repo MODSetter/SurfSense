@@ -38,12 +38,9 @@ import {
 import { chatSessionStateAtom } from "@/atoms/chat/chat-session-state.atom";
 import {
 	mentionedDocumentsAtom,
-	sidebarMentionEventAtom,
-	sidebarSelectedDocumentsAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
-import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import {
 	globalNewLLMConfigsAtom,
@@ -336,8 +333,6 @@ const ClipboardChip: FC<{ text: string; onDismiss: () => void }> = ({ text, onDi
 const Composer: FC = () => {
 	// Document mention state (atoms persist across component remounts)
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
-	const setSidebarDocs = useSetAtom(sidebarSelectedDocumentsAtom);
-	const [sidebarMentionEvent, setSidebarMentionEvent] = useAtom(sidebarMentionEventAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
 	const [showPromptPicker, setShowPromptPicker] = useState(false);
 	const [mentionQuery, setMentionQuery] = useState("");
@@ -578,7 +573,6 @@ const Composer: FC = () => {
 		aui.composer().send();
 		editorRef.current?.clear();
 		setMentionedDocuments([]);
-		setSidebarDocs([]);
 
 		// With turnAnchor="top", ViewportSlack adds min-height to the last
 		// assistant message so that scrolling-to-bottom actually positions the
@@ -625,7 +619,6 @@ const Composer: FC = () => {
 		clipboardInitialText,
 		aui,
 		setMentionedDocuments,
-		setSidebarDocs,
 		threadViewportStore,
 	]);
 
@@ -663,40 +656,29 @@ const Composer: FC = () => {
 	);
 
 	useEffect(() => {
-		if (!sidebarMentionEvent) return;
+		const editor = editorRef.current;
+		if (!editor) return;
 
-		const eventDocs = sidebarMentionEvent.docs;
-		if (eventDocs.length === 0) {
-			setSidebarMentionEvent(null);
-			return;
+		const toKey = (doc: { id: number; document_type?: string }) =>
+			`${doc.document_type ?? "UNKNOWN"}:${doc.id}`;
+
+		const atomDocs = mentionedDocuments;
+		const editorDocs = editor.getMentionedDocuments();
+		const atomKeys = new Set(atomDocs.map(toKey));
+		const editorKeys = new Set(editorDocs.map(toKey));
+
+		for (const doc of atomDocs) {
+			if (!editorKeys.has(toKey(doc))) {
+				editor.insertDocumentChip(doc, { removeTriggerText: false });
+			}
 		}
 
-		const docKey = (doc: Pick<Document, "id" | "title" | "document_type">) =>
-			`${doc.document_type}:${doc.id}`;
-		const mentionedKeys = new Set(mentionedDocuments.map(docKey));
-
-		if (sidebarMentionEvent.kind === "add") {
-			const docsToAdd = eventDocs.filter((doc) => !mentionedKeys.has(docKey(doc)));
-			for (const doc of docsToAdd) {
-				editorRef.current?.insertDocumentChip(doc, { removeTriggerText: false });
+		for (const doc of editorDocs) {
+			if (!atomKeys.has(toKey(doc))) {
+				editor.removeDocumentChip(doc.id, doc.document_type);
 			}
-			if (docsToAdd.length > 0) {
-				setMentionedDocuments((prev) => {
-					const existing = new Set(prev.map(docKey));
-					const uniqueAdds = docsToAdd.filter((doc) => !existing.has(docKey(doc)));
-					return uniqueAdds.length > 0 ? [...prev, ...uniqueAdds] : prev;
-				});
-			}
-		} else {
-			const removeKeys = new Set(eventDocs.map(docKey));
-			for (const doc of eventDocs) {
-				editorRef.current?.removeDocumentChip(doc.id, doc.document_type);
-			}
-			setMentionedDocuments((prev) => prev.filter((doc) => !removeKeys.has(docKey(doc))));
 		}
-
-		setSidebarMentionEvent(null);
-	}, [sidebarMentionEvent, mentionedDocuments, setMentionedDocuments, setSidebarMentionEvent]);
+	}, [mentionedDocuments]);
 
 	return (
 		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col gap-2">
@@ -775,8 +757,6 @@ interface ComposerActionProps {
 
 const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false }) => {
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
-	const sidebarDocs = useAtomValue(sidebarSelectedDocumentsAtom);
-	const setDocumentsSidebarOpen = useSetAtom(documentsSidebarOpenAtom);
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 	const [toolsPopoverOpen, setToolsPopoverOpen] = useState(false);
 	const isDesktop = useMediaQuery("(min-width: 640px)");
@@ -1220,15 +1200,6 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 								</motion.span>
 							)}
 						</AnimatePresence>
-					</button>
-				)}
-				{sidebarDocs.length > 0 && (
-					<button
-						type="button"
-						onClick={() => setDocumentsSidebarOpen(true)}
-						className="rounded-full border border-border/60 bg-accent/50 px-2.5 py-1 text-xs font-medium text-foreground/80 transition-colors hover:bg-accent"
-					>
-						{sidebarDocs.length} {sidebarDocs.length === 1 ? "source" : "sources"} selected
 					</button>
 				)}
 			</div>

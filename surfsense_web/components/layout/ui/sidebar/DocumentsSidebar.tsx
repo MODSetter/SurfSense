@@ -24,7 +24,6 @@ import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
-	sidebarMentionEventAtom,
 	sidebarSelectedDocumentsAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
@@ -416,7 +415,6 @@ function AuthenticatedDocumentsSidebarBase({
 	const { mutateAsync: deleteDocumentMutation } = useAtomValue(deleteDocumentMutationAtom);
 
 	const [sidebarDocs, setSidebarDocs] = useAtom(sidebarSelectedDocumentsAtom);
-	const setSidebarMentionEvent = useSetAtom(sidebarMentionEventAtom);
 	const mentionedDocIds = useMemo(() => new Set(sidebarDocs.map((d) => d.id)), [sidebarDocs]);
 
 	// Folder state
@@ -864,17 +862,6 @@ function AuthenticatedDocumentsSidebarBase({
 			const key = `${doc.document_type}:${doc.id}`;
 			if (isMentioned) {
 				setSidebarDocs((prev) => prev.filter((d) => `${d.document_type}:${d.id}` !== key));
-				setSidebarMentionEvent({
-					kind: "remove",
-					docs: [
-						{
-							id: doc.id,
-							title: doc.title,
-							document_type: doc.document_type as DocumentTypeEnum,
-						},
-					],
-					nonce: Date.now(),
-				});
 			} else {
 				setSidebarDocs((prev) => {
 					if (prev.some((d) => `${d.document_type}:${d.id}` === key)) return prev;
@@ -883,20 +870,9 @@ function AuthenticatedDocumentsSidebarBase({
 						{ id: doc.id, title: doc.title, document_type: doc.document_type as DocumentTypeEnum },
 					];
 				});
-				setSidebarMentionEvent({
-					kind: "add",
-					docs: [
-						{
-							id: doc.id,
-							title: doc.title,
-							document_type: doc.document_type as DocumentTypeEnum,
-						},
-					],
-					nonce: Date.now(),
-				});
 			}
 		},
-		[setSidebarDocs, setSidebarMentionEvent]
+		[setSidebarDocs]
 	);
 
 	const handleToggleFolderSelect = useCallback(
@@ -918,14 +894,6 @@ function AuthenticatedDocumentsSidebarBase({
 			if (subtreeDocs.length === 0) return;
 
 			if (selectAll) {
-				const existingKeys = new Set(sidebarDocs.map((d) => `${d.document_type}:${d.id}`));
-				const docsToAdd = subtreeDocs
-					.filter((d) => !existingKeys.has(`${d.document_type}:${d.id}`))
-					.map((d) => ({
-						id: d.id,
-						title: d.title,
-						document_type: d.document_type as DocumentTypeEnum,
-					}));
 				setSidebarDocs((prev) => {
 					const existingDocKeys = new Set(prev.map((d) => `${d.document_type}:${d.id}`));
 					const newDocs = subtreeDocs
@@ -937,35 +905,14 @@ function AuthenticatedDocumentsSidebarBase({
 						}));
 					return newDocs.length > 0 ? [...prev, ...newDocs] : prev;
 				});
-				if (docsToAdd.length > 0) {
-					setSidebarMentionEvent({
-						kind: "add",
-						docs: docsToAdd,
-						nonce: Date.now(),
-					});
-				}
 			} else {
 				const keysToRemove = new Set(subtreeDocs.map((d) => `${d.document_type}:${d.id}`));
-				const docsToRemove = sidebarDocs
-					.filter((d) => keysToRemove.has(`${d.document_type}:${d.id}`))
-					.map((d) => ({
-						id: d.id,
-						title: d.title,
-						document_type: d.document_type as DocumentTypeEnum,
-					}));
 				setSidebarDocs((prev) =>
 					prev.filter((d) => !keysToRemove.has(`${d.document_type}:${d.id}`))
 				);
-				if (docsToRemove.length > 0) {
-					setSidebarMentionEvent({
-						kind: "remove",
-						docs: docsToRemove,
-						nonce: Date.now(),
-					});
-				}
 			}
 		},
-		[treeDocuments, foldersByParent, sidebarDocs, setSidebarDocs, setSidebarMentionEvent]
+		[treeDocuments, foldersByParent, setSidebarDocs]
 	);
 
 	const searchFilteredDocuments = useMemo(() => {
@@ -1626,7 +1573,6 @@ function AnonymousDocumentsSidebar({
 	const [search, setSearch] = useState("");
 
 	const [sidebarDocs, setSidebarDocs] = useAtom(sidebarSelectedDocumentsAtom);
-	const setSidebarMentionEvent = useSetAtom(sidebarMentionEventAtom);
 	const mentionedDocIds = useMemo(() => new Set(sidebarDocs.map((d) => d.id)), [sidebarDocs]);
 
 	const handleToggleChatMention = useCallback(
@@ -1634,17 +1580,6 @@ function AnonymousDocumentsSidebar({
 			const key = `${doc.document_type}:${doc.id}`;
 			if (isMentioned) {
 				setSidebarDocs((prev) => prev.filter((d) => `${d.document_type}:${d.id}` !== key));
-				setSidebarMentionEvent({
-					kind: "remove",
-					docs: [
-						{
-							id: doc.id,
-							title: doc.title,
-							document_type: doc.document_type as DocumentTypeEnum,
-						},
-					],
-					nonce: Date.now(),
-				});
 			} else {
 				setSidebarDocs((prev) => {
 					if (prev.some((d) => `${d.document_type}:${d.id}` === key)) return prev;
@@ -1653,20 +1588,9 @@ function AnonymousDocumentsSidebar({
 						{ id: doc.id, title: doc.title, document_type: doc.document_type as DocumentTypeEnum },
 					];
 				});
-				setSidebarMentionEvent({
-					kind: "add",
-					docs: [
-						{
-							id: doc.id,
-							title: doc.title,
-							document_type: doc.document_type as DocumentTypeEnum,
-						},
-					],
-					nonce: Date.now(),
-				});
 			}
 		},
-		[setSidebarDocs, setSidebarMentionEvent]
+		[setSidebarDocs]
 	);
 
 	const uploadedDoc = anonMode.isAnonymous ? anonMode.uploadedDoc : null;

@@ -10,33 +10,34 @@ import type { Document } from "@/contracts/types/document.types";
 export const mentionedDocumentsAtom = atom<Pick<Document, "id" | "title" | "document_type">[]>([]);
 
 /**
- * Atom to store documents selected via the sidebar checkboxes / row clicks.
- * These power the selected-sources badge and backend doc filters.
+ * Back-compat alias for sidebar checkbox selection.
+ * This now points to mentionedDocumentsAtom so the app has a single source
+ * of truth for mentioned/selected documents.
  */
 export const sidebarSelectedDocumentsAtom = atom<
-	Pick<Document, "id" | "title" | "document_type">[]
->([]);
-
-export interface SidebarMentionEvent {
-	kind: "add" | "remove";
-	docs: Pick<Document, "id" | "title" | "document_type">[];
-	nonce: number;
-}
+	Pick<Document, "id" | "title" | "document_type">[],
+	[
+		| Pick<Document, "id" | "title" | "document_type">[]
+		| ((
+				prev: Pick<Document, "id" | "title" | "document_type">[]
+		  ) => Pick<Document, "id" | "title" | "document_type">[]),
+	],
+	void
+>(
+	(get) => get(mentionedDocumentsAtom),
+	(get, set, update) => {
+		const prev = get(mentionedDocumentsAtom);
+		const next = typeof update === "function" ? update(prev) : update;
+		set(mentionedDocumentsAtom, next);
+	}
+);
 
 /**
- * Event atom used to tell the composer that documents were selected/unselected
- * from sidebar checkboxes, so chips can be inserted/removed in-editor.
- */
-export const sidebarMentionEventAtom = atom<SidebarMentionEvent | null>(null);
-
-/**
- * Derived read-only atom that merges @-mention chips and sidebar selections
- * into a single deduplicated set of document IDs for the backend.
+ * Derived read-only atom that maps deduplicated mentioned docs
+ * into backend payload fields.
  */
 export const mentionedDocumentIdsAtom = atom((get) => {
-	const chipDocs = get(mentionedDocumentsAtom);
-	const sidebarDocs = get(sidebarSelectedDocumentsAtom);
-	const allDocs = [...chipDocs, ...sidebarDocs];
+	const allDocs = get(mentionedDocumentsAtom);
 	const seen = new Set<string>();
 	const deduped = allDocs.filter((d) => {
 		const key = `${d.document_type}:${d.id}`;

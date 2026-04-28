@@ -11,25 +11,13 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { flushSync } from "react-dom";
-import { createRoot } from "react-dom/client";
+import { renderToStaticMarkup } from "react-dom/server";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Document } from "@/contracts/types/document.types";
 import { cn } from "@/lib/utils";
 
-// Render a React element to an HTML string on the client without pulling
-// `react-dom/server` into the bundle. `createRoot` + `flushSync` use the
-// same `react-dom` package React itself imports, so this adds zero new
-// runtime weight.
 function renderElementToHTML(element: ReactElement): string {
-	const container = document.createElement("div");
-	const root = createRoot(container);
-	flushSync(() => {
-		root.render(element);
-	});
-	const html = container.innerHTML;
-	root.unmount();
-	return html;
+	return renderToStaticMarkup(element);
 }
 
 export interface MentionedDocument {
@@ -182,7 +170,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			editorRef.current.appendChild(document.createElement("br"));
 			editorRef.current.appendChild(document.createElement("br"));
 			setIsEmpty(false);
-			onChange?.(initialText, Array.from(mentionedDocs.values()));
+			onChange?.(initialText, initialDocuments);
 			editorRef.current.focus();
 			const sel = window.getSelection();
 			const range = document.createRange();
@@ -194,7 +182,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			range.insertNode(anchor);
 			anchor.scrollIntoView({ block: "end" });
 			anchor.remove();
-		}, [initialText]);
+		}, [initialText, initialDocuments, onChange]);
 
 		// Focus at the end of the editor
 		const focusAtEnd = useCallback(() => {
@@ -779,6 +767,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 
 		return (
 			<div className="relative w-full">
+				{/* biome-ignore lint/a11y/noStaticElementInteractions: contenteditable mention editor requires a div for inline chips */}
 				<div
 					ref={editorRef}
 					contentEditable={!disabled}
@@ -801,9 +790,6 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 					)}
 					style={{ wordBreak: "break-word" }}
 					data-placeholder={placeholder}
-					aria-label="Message input with inline mentions"
-					role="textbox"
-					aria-multiline="true"
 				/>
 				{/* Placeholder with fade animation on change */}
 				{isEmpty && (
