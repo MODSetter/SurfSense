@@ -206,7 +206,7 @@ Todas las funciones operan contra tu espacio de búsqueda elegido, por lo que tu
 <summary><b>Lista completa de Fuentes Externas</b></summary>
 <a id="fuentes-externas"></a>
 
-Motores de Búsqueda (Tavily, LinkUp) · SearxNG · Google Drive · OneDrive · Dropbox · Slack · Microsoft Teams · Linear · Jira · ClickUp · Confluence · BookStack · Notion · Gmail · Videos de YouTube · GitHub · Discord · Airtable · Google Calendar · Luma · Circleback · Elasticsearch · Obsidian, y más por venir.
+Motores de Búsqueda (SearXNG, Tavily, LinkUp, Baidu Search) · Google Drive · OneDrive · Dropbox · Slack · Microsoft Teams · Linear · Jira · ClickUp · Confluence · BookStack · Notion · Gmail · Videos de YouTube · GitHub · Discord · Airtable · Google Calendar · Luma · Circleback · Elasticsearch · Obsidian, y más por venir.
 
 </details>
 

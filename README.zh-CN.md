@@ -206,7 +206,7 @@ SurfSense 还提供桌面应用，将 AI 助手带到您计算机上的每个应
 <summary><b>外部数据源完整列表</b></summary>
 <a id="外部数据源"></a>
 
-搜索引擎（Tavily、LinkUp）· SearxNG · Google Drive · OneDrive · Dropbox · Slack · Microsoft Teams · Linear · Jira · ClickUp · Confluence · BookStack · Notion · Gmail · YouTube 视频 · GitHub · Discord · Airtable · Google Calendar · Luma · Circleback · Elasticsearch · Obsidian，更多即将推出。
+搜索引擎（SearXNG、Tavily、LinkUp、Baidu Search）· Google Drive · OneDrive · Dropbox · Slack · Microsoft Teams · Linear · Jira · ClickUp · Confluence · BookStack · Notion · Gmail · YouTube 视频 · GitHub · Discord · Airtable · Google Calendar · Luma · Circleback · Elasticsearch · Obsidian，更多即将推出。
 
 </details>
 
