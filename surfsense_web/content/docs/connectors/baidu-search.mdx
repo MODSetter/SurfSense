@@ -1,0 +1,121 @@
+---
+title: Baidu Search
+description: Search the Chinese web with Baidu AI Search in SurfSense
+---
+
+# Baidu Search Integration Setup Guide
+
+This guide walks you through connecting Baidu AI Search to SurfSense for Chinese web search and AI-powered research.
+
+## How it works
+
+The Baidu Search connector uses Baidu AI Search through Qianfan AppBuilder's intelligent search generation API. It is a live search connector: SurfSense queries Baidu when the assistant needs current web results instead of periodically indexing content into your knowledge base.
+
+- Baidu Search is best for Simplified Chinese queries and China-focused web content.
+- Results are merged with SurfSense's other configured web search engines.
+- The connector returns Baidu references as sources that can be cited in chat responses.
+
+---
+
+## Authorization
+
+<Callout type="info" title="API Key Required">
+You need a Baidu Qianfan AppBuilder API key to use this connector. The key is encrypted and stored securely by SurfSense.
+</Callout>
+
+### Step 1: Get Your Baidu AI Search API Key
+
+1. Open the [Baidu AI Search product page](https://cloud.baidu.com/product/ai-search.html) and sign in with your Baidu Cloud account.
+2. Open Qianfan AppBuilder or the AI Search console from Baidu Cloud.
+3. Create or select an application that has access to Baidu AI Search.
+4. Generate an API key for the application.
+5. Copy the API key. SurfSense uses it as the `BAIDU_API_KEY` connector setting.
+
+<Callout type="warn">
+Keep this key private. Do not paste it into chat messages, issue reports, screenshots, or public repositories.
+</Callout>
+
+---
+
+## Connecting to SurfSense
+
+1. Navigate to **Connectors** → **Add Connector** → **Baidu Search**.
+2. Fill in the required fields:
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| **Connector Name** | A friendly name to identify this connector | `Baidu Search` |
+| **Baidu AppBuilder API Key** | Your Qianfan AppBuilder API key | `bce-v3/...` |
+
+3. Click **Connect** to save the connector.
+4. Ask a current Chinese web query in chat, such as `今天中国人工智能行业有什么重要新闻？`.
+
+### Optional Advanced Settings
+
+SurfSense stores advanced Baidu options in the connector config. If your deployment exposes these fields, use the following values:
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| `BAIDU_MODEL` | The model Baidu AI Search uses for answer generation | `ernie-3.5-8k` |
+| `BAIDU_SEARCH_SOURCE` | Baidu search source version | `baidu_search_v2` |
+| `BAIDU_ENABLE_DEEP_SEARCH` | Enables Baidu's deeper search mode when supported by your account | `false` |
+
+SurfSense calls Baidu's intelligent search generation endpoint:
+
+```text
+POST https://qianfan.baidubce.com/v2/ai_search/chat/completions
+```
+
+For request and response details, see Baidu's [intelligent search generation API documentation](https://cloud.baidu.com/doc/qianfan/s/Omh4su4s0).
+
+---
+
+## When to Use Baidu Search
+
+| Use Case | Why Baidu Search Helps |
+|----------|------------------------|
+| Chinese news and current events | Better coverage for China-focused sources |
+| Chinese company, product, or policy research | More local web results than global search engines alone |
+| Mandarin-language fact finding | Native Chinese search and summarization behavior |
+| Cross-checking web search | Adds another source alongside SearXNG, Tavily, or Linkup |
+
+<Callout type="info" title="Live Search Connector">
+Baidu Search does not create indexed documents in your knowledge base. It runs when the assistant calls web search, then returns live sources for that answer.
+</Callout>
+
+---
+
+## Troubleshooting
+
+**No Baidu results appear**
+
+- Confirm the Baidu Search connector is active in the current search space.
+- Try a Chinese query with clear search intent, for example `百度智能云千帆 AppBuilder 最新功能`.
+- Check whether other web search engines are returning results. If none are, review the general [Web Search](/docs/how-to/web-search) setup.
+
+**Authentication failed**
+
+- Verify that the API key was copied from Qianfan AppBuilder, not another Baidu Cloud product.
+- Regenerate the API key if it was rotated, expired, or copied with extra whitespace.
+- Make sure the related application has access to Baidu AI Search.
+
+**Requests time out**
+
+- Baidu AI Search can take longer than ordinary keyword search because it performs search and summarization.
+- Retry with a narrower query.
+- If you self-host SurfSense, verify that the backend container can reach `qianfan.baidubce.com`.
+
+**Results are not relevant**
+
+- Use Chinese keywords for China-focused topics.
+- Include entity names, dates, or locations in the query.
+- Compare with SearXNG or another configured live search connector for broader coverage.
+
+---
+
+## Verification Checklist
+
+- The Baidu Search connector appears in your connector list.
+- A Chinese current-events query triggers web search in chat.
+- Chat responses include Baidu-backed sources with titles and URLs.
+- Invalid API keys fail without breaking other configured search engines.

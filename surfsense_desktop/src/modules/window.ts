@@ -1,5 +1,6 @@
 import { app, BrowserWindow, shell, session } from 'electron';
 import path from 'path';
+import { trackEvent } from './analytics';
 import { showErrorDialog } from './errors';
 import { getServerPort } from './server';
 import { setActiveSearchSpaceId } from './active-search-space';
@@ -92,4 +93,16 @@ export function createMainWindow(initialPath = '/dashboard'): BrowserWindow {
   });
 
   return mainWindow;
+}
+
+export function showMainWindow(source: 'tray_click' | 'tray_menu' | 'shortcut' = 'tray_click'): void {
+  const existing = getMainWindow();
+  const reopened = !existing || existing.isDestroyed();
+  if (reopened) {
+    createMainWindow('/dashboard');
+  } else {
+    existing.show();
+    existing.focus();
+  }
+  trackEvent('desktop_main_window_shown', { source, reopened });
 }

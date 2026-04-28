@@ -2,7 +2,7 @@
 
 import { IconBrandGoogleFilled } from "@tabler/icons-react";
 import { useAtom } from "jotai";
-import { BrainCog, Eye, EyeOff, Rocket, RotateCcw, Zap } from "lucide-react";
+import { Crop, Eye, EyeOff, Rocket, RotateCcw, Zap } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -21,7 +21,7 @@ import { setBearerToken } from "@/lib/auth-utils";
 import { AUTH_TYPE, BACKEND_URL } from "@/lib/env-config";
 
 const isGoogleAuth = AUTH_TYPE === "GOOGLE";
-type ShortcutKey = "generalAssist" | "quickAsk" | "autocomplete";
+type ShortcutKey = "generalAssist" | "quickAsk" | "screenshotAssist";
 type ShortcutMap = typeof DEFAULT_SHORTCUTS;
 
 const HOTKEY_ROWS: Array<{
@@ -37,16 +37,16 @@ const HOTKEY_ROWS: Array<{
 		icon: Rocket,
 	},
 	{
+		key: "screenshotAssist",
+		label: "Screenshot Assist",
+		description: "Draw a region on screen to attach that capture to chat",
+		icon: Crop,
+	},
+	{
 		key: "quickAsk",
 		label: "Quick Assist",
 		description: "Select text anywhere, then ask AI to explain, rewrite, or act on it",
 		icon: Zap,
-	},
-	{
-		key: "autocomplete",
-		label: "Extreme Assist",
-		description: "AI drafts text using your screen context and knowledge base",
-		icon: BrainCog,
 	},
 ];
 
@@ -187,7 +187,7 @@ export default function DesktopLoginPage() {
 	}, [api]);
 
 	const updateShortcut = useCallback(
-		(key: "generalAssist" | "quickAsk" | "autocomplete", accelerator: string) => {
+		(key: ShortcutKey, accelerator: string) => {
 			setShortcuts((prev) => {
 				const updated = { ...prev, [key]: accelerator };
 				api?.setShortcuts?.({ [key]: accelerator }).catch(() => {
@@ -201,7 +201,7 @@ export default function DesktopLoginPage() {
 	);
 
 	const resetShortcut = useCallback(
-		(key: "generalAssist" | "quickAsk" | "autocomplete") => {
+		(key: ShortcutKey) => {
 			updateShortcut(key, DEFAULT_SHORTCUTS[key]);
 		},
 		[updateShortcut]

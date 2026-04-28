@@ -93,6 +93,7 @@ interface ElectronAPI {
 	openExternal: (url: string) => void;
 	getAppVersion: () => Promise<string>;
 	onDeepLink: (callback: (url: string) => void) => () => void;
+	onChatScreenCapture: (callback: (dataUrl: string) => void) => () => void;
 	getQuickAskText: () => Promise<string>;
 	setQuickAskMode: (mode: string) => Promise<void>;
 	getQuickAskMode: () => Promise<string>;
@@ -104,20 +105,8 @@ interface ElectronAPI {
 	}>;
 	requestAccessibility: () => Promise<void>;
 	requestScreenRecording: () => Promise<void>;
+	captureFullScreen: () => Promise<string | null>;
 	restartApp: () => Promise<void>;
-	// Autocomplete
-	onAutocompleteContext: (
-		callback: (data: {
-			screenshot: string;
-			searchSpaceId?: string;
-			appName?: string;
-			windowTitle?: string;
-		}) => void
-	) => () => void;
-	acceptSuggestion: (text: string) => Promise<void>;
-	dismissSuggestion: () => Promise<void>;
-	setAutocompleteEnabled: (enabled: boolean) => Promise<void>;
-	getAutocompleteEnabled: () => Promise<boolean>;
 	// Folder sync
 	selectFolder: () => Promise<string | null>;
 	addWatchedFolder: (config: WatchedFolderConfig) => Promise<WatchedFolderConfig[]>;
@@ -149,10 +138,18 @@ interface ElectronAPI {
 	getAuthTokens: () => Promise<{ bearer: string; refresh: string } | null>;
 	setAuthTokens: (bearer: string, refresh: string) => Promise<void>;
 	// Keyboard shortcut configuration
-	getShortcuts: () => Promise<{ generalAssist: string; quickAsk: string; autocomplete: string }>;
+	getShortcuts: () => Promise<{
+		generalAssist: string;
+		quickAsk: string;
+		screenshotAssist: string;
+	}>;
 	setShortcuts: (
-		config: Partial<{ generalAssist: string; quickAsk: string; autocomplete: string }>
-	) => Promise<{ generalAssist: string; quickAsk: string; autocomplete: string }>;
+		config: Partial<{ generalAssist: string; quickAsk: string; screenshotAssist: string }>
+	) => Promise<{
+		generalAssist: string;
+		quickAsk: string;
+		screenshotAssist: string;
+	}>;
 	// Launch on system startup
 	getAutoLaunch: () => Promise<{
 		enabled: boolean;

@@ -79,40 +79,44 @@ def _terminate_blocked_pids(conn, table: str) -> None:
 
 def upgrade() -> None:
     conn = op.get_bind()
+    # asyncpg requires LOCK TABLE inside a transaction block. Alembic already
+    # opened one via context.begin_transaction(), but the driver still errors
+    # unless we use an explicit SAVEPOINT (nested transaction) for this block.
+    tx = conn.begin_nested() if conn.in_transaction() else conn.begin()
+    with tx:
+        conn.execute(sa.text("SET lock_timeout = '10s'"))
 
-    conn.execute(sa.text("SET lock_timeout = '10s'"))
+        for tbl in sorted(TABLES_WITH_FULL_IDENTITY):
+            _terminate_blocked_pids(conn, tbl)
+            conn.execute(sa.text(f'LOCK TABLE "{tbl}" IN ACCESS EXCLUSIVE MODE'))
 
-    for tbl in sorted(TABLES_WITH_FULL_IDENTITY):
-        _terminate_blocked_pids(conn, tbl)
-        conn.execute(sa.text(f'LOCK TABLE "{tbl}" IN ACCESS EXCLUSIVE MODE'))
+        for tbl in TABLES_WITH_FULL_IDENTITY:
+            conn.execute(sa.text(f'ALTER TABLE "{tbl}" REPLICA IDENTITY DEFAULT'))
 
-    for tbl in TABLES_WITH_FULL_IDENTITY:
-        conn.execute(sa.text(f'ALTER TABLE "{tbl}" REPLICA IDENTITY DEFAULT'))
+        conn.execute(sa.text(f"DROP PUBLICATION IF EXISTS {PUBLICATION_NAME}"))
 
-    conn.execute(sa.text(f"DROP PUBLICATION IF EXISTS {PUBLICATION_NAME}"))
+        has_zero_ver = conn.execute(
+            sa.text(
+                "SELECT 1 FROM information_schema.columns "
+                "WHERE table_name = 'documents' AND column_name = '_0_version'"
+            )
+        ).fetchone()
 
-    has_zero_ver = conn.execute(
-        sa.text(
-            "SELECT 1 FROM information_schema.columns "
-            "WHERE table_name = 'documents' AND column_name = '_0_version'"
+        cols = DOCUMENT_COLS + (['"_0_version"'] if has_zero_ver else [])
+        col_list = ", ".join(cols)
+
+        conn.execute(
+            sa.text(
+                f"CREATE PUBLICATION {PUBLICATION_NAME} FOR TABLE "
+                f"notifications, "
+                f"documents ({col_list}), "
+                f"folders, "
+                f"search_source_connectors, "
+                f"new_chat_messages, "
+                f"chat_comments, "
+                f"chat_session_state"
+            )
         )
-    ).fetchone()
-
-    cols = DOCUMENT_COLS + (['"_0_version"'] if has_zero_ver else [])
-    col_list = ", ".join(cols)
-
-    conn.execute(
-        sa.text(
-            f"CREATE PUBLICATION {PUBLICATION_NAME} FOR TABLE "
-            f"notifications, "
-            f"documents ({col_list}), "
-            f"folders, "
-            f"search_source_connectors, "
-            f"new_chat_messages, "
-            f"chat_comments, "
-            f"chat_session_state"
-        )
-    )
 
 
 def downgrade() -> None:

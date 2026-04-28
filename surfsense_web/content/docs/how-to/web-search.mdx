@@ -7,6 +7,8 @@ description: How SurfSense web search works and how to configure it for producti
 
 SurfSense uses [SearXNG](https://docs.searxng.org/) as a bundled meta-search engine to provide web search across all search spaces. SearXNG aggregates results from multiple search engines (Google, DuckDuckGo, Brave, Bing, and more) without requiring any API keys.
 
+You can also add live search connectors such as Baidu Search, Tavily, and Linkup to a search space. When those connectors are active, SurfSense queries them in parallel with SearXNG and merges the results before passing sources to the assistant.
+
 ## How It Works
 
 When a user triggers a web search in SurfSense:
@@ -14,9 +16,24 @@ When a user triggers a web search in SurfSense:
 1. The backend sends a query to the bundled SearXNG instance via its JSON API
 2. SearXNG fans out the query to all enabled search engines simultaneously
 3. Results are aggregated, deduplicated, and ranked by engine weight
-4. The backend receives merged results and presents them to the user
+4. If the current search space has live search connectors, the backend queries them in parallel
+5. The backend deduplicates the merged results and presents them to the user
 
 SearXNG runs as a Docker container alongside the backend. It is never exposed to the internet. Only the backend communicates with it over the internal Docker network.
+
+## Live Search Connectors
+
+Live search connectors are optional API-backed search providers configured per search space. They are useful when you need a specialized index, authenticated search API, or stronger regional coverage.
+
+| Connector | Best For | Setup |
+|-----------|----------|-------|
+| Baidu Search | Chinese web search and China-focused current information | [Baidu Search connector](/docs/connectors/baidu-search) |
+| Tavily | General web research through Tavily's search API | Add the Tavily connector from the Connectors dashboard |
+| Linkup | General web search through Linkup's search API | Add the Linkup connector from the Connectors dashboard |
+
+<Callout type="info" title="Search Space Scoped">
+Live search connectors only run for the search space where they are configured. They do not replace SearXNG globally.
+</Callout>
 
 ## Docker Setup
 

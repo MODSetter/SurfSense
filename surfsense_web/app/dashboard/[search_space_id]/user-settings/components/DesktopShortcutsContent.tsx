@@ -1,6 +1,6 @@
 "use client";
 
-import { BrainCog, Rocket, RotateCcw, Zap } from "lucide-react";
+import { Crop, Rocket, RotateCcw, Zap } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { DEFAULT_SHORTCUTS, keyEventToAccelerator } from "@/components/desktop/shortcut-recorder";
@@ -9,13 +9,13 @@ import { ShortcutKbd } from "@/components/ui/shortcut-kbd";
 import { Spinner } from "@/components/ui/spinner";
 import { useElectronAPI } from "@/hooks/use-platform";
 
-type ShortcutKey = "generalAssist" | "quickAsk" | "autocomplete";
+type ShortcutKey = "generalAssist" | "quickAsk" | "screenshotAssist";
 type ShortcutMap = typeof DEFAULT_SHORTCUTS;
 
 const HOTKEY_ROWS: Array<{ key: ShortcutKey; label: string; icon: React.ElementType }> = [
 	{ key: "generalAssist", label: "General Assist", icon: Rocket },
+	{ key: "screenshotAssist", label: "Screenshot Assist", icon: Crop },
 	{ key: "quickAsk", label: "Quick Assist", icon: Zap },
-	{ key: "autocomplete", label: "Extreme Assist", icon: BrainCog },
 ];
 
 function acceleratorToKeys(accel: string, isMac: boolean): string[] {
@@ -160,10 +160,7 @@ export function DesktopShortcutsContent() {
 		);
 	}
 
-	const updateShortcut = (
-		key: "generalAssist" | "quickAsk" | "autocomplete",
-		accelerator: string
-	) => {
+	const updateShortcut = (key: ShortcutKey, accelerator: string) => {
 		setShortcuts((prev) => {
 			const updated = { ...prev, [key]: accelerator };
 			api.setShortcuts?.({ [key]: accelerator }).catch(() => {
