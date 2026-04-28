@@ -367,7 +367,74 @@ async def create_surfsense_deep_agent(
         "[create_agent] System prompt built in %.3fs", time.perf_counter() - _t0
     )
 
-    # -- Build the middleware stack (mirrors create_deep_agent internals) ------
+    # Combine system_prompt with BASE_AGENT_PROMPT (same as create_deep_agent)
+    final_system_prompt = system_prompt + "\n\n" + BASE_AGENT_PROMPT
+
+    # The middleware stack — and especially ``SubAgentMiddleware`` — is *not*
+    # cheap to build. ``SubAgentMiddleware.__init__`` calls ``create_agent``
+    # synchronously to compile the general-purpose subagent's full state graph
+    # (every tool + every middleware → pydantic schemas + langgraph compile).
+    # On gpt-5.x agents that's roughly 1.5–2s of pure CPU work. If we run it
+    # directly here it blocks the asyncio event loop for the whole streaming
+    # task (and any other coroutine sharing this loop), which is why
+    # "agent creation" wall-clock time used to stretch to ~3–4s. Move the
+    # entire middleware build + main-graph compile into a single
+    # ``asyncio.to_thread`` so the heavy CPU work runs off-loop and the
+    # event loop stays responsive.
+    _t0 = time.perf_counter()
+    agent = await asyncio.to_thread(
+        _build_compiled_agent_blocking,
+        llm=llm,
+        tools=tools,
+        final_system_prompt=final_system_prompt,
+        backend_resolver=backend_resolver,
+        filesystem_mode=filesystem_selection.mode,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        thread_id=thread_id,
+        visibility=visibility,
+        anon_session_id=anon_session_id,
+        available_connectors=available_connectors,
+        available_document_types=available_document_types,
+        mentioned_document_ids=mentioned_document_ids,
+        checkpointer=checkpointer,
+    )
+    _perf_log.info(
+        "[create_agent] Middleware stack + graph compiled in %.3fs",
+        time.perf_counter() - _t0,
+    )
+
+    _perf_log.info(
+        "[create_agent] Total agent creation in %.3fs",
+        time.perf_counter() - _t_agent_total,
+    )
+    return agent
+
+
+def _build_compiled_agent_blocking(
+    *,
+    llm: BaseChatModel,
+    tools: Sequence[BaseTool],
+    final_system_prompt: str,
+    backend_resolver: Any,
+    filesystem_mode: FilesystemMode,
+    search_space_id: int,
+    user_id: str | None,
+    thread_id: int | None,
+    visibility: ChatVisibility,
+    anon_session_id: str | None,
+    available_connectors: list[str] | None,
+    available_document_types: list[str] | None,
+    mentioned_document_ids: list[int] | None,
+    checkpointer: Checkpointer,
+):
+    """Build the middleware stack and compile the agent graph synchronously.
+
+    Runs in a worker thread (see ``asyncio.to_thread`` call site) so the heavy
+    CPU work — most notably ``SubAgentMiddleware.__init__`` eagerly calling
+    ``create_agent`` to compile the general-purpose subagent — does not block
+    the event loop.
+    """
     _memory_middleware = MemoryInjectionMiddleware(
         user_id=user_id,
         search_space_id=search_space_id,
@@ -386,7 +453,7 @@ async def create_surfsense_deep_agent(
         FileIntentMiddleware(llm=llm),
         SurfSenseFilesystemMiddleware(
             backend=backend_resolver,
-            filesystem_mode=filesystem_selection.mode,
+            filesystem_mode=filesystem_mode,
             search_space_id=search_space_id,
             created_by_id=user_id,
             thread_id=thread_id,
@@ -415,19 +482,19 @@ async def create_surfsense_deep_agent(
         AnonymousDocumentMiddleware(
             anon_session_id=anon_session_id,
         )
-        if filesystem_selection.mode == FilesystemMode.CLOUD
+        if filesystem_mode == FilesystemMode.CLOUD
         else None,
         KnowledgeTreeMiddleware(
             search_space_id=search_space_id,
-            filesystem_mode=filesystem_selection.mode,
+            filesystem_mode=filesystem_mode,
             llm=llm,
         )
-        if filesystem_selection.mode == FilesystemMode.CLOUD
+        if filesystem_mode == FilesystemMode.CLOUD
         else None,
         KnowledgePriorityMiddleware(
             llm=llm,
             search_space_id=search_space_id,
-            filesystem_mode=filesystem_selection.mode,
+            filesystem_mode=filesystem_mode,
             available_connectors=available_connectors,
             available_document_types=available_document_types,
             mentioned_document_ids=mentioned_document_ids,
@@ -435,7 +502,7 @@ async def create_surfsense_deep_agent(
         FileIntentMiddleware(llm=llm),
         SurfSenseFilesystemMiddleware(
             backend=backend_resolver,
-            filesystem_mode=filesystem_selection.mode,
+            filesystem_mode=filesystem_mode,
             search_space_id=search_space_id,
             created_by_id=user_id,
             thread_id=thread_id,
@@ -443,32 +510,27 @@ async def create_surfsense_deep_agent(
         KnowledgeBasePersistenceMiddleware(
             search_space_id=search_space_id,
             created_by_id=user_id,
-            filesystem_mode=filesystem_selection.mode,
+            filesystem_mode=filesystem_mode,
         )
-        if filesystem_selection.mode == FilesystemMode.CLOUD
+        if filesystem_mode == FilesystemMode.CLOUD
         else None,
         SubAgentMiddleware(backend=StateBackend, subagents=[general_purpose_spec]),
         create_safe_summarization_middleware(llm, StateBackend),
         PatchToolCallsMiddleware(),
-        DedupHITLToolCallsMiddleware(agent_tools=tools),
+        DedupHITLToolCallsMiddleware(agent_tools=list(tools)),
         AnthropicPromptCachingMiddleware(unsupported_model_behavior="ignore"),
     ]
     deepagent_middleware = [m for m in deepagent_middleware if m is not None]
 
-    # Combine system_prompt with BASE_AGENT_PROMPT (same as create_deep_agent)
-    final_system_prompt = system_prompt + "\n\n" + BASE_AGENT_PROMPT
-
-    _t0 = time.perf_counter()
-    agent = await asyncio.to_thread(
-        create_agent,
+    agent = create_agent(
         llm,
         system_prompt=final_system_prompt,
-        tools=tools,
+        tools=list(tools),
         middleware=deepagent_middleware,
         context_schema=SurfSenseContextSchema,
         checkpointer=checkpointer,
     )
-    agent = agent.with_config(
+    return agent.with_config(
         {
             "recursion_limit": 10_000,
             "metadata": {
@@ -477,13 +539,3 @@ async def create_surfsense_deep_agent(
             },
         }
     )
-    _perf_log.info(
-        "[create_agent] Graph compiled (create_agent) in %.3fs",
-        time.perf_counter() - _t0,
-    )
-
-    _perf_log.info(
-        "[create_agent] Total agent creation in %.3fs",
-        time.perf_counter() - _t_agent_total,
-    )
-    return agent
