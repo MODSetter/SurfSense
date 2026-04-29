@@ -161,16 +161,15 @@ const PremiumQuotaPinnedAlert: FC = () => {
 	if (!alert) return null;
 
 	return (
-		<div className="mx-2 rounded-2xl border border-amber-300/40 bg-amber-500/10 px-4 py-3 text-amber-50 shadow-lg backdrop-blur-sm">
+		<div className="mx-0 bg-amber-500/10 px-3 py-2 text-amber-100">
 			<div className="flex items-start gap-2">
 				<AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-300" />
 				<div className="min-w-0 flex-1">
-					<p className="text-sm font-medium">Premium quota exhausted</p>
-					<p className="mt-1 text-xs text-amber-100/90">{alert.message}</p>
+					<p className="text-sm">{alert.message}</p>
 				</div>
 				<button
 					type="button"
-					className="inline-flex size-6 items-center justify-center rounded-md text-amber-200 transition-colors hover:bg-amber-200/20 hover:text-amber-50"
+					className="inline-flex size-6 items-center justify-center text-amber-200 transition-colors hover:text-amber-50"
 					aria-label="Dismiss premium quota alert"
 					onClick={() => clearPremiumAlertForThread(currentThreadId)}
 				>

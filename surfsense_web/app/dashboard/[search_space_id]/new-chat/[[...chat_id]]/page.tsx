@@ -201,17 +201,16 @@ const BASE_TOOLS_WITH_UI = new Set([
 	// "write_todos", // Disabled for now
 ]);
 
-const PINNED_PREMIUM_QUOTA_MESSAGE = "Premium token quota exceeded for this pinned model.";
-
 function getPinnedPremiumQuotaErrorMessage(error: unknown): string | null {
 	if (!(error instanceof Error)) return null;
-	if (!error.message.toLowerCase().includes("premium token quota exceeded")) {
+	const normalized = error.message.toLowerCase();
+	if (
+		!normalized.includes("premium tokens exhausted")
+		&& !normalized.includes("premium token quota exceeded")
+	) {
 		return null;
 	}
-	if (!error.message.toLowerCase().includes("pinned model")) {
-		return null;
-	}
-	return error.message || PINNED_PREMIUM_QUOTA_MESSAGE;
+	return error.message;
 }
 
 export default function NewChatPage() {
@@ -980,7 +979,6 @@ export default function NewChatPage() {
 						threadId: currentThreadId,
 						message: premiumQuotaAlertMessage,
 					});
-					toast.error(PINNED_PREMIUM_QUOTA_MESSAGE);
 				} else {
 					toast.error("Failed to get response. Please try again.");
 				}
@@ -1290,7 +1288,6 @@ export default function NewChatPage() {
 						threadId: resumeThreadId,
 						message: premiumQuotaAlertMessage,
 					});
-					toast.error(PINNED_PREMIUM_QUOTA_MESSAGE);
 				} else {
 					toast.error("Failed to resume. Please try again.");
 				}
@@ -1638,7 +1635,6 @@ export default function NewChatPage() {
 						threadId,
 						message: premiumQuotaAlertMessage,
 					});
-					toast.error(PINNED_PREMIUM_QUOTA_MESSAGE);
 				} else {
 					toast.error("Failed to regenerate response. Please try again.");
 				}

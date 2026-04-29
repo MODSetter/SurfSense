@@ -1542,7 +1542,7 @@ async def stream_new_chat(
                     llm_config_id,
                 )
                 yield streaming_service.format_error(
-                    "Premium token quota exceeded for this pinned model. Select a free model or re-select Auto (Fastest) to repin."
+                    "Premium tokens exhausted. Buy more tokens to continue with this model, or switch to a free model."
                 )
                 yield streaming_service.format_done()
                 return
@@ -2263,7 +2263,7 @@ async def stream_resume_chat(
                     llm_config_id,
                 )
                 yield streaming_service.format_error(
-                    "Premium token quota exceeded for this pinned model. Select a free model or re-select Auto (Fastest) to repin."
+                    "Premium tokens exhausted. Buy more tokens to continue with this model, or switch to a free model."
                 )
                 yield streaming_service.format_done()
                 return
