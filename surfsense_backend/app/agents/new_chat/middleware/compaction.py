@@ -177,8 +177,8 @@ class SurfSenseCompactionMiddleware(SummarizationMiddleware):
             messages_in=len(conversation_messages),
             extra={"compaction.cutoff_index": int(cutoff_index)},
         ):
-            messages_to_summarize, preserved_messages = (
-                super()._partition_messages(conversation_messages, cutoff_index)
+            messages_to_summarize, preserved_messages = super()._partition_messages(
+                conversation_messages, cutoff_index
             )
 
             protected: list[AnyMessage] = []

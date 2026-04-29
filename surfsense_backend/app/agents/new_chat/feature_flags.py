@@ -65,7 +65,9 @@ class AgentFeatureFlags:
     enable_model_call_limit: bool = False
     enable_tool_call_limit: bool = False
     enable_tool_call_repair: bool = False
-    enable_doom_loop: bool = False  # Default OFF until UI handles permission='doom_loop'
+    enable_doom_loop: bool = (
+        False  # Default OFF until UI handles permission='doom_loop'
+    )
 
     # Tier 2 — Safety
     enable_permission: bool = False  # Default OFF for first deploy
@@ -79,7 +81,9 @@ class AgentFeatureFlags:
 
     # Tier 5 — Snapshot / revert
     enable_action_log: bool = False
-    enable_revert_route: bool = False  # Backend ships before UI; route returns 503 until this flips
+    enable_revert_route: bool = (
+        False  # Backend ships before UI; route returns 503 until this flips
+    )
 
     # Tier 6 — Plugins
     enable_plugin_loader: bool = False
@@ -109,14 +113,20 @@ class AgentFeatureFlags:
             enable_compaction_v2=_env_bool("SURFSENSE_ENABLE_COMPACTION_V2", False),
             enable_retry_after=_env_bool("SURFSENSE_ENABLE_RETRY_AFTER", False),
             enable_model_fallback=_env_bool("SURFSENSE_ENABLE_MODEL_FALLBACK", False),
-            enable_model_call_limit=_env_bool("SURFSENSE_ENABLE_MODEL_CALL_LIMIT", False),
+            enable_model_call_limit=_env_bool(
+                "SURFSENSE_ENABLE_MODEL_CALL_LIMIT", False
+            ),
             enable_tool_call_limit=_env_bool("SURFSENSE_ENABLE_TOOL_CALL_LIMIT", False),
-            enable_tool_call_repair=_env_bool("SURFSENSE_ENABLE_TOOL_CALL_REPAIR", False),
+            enable_tool_call_repair=_env_bool(
+                "SURFSENSE_ENABLE_TOOL_CALL_REPAIR", False
+            ),
             enable_doom_loop=_env_bool("SURFSENSE_ENABLE_DOOM_LOOP", False),
             # Tier 2
             enable_permission=_env_bool("SURFSENSE_ENABLE_PERMISSION", False),
             enable_busy_mutex=_env_bool("SURFSENSE_ENABLE_BUSY_MUTEX", False),
-            enable_llm_tool_selector=_env_bool("SURFSENSE_ENABLE_LLM_TOOL_SELECTOR", False),
+            enable_llm_tool_selector=_env_bool(
+                "SURFSENSE_ENABLE_LLM_TOOL_SELECTOR", False
+            ),
             # Tier 4
             enable_skills=_env_bool("SURFSENSE_ENABLE_SKILLS", False),
             enable_specialized_subagents=_env_bool(

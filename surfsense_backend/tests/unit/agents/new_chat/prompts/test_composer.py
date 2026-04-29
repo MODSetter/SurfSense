@@ -90,9 +90,7 @@ class TestCompose:
         assert "<citation_instructions>" in prompt
         assert "[citation:chunk_id]" in prompt
 
-    def test_team_visibility_uses_team_variants(
-        self, fixed_today: datetime
-    ) -> None:
+    def test_team_visibility_uses_team_variants(self, fixed_today: datetime) -> None:
         prompt = compose_system_prompt(
             today=fixed_today,
             thread_visibility=ChatVisibility.SEARCH_SPACE,
@@ -145,9 +143,7 @@ class TestCompose:
         assert "Generate Image" in prompt
         assert "Generate Podcast" in prompt
 
-    def test_mcp_routing_block_emits_when_provided(
-        self, fixed_today: datetime
-    ) -> None:
+    def test_mcp_routing_block_emits_when_provided(self, fixed_today: datetime) -> None:
         prompt = compose_system_prompt(
             today=fixed_today,
             mcp_connector_tools={"My GitLab": ["gitlab_search", "gitlab_create_mr"]},
@@ -162,9 +158,7 @@ class TestCompose:
         prompt = compose_system_prompt(today=fixed_today, mcp_connector_tools={})
         assert "<mcp_tool_routing>" not in prompt
 
-    def test_provider_block_renders_when_anthropic(
-        self, fixed_today: datetime
-    ) -> None:
+    def test_provider_block_renders_when_anthropic(self, fixed_today: datetime) -> None:
         prompt = compose_system_prompt(
             today=fixed_today, model_name="anthropic:claude-3-5-sonnet"
         )
@@ -267,7 +261,10 @@ class TestStableOrderingForCacheStability:
         )
         b = compose_system_prompt(
             today=fixed_today,
-            enabled_tool_names={"scrape_webpage", "web_search"},  # set order shouldn't matter
+            enabled_tool_names={
+                "scrape_webpage",
+                "web_search",
+            },  # set order shouldn't matter
             mcp_connector_tools={"X": ["x_a", "x_b"]},
         )
         assert a == b

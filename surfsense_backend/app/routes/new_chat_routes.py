@@ -1242,7 +1242,9 @@ async def handle_new_chat(
         await session.close()
 
         image_urls = (
-            [p.as_data_url() for p in request.user_images] if request.user_images else None
+            [p.as_data_url() for p in request.user_images]
+            if request.user_images
+            else None
         )
 
         return StreamingResponse(

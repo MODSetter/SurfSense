@@ -70,7 +70,8 @@ class TestSpillEdit:
 
         # Earlier ToolMessages should now contain the placeholder text
         cleared = [
-            m for m in tool_messages
+            m
+            for m in tool_messages
             if isinstance(m.content, str) and m.content.startswith("[cleared")
         ]
         assert len(cleared) >= 1

@@ -416,10 +416,10 @@ async def create_surfsense_deep_agent(
     # cheap to build. ``SubAgentMiddleware.__init__`` calls ``create_agent``
     # synchronously to compile the general-purpose subagent's full state graph
     # (every tool + every middleware → pydantic schemas + langgraph compile).
-    # On gpt-5.x agents that's roughly 1.5–2s of pure CPU work. If we run it
+    # On gpt-5.x agents that's roughly 1.5-2s of pure CPU work. If we run it
     # directly here it blocks the asyncio event loop for the whole streaming
     # task (and any other coroutine sharing this loop), which is why
-    # "agent creation" wall-clock time used to stretch to ~3–4s. Move the
+    # "agent creation" wall-clock time used to stretch to ~3-4s. Move the
     # entire middleware build + main-graph compile into a single
     # ``asyncio.to_thread`` so the heavy CPU work runs off-loop and the
     # event loop stays responsive.
@@ -587,10 +587,7 @@ def _build_compiled_agent_blocking(
     # by name. Off by default until the flag flips so existing deployments
     # don't see new agent types in the task tool description.
     specialized_subagents: list[SubAgent] = []
-    if (
-        flags.enable_specialized_subagents
-        and not flags.disable_new_agent_stack
-    ):
+    if flags.enable_specialized_subagents and not flags.disable_new_agent_stack:
         try:
             # Specialized subagents share the parent's filesystem +
             # todo view so their system prompts (which promise
@@ -696,7 +693,9 @@ def _build_compiled_agent_blocking(
         else None
     )
     tool_call_limit_mw = (
-        ToolCallLimitMiddleware(thread_limit=300, run_limit=80, exit_behavior="continue")
+        ToolCallLimitMiddleware(
+            thread_limit=300, run_limit=80, exit_behavior="continue"
+        )
         if flags.enable_tool_call_limit and not flags.disable_new_agent_stack
         else None
     )
@@ -879,7 +878,11 @@ def _build_compiled_agent_blocking(
                 max_tools=12,
                 always_include=[
                     name
-                    for name in ("update_memory", "get_connected_accounts", "scrape_webpage")
+                    for name in (
+                        "update_memory",
+                        "get_connected_accounts",
+                        "scrape_webpage",
+                    )
                     if name in {t.name for t in tools}
                 ],
             )

@@ -29,6 +29,7 @@ gives a clean failure mode if anything tries.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from collections.abc import Callable
 from dataclasses import replace
@@ -114,8 +115,10 @@ class BuiltinSkillsBackend(BackendProtocol):
         infos: list[FileInfo] = []
         # Build virtual paths anchored at "/" because CompositeBackend already
         # stripped the route prefix before calling us.
-        target_virtual = "/" if target == self.root else (
-            "/" + str(target.relative_to(self.root)).replace("\\", "/")
+        target_virtual = (
+            "/"
+            if target == self.root
+            else ("/" + str(target.relative_to(self.root)).replace("\\", "/"))
         )
         for child in sorted(target.iterdir()):
             child_virtual = (
@@ -128,10 +131,8 @@ class BuiltinSkillsBackend(BackendProtocol):
                 "is_dir": child.is_dir(),
             }
             if child.is_file():
-                try:
+                with contextlib.suppress(OSError):  # pragma: no cover - defensive
                     info["size"] = child.stat().st_size
-                except OSError:  # pragma: no cover - defensive
-                    pass
             infos.append(info)
         return infos
 
@@ -163,7 +164,9 @@ class BuiltinSkillsBackend(BackendProtocol):
                 else:
                     content = target.read_bytes()
             except PermissionError:
-                responses.append(FileDownloadResponse(path=p, error="permission_denied"))
+                responses.append(
+                    FileDownloadResponse(path=p, error="permission_denied")
+                )
                 continue
             except OSError as exc:  # pragma: no cover - defensive
                 logger.warning("Builtin skill read failed %s: %s", target, exc)
@@ -286,6 +289,7 @@ def build_skills_backend_factory(
     builtin = BuiltinSkillsBackend(builtin_root)
 
     if search_space_id is None:
+
         def _factory_builtin_only(runtime: ToolRuntime) -> BackendProtocol:
             # Default StateBackend is intentionally inert: any path outside the
             # ``/skills/builtin/`` route resolves to an empty per-runtime state
@@ -294,6 +298,7 @@ def build_skills_backend_factory(
                 default=StateBackend(runtime),
                 routes={SKILLS_BUILTIN_PREFIX: builtin},
             )
+
         return _factory_builtin_only
 
     def _factory_with_space(runtime: ToolRuntime) -> BackendProtocol:

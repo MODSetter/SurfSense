@@ -62,7 +62,9 @@ ProviderVariant = str
 # More specific patterns must come first (e.g. ``codex`` before
 # ``openai_reasoning`` because codex model ids contain ``gpt``).
 
-_OPENAI_CODEX_RE = re.compile(r"\b(gpt-codex|codex-mini|gpt-[\d.]+-codex)\b", re.IGNORECASE)
+_OPENAI_CODEX_RE = re.compile(
+    r"\b(gpt-codex|codex-mini|gpt-[\d.]+-codex)\b", re.IGNORECASE
+)
 _OPENAI_REASONING_RE = re.compile(r"\b(gpt-5|o\d|o-)", re.IGNORECASE)
 _OPENAI_CLASSIC_RE = re.compile(r"\bgpt-4", re.IGNORECASE)
 _ANTHROPIC_RE = re.compile(r"\bclaude\b", re.IGNORECASE)
@@ -257,9 +259,7 @@ def _build_tools_section(
     )
     if known_disabled:
         disabled_list = ", ".join(
-            _format_tool_label(n)
-            for n in ALL_TOOL_NAMES_ORDERED
-            if n in known_disabled
+            _format_tool_label(n) for n in ALL_TOOL_NAMES_ORDERED if n in known_disabled
         )
         parts.append(
             "\n"

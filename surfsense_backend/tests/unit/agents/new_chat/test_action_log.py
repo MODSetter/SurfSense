@@ -83,7 +83,11 @@ class TestActionLogMiddlewareDisabled:
     async def test_no_op_when_flag_off(self, patch_get_flags) -> None:
         mw = ActionLogMiddleware(thread_id=1, search_space_id=1, user_id=None)
         request = _FakeRequest(
-            tool_call={"name": "make_widget", "args": {"color": "red", "size": 1}, "id": "tc1"}
+            tool_call={
+                "name": "make_widget",
+                "args": {"color": "red", "size": 1},
+                "id": "tc1",
+            }
         )
         handler = AsyncMock(return_value=ToolMessage(content="ok", tool_call_id="tc1"))
         with patch_get_flags(_disabled_flags()):
@@ -117,13 +121,12 @@ class TestActionLogMiddlewarePersistence:
                 "id": "tc-abc",
             },
         )
-        result_msg = ToolMessage(
-            content="ok", tool_call_id="tc-abc", id="msg-1"
-        )
+        result_msg = ToolMessage(content="ok", tool_call_id="tc-abc", id="msg-1")
         handler = AsyncMock(return_value=result_msg)
 
-        with patch_get_flags(_enabled_flags()), patch(
-            "app.db.shielded_async_session", side_effect=lambda: factory()
+        with (
+            patch_get_flags(_enabled_flags()),
+            patch("app.db.shielded_async_session", side_effect=lambda: factory()),
         ):
             result = await mw.awrap_tool_call(request, handler)
 
@@ -151,9 +154,11 @@ class TestActionLogMiddlewarePersistence:
         )
         handler = AsyncMock(side_effect=ValueError("boom"))
 
-        with patch_get_flags(_enabled_flags()), patch(
-            "app.db.shielded_async_session", side_effect=lambda: factory()
-        ), pytest.raises(ValueError, match="boom"):
+        with (
+            patch_get_flags(_enabled_flags()),
+            patch("app.db.shielded_async_session", side_effect=lambda: factory()),
+            pytest.raises(ValueError, match="boom"),
+        ):
             await mw.awrap_tool_call(request, handler)
 
         assert len(captured["rows"]) == 1
@@ -177,8 +182,9 @@ class TestActionLogMiddlewarePersistence:
         def _exploding_session():
             raise RuntimeError("DB is down")
 
-        with patch_get_flags(_enabled_flags()), patch(
-            "app.db.shielded_async_session", side_effect=_exploding_session
+        with (
+            patch_get_flags(_enabled_flags()),
+            patch("app.db.shielded_async_session", side_effect=_exploding_session),
         ):
             result = await mw.awrap_tool_call(request, handler)
         assert result is result_msg
@@ -218,8 +224,9 @@ class TestReverseDescriptor:
         )
         handler = AsyncMock(return_value=result_msg)
 
-        with patch_get_flags(_enabled_flags()), patch(
-            "app.db.shielded_async_session", side_effect=lambda: factory()
+        with (
+            patch_get_flags(_enabled_flags()),
+            patch("app.db.shielded_async_session", side_effect=lambda: factory()),
         ):
             await mw.awrap_tool_call(request, handler)
 
@@ -257,8 +264,9 @@ class TestReverseDescriptor:
         result_msg = ToolMessage(content="ok", tool_call_id="tc1")
         handler = AsyncMock(return_value=result_msg)
 
-        with patch_get_flags(_enabled_flags()), patch(
-            "app.db.shielded_async_session", side_effect=lambda: factory()
+        with (
+            patch_get_flags(_enabled_flags()),
+            patch("app.db.shielded_async_session", side_effect=lambda: factory()),
         ):
             await mw.awrap_tool_call(request, handler)
 
@@ -275,11 +283,10 @@ class TestReverseDescriptor:
         request = _FakeRequest(
             tool_call={"name": "unknown_tool", "args": {}, "id": "tc1"}
         )
-        handler = AsyncMock(
-            return_value=ToolMessage(content="ok", tool_call_id="tc1")
-        )
-        with patch_get_flags(_enabled_flags()), patch(
-            "app.db.shielded_async_session", side_effect=lambda: factory()
+        handler = AsyncMock(return_value=ToolMessage(content="ok", tool_call_id="tc1"))
+        with (
+            patch_get_flags(_enabled_flags()),
+            patch("app.db.shielded_async_session", side_effect=lambda: factory()),
         ):
             await mw.awrap_tool_call(request, handler)
         row = captured["rows"][0]
@@ -298,11 +305,10 @@ class TestArgsTruncation:
         request = _FakeRequest(
             tool_call={"name": "make_widget", "args": {"blob": huge}, "id": "tc1"},
         )
-        handler = AsyncMock(
-            return_value=ToolMessage(content="ok", tool_call_id="tc1")
-        )
-        with patch_get_flags(_enabled_flags()), patch(
-            "app.db.shielded_async_session", side_effect=lambda: factory()
+        handler = AsyncMock(return_value=ToolMessage(content="ok", tool_call_id="tc1"))
+        with (
+            patch_get_flags(_enabled_flags()),
+            patch("app.db.shielded_async_session", side_effect=lambda: factory()),
         ):
             await mw.awrap_tool_call(request, handler)
         row = captured["rows"][0]

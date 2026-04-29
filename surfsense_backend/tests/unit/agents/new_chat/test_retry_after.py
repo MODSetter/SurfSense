@@ -18,7 +18,7 @@ class _FakeResponse:
         self.headers = headers
 
 
-class _FakeRateLimit(Exception):
+class _FakeRateLimitError(Exception):
     def __init__(self, msg: str, headers: dict[str, str] | None = None) -> None:
         super().__init__(msg)
         if headers is not None:
@@ -27,15 +27,15 @@ class _FakeRateLimit(Exception):
 
 class TestExtractRetryAfter:
     def test_seconds_header(self) -> None:
-        exc = _FakeRateLimit("rate", {"Retry-After": "30"})
+        exc = _FakeRateLimitError("rate", {"Retry-After": "30"})
         assert _extract_retry_after_seconds(exc) == 30.0
 
     def test_milliseconds_header_overrides_seconds(self) -> None:
-        exc = _FakeRateLimit("rate", {"retry-after-ms": "1500"})
+        exc = _FakeRateLimitError("rate", {"retry-after-ms": "1500"})
         assert _extract_retry_after_seconds(exc) == 1.5
 
     def test_case_insensitive(self) -> None:
-        exc = _FakeRateLimit("rate", {"RETRY-AFTER": "12"})
+        exc = _FakeRateLimitError("rate", {"RETRY-AFTER": "12"})
         assert _extract_retry_after_seconds(exc) == 12.0
 
     def test_falls_back_to_message_regex(self) -> None:
@@ -67,7 +67,7 @@ class TestIsNonRetryable:
 class TestDelayCalculation:
     def test_takes_max_of_backoff_and_header(self) -> None:
         mw = RetryAfterMiddleware(max_retries=3, initial_delay=1.0, jitter=False)
-        exc = _FakeRateLimit("rl", {"retry-after": "10"})
+        exc = _FakeRateLimitError("rl", {"retry-after": "10"})
         delay = mw._delay_for_attempt(0, exc)
         assert delay == pytest.approx(10.0)
 

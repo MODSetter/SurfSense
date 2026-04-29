@@ -52,25 +52,26 @@ class _YearSubstituterMiddleware(AgentMiddleware):
     async def awrap_tool_call(
         self,
         request: ToolCallRequest,
-        handler: Callable[
-            [ToolCallRequest], Awaitable[ToolMessage | Command[Any]]
-        ],
+        handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command[Any]]],
     ) -> ToolMessage | Command[Any]:
         result = await handler(request)
         try:
             from langchain_core.messages import ToolMessage
 
-            if isinstance(result, ToolMessage) and isinstance(result.content, str):
-                if "{{year}}" in result.content:
-                    new_text = result.content.replace("{{year}}", self._year)
-                    result = ToolMessage(
-                        content=new_text,
-                        tool_call_id=result.tool_call_id,
-                        id=result.id,
-                        name=result.name,
-                        status=result.status,
-                        artifact=result.artifact,
-                    )
+            if (
+                isinstance(result, ToolMessage)
+                and isinstance(result.content, str)
+                and "{{year}}" in result.content
+            ):
+                new_text = result.content.replace("{{year}}", self._year)
+                result = ToolMessage(
+                    content=new_text,
+                    tool_call_id=result.tool_call_id,
+                    id=result.id,
+                    name=result.name,
+                    status=result.status,
+                    artifact=result.artifact,
+                )
         except Exception:  # pragma: no cover - defensive
             logger.exception("year_substituter plugin failed; passing original result")
         return result

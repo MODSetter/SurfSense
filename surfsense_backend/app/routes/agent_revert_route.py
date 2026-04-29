@@ -97,10 +97,12 @@ async def revert_agent_action(
             action=action,
             requester_user_id=str(user.id) if user is not None else None,
         )
-    except Exception:
+    except Exception as err:
         logger.exception("Revert dispatch raised for action_id=%s", action_id)
         await session.rollback()
-        raise HTTPException(status_code=500, detail="Internal error during revert.")
+        raise HTTPException(
+            status_code=500, detail="Internal error during revert."
+        ) from err
 
     if outcome.status == "ok":
         await session.commit()

@@ -58,8 +58,7 @@ DEFAULT_SPILL_PREFIX = "/tool_outputs"
 def _build_spill_placeholder(spill_path: str) -> str:
     """Build the user-facing placeholder text shown to the model."""
     return (
-        f"[cleared — full output at {spill_path}; "
-        f"ask the explore subagent to read it]"
+        f"[cleared — full output at {spill_path}; ask the explore subagent to read it]"
     )
 
 
@@ -131,7 +130,9 @@ class SpillToBackendEdit(ContextEdit):
             return
 
         candidates = [
-            (idx, msg) for idx, msg in enumerate(messages) if isinstance(msg, ToolMessage)
+            (idx, msg)
+            for idx, msg in enumerate(messages)
+            if isinstance(msg, ToolMessage)
         ]
         if self.keep >= len(candidates):
             return

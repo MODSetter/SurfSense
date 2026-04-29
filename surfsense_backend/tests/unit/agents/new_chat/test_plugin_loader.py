@@ -69,7 +69,9 @@ class TestPluginLoaderBasics:
             "app.agents.new_chat.plugin_loader.entry_points",
             return_value=[ep],
         ):
-            result = load_plugin_middlewares(_ctx(), allowed_plugin_names=["allowed_only"])
+            result = load_plugin_middlewares(
+                _ctx(), allowed_plugin_names=["allowed_only"]
+            )
         assert result == []
         assert not called
 
@@ -135,9 +137,7 @@ class TestPluginLoaderIsolation:
             _FakeEntryPoint("crashing", crashing_factory),
             _FakeEntryPoint("ok", year_substituter_factory),
         ]
-        with patch(
-            "app.agents.new_chat.plugin_loader.entry_points", return_value=eps
-        ):
+        with patch("app.agents.new_chat.plugin_loader.entry_points", return_value=eps):
             result = load_plugin_middlewares(
                 _ctx(), allowed_plugin_names={"crashing", "ok"}
             )
@@ -151,9 +151,7 @@ class TestAllowlistEnv:
         assert load_allowed_plugin_names_from_env() == set()
 
     def test_parses_comma_separated_value(self, monkeypatch) -> None:
-        monkeypatch.setenv(
-            "SURFSENSE_ALLOWED_PLUGINS", " year_substituter , noisy , "
-        )
+        monkeypatch.setenv("SURFSENSE_ALLOWED_PLUGINS", " year_substituter , noisy , ")
         assert load_allowed_plugin_names_from_env() == {
             "year_substituter",
             "noisy",

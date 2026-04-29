@@ -210,7 +210,7 @@ async def create_rule(
     session.add(row)
     try:
         await session.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         await session.rollback()
         raise HTTPException(
             status_code=409,
@@ -218,7 +218,7 @@ async def create_rule(
                 "An identical rule already exists for this scope. Update the "
                 "existing rule instead."
             ),
-        )
+        ) from err
     await session.refresh(row)
     return _to_read(row)
 
@@ -248,12 +248,12 @@ async def update_rule(
 
     try:
         await session.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         await session.rollback()
         raise HTTPException(
             status_code=409,
             detail="Update would create a duplicate rule for this scope.",
-        )
+        ) from err
     await session.refresh(row)
     return _to_read(row)
 

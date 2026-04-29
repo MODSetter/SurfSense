@@ -88,7 +88,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index(
-        "ix_agent_action_log_thread_created", table_name="agent_action_log"
-    )
+    op.drop_index("ix_agent_action_log_thread_created", table_name="agent_action_log")
     op.drop_table("agent_action_log")

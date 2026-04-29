@@ -22,6 +22,7 @@ Goals
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 from collections.abc import Iterator
@@ -154,18 +155,14 @@ def span(
 
     with tracer.start_as_current_span(name) as sp:
         if attributes:
-            try:
+            with contextlib.suppress(Exception):  # pragma: no cover — defensive
                 sp.set_attributes(attributes)
-            except Exception:  # pragma: no cover — defensive
-                pass
         try:
             yield sp
         except BaseException as exc:
-            try:
+            with contextlib.suppress(Exception):  # pragma: no cover — defensive
                 sp.record_exception(exc)
                 sp.set_status(_OtStatus(_OtStatusCode.ERROR, str(exc)))
-            except Exception:  # pragma: no cover — defensive
-                pass
             raise
 
 

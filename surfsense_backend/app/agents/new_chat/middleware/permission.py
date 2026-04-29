@@ -145,7 +145,9 @@ class PermissionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         try:
             patterns = resolver(args or {})
         except Exception:
-            logger.exception("Pattern resolver for %s raised; using bare name", tool_name)
+            logger.exception(
+                "Pattern resolver for %s raised; using bare name", tool_name
+            )
             patterns = [tool_name]
         if not patterns:
             patterns = [tool_name]
@@ -198,11 +200,14 @@ class PermissionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         # Tier 3b: permission.asked + interrupt.raised spans (no-op when
         # OTel is disabled). Both fire here so dashboards can correlate
         # "we asked X" with "interrupt was actually delivered".
-        with ot.permission_asked_span(
-            permission=tool_name,
-            pattern=patterns[0] if patterns else None,
-            extra={"permission.patterns": list(patterns)},
-        ), ot.interrupt_span(interrupt_type="permission_ask"):
+        with (
+            ot.permission_asked_span(
+                permission=tool_name,
+                pattern=patterns[0] if patterns else None,
+                extra={"permission.patterns": list(patterns)},
+            ),
+            ot.interrupt_span(interrupt_type="permission_ask"),
+        ):
             decision = interrupt(payload)
         if isinstance(decision, dict):
             return decision
@@ -211,9 +216,7 @@ class PermissionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             return {"decision_type": decision}
         return {"decision_type": "reject"}
 
-    def _persist_always(
-        self, tool_name: str, patterns: list[str]
-    ) -> None:
+    def _persist_always(self, tool_name: str, patterns: list[str]) -> None:
         """Promote ``always`` reply into runtime allow rules.
 
         Persistence to ``agent_permission_rules`` is done by the
@@ -276,12 +279,16 @@ class PermissionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         any_change = False
 
         for raw in last.tool_calls:
-            call = dict(raw) if isinstance(raw, dict) else {
-                "name": getattr(raw, "name", None),
-                "args": getattr(raw, "args", {}),
-                "id": getattr(raw, "id", None),
-                "type": "tool_call",
-            }
+            call = (
+                dict(raw)
+                if isinstance(raw, dict)
+                else {
+                    "name": getattr(raw, "name", None),
+                    "args": getattr(raw, "args", {}),
+                    "id": getattr(raw, "id", None),
+                    "type": "tool_call",
+                }
+            )
             name = call.get("name") or ""
             args = call.get("args") or {}
             action, patterns, rules = self._evaluate(name, args)
@@ -307,7 +314,9 @@ class PermissionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                     feedback = decision.get("feedback")
                     if isinstance(feedback, str) and feedback.strip():
                         raise CorrectedError(feedback, tool=name)
-                    raise RejectedError(tool=name, pattern=patterns[0] if patterns else None)
+                    raise RejectedError(
+                        tool=name, pattern=patterns[0] if patterns else None
+                    )
                 else:
                     logger.warning(
                         "Unknown permission decision %r; treating as reject", kind

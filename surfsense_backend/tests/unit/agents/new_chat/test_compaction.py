@@ -26,10 +26,16 @@ class TestIsProtectedSystemMessage:
         assert _is_protected_system_message(msg) is True
 
     def test_unprotected_system_message(self) -> None:
-        assert _is_protected_system_message(SystemMessage(content="random instructions")) is False
+        assert (
+            _is_protected_system_message(SystemMessage(content="random instructions"))
+            is False
+        )
 
     def test_human_message_never_protected(self) -> None:
-        assert _is_protected_system_message(HumanMessage(content="<workspace_tree>...")) is False
+        assert (
+            _is_protected_system_message(HumanMessage(content="<workspace_tree>..."))
+            is False
+        )
 
     def test_tolerates_leading_whitespace(self) -> None:
         msg = SystemMessage(content="   \n<priority_documents>\n...")
@@ -97,11 +103,17 @@ class TestPartitionMessages:
         assert protected not in to_summary
         assert protected in preserved
         # The non-protected old messages remain in to_summary
-        assert any(isinstance(m, HumanMessage) and m.content == "old human" for m in to_summary)
+        assert any(
+            isinstance(m, HumanMessage) and m.content == "old human" for m in to_summary
+        )
 
     def test_unprotected_messages_unaffected(self) -> None:
         partitioner = self._build_partitioner()
-        msgs = [HumanMessage(content="a"), HumanMessage(content="b"), HumanMessage(content="c")]
+        msgs = [
+            HumanMessage(content="a"),
+            HumanMessage(content="b"),
+            HumanMessage(content="c"),
+        ]
         to_summary, preserved = partitioner._partition_messages(msgs, 2)
         assert [m.content for m in to_summary] == ["a", "b"]
         assert [m.content for m in preserved] == ["c"]

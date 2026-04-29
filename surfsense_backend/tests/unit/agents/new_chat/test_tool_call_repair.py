@@ -27,9 +27,12 @@ class TestRepair:
         mw = ToolCallNameRepairMiddleware(
             registered_tool_names={"echo"}, fuzzy_match_threshold=None
         )
-        msg = AIMessage(content="", tool_calls=[
-            {"name": "echo", "args": {}, "id": "1"},
-        ])
+        msg = AIMessage(
+            content="",
+            tool_calls=[
+                {"name": "echo", "args": {}, "id": "1"},
+            ],
+        )
         out = mw.after_model(_make_state(msg), _FakeRuntime())
         assert out is None  # no change
 
@@ -37,9 +40,12 @@ class TestRepair:
         mw = ToolCallNameRepairMiddleware(
             registered_tool_names={"echo"}, fuzzy_match_threshold=None
         )
-        msg = AIMessage(content="", tool_calls=[
-            {"name": "Echo", "args": {"x": 1}, "id": "1"},
-        ])
+        msg = AIMessage(
+            content="",
+            tool_calls=[
+                {"name": "Echo", "args": {"x": 1}, "id": "1"},
+            ],
+        )
         out = mw.after_model(_make_state(msg), _FakeRuntime())
         assert out is not None
         repaired = out["messages"][0]
@@ -50,9 +56,12 @@ class TestRepair:
             registered_tool_names={"echo", INVALID_TOOL_NAME},
             fuzzy_match_threshold=None,
         )
-        msg = AIMessage(content="", tool_calls=[
-            {"name": "totally_different_name", "args": {"k": "v"}, "id": "1"},
-        ])
+        msg = AIMessage(
+            content="",
+            tool_calls=[
+                {"name": "totally_different_name", "args": {"k": "v"}, "id": "1"},
+            ],
+        )
         out = mw.after_model(_make_state(msg), _FakeRuntime())
         assert out is not None
         repaired_call = out["messages"][0].tool_calls[0]
@@ -64,9 +73,12 @@ class TestRepair:
         mw = ToolCallNameRepairMiddleware(
             registered_tool_names={"echo"}, fuzzy_match_threshold=None
         )
-        msg = AIMessage(content="", tool_calls=[
-            {"name": "unknown", "args": {}, "id": "1"},
-        ])
+        msg = AIMessage(
+            content="",
+            tool_calls=[
+                {"name": "unknown", "args": {}, "id": "1"},
+            ],
+        )
         out = mw.after_model(_make_state(msg), _FakeRuntime())
         # No repair available; original returned unchanged (no update)
         assert out is None
@@ -76,9 +88,12 @@ class TestRepair:
             registered_tool_names={"search_documents"},
             fuzzy_match_threshold=0.7,
         )
-        msg = AIMessage(content="", tool_calls=[
-            {"name": "search_docments", "args": {}, "id": "1"},
-        ])
+        msg = AIMessage(
+            content="",
+            tool_calls=[
+                {"name": "search_docments", "args": {}, "id": "1"},
+            ],
+        )
         out = mw.after_model(_make_state(msg), _FakeRuntime())
         assert out is not None
         assert out["messages"][0].tool_calls[0]["name"] == "search_documents"
@@ -94,9 +109,12 @@ class TestRepair:
         mw = ToolCallNameRepairMiddleware(
             registered_tool_names={"echo"}, fuzzy_match_threshold=None
         )
-        msg = AIMessage(content="", tool_calls=[
-            {"name": "DynamicTool", "args": {}, "id": "1"},
-        ])
+        msg = AIMessage(
+            content="",
+            tool_calls=[
+                {"name": "DynamicTool", "args": {}, "id": "1"},
+            ],
+        )
         runtime = _FakeRuntime(SimpleNamespace(registered_tool_names=["dynamictool"]))
         out = mw.after_model(_make_state(msg), runtime)
         assert out is not None

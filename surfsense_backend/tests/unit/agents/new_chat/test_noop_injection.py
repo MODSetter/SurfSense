@@ -91,7 +91,9 @@ class TestShouldInject:
         mw = NoopInjectionMiddleware()
         req = _FakeRequest(
             tools=[object()],
-            messages=[AIMessage(content="", tool_calls=[{"name": "x", "args": {}, "id": "1"}])],
+            messages=[
+                AIMessage(content="", tool_calls=[{"name": "x", "args": {}, "id": "1"}])
+            ],
             model=_LiteLLMModel(),
         )
         assert mw._should_inject(req) is False
@@ -109,7 +111,9 @@ class TestShouldInject:
         mw = NoopInjectionMiddleware()
         req = _FakeRequest(
             tools=[],
-            messages=[AIMessage(content="", tool_calls=[{"name": "x", "args": {}, "id": "1"}])],
+            messages=[
+                AIMessage(content="", tool_calls=[{"name": "x", "args": {}, "id": "1"}])
+            ],
             model=_OpenAIModel(),
         )
         assert mw._should_inject(req) is False

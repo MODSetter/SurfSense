@@ -64,22 +64,17 @@ def test_threshold_triggers_after_n_identical_calls() -> None:
             runtime,
         )
     name = type(excinfo.value).__name__.lower()
-    assert (
-        "interrupt" in name
-        or "runtimeerror" in name
-    ), f"Expected an interrupt-style exception, got {name}"
+    assert "interrupt" in name or "runtimeerror" in name, (
+        f"Expected an interrupt-style exception, got {name}"
+    )
 
 
 def test_does_not_trigger_when_args_differ() -> None:
     mw = DoomLoopMiddleware(threshold=2)
     runtime = _FakeRuntime()
-    out = mw.after_model(
-        {"messages": [_msg_calling("repeat", {"x": 1}, "1")]}, runtime
-    )
+    out = mw.after_model({"messages": [_msg_calling("repeat", {"x": 1}, "1")]}, runtime)
     assert out is None
-    out = mw.after_model(
-        {"messages": [_msg_calling("repeat", {"x": 2}, "2")]}, runtime
-    )
+    out = mw.after_model({"messages": [_msg_calling("repeat", {"x": 2}, "2")]}, runtime)
     assert out is None
 
 

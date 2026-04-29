@@ -279,9 +279,7 @@ def build_explore_subagent(
 
     selected_tools = _filter_tools(tools, EXPLORE_READ_TOOLS)
     deny_rules = _read_only_deny_rules()
-    permission_mw = _build_permission_middleware(
-        deny_rules, origin="subagent_explore"
-    )
+    permission_mw = _build_permission_middleware(deny_rules, origin="subagent_explore")
 
     spec: dict = {
         "name": "explore",

@@ -51,13 +51,15 @@ def _coerce_existing_tool_call(call: Any) -> dict[str, Any]:
     }
 
 
-class ToolCallNameRepairMiddleware(AgentMiddleware[AgentState[ResponseT], ContextT, ResponseT]):
+class ToolCallNameRepairMiddleware(
+    AgentMiddleware[AgentState[ResponseT], ContextT, ResponseT]
+):
     """Two-stage tool-name repair on the most recent ``AIMessage``.
 
     Args:
         registered_tool_names: Set of canonically-registered tool names.
             ``invalid`` should be in this set so the fallback dispatches.
-        fuzzy_match_threshold: Optional ``difflib`` ratio (0–1) for the
+        fuzzy_match_threshold: Optional ``difflib`` ratio (0-1) for the
             fuzzy-match step that runs *between* lowercase and invalid.
             Set to ``None`` to disable fuzzy matching (opencode parity).
     """
@@ -77,9 +79,9 @@ class ToolCallNameRepairMiddleware(AgentMiddleware[AgentState[ResponseT], Contex
     def _registered_for_runtime(self, runtime: Runtime[ContextT]) -> set[str]:
         """Allow runtime overrides to expand the set (e.g. dynamic MCP tools)."""
         ctx_tools = getattr(runtime.context, "registered_tool_names", None)
-        if isinstance(ctx_tools, (set, frozenset)):
+        if isinstance(ctx_tools, set | frozenset):
             return self._registered | set(ctx_tools)
-        if isinstance(ctx_tools, (list, tuple)):
+        if isinstance(ctx_tools, list | tuple):
             return self._registered | set(ctx_tools)
         return self._registered
 

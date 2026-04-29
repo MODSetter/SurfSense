@@ -137,16 +137,21 @@ class DoomLoopMiddleware(AgentMiddleware[AgentState[ResponseT], ContextT, Respon
 
         triggered_call: dict[str, Any] | None = None
         for call in message.tool_calls:
-            name = call.get("name") if isinstance(call, dict) else getattr(call, "name", None)
-            args = call.get("args") if isinstance(call, dict) else getattr(call, "args", {})
+            name = (
+                call.get("name")
+                if isinstance(call, dict)
+                else getattr(call, "name", None)
+            )
+            args = (
+                call.get("args")
+                if isinstance(call, dict)
+                else getattr(call, "args", {})
+            )
             if not isinstance(name, str):
                 continue
             sig = _signature(name, args)
             window.append(sig)
-            if (
-                len(window) >= self._threshold
-                and len(set(window)) == 1
-            ):
+            if len(window) >= self._threshold and len(set(window)) == 1:
                 triggered_call = {"name": name, "params": args or {}}
                 break
 
@@ -209,7 +214,9 @@ class DoomLoopMiddleware(AgentMiddleware[AgentState[ResponseT], ContextT, Respon
         # tool call proceeds. The frontend's exact reply names may differ —
         # we tolerate any shape that contains a string with "reject"/"cancel".
         if isinstance(decision, dict):
-            kind = str(decision.get("decision_type") or decision.get("type") or "").lower()
+            kind = str(
+                decision.get("decision_type") or decision.get("type") or ""
+            ).lower()
             if "reject" in kind or "cancel" in kind:
                 return {"jump_to": "end"}
         return None

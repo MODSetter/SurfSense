@@ -79,9 +79,7 @@ async def load_action(
     return result.scalars().first()
 
 
-async def load_thread(
-    session: AsyncSession, *, thread_id: int
-) -> NewChatThread | None:
+async def load_thread(session: AsyncSession, *, thread_id: int) -> NewChatThread | None:
     stmt = select(NewChatThread).where(NewChatThread.id == thread_id)
     result = await session.execute(stmt)
     return result.scalars().first()

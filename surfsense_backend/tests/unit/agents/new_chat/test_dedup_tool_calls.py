@@ -46,9 +46,21 @@ def test_callable_dedup_key_takes_priority() -> None:
     state = {
         "messages": [
             _msg(
-                {"name": "create_doc", "args": {"parent_id": "x", "title": "y"}, "id": "1"},
-                {"name": "create_doc", "args": {"parent_id": "x", "title": "y"}, "id": "2"},
-                {"name": "create_doc", "args": {"parent_id": "x", "title": "z"}, "id": "3"},
+                {
+                    "name": "create_doc",
+                    "args": {"parent_id": "x", "title": "y"},
+                    "id": "1",
+                },
+                {
+                    "name": "create_doc",
+                    "args": {"parent_id": "x", "title": "y"},
+                    "id": "2",
+                },
+                {
+                    "name": "create_doc",
+                    "args": {"parent_id": "x", "title": "z"},
+                    "id": "3",
+                },
             )
         ]
     }

@@ -113,7 +113,9 @@ def _exponential_delay(
     jitter: bool,
 ) -> float:
     """Compute an exponential-backoff delay with optional ±25% jitter."""
-    delay = initial_delay * (backoff_factor**attempt) if backoff_factor else initial_delay
+    delay = (
+        initial_delay * (backoff_factor**attempt) if backoff_factor else initial_delay
+    )
     delay = min(delay, max_delay)
     if jitter and delay > 0:
         delay *= 1 + random.uniform(-0.25, 0.25)
@@ -201,7 +203,9 @@ class RetryAfterMiddleware(AgentMiddleware[AgentState[ResponseT], ContextT, Resp
                         },
                     )
                 except Exception:
-                    logger.debug("dispatch_custom_event failed; suppressed", exc_info=True)
+                    logger.debug(
+                        "dispatch_custom_event failed; suppressed", exc_info=True
+                    )
                 if delay > 0:
                     time.sleep(delay)
         # Unreachable
@@ -210,7 +214,9 @@ class RetryAfterMiddleware(AgentMiddleware[AgentState[ResponseT], ContextT, Resp
     async def awrap_model_call(  # type: ignore[override]
         self,
         request: ModelRequest[ContextT],
-        handler: Callable[[ModelRequest[ContextT]], Awaitable[ModelResponse[ResponseT]]],
+        handler: Callable[
+            [ModelRequest[ContextT]], Awaitable[ModelResponse[ResponseT]]
+        ],
     ) -> ModelResponse[ResponseT] | AIMessage:
         for attempt in range(self.max_retries + 1):
             try:

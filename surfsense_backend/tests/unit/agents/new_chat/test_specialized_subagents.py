@@ -122,7 +122,9 @@ class TestExploreSubagent:
     def test_includes_permission_middleware_with_deny_rules(self) -> None:
         spec = build_explore_subagent(tools=ALL_TOOLS)
         permission_mws = [
-            m for m in spec["middleware"] if isinstance(m, PermissionMiddleware)  # type: ignore[index]
+            m
+            for m in spec["middleware"]
+            if isinstance(m, PermissionMiddleware)  # type: ignore[index]
         ]
         assert len(permission_mws) == 1
         ruleset = permission_mws[0]._static_rulesets[0]
@@ -164,7 +166,9 @@ class TestReportWriterSubagent:
     def test_deny_rules_block_writes_but_allow_generate_report(self) -> None:
         spec = build_report_writer_subagent(tools=ALL_TOOLS)
         permission_mws = [
-            m for m in spec["middleware"] if isinstance(m, PermissionMiddleware)  # type: ignore[index]
+            m
+            for m in spec["middleware"]
+            if isinstance(m, PermissionMiddleware)  # type: ignore[index]
         ]
         ruleset = permission_mws[0]._static_rulesets[0]
         deny_patterns = {r.permission for r in ruleset.rules if r.action == "deny"}
@@ -194,17 +198,15 @@ class TestConnectorNegotiatorSubagent:
     def test_deny_ruleset_blocks_mutating_connector_tools(self) -> None:
         spec = build_connector_negotiator_subagent(tools=ALL_TOOLS)
         permission_mws = [
-            m for m in spec["middleware"] if isinstance(m, PermissionMiddleware)  # type: ignore[index]
+            m
+            for m in spec["middleware"]
+            if isinstance(m, PermissionMiddleware)  # type: ignore[index]
         ]
         ruleset = permission_mws[0]._static_rulesets[0]
         deny_patterns = {r.permission for r in ruleset.rules if r.action == "deny"}
         # `linear_create_issue` matches the `*_create` deny pattern.
-        assert any(
-            _wildcard_matches(p, "linear_create_issue") for p in deny_patterns
-        )
-        assert any(
-            _wildcard_matches(p, "slack_send_message") for p in deny_patterns
-        )
+        assert any(_wildcard_matches(p, "linear_create_issue") for p in deny_patterns)
+        assert any(_wildcard_matches(p, "slack_send_message") for p in deny_patterns)
 
 
 class TestBuildSpecializedSubagents:
@@ -242,8 +244,7 @@ class TestBuildSpecializedSubagents:
             # order: extra → custom → patch → dedup.
             sentinel_idx = mws.index(sentinel)
             perm_idx = next(
-                (i for i, m in enumerate(mws)
-                 if isinstance(m, PermissionMiddleware)),
+                (i for i, m in enumerate(mws) if isinstance(m, PermissionMiddleware)),
                 None,
             )
             assert perm_idx is not None
@@ -259,7 +260,9 @@ class TestFilterToolsWarningSuppression:
 
         from app.agents.new_chat.subagents.config import _filter_tools
 
-        with caplog.at_level(logging.INFO, logger="app.agents.new_chat.subagents.config"):
+        with caplog.at_level(
+            logging.INFO, logger="app.agents.new_chat.subagents.config"
+        ):
             # Allowed set asks for two registry tools (one present, one
             # not) plus a bunch of middleware-provided names.
             _filter_tools(
@@ -275,9 +278,7 @@ class TestFilterToolsWarningSuppression:
                 },
             )
 
-        warnings = [
-            r.message for r in caplog.records if r.levelno >= logging.INFO
-        ]
+        warnings = [r.message for r in caplog.records if r.levelno >= logging.INFO]
         # Exactly one warning, and it should mention scrape_webpage but not
         # any middleware-provided name. Inspect the rendered "missing"
         # list (between the brackets) so we don't false-match substrings

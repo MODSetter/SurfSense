@@ -111,6 +111,4 @@ class TestAsk:
         assert out is None  # call kept
         # Runtime ruleset got the always-allow rule
         new_rules = [r for r in mw._runtime_ruleset.rules if r.action == "allow"]
-        assert any(
-            r.permission == "send_email" for r in new_rules
-        )
+        assert any(r.permission == "send_email" for r in new_rules)

@@ -111,6 +111,8 @@ from .update_memory import create_update_memory_tool, create_update_team_memory_
 from .video_presentation import create_generate_video_presentation_tool
 from .web_search import create_web_search_tool
 
+logger = logging.getLogger(__name__)
+
 # =============================================================================
 # Tool Definition
 # =============================================================================

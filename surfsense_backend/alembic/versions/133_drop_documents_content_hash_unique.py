@@ -51,9 +51,7 @@ def upgrade() -> None:
     # implicit-unique-index variant SQLAlchemy may emit need draining.
     constraints = _existing_constraint_names(bind, "documents")
     if "uq_documents_content_hash" in constraints:
-        op.drop_constraint(
-            "uq_documents_content_hash", "documents", type_="unique"
-        )
+        op.drop_constraint("uq_documents_content_hash", "documents", type_="unique")
 
     indexes = _existing_index_names(bind, "documents")
     # Some Postgres versions surface the unique constraint via a unique

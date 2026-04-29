@@ -35,9 +35,7 @@ from langchain_core.tools import tool
 logger = logging.getLogger(__name__)
 
 NOOP_TOOL_NAME = "_noop"
-NOOP_TOOL_DESCRIPTION = (
-    "Do not call this tool. It exists only for API compatibility."
-)
+NOOP_TOOL_DESCRIPTION = "Do not call this tool. It exists only for API compatibility."
 
 
 @tool(name_or_callable=NOOP_TOOL_NAME, description=NOOP_TOOL_DESCRIPTION)
@@ -78,7 +76,9 @@ def _last_ai_has_tool_calls(messages: list[Any]) -> bool:
     return False
 
 
-class NoopInjectionMiddleware(AgentMiddleware[AgentState[ResponseT], ContextT, ResponseT]):
+class NoopInjectionMiddleware(
+    AgentMiddleware[AgentState[ResponseT], ContextT, ResponseT]
+):
     """Inject the ``_noop`` tool only when the provider would otherwise 400.
 
     The check fires per model call, not at agent build time, because the
@@ -116,7 +116,9 @@ class NoopInjectionMiddleware(AgentMiddleware[AgentState[ResponseT], ContextT, R
     async def awrap_model_call(  # type: ignore[override]
         self,
         request: ModelRequest[ContextT],
-        handler: Callable[[ModelRequest[ContextT]], Awaitable[ModelResponse[ResponseT]]],
+        handler: Callable[
+            [ModelRequest[ContextT]], Awaitable[ModelResponse[ResponseT]]
+        ],
     ) -> Any:
         if self._should_inject(request):
             logger.debug("Injecting _noop tool for provider compatibility")

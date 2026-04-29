@@ -56,9 +56,7 @@ class OtelSpanMiddleware(AgentMiddleware):
     async def awrap_model_call(
         self,
         request: ModelRequest,
-        handler: Callable[
-            [ModelRequest], Awaitable[ModelResponse | AIMessage | Any]
-        ],
+        handler: Callable[[ModelRequest], Awaitable[ModelResponse | AIMessage | Any]],
     ) -> ModelResponse | AIMessage | Any:
         if not ot.is_enabled():
             return await handler(request)
@@ -81,9 +79,7 @@ class OtelSpanMiddleware(AgentMiddleware):
     async def awrap_tool_call(
         self,
         request: ToolCallRequest,
-        handler: Callable[
-            [ToolCallRequest], Awaitable[ToolMessage | Command[Any]]
-        ],
+        handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command[Any]]],
     ) -> ToolMessage | Command[Any]:
         if not ot.is_enabled():
             return await handler(request)
@@ -187,7 +183,11 @@ def _annotate_model_response(span: Any, result: Any) -> None:
 def _annotate_tool_result(span: Any, result: Any) -> None:
     try:
         if isinstance(result, ToolMessage):
-            content = result.content if isinstance(result.content, str) else repr(result.content)
+            content = (
+                result.content
+                if isinstance(result.content, str)
+                else repr(result.content)
+            )
             span.set_attribute("tool.output.size", len(content))
             status = getattr(result, "status", None)
             if isinstance(status, str):

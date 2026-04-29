@@ -552,7 +552,7 @@ def _render_priority_message(priority: list[dict[str, Any]]) -> SystemMessage:
         for entry in priority:
             score = entry.get("score")
             mentioned = entry.get("mentioned")
-            score_str = f"{score:.3f}" if isinstance(score, (int, float)) else "n/a"
+            score_str = f"{score:.3f}" if isinstance(score, int | float) else "n/a"
             mark = " [USER-MENTIONED]" if mentioned else ""
             lines.append(f"- {entry.get('path', '')} (score={score_str}){mark}")
         body = "\n".join(lines)
@@ -593,7 +593,7 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         self.top_k = top_k
         self.mentioned_document_ids = mentioned_document_ids or []
         # Tier 4.2: build the kb-planner private Runnable ONCE here so we
-        # don't pay the create_agent compile cost (50–200ms) on every turn.
+        # don't pay the create_agent compile cost (50-200ms) on every turn.
         # Disabled by default behind ``enable_kb_planner_runnable``; when off
         # the planner falls back to the legacy ``self.llm.ainvoke`` path.
         self._planner: Runnable | None = None
@@ -617,10 +617,7 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         if self.llm is None:
             return None
         flags = get_flags()
-        if (
-            not flags.enable_kb_planner_runnable
-            or flags.disable_new_agent_stack
-        ):
+        if not flags.enable_kb_planner_runnable or flags.disable_new_agent_stack:
             return None
 
         from app.agents.new_chat.middleware.retry_after import RetryAfterMiddleware
@@ -920,7 +917,7 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                 chunk_ids = doc.get("matched_chunk_ids") or []
                 if chunk_ids:
                     matched_chunk_ids[doc_id] = [
-                        int(cid) for cid in chunk_ids if isinstance(cid, (int, str))
+                        int(cid) for cid in chunk_ids if isinstance(cid, int | str)
                     ]
         return priority, matched_chunk_ids
 

@@ -84,9 +84,7 @@ class TestConnectorDenyOverridesDefaultAllow:
                 Rule(permission="linear_create_issue", pattern="*", action="deny")
             ]
         )
-        rules = evaluate_many(
-            "linear_create_issue", ["linear_create_issue"], *rulesets
-        )
+        rules = evaluate_many("linear_create_issue", ["linear_create_issue"], *rulesets)
         assert aggregate_action(rules) == "deny"
 
     def test_default_allow_still_applies_to_other_tools(self) -> None:
@@ -124,5 +122,7 @@ class TestUserRuleOverridesDefault:
             rules=[Rule(permission="send_*", pattern="*", action="deny")],
             origin="user",
         )
-        rules = evaluate_many("send_gmail_email", ["send_gmail_email"], defaults, user_ruleset)
+        rules = evaluate_many(
+            "send_gmail_email", ["send_gmail_email"], defaults, user_ruleset
+        )
         assert aggregate_action(rules) == "deny"

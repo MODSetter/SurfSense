@@ -59,7 +59,7 @@ class AgentFeatureFlagsRead(BaseModel):
     enable_otel: bool
 
     @classmethod
-    def from_flags(cls, flags: AgentFeatureFlags) -> "AgentFeatureFlagsRead":
+    def from_flags(cls, flags: AgentFeatureFlags) -> AgentFeatureFlagsRead:
         # asdict() avoids missing-field bugs when AgentFeatureFlags grows.
         return cls(**asdict(flags))
 
