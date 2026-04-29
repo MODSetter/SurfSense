@@ -1,10 +1,15 @@
 """
 PermissionMiddleware — pattern-based allow/deny/ask with HITL fallback.
 
-Mirrors ``opencode/packages/opencode/src/permission/index.ts`` but uses
-SurfSense's existing ``interrupt({type, action, context})`` payload shape
-(see ``app/agents/new_chat/tools/hitl.py``) so the frontend keeps
-working unchanged. Tier 2.1 in the OpenCode-port plan.
+LangChain's :class:`HumanInTheLoopMiddleware` only supports a static
+"this tool always asks" decision per tool. There's no rule-based
+allow/deny/ask layered ruleset, no glob patterns, no per-search-space or
+per-thread overrides, and no auto-deny synthesis.
+
+This middleware ports OpenCode's ``packages/opencode/src/permission/index.ts``
+ruleset model on top of SurfSense's existing ``interrupt({type, action,
+context})`` payload shape (see ``app/agents/new_chat/tools/hitl.py``) so
+the frontend keeps working unchanged.
 
 Operation:
 1. ``aafter_model`` inspects the latest ``AIMessage.tool_calls``.
@@ -24,9 +29,9 @@ Operation:
 
 The middleware also performs a *pre-model* tool-filter step (the
 ``before_model`` hook) so globally denied tools are stripped from the
-exposed tool list before the model gets to see them. This is
-opencode's ``Permission.disabled`` equivalent and dramatically reduces
-the chance the model emits a deny-only call.
+exposed tool list before the model gets to see them. This mirrors
+OpenCode's ``Permission.disabled`` and dramatically reduces the chance
+the model emits a deny-only call.
 """
 
 from __future__ import annotations
@@ -117,7 +122,7 @@ class PermissionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         self._emit_interrupt = always_emit_interrupt_payload
 
     # ------------------------------------------------------------------
-    # Tool-filter step (opencode `Permission.disabled` equivalent)
+    # Tool-filter step (mirrors OpenCode's ``Permission.disabled``)
     # ------------------------------------------------------------------
 
     def _globally_denied(self, tool_name: str) -> bool:
@@ -197,8 +202,8 @@ class PermissionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                 "always": patterns,
             },
         }
-        # Tier 3b: permission.asked + interrupt.raised spans (no-op when
-        # OTel is disabled). Both fire here so dashboards can correlate
+        # Open ``permission.asked`` + ``interrupt.raised`` OTel spans
+        # (no-op when OTel is disabled) so dashboards can correlate
         # "we asked X" with "interrupt was actually delivered".
         with (
             ot.permission_asked_span(

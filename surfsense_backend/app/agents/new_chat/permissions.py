@@ -1,21 +1,20 @@
 """
 Wildcard pattern matching + rule evaluation for the SurfSense permission system.
 
-Mirrors ``opencode/packages/opencode/src/permission/evaluate.ts`` and
-``opencode/packages/opencode/src/util/wildcard.ts`` precisely:
+Ported from OpenCode's ``packages/opencode/src/permission/evaluate.ts`` and
+``packages/opencode/src/util/wildcard.ts``. LangChain has no rule-based
+permission evaluator, so we keep OpenCode's semantics intact:
 
 - ``Wildcard.match`` matches both the ``permission`` and the ``pattern``
   fields of a rule against the requested ``(permission, pattern)`` pair.
   ``*`` matches any segment, ``**`` matches across separators.
 - The evaluator runs ``findLast`` over the **flattened** list of rules
   from all rulesets — last matching rule wins.
-- The default fallback is ``ask`` (NOT deny), matching opencode.
+- The default fallback is ``ask`` (NOT deny), matching OpenCode.
 - Multi-pattern requests AND together: if ANY pattern resolves to
   ``deny``, the whole request is denied; if ANY needs ``ask``, an
   interrupt is raised; only when all patterns ``allow`` does the
   request proceed.
-
-Tier 2.1 in the OpenCode-port plan.
 """
 
 from __future__ import annotations

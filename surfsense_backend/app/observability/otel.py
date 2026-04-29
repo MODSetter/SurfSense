@@ -1,12 +1,10 @@
 """
 OpenTelemetry instrumentation helpers for the SurfSense agent stack.
 
-Tier 3b in the OpenCode-port plan.
-
 Goals
 =====
 
-- Provide one tiny, ergonomic API for the spans listed in the plan
+- Provide one tiny, ergonomic API for the spans we care about
   (``tool.call``, ``model.call``, ``kb.search``, ``kb.persist``,
   ``compaction.run``, ``interrupt.raised``, ``permission.asked``).
 - Keep span **names** low-cardinality (``tool.call`` rather than

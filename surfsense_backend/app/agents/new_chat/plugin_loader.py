@@ -1,9 +1,10 @@
 """Entry-point based plugin loader for SurfSense agent middleware.
 
-The realization in the Tier 6 plan: LangChain's :class:`AgentMiddleware` ABC
-already covers the practical surface most plugins need (``before_agent`` /
-``before_model`` / ``wrap_tool_call`` / their async counterparts), so a
-SurfSense-specific plugin protocol is unnecessary.
+LangChain's :class:`AgentMiddleware` ABC already covers the practical
+surface most plugins need (``before_agent`` / ``before_model`` /
+``wrap_tool_call`` / their async counterparts), so a SurfSense-specific
+plugin protocol would be redundant. We just need a way to discover and
+admit third-party middleware safely.
 
 A plugin is therefore just an installable Python package that registers a
 factory callable under the ``surfsense.plugins`` entry-point group:

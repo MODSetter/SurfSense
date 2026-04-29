@@ -4,7 +4,7 @@ Revision ID: 131
 Revises: 130
 Create Date: 2026-04-28
 
-Tier 5.1 in the OpenCode-port plan. Adds two snapshot tables:
+Adds two snapshot tables that back the per-action revert flow:
 
 * ``document_revisions``: pre-mutation snapshot of NOTE/FILE/EXTENSION docs.
 * ``folder_revisions``: pre-mutation snapshot of folder mkdir/move/delete.

@@ -1,14 +1,17 @@
 """Specialized user-facing subagents for the SurfSense agent.
 
-Each subagent is a :class:`deepagents.SubAgent` typed-dict spec passed to
-:class:`deepagents.SubAgentMiddleware`, which materializes them as ephemeral
-runnables invoked via the ``task`` tool.
+The :class:`deepagents.SubAgentMiddleware` already provides the
+materialization machinery (each :class:`deepagents.SubAgent` typed-dict
+spec is compiled into an ephemeral runnable invoked via the ``task``
+tool); what's specific to SurfSense is the *seeding* of those subagents
+with declarative deny rules.
 
 Per-subagent permission rules are injected as a
 :class:`PermissionMiddleware` entry inside the subagent's ``middleware``
-field, mirroring opencode ``tool/task.ts`` which seeds child sessions with
-deny rules for tools the parent does not want them touching (e.g.
-``task``/``todowrite`` recursion, write tools for read-only research roles).
+field. The auto-deny pattern (e.g. forbid ``task``/``todowrite``
+recursion, block write tools for read-only research roles) is borrowed
+from OpenCode's ``packages/opencode/src/tool/task.ts``, which has
+analogous logic for restricting child sessions.
 """
 
 from .config import (

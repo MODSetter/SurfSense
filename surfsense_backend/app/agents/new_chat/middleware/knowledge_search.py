@@ -592,10 +592,11 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         self.available_document_types = available_document_types
         self.top_k = top_k
         self.mentioned_document_ids = mentioned_document_ids or []
-        # Tier 4.2: build the kb-planner private Runnable ONCE here so we
-        # don't pay the create_agent compile cost (50-200ms) on every turn.
-        # Disabled by default behind ``enable_kb_planner_runnable``; when off
-        # the planner falls back to the legacy ``self.llm.ainvoke`` path.
+        # Build the kb-planner private Runnable ONCE here so we don't pay
+        # the ``create_agent`` compile cost (50-200ms) on every turn.
+        # Disabled by default behind ``enable_kb_planner_runnable``; when
+        # off the planner falls back to the legacy ``self.llm.ainvoke``
+        # path.
         self._planner: Runnable | None = None
         self._planner_compile_failed = False
 
@@ -608,9 +609,9 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         lazily on first call, then memoized via ``self._planner``.
 
         The compiled agent is constructed without tools — the planner's
-        contract is "answer with structured JSON" — but with ``RetryAfter``
-        + the OpenCode-port retry/limit middleware so it shares the parent
-        agent's resilience guarantees.
+        contract is "answer with structured JSON" — but it inherits the
+        :class:`RetryAfterMiddleware` so transient rate-limit errors
+        from the planner LLM call don't fail the whole turn.
         """
         if self._planner is not None or self._planner_compile_failed:
             return self._planner
@@ -658,9 +659,9 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         loop = asyncio.get_running_loop()
         t0 = loop.time()
 
-        # Tier 4.2: prefer the compiled-once planner Runnable when enabled;
-        # otherwise fall back to ``self.llm.ainvoke``. The ``surfsense:internal``
-        # tag is preserved on both paths so ``_stream_agent_events`` still
+        # Prefer the compiled-once planner Runnable when enabled; otherwise
+        # fall back to ``self.llm.ainvoke``. The ``surfsense:internal`` tag
+        # is preserved on both paths so ``_stream_agent_events`` still
         # suppresses the planner's intermediate events from the UI.
         planner = self._build_kb_planner_runnable()
         try:

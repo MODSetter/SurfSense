@@ -1,4 +1,4 @@
-"""Tests for the SurfSense OpenTelemetry shim (Tier 3b)."""
+"""Tests for the SurfSense OpenTelemetry shim."""
 
 from __future__ import annotations
 

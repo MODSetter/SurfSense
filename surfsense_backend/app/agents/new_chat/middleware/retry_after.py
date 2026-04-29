@@ -1,10 +1,16 @@
 """
 RetryAfterMiddleware — Header-aware retry with custom backoff and SSE eventing.
 
-Why standalone instead of subclassing ``ModelRetryMiddleware``: the upstream
-class calls module-level ``calculate_delay`` inline (no overridable
-``_calculate_delay`` hook), so a subclass cannot inject Retry-After header
-delays without rewriting the loop. Tier 1.4 in the OpenCode-port plan.
+LangChain's :class:`ModelRetryMiddleware` retries on exceptions but ignores
+the ``Retry-After`` HTTP header — it just runs its own exponential backoff.
+That wastes time when a provider has explicitly told us how long to wait.
+This middleware honors the header (mirroring OpenCode's
+``packages/opencode/src/session/llm.ts`` retry pathway) and emits an SSE
+event so the UI can show "rate-limited, retrying in Ns".
+
+We can't subclass ``ModelRetryMiddleware`` cleanly because its loop calls a
+module-level ``calculate_delay`` inline (no overridable
+``_calculate_delay`` hook), so this is a standalone implementation.
 
 Behaviour:
 - Extracts ``Retry-After`` / ``retry-after-ms`` from

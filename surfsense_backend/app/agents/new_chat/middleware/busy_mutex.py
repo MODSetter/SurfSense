@@ -1,11 +1,16 @@
 """
 BusyMutexMiddleware — per-thread asyncio lock + cancel token.
 
-Tier 2.2 in the OpenCode-port plan. Mirrors opencode's
-``Stream.scoped(AbortController)`` pattern (single-process, in-memory
-lock + cooperative cancellation). For multi-worker deployments a
-distributed lock backend (Redis or PostgreSQL advisory locks) is a
-phase-2 follow-up.
+LangChain has no built-in concept of "this thread is already running a
+turn — refuse the second concurrent request". Without it, a user
+double-clicking "send" or refreshing the page mid-stream can spawn two
+turns racing on the same checkpoint, producing duplicated tool calls
+and mangled state.
+
+Ported from OpenCode's ``Stream.scoped(AbortController)`` pattern: a
+single-process, in-memory lock + cooperative cancellation token keyed by
+``thread_id``. For multi-worker deployments a distributed lock backend
+(Redis or PostgreSQL advisory locks) is a phase-2 follow-up.
 
 What this provides:
 - A ``WeakValueDictionary[str, asyncio.Lock]`` keyed by ``thread_id``;

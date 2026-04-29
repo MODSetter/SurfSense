@@ -14,7 +14,13 @@ under :mod:`app.agents.new_chat.prompts`. It replaces the monolithic
       examples/              # one ``<name>.md`` per tool with call examples
       routing/               # connector-specific routing notes (linear, slack, …)
 
-Tier 3a in the OpenCode-port plan.
+The model-family dispatch step (see :func:`detect_provider_variant`)
+mirrors OpenCode's ``packages/opencode/src/session/system.ts`` — different
+model families respond best to differently-styled prompts (Claude likes
+XML/narrative, GPT-5 wants channel-aware pragmatic, Codex needs
+terse/file:line, Gemini wants formal numbered steps, etc.). LangChain's
+``dynamic_prompt`` helper supports per-call prompt swaps but ships no
+out-of-the-box family classifier, so we keep our own.
 
 Backwards compatibility
 =======================
@@ -42,10 +48,11 @@ from app.db import ChatVisibility
 # When adding a new variant, also drop a matching ``providers/<variant>.md``
 # file in this package and (if appropriate) extend the regex matchers below.
 #
-# Stylistic clusters mirror OpenCode's prompt-per-family layout but adapted
-# to SurfSense's "supplemental hints" architecture (each fragment is a
-# focused style nudge, NOT a full system prompt — the main prompt is
-# already assembled from base/ + tools/ + routing/).
+# Stylistic clusters: each variant is a focused style nudge, NOT a full
+# system prompt — the main prompt is already assembled from base/ +
+# tools/ + routing/. The clustering itself (which models map to which
+# style) follows OpenCode's ``system.ts`` family table; see the module
+# docstring for credits.
 ProviderVariant = str
 # Known values:
 #   "anthropic"        — Claude family (XML-friendly, narrative todos)
@@ -82,8 +89,8 @@ def detect_provider_variant(model_name: str | None) -> ProviderVariant:
 
     Order is significant: more-specific patterns are tried first so
     ``gpt-5-codex`` routes to ``"openai_codex"`` rather than
-    ``"openai_reasoning"`` (mirrors OpenCode's
-    ``packages/opencode/src/session/system.ts`` dispatch).
+    ``"openai_reasoning"`` — same dispatch order as OpenCode's
+    ``packages/opencode/src/session/system.ts``.
     """
     if not model_name:
         return "default"

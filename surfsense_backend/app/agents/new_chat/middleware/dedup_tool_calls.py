@@ -9,11 +9,10 @@ the duplicate call is stripped from the AIMessage that gets checkpointed.
 That means it is also safe across LangGraph ``interrupt()`` boundaries:
 the removed call will never appear on graph resume.
 
-Dedup-key resolution order (Tier 2.3 / cleanup in the OpenCode-port plan):
+Dedup-key resolution order:
 
 1. :class:`ToolDefinition.dedup_key` — callable provided by the registry
-   entry. This is the canonical mechanism after the cleanup-tier removal
-   of the legacy ``PRIMARY_ARG`` map.
+   entry. This is the canonical mechanism.
 2. ``tool.metadata["hitl_dedup_key"]`` — string with a primary arg name;
    used by MCP / Composio tools whose schemas the registry doesn't see.
 
@@ -72,9 +71,8 @@ class DedupHITLToolCallsMiddleware(AgentMiddleware):  # type: ignore[type-arg]
     The dedup-resolver map is built from two sources, in priority order:
 
     1. ``tool.metadata["dedup_key"]`` — callable provided by the registry's
-       ``ToolDefinition.dedup_key`` (Tier 2.3). Receives the args dict
-       and returns a string signature. This is the canonical mechanism
-       after the cleanup-tier removal of the legacy ``PRIMARY_ARG`` map.
+       ``ToolDefinition.dedup_key``. Receives the args dict and returns
+       a string signature. This is the canonical mechanism.
     2. ``tool.metadata["hitl_dedup_key"]`` — string with a primary arg
        name; primarily used by MCP / Composio tools.
     """

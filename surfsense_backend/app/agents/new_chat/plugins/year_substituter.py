@@ -1,10 +1,10 @@
 """Reference plugin: substitute ``{{year}}`` in tool descriptions.
 
-Mirrors the OpenCode ``chat.system.transform`` example. Demonstrates the
-:meth:`AgentMiddleware.awrap_tool_call` hook -- the plugin sees every tool
-invocation and can rewrite the request *or* the result. This particular
-plugin is read-only and only transforms the *description* the user might
-see in error messages (no request mutation).
+Demonstrates the :meth:`AgentMiddleware.awrap_tool_call` hook -- the
+plugin sees every tool invocation and can rewrite the request *or* the
+result. This particular plugin is read-only and only transforms the
+*description* the user might see in error messages (no request
+mutation).
 
 The plugin is built as a factory function so the entry-point loader can
 inject :class:`PluginContext` (containing the agent's LLM, search-space

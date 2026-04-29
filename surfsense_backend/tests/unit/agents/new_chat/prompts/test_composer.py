@@ -1,4 +1,4 @@
-"""Tests for the prompt fragment composer (Tier 3a)."""
+"""Tests for the prompt fragment composer."""
 
 from __future__ import annotations
 

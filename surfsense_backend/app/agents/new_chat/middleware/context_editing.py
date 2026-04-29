@@ -1,15 +1,15 @@
 """
 SpillToBackendEdit + SpillingContextEditingMiddleware.
 
-Mirrors OpenCode's spill-to-disk behavior in
-``opencode/packages/opencode/src/tool/truncate.ts``. Before
-``ClearToolUsesEdit`` rewrites old ``ToolMessage.content`` to a placeholder,
-we capture the full original content and write it to the runtime backend
-under ``/tool_outputs/{thread_id}/{message_id}.txt``. The placeholder is
-upgraded to ``"[cleared — full output at /tool_outputs/.../{id}.txt; ask the
-explore subagent to read it]"`` so the agent can recover it on demand.
-
-Tier 1.2 in the OpenCode-port plan.
+LangChain's :class:`ClearToolUsesEdit` discards old ``ToolMessage.content``
+when the context-editing budget triggers, replacing the body with a fixed
+placeholder. That's lossy: anything the agent might want to revisit is
+gone. The spill-to-disk pattern (originally from OpenCode's
+``opencode/packages/opencode/src/tool/truncate.ts``) keeps the prune
+behavior but writes the full original payload to the runtime backend
+under ``/tool_outputs/{thread_id}/{message_id}.txt`` first. The
+placeholder is then upgraded to point at the spill path so the agent
+(or a subagent) can read it back on demand.
 
 Why this is a middleware subclass instead of a plain ``ContextEdit``:
 ``ContextEdit.apply`` is sync, but writing to the backend is async. We

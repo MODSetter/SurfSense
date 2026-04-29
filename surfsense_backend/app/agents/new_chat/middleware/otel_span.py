@@ -3,14 +3,14 @@ OpenTelemetry span middleware for the SurfSense ``new_chat`` agent.
 
 Wraps both ``model.call`` (LLM invocations) and ``tool.call`` (tool
 executions) with OTel spans, attaching low-cardinality span names and
-high-cardinality identifiers as attributes (per the Tier 3b plan).
+high-cardinality identifiers as attributes.
 
 This middleware is intentionally a thin adapter over
 :mod:`app.observability.otel`; when OTel is not configured all spans
 collapse to no-ops and the wrapper adds <1µs overhead per call. When
 OTel **is** configured (``OTEL_EXPORTER_OTLP_ENDPOINT`` set), every
-model and tool call gets a span with the standard attributes the
-plan's dashboards expect.
+model and tool call gets a span with the standard attributes our
+dashboards expect.
 """
 
 from __future__ import annotations

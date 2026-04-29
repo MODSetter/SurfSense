@@ -5,21 +5,22 @@ Subclasses :class:`deepagents.middleware.summarization.SummarizationMiddleware`
 to add SurfSense-specific behavior:
 
 1. **Structured summary template** (OpenCode-style ``## Goal / Constraints /
-   Progress / Key Decisions / Next Steps / Critical Context / Relevant Files``).
+   Progress / Key Decisions / Next Steps / Critical Context / Relevant Files``)
+   — see :data:`SURFSENSE_SUMMARY_PROMPT` below. The base
+   ``SummarizationMiddleware`` only ships a freeform "summarize this"
+   prompt; the structured template is ported from OpenCode's
+   ``compaction.ts``.
 2. **Protect SurfSense-specific SystemMessages** so injected hints
    (``<priority_documents>``, ``<workspace_tree>``, ``<file_operation_contract>``,
    ``<user_memory>``, ``<team_memory>``, ``<user_name>``, ``<memory_warning>``)
    are *not* summarized away and are kept verbatim in the post-summary
-   message list.
+   message list. Mirrors OpenCode's ``PRUNE_PROTECTED_TOOLS`` philosophy
+   (some message types are part of the agent's contract and must survive
+   compaction unchanged).
 3. **Sanitize ``content=None``** when feeding messages into ``get_buffer_string``
    (Azure OpenAI / LiteLLM defense — when a provider streams an AIMessage
    containing only tool_calls and no text, ``content`` can be ``None`` and
-   ``get_buffer_string`` crashes iterating over ``None``). This used to live in
-   ``safe_summarization.py``; folded in here.
-
-This replaces ``app.agents.new_chat.middleware.safe_summarization``.
-
-Tier 1.3 in the OpenCode-port plan.
+   ``get_buffer_string`` crashes iterating over ``None``). SurfSense-specific.
 """
 
 from __future__ import annotations
@@ -42,7 +43,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# OpenCode-faithful structured summary template. Mirrors
+# Structured summary template ported from OpenCode's
 # ``opencode/packages/opencode/src/session/compaction.ts:40-75``. Kept as a
 # module-level constant so unit tests can assert on its sections.
 SURFSENSE_SUMMARY_PROMPT = """<role>

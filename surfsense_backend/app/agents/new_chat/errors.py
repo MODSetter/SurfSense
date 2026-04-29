@@ -2,10 +2,10 @@
 Typed error taxonomy for the SurfSense agent stack.
 
 Used by:
-- :class:`RetryAfterMiddleware` (Tier 1.4) — its ``retry_on`` callable
-  consults the error code to decide whether a retry is appropriate.
-- :class:`PermissionMiddleware` (Tier 2.1) — emits
-  ``code="permission_denied"`` errors when a deny rule trips.
+- :class:`RetryAfterMiddleware` — its ``retry_on`` callable consults
+  the error code to decide whether a retry is appropriate.
+- :class:`PermissionMiddleware` — emits ``code="permission_denied"``
+  errors when a deny rule trips.
 - All tools — return :class:`StreamingError` payloads in
   ``ToolMessage.additional_kwargs["error"]`` so the model and the
   retry/permission layers share a contract.

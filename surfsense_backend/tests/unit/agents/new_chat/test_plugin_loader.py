@@ -1,4 +1,4 @@
-"""Unit tests for the SurfSense plugin entry-point loader (Tier 6)."""
+"""Unit tests for the SurfSense plugin entry-point loader."""
 
 from __future__ import annotations
 

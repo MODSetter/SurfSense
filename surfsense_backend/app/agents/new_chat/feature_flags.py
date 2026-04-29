@@ -1,9 +1,10 @@
 """
 Feature flags for the SurfSense new_chat agent stack.
 
-These flags control rollout of OpenCode-pattern middleware ported into
-SurfSense. They follow a "default-OFF for risky things, default-ON for
-safe upgrades, master kill-switch for everything new" model.
+These flags gate the newer agent middleware (some ported from OpenCode,
+some sourced from ``langchain.agents.middleware`` / ``deepagents``, some
+SurfSense-native). They follow a "default-OFF for risky things,
+default-ON for safe upgrades, master kill-switch for everything new" model.
 
 All new middleware checks its flag at agent build time. If the master
 kill-switch ``SURFSENSE_DISABLE_NEW_AGENT_STACK`` is set, every new
@@ -57,7 +58,7 @@ class AgentFeatureFlags:
     # regardless of its env value. Used for rapid rollback.
     disable_new_agent_stack: bool = False
 
-    # Tier 1 — Agent quality
+    # Agent quality — context budget, retry/limits, name-repair, doom-loop
     enable_context_editing: bool = False
     enable_compaction_v2: bool = False
     enable_retry_after: bool = False
@@ -69,26 +70,26 @@ class AgentFeatureFlags:
         False  # Default OFF until UI handles permission='doom_loop'
     )
 
-    # Tier 2 — Safety
+    # Safety — permissions, concurrency, tool-set narrowing
     enable_permission: bool = False  # Default OFF for first deploy
     enable_busy_mutex: bool = False
     enable_llm_tool_selector: bool = False  # Default OFF — adds per-turn LLM cost
 
-    # Tier 4 — Skills + subagents
+    # Skills + subagents
     enable_skills: bool = False
     enable_specialized_subagents: bool = False
     enable_kb_planner_runnable: bool = False
 
-    # Tier 5 — Snapshot / revert
+    # Snapshot / revert
     enable_action_log: bool = False
     enable_revert_route: bool = (
         False  # Backend ships before UI; route returns 503 until this flips
     )
 
-    # Tier 6 — Plugins
+    # Plugins
     enable_plugin_loader: bool = False
 
-    # Tier 3b — OTel (orthogonal: also requires OTEL_EXPORTER_OTLP_ENDPOINT)
+    # Observability — OTel (orthogonal; also requires OTEL_EXPORTER_OTLP_ENDPOINT)
     enable_otel: bool = False
 
     @classmethod
@@ -108,7 +109,7 @@ class AgentFeatureFlags:
 
         return cls(
             disable_new_agent_stack=False,
-            # Tier 1
+            # Agent quality
             enable_context_editing=_env_bool("SURFSENSE_ENABLE_CONTEXT_EDITING", False),
             enable_compaction_v2=_env_bool("SURFSENSE_ENABLE_COMPACTION_V2", False),
             enable_retry_after=_env_bool("SURFSENSE_ENABLE_RETRY_AFTER", False),
@@ -121,13 +122,13 @@ class AgentFeatureFlags:
                 "SURFSENSE_ENABLE_TOOL_CALL_REPAIR", False
             ),
             enable_doom_loop=_env_bool("SURFSENSE_ENABLE_DOOM_LOOP", False),
-            # Tier 2
+            # Safety
             enable_permission=_env_bool("SURFSENSE_ENABLE_PERMISSION", False),
             enable_busy_mutex=_env_bool("SURFSENSE_ENABLE_BUSY_MUTEX", False),
             enable_llm_tool_selector=_env_bool(
                 "SURFSENSE_ENABLE_LLM_TOOL_SELECTOR", False
             ),
-            # Tier 4
+            # Skills + subagents
             enable_skills=_env_bool("SURFSENSE_ENABLE_SKILLS", False),
             enable_specialized_subagents=_env_bool(
                 "SURFSENSE_ENABLE_SPECIALIZED_SUBAGENTS", False
@@ -135,12 +136,12 @@ class AgentFeatureFlags:
             enable_kb_planner_runnable=_env_bool(
                 "SURFSENSE_ENABLE_KB_PLANNER_RUNNABLE", False
             ),
-            # Tier 5
+            # Snapshot / revert
             enable_action_log=_env_bool("SURFSENSE_ENABLE_ACTION_LOG", False),
             enable_revert_route=_env_bool("SURFSENSE_ENABLE_REVERT_ROUTE", False),
-            # Tier 6
+            # Plugins
             enable_plugin_loader=_env_bool("SURFSENSE_ENABLE_PLUGIN_LOADER", False),
-            # Tier 3b
+            # Observability
             enable_otel=_env_bool("SURFSENSE_ENABLE_OTEL", False),
         )
 

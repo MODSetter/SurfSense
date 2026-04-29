@@ -4,11 +4,10 @@ Revision ID: 132
 Revises: 131
 Create Date: 2026-04-28
 
-Tier 2.1 in the OpenCode-port plan. Adds the persistent ``agent_permission_rules``
-table consumed by :class:`PermissionMiddleware` at agent build time. Rules
-can be scoped at search-space (``user_id`` / ``thread_id`` NULL),
-user-wide (``user_id`` set, ``thread_id`` NULL), or per-thread
-(``thread_id`` set).
+Adds the persistent ``agent_permission_rules`` table consumed by
+:class:`PermissionMiddleware` at agent build time. Rules can be scoped
+at search-space (``user_id`` / ``thread_id`` NULL), user-wide
+(``user_id`` set, ``thread_id`` NULL), or per-thread (``thread_id`` set).
 """
 
 from __future__ import annotations

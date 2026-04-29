@@ -1,4 +1,4 @@
-"""Tests for the wildcard matcher and rule evaluator (opencode evaluate.ts parity)."""
+"""Tests for the wildcard matcher and rule evaluator (parity with OpenCode evaluate.ts)."""
 
 from __future__ import annotations
 

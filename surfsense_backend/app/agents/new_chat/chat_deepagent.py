@@ -353,11 +353,12 @@ async def create_surfsense_deep_agent(
         additional_tools=list(additional_tools) if additional_tools else None,
     )
 
-    # Tier 1.6: register `invalid` tool. It is dispatched only when
-    # ToolCallNameRepairMiddleware rewrites a malformed call. We
-    # intentionally append it AFTER ``build_tools_async`` so it never
-    # appears in the system-prompt tool list (which is built from the
-    # registry, not the bound tool list).
+    # Register the ``invalid`` tool only when tool-call repair is on. It
+    # is dispatched only when :class:`ToolCallNameRepairMiddleware`
+    # rewrites a malformed call. We intentionally append it AFTER
+    # ``build_tools_async`` so it never appears in the system-prompt
+    # tool list (which is built from the registry, not the bound tool
+    # list).
     _flags: AgentFeatureFlags = get_flags()
     if _flags.enable_tool_call_repair and INVALID_TOOL_NAME not in {
         t.name for t in tools
@@ -455,10 +456,10 @@ async def create_surfsense_deep_agent(
     return agent
 
 
-# Tier 1.1: tools whose output is too costly / lossy to discard. Keep
-# this conservative — anything listed here is *never* pruned by
-# ContextEditingMiddleware. The list is filtered against actually-bound
-# tool names so disabled connectors don't show up here.
+# Tools whose output is too costly / lossy to discard. Keep this
+# conservative — anything listed here is *never* pruned by
+# :class:`ContextEditingMiddleware`. The list is filtered against
+# actually-bound tool names so disabled connectors don't show up here.
 _PRUNE_PROTECTED_TOOL_NAMES: frozenset[str] = frozenset(
     {
         "generate_report",
@@ -485,11 +486,12 @@ def _safe_exclude_tools(tools: Sequence[BaseTool]) -> tuple[str, ...]:
     return tuple(name for name in _PRUNE_PROTECTED_TOOL_NAMES if name in enabled)
 
 
-# Tier 2.1 / cleanup: opencode `Permission.disabled` parity. Replaces the
-# legacy binary ``_CONNECTOR_TYPE_TO_SEARCHABLE``-based gating with a
-# declarative pass over :data:`BUILTIN_TOOLS`. Each tool that declares a
-# ``required_connector`` not present in ``available_connectors`` gets a
-# deny rule so any execution attempt short-circuits with permission_denied.
+# Connector gating: any tool whose ``ToolDefinition.required_connector``
+# isn't actually wired up gets a synthesized permission deny rule so
+# execution attempts short-circuit with ``permission_denied`` instead of
+# bubbling up provider-specific 401/404 errors. Mirrors OpenCode's
+# ``Permission.disabled`` (declarative, per-tool gating) — replaces the
+# legacy binary ``_CONNECTOR_TYPE_TO_SEARCHABLE`` substring-heuristic.
 def _synthesize_connector_deny_rules(
     *,
     available_connectors: list[str] | None,
@@ -503,11 +505,6 @@ def _synthesize_connector_deny_rules(
     1. It is currently bound (``enabled_tool_names``).
     2. It declares a ``required_connector``.
     3. That connector is *not* in ``available_connectors``.
-
-    This expresses the OpenCode ``Permission.disabled`` semantics
-    declaratively, replacing the substring-heuristic binary gating
-    that used to consult the hardcoded ``_CONNECTOR_TYPE_TO_SEARCHABLE``
-    map.
     """
     available = set(available_connectors or [])
     deny: list[Rule] = []
@@ -581,7 +578,7 @@ def _build_compiled_agent_blocking(
         "middleware": gp_middleware,
     }
 
-    # Tier 4.3: specialized user-facing subagents (explore, report_writer,
+    # Specialized user-facing subagents (explore, report_writer,
     # connector_negotiator). Registered through SubAgentMiddleware alongside
     # the general-purpose spec so the parent's `task` tool can address them
     # by name. Off by default until the flag flips so existing deployments
@@ -629,14 +626,13 @@ def _build_compiled_agent_blocking(
     # ``wrap_model_call`` ordering: the FIRST middleware in the list is the
     # OUTERMOST wrapper. To ensure prune executes before summarization,
     # place ``SpillingContextEditingMiddleware`` before
-    # ``SurfSenseCompactionMiddleware`` (Tier 1.1 + 1.3).
-    # Compaction is the canonical token-budget defense after the
-    # cleanup tier removed ``SafeSummarizationMiddleware``. The Bedrock
-    # buffer-empty defense is folded into ``SurfSenseCompactionMiddleware``.
+    # ``SurfSenseCompactionMiddleware``. Compaction is the canonical
+    # token-budget defense; the Bedrock buffer-empty defense is folded
+    # into ``SurfSenseCompactionMiddleware``.
     summarization_mw = create_surfsense_compaction_middleware(llm, StateBackend)
     _ = flags.enable_compaction_v2  # historical flag; retained for telemetry parity
 
-    # Tier 1.1: ContextEditing prune. Trigger at 55% of model_max_input,
+    # ContextEditing prune. Trigger at 55% of ``max_input_tokens``,
     # earlier than summarization (~85%). When disabled, no edit runs.
     context_edit_mw = None
     if (
@@ -664,7 +660,10 @@ def _build_compiled_agent_blocking(
             backend_resolver=backend_resolver,
         )
 
-    # Tier 1.4 / 1.8 / 1.9 / 1.10: built-in retry/fallback/limits.
+    # Resilience knobs: header-aware retry, model fallback, and
+    # per-thread / per-run call-count limits. The fallback / limit
+    # middlewares are vanilla LangChain primitives; ``RetryAfter`` is
+    # SurfSense's header-aware variant (see its module docstring).
     retry_mw = (
         RetryAfterMiddleware(max_retries=3)
         if flags.enable_retry_after and not flags.disable_new_agent_stack
@@ -700,14 +699,16 @@ def _build_compiled_agent_blocking(
         else None
     )
 
-    # Tier 1.5: provider-compat _noop injection.
+    # Provider-compat ``_noop`` injection (mirrors OpenCode's
+    # ``llm.ts`` workaround for providers that reject empty assistant
+    # turns or alternating-role constraints).
     noop_mw = (
         NoopInjectionMiddleware()
         if flags.enable_compaction_v2 and not flags.disable_new_agent_stack
         else None
     )
 
-    # Tier 1.7: tool-call name repair (lowercase + invalid fallback).
+    # Tool-call name repair (lowercase + ``invalid`` fallback).
     #
     # ``registered_tool_names`` MUST cover every tool the model can legitimately
     # call. That includes the bound ``tools`` list AND every tool provided by
@@ -737,18 +738,22 @@ def _build_compiled_agent_blocking(
         }
         repair_mw = ToolCallNameRepairMiddleware(
             registered_tool_names=registered_names,
-            fuzzy_match_threshold=None,  # opencode parity: no fuzzy step
+            # Disable fuzzy matching to avoid silent rewrites; the
+            # lowercase + ``invalid`` fallback alone covers >95% of
+            # observed model errors.
+            fuzzy_match_threshold=None,
         )
 
-    # Tier 1.11: doom-loop detector. Off by default until UI handles.
+    # Doom-loop detector. Off by default until the frontend handles
+    # ``permission == "doom_loop"`` interrupts.
     doom_loop_mw = (
         DoomLoopMiddleware(threshold=3)
         if flags.enable_doom_loop and not flags.disable_new_agent_stack
         else None
     )
 
-    # Tier 2.1: PermissionMiddleware. Layers, earliest -> latest (last
-    # match wins per opencode):
+    # PermissionMiddleware. Layers, earliest -> latest (last match wins,
+    # same evaluation order as OpenCode's ``permission/index.ts``):
     #
     # 1. ``surfsense_defaults`` — single ``allow */*`` rule. SurfSense
     #    already runs per-tool HITL (see ``tools/hitl.py``) for mutating
@@ -778,11 +783,11 @@ def _build_compiled_agent_blocking(
             ],
         )
 
-    # Tier 5.2: ActionLogMiddleware. Off by default until the
-    # ``agent_action_log`` table is migrated. When enabled, persists one
-    # row per tool call with optional reverse_descriptor for
-    # /api/threads/{thread_id}/revert/{action_id}. Sits inside permission
-    # so denied calls aren't logged as completions.
+    # ActionLogMiddleware. Off by default until the ``agent_action_log``
+    # table is migrated. When enabled, persists one row per tool call
+    # with optional reverse_descriptor for
+    # ``POST /api/threads/{thread_id}/revert/{action_id}``. Sits inside
+    # ``permission`` so denied calls aren't logged as completions.
     action_log_mw: ActionLogMiddleware | None = None
     if (
         flags.enable_action_log
@@ -804,23 +809,24 @@ def _build_compiled_agent_blocking(
             )
             action_log_mw = None
 
-    # Tier 2.2: per-thread busy mutex.
+    # Per-thread busy mutex (refuse a second concurrent turn on the same
+    # thread; see :class:`BusyMutexMiddleware` docstring).
     busy_mutex_mw: BusyMutexMiddleware | None = (
         BusyMutexMiddleware()
         if flags.enable_busy_mutex and not flags.disable_new_agent_stack
         else None
     )
 
-    # Tier 3b: OpenTelemetry spans (model.call + tool.call). Lives just
-    # inside BusyMutex so it spans every retry/fallback attempt of the
-    # current turn but never wraps a queued/blocked turn.
+    # OpenTelemetry spans (model.call + tool.call). Lives just inside
+    # BusyMutex so it spans every retry/fallback attempt of the current
+    # turn but never wraps a queued/blocked turn.
     otel_mw: OtelSpanMiddleware | None = (
         OtelSpanMiddleware()
         if flags.enable_otel and not flags.disable_new_agent_stack
         else None
     )
 
-    # Tier 6: plugin entry-point loader. Off by default; opt-in via the
+    # Plugin entry-point loader. Off by default; opt-in via the
     # ``SURFSENSE_ENABLE_PLUGIN_LOADER`` flag. The allowlist is read from
     # the ``SURFSENSE_ALLOWED_PLUGINS`` env var (comma-separated). A future
     # PR can wire it through ``global_llm_config.yaml``.
@@ -845,10 +851,10 @@ def _build_compiled_agent_blocking(
             )
             plugin_middlewares = []
 
-    # Tier 4.1: SkillsMiddleware. Loads built-in + space-authored skills
-    # via a CompositeBackend. Sources are layered: built-in first, space
-    # last, so a search-space-authored skill of the same name overrides
-    # the bundled one.
+    # SkillsMiddleware (deepagents) loads built-in + space-authored
+    # skills via a CompositeBackend. Sources are layered: built-in first,
+    # space last, so a search-space-authored skill of the same name
+    # overrides the bundled one.
     skills_mw: SkillsMiddleware | None = None
     if flags.enable_skills and not flags.disable_new_agent_stack:
         try:
@@ -865,7 +871,8 @@ def _build_compiled_agent_blocking(
             logging.warning("SkillsMiddleware init failed; skipping: %s", exc)
             skills_mw = None
 
-    # Tier 2.5: LLM-driven tool selection for >30 tools.
+    # LangChain's LLM-driven tool selection — only enabled for stacks
+    # large enough to need narrowing (>30 tools).
     selector_mw: LLMToolSelectorMiddleware | None = None
     if (
         flags.enable_llm_tool_selector
@@ -934,12 +941,12 @@ def _build_compiled_agent_blocking(
         )
         if filesystem_mode == FilesystemMode.CLOUD
         else None,
-        # Tier 4.1: skill loader. Placed before SubAgentMiddleware so
-        # subagents inherit the same skill metadata (subagent specs reference
-        # the same source paths via `default_skills_sources()`).
+        # Skill loader. Placed before SubAgentMiddleware so subagents
+        # inherit the same skill metadata (subagent specs reference the
+        # same source paths via ``default_skills_sources()``).
         skills_mw,
         SubAgentMiddleware(backend=StateBackend, subagents=subagent_specs),
-        # Tier 2.5: tool selection (only when >30 tools and flag on).
+        # Tool selection (only when >30 tools and flag on).
         selector_mw,
         # Defensive caps, then prune, then summarize.
         model_call_limit_mw,
@@ -954,19 +961,19 @@ def _build_compiled_agent_blocking(
         # Tool-call repair must run after model emits but before
         # permission / dedup / doom-loop interpret the calls.
         repair_mw,
-        # Tier 2.1: deny/ask BEFORE the calls are forwarded to tool nodes.
+        # Permission deny/ask BEFORE the calls are forwarded to tool nodes.
         permission_mw,
         doom_loop_mw,
-        # Tier 5.2: action log sits inside permission so denied calls
-        # don't appear as completions, and outside dedup so each unique
-        # tool invocation gets its own row.
+        # Action log sits inside permission so denied calls don't appear
+        # as completions, and outside dedup so each unique tool invocation
+        # gets its own row.
         action_log_mw,
         PatchToolCallsMiddleware(),
         DedupHITLToolCallsMiddleware(agent_tools=list(tools)),
-        # Tier 6: plugin slot — sits just before AnthropicCache so plugin-side
-        # transforms see the final tool result and run before any caching
-        # heuristics. Multiple plugins in declared order; loader filtered by
-        # the admin allowlist already.
+        # Plugin slot — sits just before AnthropicCache so plugin-side
+        # transforms see the final tool result and run before any
+        # caching heuristics. Multiple plugins in declared order; loader
+        # filtered by the admin allowlist already.
         *plugin_middlewares,
         AnthropicPromptCachingMiddleware(unsupported_model_behavior="ignore"),
     ]

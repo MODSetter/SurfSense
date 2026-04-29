@@ -4,8 +4,10 @@ Revision ID: 130
 Revises: 129
 Create Date: 2026-04-28
 
-Tier 5.2 in the OpenCode-port plan. Adds the append-only ``agent_action_log``
-table that :class:`ActionLogMiddleware` writes to after every tool call.
+Adds the append-only ``agent_action_log`` table that
+:class:`ActionLogMiddleware` writes to after every tool call. Each row
+optionally carries a ``reverse_descriptor`` payload used by
+``POST /api/threads/{thread_id}/revert/{action_id}`` to undo the action.
 """
 
 from __future__ import annotations

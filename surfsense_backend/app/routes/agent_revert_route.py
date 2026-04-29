@@ -1,9 +1,9 @@
 """POST ``/api/threads/{thread_id}/revert/{action_id}``: undo an agent action.
 
-Per the Tier 5 plan, the route ships **before** the UI lights up the per-message
-"Undo from here" affordance. To prevent accidental usage during the gap we
-return ``503 Service Unavailable`` until the
-``SURFSENSE_ENABLE_REVERT_ROUTE`` flag flips. Once enabled, the route runs:
+The route ships **before** the UI lights up the per-message "Undo from
+here" affordance. To prevent accidental usage during the gap we return
+``503 Service Unavailable`` until the ``SURFSENSE_ENABLE_REVERT_ROUTE``
+flag flips. Once enabled, the route runs:
 
 1. Authentication via :func:`current_active_user`.
 2. Action lookup; 404 if the action does not belong to the thread.

@@ -132,12 +132,10 @@ class ToolDefinition:
             that must be in ``available_connectors`` for the tool to be enabled.
         dedup_key: Optional callable that maps a tool's ``args`` dict to a
             string signature used by :class:`DedupHITLToolCallsMiddleware`
-            to drop duplicate calls. Replaces the legacy hardcoded
-            ``_NATIVE_HITL_TOOL_DEDUP_KEYS`` map (Tier 2.3 in the
-            OpenCode-port plan).
+            to drop duplicate calls within a single LLM response.
         reverse: Optional callable that, given the tool's ``(args, result)``,
             returns a ``ReverseDescriptor`` describing the inverse tool
-            invocation. Consumed by the snapshot/revert pipeline (Tier 5).
+            invocation. Consumed by the snapshot/revert pipeline.
 
     """
 

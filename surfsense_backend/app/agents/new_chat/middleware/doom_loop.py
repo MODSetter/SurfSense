@@ -1,17 +1,19 @@
 """
 DoomLoopMiddleware — pattern-based detector for repeated identical tool calls.
 
-Mirrors ``opencode/packages/opencode/src/session/processor.ts`` doom-loop
-behavior. When the same tool with the same arguments is called N times
-in a row, the agent has likely entered an infinite loop. We surface this
-to the user as an interrupt with ``permission="doom_loop"`` so the UI
-can render an "Are you stuck? Continue / cancel?" affordance.
+LangChain has :class:`ToolCallLimitMiddleware` which caps the *total* number
+of tool calls per turn — but it can't tell apart "10 distinct, useful
+calls" from "the same call 10 times in a row". This middleware fills that
+gap with a sliding-window check on tool-call signatures, ported from
+OpenCode's ``packages/opencode/src/session/processor.ts``.
 
-Tier 1.11 in the OpenCode-port plan.
+When the same tool with the same arguments is called N times in a row,
+the agent has likely entered an infinite loop. We surface this to the
+user as an interrupt with ``permission="doom_loop"`` so the UI can
+render an "Are you stuck? Continue / cancel?" affordance.
 
 This ships **OFF by default** until the frontend explicitly handles
-``context.permission == "doom_loop"`` interrupts (the plan flips
-``SURFSENSE_ENABLE_DOOM_LOOP=true`` once the UI is ready).
+``context.permission == "doom_loop"`` interrupts.
 
 Wire format: uses SurfSense's existing ``interrupt()`` payload shape
 (see ``app/agents/new_chat/tools/hitl.py``):
@@ -69,7 +71,7 @@ class DoomLoopMiddleware(AgentMiddleware[AgentState[ResponseT], ContextT, Respon
 
     Args:
         threshold: How many consecutive identical signatures count as a
-            doom loop. Default 3 (opencode parity).
+            doom loop. Default 3 (matches OpenCode's processor.ts).
     """
 
     def __init__(self, *, threshold: int = 3) -> None:
@@ -182,7 +184,7 @@ class DoomLoopMiddleware(AgentMiddleware[AgentState[ResponseT], ContextT, Respon
             signatures[-1] if signatures else "<empty>",
         )
 
-        # Tier 3b: interrupt.raised span with permission=doom_loop attribute
+        # Open an interrupt.raised span with permission=doom_loop attribute
         # so dashboards can break out doom-loop interrupts from regular
         # permission asks via the ``interrupt.permission`` attribute.
         with ot.interrupt_span(

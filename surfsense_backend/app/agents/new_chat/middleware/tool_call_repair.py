@@ -1,10 +1,6 @@
 """
 ToolCallNameRepairMiddleware — two-stage tool-name repair.
 
-Mirrors ``opencode/packages/opencode/src/session/llm.ts:339-358`` plus
-``opencode/packages/opencode/src/tool/invalid.ts``. Tier 1.7 in the
-OpenCode-port plan.
-
 Operation:
 1. **Stage 1 — lowercase repair:** if a tool call's ``name`` is not in
    the registry but ``name.lower()`` is, rewrite in place. Catches
@@ -14,9 +10,13 @@ Operation:
    so the registered :func:`invalid_tool` returns the error to the model
    for self-correction.
 
-Distinct from :class:`deepagents.middleware.PatchToolCallsMiddleware`,
-which patches *dangling* tool calls (no matching ToolMessage) — that
-class does not handle the wrong-name case at all.
+Ported from OpenCode's ``packages/opencode/src/session/llm.ts:339-358``
++ ``packages/opencode/src/tool/invalid.ts``. LangChain has no equivalent:
+:class:`deepagents.middleware.PatchToolCallsMiddleware` patches
+*dangling* tool calls (no matching ToolMessage) but does nothing about
+wrong names, and the model framework's default behavior on an unknown
+name is to crash the turn rather than route to a self-correction
+fallback.
 """
 
 from __future__ import annotations
@@ -61,7 +61,8 @@ class ToolCallNameRepairMiddleware(
             ``invalid`` should be in this set so the fallback dispatches.
         fuzzy_match_threshold: Optional ``difflib`` ratio (0-1) for the
             fuzzy-match step that runs *between* lowercase and invalid.
-            Set to ``None`` to disable fuzzy matching (opencode parity).
+            Set to ``None`` to disable fuzzy matching (default in
+            OpenCode; we mirror that to avoid silent rewrites).
     """
 
     def __init__(
@@ -106,7 +107,7 @@ class ToolCallNameRepairMiddleware(
             call["response_metadata"] = metadata
             return call
 
-        # Optional fuzzy step (off by default for opencode parity)
+        # Optional fuzzy step (off by default — see class docstring)
         if self._fuzzy_threshold is not None:
             close = difflib.get_close_matches(
                 name, registered, n=1, cutoff=self._fuzzy_threshold

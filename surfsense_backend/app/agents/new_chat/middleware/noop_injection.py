@@ -1,18 +1,23 @@
 """
 ``_noop`` provider-compatibility tool + injection middleware.
 
-OpenCode injects a ``_noop`` tool for LiteLLM/Bedrock/Copilot when the
-model call has empty tools but message history includes prior
-``tool_calls`` — some providers 400 in that shape (see
-``opencode/packages/opencode/src/session/llm.ts:209-228``). SurfSense uses
-LiteLLM, and the compaction summarize call (no tools, history full of
-tool calls) hits this. Tier 1.5 in the OpenCode-port plan.
+Some providers (LiteLLM, Bedrock, Copilot) 400 when a model call has
+empty ``tools`` but the message history includes prior ``tool_calls`` —
+they treat that shape as malformed even though it's perfectly valid
+LangChain. SurfSense hits this on the compaction summarize call (no
+tools, history full of tool calls).
+
+Ported from OpenCode's ``packages/opencode/src/session/llm.ts:209-228``,
+which discovered and codified the workaround: inject a no-op tool *only*
+on those provider shapes so the request validates without ever being
+called.
 
 Operation: a :class:`NoopInjectionMiddleware` ``wrap_model_call`` checks
 if the request has zero tools but the last AI message in history includes
-``tool_calls``. If yes, it injects the ``_noop`` tool only — never globally,
-mirroring opencode's gating exactly. The :func:`noop_tool` returns empty
-content when called (which it should never be in practice).
+``tool_calls``. If yes, it injects the ``_noop`` tool only — never
+globally — mirroring OpenCode's gating exactly. The :func:`noop_tool`
+returns empty content when called (which it should never be in
+practice).
 """
 
 from __future__ import annotations
@@ -45,8 +50,9 @@ def noop_tool() -> str:
 
 
 # Provider markers that benefit from ``_noop`` injection. These match
-# opencode's gating list. We also accept any string containing one of
-# these substrings (so e.g. ``litellm`` matches ``ChatLiteLLM``).
+# OpenCode's gating list (``llm.ts:209-228``). We also accept any string
+# containing one of these substrings so e.g. ``litellm`` matches
+# ``ChatLiteLLM``.
 _NOOP_NEEDED_PROVIDERS: tuple[str, ...] = (
     "litellm",
     "bedrock",

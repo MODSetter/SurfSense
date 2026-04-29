@@ -1,4 +1,4 @@
-"""Unit tests for the agent revert service (Tier 5.3)."""
+"""Unit tests for the agent revert service."""
 
 from __future__ import annotations
 

@@ -6,8 +6,9 @@ tool, :class:`ToolCallNameRepairMiddleware` rewrites the call to ``invalid``
 with the original name and a parser/validation error string. This tool's
 execution then returns that error to the model so it can self-correct.
 
-Mirrors ``opencode/packages/opencode/src/tool/invalid.ts``. Tier 1.6 in
-the OpenCode-port plan.
+Ported from OpenCode's ``packages/opencode/src/tool/invalid.ts`` —
+LangChain has no equivalent fallback path; the default behavior on an
+unknown tool name is a hard ``ToolNotFoundError`` which kills the turn.
 
 Critically, the :class:`ToolDefinition` for this tool is **excluded** from
 the system-prompt tool list and from ``LLMToolSelectorMiddleware`` selection
