@@ -206,10 +206,15 @@ const PREMIUM_QUOTA_ASSISTANT_MESSAGE =
 
 function getPinnedPremiumQuotaErrorMessage(error: unknown): string | null {
 	if (!(error instanceof Error)) return null;
+	const withCode = error as Error & { errorCode?: string };
+	if (withCode.errorCode === "PREMIUM_QUOTA_EXHAUSTED") {
+		return error.message;
+	}
 	const normalized = error.message.toLowerCase();
 	if (
 		!normalized.includes("premium tokens exhausted")
 		&& !normalized.includes("premium token quota exceeded")
+		&& !normalized.includes("buy more tokens")
 	) {
 		return null;
 	}
@@ -232,6 +237,50 @@ export default function NewChatPage() {
 		interruptData: Record<string, unknown>;
 	} | null>(null);
 	const toolsWithUI = useMemo(() => new Set([...BASE_TOOLS_WITH_UI]), []);
+
+	const persistAssistantErrorMessage = useCallback(
+		async ({
+			threadId,
+			assistantMsgId,
+			text,
+		}: {
+			threadId: number | null;
+			assistantMsgId: string;
+			text: string;
+		}) => {
+			setMessages((prev) =>
+				prev.map((m) =>
+					m.id === assistantMsgId
+						? {
+								...m,
+								content: [{ type: "text", text }],
+							}
+						: m
+				)
+			);
+
+			if (!threadId) return;
+
+			// Persist only temporary assistant placeholders to avoid duplicate rows
+			// when the message already has a database-backed ID.
+			if (!assistantMsgId.startsWith("msg-assistant-")) return;
+
+			try {
+				const savedMessage = await appendMessage(threadId, {
+					role: "assistant",
+					content: [{ type: "text", text }],
+				});
+				const newMsgId = `msg-${savedMessage.id}`;
+				tokenUsageStore.rename(assistantMsgId, newMsgId);
+				setMessages((prev) =>
+					prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m))
+				);
+			} catch (persistErr) {
+				console.error("Failed to persist assistant error message:", persistErr);
+			}
+		},
+		[tokenUsageStore]
+	);
 
 	// Get disabled tools from the tool toggle UI
 	const disabledTools = useAtomValue(disabledToolsAtom);
@@ -903,7 +952,9 @@ export default function NewChatPage() {
 							break;
 
 						case "error":
-							throw new Error(parsed.errorText || "Server error");
+							throw Object.assign(new Error(parsed.errorText || "Server error"), {
+								errorCode: parsed.errorCode,
+							});
 					}
 				}
 
@@ -985,26 +1036,14 @@ export default function NewChatPage() {
 				} else {
 					toast.error("Failed to get response. Please try again.");
 				}
-				// Update assistant message with error
-				setMessages((prev) =>
-					prev.map((m) =>
-						m.id === assistantMsgId
-							? {
-									...m,
-									content: [
-										{
-											type: "text",
-											text:
-												(premiumQuotaAlertMessage
-													? PREMIUM_QUOTA_ASSISTANT_MESSAGE
-													: undefined) ??
-												"Sorry, there was an error. Please try again.",
-										},
-									],
-								}
-							: m
-					)
-				);
+				await persistAssistantErrorMessage({
+					threadId: currentThreadId,
+					assistantMsgId,
+					text:
+						(premiumQuotaAlertMessage
+							? PREMIUM_QUOTA_ASSISTANT_MESSAGE
+							: undefined) ?? "Sorry, there was an error. Please try again.",
+				});
 			} finally {
 				setIsRunning(false);
 				abortControllerRef.current = null;
@@ -1028,6 +1067,7 @@ export default function NewChatPage() {
 			setPendingUserImageUrls,
 			toolsWithUI,
 			setPremiumAlertForThread,
+			persistAssistantErrorMessage,
 		]
 	);
 
@@ -1258,7 +1298,9 @@ export default function NewChatPage() {
 							break;
 
 						case "error":
-							throw new Error(parsed.errorText || "Server error");
+							throw Object.assign(new Error(parsed.errorText || "Server error"), {
+								errorCode: parsed.errorCode,
+							});
 					}
 				}
 
@@ -1293,19 +1335,17 @@ export default function NewChatPage() {
 						threadId: resumeThreadId,
 						message: premiumQuotaAlertMessage,
 					});
-					setMessages((prev) =>
-						prev.map((m) =>
-							m.id === assistantMsgId
-								? {
-										...m,
-										content: [{ type: "text", text: PREMIUM_QUOTA_ASSISTANT_MESSAGE }],
-									}
-								: m
-						)
-					);
 				} else {
 					toast.error("Failed to resume. Please try again.");
 				}
+				await persistAssistantErrorMessage({
+					threadId: resumeThreadId,
+					assistantMsgId,
+					text:
+						(premiumQuotaAlertMessage
+							? PREMIUM_QUOTA_ASSISTANT_MESSAGE
+							: undefined) ?? "Sorry, there was an error. Please try again.",
+				});
 			} finally {
 				setIsRunning(false);
 				abortControllerRef.current = null;
@@ -1318,6 +1358,7 @@ export default function NewChatPage() {
 			tokenUsageStore,
 			toolsWithUI,
 			setPremiumAlertForThread,
+			persistAssistantErrorMessage,
 		]
 	);
 
@@ -1589,7 +1630,9 @@ export default function NewChatPage() {
 							break;
 
 						case "error":
-							throw new Error(parsed.errorText || "Server error");
+							throw Object.assign(new Error(parsed.errorText || "Server error"), {
+								errorCode: parsed.errorCode,
+							});
 					}
 				}
 
@@ -1653,25 +1696,14 @@ export default function NewChatPage() {
 				} else {
 					toast.error("Failed to regenerate response. Please try again.");
 				}
-				setMessages((prev) =>
-					prev.map((m) =>
-						m.id === assistantMsgId
-							? {
-									...m,
-									content: [
-										{
-											type: "text",
-											text:
-												(premiumQuotaAlertMessage
-													? PREMIUM_QUOTA_ASSISTANT_MESSAGE
-													: undefined) ??
-												"Sorry, there was an error. Please try again.",
-										},
-									],
-								}
-							: m
-					)
-				);
+				await persistAssistantErrorMessage({
+					threadId,
+					assistantMsgId,
+					text:
+						(premiumQuotaAlertMessage
+							? PREMIUM_QUOTA_ASSISTANT_MESSAGE
+							: undefined) ?? "Sorry, there was an error. Please try again.",
+				});
 			} finally {
 				setIsRunning(false);
 				abortControllerRef.current = null;
@@ -1685,6 +1717,7 @@ export default function NewChatPage() {
 			tokenUsageStore,
 			toolsWithUI,
 			setPremiumAlertForThread,
+			persistAssistantErrorMessage,
 		]
 	);
 
