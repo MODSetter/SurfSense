@@ -638,6 +638,13 @@ class NewChatThread(BaseModel, TimestampMixin):
         default=False,
         server_default="false",
     )
+    # Auto model pinning metadata:
+    # - pinned_llm_config_id stores the concrete resolved model config id.
+    # - pinned_auto_mode indicates which auto policy produced the pin.
+    # This allows Auto (Fastest) to resolve once per thread and stay stable.
+    pinned_llm_config_id = Column(Integer, nullable=True, index=True)
+    pinned_auto_mode = Column(String(32), nullable=True, index=True)
+    pinned_at = Column(TIMESTAMP(timezone=True), nullable=True)
 
     # Relationships
     search_space = relationship("SearchSpace", back_populates="new_chat_threads")
