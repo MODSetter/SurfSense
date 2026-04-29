@@ -201,6 +201,9 @@ const BASE_TOOLS_WITH_UI = new Set([
 	// "write_todos", // Disabled for now
 ]);
 
+const PREMIUM_QUOTA_ASSISTANT_MESSAGE =
+	"I can’t continue with the current premium model because your premium tokens are exhausted. Switch to a free model or buy more tokens to continue.";
+
 function getPinnedPremiumQuotaErrorMessage(error: unknown): string | null {
 	if (!(error instanceof Error)) return null;
 	const normalized = error.message.toLowerCase();
@@ -992,7 +995,9 @@ export default function NewChatPage() {
 										{
 											type: "text",
 											text:
-												premiumQuotaAlertMessage ??
+												(premiumQuotaAlertMessage
+													? PREMIUM_QUOTA_ASSISTANT_MESSAGE
+													: undefined) ??
 												"Sorry, there was an error. Please try again.",
 										},
 									],
@@ -1288,6 +1293,16 @@ export default function NewChatPage() {
 						threadId: resumeThreadId,
 						message: premiumQuotaAlertMessage,
 					});
+					setMessages((prev) =>
+						prev.map((m) =>
+							m.id === assistantMsgId
+								? {
+										...m,
+										content: [{ type: "text", text: PREMIUM_QUOTA_ASSISTANT_MESSAGE }],
+									}
+								: m
+						)
+					);
 				} else {
 					toast.error("Failed to resume. Please try again.");
 				}
@@ -1647,7 +1662,9 @@ export default function NewChatPage() {
 										{
 											type: "text",
 											text:
-												premiumQuotaAlertMessage ??
+												(premiumQuotaAlertMessage
+													? PREMIUM_QUOTA_ASSISTANT_MESSAGE
+													: undefined) ??
 												"Sorry, there was an error. Please try again.",
 										},
 									],
