@@ -976,7 +976,15 @@ class Document(BaseModel, TimestampMixin):
     document_metadata = Column(JSON, nullable=True)
 
     content = Column(Text, nullable=False)
-    content_hash = Column(String, nullable=False, index=True, unique=True)
+    # ``content_hash`` is intentionally NOT globally unique. In a real
+    # filesystem two files at different paths can hold identical bytes,
+    # and the agent's ``write_file`` flow needs that semantic to support
+    # copy / duplicate operations. Path uniqueness lives on
+    # ``unique_identifier_hash`` (per search space). The hash remains
+    # indexed because connector indexers consult it as a change-detection
+    # / cross-source dedup hint via :func:`check_duplicate_document`.
+    # See migration 133.
+    content_hash = Column(String, nullable=False, index=True)
     unique_identifier_hash = Column(String, nullable=True, index=True, unique=True)
     embedding = Column(Vector(config.embedding_model_instance.dimension))
 

@@ -28,6 +28,7 @@ from langchain.agents.middleware import AgentMiddleware, AgentState
 from langchain_core.callbacks import dispatch_custom_event
 from langgraph.runtime import Runtime
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.new_chat.filesystem_selection import FilesystemMode
@@ -150,10 +151,11 @@ async def _create_document(
         virtual_path,
         search_space_id,
     )
-    # Guard against the unique_identifier_hash constraint: another row at the
-    # same virtual_path (this search space) already owns the hash. Callers are
-    # expected to upsert via the wrapper, but this defends against bypasses
-    # and gives a clean ValueError instead of a session-poisoning IntegrityError.
+    # Filesystem-parity invariant: the only thing that *must* be unique is
+    # the path. Two notes can legitimately share content (e.g. ``cp a b``).
+    # Guard against the path-derived ``unique_identifier_hash`` constraint
+    # so we surface a clean ValueError instead of letting the INSERT poison
+    # the session with an IntegrityError.
     path_collision = await session.execute(
         select(Document.id).where(
             Document.search_space_id == search_space_id,
@@ -165,17 +167,14 @@ async def _create_document(
             f"a document already exists at path '{virtual_path}' "
             "(unique_identifier_hash collision)"
         )
+    # ``content_hash`` is intentionally NOT checked for uniqueness here.
+    # In a real filesystem two files at different paths can hold identical
+    # bytes, and the agent's ``write_file`` path needs that semantic to
+    # support copy/duplicate operations. The hash remains useful as a
+    # change-detection hint for connector indexers, which still consult it
+    # via :func:`check_duplicate_document` but do so with a non-unique
+    # lookup (``.first()``).
     content_hash = generate_content_hash(content, search_space_id)
-    content_collision = await session.execute(
-        select(Document.id).where(
-            Document.search_space_id == search_space_id,
-            Document.content_hash == content_hash,
-        )
-    )
-    if content_collision.scalar_one_or_none() is not None:
-        raise ValueError(
-            f"a document with identical content already exists for path '{virtual_path}'"
-        )
     doc = Document(
         title=title,
         document_type=DocumentType.NOTE,
@@ -493,17 +492,41 @@ async def commit_staged_filesystem_state(
                             }
                         )
                 else:
+                    # Wrap each create in a SAVEPOINT so a residual
+                    # ``IntegrityError`` (e.g. a deployment that hasn't run
+                    # migration 133 yet, where ``documents.content_hash``
+                    # still carries its legacy global UNIQUE constraint)
+                    # rolls back only this one create instead of poisoning
+                    # the whole turn's transaction.
                     try:
-                        new_doc = await _create_document(
-                            session,
-                            virtual_path=path,
-                            content=content,
-                            search_space_id=search_space_id,
-                            created_by_id=created_by_id,
-                        )
+                        async with session.begin_nested():
+                            new_doc = await _create_document(
+                                session,
+                                virtual_path=path,
+                                content=content,
+                                search_space_id=search_space_id,
+                                created_by_id=created_by_id,
+                            )
                     except ValueError as exc:
                         logger.warning(
                             "kb_persistence: skipping %s create: %s", path, exc
+                        )
+                        continue
+                    except IntegrityError as exc:
+                        # The path-uniqueness check above already protected
+                        # against ``unique_identifier_hash`` collisions, so
+                        # the most likely culprit is the legacy
+                        # ``ix_documents_content_hash`` UNIQUE constraint
+                        # that migration 133 drops. Log loudly so operators
+                        # know to run the migration; do NOT silently swallow.
+                        msg = str(exc.orig) if exc.orig is not None else str(exc)
+                        logger.error(
+                            "kb_persistence: IntegrityError creating %s: %s. "
+                            "If this mentions content_hash, run alembic "
+                            "upgrade to apply migration 133 which drops the "
+                            "global UNIQUE constraint on documents.content_hash.",
+                            path,
+                            msg,
                         )
                         continue
                     doc_id_by_path[path] = new_doc.id

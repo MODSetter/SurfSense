@@ -25,23 +25,49 @@ class TestProviderVariantDetection:
     @pytest.mark.parametrize(
         "model_name,expected",
         [
+            # GPT-4 family routes to "classic" (autonomous-persistence style)
             ("openai:gpt-4o-mini", "openai_classic"),
             ("openai:gpt-4-turbo", "openai_classic"),
+            # GPT-5 / o-series route to "reasoning" (channel-aware pragmatic)
             ("openai:gpt-5", "openai_reasoning"),
-            ("openai:gpt-5-codex", "openai_reasoning"),
             ("openai:o1-preview", "openai_reasoning"),
             ("openai:o3-mini", "openai_reasoning"),
+            # Codex family beats reasoning (more specific). Mirrors OpenCode
+            # ``system.ts`` — ``gpt-*-codex`` gets the code-purist prompt.
+            ("openai:gpt-5-codex", "openai_codex"),
+            ("openai:gpt-codex", "openai_codex"),
+            ("openai:codex-mini", "openai_codex"),
+            # Anthropic + Google
             ("anthropic:claude-3-5-sonnet", "anthropic"),
             ("anthropic/claude-opus-4", "anthropic"),
             ("google:gemini-2.0-flash", "google"),
             ("vertex:gemini-1.5-pro", "google"),
+            # Newly-covered families
+            ("moonshot:kimi-k2", "kimi"),
+            ("openrouter:moonshot/kimi-k2.5", "kimi"),
+            ("xai:grok-2", "grok"),
+            ("openrouter:x-ai/grok-3", "grok"),
+            ("openai:deepseek-v3", "deepseek"),
+            ("deepseek:deepseek-r1", "deepseek"),
+            # Unknown families fall back to default (no provider block emitted)
             ("groq:mixtral-8x7b", "default"),
+            ("together:llama-3.1-70b", "default"),
             (None, "default"),
             ("", "default"),
         ],
     )
     def test_detection(self, model_name: str | None, expected: str) -> None:
         assert detect_provider_variant(model_name) == expected
+
+    def test_codex_takes_precedence_over_reasoning(self) -> None:
+        """Regression guard: ``gpt-5-codex`` must NOT match the generic
+        ``gpt-5`` reasoning regex first. Codex is the more specialised
+        prompt and mirrors OpenCode's dispatch order.
+        """
+        from app.agents.new_chat.prompts.composer import detect_provider_variant
+
+        assert detect_provider_variant("openai:gpt-5-codex") == "openai_codex"
+        assert detect_provider_variant("openai:gpt-5") == "openai_reasoning"
 
 
 class TestCompose:
@@ -148,6 +174,52 @@ class TestCompose:
     def test_provider_block_absent_for_default(self, fixed_today: datetime) -> None:
         prompt = compose_system_prompt(today=fixed_today, model_name="custom:foo")
         assert "<provider_hints>" not in prompt
+
+    @pytest.mark.parametrize(
+        "model_name,expected_marker",
+        [
+            # Each marker is a unique-ish phrase from the corresponding fragment.
+            # If a fragment is renamed/rewritten such that the marker is gone,
+            # update both the fragment and this test deliberately.
+            ("openai:gpt-5-codex", "Codex-class"),
+            ("openai:gpt-5", "OpenAI reasoning model"),
+            ("openai:gpt-4o", "classic OpenAI chat model"),
+            ("anthropic:claude-3-5-sonnet", "Anthropic Claude"),
+            ("google:gemini-2.0-flash", "Google Gemini"),
+            ("moonshot:kimi-k2", "Moonshot Kimi"),
+            ("xai:grok-2", "xAI Grok"),
+            ("deepseek:deepseek-r1", "DeepSeek"),
+        ],
+    )
+    def test_each_known_variant_renders_with_its_marker(
+        self,
+        fixed_today: datetime,
+        model_name: str,
+        expected_marker: str,
+    ) -> None:
+        """Every supported variant must produce a ``<provider_hints>`` block
+        containing its identifying marker. This pins the dispatch + the
+        on-disk fragments together so a missing/renamed file is caught
+        immediately.
+        """
+        prompt = compose_system_prompt(today=fixed_today, model_name=model_name)
+        assert "<provider_hints>" in prompt, (
+            f"variant for {model_name!r} did not emit a provider_hints block; "
+            "the corresponding providers/<variant>.md may be missing"
+        )
+        assert expected_marker in prompt, (
+            f"variant for {model_name!r} emitted hints but lacked the "
+            f"expected marker {expected_marker!r} — the fragment may have "
+            "drifted from the dispatch table"
+        )
+
+    def test_provider_blocks_are_byte_stable_across_calls(
+        self, fixed_today: datetime
+    ) -> None:
+        """Cache-stability guard: same model id → byte-identical prompt."""
+        a = compose_system_prompt(today=fixed_today, model_name="moonshot:kimi-k2")
+        b = compose_system_prompt(today=fixed_today, model_name="moonshot:kimi-k2")
+        assert a == b
 
     def test_custom_system_instructions_override_default(
         self, fixed_today: datetime

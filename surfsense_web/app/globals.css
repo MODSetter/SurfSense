@@ -210,6 +210,27 @@ button {
 	}
 }
 
+/* Citation-jump highlight — entrance pulse only. The `SearchHighlightLeaf`
+   (see components/ui/search-highlight-node.tsx) is otherwise statically
+   tinted; this animation runs once on mount to draw the eye to the cited
+   text after `scrollIntoView` lands. The highlight itself is permanent
+   until the user clicks inside the editor (or another dismissal trigger
+   fires in `EditorPanelContent`). */
+@keyframes citation-flash-in {
+	0% {
+		background-color: transparent;
+		box-shadow: 0 0 0 0 transparent;
+	}
+	40% {
+		background-color: color-mix(in oklab, var(--primary) 30%, transparent);
+		box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 25%, transparent);
+	}
+	100% {
+		background-color: color-mix(in oklab, var(--primary) 15%, transparent);
+		box-shadow: 0 0 0 1px color-mix(in oklab, var(--primary) 40%, transparent);
+	}
+}
+
 /* Human-in-the-loop approval card animations */
 @keyframes pulse-subtle {
 	0%,

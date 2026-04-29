@@ -38,12 +38,38 @@ from app.db import ChatVisibility
 # Provider variant detection
 # -----------------------------------------------------------------------------
 
-ProviderVariant = str  # "anthropic" | "openai_reasoning" | "openai_classic" | "google" | "default"
+# String literal alias for the supported provider-specific prompt variants.
+# When adding a new variant, also drop a matching ``providers/<variant>.md``
+# file in this package and (if appropriate) extend the regex matchers below.
+#
+# Stylistic clusters mirror OpenCode's prompt-per-family layout but adapted
+# to SurfSense's "supplemental hints" architecture (each fragment is a
+# focused style nudge, NOT a full system prompt — the main prompt is
+# already assembled from base/ + tools/ + routing/).
+ProviderVariant = str
+# Known values:
+#   "anthropic"        — Claude family (XML-friendly, narrative todos)
+#   "openai_reasoning" — GPT-5 / o-series (channel-aware pragmatic)
+#   "openai_classic"   — GPT-4 family (autonomous persistence)
+#   "openai_codex"     — gpt-*-codex (code-purist, terse, file:line refs)
+#   "google"           — Gemini (formal, <3-line, numbered workflow)
+#   "kimi"             — Moonshot Kimi-K* (action-bias, parallel tools)
+#   "grok"             — xAI Grok (extreme-terse, one-word ok)
+#   "deepseek"         — DeepSeek V3 / R1 (terse, R1-aware reasoning)
+#   "default"          — fallback, no provider-specific block emitted
 
+# IMPORTANT: order of evaluation matters in :func:`detect_provider_variant`.
+# More specific patterns must come first (e.g. ``codex`` before
+# ``openai_reasoning`` because codex model ids contain ``gpt``).
+
+_OPENAI_CODEX_RE = re.compile(r"\b(gpt-codex|codex-mini|gpt-[\d.]+-codex)\b", re.IGNORECASE)
 _OPENAI_REASONING_RE = re.compile(r"\b(gpt-5|o\d|o-)", re.IGNORECASE)
 _OPENAI_CLASSIC_RE = re.compile(r"\bgpt-4", re.IGNORECASE)
 _ANTHROPIC_RE = re.compile(r"\bclaude\b", re.IGNORECASE)
 _GOOGLE_RE = re.compile(r"\bgemini\b", re.IGNORECASE)
+_KIMI_RE = re.compile(r"\b(kimi[-\d.]*|moonshot)\b", re.IGNORECASE)
+_GROK_RE = re.compile(r"\bgrok\b", re.IGNORECASE)
+_DEEPSEEK_RE = re.compile(r"\bdeepseek\b", re.IGNORECASE)
 
 
 def detect_provider_variant(model_name: str | None) -> ProviderVariant:
@@ -51,10 +77,17 @@ def detect_provider_variant(model_name: str | None) -> ProviderVariant:
 
     Heuristic match on the model id; returns ``"default"`` when nothing
     matches so the composer can fall back to the empty placeholder file.
+
+    Order is significant: more-specific patterns are tried first so
+    ``gpt-5-codex`` routes to ``"openai_codex"`` rather than
+    ``"openai_reasoning"`` (mirrors OpenCode's
+    ``packages/opencode/src/session/system.ts`` dispatch).
     """
     if not model_name:
         return "default"
     name = model_name.strip()
+    if _OPENAI_CODEX_RE.search(name):
+        return "openai_codex"
     if _OPENAI_REASONING_RE.search(name):
         return "openai_reasoning"
     if _OPENAI_CLASSIC_RE.search(name):
@@ -63,6 +96,12 @@ def detect_provider_variant(model_name: str | None) -> ProviderVariant:
         return "anthropic"
     if _GOOGLE_RE.search(name):
         return "google"
+    if _KIMI_RE.search(name):
+        return "kimi"
+    if _GROK_RE.search(name):
+        return "grok"
+    if _DEEPSEEK_RE.search(name):
+        return "deepseek"
     return "default"
 
 

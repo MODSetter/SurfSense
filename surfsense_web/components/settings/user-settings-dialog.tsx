@@ -67,9 +67,6 @@ const DesktopShortcutsContent = dynamic(
 		import(
 			"@/app/dashboard/[search_space_id]/user-settings/components/DesktopShortcutsContent"
 		).then((m) => ({ default: m.DesktopShortcutsContent })),
-		import(
-			"@/app/dashboard/[search_space_id]/user-settings/components/DesktopShortcutsContent"
-		).then((m) => ({ default: m.DesktopShortcutsContent })),
 	{ ssr: false }
 );
 const MemoryContent = dynamic(
