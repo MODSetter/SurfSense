@@ -22,7 +22,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
-from app.agents.new_chat.architecture_mode import resolve_architecture_mode
 from app.agents.new_chat.filesystem_selection import (
     ClientPlatform,
     FilesystemMode,
@@ -62,10 +61,7 @@ from app.schemas.new_chat import (
     TokenUsageSummary,
 )
 from app.services.token_tracking_service import record_token_usage
-from app.tasks.chat.stream_dispatch import (
-    dispatch_new_chat_stream,
-    dispatch_resume_chat_stream,
-)
+from app.tasks.chat.stream_new_chat import stream_new_chat, stream_resume_chat
 from app.users import current_active_user
 from app.utils.rbac import check_permission
 from app.utils.user_message_multimodal import (
@@ -1248,28 +1244,23 @@ async def handle_new_chat(
         image_urls = (
             [p.as_data_url() for p in request.user_images] if request.user_images else None
         )
-        architecture_mode = resolve_architecture_mode(request.architecture_mode)
 
         return StreamingResponse(
-            dispatch_new_chat_stream(
-                architecture_mode=architecture_mode.value,
-                stream_kwargs={
-                    "user_query": request.user_query,
-                    "search_space_id": request.search_space_id,
-                    "chat_id": request.chat_id,
-                    "user_id": str(user.id),
-                    "llm_config_id": llm_config_id,
-                    "mentioned_document_ids": request.mentioned_document_ids,
-                    "mentioned_surfsense_doc_ids": request.mentioned_surfsense_doc_ids,
-                    "needs_history_bootstrap": thread.needs_history_bootstrap,
-                    "thread_visibility": thread.visibility,
-                    "current_user_display_name": user.display_name or "A team member",
-                    "disabled_tools": request.disabled_tools,
-                    "filesystem_selection": filesystem_selection,
-                    "request_id": getattr(http_request.state, "request_id", "unknown"),
-                    "user_image_data_urls": image_urls,
-                    "architecture_mode": architecture_mode.value,
-                },
+            stream_new_chat(
+                user_query=request.user_query,
+                search_space_id=request.search_space_id,
+                chat_id=request.chat_id,
+                user_id=str(user.id),
+                llm_config_id=llm_config_id,
+                mentioned_document_ids=request.mentioned_document_ids,
+                mentioned_surfsense_doc_ids=request.mentioned_surfsense_doc_ids,
+                needs_history_bootstrap=thread.needs_history_bootstrap,
+                thread_visibility=thread.visibility,
+                current_user_display_name=user.display_name or "A team member",
+                disabled_tools=request.disabled_tools,
+                filesystem_selection=filesystem_selection,
+                request_id=getattr(http_request.state, "request_id", "unknown"),
+                user_image_data_urls=image_urls,
             ),
             media_type="text/event-stream",
             headers={
@@ -1467,7 +1458,6 @@ async def regenerate_response(
 
         if request.user_images is not None:
             regenerate_image_urls = [p.as_data_url() for p in request.user_images]
-        architecture_mode = resolve_architecture_mode(request.architecture_mode)
 
         if user_query_to_use is None:
             raise HTTPException(
@@ -1516,28 +1506,23 @@ async def regenerate_response(
         async def stream_with_cleanup():
             streaming_completed = False
             try:
-                stream = dispatch_new_chat_stream(
-                    architecture_mode=architecture_mode.value,
-                    stream_kwargs={
-                        "user_query": str(user_query_to_use),
-                        "search_space_id": request.search_space_id,
-                        "chat_id": thread_id,
-                        "user_id": str(user.id),
-                        "llm_config_id": llm_config_id,
-                        "mentioned_document_ids": request.mentioned_document_ids,
-                        "mentioned_surfsense_doc_ids": request.mentioned_surfsense_doc_ids,
-                        "checkpoint_id": target_checkpoint_id,
-                        "needs_history_bootstrap": thread.needs_history_bootstrap,
-                        "thread_visibility": thread.visibility,
-                        "current_user_display_name": user.display_name or "A team member",
-                        "disabled_tools": request.disabled_tools,
-                        "filesystem_selection": filesystem_selection,
-                        "request_id": getattr(http_request.state, "request_id", "unknown"),
-                        "user_image_data_urls": regenerate_image_urls or None,
-                        "architecture_mode": architecture_mode.value,
-                    },
-                )
-                async for chunk in stream:
+                async for chunk in stream_new_chat(
+                    user_query=str(user_query_to_use),
+                    search_space_id=request.search_space_id,
+                    chat_id=thread_id,
+                    user_id=str(user.id),
+                    llm_config_id=llm_config_id,
+                    mentioned_document_ids=request.mentioned_document_ids,
+                    mentioned_surfsense_doc_ids=request.mentioned_surfsense_doc_ids,
+                    checkpoint_id=target_checkpoint_id,
+                    needs_history_bootstrap=thread.needs_history_bootstrap,
+                    thread_visibility=thread.visibility,
+                    current_user_display_name=user.display_name or "A team member",
+                    disabled_tools=request.disabled_tools,
+                    filesystem_selection=filesystem_selection,
+                    request_id=getattr(http_request.state, "request_id", "unknown"),
+                    user_image_data_urls=regenerate_image_urls or None,
+                ):
                     yield chunk
                 streaming_completed = True
             finally:
@@ -1643,7 +1628,6 @@ async def resume_chat(
         )
 
         decisions = [d.model_dump() for d in request.decisions]
-        architecture_mode = resolve_architecture_mode(request.architecture_mode)
 
         # Release the read-transaction so we don't hold ACCESS SHARE locks
         # on searchspaces/documents for the entire duration of the stream.
@@ -1651,19 +1635,15 @@ async def resume_chat(
         await session.close()
 
         return StreamingResponse(
-            dispatch_resume_chat_stream(
-                architecture_mode=architecture_mode.value,
-                stream_kwargs={
-                    "chat_id": thread_id,
-                    "search_space_id": request.search_space_id,
-                    "decisions": decisions,
-                    "user_id": str(user.id),
-                    "llm_config_id": llm_config_id,
-                    "thread_visibility": thread.visibility,
-                    "filesystem_selection": filesystem_selection,
-                    "request_id": getattr(http_request.state, "request_id", "unknown"),
-                    "architecture_mode": architecture_mode.value,
-                },
+            stream_resume_chat(
+                chat_id=thread_id,
+                search_space_id=request.search_space_id,
+                decisions=decisions,
+                user_id=str(user.id),
+                llm_config_id=llm_config_id,
+                thread_visibility=thread.visibility,
+                filesystem_selection=filesystem_selection,
+                request_id=getattr(http_request.state, "request_id", "unknown"),
             ),
             media_type="text/event-stream",
             headers={

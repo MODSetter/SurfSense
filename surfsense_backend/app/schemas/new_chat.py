@@ -176,11 +176,6 @@ class LocalFilesystemMountPayload(BaseModel):
 
 MAX_NEW_CHAT_IMAGE_BYTES = 8 * 1024 * 1024
 MAX_NEW_CHAT_IMAGES = 4
-ArchitectureModeLiteral = Literal[
-    "single_agent",
-    "shadow_multi_agent_v1",
-    "multi_agent_v1",
-]
 
 
 class NewChatUserImagePart(BaseModel):
@@ -215,7 +210,6 @@ class NewChatRequest(BaseModel):
     disabled_tools: list[str] | None = (
         None  # Optional list of tool names the user has disabled from the UI
     )
-    architecture_mode: ArchitectureModeLiteral | None = None
     filesystem_mode: Literal["cloud", "desktop_local_folder"] = "cloud"
     client_platform: Literal["web", "desktop"] = "web"
     local_filesystem_mounts: list[LocalFilesystemMountPayload] | None = None
@@ -256,7 +250,6 @@ class RegenerateRequest(BaseModel):
     mentioned_document_ids: list[int] | None = None
     mentioned_surfsense_doc_ids: list[int] | None = None
     disabled_tools: list[str] | None = None
-    architecture_mode: ArchitectureModeLiteral | None = None
     filesystem_mode: Literal["cloud", "desktop_local_folder"] = "cloud"
     client_platform: Literal["web", "desktop"] = "web"
     local_filesystem_mounts: list[LocalFilesystemMountPayload] | None = None
@@ -293,7 +286,6 @@ class ResumeDecision(BaseModel):
 class ResumeRequest(BaseModel):
     search_space_id: int
     decisions: list[ResumeDecision]
-    architecture_mode: ArchitectureModeLiteral | None = None
     filesystem_mode: Literal["cloud", "desktop_local_folder"] = "cloud"
     client_platform: Literal["web", "desktop"] = "web"
     local_filesystem_mounts: list[LocalFilesystemMountPayload] | None = None

@@ -42,7 +42,6 @@ from app.agents.new_chat.memory_extraction import (
     extract_and_save_memory,
     extract_and_save_team_memory,
 )
-from app.agents.new_chat.telemetry import log_architecture_telemetry
 from app.db import (
     ChatVisibility,
     NewChatMessage,
@@ -150,7 +149,6 @@ class StreamResult:
     agent_called_update_memory: bool = False
     request_id: str | None = None
     turn_id: str = ""
-    architecture_mode: str = "single_agent"
     filesystem_mode: str = "cloud"
     client_platform: str = "web"
     intent_detected: str = "chat_only"
@@ -184,7 +182,9 @@ def _tool_output_has_error(tool_output: Any) -> bool:
         if tool_output.get("error"):
             return True
         result = tool_output.get("result")
-        return isinstance(result, str) and result.strip().lower().startswith("error:")
+        if isinstance(result, str) and result.strip().lower().startswith("error:"):
+            return True
+        return False
     if isinstance(tool_output, str):
         return tool_output.strip().lower().startswith("error:")
     return False
@@ -231,7 +231,6 @@ def _log_file_contract(stage: str, result: StreamResult, **extra: Any) -> None:
         "request_id": result.request_id or "unknown",
         "turn_id": result.turn_id or "unknown",
         "chat_id": result.turn_id.split(":", 1)[0] if ":" in result.turn_id else "unknown",
-        "architecture_mode": result.architecture_mode,
         "filesystem_mode": result.filesystem_mode,
         "client_platform": result.client_platform,
         "intent_detected": result.intent_detected,
@@ -1309,17 +1308,18 @@ async def _stream_agent_events(
         result.commit_gate_passed, result.commit_gate_reason = (
             _evaluate_file_contract_outcome(result)
         )
-        if not result.commit_gate_passed and _contract_enforcement_active(result):
-            gate_notice = (
-                "I could not complete the requested file write because no successful "
-                "write_file/edit_file operation was confirmed."
-            )
-            gate_text_id = streaming_service.generate_text_id()
-            yield streaming_service.format_text_start(gate_text_id)
-            yield streaming_service.format_text_delta(gate_text_id, gate_notice)
-            yield streaming_service.format_text_end(gate_text_id)
-            yield streaming_service.format_terminal_info(gate_notice, "error")
-            accumulated_text = gate_notice
+        if not result.commit_gate_passed:
+            if _contract_enforcement_active(result):
+                gate_notice = (
+                    "I could not complete the requested file write because no successful "
+                    "write_file/edit_file operation was confirmed."
+                )
+                gate_text_id = streaming_service.generate_text_id()
+                yield streaming_service.format_text_start(gate_text_id)
+                yield streaming_service.format_text_delta(gate_text_id, gate_notice)
+                yield streaming_service.format_text_end(gate_text_id)
+                yield streaming_service.format_terminal_info(gate_notice, "error")
+                accumulated_text = gate_notice
     else:
         result.commit_gate_passed = True
         result.commit_gate_reason = ""
@@ -1351,7 +1351,6 @@ async def stream_new_chat(
     filesystem_selection: FilesystemSelection | None = None,
     request_id: str | None = None,
     user_image_data_urls: list[str] | None = None,
-    architecture_mode: str = "single_agent",
 ) -> AsyncGenerator[str, None]:
     """
     Stream chat responses from the new SurfSense deep agent.
@@ -1385,22 +1384,8 @@ async def stream_new_chat(
     )
     stream_result.request_id = request_id
     stream_result.turn_id = f"{chat_id}:{int(time.time() * 1000)}"
-    stream_result.architecture_mode = architecture_mode
     stream_result.filesystem_mode = fs_mode
     stream_result.client_platform = fs_platform
-    log_architecture_telemetry(
-        phase="turn_start",
-        source="new_chat",
-        status="started",
-        architecture_mode=architecture_mode,
-        orchestrator_used=False,
-        worker_count=0,
-        retry_count=0,
-        latency_ms=0.0,
-        token_total=0,
-        request_id=request_id,
-        turn_id=stream_result.turn_id,
-    )
     _log_file_contract("turn_start", stream_result)
     _perf_log.info(
         "[stream_new_chat] filesystem_mode=%s client_platform=%s",
@@ -1653,7 +1638,6 @@ async def stream_new_chat(
             "search_space_id": search_space_id,
             "request_id": request_id or "unknown",
             "turn_id": stream_result.turn_id,
-            "architecture_mode": architecture_mode,
         }
 
         _perf_log.info(
@@ -1685,7 +1669,6 @@ async def stream_new_chat(
         configurable = {"thread_id": str(chat_id)}
         configurable["request_id"] = request_id or "unknown"
         configurable["turn_id"] = stream_result.turn_id
-        configurable["architecture_mode"] = architecture_mode
         if checkpoint_id:
             configurable["checkpoint_id"] = checkpoint_id
 
@@ -1901,19 +1884,6 @@ async def stream_new_chat(
                         "call_details": accumulator.serialized_calls(),
                     },
                 )
-            log_architecture_telemetry(
-                phase="turn_end",
-                source="new_chat",
-                status="interrupted",
-                architecture_mode=stream_result.architecture_mode,
-                orchestrator_used=False,
-                worker_count=0,
-                retry_count=0,
-                latency_ms=(time.perf_counter() - _t_total) * 1000.0,
-                token_total=accumulator.grand_total,
-                request_id=request_id,
-                turn_id=stream_result.turn_id,
-            )
 
             yield streaming_service.format_finish_step()
             yield streaming_service.format_finish()
@@ -1986,19 +1956,6 @@ async def stream_new_chat(
                     "call_details": accumulator.serialized_calls(),
                 },
             )
-        log_architecture_telemetry(
-            phase="turn_end",
-            source="new_chat",
-            status="completed",
-            architecture_mode=stream_result.architecture_mode,
-            orchestrator_used=False,
-            worker_count=0,
-            retry_count=0,
-            latency_ms=(time.perf_counter() - _t_total) * 1000.0,
-            token_total=accumulator.grand_total,
-            request_id=request_id,
-            turn_id=stream_result.turn_id,
-        )
 
         # Fire background memory extraction if the agent didn't handle it.
         # Shared threads write to team memory; private threads write to user memory.
@@ -2043,20 +2000,6 @@ async def stream_new_chat(
         print(f"[stream_new_chat] {error_message}")
         print(f"[stream_new_chat] Exception type: {type(e).__name__}")
         print(f"[stream_new_chat] Traceback:\n{traceback.format_exc()}")
-        log_architecture_telemetry(
-            phase="turn_end",
-            source="new_chat",
-            status="error",
-            architecture_mode=stream_result.architecture_mode,
-            orchestrator_used=False,
-            worker_count=0,
-            retry_count=0,
-            latency_ms=(time.perf_counter() - _t_total) * 1000.0,
-            token_total=accumulator.grand_total,
-            request_id=request_id,
-            turn_id=stream_result.turn_id,
-            extra={"error_type": type(e).__name__},
-        )
 
         yield streaming_service.format_error(error_message)
         yield streaming_service.format_finish_step()
@@ -2150,7 +2093,6 @@ async def stream_resume_chat(
     thread_visibility: ChatVisibility | None = None,
     filesystem_selection: FilesystemSelection | None = None,
     request_id: str | None = None,
-    architecture_mode: str = "single_agent",
 ) -> AsyncGenerator[str, None]:
     streaming_service = VercelStreamingService()
     stream_result = StreamResult()
@@ -2161,22 +2103,8 @@ async def stream_resume_chat(
     )
     stream_result.request_id = request_id
     stream_result.turn_id = f"{chat_id}:{int(time.time() * 1000)}"
-    stream_result.architecture_mode = architecture_mode
     stream_result.filesystem_mode = fs_mode
     stream_result.client_platform = fs_platform
-    log_architecture_telemetry(
-        phase="turn_start",
-        source="resume_chat",
-        status="started",
-        architecture_mode=architecture_mode,
-        orchestrator_used=False,
-        worker_count=0,
-        retry_count=0,
-        latency_ms=0.0,
-        token_total=0,
-        request_id=request_id,
-        turn_id=stream_result.turn_id,
-    )
     _log_file_contract("turn_start", stream_result)
     _perf_log.info(
         "[stream_resume] filesystem_mode=%s client_platform=%s",
@@ -2322,7 +2250,6 @@ async def stream_resume_chat(
                 "thread_id": str(chat_id),
                 "request_id": request_id or "unknown",
                 "turn_id": stream_result.turn_id,
-                "architecture_mode": architecture_mode,
             },
             "recursion_limit": 80,
         }
@@ -2373,19 +2300,6 @@ async def stream_resume_chat(
                         "call_details": accumulator.serialized_calls(),
                     },
                 )
-            log_architecture_telemetry(
-                phase="turn_end",
-                source="resume_chat",
-                status="interrupted",
-                architecture_mode=stream_result.architecture_mode,
-                orchestrator_used=False,
-                worker_count=0,
-                retry_count=0,
-                latency_ms=(time.perf_counter() - _t_total) * 1000.0,
-                token_total=accumulator.grand_total,
-                request_id=request_id,
-                turn_id=stream_result.turn_id,
-            )
 
             yield streaming_service.format_finish_step()
             yield streaming_service.format_finish()
@@ -2439,19 +2353,6 @@ async def stream_resume_chat(
                     "call_details": accumulator.serialized_calls(),
                 },
             )
-        log_architecture_telemetry(
-            phase="turn_end",
-            source="resume_chat",
-            status="completed",
-            architecture_mode=stream_result.architecture_mode,
-            orchestrator_used=False,
-            worker_count=0,
-            retry_count=0,
-            latency_ms=(time.perf_counter() - _t_total) * 1000.0,
-            token_total=accumulator.grand_total,
-            request_id=request_id,
-            turn_id=stream_result.turn_id,
-        )
 
         yield streaming_service.format_finish_step()
         yield streaming_service.format_finish()
@@ -2463,20 +2364,6 @@ async def stream_resume_chat(
         error_message = f"Error during resume: {e!s}"
         print(f"[stream_resume_chat] {error_message}")
         print(f"[stream_resume_chat] Traceback:\n{traceback.format_exc()}")
-        log_architecture_telemetry(
-            phase="turn_end",
-            source="resume_chat",
-            status="error",
-            architecture_mode=stream_result.architecture_mode,
-            orchestrator_used=False,
-            worker_count=0,
-            retry_count=0,
-            latency_ms=(time.perf_counter() - _t_total) * 1000.0,
-            token_total=accumulator.grand_total,
-            request_id=request_id,
-            turn_id=stream_result.turn_id,
-            extra={"error_type": type(e).__name__},
-        )
         yield streaming_service.format_error(error_message)
         yield streaming_service.format_finish_step()
         yield streaming_service.format_finish()

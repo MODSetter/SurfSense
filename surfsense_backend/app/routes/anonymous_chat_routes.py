@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import secrets
-import time
 import uuid
 from pathlib import PurePosixPath
 from typing import Any
@@ -13,11 +12,6 @@ from fastapi import APIRouter, HTTPException, Request, Response, UploadFile, sta
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from app.agents.new_chat.architecture_mode import (
-    ArchitectureMode,
-    resolve_architecture_mode,
-)
-from app.agents.new_chat.telemetry import log_architecture_telemetry
 from app.config import config
 from app.etl_pipeline.file_classifier import (
     DIRECT_CONVERT_EXTENSIONS,
@@ -90,7 +84,6 @@ class AnonChatRequest(BaseModel):
     messages: list[dict[str, Any]] = Field(..., min_length=1)
     disabled_tools: list[str] | None = None
     turnstile_token: str | None = None
-    architecture_mode: ArchitectureMode | None = None
 
 
 class AnonQuotaResponse(BaseModel):
@@ -368,22 +361,6 @@ async def stream_anonymous_chat(
 
         accumulator = start_turn()
         streaming_service = VercelStreamingService()
-        architecture_mode = resolve_architecture_mode(body.architecture_mode)
-        started_at = time.perf_counter()
-        turn_id = f"anon:{session_id}:{request_id}"
-        log_architecture_telemetry(
-            phase="turn_start",
-            source="anon_chat",
-            status="started",
-            architecture_mode=architecture_mode.value,
-            orchestrator_used=False,
-            worker_count=0,
-            retry_count=0,
-            latency_ms=0.0,
-            token_total=0,
-            request_id=request_id,
-            turn_id=turn_id,
-        )
 
         try:
             async with shielded_async_session() as session:
@@ -423,10 +400,7 @@ async def stream_anonymous_chat(
                 }
 
                 langgraph_config = {
-                    "configurable": {
-                        "thread_id": anon_thread_id,
-                        "architecture_mode": architecture_mode.value,
-                    },
+                    "configurable": {"thread_id": anon_thread_id},
                     "recursion_limit": 40,
                 }
 
@@ -494,19 +468,6 @@ async def stream_anonymous_chat(
                         "total_tokens": accumulator.grand_total,
                     },
                 )
-            log_architecture_telemetry(
-                phase="turn_end",
-                source="anon_chat",
-                status="completed",
-                architecture_mode=architecture_mode.value,
-                orchestrator_used=False,
-                worker_count=0,
-                retry_count=0,
-                latency_ms=(time.perf_counter() - started_at) * 1000.0,
-                token_total=accumulator.grand_total,
-                request_id=request_id,
-                turn_id=turn_id,
-            )
 
             yield streaming_service.format_finish_step()
             yield streaming_service.format_finish()
@@ -514,20 +475,6 @@ async def stream_anonymous_chat(
 
         except Exception as e:
             logger.exception("Anonymous chat stream error")
-            log_architecture_telemetry(
-                phase="turn_end",
-                source="anon_chat",
-                status="error",
-                architecture_mode=architecture_mode.value,
-                orchestrator_used=False,
-                worker_count=0,
-                retry_count=0,
-                latency_ms=(time.perf_counter() - started_at) * 1000.0,
-                token_total=accumulator.grand_total,
-                request_id=request_id,
-                turn_id=turn_id,
-                extra={"error_type": type(e).__name__},
-            )
             await TokenQuotaService.anon_release(session_key, ip_key, request_id)
             yield streaming_service.format_error(f"Error during chat: {e!s}")
             yield streaming_service.format_done()
