@@ -1,4 +1,4 @@
-"""Slack provider specialist subagent.
+"""Linear provider specialist subagent.
 
 This file is intentionally standalone so provider specialists can be reviewed
 and evolved independently (one provider per file).
@@ -11,6 +11,10 @@ from typing import TYPE_CHECKING, Any
 
 from app.agents.new_chat.permissions import Rule, Ruleset
 from app.agents.new_chat.subagents.constants import NON_PROVIDER_STATE_MUTATION_DENY
+from app.services.mcp_oauth.registry import (
+    LINEAR_MCP_READONLY_TOOL_NAMES,
+    linear_mcp_original_tool_name,
+)
 
 if TYPE_CHECKING:
     from deepagents import SubAgent
@@ -18,65 +22,46 @@ if TYPE_CHECKING:
     from langchain_core.tools import BaseTool
 
 
-# Official references:
-# - https://docs.slack.dev/ai/slack-mcp-server
-# - https://www.npmjs.com/package/@modelcontextprotocol/server-slack
-#
-# Policy: only known read-only Slack tools are auto-allowed. Any other
-# ``slack_*`` tool is treated as mutating and requires explicit approval.
-SLACK_READONLY_TOOL_NAMES: frozenset[str] = frozenset(
-    {
-        # Slack-hosted MCP read tools
-        "slack_search_channels",
-        "slack_read_channel",
-        "slack_read_thread",
-        "slack_read_canvas",
-        "slack_read_user_profile",
-        # modelcontextprotocol/server-slack read tools
-        "slack_list_channels",
-        "slack_get_channel_history",
-        "slack_get_thread_replies",
-        "slack_get_users",
-        "slack_get_user_profile",
-    }
-)
+# Read vs write Linear MCP tools are defined in
+# ``app.services.mcp_oauth.registry`` (``LINEAR_MCP_READONLY_TOOL_NAMES`` /
+# ``LINEAR_MCP_WRITE_TOOL_NAMES``). Any other Linear-domain tool requires approval.
 
-SLACK_SYSTEM_PROMPT = """You are the slack_specialist subagent for SurfSense.
+LINEAR_SYSTEM_PROMPT = """You are the linear_specialist subagent for SurfSense.
 
 Role:
-- You are the Slack domain specialist. Handle Slack-only requests accurately.
+- You are the Linear domain specialist. Handle Linear-only requests accurately.
 
 Primary objective:
-- Resolve the user's Slack task and return a concise, auditable result.
+- Resolve the user's Linear task and return a concise, auditable result.
 
 Routing boundary:
-- Use this subagent for Slack-domain tasks (channels, threads, users, messages,
-  and Slack canvases).
-- If the task is primarily non-Slack or cross-connector orchestration, return
+- Use this subagent for Linear-domain tasks (issues, status, assignees, labels,
+  teams, and project references).
+- If the task is primarily non-Linear or cross-connector orchestration, return
   status=needs_input and hand control back to the parent with the exact next hop.
 
 Execution steps:
-1) Verify Slack access first (use get_connected_accounts if needed).
-2) Prefer read/list tools first to gather facts before concluding.
-3) Track key identifiers in your reasoning: channel ID, message ts, thread ts, user ID.
+1) Verify Linear access first (use get_connected_accounts if needed).
+2) Prefer read/list tools first to gather current issue facts before concluding.
+3) Track key identifiers in your reasoning: issue ID, issue key, team ID, label ID.
 4) If required identifiers are missing, ask the parent for exactly what is missing.
 5) Return a compact result with findings + evidence references.
 
 Output format:
 - status: success | needs_input | blocked | error
 - summary: one short paragraph
-- evidence: bullet list of concrete IDs / timestamps used
+- evidence: bullet list of concrete IDs / issue keys used
 - next_step: one sentence (only when blocked or needs_input)
 
 Constraints:
-- Do not invent Slack IDs, channels, users, or message content.
-- Mutating Slack operations are allowed only with explicit approval.
-- If Slack connector access is unavailable, stop and return status=blocked.
+- Do not invent issue keys, IDs, or workflow state names.
+- Mutating Linear operations are allowed only with explicit approval.
+- If Linear connector access is unavailable, stop and return status=blocked.
 """
 
 
-def _select_slack_tools(tools: Sequence[BaseTool]) -> list[BaseTool]:
-    """Keep Slack tools plus minimal shared read utilities."""
+def _select_linear_tools(tools: Sequence[BaseTool]) -> list[BaseTool]:
+    """Keep Linear tools plus minimal shared read utilities."""
     allowed_exact = {
         "get_connected_accounts",
         "read_file",
@@ -84,34 +69,42 @@ def _select_slack_tools(tools: Sequence[BaseTool]) -> list[BaseTool]:
         "glob",
         "grep",
     }
-    slack_prefix = "slack_"
     selected: list[BaseTool] = []
     for tool in tools:
         if tool.name in allowed_exact:
             selected.append(tool)
             continue
-        if tool.name.startswith(slack_prefix):
+        if linear_mcp_original_tool_name(tool.name) is not None:
+            selected.append(tool)
+            continue
+        if tool.name.startswith("linear_") or tool.name.endswith("_linear_issue"):
             selected.append(tool)
     return selected
 
 
-def _permission_middleware(*, selected_tools: Sequence[BaseTool]) -> Any:
-    """Permission policy for Slack specialist.
+def _is_linear_readonly_tool_name(name: str) -> bool:
+    """Return True when a tool name maps to a read-only Linear MCP operation."""
+    base = linear_mcp_original_tool_name(name)
+    return base is not None and base in LINEAR_MCP_READONLY_TOOL_NAMES
 
-    Intent:
-    - Allow Slack-domain operations by default.
-    - Gate Slack mutating operations behind approval (`ask`).
-    - Hard-deny non-Slack state mutations, especially KB virtual filesystem
-      mutation and parent-context mutation tools.
-    """
+
+def _is_linear_domain_tool_name(name: str) -> bool:
+    """Return True for Linear-domain tools handled by this specialist."""
+    if linear_mcp_original_tool_name(name) is not None:
+        return True
+    return name.startswith("linear_") or name.endswith("_linear_issue")
+
+
+def _permission_middleware(*, selected_tools: Sequence[BaseTool]) -> Any:
+    """Permission policy for Linear specialist."""
     from app.agents.new_chat.middleware.permission import PermissionMiddleware
 
     ask_tools = sorted(
         {
             tool.name
             for tool in selected_tools
-            if tool.name.startswith("slack_")
-            and tool.name not in SLACK_READONLY_TOOL_NAMES
+            if _is_linear_domain_tool_name(tool.name)
+            and not _is_linear_readonly_tool_name(tool.name)
         }
     )
     rules: list[Rule] = [Rule(permission="*", pattern="*", action="allow")]
@@ -124,7 +117,7 @@ def _permission_middleware(*, selected_tools: Sequence[BaseTool]) -> Any:
         for name in ask_tools
     )
     return PermissionMiddleware(
-        rulesets=[Ruleset(rules=rules, origin="subagent_slack_specialist")]
+        rulesets=[Ruleset(rules=rules, origin="subagent_linear_specialist")]
     )
 
 
@@ -146,22 +139,21 @@ def _wrap_subagent_middleware(
     ]
 
 
-def build_slack_specialist_subagent(
+def build_linear_specialist_subagent(
     *,
     tools: Sequence[BaseTool],
     model: BaseChatModel | None = None,
     extra_middleware: Sequence[Any] | None = None,
 ) -> SubAgent:
-    """Build the ``slack_specialist`` provider subagent spec."""
-    selected_tools = _select_slack_tools(tools)
+    """Build the ``linear_specialist`` provider subagent spec."""
+    selected_tools = _select_linear_tools(tools)
     spec: dict[str, Any] = {
-        "name": "slack_specialist",
+        "name": "linear_specialist",
         "description": (
-            "Slack operations specialist for any Slack-domain request "
-            "(channels, threads, users, and messages), with strict evidence "
-            "tracking and approval-gated mutating operations."
+            "Linear operations specialist for issue and workflow requests, "
+            "with strict evidence tracking and approval-gated mutating operations."
         ),
-        "system_prompt": SLACK_SYSTEM_PROMPT,
+        "system_prompt": LINEAR_SYSTEM_PROMPT,
         "tools": selected_tools,
         "middleware": _wrap_subagent_middleware(
             selected_tools=selected_tools,

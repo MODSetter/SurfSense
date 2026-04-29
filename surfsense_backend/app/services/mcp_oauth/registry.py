@@ -14,9 +14,56 @@ accuracy high.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from app.db import SearchSourceConnectorType
+
+# Linear hosted MCP (https://linear.app/docs/mcp). Tool names are matched at
+# discovery time: names the server does not advertise are ignored.
+# See also https://github.com/linear/linear/issues/1049 for server-reported names.
+LINEAR_MCP_WRITE_TOOL_NAMES: frozenset[str] = frozenset({"save_issue"})
+LINEAR_MCP_READONLY_TOOL_NAMES: frozenset[str] = frozenset(
+    {
+        # Issues
+        "list_issues",
+        "get_issue",
+        "list_my_issues",
+        "list_issue_statuses",
+        "list_issue_labels",
+        "list_comments",
+        # People & teams
+        "list_users",
+        "get_user",
+        "list_teams",
+        "get_team",
+        # Projects & planning
+        "list_projects",
+        "get_project",
+        "list_project_labels",
+        "list_cycles",
+        # Documents
+        "list_documents",
+        "get_document",
+        # Misc read
+        "search_documentation",
+    }
+)
+LINEAR_MCP_TOOL_NAMES: frozenset[str] = (
+    LINEAR_MCP_READONLY_TOOL_NAMES | LINEAR_MCP_WRITE_TOOL_NAMES
+)
+_LINEAR_MCP_PREFIXED_NAME_RE = re.compile(r"^linear_\d+_(.+)$")
+
+
+def linear_mcp_original_tool_name(name: str) -> str | None:
+    """Map ``linear_<connector_id>_<tool>`` or bare MCP tool name to base name."""
+    m = _LINEAR_MCP_PREFIXED_NAME_RE.match(name)
+    if m:
+        base = m.group(1)
+        return base if base in LINEAR_MCP_TOOL_NAMES else None
+    if name in LINEAR_MCP_TOOL_NAMES:
+        return name
+    return None
 
 
 @dataclass(frozen=True)
@@ -50,12 +97,8 @@ MCP_SERVICES: dict[str, MCPServiceConfig] = {
         name="Linear",
         mcp_url="https://mcp.linear.app/mcp",
         connector_type="LINEAR_CONNECTOR",
-        allowed_tools=[
-            "list_issues",
-            "get_issue",
-            "save_issue",
-        ],
-        readonly_tools=frozenset({"list_issues", "get_issue"}),
+        allowed_tools=sorted(LINEAR_MCP_TOOL_NAMES),
+        readonly_tools=LINEAR_MCP_READONLY_TOOL_NAMES,
         account_metadata_keys=["organization_name", "organization_url_key"],
     ),
     "jira": MCPServiceConfig(
