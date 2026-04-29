@@ -11,7 +11,7 @@ import {
 	RefreshCw,
 	ScanEye,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import {
 	globalImageGenConfigsAtom,
@@ -143,23 +143,6 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 	}));
 
 	const [savingRole, setSavingRole] = useState<string | null>(null);
-	const savingRef = useRef(false);
-
-	useEffect(() => {
-		if (!savingRef.current) {
-			setAssignments({
-				agent_llm_id: preferences.agent_llm_id ?? "",
-				document_summary_llm_id: preferences.document_summary_llm_id ?? "",
-				image_generation_config_id: preferences.image_generation_config_id ?? "",
-				vision_llm_config_id: preferences.vision_llm_config_id ?? "",
-			});
-		}
-	}, [
-		preferences?.agent_llm_id,
-		preferences?.document_summary_llm_id,
-		preferences?.image_generation_config_id,
-		preferences?.vision_llm_config_id,
-	]);
 
 	const handleRoleAssignment = useCallback(
 		async (prefKey: string, configId: string) => {
@@ -167,7 +150,6 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 
 			setAssignments((prev) => ({ ...prev, [prefKey]: value }));
 			setSavingRole(prefKey);
-			savingRef.current = true;
 
 			try {
 				await updatePreferences({
@@ -177,7 +159,6 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 				toast.success("Role assignment updated");
 			} finally {
 				setSavingRole(null);
-				savingRef.current = false;
 			}
 		},
 		[updatePreferences, searchSpaceId]
