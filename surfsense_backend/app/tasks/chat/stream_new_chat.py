@@ -1581,7 +1581,7 @@ async def stream_new_chat(
                     )
                 else:
                     yield streaming_service.format_error(
-                        "Buy more tokens to continue with this model, or switch to a free model.",
+                        "Buy more tokens to continue with this model, or switch to a free model",
                         error_code="PREMIUM_QUOTA_EXHAUSTED",
                     )
                     yield streaming_service.format_done()
@@ -2349,7 +2349,7 @@ async def stream_resume_chat(
                     )
                 else:
                     yield streaming_service.format_error(
-                        "Buy more tokens to continue with this model, or switch to a free model.",
+                        "Buy more tokens to continue with this model, or switch to a free model",
                         error_code="PREMIUM_QUOTA_EXHAUSTED",
                     )
                     yield streaming_service.format_done()

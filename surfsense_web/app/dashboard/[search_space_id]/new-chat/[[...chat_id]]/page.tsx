@@ -1032,6 +1032,7 @@ export default function NewChatPage() {
 					setPremiumAlertForThread({
 						threadId: currentThreadId,
 						message: premiumQuotaAlertMessage,
+						userId: currentUser?.id ?? null,
 					});
 				} else {
 					toast.error("Failed to get response. Please try again.");
@@ -1334,6 +1335,7 @@ export default function NewChatPage() {
 					setPremiumAlertForThread({
 						threadId: resumeThreadId,
 						message: premiumQuotaAlertMessage,
+						userId: currentUser?.id ?? null,
 					});
 				} else {
 					toast.error("Failed to resume. Please try again.");
@@ -1692,6 +1694,7 @@ export default function NewChatPage() {
 					setPremiumAlertForThread({
 						threadId,
 						message: premiumQuotaAlertMessage,
+						userId: currentUser?.id ?? null,
 					});
 				} else {
 					toast.error("Failed to regenerate response. Please try again.");

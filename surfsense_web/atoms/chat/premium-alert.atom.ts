@@ -14,13 +14,25 @@ export const setPremiumAlertForThreadAtom = atom(
 		payload: {
 			threadId: number;
 			message: string;
+			userId?: string | null;
 		}
 	) => {
+		const storageKey = `surfsense-premium-alert-seen-v1:${payload.userId ?? "anonymous"}`;
+
+		if (typeof window !== "undefined") {
+			const hasSeen = localStorage.getItem(storageKey) === "true";
+			if (hasSeen) return;
+		}
+
 		const current = get(premiumAlertByThreadAtom);
 		set(premiumAlertByThreadAtom, {
 			...current,
 			[payload.threadId]: { message: payload.message },
 		});
+
+		if (typeof window !== "undefined") {
+			localStorage.setItem(storageKey, "true");
+		}
 	}
 );
 
