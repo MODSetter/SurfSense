@@ -19,6 +19,7 @@ import {
 	currentThreadAtom,
 	setTargetCommentIdAtom,
 } from "@/atoms/chat/current-thread.atom";
+import { setPremiumAlertForThreadAtom } from "@/atoms/chat/premium-alert.atom";
 import {
 	type MentionedDocumentInfo,
 	mentionedDocumentIdsAtom,
@@ -200,6 +201,19 @@ const BASE_TOOLS_WITH_UI = new Set([
 	// "write_todos", // Disabled for now
 ]);
 
+const PINNED_PREMIUM_QUOTA_MESSAGE = "Premium token quota exceeded for this pinned model.";
+
+function getPinnedPremiumQuotaErrorMessage(error: unknown): string | null {
+	if (!(error instanceof Error)) return null;
+	if (!error.message.toLowerCase().includes("premium token quota exceeded")) {
+		return null;
+	}
+	if (!error.message.toLowerCase().includes("pinned model")) {
+		return null;
+	}
+	return error.message || PINNED_PREMIUM_QUOTA_MESSAGE;
+}
+
 export default function NewChatPage() {
 	const params = useParams();
 	const queryClient = useQueryClient();
@@ -226,6 +240,7 @@ export default function NewChatPage() {
 	const setMentionedDocuments = useSetAtom(mentionedDocumentsAtom);
 	const setMessageDocumentsMap = useSetAtom(messageDocumentsMapAtom);
 	const setCurrentThreadState = useSetAtom(currentThreadAtom);
+	const setPremiumAlertForThread = useSetAtom(setPremiumAlertForThreadAtom);
 	const setTargetCommentId = useSetAtom(setTargetCommentIdAtom);
 	const clearTargetCommentId = useSetAtom(clearTargetCommentIdAtom);
 	const closeReportPanel = useSetAtom(closeReportPanelAtom);
@@ -951,6 +966,7 @@ export default function NewChatPage() {
 					return;
 				}
 				console.error("[NewChatPage] Chat error:", error);
+				const premiumQuotaAlertMessage = getPinnedPremiumQuotaErrorMessage(error);
 
 				// Track chat error
 				trackChatError(
@@ -959,7 +975,15 @@ export default function NewChatPage() {
 					error instanceof Error ? error.message : "Unknown error"
 				);
 
-				toast.error("Failed to get response. Please try again.");
+				if (premiumQuotaAlertMessage) {
+					setPremiumAlertForThread({
+						threadId: currentThreadId,
+						message: premiumQuotaAlertMessage,
+					});
+					toast.error(PINNED_PREMIUM_QUOTA_MESSAGE);
+				} else {
+					toast.error("Failed to get response. Please try again.");
+				}
 				// Update assistant message with error
 				setMessages((prev) =>
 					prev.map((m) =>
@@ -969,7 +993,9 @@ export default function NewChatPage() {
 									content: [
 										{
 											type: "text",
-											text: "Sorry, there was an error. Please try again.",
+											text:
+												premiumQuotaAlertMessage ??
+												"Sorry, there was an error. Please try again.",
 										},
 									],
 								}
@@ -998,6 +1024,7 @@ export default function NewChatPage() {
 			pendingUserImageUrls,
 			setPendingUserImageUrls,
 			toolsWithUI,
+			setPremiumAlertForThread,
 		]
 	);
 
@@ -1257,13 +1284,29 @@ export default function NewChatPage() {
 					return;
 				}
 				console.error("[NewChatPage] Resume error:", error);
-				toast.error("Failed to resume. Please try again.");
+				const premiumQuotaAlertMessage = getPinnedPremiumQuotaErrorMessage(error);
+				if (premiumQuotaAlertMessage) {
+					setPremiumAlertForThread({
+						threadId: resumeThreadId,
+						message: premiumQuotaAlertMessage,
+					});
+					toast.error(PINNED_PREMIUM_QUOTA_MESSAGE);
+				} else {
+					toast.error("Failed to resume. Please try again.");
+				}
 			} finally {
 				setIsRunning(false);
 				abortControllerRef.current = null;
 			}
 		},
-		[pendingInterrupt, messages, searchSpaceId, tokenUsageStore, toolsWithUI]
+		[
+			pendingInterrupt,
+			messages,
+			searchSpaceId,
+			tokenUsageStore,
+			toolsWithUI,
+			setPremiumAlertForThread,
+		]
 	);
 
 	useEffect(() => {
@@ -1584,18 +1627,34 @@ export default function NewChatPage() {
 				}
 				batcher.dispose();
 				console.error("[NewChatPage] Regeneration error:", error);
+				const premiumQuotaAlertMessage = getPinnedPremiumQuotaErrorMessage(error);
 				trackChatError(
 					searchSpaceId,
 					threadId,
 					error instanceof Error ? error.message : "Unknown error"
 				);
-				toast.error("Failed to regenerate response. Please try again.");
+				if (premiumQuotaAlertMessage) {
+					setPremiumAlertForThread({
+						threadId,
+						message: premiumQuotaAlertMessage,
+					});
+					toast.error(PINNED_PREMIUM_QUOTA_MESSAGE);
+				} else {
+					toast.error("Failed to regenerate response. Please try again.");
+				}
 				setMessages((prev) =>
 					prev.map((m) =>
 						m.id === assistantMsgId
 							? {
 									...m,
-									content: [{ type: "text", text: "Sorry, there was an error. Please try again." }],
+									content: [
+										{
+											type: "text",
+											text:
+												premiumQuotaAlertMessage ??
+												"Sorry, there was an error. Please try again.",
+										},
+									],
 								}
 							: m
 					)
@@ -1605,7 +1664,15 @@ export default function NewChatPage() {
 				abortControllerRef.current = null;
 			}
 		},
-		[threadId, searchSpaceId, messages, disabledTools, tokenUsageStore, toolsWithUI]
+		[
+			threadId,
+			searchSpaceId,
+			messages,
+			disabledTools,
+			tokenUsageStore,
+			toolsWithUI,
+			setPremiumAlertForThread,
+		]
 	);
 
 	// Handle editing a message - truncates history and regenerates with new query
