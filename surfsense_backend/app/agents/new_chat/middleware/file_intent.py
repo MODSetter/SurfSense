@@ -21,7 +21,7 @@ from typing import Any
 
 from langchain.agents.middleware import AgentMiddleware, AgentState
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langgraph.runtime import Runtime
 from pydantic import BaseModel, Field, ValidationError
 
@@ -213,10 +213,23 @@ def _build_classifier_prompt(*, recent_conversation: str, user_text: str) -> str
     )
 
 
-def _build_recent_conversation(messages: list[BaseMessage], *, max_messages: int = 6) -> str:
+def _build_recent_conversation(
+    messages: list[BaseMessage], *, max_messages: int = 6
+) -> str:
     rows: list[str] = []
-    for msg in messages[-max_messages:]:
-        role = "user" if isinstance(msg, HumanMessage) else "assistant"
+    filtered: list[tuple[str, BaseMessage]] = []
+    for msg in messages:
+        role: str | None = None
+        if isinstance(msg, HumanMessage):
+            role = "user"
+        elif isinstance(msg, AIMessage):
+            if getattr(msg, "tool_calls", None):
+                continue
+            role = "assistant"
+        else:
+            continue
+        filtered.append((role, msg))
+    for role, msg in filtered[-max_messages:]:
         text = re.sub(r"\s+", " ", _extract_text_from_message(msg)).strip()
         if text:
             rows.append(f"{role}: {text[:280]}")
@@ -246,7 +259,9 @@ class FileIntentMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                 [HumanMessage(content=prompt)],
                 config={"tags": ["surfsense:internal"]},
             )
-            payload = json.loads(_extract_json_payload(_extract_text_from_message(response)))
+            payload = json.loads(
+                _extract_json_payload(_extract_text_from_message(response))
+            )
             plan = FileIntentPlan.model_validate(payload)
             return plan
         except (json.JSONDecodeError, ValidationError, ValueError) as exc:
@@ -317,4 +332,3 @@ class FileIntentMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         insert_at = max(len(new_messages) - 1, 0)
         new_messages.insert(insert_at, contract_msg)
         return {"messages": new_messages, "file_operation_contract": contract}
-

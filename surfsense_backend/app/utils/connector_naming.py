@@ -233,7 +233,10 @@ async def generate_unique_connector_name(
     if identifier:
         name = f"{base} - {identifier}"
         return await ensure_unique_connector_name(
-            session, name, search_space_id, user_id,
+            session,
+            name,
+            search_space_id,
+            user_id,
         )
 
     count = await count_connectors_of_type(

@@ -62,7 +62,10 @@ def create_create_luma_event_tool(
             )
 
             if result.rejected:
-                return {"status": "rejected", "message": "User declined. Event was not created."}
+                return {
+                    "status": "rejected",
+                    "message": "User declined. Event was not created.",
+                }
 
             final_name = result.params.get("name", name)
             final_start = result.params.get("start_at", start_at)
@@ -90,11 +93,21 @@ def create_create_luma_event_tool(
                 )
 
             if resp.status_code == 401:
-                return {"status": "auth_error", "message": "Luma API key is invalid.", "connector_type": "luma"}
+                return {
+                    "status": "auth_error",
+                    "message": "Luma API key is invalid.",
+                    "connector_type": "luma",
+                }
             if resp.status_code == 403:
-                return {"status": "error", "message": "Luma Plus subscription required to create events via API."}
+                return {
+                    "status": "error",
+                    "message": "Luma Plus subscription required to create events via API.",
+                }
             if resp.status_code not in (200, 201):
-                return {"status": "error", "message": f"Luma API error: {resp.status_code} — {resp.text[:200]}"}
+                return {
+                    "status": "error",
+                    "message": f"Luma API error: {resp.status_code} — {resp.text[:200]}",
+                }
 
             data = resp.json()
             event_id = data.get("api_id") or data.get("event", {}).get("api_id")

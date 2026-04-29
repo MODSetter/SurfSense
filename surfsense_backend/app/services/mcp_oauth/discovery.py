@@ -55,7 +55,9 @@ async def register_client(
 
     async with httpx.AsyncClient(follow_redirects=True) as client:
         resp = await client.post(
-            registration_endpoint, json=payload, timeout=timeout,
+            registration_endpoint,
+            json=payload,
+            timeout=timeout,
         )
         resp.raise_for_status()
         return resp.json()

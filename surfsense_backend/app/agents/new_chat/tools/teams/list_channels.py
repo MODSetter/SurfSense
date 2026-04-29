@@ -35,12 +35,21 @@ def create_list_teams_channels_tool(
             headers = {"Authorization": f"Bearer {token}"}
 
             async with httpx.AsyncClient(timeout=20.0) as client:
-                teams_resp = await client.get(f"{GRAPH_API}/me/joinedTeams", headers=headers)
+                teams_resp = await client.get(
+                    f"{GRAPH_API}/me/joinedTeams", headers=headers
+                )
 
             if teams_resp.status_code == 401:
-                return {"status": "auth_error", "message": "Teams token expired. Please re-authenticate.", "connector_type": "teams"}
+                return {
+                    "status": "auth_error",
+                    "message": "Teams token expired. Please re-authenticate.",
+                    "connector_type": "teams",
+                }
             if teams_resp.status_code != 200:
-                return {"status": "error", "message": f"Graph API error: {teams_resp.status_code}"}
+                return {
+                    "status": "error",
+                    "message": f"Graph API error: {teams_resp.status_code}",
+                }
 
             teams_data = teams_resp.json().get("value", [])
             result_teams = []
@@ -58,13 +67,19 @@ def create_list_teams_channels_tool(
                             {"id": ch["id"], "name": ch.get("displayName", "")}
                             for ch in ch_resp.json().get("value", [])
                         ]
-                    result_teams.append({
-                        "team_id": team_id,
-                        "team_name": team.get("displayName", ""),
-                        "channels": channels,
-                    })
+                    result_teams.append(
+                        {
+                            "team_id": team_id,
+                            "team_name": team.get("displayName", ""),
+                            "channels": channels,
+                        }
+                    )
 
-            return {"status": "success", "teams": result_teams, "total_teams": len(result_teams)}
+            return {
+                "status": "success",
+                "teams": result_teams,
+                "total_teams": len(result_teams),
+            }
 
         except Exception as e:
             from langgraph.errors import GraphInterrupt

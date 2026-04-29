@@ -43,6 +43,9 @@ from typing import Any
 
 from langchain_core.tools import BaseTool
 
+from app.agents.new_chat.middleware.dedup_tool_calls import (
+    wrap_dedup_key_by_arg_name,
+)
 from app.db import ChatVisibility
 
 from .confluence import (
@@ -50,6 +53,7 @@ from .confluence import (
     create_delete_confluence_page_tool,
     create_update_confluence_page_tool,
 )
+from .connected_accounts import create_get_connected_accounts_tool
 from .discord import (
     create_list_discord_channels_tool,
     create_read_discord_messages_tool,
@@ -78,7 +82,6 @@ from .google_drive import (
     create_create_google_drive_file_tool,
     create_delete_google_drive_file_tool,
 )
-from .connected_accounts import create_get_connected_accounts_tool
 from .luma import (
     create_create_luma_event_tool,
     create_list_luma_events_tool,
@@ -108,6 +111,8 @@ from .update_memory import create_update_memory_tool, create_update_team_memory_
 from .video_presentation import create_generate_video_presentation_tool
 from .web_search import create_web_search_tool
 
+logger = logging.getLogger(__name__)
+
 # =============================================================================
 # Tool Definition
 # =============================================================================
@@ -125,6 +130,12 @@ class ToolDefinition:
         enabled_by_default: Whether the tool is enabled when no explicit config is provided
         required_connector: Searchable type string (e.g. ``"LINEAR_CONNECTOR"``)
             that must be in ``available_connectors`` for the tool to be enabled.
+        dedup_key: Optional callable that maps a tool's ``args`` dict to a
+            string signature used by :class:`DedupHITLToolCallsMiddleware`
+            to drop duplicate calls within a single LLM response.
+        reverse: Optional callable that, given the tool's ``(args, result)``,
+            returns a ``ReverseDescriptor`` describing the inverse tool
+            invocation. Consumed by the snapshot/revert pipeline.
 
     """
 
@@ -135,6 +146,8 @@ class ToolDefinition:
     enabled_by_default: bool = True
     hidden: bool = False
     required_connector: str | None = None
+    dedup_key: Callable[[dict[str, Any]], str] | None = None
+    reverse: Callable[[dict[str, Any], Any], dict[str, Any]] | None = None
 
 
 # =============================================================================
@@ -288,6 +301,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=["db_session", "search_space_id", "user_id"],
         required_connector="NOTION_CONNECTOR",
+        dedup_key=wrap_dedup_key_by_arg_name("title"),
     ),
     ToolDefinition(
         name="update_notion_page",
@@ -299,6 +313,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=["db_session", "search_space_id", "user_id"],
         required_connector="NOTION_CONNECTOR",
+        dedup_key=wrap_dedup_key_by_arg_name("page_title"),
     ),
     ToolDefinition(
         name="delete_notion_page",
@@ -310,6 +325,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=["db_session", "search_space_id", "user_id"],
         required_connector="NOTION_CONNECTOR",
+        dedup_key=wrap_dedup_key_by_arg_name("page_title"),
     ),
     # =========================================================================
     # GOOGLE DRIVE TOOLS - create files, delete files
@@ -325,6 +341,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=["db_session", "search_space_id", "user_id"],
         required_connector="GOOGLE_DRIVE_FILE",
+        dedup_key=wrap_dedup_key_by_arg_name("file_name"),
     ),
     ToolDefinition(
         name="delete_google_drive_file",
@@ -336,6 +353,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=["db_session", "search_space_id", "user_id"],
         required_connector="GOOGLE_DRIVE_FILE",
+        dedup_key=wrap_dedup_key_by_arg_name("file_name"),
     ),
     # =========================================================================
     # DROPBOX TOOLS - create and trash files
@@ -351,6 +369,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=["db_session", "search_space_id", "user_id"],
         required_connector="DROPBOX_FILE",
+        dedup_key=wrap_dedup_key_by_arg_name("file_name"),
     ),
     ToolDefinition(
         name="delete_dropbox_file",
@@ -362,6 +381,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=["db_session", "search_space_id", "user_id"],
         required_connector="DROPBOX_FILE",
+        dedup_key=wrap_dedup_key_by_arg_name("file_name"),
     ),
     # =========================================================================
     # ONEDRIVE TOOLS - create and trash files
@@ -377,6 +397,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=["db_session", "search_space_id", "user_id"],
         required_connector="ONEDRIVE_FILE",
+        dedup_key=wrap_dedup_key_by_arg_name("file_name"),
     ),
     ToolDefinition(
         name="delete_onedrive_file",
@@ -388,6 +409,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=["db_session", "search_space_id", "user_id"],
         required_connector="ONEDRIVE_FILE",
+        dedup_key=wrap_dedup_key_by_arg_name("file_name"),
     ),
     # =========================================================================
     # GOOGLE CALENDAR TOOLS - search, create, update, delete events
@@ -414,6 +436,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=["db_session", "search_space_id", "user_id"],
         required_connector="GOOGLE_CALENDAR_CONNECTOR",
+        dedup_key=wrap_dedup_key_by_arg_name("title"),
     ),
     ToolDefinition(
         name="update_calendar_event",
@@ -425,6 +448,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=["db_session", "search_space_id", "user_id"],
         required_connector="GOOGLE_CALENDAR_CONNECTOR",
+        dedup_key=wrap_dedup_key_by_arg_name("event_title_or_id"),
     ),
     ToolDefinition(
         name="delete_calendar_event",
@@ -436,6 +460,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=["db_session", "search_space_id", "user_id"],
         required_connector="GOOGLE_CALENDAR_CONNECTOR",
+        dedup_key=wrap_dedup_key_by_arg_name("event_title_or_id"),
     ),
     # =========================================================================
     # GMAIL TOOLS - search, read, create drafts, update drafts, send, trash
@@ -473,6 +498,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=["db_session", "search_space_id", "user_id"],
         required_connector="GOOGLE_GMAIL_CONNECTOR",
+        dedup_key=wrap_dedup_key_by_arg_name("subject"),
     ),
     ToolDefinition(
         name="send_gmail_email",
@@ -484,6 +510,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=["db_session", "search_space_id", "user_id"],
         required_connector="GOOGLE_GMAIL_CONNECTOR",
+        dedup_key=wrap_dedup_key_by_arg_name("subject"),
     ),
     ToolDefinition(
         name="trash_gmail_email",
@@ -495,6 +522,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=["db_session", "search_space_id", "user_id"],
         required_connector="GOOGLE_GMAIL_CONNECTOR",
+        dedup_key=wrap_dedup_key_by_arg_name("email_subject_or_id"),
     ),
     ToolDefinition(
         name="update_gmail_draft",
@@ -506,6 +534,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=["db_session", "search_space_id", "user_id"],
         required_connector="GOOGLE_GMAIL_CONNECTOR",
+        dedup_key=wrap_dedup_key_by_arg_name("draft_subject_or_id"),
     ),
     # =========================================================================
     # CONFLUENCE TOOLS - create, update, delete pages
@@ -521,6 +550,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=["db_session", "search_space_id", "user_id"],
         required_connector="CONFLUENCE_CONNECTOR",
+        dedup_key=wrap_dedup_key_by_arg_name("title"),
     ),
     ToolDefinition(
         name="update_confluence_page",
@@ -532,6 +562,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=["db_session", "search_space_id", "user_id"],
         required_connector="CONFLUENCE_CONNECTOR",
+        dedup_key=wrap_dedup_key_by_arg_name("page_title_or_id"),
     ),
     ToolDefinition(
         name="delete_confluence_page",
@@ -543,6 +574,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=["db_session", "search_space_id", "user_id"],
         required_connector="CONFLUENCE_CONNECTOR",
+        dedup_key=wrap_dedup_key_by_arg_name("page_title_or_id"),
     ),
     # =========================================================================
     # DISCORD TOOLS - list channels, read messages, send messages
@@ -675,10 +707,7 @@ def get_connector_gated_tools(
     available_connectors: list[str] | None,
 ) -> list[str]:
     """Return tool names to disable"""
-    if available_connectors is None:
-        available = set()
-    else:
-        available = set(available_connectors)
+    available = set() if available_connectors is None else set(available_connectors)
 
     disabled: list[str] = []
     for tool_def in BUILTIN_TOOLS:
@@ -758,6 +787,24 @@ def build_tools(
 
         # Create the tool
         tool = tool_def.factory(dependencies)
+        # Propagate the registry-level metadata so middleware (e.g.
+        # ``DedupHITLToolCallsMiddleware``) and the action-log/revert
+        # pipeline can pick the resolvers up via ``tool.metadata`` without
+        # re-importing :data:`BUILTIN_TOOLS`.
+        if tool_def.dedup_key is not None or tool_def.reverse is not None:
+            existing_meta = getattr(tool, "metadata", None) or {}
+            merged_meta = dict(existing_meta)
+            if tool_def.dedup_key is not None:
+                merged_meta.setdefault("dedup_key", tool_def.dedup_key)
+            if tool_def.reverse is not None:
+                merged_meta.setdefault("reverse", tool_def.reverse)
+            try:
+                tool.metadata = merged_meta
+            except Exception:
+                logger.debug(
+                    "Tool %s rejected metadata mutation; relying on registry lookup",
+                    tool_def.name,
+                )
         tools.append(tool)
 
     # Add any additional custom tools
@@ -829,14 +876,16 @@ async def build_tools_async(
             tools.extend(mcp_tools)
             logging.info(
                 "Registered %d MCP tools: %s",
-                len(mcp_tools), [t.name for t in mcp_tools],
+                len(mcp_tools),
+                [t.name for t in mcp_tools],
             )
         except Exception as e:
             logging.exception("Failed to load MCP tools: %s", e)
 
     logging.info(
         "Total tools for agent: %d — %s",
-        len(tools), [t.name for t in tools],
+        len(tools),
+        [t.name for t in tools],
     )
 
     return tools

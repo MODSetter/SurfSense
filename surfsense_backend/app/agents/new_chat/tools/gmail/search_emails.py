@@ -125,12 +125,24 @@ def create_search_gmail_tool(
                 max_results=max_results, query=query
             )
             if error:
-                if "re-authenticate" in error.lower() or "authentication failed" in error.lower():
-                    return {"status": "auth_error", "message": error, "connector_type": "gmail"}
+                if (
+                    "re-authenticate" in error.lower()
+                    or "authentication failed" in error.lower()
+                ):
+                    return {
+                        "status": "auth_error",
+                        "message": error,
+                        "connector_type": "gmail",
+                    }
                 return {"status": "error", "message": error}
 
             if not messages_list:
-                return {"status": "success", "emails": [], "total": 0, "message": "No emails found."}
+                return {
+                    "status": "success",
+                    "emails": [],
+                    "total": 0,
+                    "message": "No emails found.",
+                }
 
             emails = []
             for msg in messages_list:
@@ -141,16 +153,18 @@ def create_search_gmail_tool(
                     h["name"].lower(): h["value"]
                     for h in detail.get("payload", {}).get("headers", [])
                 }
-                emails.append({
-                    "message_id": detail.get("id"),
-                    "thread_id": detail.get("threadId"),
-                    "subject": headers.get("subject", "No Subject"),
-                    "from": headers.get("from", "Unknown"),
-                    "to": headers.get("to", ""),
-                    "date": headers.get("date", ""),
-                    "snippet": detail.get("snippet", ""),
-                    "labels": detail.get("labelIds", []),
-                })
+                emails.append(
+                    {
+                        "message_id": detail.get("id"),
+                        "thread_id": detail.get("threadId"),
+                        "subject": headers.get("subject", "No Subject"),
+                        "from": headers.get("from", "Unknown"),
+                        "to": headers.get("to", ""),
+                        "date": headers.get("date", ""),
+                        "snippet": detail.get("snippet", ""),
+                        "labels": detail.get("labelIds", []),
+                    }
+                )
 
             return {"status": "success", "emails": emails, "total": len(emails)}
 
@@ -160,6 +174,9 @@ def create_search_gmail_tool(
             if isinstance(e, GraphInterrupt):
                 raise
             logger.error("Error searching Gmail: %s", e, exc_info=True)
-            return {"status": "error", "message": "Failed to search Gmail. Please try again."}
+            return {
+                "status": "error",
+                "message": "Failed to search Gmail. Please try again.",
+            }
 
     return search_gmail

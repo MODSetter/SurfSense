@@ -36,9 +36,16 @@ def test_backend_resolver_returns_multi_root_backend_for_single_root(tmp_path: P
 def test_backend_resolver_uses_cloud_mode_by_default():
     resolver = build_backend_resolver(FilesystemSelection())
     backend = resolver(_RuntimeStub())
-    # StateBackend class name check keeps this test decoupled
-    # from internal deepagents runtime class identity.
+    # When no search_space_id is provided we fall back to StateBackend so
+    # sub-agents / tests without DB access still work.
     assert backend.__class__.__name__ == "StateBackend"
+
+
+def test_backend_resolver_uses_kb_postgres_in_cloud_with_search_space():
+    resolver = build_backend_resolver(FilesystemSelection(), search_space_id=42)
+    backend = resolver(_RuntimeStub())
+    assert backend.__class__.__name__ == "KBPostgresBackend"
+    assert backend.search_space_id == 42
 
 
 def test_backend_resolver_returns_multi_root_backend_for_multiple_roots(tmp_path: Path):

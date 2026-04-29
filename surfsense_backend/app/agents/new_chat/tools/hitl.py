@@ -130,7 +130,9 @@ def request_approval(
     try:
         decision_type, edited_params = _parse_decision(approval)
     except ValueError:
-        logger.warning("No approval decision received for %s — rejecting for safety", tool_name)
+        logger.warning(
+            "No approval decision received for %s — rejecting for safety", tool_name
+        )
         return HITLResult(rejected=True, decision_type="error", params=params)
 
     logger.info("User decision for %s: %s", tool_name, decision_type)

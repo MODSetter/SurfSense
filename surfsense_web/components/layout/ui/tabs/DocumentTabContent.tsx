@@ -308,9 +308,7 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 											}
 										}}
 									>
-										<span
-											className={`flex items-center gap-1.5 ${downloading ? "opacity-0" : ""}`}
-										>
+										<span className={`flex items-center gap-1.5 ${downloading ? "opacity-0" : ""}`}>
 											<Download className="size-3.5" />
 											Download .md
 										</span>

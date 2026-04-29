@@ -2,6 +2,7 @@
 
 import { useAtom } from "jotai";
 import {
+	Activity,
 	Brain,
 	CircleUser,
 	Globe,
@@ -9,6 +10,7 @@ import {
 	KeyRound,
 	Monitor,
 	ReceiptText,
+	ShieldCheck,
 	Sparkles,
 } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -74,6 +76,20 @@ const MemoryContent = dynamic(
 		),
 	{ ssr: false }
 );
+const AgentPermissionsContent = dynamic(
+	() =>
+		import(
+			"@/app/dashboard/[search_space_id]/user-settings/components/AgentPermissionsContent"
+		).then((m) => ({ default: m.AgentPermissionsContent })),
+	{ ssr: false }
+);
+const AgentStatusContent = dynamic(
+	() =>
+		import("@/app/dashboard/[search_space_id]/user-settings/components/AgentStatusContent").then(
+			(m) => ({ default: m.AgentStatusContent })
+		),
+	{ ssr: false }
+);
 
 export function UserSettingsDialog() {
 	const t = useTranslations("userSettings");
@@ -102,6 +118,16 @@ export function UserSettingsDialog() {
 				value: "memory",
 				label: "Memory",
 				icon: <Brain className="h-4 w-4" />,
+			},
+			{
+				value: "agent-permissions",
+				label: "Agent Permissions",
+				icon: <ShieldCheck className="h-4 w-4" />,
+			},
+			{
+				value: "agent-status",
+				label: "Agent Status",
+				icon: <Activity className="h-4 w-4" />,
 			},
 			{
 				value: "purchases",
@@ -141,6 +167,8 @@ export function UserSettingsDialog() {
 				{state.initialTab === "prompts" && <PromptsContent />}
 				{state.initialTab === "community-prompts" && <CommunityPromptsContent />}
 				{state.initialTab === "memory" && <MemoryContent />}
+				{state.initialTab === "agent-permissions" && <AgentPermissionsContent />}
+				{state.initialTab === "agent-status" && <AgentStatusContent />}
 				{state.initialTab === "purchases" && <PurchaseHistoryContent />}
 				{state.initialTab === "desktop" && <DesktopContent />}
 				{state.initialTab === "desktop-shortcuts" && <DesktopShortcutsContent />}

@@ -45,9 +45,7 @@ async def test_file_write_intent_injects_contract_message():
 
 @pytest.mark.asyncio
 async def test_non_write_intent_does_not_inject_contract_message():
-    llm = _FakeLLM(
-        '{"intent":"file_read","confidence":0.88,"suggested_filename":null}'
-    )
+    llm = _FakeLLM('{"intent":"file_read","confidence":0.88,"suggested_filename":null}')
     middleware = FileIntentMiddleware(llm=llm)
     original_messages = [HumanMessage(content="Read /notes.md")]
     state = {"messages": original_messages, "turn_id": "abc:def"}
@@ -55,7 +53,10 @@ async def test_non_write_intent_does_not_inject_contract_message():
     result = await middleware.abefore_agent(state, runtime=None)  # type: ignore[arg-type]
 
     assert result is not None
-    assert result["file_operation_contract"]["intent"] == FileOperationIntent.FILE_READ.value
+    assert (
+        result["file_operation_contract"]["intent"]
+        == FileOperationIntent.FILE_READ.value
+    )
     assert "messages" not in result
 
 
@@ -211,4 +212,3 @@ def test_fallback_path_keeps_posix_style_absolute_path_for_linux_and_macos() -> 
     )
 
     assert resolved == "/var/log/surfsense/notes.md"
-

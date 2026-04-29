@@ -12,6 +12,9 @@ import { type EditorPreset, presetMap } from "@/components/editor/presets";
 import { escapeMdxExpressions } from "@/components/editor/utils/escape-mdx";
 import { Editor, EditorContainer } from "@/components/ui/editor";
 
+/** Live editor instance returned by `usePlateEditor`. */
+export type PlateEditorInstance = ReturnType<typeof usePlateEditor>;
+
 export interface PlateEditorProps {
 	/** Markdown string to load as initial content */
 	markdown?: string;

@@ -44,11 +44,21 @@ def create_read_luma_event_tool(
                 )
 
             if resp.status_code == 401:
-                return {"status": "auth_error", "message": "Luma API key is invalid.", "connector_type": "luma"}
+                return {
+                    "status": "auth_error",
+                    "message": "Luma API key is invalid.",
+                    "connector_type": "luma",
+                }
             if resp.status_code == 404:
-                return {"status": "not_found", "message": f"Event '{event_id}' not found."}
+                return {
+                    "status": "not_found",
+                    "message": f"Event '{event_id}' not found.",
+                }
             if resp.status_code != 200:
-                return {"status": "error", "message": f"Luma API error: {resp.status_code}"}
+                return {
+                    "status": "error",
+                    "message": f"Luma API error: {resp.status_code}",
+                }
 
             data = resp.json()
             ev = data.get("event", data)

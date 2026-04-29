@@ -220,10 +220,8 @@ class MCPClient:
             logger.info("MCP tool '%s' succeeded: %s", tool_name, result_str[:200])
             return result_str
 
-        except asyncio.TimeoutError:
-            logger.error(
-                "MCP tool '%s' timed out after %.0fs", tool_name, timeout
-            )
+        except TimeoutError:
+            logger.error("MCP tool '%s' timed out after %.0fs", tool_name, timeout)
             return f"Error: MCP tool '{tool_name}' timed out after {timeout:.0f}s"
         except RuntimeError as e:
             if "Invalid structured content" in str(e):

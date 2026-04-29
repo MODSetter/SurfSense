@@ -398,7 +398,8 @@ export function ReportPanelContent({
 		</Button>
 	);
 
-	const editingActions = showReportEditingTier &&
+	const editingActions =
+		showReportEditingTier &&
 		!isReadOnly &&
 		(isEditing ? (
 			<>
