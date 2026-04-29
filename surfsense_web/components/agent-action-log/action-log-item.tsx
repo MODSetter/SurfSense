@@ -17,15 +17,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { getToolIcon } from "@/contracts/enums/toolIcons";
+import { getToolDisplayName, getToolIcon } from "@/contracts/enums/toolIcons";
 import { type AgentAction, agentActionsApiService } from "@/lib/apis/agent-actions-api.service";
 import { AppError } from "@/lib/error";
 import { formatRelativeDate } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
-
-function formatToolName(name: string): string {
-	return name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
 
 interface ActionLogItemProps {
 	action: AgentAction;
@@ -43,7 +39,7 @@ export function ActionLogItem({ action, threadId, onRevertSuccess }: ActionLogIt
 	const hasError = action.error !== null && action.error !== undefined;
 
 	const Icon = getToolIcon(action.tool_name);
-	const displayName = formatToolName(action.tool_name);
+	const displayName = getToolDisplayName(action.tool_name);
 
 	const argsPreview = action.args ? JSON.stringify(action.args, null, 2) : null;
 	const truncatedArgs =

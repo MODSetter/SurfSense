@@ -25,15 +25,11 @@ import {
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { getToolIcon } from "@/contracts/enums/toolIcons";
+import { getToolDisplayName, getToolIcon } from "@/contracts/enums/toolIcons";
 import { agentActionsApiService } from "@/lib/apis/agent-actions-api.service";
 import { AppError } from "@/lib/error";
 import { isInterruptResult } from "@/lib/hitl";
 import { cn } from "@/lib/utils";
-
-function formatToolName(name: string): string {
-	return name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
 
 /**
  * Inline Revert button rendered on a tool card when the matching
@@ -104,9 +100,10 @@ function ToolCardRevertButton({ toolCallId }: { toolCallId: string }) {
 				<AlertDialogHeader>
 					<AlertDialogTitle>Revert this action?</AlertDialogTitle>
 					<AlertDialogDescription>
-						This will undo <span className="font-medium">{formatToolName(action.toolName)}</span>{" "}
-						and append a new audit entry. Chat history is preserved — only the tool's effects on
-						your knowledge base or connectors will be reversed where possible.
+						This will undo{" "}
+						<span className="font-medium">{getToolDisplayName(action.toolName)}</span> and add a
+						new entry to the history. Your chat is preserved — only the changes the agent made to
+						your knowledge base or connected apps will be rolled back where possible.
 					</AlertDialogDescription>
 				</AlertDialogHeader>
 				<AlertDialogFooter>
@@ -164,7 +161,7 @@ const DefaultToolFallbackInner: ToolCallMessagePartComponent = ({
 			: null;
 
 	const Icon = getToolIcon(toolName);
-	const displayName = formatToolName(toolName);
+	const displayName = getToolDisplayName(toolName);
 
 	return (
 		<div
@@ -215,7 +212,7 @@ const DefaultToolFallbackInner: ToolCallMessagePartComponent = ({
 									? `Failed: ${displayName}`
 									: displayName}
 					</p>
-					{isRunning && <p className="text-xs text-muted-foreground mt-0.5">Running...</p>}
+					{isRunning && <p className="text-xs text-muted-foreground mt-0.5">Working…</p>}
 					{cancelledReason && (
 						<p className="text-xs text-muted-foreground mt-0.5 truncate">{cancelledReason}</p>
 					)}
@@ -241,7 +238,7 @@ const DefaultToolFallbackInner: ToolCallMessagePartComponent = ({
 					<div className="px-5 py-3 space-y-3">
 						{argsText && (
 							<div>
-								<p className="text-xs font-medium text-muted-foreground mb-1">Arguments</p>
+								<p className="text-xs font-medium text-muted-foreground mb-1">Inputs</p>
 								<pre className="text-xs text-foreground/80 whitespace-pre-wrap break-all">
 									{argsText}
 								</pre>

@@ -622,6 +622,95 @@ async def _stream_agent_events(
                     status="in_progress",
                     items=last_active_step_items,
                 )
+            elif tool_name == "rm":
+                rm_path = (
+                    tool_input.get("path", "")
+                    if isinstance(tool_input, dict)
+                    else str(tool_input)
+                )
+                display_path = rm_path if len(rm_path) <= 80 else "…" + rm_path[-77:]
+                last_active_step_title = "Deleting file"
+                last_active_step_items = [display_path] if display_path else []
+                yield streaming_service.format_thinking_step(
+                    step_id=tool_step_id,
+                    title="Deleting file",
+                    status="in_progress",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "rmdir":
+                rmdir_path = (
+                    tool_input.get("path", "")
+                    if isinstance(tool_input, dict)
+                    else str(tool_input)
+                )
+                display_path = (
+                    rmdir_path if len(rmdir_path) <= 80 else "…" + rmdir_path[-77:]
+                )
+                last_active_step_title = "Deleting folder"
+                last_active_step_items = [display_path] if display_path else []
+                yield streaming_service.format_thinking_step(
+                    step_id=tool_step_id,
+                    title="Deleting folder",
+                    status="in_progress",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "mkdir":
+                mkdir_path = (
+                    tool_input.get("path", "")
+                    if isinstance(tool_input, dict)
+                    else str(tool_input)
+                )
+                display_path = (
+                    mkdir_path if len(mkdir_path) <= 80 else "…" + mkdir_path[-77:]
+                )
+                last_active_step_title = "Creating folder"
+                last_active_step_items = [display_path] if display_path else []
+                yield streaming_service.format_thinking_step(
+                    step_id=tool_step_id,
+                    title="Creating folder",
+                    status="in_progress",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "move_file":
+                src = (
+                    tool_input.get("source_path", "")
+                    if isinstance(tool_input, dict)
+                    else ""
+                )
+                dst = (
+                    tool_input.get("destination_path", "")
+                    if isinstance(tool_input, dict)
+                    else ""
+                )
+                display_src = src if len(src) <= 60 else "…" + src[-57:]
+                display_dst = dst if len(dst) <= 60 else "…" + dst[-57:]
+                last_active_step_title = "Moving file"
+                last_active_step_items = (
+                    [f"{display_src} → {display_dst}"] if src or dst else []
+                )
+                yield streaming_service.format_thinking_step(
+                    step_id=tool_step_id,
+                    title="Moving file",
+                    status="in_progress",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "write_todos":
+                todos = (
+                    tool_input.get("todos", []) if isinstance(tool_input, dict) else []
+                )
+                todo_count = len(todos) if isinstance(todos, list) else 0
+                last_active_step_title = "Planning tasks"
+                last_active_step_items = (
+                    [f"{todo_count} task{'s' if todo_count != 1 else ''}"]
+                    if todo_count
+                    else []
+                )
+                yield streaming_service.format_thinking_step(
+                    step_id=tool_step_id,
+                    title="Planning tasks",
+                    status="in_progress",
+                    items=last_active_step_items,
+                )
             elif tool_name == "save_document":
                 doc_title = (
                     tool_input.get("title", "")
@@ -729,7 +818,15 @@ async def _stream_agent_events(
                     items=last_active_step_items,
                 )
             else:
-                last_active_step_title = f"Using {tool_name.replace('_', ' ')}"
+                # Fallback for tools without a curated thinking-step title
+                # (typically connector tools, MCP-registered tools, or
+                # newly added tools that haven't been wired up here yet).
+                # Render the snake_cased name as a sentence-cased phrase
+                # so non-technical users see e.g. "Send gmail email"
+                # rather than the raw identifier "send_gmail_email".
+                last_active_step_title = (
+                    tool_name.replace("_", " ").strip().capitalize() or tool_name
+                )
                 last_active_step_items = []
                 yield streaming_service.format_thinking_step(
                     step_id=tool_step_id,
@@ -882,6 +979,41 @@ async def _stream_agent_events(
                 yield streaming_service.format_thinking_step(
                     step_id=original_step_id,
                     title="Searching content",
+                    status="completed",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "rm":
+                yield streaming_service.format_thinking_step(
+                    step_id=original_step_id,
+                    title="Deleting file",
+                    status="completed",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "rmdir":
+                yield streaming_service.format_thinking_step(
+                    step_id=original_step_id,
+                    title="Deleting folder",
+                    status="completed",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "mkdir":
+                yield streaming_service.format_thinking_step(
+                    step_id=original_step_id,
+                    title="Creating folder",
+                    status="completed",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "move_file":
+                yield streaming_service.format_thinking_step(
+                    step_id=original_step_id,
+                    title="Moving file",
+                    status="completed",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "write_todos":
+                yield streaming_service.format_thinking_step(
+                    step_id=original_step_id,
+                    title="Planning tasks",
                     status="completed",
                     items=last_active_step_items,
                 )
@@ -1136,9 +1268,14 @@ async def _stream_agent_events(
                     items=completed_items,
                 )
             else:
+                # Fallback completion title — see the matching in-progress
+                # branch above for the wording rationale.
+                fallback_title = (
+                    tool_name.replace("_", " ").strip().capitalize() or tool_name
+                )
                 yield streaming_service.format_thinking_step(
                     step_id=original_step_id,
-                    title=f"Using {tool_name.replace('_', ' ')}",
+                    title=fallback_title,
                     status="completed",
                     items=last_active_step_items,
                 )

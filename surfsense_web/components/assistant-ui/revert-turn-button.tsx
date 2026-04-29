@@ -37,6 +37,7 @@ import {
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { getToolDisplayName } from "@/contracts/enums/toolIcons";
 import {
 	agentActionsApiService,
 	type RevertTurnActionResult,
@@ -46,10 +47,6 @@ import { cn } from "@/lib/utils";
 
 interface RevertTurnButtonProps {
 	chatTurnId: string | null | undefined;
-}
-
-function formatToolName(name: string): string {
-	return name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 // Empty-array sentinel so the per-turn ``selectAtom`` slice returns a
@@ -218,7 +215,7 @@ function RevertResultRow({ result }: { result: RevertTurnActionResult }) {
 			/>
 			<div className="min-w-0 flex-1">
 				<p className="font-medium truncate">
-					{formatToolName(result.tool_name)}{" "}
+					{getToolDisplayName(result.tool_name)}{" "}
 					<span className="ml-1 text-xs text-muted-foreground">
 						{result.status.replace(/_/g, " ")}
 					</span>
