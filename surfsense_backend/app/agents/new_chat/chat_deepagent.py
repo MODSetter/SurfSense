@@ -607,6 +607,10 @@ def _build_compiled_agent_blocking(
                 model=llm,
                 extra_middleware=subagent_extra_middleware,
             )
+            logging.info(
+                "Specialized subagents registered for task tool: %s",
+                [s["name"] for s in specialized_subagents],
+            )
         except Exception as exc:  # pragma: no cover - defensive
             logging.warning(
                 "Specialized subagent build failed; running without them: %s",
