@@ -10,21 +10,11 @@ import type { Document } from "@/contracts/types/document.types";
 export const mentionedDocumentsAtom = atom<Pick<Document, "id" | "title" | "document_type">[]>([]);
 
 /**
- * Atom to store documents selected via the sidebar checkboxes / row clicks.
- * These are NOT inserted as chips – the composer shows a count badge instead.
- */
-export const sidebarSelectedDocumentsAtom = atom<
-	Pick<Document, "id" | "title" | "document_type">[]
->([]);
-
-/**
- * Derived read-only atom that merges @-mention chips and sidebar selections
- * into a single deduplicated set of document IDs for the backend.
+ * Derived read-only atom that maps deduplicated mentioned docs
+ * into backend payload fields.
  */
 export const mentionedDocumentIdsAtom = atom((get) => {
-	const chipDocs = get(mentionedDocumentsAtom);
-	const sidebarDocs = get(sidebarSelectedDocumentsAtom);
-	const allDocs = [...chipDocs, ...sidebarDocs];
+	const allDocs = get(mentionedDocumentsAtom);
 	const seen = new Set<string>();
 	const deduped = allDocs.filter((d) => {
 		const key = `${d.document_type}:${d.id}`;

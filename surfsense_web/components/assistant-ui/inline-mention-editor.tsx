@@ -11,25 +11,14 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { flushSync } from "react-dom";
-import { createRoot } from "react-dom/client";
+import { renderToStaticMarkup } from "react-dom/server";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Document } from "@/contracts/types/document.types";
+import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { cn } from "@/lib/utils";
 
-// Render a React element to an HTML string on the client without pulling
-// `react-dom/server` into the bundle. `createRoot` + `flushSync` use the
-// same `react-dom` package React itself imports, so this adds zero new
-// runtime weight.
 function renderElementToHTML(element: ReactElement): string {
-	const container = document.createElement("div");
-	const root = createRoot(container);
-	flushSync(() => {
-		root.render(element);
-	});
-	const html = container.innerHTML;
-	root.unmount();
-	return html;
+	return renderToStaticMarkup(element);
 }
 
 export interface MentionedDocument {
@@ -44,7 +33,10 @@ export interface InlineMentionEditorRef {
 	setText: (text: string) => void;
 	getText: () => string;
 	getMentionedDocuments: () => MentionedDocument[];
-	insertDocumentChip: (doc: Pick<Document, "id" | "title" | "document_type">) => void;
+	insertDocumentChip: (
+		doc: Pick<Document, "id" | "title" | "document_type">,
+		options?: { removeTriggerText?: boolean }
+	) => void;
 	removeDocumentChip: (docId: number, docType?: string) => void;
 	setDocumentChipStatus: (
 		docId: number,
@@ -66,7 +58,6 @@ interface InlineMentionEditorProps {
 	onKeyDown?: (e: React.KeyboardEvent) => void;
 	disabled?: boolean;
 	className?: string;
-	initialDocuments?: MentionedDocument[];
 	initialText?: string;
 }
 
@@ -118,7 +109,6 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			onKeyDown,
 			disabled = false,
 			className,
-			initialDocuments = [],
 			initialText,
 		},
 		ref
@@ -126,18 +116,49 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 		const editorRef = useRef<HTMLDivElement>(null);
 		const [isEmpty, setIsEmpty] = useState(true);
 		const [mentionedDocs, setMentionedDocs] = useState<Map<string, MentionedDocument>>(
-			() => new Map(initialDocuments.map((d) => [`${d.document_type ?? "UNKNOWN"}:${d.id}`, d]))
+			() => new Map()
 		);
 		const isComposingRef = useRef(false);
+		const lastSelectionRangeRef = useRef<Range | null>(null);
+		const isRangeInsideEditor = useCallback((range: Range | null): range is Range => {
+			if (!range || !editorRef.current) return false;
+			return (
+				editorRef.current.contains(range.startContainer) &&
+				editorRef.current.contains(range.endContainer)
+			);
+		}, []);
+		const isSelectionInsideEditor = useCallback(
+			(selection: Selection | null): selection is Selection => {
+				if (!selection || selection.rangeCount === 0 || !editorRef.current) return false;
+				const range = selection.getRangeAt(0);
+				return isRangeInsideEditor(range);
+			},
+			[isRangeInsideEditor]
+		);
 
-		// Sync initial documents
+		const rememberSelection = useCallback(() => {
+			const selection = window.getSelection();
+			if (!isSelectionInsideEditor(selection)) return;
+			lastSelectionRangeRef.current = selection.getRangeAt(0).cloneRange();
+		}, [isSelectionInsideEditor]);
+
+		const restoreRememberedSelection = useCallback((): Selection | null => {
+			const selection = window.getSelection();
+			if (!selection) return null;
+			if (!isRangeInsideEditor(lastSelectionRangeRef.current)) return null;
+			selection.removeAllRanges();
+			selection.addRange(lastSelectionRangeRef.current.cloneRange());
+			return selection;
+		}, [isRangeInsideEditor]);
+
 		useEffect(() => {
-			if (initialDocuments.length > 0) {
-				setMentionedDocs(
-					new Map(initialDocuments.map((d) => [`${d.document_type ?? "UNKNOWN"}:${d.id}`, d]))
-				);
-			}
-		}, [initialDocuments]);
+			const handleSelectionChange = () => {
+				if (document.activeElement !== editorRef.current) return;
+				rememberSelection();
+			};
+			document.addEventListener("selectionchange", handleSelectionChange);
+			return () => document.removeEventListener("selectionchange", handleSelectionChange);
+		}, [rememberSelection]);
 
 		useEffect(() => {
 			if (!initialText || !editorRef.current) return;
@@ -145,7 +166,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			editorRef.current.appendChild(document.createElement("br"));
 			editorRef.current.appendChild(document.createElement("br"));
 			setIsEmpty(false);
-			onChange?.(initialText, Array.from(mentionedDocs.values()));
+			onChange?.(initialText, []);
 			editorRef.current.focus();
 			const sel = window.getSelection();
 			const range = document.createRange();
@@ -157,7 +178,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			range.insertNode(anchor);
 			anchor.scrollIntoView({ block: "end" });
 			anchor.remove();
-		}, [initialText]); // eslint-disable-line react-hooks/exhaustive-deps
+		}, [initialText, onChange]);
 
 		// Focus at the end of the editor
 		const focusAtEnd = useCallback(() => {
@@ -211,6 +232,19 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			return Array.from(mentionedDocs.values());
 		}, [mentionedDocs]);
 
+		const syncEditorState = useCallback(
+			(docsOverride?: Map<string, MentionedDocument>) => {
+				const docs = docsOverride
+					? Array.from(docsOverride.values())
+					: Array.from(mentionedDocs.values());
+				const text = getText();
+				const empty = text.length === 0 && docs.length === 0;
+				setIsEmpty(empty);
+				onChange?.(text, docs);
+			},
+			[getText, mentionedDocs, onChange]
+		);
+
 		// Create a chip element for a document
 		const createChipElement = useCallback(
 			(doc: MentionedDocument): HTMLSpanElement => {
@@ -246,10 +280,11 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 					e.preventDefault();
 					e.stopPropagation();
 					chip.remove();
-					const docKey = `${doc.document_type ?? "UNKNOWN"}:${doc.id}`;
+					const docKey = getMentionDocKey(doc);
 					setMentionedDocs((prev) => {
 						const next = new Map(prev);
 						next.delete(docKey);
+						syncEditorState(next);
 						return next;
 					});
 					onDocumentRemove?.(doc.id, doc.document_type);
@@ -294,13 +329,17 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 
 				return chip;
 			},
-			[focusAtEnd, onDocumentRemove]
+			[focusAtEnd, onDocumentRemove, syncEditorState]
 		);
 
 		// Insert a document chip at the current cursor position
 		const insertDocumentChip = useCallback(
-			(doc: Pick<Document, "id" | "title" | "document_type">) => {
+			(
+				doc: Pick<Document, "id" | "title" | "document_type">,
+				options?: { removeTriggerText?: boolean }
+			) => {
 				if (!editorRef.current) return;
+				const removeTriggerText = options?.removeTriggerText ?? true;
 
 				// Validate required fields for type safety
 				if (typeof doc.id !== "number" || typeof doc.title !== "string") {
@@ -315,25 +354,51 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				};
 
 				// Add to mentioned docs map using unique key
-				const docKey = `${doc.document_type ?? "UNKNOWN"}:${doc.id}`;
+				const docKey = getMentionDocKey(doc);
 				setMentionedDocs((prev) => new Map(prev).set(docKey, mentionDoc));
+				const nextDocs = new Map(mentionedDocs);
+				nextDocs.set(docKey, mentionDoc);
 
 				// Find and remove the @query text
 				const selection = window.getSelection();
-				if (!selection || selection.rangeCount === 0) {
-					// No selection, just append
+				const hasActiveSelection = isSelectionInsideEditor(selection);
+				const resolvedSelection = hasActiveSelection ? selection : restoreRememberedSelection();
+				if (
+					!resolvedSelection ||
+					resolvedSelection.rangeCount === 0 ||
+					!isSelectionInsideEditor(resolvedSelection)
+				) {
+					// No valid in-editor selection: deterministically insert at end.
+					editorRef.current.focus();
+					const endSelection = window.getSelection();
+					if (!endSelection) return;
+					const endRange = document.createRange();
+					endRange.selectNodeContents(editorRef.current);
+					endRange.collapse(false);
+					endSelection.removeAllRanges();
+					endSelection.addRange(endRange);
+
 					const chip = createChipElement(mentionDoc);
-					editorRef.current.appendChild(chip);
-					editorRef.current.appendChild(document.createTextNode(" "));
-					focusAtEnd();
+					endRange.insertNode(chip);
+					endRange.setStartAfter(chip);
+					endRange.collapse(true);
+					const space = document.createTextNode(" ");
+					endRange.insertNode(space);
+					endRange.setStartAfter(space);
+					endRange.collapse(true);
+					endSelection.removeAllRanges();
+					endSelection.addRange(endRange);
+
+					syncEditorState(nextDocs);
+					rememberSelection();
 					return;
 				}
 
 				// Find the @ symbol before the cursor and remove it along with any query text
-				const range = selection.getRangeAt(0);
+				const range = resolvedSelection.getRangeAt(0);
 				const textNode = range.startContainer;
 
-				if (textNode.nodeType === Node.TEXT_NODE) {
+				if (textNode.nodeType === Node.TEXT_NODE && removeTriggerText) {
 					const text = textNode.textContent || "";
 					const cursorPos = range.startOffset;
 
@@ -369,8 +434,9 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 							const newRange = document.createRange();
 							newRange.setStart(afterNode, 1);
 							newRange.collapse(true);
-							selection.removeAllRanges();
-							selection.addRange(newRange);
+							resolvedSelection.removeAllRanges();
+							resolvedSelection.addRange(newRange);
+							rememberSelection();
 						}
 					} else {
 						// No @ found, just insert at cursor
@@ -384,48 +450,56 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 						range.insertNode(space);
 						range.setStartAfter(space);
 						range.collapse(true);
+						resolvedSelection.removeAllRanges();
+						resolvedSelection.addRange(range);
+						rememberSelection();
 					}
 				} else {
-					// Not in a text node, append to editor
+					// Either explicit non-trigger insertion or no @query present.
 					const chip = createChipElement(mentionDoc);
-					editorRef.current.appendChild(chip);
-					editorRef.current.appendChild(document.createTextNode(" "));
-					focusAtEnd();
+					range.insertNode(chip);
+					range.setStartAfter(chip);
+					range.collapse(true);
+					const space = document.createTextNode(" ");
+					range.insertNode(space);
+					range.setStartAfter(space);
+					range.collapse(true);
+					resolvedSelection.removeAllRanges();
+					resolvedSelection.addRange(range);
+					rememberSelection();
 				}
 
-				// Update empty state
-				setIsEmpty(false);
-
-				// Trigger onChange
-				if (onChange) {
-					setTimeout(() => {
-						onChange(getText(), getMentionedDocuments());
-					}, 0);
-				}
+				syncEditorState(nextDocs);
 			},
-			[createChipElement, focusAtEnd, getText, getMentionedDocuments, onChange]
+			[
+				createChipElement,
+				isSelectionInsideEditor,
+				mentionedDocs,
+				rememberSelection,
+				restoreRememberedSelection,
+				syncEditorState,
+			]
 		);
 
 		// Clear the editor
 		const clear = useCallback(() => {
 			if (editorRef.current) {
 				editorRef.current.innerHTML = "";
-				setIsEmpty(true);
-				setMentionedDocs(new Map());
+				const emptyDocs = new Map<string, MentionedDocument>();
+				setMentionedDocs(emptyDocs);
+				syncEditorState(emptyDocs);
 			}
-		}, []);
+		}, [syncEditorState]);
 
 		// Replace editor content with plain text and place cursor at end
 		const setText = useCallback(
 			(text: string) => {
 				if (!editorRef.current) return;
 				editorRef.current.innerText = text;
-				const empty = text.length === 0;
-				setIsEmpty(empty);
-				onChange?.(text, Array.from(mentionedDocs.values()));
+				syncEditorState();
 				focusAtEnd();
 			},
-			[focusAtEnd, onChange, mentionedDocs]
+			[focusAtEnd, syncEditorState]
 		);
 
 		const setDocumentChipStatus = useCallback(
@@ -473,7 +547,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 		const removeDocumentChip = useCallback(
 			(docId: number, docType?: string) => {
 				if (!editorRef.current) return;
-				const chipKey = `${docType ?? "UNKNOWN"}:${docId}`;
+				const chipKey = getMentionDocKey({ id: docId, document_type: docType });
 				const chips = editorRef.current.querySelectorAll<HTMLSpanElement>(
 					`span[${CHIP_DATA_ATTR}="true"]`
 				);
@@ -486,14 +560,11 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				setMentionedDocs((prev) => {
 					const next = new Map(prev);
 					next.delete(chipKey);
+					syncEditorState(next);
 					return next;
 				});
-
-				const text = getText();
-				const empty = text.length === 0 && mentionedDocs.size <= 1;
-				setIsEmpty(empty);
 			},
-			[getText, mentionedDocs.size]
+			[syncEditorState]
 		);
 
 		// Expose methods via ref
@@ -594,6 +665,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 
 			// Notify parent of change
 			onChange?.(text, Array.from(mentionedDocs.values()));
+			rememberSelection();
 		}, [
 			getText,
 			mentionedDocs,
@@ -602,6 +674,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			onMentionClose,
 			onActionTrigger,
 			onActionClose,
+			rememberSelection,
 		]);
 
 		// Handle keydown
@@ -639,10 +712,14 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 									const chipDocType = getChipDocType(prevSibling);
 									if (chipId !== null) {
 										prevSibling.remove();
-										const chipKey = `${chipDocType}:${chipId}`;
+										const chipKey = getMentionDocKey({
+											id: chipId,
+											document_type: chipDocType,
+										});
 										setMentionedDocs((prev) => {
 											const next = new Map(prev);
 											next.delete(chipKey);
+											syncEditorState(next);
 											return next;
 										});
 										// Notify parent that a document was removed
@@ -676,10 +753,14 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 									const chipDocType = getChipDocType(prevChild);
 									if (chipId !== null) {
 										prevChild.remove();
-										const chipKey = `${chipDocType}:${chipId}`;
+										const chipKey = getMentionDocKey({
+											id: chipId,
+											document_type: chipDocType,
+										});
 										setMentionedDocs((prev) => {
 											const next = new Map(prev);
 											next.delete(chipKey);
+											syncEditorState(next);
 											return next;
 										});
 										// Notify parent that a document was removed
@@ -691,7 +772,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 					}
 				}
 			},
-			[onKeyDown, onSubmit, onDocumentRemove, onMentionClose]
+			[onKeyDown, onSubmit, onDocumentRemove, onMentionClose, syncEditorState]
 		);
 
 		// Handle paste - strip formatting
@@ -713,7 +794,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 
 		return (
 			<div className="relative w-full">
-				{/** biome-ignore lint/a11y/useSemanticElements: <not important> */}
+				{/* biome-ignore lint/a11y/noStaticElementInteractions: contenteditable mention editor requires a div for inline chips */}
 				<div
 					ref={editorRef}
 					contentEditable={!disabled}
@@ -724,6 +805,9 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 					onPaste={handlePaste}
 					onCompositionStart={handleCompositionStart}
 					onCompositionEnd={handleCompositionEnd}
+					onKeyUp={rememberSelection}
+					onMouseUp={rememberSelection}
+					onBlur={rememberSelection}
 					className={cn(
 						"min-h-[24px] max-h-32 overflow-y-auto",
 						"text-sm outline-none",
@@ -733,9 +817,6 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 					)}
 					style={{ wordBreak: "break-word" }}
 					data-placeholder={placeholder}
-					aria-label="Message input with inline mentions"
-					role="textbox"
-					aria-multiline="true"
 				/>
 				{/* Placeholder with fade animation on change */}
 				{isEmpty && (

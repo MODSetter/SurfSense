@@ -39,12 +39,10 @@ import {
 import { chatSessionStateAtom } from "@/atoms/chat/chat-session-state.atom";
 import {
 	mentionedDocumentsAtom,
-	sidebarSelectedDocumentsAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
 import { pendingUserImageDataUrlsAtom } from "@/atoms/chat/pending-user-images.atom";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
-import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import {
 	globalNewLLMConfigsAtom,
@@ -91,6 +89,7 @@ import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsSync } from "@/hooks/use-comments-sync";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
+import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { captureDisplayToPngDataUrl } from "@/lib/chat/display-media-capture";
 import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/lib/layout-events";
 import { cn } from "@/lib/utils";
@@ -364,12 +363,14 @@ const ClipboardChip: FC<{ text: string; onDismiss: () => void }> = ({ text, onDi
 const Composer: FC = () => {
 	// Document mention state (atoms persist across component remounts)
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
-	const setSidebarDocs = useSetAtom(sidebarSelectedDocumentsAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
 	const [showPromptPicker, setShowPromptPicker] = useState(false);
 	const [mentionQuery, setMentionQuery] = useState("");
 	const [actionQuery, setActionQuery] = useState("");
 	const editorRef = useRef<InlineMentionEditorRef>(null);
+	const prevMentionedDocsRef = useRef<
+		Map<string, Pick<Document, "id" | "title" | "document_type">>
+	>(new Map());
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
 	const promptPickerRef = useRef<PromptPickerRef>(null);
 	const viewportRef = useRef<Element | null>(null);
@@ -605,7 +606,6 @@ const Composer: FC = () => {
 		aui.composer().send();
 		editorRef.current?.clear();
 		setMentionedDocuments([]);
-		setSidebarDocs([]);
 
 		// With turnAnchor="top", ViewportSlack adds min-height to the last
 		// assistant message so that scrolling-to-bottom actually positions the
@@ -652,42 +652,70 @@ const Composer: FC = () => {
 		clipboardInitialText,
 		aui,
 		setMentionedDocuments,
-		setSidebarDocs,
 		threadViewportStore,
 	]);
 
 	const handleDocumentRemove = useCallback(
 		(docId: number, docType?: string) => {
-			setMentionedDocuments((prev) =>
-				prev.filter((doc) => !(doc.id === docId && doc.document_type === docType))
-			);
+			setMentionedDocuments((prev) => {
+				if (!docType) {
+					// Defensive fallback: keep UI in sync even when chip type is unavailable.
+					return prev.filter((doc) => doc.id !== docId);
+				}
+				const removedKey = getMentionDocKey({ id: docId, document_type: docType });
+				return prev.filter((doc) => getMentionDocKey(doc) !== removedKey);
+			});
 		},
 		[setMentionedDocuments]
 	);
 
 	const handleDocumentsMention = useCallback(
 		(documents: Pick<Document, "id" | "title" | "document_type">[]) => {
-			const existingKeys = new Set(mentionedDocuments.map((d) => `${d.document_type}:${d.id}`));
-			const newDocs = documents.filter(
-				(doc) => !existingKeys.has(`${doc.document_type}:${doc.id}`)
-			);
+			const editorMentionedDocs = editorRef.current?.getMentionedDocuments() ?? [];
+			const editorDocKeys = new Set(editorMentionedDocs.map((doc) => getMentionDocKey(doc)));
 
-			for (const doc of newDocs) {
+			for (const doc of documents) {
+				const key = getMentionDocKey(doc);
+				if (editorDocKeys.has(key)) continue;
 				editorRef.current?.insertDocumentChip(doc);
 			}
 
 			setMentionedDocuments((prev) => {
-				const existingKeySet = new Set(prev.map((d) => `${d.document_type}:${d.id}`));
-				const uniqueNewDocs = documents.filter(
-					(doc) => !existingKeySet.has(`${doc.document_type}:${doc.id}`)
-				);
+				const existingKeySet = new Set(prev.map((d) => getMentionDocKey(d)));
+				const uniqueNewDocs = documents.filter((doc) => !existingKeySet.has(getMentionDocKey(doc)));
 				return [...prev, ...uniqueNewDocs];
 			});
 
 			setMentionQuery("");
 		},
-		[mentionedDocuments, setMentionedDocuments]
+		[setMentionedDocuments]
 	);
+
+	useEffect(() => {
+		const editor = editorRef.current;
+		const nextDocsMap = new Map(mentionedDocuments.map((doc) => [getMentionDocKey(doc), doc]));
+		const prevDocsMap = prevMentionedDocsRef.current;
+
+		if (!editor) {
+			prevMentionedDocsRef.current = nextDocsMap;
+			return;
+		}
+
+		const editorKeys = new Set(editor.getMentionedDocuments().map(getMentionDocKey));
+
+		for (const [key, doc] of nextDocsMap) {
+			if (prevDocsMap.has(key) || editorKeys.has(key)) continue;
+			editor.insertDocumentChip(doc, { removeTriggerText: false });
+		}
+
+		for (const [key, doc] of prevDocsMap) {
+			if (!nextDocsMap.has(key)) {
+				editor.removeDocumentChip(doc.id, doc.document_type);
+			}
+		}
+
+		prevMentionedDocsRef.current = nextDocsMap;
+	}, [mentionedDocuments]);
 
 	return (
 		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col gap-2">
@@ -767,8 +795,6 @@ interface ComposerActionProps {
 
 const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false }) => {
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
-	const sidebarDocs = useAtomValue(sidebarSelectedDocumentsAtom);
-	const setDocumentsSidebarOpen = useSetAtom(documentsSidebarOpenAtom);
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 	const [toolsPopoverOpen, setToolsPopoverOpen] = useState(false);
 	const isDesktop = useMediaQuery("(min-width: 640px)");
@@ -1224,15 +1250,6 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 								</motion.span>
 							)}
 						</AnimatePresence>
-					</button>
-				)}
-				{sidebarDocs.length > 0 && (
-					<button
-						type="button"
-						onClick={() => setDocumentsSidebarOpen(true)}
-						className="rounded-full border border-border/60 bg-accent/50 px-2.5 py-1 text-xs font-medium text-foreground/80 transition-colors hover:bg-accent"
-					>
-						{sidebarDocs.length} {sidebarDocs.length === 1 ? "source" : "sources"} selected
 					</button>
 				)}
 			</div>
