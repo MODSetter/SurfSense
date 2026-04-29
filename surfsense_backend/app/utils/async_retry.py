@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from collections.abc import Callable
 from typing import TypeVar
@@ -32,9 +33,7 @@ F = TypeVar("F", bound=Callable)
 def _is_retryable(exc: BaseException) -> bool:
     if isinstance(exc, ConnectorError):
         return exc.retryable
-    if isinstance(exc, (httpx.TimeoutException, httpx.ConnectError)):
-        return True
-    return False
+    return bool(isinstance(exc, httpx.TimeoutException | httpx.ConnectError))
 
 
 def build_retry(
@@ -86,10 +85,8 @@ def raise_for_status(
         retry_after_raw = response.headers.get("Retry-After")
         retry_after: float | None = None
         if retry_after_raw:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 retry_after = float(retry_after_raw)
-            except (ValueError, TypeError):
-                pass
         raise ConnectorRateLimitError(
             f"{service} rate limited (429)",
             service=service,

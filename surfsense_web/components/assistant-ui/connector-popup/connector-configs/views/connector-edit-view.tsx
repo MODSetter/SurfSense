@@ -314,8 +314,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 
 								{connector.is_indexable &&
 									(() => {
-										const isGoogleDrive =
-											connector.connector_type === "GOOGLE_DRIVE_CONNECTOR";
+										const isGoogleDrive = connector.connector_type === "GOOGLE_DRIVE_CONNECTOR";
 										const isComposioGoogleDrive =
 											connector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR";
 										const requiresFolderSelection = isGoogleDrive || isComposioGoogleDrive;
@@ -327,8 +326,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 											(connector.config?.selected_files as
 												| Array<{ id: string; name: string }>
 												| undefined) || [];
-										const hasItemsSelected =
-											selectedFolders.length > 0 || selectedFiles.length > 0;
+										const hasItemsSelected = selectedFolders.length > 0 || selectedFiles.length > 0;
 										const isDisabled = requiresFolderSelection && !hasItemsSelected;
 
 										return (

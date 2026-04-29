@@ -17,7 +17,8 @@ async def get_teams_connector(
         select(SearchSourceConnector).filter(
             SearchSourceConnector.search_space_id == search_space_id,
             SearchSourceConnector.user_id == user_id,
-            SearchSourceConnector.connector_type == SearchSourceConnectorType.TEAMS_CONNECTOR,
+            SearchSourceConnector.connector_type
+            == SearchSourceConnectorType.TEAMS_CONNECTOR,
         )
     )
     return result.scalars().first()

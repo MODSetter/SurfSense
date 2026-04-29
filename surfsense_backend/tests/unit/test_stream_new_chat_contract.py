@@ -45,4 +45,3 @@ def test_contract_enforcement_local_only():
 
     result.filesystem_mode = "cloud"
     assert not _contract_enforcement_active(result)
-

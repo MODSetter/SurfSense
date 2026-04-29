@@ -10,7 +10,11 @@ const code = createCodePlugin({
 });
 
 const math = createMathPlugin({
-	singleDollarTextMath: true,
+	// Disabled so currency like "$3,120.00 and ... $0.00" isn't parsed as
+	// inline LaTeX. convertLatexDelimiters() below normalises any genuine
+	// inline math (\(...\), $...$ starting with a LaTeX command, etc.) to
+	// $$...$$, so this flip doesn't lose any math rendering.
+	singleDollarTextMath: false,
 });
 
 interface MarkdownViewerProps {

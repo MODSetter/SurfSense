@@ -156,7 +156,9 @@ async def _extract_binary_attachment_markdown(
     try:
         raw_bytes = base64.b64decode(payload.binary_base64, validate=True)
     except Exception:
-        logger.warning("obsidian attachment payload had invalid base64: %s", payload.path)
+        logger.warning(
+            "obsidian attachment payload had invalid base64: %s", payload.path
+        )
         return "", {"attachment_extraction_status": "invalid_binary_payload"}
 
     suffix = f".{payload.extension.lstrip('.')}"
@@ -180,7 +182,10 @@ async def _extract_binary_attachment_markdown(
         return result.markdown_content, metadata
     except Exception as exc:
         logger.warning(
-            "obsidian attachment ETL failed for %s: %s", payload.path, exc, exc_info=True
+            "obsidian attachment ETL failed for %s: %s",
+            payload.path,
+            exc,
+            exc_info=True,
         )
         return "", {
             "attachment_extraction_status": "etl_failed",

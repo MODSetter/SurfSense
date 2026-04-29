@@ -52,11 +52,21 @@ def create_read_teams_messages_tool(
                 )
 
             if resp.status_code == 401:
-                return {"status": "auth_error", "message": "Teams token expired. Please re-authenticate.", "connector_type": "teams"}
+                return {
+                    "status": "auth_error",
+                    "message": "Teams token expired. Please re-authenticate.",
+                    "connector_type": "teams",
+                }
             if resp.status_code == 403:
-                return {"status": "error", "message": "Insufficient permissions to read this channel."}
+                return {
+                    "status": "error",
+                    "message": "Insufficient permissions to read this channel.",
+                }
             if resp.status_code != 200:
-                return {"status": "error", "message": f"Graph API error: {resp.status_code}"}
+                return {
+                    "status": "error",
+                    "message": f"Graph API error: {resp.status_code}",
+                }
 
             raw_msgs = resp.json().get("value", [])
             messages = []
@@ -64,13 +74,15 @@ def create_read_teams_messages_tool(
                 sender = m.get("from", {})
                 user_info = sender.get("user", {}) if sender else {}
                 body = m.get("body", {})
-                messages.append({
-                    "id": m.get("id"),
-                    "sender": user_info.get("displayName", "Unknown"),
-                    "content": body.get("content", ""),
-                    "content_type": body.get("contentType", "text"),
-                    "timestamp": m.get("createdDateTime", ""),
-                })
+                messages.append(
+                    {
+                        "id": m.get("id"),
+                        "sender": user_info.get("displayName", "Unknown"),
+                        "content": body.get("content", ""),
+                        "content_type": body.get("contentType", "text"),
+                        "timestamp": m.get("createdDateTime", ""),
+                    }
+                )
 
             return {
                 "status": "success",

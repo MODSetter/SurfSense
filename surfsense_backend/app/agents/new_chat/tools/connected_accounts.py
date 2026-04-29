@@ -57,7 +57,11 @@ def create_get_connected_accounts_tool(
     async def _run(service: str) -> list[dict[str, Any]]:
         svc_cfg = MCP_SERVICES.get(service)
         if not svc_cfg:
-            return [{"error": f"Unknown service '{service}'. Valid: {', '.join(sorted(MCP_SERVICES.keys()))}"}]
+            return [
+                {
+                    "error": f"Unknown service '{service}'. Valid: {', '.join(sorted(MCP_SERVICES.keys()))}"
+                }
+            ]
 
         try:
             connector_type = SearchSourceConnectorType(svc_cfg.connector_type)
@@ -74,7 +78,11 @@ def create_get_connected_accounts_tool(
         connectors = result.scalars().all()
 
         if not connectors:
-            return [{"error": f"No {svc_cfg.name} accounts connected. Ask the user to connect one in settings."}]
+            return [
+                {
+                    "error": f"No {svc_cfg.name} accounts connected. Ask the user to connect one in settings."
+                }
+            ]
 
         is_multi = len(connectors) > 1
 

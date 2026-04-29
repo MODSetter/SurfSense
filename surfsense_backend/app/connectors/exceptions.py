@@ -13,7 +13,6 @@ from typing import Any
 
 
 class ConnectorError(Exception):
-
     def __init__(
         self,
         message: str,

@@ -46,7 +46,9 @@ def create_list_luma_events_tool(
 
             async with httpx.AsyncClient(timeout=20.0) as client:
                 while len(all_entries) < max_results:
-                    params: dict[str, Any] = {"limit": min(100, max_results - len(all_entries))}
+                    params: dict[str, Any] = {
+                        "limit": min(100, max_results - len(all_entries))
+                    }
                     if cursor:
                         params["cursor"] = cursor
 
@@ -57,9 +59,16 @@ def create_list_luma_events_tool(
                     )
 
                     if resp.status_code == 401:
-                        return {"status": "auth_error", "message": "Luma API key is invalid.", "connector_type": "luma"}
+                        return {
+                            "status": "auth_error",
+                            "message": "Luma API key is invalid.",
+                            "connector_type": "luma",
+                        }
                     if resp.status_code != 200:
-                        return {"status": "error", "message": f"Luma API error: {resp.status_code}"}
+                        return {
+                            "status": "error",
+                            "message": f"Luma API error: {resp.status_code}",
+                        }
 
                     data = resp.json()
                     entries = data.get("entries", [])
@@ -76,16 +85,18 @@ def create_list_luma_events_tool(
             for entry in all_entries[:max_results]:
                 ev = entry.get("event", {})
                 geo = ev.get("geo_info", {})
-                events.append({
-                    "event_id": entry.get("api_id"),
-                    "name": ev.get("name", "Untitled"),
-                    "start_at": ev.get("start_at", ""),
-                    "end_at": ev.get("end_at", ""),
-                    "timezone": ev.get("timezone", ""),
-                    "location": geo.get("name", ""),
-                    "url": ev.get("url", ""),
-                    "visibility": ev.get("visibility", ""),
-                })
+                events.append(
+                    {
+                        "event_id": entry.get("api_id"),
+                        "name": ev.get("name", "Untitled"),
+                        "start_at": ev.get("start_at", ""),
+                        "end_at": ev.get("end_at", ""),
+                        "timezone": ev.get("timezone", ""),
+                        "location": geo.get("name", ""),
+                        "url": ev.get("url", ""),
+                        "visibility": ev.get("visibility", ""),
+                    }
+                )
 
             return {"status": "success", "events": events, "total": len(events)}
 

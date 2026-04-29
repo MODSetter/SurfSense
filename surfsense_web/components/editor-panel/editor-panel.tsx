@@ -136,6 +136,7 @@ export function EditorPanelContent({
 	const [displayTitle, setDisplayTitle] = useState(title || "Untitled");
 	const isLocalFileMode = kind === "local_file";
 	const editorRenderMode: EditorRenderMode = isLocalFileMode ? "source_code" : "rich_markdown";
+
 	const resolveLocalVirtualPath = useCallback(
 		async (candidatePath: string): Promise<string> => {
 			if (!electronAPI?.getAgentFilesystemMounts) {
@@ -291,7 +292,7 @@ export function EditorPanelContent({
 	}, [editorDoc?.source_markdown]);
 
 	const handleSave = useCallback(
-		async (_options?: { silent?: boolean }) => {
+		async (options?: { silent?: boolean }) => {
 			setSaving(true);
 			try {
 				if (isLocalFileMode) {
@@ -342,11 +343,15 @@ export function EditorPanelContent({
 
 				setEditorDoc((prev) => (prev ? { ...prev, source_markdown: markdownRef.current } : prev));
 				setEditedMarkdown(null);
-				toast.success("Document saved! Reindexing in background...");
+				if (!options?.silent) {
+					toast.success("Document saved! Reindexing in background...");
+				}
 				return true;
 			} catch (err) {
 				console.error("Error saving document:", err);
-				toast.error(err instanceof Error ? err.message : "Failed to save document");
+				if (!options?.silent) {
+					toast.error(err instanceof Error ? err.message : "Failed to save document");
+				}
 				return false;
 			} finally {
 				setSaving(false);
@@ -367,6 +372,11 @@ export function EditorPanelContent({
 				EDITABLE_DOCUMENT_TYPES.has(editorDoc.document_type ?? "")) &&
 			!isLargeDocument
 		: false;
+	// Render through PlateEditor for editable doc types (FILE/NOTE).
+	// Everything else (large docs, non-editable types) falls back to the
+	// lightweight `MarkdownViewer` — Plate is heavy on multi-MB docs and
+	// non-editable types don't benefit from its editing UX.
+	const renderInPlateEditor = isEditableType;
 	const hasUnsavedChanges = editedMarkdown !== null;
 	const showDesktopHeader = !!onClose;
 	const showEditingActions = isEditableType && isEditing;
@@ -380,6 +390,60 @@ export function EditorPanelContent({
 		changeCountRef.current = 0;
 		setIsEditing(false);
 	}, [editorDoc?.source_markdown]);
+
+	const handleDownloadMarkdown = useCallback(async () => {
+		if (!searchSpaceId || !documentId) return;
+		setDownloading(true);
+		try {
+			const response = await authenticatedFetch(
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/download-markdown`,
+				{ method: "GET" }
+			);
+			if (!response.ok) throw new Error("Download failed");
+			const blob = await response.blob();
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			const disposition = response.headers.get("content-disposition");
+			const match = disposition?.match(/filename="(.+)"/);
+			a.download = match?.[1] ?? `${editorDoc?.title || "document"}.md`;
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+			URL.revokeObjectURL(url);
+			toast.success("Download started");
+		} catch {
+			toast.error("Failed to download document");
+		} finally {
+			setDownloading(false);
+		}
+	}, [documentId, editorDoc?.title, searchSpaceId]);
+
+	const largeDocAlert = isLargeDocument && !isLocalFileMode && editorDoc && (
+		<Alert className="mb-4">
+			<FileText className="size-4" />
+			<AlertDescription className="flex items-center justify-between gap-4">
+				<span>
+					This document is too large for the editor (
+					{Math.round((editorDoc.content_size_bytes ?? 0) / 1024 / 1024)}MB,{" "}
+					{editorDoc.chunk_count ?? 0} chunks). Showing a preview below.
+				</span>
+				<Button
+					variant="outline"
+					size="sm"
+					className="relative shrink-0"
+					disabled={downloading}
+					onClick={handleDownloadMarkdown}
+				>
+					<span className={`flex items-center gap-1.5 ${downloading ? "opacity-0" : ""}`}>
+						<Download className="size-3.5" />
+						Download .md
+					</span>
+					{downloading && <Spinner size="sm" className="absolute" />}
+				</Button>
+			</AlertDescription>
+		</Alert>
+	);
 
 	return (
 		<>
@@ -565,61 +629,6 @@ export function EditorPanelContent({
 							</p>
 						</div>
 					</div>
-				) : isLargeDocument && !isLocalFileMode ? (
-					<div className="h-full overflow-y-auto px-5 py-4">
-						<Alert className="mb-4">
-							<FileText className="size-4" />
-							<AlertDescription className="flex items-center justify-between gap-4">
-								<span>
-									This document is too large for the editor (
-									{Math.round((editorDoc.content_size_bytes ?? 0) / 1024 / 1024)}MB,{" "}
-									{editorDoc.chunk_count ?? 0} chunks). Showing a preview below.
-								</span>
-								<Button
-									variant="outline"
-									size="sm"
-									className="relative shrink-0"
-									disabled={downloading}
-									onClick={async () => {
-										setDownloading(true);
-										try {
-											if (!searchSpaceId || !documentId) {
-												throw new Error("Missing document context");
-											}
-											const response = await authenticatedFetch(
-												`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/download-markdown`,
-												{ method: "GET" }
-											);
-											if (!response.ok) throw new Error("Download failed");
-											const blob = await response.blob();
-											const url = URL.createObjectURL(blob);
-											const a = document.createElement("a");
-											a.href = url;
-											const disposition = response.headers.get("content-disposition");
-											const match = disposition?.match(/filename="(.+)"/);
-											a.download = match?.[1] ?? `${editorDoc.title || "document"}.md`;
-											document.body.appendChild(a);
-											a.click();
-											a.remove();
-											URL.revokeObjectURL(url);
-											toast.success("Download started");
-										} catch {
-											toast.error("Failed to download document");
-										} finally {
-											setDownloading(false);
-										}
-									}}
-								>
-									<span className={`flex items-center gap-1.5 ${downloading ? "opacity-0" : ""}`}>
-										<Download className="size-3.5" />
-										Download .md
-									</span>
-									{downloading && <Spinner size="sm" className="absolute" />}
-								</Button>
-							</AlertDescription>
-						</Alert>
-						<MarkdownViewer content={editorDoc.source_markdown} />
-					</div>
 				) : editorRenderMode === "source_code" ? (
 					<div className="h-full overflow-hidden">
 						<SourceCodeEditor
@@ -638,20 +647,32 @@ export function EditorPanelContent({
 							}}
 						/>
 					</div>
-				) : isEditableType ? (
-					<PlateEditor
-						key={`${isLocalFileMode ? (localFilePath ?? "local-file") : documentId}-${isEditing ? "editing" : "viewing"}`}
-						preset="full"
-						markdown={editorDoc.source_markdown}
-						onMarkdownChange={handleMarkdownChange}
-						readOnly={!isEditing}
-						placeholder="Start writing..."
-						editorVariant="default"
-						allowModeToggle={false}
-						reserveToolbarSpace
-						defaultEditing={isEditing}
-						className="[&_[role=toolbar]]:!bg-sidebar"
-					/>
+				) : isLargeDocument && !isLocalFileMode ? (
+					// Large doc — fast Streamdown preview + download CTA.
+					// Plate is heavy on multi-MB docs.
+					<div className="h-full overflow-y-auto px-5 py-4">
+						{largeDocAlert}
+						<MarkdownViewer content={editorDoc.source_markdown} />
+					</div>
+				) : renderInPlateEditor ? (
+					// Editable doc (FILE/NOTE) — Plate editing UX.
+					<div className="flex h-full min-h-0 flex-col">
+						<div className="flex-1 min-h-0 overflow-hidden">
+							<PlateEditor
+								key={`${isLocalFileMode ? (localFilePath ?? "local-file") : documentId}-${isEditing ? "editing" : "viewing"}`}
+								preset="full"
+								markdown={editorDoc.source_markdown}
+								onMarkdownChange={handleMarkdownChange}
+								readOnly={!isEditing}
+								placeholder="Start writing..."
+								editorVariant="default"
+								allowModeToggle={false}
+								reserveToolbarSpace
+								defaultEditing={isEditing}
+								className="**:[[role=toolbar]]:bg-sidebar!"
+							/>
+						</div>
+					</div>
 				) : (
 					<div className="h-full overflow-y-auto px-5 py-4">
 						<MarkdownViewer content={editorDoc.source_markdown} />

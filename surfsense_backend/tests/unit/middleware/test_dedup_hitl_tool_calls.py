@@ -1,8 +1,10 @@
 import pytest
 from langchain_core.messages import AIMessage
+from langchain_core.tools import StructuredTool
 
 from app.agents.new_chat.middleware.dedup_tool_calls import (
     DedupHITLToolCallsMiddleware,
+    wrap_dedup_key_by_arg_name,
 )
 
 pytestmark = pytest.mark.unit
@@ -14,9 +16,34 @@ def _make_state(tool_calls: list[dict]) -> dict:
     return {"messages": [msg]}
 
 
+def _hitl_tool(name: str, *, dedup_arg: str) -> StructuredTool:
+    """Build a tool with declarative ``dedup_key`` metadata.
+
+    Mirrors the ``ToolDefinition.dedup_key`` -> ``tool.metadata["dedup_key"]``
+    propagation done by :func:`build_tools` after the cleanup tier.
+    """
+
+    def _fn(**kwargs):
+        return "ok"
+
+    return StructuredTool.from_function(
+        func=_fn,
+        name=name,
+        description="x",
+        metadata={"dedup_key": wrap_dedup_key_by_arg_name(dedup_arg)},
+    )
+
+
 def test_duplicate_hitl_calls_reduced_to_first():
-    """When the LLM emits the same HITL tool call twice, only the first is kept."""
-    mw = DedupHITLToolCallsMiddleware()
+    """When the LLM emits the same HITL tool call twice, only the first is kept.
+
+    After the cleanup tier removed ``_NATIVE_HITL_TOOL_DEDUP_KEYS``, the
+    resolver is sourced from ``ToolDefinition.dedup_key`` propagated onto
+    ``tool.metadata`` — which the registry does at agent build time. The
+    test mirrors that wiring with an in-memory tool.
+    """
+    tool = _hitl_tool("delete_calendar_event", dedup_arg="event_title_or_id")
+    mw = DedupHITLToolCallsMiddleware(agent_tools=[tool])
 
     state = _make_state(
         [

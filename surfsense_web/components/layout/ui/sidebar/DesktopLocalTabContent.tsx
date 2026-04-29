@@ -1,11 +1,9 @@
 "use client";
 
-import { Folder, FolderPlus, Search, X } from "lucide-react";
 import { useAtom } from "jotai";
+import { Folder, FolderPlus, Search, X } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { localExpandedFolderKeysAtom } from "@/atoms/documents/folder.atoms";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -14,6 +12,8 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { LocalFilesystemBrowser } from "./LocalFilesystemBrowser";

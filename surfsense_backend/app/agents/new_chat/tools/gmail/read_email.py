@@ -65,12 +65,22 @@ def create_read_gmail_email_tool(
 
             detail, error = await gmail.get_message_details(message_id)
             if error:
-                if "re-authenticate" in error.lower() or "authentication failed" in error.lower():
-                    return {"status": "auth_error", "message": error, "connector_type": "gmail"}
+                if (
+                    "re-authenticate" in error.lower()
+                    or "authentication failed" in error.lower()
+                ):
+                    return {
+                        "status": "auth_error",
+                        "message": error,
+                        "connector_type": "gmail",
+                    }
                 return {"status": "error", "message": error}
 
             if not detail:
-                return {"status": "not_found", "message": f"Email with ID '{message_id}' not found."}
+                return {
+                    "status": "not_found",
+                    "message": f"Email with ID '{message_id}' not found.",
+                }
 
             content = gmail.format_message_to_markdown(detail)
 
@@ -82,6 +92,9 @@ def create_read_gmail_email_tool(
             if isinstance(e, GraphInterrupt):
                 raise
             logger.error("Error reading Gmail email: %s", e, exc_info=True)
-            return {"status": "error", "message": "Failed to read email. Please try again."}
+            return {
+                "status": "error",
+                "message": "Failed to read email. Please try again.",
+            }
 
     return read_gmail_email

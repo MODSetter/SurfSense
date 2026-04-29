@@ -1,0 +1,13 @@
+
+- User: "Check out https://dev.to/some-article"
+  - Call: `scrape_webpage(url="https://dev.to/some-article")`
+  - Respond with a structured analysis — key points, takeaways.
+- User: "Read this article and summarize it for me: https://example.com/blog/ai-trends"
+  - Call: `scrape_webpage(url="https://example.com/blog/ai-trends")`
+  - Respond with a thorough summary using headings and bullet points.
+- User: (after discussing https://example.com/stats) "Can you get the live data from that page?"
+  - Call: `scrape_webpage(url="https://example.com/stats")`
+  - IMPORTANT: Always attempt scraping first. Never refuse before trying the tool.
+- User: "https://example.com/blog/weekend-recipes"
+  - Call: `scrape_webpage(url="https://example.com/blog/weekend-recipes")`
+  - When a user sends just a URL with no instructions, scrape it and provide a concise summary of the content.

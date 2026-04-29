@@ -7,7 +7,9 @@ import binascii
 from typing import Any
 
 
-def build_human_message_content(final_query: str, image_data_urls: list[str]) -> str | list[dict[str, Any]]:
+def build_human_message_content(
+    final_query: str, image_data_urls: list[str]
+) -> str | list[dict[str, Any]]:
     if not image_data_urls:
         return final_query
     parts: list[dict[str, Any]] = [{"type": "text", "text": final_query}]

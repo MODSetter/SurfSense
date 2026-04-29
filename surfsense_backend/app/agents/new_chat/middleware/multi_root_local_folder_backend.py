@@ -127,7 +127,9 @@ class MultiRootLocalFolderBackend:
             mount, local_path = self._split_mount_path(path)
         except ValueError:
             return []
-        return self._transform_infos(mount, self._mount_to_backend[mount].ls_info(local_path))
+        return self._transform_infos(
+            mount, self._mount_to_backend[mount].ls_info(local_path)
+        )
 
     async def als_info(self, path: str) -> list[FileInfo]:
         return await asyncio.to_thread(self.ls_info, path)
@@ -355,7 +357,9 @@ class MultiRootLocalFolderBackend:
                 all_matches.extend(
                     [
                         GrepMatch(
-                            path=self._prefix_mount_path(mount, self._get_str(match, "path")),
+                            path=self._prefix_mount_path(
+                                mount, self._get_str(match, "path")
+                            ),
                             line=self._get_int(match, "line"),
                             text=self._get_str(match, "text"),
                         )
@@ -394,7 +398,9 @@ class MultiRootLocalFolderBackend:
             try:
                 mount, local_path = self._split_mount_path(virtual_path)
             except ValueError:
-                invalid.append(FileUploadResponse(path=virtual_path, error=_INVALID_PATH))
+                invalid.append(
+                    FileUploadResponse(path=virtual_path, error=_INVALID_PATH)
+                )
                 continue
             grouped.setdefault(mount, []).append((local_path, content))
 
@@ -404,7 +410,9 @@ class MultiRootLocalFolderBackend:
             responses.extend(
                 [
                     FileUploadResponse(
-                        path=self._prefix_mount_path(mount, self._get_str(item, "path")),
+                        path=self._prefix_mount_path(
+                            mount, self._get_str(item, "path")
+                        ),
                         error=self._get_str(item, "error") or None,
                     )
                     for item in result
@@ -412,7 +420,9 @@ class MultiRootLocalFolderBackend:
             )
         return responses
 
-    async def aupload_files(self, files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
+    async def aupload_files(
+        self, files: list[tuple[str, bytes]]
+    ) -> list[FileUploadResponse]:
         return await asyncio.to_thread(self.upload_files, files)
 
     def download_files(self, paths: list[str]) -> list[FileDownloadResponse]:
@@ -423,7 +433,9 @@ class MultiRootLocalFolderBackend:
                 mount, local_path = self._split_mount_path(virtual_path)
             except ValueError:
                 invalid.append(
-                    FileDownloadResponse(path=virtual_path, content=None, error=_INVALID_PATH)
+                    FileDownloadResponse(
+                        path=virtual_path, content=None, error=_INVALID_PATH
+                    )
                 )
                 continue
             grouped.setdefault(mount, []).append(local_path)
@@ -434,7 +446,9 @@ class MultiRootLocalFolderBackend:
             responses.extend(
                 [
                     FileDownloadResponse(
-                        path=self._prefix_mount_path(mount, self._get_str(item, "path")),
+                        path=self._prefix_mount_path(
+                            mount, self._get_str(item, "path")
+                        ),
                         content=self._get_value(item, "content"),
                         error=self._get_str(item, "error") or None,
                     )

@@ -1,6 +1,10 @@
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon, XCircleIcon } from "lucide-react";
 import { useMemo, useState } from "react";
+import {
+	DoomLoopApprovalToolUI,
+	isDoomLoopInterrupt,
+} from "@/components/tool-ui/doom-loop-approval";
 import { GenericHitlApprovalToolUI } from "@/components/tool-ui/generic-hitl-approval";
 import { getToolIcon } from "@/contracts/enums/toolIcons";
 import { isInterruptResult } from "@/lib/hitl";
@@ -150,6 +154,9 @@ const DefaultToolFallbackInner: ToolCallMessagePartComponent = ({
 
 export const ToolFallback: ToolCallMessagePartComponent = (props) => {
 	if (isInterruptResult(props.result)) {
+		if (isDoomLoopInterrupt(props.result)) {
+			return <DoomLoopApprovalToolUI {...props} />;
+		}
 		return <GenericHitlApprovalToolUI {...props} />;
 	}
 	return <DefaultToolFallbackInner {...props} />;

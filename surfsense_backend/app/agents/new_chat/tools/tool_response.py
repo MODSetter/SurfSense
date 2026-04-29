@@ -6,7 +6,6 @@ from typing import Any
 
 
 class ToolResponse:
-
     @staticmethod
     def success(message: str, **data: Any) -> dict[str, Any]:
         return {"status": "success", "message": message, **data}
@@ -31,9 +30,7 @@ class ToolResponse:
         return {"status": "rejected", "message": message}
 
     @staticmethod
-    def not_found(
-        resource: str, identifier: str, **data: Any
-    ) -> dict[str, Any]:
+    def not_found(resource: str, identifier: str, **data: Any) -> dict[str, Any]:
         return {
             "status": "not_found",
             "error": f"{resource} '{identifier}' was not found.",
