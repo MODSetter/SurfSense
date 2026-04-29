@@ -2090,7 +2090,16 @@ async def stream_new_chat(
 
         config = {
             "configurable": configurable,
-            "recursion_limit": 80,  # Increase from default 25 to allow more tool iterations
+            # Effectively uncapped, matching the agent-level
+            # ``with_config`` default in ``chat_deepagent.create_agent``
+            # and the unbounded ``while(true)`` loop used by OpenCode's
+            # ``session/processor.ts``. Real circuit-breakers live in
+            # middleware: ``DoomLoopMiddleware`` (sliding-window tool
+            # signature check), plus ``enable_tool_call_limit`` /
+            # ``enable_model_call_limit`` when those flags are set. The
+            # original LangGraph default of 25 (and our previous 80
+            # bump) hit users on legitimate multi-tool plans.
+            "recursion_limit": 10_000,
         }
 
         # Start the message stream
@@ -2686,7 +2695,11 @@ async def stream_resume_chat(
                 "request_id": request_id or "unknown",
                 "turn_id": stream_result.turn_id,
             },
-            "recursion_limit": 80,
+            # See ``stream_new_chat`` above for rationale: effectively
+            # uncapped to mirror the agent default and OpenCode's
+            # session loop. Doom-loop / call-limit middleware enforce
+            # the real ceiling.
+            "recursion_limit": 10_000,
         }
 
         yield streaming_service.format_message_start()
