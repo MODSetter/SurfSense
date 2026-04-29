@@ -53,9 +53,6 @@ importers:
       '@platejs/dnd':
         specifier: ^52.0.11
         version: 52.0.11(platejs@52.0.17(@types/react@19.2.14)(immer@10.2.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.4)))(react-dnd-html5-backend@16.0.1)(react-dnd@16.0.1(@types/node@20.19.33)(@types/react@19.2.14)(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      '@platejs/find-replace':
-        specifier: ^52.3.10
-        version: 52.3.10(platejs@52.0.17(@types/react@19.2.14)(immer@10.2.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.4)))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@platejs/floating':
         specifier: ^52.0.11
         version: 52.0.11(platejs@52.0.17(@types/react@19.2.14)(immer@10.2.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.4)))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -2828,13 +2825,6 @@ packages:
       react: '>=18.0.0'
       react-dnd: '>=14.0.0'
       react-dnd-html5-backend: '>=14.0.0'
-      react-dom: '>=18.0.0'
-
-  '@platejs/find-replace@52.3.10':
-    resolution: {integrity: sha512-V/MOMMUYxHfEn/skd2+YO213xSATFDVsl8FzVzVRV/XaxwwVefH2EPD1lAVIvmYjennTVTTsHHtEI9K9iOsEaA==}
-    peerDependencies:
-      platejs: '>=52.0.11'
-      react: '>=18.0.0'
       react-dom: '>=18.0.0'
 
   '@platejs/floating@52.0.11':
@@ -11113,13 +11103,6 @@ snapshots:
       react-compiler-runtime: 1.0.0(react@19.2.4)
       react-dnd: 16.0.1(@types/node@20.19.33)(@types/react@19.2.14)(react@19.2.4)
       react-dnd-html5-backend: 16.0.1
-      react-dom: 19.2.4(react@19.2.4)
-
-  '@platejs/find-replace@52.3.10(platejs@52.0.17(@types/react@19.2.14)(immer@10.2.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.4)))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
-    dependencies:
-      platejs: 52.0.17(@types/react@19.2.14)(immer@10.2.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.4))
-      react: 19.2.4
-      react-compiler-runtime: 1.0.0(react@19.2.4)
       react-dom: 19.2.4(react@19.2.4)
 
   '@platejs/floating@52.0.11(platejs@52.0.17(@types/react@19.2.14)(immer@10.2.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.4)))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':

@@ -36,7 +36,6 @@
 		"@platejs/code-block": "^52.0.11",
 		"@platejs/combobox": "^52.0.15",
 		"@platejs/dnd": "^52.0.11",
-		"@platejs/find-replace": "^52.3.10",
 		"@platejs/floating": "^52.0.11",
 		"@platejs/indent": "^52.0.11",
 		"@platejs/link": "^52.0.11",

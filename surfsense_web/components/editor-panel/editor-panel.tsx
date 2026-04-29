@@ -1,6 +1,5 @@
 "use client";
 
-import { FindReplacePlugin } from "@platejs/find-replace";
 import { useAtomValue, useSetAtom } from "jotai";
 import {
 	Check,
@@ -15,21 +14,17 @@ import {
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { pendingChunkHighlightAtom } from "@/atoms/document-viewer/pending-chunk-highlight.atom";
 import { closeEditorPanelAtom, editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { VersionHistoryButton } from "@/components/documents/version-history";
-import type { PlateEditorInstance } from "@/components/editor/plate-editor";
 import { SourceCodeEditor } from "@/components/editor/source-code-editor";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
-import { CITATION_HIGHLIGHT_CLASS } from "@/components/ui/search-highlight-node";
 import { Spinner } from "@/components/ui/spinner";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
-import { buildCitationSearchCandidates } from "@/lib/citation-search";
 import { inferMonacoLanguageFromPath } from "@/lib/editor-language";
 
 const PlateEditor = dynamic(
@@ -37,10 +32,7 @@ const PlateEditor = dynamic(
 	{ ssr: false, loading: () => <EditorPanelSkeleton /> }
 );
 
-type CitationHighlightStatus = "exact" | "miss";
-
 const LARGE_DOCUMENT_THRESHOLD = 2 * 1024 * 1024; // 2MB
-const CITATION_MAX_LENGTH = 16 * 1024 * 1024; // 16MB on-demand cap for citation jumps
 
 interface EditorContent {
 	document_id: number;
@@ -145,60 +137,6 @@ export function EditorPanelContent({
 	const isLocalFileMode = kind === "local_file";
 	const editorRenderMode: EditorRenderMode = isLocalFileMode ? "source_code" : "rich_markdown";
 
-	// --- Citation-jump highlight wiring ----------------------------------
-	// `EditorPanelContent` is the consumer of `pendingChunkHighlightAtom`: when
-	// a citation badge is clicked, the badge stages `{documentId, chunkId,
-	// chunkText}` and opens this panel. We drive Plate's `FindReplacePlugin`
-	// (registered in every preset) to highlight the cited text natively via
-	// Slate decorations — no DOM walking, no Range gymnastics. The state
-	// machine below escalates the document fetch from 2MB → 16MB once if no
-	// candidate snippet matched in the preview, and surfaces miss outcomes
-	// via an inline alert.
-	const pending = useAtomValue(pendingChunkHighlightAtom);
-	const setPendingHighlight = useSetAtom(pendingChunkHighlightAtom);
-	const [fetchKey, setFetchKey] = useState(0);
-	const [maxLengthOverride, setMaxLengthOverride] = useState<number | null>(null);
-	const [highlightResult, setHighlightResult] = useState<CitationHighlightStatus | null>(null);
-	const editorRef = useRef<PlateEditorInstance | null>(null);
-	const escalatedForRef = useRef<number | null>(null);
-	const lastAppliedChunkIdRef = useRef<number | null>(null);
-	// Tracks whether a citation highlight is currently decorated in the
-	// editor. We use a ref (not state) because the click-to-dismiss handler
-	// runs in a stable callback that would otherwise close over stale state.
-	const isHighlightActiveRef = useRef(false);
-	// Once a citation jump targets this doc we have to keep `PlateEditor`
-	// mounted for the *rest of the doc session* — even after the highlight
-	// effect clears `pendingChunkHighlightAtom` (which it does as soon as
-	// the decoration is applied, so a follow-up citation on the same chunk
-	// can re-trigger). Without this latch, non-editable docs would re-render
-	// back into `MarkdownViewer` the instant `pending` is released, tearing
-	// down the Plate decorations and dropping the highlight after a frame.
-	const [stickyPlateMode, setStickyPlateMode] = useState(false);
-
-	const clearCitationSearch = useCallback(() => {
-		isHighlightActiveRef.current = false;
-		const editor = editorRef.current;
-		if (!editor) return;
-		try {
-			editor.setOption(FindReplacePlugin, "search", "");
-			editor.api.redecorate();
-		} catch (err) {
-			console.warn("[EditorPanelContent] clearCitationSearch failed:", err);
-		}
-	}, []);
-
-	// Dismiss the highlight when the user interacts with the editor surface.
-	// `onPointerDown` fires before focus / selection changes so the click
-	// itself feels responsive — the highlight clears in the same event tick
-	// that places the cursor. No-op when nothing is highlighted, so we don't
-	// thrash `redecorate` on every click in normal editing.
-	const handleEditorPointerDown = useCallback(() => {
-		if (!isHighlightActiveRef.current) return;
-		clearCitationSearch();
-		setHighlightResult(null);
-	}, [clearCitationSearch]);
-
-	const isCitationTarget = !!pending && !isLocalFileMode && pending.documentId === documentId;
 	const resolveLocalVirtualPath = useCallback(
 		async (candidatePath: string): Promise<string> => {
 			if (!electronAPI?.getAgentFilesystemMounts) {
@@ -218,8 +156,6 @@ export function EditorPanelContent({
 
 	const isLargeDocument = (editorDoc?.content_size_bytes ?? 0) > LARGE_DOCUMENT_THRESHOLD;
 
-	// `fetchKey` is an explicit re-fetch trigger (escalation bumps it to force
-	// a new request even when documentId/searchSpaceId haven't changed).
 	useEffect(() => {
 		const controller = new AbortController();
 		setIsLoading(true);
@@ -231,12 +167,6 @@ export function EditorPanelContent({
 		setIsEditing(false);
 		initialLoadDone.current = false;
 		changeCountRef.current = 0;
-		// Clear any in-flight FindReplacePlugin search before the editor
-		// re-mounts on new content (a fresh editor key is generated below
-		// from documentId + isEditing, so the previous editor + its
-		// decorations are about to be discarded anyway, but we belt-and-
-		// brace here for the case where only `fetchKey` changed).
-		clearCitationSearch();
 
 		const doFetch = async () => {
 			try {
@@ -281,11 +211,7 @@ export function EditorPanelContent({
 				const url = new URL(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`
 				);
-				url.searchParams.set("max_length", String(maxLengthOverride ?? LARGE_DOCUMENT_THRESHOLD));
-				// `fetchKey` participates here so biome's noUnusedVariables sees it
-				// as consumed; bumping it forces a fresh request even when the URL
-				// is otherwise identical.
-				if (fetchKey > 0) url.searchParams.set("_n", String(fetchKey));
+				url.searchParams.set("max_length", String(LARGE_DOCUMENT_THRESHOLD));
 
 				const response = await authenticatedFetch(url.toString(), { method: "GET" });
 
@@ -331,258 +257,7 @@ export function EditorPanelContent({
 		resolveLocalVirtualPath,
 		searchSpaceId,
 		title,
-		fetchKey,
-		maxLengthOverride,
-		clearCitationSearch,
 	]);
-
-	// Reset citation-jump bookkeeping whenever the panel switches to a different
-	// document (or local file). Body only writes setters — the deps are the
-	// real triggers we want to react to.
-	// biome-ignore lint/correctness/useExhaustiveDependencies: documentId/localFilePath are intentional triggers.
-	useEffect(() => {
-		clearCitationSearch();
-		escalatedForRef.current = null;
-		lastAppliedChunkIdRef.current = null;
-		setHighlightResult(null);
-		setMaxLengthOverride(null);
-		setFetchKey(0);
-		// Drop sticky Plate mode when the panel moves to a different doc
-		// — the next doc starts in its preferred render mode (Plate for
-		// editable, MarkdownViewer for everything else) until/unless a
-		// citation jump targets it.
-		setStickyPlateMode(false);
-	}, [documentId, localFilePath, clearCitationSearch]);
-
-	// Latch sticky Plate mode the first time a citation jump targets this
-	// doc. We keep it sticky for the remainder of this doc session so the
-	// highlight effect's `setPendingHighlight(null)` doesn't unmount the
-	// editor mid-flight (see comment on `stickyPlateMode` declaration).
-	useEffect(() => {
-		if (isCitationTarget) setStickyPlateMode(true);
-	}, [isCitationTarget]);
-
-	// `isEditorReady` is what `useEffect` actually depends on — `editorRef`
-	// is a ref so changes don't trigger re-runs. We flip this to `true` once
-	// `PlateEditor` calls back with its live editor instance (its
-	// `usePlateEditor` value-init runs synchronously, so by the time this
-	// flips true the markdown is already deserialized into the Slate tree).
-	const [isEditorReady, setIsEditorReady] = useState(false);
-	const handleEditorReady = useCallback((editor: PlateEditorInstance | null) => {
-		console.log("[citation:editor] handleEditorReady", { ready: !!editor });
-		editorRef.current = editor;
-		setIsEditorReady(!!editor);
-	}, []);
-
-	// --- Citation jump highlight effect -----------------------------------
-	// Drives Plate's FindReplacePlugin to highlight the cited chunk:
-	//   1. Build candidate snippets from the chunk text (first sentence,
-	//      first 8 words, full chunk if short). Plate's decorate runs per-
-	//      block and won't cross block boundaries, so the shorter
-	//      candidates exist to give us something that fits in one
-	//      paragraph / heading.
-	//   2. For each candidate: setOption('search', ...) → redecorate →
-	//      wait two animation frames for React to flush → query the editor
-	//      DOM for `.${CITATION_HIGHLIGHT_CLASS}`. First hit wins.
-	//
-	//      Why a className and not a `data-*` attribute? Plate's
-	//      `PlateLeaf` runs its props through `useNodeAttributes`, which
-	//      only forwards `attributes`, `className`, `ref`, and `style` —
-	//      arbitrary `data-*` attributes are silently dropped. `className`
-	//      is the only escape hatch guaranteed to survive into the DOM.
-	//   3. On hit: smooth-scroll the first match into view, mark the
-	//      highlight active (so a click inside the editor can dismiss it),
-	//      release the pending atom.
-	//   4. On terminal miss: if the doc was truncated and we haven't
-	//      escalated yet, bump the fetch's `max_length` to the citation
-	//      cap and re-fetch — the post-refetch render will re-run this
-	//      effect against the larger preview. Otherwise, release the
-	//      atom and show the miss alert.
-	useEffect(() => {
-		console.log("[citation:effect] fired", {
-			isCitationTarget,
-			pendingDocId: pending?.documentId,
-			pendingChunkId: pending?.chunkId,
-			pendingChunkTextLen: pending?.chunkText?.length,
-			documentId,
-			isLocalFileMode,
-			isEditing,
-			hasMarkdown: !!editorDoc?.source_markdown,
-			markdownLen: editorDoc?.source_markdown?.length,
-			truncated: editorDoc?.truncated,
-			isEditorReady,
-			editorRefSet: !!editorRef.current,
-			maxLengthOverride,
-		});
-		if (!isCitationTarget || !pending) {
-			console.log("[citation:effect] guard ✗ no citation target / no pending");
-			return;
-		}
-		if (isLocalFileMode || isEditing) {
-			console.log("[citation:effect] guard ✗ localFileMode/editing");
-			return;
-		}
-		if (!editorDoc?.source_markdown) {
-			console.log("[citation:effect] guard ✗ source_markdown not ready");
-			return;
-		}
-		if (!isEditorReady) {
-			console.log("[citation:effect] guard ✗ editor not ready yet");
-			return;
-		}
-		const editor = editorRef.current;
-		if (!editor) {
-			console.log("[citation:effect] guard ✗ editorRef.current is null");
-			return;
-		}
-
-		if (lastAppliedChunkIdRef.current !== pending.chunkId) {
-			lastAppliedChunkIdRef.current = pending.chunkId;
-		}
-
-		let cancelled = false;
-
-		const finishMiss = () => {
-			console.log("[citation:effect] terminal miss — no candidate matched");
-			try {
-				editor.setOption(FindReplacePlugin, "search", "");
-				editor.api.redecorate();
-			} catch (err) {
-				console.warn("[EditorPanelContent] reset search after miss failed:", err);
-			}
-			const canEscalate =
-				editorDoc.truncated === true &&
-				(maxLengthOverride ?? LARGE_DOCUMENT_THRESHOLD) < CITATION_MAX_LENGTH &&
-				escalatedForRef.current !== pending.chunkId;
-			console.log("[citation:effect] miss decision", {
-				truncated: editorDoc.truncated,
-				currentMaxLength: maxLengthOverride ?? LARGE_DOCUMENT_THRESHOLD,
-				canEscalate,
-			});
-			if (canEscalate) {
-				escalatedForRef.current = pending.chunkId;
-				setMaxLengthOverride(CITATION_MAX_LENGTH);
-				setFetchKey((k) => k + 1);
-				// Keep the atom set so the post-refetch render re-runs.
-				return;
-			}
-			setHighlightResult("miss");
-			setPendingHighlight(null);
-		};
-
-		const tryCandidates = async () => {
-			const candidates = buildCitationSearchCandidates(pending.chunkText);
-			console.log("[citation:effect] candidates built", {
-				count: candidates.length,
-				previews: candidates.map((c) => c.slice(0, 60)),
-			});
-			if (candidates.length === 0) {
-				if (!cancelled) finishMiss();
-				return;
-			}
-			// Resolve the editor's rendered DOM root via Slate's stable
-			// `[data-slate-editor="true"]` attribute (set by slate-react's
-			// `<Editable>`). Scoping queries to this root prevents
-			// `<mark>` elements rendered elsewhere on the page (e.g. chat
-			// search-highlight leaves in another mounted PlateEditor) from
-			// being mistaken for citation hits.
-			const editorRoot = document.querySelector<HTMLElement>('[data-slate-editor="true"]');
-			console.log("[citation:effect] editor root", {
-				hasRoot: !!editorRoot,
-			});
-			const root: ParentNode = editorRoot ?? document;
-
-			for (let i = 0; i < candidates.length; i++) {
-				const candidate = candidates[i];
-				if (cancelled) return;
-				try {
-					editor.setOption(FindReplacePlugin, "search", candidate);
-					editor.api.redecorate();
-					console.log(`[citation:effect] try #${i} setOption + redecorate`, {
-						len: candidate.length,
-						preview: candidate.slice(0, 80),
-					});
-				} catch (err) {
-					console.warn("[EditorPanelContent] setOption/redecorate failed:", err);
-					continue;
-				}
-				// Two rAFs: first lets Slate flush its onChange, second lets
-				// React commit the decoration leaves into the DOM.
-				await new Promise<void>((resolve) =>
-					requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-				);
-				if (cancelled) return;
-				// Primary probe: by our stable class on the rendered <mark>.
-				let el = root.querySelector<HTMLElement>(`.${CITATION_HIGHLIGHT_CLASS}`);
-				const classMarkCount = root.querySelectorAll(`.${CITATION_HIGHLIGHT_CLASS}`).length;
-				// Diagnostic fallback: any <mark> inside the editor root.
-				// If we ever see allMarks > 0 but classMarkCount === 0,
-				// the className was stripped again and we need to revisit
-				// `useNodeAttributes` filtering.
-				const allMarkCount = root.querySelectorAll("mark").length;
-				if (!el && allMarkCount > 0) {
-					el = root.querySelector<HTMLElement>("mark");
-				}
-				console.log(`[citation:effect] try #${i} DOM probe`, {
-					foundEl: !!el,
-					classMarkCount,
-					allMarkCount,
-					usedFallback: !!el && classMarkCount === 0,
-				});
-				if (el) {
-					try {
-						el.scrollIntoView({ block: "center", behavior: "smooth" });
-					} catch {
-						el.scrollIntoView();
-					}
-					isHighlightActiveRef.current = true;
-					setHighlightResult("exact");
-					console.log(`[citation:effect] ✓ exact via candidate #${i} — atom released`);
-					// No auto-clear timer — the highlight is intentionally
-					// permanent until the user clicks inside the editor (see
-					// `handleEditorPointerDown`) or another dismissal trigger
-					// fires (doc switch, edit-mode toggle, panel unmount,
-					// next citation jump). Sticky Plate mode keeps the
-					// editor mounted after the atom clears.
-					setPendingHighlight(null);
-					return;
-				}
-			}
-			if (!cancelled) finishMiss();
-		};
-
-		void tryCandidates();
-
-		return () => {
-			cancelled = true;
-		};
-	}, [
-		isCitationTarget,
-		pending,
-		documentId,
-		editorDoc?.source_markdown,
-		editorDoc?.truncated,
-		isLocalFileMode,
-		isEditing,
-		isEditorReady,
-		maxLengthOverride,
-		clearCitationSearch,
-		setPendingHighlight,
-	]);
-
-	// Cleanup any active highlight on unmount.
-	useEffect(() => {
-		return () => clearCitationSearch();
-	}, [clearCitationSearch]);
-
-	// Toggling into edit mode swaps Plate out of readOnly. Clear the citation
-	// search so stale leaves don't linger in the editing surface.
-	useEffect(() => {
-		if (isEditing) {
-			clearCitationSearch();
-			setHighlightResult(null);
-		}
-	}, [isEditing, clearCitationSearch]);
 
 	useEffect(() => {
 		return () => {
@@ -617,7 +292,7 @@ export function EditorPanelContent({
 	}, [editorDoc?.source_markdown]);
 
 	const handleSave = useCallback(
-		async (_options?: { silent?: boolean }) => {
+		async (options?: { silent?: boolean }) => {
 			setSaving(true);
 			try {
 				if (isLocalFileMode) {
@@ -668,11 +343,15 @@ export function EditorPanelContent({
 
 				setEditorDoc((prev) => (prev ? { ...prev, source_markdown: markdownRef.current } : prev));
 				setEditedMarkdown(null);
-				toast.success("Document saved! Reindexing in background...");
+				if (!options?.silent) {
+					toast.success("Document saved! Reindexing in background...");
+				}
 				return true;
 			} catch (err) {
 				console.error("Error saving document:", err);
-				toast.error(err instanceof Error ? err.message : "Failed to save document");
+				if (!options?.silent) {
+					toast.error(err instanceof Error ? err.message : "Failed to save document");
+				}
 				return false;
 			} finally {
 				setSaving(false);
@@ -693,15 +372,11 @@ export function EditorPanelContent({
 				EDITABLE_DOCUMENT_TYPES.has(editorDoc.document_type ?? "")) &&
 			!isLargeDocument
 		: false;
-	// Use PlateEditor for any of:
-	//   - Editable doc types (FILE/NOTE) — existing editing UX.
-	//   - Active citation jump in flight (`isCitationTarget`) — covers the
-	//     mount in the very first render where the atom is set but the
-	//     sticky effect hasn't fired yet.
-	//   - Sticky Plate mode latched on a previous citation jump — keeps
-	//     the editor mounted (with its decorations) after the highlight
-	//     effect clears the atom. Resets when the doc changes.
-	const renderInPlateEditor = isEditableType || isCitationTarget || stickyPlateMode;
+	// Render through PlateEditor for editable doc types (FILE/NOTE).
+	// Everything else (large docs, non-editable types) falls back to the
+	// lightweight `MarkdownViewer` — Plate is heavy on multi-MB docs and
+	// non-editable types don't benefit from its editing UX.
+	const renderInPlateEditor = isEditableType;
 	const hasUnsavedChanges = editedMarkdown !== null;
 	const showDesktopHeader = !!onClose;
 	const showEditingActions = isEditableType && isEditing;
@@ -743,36 +418,6 @@ export function EditorPanelContent({
 			setDownloading(false);
 		}
 	}, [documentId, editorDoc?.title, searchSpaceId]);
-
-	// We no longer surface an "approximate" status — Plate's FindReplacePlugin
-	// either decorates an exact match or it doesn't, and the candidate snippet
-	// strategy (first sentence → first 8 words → full chunk) means we either
-	// land on the citation start or fall through to the miss alert.
-	const showMissAlert = isCitationTarget && highlightResult === "miss";
-
-	const citationAlerts = showMissAlert && (
-		<Alert variant="destructive" className="mb-4">
-			<FileQuestionMark className="size-4" />
-			<AlertDescription className="flex items-center justify-between gap-4">
-				<span>Cited section couldn&apos;t be located in this view.</span>
-				{editorDoc?.truncated && (
-					<Button
-						variant="outline"
-						size="sm"
-						className="relative shrink-0"
-						disabled={downloading}
-						onClick={handleDownloadMarkdown}
-					>
-						<span className={`flex items-center gap-1.5 ${downloading ? "opacity-0" : ""}`}>
-							<Download className="size-3.5" />
-							Download .md
-						</span>
-						{downloading && <Spinner size="sm" className="absolute" />}
-					</Button>
-				)}
-			</AlertDescription>
-		</Alert>
-	);
 
 	const largeDocAlert = isLargeDocument && !isLocalFileMode && editorDoc && (
 		<Alert className="mb-4">
@@ -1002,30 +647,17 @@ export function EditorPanelContent({
 							}}
 						/>
 					</div>
-				) : isLargeDocument && !isLocalFileMode && !isCitationTarget ? (
-					// Large doc, no active citation — fast Streamdown preview
-					// + download CTA. We only fall back to MarkdownViewer here
-					// because Plate is heavy on multi-MB docs and the user
-					// isn't waiting on a specific citation to render.
+				) : isLargeDocument && !isLocalFileMode ? (
+					// Large doc — fast Streamdown preview + download CTA.
+					// Plate is heavy on multi-MB docs.
 					<div className="h-full overflow-y-auto px-5 py-4">
 						{largeDocAlert}
 						<MarkdownViewer content={editorDoc.source_markdown} />
 					</div>
 				) : renderInPlateEditor ? (
-					// Editable doc (FILE/NOTE) OR active citation jump (any
-					// doc type). The citation path uses Plate's
-					// FindReplacePlugin for native, decoration-based
-					// highlighting — see the citation-jump highlight effect
-					// above for how `editorRef` and `handleEditorReady` are
-					// wired.
+					// Editable doc (FILE/NOTE) — Plate editing UX.
 					<div className="flex h-full min-h-0 flex-col">
-						{(citationAlerts || (isLargeDocument && isCitationTarget && !isLocalFileMode)) && (
-							<div className="shrink-0 px-5 pt-4">
-								{isLargeDocument && isCitationTarget && largeDocAlert}
-								{citationAlerts}
-							</div>
-						)}
-						<div className="flex-1 min-h-0 overflow-hidden" onPointerDown={handleEditorPointerDown}>
+						<div className="flex-1 min-h-0 overflow-hidden">
 							<PlateEditor
 								key={`${isLocalFileMode ? (localFilePath ?? "local-file") : documentId}-${isEditing ? "editing" : "viewing"}`}
 								preset="full"
@@ -1037,8 +669,7 @@ export function EditorPanelContent({
 								allowModeToggle={false}
 								reserveToolbarSpace
 								defaultEditing={isEditing}
-								className="[&_[role=toolbar]]:!bg-sidebar"
-								onEditorReady={handleEditorReady}
+								className="**:[[role=toolbar]]:bg-sidebar!"
 							/>
 						</div>
 					</div>

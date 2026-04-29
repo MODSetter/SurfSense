@@ -1,6 +1,5 @@
 "use client";
 
-import { FindReplacePlugin } from "@platejs/find-replace";
 import type { AnyPluginConfig } from "platejs";
 import { TrailingBlockPlugin } from "platejs";
 
@@ -18,30 +17,6 @@ import { SelectionKit } from "@/components/editor/plugins/selection-kit";
 import { SlashCommandKit } from "@/components/editor/plugins/slash-command-kit";
 import { TableKit } from "@/components/editor/plugins/table-kit";
 import { ToggleKit } from "@/components/editor/plugins/toggle-kit";
-import { SearchHighlightLeaf } from "@/components/ui/search-highlight-node";
-
-/**
- * Citation-jump highlighter. Re-uses Plate's built-in `FindReplacePlugin`
- * (decorate-only, no editing surface) to drive the "scroll-to-cited-text"
- * UX in `EditorPanelContent`. We register it in every preset because:
- *   - Decorate is a no-op when `search` is empty (single getOptions() check
- *     per block), so cost is effectively zero for non-citation viewers.
- *   - Keeping it preset-agnostic means citations work whether the doc is
- *     opened in editable (`full`) or pure-viewer (`readonly`) modes.
- *
- * The parent component drives `setOption(FindReplacePlugin, 'search', ...)`
- * + `editor.api.redecorate()` to trigger highlights, then queries the
- * editor DOM for `.citation-highlight-leaf` to scroll the first match
- * into view. (We can't use a `data-*` attribute here — Plate's
- * `PlateLeaf` runs props through `useNodeAttributes`, which only forwards
- * `attributes`, `className`, `ref`, `style`; arbitrary `data-*` props are
- * silently dropped.) See `components/ui/search-highlight-node.tsx` for
- * the leaf component and `CITATION_HIGHLIGHT_CLASS` constant.
- */
-const CitationFindReplacePlugin = FindReplacePlugin.configure({
-	options: { search: "" },
-	render: { node: SearchHighlightLeaf },
-});
 
 /**
  * Full preset – every plugin kit enabled.
@@ -63,7 +38,6 @@ export const fullPreset: AnyPluginConfig[] = [
 	...AutoformatKit,
 	...DndKit,
 	TrailingBlockPlugin,
-	CitationFindReplacePlugin,
 ];
 
 /**
@@ -78,7 +52,6 @@ export const minimalPreset: AnyPluginConfig[] = [
 	...LinkKit,
 	...AutoformatKit,
 	TrailingBlockPlugin,
-	CitationFindReplacePlugin,
 ];
 
 /**
@@ -95,7 +68,6 @@ export const readonlyPreset: AnyPluginConfig[] = [
 	...CalloutKit,
 	...ToggleKit,
 	...MathKit,
-	CitationFindReplacePlugin,
 ];
 
 /** All available preset names */

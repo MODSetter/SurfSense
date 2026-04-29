@@ -12,10 +12,7 @@ import { type EditorPreset, presetMap } from "@/components/editor/presets";
 import { escapeMdxExpressions } from "@/components/editor/utils/escape-mdx";
 import { Editor, EditorContainer } from "@/components/ui/editor";
 
-/** Live editor instance returned by `usePlateEditor`. Exposed via the
- * `onEditorReady` prop so callers (e.g. `EditorPanelContent`) can drive
- * plugin options imperatively — most notably setting
- * `FindReplacePlugin`'s `search` option for citation-jump highlights. */
+/** Live editor instance returned by `usePlateEditor`. */
 export type PlateEditorInstance = ReturnType<typeof usePlateEditor>;
 
 export interface PlateEditorProps {
@@ -68,15 +65,6 @@ export interface PlateEditorProps {
 	 * without modifying the core editor component.
 	 */
 	extraPlugins?: AnyPluginConfig[];
-	/**
-	 * Called whenever the live editor instance (re)mounts, with `null` on
-	 * unmount. Used by callers that need to drive plugin options imperatively
-	 * — e.g. `EditorPanelContent` setting `FindReplacePlugin`'s `search`
-	 * option for citation-jump highlights. The callback is invoked exactly
-	 * once per editor lifetime (the parent's `key` prop forces a fresh
-	 * editor when needed, e.g. on edit-mode toggle).
-	 */
-	onEditorReady?: (editor: PlateEditorInstance | null) => void;
 }
 
 function PlateEditorContent({
@@ -115,7 +103,6 @@ export function PlateEditor({
 	defaultEditing = false,
 	preset = "full",
 	extraPlugins = [],
-	onEditorReady,
 }: PlateEditorProps) {
 	const lastMarkdownRef = useRef(markdown);
 	const lastHtmlRef = useRef(html);
@@ -171,21 +158,6 @@ export function PlateEditor({
 						editor.getApi(MarkdownPlugin).markdown.deserialize(escapeMdxExpressions(markdown))
 				: undefined,
 	});
-
-	// Expose the live editor instance to imperative callers (e.g. citation
-	// jump highlights). We deliberately don't depend on `onEditorReady`
-	// itself in the cleanup closure — callers commonly pass an arrow that
-	// closes over a stable ref setter, but if they pass a freshly-bound
-	// callback per render, the `onEditorReady?.(editor)` re-fires which is
-	// idempotent for ref-style setters.
-	const onEditorReadyRef = useRef(onEditorReady);
-	useEffect(() => {
-		onEditorReadyRef.current = onEditorReady;
-	}, [onEditorReady]);
-	useEffect(() => {
-		onEditorReadyRef.current?.(editor);
-		return () => onEditorReadyRef.current?.(null);
-	}, [editor]);
 
 	// Update editor content when html prop changes externally
 	useEffect(() => {

@@ -1,13 +1,11 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useSetAtom } from "jotai";
 import { ExternalLink, FileText } from "lucide-react";
 import type { FC } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
-import { pendingChunkHighlightAtom } from "@/atoms/document-viewer/pending-chunk-highlight.atom";
-import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
+import { openCitationPanelAtom } from "@/atoms/citation/citation-panel.atom";
 import { useCitationMetadata } from "@/components/assistant-ui/citation-metadata-context";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Citation } from "@/components/tool-ui/citation";
@@ -29,11 +27,11 @@ const POPOVER_HOVER_CLOSE_DELAY_MS = 150;
  * Surfsense documentation chunks (`isDocsChunk`). Negative chunk IDs render as
  * a static "doc" pill (anonymous/synthetic uploads).
  *
- * Numeric KB chunks: clicking resolves the parent document via
- * `getDocumentByChunk`, opens the document in the right side panel (alongside
- * the chat — does not replace it), and stages the cited chunk text in
- * `pendingChunkHighlightAtom` so `EditorPanelContent` can scroll to and softly
- * highlight it inside the rendered markdown.
+ * Numeric KB chunks: clicking opens the citation panel in the right
+ * sidebar (alongside the chat — does not replace it). The panel shows
+ * the cited chunk surrounded by adjacent chunks (via the API's
+ * `chunk_window`), with the cited one highlighted and an option to
+ * expand the window or jump into the full document via the editor panel.
  *
  * Surfsense docs chunks: rendered as a hover-controlled shadcn Popover that
  * lazily fetches and previews the cited chunk inline, since those docs aren't
@@ -65,71 +63,17 @@ export const InlineCitation: FC<InlineCitationProps> = ({ chunkId, isDocsChunk =
 };
 
 const NumericChunkCitation: FC<{ chunkId: number }> = ({ chunkId }) => {
-	const queryClient = useQueryClient();
-	const setPendingHighlight = useSetAtom(pendingChunkHighlightAtom);
-	const openEditorPanel = useSetAtom(openEditorPanelAtom);
-	const [resolving, setResolving] = useState(false);
-
-	const handleClick = useCallback(async () => {
-		if (resolving) return;
-		setResolving(true);
-		console.log("[citation:click] start", { chunkId });
-		try {
-			const data = await queryClient.fetchQuery({
-				// Local key with explicit window. The shared `cacheKeys.documents.byChunk`
-				// is window-agnostic (latent footgun); namespace the call to avoid
-				// reusing a different-window cached result.
-				queryKey: ["documents", "by-chunk", chunkId, "w0"] as const,
-				queryFn: () =>
-					documentsApiService.getDocumentByChunk({ chunk_id: chunkId, chunk_window: 0 }),
-				staleTime: 5 * 60 * 1000,
-			});
-			const cited = data.chunks.find((c) => c.id === chunkId) ?? data.chunks[0];
-			console.log("[citation:click] fetched doc-by-chunk", {
-				docId: data.id,
-				docTitle: data.title,
-				chunksReturned: data.chunks.length,
-				citedChunkId: cited?.id,
-				citedChunkContentLen: cited?.content?.length ?? 0,
-				citedChunkPreview:
-					cited?.content && cited.content.length > 120
-						? `${cited.content.slice(0, 120)}…(+${cited.content.length - 120})`
-						: (cited?.content ?? ""),
-			});
-			// Stage the highlight BEFORE opening the panel so `EditorPanelContent`
-			// already sees the pending intent on its very first render — avoids a
-			// "fetch → render → no-pending → next-tick render with pending" race.
-			setPendingHighlight({
-				documentId: data.id,
-				chunkId,
-				chunkText: cited?.content ?? "",
-			});
-			openEditorPanel({
-				documentId: data.id,
-				searchSpaceId: data.search_space_id,
-				title: data.title,
-			});
-			console.log("[citation:click] staged highlight + opened editor panel", {
-				documentId: data.id,
-			});
-		} catch (err) {
-			console.warn("[citation:click] failed", err);
-			toast.error(err instanceof Error ? err.message : "Couldn't open cited document");
-		} finally {
-			setResolving(false);
-		}
-	}, [chunkId, openEditorPanel, queryClient, resolving, setPendingHighlight]);
+	const openCitationPanel = useSetAtom(openCitationPanelAtom);
 
 	return (
 		<button
 			type="button"
-			onClick={handleClick}
-			disabled={resolving}
-			className="ml-0.5 inline-flex h-5 min-w-5 cursor-pointer items-center justify-center rounded-md bg-muted/60 px-1.5 text-[11px] font-medium text-muted-foreground align-baseline shadow-sm transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none disabled:cursor-progress disabled:opacity-70"
+			onClick={() => openCitationPanel({ chunkId })}
+			className="ml-0.5 inline-flex h-5 min-w-5 cursor-pointer items-center justify-center rounded-md bg-muted/60 px-1.5 text-[11px] font-medium text-muted-foreground align-baseline shadow-sm transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none"
 			title={`View source chunk #${chunkId}`}
-			aria-label={`Jump to cited chunk ${chunkId}`}
+			aria-label={`View cited chunk ${chunkId}`}
 		>
-			{resolving ? <Spinner size="xs" /> : chunkId}
+			{chunkId}
 		</button>
 	);
 };
