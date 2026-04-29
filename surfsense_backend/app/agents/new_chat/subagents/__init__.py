@@ -20,10 +20,14 @@ from .config import (
     build_report_writer_subagent,
     build_specialized_subagents,
 )
+from .providers.linear import build_linear_specialist_subagent
+from .providers.slack import build_slack_specialist_subagent
 
 __all__ = [
     "build_connector_negotiator_subagent",
     "build_explore_subagent",
+    "build_linear_specialist_subagent",
     "build_report_writer_subagent",
+    "build_slack_specialist_subagent",
     "build_specialized_subagents",
 ]
