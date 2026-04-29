@@ -84,6 +84,7 @@ async def resolve_or_get_pinned_llm_config_id(
     search_space_id: int,
     user_id: str | UUID | None,
     selected_llm_config_id: int,
+    force_repin_free: bool = False,
 ) -> AutoPinResolution:
     """Resolve Auto (Fastest) to one concrete config id and persist pin metadata.
 
@@ -130,9 +131,12 @@ async def resolve_or_get_pinned_llm_config_id(
         raise ValueError("No usable global LLM configs are available for Auto mode")
     candidate_by_id = {int(c["id"]): c for c in candidates}
 
-    # Reuse existing valid pin without re-checking current quota (no silent tier switch).
+    # Reuse existing valid pin without re-checking current quota (no silent tier switch),
+    # unless the caller explicitly requests a forced repin to free.
     pinned_id = thread.pinned_llm_config_id
     if (
+        not force_repin_free
+        and
         thread.pinned_auto_mode == AUTO_FASTEST_MODE
         and pinned_id is not None
         and int(pinned_id) in candidate_by_id
@@ -159,7 +163,7 @@ async def resolve_or_get_pinned_llm_config_id(
             thread.pinned_auto_mode,
         )
 
-    premium_eligible = await _is_premium_eligible(session, user_id)
+    premium_eligible = False if force_repin_free else await _is_premium_eligible(session, user_id)
     if premium_eligible:
         eligible = candidates
     else:
@@ -178,6 +182,15 @@ async def resolve_or_get_pinned_llm_config_id(
     thread.pinned_auto_mode = AUTO_FASTEST_MODE
     thread.pinned_at = datetime.now(UTC)
     await session.commit()
+
+    if force_repin_free:
+        logger.info(
+            "auto_pin_forced_free_repin thread_id=%s search_space_id=%s previous_config_id=%s resolved_config_id=%s",
+            thread_id,
+            search_space_id,
+            pinned_id,
+            selected_id,
+        )
 
     if pinned_id is None:
         logger.info(

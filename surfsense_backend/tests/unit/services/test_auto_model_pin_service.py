@@ -228,6 +228,44 @@ async def test_pinned_premium_stays_premium_after_quota_exhaustion(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_force_repin_free_switches_auto_premium_pin_to_free(monkeypatch):
+    from app.config import config
+
+    session = _FakeSession(
+        _thread(pinned_llm_config_id=-1, pinned_auto_mode=AUTO_FASTEST_MODE)
+    )
+    monkeypatch.setattr(
+        config,
+        "GLOBAL_LLM_CONFIGS",
+        [
+            {"id": -2, "provider": "OPENAI", "model_name": "gpt-free", "api_key": "k1", "billing_tier": "free"},
+            {"id": -1, "provider": "OPENAI", "model_name": "gpt-prem", "api_key": "k2", "billing_tier": "premium"},
+        ],
+    )
+
+    async def _blocked(*_args, **_kwargs):
+        return _FakeQuotaResult(allowed=False)
+
+    monkeypatch.setattr(
+        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        _blocked,
+    )
+
+    result = await resolve_or_get_pinned_llm_config_id(
+        session,
+        thread_id=1,
+        search_space_id=10,
+        user_id="00000000-0000-0000-0000-000000000001",
+        selected_llm_config_id=0,
+        force_repin_free=True,
+    )
+    assert result.resolved_llm_config_id == -2
+    assert result.resolved_tier == "free"
+    assert result.from_existing_pin is False
+    assert session.thread.pinned_llm_config_id == -2
+
+
+@pytest.mark.asyncio
 async def test_explicit_user_model_change_clears_pin(monkeypatch):
     from app.config import config
 

@@ -1455,6 +1455,37 @@ async def stream_new_chat(
             await set_ai_responding(session, chat_id, UUID(user_id))
         # Load LLM config - supports both YAML (negative IDs) and database (positive IDs)
         agent_config: AgentConfig | None = None
+        requested_llm_config_id = llm_config_id
+
+        async def _load_llm_bundle(
+            config_id: int,
+        ) -> tuple[Any, AgentConfig | None, str | None]:
+            if config_id >= 0:
+                loaded_agent_config = await load_agent_config(
+                    session=session,
+                    config_id=config_id,
+                    search_space_id=search_space_id,
+                )
+                if not loaded_agent_config:
+                    return (
+                        None,
+                        None,
+                        f"Failed to load NewLLMConfig with id {config_id}",
+                    )
+                return (
+                    create_chat_litellm_from_agent_config(loaded_agent_config),
+                    loaded_agent_config,
+                    None,
+                )
+
+            loaded_llm_config = load_global_llm_config_by_id(config_id)
+            if not loaded_llm_config:
+                return None, None, f"Failed to load LLM config with id {config_id}"
+            return (
+                create_chat_litellm_from_config(loaded_llm_config),
+                AgentConfig.from_yaml_config(loaded_llm_config),
+                None,
+            )
 
         _t0 = time.perf_counter()
         try:
@@ -1472,35 +1503,11 @@ async def stream_new_chat(
             yield streaming_service.format_done()
             return
 
-        if llm_config_id >= 0:
-            # Positive ID: Load from NewLLMConfig database table
-            agent_config = await load_agent_config(
-                session=session,
-                config_id=llm_config_id,
-                search_space_id=search_space_id,
-            )
-            if not agent_config:
-                yield streaming_service.format_error(
-                    f"Failed to load NewLLMConfig with id {llm_config_id}"
-                )
-                yield streaming_service.format_done()
-                return
-
-            # Create ChatLiteLLM from AgentConfig
-            llm = create_chat_litellm_from_agent_config(agent_config)
-        else:
-            # Negative ID: Load from in-memory global configs (includes dynamic OpenRouter models)
-            llm_config = load_global_llm_config_by_id(llm_config_id)
-            if not llm_config:
-                yield streaming_service.format_error(
-                    f"Failed to load LLM config with id {llm_config_id}"
-                )
-                yield streaming_service.format_done()
-                return
-
-            # Create ChatLiteLLM from global config dict
-            llm = create_chat_litellm_from_config(llm_config)
-            agent_config = AgentConfig.from_yaml_config(llm_config)
+        llm, agent_config, llm_load_error = await _load_llm_bundle(llm_config_id)
+        if llm_load_error:
+            yield streaming_service.format_error(llm_load_error)
+            yield streaming_service.format_done()
+            return
         _perf_log.info(
             "[stream_new_chat] LLM config loaded in %.3fs (config_id=%s)",
             time.perf_counter() - _t0,
@@ -1541,11 +1548,43 @@ async def stream_new_chat(
                     user_id,
                     llm_config_id,
                 )
-                yield streaming_service.format_error(
-                    "Premium tokens exhausted. Buy more tokens to continue with this model, or switch to a free model."
-                )
-                yield streaming_service.format_done()
-                return
+                if requested_llm_config_id == 0:
+                    try:
+                        llm_config_id = (
+                            await resolve_or_get_pinned_llm_config_id(
+                                session,
+                                thread_id=chat_id,
+                                search_space_id=search_space_id,
+                                user_id=user_id,
+                                selected_llm_config_id=0,
+                                force_repin_free=True,
+                            )
+                        ).resolved_llm_config_id
+                    except ValueError as pin_error:
+                        yield streaming_service.format_error(str(pin_error))
+                        yield streaming_service.format_done()
+                        return
+
+                    llm, agent_config, llm_load_error = await _load_llm_bundle(llm_config_id)
+                    if llm_load_error:
+                        yield streaming_service.format_error(llm_load_error)
+                        yield streaming_service.format_done()
+                        return
+                    _premium_request_id = None
+                    _premium_reserved = 0
+                    logging.getLogger(__name__).info(
+                        "premium_quota_auto_fallback_to_free thread_id=%s search_space_id=%s user_id=%s fallback_config_id=%s",
+                        chat_id,
+                        search_space_id,
+                        user_id,
+                        llm_config_id,
+                    )
+                else:
+                    yield streaming_service.format_error(
+                        "Premium tokens exhausted. Buy more tokens to continue with this model, or switch to a free model."
+                    )
+                    yield streaming_service.format_done()
+                    return
 
         if not llm:
             yield streaming_service.format_error("Failed to create LLM instance")
@@ -2183,6 +2222,38 @@ async def stream_resume_chat(
             await set_ai_responding(session, chat_id, UUID(user_id))
 
         agent_config: AgentConfig | None = None
+        requested_llm_config_id = llm_config_id
+
+        async def _load_llm_bundle(
+            config_id: int,
+        ) -> tuple[Any, AgentConfig | None, str | None]:
+            if config_id >= 0:
+                loaded_agent_config = await load_agent_config(
+                    session=session,
+                    config_id=config_id,
+                    search_space_id=search_space_id,
+                )
+                if not loaded_agent_config:
+                    return (
+                        None,
+                        None,
+                        f"Failed to load NewLLMConfig with id {config_id}",
+                    )
+                return (
+                    create_chat_litellm_from_agent_config(loaded_agent_config),
+                    loaded_agent_config,
+                    None,
+                )
+
+            loaded_llm_config = load_global_llm_config_by_id(config_id)
+            if not loaded_llm_config:
+                return None, None, f"Failed to load LLM config with id {config_id}"
+            return (
+                create_chat_litellm_from_config(loaded_llm_config),
+                AgentConfig.from_yaml_config(loaded_llm_config),
+                None,
+            )
+
         _t0 = time.perf_counter()
         try:
             llm_config_id = (
@@ -2199,29 +2270,11 @@ async def stream_resume_chat(
             yield streaming_service.format_done()
             return
 
-        if llm_config_id >= 0:
-            agent_config = await load_agent_config(
-                session=session,
-                config_id=llm_config_id,
-                search_space_id=search_space_id,
-            )
-            if not agent_config:
-                yield streaming_service.format_error(
-                    f"Failed to load NewLLMConfig with id {llm_config_id}"
-                )
-                yield streaming_service.format_done()
-                return
-            llm = create_chat_litellm_from_agent_config(agent_config)
-        else:
-            llm_config = load_global_llm_config_by_id(llm_config_id)
-            if not llm_config:
-                yield streaming_service.format_error(
-                    f"Failed to load LLM config with id {llm_config_id}"
-                )
-                yield streaming_service.format_done()
-                return
-            llm = create_chat_litellm_from_config(llm_config)
-            agent_config = AgentConfig.from_yaml_config(llm_config)
+        llm, agent_config, llm_load_error = await _load_llm_bundle(llm_config_id)
+        if llm_load_error:
+            yield streaming_service.format_error(llm_load_error)
+            yield streaming_service.format_done()
+            return
         _perf_log.info(
             "[stream_resume] LLM config loaded in %.3fs", time.perf_counter() - _t0
         )
@@ -2262,11 +2315,43 @@ async def stream_resume_chat(
                     user_id,
                     llm_config_id,
                 )
-                yield streaming_service.format_error(
-                    "Premium tokens exhausted. Buy more tokens to continue with this model, or switch to a free model."
-                )
-                yield streaming_service.format_done()
-                return
+                if requested_llm_config_id == 0:
+                    try:
+                        llm_config_id = (
+                            await resolve_or_get_pinned_llm_config_id(
+                                session,
+                                thread_id=chat_id,
+                                search_space_id=search_space_id,
+                                user_id=user_id,
+                                selected_llm_config_id=0,
+                                force_repin_free=True,
+                            )
+                        ).resolved_llm_config_id
+                    except ValueError as pin_error:
+                        yield streaming_service.format_error(str(pin_error))
+                        yield streaming_service.format_done()
+                        return
+
+                    llm, agent_config, llm_load_error = await _load_llm_bundle(llm_config_id)
+                    if llm_load_error:
+                        yield streaming_service.format_error(llm_load_error)
+                        yield streaming_service.format_done()
+                        return
+                    _resume_premium_request_id = None
+                    _resume_premium_reserved = 0
+                    logging.getLogger(__name__).info(
+                        "premium_quota_auto_fallback_to_free thread_id=%s search_space_id=%s user_id=%s fallback_config_id=%s",
+                        chat_id,
+                        search_space_id,
+                        user_id,
+                        llm_config_id,
+                    )
+                else:
+                    yield streaming_service.format_error(
+                        "Premium tokens exhausted. Buy more tokens to continue with this model, or switch to a free model."
+                    )
+                    yield streaming_service.format_done()
+                    return
 
         if not llm:
             yield streaming_service.format_error("Failed to create LLM instance")
