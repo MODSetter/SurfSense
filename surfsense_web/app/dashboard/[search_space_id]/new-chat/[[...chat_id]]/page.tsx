@@ -1018,8 +1018,12 @@ export default function NewChatPage() {
 					}
 					return;
 				}
-				console.error("[NewChatPage] Chat error:", error);
 				const premiumQuotaAlertMessage = getPinnedPremiumQuotaErrorMessage(error);
+				if (premiumQuotaAlertMessage) {
+					console.info("[NewChatPage] Premium quota exhausted:", error);
+				} else {
+					console.error("[NewChatPage] Chat error:", error);
+				}
 
 				// Track chat error
 				trackChatError(
@@ -1329,8 +1333,12 @@ export default function NewChatPage() {
 				if (error instanceof Error && error.name === "AbortError") {
 					return;
 				}
-				console.error("[NewChatPage] Resume error:", error);
 				const premiumQuotaAlertMessage = getPinnedPremiumQuotaErrorMessage(error);
+				if (premiumQuotaAlertMessage) {
+					console.info("[NewChatPage] Premium quota exhausted during resume:", error);
+				} else {
+					console.error("[NewChatPage] Resume error:", error);
+				}
 				if (premiumQuotaAlertMessage) {
 					setPremiumAlertForThread({
 						threadId: resumeThreadId,
@@ -1357,6 +1365,7 @@ export default function NewChatPage() {
 			pendingInterrupt,
 			messages,
 			searchSpaceId,
+			currentUser?.id,
 			tokenUsageStore,
 			toolsWithUI,
 			setPremiumAlertForThread,
@@ -1683,8 +1692,12 @@ export default function NewChatPage() {
 					return;
 				}
 				batcher.dispose();
-				console.error("[NewChatPage] Regeneration error:", error);
 				const premiumQuotaAlertMessage = getPinnedPremiumQuotaErrorMessage(error);
+				if (premiumQuotaAlertMessage) {
+					console.info("[NewChatPage] Premium quota exhausted during regeneration:", error);
+				} else {
+					console.error("[NewChatPage] Regeneration error:", error);
+				}
 				trackChatError(
 					searchSpaceId,
 					threadId,
@@ -1717,6 +1730,7 @@ export default function NewChatPage() {
 			searchSpaceId,
 			messages,
 			disabledTools,
+			currentUser?.id,
 			tokenUsageStore,
 			toolsWithUI,
 			setPremiumAlertForThread,
