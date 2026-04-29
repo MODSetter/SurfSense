@@ -9,6 +9,7 @@ import {
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { StepSeparatorDataUI } from "@/components/assistant-ui/step-separator";
 import { ThinkingStepsDataUI } from "@/components/assistant-ui/thinking-steps";
 import {
 	createTokenUsageStore,
@@ -17,10 +18,13 @@ import {
 } from "@/components/assistant-ui/token-usage-context";
 import { useAnonymousMode } from "@/contexts/anonymous-mode";
 import {
+	addStepSeparator,
 	addToolCall,
+	appendReasoning,
 	appendText,
 	buildContentForUI,
 	type ContentPartsState,
+	endReasoning,
 	FrameBatchedUpdater,
 	readSSEStream,
 	type ThinkingStepData,
@@ -32,7 +36,9 @@ import { trackAnonymousChatMessageSent } from "@/lib/posthog/events";
 import { FreeModelSelector } from "./free-model-selector";
 import { FreeThread } from "./free-thread";
 
-const TOOLS_WITH_UI = new Set(["web_search", "document_qna"]);
+// Render all tool calls via ToolFallback; backend keeps persisted
+// payloads bounded by summarising / truncating outputs.
+const TOOLS_WITH_UI = "all" as const;
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
 /** Try to parse a CAPTCHA_REQUIRED or CAPTCHA_INVALID code from a non-ok response. */
@@ -125,6 +131,7 @@ export function FreeChatPage() {
 			const contentPartsState: ContentPartsState = {
 				contentParts: [],
 				currentTextPartIndex: -1,
+				currentReasoningPartIndex: -1,
 				toolCallIndices: new Map(),
 			};
 			const { toolCallIndices } = contentPartsState;
@@ -148,28 +155,62 @@ export function FreeChatPage() {
 							scheduleFlush();
 							break;
 
+						case "reasoning-delta":
+							appendReasoning(contentPartsState, parsed.delta);
+							scheduleFlush();
+							break;
+
+						case "reasoning-end":
+							endReasoning(contentPartsState);
+							scheduleFlush();
+							break;
+
+						case "start-step":
+							addStepSeparator(contentPartsState);
+							scheduleFlush();
+							break;
+
+						case "finish-step":
+							break;
+
 						case "tool-input-start":
-							addToolCall(contentPartsState, TOOLS_WITH_UI, parsed.toolCallId, parsed.toolName, {});
+							addToolCall(
+								contentPartsState,
+								TOOLS_WITH_UI,
+								parsed.toolCallId,
+								parsed.toolName,
+								{},
+								false,
+								parsed.langchainToolCallId
+							);
 							batcher.flush();
 							break;
 
 						case "tool-input-available":
 							if (toolCallIndices.has(parsed.toolCallId)) {
-								updateToolCall(contentPartsState, parsed.toolCallId, { args: parsed.input || {} });
+								updateToolCall(contentPartsState, parsed.toolCallId, {
+									args: parsed.input || {},
+									langchainToolCallId: parsed.langchainToolCallId,
+								});
 							} else {
 								addToolCall(
 									contentPartsState,
 									TOOLS_WITH_UI,
 									parsed.toolCallId,
 									parsed.toolName,
-									parsed.input || {}
+									parsed.input || {},
+									false,
+									parsed.langchainToolCallId
 								);
 							}
 							batcher.flush();
 							break;
 
 						case "tool-output-available":
-							updateToolCall(contentPartsState, parsed.toolCallId, { result: parsed.output });
+							updateToolCall(contentPartsState, parsed.toolCallId, {
+								result: parsed.output,
+								langchainToolCallId: parsed.langchainToolCallId,
+							});
 							batcher.flush();
 							break;
 
@@ -369,6 +410,7 @@ export function FreeChatPage() {
 		<TokenUsageProvider store={tokenUsageStore}>
 			<AssistantRuntimeProvider runtime={runtime}>
 				<ThinkingStepsDataUI />
+				<StepSeparatorDataUI />
 				<div className="flex h-full flex-col overflow-hidden">
 					<div className="flex h-14 shrink-0 items-center justify-between border-b border-border/40 px-4">
 						<FreeModelSelector />

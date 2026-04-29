@@ -584,13 +584,24 @@ class VercelStreamingService:
     # Tool Parts
     # =========================================================================
 
-    def format_tool_input_start(self, tool_call_id: str, tool_name: str) -> str:
+    def format_tool_input_start(
+        self,
+        tool_call_id: str,
+        tool_name: str,
+        *,
+        langchain_tool_call_id: str | None = None,
+    ) -> str:
         """
         Format the start of tool input streaming.
 
         Args:
-            tool_call_id: The unique tool call identifier
-            tool_name: The name of the tool being called
+            tool_call_id: The unique tool call identifier (synthetic, derived
+                from LangGraph ``run_id`` so the frontend has a stable card id).
+            tool_name: The name of the tool being called.
+            langchain_tool_call_id: Optional authoritative LangChain
+                ``tool_call.id``. When set, surfaces as
+                ``langchainToolCallId`` so the frontend can join this card
+                to the action-log row written by ``ActionLogMiddleware``.
 
         Returns:
             str: SSE formatted tool input start part
@@ -598,13 +609,14 @@ class VercelStreamingService:
         Example output:
             data: {"type":"tool-input-start","toolCallId":"call_abc123","toolName":"getWeather"}
         """
-        return self._format_sse(
-            {
-                "type": "tool-input-start",
-                "toolCallId": tool_call_id,
-                "toolName": tool_name,
-            }
-        )
+        payload: dict[str, Any] = {
+            "type": "tool-input-start",
+            "toolCallId": tool_call_id,
+            "toolName": tool_name,
+        }
+        if langchain_tool_call_id:
+            payload["langchainToolCallId"] = langchain_tool_call_id
+        return self._format_sse(payload)
 
     def format_tool_input_delta(self, tool_call_id: str, input_text_delta: str) -> str:
         """
@@ -629,7 +641,12 @@ class VercelStreamingService:
         )
 
     def format_tool_input_available(
-        self, tool_call_id: str, tool_name: str, input_data: dict[str, Any]
+        self,
+        tool_call_id: str,
+        tool_name: str,
+        input_data: dict[str, Any],
+        *,
+        langchain_tool_call_id: str | None = None,
     ) -> str:
         """
         Format the completion of tool input.
@@ -638,6 +655,8 @@ class VercelStreamingService:
             tool_call_id: The tool call identifier
             tool_name: The name of the tool
             input_data: The complete tool input parameters
+            langchain_tool_call_id: Optional authoritative LangChain
+                ``tool_call.id`` (see ``format_tool_input_start``).
 
         Returns:
             str: SSE formatted tool input available part
@@ -645,22 +664,34 @@ class VercelStreamingService:
         Example output:
             data: {"type":"tool-input-available","toolCallId":"call_abc123","toolName":"getWeather","input":{"city":"SF"}}
         """
-        return self._format_sse(
-            {
-                "type": "tool-input-available",
-                "toolCallId": tool_call_id,
-                "toolName": tool_name,
-                "input": input_data,
-            }
-        )
+        payload: dict[str, Any] = {
+            "type": "tool-input-available",
+            "toolCallId": tool_call_id,
+            "toolName": tool_name,
+            "input": input_data,
+        }
+        if langchain_tool_call_id:
+            payload["langchainToolCallId"] = langchain_tool_call_id
+        return self._format_sse(payload)
 
-    def format_tool_output_available(self, tool_call_id: str, output: Any) -> str:
+    def format_tool_output_available(
+        self,
+        tool_call_id: str,
+        output: Any,
+        *,
+        langchain_tool_call_id: str | None = None,
+    ) -> str:
         """
         Format tool execution output.
 
         Args:
             tool_call_id: The tool call identifier
             output: The tool execution result
+            langchain_tool_call_id: Optional authoritative LangChain
+                ``tool_call.id`` extracted from ``ToolMessage.tool_call_id``.
+                When set, the frontend can backfill any card whose
+                ``langchainToolCallId`` was not yet known at
+                ``tool-input-start`` time.
 
         Returns:
             str: SSE formatted tool output available part
@@ -668,13 +699,14 @@ class VercelStreamingService:
         Example output:
             data: {"type":"tool-output-available","toolCallId":"call_abc123","output":{"weather":"sunny"}}
         """
-        return self._format_sse(
-            {
-                "type": "tool-output-available",
-                "toolCallId": tool_call_id,
-                "output": output,
-            }
-        )
+        payload: dict[str, Any] = {
+            "type": "tool-output-available",
+            "toolCallId": tool_call_id,
+            "output": output,
+        }
+        if langchain_tool_call_id:
+            payload["langchainToolCallId"] = langchain_tool_call_id
+        return self._format_sse(payload)
 
     # =========================================================================
     # Step Parts

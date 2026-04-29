@@ -724,7 +724,8 @@ def _build_compiled_agent_blocking(
     repair_mw = None
     if flags.enable_tool_call_repair and not flags.disable_new_agent_stack:
         registered_names: set[str] = {t.name for t in tools}
-        # Tools owned by the standard deepagents middleware stack.
+        # Tools owned by the standard deepagents middleware stack and the
+        # SurfSense filesystem extension.
         registered_names |= {
             "write_todos",
             "ls",
@@ -735,6 +736,14 @@ def _build_compiled_agent_blocking(
             "grep",
             "execute",
             "task",
+            "mkdir",
+            "cd",
+            "pwd",
+            "move_file",
+            "rm",
+            "rmdir",
+            "list_tree",
+            "execute_code",
         }
         repair_mw = ToolCallNameRepairMiddleware(
             registered_tool_names=registered_names,
@@ -763,25 +772,51 @@ def _build_compiled_agent_blocking(
     #    on every safe read-only call (``ls``, ``read_file``, ``grep``,
     #    ``glob``, ``web_search`` …) and, on resume, replay the previous
     #    reject decision into innocent calls.
-    # 2. ``connector_synthesized`` — deny rules for tools whose required
-    #    connector is not connected to this space. Overrides #1.
-    # 3. (future) user-defined rules from ``agent_permission_rules`` table
-    #    via the Agent Permissions UI. Loaded last so they override both.
+    # 2. ``desktop_safety`` — ``ask`` for destructive filesystem ops when
+    #    the agent is operating against the user's real disk. Cloud mode
+    #    has full revision-based revert via ``revert_service``, but
+    #    desktop mode hits disk immediately with no undo, so an
+    #    accidental ``rm`` / ``rmdir`` / ``move_file`` / ``edit_file`` /
+    #    ``write_file`` is unrecoverable. This layer is forced on in
+    #    desktop mode regardless of ``enable_permission`` because the
+    #    safety net is non-negotiable.
+    # 3. ``connector_synthesized`` — deny rules for tools whose required
+    #    connector is not connected to this space. Overrides #1/#2.
+    # 4. (future) user-defined rules from ``agent_permission_rules`` table
+    #    via the Agent Permissions UI. Loaded last so they override all.
     permission_mw: PermissionMiddleware | None = None
-    if flags.enable_permission and not flags.disable_new_agent_stack:
-        synthesized = _synthesize_connector_deny_rules(
-            available_connectors=available_connectors,
-            enabled_tool_names={t.name for t in tools},
-        )
-        permission_mw = PermissionMiddleware(
-            rulesets=[
+    is_desktop_fs = filesystem_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER
+    permission_enabled = flags.enable_permission and not flags.disable_new_agent_stack
+    # Build the middleware whenever it has work to do: either the user
+    # opted into the rule engine, OR we're in desktop mode and need the
+    # safety rules unconditionally.
+    if permission_enabled or is_desktop_fs:
+        rulesets: list[Ruleset] = [
+            Ruleset(
+                rules=[Rule(permission="*", pattern="*", action="allow")],
+                origin="surfsense_defaults",
+            ),
+        ]
+        if is_desktop_fs:
+            rulesets.append(
                 Ruleset(
-                    rules=[Rule(permission="*", pattern="*", action="allow")],
-                    origin="surfsense_defaults",
-                ),
-                Ruleset(rules=synthesized, origin="connector_synthesized"),
-            ],
-        )
+                    rules=[
+                        Rule(permission="rm", pattern="*", action="ask"),
+                        Rule(permission="rmdir", pattern="*", action="ask"),
+                        Rule(permission="move_file", pattern="*", action="ask"),
+                        Rule(permission="edit_file", pattern="*", action="ask"),
+                        Rule(permission="write_file", pattern="*", action="ask"),
+                    ],
+                    origin="desktop_safety",
+                )
+            )
+        if permission_enabled:
+            synthesized = _synthesize_connector_deny_rules(
+                available_connectors=available_connectors,
+                enabled_tool_names={t.name for t in tools},
+            )
+            rulesets.append(Ruleset(rules=synthesized, origin="connector_synthesized"))
+        permission_mw = PermissionMiddleware(rulesets=rulesets)
 
     # ActionLogMiddleware. Off by default until the ``agent_action_log``
     # table is migrated. When enabled, persists one row per tool call
@@ -938,6 +973,7 @@ def _build_compiled_agent_blocking(
             search_space_id=search_space_id,
             created_by_id=user_id,
             filesystem_mode=filesystem_mode,
+            thread_id=thread_id,
         )
         if filesystem_mode == FilesystemMode.CLOUD
         else None,

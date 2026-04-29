@@ -33,6 +33,8 @@ import {
 	useAllCitationMetadata,
 } from "@/components/assistant-ui/citation-metadata-context";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { ReasoningMessagePart } from "@/components/assistant-ui/reasoning-message-part";
+import { RevertTurnButton } from "@/components/assistant-ui/revert-turn-button";
 import { useTokenUsage } from "@/components/assistant-ui/token-usage-context";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
@@ -491,6 +493,7 @@ const AssistantMessageInner: FC = () => {
 				<MessagePrimitive.Parts
 					components={{
 						Text: MarkdownText,
+						Reasoning: ReasoningMessagePart,
 						tools: {
 							by_name: {
 								generate_report: GenerateReportToolUI,
@@ -699,6 +702,13 @@ const AssistantActionBar: FC = () => {
 	const isLast = useAuiState((s) => s.message.isLast);
 	const aui = useAui();
 	const api = useElectronAPI();
+	// Surface the persisted ``chat_turn_id`` so the per-turn revert
+	// affordance can scope to just this message's actions. Streamed
+	// turns get their id once the assistant message is hydrated/finalised.
+	const chatTurnId = useAuiState(({ message }) => {
+		const meta = message?.metadata as { custom?: { chatTurnId?: string | null } } | undefined;
+		return meta?.custom?.chatTurnId ?? null;
+	});
 
 	const isQuickAssist = !!api?.replaceText && IS_QUICK_ASSIST_WINDOW;
 
@@ -743,6 +753,9 @@ const AssistantActionBar: FC = () => {
 				</TooltipIconButton>
 			)}
 			<MessageInfoDropdown />
+			<div className="ml-auto">
+				<RevertTurnButton chatTurnId={chatTurnId} />
+			</div>
 		</ActionBarPrimitive.Root>
 	);
 };

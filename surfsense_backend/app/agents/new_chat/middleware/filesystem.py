@@ -102,6 +102,8 @@ current working directory (`cwd`, default `/documents`).
 - cd(path): change the current working directory.
 - pwd(): print the current working directory.
 - move_file(source, dest): move/rename a file under `/documents/`.
+- rm(path): delete a single file under `/documents/` (no `-r`).
+- rmdir(path): delete an empty directory under `/documents/`.
 - list_tree(path, max_depth, page_size): recursively list files/folders.
 
 ## Persistence Rules
@@ -112,8 +114,9 @@ current working directory (`cwd`, default `/documents`).
   `/documents/temp_scratch.md`) are **discarded** at end of turn — use this
   prefix for any scratch/working content you do NOT want saved.
 - All other paths (outside `/documents/` and not `temp_*`) are rejected.
-- mkdir/move_file are staged this turn and committed at end of turn alongside
-  any new/edited documents.
+- mkdir/move_file/rm/rmdir are staged this turn and committed at end of
+  turn alongside any new/edited documents. Snapshot/revert is enabled
+  for every destructive operation when action logging is on.
 
 ## Reading Documents Efficiently
 
@@ -176,6 +179,8 @@ directory (`cwd`).
 - cd(path): change the current working directory.
 - pwd(): print the current working directory.
 - move_file(source, dest): move/rename a file.
+- rm(path): delete a single file from disk (no `-r`). NOT reversible.
+- rmdir(path): delete an empty directory from disk. NOT reversible.
 - list_tree(path, max_depth, page_size): recursively list files/folders.
 
 ## Workflow Tips
@@ -184,6 +189,8 @@ directory (`cwd`).
 - For large trees, prefer `list_tree` then `grep` then `read_file` over
   brute-force directory traversal.
 - Cross-mount moves are not supported.
+- Desktop deletes hit disk immediately and cannot be undone via the
+  agent's revert flow — confirm before calling `rm`/`rmdir`.
 """
 )
 
@@ -355,6 +362,42 @@ Notes:
 - Parent folders are created as needed.
 """
 
+_CLOUD_RM_TOOL_DESCRIPTION = """Deletes a single file under `/documents/`.
+
+Mirrors POSIX `rm path` (no `-r`, no glob expansion). Stages the deletion
+for end-of-turn commit; the row is removed only after the agent's turn
+finishes successfully.
+
+Args:
+- path: absolute or relative file path. Cannot point at a directory — use
+  `rmdir` for empty folders. Cannot target the root or `/documents`.
+
+Notes:
+- The action is reversible via the per-action revert flow when action
+  logging is enabled.
+- The anonymous uploaded document is read-only and cannot be deleted.
+"""
+
+_CLOUD_RMDIR_TOOL_DESCRIPTION = """Deletes an empty directory under `/documents/`.
+
+Mirrors POSIX `rmdir path`: refuses non-empty directories. Recursive
+deletion (`rm -r`) is intentionally NOT supported — clear contents with
+`rm` first.
+
+Args:
+- path: absolute or relative directory path. Cannot target the root,
+  `/documents`, the current cwd, or any ancestor of cwd (use `cd` to
+  move out first).
+
+Notes:
+- Emptiness is evaluated against the post-staged view, so a same-turn
+  `rm /a/x.md` followed by `rmdir /a` is fine.
+- If the directory was added in this same turn via `mkdir` and never
+  committed, the staged mkdir is dropped instead of issuing a delete.
+- The action is reversible via the per-action revert flow when action
+  logging is enabled.
+"""
+
 # --- desktop-only ----------------------------------------------------------
 
 _DESKTOP_LIST_FILES_TOOL_DESCRIPTION = """Lists files and directories at the given path.
@@ -421,6 +464,28 @@ Notes:
 - Parent folders are created as needed.
 """
 
+_DESKTOP_RM_TOOL_DESCRIPTION = """Deletes a single file from disk.
+
+Mirrors POSIX `rm path` (no `-r`, no glob expansion). The deletion hits
+disk immediately. Desktop deletes are NOT reversible via the agent's
+revert flow.
+
+Args:
+- path: absolute mount-prefixed file path. Cannot point at a directory —
+  use `rmdir` for empty folders.
+"""
+
+_DESKTOP_RMDIR_TOOL_DESCRIPTION = """Deletes an empty directory from disk.
+
+Mirrors POSIX `rmdir path`: refuses non-empty directories. Recursive
+deletion is NOT supported. The deletion hits disk immediately and is
+NOT reversible via the agent's revert flow.
+
+Args:
+- path: absolute mount-prefixed directory path. Cannot target the mount
+  root or any directory containing files/subfolders.
+"""
+
 
 def _build_tool_descriptions(filesystem_mode: FilesystemMode) -> dict[str, str]:
     """Pick the active-mode description for every filesystem tool."""
@@ -437,6 +502,8 @@ def _build_tool_descriptions(filesystem_mode: FilesystemMode) -> dict[str, str]:
             "mkdir": _CLOUD_MKDIR_TOOL_DESCRIPTION,
             "cd": SURFSENSE_CD_TOOL_DESCRIPTION,
             "pwd": SURFSENSE_PWD_TOOL_DESCRIPTION,
+            "rm": _CLOUD_RM_TOOL_DESCRIPTION,
+            "rmdir": _CLOUD_RMDIR_TOOL_DESCRIPTION,
         }
     return {
         "ls": _DESKTOP_LIST_FILES_TOOL_DESCRIPTION,
@@ -450,6 +517,8 @@ def _build_tool_descriptions(filesystem_mode: FilesystemMode) -> dict[str, str]:
         "mkdir": _DESKTOP_MKDIR_TOOL_DESCRIPTION,
         "cd": SURFSENSE_CD_TOOL_DESCRIPTION,
         "pwd": SURFSENSE_PWD_TOOL_DESCRIPTION,
+        "rm": _DESKTOP_RM_TOOL_DESCRIPTION,
+        "rmdir": _DESKTOP_RMDIR_TOOL_DESCRIPTION,
     }
 
 
@@ -474,6 +543,21 @@ _TEMP_PREFIX = "temp_"
 
 def _basename(path: str) -> str:
     return path.rsplit("/", 1)[-1]
+
+
+def _is_ancestor_of(candidate: str, target: str) -> bool:
+    """True iff ``candidate`` is a strict ancestor directory of ``target``.
+
+    ``target`` itself is NOT considered an ancestor (use equality for that).
+    Both paths are assumed to be canonicalised, absolute, and free of
+    trailing slashes (except the root ``/``).
+    """
+    if not candidate.startswith("/") or not target.startswith("/"):
+        return False
+    if candidate == target:
+        return False
+    prefix = candidate.rstrip("/") + "/"
+    return target.startswith(prefix)
 
 
 class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
@@ -519,6 +603,8 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         self.tools.append(self._create_cd_tool())
         self.tools.append(self._create_pwd_tool())
         self.tools.append(self._create_move_file_tool())
+        self.tools.append(self._create_rm_tool())
+        self.tools.append(self._create_rmdir_tool())
         self.tools.append(self._create_list_tree_tool())
         if self._sandbox_available:
             self.tools.append(self._create_execute_code_tool())
@@ -941,6 +1027,7 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
             }
             if self._is_cloud():
                 update["dirty_paths"] = [path]
+                update["dirty_path_tool_calls"] = {path: runtime.tool_call_id}
             return Command(update=update)
 
         def sync_write_file(
@@ -1036,6 +1123,7 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
             }
             if self._is_cloud():
                 update["dirty_paths"] = [path]
+                update["dirty_path_tool_calls"] = {path: runtime.tool_call_id}
                 if doc_id_to_attach is not None:
                     update["doc_id_by_path"] = {path: doc_id_to_attach}
             return Command(update=update)
@@ -1103,6 +1191,9 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
                 return Command(
                     update={
                         "staged_dirs": [validated],
+                        "staged_dir_tool_calls": {
+                            validated: runtime.tool_call_id,
+                        },
                         "messages": [
                             ToolMessage(
                                 content=(
@@ -1372,7 +1463,14 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         files_update: dict[str, Any] = {source: None, dest: source_file_data}
         update: dict[str, Any] = {
             "files": files_update,
-            "pending_moves": [{"source": source, "dest": dest, "overwrite": False}],
+            "pending_moves": [
+                {
+                    "source": source,
+                    "dest": dest,
+                    "overwrite": False,
+                    "tool_call_id": runtime.tool_call_id,
+                }
+            ],
             "messages": [
                 ToolMessage(
                     content=(
@@ -1395,6 +1493,323 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
                 new_dirty.append(dest if entry == source else entry)
             update["dirty_paths"] = new_dirty
         return Command(update=update)
+
+    # ------------------------------------------------------------------ tool: rm
+
+    def _create_rm_tool(self) -> BaseTool:
+        tool_description = (
+            self._custom_tool_descriptions.get("rm") or _CLOUD_RM_TOOL_DESCRIPTION
+        )
+
+        async def async_rm(
+            path: Annotated[
+                str,
+                "Absolute or relative path to the file to delete.",
+            ],
+            runtime: ToolRuntime[None, SurfSenseFilesystemState],
+        ) -> Command | str:
+            if not path or not path.strip():
+                return "Error: path is required."
+
+            target = self._resolve_relative(path, runtime)
+            try:
+                validated = validate_path(target)
+            except ValueError as exc:
+                return f"Error: {exc}"
+
+            if self._is_cloud():
+                if validated in ("/", DOCUMENTS_ROOT):
+                    return f"Error: refusing to rm '{validated}'."
+                if not validated.startswith(DOCUMENTS_ROOT + "/"):
+                    return (
+                        "Error: cloud rm must target a path under /documents/ "
+                        f"(got '{validated}')."
+                    )
+
+                anon = runtime.state.get("kb_anon_doc") or {}
+                if isinstance(anon, dict) and str(anon.get("path") or "") == validated:
+                    return "Error: the anonymous uploaded document is read-only."
+
+                # Refuse if the path looks like a directory.
+                staged_dirs = list(runtime.state.get("staged_dirs") or [])
+                if validated in staged_dirs:
+                    return (
+                        f"Error: '{validated}' is a directory. Use rmdir for "
+                        "empty directories."
+                    )
+                pending_dir_deletes = list(
+                    runtime.state.get("pending_dir_deletes") or []
+                )
+                if any(
+                    isinstance(d, dict) and d.get("path") == validated
+                    for d in pending_dir_deletes
+                ):
+                    return f"Error: '{validated}' is already queued for rmdir."
+
+                backend = self._get_backend(runtime)
+                if isinstance(backend, KBPostgresBackend):
+                    # Detect "is a directory" via `ls`: if the path lists
+                    # children we know it's a folder. Otherwise we still
+                    # need to confirm it's a real file before staging.
+                    children = await backend.als_info(validated)
+                    if children:
+                        return (
+                            f"Error: '{validated}' is a directory. Use rmdir for "
+                            "empty directories."
+                        )
+
+                # Already queued for delete this turn?
+                pending_deletes = list(runtime.state.get("pending_deletes") or [])
+                if any(
+                    isinstance(d, dict) and d.get("path") == validated
+                    for d in pending_deletes
+                ):
+                    return f"'{validated}' is already queued for deletion."
+
+                # Resolve doc_id (best-effort): file in state or DB.
+                files_state = runtime.state.get("files") or {}
+                doc_id_by_path = runtime.state.get("doc_id_by_path") or {}
+                resolved_doc_id: int | None = doc_id_by_path.get(validated)
+                if (
+                    validated not in files_state
+                    and resolved_doc_id is None
+                    and isinstance(backend, KBPostgresBackend)
+                ):
+                    loaded = await backend._load_file_data(validated)
+                    if loaded is None:
+                        return f"Error: file '{validated}' not found."
+                    _, resolved_doc_id = loaded
+
+                files_update: dict[str, Any] = {validated: None}
+                update: dict[str, Any] = {
+                    "pending_deletes": [
+                        {
+                            "path": validated,
+                            "tool_call_id": runtime.tool_call_id,
+                        }
+                    ],
+                    "files": files_update,
+                    "doc_id_by_path": {validated: None},
+                    "messages": [
+                        ToolMessage(
+                            content=(
+                                f"Staged delete of '{validated}' (will commit at "
+                                "end of turn)."
+                            ),
+                            tool_call_id=runtime.tool_call_id,
+                        )
+                    ],
+                }
+
+                # Drop the path from dirty_paths so a same-turn write+rm
+                # doesn't recreate the doc at commit time.
+                dirty_paths = list(runtime.state.get("dirty_paths") or [])
+                if validated in dirty_paths:
+                    new_dirty: list[Any] = [_CLEAR]
+                    for entry in dirty_paths:
+                        if entry != validated:
+                            new_dirty.append(entry)
+                    update["dirty_paths"] = new_dirty
+                    update["dirty_path_tool_calls"] = {validated: None}
+
+                return Command(update=update)
+
+            # Desktop mode — hit disk immediately.
+            backend = self._get_backend(runtime)
+            adelete = getattr(backend, "adelete_file", None)
+            if not callable(adelete):
+                return "Error: rm is not supported by the active backend."
+            res: WriteResult = await adelete(validated)
+            if res.error:
+                return res.error
+            update_desktop: dict[str, Any] = {
+                "files": {validated: None},
+                "messages": [
+                    ToolMessage(
+                        content=f"Deleted file '{res.path or validated}'",
+                        tool_call_id=runtime.tool_call_id,
+                    )
+                ],
+            }
+            return Command(update=update_desktop)
+
+        def sync_rm(
+            path: Annotated[
+                str,
+                "Absolute or relative path to the file to delete.",
+            ],
+            runtime: ToolRuntime[None, SurfSenseFilesystemState],
+        ) -> Command | str:
+            return self._run_async_blocking(async_rm(path, runtime))
+
+        return StructuredTool.from_function(
+            name="rm",
+            description=tool_description,
+            func=sync_rm,
+            coroutine=async_rm,
+        )
+
+    # ------------------------------------------------------------------ tool: rmdir
+
+    def _create_rmdir_tool(self) -> BaseTool:
+        tool_description = (
+            self._custom_tool_descriptions.get("rmdir") or _CLOUD_RMDIR_TOOL_DESCRIPTION
+        )
+
+        async def async_rmdir(
+            path: Annotated[
+                str,
+                "Absolute or relative path of the empty directory to delete.",
+            ],
+            runtime: ToolRuntime[None, SurfSenseFilesystemState],
+        ) -> Command | str:
+            if not path or not path.strip():
+                return "Error: path is required."
+
+            target = self._resolve_relative(path, runtime)
+            try:
+                validated = validate_path(target)
+            except ValueError as exc:
+                return f"Error: {exc}"
+
+            if self._is_cloud():
+                if validated in ("/", DOCUMENTS_ROOT):
+                    return f"Error: refusing to rmdir '{validated}'."
+                if not validated.startswith(DOCUMENTS_ROOT + "/"):
+                    return (
+                        "Error: cloud rmdir must target a path under /documents/ "
+                        f"(got '{validated}')."
+                    )
+
+                cwd = self._current_cwd(runtime)
+                if validated == cwd or _is_ancestor_of(validated, cwd):
+                    return (
+                        f"Error: cannot rmdir '{validated}' because the current "
+                        "cwd is at or under it. cd out first."
+                    )
+
+                staged_dirs = list(runtime.state.get("staged_dirs") or [])
+                pending_dir_deletes = list(
+                    runtime.state.get("pending_dir_deletes") or []
+                )
+                if any(
+                    isinstance(d, dict) and d.get("path") == validated
+                    for d in pending_dir_deletes
+                ):
+                    return f"'{validated}' is already queued for deletion."
+
+                backend = self._get_backend(runtime)
+
+                # The path must currently exist either in DB folder paths or
+                # in staged_dirs. We rely on KBPostgresBackend.als_info (which
+                # already accounts for pending deletes/moves) to evaluate
+                # both existence and emptiness against the post-staged view.
+                exists_in_staged = validated in staged_dirs
+                children: list[Any] = []
+                if isinstance(backend, KBPostgresBackend):
+                    children = list(await backend.als_info(validated))
+
+                # Detect "is a file" — if als_info returns no children but
+                # the path is actually a file, we should reject. We use
+                # _load_file_data to disambiguate file vs missing folder.
+                if (
+                    isinstance(backend, KBPostgresBackend)
+                    and not children
+                    and not exists_in_staged
+                ):
+                    loaded = await backend._load_file_data(validated)
+                    if loaded is not None:
+                        return (
+                            f"Error: '{validated}' is a file. Use rm to delete files."
+                        )
+                    # Confirm folder exists in DB by checking the parent listing.
+                    parent = posixpath.dirname(validated) or "/"
+                    parent_listing = await backend.als_info(parent)
+                    parent_has_dir = any(
+                        info.get("path") == validated and info.get("is_dir")
+                        for info in parent_listing
+                    )
+                    if not parent_has_dir:
+                        return f"Error: directory '{validated}' not found."
+
+                if children:
+                    return (
+                        f"Error: directory '{validated}' is not empty. "
+                        "Remove contents first."
+                    )
+
+                # Same-turn mkdir un-stage: drop the staged_dirs entry
+                # entirely and skip queuing a DB delete (nothing was ever
+                # committed).
+                if exists_in_staged:
+                    rest = [d for d in staged_dirs if d != validated]
+                    return Command(
+                        update={
+                            "staged_dirs": [_CLEAR, *rest],
+                            "staged_dir_tool_calls": {validated: None},
+                            "messages": [
+                                ToolMessage(
+                                    content=(f"Un-staged directory '{validated}'."),
+                                    tool_call_id=runtime.tool_call_id,
+                                )
+                            ],
+                        }
+                    )
+
+                return Command(
+                    update={
+                        "pending_dir_deletes": [
+                            {
+                                "path": validated,
+                                "tool_call_id": runtime.tool_call_id,
+                            }
+                        ],
+                        "messages": [
+                            ToolMessage(
+                                content=(
+                                    f"Staged rmdir of '{validated}' (will commit "
+                                    "at end of turn)."
+                                ),
+                                tool_call_id=runtime.tool_call_id,
+                            )
+                        ],
+                    }
+                )
+
+            # Desktop mode — hit disk immediately.
+            backend = self._get_backend(runtime)
+            armdir = getattr(backend, "armdir", None)
+            if not callable(armdir):
+                return "Error: rmdir is not supported by the active backend."
+            res: WriteResult = await armdir(validated)
+            if res.error:
+                return res.error
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            content=f"Deleted directory '{res.path or validated}'",
+                            tool_call_id=runtime.tool_call_id,
+                        )
+                    ],
+                }
+            )
+
+        def sync_rmdir(
+            path: Annotated[
+                str,
+                "Absolute or relative path of the empty directory to delete.",
+            ],
+            runtime: ToolRuntime[None, SurfSenseFilesystemState],
+        ) -> Command | str:
+            return self._run_async_blocking(async_rmdir(path, runtime))
+
+        return StructuredTool.from_function(
+            name="rmdir",
+            description=tool_description,
+            func=sync_rmdir,
+            coroutine=async_rmdir,
+        )
 
     # ------------------------------------------------------------------ tool: list_tree
 
