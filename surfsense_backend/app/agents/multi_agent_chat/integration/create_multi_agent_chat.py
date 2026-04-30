@@ -70,6 +70,7 @@ def _compile_supervisor_chat_blocking(
         llm,
         tools=routing_tools,
         checkpointer=checkpointer,
+        thread_visibility=thread_visibility,
         middleware=middleware,
         context_schema=SurfSenseContextSchema,
     )
@@ -161,6 +162,7 @@ async def create_multi_agent_chat(
         include_deliverables=thread_id is not None,
         mcp_tools_by_route=mcp_tools_by_route,
         available_connectors=resolved_connectors,
+        thread_visibility=thread_visibility,
     )
 
     fs_sel = filesystem_selection or FilesystemSelection()
@@ -168,7 +170,10 @@ async def create_multi_agent_chat(
 
     if not surfsense_stack:
         return build_supervisor_agent(
-            llm, tools=routing_tools, checkpointer=checkpointer
+            llm,
+            tools=routing_tools,
+            checkpointer=checkpointer,
+            thread_visibility=thread_visibility,
         )
 
     return await asyncio.to_thread(

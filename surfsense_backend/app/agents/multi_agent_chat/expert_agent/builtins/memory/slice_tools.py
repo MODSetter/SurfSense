@@ -1,4 +1,4 @@
-"""Registry-backed memory tools (long-term personal or team memory)."""
+"""Registry-backed memory tools (long-term user or team memory)."""
 
 from __future__ import annotations
 

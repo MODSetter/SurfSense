@@ -39,7 +39,8 @@ _CONNECTOR_TYPE_TO_EXPERT_ROUTE: dict[str, str] = {
     "CLICKUP_CONNECTOR": "clickup",
     "SLACK_CONNECTOR": "slack",
     "AIRTABLE_CONNECTOR": "airtable",
-    "MCP_CONNECTOR": "generic_mcp",
+    # generic_mcp route intentionally disabled for now.
+    # "MCP_CONNECTOR": "generic_mcp",
 }
 
 # Ordering when appending MCP-only routes (no native registry slice for these types).
@@ -49,7 +50,8 @@ MCP_ONLY_ROUTE_KEYS_IN_ORDER: tuple[str, ...] = (
     "jira",
     "clickup",
     "airtable",
-    "generic_mcp",
+    # generic_mcp intentionally disabled for now.
+    # "generic_mcp",
 )
 
 

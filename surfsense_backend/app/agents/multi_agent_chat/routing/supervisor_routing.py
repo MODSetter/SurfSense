@@ -7,6 +7,7 @@ from typing import Any
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 
+from app.db import ChatVisibility
 from app.agents.multi_agent_chat.expert_agent.builtins.deliverables import (
     build_deliverables_tools,
     build_deliverables_domain_agent,
@@ -67,29 +68,32 @@ from app.agents.multi_agent_chat.routing.route_connector_gate import include_con
 
 _MCP_ONLY_ROUTE_DESCRIPTIONS: dict[str, str] = {
     "linear": (
-        "Route Linear work (issues, projects, cycles, documents) via MCP to the Linear sub-agent. "
-        "Pass a clear natural-language task."
+        "Use for Linear issue/project work: find/create issues, update status/assignees, review project progress, and inspect cycles."
     ),
     "slack": (
-        "Route Slack search and channel/thread reads via MCP to the Slack sub-agent. "
-        "Pass a clear natural-language task."
+        "Use for Slack channel communication: read channel/thread history, summarize conversations, and post replies."
     ),
     "jira": (
-        "Route Jira issues and projects via MCP to the Jira sub-agent. "
-        "Pass a clear natural-language task."
+        "Use for Jira issue/project workflows: search issues, inspect fields, update tickets, and move work through workflow states."
     ),
     "clickup": (
-        "Route ClickUp tasks via MCP to the ClickUp sub-agent. Pass a clear natural-language task."
+        "Use for ClickUp task management: find tasks/lists, update task fields, and track execution progress."
     ),
     "airtable": (
-        "Route Airtable bases and records via MCP to the Airtable sub-agent. "
-        "Pass a clear natural-language task."
+        "Use for Airtable structured data operations: locate bases/tables and create/read/update records."
     ),
-    "generic_mcp": (
-        "Route user-defined MCP (stdio) server tools to the custom MCP sub-agent. "
-        "Pass a clear natural-language task."
-    ),
+    # generic_mcp intentionally disabled for now.
+    # "generic_mcp": (
+    #     "Use as a fallback for custom connected app tasks not covered by a named specialist. "
+    #     "Do not use if another specialist clearly matches."
+    # ),
 }
+
+
+def _memory_route_description(thread_visibility: ChatVisibility | None) -> str:
+    if thread_visibility == ChatVisibility.SEARCH_SPACE:
+        return "Use for storing durable team memory: shared team preferences, conventions, and long-lived team facts."
+    return "Use for storing durable user memory: personal preferences, instructions, and long-lived user facts."
 
 
 def build_supervisor_routing_tools(
@@ -99,6 +103,7 @@ def build_supervisor_routing_tools(
     include_deliverables: bool = True,
     mcp_tools_by_route: dict[str, list[BaseTool]] | None = None,
     available_connectors: list[str] | None = None,
+    thread_visibility: ChatVisibility | None = None,
 ) -> list[BaseTool]:
     """Build supervisor routing tools: builtins first, then connector experts (same pattern for all).
 
@@ -112,8 +117,7 @@ def build_supervisor_routing_tools(
     ``mcp_tools_by_route`` maps route keys to MCP tools merged into the matching expert subgraph.
 
     When ``available_connectors`` is set (searchable connector strings, same shape as ``new_chat``),
-    a vendor route is registered only if the connector is available **or** MCP tools are present for
-    that route.
+    a connector-backed route is registered only if its required searchable connector type is available.
     """
     if registry_dependencies is None:
         return routing_tools_from_specs([])
@@ -127,22 +131,22 @@ def build_supervisor_routing_tools(
         DomainRoutingSpec(
             tool_name="research",
             description=(
-                "Route web search, page scraping, and SurfSense documentation help to the "
-                "research sub-agent. Pass a clear natural-language task."
+                "Use for external research: find sources on the web, extract evidence, and answer documentation questions."
             ),
             domain_agent=research_agent,
         ),
     )
 
     memory_tools = build_memory_tools(registry_dependencies)
-    memory_agent = build_memory_domain_agent(llm, memory_tools)
+    memory_agent = build_memory_domain_agent(
+        llm,
+        memory_tools,
+        thread_visibility=thread_visibility,
+    )
     specs.append(
         DomainRoutingSpec(
             tool_name="memory",
-            description=(
-                "Route saving long-term facts and preferences (personal or team memory) to the "
-                "memory sub-agent. Pass a clear natural-language task."
-            ),
+            description=_memory_route_description(thread_visibility),
             domain_agent=memory_agent,
         ),
     )
@@ -154,8 +158,7 @@ def build_supervisor_routing_tools(
             DomainRoutingSpec(
                 tool_name="deliverables",
                 description=(
-                    "Route structured outputs (reports, podcasts, video presentations, resumes, "
-                    "images) to the deliverables sub-agent. Pass a clear natural-language task."
+                    "Use for creating final artifacts: reports, podcasts, video presentations, resumes, and images."
                 ),
                 domain_agent=deliverables_agent,
             ),
@@ -171,8 +174,7 @@ def build_supervisor_routing_tools(
             DomainRoutingSpec(
                 tool_name="calendar",
                 description=(
-                    "Route Google Calendar work to the Calendar sub-agent. "
-                    "Pass a clear natural-language task."
+                    "Use for calendar planning and scheduling: check availability, read event details, create events, and update events."
                 ),
                 domain_agent=calendar_agent,
             ),
@@ -185,8 +187,7 @@ def build_supervisor_routing_tools(
             DomainRoutingSpec(
                 tool_name="confluence",
                 description=(
-                    "Route Confluence page work to the Confluence sub-agent. "
-                    "Pass a clear natural-language task."
+                    "Use for Confluence knowledge pages: search/read existing pages, create new pages, and update page content."
                 ),
                 domain_agent=confluence_agent,
             ),
@@ -199,8 +200,7 @@ def build_supervisor_routing_tools(
             DomainRoutingSpec(
                 tool_name="discord",
                 description=(
-                    "Route Discord work (channels, messages) to the Discord sub-agent. "
-                    "Pass a clear natural-language task."
+                    "Use for Discord communication: read channel/thread messages, gather context, and send replies."
                 ),
                 domain_agent=discord_agent,
             ),
@@ -213,7 +213,7 @@ def build_supervisor_routing_tools(
             DomainRoutingSpec(
                 tool_name="dropbox",
                 description=(
-                    "Route Dropbox file work to the Dropbox sub-agent. Pass a clear natural-language task."
+                    "Use for Dropbox file storage tasks: browse folders, read files, and manage Dropbox file content."
                 ),
                 domain_agent=dropbox_agent,
             ),
@@ -228,8 +228,7 @@ def build_supervisor_routing_tools(
             DomainRoutingSpec(
                 tool_name="gmail",
                 description=(
-                    "Route Gmail-related work to the Gmail sub-agent. "
-                    "Pass a clear natural-language task."
+                    "Use for Gmail inbox actions: search/read emails, draft or update replies, send messages, and trash emails."
                 ),
                 domain_agent=gmail_agent,
             ),
@@ -242,8 +241,7 @@ def build_supervisor_routing_tools(
             DomainRoutingSpec(
                 tool_name="google_drive",
                 description=(
-                    "Route Google Drive file work to the Google Drive sub-agent. "
-                    "Pass a clear natural-language task."
+                    "Use for Google Drive document/file tasks: locate files, inspect content, and manage Drive files or folders."
                 ),
                 domain_agent=google_drive_agent,
             ),
@@ -256,8 +254,7 @@ def build_supervisor_routing_tools(
             DomainRoutingSpec(
                 tool_name="luma",
                 description=(
-                    "Route Luma calendar events (list, read, create) to the Luma sub-agent. "
-                    "Pass a clear natural-language task."
+                    "Use for Luma event operations: list events, inspect event details, and create new events."
                 ),
                 domain_agent=luma_agent,
             ),
@@ -270,7 +267,7 @@ def build_supervisor_routing_tools(
             DomainRoutingSpec(
                 tool_name="notion",
                 description=(
-                    "Route Notion page work to the Notion sub-agent. Pass a clear natural-language task."
+                    "Use for Notion workspace pages: create pages, update page content, and delete pages."
                 ),
                 domain_agent=notion_agent,
             ),
@@ -283,8 +280,7 @@ def build_supervisor_routing_tools(
             DomainRoutingSpec(
                 tool_name="onedrive",
                 description=(
-                    "Route Microsoft OneDrive file work to the OneDrive sub-agent. "
-                    "Pass a clear natural-language task."
+                    "Use for OneDrive file storage tasks: browse folders, read files, and manage OneDrive file content."
                 ),
                 domain_agent=onedrive_agent,
             ),
@@ -297,8 +293,7 @@ def build_supervisor_routing_tools(
             DomainRoutingSpec(
                 tool_name="teams",
                 description=(
-                    "Route Microsoft Teams work (channels, messages) to the Teams sub-agent. "
-                    "Pass a clear natural-language task."
+                    "Use for Microsoft Teams communication: read channel/thread messages, gather context, and post replies."
                 ),
                 domain_agent=teams_agent,
             ),
@@ -312,7 +307,7 @@ def build_supervisor_routing_tools(
             continue
         desc = _MCP_ONLY_ROUTE_DESCRIPTIONS.get(
             route_key,
-            f"Route {route_key} MCP work to the {route_key} sub-agent. Pass a clear natural-language task.",
+            f"Use for {route_key} tasks related to that system's core work objects and workflows.",
         )
         specs.append(
             DomainRoutingSpec(

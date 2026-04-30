@@ -32,7 +32,8 @@ _ROUTE_REQUIRES_ANY: dict[str, frozenset[str]] = {
     "jira": frozenset({"JIRA_CONNECTOR"}),
     "clickup": frozenset({"CLICKUP_CONNECTOR"}),
     "airtable": frozenset({"AIRTABLE_CONNECTOR"}),
-    "generic_mcp": frozenset({"MCP_CONNECTOR"}),
+    # generic_mcp route intentionally disabled for now.
+    # "generic_mcp": frozenset({"MCP_CONNECTOR"}),
 }
 
 
