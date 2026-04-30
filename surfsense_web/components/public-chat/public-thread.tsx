@@ -59,7 +59,7 @@ export const PublicThread: FC<PublicThreadProps> = ({ footer }) => {
 			</ThreadPrimitive.Viewport>
 
 			{footer && (
-				<div className="sticky bottom-0 z-20 border-t bg-main-panel/95 backdrop-blur supports-backdrop-filter:bg-main-panel/60">
+				<div className="border-t bg-main-panel/95 backdrop-blur supports-backdrop-filter:bg-main-panel/60">
 					{footer}
 				</div>
 			)}

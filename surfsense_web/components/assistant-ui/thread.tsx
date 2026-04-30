@@ -113,14 +113,10 @@ const ThreadContent: FC = () => {
 		>
 			<ChatViewport
 				footer={
-					<>
-						<AuiIf condition={({ thread }) => !thread.isEmpty}>
-							<PremiumQuotaPinnedAlert />
-						</AuiIf>
-						<AuiIf condition={({ thread }) => !thread.isEmpty}>
-							<Composer />
-						</AuiIf>
-					</>
+					<AuiIf condition={({ thread }) => !thread.isEmpty}>
+						<PremiumQuotaPinnedAlert />
+						<Composer />
+					</AuiIf>
 				}
 			>
 				<AuiIf condition={({ thread }) => thread.isEmpty}>
