@@ -529,6 +529,14 @@ export type SSEEvent =
 			};
 	  }
 	| {
+			type: "data-turn-status";
+			data: {
+				status: "idle" | "busy" | "cancelling";
+				retry_after_ms?: number;
+				retry_after_at?: number;
+			};
+	  }
+	| {
 			type: "data-token-usage";
 			data: {
 				usage: Record<

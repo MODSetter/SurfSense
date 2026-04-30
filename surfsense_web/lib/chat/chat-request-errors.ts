@@ -1,6 +1,6 @@
 export async function toHttpResponseError(
 	response: Response
-): Promise<Error & { errorCode?: string }> {
+): Promise<Error & { errorCode?: string; retryAfterMs?: number }> {
 	const statusDefaultCode =
 		response.status === 409
 			? "THREAD_BUSY"
@@ -52,13 +52,37 @@ export async function toHttpResponseError(
 				: undefined;
 
 	const errorCode = detailCode ?? topLevelCode ?? statusDefaultCode;
+
+	const detailRetryAfterMs =
+		typeof detailObject?.retry_after_ms === "number"
+			? detailObject.retry_after_ms
+			: typeof detailObject?.retryAfterMs === "number"
+				? detailObject.retryAfterMs
+				: undefined;
+	const topRetryAfterMs =
+		typeof parsedBody?.retry_after_ms === "number"
+			? parsedBody.retry_after_ms
+			: typeof parsedBody?.retryAfterMs === "number"
+				? parsedBody.retryAfterMs
+				: undefined;
+	const headerRetryAfterMsRaw = response.headers.get("retry-after-ms");
+	const headerRetryAfterMs = headerRetryAfterMsRaw ? Number.parseFloat(headerRetryAfterMsRaw) : NaN;
+	const retryAfterHeader = response.headers.get("retry-after");
+	const retryAfterSeconds = retryAfterHeader ? Number.parseFloat(retryAfterHeader) : NaN;
+	const retryAfterMsFromHeader = Number.isFinite(headerRetryAfterMs)
+		? Math.max(0, Math.round(headerRetryAfterMs))
+		: Number.isFinite(retryAfterSeconds)
+			? Math.max(0, Math.round(retryAfterSeconds * 1000))
+			: undefined;
+	const retryAfterMs =
+		detailRetryAfterMs ?? topRetryAfterMs ?? retryAfterMsFromHeader ?? undefined;
 	const message =
 		detailNestedMessage ??
 		detailMessage ??
 		topLevelMessage ??
 		`Backend error: ${response.status}`;
 
-	return Object.assign(new Error(message), { errorCode });
+	return Object.assign(new Error(message), { errorCode, retryAfterMs });
 }
 
 export function tagPreAcceptSendFailure(error: unknown): unknown {
@@ -68,6 +92,7 @@ export function tagPreAcceptSendFailure(error: unknown): unknown {
 		const passthroughCodes = new Set([
 			"PREMIUM_QUOTA_EXHAUSTED",
 			"THREAD_BUSY",
+			"TURN_CANCELLING",
 			"AUTH_EXPIRED",
 			"UNAUTHORIZED",
 			"RATE_LIMITED",

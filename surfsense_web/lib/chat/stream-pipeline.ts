@@ -21,6 +21,7 @@ export type SharedStreamEventContext = {
 	scheduleFlush: () => void;
 	forceFlush: () => void;
 	onTokenUsage?: (data: Extract<SSEEvent, { type: "data-token-usage" }>["data"]) => void;
+	onTurnStatus?: (data: Extract<SSEEvent, { type: "data-turn-status" }>["data"]) => void;
 	onToolOutputAvailable?: (
 		event: Extract<SSEEvent, { type: "tool-output-available" }>,
 		context: {
@@ -171,6 +172,10 @@ export function processSharedStreamEvent(parsed: SSEEvent, context: SharedStream
 
 		case "data-token-usage":
 			context.onTokenUsage?.(parsed.data);
+			return true;
+
+		case "data-turn-status":
+			context.onTurnStatus?.(parsed.data);
 			return true;
 
 		case "error":

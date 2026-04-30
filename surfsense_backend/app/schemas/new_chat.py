@@ -335,6 +335,24 @@ class ResumeRequest(BaseModel):
     local_filesystem_mounts: list[LocalFilesystemMountPayload] | None = None
 
 
+class CancelActiveTurnResponse(BaseModel):
+    """Response for canceling an active turn on a chat thread."""
+
+    status: Literal["cancelling", "idle"]
+    error_code: Literal["TURN_CANCELLING", "NO_ACTIVE_TURN"]
+    retry_after_ms: int | None = None
+    retry_after_at: int | None = None
+
+
+class TurnStatusResponse(BaseModel):
+    """Current turn execution status for a thread."""
+
+    status: Literal["idle", "busy", "cancelling"]
+    active_turn_id: str | None = None
+    retry_after_ms: int | None = None
+    retry_after_at: int | None = None
+
+
 # =============================================================================
 # Public Chat Snapshot Schemas
 # =============================================================================

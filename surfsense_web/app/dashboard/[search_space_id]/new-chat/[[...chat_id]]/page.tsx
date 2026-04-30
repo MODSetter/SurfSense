@@ -182,6 +182,20 @@ function extractMentionedDocuments(content: unknown): MentionedDocumentInfo[] {
  * ``stream_new_chat.py``) keep the JSON from ballooning.
  */
 const TOOLS_WITH_UI_ALL: ToolUIGate = "all";
+const TURN_CANCELLING_INITIAL_DELAY_MS = 200;
+const TURN_CANCELLING_BACKOFF_FACTOR = 2;
+const TURN_CANCELLING_MAX_DELAY_MS = 1500;
+const RECENT_CANCEL_WINDOW_MS = 5_000;
+
+function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function computeFallbackTurnCancellingRetryDelay(attempt: number): number {
+	const safeAttempt = Math.max(1, attempt);
+	const raw = TURN_CANCELLING_INITIAL_DELAY_MS * TURN_CANCELLING_BACKOFF_FACTOR ** (safeAttempt - 1);
+	return Math.min(raw, TURN_CANCELLING_MAX_DELAY_MS);
+}
 
 export default function NewChatPage() {
 	const params = useParams();
@@ -193,6 +207,7 @@ export default function NewChatPage() {
 	const [isRunning, setIsRunning] = useState(false);
 	const [tokenUsageStore] = useState(() => createTokenUsageStore());
 	const abortControllerRef = useRef<AbortController | null>(null);
+	const recentCancelRequestedAtRef = useRef(0);
 	const [pendingInterrupt, setPendingInterrupt] = useState<{
 		threadId: number;
 		assistantMsgId: string;
@@ -598,6 +613,36 @@ export default function NewChatPage() {
 		[handleChatFailure]
 	);
 
+	const fetchWithTurnCancellingRetry = useCallback(
+		async (runFetch: () => Promise<Response>) => {
+			const maxAttempts = 4;
+			for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+				const response = await runFetch();
+				if (response.ok) {
+					return response;
+				}
+				const error = await toHttpResponseError(response);
+				const withMeta = error as Error & { errorCode?: string; retryAfterMs?: number };
+				const isTurnCancelling = withMeta.errorCode === "TURN_CANCELLING";
+				const isRecentThreadBusyAfterCancel =
+					withMeta.errorCode === "THREAD_BUSY" &&
+					Date.now() - recentCancelRequestedAtRef.current <= RECENT_CANCEL_WINDOW_MS;
+				if ((isTurnCancelling || isRecentThreadBusyAfterCancel) && attempt < maxAttempts) {
+					const waitMs =
+						withMeta.retryAfterMs ?? computeFallbackTurnCancellingRetryDelay(attempt);
+					await sleep(waitMs);
+					continue;
+				}
+				throw error;
+			}
+
+			throw Object.assign(new Error("Turn cancellation retry limit exceeded"), {
+				errorCode: "TURN_CANCELLING",
+			});
+		},
+		[]
+	);
+
 	// Initialize thread and load messages
 	// For new chats (no urlChatId), we use lazy creation - thread is created on first message
 	const initializeThread = useCallback(async () => {
@@ -767,12 +812,39 @@ export default function NewChatPage() {
 
 	// Cancel ongoing request
 	const cancelRun = useCallback(async () => {
+		if (threadId) {
+			const token = getBearerToken();
+			if (token) {
+				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+				try {
+					const response = await fetch(
+						`${backendUrl}/api/v1/threads/${threadId}/cancel-active-turn`,
+						{
+							method: "POST",
+							headers: {
+								Authorization: `Bearer ${token}`,
+							},
+						}
+					);
+					if (response.ok) {
+						const payload = (await response.json()) as {
+							error_code?: string;
+						};
+						if (payload.error_code === "TURN_CANCELLING") {
+							recentCancelRequestedAtRef.current = Date.now();
+						}
+					}
+				} catch (error) {
+					console.warn("[NewChatPage] Failed to signal cancel-active-turn:", error);
+				}
+			}
+		}
 		if (abortControllerRef.current) {
 			abortControllerRef.current.abort();
 			abortControllerRef.current = null;
 		}
 		setIsRunning(false);
-	}, []);
+	}, [threadId]);
 
 	// Handle new message from user
 	const onNew = useCallback(
@@ -971,29 +1043,33 @@ export default function NewChatPage() {
 					setMentionedDocuments([]);
 				}
 
-				const response = await fetch(`${backendUrl}/api/v1/new_chat`, {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
-					body: JSON.stringify({
-						chat_id: currentThreadId,
-						user_query: userQuery.trim(),
-						search_space_id: searchSpaceId,
-						filesystem_mode: selection.filesystem_mode,
-						client_platform: selection.client_platform,
-						local_filesystem_mounts: selection.local_filesystem_mounts,
-						messages: messageHistory,
-						mentioned_document_ids: hasDocumentIds ? mentionedDocumentIds.document_ids : undefined,
-						mentioned_surfsense_doc_ids: hasSurfsenseDocIds
-							? mentionedDocumentIds.surfsense_doc_ids
-							: undefined,
-						disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
-						...(userImages.length > 0 ? { user_images: userImages } : {}),
-					}),
-					signal: controller.signal,
-				});
+				const response = await fetchWithTurnCancellingRetry(() =>
+					fetch(`${backendUrl}/api/v1/new_chat`, {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							Authorization: `Bearer ${token}`,
+						},
+						body: JSON.stringify({
+							chat_id: currentThreadId,
+							user_query: userQuery.trim(),
+							search_space_id: searchSpaceId,
+							filesystem_mode: selection.filesystem_mode,
+							client_platform: selection.client_platform,
+							local_filesystem_mounts: selection.local_filesystem_mounts,
+							messages: messageHistory,
+							mentioned_document_ids: hasDocumentIds
+								? mentionedDocumentIds.document_ids
+								: undefined,
+							mentioned_surfsense_doc_ids: hasSurfsenseDocIds
+								? mentionedDocumentIds.surfsense_doc_ids
+								: undefined,
+							disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
+							...(userImages.length > 0 ? { user_images: userImages } : {}),
+						}),
+						signal: controller.signal,
+					})
+				);
 
 				if (!response.ok) {
 					throw await toHttpResponseError(response);
@@ -1032,6 +1108,11 @@ export default function NewChatPage() {
 							onTokenUsage: (data) => {
 								tokenUsageData = data;
 								tokenUsageStore.set(assistantMsgId, data);
+							},
+							onTurnStatus: (data) => {
+								if (data.status === "cancelling") {
+									recentCancelRequestedAtRef.current = Date.now();
+								}
 							},
 							onToolOutputAvailable: (event, sharedCtx) => {
 								if (event.output?.status === "pending" && event.output?.podcast_id) {
@@ -1257,6 +1338,7 @@ export default function NewChatPage() {
 			tokenUsageStore,
 			pendingUserImageUrls,
 			setPendingUserImageUrls,
+			fetchWithTurnCancellingRetry,
 			handleStreamTerminalError,
 			handleChatFailure,
 			persistAssistantTurn,
@@ -1354,21 +1436,23 @@ export default function NewChatPage() {
 			try {
 				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
 				const selection = await getAgentFilesystemSelection(searchSpaceId);
-				const response = await fetch(`${backendUrl}/api/v1/threads/${resumeThreadId}/resume`, {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
-					body: JSON.stringify({
-						search_space_id: searchSpaceId,
-						decisions,
-						filesystem_mode: selection.filesystem_mode,
-						client_platform: selection.client_platform,
-						local_filesystem_mounts: selection.local_filesystem_mounts,
-					}),
-					signal: controller.signal,
-				});
+				const response = await fetchWithTurnCancellingRetry(() =>
+					fetch(`${backendUrl}/api/v1/threads/${resumeThreadId}/resume`, {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							Authorization: `Bearer ${token}`,
+						},
+						body: JSON.stringify({
+							search_space_id: searchSpaceId,
+							decisions,
+							filesystem_mode: selection.filesystem_mode,
+							client_platform: selection.client_platform,
+							local_filesystem_mounts: selection.local_filesystem_mounts,
+						}),
+						signal: controller.signal,
+					})
+				);
 
 				if (!response.ok) {
 					throw await toHttpResponseError(response);
@@ -1398,6 +1482,11 @@ export default function NewChatPage() {
 							onTokenUsage: (data) => {
 								tokenUsageData = data;
 								tokenUsageStore.set(assistantMsgId, data);
+							},
+							onTurnStatus: (data) => {
+								if (data.status === "cancelling") {
+									recentCancelRequestedAtRef.current = Date.now();
+								}
 							},
 						})
 					) {
@@ -1496,6 +1585,7 @@ export default function NewChatPage() {
 			searchSpaceId,
 			queryClient,
 			tokenUsageStore,
+			fetchWithTurnCancellingRetry,
 			handleStreamTerminalError,
 			persistAssistantTurn,
 		]
@@ -1700,15 +1790,17 @@ export default function NewChatPage() {
 						requestBody.revert_actions = true;
 					}
 				}
-				const response = await fetch(getRegenerateUrl(threadId), {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
-					body: JSON.stringify(requestBody),
-					signal: controller.signal,
-				});
+				const response = await fetchWithTurnCancellingRetry(() =>
+					fetch(getRegenerateUrl(threadId), {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							Authorization: `Bearer ${token}`,
+						},
+						body: JSON.stringify(requestBody),
+						signal: controller.signal,
+					})
+				);
 
 				if (!response.ok) {
 					throw await toHttpResponseError(response);
@@ -1773,6 +1865,11 @@ export default function NewChatPage() {
 							onTokenUsage: (data) => {
 								tokenUsageData = data;
 								tokenUsageStore.set(assistantMsgId, data);
+							},
+							onTurnStatus: (data) => {
+								if (data.status === "cancelling") {
+									recentCancelRequestedAtRef.current = Date.now();
+								}
 							},
 							onToolOutputAvailable: (event, sharedCtx) => {
 								if (event.output?.status === "pending" && event.output?.podcast_id) {
@@ -1945,6 +2042,7 @@ export default function NewChatPage() {
 			setMessageDocumentsMap,
 			queryClient,
 			tokenUsageStore,
+			fetchWithTurnCancellingRetry,
 			handleStreamTerminalError,
 			persistAssistantTurn,
 			persistUserTurn,
