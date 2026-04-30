@@ -241,7 +241,7 @@ export async function logout(): Promise<boolean> {
 	if (typeof window !== "undefined") {
 		// Rewrite "foss-<app>.<domain>" → "foss.<domain>" so we land on the portal
 		// (outside ForwardAuth) instead of SurfSense's own root, which would silently re-auth.
-		const portalHost = window.location.hostname.replace(/^[^.]*\./, "foss.");
+		const portalHost = window.location.hostname.replace(/^[^.]*\./, "moneta.");
 		window.location.href = `${window.location.protocol}//${portalHost}`;
 		return true;
 	}
