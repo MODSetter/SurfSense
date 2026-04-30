@@ -158,7 +158,8 @@ def build_supervisor_routing_tools(
             DomainRoutingSpec(
                 tool_name="deliverables",
                 description=(
-                    "Use for creating final artifacts: reports, podcasts, video presentations, resumes, and images."
+                    "Use for deliverables and shareable artifacts: generated reports, podcasts, "
+                    "video presentations, resumes, and images—not for routine lookups or single small edits elsewhere."
                 ),
                 domain_agent=deliverables_agent,
             ),

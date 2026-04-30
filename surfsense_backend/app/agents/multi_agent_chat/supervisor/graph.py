@@ -18,7 +18,7 @@ _BUILTIN_SPECIALISTS: frozenset[str] = frozenset({"research", "memory", "deliver
 _SPECIALIST_CAPABILITIES: dict[str, str] = {
     "research": "external research: web lookup, source gathering, and SurfSense documentation help.",
     "memory": "save durable long-lived memory items.",
-    "deliverables": "final artifact generation: report, podcast, video presentation, resume, or image.",
+    "deliverables": "deliverables and shareable artifacts: reports, podcasts, video presentations, resumes, and images.",
     "gmail": "email inbox actions: search/read emails, draft updates, send messages, and trash emails.",
     "calendar": "scheduling actions: check availability, inspect events, create events, and update events.",
     "google_drive": "Drive file/document actions: locate files, inspect content, and manage files/folders.",
