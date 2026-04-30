@@ -1,4 +1,4 @@
-"""``new_chat`` tool registry grouping + dependency bundles for domain slices."""
+"""Main chat tool registry grouping + dependency bundles for domain slices."""
 
 from app.agents.multi_agent_chat.core.registry.categories import (
     REGISTRY_ROUTING_CATEGORY_KEYS,

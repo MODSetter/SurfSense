@@ -1581,6 +1581,7 @@ async def stream_new_chat(
                 thread_visibility=visibility,
                 filesystem_selection=filesystem_selection,
                 mentioned_document_ids=mentioned_document_ids,
+                citations_enabled=agent_config.citations_enabled,
             )
         else:
             agent = await create_surfsense_deep_agent(
@@ -2305,6 +2306,7 @@ async def stream_resume_chat(
                 connector_service=connector_service,
                 thread_visibility=visibility,
                 filesystem_selection=filesystem_selection,
+                citations_enabled=agent_config.citations_enabled,
             )
         else:
             agent = await create_surfsense_deep_agent(

@@ -116,7 +116,7 @@ def build_supervisor_routing_tools(
 
     ``mcp_tools_by_route`` maps route keys to MCP tools merged into the matching expert subgraph.
 
-    When ``available_connectors`` is set (searchable connector strings, same shape as ``new_chat``),
+    When ``available_connectors`` is set (searchable connector strings, same shape as the main chat agent),
     a connector-backed route is registered only if its required searchable connector type is available.
     """
     if registry_dependencies is None:

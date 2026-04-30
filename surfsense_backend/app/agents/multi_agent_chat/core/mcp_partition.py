@@ -1,4 +1,4 @@
-"""Partition MCP tools onto multi-agent expert routes without modifying ``new_chat``.
+"""Partition MCP tools onto multi-agent expert routes (read-only; does not change the MCP loader).
 
 Uses the same connector discovery shape as ``load_mcp_tools`` (copied query below). Tools come from
 ``app.agents.new_chat.tools.mcp_tool.load_mcp_tools``; routing uses metadata already set there:
@@ -61,7 +61,7 @@ async def fetch_mcp_connector_metadata_maps(
 ) -> tuple[dict[int, str], dict[str, str]]:
     """Read-only copy of connector discovery used alongside ``load_mcp_tools``.
 
-    Same filter as ``new_chat.tools.mcp_tool.load_mcp_tools`` (connectors with ``server_config``).
+    Same filter as :func:`app.agents.new_chat.tools.mcp_tool.load_mcp_tools` (connectors with ``server_config``).
     """
     result = await session.execute(
         select(SearchSourceConnector).filter(
@@ -90,7 +90,7 @@ def partition_mcp_tools_by_expert_route(
 ) -> dict[str, list[BaseTool]]:
     """Bucket MCP tools by expert route key. Supervisor never receives raw MCP tools.
 
-    Same inclusion rule as ``new_chat.tools.registry.build_tools_async``: all tools returned by
+    Same inclusion rule as :func:`app.agents.new_chat.tools.registry.build_tools_async`: all tools returned by
     ``load_mcp_tools`` are partitioned — connector availability for **registry** builtins is handled via
     ``get_connector_gated_tools`` / routing gates; MCP tools are not pre-filtered by inventory here.
     """

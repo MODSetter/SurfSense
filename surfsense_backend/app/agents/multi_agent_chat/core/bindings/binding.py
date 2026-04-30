@@ -1,4 +1,4 @@
-"""Shared kwargs dict for ``new_chat`` tool factories (DB session + search space + user)."""
+"""Shared kwargs dict for main-chat tool factories (DB session + search space + user)."""
 
 from __future__ import annotations
 

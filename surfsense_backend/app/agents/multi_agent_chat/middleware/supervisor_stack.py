@@ -1,4 +1,4 @@
-"""Supervisor middleware stack matching ``new_chat`` main agent (no ``SubAgentMiddleware`` / ``task``)."""
+"""Supervisor middleware stack matching the main single-agent chat (no ``SubAgentMiddleware`` / ``task``)."""
 
 from __future__ import annotations
 

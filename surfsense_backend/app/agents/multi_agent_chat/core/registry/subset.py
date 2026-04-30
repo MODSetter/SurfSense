@@ -1,4 +1,4 @@
-"""Build :mod:`new_chat` registry tool subsets for multi-agent domain slices."""
+"""Build registry tool subsets (``app.agents.new_chat.tools.registry``) for multi-agent domain slices."""
 
 from __future__ import annotations
 

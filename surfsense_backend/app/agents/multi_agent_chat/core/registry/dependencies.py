@@ -1,4 +1,4 @@
-"""Dependency dict for :func:`app.agents.new_chat.tools.registry.build_tools` in multi-agent graphs."""
+"""Dependency dict for :func:`app.agents.new_chat.tools.registry.build_tools` on expert subgraphs."""
 
 from __future__ import annotations
 

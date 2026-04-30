@@ -1,4 +1,4 @@
-"""Gate supervisor routing tools by connected searchable connector types (aligned with ``new_chat`` KB).
+"""Gate supervisor routing tools by connected searchable connector types (aligned with main chat KB).
 
 When ``available_connectors`` is ``None``, all routes are emitted (caller did not pass an inventory).
 
