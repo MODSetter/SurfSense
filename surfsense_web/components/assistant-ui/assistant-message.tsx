@@ -548,8 +548,10 @@ const AssistantMessageInner: FC = () => {
 				</div>
 			)}
 
-			<div className="aui-assistant-message-footer mt-3 mb-5 ml-2 flex items-center gap-2">
-				<AssistantActionBar />
+			<div className="aui-assistant-message-footer mt-3 mb-5 ml-2 h-6">
+				<div className="h-full opacity-100 transition-opacity">
+					<AssistantActionBar />
+				</div>
 			</div>
 		</CitationMetadataProvider>
 	);
@@ -642,35 +644,41 @@ export const AssistantMessage: FC = () => {
 			className="aui-assistant-message-root group fade-in slide-in-from-bottom-1 relative mx-auto w-full max-w-(--thread-max-width) animate-in py-3 duration-150"
 			data-role="assistant"
 		>
-			{/* Comment trigger — right-aligned, just below user query on all screen sizes */}
-			{showCommentTrigger && (
-				<div className="mr-2 mb-1 flex justify-end">
-					<button
-						ref={isDesktop ? commentTriggerRef : undefined}
-						type="button"
-						onClick={
-							isDesktop ? () => setIsInlineOpen((prev) => !prev) : () => setIsSheetOpen(true)
-						}
-						className={cn(
-							"flex items-center gap-1.5 rounded-full px-3 py-1 text-sm transition-colors",
-							isDesktop && isInlineOpen
-								? "bg-primary/10 text-primary"
-								: hasComments
-									? "text-primary hover:bg-primary/10"
-									: "text-muted-foreground hover:text-foreground hover:bg-muted"
-						)}
-					>
-						<MessageCircleReply className={cn("size-3.5", hasComments && "fill-current")} />
-						{hasComments ? (
-							<span>
-								{commentCount} {commentCount === 1 ? "comment" : "comments"}
-							</span>
-						) : (
-							<span>Add comment</span>
-						)}
-					</button>
-				</div>
-			)}
+			{/* Fixed trigger slot prevents any vertical reflow when visibility changes */}
+			<div className="mr-2 mb-1 flex h-7 justify-end">
+				<button
+					ref={isDesktop ? commentTriggerRef : undefined}
+					type="button"
+					onClick={
+						showCommentTrigger
+							? isDesktop
+								? () => setIsInlineOpen((prev) => !prev)
+								: () => setIsSheetOpen(true)
+							: undefined
+					}
+					aria-hidden={!showCommentTrigger}
+					tabIndex={showCommentTrigger ? 0 : -1}
+					className={cn(
+						"flex items-center gap-1.5 rounded-full px-3 py-1 text-sm transition-colors",
+						"opacity-0 pointer-events-none",
+						showCommentTrigger && "opacity-100 pointer-events-auto",
+						isDesktop && isInlineOpen
+							? "bg-primary/10 text-primary"
+							: hasComments
+								? "text-primary hover:bg-primary/10"
+								: "text-muted-foreground hover:text-foreground hover:bg-muted"
+					)}
+				>
+					<MessageCircleReply className={cn("size-3.5", hasComments && "fill-current")} />
+					{hasComments ? (
+						<span>
+							{commentCount} {commentCount === 1 ? "comment" : "comments"}
+						</span>
+					) : (
+						<span>Add comment</span>
+					)}
+				</button>
+			</div>
 
 			{/* Desktop floating comment panel — overlays on top of chat content */}
 			{showCommentTrigger && isDesktop && isInlineOpen && dbMessageId && (
