@@ -28,6 +28,7 @@ from sqlalchemy import func
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
+from app.agents.multi_agent_chat.integration import create_multi_agent_chat
 from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
 from app.agents.new_chat.checkpointer import get_checkpointer
 from app.agents.new_chat.filesystem_selection import FilesystemMode, FilesystemSelection
@@ -38,7 +39,6 @@ from app.agents.new_chat.llm_config import (
     load_agent_config,
     load_global_llm_config_by_id,
 )
-from app.agents.multi_agent_chat.integration import create_multi_agent_chat
 from app.agents.new_chat.memory_extraction import (
     extract_and_save_memory,
     extract_and_save_team_memory,
@@ -69,6 +69,7 @@ from app.utils.user_message_multimodal import build_human_message_content
 
 _background_tasks: set[asyncio.Task] = set()
 _perf_log = get_perf_logger()
+logger = logging.getLogger(__name__)
 
 
 def format_mentioned_surfsense_docs_as_context(
