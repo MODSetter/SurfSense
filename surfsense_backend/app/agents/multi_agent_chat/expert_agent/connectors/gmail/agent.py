@@ -12,7 +12,7 @@ from app.agents.multi_agent_chat.core.agents import build_domain_agent
 
 
 def build_gmail_domain_agent(llm: BaseChatModel, tools: Sequence[BaseTool]):
-    """Compiled Gmail domain-agent graph (prompt + tools co-located under ``gmail``)."""
+    """Compiled Gmail domain-agent graph."""
     return build_domain_agent(
         llm,
         tools,

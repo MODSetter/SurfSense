@@ -12,7 +12,7 @@ from app.agents.multi_agent_chat.core.agents import build_domain_agent
 
 
 def build_calendar_domain_agent(llm: BaseChatModel, tools: Sequence[BaseTool]):
-    """Compiled Calendar domain-agent graph (prompt + tools co-located under ``calendar``)."""
+    """Compiled Google Calendar domain-agent graph."""
     return build_domain_agent(
         llm,
         tools,

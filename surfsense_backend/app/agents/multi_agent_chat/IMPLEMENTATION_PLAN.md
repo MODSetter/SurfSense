@@ -31,7 +31,7 @@ Not every row applies to the **first** multi-agent graph (e.g. you may start wit
 
 ## Rework principles (better arrangement, same substance)
 
-1. **Expert agents**: **`expert_agent/builtins/`** — broad registry **categories** (e.g. research, deliverables), not a single vendor. **`expert_agent/connectors/`** — **external integrations** (Gmail, Calendar, Discord, Teams, doc stores, …), whether wired with hand-written factories or registry connector tools. Prompt + tools live together per slice; cross-cutting helpers live in `core/` or are imported from `new_chat`.
+1. **Expert agents**: **`expert_agent/builtins/`** — broad registry **categories** (e.g. research, deliverables), not a single vendor. **`expert_agent/connectors/`** — **external integrations** (one package per product route: Discord, Notion, Gmail, …), each using the same pattern: ``slice_tools.py`` (registry subset or factories) + ``domain_prompt.md`` + ``agent.py``. Cross-cutting helpers live in `core/` or are imported from `new_chat`.
 2. **Explicit graphs**: supervisor vs domain agents vs routing tools are **named** and testable; avoid one opaque megagraph where behavior is hard to reason about.
 3. **Single composer**: integration eventually mirrors `create_surfsense_deep_agent` in spirit—**one factory** that attaches middleware, KB, and tools in documented order (see `chat_deepagent.py` comments on ordering).
 4. **No duplicate KB pipelines**: align with `KnowledgePriorityMiddleware` / tree semantics; don’t invent a second hybrid-search path for the same turn.
@@ -43,15 +43,15 @@ Not every row applies to the **first** multi-agent graph (e.g. you may start wit
 
 **Supervisor (orchestrator)**
 
-- Keeps a **small tool surface**: routing tools (`gmail`, `calendar`, future category tools like `research` / `deliverables`) — **not** the full `registry.py` “general” tool list.
+- Keeps a **small tool surface**: one **routing** tool per builtin category (`research`, `memory`, …) and per connector route (`notion`, `gmail`, …) — **not** the full flat `registry.py` tool list on the supervisor.
 - **KB** should primarily benefit the model via **`new_chat`-style middleware** (e.g. hybrid priority docs → state / system adjunct), not by stacking redundant search tools, unless product explicitly requires them.
 - **Single hybrid search per user turn** at this layer when possible: full retrieval is expensive; avoid running it again inside every sub-agent for the same message.
 - Does **not** own **on-demand connector discovery** (e.g. `get_connected_accounts`): orchestration is route-by-intent, not ID resolution.
 
-**Domain agents (Gmail, Calendar, future slices)**
+**Domain agents (every connector slice — same shape)**
 
-- Carry tools built from **`new_chat` factories** (already pattern in `expert_agent/connectors/gmail/slice_tools.py`, etc.).
-- **Curated context belongs in the task message**: when the supervisor calls a routing tool (`gmail`, `calendar`, …), the **tool handler composes the child’s task string** so it includes **only** what that domain needs (KB snippets, constraints, distilled facts) — folded into how the task is written — not the full parent transcript. The sub-agent `invoke` stays a tight payload (`messages` + task content); domain middleware can still add connector-local hints. Still **no second full hybrid search** for the same turn unless the subdomain explicitly needs a new query.
+- Carry tools built from **`new_chat`** (`registry` subsets via ``build_registry_tools_for_category`` per ``TOOL_NAMES_BY_CATEGORY``, plus MCP merge where applicable).
+- **Curated context belongs in the task message**: when the supervisor calls **any** routing tool, the handler composes the child’s task string so it includes **only** what that domain needs (KB snippets, constraints, distilled facts) — folded into how the task is written — not the full parent transcript. The sub-agent `invoke` stays a tight payload (`messages` + task content); domain middleware can still add connector-local hints. Still **no second full hybrid search** for the same turn unless the subdomain explicitly needs a new query.
 - **Middleware here** still fits **domain-only** grounding (connector availability, search-space hints, metadata) shared across tools in that subgraph. Reuse or thin-wrap `new_chat.middleware` where it applies to a subgraph.
 - **Reactive discovery** (resolve a service id mid-task) stays a **tool** on that domain (or shared factory), e.g. `get_connected_accounts` when the model needs it — not something the supervisor must call.
 
@@ -63,9 +63,9 @@ Not every row applies to the **first** multi-agent graph (e.g. you may start wit
 
 In `new_chat`, KB + **virtual FS** (`KnowledgePriorityMiddleware`, tree, **`SurfSenseFilesystemMiddleware`** / **`KBPostgresBackend`**) serves the **orchestrator** that may **read and traverse** the workspace.
 
-**Connector domain agents** (Gmail, Calendar, …) are **not** mini-parents: the **supervisor** should already decide *what* to do and pass a **clear task** (plus any curated KB snippet folded into **`compose_child_task`**). The specialist runs **connector APIs**, not a second document crawl — duplicating full KB+VFS on every domain subgraph **shifts the parent’s exploration work onto the wrong agent** and adds noise.
+**Connector domain agents** are **not** mini-parents: the **supervisor** should already decide *what* to do and pass a **clear task** (plus any curated KB snippet folded into **`compose_child_task`**). The specialist runs **connector APIs**, not a second document crawl — duplicating full KB+VFS on every domain subgraph **shifts the parent’s exploration work onto the wrong agent** and adds noise.
 
-So **no child-side filesystem stack by default** for mail/calendar-style slices unless product demands it. Reserve **KB + VFS on a subgraph** for roles that **actually** need heavy document work (research, coding/explore-style agents, deliverables that grep the KB), matching how `new_chat` uses specialists.
+So **no child-side filesystem stack by default** for narrow connector subgraphs unless product demands it. Reserve **KB + VFS on a subgraph** for roles that **actually** need heavy document work (research, coding/explore-style agents, deliverables that grep the KB), matching how `new_chat` uses specialists.
 
 ---
 
@@ -99,7 +99,7 @@ multi_agent_chat/
 
   expert_agent/
     builtins/                # broad categories: research, deliverables
-    connectors/              # one subgraph per vendor: gmail, calendar, discord, teams, notion, …
+    connectors/              # one subgraph per vendor route (see TOOL_NAMES_BY_CATEGORY keys)
 
   routing/
     domain_routing_spec.py

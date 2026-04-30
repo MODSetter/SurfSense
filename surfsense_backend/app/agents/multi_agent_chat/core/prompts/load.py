@@ -6,7 +6,7 @@ from importlib import resources
 
 
 def read_prompt_md(package: str, stem: str) -> str:
-    """Read ``{stem}.md`` from the given import package (e.g. ``…expert_agent.connectors.gmail``)."""
+    """Read ``{stem}.md`` from the given import package (e.g. ``…expert_agent.connectors.notion``)."""
     try:
         ref = resources.files(package).joinpath(f"{stem}.md")
         if not ref.is_file():
