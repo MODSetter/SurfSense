@@ -67,6 +67,7 @@ import {
 	type ContentPartsState,
 	FrameBatchedUpdater,
 	readSSEStream,
+	type SSEEvent,
 	type ThinkingStepData,
 	updateThinkingSteps,
 	updateToolCall,
@@ -134,6 +135,75 @@ function markInterruptsCompleted(contentParts: Array<{ type: string; result?: un
 			part.result = { ...(part.result as Record<string, unknown>), __completed__: true };
 		}
 	}
+}
+
+function toStreamTerminalError(
+	event: Extract<SSEEvent, { type: "error" }>
+): Error & { errorCode?: string } {
+	return Object.assign(new Error(event.errorText || "Server error"), {
+		errorCode: event.errorCode,
+	});
+}
+
+async function toHttpResponseError(response: Response): Promise<Error & { errorCode?: string }> {
+	const statusDefaultCode =
+		response.status === 409
+			? "THREAD_BUSY"
+			: response.status === 429
+				? "RATE_LIMITED"
+				: response.status === 401 || response.status === 403
+					? "AUTH_EXPIRED"
+					: "SERVER_ERROR";
+
+	let rawBody = "";
+	try {
+		rawBody = await response.text();
+	} catch {
+		// noop
+	}
+
+	let parsedBody: Record<string, unknown> | null = null;
+	if (rawBody) {
+		try {
+			const parsed = JSON.parse(rawBody);
+			if (typeof parsed === "object" && parsed !== null) {
+				parsedBody = parsed as Record<string, unknown>;
+			}
+		} catch {
+			// noop
+		}
+	}
+
+	const detail = parsedBody?.detail;
+	const detailObject =
+		typeof detail === "object" && detail !== null ? (detail as Record<string, unknown>) : null;
+	const detailMessage = typeof detail === "string" ? detail : undefined;
+	const topLevelMessage =
+		typeof parsedBody?.message === "string" ? (parsedBody.message as string) : undefined;
+	const detailNestedMessage =
+		typeof detailObject?.message === "string" ? (detailObject.message as string) : undefined;
+
+	const topLevelCode =
+		typeof parsedBody?.errorCode === "string"
+			? parsedBody.errorCode
+			: typeof parsedBody?.error_code === "string"
+				? parsedBody.error_code
+				: undefined;
+	const detailCode =
+		typeof detailObject?.errorCode === "string"
+			? detailObject.errorCode
+			: typeof detailObject?.error_code === "string"
+				? detailObject.error_code
+				: undefined;
+
+	const errorCode = detailCode ?? topLevelCode ?? statusDefaultCode;
+	const message =
+		detailNestedMessage ??
+		detailMessage ??
+		topLevelMessage ??
+		`Backend error: ${response.status}`;
+
+	return Object.assign(new Error(message), { errorCode });
 }
 
 /**
@@ -532,6 +602,43 @@ export default function NewChatPage() {
 		]
 	);
 
+	const handleStreamTerminalError = useCallback(
+		async ({
+			error,
+			flow,
+			threadId,
+			assistantMsgId,
+			accepted,
+			onAbort,
+			onAcceptedStreamError,
+		}: {
+			error: unknown;
+			flow: ChatFlow;
+			threadId: number | null;
+			assistantMsgId: string;
+			accepted: boolean;
+			onAbort?: () => Promise<void>;
+			onAcceptedStreamError?: () => Promise<void>;
+		}) => {
+			if (error instanceof Error && error.name === "AbortError") {
+				await onAbort?.();
+				return;
+			}
+
+			if (accepted) {
+				await onAcceptedStreamError?.();
+			}
+
+			await handleChatFailure({
+				error,
+				flow,
+				threadId,
+				assistantMsgId: accepted ? assistantMsgId : "no-persist-assistant",
+			});
+		},
+		[handleChatFailure]
+	);
+
 	// Initialize thread and load messages
 	// For new chats (no urlChatId), we use lazy creation - thread is created on first message
 	const initializeThread = useCallback(async () => {
@@ -880,6 +987,7 @@ export default function NewChatPage() {
 			const { contentParts, toolCallIndices } = contentPartsState;
 			let wasInterrupted = false;
 			let tokenUsageData: Record<string, unknown> | null = null;
+			let newAccepted = false;
 
 			// Add placeholder assistant message
 			setMessages((prev) => [
@@ -951,8 +1059,9 @@ export default function NewChatPage() {
 				});
 
 				if (!response.ok) {
-					throw new Error(`Backend error: ${response.status}`);
+					throw await toHttpResponseError(response);
 				}
+				newAccepted = true;
 
 				const flushMessages = () => {
 					setMessages((prev) =>
@@ -1106,9 +1215,7 @@ export default function NewChatPage() {
 							break;
 
 						case "error":
-							throw Object.assign(new Error(parsed.errorText || "Server error"), {
-								errorCode: parsed.errorCode,
-							});
+							throw toStreamTerminalError(parsed);
 					}
 				}
 
@@ -1137,29 +1244,29 @@ export default function NewChatPage() {
 				}
 			} catch (error) {
 				batcher.dispose();
-				if (error instanceof Error && error.name === "AbortError") {
-					// Request was cancelled by user - persist partial response if any content was received
-					const hasContent = contentParts.some(
-						(part) =>
-							(part.type === "text" && part.text.length > 0) ||
-							(part.type === "tool-call" && toolsWithUI.has(part.toolName))
-					);
-					if (hasContent && currentThreadId) {
-						const partialContent = buildContentForPersistence(contentPartsState, toolsWithUI);
-						await persistAssistantTurn({
-							threadId: currentThreadId,
-							assistantMsgId,
-							content: partialContent,
-							logContext: "partial new chat",
-						});
-					}
-					return;
-				}
-				await handleChatFailure({
+				await handleStreamTerminalError({
 					error,
 					flow: "new",
 					threadId: currentThreadId,
 					assistantMsgId,
+					accepted: newAccepted,
+					onAbort: async () => {
+						// Request was cancelled by user - persist partial response if any content was received
+						const hasContent = contentParts.some(
+							(part) =>
+								(part.type === "text" && part.text.length > 0) ||
+								(part.type === "tool-call" && toolsWithUI.has(part.toolName))
+						);
+						if (hasContent && currentThreadId) {
+							const partialContent = buildContentForPersistence(contentPartsState, toolsWithUI);
+							await persistAssistantTurn({
+								threadId: currentThreadId,
+								assistantMsgId,
+								content: partialContent,
+								logContext: "partial new chat",
+							});
+						}
+					},
 				});
 			} finally {
 				setIsRunning(false);
@@ -1183,7 +1290,7 @@ export default function NewChatPage() {
 			pendingUserImageUrls,
 			setPendingUserImageUrls,
 			toolsWithUI,
-			handleChatFailure,
+			handleStreamTerminalError,
 			persistAssistantTurn,
 		]
 	);
@@ -1221,6 +1328,7 @@ export default function NewChatPage() {
 			};
 			const { contentParts, toolCallIndices } = contentPartsState;
 			let tokenUsageData: Record<string, unknown> | null = null;
+			let resumeAccepted = false;
 
 			const existingMsg = messages.find((m) => m.id === assistantMsgId);
 			if (existingMsg && Array.isArray(existingMsg.content)) {
@@ -1302,8 +1410,9 @@ export default function NewChatPage() {
 				});
 
 				if (!response.ok) {
-					throw new Error(`Backend error: ${response.status}`);
+					throw await toHttpResponseError(response);
 				}
+				resumeAccepted = true;
 
 				const flushMessages = () => {
 					setMessages((prev) =>
@@ -1415,9 +1524,7 @@ export default function NewChatPage() {
 							break;
 
 						case "error":
-							throw Object.assign(new Error(parsed.errorText || "Server error"), {
-								errorCode: parsed.errorCode,
-							});
+							throw toStreamTerminalError(parsed);
 					}
 				}
 
@@ -1435,14 +1542,12 @@ export default function NewChatPage() {
 				}
 			} catch (error) {
 				batcher.dispose();
-				if (error instanceof Error && error.name === "AbortError") {
-					return;
-				}
-				await handleChatFailure({
+				await handleStreamTerminalError({
 					error,
 					flow: "resume",
 					threadId: resumeThreadId,
 					assistantMsgId,
+					accepted: resumeAccepted,
 				});
 			} finally {
 				setIsRunning(false);
@@ -1455,7 +1560,7 @@ export default function NewChatPage() {
 			searchSpaceId,
 			tokenUsageStore,
 			toolsWithUI,
-			handleChatFailure,
+			handleStreamTerminalError,
 			persistAssistantTurn,
 		]
 	);
@@ -1644,7 +1749,7 @@ export default function NewChatPage() {
 				});
 
 				if (!response.ok) {
-					throw new Error(`Backend error: ${response.status}`);
+					throw await toHttpResponseError(response);
 				}
 				regenerateAccepted = true;
 
@@ -1741,9 +1846,7 @@ export default function NewChatPage() {
 							break;
 
 						case "error":
-							throw Object.assign(new Error(parsed.errorText || "Server error"), {
-								errorCode: parsed.errorCode,
-							});
+							throw toStreamTerminalError(parsed);
 					}
 				}
 
@@ -1772,25 +1875,25 @@ export default function NewChatPage() {
 					trackChatResponseReceived(searchSpaceId, threadId);
 				}
 			} catch (error) {
-				if (error instanceof Error && error.name === "AbortError") {
-					return;
-				}
 				batcher.dispose();
-				if (regenerateAccepted && !userPersisted) {
-					const persistedUserMsgId = await persistUserTurn({
-						threadId,
-						userMsgId,
-						content: userContentToPersist,
-						mentionedDocs: sourceMentionedDocs,
-						logContext: "regenerated (stream error)",
-					});
-					userPersisted = Boolean(persistedUserMsgId);
-				}
-				await handleChatFailure({
+				await handleStreamTerminalError({
 					error,
 					flow: "regenerate",
 					threadId,
-					assistantMsgId: regenerateAccepted ? assistantMsgId : "no-persist-assistant",
+					assistantMsgId,
+					accepted: regenerateAccepted,
+					onAcceptedStreamError: async () => {
+						if (!userPersisted) {
+							const persistedUserMsgId = await persistUserTurn({
+								threadId,
+								userMsgId,
+								content: userContentToPersist,
+								mentionedDocs: sourceMentionedDocs,
+								logContext: "regenerated (stream error)",
+							});
+							userPersisted = Boolean(persistedUserMsgId);
+						}
+					},
 				});
 			} finally {
 				setIsRunning(false);
@@ -1806,7 +1909,7 @@ export default function NewChatPage() {
 			setMessageDocumentsMap,
 			tokenUsageStore,
 			toolsWithUI,
-			handleChatFailure,
+			handleStreamTerminalError,
 			persistAssistantTurn,
 			persistUserTurn,
 		]

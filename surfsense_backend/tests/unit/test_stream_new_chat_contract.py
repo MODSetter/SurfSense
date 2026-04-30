@@ -1,12 +1,13 @@
 import inspect
 import json
 import logging
-from pathlib import Path
 import re
+from pathlib import Path
 
 import pytest
 
 import app.tasks.chat.stream_new_chat as stream_new_chat_module
+from app.agents.new_chat.errors import BusyError
 from app.tasks.chat.stream_new_chat import (
     StreamResult,
     _classify_stream_exception,
@@ -130,14 +131,14 @@ def test_stream_error_emission_keeps_machine_error_codes():
     format_error_calls = re.findall(r"format_error\(", source)
     emitted_error_codes = set(re.findall(r'error_code="([A-Z_]+)"', source))
 
-    # Both new/resume stream paths now route through local emitters that always
-    # pass a machine-readable error_code.
-    assert len(format_error_calls) == 2
+    # All stream paths should route through one shared terminal error emitter.
+    assert len(format_error_calls) == 1
     assert {
         "PREMIUM_QUOTA_EXHAUSTED",
         "SERVER_ERROR",
     }.issubset(emitted_error_codes)
     assert 'flow: Literal["new", "regenerate"] = "new"' in source
+    assert "_emit_stream_terminal_error" in source
     assert "flow=flow" in source
     assert 'flow="resume"' in source
 
@@ -154,6 +155,30 @@ def test_stream_exception_classifies_rate_limited():
     assert severity == "warn"
     assert is_expected is True
     assert "temporarily rate-limited" in user_message
+
+
+def test_stream_exception_classifies_thread_busy():
+    exc = BusyError(request_id="thread-123")
+    kind, code, severity, is_expected, user_message = _classify_stream_exception(
+        exc, flow_label="chat"
+    )
+    assert kind == "thread_busy"
+    assert code == "THREAD_BUSY"
+    assert severity == "warn"
+    assert is_expected is True
+    assert "still finishing for this thread" in user_message
+
+
+def test_stream_exception_classifies_thread_busy_from_message():
+    exc = Exception("Thread is busy with another request")
+    kind, code, severity, is_expected, user_message = _classify_stream_exception(
+        exc, flow_label="chat"
+    )
+    assert kind == "thread_busy"
+    assert code == "THREAD_BUSY"
+    assert severity == "warn"
+    assert is_expected is True
+    assert "still finishing for this thread" in user_message
 
 
 def test_premium_classification_is_error_code_driven():

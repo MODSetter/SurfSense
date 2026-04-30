@@ -19,6 +19,7 @@ import re
 import time
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
+from functools import partial
 from typing import Any, Literal
 from uuid import UUID
 
@@ -30,6 +31,7 @@ from sqlalchemy.orm import selectinload
 
 from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
 from app.agents.new_chat.checkpointer import get_checkpointer
+from app.agents.new_chat.errors import BusyError
 from app.agents.new_chat.filesystem_selection import FilesystemMode, FilesystemSelection
 from app.agents.new_chat.llm_config import (
     AgentConfig,
@@ -315,6 +317,15 @@ def _classify_stream_exception(
     flow_label: str,
 ) -> tuple[str, str, Literal["info", "warn", "error"], bool, str]:
     raw = str(exc)
+    if isinstance(exc, BusyError) or "Thread is busy with another request" in raw:
+        return (
+            "thread_busy",
+            "THREAD_BUSY",
+            "warn",
+            True,
+            "Another response is still finishing for this thread. Please try again in a moment.",
+        )
+
     parsed = _parse_error_payload(raw)
     provider_error_type = ""
     if parsed:
@@ -343,6 +354,37 @@ def _classify_stream_exception(
         False,
         f"Error during {flow_label}: {raw}",
     )
+
+
+def _emit_stream_terminal_error(
+    *,
+    streaming_service: VercelStreamingService,
+    flow: str,
+    request_id: str | None,
+    thread_id: int,
+    search_space_id: int,
+    user_id: str | None,
+    message: str,
+    error_kind: str = "server_error",
+    error_code: str = "SERVER_ERROR",
+    severity: Literal["info", "warn", "error"] = "error",
+    is_expected: bool = False,
+    extra: dict[str, Any] | None = None,
+) -> str:
+    _log_chat_stream_error(
+        flow=flow,
+        error_kind=error_kind,
+        error_code=error_code,
+        severity=severity,
+        is_expected=is_expected,
+        request_id=request_id,
+        thread_id=thread_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        message=message,
+        extra=extra,
+    )
+    return streaming_service.format_error(message, error_code=error_code)
 
 
 async def _stream_agent_events(
@@ -1541,29 +1583,15 @@ async def stream_new_chat(
     _premium_reserved = 0
     _premium_request_id: str | None = None
 
-    def _emit_stream_error(
-        *,
-        message: str,
-        error_kind: str = "server_error",
-        error_code: str = "SERVER_ERROR",
-        severity: Literal["info", "warn", "error"] = "error",
-        is_expected: bool = False,
-        extra: dict[str, Any] | None = None,
-    ) -> str:
-        _log_chat_stream_error(
-            flow=flow,
-            error_kind=error_kind,
-            error_code=error_code,
-            severity=severity,
-            is_expected=is_expected,
-            request_id=request_id,
-            thread_id=chat_id,
-            search_space_id=search_space_id,
-            user_id=user_id,
-            message=message,
-            extra=extra,
-        )
-        return streaming_service.format_error(message, error_code=error_code)
+    _emit_stream_error = partial(
+        _emit_stream_terminal_error,
+        streaming_service=streaming_service,
+        flow=flow,
+        request_id=request_id,
+        thread_id=chat_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+    )
 
     session = async_session_maker()
     try:
@@ -2380,29 +2408,15 @@ async def stream_resume_chat(
 
     accumulator = start_turn()
 
-    def _emit_stream_error(
-        *,
-        message: str,
-        error_kind: str = "server_error",
-        error_code: str = "SERVER_ERROR",
-        severity: Literal["info", "warn", "error"] = "error",
-        is_expected: bool = False,
-        extra: dict[str, Any] | None = None,
-    ) -> str:
-        _log_chat_stream_error(
-            flow="resume",
-            error_kind=error_kind,
-            error_code=error_code,
-            severity=severity,
-            is_expected=is_expected,
-            request_id=request_id,
-            thread_id=chat_id,
-            search_space_id=search_space_id,
-            user_id=user_id,
-            message=message,
-            extra=extra,
-        )
-        return streaming_service.format_error(message, error_code=error_code)
+    _emit_stream_error = partial(
+        _emit_stream_terminal_error,
+        streaming_service=streaming_service,
+        flow="resume",
+        request_id=request_id,
+        thread_id=chat_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+    )
 
     session = async_session_maker()
     try:

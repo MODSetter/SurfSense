@@ -48,6 +48,48 @@ function parseCaptchaError(status: number, body: string): string | null {
 	return null;
 }
 
+function normalizeFreeChatErrorMessage(error: unknown): string {
+	if (!(error instanceof Error)) return "An unexpected error occurred";
+	const code = (error as Error & { errorCode?: string }).errorCode;
+	if (code === "THREAD_BUSY") {
+		return "A previous response is still stopping. Please try again in a moment.";
+	}
+	return error.message || "An unexpected error occurred";
+}
+
+function toFreeChatHttpError(status: number, body: string): Error & { errorCode?: string } {
+	let errorCode: string | undefined;
+	let message = body || `Server error: ${status}`;
+	try {
+		const parsed = JSON.parse(body) as Record<string, unknown>;
+		const detail =
+			typeof parsed.detail === "object" && parsed.detail !== null
+				? (parsed.detail as Record<string, unknown>)
+				: null;
+		errorCode =
+			(typeof detail?.error_code === "string" ? detail.error_code : undefined) ??
+			(typeof detail?.errorCode === "string" ? detail.errorCode : undefined) ??
+			(typeof parsed.error_code === "string" ? parsed.error_code : undefined) ??
+			(typeof parsed.errorCode === "string" ? parsed.errorCode : undefined);
+		message =
+			(typeof detail?.message === "string" ? detail.message : undefined) ??
+			(typeof parsed.message === "string" ? parsed.message : undefined) ??
+			(typeof parsed.detail === "string" ? parsed.detail : undefined) ??
+			message;
+	} catch {
+		// non-json response
+	}
+
+	if (!errorCode) {
+		if (status === 409) errorCode = "THREAD_BUSY";
+		else if (status === 429) errorCode = "RATE_LIMITED";
+		else if (status === 401 || status === 403) errorCode = "AUTH_EXPIRED";
+		else errorCode = "SERVER_ERROR";
+	}
+
+	return Object.assign(new Error(message), { errorCode });
+}
+
 export function FreeChatPage() {
 	const anonMode = useAnonymousMode();
 	const modelSlug = anonMode.isAnonymous ? anonMode.modelSlug : "";
@@ -117,7 +159,7 @@ export function FreeChatPage() {
 				const body = await response.text().catch(() => "");
 				const captchaCode = parseCaptchaError(response.status, body);
 				if (captchaCode) return "captcha";
-				throw new Error(body || `Server error: ${response.status}`);
+				throw toFreeChatHttpError(response.status, body);
 			}
 
 			const currentThinkingSteps = new Map<string, ThinkingStepData>();
@@ -187,7 +229,9 @@ export function FreeChatPage() {
 							break;
 
 						case "error":
-							throw new Error(parsed.errorText || "Server error");
+							throw Object.assign(new Error(parsed.errorText || "Server error"), {
+								errorCode: parsed.errorCode,
+							});
 					}
 				}
 				batcher.flush();
@@ -277,7 +321,7 @@ export function FreeChatPage() {
 			} catch (error) {
 				if (error instanceof Error && error.name === "AbortError") return;
 				console.error("[FreeChatPage] Chat error:", error);
-				const errorText = error instanceof Error ? error.message : "An unexpected error occurred";
+				const errorText = normalizeFreeChatErrorMessage(error);
 				setMessages((prev) =>
 					prev.map((m) =>
 						m.id === assistantMsgId
@@ -336,7 +380,7 @@ export function FreeChatPage() {
 			} catch (error) {
 				if (error instanceof Error && error.name === "AbortError") return;
 				console.error("[FreeChatPage] Retry error:", error);
-				const errorText = error instanceof Error ? error.message : "An unexpected error occurred";
+				const errorText = normalizeFreeChatErrorMessage(error);
 				setMessages((prev) =>
 					prev.map((m) =>
 						m.id === assistantMsgId

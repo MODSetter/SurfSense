@@ -2,6 +2,7 @@ export type ChatFlow = "new" | "resume" | "regenerate";
 
 export type ChatErrorKind =
 	| "premium_quota_exhausted"
+	| "thread_busy"
 	| "auth_expired"
 	| "rate_limited"
 	| "network_offline"
@@ -140,6 +141,22 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 			assistantMessage: PREMIUM_QUOTA_ASSISTANT_MESSAGE,
 			rawMessage,
 			errorCode: errorCode ?? "PREMIUM_QUOTA_EXHAUSTED",
+			details: { flow: input.flow },
+		};
+	}
+
+	if (
+		errorCode === "THREAD_BUSY"
+	) {
+		return {
+			kind: "thread_busy",
+			channel: "toast",
+			severity: "warn",
+			telemetryEvent: "chat_blocked",
+			isExpected: true,
+			userMessage: "A previous response is still stopping. Please try again in a moment.",
+			rawMessage,
+			errorCode: errorCode ?? "THREAD_BUSY",
 			details: { flow: input.flow },
 		};
 	}
