@@ -49,6 +49,10 @@ import { useMessagesSync } from "@/hooks/use-messages-sync";
 import { getAgentFilesystemSelection } from "@/lib/agent-filesystem";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { getBearerToken } from "@/lib/auth-utils";
+import {
+	classifyChatError,
+	type ChatFlow,
+} from "@/lib/chat/chat-error-classifier";
 import { convertToThreadMessage } from "@/lib/chat/message-utils";
 import {
 	isPodcastGenerating,
@@ -84,7 +88,8 @@ import {
 import { NotFoundError } from "@/lib/error";
 import {
 	trackChatCreated,
-	trackChatError,
+	trackChatBlocked,
+	trackChatErrorDetailed,
 	trackChatMessageSent,
 	trackChatResponseReceived,
 } from "@/lib/posthog/events";
@@ -200,26 +205,6 @@ const BASE_TOOLS_WITH_UI = new Set([
 	"execute",
 	// "write_todos", // Disabled for now
 ]);
-
-const PREMIUM_QUOTA_ASSISTANT_MESSAGE =
-	"I can’t continue with the current premium model because your premium tokens are exhausted. Switch to a free model or buy more tokens to continue.";
-
-function getPinnedPremiumQuotaErrorMessage(error: unknown): string | null {
-	if (!(error instanceof Error)) return null;
-	const withCode = error as Error & { errorCode?: string };
-	if (withCode.errorCode === "PREMIUM_QUOTA_EXHAUSTED") {
-		return error.message;
-	}
-	const normalized = error.message.toLowerCase();
-	if (
-		!normalized.includes("premium tokens exhausted")
-		&& !normalized.includes("premium token quota exceeded")
-		&& !normalized.includes("buy more tokens")
-	) {
-		return null;
-	}
-	return error.message;
-}
 
 export default function NewChatPage() {
 	const params = useParams();
@@ -377,6 +362,81 @@ export default function NewChatPage() {
 		}
 		return Number.isNaN(parsed) ? 0 : parsed;
 	}, [params.chat_id]);
+
+	const handleChatFailure = useCallback(
+		async ({
+			error,
+			flow,
+			threadId,
+			assistantMsgId,
+		}: {
+			error: unknown;
+			flow: ChatFlow;
+			threadId: number | null;
+			assistantMsgId: string;
+		}) => {
+			const normalized = classifyChatError({
+				error,
+				flow,
+				context: {
+					searchSpaceId,
+					threadId,
+				},
+			});
+
+			const logger =
+				normalized.severity === "error"
+					? console.error
+					: normalized.severity === "warn"
+						? console.warn
+						: console.info;
+			logger(`[NewChatPage] ${flow} ${normalized.kind}:`, error);
+
+			const telemetryPayload = {
+				flow,
+				kind: normalized.kind,
+				error_code: normalized.errorCode,
+				severity: normalized.severity,
+				is_expected: normalized.isExpected,
+				message: normalized.userMessage,
+			};
+			if (normalized.telemetryEvent === "chat_blocked") {
+				trackChatBlocked(searchSpaceId, threadId, telemetryPayload);
+			} else {
+				trackChatErrorDetailed(searchSpaceId, threadId, telemetryPayload);
+			}
+
+			if (normalized.channel === "silent") {
+				return;
+			}
+
+			if (normalized.channel === "pinned_inline") {
+				if (threadId) {
+					setPremiumAlertForThread({
+						threadId,
+						message: normalized.userMessage,
+						userId: currentUser?.id ?? null,
+					});
+				}
+				if (normalized.assistantMessage) {
+					await persistAssistantErrorMessage({
+						threadId,
+						assistantMsgId,
+						text: normalized.assistantMessage,
+					});
+				}
+				return;
+			}
+
+			toast.error(normalized.userMessage);
+		},
+		[
+			currentUser?.id,
+			persistAssistantErrorMessage,
+			searchSpaceId,
+			setPremiumAlertForThread,
+		]
+	);
 
 	// Initialize thread and load messages
 	// For new chats (no urlChatId), we use lazy creation - thread is created on first message
@@ -1018,36 +1078,11 @@ export default function NewChatPage() {
 					}
 					return;
 				}
-				const premiumQuotaAlertMessage = getPinnedPremiumQuotaErrorMessage(error);
-				if (premiumQuotaAlertMessage) {
-					console.info("[NewChatPage] Premium quota exhausted:", error);
-				} else {
-					console.error("[NewChatPage] Chat error:", error);
-				}
-
-				// Track chat error
-				trackChatError(
-					searchSpaceId,
-					currentThreadId,
-					error instanceof Error ? error.message : "Unknown error"
-				);
-
-				if (premiumQuotaAlertMessage) {
-					setPremiumAlertForThread({
-						threadId: currentThreadId,
-						message: premiumQuotaAlertMessage,
-						userId: currentUser?.id ?? null,
-					});
-				} else {
-					toast.error("Failed to get response. Please try again.");
-				}
-				await persistAssistantErrorMessage({
+				await handleChatFailure({
+					error,
+					flow: "new",
 					threadId: currentThreadId,
 					assistantMsgId,
-					text:
-						(premiumQuotaAlertMessage
-							? PREMIUM_QUOTA_ASSISTANT_MESSAGE
-							: undefined) ?? "Sorry, there was an error. Please try again.",
 				});
 			} finally {
 				setIsRunning(false);
@@ -1071,8 +1106,7 @@ export default function NewChatPage() {
 			pendingUserImageUrls,
 			setPendingUserImageUrls,
 			toolsWithUI,
-			setPremiumAlertForThread,
-			persistAssistantErrorMessage,
+			handleChatFailure,
 		]
 	);
 
@@ -1333,28 +1367,11 @@ export default function NewChatPage() {
 				if (error instanceof Error && error.name === "AbortError") {
 					return;
 				}
-				const premiumQuotaAlertMessage = getPinnedPremiumQuotaErrorMessage(error);
-				if (premiumQuotaAlertMessage) {
-					console.info("[NewChatPage] Premium quota exhausted during resume:", error);
-				} else {
-					console.error("[NewChatPage] Resume error:", error);
-				}
-				if (premiumQuotaAlertMessage) {
-					setPremiumAlertForThread({
-						threadId: resumeThreadId,
-						message: premiumQuotaAlertMessage,
-						userId: currentUser?.id ?? null,
-					});
-				} else {
-					toast.error("Failed to resume. Please try again.");
-				}
-				await persistAssistantErrorMessage({
+				await handleChatFailure({
+					error,
+					flow: "resume",
 					threadId: resumeThreadId,
 					assistantMsgId,
-					text:
-						(premiumQuotaAlertMessage
-							? PREMIUM_QUOTA_ASSISTANT_MESSAGE
-							: undefined) ?? "Sorry, there was an error. Please try again.",
 				});
 			} finally {
 				setIsRunning(false);
@@ -1365,11 +1382,9 @@ export default function NewChatPage() {
 			pendingInterrupt,
 			messages,
 			searchSpaceId,
-			currentUser?.id,
 			tokenUsageStore,
 			toolsWithUI,
-			setPremiumAlertForThread,
-			persistAssistantErrorMessage,
+			handleChatFailure,
 		]
 	);
 
@@ -1491,15 +1506,6 @@ export default function NewChatPage() {
 				userQueryToDisplay = newUserQuery;
 			}
 
-			// Remove the last two messages (user + assistant) from the UI immediately
-			// The backend will also delete them from the database
-			setMessages((prev) => {
-				if (prev.length >= 2) {
-					return prev.slice(0, -2);
-				}
-				return prev;
-			});
-
 			// Start streaming
 			setIsRunning(true);
 			const controller = new AbortController();
@@ -1530,19 +1536,9 @@ export default function NewChatPage() {
 				createdAt: new Date(),
 				metadata: isEdit ? undefined : originalUserMessageMetadata,
 			};
-			setMessages((prev) => [...prev, userMessage]);
-
-			// Add placeholder assistant message
-			setMessages((prev) => [
-				...prev,
-				{
-					id: assistantMsgId,
-					role: "assistant",
-					content: [{ type: "text", text: "" }],
-					createdAt: new Date(),
-				},
-			]);
-
+			const userContentToPersist = isEdit
+				? (editExtras?.userMessageContent ?? [{ type: "text", text: newUserQuery ?? "" }])
+				: originalUserMessageContent || [{ type: "text", text: userQueryToDisplay || "" }];
 			try {
 				const selection = await getAgentFilesystemSelection(searchSpaceId);
 				const requestBody: Record<string, unknown> = {
@@ -1569,6 +1565,22 @@ export default function NewChatPage() {
 				if (!response.ok) {
 					throw new Error(`Backend error: ${response.status}`);
 				}
+
+				// Only switch UI to regenerated placeholder messages after the backend accepts
+				// regenerate. This avoids local message loss when regenerate fails early (e.g. 400).
+				setMessages((prev) => {
+					const base = prev.length >= 2 ? prev.slice(0, -2) : prev;
+					return [
+						...base,
+						userMessage,
+						{
+							id: assistantMsgId,
+							role: "assistant",
+							content: [{ type: "text", text: "" }],
+							createdAt: new Date(),
+						},
+					];
+				});
 
 				const flushMessages = () => {
 					setMessages((prev) =>
@@ -1654,10 +1666,6 @@ export default function NewChatPage() {
 				if (contentParts.length > 0) {
 					try {
 						// Persist user message (for both edit and reload modes, since backend deleted it)
-						const userContentToPersist = isEdit
-							? (editExtras?.userMessageContent ?? [{ type: "text", text: newUserQuery ?? "" }])
-							: originalUserMessageContent || [{ type: "text", text: userQueryToDisplay || "" }];
-
 						const savedUserMessage = await appendMessage(threadId, {
 							role: "user",
 							content: userContentToPersist,
@@ -1692,33 +1700,11 @@ export default function NewChatPage() {
 					return;
 				}
 				batcher.dispose();
-				const premiumQuotaAlertMessage = getPinnedPremiumQuotaErrorMessage(error);
-				if (premiumQuotaAlertMessage) {
-					console.info("[NewChatPage] Premium quota exhausted during regeneration:", error);
-				} else {
-					console.error("[NewChatPage] Regeneration error:", error);
-				}
-				trackChatError(
-					searchSpaceId,
-					threadId,
-					error instanceof Error ? error.message : "Unknown error"
-				);
-				if (premiumQuotaAlertMessage) {
-					setPremiumAlertForThread({
-						threadId,
-						message: premiumQuotaAlertMessage,
-						userId: currentUser?.id ?? null,
-					});
-				} else {
-					toast.error("Failed to regenerate response. Please try again.");
-				}
-				await persistAssistantErrorMessage({
+				await handleChatFailure({
+					error,
+					flow: "regenerate",
 					threadId,
 					assistantMsgId,
-					text:
-						(premiumQuotaAlertMessage
-							? PREMIUM_QUOTA_ASSISTANT_MESSAGE
-							: undefined) ?? "Sorry, there was an error. Please try again.",
 				});
 			} finally {
 				setIsRunning(false);
@@ -1730,11 +1716,9 @@ export default function NewChatPage() {
 			searchSpaceId,
 			messages,
 			disabledTools,
-			currentUser?.id,
 			tokenUsageStore,
 			toolsWithUI,
-			setPremiumAlertForThread,
-			persistAssistantErrorMessage,
+			handleChatFailure,
 		]
 	);
 
