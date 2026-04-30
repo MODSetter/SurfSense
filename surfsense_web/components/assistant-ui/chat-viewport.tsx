@@ -39,7 +39,7 @@ export const ChatViewport: FC<ChatViewportProps> = ({ children, footer }) => (
 		{children}
 		{footer ? (
 			<ThreadPrimitive.ViewportFooter
-				className="aui-chat-composer-footer sticky bottom-0 z-20 -mx-4 flex flex-col items-stretch bg-gradient-to-t from-main-panel from-60% to-transparent px-4 pt-6"
+				className="aui-chat-composer-footer sticky bottom-0 z-20 -mx-4 mt-auto flex flex-col items-stretch bg-gradient-to-t from-main-panel from-60% to-transparent px-4 pt-6"
 				style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
 			>
 				<div className="aui-chat-composer-area relative mx-auto flex w-full max-w-(--thread-max-width) flex-col gap-3 overflow-visible">
