@@ -19,6 +19,7 @@ import {
 	currentThreadAtom,
 	setTargetCommentIdAtom,
 } from "@/atoms/chat/current-thread.atom";
+import { setPremiumAlertForThreadAtom } from "@/atoms/chat/premium-alert.atom";
 import {
 	type MentionedDocumentInfo,
 	mentionedDocumentIdsAtom,
@@ -59,6 +60,10 @@ import { useMessagesSync } from "@/hooks/use-messages-sync";
 import { getAgentFilesystemSelection } from "@/lib/agent-filesystem";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { getBearerToken } from "@/lib/auth-utils";
+import {
+	classifyChatError,
+	type ChatFlow,
+} from "@/lib/chat/chat-error-classifier";
 import { convertToThreadMessage } from "@/lib/chat/message-utils";
 import {
 	isPodcastGenerating,
@@ -77,6 +82,7 @@ import {
 	endReasoning,
 	FrameBatchedUpdater,
 	readSSEStream,
+	type SSEEvent,
 	type ThinkingStepData,
 	type ToolUIGate,
 	updateThinkingSteps,
@@ -99,7 +105,8 @@ import {
 import { NotFoundError } from "@/lib/error";
 import {
 	trackChatCreated,
-	trackChatError,
+	trackChatBlocked,
+	trackChatErrorDetailed,
 	trackChatMessageSent,
 	trackChatResponseReceived,
 } from "@/lib/posthog/events";
@@ -144,6 +151,105 @@ function markInterruptsCompleted(contentParts: Array<{ type: string; result?: un
 			part.result = { ...(part.result as Record<string, unknown>), __completed__: true };
 		}
 	}
+}
+
+function toStreamTerminalError(
+	event: Extract<SSEEvent, { type: "error" }>
+): Error & { errorCode?: string } {
+	return Object.assign(new Error(event.errorText || "Server error"), {
+		errorCode: event.errorCode,
+	});
+}
+
+async function toHttpResponseError(response: Response): Promise<Error & { errorCode?: string }> {
+	const statusDefaultCode =
+		response.status === 409
+			? "THREAD_BUSY"
+			: response.status === 429
+				? "RATE_LIMITED"
+				: response.status === 401 || response.status === 403
+					? "AUTH_EXPIRED"
+					: "SERVER_ERROR";
+
+	let rawBody = "";
+	try {
+		rawBody = await response.text();
+	} catch {
+		// noop
+	}
+
+	let parsedBody: Record<string, unknown> | null = null;
+	if (rawBody) {
+		try {
+			const parsed = JSON.parse(rawBody);
+			if (typeof parsed === "object" && parsed !== null) {
+				parsedBody = parsed as Record<string, unknown>;
+			}
+		} catch {
+			// noop
+		}
+	}
+
+	const detail = parsedBody?.detail;
+	const detailObject =
+		typeof detail === "object" && detail !== null ? (detail as Record<string, unknown>) : null;
+	const detailMessage = typeof detail === "string" ? detail : undefined;
+	const topLevelMessage =
+		typeof parsedBody?.message === "string" ? (parsedBody.message as string) : undefined;
+	const detailNestedMessage =
+		typeof detailObject?.message === "string" ? (detailObject.message as string) : undefined;
+
+	const topLevelCode =
+		typeof parsedBody?.errorCode === "string"
+			? parsedBody.errorCode
+			: typeof parsedBody?.error_code === "string"
+				? parsedBody.error_code
+				: undefined;
+	const detailCode =
+		typeof detailObject?.errorCode === "string"
+			? detailObject.errorCode
+			: typeof detailObject?.error_code === "string"
+				? detailObject.error_code
+				: undefined;
+
+	const errorCode = detailCode ?? topLevelCode ?? statusDefaultCode;
+	const message =
+		detailNestedMessage ??
+		detailMessage ??
+		topLevelMessage ??
+		`Backend error: ${response.status}`;
+
+	return Object.assign(new Error(message), { errorCode });
+}
+
+function tagPreAcceptSendFailure(error: unknown): unknown {
+	if (error instanceof Error) {
+		const withCode = error as Error & { errorCode?: string; code?: string };
+		const existingCode = withCode.errorCode ?? withCode.code;
+		const passthroughCodes = new Set([
+			"PREMIUM_QUOTA_EXHAUSTED",
+			"THREAD_BUSY",
+			"AUTH_EXPIRED",
+			"UNAUTHORIZED",
+			"RATE_LIMITED",
+			"NETWORK_ERROR",
+			"STREAM_PARSE_ERROR",
+			"TOOL_EXECUTION_ERROR",
+			"PERSIST_MESSAGE_FAILED",
+			"SERVER_ERROR",
+		]);
+		if (
+			existingCode &&
+			passthroughCodes.has(existingCode)
+		) {
+			return Object.assign(error, { errorCode: existingCode });
+		}
+		return Object.assign(error, { errorCode: "SEND_FAILED_PRE_ACCEPT" });
+	}
+
+	return Object.assign(new Error("Failed to send message before stream acceptance"), {
+		errorCode: "SEND_FAILED_PRE_ACCEPT",
+	});
 }
 
 /**
@@ -226,6 +332,164 @@ export default function NewChatPage() {
 		interruptData: Record<string, unknown>;
 	} | null>(null);
 	const toolsWithUI = TOOLS_WITH_UI_ALL;
+	const setMessageDocumentsMap = useSetAtom(messageDocumentsMapAtom);
+
+	const persistAssistantErrorMessage = useCallback(
+		async ({
+			threadId,
+			assistantMsgId,
+			text,
+		}: {
+			threadId: number | null;
+			assistantMsgId: string;
+			text: string;
+		}) => {
+			setMessages((prev) =>
+				prev.map((m) =>
+					m.id === assistantMsgId
+						? {
+								...m,
+								content: [{ type: "text", text }],
+							}
+						: m
+				)
+			);
+
+			if (!threadId) return;
+
+			// Persist only temporary assistant placeholders to avoid duplicate rows
+			// when the message already has a database-backed ID.
+			if (!assistantMsgId.startsWith("msg-assistant-")) return;
+
+			try {
+				const savedMessage = await appendMessage(threadId, {
+					role: "assistant",
+					content: [{ type: "text", text }],
+				});
+				const newMsgId = `msg-${savedMessage.id}`;
+				tokenUsageStore.rename(assistantMsgId, newMsgId);
+				setMessages((prev) =>
+					prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m))
+				);
+			} catch (persistErr) {
+				console.error("Failed to persist assistant error message:", persistErr);
+			}
+		},
+		[tokenUsageStore]
+	);
+
+	const persistUserTurn = useCallback(
+		async ({
+			threadId,
+			userMsgId,
+			content,
+			mentionedDocs,
+			turnId,
+			logContext,
+		}: {
+			threadId: number | null;
+			userMsgId: string;
+			content: unknown;
+			mentionedDocs?: MentionedDocumentInfo[];
+			turnId?: string | null;
+			logContext: string;
+		}) => {
+			if (!threadId) return null;
+			try {
+				const normalizedContent = Array.isArray(content)
+					? ([...content] as unknown[])
+					: [content];
+				const hasMentionedDocumentsPart = normalizedContent.some((part) =>
+					MentionedDocumentsPartSchema.safeParse(part).success
+				);
+				if (mentionedDocs && mentionedDocs.length > 0 && !hasMentionedDocumentsPart) {
+					normalizedContent.push({
+						type: "mentioned-documents",
+						documents: mentionedDocs,
+					});
+				}
+
+				const savedUserMessage = await appendMessage(threadId, {
+					role: "user",
+					content: normalizedContent as AppendMessage["content"],
+					turn_id: turnId,
+				});
+				const newUserMsgId = `msg-${savedUserMessage.id}`;
+				setMessages((prev) =>
+					prev.map((m) =>
+						m.id === userMsgId
+							? mergeChatTurnIdIntoMessage(
+									{ ...m, id: newUserMsgId },
+									savedUserMessage.turn_id
+								)
+							: m
+					)
+				);
+				if (mentionedDocs && mentionedDocs.length > 0) {
+					setMessageDocumentsMap((prev) => {
+						const { [userMsgId]: _, ...rest } = prev;
+						return {
+							...rest,
+							[newUserMsgId]: mentionedDocs,
+						};
+					});
+				}
+				return newUserMsgId;
+			} catch (err) {
+				console.error(`Failed to persist ${logContext} user message:`, err);
+				return null;
+			}
+		},
+		[setMessageDocumentsMap]
+	);
+
+	const persistAssistantTurn = useCallback(
+		async ({
+			threadId,
+			assistantMsgId,
+			content,
+			tokenUsage,
+			turnId,
+			logContext,
+			onRemapped,
+		}: {
+			threadId: number | null;
+			assistantMsgId: string;
+			content: unknown;
+			tokenUsage?: Record<string, unknown>;
+			turnId?: string | null;
+			logContext: string;
+			onRemapped?: (newMsgId: string) => void;
+		}) => {
+			if (!threadId) return null;
+			try {
+				const savedMessage = await appendMessage(threadId, {
+					role: "assistant",
+					content: content as AppendMessage["content"],
+					token_usage: tokenUsage,
+					turn_id: turnId,
+				});
+				const newMsgId = `msg-${savedMessage.id}`;
+				tokenUsageStore.rename(assistantMsgId, newMsgId);
+				setMessages((prev) =>
+					prev.map((m) =>
+						m.id === assistantMsgId
+							? mergeChatTurnIdIntoMessage(
+									{ ...m, id: newMsgId },
+									savedMessage.turn_id
+								)
+							: m
+					)
+				);
+				onRemapped?.(newMsgId);
+				return newMsgId;
+			} catch (err) {
+				console.error(`Failed to persist ${logContext} assistant message:`, err);
+				return null;
+			}
+		},
+		[tokenUsageStore]
+	);
 
 	// Get disabled tools from the tool toggle UI
 	const disabledTools = useAtomValue(disabledToolsAtom);
@@ -233,9 +497,10 @@ export default function NewChatPage() {
 	// Get mentioned document IDs from the composer.
 	const mentionedDocumentIds = useAtomValue(mentionedDocumentIdsAtom);
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
+	const messageDocumentsMap = useAtomValue(messageDocumentsMapAtom);
 	const setMentionedDocuments = useSetAtom(mentionedDocumentsAtom);
-	const setMessageDocumentsMap = useSetAtom(messageDocumentsMapAtom);
 	const setCurrentThreadState = useSetAtom(currentThreadAtom);
+	const setPremiumAlertForThread = useSetAtom(setPremiumAlertForThreadAtom);
 	const setTargetCommentId = useSetAtom(setTargetCommentIdAtom);
 	const clearTargetCommentId = useSetAtom(clearTargetCommentIdAtom);
 	const closeReportPanel = useSetAtom(closeReportPanelAtom);
@@ -349,6 +614,122 @@ export default function NewChatPage() {
 		}
 		return Number.isNaN(parsed) ? 0 : parsed;
 	}, [params.chat_id]);
+
+	const handleChatFailure = useCallback(
+		async ({
+			error,
+			flow,
+			threadId,
+			assistantMsgId,
+		}: {
+			error: unknown;
+			flow: ChatFlow;
+			threadId: number | null;
+			assistantMsgId: string;
+		}) => {
+			const normalized = classifyChatError({
+				error,
+				flow,
+				context: {
+					searchSpaceId,
+					threadId,
+				},
+			});
+
+			const logger =
+				normalized.severity === "error"
+					? console.error
+					: normalized.severity === "warn"
+						? console.warn
+						: console.info;
+			logger(`[NewChatPage] ${flow} ${normalized.kind}:`, error);
+
+			const telemetryPayload = {
+				flow,
+				kind: normalized.kind,
+				error_code: normalized.errorCode,
+				severity: normalized.severity,
+				is_expected: normalized.isExpected,
+				message: normalized.userMessage,
+			};
+			if (normalized.telemetryEvent === "chat_blocked") {
+				trackChatBlocked(searchSpaceId, threadId, telemetryPayload);
+			} else {
+				trackChatErrorDetailed(searchSpaceId, threadId, telemetryPayload);
+			}
+
+			if (normalized.channel === "silent") {
+				return;
+			}
+
+			if (normalized.channel === "pinned_inline") {
+				if (threadId) {
+					setPremiumAlertForThread({
+						threadId,
+						message: normalized.userMessage,
+						userId: currentUser?.id ?? null,
+					});
+				}
+				if (normalized.assistantMessage) {
+					await persistAssistantErrorMessage({
+						threadId,
+						assistantMsgId,
+						text: normalized.assistantMessage,
+					});
+				}
+				return;
+			}
+
+			toast.error(normalized.userMessage);
+		},
+		[
+			currentUser?.id,
+			persistAssistantErrorMessage,
+			searchSpaceId,
+			setPremiumAlertForThread,
+		]
+	);
+
+	const handleStreamTerminalError = useCallback(
+		async ({
+			error,
+			flow,
+			threadId,
+			assistantMsgId,
+			accepted,
+			onAbort,
+			onPreAcceptFailure,
+			onAcceptedStreamError,
+		}: {
+			error: unknown;
+			flow: ChatFlow;
+			threadId: number | null;
+			assistantMsgId: string;
+			accepted: boolean;
+			onAbort?: () => Promise<void>;
+			onPreAcceptFailure?: () => Promise<void>;
+			onAcceptedStreamError?: () => Promise<void>;
+		}) => {
+			if (error instanceof Error && error.name === "AbortError") {
+				await onAbort?.();
+				return;
+			}
+
+			if (!accepted) {
+				await onPreAcceptFailure?.();
+			} else {
+				await onAcceptedStreamError?.();
+			}
+
+			await handleChatFailure({
+				error: !accepted ? tagPreAcceptSendFailure(error) : error,
+				flow,
+				threadId,
+				assistantMsgId: accepted ? assistantMsgId : "no-persist-assistant",
+			});
+		},
+		[handleChatFailure]
+	);
 
 	// Initialize thread and load messages
 	// For new chats (no urlChatId), we use lazy creation - thread is created on first message
@@ -576,7 +957,12 @@ export default function NewChatPage() {
 					);
 				} catch (error) {
 					console.error("[NewChatPage] Failed to create thread:", error);
-					toast.error("Failed to start chat. Please try again.");
+					await handleChatFailure({
+						error: tagPreAcceptSendFailure(error),
+						flow: "new",
+						threadId: currentThreadId,
+						assistantMsgId: "no-persist-assistant",
+					});
 					return;
 				}
 			}
@@ -661,27 +1047,6 @@ export default function NewChatPage() {
 				});
 			}
 
-			appendMessage(currentThreadId, {
-				role: "user",
-				content: persistContent,
-			})
-				.then((savedMessage) => {
-					const newUserMsgId = `msg-${savedMessage.id}`;
-					setMessages((prev) =>
-						prev.map((m) => (m.id === userMsgId ? { ...m, id: newUserMsgId } : m))
-					);
-					setMessageDocumentsMap((prev) => {
-						const docs = prev[userMsgId];
-						if (!docs) return prev;
-						const { [userMsgId]: _, ...rest } = prev;
-						return { ...rest, [newUserMsgId]: docs };
-					});
-					if (isNewThread) {
-						queryClient.invalidateQueries({ queryKey: ["threads", String(searchSpaceId)] });
-					}
-				})
-				.catch((err) => console.error("Failed to persist user message:", err));
-
 			// Start streaming response
 			setIsRunning(true);
 			const controller = new AbortController();
@@ -701,19 +1066,10 @@ export default function NewChatPage() {
 			const { contentParts, toolCallIndices } = contentPartsState;
 			let wasInterrupted = false;
 			let tokenUsageData: Record<string, unknown> | null = null;
+			let newAccepted = false;
+			let userPersisted = false;
 			// Captured from ``data-turn-info`` at stream start.
 			let streamedChatTurnId: string | null = null;
-
-			// Add placeholder assistant message
-			setMessages((prev) => [
-				...prev,
-				{
-					id: assistantMsgId,
-					role: "assistant",
-					content: [{ type: "text", text: "" }],
-					createdAt: new Date(),
-				},
-			]);
 
 			try {
 				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
@@ -774,8 +1130,18 @@ export default function NewChatPage() {
 				});
 
 				if (!response.ok) {
-					throw new Error(`Backend error: ${response.status}`);
+					throw await toHttpResponseError(response);
 				}
+				newAccepted = true;
+				setMessages((prev) => [
+					...prev,
+					{
+						id: assistantMsgId,
+						role: "assistant",
+						content: [{ type: "text", text: "" }],
+						createdAt: new Date(),
+					},
+				]);
 
 				const flushMessages = () => {
 					setMessages((prev) =>
@@ -1015,7 +1381,7 @@ export default function NewChatPage() {
 							break;
 
 						case "error":
-							throw new Error(parsed.errorText || "Server error");
+							throw toStreamTerminalError(parsed);
 					}
 				}
 
@@ -1024,99 +1390,107 @@ export default function NewChatPage() {
 				// Skip persistence for interrupted messages -- handleResume will persist the final version
 				const finalContent = buildContentForPersistence(contentPartsState, toolsWithUI);
 				if (contentParts.length > 0 && !wasInterrupted) {
-					try {
-						const savedMessage = await appendMessage(currentThreadId, {
-							role: "assistant",
-							content: finalContent,
-							token_usage: tokenUsageData ?? undefined,
-							turn_id: streamedChatTurnId,
+					if (!userPersisted) {
+						const persistedUserMsgId = await persistUserTurn({
+							threadId: currentThreadId,
+							userMsgId,
+							content: persistContent,
+							mentionedDocs: allMentionedDocs,
+							turnId: streamedChatTurnId,
+							logContext: "new chat",
 						});
-
-						// Update message ID from temporary to database ID so comments work immediately
-						const newMsgId = `msg-${savedMessage.id}`;
-						tokenUsageStore.rename(assistantMsgId, newMsgId);
-						setMessages((prev) =>
-							prev.map((m) =>
-								m.id === assistantMsgId
-									? mergeChatTurnIdIntoMessage({ ...m, id: newMsgId }, savedMessage.turn_id)
-									: m
-							)
-						);
-
-						// Update pending interrupt with the new persisted message ID
-						setPendingInterrupt((prev) =>
-							prev && prev.assistantMsgId === assistantMsgId
-								? { ...prev, assistantMsgId: newMsgId }
-								: prev
-						);
-					} catch (err) {
-						console.error("Failed to persist assistant message:", err);
+						userPersisted = Boolean(persistedUserMsgId);
+						if (userPersisted && isNewThread) {
+							queryClient.invalidateQueries({ queryKey: ["threads", String(searchSpaceId)] });
+						}
 					}
+
+					await persistAssistantTurn({
+						threadId: currentThreadId,
+						assistantMsgId,
+						content: finalContent,
+						tokenUsage: tokenUsageData ?? undefined,
+						turnId: streamedChatTurnId,
+						logContext: "new chat",
+						onRemapped: (newMsgId) => {
+							setPendingInterrupt((prev) =>
+								prev && prev.assistantMsgId === assistantMsgId
+									? { ...prev, assistantMsgId: newMsgId }
+									: prev
+							);
+						},
+					});
 
 					// Track successful response
 					trackChatResponseReceived(searchSpaceId, currentThreadId);
 				}
 			} catch (error) {
 				batcher.dispose();
-				if (error instanceof Error && error.name === "AbortError") {
-					// Request was cancelled by user - persist partial response if any content was received
-					const hasContent = contentParts.some(
-						(part) =>
-							(part.type === "text" && part.text.length > 0) ||
-							(part.type === "reasoning" && part.text.length > 0) ||
-							(part.type === "tool-call" &&
-								(toolsWithUI === "all" || toolsWithUI.has(part.toolName)))
-					);
-					if (hasContent && currentThreadId) {
-						const partialContent = buildContentForPersistence(contentPartsState, toolsWithUI);
-						try {
-							const savedMessage = await appendMessage(currentThreadId, {
-								role: "assistant",
-								content: partialContent,
-								turn_id: streamedChatTurnId,
+				await handleStreamTerminalError({
+					error,
+					flow: "new",
+					threadId: currentThreadId,
+					assistantMsgId,
+					accepted: newAccepted,
+					onAbort: async () => {
+						if (newAccepted && !userPersisted) {
+							const persistedUserMsgId = await persistUserTurn({
+								threadId: currentThreadId,
+								userMsgId,
+								content: persistContent,
+								mentionedDocs: allMentionedDocs,
+								turnId: streamedChatTurnId,
+								logContext: "new chat (aborted)",
 							});
-
-							// Update message ID from temporary to database ID
-							const newMsgId = `msg-${savedMessage.id}`;
-							setMessages((prev) =>
-								prev.map((m) =>
-									m.id === assistantMsgId
-										? mergeChatTurnIdIntoMessage({ ...m, id: newMsgId }, savedMessage.turn_id)
-										: m
-								)
-							);
-						} catch (err) {
-							console.error("Failed to persist partial assistant message:", err);
+							userPersisted = Boolean(persistedUserMsgId);
+							if (userPersisted && isNewThread) {
+								queryClient.invalidateQueries({ queryKey: ["threads", String(searchSpaceId)] });
+							}
 						}
-					}
-					return;
-				}
-				console.error("[NewChatPage] Chat error:", error);
 
-				// Track chat error
-				trackChatError(
-					searchSpaceId,
-					currentThreadId,
-					error instanceof Error ? error.message : "Unknown error"
-				);
-
-				toast.error("Failed to get response. Please try again.");
-				// Update assistant message with error
-				setMessages((prev) =>
-					prev.map((m) =>
-						m.id === assistantMsgId
-							? {
-									...m,
-									content: [
-										{
-											type: "text",
-											text: "Sorry, there was an error. Please try again.",
-										},
-									],
-								}
-							: m
-					)
-				);
+						const hasContent = contentParts.some(
+							(part) =>
+								(part.type === "text" && part.text.length > 0) ||
+								(part.type === "reasoning" && part.text.length > 0) ||
+								(part.type === "tool-call" &&
+									(toolsWithUI === "all" || toolsWithUI.has(part.toolName)))
+						);
+						if (hasContent && currentThreadId) {
+							const partialContent = buildContentForPersistence(contentPartsState, toolsWithUI);
+							await persistAssistantTurn({
+								threadId: currentThreadId,
+								assistantMsgId,
+								content: partialContent,
+								turnId: streamedChatTurnId,
+								logContext: "partial new chat",
+							});
+						}
+					},
+					onAcceptedStreamError: async () => {
+						if (!userPersisted) {
+							const persistedUserMsgId = await persistUserTurn({
+								threadId: currentThreadId,
+								userMsgId,
+								content: persistContent,
+								mentionedDocs: allMentionedDocs,
+								turnId: streamedChatTurnId,
+								logContext: "new chat (stream error)",
+							});
+							userPersisted = Boolean(persistedUserMsgId);
+							if (userPersisted && isNewThread) {
+								queryClient.invalidateQueries({ queryKey: ["threads", String(searchSpaceId)] });
+							}
+						}
+					},
+					onPreAcceptFailure: async () => {
+						setMessages((prev) => prev.filter((m) => m.id !== userMsgId));
+						setMessageDocumentsMap((prev) => {
+							if (!(userMsgId in prev)) return prev;
+							const { [userMsgId]: _removed, ...rest } = prev;
+							return rest;
+						});
+					},
+				});
 			} finally {
 				setIsRunning(false);
 				abortControllerRef.current = null;
@@ -1138,7 +1512,10 @@ export default function NewChatPage() {
 			tokenUsageStore,
 			pendingUserImageUrls,
 			setPendingUserImageUrls,
-			toolsWithUI,
+			handleStreamTerminalError,
+			handleChatFailure,
+			persistAssistantTurn,
+			persistUserTurn,
 		]
 	);
 
@@ -1176,6 +1553,7 @@ export default function NewChatPage() {
 			};
 			const { contentParts, toolCallIndices } = contentPartsState;
 			let tokenUsageData: Record<string, unknown> | null = null;
+			let resumeAccepted = false;
 			// Captured from ``data-turn-info`` at stream start.
 			let streamedChatTurnId: string | null = null;
 
@@ -1273,8 +1651,9 @@ export default function NewChatPage() {
 				});
 
 				if (!response.ok) {
-					throw new Error(`Backend error: ${response.status}`);
+					throw await toHttpResponseError(response);
 				}
+				resumeAccepted = true;
 
 				const flushMessages = () => {
 					setMessages((prev) =>
@@ -1458,7 +1837,7 @@ export default function NewChatPage() {
 							break;
 
 						case "error":
-							throw new Error(parsed.errorText || "Server error");
+							throw toStreamTerminalError(parsed);
 					}
 				}
 
@@ -1466,39 +1845,56 @@ export default function NewChatPage() {
 
 				const finalContent = buildContentForPersistence(contentPartsState, toolsWithUI);
 				if (contentParts.length > 0) {
-					try {
-						const savedMessage = await appendMessage(resumeThreadId, {
-							role: "assistant",
-							content: finalContent,
-							token_usage: tokenUsageData ?? undefined,
-							turn_id: streamedChatTurnId,
-						});
-						const newMsgId = `msg-${savedMessage.id}`;
-						tokenUsageStore.rename(assistantMsgId, newMsgId);
-						setMessages((prev) =>
-							prev.map((m) =>
-								m.id === assistantMsgId
-									? mergeChatTurnIdIntoMessage({ ...m, id: newMsgId }, savedMessage.turn_id)
-									: m
-							)
-						);
-					} catch (err) {
-						console.error("Failed to persist resumed assistant message:", err);
-					}
+					await persistAssistantTurn({
+						threadId: resumeThreadId,
+						assistantMsgId,
+						content: finalContent,
+						tokenUsage: tokenUsageData ?? undefined,
+						turnId: streamedChatTurnId,
+						logContext: "resumed chat",
+					});
 				}
 			} catch (error) {
 				batcher.dispose();
-				if (error instanceof Error && error.name === "AbortError") {
-					return;
-				}
-				console.error("[NewChatPage] Resume error:", error);
-				toast.error("Failed to resume. Please try again.");
+				await handleStreamTerminalError({
+					error,
+					flow: "resume",
+					threadId: resumeThreadId,
+					assistantMsgId,
+					accepted: resumeAccepted,
+					onAbort: async () => {
+						if (!resumeAccepted) return;
+						const hasContent = contentParts.some(
+							(part) =>
+								(part.type === "text" && part.text.length > 0) ||
+								(part.type === "reasoning" && part.text.length > 0) ||
+								(part.type === "tool-call" &&
+									(toolsWithUI === "all" || toolsWithUI.has(part.toolName)))
+						);
+						if (!hasContent) return;
+						const partialContent = buildContentForPersistence(contentPartsState, toolsWithUI);
+						await persistAssistantTurn({
+							threadId: resumeThreadId,
+							assistantMsgId,
+							content: partialContent,
+							turnId: streamedChatTurnId,
+							logContext: "partial resumed chat",
+						});
+					},
+				});
 			} finally {
 				setIsRunning(false);
 				abortControllerRef.current = null;
 			}
 		},
-		[pendingInterrupt, messages, searchSpaceId, tokenUsageStore, toolsWithUI]
+		[
+			pendingInterrupt,
+			messages,
+			searchSpaceId,
+			tokenUsageStore,
+			handleStreamTerminalError,
+			persistAssistantTurn,
+		]
 	);
 
 	useEffect(() => {
@@ -1580,6 +1976,7 @@ export default function NewChatPage() {
 			editExtras?: {
 				userMessageContent: ThreadMessageLike["content"];
 				userImages: NewChatUserImagePayload[];
+				sourceUserMessageId?: string;
 			},
 			editFromPosition?: {
 				/** Message id (numeric, parsed from ``msg-<n>``) to rewind to. */
@@ -1611,11 +2008,13 @@ export default function NewChatPage() {
 			let userQueryToDisplay: string | undefined;
 			let originalUserMessageContent: ThreadMessageLike["content"] | null = null;
 			let originalUserMessageMetadata: ThreadMessageLike["metadata"] | undefined;
+			let sourceUserMessageId: string | undefined = editExtras?.sourceUserMessageId;
 
 			if (!isEdit) {
 				// Reload mode - find and preserve the last user message content
 				const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
 				if (lastUserMessage) {
+					sourceUserMessageId = lastUserMessage.id;
 					originalUserMessageContent = lastUserMessage.content;
 					originalUserMessageMetadata = lastUserMessage.metadata;
 					// Extract text for the API request
@@ -1629,26 +2028,6 @@ export default function NewChatPage() {
 			} else {
 				userQueryToDisplay = newUserQuery;
 			}
-
-			// Remove downstream messages from the UI immediately. The
-			// backend will also delete them from the database.
-			//
-			// When an explicit ``fromMessageId`` is passed, slice from
-			// that message forward; otherwise fall back to the legacy
-			// "drop the last 2" behaviour.
-			setMessages((prev) => {
-				if (editFromPosition?.fromMessageId != null) {
-					const targetId = `msg-${editFromPosition.fromMessageId}`;
-					const sliceIndex = prev.findIndex((m) => m.id === targetId);
-					if (sliceIndex >= 0) {
-						return prev.slice(0, sliceIndex);
-					}
-				}
-				if (prev.length >= 2) {
-					return prev.slice(0, -2);
-				}
-				return prev;
-			});
 
 			// Start streaming
 			setIsRunning(true);
@@ -1669,6 +2048,8 @@ export default function NewChatPage() {
 			const { contentParts, toolCallIndices } = contentPartsState;
 			const batcher = new FrameBatchedUpdater();
 			let tokenUsageData: Record<string, unknown> | null = null;
+			let regenerateAccepted = false;
+			let userPersisted = false;
 			// Captured from ``data-turn-info`` at stream start; stamped
 			// onto persisted messages so future edits can locate the
 			// right LangGraph checkpoint.
@@ -1685,19 +2066,13 @@ export default function NewChatPage() {
 				createdAt: new Date(),
 				metadata: isEdit ? undefined : originalUserMessageMetadata,
 			};
-			setMessages((prev) => [...prev, userMessage]);
-
-			// Add placeholder assistant message
-			setMessages((prev) => [
-				...prev,
-				{
-					id: assistantMsgId,
-					role: "assistant",
-					content: [{ type: "text", text: "" }],
-					createdAt: new Date(),
-				},
-			]);
-
+			const userContentToPersist = isEdit
+				? (editExtras?.userMessageContent ?? [{ type: "text", text: newUserQuery ?? "" }])
+				: originalUserMessageContent || [{ type: "text", text: userQueryToDisplay || "" }];
+			const sourceMentionedDocs =
+				sourceUserMessageId && messageDocumentsMap[sourceUserMessageId]
+					? messageDocumentsMap[sourceUserMessageId]
+					: [];
 			try {
 				const selection = await getAgentFilesystemSelection(searchSpaceId);
 				const requestBody: Record<string, unknown> = {
@@ -1732,7 +2107,43 @@ export default function NewChatPage() {
 				});
 
 				if (!response.ok) {
-					throw new Error(`Backend error: ${response.status}`);
+					throw await toHttpResponseError(response);
+				}
+				regenerateAccepted = true;
+
+				// Only switch UI to regenerated placeholder messages after the backend accepts
+				// regenerate. This avoids local message loss when regenerate fails early (e.g. 400).
+				//
+				// When an explicit ``editFromPosition.fromMessageId`` is passed, slice from
+				// that message forward so edit-from-arbitrary-position drops every downstream
+				// message; otherwise fall back to the legacy "drop the last 2" behaviour.
+				setMessages((prev) => {
+					let base = prev;
+					if (editFromPosition?.fromMessageId != null) {
+						const targetId = `msg-${editFromPosition.fromMessageId}`;
+						const sliceIndex = prev.findIndex((m) => m.id === targetId);
+						if (sliceIndex >= 0) {
+							base = prev.slice(0, sliceIndex);
+						}
+					} else if (prev.length >= 2) {
+						base = prev.slice(0, -2);
+					}
+					return [
+						...base,
+						userMessage,
+						{
+							id: assistantMsgId,
+							role: "assistant",
+							content: [{ type: "text", text: "" }],
+							createdAt: new Date(),
+						},
+					];
+				});
+				if (sourceMentionedDocs.length > 0) {
+					setMessageDocumentsMap((prev) => ({
+						...prev,
+						[userMsgId]: sourceMentionedDocs,
+					}));
 				}
 
 				const flushMessages = () => {
@@ -1922,7 +2333,7 @@ export default function NewChatPage() {
 							break;
 
 						case "error":
-							throw new Error(parsed.errorText || "Server error");
+							throw toStreamTerminalError(parsed);
 					}
 				}
 
@@ -1931,79 +2342,97 @@ export default function NewChatPage() {
 				// Persist messages after streaming completes
 				const finalContent = buildContentForPersistence(contentPartsState, toolsWithUI);
 				if (contentParts.length > 0) {
-					try {
-						// Persist user message (for both edit and reload modes, since backend deleted it)
-						const userContentToPersist = isEdit
-							? (editExtras?.userMessageContent ?? [{ type: "text", text: newUserQuery ?? "" }])
-							: originalUserMessageContent || [{ type: "text", text: userQueryToDisplay || "" }];
+					const persistedUserMsgId = await persistUserTurn({
+						threadId,
+						userMsgId,
+						content: userContentToPersist,
+						mentionedDocs: sourceMentionedDocs,
+						turnId: streamedChatTurnId,
+						logContext: "regenerated",
+					});
+					userPersisted = Boolean(persistedUserMsgId);
 
-						const savedUserMessage = await appendMessage(threadId, {
-							role: "user",
-							content: userContentToPersist,
-							turn_id: streamedChatTurnId,
-						});
+					await persistAssistantTurn({
+						threadId,
+						assistantMsgId,
+						content: finalContent,
+						tokenUsage: tokenUsageData ?? undefined,
+						turnId: streamedChatTurnId,
+						logContext: "regenerated",
+					});
 
-						// Update user message ID to database ID
-						const newUserMsgId = `msg-${savedUserMessage.id}`;
-						setMessages((prev) =>
-							prev.map((m) =>
-								m.id === userMsgId
-									? mergeChatTurnIdIntoMessage({ ...m, id: newUserMsgId }, savedUserMessage.turn_id)
-									: m
-							)
-						);
-
-						// Persist assistant message
-						const savedMessage = await appendMessage(threadId, {
-							role: "assistant",
-							content: finalContent,
-							token_usage: tokenUsageData ?? undefined,
-							turn_id: streamedChatTurnId,
-						});
-
-						const newMsgId = `msg-${savedMessage.id}`;
-						tokenUsageStore.rename(assistantMsgId, newMsgId);
-						setMessages((prev) =>
-							prev.map((m) =>
-								m.id === assistantMsgId
-									? mergeChatTurnIdIntoMessage({ ...m, id: newMsgId }, savedMessage.turn_id)
-									: m
-							)
-						);
-
-						trackChatResponseReceived(searchSpaceId, threadId);
-					} catch (err) {
-						console.error("Failed to persist regenerated message:", err);
-					}
+					trackChatResponseReceived(searchSpaceId, threadId);
 				}
 			} catch (error) {
-				if (error instanceof Error && error.name === "AbortError") {
-					return;
-				}
 				batcher.dispose();
-				console.error("[NewChatPage] Regeneration error:", error);
-				trackChatError(
-					searchSpaceId,
+				await handleStreamTerminalError({
+					error,
+					flow: "regenerate",
 					threadId,
-					error instanceof Error ? error.message : "Unknown error"
-				);
-				toast.error("Failed to regenerate response. Please try again.");
-				setMessages((prev) =>
-					prev.map((m) =>
-						m.id === assistantMsgId
-							? {
-									...m,
-									content: [{ type: "text", text: "Sorry, there was an error. Please try again." }],
-								}
-							: m
-					)
-				);
+					assistantMsgId,
+					accepted: regenerateAccepted,
+					onAbort: async () => {
+						if (!regenerateAccepted) return;
+						if (!userPersisted) {
+							const persistedUserMsgId = await persistUserTurn({
+								threadId,
+								userMsgId,
+								content: userContentToPersist,
+								mentionedDocs: sourceMentionedDocs,
+								turnId: streamedChatTurnId,
+								logContext: "regenerated (aborted)",
+							});
+							userPersisted = Boolean(persistedUserMsgId);
+						}
+						const hasContent = contentParts.some(
+							(part) =>
+								(part.type === "text" && part.text.length > 0) ||
+								(part.type === "reasoning" && part.text.length > 0) ||
+								(part.type === "tool-call" &&
+									(toolsWithUI === "all" || toolsWithUI.has(part.toolName)))
+						);
+						if (!hasContent) return;
+						const partialContent = buildContentForPersistence(contentPartsState, toolsWithUI);
+						await persistAssistantTurn({
+							threadId,
+							assistantMsgId,
+							content: partialContent,
+							tokenUsage: tokenUsageData ?? undefined,
+							turnId: streamedChatTurnId,
+							logContext: "partial regenerated chat",
+						});
+					},
+					onAcceptedStreamError: async () => {
+						if (!userPersisted) {
+							const persistedUserMsgId = await persistUserTurn({
+								threadId,
+								userMsgId,
+								content: userContentToPersist,
+								mentionedDocs: sourceMentionedDocs,
+								turnId: streamedChatTurnId,
+								logContext: "regenerated (stream error)",
+							});
+							userPersisted = Boolean(persistedUserMsgId);
+						}
+					},
+				});
 			} finally {
 				setIsRunning(false);
 				abortControllerRef.current = null;
 			}
 		},
-		[threadId, searchSpaceId, messages, disabledTools, tokenUsageStore, toolsWithUI]
+		[
+			threadId,
+			searchSpaceId,
+			messages,
+			disabledTools,
+			messageDocumentsMap,
+			setMessageDocumentsMap,
+			tokenUsageStore,
+			handleStreamTerminalError,
+			persistAssistantTurn,
+			persistUserTurn,
+		]
 	);
 
 	// Handle editing a message - truncates history and regenerates with new query.
@@ -2037,7 +2466,11 @@ export default function NewChatPage() {
 			if (fromMessageId == null) {
 				// No source id (or non-DB id) — fall back to today's
 				// last-2 behaviour. The user gets the legacy edit flow.
-				await handleRegenerate(queryForApi, { userMessageContent, userImages });
+				await handleRegenerate(queryForApi, {
+					userMessageContent,
+					userImages,
+					sourceUserMessageId: sourceId,
+				});
 				return;
 			}
 
@@ -2086,7 +2519,7 @@ export default function NewChatPage() {
 				// Nothing to revert — submit silently.
 				await handleRegenerate(
 					queryForApi,
-					{ userMessageContent, userImages },
+					{ userMessageContent, userImages, sourceUserMessageId: sourceId },
 					{ fromMessageId, revertActions: false }
 				);
 				return;
@@ -2115,6 +2548,7 @@ export default function NewChatPage() {
 				{
 					userMessageContent: pending.userMessageContent,
 					userImages: pending.userImages,
+					sourceUserMessageId: `msg-${pending.fromMessageId}`,
 				},
 				{
 					fromMessageId: pending.fromMessageId,

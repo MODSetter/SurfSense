@@ -37,10 +37,13 @@ import {
 	toggleToolAtom,
 } from "@/atoms/agent-tools/agent-tools.atoms";
 import { chatSessionStateAtom } from "@/atoms/chat/chat-session-state.atom";
-import {
-	mentionedDocumentsAtom,
-} from "@/atoms/chat/mentioned-documents.atom";
+import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
+import { mentionedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { pendingUserImageDataUrlsAtom } from "@/atoms/chat/pending-user-images.atom";
+import {
+	clearPremiumAlertForThreadAtom,
+	premiumAlertByThreadAtom,
+} from "@/atoms/chat/premium-alert.atom";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
@@ -136,11 +139,45 @@ const ThreadContent: FC = () => {
 				>
 					<ThreadScrollToBottom />
 					<AuiIf condition={({ thread }) => !thread.isEmpty}>
+						<PremiumQuotaPinnedAlert />
+					</AuiIf>
+					<AuiIf condition={({ thread }) => !thread.isEmpty}>
 						<Composer />
 					</AuiIf>
 				</ThreadPrimitive.ViewportFooter>
 			</ThreadPrimitive.Viewport>
 		</ThreadPrimitive.Root>
+	);
+};
+
+const PremiumQuotaPinnedAlert: FC = () => {
+	const currentThreadState = useAtomValue(currentThreadAtom);
+	const alertsByThread = useAtomValue(premiumAlertByThreadAtom);
+	const clearPremiumAlertForThread = useSetAtom(clearPremiumAlertForThreadAtom);
+
+	const currentThreadId = currentThreadState?.id;
+	if (!currentThreadId) return null;
+
+	const alert = alertsByThread[currentThreadId];
+	if (!alert) return null;
+
+	return (
+		<div className="mx-0 overflow-hidden rounded-2xl border-input bg-muted px-4 py-4 text-foreground select-none">
+			<div className="flex items-center gap-2">
+				<AlertCircle className="size-4 shrink-0 text-muted-foreground" />
+				<div className="min-w-0 flex-1">
+					<p className="text-sm">{alert.message}</p>
+				</div>
+				<button
+					type="button"
+					className="inline-flex size-6 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+					aria-label="Dismiss premium quota alert"
+					onClick={() => clearPremiumAlertForThread(currentThreadId)}
+				>
+					<X className="size-4" />
+				</button>
+			</div>
+		</div>
 	);
 };
 

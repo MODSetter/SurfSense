@@ -1,5 +1,6 @@
 import posthog from "posthog-js";
 import { getConnectorTelemetryMeta } from "@/components/assistant-ui/connector-popup/constants/connector-constants";
+import type { ChatErrorKind, ChatFlow, ChatErrorSeverity } from "@/lib/chat/chat-error-classifier";
 
 /**
  * PostHog Analytics Event Definitions
@@ -137,6 +138,55 @@ export function trackChatError(searchSpaceId: number, chatId: number, error?: st
 		chat_id: chatId,
 		error,
 	});
+}
+
+export interface ChatFailureTelemetry {
+	flow: ChatFlow;
+	kind: ChatErrorKind;
+	error_code?: string;
+	severity: ChatErrorSeverity;
+	is_expected: boolean;
+	message?: string;
+}
+
+export function trackChatBlocked(
+	searchSpaceId: number,
+	chatId: number | null,
+	payload: ChatFailureTelemetry
+) {
+	safeCapture(
+		"chat_blocked",
+		compact({
+			search_space_id: searchSpaceId,
+			chat_id: chatId ?? undefined,
+			flow: payload.flow,
+			kind: payload.kind,
+			error_code: payload.error_code,
+			severity: payload.severity,
+			is_expected: payload.is_expected,
+			message: payload.message,
+		})
+	);
+}
+
+export function trackChatErrorDetailed(
+	searchSpaceId: number,
+	chatId: number | null,
+	payload: ChatFailureTelemetry
+) {
+	safeCapture(
+		"chat_error",
+		compact({
+			search_space_id: searchSpaceId,
+			chat_id: chatId ?? undefined,
+			flow: payload.flow,
+			kind: payload.kind,
+			error_code: payload.error_code,
+			severity: payload.severity,
+			is_expected: payload.is_expected,
+			message: payload.message,
+		})
+	);
 }
 
 /**

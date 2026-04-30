@@ -1924,6 +1924,7 @@ async def regenerate_response(
                     filesystem_selection=filesystem_selection,
                     request_id=getattr(http_request.state, "request_id", "unknown"),
                     user_image_data_urls=regenerate_image_urls or None,
+                    flow="regenerate",
                 ):
                     yield chunk
                 streaming_completed = True
