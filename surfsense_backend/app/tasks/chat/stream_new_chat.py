@@ -45,6 +45,11 @@ from app.agents.new_chat.memory_extraction import (
     extract_and_save_memory,
     extract_and_save_team_memory,
 )
+from app.agents.new_chat.middleware.busy_mutex import (
+    end_turn,
+    get_cancel_state,
+    is_cancel_requested,
+)
 from app.agents.new_chat.middleware.kb_persistence import (
     commit_staged_filesystem_state,
 )
@@ -72,6 +77,18 @@ from app.utils.user_message_multimodal import build_human_message_content
 
 _background_tasks: set[asyncio.Task] = set()
 _perf_log = get_perf_logger()
+TURN_CANCELLING_INITIAL_DELAY_MS = 200
+TURN_CANCELLING_BACKOFF_FACTOR = 2
+TURN_CANCELLING_MAX_DELAY_MS = 1500
+
+
+def _compute_turn_cancelling_retry_delay(attempt: int) -> int:
+    if attempt < 1:
+        attempt = 1
+    delay = TURN_CANCELLING_INITIAL_DELAY_MS * (
+        TURN_CANCELLING_BACKOFF_FACTOR ** (attempt - 1)
+    )
+    return min(delay, TURN_CANCELLING_MAX_DELAY_MS)
 
 
 def _extract_chunk_parts(chunk: Any) -> dict[str, Any]:
@@ -401,15 +418,35 @@ def _classify_stream_exception(
     exc: Exception,
     *,
     flow_label: str,
-) -> tuple[str, str, Literal["info", "warn", "error"], bool, str]:
+) -> tuple[
+    str, str, Literal["info", "warn", "error"], bool, str, dict[str, Any] | None
+]:
     raw = str(exc)
     if isinstance(exc, BusyError) or "Thread is busy with another request" in raw:
+        busy_thread_id = str(exc.request_id) if isinstance(exc, BusyError) else None
+        if busy_thread_id and is_cancel_requested(busy_thread_id):
+            cancel_state = get_cancel_state(busy_thread_id)
+            attempt = cancel_state[0] if cancel_state else 1
+            retry_after_ms = _compute_turn_cancelling_retry_delay(attempt)
+            retry_after_at = int(time.time() * 1000) + retry_after_ms
+            return (
+                "thread_busy",
+                "TURN_CANCELLING",
+                "info",
+                True,
+                "A previous response is still stopping. Please try again in a moment.",
+                {
+                    "retry_after_ms": retry_after_ms,
+                    "retry_after_at": retry_after_at,
+                },
+            )
         return (
             "thread_busy",
             "THREAD_BUSY",
             "warn",
             True,
             "Another response is still finishing for this thread. Please try again in a moment.",
+            None,
         )
 
     parsed = _parse_error_payload(raw)
@@ -431,6 +468,7 @@ def _classify_stream_exception(
             "warn",
             True,
             "This model is temporarily rate-limited. Please try again in a few seconds or switch models.",
+            None,
         )
 
     return (
@@ -439,6 +477,7 @@ def _classify_stream_exception(
         "error",
         False,
         f"Error during {flow_label}: {raw}",
+        None,
     )
 
 
@@ -470,7 +509,7 @@ def _emit_stream_terminal_error(
         message=message,
         extra=extra,
     )
-    return streaming_service.format_error(message, error_code=error_code)
+    return streaming_service.format_error(message, error_code=error_code, extra=extra)
 
 
 def _legacy_match_lc_id(
@@ -2497,6 +2536,7 @@ async def stream_new_chat(
             "turn-info",
             {"chat_turn_id": stream_result.turn_id},
         )
+        yield streaming_service.format_data("turn-status", {"status": "busy"})
 
         # Initial thinking step - analyzing the request
         if mentioned_surfsense_docs:
@@ -2805,6 +2845,7 @@ async def stream_new_chat(
                 task.add_done_callback(_background_tasks.discard)
 
         # Finish the step and message
+        yield streaming_service.format_data("turn-status", {"status": "idle"})
         yield streaming_service.format_finish_step()
         yield streaming_service.format_finish()
         yield streaming_service.format_done()
@@ -2819,11 +2860,19 @@ async def stream_new_chat(
             severity,
             is_expected,
             user_message,
+            error_extra,
         ) = _classify_stream_exception(e, flow_label="chat")
         error_message = f"Error during chat: {e!s}"
         print(f"[stream_new_chat] {error_message}")
         print(f"[stream_new_chat] Exception type: {type(e).__name__}")
         print(f"[stream_new_chat] Traceback:\n{traceback.format_exc()}")
+        if error_code == "TURN_CANCELLING":
+            status_payload: dict[str, Any] = {"status": "cancelling"}
+            if error_extra:
+                status_payload.update(error_extra)
+            yield streaming_service.format_data("turn-status", status_payload)
+        else:
+            yield streaming_service.format_data("turn-status", {"status": "busy"})
 
         yield _emit_stream_error(
             message=user_message,
@@ -2831,7 +2880,9 @@ async def stream_new_chat(
             error_code=error_code,
             severity=severity,
             is_expected=is_expected,
+            extra=error_extra,
         )
+        yield streaming_service.format_data("turn-status", {"status": "idle"})
         yield streaming_service.format_finish_step()
         yield streaming_service.format_finish()
         yield streaming_service.format_done()
@@ -2847,6 +2898,10 @@ async def stream_new_chat(
         # (CancelledError is a BaseException), and the rest of the
         # finally block — including session.close() — would never run.
         with anyio.CancelScope(shield=True):
+            # Authoritative fallback cleanup for lock/cancel state. Middleware
+            # teardown can be skipped on some client-abort paths.
+            end_turn(str(chat_id))
+
             # Release premium reservation if not finalized
             if _premium_request_id and _premium_reserved > 0 and user_id:
                 try:
@@ -3206,6 +3261,7 @@ async def stream_resume_chat(
             "turn-info",
             {"chat_turn_id": stream_result.turn_id},
         )
+        yield streaming_service.format_data("turn-status", {"status": "busy"})
 
         _t_stream_start = time.perf_counter()
         _first_event_logged = False
@@ -3305,6 +3361,7 @@ async def stream_resume_chat(
                 },
             )
 
+        yield streaming_service.format_data("turn-status", {"status": "idle"})
         yield streaming_service.format_finish_step()
         yield streaming_service.format_finish()
         yield streaming_service.format_done()
@@ -3318,23 +3375,37 @@ async def stream_resume_chat(
             severity,
             is_expected,
             user_message,
+            error_extra,
         ) = _classify_stream_exception(e, flow_label="resume")
         error_message = f"Error during resume: {e!s}"
         print(f"[stream_resume_chat] {error_message}")
         print(f"[stream_resume_chat] Traceback:\n{traceback.format_exc()}")
+        if error_code == "TURN_CANCELLING":
+            status_payload: dict[str, Any] = {"status": "cancelling"}
+            if error_extra:
+                status_payload.update(error_extra)
+            yield streaming_service.format_data("turn-status", status_payload)
+        else:
+            yield streaming_service.format_data("turn-status", {"status": "busy"})
         yield _emit_stream_error(
             message=user_message,
             error_kind=error_kind,
             error_code=error_code,
             severity=severity,
             is_expected=is_expected,
+            extra=error_extra,
         )
+        yield streaming_service.format_data("turn-status", {"status": "idle"})
         yield streaming_service.format_finish_step()
         yield streaming_service.format_finish()
         yield streaming_service.format_done()
 
     finally:
         with anyio.CancelScope(shield=True):
+            # Authoritative fallback cleanup for lock/cancel state. Middleware
+            # teardown can be skipped on some client-abort paths.
+            end_turn(str(chat_id))
+
             # Release premium reservation if not finalized
             if _resume_premium_request_id and _resume_premium_reserved > 0 and user_id:
                 try:

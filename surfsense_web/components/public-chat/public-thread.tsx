@@ -45,20 +45,21 @@ export const PublicThread: FC<PublicThreadProps> = ({ footer }) => {
 				["--thread-max-width" as string]: "44rem",
 			}}
 		>
-			<ThreadPrimitive.Viewport className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 pt-4">
+			<ThreadPrimitive.Viewport
+				scrollToBottomOnInitialize
+				scrollToBottomOnThreadSwitch
+				className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 pt-4 pb-6"
+			>
 				<ThreadPrimitive.Messages
 					components={{
 						UserMessage: PublicUserMessage,
 						AssistantMessage: PublicAssistantMessage,
 					}}
 				/>
-
-				{/* Spacer to ensure footer doesn't overlap last message */}
-				<div className="h-24" />
 			</ThreadPrimitive.Viewport>
 
 			{footer && (
-				<div className="sticky bottom-0 z-20 border-t bg-main-panel/95 backdrop-blur supports-backdrop-filter:bg-main-panel/60">
+				<div className="border-t bg-main-panel/95 backdrop-blur supports-backdrop-filter:bg-main-panel/60">
 					{footer}
 				</div>
 			)}

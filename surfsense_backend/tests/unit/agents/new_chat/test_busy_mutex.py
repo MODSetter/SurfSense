@@ -7,7 +7,9 @@ import pytest
 from app.agents.new_chat.errors import BusyError
 from app.agents.new_chat.middleware.busy_mutex import (
     BusyMutexMiddleware,
+    end_turn,
     get_cancel_event,
+    is_cancel_requested,
     manager,
     request_cancel,
     reset_cancel,
@@ -88,3 +90,31 @@ async def test_no_thread_id_skipped_when_not_required() -> None:
 def test_reset_cancel_idempotent() -> None:
     # Should not raise even if event was never created
     reset_cancel("never-seen")
+
+
+def test_request_cancel_creates_event_for_unseen_thread() -> None:
+    thread_id = "never-seen-cancel"
+    reset_cancel(thread_id)
+
+    assert request_cancel(thread_id) is True
+    assert get_cancel_event(thread_id).is_set()
+    assert is_cancel_requested(thread_id) is True
+
+
+@pytest.mark.asyncio
+async def test_end_turn_force_clears_lock_and_cancel_state() -> None:
+    thread_id = "forced-end-turn"
+    mw = BusyMutexMiddleware()
+    runtime = _Runtime(thread_id)
+
+    await mw.abefore_agent({}, runtime)
+    assert manager.lock_for(thread_id).locked()
+
+    request_cancel(thread_id)
+    assert is_cancel_requested(thread_id) is True
+
+    end_turn(thread_id)
+
+    assert not manager.lock_for(thread_id).locked()
+    assert not get_cancel_event(thread_id).is_set()
+    assert is_cancel_requested(thread_id) is False

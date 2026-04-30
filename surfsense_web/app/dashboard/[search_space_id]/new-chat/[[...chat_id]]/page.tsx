@@ -64,6 +64,10 @@ import {
 	classifyChatError,
 	type ChatFlow,
 } from "@/lib/chat/chat-error-classifier";
+import {
+	tagPreAcceptSendFailure,
+	toHttpResponseError,
+} from "@/lib/chat/chat-request-errors";
 import { convertToThreadMessage } from "@/lib/chat/message-utils";
 import {
 	isPodcastGenerating,
@@ -71,23 +75,27 @@ import {
 	setActivePodcastTaskId,
 } from "@/lib/chat/podcast-state";
 import {
-	addStepSeparator,
-	addToolCall,
-	appendReasoning,
-	appendText,
-	appendToolInputDelta,
 	buildContentForPersistence,
 	buildContentForUI,
 	type ContentPartsState,
-	endReasoning,
-	FrameBatchedUpdater,
-	readSSEStream,
-	type SSEEvent,
+	type FrameBatchedUpdater,
 	type ThinkingStepData,
 	type ToolUIGate,
-	updateThinkingSteps,
-	updateToolCall,
 } from "@/lib/chat/streaming-state";
+import { createStreamFlushHelpers } from "@/lib/chat/stream-flush";
+import {
+	consumeSseEvents,
+	hasPersistableContent,
+	processSharedStreamEvent,
+} from "@/lib/chat/stream-pipeline";
+import {
+	applyTurnIdToAssistantMessageList,
+	applyInterruptRequestToContentParts,
+	mergeChatTurnIdIntoMessage,
+	mergeEditedInterruptAction,
+	markInterruptDecisionOnContentParts,
+	readStreamedChatTurnId,
+} from "@/lib/chat/stream-side-effects";
 import {
 	appendMessage,
 	createThread,
@@ -135,124 +143,6 @@ const MobileReportPanel = dynamic(
 );
 
 /**
- * After a tool produces output, mark any previously-decided interrupt tool
- * calls as completed so the ApprovalCard can transition from shimmer to done.
- */
-function markInterruptsCompleted(contentParts: Array<{ type: string; result?: unknown }>): void {
-	for (const part of contentParts) {
-		if (
-			part.type === "tool-call" &&
-			typeof part.result === "object" &&
-			part.result !== null &&
-			(part.result as Record<string, unknown>).__interrupt__ === true &&
-			(part.result as Record<string, unknown>).__decided__ &&
-			!(part.result as Record<string, unknown>).__completed__
-		) {
-			part.result = { ...(part.result as Record<string, unknown>), __completed__: true };
-		}
-	}
-}
-
-function toStreamTerminalError(
-	event: Extract<SSEEvent, { type: "error" }>
-): Error & { errorCode?: string } {
-	return Object.assign(new Error(event.errorText || "Server error"), {
-		errorCode: event.errorCode,
-	});
-}
-
-async function toHttpResponseError(response: Response): Promise<Error & { errorCode?: string }> {
-	const statusDefaultCode =
-		response.status === 409
-			? "THREAD_BUSY"
-			: response.status === 429
-				? "RATE_LIMITED"
-				: response.status === 401 || response.status === 403
-					? "AUTH_EXPIRED"
-					: "SERVER_ERROR";
-
-	let rawBody = "";
-	try {
-		rawBody = await response.text();
-	} catch {
-		// noop
-	}
-
-	let parsedBody: Record<string, unknown> | null = null;
-	if (rawBody) {
-		try {
-			const parsed = JSON.parse(rawBody);
-			if (typeof parsed === "object" && parsed !== null) {
-				parsedBody = parsed as Record<string, unknown>;
-			}
-		} catch {
-			// noop
-		}
-	}
-
-	const detail = parsedBody?.detail;
-	const detailObject =
-		typeof detail === "object" && detail !== null ? (detail as Record<string, unknown>) : null;
-	const detailMessage = typeof detail === "string" ? detail : undefined;
-	const topLevelMessage =
-		typeof parsedBody?.message === "string" ? (parsedBody.message as string) : undefined;
-	const detailNestedMessage =
-		typeof detailObject?.message === "string" ? (detailObject.message as string) : undefined;
-
-	const topLevelCode =
-		typeof parsedBody?.errorCode === "string"
-			? parsedBody.errorCode
-			: typeof parsedBody?.error_code === "string"
-				? parsedBody.error_code
-				: undefined;
-	const detailCode =
-		typeof detailObject?.errorCode === "string"
-			? detailObject.errorCode
-			: typeof detailObject?.error_code === "string"
-				? detailObject.error_code
-				: undefined;
-
-	const errorCode = detailCode ?? topLevelCode ?? statusDefaultCode;
-	const message =
-		detailNestedMessage ??
-		detailMessage ??
-		topLevelMessage ??
-		`Backend error: ${response.status}`;
-
-	return Object.assign(new Error(message), { errorCode });
-}
-
-function tagPreAcceptSendFailure(error: unknown): unknown {
-	if (error instanceof Error) {
-		const withCode = error as Error & { errorCode?: string; code?: string };
-		const existingCode = withCode.errorCode ?? withCode.code;
-		const passthroughCodes = new Set([
-			"PREMIUM_QUOTA_EXHAUSTED",
-			"THREAD_BUSY",
-			"AUTH_EXPIRED",
-			"UNAUTHORIZED",
-			"RATE_LIMITED",
-			"NETWORK_ERROR",
-			"STREAM_PARSE_ERROR",
-			"TOOL_EXECUTION_ERROR",
-			"PERSIST_MESSAGE_FAILED",
-			"SERVER_ERROR",
-		]);
-		if (
-			existingCode &&
-			passthroughCodes.has(existingCode)
-		) {
-			return Object.assign(error, { errorCode: existingCode });
-		}
-		return Object.assign(error, { errorCode: "SEND_FAILED_PRE_ACCEPT" });
-	}
-
-	return Object.assign(new Error("Failed to send message before stream acceptance"), {
-		errorCode: "SEND_FAILED_PRE_ACCEPT",
-	});
-}
-
-/**
  * Zod schema for mentioned document info (for type-safe parsing)
  */
 const MentionedDocumentInfoSchema = z.object({
@@ -292,28 +182,19 @@ function extractMentionedDocuments(content: unknown): MentionedDocumentInfo[] {
  * ``stream_new_chat.py``) keep the JSON from ballooning.
  */
 const TOOLS_WITH_UI_ALL: ToolUIGate = "all";
+const TURN_CANCELLING_INITIAL_DELAY_MS = 200;
+const TURN_CANCELLING_BACKOFF_FACTOR = 2;
+const TURN_CANCELLING_MAX_DELAY_MS = 1500;
+const RECENT_CANCEL_WINDOW_MS = 5_000;
 
-/**
- * When a streamed message is persisted, the backend returns the durable
- * ``turn_id`` (``configurable.turn_id`` from the agent run). Merge it
- * into the assistant-ui message metadata so the per-turn "Revert turn"
- * button can scope to this turn's actions even after a full chat reload.
- */
-function mergeChatTurnIdIntoMessage(
-	msg: ThreadMessageLike,
-	turnId: string | null | undefined
-): ThreadMessageLike {
-	if (!turnId) return msg;
-	const existingMeta = (msg.metadata ?? {}) as { custom?: Record<string, unknown> };
-	const existingCustom = existingMeta.custom ?? {};
-	if ((existingCustom as { chatTurnId?: string }).chatTurnId === turnId) return msg;
-	return {
-		...msg,
-		metadata: {
-			...existingMeta,
-			custom: { ...existingCustom, chatTurnId: turnId },
-		},
-	};
+function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function computeFallbackTurnCancellingRetryDelay(attempt: number): number {
+	const safeAttempt = Math.max(1, attempt);
+	const raw = TURN_CANCELLING_INITIAL_DELAY_MS * TURN_CANCELLING_BACKOFF_FACTOR ** (safeAttempt - 1);
+	return Math.min(raw, TURN_CANCELLING_MAX_DELAY_MS);
 }
 
 export default function NewChatPage() {
@@ -326,6 +207,7 @@ export default function NewChatPage() {
 	const [isRunning, setIsRunning] = useState(false);
 	const [tokenUsageStore] = useState(() => createTokenUsageStore());
 	const abortControllerRef = useRef<AbortController | null>(null);
+	const recentCancelRequestedAtRef = useRef(0);
 	const [pendingInterrupt, setPendingInterrupt] = useState<{
 		threadId: number;
 		assistantMsgId: string;
@@ -456,7 +338,7 @@ export default function NewChatPage() {
 			threadId: number | null;
 			assistantMsgId: string;
 			content: unknown;
-			tokenUsage?: Record<string, unknown>;
+			tokenUsage?: TokenUsageData;
 			turnId?: string | null;
 			logContext: string;
 			onRemapped?: (newMsgId: string) => void;
@@ -731,6 +613,36 @@ export default function NewChatPage() {
 		[handleChatFailure]
 	);
 
+	const fetchWithTurnCancellingRetry = useCallback(
+		async (runFetch: () => Promise<Response>) => {
+			const maxAttempts = 4;
+			for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+				const response = await runFetch();
+				if (response.ok) {
+					return response;
+				}
+				const error = await toHttpResponseError(response);
+				const withMeta = error as Error & { errorCode?: string; retryAfterMs?: number };
+				const isTurnCancelling = withMeta.errorCode === "TURN_CANCELLING";
+				const isRecentThreadBusyAfterCancel =
+					withMeta.errorCode === "THREAD_BUSY" &&
+					Date.now() - recentCancelRequestedAtRef.current <= RECENT_CANCEL_WINDOW_MS;
+				if ((isTurnCancelling || isRecentThreadBusyAfterCancel) && attempt < maxAttempts) {
+					const waitMs =
+						withMeta.retryAfterMs ?? computeFallbackTurnCancellingRetryDelay(attempt);
+					await sleep(waitMs);
+					continue;
+				}
+				throw error;
+			}
+
+			throw Object.assign(new Error("Turn cancellation retry limit exceeded"), {
+				errorCode: "TURN_CANCELLING",
+			});
+		},
+		[]
+	);
+
 	// Initialize thread and load messages
 	// For new chats (no urlChatId), we use lazy creation - thread is created on first message
 	const initializeThread = useCallback(async () => {
@@ -900,12 +812,39 @@ export default function NewChatPage() {
 
 	// Cancel ongoing request
 	const cancelRun = useCallback(async () => {
+		if (threadId) {
+			const token = getBearerToken();
+			if (token) {
+				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+				try {
+					const response = await fetch(
+						`${backendUrl}/api/v1/threads/${threadId}/cancel-active-turn`,
+						{
+							method: "POST",
+							headers: {
+								Authorization: `Bearer ${token}`,
+							},
+						}
+					);
+					if (response.ok) {
+						const payload = (await response.json()) as {
+							error_code?: string;
+						};
+						if (payload.error_code === "TURN_CANCELLING") {
+							recentCancelRequestedAtRef.current = Date.now();
+						}
+					}
+				} catch (error) {
+					console.warn("[NewChatPage] Failed to signal cancel-active-turn:", error);
+				}
+			}
+		}
 		if (abortControllerRef.current) {
 			abortControllerRef.current.abort();
 			abortControllerRef.current = null;
 		}
 		setIsRunning(false);
-	}, []);
+	}, [threadId]);
 
 	// Handle new message from user
 	const onNew = useCallback(
@@ -1055,21 +994,20 @@ export default function NewChatPage() {
 			// Prepare assistant message
 			const assistantMsgId = `msg-assistant-${Date.now()}`;
 			const currentThinkingSteps = new Map<string, ThinkingStepData>();
-			const batcher = new FrameBatchedUpdater();
-
 			const contentPartsState: ContentPartsState = {
 				contentParts: [],
 				currentTextPartIndex: -1,
 				currentReasoningPartIndex: -1,
 				toolCallIndices: new Map(),
 			};
-			const { contentParts, toolCallIndices } = contentPartsState;
+			const { contentParts } = contentPartsState;
 			let wasInterrupted = false;
-			let tokenUsageData: Record<string, unknown> | null = null;
+			let tokenUsageData: TokenUsageData | null = null;
 			let newAccepted = false;
 			let userPersisted = false;
 			// Captured from ``data-turn-info`` at stream start.
 			let streamedChatTurnId: string | null = null;
+			let streamBatcher: FrameBatchedUpdater | null = null;
 
 			try {
 				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
@@ -1105,29 +1043,33 @@ export default function NewChatPage() {
 					setMentionedDocuments([]);
 				}
 
-				const response = await fetch(`${backendUrl}/api/v1/new_chat`, {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
-					body: JSON.stringify({
-						chat_id: currentThreadId,
-						user_query: userQuery.trim(),
-						search_space_id: searchSpaceId,
-						filesystem_mode: selection.filesystem_mode,
-						client_platform: selection.client_platform,
-						local_filesystem_mounts: selection.local_filesystem_mounts,
-						messages: messageHistory,
-						mentioned_document_ids: hasDocumentIds ? mentionedDocumentIds.document_ids : undefined,
-						mentioned_surfsense_doc_ids: hasSurfsenseDocIds
-							? mentionedDocumentIds.surfsense_doc_ids
-							: undefined,
-						disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
-						...(userImages.length > 0 ? { user_images: userImages } : {}),
-					}),
-					signal: controller.signal,
-				});
+				const response = await fetchWithTurnCancellingRetry(() =>
+					fetch(`${backendUrl}/api/v1/new_chat`, {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							Authorization: `Bearer ${token}`,
+						},
+						body: JSON.stringify({
+							chat_id: currentThreadId,
+							user_query: userQuery.trim(),
+							search_space_id: searchSpaceId,
+							filesystem_mode: selection.filesystem_mode,
+							client_platform: selection.client_platform,
+							local_filesystem_mounts: selection.local_filesystem_mounts,
+							messages: messageHistory,
+							mentioned_document_ids: hasDocumentIds
+								? mentionedDocumentIds.document_ids
+								: undefined,
+							mentioned_surfsense_doc_ids: hasSurfsenseDocIds
+								? mentionedDocumentIds.surfsense_doc_ids
+								: undefined,
+							disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
+							...(userImages.length > 0 ? { user_images: userImages } : {}),
+						}),
+						signal: controller.signal,
+					})
+				);
 
 				if (!response.ok) {
 					throw await toHttpResponseError(response);
@@ -1152,123 +1094,42 @@ export default function NewChatPage() {
 						)
 					);
 				};
-				const scheduleFlush = () => batcher.schedule(flushMessages);
-				// Force-flush helper: ``batcher.flush()`` is a no-op when
-				// ``dirty=false`` (e.g. a tool starts before any text
-				// streamed). ``scheduleFlush(); batcher.flush()`` sets
-				// the dirty bit FIRST so terminal events render
-				// promptly without the 50ms throttle delay.
-				const forceFlush = () => {
-					scheduleFlush();
-					batcher.flush();
-				};
+				const { batcher, scheduleFlush, forceFlush } = createStreamFlushHelpers(flushMessages);
+				streamBatcher = batcher;
 
-				for await (const parsed of readSSEStream(response)) {
-					switch (parsed.type) {
-						case "text-delta":
-							appendText(contentPartsState, parsed.delta);
-							scheduleFlush();
-							break;
-
-						case "reasoning-delta":
-							appendReasoning(contentPartsState, parsed.delta);
-							scheduleFlush();
-							break;
-
-						case "reasoning-end":
-							endReasoning(contentPartsState);
-							scheduleFlush();
-							break;
-
-						case "start-step":
-							addStepSeparator(contentPartsState);
-							scheduleFlush();
-							break;
-
-						case "finish-step":
-							break;
-
-						case "tool-input-start":
-							addToolCall(
-								contentPartsState,
-								toolsWithUI,
-								parsed.toolCallId,
-								parsed.toolName,
-								{},
-								false,
-								parsed.langchainToolCallId
-							);
-							forceFlush();
-							break;
-
-						case "tool-input-delta":
-							// High-frequency event: deltas can fire dozens
-							// of times per call, so use throttled
-							// scheduleFlush (NOT forceFlush) to coalesce.
-							appendToolInputDelta(contentPartsState, parsed.toolCallId, parsed.inputTextDelta);
-							scheduleFlush();
-							break;
-
-						case "tool-input-available": {
-							const finalArgsText = JSON.stringify(parsed.input ?? {}, null, 2);
-							if (toolCallIndices.has(parsed.toolCallId)) {
-								updateToolCall(contentPartsState, parsed.toolCallId, {
-									args: parsed.input || {},
-									argsText: finalArgsText,
-									langchainToolCallId: parsed.langchainToolCallId,
-								});
-							} else {
-								addToolCall(
-									contentPartsState,
-									toolsWithUI,
-									parsed.toolCallId,
-									parsed.toolName,
-									parsed.input || {},
-									false,
-									parsed.langchainToolCallId
-								);
-								// addToolCall doesn't accept argsText today;
-								// backfill via updateToolCall so the new card
-								// renders pretty-printed JSON.
-								updateToolCall(contentPartsState, parsed.toolCallId, {
-									argsText: finalArgsText,
-								});
-							}
-							forceFlush();
-							break;
-						}
-
-						case "tool-output-available": {
-							updateToolCall(contentPartsState, parsed.toolCallId, {
-								result: parsed.output,
-								langchainToolCallId: parsed.langchainToolCallId,
-							});
-							markInterruptsCompleted(contentParts);
-							if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
-								const idx = toolCallIndices.get(parsed.toolCallId);
-								if (idx !== undefined) {
-									const part = contentParts[idx];
-									if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
-										setActivePodcastTaskId(String(parsed.output.podcast_id));
+				await consumeSseEvents(response, async (parsed) => {
+					if (
+						processSharedStreamEvent(parsed, {
+							contentPartsState,
+							toolsWithUI,
+							currentThinkingSteps,
+							scheduleFlush,
+							forceFlush,
+							onTokenUsage: (data) => {
+								tokenUsageData = data;
+								tokenUsageStore.set(assistantMsgId, data);
+							},
+							onTurnStatus: (data) => {
+								if (data.status === "cancelling") {
+									recentCancelRequestedAtRef.current = Date.now();
+								}
+							},
+							onToolOutputAvailable: (event, sharedCtx) => {
+								if (event.output?.status === "pending" && event.output?.podcast_id) {
+									const idx = sharedCtx.toolCallIndices.get(event.toolCallId);
+									if (idx !== undefined) {
+										const part = sharedCtx.contentPartsState.contentParts[idx];
+										if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
+											setActivePodcastTaskId(String(event.output.podcast_id));
+										}
 									}
 								}
-							}
-							forceFlush();
-							break;
-						}
-
-						case "data-thinking-step": {
-							const stepData = parsed.data as ThinkingStepData;
-							if (stepData?.id) {
-								currentThinkingSteps.set(stepData.id, stepData);
-								const didUpdate = updateThinkingSteps(contentPartsState, currentThinkingSteps);
-								if (didUpdate) {
-									scheduleFlush();
-								}
-							}
-							break;
-						}
-
+							},
+						})
+					) {
+						return;
+					}
+					switch (parsed.type) {
 						case "data-thread-title-update": {
 							const titleData = parsed.data as { threadId: number; title: string };
 							if (titleData?.title && titleData?.threadId === currentThreadId) {
@@ -1310,27 +1171,7 @@ export default function NewChatPage() {
 						case "data-interrupt-request": {
 							wasInterrupted = true;
 							const interruptData = parsed.data as Record<string, unknown>;
-							const actionRequests = (interruptData.action_requests ?? []) as Array<{
-								name: string;
-								args: Record<string, unknown>;
-							}>;
-							for (const action of actionRequests) {
-								const existingIdx = Array.from(toolCallIndices.entries()).find(([, idx]) => {
-									const part = contentParts[idx];
-									return part?.type === "tool-call" && part.toolName === action.name;
-								});
-								if (existingIdx) {
-									updateToolCall(contentPartsState, existingIdx[0], {
-										result: { __interrupt__: true, ...interruptData },
-									});
-								} else {
-									const tcId = `interrupt-${action.name}`;
-									addToolCall(contentPartsState, toolsWithUI, tcId, action.name, action.args, true);
-									updateToolCall(contentPartsState, tcId, {
-										result: { __interrupt__: true, ...interruptData },
-									});
-								}
-							}
+							applyInterruptRequestToContentParts(contentPartsState, toolsWithUI, interruptData);
 							setMessages((prev) =>
 								prev.map((m) =>
 									m.id === assistantMsgId
@@ -1364,26 +1205,17 @@ export default function NewChatPage() {
 						}
 
 						case "data-turn-info": {
-							streamedChatTurnId = parsed.data.chat_turn_id || null;
-							if (streamedChatTurnId) {
+							const turnId = readStreamedChatTurnId(parsed.data);
+							streamedChatTurnId = turnId;
+							if (turnId) {
 								setMessages((prev) =>
-									prev.map((m) =>
-										m.id === assistantMsgId ? mergeChatTurnIdIntoMessage(m, streamedChatTurnId) : m
-									)
+									applyTurnIdToAssistantMessageList(prev, assistantMsgId, turnId)
 								);
 							}
 							break;
 						}
-
-						case "data-token-usage":
-							tokenUsageData = parsed.data;
-							tokenUsageStore.set(assistantMsgId, parsed.data as TokenUsageData);
-							break;
-
-						case "error":
-							throw toStreamTerminalError(parsed);
 					}
-				}
+				});
 
 				batcher.flush();
 
@@ -1425,7 +1257,7 @@ export default function NewChatPage() {
 					trackChatResponseReceived(searchSpaceId, currentThreadId);
 				}
 			} catch (error) {
-				batcher.dispose();
+				streamBatcher?.dispose();
 				await handleStreamTerminalError({
 					error,
 					flow: "new",
@@ -1448,13 +1280,7 @@ export default function NewChatPage() {
 							}
 						}
 
-						const hasContent = contentParts.some(
-							(part) =>
-								(part.type === "text" && part.text.length > 0) ||
-								(part.type === "reasoning" && part.text.length > 0) ||
-								(part.type === "tool-call" &&
-									(toolsWithUI === "all" || toolsWithUI.has(part.toolName)))
-						);
+						const hasContent = hasPersistableContent(contentParts, toolsWithUI);
 						if (hasContent && currentThreadId) {
 							const partialContent = buildContentForPersistence(contentPartsState, toolsWithUI);
 							await persistAssistantTurn({
@@ -1512,6 +1338,7 @@ export default function NewChatPage() {
 			tokenUsageStore,
 			pendingUserImageUrls,
 			setPendingUserImageUrls,
+			fetchWithTurnCancellingRetry,
 			handleStreamTerminalError,
 			handleChatFailure,
 			persistAssistantTurn,
@@ -1543,7 +1370,6 @@ export default function NewChatPage() {
 			abortControllerRef.current = controller;
 
 			const currentThinkingSteps = new Map<string, ThinkingStepData>();
-			const batcher = new FrameBatchedUpdater();
 
 			const contentPartsState: ContentPartsState = {
 				contentParts: [],
@@ -1552,10 +1378,11 @@ export default function NewChatPage() {
 				toolCallIndices: new Map(),
 			};
 			const { contentParts, toolCallIndices } = contentPartsState;
-			let tokenUsageData: Record<string, unknown> | null = null;
+			let tokenUsageData: TokenUsageData | null = null;
 			let resumeAccepted = false;
 			// Captured from ``data-turn-info`` at stream start.
 			let streamedChatTurnId: string | null = null;
+			let streamBatcher: FrameBatchedUpdater | null = null;
 
 			const existingMsg = messages.find((m) => m.id === assistantMsgId);
 			if (existingMsg && Array.isArray(existingMsg.content)) {
@@ -1599,56 +1426,33 @@ export default function NewChatPage() {
 			}
 
 			// Merge edited args if present to fix race condition
-			if (decisions.length > 0 && decisions[0].type === "edit" && decisions[0].edited_action) {
-				const editedAction = decisions[0].edited_action;
-				for (const part of contentParts) {
-					if (part.type === "tool-call" && part.toolName === editedAction.name) {
-						const mergedArgs = { ...part.args, ...editedAction.args };
-						part.args = mergedArgs;
-						// Sync argsText so the rendered card shows the
-						// edited inputs — assistant-ui prefers caller-
-						// supplied argsText over JSON.stringify(args).
-						part.argsText = JSON.stringify(mergedArgs, null, 2);
-						break;
-					}
-				}
+			if (decisions.length > 0 && decisions[0].type === "edit") {
+				mergeEditedInterruptAction(contentParts, decisions[0].edited_action);
 			}
 
 			const decisionType = decisions[0]?.type as "approve" | "reject" | undefined;
-			if (decisionType) {
-				for (const part of contentParts) {
-					if (
-						part.type === "tool-call" &&
-						typeof part.result === "object" &&
-						part.result !== null &&
-						"__interrupt__" in (part.result as Record<string, unknown>)
-					) {
-						part.result = {
-							...(part.result as Record<string, unknown>),
-							__decided__: decisionType,
-						};
-					}
-				}
-			}
+			markInterruptDecisionOnContentParts(contentParts, decisionType);
 
 			try {
 				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
 				const selection = await getAgentFilesystemSelection(searchSpaceId);
-				const response = await fetch(`${backendUrl}/api/v1/threads/${resumeThreadId}/resume`, {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
-					body: JSON.stringify({
-						search_space_id: searchSpaceId,
-						decisions,
-						filesystem_mode: selection.filesystem_mode,
-						client_platform: selection.client_platform,
-						local_filesystem_mounts: selection.local_filesystem_mounts,
-					}),
-					signal: controller.signal,
-				});
+				const response = await fetchWithTurnCancellingRetry(() =>
+					fetch(`${backendUrl}/api/v1/threads/${resumeThreadId}/resume`, {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							Authorization: `Bearer ${token}`,
+						},
+						body: JSON.stringify({
+							search_space_id: searchSpaceId,
+							decisions,
+							filesystem_mode: selection.filesystem_mode,
+							client_platform: selection.client_platform,
+							local_filesystem_mounts: selection.local_filesystem_mounts,
+						}),
+						signal: controller.signal,
+					})
+				);
 
 				if (!response.ok) {
 					throw await toHttpResponseError(response);
@@ -1664,131 +1468,34 @@ export default function NewChatPage() {
 						)
 					);
 				};
-				const scheduleFlush = () => batcher.schedule(flushMessages);
-				const forceFlush = () => {
-					scheduleFlush();
-					batcher.flush();
-				};
+				const { batcher, scheduleFlush, forceFlush } = createStreamFlushHelpers(flushMessages);
+				streamBatcher = batcher;
 
-				for await (const parsed of readSSEStream(response)) {
-					switch (parsed.type) {
-						case "text-delta":
-							appendText(contentPartsState, parsed.delta);
-							scheduleFlush();
-							break;
-
-						case "reasoning-delta":
-							appendReasoning(contentPartsState, parsed.delta);
-							scheduleFlush();
-							break;
-
-						case "reasoning-end":
-							endReasoning(contentPartsState);
-							scheduleFlush();
-							break;
-
-						case "start-step":
-							addStepSeparator(contentPartsState);
-							scheduleFlush();
-							break;
-
-						case "finish-step":
-							break;
-
-						case "tool-input-start":
-							addToolCall(
-								contentPartsState,
-								toolsWithUI,
-								parsed.toolCallId,
-								parsed.toolName,
-								{},
-								false,
-								parsed.langchainToolCallId
-							);
-							forceFlush();
-							break;
-
-						case "tool-input-delta":
-							appendToolInputDelta(contentPartsState, parsed.toolCallId, parsed.inputTextDelta);
-							scheduleFlush();
-							break;
-
-						case "tool-input-available": {
-							const finalArgsText = JSON.stringify(parsed.input ?? {}, null, 2);
-							if (toolCallIndices.has(parsed.toolCallId)) {
-								updateToolCall(contentPartsState, parsed.toolCallId, {
-									args: parsed.input || {},
-									argsText: finalArgsText,
-									langchainToolCallId: parsed.langchainToolCallId,
-								});
-							} else {
-								addToolCall(
-									contentPartsState,
-									toolsWithUI,
-									parsed.toolCallId,
-									parsed.toolName,
-									parsed.input || {},
-									false,
-									parsed.langchainToolCallId
-								);
-								updateToolCall(contentPartsState, parsed.toolCallId, {
-									argsText: finalArgsText,
-								});
-							}
-							forceFlush();
-							break;
-						}
-
-						case "tool-output-available":
-							updateToolCall(contentPartsState, parsed.toolCallId, {
-								result: parsed.output,
-								langchainToolCallId: parsed.langchainToolCallId,
-							});
-							markInterruptsCompleted(contentParts);
-							forceFlush();
-							break;
-
-						case "data-thinking-step": {
-							const stepData = parsed.data as ThinkingStepData;
-							if (stepData?.id) {
-								currentThinkingSteps.set(stepData.id, stepData);
-								const didUpdate = updateThinkingSteps(contentPartsState, currentThinkingSteps);
-								if (didUpdate) {
-									scheduleFlush();
+				await consumeSseEvents(response, async (parsed) => {
+					if (
+						processSharedStreamEvent(parsed, {
+							contentPartsState,
+							toolsWithUI,
+							currentThinkingSteps,
+							scheduleFlush,
+							forceFlush,
+							onTokenUsage: (data) => {
+								tokenUsageData = data;
+								tokenUsageStore.set(assistantMsgId, data);
+							},
+							onTurnStatus: (data) => {
+								if (data.status === "cancelling") {
+									recentCancelRequestedAtRef.current = Date.now();
 								}
-							}
-							break;
-						}
-
+							},
+						})
+					) {
+						return;
+					}
+					switch (parsed.type) {
 						case "data-interrupt-request": {
 							const interruptData = parsed.data as Record<string, unknown>;
-							const actionRequests = (interruptData.action_requests ?? []) as Array<{
-								name: string;
-								args: Record<string, unknown>;
-							}>;
-							for (const action of actionRequests) {
-								const existingIdx = Array.from(toolCallIndices.entries()).find(([, idx]) => {
-									const part = contentParts[idx];
-									return part?.type === "tool-call" && part.toolName === action.name;
-								});
-								if (existingIdx) {
-									updateToolCall(contentPartsState, existingIdx[0], {
-										result: {
-											__interrupt__: true,
-											...interruptData,
-										},
-									});
-								} else {
-									const tcId = `interrupt-${action.name}`;
-									addToolCall(contentPartsState, toolsWithUI, tcId, action.name, action.args, true);
-									updateToolCall(contentPartsState, tcId, {
-										result: {
-											__interrupt__: true,
-											...interruptData,
-										},
-									});
-								}
-							}
+							applyInterruptRequestToContentParts(contentPartsState, toolsWithUI, interruptData);
 							setMessages((prev) =>
 								prev.map((m) =>
 									m.id === assistantMsgId
@@ -1820,26 +1527,17 @@ export default function NewChatPage() {
 						}
 
 						case "data-turn-info": {
-							streamedChatTurnId = parsed.data.chat_turn_id || null;
-							if (streamedChatTurnId) {
+							const turnId = readStreamedChatTurnId(parsed.data);
+							streamedChatTurnId = turnId;
+							if (turnId) {
 								setMessages((prev) =>
-									prev.map((m) =>
-										m.id === assistantMsgId ? mergeChatTurnIdIntoMessage(m, streamedChatTurnId) : m
-									)
+									applyTurnIdToAssistantMessageList(prev, assistantMsgId, turnId)
 								);
 							}
 							break;
 						}
-
-						case "data-token-usage":
-							tokenUsageData = parsed.data;
-							tokenUsageStore.set(assistantMsgId, parsed.data as TokenUsageData);
-							break;
-
-						case "error":
-							throw toStreamTerminalError(parsed);
 					}
-				}
+				});
 
 				batcher.flush();
 
@@ -1855,7 +1553,7 @@ export default function NewChatPage() {
 					});
 				}
 			} catch (error) {
-				batcher.dispose();
+				streamBatcher?.dispose();
 				await handleStreamTerminalError({
 					error,
 					flow: "resume",
@@ -1864,13 +1562,7 @@ export default function NewChatPage() {
 					accepted: resumeAccepted,
 					onAbort: async () => {
 						if (!resumeAccepted) return;
-						const hasContent = contentParts.some(
-							(part) =>
-								(part.type === "text" && part.text.length > 0) ||
-								(part.type === "reasoning" && part.text.length > 0) ||
-								(part.type === "tool-call" &&
-									(toolsWithUI === "all" || toolsWithUI.has(part.toolName)))
-						);
+						const hasContent = hasPersistableContent(contentParts, toolsWithUI);
 						if (!hasContent) return;
 						const partialContent = buildContentForPersistence(contentPartsState, toolsWithUI);
 						await persistAssistantTurn({
@@ -1891,7 +1583,9 @@ export default function NewChatPage() {
 			pendingInterrupt,
 			messages,
 			searchSpaceId,
+			queryClient,
 			tokenUsageStore,
+			fetchWithTurnCancellingRetry,
 			handleStreamTerminalError,
 			persistAssistantTurn,
 		]
@@ -2045,15 +1739,15 @@ export default function NewChatPage() {
 				currentReasoningPartIndex: -1,
 				toolCallIndices: new Map(),
 			};
-			const { contentParts, toolCallIndices } = contentPartsState;
-			const batcher = new FrameBatchedUpdater();
-			let tokenUsageData: Record<string, unknown> | null = null;
+			const { contentParts } = contentPartsState;
+			let tokenUsageData: TokenUsageData | null = null;
 			let regenerateAccepted = false;
 			let userPersisted = false;
 			// Captured from ``data-turn-info`` at stream start; stamped
 			// onto persisted messages so future edits can locate the
 			// right LangGraph checkpoint.
 			let streamedChatTurnId: string | null = null;
+			let streamBatcher: FrameBatchedUpdater | null = null;
 
 			// Add placeholder messages to UI
 			// Always add back the user message (with new query for edit, or original content for reload)
@@ -2096,15 +1790,17 @@ export default function NewChatPage() {
 						requestBody.revert_actions = true;
 					}
 				}
-				const response = await fetch(getRegenerateUrl(threadId), {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
-					body: JSON.stringify(requestBody),
-					signal: controller.signal,
-				});
+				const response = await fetchWithTurnCancellingRetry(() =>
+					fetch(getRegenerateUrl(threadId), {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							Authorization: `Bearer ${token}`,
+						},
+						body: JSON.stringify(requestBody),
+						signal: controller.signal,
+					})
+				);
 
 				if (!response.ok) {
 					throw await toHttpResponseError(response);
@@ -2155,111 +1851,42 @@ export default function NewChatPage() {
 						)
 					);
 				};
-				const scheduleFlush = () => batcher.schedule(flushMessages);
-				const forceFlush = () => {
-					scheduleFlush();
-					batcher.flush();
-				};
+				const { batcher, scheduleFlush, forceFlush } = createStreamFlushHelpers(flushMessages);
+				streamBatcher = batcher;
 
-				for await (const parsed of readSSEStream(response)) {
-					switch (parsed.type) {
-						case "text-delta":
-							appendText(contentPartsState, parsed.delta);
-							scheduleFlush();
-							break;
-
-						case "reasoning-delta":
-							appendReasoning(contentPartsState, parsed.delta);
-							scheduleFlush();
-							break;
-
-						case "reasoning-end":
-							endReasoning(contentPartsState);
-							scheduleFlush();
-							break;
-
-						case "start-step":
-							addStepSeparator(contentPartsState);
-							scheduleFlush();
-							break;
-
-						case "finish-step":
-							break;
-
-						case "tool-input-start":
-							addToolCall(
-								contentPartsState,
-								toolsWithUI,
-								parsed.toolCallId,
-								parsed.toolName,
-								{},
-								false,
-								parsed.langchainToolCallId
-							);
-							forceFlush();
-							break;
-
-						case "tool-input-delta":
-							appendToolInputDelta(contentPartsState, parsed.toolCallId, parsed.inputTextDelta);
-							scheduleFlush();
-							break;
-
-						case "tool-input-available": {
-							const finalArgsText = JSON.stringify(parsed.input ?? {}, null, 2);
-							if (toolCallIndices.has(parsed.toolCallId)) {
-								updateToolCall(contentPartsState, parsed.toolCallId, {
-									args: parsed.input || {},
-									argsText: finalArgsText,
-									langchainToolCallId: parsed.langchainToolCallId,
-								});
-							} else {
-								addToolCall(
-									contentPartsState,
-									toolsWithUI,
-									parsed.toolCallId,
-									parsed.toolName,
-									parsed.input || {},
-									false,
-									parsed.langchainToolCallId
-								);
-								updateToolCall(contentPartsState, parsed.toolCallId, {
-									argsText: finalArgsText,
-								});
-							}
-							forceFlush();
-							break;
-						}
-
-						case "tool-output-available":
-							updateToolCall(contentPartsState, parsed.toolCallId, {
-								result: parsed.output,
-								langchainToolCallId: parsed.langchainToolCallId,
-							});
-							markInterruptsCompleted(contentParts);
-							if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
-								const idx = toolCallIndices.get(parsed.toolCallId);
-								if (idx !== undefined) {
-									const part = contentParts[idx];
-									if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
-										setActivePodcastTaskId(String(parsed.output.podcast_id));
+				await consumeSseEvents(response, async (parsed) => {
+					if (
+						processSharedStreamEvent(parsed, {
+							contentPartsState,
+							toolsWithUI,
+							currentThinkingSteps,
+							scheduleFlush,
+							forceFlush,
+							onTokenUsage: (data) => {
+								tokenUsageData = data;
+								tokenUsageStore.set(assistantMsgId, data);
+							},
+							onTurnStatus: (data) => {
+								if (data.status === "cancelling") {
+									recentCancelRequestedAtRef.current = Date.now();
+								}
+							},
+							onToolOutputAvailable: (event, sharedCtx) => {
+								if (event.output?.status === "pending" && event.output?.podcast_id) {
+									const idx = sharedCtx.toolCallIndices.get(event.toolCallId);
+									if (idx !== undefined) {
+										const part = sharedCtx.contentPartsState.contentParts[idx];
+										if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
+											setActivePodcastTaskId(String(event.output.podcast_id));
+										}
 									}
 								}
-							}
-							forceFlush();
-							break;
-
-						case "data-thinking-step": {
-							const stepData = parsed.data as ThinkingStepData;
-							if (stepData?.id) {
-								currentThinkingSteps.set(stepData.id, stepData);
-								const didUpdate = updateThinkingSteps(contentPartsState, currentThinkingSteps);
-								if (didUpdate) {
-									scheduleFlush();
-								}
-							}
-							break;
-						}
-
+							},
+						})
+					) {
+						return;
+					}
+					switch (parsed.type) {
 						case "data-action-log": {
 							if (threadId !== null) {
 								applyActionLogSse(queryClient, threadId, searchSpaceId, parsed.data);
@@ -2280,12 +1907,11 @@ export default function NewChatPage() {
 						}
 
 						case "data-turn-info": {
-							streamedChatTurnId = parsed.data.chat_turn_id || null;
-							if (streamedChatTurnId) {
+							const turnId = readStreamedChatTurnId(parsed.data);
+							streamedChatTurnId = turnId;
+							if (turnId) {
 								setMessages((prev) =>
-									prev.map((m) =>
-										m.id === assistantMsgId ? mergeChatTurnIdIntoMessage(m, streamedChatTurnId) : m
-									)
+									applyTurnIdToAssistantMessageList(prev, assistantMsgId, turnId)
 								);
 							}
 							break;
@@ -2326,16 +1952,8 @@ export default function NewChatPage() {
 							}
 							break;
 						}
-
-						case "data-token-usage":
-							tokenUsageData = parsed.data;
-							tokenUsageStore.set(assistantMsgId, parsed.data as TokenUsageData);
-							break;
-
-						case "error":
-							throw toStreamTerminalError(parsed);
 					}
-				}
+				});
 
 				batcher.flush();
 
@@ -2364,7 +1982,7 @@ export default function NewChatPage() {
 					trackChatResponseReceived(searchSpaceId, threadId);
 				}
 			} catch (error) {
-				batcher.dispose();
+				streamBatcher?.dispose();
 				await handleStreamTerminalError({
 					error,
 					flow: "regenerate",
@@ -2384,13 +2002,7 @@ export default function NewChatPage() {
 							});
 							userPersisted = Boolean(persistedUserMsgId);
 						}
-						const hasContent = contentParts.some(
-							(part) =>
-								(part.type === "text" && part.text.length > 0) ||
-								(part.type === "reasoning" && part.text.length > 0) ||
-								(part.type === "tool-call" &&
-									(toolsWithUI === "all" || toolsWithUI.has(part.toolName)))
-						);
+						const hasContent = hasPersistableContent(contentParts, toolsWithUI);
 						if (!hasContent) return;
 						const partialContent = buildContentForPersistence(contentPartsState, toolsWithUI);
 						await persistAssistantTurn({
@@ -2428,7 +2040,9 @@ export default function NewChatPage() {
 			disabledTools,
 			messageDocumentsMap,
 			setMessageDocumentsMap,
+			queryClient,
 			tokenUsageStore,
+			fetchWithTurnCancellingRetry,
 			handleStreamTerminalError,
 			persistAssistantTurn,
 			persistUserTurn,

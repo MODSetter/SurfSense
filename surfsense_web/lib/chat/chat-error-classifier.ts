@@ -148,6 +148,22 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 	}
 
 	if (
+		errorCode === "TURN_CANCELLING"
+	) {
+		return {
+			kind: "thread_busy",
+			channel: "toast",
+			severity: "info",
+			telemetryEvent: "chat_blocked",
+			isExpected: true,
+			userMessage: "A previous response is still stopping. Please try again in a moment.",
+			rawMessage,
+			errorCode: errorCode ?? "TURN_CANCELLING",
+			details: { flow: input.flow },
+		};
+	}
+
+	if (
 		errorCode === "THREAD_BUSY"
 	) {
 		return {
@@ -156,7 +172,7 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 			severity: "warn",
 			telemetryEvent: "chat_blocked",
 			isExpected: true,
-			userMessage: "A previous response is still stopping. Please try again in a moment.",
+			userMessage: "Another response is still finishing for this thread. Please try again in a moment.",
 			rawMessage,
 			errorCode: errorCode ?? "THREAD_BUSY",
 			details: { flow: input.flow },

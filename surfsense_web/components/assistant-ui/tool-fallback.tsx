@@ -13,6 +13,7 @@ import {
 	isDoomLoopInterrupt,
 } from "@/components/tool-ui/doom-loop-approval";
 import { GenericHitlApprovalToolUI } from "@/components/tool-ui/generic-hitl-approval";
+import { NestedScroll } from "@/components/assistant-ui/nested-scroll";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -475,7 +476,7 @@ const DefaultToolFallbackInner: ToolCallMessagePartComponent = (props) => {
 						{(argsText || isRunning) && (
 							<div className="flex flex-col gap-1 min-w-0">
 								<p className="text-xs font-medium text-muted-foreground">Inputs</p>
-								<div className="max-h-48 overflow-auto rounded-md bg-muted/40">
+								<NestedScroll className="max-h-48 overflow-auto rounded-md bg-muted/40">
 									{argsText ? (
 										<pre className="px-3 py-2 text-xs text-foreground/80 whitespace-pre-wrap break-all font-mono">
 											{argsText}
@@ -489,7 +490,7 @@ const DefaultToolFallbackInner: ToolCallMessagePartComponent = (props) => {
 											Waiting for input…
 										</p>
 									)}
-								</div>
+								</NestedScroll>
 							</div>
 						)}
 						{!isCancelled && result !== undefined && (
@@ -497,11 +498,11 @@ const DefaultToolFallbackInner: ToolCallMessagePartComponent = (props) => {
 								<Separator />
 								<div className="flex flex-col gap-1 min-w-0">
 									<p className="text-xs font-medium text-muted-foreground">Result</p>
-									<div className="max-h-64 overflow-auto rounded-md bg-muted/40">
+									<NestedScroll className="max-h-64 overflow-auto rounded-md bg-muted/40">
 										<pre className="px-3 py-2 text-xs text-foreground/80 whitespace-pre-wrap break-all font-mono">
 											{typeof result === "string" ? result : serializedResult}
 										</pre>
-									</div>
+									</NestedScroll>
 								</div>
 							</>
 						)}
