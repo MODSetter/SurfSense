@@ -23,6 +23,7 @@ Local development (recommended for trying everything except doom-loop / selector
     SURFSENSE_ENABLE_PERMISSION=false   # default off, opt-in per deploy
     SURFSENSE_ENABLE_DOOM_LOOP=false    # default off until UI ships
     SURFSENSE_ENABLE_LLM_TOOL_SELECTOR=false
+    SURFSENSE_ENABLE_STREAM_PARITY_V2=false  # structured streaming events
 
 Master kill-switch (overrides everything else):
 
@@ -86,6 +87,15 @@ class AgentFeatureFlags:
         False  # Backend ships before UI; route returns 503 until this flips
     )
 
+    # Streaming parity v2 — opt in to LangChain's structured
+    # ``AIMessageChunk`` content (typed reasoning blocks, tool-input
+    # deltas) and propagate the real ``tool_call_id`` to the SSE layer.
+    # When OFF the ``stream_new_chat`` task falls back to the str-only
+    # text path and the synthetic ``call_<run_id>`` tool-call id (no
+    # ``langchainToolCallId`` propagation). Schema migrations 135/136
+    # ship unconditionally because they're forward-compatible.
+    enable_stream_parity_v2: bool = False
+
     # Plugins
     enable_plugin_loader: bool = False
 
@@ -139,6 +149,10 @@ class AgentFeatureFlags:
             # Snapshot / revert
             enable_action_log=_env_bool("SURFSENSE_ENABLE_ACTION_LOG", False),
             enable_revert_route=_env_bool("SURFSENSE_ENABLE_REVERT_ROUTE", False),
+            # Streaming parity v2
+            enable_stream_parity_v2=_env_bool(
+                "SURFSENSE_ENABLE_STREAM_PARITY_V2", False
+            ),
             # Plugins
             enable_plugin_loader=_env_bool("SURFSENSE_ENABLE_PLUGIN_LOADER", False),
             # Observability

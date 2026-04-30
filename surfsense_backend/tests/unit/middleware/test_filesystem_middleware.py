@@ -168,6 +168,8 @@ class TestModeSpecificPrompts:
             "edit_file",
             "move_file",
             "mkdir",
+            "rm",
+            "rmdir",
             "list_tree",
             "grep",
         ):
@@ -182,6 +184,8 @@ class TestModeSpecificPrompts:
             "edit_file",
             "move_file",
             "mkdir",
+            "rm",
+            "rmdir",
             "list_tree",
             "grep",
         ):
@@ -189,6 +193,18 @@ class TestModeSpecificPrompts:
             assert "Cloud" not in text, f"{name} leaks cloud hints"
             assert "/documents/" not in text, f"{name} mentions cloud namespace"
             assert "temp_" not in text, f"{name} mentions cloud temp_ semantics"
+
+    def test_cloud_descs_include_rm_and_rmdir(self):
+        descs = _build_tool_descriptions(FilesystemMode.CLOUD)
+        assert "rm" in descs and "rmdir" in descs
+        assert "Deletes a single file" in descs["rm"]
+        assert "Deletes an empty directory" in descs["rmdir"]
+        assert "rmdir" in descs["rmdir"] and "POSIX" in descs["rmdir"]
+
+    def test_desktop_descs_warn_about_irreversibility(self):
+        descs = _build_tool_descriptions(FilesystemMode.DESKTOP_LOCAL_FOLDER)
+        assert "NOT reversible" in descs["rm"]
+        assert "NOT reversible" in descs["rmdir"]
 
     def test_sandbox_addendum_appended_when_available(self):
         prompt = _build_filesystem_system_prompt(

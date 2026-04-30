@@ -11,6 +11,7 @@ These endpoints support the ThreadHistoryAdapter pattern from assistant-ui:
 """
 
 import asyncio
+import json
 import logging
 from datetime import UTC, datetime
 
@@ -134,6 +135,260 @@ def _resolve_filesystem_selection(
         mode=FilesystemMode.CLOUD,
         client_platform=resolved_platform,
     )
+
+
+def _find_pre_turn_checkpoint_id(
+    checkpoint_tuples: list,
+    *,
+    turn_id: str,
+) -> str | None:
+    """Locate the LangGraph checkpoint immediately before ``turn_id`` started.
+
+    ``checkpoint_tuples`` arrives newest-first from
+    ``checkpointer.alist(config)``. We walk OLDEST-first (``reversed``)
+    and remember the most recent checkpoint that does NOT belong to the
+    edited turn. As soon as we cross into the edited turn (a checkpoint
+    whose ``turn_id`` matches), we return the previously-tracked
+    checkpoint — that's the state immediately before ``turn_id`` began.
+
+    The naive "newest-first, return first non-matching" approach is
+    INCORRECT when later turns exist after ``turn_id``: their
+    checkpoints also satisfy ``cp_turn_id != turn_id`` and would be
+    returned before the real pre-turn boundary is reached.
+
+    Reads from ``cp_tuple.metadata`` (the durable surface promoted from
+    ``configurable`` at write time) rather than ``config["configurable"]``
+    so the lookup is portable across checkpointer implementations.
+
+    Returns ``None`` when no eligible pre-turn checkpoint exists (e.g.
+    the edited turn is the very first turn of the thread). Callers fall
+    back to the oldest available checkpoint in that case.
+    """
+
+    last_pre_turn_target: str | None = None
+    for cp_tuple in reversed(checkpoint_tuples):  # oldest -> newest
+        metadata = getattr(cp_tuple, "metadata", None) or {}
+        cp_turn_id = metadata.get("turn_id") if isinstance(metadata, dict) else None
+        if cp_turn_id == turn_id:
+            # Crossed into the edited turn; the previous tracked
+            # checkpoint is the rewind target. May be ``None`` if we hit
+            # the edited turn on the very first iteration.
+            return last_pre_turn_target
+        try:
+            last_pre_turn_target = cp_tuple.config["configurable"]["checkpoint_id"]
+        except (KeyError, TypeError):
+            continue
+    return last_pre_turn_target
+
+
+async def _revert_turns_for_regenerate(
+    *,
+    thread_id: int,
+    chat_turn_ids: list[str],
+    requester_user_id: str,
+) -> dict:
+    """Best-effort revert pass for every ``chat_turn_id`` in ``chat_turn_ids``.
+
+    Runs BEFORE the regenerate stream so the frontend can surface
+    partial-rollback feedback alongside the new assistant turn. Each
+    turn's actions are reverted in their own SAVEPOINTs (handled
+    inside :mod:`app.routes.agent_revert_route`'s helpers) so a single
+    failure never poisons the batch.
+
+    Sequencing inside the request: revert THEN regenerate. The
+    operation is NOT atomic and partial state IS surfaced — see the
+    plan's "Sequencing inside the request" note.
+    """
+
+    from app.routes.agent_revert_route import (
+        RevertTurnActionResult,
+        _classify_outcome,
+        _OutcomeRollbackError,
+        _was_already_reverted,
+        _was_already_reverted_batch,
+    )
+    from app.services.revert_service import (
+        can_revert,
+        revert_action,
+    )
+
+    aggregated_results: list[dict] = []
+    # Exhaustive counters keep the response invariant
+    # ``total == sum(counters)`` true for ``data-revert-results``.
+    counts = {
+        "reverted": 0,
+        "already_reverted": 0,
+        "not_reversible": 0,
+        "permission_denied": 0,
+        "failed": 0,
+        "skipped": 0,
+    }
+
+    # Local import keeps the route module's existing imports tidy and
+    # avoids a circular dependency at module-load time.
+    from app.db import AgentActionLog as _AgentActionLog
+
+    async with shielded_async_session() as session:
+        for chat_turn_id in chat_turn_ids:
+            rows_stmt = (
+                select(_AgentActionLog)
+                .where(
+                    _AgentActionLog.thread_id == thread_id,
+                    _AgentActionLog.chat_turn_id == chat_turn_id,
+                )
+                .order_by(
+                    _AgentActionLog.created_at.desc(),
+                    _AgentActionLog.id.desc(),
+                )
+            )
+            rows = (await session.execute(rows_stmt)).scalars().all()
+
+            # Batch idempotency probe across the turn (single SELECT
+            # instead of one per row).
+            eligible_ids = [r.id for r in rows if r.reverse_of is None]
+            already_reverted_map = await _was_already_reverted_batch(
+                session, action_ids=eligible_ids
+            )
+
+            for action in rows:
+                if action.reverse_of is not None:
+                    counts["skipped"] += 1
+                    aggregated_results.append(
+                        RevertTurnActionResult(
+                            action_id=action.id,
+                            tool_name=action.tool_name,
+                            status="skipped",
+                            message="Row is itself a revert action; skipped.",
+                        ).model_dump()
+                    )
+                    continue
+
+                existing_revert_id = already_reverted_map.get(action.id)
+                if existing_revert_id is not None:
+                    counts["already_reverted"] += 1
+                    aggregated_results.append(
+                        RevertTurnActionResult(
+                            action_id=action.id,
+                            tool_name=action.tool_name,
+                            status="already_reverted",
+                            new_action_id=existing_revert_id,
+                        ).model_dump()
+                    )
+                    continue
+
+                if not can_revert(
+                    requester_user_id=requester_user_id,
+                    action=action,
+                    is_admin=False,
+                ):
+                    counts["permission_denied"] += 1
+                    aggregated_results.append(
+                        RevertTurnActionResult(
+                            action_id=action.id,
+                            tool_name=action.tool_name,
+                            status="permission_denied",
+                            message="You are not allowed to revert this action.",
+                        ).model_dump()
+                    )
+                    continue
+
+                try:
+                    async with session.begin_nested():
+                        outcome = await revert_action(
+                            session,
+                            action=action,
+                            requester_user_id=requester_user_id,
+                        )
+                        if outcome.status != "ok":
+                            raise _OutcomeRollbackError(outcome)
+                except _OutcomeRollbackError as rollback:
+                    outcome = rollback.outcome
+                    classified = _classify_outcome(outcome)
+                    if classified == "permission_denied":
+                        counts["permission_denied"] += 1
+                    else:
+                        counts["not_reversible"] += 1
+                    aggregated_results.append(
+                        RevertTurnActionResult(
+                            action_id=action.id,
+                            tool_name=action.tool_name,
+                            status=classified,
+                            message=outcome.message,
+                        ).model_dump()
+                    )
+                    continue
+                except IntegrityError:
+                    # Concurrent revert won the race against the
+                    # pre-flight ``_was_already_reverted`` SELECT.
+                    # Surface the winning revert id so the client can
+                    # treat this as a successful idempotent op.
+                    existing_revert_id = await _was_already_reverted(
+                        session, action_id=action.id
+                    )
+                    counts["already_reverted"] += 1
+                    aggregated_results.append(
+                        RevertTurnActionResult(
+                            action_id=action.id,
+                            tool_name=action.tool_name,
+                            status="already_reverted",
+                            new_action_id=existing_revert_id,
+                        ).model_dump()
+                    )
+                    continue
+                except Exception as err:  # pragma: no cover — defensive
+                    _logger.exception(
+                        "Unexpected revert failure during regenerate batch "
+                        "for action_id=%s",
+                        action.id,
+                    )
+                    counts["failed"] += 1
+                    aggregated_results.append(
+                        RevertTurnActionResult(
+                            action_id=action.id,
+                            tool_name=action.tool_name,
+                            status="failed",
+                            error=str(err) or err.__class__.__name__,
+                        ).model_dump()
+                    )
+                    continue
+
+                counts["reverted"] += 1
+                aggregated_results.append(
+                    RevertTurnActionResult(
+                        action_id=action.id,
+                        tool_name=action.tool_name,
+                        status="reverted",
+                        message=outcome.message,
+                        new_action_id=outcome.new_action_id,
+                    ).model_dump()
+                )
+
+        try:
+            await session.commit()
+        except Exception:
+            _logger.exception(
+                "[regenerate-revert] Final commit failed; rolling back batch."
+            )
+            await session.rollback()
+
+    has_partial = (
+        counts["failed"] > 0
+        or counts["not_reversible"] > 0
+        or counts["permission_denied"] > 0
+    )
+
+    return {
+        "status": "partial" if has_partial else "ok",
+        "chat_turn_ids": chat_turn_ids,
+        "total": len(aggregated_results),
+        "reverted": counts["reverted"],
+        "already_reverted": counts["already_reverted"],
+        "not_reversible": counts["not_reversible"],
+        "permission_denied": counts["permission_denied"],
+        "failed": counts["failed"],
+        "skipped": counts["skipped"],
+        "results": aggregated_results,
+    }
 
 
 def _try_delete_sandbox(thread_id: int) -> None:
@@ -574,6 +829,7 @@ async def get_thread_messages(
                 token_usage=TokenUsageSummary.model_validate(msg.token_usage)
                 if msg.token_usage
                 else None,
+                turn_id=msg.turn_id,
             )
             for msg in db_messages
         ]
@@ -1006,12 +1262,24 @@ async def append_message(
         # Check thread-level access based on visibility
         await check_thread_access(session, thread, user)
 
-        # Create message
+        # Create message. ``turn_id`` is the per-turn correlation id from
+        # ``configurable.turn_id`` (added in migration 136) — when the
+        # client streams it back to ``appendMessage``, we persist it so
+        # C1's edit-from-arbitrary-position can later map this message
+        # back to the LangGraph checkpoint that produced its turn.
+        raw_turn_id = raw_body.get("turn_id")
+        turn_id_value = (
+            str(raw_turn_id).strip()
+            if isinstance(raw_turn_id, str) and raw_turn_id.strip()
+            else None
+        )
+
         db_message = NewChatMessage(
             thread_id=thread_id,
             role=message_role,
             content=content,
             author_id=user.id,
+            turn_id=turn_id_value,
         )
         session.add(db_message)
 
@@ -1050,6 +1318,7 @@ async def append_message(
             created_at=db_message.created_at,
             author_id=db_message.author_id,
             token_usage=None,
+            turn_id=db_message.turn_id,
         )
 
     except HTTPException:
@@ -1373,43 +1642,123 @@ async def regenerate_response(
         user_query_to_use = request.user_query
         regenerate_image_urls: list[str] = []
 
-        # Look through checkpoints to find the right one
-        # We want to find the checkpoint just before the last HumanMessage
-        for i, cp_tuple in enumerate(checkpoint_tuples):
-            # Access the checkpoint's channel_values which contains "messages"
-            checkpoint_data = cp_tuple.checkpoint
-            channel_values = checkpoint_data.get("channel_values", {})
-            state_messages = channel_values.get("messages", [])
+        # ---------------------------------------------------------------
+        # Edit-from-arbitrary-position. When the client passes
+        # ``from_message_id`` we look up its persisted ``turn_id`` (added
+        # in migration 136) and pick the checkpoint immediately before
+        # that turn started.
+        #
+        # Legacy graceful-degradation contract:
+        #   * Rows persisted BEFORE migration 136 have ``turn_id IS NULL``.
+        #     Returning 400 in that case is the wrong UX — the user is
+        #     editing an old message in an existing thread and just wants
+        #     it to work. We instead skip the checkpoint rewind (the
+        #     stream falls back to the latest state) and skip the revert
+        #     pass (no chat_turn_id available to walk). Deletion still
+        #     uses ``created_at``, so the messages-after-cursor slice is
+        #     correct on both legacy and post-136 rows.
+        # ---------------------------------------------------------------
+        from_message_turn_id: str | None = None
+        from_message_created_at: datetime | None = None
+        legacy_from_message: bool = False
+        if request.from_message_id is not None:
+            from_msg_row = await session.execute(
+                select(NewChatMessage).filter(
+                    NewChatMessage.id == request.from_message_id,
+                    NewChatMessage.thread_id == thread_id,
+                )
+            )
+            from_msg = from_msg_row.scalars().first()
+            if from_msg is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail="from_message_id not found in this thread.",
+                )
+            from_message_created_at = from_msg.created_at
+            if not from_msg.turn_id:
+                # Legacy row — surface the degradation in logs but let
+                # the request proceed with the slice-based delete and a
+                # cold-start checkpoint.
+                legacy_from_message = True
+                _logger.warning(
+                    "[regenerate] from_message_id=%s on thread=%s has no "
+                    "turn_id (legacy row pre-migration-136). Falling back "
+                    "to slice-based delete without checkpoint rewind. "
+                    "revert_actions=%s will be ignored.",
+                    request.from_message_id,
+                    thread_id,
+                    request.revert_actions,
+                )
+            else:
+                from_message_turn_id = from_msg.turn_id
 
-            if state_messages:
-                last_msg = state_messages[-1]
-                # Find a checkpoint where the last message is NOT a HumanMessage
-                # This means we're at a state before the user's last message
-                if not isinstance(last_msg, HumanMessage):
-                    # If no new user_query provided (reload), extract from a later checkpoint
-                    if user_query_to_use is None and i > 0:
-                        # Get the user query from a more recent checkpoint
-                        for prev_cp_tuple in checkpoint_tuples[:i]:
-                            prev_checkpoint_data = prev_cp_tuple.checkpoint
-                            prev_channel_values = prev_checkpoint_data.get(
-                                "channel_values", {}
-                            )
-                            prev_messages = prev_channel_values.get("messages", [])
-                            for msg in reversed(prev_messages):
-                                if isinstance(msg, HumanMessage):
-                                    q, imgs = split_langchain_human_content(msg.content)
-                                    user_query_to_use = q
-                                    regenerate_image_urls = imgs
-                                    break
-                            if user_query_to_use is not None and (
-                                str(user_query_to_use).strip() or regenerate_image_urls
-                            ):
-                                break
-
-                    target_checkpoint_id = cp_tuple.config["configurable"][
+                # Walk oldest-to-newest and pick the LAST checkpoint whose
+                # ``turn_id`` differs from the edited turn — that's the state
+                # immediately before this turn started running. We read from
+                # ``metadata`` (the durable surface) rather than
+                # ``config["configurable"]`` so the lookup works across
+                # checkpointer implementations.
+                target_checkpoint_id = _find_pre_turn_checkpoint_id(
+                    checkpoint_tuples,
+                    turn_id=from_message_turn_id,
+                )
+                if target_checkpoint_id is None and len(checkpoint_tuples) > 0:
+                    # Fall back to the oldest checkpoint — better than
+                    # 400ing when the agent didn't checkpoint pre-turn
+                    # (e.g. very first turn of the thread).
+                    target_checkpoint_id = checkpoint_tuples[-1].config["configurable"][
                         "checkpoint_id"
                     ]
-                    break
+
+        # Look through checkpoints to find the right one
+        # We want to find the checkpoint just before the last HumanMessage.
+        # We enter this branch when:
+        #   * the client did NOT pin ``from_message_id`` (legacy reload/edit), OR
+        #   * the client pinned ``from_message_id`` but the row is a
+        #     legacy pre-migration-136 row with no ``turn_id`` (we
+        #     downgraded to the same heuristic as a regular reload).
+        # We DO skip it when a real turn_id pinned ``target_checkpoint_id``
+        # — that's the C1 happy path and the heuristic below would just
+        # re-derive a worse target.
+        if request.from_message_id is None or legacy_from_message:
+            for i, cp_tuple in enumerate(checkpoint_tuples):
+                # Access the checkpoint's channel_values which contains "messages"
+                checkpoint_data = cp_tuple.checkpoint
+                channel_values = checkpoint_data.get("channel_values", {})
+                state_messages = channel_values.get("messages", [])
+
+                if state_messages:
+                    last_msg = state_messages[-1]
+                    # Find a checkpoint where the last message is NOT a HumanMessage
+                    # This means we're at a state before the user's last message
+                    if not isinstance(last_msg, HumanMessage):
+                        # If no new user_query provided (reload), extract from a later checkpoint
+                        if user_query_to_use is None and i > 0:
+                            # Get the user query from a more recent checkpoint
+                            for prev_cp_tuple in checkpoint_tuples[:i]:
+                                prev_checkpoint_data = prev_cp_tuple.checkpoint
+                                prev_channel_values = prev_checkpoint_data.get(
+                                    "channel_values", {}
+                                )
+                                prev_messages = prev_channel_values.get("messages", [])
+                                for msg in reversed(prev_messages):
+                                    if isinstance(msg, HumanMessage):
+                                        q, imgs = split_langchain_human_content(
+                                            msg.content
+                                        )
+                                        user_query_to_use = q
+                                        regenerate_image_urls = imgs
+                                        break
+                                if user_query_to_use is not None and (
+                                    str(user_query_to_use).strip()
+                                    or regenerate_image_urls
+                                ):
+                                    break
+
+                        target_checkpoint_id = cp_tuple.config["configurable"][
+                            "checkpoint_id"
+                        ]
+                        break
 
         # If we couldn't find a good checkpoint, try alternative approaches
         if target_checkpoint_id is None and checkpoint_tuples:
@@ -1472,17 +1821,50 @@ async def regenerate_response(
                 detail="Could not determine user query for regeneration. Please provide a user_query.",
             )
 
-        # Get the last two messages to delete AFTER streaming succeeds
-        # This prevents data loss if streaming fails
-        last_messages_result = await session.execute(
-            select(NewChatMessage)
-            .filter(NewChatMessage.thread_id == thread_id)
-            .order_by(NewChatMessage.created_at.desc())
-            .limit(2)
-        )
+        # Get the messages to delete AFTER streaming succeeds.
+        # This prevents data loss if streaming fails.
+        #
+        # When ``from_message_id`` is set we slice from that message
+        # forward (using ``created_at`` so we also catch any tool/system
+        # messages persisted into the same turn). Otherwise
+        # we keep the legacy "last 2 messages" rewind.
+        if request.from_message_id is not None and from_message_created_at is not None:
+            last_messages_result = await session.execute(
+                select(NewChatMessage)
+                .filter(
+                    NewChatMessage.thread_id == thread_id,
+                    NewChatMessage.created_at >= from_message_created_at,
+                )
+                .order_by(NewChatMessage.created_at.desc())
+            )
+        else:
+            last_messages_result = await session.execute(
+                select(NewChatMessage)
+                .filter(NewChatMessage.thread_id == thread_id)
+                .order_by(NewChatMessage.created_at.desc())
+                .limit(2)
+            )
         messages_to_delete = list(last_messages_result.scalars().all())
 
         message_ids_to_delete = [msg.id for msg in messages_to_delete]
+
+        # When revert_actions is requested, collect the set of
+        # ``chat_turn_id``s present in the slice we're about to delete.
+        # Each one will be reverted (best-effort) BEFORE the regenerate
+        # stream begins. Legacy rows have ``turn_id=None`` and silently
+        # contribute nothing — we already logged the degradation above.
+        revert_turn_ids: list[str] = []
+        if (
+            request.revert_actions
+            and request.from_message_id is not None
+            and not legacy_from_message
+        ):
+            seen_turns: set[str] = set()
+            for msg in messages_to_delete:
+                tid = msg.turn_id
+                if tid and tid not in seen_turns:
+                    seen_turns.add(tid)
+                    revert_turn_ids.append(tid)
 
         # Get search space for LLM config
         search_space_result = await session.execute(
@@ -1507,6 +1889,24 @@ async def regenerate_response(
         # This prevents data loss if streaming fails (network error, LLM error, etc.)
         async def stream_with_cleanup():
             streaming_completed = False
+            # Best-effort revert pass BEFORE the regenerate stream begins.
+            # Each turn is reverted independently (per-row SAVEPOINTs
+            # inside the route helper) and the per-action results are surfaced
+            # on a single ``data-revert-results`` SSE event so the frontend
+            # can render any failed rows alongside the new turn. Failures here
+            # do NOT abort the regeneration — partial rollback is documented
+            # behaviour.
+            if revert_turn_ids:
+                revert_results = await _revert_turns_for_regenerate(
+                    thread_id=thread_id,
+                    chat_turn_ids=revert_turn_ids,
+                    requester_user_id=str(user.id),
+                )
+                envelope = {
+                    "type": "data-revert-results",
+                    "data": revert_results,
+                }
+                yield f"data: {json.dumps(envelope, default=str)}\n\n".encode()
             try:
                 async for chunk in stream_new_chat(
                     user_query=str(user_query_to_use),

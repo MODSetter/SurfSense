@@ -13,6 +13,7 @@ import Image from "next/image";
 import { type FC, type ReactNode, useState } from "react";
 import { CitationMetadataProvider } from "@/components/assistant-ui/citation-metadata-context";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { ReasoningMessagePart } from "@/components/assistant-ui/reasoning-message-part";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { GenerateImageToolUI } from "@/components/tool-ui/generate-image";
@@ -157,6 +158,7 @@ const PublicAssistantMessage: FC = () => {
 					<MessagePrimitive.Parts
 						components={{
 							Text: MarkdownText,
+							Reasoning: ReasoningMessagePart,
 							tools: {
 								by_name: {
 									generate_podcast: GeneratePodcastToolUI,

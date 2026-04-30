@@ -360,6 +360,74 @@ class LocalFolderBackend:
             self.move, source_path, destination_path, overwrite
         )
 
+    def delete_file(self, file_path: str) -> WriteResult:
+        """Hard-delete a single file under root.
+
+        Refuses directories, root, and missing paths. Roughly mirrors POSIX
+        ``rm path``; ``-r`` recursion and glob expansion are explicitly
+        out of scope.
+        """
+        try:
+            path = self._resolve_virtual(file_path)
+        except ValueError:
+            return WriteResult(error=f"Error: Invalid path '{file_path}'")
+        with self._lock_for(file_path):
+            if not path.exists():
+                return WriteResult(error=f"Error: File '{file_path}' not found")
+            if path.is_dir():
+                return WriteResult(
+                    error=(
+                        f"Error: '{file_path}' is a directory. "
+                        "Use rmdir for empty directories."
+                    )
+                )
+            try:
+                os.unlink(path)
+            except OSError as exc:
+                return WriteResult(
+                    error=f"Error: failed to delete '{file_path}': {exc}"
+                )
+        return WriteResult(path=file_path, files_update=None)
+
+    async def adelete_file(self, file_path: str) -> WriteResult:
+        return await asyncio.to_thread(self.delete_file, file_path)
+
+    def rmdir(self, dir_path: str) -> WriteResult:
+        """Hard-delete an empty directory under root.
+
+        Refuses files, root, missing paths, and non-empty directories.
+        ``os.rmdir`` is naturally empty-only; we pre-check so the error is
+        clearer for the agent.
+        """
+        try:
+            path = self._resolve_virtual(dir_path)
+        except ValueError:
+            return WriteResult(error=f"Error: Invalid path '{dir_path}'")
+        with self._lock_for(dir_path):
+            if not path.exists():
+                return WriteResult(error=f"Error: Directory '{dir_path}' not found")
+            if not path.is_dir():
+                return WriteResult(error=f"Error: '{dir_path}' is not a directory")
+            try:
+                next(path.iterdir())
+            except StopIteration:
+                pass
+            else:
+                return WriteResult(
+                    error=(
+                        f"Error: directory '{dir_path}' is not empty. "
+                        "Remove its contents first."
+                    )
+                )
+            try:
+                os.rmdir(path)
+            except OSError as exc:
+                return WriteResult(error=f"Error: failed to rmdir '{dir_path}': {exc}")
+        return WriteResult(path=dir_path, files_update=None)
+
+    async def armdir(self, dir_path: str) -> WriteResult:
+        return await asyncio.to_thread(self.rmdir, dir_path)
+
     def edit(
         self,
         file_path: str,

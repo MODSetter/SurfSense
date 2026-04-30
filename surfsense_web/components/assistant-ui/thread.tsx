@@ -85,6 +85,7 @@ import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import {
 	CONNECTOR_ICON_TO_TYPES,
 	CONNECTOR_TOOL_ICON_PATHS,
+	getToolDisplayName,
 	getToolIcon,
 } from "@/contracts/enums/toolIcons";
 import type { Document } from "@/contracts/types/document.types";
@@ -1354,12 +1355,14 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	);
 };
 
-/** Convert snake_case tool names to human-readable labels */
+/**
+ * Friendly tool name for display in the chat UI. Delegates to the
+ * shared map in ``contracts/enums/toolIcons`` so unix-style identifiers
+ * (``rm``, ``ls``, ``grep`` …) and snake_cased function names render as
+ * plain English (e.g. "Delete file", "List files", "Search in files").
+ */
 function formatToolName(name: string): string {
-	return name
-		.split("_")
-		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-		.join(" ");
+	return getToolDisplayName(name);
 }
 
 interface ToolGroup {

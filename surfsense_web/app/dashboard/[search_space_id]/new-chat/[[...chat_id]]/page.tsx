@@ -15,6 +15,13 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { disabledToolsAtom } from "@/atoms/agent-tools/agent-tools.atoms";
 import {
+	agentActionsByChatTurnIdAtom,
+	markAgentActionRevertedAtom,
+	resetAgentActionMapAtom,
+	updateAgentActionReversibleAtom,
+	upsertAgentActionAtom,
+} from "@/atoms/chat/agent-actions.atom";
+import {
 	clearTargetCommentIdAtom,
 	currentThreadAtom,
 	setTargetCommentIdAtom,
@@ -37,6 +44,11 @@ import { closeEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import { removeChatTabAtom, updateChatTabTitleAtom } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
+import {
+	EditMessageDialog,
+	type EditMessageDialogChoice,
+} from "@/components/assistant-ui/edit-message-dialog";
+import { StepSeparatorDataUI } from "@/components/assistant-ui/step-separator";
 import { ThinkingStepsDataUI } from "@/components/assistant-ui/thinking-steps";
 import { Thread } from "@/components/assistant-ui/thread";
 import {
@@ -60,15 +72,20 @@ import {
 	setActivePodcastTaskId,
 } from "@/lib/chat/podcast-state";
 import {
+	addStepSeparator,
 	addToolCall,
+	appendReasoning,
 	appendText,
 	buildContentForPersistence,
 	buildContentForUI,
 	type ContentPartsState,
+	endReasoning,
 	FrameBatchedUpdater,
+	findToolCallIdByLcId,
 	readSSEStream,
 	type SSEEvent,
 	type ThinkingStepData,
+	type ToolUIGate,
 	updateThinkingSteps,
 	updateToolCall,
 } from "@/lib/chat/streaming-state";
@@ -257,44 +274,38 @@ function extractMentionedDocuments(content: unknown): MentionedDocumentInfo[] {
 }
 
 /**
- * Tools that should render custom UI in the chat.
+ * Every tool call renders a card. The legacy
+ * ``BASE_TOOLS_WITH_UI`` allowlist used to drop unknown tool calls on the
+ * floor; we now route everything through ``ToolFallback``. Persisted
+ * payload size stays bounded because the backend's
+ * ``format_thinking_step`` summarisation and the
+ * ``result_length``-only default for unknown tools (see
+ * ``stream_new_chat.py``) keep the JSON from ballooning.
  */
-const BASE_TOOLS_WITH_UI = new Set([
-	"web_search",
-	"generate_podcast",
-	"generate_report",
-	"generate_resume",
-	"generate_video_presentation",
-	"display_image",
-	"generate_image",
-	"delete_notion_page",
-	"create_notion_page",
-	"update_notion_page",
-	"create_linear_issue",
-	"update_linear_issue",
-	"delete_linear_issue",
-	"create_google_drive_file",
-	"delete_google_drive_file",
-	"create_onedrive_file",
-	"delete_onedrive_file",
-	"create_dropbox_file",
-	"delete_dropbox_file",
-	"create_calendar_event",
-	"update_calendar_event",
-	"delete_calendar_event",
-	"create_gmail_draft",
-	"update_gmail_draft",
-	"send_gmail_email",
-	"trash_gmail_email",
-	"create_jira_issue",
-	"update_jira_issue",
-	"delete_jira_issue",
-	"create_confluence_page",
-	"update_confluence_page",
-	"delete_confluence_page",
-	"execute",
-	// "write_todos", // Disabled for now
-]);
+const TOOLS_WITH_UI_ALL: ToolUIGate = "all";
+
+/**
+ * When a streamed message is persisted, the backend returns the durable
+ * ``turn_id`` (``configurable.turn_id`` from the agent run). Merge it
+ * into the assistant-ui message metadata so the per-turn "Revert turn"
+ * button can scope to this turn's actions even after a full chat reload.
+ */
+function mergeChatTurnIdIntoMessage(
+	msg: ThreadMessageLike,
+	turnId: string | null | undefined
+): ThreadMessageLike {
+	if (!turnId) return msg;
+	const existingMeta = (msg.metadata ?? {}) as { custom?: Record<string, unknown> };
+	const existingCustom = existingMeta.custom ?? {};
+	if ((existingCustom as { chatTurnId?: string }).chatTurnId === turnId) return msg;
+	return {
+		...msg,
+		metadata: {
+			...existingMeta,
+			custom: { ...existingCustom, chatTurnId: turnId },
+		},
+	};
+}
 
 export default function NewChatPage() {
 	const params = useParams();
@@ -311,7 +322,7 @@ export default function NewChatPage() {
 		assistantMsgId: string;
 		interruptData: Record<string, unknown>;
 	} | null>(null);
-	const toolsWithUI = useMemo(() => new Set([...BASE_TOOLS_WITH_UI]), []);
+	const toolsWithUI = TOOLS_WITH_UI_ALL;
 	const setMessageDocumentsMap = useSetAtom(messageDocumentsMapAtom);
 
 	const persistAssistantErrorMessage = useCallback(
@@ -364,12 +375,14 @@ export default function NewChatPage() {
 			userMsgId,
 			content,
 			mentionedDocs,
+			turnId,
 			logContext,
 		}: {
 			threadId: number | null;
 			userMsgId: string;
 			content: unknown;
 			mentionedDocs?: MentionedDocumentInfo[];
+			turnId?: string | null;
 			logContext: string;
 		}) => {
 			if (!threadId) return null;
@@ -390,10 +403,18 @@ export default function NewChatPage() {
 				const savedUserMessage = await appendMessage(threadId, {
 					role: "user",
 					content: normalizedContent as AppendMessage["content"],
+					turn_id: turnId,
 				});
 				const newUserMsgId = `msg-${savedUserMessage.id}`;
 				setMessages((prev) =>
-					prev.map((m) => (m.id === userMsgId ? { ...m, id: newUserMsgId } : m))
+					prev.map((m) =>
+						m.id === userMsgId
+							? mergeChatTurnIdIntoMessage(
+									{ ...m, id: newUserMsgId },
+									savedUserMessage.turn_id
+								)
+							: m
+					)
 				);
 				if (mentionedDocs && mentionedDocs.length > 0) {
 					setMessageDocumentsMap((prev) => {
@@ -419,6 +440,7 @@ export default function NewChatPage() {
 			assistantMsgId,
 			content,
 			tokenUsage,
+			turnId,
 			logContext,
 			onRemapped,
 		}: {
@@ -426,6 +448,7 @@ export default function NewChatPage() {
 			assistantMsgId: string;
 			content: unknown;
 			tokenUsage?: Record<string, unknown>;
+			turnId?: string | null;
 			logContext: string;
 			onRemapped?: (newMsgId: string) => void;
 		}) => {
@@ -435,11 +458,19 @@ export default function NewChatPage() {
 					role: "assistant",
 					content: content as AppendMessage["content"],
 					token_usage: tokenUsage,
+					turn_id: turnId,
 				});
 				const newMsgId = `msg-${savedMessage.id}`;
 				tokenUsageStore.rename(assistantMsgId, newMsgId);
 				setMessages((prev) =>
-					prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m))
+					prev.map((m) =>
+						m.id === assistantMsgId
+							? mergeChatTurnIdIntoMessage(
+									{ ...m, id: newMsgId },
+									savedMessage.turn_id
+								)
+							: m
+					)
 				);
 				onRemapped?.(newMsgId);
 				return newMsgId;
@@ -470,6 +501,25 @@ export default function NewChatPage() {
 	const setAgentCreatedDocuments = useSetAtom(agentCreatedDocumentsAtom);
 	const pendingUserImageUrls = useAtomValue(pendingUserImageDataUrlsAtom);
 	const setPendingUserImageUrls = useSetAtom(pendingUserImageDataUrlsAtom);
+	// Agent action log SSE side-channel.
+	const upsertAgentAction = useSetAtom(upsertAgentActionAtom);
+	const updateAgentActionReversible = useSetAtom(updateAgentActionReversibleAtom);
+	const markAgentActionReverted = useSetAtom(markAgentActionRevertedAtom);
+	const resetAgentActionMap = useSetAtom(resetAgentActionMapAtom);
+	// Chat-turn-keyed action map for the edit-from-position pre-flight
+	// that decides whether to show the confirmation dialog.
+	const agentActionsByChatTurnId = useAtomValue(agentActionsByChatTurnIdAtom);
+	// Edit dialog state. Holds the message id being edited and
+	// the (already extracted) regenerate args so we can resume the edit
+	// after the user picks "revert all" / "continue" / "cancel".
+	const [editDialogState, setEditDialogState] = useState<{
+		fromMessageId: number;
+		userQuery: string | null;
+		userMessageContent: ThreadMessageLike["content"];
+		userImages: NewChatUserImagePayload[];
+		downstreamReversibleCount: number;
+		downstreamTotalCount: number;
+	} | null>(null);
 
 	// Get current user for author info in shared chats
 	const { data: currentUser } = useAtomValue(currentUserAtom);
@@ -678,6 +728,7 @@ export default function NewChatPage() {
 		clearPlanOwnerRegistry();
 		closeReportPanel();
 		closeEditorPanel();
+		resetAgentActionMap();
 
 		try {
 			if (urlChatId > 0) {
@@ -746,6 +797,7 @@ export default function NewChatPage() {
 		removeChatTab,
 		searchSpaceId,
 		tokenUsageStore,
+		resetAgentActionMap,
 	]);
 
 	// Initialize on mount, and re-init when switching search spaces (even if urlChatId is the same)
@@ -990,6 +1042,7 @@ export default function NewChatPage() {
 			const contentPartsState: ContentPartsState = {
 				contentParts: [],
 				currentTextPartIndex: -1,
+				currentReasoningPartIndex: -1,
 				toolCallIndices: new Map(),
 			};
 			const { contentParts, toolCallIndices } = contentPartsState;
@@ -997,6 +1050,8 @@ export default function NewChatPage() {
 			let tokenUsageData: Record<string, unknown> | null = null;
 			let newAccepted = false;
 			let userPersisted = false;
+			// Captured from ``data-turn-info`` at stream start.
+			let streamedChatTurnId: string | null = null;
 
 			try {
 				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
@@ -1088,21 +1143,52 @@ export default function NewChatPage() {
 							scheduleFlush();
 							break;
 
+						case "reasoning-delta":
+							appendReasoning(contentPartsState, parsed.delta);
+							scheduleFlush();
+							break;
+
+						case "reasoning-end":
+							endReasoning(contentPartsState);
+							scheduleFlush();
+							break;
+
+						case "start-step":
+							addStepSeparator(contentPartsState);
+							scheduleFlush();
+							break;
+
+						case "finish-step":
+							break;
+
 						case "tool-input-start":
-							addToolCall(contentPartsState, toolsWithUI, parsed.toolCallId, parsed.toolName, {});
+							addToolCall(
+								contentPartsState,
+								toolsWithUI,
+								parsed.toolCallId,
+								parsed.toolName,
+								{},
+								false,
+								parsed.langchainToolCallId
+							);
 							batcher.flush();
 							break;
 
 						case "tool-input-available": {
 							if (toolCallIndices.has(parsed.toolCallId)) {
-								updateToolCall(contentPartsState, parsed.toolCallId, { args: parsed.input || {} });
+								updateToolCall(contentPartsState, parsed.toolCallId, {
+									args: parsed.input || {},
+									langchainToolCallId: parsed.langchainToolCallId,
+								});
 							} else {
 								addToolCall(
 									contentPartsState,
 									toolsWithUI,
 									parsed.toolCallId,
 									parsed.toolName,
-									parsed.input || {}
+									parsed.input || {},
+									false,
+									parsed.langchainToolCallId
 								);
 							}
 							batcher.flush();
@@ -1110,7 +1196,10 @@ export default function NewChatPage() {
 						}
 
 						case "tool-output-available": {
-							updateToolCall(contentPartsState, parsed.toolCallId, { result: parsed.output });
+							updateToolCall(contentPartsState, parsed.toolCallId, {
+								result: parsed.output,
+								langchainToolCallId: parsed.langchainToolCallId,
+							});
 							markInterruptsCompleted(contentParts);
 							if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
 								const idx = toolCallIndices.get(parsed.toolCallId);
@@ -1216,6 +1305,50 @@ export default function NewChatPage() {
 							break;
 						}
 
+						case "data-action-log": {
+							const al = parsed.data;
+							const matchedToolCallId = al.lc_tool_call_id
+								? findToolCallIdByLcId(contentPartsState, al.lc_tool_call_id)
+								: null;
+							upsertAgentAction({
+								action: {
+									id: al.id,
+									threadId: currentThreadId,
+									lcToolCallId: al.lc_tool_call_id,
+									chatTurnId: al.chat_turn_id,
+									toolName: al.tool_name,
+									reversible: al.reversible,
+									reverseDescriptorPresent: al.reverse_descriptor_present,
+									error: al.error,
+									revertedByActionId: null,
+									isRevertAction: false,
+									createdAt: al.created_at,
+								},
+								toolCallId: matchedToolCallId,
+							});
+							break;
+						}
+
+						case "data-action-log-updated": {
+							updateAgentActionReversible({
+								id: parsed.data.id,
+								reversible: parsed.data.reversible,
+							});
+							break;
+						}
+
+						case "data-turn-info": {
+							streamedChatTurnId = parsed.data.chat_turn_id || null;
+							if (streamedChatTurnId) {
+								setMessages((prev) =>
+									prev.map((m) =>
+										m.id === assistantMsgId ? mergeChatTurnIdIntoMessage(m, streamedChatTurnId) : m
+									)
+								);
+							}
+							break;
+						}
+
 						case "data-token-usage":
 							tokenUsageData = parsed.data;
 							tokenUsageStore.set(assistantMsgId, parsed.data as TokenUsageData);
@@ -1237,6 +1370,7 @@ export default function NewChatPage() {
 							userMsgId,
 							content: persistContent,
 							mentionedDocs: allMentionedDocs,
+							turnId: streamedChatTurnId,
 							logContext: "new chat",
 						});
 						userPersisted = Boolean(persistedUserMsgId);
@@ -1250,6 +1384,7 @@ export default function NewChatPage() {
 						assistantMsgId,
 						content: finalContent,
 						tokenUsage: tokenUsageData ?? undefined,
+						turnId: streamedChatTurnId,
 						logContext: "new chat",
 						onRemapped: (newMsgId) => {
 							setPendingInterrupt((prev) =>
@@ -1278,6 +1413,7 @@ export default function NewChatPage() {
 								userMsgId,
 								content: persistContent,
 								mentionedDocs: allMentionedDocs,
+								turnId: streamedChatTurnId,
 								logContext: "new chat (aborted)",
 							});
 							userPersisted = Boolean(persistedUserMsgId);
@@ -1286,11 +1422,12 @@ export default function NewChatPage() {
 							}
 						}
 
-						// Request was cancelled by user - persist partial response if any content was received
 						const hasContent = contentParts.some(
 							(part) =>
 								(part.type === "text" && part.text.length > 0) ||
-								(part.type === "tool-call" && toolsWithUI.has(part.toolName))
+								(part.type === "reasoning" && part.text.length > 0) ||
+								(part.type === "tool-call" &&
+									(toolsWithUI === "all" || toolsWithUI.has(part.toolName)))
 						);
 						if (hasContent && currentThreadId) {
 							const partialContent = buildContentForPersistence(contentPartsState, toolsWithUI);
@@ -1298,6 +1435,7 @@ export default function NewChatPage() {
 								threadId: currentThreadId,
 								assistantMsgId,
 								content: partialContent,
+								turnId: streamedChatTurnId,
 								logContext: "partial new chat",
 							});
 						}
@@ -1309,6 +1447,7 @@ export default function NewChatPage() {
 								userMsgId,
 								content: persistContent,
 								mentionedDocs: allMentionedDocs,
+								turnId: streamedChatTurnId,
 								logContext: "new chat (stream error)",
 							});
 							userPersisted = Boolean(persistedUserMsgId);
@@ -1347,7 +1486,8 @@ export default function NewChatPage() {
 			tokenUsageStore,
 			pendingUserImageUrls,
 			setPendingUserImageUrls,
-			toolsWithUI,
+			upsertAgentAction,
+			updateAgentActionReversible,
 			handleStreamTerminalError,
 			handleChatFailure,
 			persistAssistantTurn,
@@ -1384,11 +1524,14 @@ export default function NewChatPage() {
 			const contentPartsState: ContentPartsState = {
 				contentParts: [],
 				currentTextPartIndex: -1,
+				currentReasoningPartIndex: -1,
 				toolCallIndices: new Map(),
 			};
 			const { contentParts, toolCallIndices } = contentPartsState;
 			let tokenUsageData: Record<string, unknown> | null = null;
 			let resumeAccepted = false;
+			// Captured from ``data-turn-info`` at stream start.
+			let streamedChatTurnId: string | null = null;
 
 			const existingMsg = messages.find((m) => m.id === assistantMsgId);
 			if (existingMsg && Array.isArray(existingMsg.content)) {
@@ -1492,8 +1635,34 @@ export default function NewChatPage() {
 							scheduleFlush();
 							break;
 
+						case "reasoning-delta":
+							appendReasoning(contentPartsState, parsed.delta);
+							scheduleFlush();
+							break;
+
+						case "reasoning-end":
+							endReasoning(contentPartsState);
+							scheduleFlush();
+							break;
+
+						case "start-step":
+							addStepSeparator(contentPartsState);
+							scheduleFlush();
+							break;
+
+						case "finish-step":
+							break;
+
 						case "tool-input-start":
-							addToolCall(contentPartsState, toolsWithUI, parsed.toolCallId, parsed.toolName, {});
+							addToolCall(
+								contentPartsState,
+								toolsWithUI,
+								parsed.toolCallId,
+								parsed.toolName,
+								{},
+								false,
+								parsed.langchainToolCallId
+							);
 							batcher.flush();
 							break;
 
@@ -1501,6 +1670,7 @@ export default function NewChatPage() {
 							if (toolCallIndices.has(parsed.toolCallId)) {
 								updateToolCall(contentPartsState, parsed.toolCallId, {
 									args: parsed.input || {},
+									langchainToolCallId: parsed.langchainToolCallId,
 								});
 							} else {
 								addToolCall(
@@ -1508,7 +1678,9 @@ export default function NewChatPage() {
 									toolsWithUI,
 									parsed.toolCallId,
 									parsed.toolName,
-									parsed.input || {}
+									parsed.input || {},
+									false,
+									parsed.langchainToolCallId
 								);
 							}
 							batcher.flush();
@@ -1517,6 +1689,7 @@ export default function NewChatPage() {
 						case "tool-output-available":
 							updateToolCall(contentPartsState, parsed.toolCallId, {
 								result: parsed.output,
+								langchainToolCallId: parsed.langchainToolCallId,
 							});
 							markInterruptsCompleted(contentParts);
 							batcher.flush();
@@ -1578,6 +1751,50 @@ export default function NewChatPage() {
 							break;
 						}
 
+						case "data-action-log": {
+							const al = parsed.data;
+							const matchedToolCallId = al.lc_tool_call_id
+								? findToolCallIdByLcId(contentPartsState, al.lc_tool_call_id)
+								: null;
+							upsertAgentAction({
+								action: {
+									id: al.id,
+									threadId: resumeThreadId,
+									lcToolCallId: al.lc_tool_call_id,
+									chatTurnId: al.chat_turn_id,
+									toolName: al.tool_name,
+									reversible: al.reversible,
+									reverseDescriptorPresent: al.reverse_descriptor_present,
+									error: al.error,
+									revertedByActionId: null,
+									isRevertAction: false,
+									createdAt: al.created_at,
+								},
+								toolCallId: matchedToolCallId,
+							});
+							break;
+						}
+
+						case "data-action-log-updated": {
+							updateAgentActionReversible({
+								id: parsed.data.id,
+								reversible: parsed.data.reversible,
+							});
+							break;
+						}
+
+						case "data-turn-info": {
+							streamedChatTurnId = parsed.data.chat_turn_id || null;
+							if (streamedChatTurnId) {
+								setMessages((prev) =>
+									prev.map((m) =>
+										m.id === assistantMsgId ? mergeChatTurnIdIntoMessage(m, streamedChatTurnId) : m
+									)
+								);
+							}
+							break;
+						}
+
 						case "data-token-usage":
 							tokenUsageData = parsed.data;
 							tokenUsageStore.set(assistantMsgId, parsed.data as TokenUsageData);
@@ -1597,6 +1814,7 @@ export default function NewChatPage() {
 						assistantMsgId,
 						content: finalContent,
 						tokenUsage: tokenUsageData ?? undefined,
+						turnId: streamedChatTurnId,
 						logContext: "resumed chat",
 					});
 				}
@@ -1613,7 +1831,9 @@ export default function NewChatPage() {
 						const hasContent = contentParts.some(
 							(part) =>
 								(part.type === "text" && part.text.length > 0) ||
-								(part.type === "tool-call" && toolsWithUI.has(part.toolName))
+								(part.type === "reasoning" && part.text.length > 0) ||
+								(part.type === "tool-call" &&
+									(toolsWithUI === "all" || toolsWithUI.has(part.toolName)))
 						);
 						if (!hasContent) return;
 						const partialContent = buildContentForPersistence(contentPartsState, toolsWithUI);
@@ -1621,6 +1841,7 @@ export default function NewChatPage() {
 							threadId: resumeThreadId,
 							assistantMsgId,
 							content: partialContent,
+							turnId: streamedChatTurnId,
 							logContext: "partial resumed chat",
 						});
 					},
@@ -1635,7 +1856,8 @@ export default function NewChatPage() {
 			messages,
 			searchSpaceId,
 			tokenUsageStore,
-			toolsWithUI,
+			upsertAgentAction,
+			updateAgentActionReversible,
 			handleStreamTerminalError,
 			persistAssistantTurn,
 		]
@@ -1716,6 +1938,12 @@ export default function NewChatPage() {
 				userMessageContent: ThreadMessageLike["content"];
 				userImages: NewChatUserImagePayload[];
 				sourceUserMessageId?: string;
+			},
+			editFromPosition?: {
+				/** Message id (numeric, parsed from ``msg-<n>``) to rewind to. */
+				fromMessageId?: number | null;
+				/** When true, revert reversible downstream actions before stream. */
+				revertActions?: boolean;
 			}
 		) => {
 			if (!threadId) {
@@ -1775,6 +2003,7 @@ export default function NewChatPage() {
 			const contentPartsState: ContentPartsState = {
 				contentParts: [],
 				currentTextPartIndex: -1,
+				currentReasoningPartIndex: -1,
 				toolCallIndices: new Map(),
 			};
 			const { contentParts, toolCallIndices } = contentPartsState;
@@ -1782,6 +2011,10 @@ export default function NewChatPage() {
 			let tokenUsageData: Record<string, unknown> | null = null;
 			let regenerateAccepted = false;
 			let userPersisted = false;
+			// Captured from ``data-turn-info`` at stream start; stamped
+			// onto persisted messages so future edits can locate the
+			// right LangGraph checkpoint.
+			let streamedChatTurnId: string | null = null;
 
 			// Add placeholder messages to UI
 			// Always add back the user message (with new query for edit, or original content for reload)
@@ -1814,6 +2047,16 @@ export default function NewChatPage() {
 				if (isEdit) {
 					requestBody.user_images = editExtras?.userImages ?? [];
 				}
+				// Explicit edit-from-arbitrary-position. Only send
+				// ``from_message_id`` / ``revert_actions`` when the
+				// caller asked for them; otherwise the backend keeps the
+				// legacy "last 2 messages" behaviour for back-compat.
+				if (editFromPosition?.fromMessageId != null) {
+					requestBody.from_message_id = editFromPosition.fromMessageId;
+					if (editFromPosition.revertActions) {
+						requestBody.revert_actions = true;
+					}
+				}
 				const response = await fetch(getRegenerateUrl(threadId), {
 					method: "POST",
 					headers: {
@@ -1831,8 +2074,21 @@ export default function NewChatPage() {
 
 				// Only switch UI to regenerated placeholder messages after the backend accepts
 				// regenerate. This avoids local message loss when regenerate fails early (e.g. 400).
+				//
+				// When an explicit ``editFromPosition.fromMessageId`` is passed, slice from
+				// that message forward so edit-from-arbitrary-position drops every downstream
+				// message; otherwise fall back to the legacy "drop the last 2" behaviour.
 				setMessages((prev) => {
-					const base = prev.length >= 2 ? prev.slice(0, -2) : prev;
+					let base = prev;
+					if (editFromPosition?.fromMessageId != null) {
+						const targetId = `msg-${editFromPosition.fromMessageId}`;
+						const sliceIndex = prev.findIndex((m) => m.id === targetId);
+						if (sliceIndex >= 0) {
+							base = prev.slice(0, sliceIndex);
+						}
+					} else if (prev.length >= 2) {
+						base = prev.slice(0, -2);
+					}
 					return [
 						...base,
 						userMessage,
@@ -1869,28 +2125,62 @@ export default function NewChatPage() {
 							scheduleFlush();
 							break;
 
+						case "reasoning-delta":
+							appendReasoning(contentPartsState, parsed.delta);
+							scheduleFlush();
+							break;
+
+						case "reasoning-end":
+							endReasoning(contentPartsState);
+							scheduleFlush();
+							break;
+
+						case "start-step":
+							addStepSeparator(contentPartsState);
+							scheduleFlush();
+							break;
+
+						case "finish-step":
+							break;
+
 						case "tool-input-start":
-							addToolCall(contentPartsState, toolsWithUI, parsed.toolCallId, parsed.toolName, {});
+							addToolCall(
+								contentPartsState,
+								toolsWithUI,
+								parsed.toolCallId,
+								parsed.toolName,
+								{},
+								false,
+								parsed.langchainToolCallId
+							);
 							batcher.flush();
 							break;
 
 						case "tool-input-available":
 							if (toolCallIndices.has(parsed.toolCallId)) {
-								updateToolCall(contentPartsState, parsed.toolCallId, { args: parsed.input || {} });
+								updateToolCall(contentPartsState, parsed.toolCallId, {
+									args: parsed.input || {},
+									langchainToolCallId: parsed.langchainToolCallId,
+								});
 							} else {
 								addToolCall(
 									contentPartsState,
 									toolsWithUI,
 									parsed.toolCallId,
 									parsed.toolName,
-									parsed.input || {}
+									parsed.input || {},
+									false,
+									parsed.langchainToolCallId
 								);
 							}
 							batcher.flush();
 							break;
 
 						case "tool-output-available":
-							updateToolCall(contentPartsState, parsed.toolCallId, { result: parsed.output });
+							updateToolCall(contentPartsState, parsed.toolCallId, {
+								result: parsed.output,
+								langchainToolCallId: parsed.langchainToolCallId,
+							});
 							markInterruptsCompleted(contentParts);
 							if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
 								const idx = toolCallIndices.get(parsed.toolCallId);
@@ -1916,6 +2206,82 @@ export default function NewChatPage() {
 							break;
 						}
 
+						case "data-action-log": {
+							const al = parsed.data;
+							const matchedToolCallId = al.lc_tool_call_id
+								? findToolCallIdByLcId(contentPartsState, al.lc_tool_call_id)
+								: null;
+							upsertAgentAction({
+								action: {
+									id: al.id,
+									threadId,
+									lcToolCallId: al.lc_tool_call_id,
+									chatTurnId: al.chat_turn_id,
+									toolName: al.tool_name,
+									reversible: al.reversible,
+									reverseDescriptorPresent: al.reverse_descriptor_present,
+									error: al.error,
+									revertedByActionId: null,
+									isRevertAction: false,
+									createdAt: al.created_at,
+								},
+								toolCallId: matchedToolCallId,
+							});
+							break;
+						}
+
+						case "data-action-log-updated": {
+							updateAgentActionReversible({
+								id: parsed.data.id,
+								reversible: parsed.data.reversible,
+							});
+							break;
+						}
+
+						case "data-turn-info": {
+							streamedChatTurnId = parsed.data.chat_turn_id || null;
+							if (streamedChatTurnId) {
+								setMessages((prev) =>
+									prev.map((m) =>
+										m.id === assistantMsgId ? mergeChatTurnIdIntoMessage(m, streamedChatTurnId) : m
+									)
+								);
+							}
+							break;
+						}
+
+						case "data-revert-results": {
+							const summary = parsed.data;
+							// failureCount must include every "not undone" bucket
+							// (not_reversible, permission_denied, failed) so the
+							// toast's "X could not be rolled back" math matches
+							// the response invariant ``total === sum(counters)``.
+							// ``skipped`` rows are batch revert artefacts (revert
+							// rows themselves) and are not user-facing failures.
+							const failureCount =
+								summary.failed + summary.not_reversible + (summary.permission_denied ?? 0);
+							if (failureCount > 0) {
+								toast.warning(
+									`Pre-revert: ${summary.reverted}/${summary.total} undone, ${failureCount} could not be rolled back.`
+								);
+							} else if (summary.reverted > 0) {
+								toast.success(
+									summary.reverted === 1
+										? "Reverted 1 downstream action before regenerating."
+										: `Reverted ${summary.reverted} downstream actions before regenerating.`
+								);
+							}
+							for (const r of summary.results) {
+								if (r.status === "reverted" || r.status === "already_reverted") {
+									markAgentActionReverted({
+										id: r.action_id,
+										newActionId: r.new_action_id ?? null,
+									});
+								}
+							}
+							break;
+						}
+
 						case "data-token-usage":
 							tokenUsageData = parsed.data;
 							tokenUsageStore.set(assistantMsgId, parsed.data as TokenUsageData);
@@ -1936,6 +2302,7 @@ export default function NewChatPage() {
 						userMsgId,
 						content: userContentToPersist,
 						mentionedDocs: sourceMentionedDocs,
+						turnId: streamedChatTurnId,
 						logContext: "regenerated",
 					});
 					userPersisted = Boolean(persistedUserMsgId);
@@ -1945,6 +2312,7 @@ export default function NewChatPage() {
 						assistantMsgId,
 						content: finalContent,
 						tokenUsage: tokenUsageData ?? undefined,
+						turnId: streamedChatTurnId,
 						logContext: "regenerated",
 					});
 
@@ -1966,6 +2334,7 @@ export default function NewChatPage() {
 								userMsgId,
 								content: userContentToPersist,
 								mentionedDocs: sourceMentionedDocs,
+								turnId: streamedChatTurnId,
 								logContext: "regenerated (aborted)",
 							});
 							userPersisted = Boolean(persistedUserMsgId);
@@ -1973,7 +2342,9 @@ export default function NewChatPage() {
 						const hasContent = contentParts.some(
 							(part) =>
 								(part.type === "text" && part.text.length > 0) ||
-								(part.type === "tool-call" && toolsWithUI.has(part.toolName))
+								(part.type === "reasoning" && part.text.length > 0) ||
+								(part.type === "tool-call" &&
+									(toolsWithUI === "all" || toolsWithUI.has(part.toolName)))
 						);
 						if (!hasContent) return;
 						const partialContent = buildContentForPersistence(contentPartsState, toolsWithUI);
@@ -1982,6 +2353,7 @@ export default function NewChatPage() {
 							assistantMsgId,
 							content: partialContent,
 							tokenUsage: tokenUsageData ?? undefined,
+							turnId: streamedChatTurnId,
 							logContext: "partial regenerated chat",
 						});
 					},
@@ -1992,6 +2364,7 @@ export default function NewChatPage() {
 								userMsgId,
 								content: userContentToPersist,
 								mentionedDocs: sourceMentionedDocs,
+								turnId: streamedChatTurnId,
 								logContext: "regenerated (stream error)",
 							});
 							userPersisted = Boolean(persistedUserMsgId);
@@ -2011,14 +2384,23 @@ export default function NewChatPage() {
 			messageDocumentsMap,
 			setMessageDocumentsMap,
 			tokenUsageStore,
-			toolsWithUI,
+			upsertAgentAction,
+			updateAgentActionReversible,
+			markAgentActionReverted,
 			handleStreamTerminalError,
 			persistAssistantTurn,
 			persistUserTurn,
 		]
 	);
 
-	// Handle editing a message - truncates history and regenerates with new query
+	// Handle editing a message - truncates history and regenerates with new query.
+	//
+	// When ``message.sourceId`` is set (the assistant-ui way to say
+	// "this edit replaces an older message"), we pin
+	// ``from_message_id`` so the backend rewinds to the right LangGraph
+	// checkpoint instead of relying on the legacy "last 2 messages"
+	// rewind. We also count downstream reversible actions and prompt the
+	// user to revert / continue / cancel before regenerating.
 	const onEdit = useCallback(
 		async (message: AppendMessage) => {
 			const { userQuery, userImages } = extractUserTurnForNewChatApi(message, []);
@@ -2029,17 +2411,100 @@ export default function NewChatPage() {
 			}
 
 			const userMessageContent = message.content as unknown as ThreadMessageLike["content"];
-			const sourceUserMessageId =
-				typeof (message as { id?: unknown }).id === "string"
-					? ((message as { id?: string }).id ?? undefined)
-					: undefined;
-			await handleRegenerate(queryForApi, {
+
+			// ``sourceId`` per @assistant-ui/core's ``AppendMessage`` is
+			// "the ID of the message that was edited". Parse the numeric
+			// suffix so we can map it back to a DB row.
+			const sourceId = (message as { sourceId?: string }).sourceId;
+			const fromMessageId =
+				sourceId && /^msg-\d+$/.test(sourceId)
+					? Number.parseInt(sourceId.replace(/^msg-/, ""), 10)
+					: null;
+
+			if (fromMessageId == null) {
+				// No source id (or non-DB id) — fall back to today's
+				// last-2 behaviour. The user gets the legacy edit flow.
+				await handleRegenerate(queryForApi, {
+					userMessageContent,
+					userImages,
+					sourceUserMessageId: sourceId,
+				});
+				return;
+			}
+
+			// Pre-flight: count reversible downstream actions so we can
+			// auto-skip the dialog for harmless edits.
+			//
+			// "Downstream" means messages AFTER the edited one. The
+			// previous slice ``messages.slice(editedIndex)`` included
+			// the edited message itself in both the total
+			// count and the reversibility scan (any actions on the
+			// edited turn would be double-counted). Slice from
+			// ``editedIndex + 1`` so the dialog text matches reality:
+			// "N downstream messages will be dropped".
+			const editedIndex = messages.findIndex((m) => m.id === `msg-${fromMessageId}`);
+			let downstreamReversibleCount = 0;
+			let downstreamTotalCount = 0;
+			if (editedIndex >= 0) {
+				const downstream = messages.slice(editedIndex + 1);
+				downstreamTotalCount = downstream.length;
+				const seenTurns = new Set<string>();
+				for (const m of downstream) {
+					const meta = (m.metadata ?? {}) as { custom?: { chatTurnId?: string } };
+					const tid = meta.custom?.chatTurnId;
+					if (!tid || seenTurns.has(tid)) continue;
+					seenTurns.add(tid);
+					const turnActions = agentActionsByChatTurnId.get(tid) ?? [];
+					for (const a of turnActions) {
+						if (a.reversible && a.revertedByActionId === null && !a.isRevertAction && !a.error) {
+							downstreamReversibleCount += 1;
+						}
+					}
+				}
+			}
+
+			if (downstreamReversibleCount === 0) {
+				// Nothing to revert — submit silently.
+				await handleRegenerate(
+					queryForApi,
+					{ userMessageContent, userImages, sourceUserMessageId: sourceId },
+					{ fromMessageId, revertActions: false }
+				);
+				return;
+			}
+
+			setEditDialogState({
+				fromMessageId,
+				userQuery: queryForApi,
 				userMessageContent,
 				userImages,
-				sourceUserMessageId,
+				downstreamReversibleCount,
+				downstreamTotalCount,
 			});
 		},
-		[handleRegenerate]
+		[handleRegenerate, messages, agentActionsByChatTurnId]
+	);
+
+	const handleEditDialogChoice = useCallback(
+		async (choice: EditMessageDialogChoice) => {
+			const pending = editDialogState;
+			if (!pending) return;
+			setEditDialogState(null);
+			if (choice === "cancel") return;
+			await handleRegenerate(
+				pending.userQuery,
+				{
+					userMessageContent: pending.userMessageContent,
+					userImages: pending.userImages,
+					sourceUserMessageId: `msg-${pending.fromMessageId}`,
+				},
+				{
+					fromMessageId: pending.fromMessageId,
+					revertActions: choice === "revert",
+				}
+			);
+		},
+		[editDialogState, handleRegenerate]
 	);
 
 	// Handle reloading/refreshing the last AI response
@@ -2089,6 +2554,7 @@ export default function NewChatPage() {
 		<TokenUsageProvider store={tokenUsageStore}>
 			<AssistantRuntimeProvider runtime={runtime}>
 				<ThinkingStepsDataUI />
+				<StepSeparatorDataUI />
 				<div key={searchSpaceId} className="flex h-full overflow-hidden">
 					<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 						<Thread />
@@ -2097,6 +2563,15 @@ export default function NewChatPage() {
 					<MobileEditorPanel />
 					<MobileHitlEditPanel />
 				</div>
+				<EditMessageDialog
+					open={editDialogState !== null}
+					onOpenChange={(open) => {
+						if (!open) setEditDialogState(null);
+					}}
+					downstreamReversibleCount={editDialogState?.downstreamReversibleCount ?? 0}
+					downstreamTotalCount={editDialogState?.downstreamTotalCount ?? 0}
+					onChoose={handleEditDialogChoice}
+				/>
 			</AssistantRuntimeProvider>
 		</TokenUsageProvider>
 	);
