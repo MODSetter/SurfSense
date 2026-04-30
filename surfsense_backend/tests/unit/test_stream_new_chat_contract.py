@@ -231,10 +231,18 @@ def test_network_send_failures_use_unified_retry_toast_message():
     assert 'userMessage: "Message not sent. Please retry."' in classifier_source
     assert 'userMessage: "Connection issue. Please try again."' in classifier_source
     assert "tagPreAcceptSendFailure(error)" in page_source
-    assert 'existingCode === "THREAD_BUSY"' in page_source
-    assert 'existingCode === "AUTH_EXPIRED"' in page_source
-    assert 'existingCode === "UNAUTHORIZED"' in page_source
-    assert 'existingCode === "RATE_LIMITED"' in page_source
+    assert "const passthroughCodes = new Set([" in page_source
+    assert '"PREMIUM_QUOTA_EXHAUSTED"' in page_source
+    assert '"THREAD_BUSY"' in page_source
+    assert '"AUTH_EXPIRED"' in page_source
+    assert '"UNAUTHORIZED"' in page_source
+    assert '"RATE_LIMITED"' in page_source
+    assert '"NETWORK_ERROR"' in page_source
+    assert '"STREAM_PARSE_ERROR"' in page_source
+    assert '"TOOL_EXECUTION_ERROR"' in page_source
+    assert '"PERSIST_MESSAGE_FAILED"' in page_source
+    assert '"SERVER_ERROR"' in page_source
+    assert "passthroughCodes.has(existingCode)" in page_source
     assert 'errorCode: "SEND_FAILED_PRE_ACCEPT"' in page_source
     assert 'errorCode: "NETWORK_ERROR"' not in page_source
     assert "Failed to start chat. Please try again." not in page_source

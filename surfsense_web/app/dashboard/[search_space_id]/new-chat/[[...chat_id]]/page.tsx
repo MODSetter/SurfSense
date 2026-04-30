@@ -227,11 +227,21 @@ function tagPreAcceptSendFailure(error: unknown): unknown {
 	if (error instanceof Error) {
 		const withCode = error as Error & { errorCode?: string; code?: string };
 		const existingCode = withCode.errorCode ?? withCode.code;
+		const passthroughCodes = new Set([
+			"PREMIUM_QUOTA_EXHAUSTED",
+			"THREAD_BUSY",
+			"AUTH_EXPIRED",
+			"UNAUTHORIZED",
+			"RATE_LIMITED",
+			"NETWORK_ERROR",
+			"STREAM_PARSE_ERROR",
+			"TOOL_EXECUTION_ERROR",
+			"PERSIST_MESSAGE_FAILED",
+			"SERVER_ERROR",
+		]);
 		if (
-			existingCode === "THREAD_BUSY" ||
-			existingCode === "AUTH_EXPIRED" ||
-			existingCode === "UNAUTHORIZED" ||
-			existingCode === "RATE_LIMITED"
+			existingCode &&
+			passthroughCodes.has(existingCode)
 		) {
 			return Object.assign(error, { errorCode: existingCode });
 		}

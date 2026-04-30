@@ -8,13 +8,6 @@ Add thread-level fields to persist Auto (Fastest) model pinning metadata:
 - pinned_llm_config_id: concrete resolved config id used for this thread
 - pinned_auto_mode: auto policy identifier (currently "auto_fastest")
 - pinned_at: timestamp when the pin was created/refreshed
-
-Idempotent: this migration was originally numbered 134 on the
-``feat/split-auto-free-premium`` branch and was renumbered to 138 during
-the merge with ``upstream/dev`` (which claimed 134-137). Some databases
-already have these columns/indexes from when the original 134 ran, so we
-use ``IF NOT EXISTS`` to make re-application a no-op for those DBs while
-still creating the schema on fresh databases.
 """
 
 from __future__ import annotations
