@@ -4,26 +4,22 @@
  * "Revert turn" button rendered at the bottom of every completed
  * assistant turn that has at least one reversible action.
  *
- * The button reads the action map keyed by ``chat_turn_id`` from the
- * SSE side-channel (``data-action-log`` events). It shows a confirmation
- * dialog summarising "N reversible / M total" and, on confirm, calls
- * ``POST /threads/{id}/revert-turn/{chat_turn_id}``.
+ * The button reads from the unified ``useAgentActionsQuery`` cache
+ * (the SAME react-query cache the agent-actions sheet and the inline
+ * Revert button consume) filtered by ``chat_turn_id``. It shows a
+ * confirmation dialog summarising "N reversible / M total" and, on
+ * confirm, calls ``POST /threads/{id}/revert-turn/{chat_turn_id}``.
  *
  * The route returns a per-action result list and never collapses the
  * batch into a 4xx — so we render any failed/not_reversible rows inline
  * with their messages.
  */
 
-import { useAtomValue, useSetAtom } from "jotai";
-import { selectAtom } from "jotai/utils";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAtomValue } from "jotai";
 import { CheckIcon, RotateCcw, XCircleIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import {
-	type AgentActionLite,
-	agentActionsByChatTurnIdAtom,
-	markAgentActionsRevertedBatchAtom,
-} from "@/atoms/chat/agent-actions.atom";
 import { chatSessionStateAtom } from "@/atoms/chat/chat-session-state.atom";
 import {
 	AlertDialog,
@@ -39,6 +35,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { getToolDisplayName } from "@/contracts/enums/toolIcons";
 import {
+	applyRevertTurnResultsToCache,
+	useAgentActionsQuery,
+} from "@/hooks/use-agent-actions-query";
+import {
 	agentActionsApiService,
 	type RevertTurnActionResult,
 } from "@/lib/apis/agent-actions-api.service";
@@ -49,49 +49,33 @@ interface RevertTurnButtonProps {
 	chatTurnId: string | null | undefined;
 }
 
-// Empty-array sentinel so the per-turn ``selectAtom`` slice returns a
-// stable reference when the turn has no recorded actions yet. Without
-// this every render allocates a fresh ``[]`` and Jotai's
-// equality check would re-render the button on unrelated turn updates.
-const EMPTY_ACTIONS: readonly AgentActionLite[] = Object.freeze([]);
-
 export function RevertTurnButton({ chatTurnId }: RevertTurnButtonProps) {
 	const session = useAtomValue(chatSessionStateAtom);
-	const markRevertedBatch = useSetAtom(markAgentActionsRevertedBatchAtom);
+	const threadId = session?.threadId ?? null;
+	const queryClient = useQueryClient();
+	const { findByChatTurnId } = useAgentActionsQuery(threadId);
 	const [isReverting, setIsReverting] = useState(false);
 	const [confirmOpen, setConfirmOpen] = useState(false);
 	const [resultsOpen, setResultsOpen] = useState(false);
 	const [results, setResults] = useState<RevertTurnActionResult[]>([]);
 
-	// Subscribe ONLY to the slice of the global action map that belongs
-	// to ``chatTurnId``. Previously the button read the whole
-	// ``agentActionsByChatTurnIdAtom``, which meant every action
-	// upsert (one per tool call) re-rendered every Revert button on
-	// the page. With ``selectAtom`` we re-render only when our turn's
-	// list reference changes — and the upsert/mark atoms produce a
-	// fresh list reference for the affected turn only.
-	const sliceAtom = useMemo(
-		() =>
-			selectAtom(
-				agentActionsByChatTurnIdAtom,
-				(turnIndex) => (chatTurnId ? turnIndex.get(chatTurnId) : undefined) ?? EMPTY_ACTIONS
-			),
-		[chatTurnId]
-	);
-	const actions = useAtomValue(sliceAtom);
+	const actions = useMemo(() => findByChatTurnId(chatTurnId), [findByChatTurnId, chatTurnId]);
 
 	const reversibleCount = useMemo(
 		() =>
 			actions.filter(
-				(a) => a.reversible && a.revertedByActionId === null && !a.isRevertAction && !a.error
+				(a) =>
+					a.reversible &&
+					(a.reverted_by_action_id === null || a.reverted_by_action_id === undefined) &&
+					!a.is_revert_action &&
+					(a.error === null || a.error === undefined)
 			).length,
 		[actions]
 	);
-	const totalCount = useMemo(() => actions.filter((a) => !a.isRevertAction).length, [actions]);
+	const totalCount = useMemo(() => actions.filter((a) => !a.is_revert_action).length, [actions]);
 
 	if (!chatTurnId) return null;
 	if (reversibleCount === 0) return null;
-	const threadId = session?.threadId;
 	if (!threadId) return null;
 
 	const handleRevertTurn = async () => {
@@ -103,7 +87,7 @@ export function RevertTurnButton({ chatTurnId }: RevertTurnButtonProps) {
 				.filter((r) => r.status === "reverted" || r.status === "already_reverted")
 				.map((r) => ({ id: r.action_id, newActionId: r.new_action_id ?? null }));
 			if (revertedEntries.length > 0) {
-				markRevertedBatch({ entries: revertedEntries });
+				applyRevertTurnResultsToCache(queryClient, threadId, revertedEntries);
 			}
 			if (response.status === "ok") {
 				toast.success(

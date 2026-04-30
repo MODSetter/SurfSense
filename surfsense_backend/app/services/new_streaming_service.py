@@ -599,8 +599,17 @@ class VercelStreamingService:
         Format the start of tool input streaming.
 
         Args:
-            tool_call_id: The unique tool call identifier (synthetic, derived
-                from LangGraph ``run_id`` so the frontend has a stable card id).
+            tool_call_id: The unique tool call identifier. May be EITHER the
+                synthetic ``call_<run_id>`` id derived from LangGraph
+                ``run_id`` (legacy / ``SURFSENSE_ENABLE_STREAM_PARITY_V2``
+                OFF, or the unmatched-fallback path under parity_v2) OR
+                the authoritative LangChain ``tool_call.id`` (parity_v2
+                path: when the provider streams ``tool_call_chunks`` we
+                register the ``index`` and reuse the lc-id as the card
+                id so live ``tool-input-delta`` events can be routed
+                without a downstream join). Either way, the same id is
+                preserved across ``tool-input-start`` / ``-delta`` /
+                ``-available`` / ``tool-output-available`` for one call.
             tool_name: The name of the tool being called.
             langchain_tool_call_id: Optional authoritative LangChain
                 ``tool_call.id``. When set, surfaces as

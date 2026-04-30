@@ -15,13 +15,6 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { disabledToolsAtom } from "@/atoms/agent-tools/agent-tools.atoms";
 import {
-	agentActionsByChatTurnIdAtom,
-	markAgentActionRevertedAtom,
-	resetAgentActionMapAtom,
-	updateAgentActionReversibleAtom,
-	upsertAgentActionAtom,
-} from "@/atoms/chat/agent-actions.atom";
-import {
 	clearTargetCommentIdAtom,
 	currentThreadAtom,
 	setTargetCommentIdAtom,
@@ -56,6 +49,12 @@ import {
 	type TokenUsageData,
 	TokenUsageProvider,
 } from "@/components/assistant-ui/token-usage-context";
+import {
+	applyActionLogSse,
+	applyActionLogUpdatedSse,
+	markActionRevertedInCache,
+	useAgentActionsQuery,
+} from "@/hooks/use-agent-actions-query";
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
 import { useMessagesSync } from "@/hooks/use-messages-sync";
 import { getAgentFilesystemSelection } from "@/lib/agent-filesystem";
@@ -76,12 +75,12 @@ import {
 	addToolCall,
 	appendReasoning,
 	appendText,
+	appendToolInputDelta,
 	buildContentForPersistence,
 	buildContentForUI,
 	type ContentPartsState,
 	endReasoning,
 	FrameBatchedUpdater,
-	findToolCallIdByLcId,
 	readSSEStream,
 	type SSEEvent,
 	type ThinkingStepData,
@@ -511,14 +510,6 @@ export default function NewChatPage() {
 	const setAgentCreatedDocuments = useSetAtom(agentCreatedDocumentsAtom);
 	const pendingUserImageUrls = useAtomValue(pendingUserImageDataUrlsAtom);
 	const setPendingUserImageUrls = useSetAtom(pendingUserImageDataUrlsAtom);
-	// Agent action log SSE side-channel.
-	const upsertAgentAction = useSetAtom(upsertAgentActionAtom);
-	const updateAgentActionReversible = useSetAtom(updateAgentActionReversibleAtom);
-	const markAgentActionReverted = useSetAtom(markAgentActionRevertedAtom);
-	const resetAgentActionMap = useSetAtom(resetAgentActionMapAtom);
-	// Chat-turn-keyed action map for the edit-from-position pre-flight
-	// that decides whether to show the confirmation dialog.
-	const agentActionsByChatTurnId = useAtomValue(agentActionsByChatTurnIdAtom);
 	// Edit dialog state. Holds the message id being edited and
 	// the (already extracted) regenerate args so we can resume the edit
 	// after the user picks "revert all" / "continue" / "cancel".
@@ -547,6 +538,11 @@ export default function NewChatPage() {
 				content: unknown;
 				author_id: string | null;
 				created_at: string;
+				// Forwarded so ``convertToThreadMessage`` can rebuild the
+				// ``metadata.custom.chatTurnId`` on the
+				// ``ThreadMessageLike``. Required by the inline Revert
+				// button's per-turn fallback.
+				turn_id?: string | null;
 			}[]
 		) => {
 			if (isRunning) {
@@ -579,6 +575,11 @@ export default function NewChatPage() {
 						created_at: msg.created_at,
 						author_display_name: member?.user_display_name ?? existingAuthor?.displayName ?? null,
 						author_avatar_url: member?.user_avatar_url ?? existingAuthor?.avatarUrl ?? null,
+						// Forward the per-turn correlation id so the
+						// inline Revert button's ``(chat_turn_id,
+						// tool_name, position)`` fallback survives the
+						// post-stream Zero re-sync.
+						turn_id: msg.turn_id ?? null,
 					});
 				});
 			});
@@ -594,6 +595,13 @@ export default function NewChatPage() {
 		const parsed = typeof id === "string" ? Number.parseInt(id, 10) : 0;
 		return Number.isNaN(parsed) ? 0 : parsed;
 	}, [params.search_space_id]);
+
+	// Unified store for agent-action rows (the same react-query cache
+	// the agent-actions sheet, the inline Revert button, and the
+	// per-turn Revert button all read). Hydrates from
+	// ``GET /threads/{id}/actions`` and is updated incrementally by the
+	// SSE handlers + revert-batch results below — no atom side-channel.
+	const { items: agentActionItems } = useAgentActionsQuery(threadId);
 
 	// Extract chat_id from URL params
 	const urlChatId = useMemo(() => {
@@ -738,7 +746,8 @@ export default function NewChatPage() {
 		clearPlanOwnerRegistry();
 		closeReportPanel();
 		closeEditorPanel();
-		resetAgentActionMap();
+		// Note: agent-action data is keyed by threadId in react-query so
+		// switching threads naturally swaps caches; no explicit reset.
 
 		try {
 			if (urlChatId > 0) {
@@ -807,7 +816,6 @@ export default function NewChatPage() {
 		removeChatTab,
 		searchSpaceId,
 		tokenUsageStore,
-		resetAgentActionMap,
 	]);
 
 	// Initialize on mount, and re-init when switching search spaces (even if urlChatId is the same)
@@ -1145,6 +1153,15 @@ export default function NewChatPage() {
 					);
 				};
 				const scheduleFlush = () => batcher.schedule(flushMessages);
+				// Force-flush helper: ``batcher.flush()`` is a no-op when
+				// ``dirty=false`` (e.g. a tool starts before any text
+				// streamed). ``scheduleFlush(); batcher.flush()`` sets
+				// the dirty bit FIRST so terminal events render
+				// promptly without the 50ms throttle delay.
+				const forceFlush = () => {
+					scheduleFlush();
+					batcher.flush();
+				};
 
 				for await (const parsed of readSSEStream(response)) {
 					switch (parsed.type) {
@@ -1181,13 +1198,23 @@ export default function NewChatPage() {
 								false,
 								parsed.langchainToolCallId
 							);
-							batcher.flush();
+							forceFlush();
+							break;
+
+						case "tool-input-delta":
+							// High-frequency event: deltas can fire dozens
+							// of times per call, so use throttled
+							// scheduleFlush (NOT forceFlush) to coalesce.
+							appendToolInputDelta(contentPartsState, parsed.toolCallId, parsed.inputTextDelta);
+							scheduleFlush();
 							break;
 
 						case "tool-input-available": {
+							const finalArgsText = JSON.stringify(parsed.input ?? {}, null, 2);
 							if (toolCallIndices.has(parsed.toolCallId)) {
 								updateToolCall(contentPartsState, parsed.toolCallId, {
 									args: parsed.input || {},
+									argsText: finalArgsText,
 									langchainToolCallId: parsed.langchainToolCallId,
 								});
 							} else {
@@ -1200,8 +1227,14 @@ export default function NewChatPage() {
 									false,
 									parsed.langchainToolCallId
 								);
+								// addToolCall doesn't accept argsText today;
+								// backfill via updateToolCall so the new card
+								// renders pretty-printed JSON.
+								updateToolCall(contentPartsState, parsed.toolCallId, {
+									argsText: finalArgsText,
+								});
 							}
-							batcher.flush();
+							forceFlush();
 							break;
 						}
 
@@ -1220,7 +1253,7 @@ export default function NewChatPage() {
 									}
 								}
 							}
-							batcher.flush();
+							forceFlush();
 							break;
 						}
 
@@ -1316,34 +1349,17 @@ export default function NewChatPage() {
 						}
 
 						case "data-action-log": {
-							const al = parsed.data;
-							const matchedToolCallId = al.lc_tool_call_id
-								? findToolCallIdByLcId(contentPartsState, al.lc_tool_call_id)
-								: null;
-							upsertAgentAction({
-								action: {
-									id: al.id,
-									threadId: currentThreadId,
-									lcToolCallId: al.lc_tool_call_id,
-									chatTurnId: al.chat_turn_id,
-									toolName: al.tool_name,
-									reversible: al.reversible,
-									reverseDescriptorPresent: al.reverse_descriptor_present,
-									error: al.error,
-									revertedByActionId: null,
-									isRevertAction: false,
-									createdAt: al.created_at,
-								},
-								toolCallId: matchedToolCallId,
-							});
+							applyActionLogSse(queryClient, currentThreadId, searchSpaceId, parsed.data);
 							break;
 						}
 
 						case "data-action-log-updated": {
-							updateAgentActionReversible({
-								id: parsed.data.id,
-								reversible: parsed.data.reversible,
-							});
+							applyActionLogUpdatedSse(
+								queryClient,
+								currentThreadId,
+								parsed.data.id,
+								parsed.data.reversible
+							);
 							break;
 						}
 
@@ -1559,6 +1575,15 @@ export default function NewChatPage() {
 								toolName: String(p.toolName),
 								args: (p.args as Record<string, unknown>) ?? {},
 								result: p.result as unknown,
+								// Restore argsText so persisted pretty-printed
+								// JSON survives reloads (assistant-ui prefers
+								// supplied argsText over JSON.stringify(args)).
+								// langchainToolCallId restoration also fixes a
+								// pre-existing dropped-id bug on resume.
+								...(typeof p.argsText === "string" ? { argsText: p.argsText } : {}),
+								...(typeof p.langchainToolCallId === "string"
+									? { langchainToolCallId: p.langchainToolCallId }
+									: {}),
 							});
 							contentPartsState.currentTextPartIndex = -1;
 						} else if (p.type === "data-thinking-steps") {
@@ -1580,7 +1605,12 @@ export default function NewChatPage() {
 				const editedAction = decisions[0].edited_action;
 				for (const part of contentParts) {
 					if (part.type === "tool-call" && part.toolName === editedAction.name) {
-						part.args = { ...part.args, ...editedAction.args };
+						const mergedArgs = { ...part.args, ...editedAction.args };
+						part.args = mergedArgs;
+						// Sync argsText so the rendered card shows the
+						// edited inputs — assistant-ui prefers caller-
+						// supplied argsText over JSON.stringify(args).
+						part.argsText = JSON.stringify(mergedArgs, null, 2);
 						break;
 					}
 				}
@@ -1637,6 +1667,10 @@ export default function NewChatPage() {
 					);
 				};
 				const scheduleFlush = () => batcher.schedule(flushMessages);
+				const forceFlush = () => {
+					scheduleFlush();
+					batcher.flush();
+				};
 
 				for await (const parsed of readSSEStream(response)) {
 					switch (parsed.type) {
@@ -1673,13 +1707,20 @@ export default function NewChatPage() {
 								false,
 								parsed.langchainToolCallId
 							);
-							batcher.flush();
+							forceFlush();
 							break;
 
-						case "tool-input-available":
+						case "tool-input-delta":
+							appendToolInputDelta(contentPartsState, parsed.toolCallId, parsed.inputTextDelta);
+							scheduleFlush();
+							break;
+
+						case "tool-input-available": {
+							const finalArgsText = JSON.stringify(parsed.input ?? {}, null, 2);
 							if (toolCallIndices.has(parsed.toolCallId)) {
 								updateToolCall(contentPartsState, parsed.toolCallId, {
 									args: parsed.input || {},
+									argsText: finalArgsText,
 									langchainToolCallId: parsed.langchainToolCallId,
 								});
 							} else {
@@ -1692,9 +1733,13 @@ export default function NewChatPage() {
 									false,
 									parsed.langchainToolCallId
 								);
+								updateToolCall(contentPartsState, parsed.toolCallId, {
+									argsText: finalArgsText,
+								});
 							}
-							batcher.flush();
+							forceFlush();
 							break;
+						}
 
 						case "tool-output-available":
 							updateToolCall(contentPartsState, parsed.toolCallId, {
@@ -1702,7 +1747,7 @@ export default function NewChatPage() {
 								langchainToolCallId: parsed.langchainToolCallId,
 							});
 							markInterruptsCompleted(contentParts);
-							batcher.flush();
+							forceFlush();
 							break;
 
 						case "data-thinking-step": {
@@ -1762,34 +1807,17 @@ export default function NewChatPage() {
 						}
 
 						case "data-action-log": {
-							const al = parsed.data;
-							const matchedToolCallId = al.lc_tool_call_id
-								? findToolCallIdByLcId(contentPartsState, al.lc_tool_call_id)
-								: null;
-							upsertAgentAction({
-								action: {
-									id: al.id,
-									threadId: resumeThreadId,
-									lcToolCallId: al.lc_tool_call_id,
-									chatTurnId: al.chat_turn_id,
-									toolName: al.tool_name,
-									reversible: al.reversible,
-									reverseDescriptorPresent: al.reverse_descriptor_present,
-									error: al.error,
-									revertedByActionId: null,
-									isRevertAction: false,
-									createdAt: al.created_at,
-								},
-								toolCallId: matchedToolCallId,
-							});
+							applyActionLogSse(queryClient, resumeThreadId, searchSpaceId, parsed.data);
 							break;
 						}
 
 						case "data-action-log-updated": {
-							updateAgentActionReversible({
-								id: parsed.data.id,
-								reversible: parsed.data.reversible,
-							});
+							applyActionLogUpdatedSse(
+								queryClient,
+								resumeThreadId,
+								parsed.data.id,
+								parsed.data.reversible
+							);
 							break;
 						}
 
@@ -1902,6 +1930,11 @@ export default function NewChatPage() {
 									return {
 										...part,
 										args: decision.edited_action.args, // Update displayed args
+										// Sync argsText so the rendered card shows
+										// the edited inputs — assistant-ui prefers
+										// caller-supplied argsText over
+										// JSON.stringify(args).
+										argsText: JSON.stringify(decision.edited_action.args, null, 2),
 										result: {
 											...(part.result as Record<string, unknown>),
 											__decided__: decisionType,
@@ -2127,6 +2160,10 @@ export default function NewChatPage() {
 					);
 				};
 				const scheduleFlush = () => batcher.schedule(flushMessages);
+				const forceFlush = () => {
+					scheduleFlush();
+					batcher.flush();
+				};
 
 				for await (const parsed of readSSEStream(response)) {
 					switch (parsed.type) {
@@ -2163,13 +2200,20 @@ export default function NewChatPage() {
 								false,
 								parsed.langchainToolCallId
 							);
-							batcher.flush();
+							forceFlush();
 							break;
 
-						case "tool-input-available":
+						case "tool-input-delta":
+							appendToolInputDelta(contentPartsState, parsed.toolCallId, parsed.inputTextDelta);
+							scheduleFlush();
+							break;
+
+						case "tool-input-available": {
+							const finalArgsText = JSON.stringify(parsed.input ?? {}, null, 2);
 							if (toolCallIndices.has(parsed.toolCallId)) {
 								updateToolCall(contentPartsState, parsed.toolCallId, {
 									args: parsed.input || {},
+									argsText: finalArgsText,
 									langchainToolCallId: parsed.langchainToolCallId,
 								});
 							} else {
@@ -2182,9 +2226,13 @@ export default function NewChatPage() {
 									false,
 									parsed.langchainToolCallId
 								);
+								updateToolCall(contentPartsState, parsed.toolCallId, {
+									argsText: finalArgsText,
+								});
 							}
-							batcher.flush();
+							forceFlush();
 							break;
+						}
 
 						case "tool-output-available":
 							updateToolCall(contentPartsState, parsed.toolCallId, {
@@ -2201,7 +2249,7 @@ export default function NewChatPage() {
 									}
 								}
 							}
-							batcher.flush();
+							forceFlush();
 							break;
 
 						case "data-thinking-step": {
@@ -2217,34 +2265,21 @@ export default function NewChatPage() {
 						}
 
 						case "data-action-log": {
-							const al = parsed.data;
-							const matchedToolCallId = al.lc_tool_call_id
-								? findToolCallIdByLcId(contentPartsState, al.lc_tool_call_id)
-								: null;
-							upsertAgentAction({
-								action: {
-									id: al.id,
-									threadId,
-									lcToolCallId: al.lc_tool_call_id,
-									chatTurnId: al.chat_turn_id,
-									toolName: al.tool_name,
-									reversible: al.reversible,
-									reverseDescriptorPresent: al.reverse_descriptor_present,
-									error: al.error,
-									revertedByActionId: null,
-									isRevertAction: false,
-									createdAt: al.created_at,
-								},
-								toolCallId: matchedToolCallId,
-							});
+							if (threadId !== null) {
+								applyActionLogSse(queryClient, threadId, searchSpaceId, parsed.data);
+							}
 							break;
 						}
 
 						case "data-action-log-updated": {
-							updateAgentActionReversible({
-								id: parsed.data.id,
-								reversible: parsed.data.reversible,
-							});
+							if (threadId !== null) {
+								applyActionLogUpdatedSse(
+									queryClient,
+									threadId,
+									parsed.data.id,
+									parsed.data.reversible
+								);
+							}
 							break;
 						}
 
@@ -2281,12 +2316,16 @@ export default function NewChatPage() {
 										: `Reverted ${summary.reverted} downstream actions before regenerating.`
 								);
 							}
-							for (const r of summary.results) {
-								if (r.status === "reverted" || r.status === "already_reverted") {
-									markAgentActionReverted({
-										id: r.action_id,
-										newActionId: r.new_action_id ?? null,
-									});
+							if (threadId !== null) {
+								for (const r of summary.results) {
+									if (r.status === "reverted" || r.status === "already_reverted") {
+										markActionRevertedInCache(
+											queryClient,
+											threadId,
+											r.action_id,
+											r.new_action_id ?? null
+										);
+									}
 								}
 							}
 							break;
@@ -2459,16 +2498,26 @@ export default function NewChatPage() {
 				const downstream = messages.slice(editedIndex + 1);
 				downstreamTotalCount = downstream.length;
 				const seenTurns = new Set<string>();
+				const downstreamTurnIds = new Set<string>();
 				for (const m of downstream) {
 					const meta = (m.metadata ?? {}) as { custom?: { chatTurnId?: string } };
 					const tid = meta.custom?.chatTurnId;
 					if (!tid || seenTurns.has(tid)) continue;
 					seenTurns.add(tid);
-					const turnActions = agentActionsByChatTurnId.get(tid) ?? [];
-					for (const a of turnActions) {
-						if (a.reversible && a.revertedByActionId === null && !a.isRevertAction && !a.error) {
-							downstreamReversibleCount += 1;
-						}
+					downstreamTurnIds.add(tid);
+				}
+				// Source of truth: the unified react-query cache. Every
+				// action whose ``chat_turn_id`` belongs to the slice we're
+				// about to drop counts toward the prompt.
+				for (const a of agentActionItems) {
+					if (!a.chat_turn_id || !downstreamTurnIds.has(a.chat_turn_id)) continue;
+					if (
+						a.reversible &&
+						(a.reverted_by_action_id === null || a.reverted_by_action_id === undefined) &&
+						!a.is_revert_action &&
+						(a.error === null || a.error === undefined)
+					) {
+						downstreamReversibleCount += 1;
 					}
 				}
 			}
@@ -2492,7 +2541,7 @@ export default function NewChatPage() {
 				downstreamTotalCount,
 			});
 		},
-		[handleRegenerate, messages, agentActionsByChatTurnId]
+		[handleRegenerate, messages, agentActionItems]
 	);
 
 	const handleEditDialogChoice = useCallback(
