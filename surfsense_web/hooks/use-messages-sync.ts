@@ -31,6 +31,14 @@ export function useMessagesSync(
 			content: msg.content,
 			author_id: msg.authorId ?? null,
 			created_at: new Date(msg.createdAt).toISOString(),
+			// Forward the per-turn correlation id so post-stream Zero
+			// re-syncs preserve ``metadata.custom.chatTurnId`` on the
+			// converted ``ThreadMessageLike``. Without this the inline
+			// Revert button's ``(chat_turn_id, tool_name, position)``
+			// fallback breaks the moment Zero overwrites the messages
+			// state after a live stream completes (see
+			// ``handleSyncedMessagesUpdate`` in the chat page).
+			turn_id: msg.turnId ?? null,
 		}));
 
 		onMessagesUpdateRef.current(mapped);

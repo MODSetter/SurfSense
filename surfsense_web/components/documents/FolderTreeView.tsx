@@ -7,6 +7,7 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { renamingFolderIdAtom } from "@/atoms/documents/folder.atoms";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
+import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { DocumentNode, type DocumentNodeDoc } from "./DocumentNode";
 import { type FolderDisplay, FolderNode } from "./FolderNode";
 
@@ -17,7 +18,7 @@ interface FolderTreeViewProps {
 	documents: DocumentNodeDoc[];
 	expandedIds: Set<number>;
 	onToggleExpand: (folderId: number) => void;
-	mentionedDocIds: Set<number>;
+	mentionedDocKeys: Set<string>;
 	onToggleChatMention: (
 		doc: { id: number; title: string; document_type: string },
 		isMentioned: boolean
@@ -62,7 +63,7 @@ export function FolderTreeView({
 	documents,
 	expandedIds,
 	onToggleExpand,
-	mentionedDocIds,
+	mentionedDocKeys,
 	onToggleChatMention,
 	onToggleFolderSelect,
 	onRenameFolder,
@@ -181,7 +182,7 @@ export function FolderTreeView({
 
 		function compute(folderId: number): { selected: number; total: number } {
 			const directDocs = (docsByFolder[folderId] ?? []).filter(isSelectable);
-			let selected = directDocs.filter((d) => mentionedDocIds.has(d.id)).length;
+			let selected = directDocs.filter((d) => mentionedDocKeys.has(getMentionDocKey(d))).length;
 			let total = directDocs.length;
 
 			for (const child of foldersByParent[folderId] ?? []) {
@@ -202,7 +203,7 @@ export function FolderTreeView({
 			if (states[f.id] === undefined) compute(f.id);
 		}
 		return states;
-	}, [folders, docsByFolder, foldersByParent, mentionedDocIds]);
+	}, [folders, docsByFolder, foldersByParent, mentionedDocKeys]);
 
 	const folderMap = useMemo(() => {
 		const map: Record<number, FolderDisplay> = {};
@@ -276,7 +277,7 @@ export function FolderTreeView({
 						key={`doc-${d.id}`}
 						doc={d}
 						depth={depth}
-						isMentioned={mentionedDocIds.has(d.id)}
+						isMentioned={mentionedDocKeys.has(getMentionDocKey(d))}
 						onToggleChatMention={onToggleChatMention}
 						onPreview={onPreviewDocument}
 						onEdit={onEditDocument}
@@ -356,7 +357,7 @@ export function FolderTreeView({
 					key={`doc-${d.id}`}
 					doc={d}
 					depth={depth}
-					isMentioned={mentionedDocIds.has(d.id)}
+					isMentioned={mentionedDocKeys.has(getMentionDocKey(d))}
 					onToggleChatMention={onToggleChatMention}
 					onPreview={onPreviewDocument}
 					onEdit={onEditDocument}

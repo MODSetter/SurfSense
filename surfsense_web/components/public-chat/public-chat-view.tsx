@@ -1,6 +1,7 @@
 "use client";
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { StepSeparatorDataUI } from "@/components/assistant-ui/step-separator";
 import { ThinkingStepsDataUI } from "@/components/assistant-ui/thinking-steps";
 import { Navbar } from "@/components/homepage/navbar";
 import { ReportPanel } from "@/components/report-panel/report-panel";
@@ -41,6 +42,7 @@ export function PublicChatView({ shareToken }: PublicChatViewProps) {
 			<Navbar scrolledBgClassName={navbarScrolledBg} />
 			<AssistantRuntimeProvider runtime={runtime}>
 				<ThinkingStepsDataUI />
+				<StepSeparatorDataUI />
 				<div className="flex h-screen pt-16 overflow-hidden">
 					<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 						<PublicThread footer={<PublicChatFooter shareToken={shareToken} />} />

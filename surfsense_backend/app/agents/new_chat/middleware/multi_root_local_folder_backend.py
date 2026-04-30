@@ -285,6 +285,34 @@ class MultiRootLocalFolderBackend:
             overwrite,
         )
 
+    def delete_file(self, file_path: str) -> WriteResult:
+        try:
+            mount, local_path = self._split_mount_path(file_path)
+        except ValueError as exc:
+            return WriteResult(error=f"Error: {exc}")
+        result = self._mount_to_backend[mount].delete_file(local_path)
+        if result.path:
+            result.path = self._prefix_mount_path(mount, result.path)
+        return result
+
+    async def adelete_file(self, file_path: str) -> WriteResult:
+        return await asyncio.to_thread(self.delete_file, file_path)
+
+    def rmdir(self, dir_path: str) -> WriteResult:
+        try:
+            mount, local_path = self._split_mount_path(dir_path)
+        except ValueError as exc:
+            return WriteResult(error=f"Error: {exc}")
+        if local_path == "/":
+            return WriteResult(error=f"Error: cannot rmdir mount root '{dir_path}'")
+        result = self._mount_to_backend[mount].rmdir(local_path)
+        if result.path:
+            result.path = self._prefix_mount_path(mount, result.path)
+        return result
+
+    async def armdir(self, dir_path: str) -> WriteResult:
+        return await asyncio.to_thread(self.rmdir, dir_path)
+
     def edit(
         self,
         file_path: str,

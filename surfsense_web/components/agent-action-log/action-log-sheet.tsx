@@ -1,9 +1,9 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAtom, useAtomValue } from "jotai";
 import { Activity, RefreshCcw } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import { actionLogSheetAtom } from "@/atoms/agent/action-log-sheet.atom";
 import { agentFlagsAtom } from "@/atoms/agent/agent-flags-query.atom";
 import { Badge } from "@/components/ui/badge";
@@ -17,14 +17,11 @@ import {
 	SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { agentActionsApiService } from "@/lib/apis/agent-actions-api.service";
+import {
+	agentActionsQueryKey,
+	useAgentActionsQuery,
+} from "@/hooks/use-agent-actions-query";
 import { ActionLogItem } from "./action-log-item";
-
-const ACTION_LOG_PAGE_SIZE = 50;
-
-function actionLogQueryKey(threadId: number) {
-	return ["agent-actions", threadId] as const;
-}
 
 function EmptyState() {
 	return (
@@ -85,24 +82,16 @@ export function ActionLogSheet() {
 
 	const threadId = state.threadId;
 
-	const { data, isLoading, isFetching, isError, error, refetch } = useQuery({
-		queryKey: threadId !== null ? actionLogQueryKey(threadId) : ["agent-actions", "none"],
-		queryFn: () =>
-			agentActionsApiService.listForThread(threadId as number, {
-				page: 0,
-				pageSize: ACTION_LOG_PAGE_SIZE,
-			}),
-		enabled: state.open && threadId !== null && actionLogEnabled,
-		staleTime: 15 * 1000,
-	});
+	const { data, items, isLoading, isFetching, isError, error, refetch } = useAgentActionsQuery(
+		threadId,
+		{ enabled: state.open && actionLogEnabled }
+	);
 
 	const handleRevertSuccess = useCallback(() => {
 		if (threadId !== null) {
-			queryClient.invalidateQueries({ queryKey: actionLogQueryKey(threadId) });
+			queryClient.invalidateQueries({ queryKey: agentActionsQueryKey(threadId) });
 		}
 	}, [queryClient, threadId]);
-
-	const items = useMemo(() => data?.items ?? [], [data]);
 
 	return (
 		<Sheet open={state.open} onOpenChange={(open) => setState((s) => ({ ...s, open }))}>

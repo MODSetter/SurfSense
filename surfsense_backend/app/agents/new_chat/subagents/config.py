@@ -90,6 +90,8 @@ WRITE_TOOL_DENY_PATTERNS: tuple[str, ...] = (
     "write_file",
     "move_file",
     "mkdir",
+    "rm",
+    "rmdir",
     "update_memory",
     "update_memory_team",
     "update_memory_private",

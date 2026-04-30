@@ -16,6 +16,17 @@ from app.agents.new_chat.tools.registry import ToolDefinition
 
 
 @dataclass
+class _FakeRuntime:
+    """Minimal stand-in for ``ToolRuntime`` used in unit tests.
+
+    ``ActionLogMiddleware`` reads ``runtime.config['configurable']['turn_id']``
+    to populate the new ``chat_turn_id`` column (see migration 135).
+    """
+
+    config: dict[str, Any] | None = None
+
+
+@dataclass
 class _FakeRequest:
     """Minimal stand-in for ToolCallRequest used in unit tests."""
 
@@ -120,6 +131,9 @@ class TestActionLogMiddlewarePersistence:
                 "args": {"color": "red", "size": 3},
                 "id": "tc-abc",
             },
+            runtime=_FakeRuntime(
+                config={"configurable": {"turn_id": "42:1700000000000"}}
+            ),
         )
         result_msg = ToolMessage(content="ok", tool_call_id="tc-abc", id="msg-1")
         handler = AsyncMock(return_value=result_msg)
@@ -142,6 +156,32 @@ class TestActionLogMiddlewarePersistence:
         assert row.error is None
         assert row.reverse_descriptor is None
         assert row.reversible is False
+        # Migration 135: ``turn_id`` is the deprecated alias of ``tool_call_id``;
+        # ``chat_turn_id`` comes from ``runtime.config['configurable']['turn_id']``.
+        assert row.tool_call_id == "tc-abc"
+        assert row.turn_id == "tc-abc"
+        assert row.chat_turn_id == "42:1700000000000"
+
+    @pytest.mark.asyncio
+    async def test_chat_turn_id_none_when_runtime_missing(
+        self, patch_get_flags, fake_session_factory
+    ) -> None:
+        """``chat_turn_id`` falls back to NULL when ``runtime.config`` is absent."""
+        captured, factory = fake_session_factory
+        mw = ActionLogMiddleware(thread_id=1, search_space_id=1, user_id=None)
+        request = _FakeRequest(
+            tool_call={"name": "make_widget", "args": {}, "id": "tc-1"},
+            runtime=None,
+        )
+        handler = AsyncMock(return_value=ToolMessage(content="ok", tool_call_id="tc-1"))
+        with (
+            patch_get_flags(_enabled_flags()),
+            patch("app.db.shielded_async_session", side_effect=lambda: factory()),
+        ):
+            await mw.awrap_tool_call(request, handler)
+        row = captured["rows"][0]
+        assert row.tool_call_id == "tc-1"
+        assert row.chat_turn_id is None
 
     @pytest.mark.asyncio
     async def test_writes_row_on_failure_and_reraises(
@@ -291,6 +331,76 @@ class TestReverseDescriptor:
             await mw.awrap_tool_call(request, handler)
         row = captured["rows"][0]
         assert row.reversible is False
+
+
+class TestActionLogDispatch:
+    """Verify ``adispatch_custom_event`` fires after commit."""
+
+    @pytest.mark.asyncio
+    async def test_dispatches_action_log_event_on_success(
+        self, patch_get_flags, fake_session_factory
+    ) -> None:
+        _captured, factory = fake_session_factory
+        mw = ActionLogMiddleware(thread_id=42, search_space_id=7, user_id="u1")
+        request = _FakeRequest(
+            tool_call={
+                "name": "make_widget",
+                "args": {"color": "red"},
+                "id": "tc-evt",
+            },
+            runtime=_FakeRuntime(
+                config={"configurable": {"turn_id": "42:1700000000000"}}
+            ),
+        )
+        result_msg = ToolMessage(content="ok", tool_call_id="tc-evt", id="msg-42")
+        handler = AsyncMock(return_value=result_msg)
+
+        dispatch_mock = AsyncMock()
+        with (
+            patch_get_flags(_enabled_flags()),
+            patch("app.db.shielded_async_session", side_effect=lambda: factory()),
+            patch(
+                "app.agents.new_chat.middleware.action_log.adispatch_custom_event",
+                dispatch_mock,
+            ),
+        ):
+            await mw.awrap_tool_call(request, handler)
+
+        dispatch_mock.assert_awaited_once()
+        call_args = dispatch_mock.await_args
+        assert call_args is not None
+        assert call_args.args[0] == "action_log"
+        payload = call_args.args[1]
+        assert payload["lc_tool_call_id"] == "tc-evt"
+        assert payload["chat_turn_id"] == "42:1700000000000"
+        assert payload["tool_name"] == "make_widget"
+        assert payload["reversible"] is False
+        assert payload["reverse_descriptor_present"] is False
+        assert payload["error"] is False
+
+    @pytest.mark.asyncio
+    async def test_no_dispatch_when_persistence_fails(self, patch_get_flags) -> None:
+        """If commit fails the dispatch is suppressed (no row to surface)."""
+        mw = ActionLogMiddleware(thread_id=1, search_space_id=1, user_id=None)
+        request = _FakeRequest(
+            tool_call={"name": "make_widget", "args": {}, "id": "tc1"}
+        )
+        handler = AsyncMock(return_value=ToolMessage(content="ok", tool_call_id="tc1"))
+        dispatch_mock = AsyncMock()
+
+        def _exploding_session():
+            raise RuntimeError("DB is down")
+
+        with (
+            patch_get_flags(_enabled_flags()),
+            patch("app.db.shielded_async_session", side_effect=_exploding_session),
+            patch(
+                "app.agents.new_chat.middleware.action_log.adispatch_custom_event",
+                dispatch_mock,
+            ),
+        ):
+            await mw.awrap_tool_call(request, handler)
+        dispatch_mock.assert_not_awaited()
 
 
 class TestArgsTruncation:

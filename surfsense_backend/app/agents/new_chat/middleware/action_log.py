@@ -30,6 +30,7 @@ from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
 from langchain.agents.middleware import AgentMiddleware
+from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.messages import ToolMessage
 
 from app.agents.new_chat.feature_flags import get_flags
@@ -144,11 +145,19 @@ class ActionLogMiddleware(AgentMiddleware):
                 result=result,
             )
 
+            tool_call_id = _resolve_tool_call_id(request)
+            chat_turn_id = _resolve_chat_turn_id(request)
+
             row = AgentActionLog(
                 thread_id=self._thread_id,
                 user_id=self._user_id,
                 search_space_id=self._search_space_id,
-                turn_id=_resolve_turn_id(request),
+                # ``turn_id`` is the deprecated alias of ``tool_call_id``
+                # kept for one release for safe rollback. New consumers
+                # should read ``tool_call_id`` directly.
+                turn_id=tool_call_id,
+                tool_call_id=tool_call_id,
+                chat_turn_id=chat_turn_id,
                 message_id=_resolve_message_id(request),
                 tool_name=tool_name,
                 args=args_payload,
@@ -160,9 +169,39 @@ class ActionLogMiddleware(AgentMiddleware):
             async with shielded_async_session() as session:
                 session.add(row)
                 await session.commit()
+                row_id = int(row.id) if row.id is not None else None
+                row_created_at = row.created_at
         except Exception:
             logger.warning(
                 "ActionLogMiddleware failed to persist action log row",
+                exc_info=True,
+            )
+            return
+
+        # Surface a side-channel SSE event so the chat tool card can
+        # render a Revert button immediately after the row is durable.
+        # ``stream_new_chat`` translates this into a
+        # ``data-action-log`` SSE event. We DO NOT include the
+        # ``reverse_descriptor`` payload here; only a presence flag.
+        try:
+            await adispatch_custom_event(
+                "action_log",
+                {
+                    "id": row_id,
+                    "lc_tool_call_id": tool_call_id,
+                    "chat_turn_id": chat_turn_id,
+                    "tool_name": tool_name,
+                    "reversible": bool(reversible),
+                    "reverse_descriptor_present": reverse_descriptor is not None,
+                    "created_at": row_created_at.isoformat()
+                    if row_created_at
+                    else None,
+                    "error": error_payload is not None,
+                },
+            )
+        except Exception:
+            logger.debug(
+                "ActionLogMiddleware failed to dispatch action_log event",
                 exc_info=True,
             )
 
@@ -254,7 +293,8 @@ def _resolve_args_payload(request: Any) -> dict[str, Any] | None:
     }
 
 
-def _resolve_turn_id(request: Any) -> str | None:
+def _resolve_tool_call_id(request: Any) -> str | None:
+    """Return the LangChain ``tool_call.id`` for this request, if any."""
     try:
         call = getattr(request, "tool_call", None) or {}
         if isinstance(call, dict):
@@ -266,9 +306,40 @@ def _resolve_turn_id(request: Any) -> str | None:
     return None
 
 
+# Deprecated alias kept for one release. Old callers and tests treated
+# ``turn_id`` as if it carried the LangChain tool_call id; the new column
+# lives under ``tool_call_id``. Both resolve to the same value today.
+_resolve_turn_id = _resolve_tool_call_id
+
+
+def _resolve_chat_turn_id(request: Any) -> str | None:
+    """Return ``configurable.turn_id`` for this request, if accessible.
+
+    ``ToolRuntime.config`` is exposed by LangGraph (see
+    ``langgraph/prebuilt/tool_node.py``); the chat-turn correlation id
+    lives at ``runtime.config["configurable"]["turn_id"]``.
+    """
+    try:
+        runtime = getattr(request, "runtime", None)
+        if runtime is None:
+            return None
+        config = getattr(runtime, "config", None)
+        if not isinstance(config, dict):
+            return None
+        configurable = config.get("configurable")
+        if not isinstance(configurable, dict):
+            return None
+        value = configurable.get("turn_id")
+        if isinstance(value, str) and value:
+            return value
+    except Exception:  # pragma: no cover - defensive
+        pass
+    return None
+
+
 def _resolve_message_id(request: Any) -> str | None:
     """Tool-call IDs serve as best-available message correlator at this layer."""
-    return _resolve_turn_id(request)
+    return _resolve_tool_call_id(request)
 
 
 def _resolve_result_id(result: Any) -> str | None:

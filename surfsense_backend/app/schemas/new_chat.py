@@ -51,6 +51,11 @@ class NewChatMessageRead(NewChatMessageBase, IDModel, TimestampModel):
     author_display_name: str | None = None
     author_avatar_url: str | None = None
     token_usage: TokenUsageSummary | None = None
+    # Per-turn correlation id (``f"{chat_id}:{ms}"``) from
+    # ``configurable.turn_id`` at streaming time. Nullable because
+    # legacy rows predate the column; clients should treat NULL as
+    # "edit-from-this-message is unavailable".
+    turn_id: str | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -241,6 +246,15 @@ class RegenerateRequest(BaseModel):
 
     For edit, optional user_images (when not None) replaces image URLs resolved from
     checkpoint/DB so the client can send the full user turn (text and/or images).
+
+    Edit-from-arbitrary-position. When ``from_message_id`` is provided
+    the route slices conversation history starting at that message (instead of
+    the legacy "last 2 messages" rewind), rewinds the LangGraph checkpoint by
+    matching ``configurable.turn_id`` stored on the message (added in migration 136), and
+    optionally reverts every reversible action emitted in turns at or after
+    ``from_message_id``. The revert step is best-effort and runs BEFORE the
+    regenerate stream — partial failures are surfaced via SSE
+    ``data-revert-results`` and do not abort the regeneration.
     """
 
     search_space_id: int
@@ -257,11 +271,41 @@ class RegenerateRequest(BaseModel):
         default=None,
         description="If set, use these images for the regenerated turn (edit); overrides checkpoint/DB",
     )
+    from_message_id: int | None = Field(
+        default=None,
+        description=(
+            "Message id to rewind to. When set, history is sliced "
+            "from this message forward and the LangGraph checkpoint is "
+            "rewound to the state immediately preceding this turn. Legacy "
+            "rows that predate migration 136 have ``turn_id=None`` and "
+            "still process — the route logs a warning, skips the "
+            "checkpoint rewind, and ignores ``revert_actions`` (no "
+            "chat_turn_id available to walk)."
+        ),
+    )
+    revert_actions: bool = Field(
+        default=False,
+        description=(
+            "When true, every reversible action emitted at or "
+            "after ``from_message_id`` is reverted before the regenerate "
+            "stream begins. Per-action results are surfaced via the "
+            "``data-revert-results`` SSE event. Partial failures DO NOT "
+            "abort the regeneration."
+        ),
+    )
 
     @model_validator(mode="after")
     def _validate_regenerate_user_images(self) -> Self:
         if self.user_images is not None and len(self.user_images) > MAX_NEW_CHAT_IMAGES:
             raise ValueError(f"At most {MAX_NEW_CHAT_IMAGES} images allowed")
+        return self
+
+    @model_validator(mode="after")
+    def _validate_revert_actions_requires_from_message(self) -> Self:
+        if self.revert_actions and self.from_message_id is None:
+            raise ValueError(
+                "revert_actions requires from_message_id; specify which message to rewind to"
+            )
         return self
 
 

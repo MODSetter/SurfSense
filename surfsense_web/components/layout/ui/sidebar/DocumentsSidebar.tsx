@@ -23,7 +23,9 @@ import { useTranslations } from "next-intl";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { sidebarSelectedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
+import {
+	mentionedDocumentsAtom,
+} from "@/atoms/chat/mentioned-documents.atom";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
@@ -72,6 +74,7 @@ import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI, usePlatform } from "@/hooks/use-platform";
+import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
@@ -425,8 +428,11 @@ function AuthenticatedDocumentsSidebarBase({
 	}, [refreshWatchedIds]);
 	const { mutateAsync: deleteDocumentMutation } = useAtomValue(deleteDocumentMutationAtom);
 
-	const [sidebarDocs, setSidebarDocs] = useAtom(sidebarSelectedDocumentsAtom);
-	const mentionedDocIds = useMemo(() => new Set(sidebarDocs.map((d) => d.id)), [sidebarDocs]);
+	const [sidebarDocs, setSidebarDocs] = useAtom(mentionedDocumentsAtom);
+	const mentionedDocKeys = useMemo(
+		() => new Set(sidebarDocs.map((d) => getMentionDocKey(d))),
+		[sidebarDocs]
+	);
 
 	// Folder state
 	const [expandedFolderMap, setExpandedFolderMap] = useAtom(expandedFolderIdsAtom);
@@ -874,11 +880,12 @@ function AuthenticatedDocumentsSidebarBase({
 
 	const handleToggleChatMention = useCallback(
 		(doc: { id: number; title: string; document_type: string }, isMentioned: boolean) => {
+			const key = getMentionDocKey(doc);
 			if (isMentioned) {
-				setSidebarDocs((prev) => prev.filter((d) => d.id !== doc.id));
+				setSidebarDocs((prev) => prev.filter((d) => getMentionDocKey(d) !== key));
 			} else {
 				setSidebarDocs((prev) => {
-					if (prev.some((d) => d.id === doc.id)) return prev;
+					if (prev.some((d) => getMentionDocKey(d) === key)) return prev;
 					return [
 						...prev,
 						{ id: doc.id, title: doc.title, document_type: doc.document_type as DocumentTypeEnum },
@@ -909,9 +916,9 @@ function AuthenticatedDocumentsSidebarBase({
 
 			if (selectAll) {
 				setSidebarDocs((prev) => {
-					const existingIds = new Set(prev.map((d) => d.id));
+					const existingDocKeys = new Set(prev.map((d) => getMentionDocKey(d)));
 					const newDocs = subtreeDocs
-						.filter((d) => !existingIds.has(d.id))
+						.filter((d) => !existingDocKeys.has(getMentionDocKey(d)))
 						.map((d) => ({
 							id: d.id,
 							title: d.title,
@@ -920,8 +927,8 @@ function AuthenticatedDocumentsSidebarBase({
 					return newDocs.length > 0 ? [...prev, ...newDocs] : prev;
 				});
 			} else {
-				const idsToRemove = new Set(subtreeDocs.map((d) => d.id));
-				setSidebarDocs((prev) => prev.filter((d) => !idsToRemove.has(d.id)));
+				const keysToRemove = new Set(subtreeDocs.map((d) => getMentionDocKey(d)));
+				setSidebarDocs((prev) => prev.filter((d) => !keysToRemove.has(getMentionDocKey(d))));
 			}
 		},
 		[treeDocuments, foldersByParent, setSidebarDocs]
@@ -1157,7 +1164,7 @@ function AuthenticatedDocumentsSidebarBase({
 							documents={searchFilteredDocuments}
 							expandedIds={expandedIds}
 							onToggleExpand={toggleFolderExpand}
-							mentionedDocIds={mentionedDocIds}
+							mentionedDocKeys={mentionedDocKeys}
 							onToggleChatMention={handleToggleChatMention}
 							onToggleFolderSelect={handleToggleFolderSelect}
 							onRenameFolder={handleRenameFolder}
@@ -1585,16 +1592,20 @@ function AnonymousDocumentsSidebar({
 	const [isUploading, setIsUploading] = useState(false);
 	const [search, setSearch] = useState("");
 
-	const [sidebarDocs, setSidebarDocs] = useAtom(sidebarSelectedDocumentsAtom);
-	const mentionedDocIds = useMemo(() => new Set(sidebarDocs.map((d) => d.id)), [sidebarDocs]);
+	const [sidebarDocs, setSidebarDocs] = useAtom(mentionedDocumentsAtom);
+	const mentionedDocKeys = useMemo(
+		() => new Set(sidebarDocs.map((d) => getMentionDocKey(d))),
+		[sidebarDocs]
+	);
 
 	const handleToggleChatMention = useCallback(
 		(doc: { id: number; title: string; document_type: string }, isMentioned: boolean) => {
+			const key = getMentionDocKey(doc);
 			if (isMentioned) {
-				setSidebarDocs((prev) => prev.filter((d) => d.id !== doc.id));
+				setSidebarDocs((prev) => prev.filter((d) => getMentionDocKey(d) !== key));
 			} else {
 				setSidebarDocs((prev) => {
-					if (prev.some((d) => d.id === doc.id)) return prev;
+					if (prev.some((d) => getMentionDocKey(d) === key)) return prev;
 					return [
 						...prev,
 						{ id: doc.id, title: doc.title, document_type: doc.document_type as DocumentTypeEnum },
@@ -1814,7 +1825,7 @@ function AnonymousDocumentsSidebar({
 						documents={searchFilteredDocs}
 						expandedIds={new Set()}
 						onToggleExpand={() => {}}
-						mentionedDocIds={mentionedDocIds}
+						mentionedDocKeys={mentionedDocKeys}
 						onToggleChatMention={handleToggleChatMention}
 						onToggleFolderSelect={() => {}}
 						onRenameFolder={() => gate("rename folders")}

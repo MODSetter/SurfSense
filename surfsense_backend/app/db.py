@@ -689,6 +689,12 @@ class NewChatMessage(BaseModel, TimestampMixin):
         index=True,
     )
 
+    # Per-turn correlation id sourced from ``configurable.turn_id`` at
+    # streaming time (``f"{chat_id}:{ms}"``). Nullable because legacy rows
+    # predate the column. Used by C1's edit-from-arbitrary-position to map
+    # a message back to the LangGraph checkpoint that produced its turn.
+    turn_id = Column(String(64), nullable=True, index=True)
+
     # Relationships
     thread = relationship("NewChatThread", back_populates="messages")
     author = relationship("User")
@@ -2292,7 +2298,13 @@ class AgentActionLog(BaseModel):
         nullable=False,
         index=True,
     )
+    # ``turn_id`` historically held the LangChain ``tool_call.id``. It has
+    # been renamed to ``tool_call_id`` (with a parallel column kept for one
+    # release for back-compat). The real chat-turn id lives in
+    # ``chat_turn_id`` and is sourced from ``configurable.turn_id``.
     turn_id = Column(String(64), nullable=True, index=True)
+    tool_call_id = Column(String(64), nullable=True, index=True)
+    chat_turn_id = Column(String(64), nullable=True, index=True)
     message_id = Column(String(128), nullable=True, index=True)
     tool_name = Column(String(255), nullable=False, index=True)
     args = Column(JSONB, nullable=True)
@@ -2318,6 +2330,16 @@ class AgentActionLog(BaseModel):
 
     __table_args__ = (
         Index("ix_agent_action_log_thread_created", "thread_id", "created_at"),
+        # Partial unique index enforces "at most one revert per
+        # original action". Created in migration 137 with
+        # ``WHERE reverse_of IS NOT NULL`` so non-revert rows
+        # (the vast majority) are unaffected and NULLs don't collide.
+        Index(
+            "ux_agent_action_log_reverse_of",
+            "reverse_of",
+            unique=True,
+            postgresql_where=text("reverse_of IS NOT NULL"),
+        ),
     )
 
 
@@ -2332,10 +2354,13 @@ class DocumentRevision(BaseModel):
 
     __tablename__ = "document_revisions"
 
+    # ``ON DELETE SET NULL`` (not CASCADE) so the snapshot survives the
+    # hard-delete it describes — without that, ``rm`` would wipe the row
+    # we'd need to undo it. See migration ``134_relax_revision_fks``.
     document_id = Column(
         Integer,
-        ForeignKey("documents.id", ondelete="CASCADE"),
-        nullable=False,
+        ForeignKey("documents.id", ondelete="SET NULL"),
+        nullable=True,
         index=True,
     )
     search_space_id = Column(
@@ -2370,10 +2395,13 @@ class FolderRevision(BaseModel):
 
     __tablename__ = "folder_revisions"
 
+    # ``ON DELETE SET NULL`` (not CASCADE) so the snapshot survives the
+    # hard-delete it describes — without that, ``rmdir`` would wipe the
+    # row we'd need to undo it. See migration ``134_relax_revision_fks``.
     folder_id = Column(
         Integer,
-        ForeignKey("folders.id", ondelete="CASCADE"),
-        nullable=False,
+        ForeignKey("folders.id", ondelete="SET NULL"),
+        nullable=True,
         index=True,
     )
     search_space_id = Column(

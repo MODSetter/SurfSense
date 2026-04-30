@@ -65,6 +65,13 @@ class AgentActionRead(BaseModel):
     reverse_of: int | None
     reverted_by_action_id: int | None
     is_revert_action: bool
+    # Correlation ids added in migration 135. ``tool_call_id`` is the
+    # LangChain tool-call id (joinable to ``data-action-log`` SSE events
+    # via ``langchainToolCallId``). ``chat_turn_id`` is the per-turn id
+    # from ``configurable.turn_id`` (used by the
+    # ``revert-turn/{chat_turn_id}`` endpoint).
+    tool_call_id: str | None = None
+    chat_turn_id: str | None = None
     created_at: datetime
 
 
@@ -172,6 +179,8 @@ async def list_thread_actions(
             reverse_of=row.reverse_of,
             reverted_by_action_id=revert_map.get(row.id),
             is_revert_action=row.reverse_of is not None,
+            tool_call_id=row.tool_call_id,
+            chat_turn_id=row.chat_turn_id,
             created_at=row.created_at,
         )
         for row in rows
