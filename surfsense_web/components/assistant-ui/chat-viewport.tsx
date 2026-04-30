@@ -29,7 +29,7 @@ export const ChatViewport: FC<ChatViewportProps> = ({ children, footer }) => (
 		scrollToBottomOnRunStart
 		scrollToBottomOnInitialize
 		scrollToBottomOnThreadSwitch
-		className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 [scroll-behavior:smooth]"
+		className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 scroll-smooth"
 		style={{ scrollbarGutter: "stable" }}
 	>
 		<div
