@@ -222,6 +222,7 @@ export default function NewChatPage() {
 		interruptData: Record<string, unknown>;
 	} | null>(null);
 	const toolsWithUI = useMemo(() => new Set([...BASE_TOOLS_WITH_UI]), []);
+	const setMessageDocumentsMap = useSetAtom(messageDocumentsMapAtom);
 
 	const persistAssistantErrorMessage = useCallback(
 		async ({
@@ -267,14 +268,107 @@ export default function NewChatPage() {
 		[tokenUsageStore]
 	);
 
+	const persistUserTurn = useCallback(
+		async ({
+			threadId,
+			userMsgId,
+			content,
+			mentionedDocs,
+			logContext,
+		}: {
+			threadId: number | null;
+			userMsgId: string;
+			content: unknown;
+			mentionedDocs?: MentionedDocumentInfo[];
+			logContext: string;
+		}) => {
+			if (!threadId) return null;
+			try {
+				const normalizedContent = Array.isArray(content)
+					? ([...content] as unknown[])
+					: [content];
+				const hasMentionedDocumentsPart = normalizedContent.some((part) =>
+					MentionedDocumentsPartSchema.safeParse(part).success
+				);
+				if (mentionedDocs && mentionedDocs.length > 0 && !hasMentionedDocumentsPart) {
+					normalizedContent.push({
+						type: "mentioned-documents",
+						documents: mentionedDocs,
+					});
+				}
+
+				const savedUserMessage = await appendMessage(threadId, {
+					role: "user",
+					content: normalizedContent as AppendMessage["content"],
+				});
+				const newUserMsgId = `msg-${savedUserMessage.id}`;
+				setMessages((prev) =>
+					prev.map((m) => (m.id === userMsgId ? { ...m, id: newUserMsgId } : m))
+				);
+				if (mentionedDocs && mentionedDocs.length > 0) {
+					setMessageDocumentsMap((prev) => {
+						const { [userMsgId]: _, ...rest } = prev;
+						return {
+							...rest,
+							[newUserMsgId]: mentionedDocs,
+						};
+					});
+				}
+				return newUserMsgId;
+			} catch (err) {
+				console.error(`Failed to persist ${logContext} user message:`, err);
+				return null;
+			}
+		},
+		[setMessageDocumentsMap]
+	);
+
+	const persistAssistantTurn = useCallback(
+		async ({
+			threadId,
+			assistantMsgId,
+			content,
+			tokenUsage,
+			logContext,
+			onRemapped,
+		}: {
+			threadId: number | null;
+			assistantMsgId: string;
+			content: unknown;
+			tokenUsage?: Record<string, unknown>;
+			logContext: string;
+			onRemapped?: (newMsgId: string) => void;
+		}) => {
+			if (!threadId) return null;
+			try {
+				const savedMessage = await appendMessage(threadId, {
+					role: "assistant",
+					content: content as AppendMessage["content"],
+					token_usage: tokenUsage,
+				});
+				const newMsgId = `msg-${savedMessage.id}`;
+				tokenUsageStore.rename(assistantMsgId, newMsgId);
+				setMessages((prev) =>
+					prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m))
+				);
+				onRemapped?.(newMsgId);
+				return newMsgId;
+			} catch (err) {
+				console.error(`Failed to persist ${logContext} assistant message:`, err);
+				return null;
+			}
+		},
+		[tokenUsageStore]
+	);
+
 	// Get disabled tools from the tool toggle UI
 	const disabledTools = useAtomValue(disabledToolsAtom);
 
 	// Get mentioned document IDs from the composer.
 	const mentionedDocumentIds = useAtomValue(mentionedDocumentIdsAtom);
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
+	const messageDocumentsMap = useAtomValue(messageDocumentsMapAtom);
 	const setMentionedDocuments = useSetAtom(mentionedDocumentsAtom);
-	const setMessageDocumentsMap = useSetAtom(messageDocumentsMapAtom);
 	const setCurrentThreadState = useSetAtom(currentThreadAtom);
 	const setPremiumAlertForThread = useSetAtom(setPremiumAlertForThreadAtom);
 	const setTargetCommentId = useSetAtom(setTargetCommentIdAtom);
@@ -1023,29 +1117,20 @@ export default function NewChatPage() {
 				// Skip persistence for interrupted messages -- handleResume will persist the final version
 				const finalContent = buildContentForPersistence(contentPartsState, toolsWithUI);
 				if (contentParts.length > 0 && !wasInterrupted) {
-					try {
-						const savedMessage = await appendMessage(currentThreadId, {
-							role: "assistant",
-							content: finalContent,
-							token_usage: tokenUsageData ?? undefined,
-						});
-
-						// Update message ID from temporary to database ID so comments work immediately
-						const newMsgId = `msg-${savedMessage.id}`;
-						tokenUsageStore.rename(assistantMsgId, newMsgId);
-						setMessages((prev) =>
-							prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m))
-						);
-
-						// Update pending interrupt with the new persisted message ID
-						setPendingInterrupt((prev) =>
-							prev && prev.assistantMsgId === assistantMsgId
-								? { ...prev, assistantMsgId: newMsgId }
-								: prev
-						);
-					} catch (err) {
-						console.error("Failed to persist assistant message:", err);
-					}
+					await persistAssistantTurn({
+						threadId: currentThreadId,
+						assistantMsgId,
+						content: finalContent,
+						tokenUsage: tokenUsageData ?? undefined,
+						logContext: "new chat",
+						onRemapped: (newMsgId) => {
+							setPendingInterrupt((prev) =>
+								prev && prev.assistantMsgId === assistantMsgId
+									? { ...prev, assistantMsgId: newMsgId }
+									: prev
+							);
+						},
+					});
 
 					// Track successful response
 					trackChatResponseReceived(searchSpaceId, currentThreadId);
@@ -1061,20 +1146,12 @@ export default function NewChatPage() {
 					);
 					if (hasContent && currentThreadId) {
 						const partialContent = buildContentForPersistence(contentPartsState, toolsWithUI);
-						try {
-							const savedMessage = await appendMessage(currentThreadId, {
-								role: "assistant",
-								content: partialContent,
-							});
-
-							// Update message ID from temporary to database ID
-							const newMsgId = `msg-${savedMessage.id}`;
-							setMessages((prev) =>
-								prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m))
-							);
-						} catch (err) {
-							console.error("Failed to persist partial assistant message:", err);
-						}
+						await persistAssistantTurn({
+							threadId: currentThreadId,
+							assistantMsgId,
+							content: partialContent,
+							logContext: "partial new chat",
+						});
 					}
 					return;
 				}
@@ -1107,6 +1184,7 @@ export default function NewChatPage() {
 			setPendingUserImageUrls,
 			toolsWithUI,
 			handleChatFailure,
+			persistAssistantTurn,
 		]
 	);
 
@@ -1347,20 +1425,13 @@ export default function NewChatPage() {
 
 				const finalContent = buildContentForPersistence(contentPartsState, toolsWithUI);
 				if (contentParts.length > 0) {
-					try {
-						const savedMessage = await appendMessage(resumeThreadId, {
-							role: "assistant",
-							content: finalContent,
-							token_usage: tokenUsageData ?? undefined,
-						});
-						const newMsgId = `msg-${savedMessage.id}`;
-						tokenUsageStore.rename(assistantMsgId, newMsgId);
-						setMessages((prev) =>
-							prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m))
-						);
-					} catch (err) {
-						console.error("Failed to persist resumed assistant message:", err);
-					}
+					await persistAssistantTurn({
+						threadId: resumeThreadId,
+						assistantMsgId,
+						content: finalContent,
+						tokenUsage: tokenUsageData ?? undefined,
+						logContext: "resumed chat",
+					});
 				}
 			} catch (error) {
 				batcher.dispose();
@@ -1385,6 +1456,7 @@ export default function NewChatPage() {
 			tokenUsageStore,
 			toolsWithUI,
 			handleChatFailure,
+			persistAssistantTurn,
 		]
 	);
 
@@ -1462,6 +1534,7 @@ export default function NewChatPage() {
 			editExtras?: {
 				userMessageContent: ThreadMessageLike["content"];
 				userImages: NewChatUserImagePayload[];
+				sourceUserMessageId?: string;
 			}
 		) => {
 			if (!threadId) {
@@ -1487,11 +1560,13 @@ export default function NewChatPage() {
 			let userQueryToDisplay: string | undefined;
 			let originalUserMessageContent: ThreadMessageLike["content"] | null = null;
 			let originalUserMessageMetadata: ThreadMessageLike["metadata"] | undefined;
+			let sourceUserMessageId: string | undefined = editExtras?.sourceUserMessageId;
 
 			if (!isEdit) {
 				// Reload mode - find and preserve the last user message content
 				const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
 				if (lastUserMessage) {
+					sourceUserMessageId = lastUserMessage.id;
 					originalUserMessageContent = lastUserMessage.content;
 					originalUserMessageMetadata = lastUserMessage.metadata;
 					// Extract text for the API request
@@ -1524,6 +1599,8 @@ export default function NewChatPage() {
 			const { contentParts, toolCallIndices } = contentPartsState;
 			const batcher = new FrameBatchedUpdater();
 			let tokenUsageData: Record<string, unknown> | null = null;
+			let regenerateAccepted = false;
+			let userPersisted = false;
 
 			// Add placeholder messages to UI
 			// Always add back the user message (with new query for edit, or original content for reload)
@@ -1539,6 +1616,10 @@ export default function NewChatPage() {
 			const userContentToPersist = isEdit
 				? (editExtras?.userMessageContent ?? [{ type: "text", text: newUserQuery ?? "" }])
 				: originalUserMessageContent || [{ type: "text", text: userQueryToDisplay || "" }];
+			const sourceMentionedDocs =
+				sourceUserMessageId && messageDocumentsMap[sourceUserMessageId]
+					? messageDocumentsMap[sourceUserMessageId]
+					: [];
 			try {
 				const selection = await getAgentFilesystemSelection(searchSpaceId);
 				const requestBody: Record<string, unknown> = {
@@ -1565,6 +1646,7 @@ export default function NewChatPage() {
 				if (!response.ok) {
 					throw new Error(`Backend error: ${response.status}`);
 				}
+				regenerateAccepted = true;
 
 				// Only switch UI to regenerated placeholder messages after the backend accepts
 				// regenerate. This avoids local message loss when regenerate fails early (e.g. 400).
@@ -1581,6 +1663,12 @@ export default function NewChatPage() {
 						},
 					];
 				});
+				if (sourceMentionedDocs.length > 0) {
+					setMessageDocumentsMap((prev) => ({
+						...prev,
+						[userMsgId]: sourceMentionedDocs,
+					}));
+				}
 
 				const flushMessages = () => {
 					setMessages((prev) =>
@@ -1664,47 +1752,45 @@ export default function NewChatPage() {
 				// Persist messages after streaming completes
 				const finalContent = buildContentForPersistence(contentPartsState, toolsWithUI);
 				if (contentParts.length > 0) {
-					try {
-						// Persist user message (for both edit and reload modes, since backend deleted it)
-						const savedUserMessage = await appendMessage(threadId, {
-							role: "user",
-							content: userContentToPersist,
-						});
+					const persistedUserMsgId = await persistUserTurn({
+						threadId,
+						userMsgId,
+						content: userContentToPersist,
+						mentionedDocs: sourceMentionedDocs,
+						logContext: "regenerated",
+					});
+					userPersisted = Boolean(persistedUserMsgId);
 
-						// Update user message ID to database ID
-						const newUserMsgId = `msg-${savedUserMessage.id}`;
-						setMessages((prev) =>
-							prev.map((m) => (m.id === userMsgId ? { ...m, id: newUserMsgId } : m))
-						);
+					await persistAssistantTurn({
+						threadId,
+						assistantMsgId,
+						content: finalContent,
+						tokenUsage: tokenUsageData ?? undefined,
+						logContext: "regenerated",
+					});
 
-						// Persist assistant message
-						const savedMessage = await appendMessage(threadId, {
-							role: "assistant",
-							content: finalContent,
-							token_usage: tokenUsageData ?? undefined,
-						});
-
-						const newMsgId = `msg-${savedMessage.id}`;
-						tokenUsageStore.rename(assistantMsgId, newMsgId);
-						setMessages((prev) =>
-							prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m))
-						);
-
-						trackChatResponseReceived(searchSpaceId, threadId);
-					} catch (err) {
-						console.error("Failed to persist regenerated message:", err);
-					}
+					trackChatResponseReceived(searchSpaceId, threadId);
 				}
 			} catch (error) {
 				if (error instanceof Error && error.name === "AbortError") {
 					return;
 				}
 				batcher.dispose();
+				if (regenerateAccepted && !userPersisted) {
+					const persistedUserMsgId = await persistUserTurn({
+						threadId,
+						userMsgId,
+						content: userContentToPersist,
+						mentionedDocs: sourceMentionedDocs,
+						logContext: "regenerated (stream error)",
+					});
+					userPersisted = Boolean(persistedUserMsgId);
+				}
 				await handleChatFailure({
 					error,
 					flow: "regenerate",
 					threadId,
-					assistantMsgId,
+					assistantMsgId: regenerateAccepted ? assistantMsgId : "no-persist-assistant",
 				});
 			} finally {
 				setIsRunning(false);
@@ -1716,9 +1802,13 @@ export default function NewChatPage() {
 			searchSpaceId,
 			messages,
 			disabledTools,
+			messageDocumentsMap,
+			setMessageDocumentsMap,
 			tokenUsageStore,
 			toolsWithUI,
 			handleChatFailure,
+			persistAssistantTurn,
+			persistUserTurn,
 		]
 	);
 
@@ -1733,7 +1823,15 @@ export default function NewChatPage() {
 			}
 
 			const userMessageContent = message.content as unknown as ThreadMessageLike["content"];
-			await handleRegenerate(queryForApi, { userMessageContent, userImages });
+			const sourceUserMessageId =
+				typeof (message as { id?: unknown }).id === "string"
+					? ((message as { id?: string }).id ?? undefined)
+					: undefined;
+			await handleRegenerate(queryForApi, {
+				userMessageContent,
+				userImages,
+				sourceUserMessageId,
+			});
 		},
 		[handleRegenerate]
 	);
