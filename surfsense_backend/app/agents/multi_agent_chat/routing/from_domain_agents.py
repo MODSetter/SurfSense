@@ -2,44 +2,28 @@
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Sequence
 
 from langchain_core.tools import BaseTool, tool
 
-from app.agents.multi_agent_chat.shared.invoke_output import extract_last_assistant_text
+from app.agents.multi_agent_chat.routing.domain_routing_spec import DomainRoutingSpec
+from app.agents.multi_agent_chat.core.delegation import compose_child_task
+from app.agents.multi_agent_chat.core.invocation import extract_last_assistant_text
 
 
-def routing_tools_from_domain_agents(
-    *,
-    gmail_domain_agent: Any,
-    calendar_domain_agent: Any,
-) -> list[BaseTool]:
-    """Build ``gmail`` / ``calendar`` tools that invoke the given graphs (factory, not import-time exports)."""
-
-    @tool(
-        "gmail",
-        description=(
-            "Route Gmail-related work to the Gmail sub-agent. "
-            "Pass a clear natural-language task."
-        ),
-    )
-    def call_gmail_agent(task: str) -> str:
-        result = gmail_domain_agent.invoke(
-            {"messages": [{"role": "user", "content": task}]}
+def _routing_tool_for_spec(spec: DomainRoutingSpec) -> BaseTool:
+    @tool(spec.tool_name, description=spec.description)
+    def _route(task: str) -> str:
+        curated = spec.curated_context(task) if spec.curated_context else None
+        content = compose_child_task(task, curated_context=curated)
+        result = spec.domain_agent.invoke(
+            {"messages": [{"role": "user", "content": content}]},
         )
         return extract_last_assistant_text(result)
 
-    @tool(
-        "calendar",
-        description=(
-            "Route Google Calendar work to the Calendar sub-agent. "
-            "Pass a clear natural-language task."
-        ),
-    )
-    def call_calendar_agent(task: str) -> str:
-        result = calendar_domain_agent.invoke(
-            {"messages": [{"role": "user", "content": task}]}
-        )
-        return extract_last_assistant_text(result)
+    return _route
 
-    return [call_gmail_agent, call_calendar_agent]
+
+def routing_tools_from_specs(specs: Sequence[DomainRoutingSpec]) -> list[BaseTool]:
+    """Build one supervisor-facing routing ``@tool`` per :class:`DomainRoutingSpec`."""
+    return [_routing_tool_for_spec(spec) for spec in specs]
