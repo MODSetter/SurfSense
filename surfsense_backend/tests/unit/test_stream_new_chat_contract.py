@@ -189,3 +189,75 @@ def test_premium_classification_is_error_code_driven():
     assert "RATE_LIMIT_KEYWORDS" not in source
     assert "normalized.includes(" not in source
     assert 'if (errorCode === "PREMIUM_QUOTA_EXHAUSTED") {' in source
+
+
+def test_stream_terminal_error_handler_has_pre_accept_soft_rollback_hook():
+    page_path = (
+        Path(__file__).resolve().parents[3]
+        / "surfsense_web/app/dashboard/[search_space_id]/new-chat/[[...chat_id]]/page.tsx"
+    )
+    source = page_path.read_text(encoding="utf-8")
+
+    assert "onPreAcceptFailure?: () => Promise<void>;" in source
+    assert "if (!accepted) {" in source
+    assert "await onPreAcceptFailure?.();" in source
+    assert "await onAcceptedStreamError?.();" in source
+    assert "setMessages((prev) => prev.filter((m) => m.id !== userMsgId));" in source
+    assert "setMessageDocumentsMap((prev) => {" in source
+
+
+def test_toast_only_pre_accept_policy_has_no_inline_failed_marker():
+    user_message_path = (
+        Path(__file__).resolve().parents[3] / "surfsense_web/components/assistant-ui/user-message.tsx"
+    )
+    source = user_message_path.read_text(encoding="utf-8")
+
+    assert "Not sent. Edit and retry." not in source
+    assert "failed_pre_accept" not in source
+
+
+def test_network_send_failures_use_unified_retry_toast_message():
+    classifier_path = Path(__file__).resolve().parents[3] / "surfsense_web/lib/chat/chat-error-classifier.ts"
+    classifier_source = classifier_path.read_text(encoding="utf-8")
+    page_path = (
+        Path(__file__).resolve().parents[3]
+        / "surfsense_web/app/dashboard/[search_space_id]/new-chat/[[...chat_id]]/page.tsx"
+    )
+    page_source = page_path.read_text(encoding="utf-8")
+
+    assert '"send_failed_pre_accept"' in classifier_source
+    assert 'errorCode === "SEND_FAILED_PRE_ACCEPT"' in classifier_source
+    assert "if (withCode.code) return withCode.code;" in classifier_source
+    assert 'userMessage: "Message not sent. Please retry."' in classifier_source
+    assert 'userMessage: "Connection issue. Please try again."' in classifier_source
+    assert "tagPreAcceptSendFailure(error)" in page_source
+    assert 'existingCode === "THREAD_BUSY"' in page_source
+    assert 'existingCode === "AUTH_EXPIRED"' in page_source
+    assert 'existingCode === "UNAUTHORIZED"' in page_source
+    assert 'existingCode === "RATE_LIMITED"' in page_source
+    assert 'errorCode: "SEND_FAILED_PRE_ACCEPT"' in page_source
+    assert 'errorCode: "NETWORK_ERROR"' not in page_source
+    assert "Failed to start chat. Please try again." not in page_source
+
+
+def test_pre_post_accept_abort_contract_exists_for_new_resume_regenerate_flows():
+    page_path = (
+        Path(__file__).resolve().parents[3]
+        / "surfsense_web/app/dashboard/[search_space_id]/new-chat/[[...chat_id]]/page.tsx"
+    )
+    source = page_path.read_text(encoding="utf-8")
+
+    # Each flow tracks accepted boundary and passes it into shared terminal handling.
+    assert "let newAccepted = false;" in source
+    assert "let resumeAccepted = false;" in source
+    assert "let regenerateAccepted = false;" in source
+    assert "accepted: newAccepted," in source
+    assert "accepted: resumeAccepted," in source
+    assert "accepted: regenerateAccepted," in source
+
+    # Pre-accept abort in resume/regenerate exits without persistence.
+    assert "if (!resumeAccepted) return;" in source
+    assert "if (!regenerateAccepted) return;" in source
+
+    # New flow persists only when accepted and not already persisted.
+    assert "if (newAccepted && !userPersisted) {" in source

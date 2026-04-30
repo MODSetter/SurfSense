@@ -3,6 +3,7 @@ export type ChatFlow = "new" | "resume" | "regenerate";
 export type ChatErrorKind =
 	| "premium_quota_exhausted"
 	| "thread_busy"
+	| "send_failed_pre_accept"
 	| "auth_expired"
 	| "rate_limited"
 	| "network_offline"
@@ -54,8 +55,9 @@ function getErrorMessage(error: unknown): string {
 
 function getErrorCode(error: unknown, parsedJson: Record<string, unknown> | null): string | undefined {
 	if (error instanceof Error) {
-		const withCode = error as Error & { errorCode?: string };
+		const withCode = error as Error & { errorCode?: string; code?: string };
 		if (withCode.errorCode) return withCode.errorCode;
+		if (withCode.code) return withCode.code;
 	}
 
 	if (typeof error === "object" && error !== null) {
@@ -161,6 +163,20 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 		};
 	}
 
+	if (errorCode === "SEND_FAILED_PRE_ACCEPT") {
+		return {
+			kind: "send_failed_pre_accept",
+			channel: "toast",
+			severity: "warn",
+			telemetryEvent: "chat_blocked",
+			isExpected: true,
+			userMessage: "Message not sent. Please retry.",
+			rawMessage,
+			errorCode: errorCode ?? "SEND_FAILED_PRE_ACCEPT",
+			details: { flow: input.flow },
+		};
+	}
+
 	if (
 		errorCode === "AUTH_EXPIRED" ||
 		errorCode === "UNAUTHORIZED"
@@ -196,16 +212,14 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 		};
 	}
 
-	if (
-		errorCode === "NETWORK_ERROR"
-	) {
+	if (errorCode === "NETWORK_ERROR") {
 		return {
 			kind: "network_offline",
 			channel: "toast",
 			severity: "warn",
 			telemetryEvent: "chat_error",
 			isExpected: true,
-			userMessage: "Connection issue detected. Check your internet and try again.",
+			userMessage: "Connection issue. Please try again.",
 			rawMessage,
 			errorCode: errorCode ?? "NETWORK_ERROR",
 			details: { flow: input.flow },
