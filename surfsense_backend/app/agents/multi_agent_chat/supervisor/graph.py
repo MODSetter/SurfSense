@@ -11,7 +11,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 from langgraph.types import Checkpointer
 
-from app.agents.multi_agent_chat.shared.prompt_loader import read_prompt_md
+from app.agents.multi_agent_chat.core.prompts import read_prompt_md
 
 
 def build_supervisor_agent(
