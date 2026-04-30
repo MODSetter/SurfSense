@@ -86,7 +86,12 @@ def partition_mcp_tools_by_expert_route(
     connector_id_to_type: dict[int, str],
     connector_name_to_type: dict[str, str],
 ) -> dict[str, list[BaseTool]]:
-    """Bucket MCP tools by expert route key. Supervisor never receives raw MCP tools."""
+    """Bucket MCP tools by expert route key. Supervisor never receives raw MCP tools.
+
+    Same inclusion rule as ``new_chat.tools.registry.build_tools_async``: all tools returned by
+    ``load_mcp_tools`` are partitioned — connector availability for **registry** builtins is handled via
+    ``get_connector_gated_tools`` / routing gates; MCP tools are not pre-filtered by inventory here.
+    """
     buckets: dict[str, list[BaseTool]] = defaultdict(list)
 
     for tool in tools:
