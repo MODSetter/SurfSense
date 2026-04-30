@@ -1374,11 +1374,19 @@ async def _stream_agent_events(
     result.agent_called_update_memory = called_update_memory
     _log_file_contract("turn_outcome", result)
 
-    is_interrupted = state.tasks and any(task.interrupts for task in state.tasks)
-    if is_interrupted:
+    snapshot_interrupts = getattr(state, "interrupts", ()) or ()
+    interrupt_value = None
+    if snapshot_interrupts:
+        interrupt_value = snapshot_interrupts[0].value
+    else:
+        for task in state.tasks or []:
+            if task.interrupts:
+                interrupt_value = task.interrupts[0].value
+                break
+    if interrupt_value is not None:
         result.is_interrupted = True
-        result.interrupt_value = state.tasks[0].interrupts[0].value
-        yield streaming_service.format_interrupt_request(result.interrupt_value)
+        result.interrupt_value = interrupt_value
+        yield streaming_service.format_interrupt_request(interrupt_value)
 
 
 async def stream_new_chat(
