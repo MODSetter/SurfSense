@@ -107,10 +107,10 @@ def _normalize_domain_output(spec: DomainRoutingSpec, raw_text: str) -> str:
 
 def _routing_tool_for_spec(spec: DomainRoutingSpec) -> BaseTool:
     @tool(spec.tool_name, description=spec.description)
-    def _route(task: str) -> str:
+    async def _route(task: str) -> str:
         curated = spec.curated_context(task) if spec.curated_context else None
         content = compose_child_task(task, curated_context=curated)
-        result = spec.domain_agent.invoke(
+        result = await spec.domain_agent.ainvoke(
             {"messages": [{"role": "user", "content": content}]},
         )
         return _normalize_domain_output(spec, extract_last_assistant_text(result))

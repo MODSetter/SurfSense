@@ -23,7 +23,10 @@ from app.agents.multi_agent_chat.core.mcp_partition import (
     fetch_mcp_connector_metadata_maps,
     partition_mcp_tools_by_expert_route,
 )
-from app.agents.multi_agent_chat.core.registry import build_registry_dependencies
+from app.agents.multi_agent_chat.core.registry.dependencies import (
+    build_registry_dependencies,
+    coerce_thread_id_for_registry,
+)
 from app.agents.multi_agent_chat.middleware.supervisor_stack import build_supervisor_middleware_stack
 from app.agents.multi_agent_chat.routing.supervisor_routing import build_supervisor_routing_tools
 from app.agents.multi_agent_chat.supervisor import build_supervisor_agent
@@ -83,7 +86,7 @@ async def create_multi_agent_chat(
     search_space_id: int,
     user_id: str,
     checkpointer: Checkpointer | None = None,
-    thread_id: str | None = None,
+    thread_id: str | int | None = None,
     firecrawl_api_key: str | None = None,
     connector_service: Any | None = None,
     available_connectors: list[str] | None = None,
@@ -148,7 +151,7 @@ async def create_multi_agent_chat(
         db_session=db_session,
         search_space_id=search_space_id,
         user_id=user_id,
-        thread_id=thread_id or "",
+        thread_id=thread_id,
         llm=llm,
         firecrawl_api_key=firecrawl_api_key,
         connector_service=connector_service,
@@ -159,7 +162,7 @@ async def create_multi_agent_chat(
     routing_tools = build_supervisor_routing_tools(
         llm,
         registry_dependencies=registry_dependencies,
-        include_deliverables=thread_id is not None,
+        include_deliverables=coerce_thread_id_for_registry(thread_id) is not None,
         mcp_tools_by_route=mcp_tools_by_route,
         available_connectors=resolved_connectors,
         thread_visibility=thread_visibility,
