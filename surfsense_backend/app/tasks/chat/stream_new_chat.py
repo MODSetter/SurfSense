@@ -38,6 +38,7 @@ from app.agents.new_chat.llm_config import (
     load_agent_config,
     load_global_llm_config_by_id,
 )
+from app.agents.multi_agent_chat.integration import create_multi_agent_chat
 from app.agents.new_chat.memory_extraction import (
     extract_and_save_memory,
     extract_and_save_team_memory,
@@ -1558,22 +1559,45 @@ async def stream_new_chat(
         )
 
         visibility = thread_visibility or ChatVisibility.PRIVATE
+        from app.config import config as _app_config
+
+        use_multi_agent = bool(_app_config.MULTI_AGENT_CHAT_ENABLED and not disabled_tools)
+        if _app_config.MULTI_AGENT_CHAT_ENABLED and disabled_tools:
+            logger.info(
+                "MULTI_AGENT_CHAT_ENABLED is on, but falling back to new_chat because disabled_tools are requested."
+            )
+
         _t0 = time.perf_counter()
-        agent = await create_surfsense_deep_agent(
-            llm=llm,
-            search_space_id=search_space_id,
-            db_session=session,
-            connector_service=connector_service,
-            checkpointer=checkpointer,
-            user_id=user_id,
-            thread_id=chat_id,
-            agent_config=agent_config,
-            firecrawl_api_key=firecrawl_api_key,
-            thread_visibility=visibility,
-            disabled_tools=disabled_tools,
-            mentioned_document_ids=mentioned_document_ids,
-            filesystem_selection=filesystem_selection,
-        )
+        if use_multi_agent:
+            agent = await create_multi_agent_chat(
+                llm=llm,
+                db_session=session,
+                search_space_id=search_space_id,
+                user_id=str(user_id),
+                checkpointer=checkpointer,
+                thread_id=str(chat_id),
+                firecrawl_api_key=firecrawl_api_key,
+                connector_service=connector_service,
+                thread_visibility=visibility,
+                filesystem_selection=filesystem_selection,
+                mentioned_document_ids=mentioned_document_ids,
+            )
+        else:
+            agent = await create_surfsense_deep_agent(
+                llm=llm,
+                search_space_id=search_space_id,
+                db_session=session,
+                connector_service=connector_service,
+                checkpointer=checkpointer,
+                user_id=user_id,
+                thread_id=chat_id,
+                agent_config=agent_config,
+                firecrawl_api_key=firecrawl_api_key,
+                thread_visibility=visibility,
+                disabled_tools=disabled_tools,
+                mentioned_document_ids=mentioned_document_ids,
+                filesystem_selection=filesystem_selection,
+            )
         _perf_log.info(
             "[stream_new_chat] Agent created in %.3fs", time.perf_counter() - _t0
         )
@@ -2266,21 +2290,36 @@ async def stream_resume_chat(
         )
 
         visibility = thread_visibility or ChatVisibility.PRIVATE
+        from app.config import config as _app_config
 
         _t0 = time.perf_counter()
-        agent = await create_surfsense_deep_agent(
-            llm=llm,
-            search_space_id=search_space_id,
-            db_session=session,
-            connector_service=connector_service,
-            checkpointer=checkpointer,
-            user_id=user_id,
-            thread_id=chat_id,
-            agent_config=agent_config,
-            firecrawl_api_key=firecrawl_api_key,
-            thread_visibility=visibility,
-            filesystem_selection=filesystem_selection,
-        )
+        if _app_config.MULTI_AGENT_CHAT_ENABLED:
+            agent = await create_multi_agent_chat(
+                llm=llm,
+                db_session=session,
+                search_space_id=search_space_id,
+                user_id=str(user_id),
+                checkpointer=checkpointer,
+                thread_id=str(chat_id),
+                firecrawl_api_key=firecrawl_api_key,
+                connector_service=connector_service,
+                thread_visibility=visibility,
+                filesystem_selection=filesystem_selection,
+            )
+        else:
+            agent = await create_surfsense_deep_agent(
+                llm=llm,
+                search_space_id=search_space_id,
+                db_session=session,
+                connector_service=connector_service,
+                checkpointer=checkpointer,
+                user_id=user_id,
+                thread_id=chat_id,
+                agent_config=agent_config,
+                firecrawl_api_key=firecrawl_api_key,
+                thread_visibility=visibility,
+                filesystem_selection=filesystem_selection,
+            )
         _perf_log.info(
             "[stream_resume] Agent created in %.3fs", time.perf_counter() - _t0
         )

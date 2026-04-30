@@ -399,6 +399,9 @@ class Config:
 
     # Anonymous / no-login mode settings
     NOLOGIN_MODE_ENABLED = os.getenv("NOLOGIN_MODE_ENABLED", "FALSE").upper() == "TRUE"
+    MULTI_AGENT_CHAT_ENABLED = (
+        os.getenv("MULTI_AGENT_CHAT_ENABLED", "FALSE").upper() == "TRUE"
+    )
     ANON_TOKEN_LIMIT = int(os.getenv("ANON_TOKEN_LIMIT", "500000"))
     ANON_TOKEN_WARNING_THRESHOLD = int(
         os.getenv("ANON_TOKEN_WARNING_THRESHOLD", "400000")
