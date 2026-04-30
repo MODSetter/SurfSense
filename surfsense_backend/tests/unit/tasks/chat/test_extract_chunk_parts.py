@@ -183,3 +183,46 @@ class TestDefensive:
         assert out["text"] == ""
         assert out["reasoning"] == ""
         assert out["tool_call_chunks"] == []
+
+
+class TestIdlessContinuationChunks:
+    """Per LangChain ``ToolCallChunk`` semantics, the FIRST chunk for a
+    tool call carries id+name; later chunks for the same call have
+    ``id=None, name=None`` and only ``args`` + ``index``. Live tool-call
+    argument streaming relies on those idless continuation chunks
+    flowing through ``_extract_chunk_parts`` UNTOUCHED so the upstream
+    chunk-emission loop can still route them by ``index``.
+    """
+
+    def test_idless_continuation_chunk_preserved_verbatim(self) -> None:
+        chunk = _FakeChunk(
+            tool_call_chunks=[
+                {"id": None, "name": None, "args": '_path":"/x"}', "index": 0}
+            ]
+        )
+        out = _extract_chunk_parts(chunk)
+        assert len(out["tool_call_chunks"]) == 1
+        tcc = out["tool_call_chunks"][0]
+        assert tcc.get("id") is None
+        assert tcc.get("name") is None
+        assert tcc.get("args") == '_path":"/x"}'
+        assert tcc.get("index") == 0
+
+    def test_first_then_idless_sequence_preserves_index(self) -> None:
+        """Both chunks for the same call share an ``index`` key — the
+        index-routing loop in ``stream_new_chat`` depends on it."""
+        first = _FakeChunk(
+            tool_call_chunks=[
+                {"id": "lc-1", "name": "write_file", "args": '{"file', "index": 0}
+            ]
+        )
+        cont = _FakeChunk(
+            tool_call_chunks=[
+                {"id": None, "name": None, "args": '_path":"/x"}', "index": 0}
+            ]
+        )
+        out_first = _extract_chunk_parts(first)
+        out_cont = _extract_chunk_parts(cont)
+        assert out_first["tool_call_chunks"][0]["index"] == 0
+        assert out_cont["tool_call_chunks"][0]["index"] == 0
+        assert out_cont["tool_call_chunks"][0].get("id") is None

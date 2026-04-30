@@ -17,6 +17,23 @@ export type ContentPart =
 			args: Record<string, unknown>;
 			result?: unknown;
 			/**
+			 * Live / finalized JSON text for the tool's input arguments.
+			 *
+			 * - During streaming: accumulated partial JSON text from
+			 *   ``tool-input-delta`` events (may be invalid JSON
+			 *   mid-stream). assistant-ui's argsText parser tolerates
+			 *   invalid JSON gracefully (changelog 0.7.32 / 0.7.78).
+			 * - On completion (``tool-input-available``): replaced with
+			 *   ``JSON.stringify(input, null, 2)`` so the post-stream
+			 *   card renders pretty-printed JSON instead of the
+			 *   model's possibly-fragmented formatting.
+			 *
+			 * Per assistant-ui ``ThreadMessageLike`` precedence
+			 * (changelog 0.11.6 ``d318c83``), when ``argsText`` is
+			 * supplied it wins over ``JSON.stringify(args)``.
+			 */
+			argsText?: string;
+			/**
 			 * Authoritative LangChain ``tool_call.id`` propagated by the backend
 			 * via ``langchainToolCallId`` on tool-input-start/available and
 			 * tool-output-available events. Used to join a card to the
@@ -282,12 +299,22 @@ export function findToolCallIdByLcId(
 export function updateToolCall(
 	state: ContentPartsState,
 	toolCallId: string,
-	update: { args?: Record<string, unknown>; result?: unknown; langchainToolCallId?: string }
+	update: {
+		args?: Record<string, unknown>;
+		argsText?: string;
+		result?: unknown;
+		langchainToolCallId?: string;
+	}
 ): void {
 	const index = state.toolCallIndices.get(toolCallId);
 	if (index !== undefined && state.contentParts[index]?.type === "tool-call") {
 		const tc = state.contentParts[index] as ContentPart & { type: "tool-call" };
 		if (update.args) tc.args = update.args;
+		// ``!== undefined`` (NOT a truthy check): an explicit empty
+		// string CAN clear, and a finalization with
+		// ``JSON.stringify({}, null, 2) === "{}"`` (truthy but
+		// represents an empty-input call) still applies.
+		if (update.argsText !== undefined) tc.argsText = update.argsText;
 		if (update.result !== undefined) tc.result = update.result;
 		// Only backfill langchainToolCallId if not already set — the
 		// authoritative ``on_tool_end`` value should override an earlier
@@ -297,6 +324,25 @@ export function updateToolCall(
 			tc.langchainToolCallId = update.langchainToolCallId;
 		}
 	}
+}
+
+/**
+ * Append a streamed args-delta chunk to the active tool call's
+ * ``argsText``. No-ops when no card has been registered yet for the
+ * given ``toolCallId`` (the matching ``tool-input-start`` either lost
+ * the wire race or this id never had a card — either way the deltas
+ * have nowhere safe to land).
+ */
+export function appendToolInputDelta(
+	state: ContentPartsState,
+	toolCallId: string,
+	delta: string
+): void {
+	const idx = state.toolCallIndices.get(toolCallId);
+	if (idx === undefined) return;
+	const tc = state.contentParts[idx];
+	if (tc?.type !== "tool-call") return;
+	tc.argsText = (tc.argsText ?? "") + delta;
 }
 
 function _hasInterruptResult(part: ContentPart): boolean {
@@ -370,6 +416,18 @@ export type SSEEvent =
 			toolName: string;
 			/** Authoritative LangChain ``tool_call.id``. Optional. */
 			langchainToolCallId?: string;
+	  }
+	| {
+			/**
+			 * Live tool-call argument delta. Concatenated into
+			 * ``argsText`` on the matching ``tool-call`` content part
+			 * by ``appendToolInputDelta``. parity_v2 only — the legacy
+			 * code path emits ``tool-input-available`` without prior
+			 * deltas.
+			 */
+			type: "tool-input-delta";
+			toolCallId: string;
+			inputTextDelta: string;
 	  }
 	| {
 			type: "tool-input-available";

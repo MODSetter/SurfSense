@@ -22,6 +22,7 @@ import {
 	addToolCall,
 	appendReasoning,
 	appendText,
+	appendToolInputDelta,
 	buildContentForUI,
 	type ContentPartsState,
 	endReasoning,
@@ -146,6 +147,10 @@ export function FreeChatPage() {
 				);
 			};
 			const scheduleFlush = () => batcher.schedule(flushMessages);
+			const forceFlush = () => {
+				scheduleFlush();
+				batcher.flush();
+			};
 
 			try {
 				for await (const parsed of readSSEStream(response)) {
@@ -183,13 +188,20 @@ export function FreeChatPage() {
 								false,
 								parsed.langchainToolCallId
 							);
-							batcher.flush();
+							forceFlush();
 							break;
 
-						case "tool-input-available":
+						case "tool-input-delta":
+							appendToolInputDelta(contentPartsState, parsed.toolCallId, parsed.inputTextDelta);
+							scheduleFlush();
+							break;
+
+						case "tool-input-available": {
+							const finalArgsText = JSON.stringify(parsed.input ?? {}, null, 2);
 							if (toolCallIndices.has(parsed.toolCallId)) {
 								updateToolCall(contentPartsState, parsed.toolCallId, {
 									args: parsed.input || {},
+									argsText: finalArgsText,
 									langchainToolCallId: parsed.langchainToolCallId,
 								});
 							} else {
@@ -202,16 +214,20 @@ export function FreeChatPage() {
 									false,
 									parsed.langchainToolCallId
 								);
+								updateToolCall(contentPartsState, parsed.toolCallId, {
+									argsText: finalArgsText,
+								});
 							}
-							batcher.flush();
+							forceFlush();
 							break;
+						}
 
 						case "tool-output-available":
 							updateToolCall(contentPartsState, parsed.toolCallId, {
 								result: parsed.output,
 								langchainToolCallId: parsed.langchainToolCallId,
 							});
-							batcher.flush();
+							forceFlush();
 							break;
 
 						case "data-thinking-step": {
