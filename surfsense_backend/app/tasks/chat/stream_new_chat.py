@@ -64,7 +64,12 @@ from app.db import (
     shielded_async_session,
 )
 from app.prompts import TITLE_GENERATION_PROMPT
-from app.services.auto_model_pin_service import resolve_or_get_pinned_llm_config_id
+from app.services.auto_model_pin_service import (
+    is_recently_healthy,
+    mark_healthy,
+    mark_runtime_cooldown,
+    resolve_or_get_pinned_llm_config_id,
+)
 from app.services.chat_session_state_service import (
     clear_ai_responding,
     set_ai_responding,
@@ -299,20 +304,17 @@ def _tool_output_has_error(tool_output: Any) -> bool:
     return False
 
 
-def _extract_resolved_file_path(*, tool_name: str, tool_output: Any) -> str | None:
+def _extract_resolved_file_path(
+    *, tool_name: str, tool_output: Any, tool_input: Any | None = None
+) -> str | None:
     if isinstance(tool_output, dict):
         path_value = tool_output.get("path")
         if isinstance(path_value, str) and path_value.strip():
             return path_value.strip()
-    text = _tool_output_to_text(tool_output)
-    if tool_name == "write_file":
-        match = re.search(r"Updated file\s+(.+)$", text.strip())
-        if match:
-            return match.group(1).strip()
-    if tool_name == "edit_file":
-        match = re.search(r"in '([^']+)'", text)
-        if match:
-            return match.group(1).strip()
+    if tool_name in ("write_file", "edit_file") and isinstance(tool_input, dict):
+        file_path = tool_input.get("file_path")
+        if isinstance(file_path, str) and file_path.strip():
+            return file_path.strip()
     return None
 
 
@@ -414,6 +416,108 @@ def _parse_error_payload(message: str) -> dict[str, Any] | None:
     return None
 
 
+def _extract_provider_error_code(parsed: dict[str, Any] | None) -> int | None:
+    if not isinstance(parsed, dict):
+        return None
+    candidates: list[Any] = [parsed.get("code")]
+    nested = parsed.get("error")
+    if isinstance(nested, dict):
+        candidates.append(nested.get("code"))
+    for value in candidates:
+        try:
+            if value is None:
+                continue
+            return int(value)
+        except Exception:
+            continue
+    return None
+
+
+def _is_provider_rate_limited(exc: BaseException) -> bool:
+    """Best-effort detection for provider-side runtime throttling.
+
+    Covers LiteLLM/OpenRouter shapes like:
+    - class name contains ``RateLimit``
+    - nested payload ``{"error": {"code": 429}}``
+    - nested payload ``{"error": {"type": "rate_limit_error"}}``
+    """
+    raw = str(exc)
+    lowered = raw.lower()
+    if "ratelimit" in type(exc).__name__.lower():
+        return True
+    parsed = _parse_error_payload(raw)
+    provider_code = _extract_provider_error_code(parsed)
+    if provider_code == 429:
+        return True
+
+    provider_error_type = ""
+    if parsed:
+        top_type = parsed.get("type")
+        if isinstance(top_type, str):
+            provider_error_type = top_type.lower()
+        nested = parsed.get("error")
+        if isinstance(nested, dict):
+            nested_type = nested.get("type")
+            if isinstance(nested_type, str):
+                provider_error_type = nested_type.lower()
+    if provider_error_type == "rate_limit_error":
+        return True
+
+    return (
+        "rate limited" in lowered
+        or "rate-limited" in lowered
+        or "temporarily rate-limited upstream" in lowered
+    )
+
+
+_PREFLIGHT_TIMEOUT_SEC: float = 2.5
+_PREFLIGHT_MAX_TOKENS: int = 1
+
+
+async def _preflight_llm(llm: Any) -> None:
+    """Issue a minimal completion to confirm the pinned model isn't 429'ing.
+
+    Used before agent build / planner / classifier / title-gen so a known-bad
+    free OpenRouter deployment is detected and repinned before it cascades
+    into multiple wasted internal calls. The probe is intentionally cheap:
+    one token, low timeout, tagged ``surfsense:internal`` so token tracking
+    and SSE pipelines treat it as overhead rather than user output.
+
+    Raises the original exception when the provider responds with a
+    rate-limit-shaped error so the caller can drive the cooldown/repin
+    branch via :func:`_is_provider_rate_limited`. Other transient failures
+    are swallowed — the caller continues to the normal stream path and the
+    in-stream recovery loop remains the safety net.
+    """
+    from litellm import acompletion
+
+    model = getattr(llm, "model", None)
+    if not model or model == "auto":
+        # Auto-mode router doesn't have a single deployment to ping; the
+        # router itself handles per-deployment rate-limit accounting.
+        return
+
+    try:
+        await acompletion(
+            model=model,
+            messages=[{"role": "user", "content": "ping"}],
+            api_key=getattr(llm, "api_key", None),
+            api_base=getattr(llm, "api_base", None),
+            max_tokens=_PREFLIGHT_MAX_TOKENS,
+            timeout=_PREFLIGHT_TIMEOUT_SEC,
+            stream=False,
+            metadata={"tags": ["surfsense:internal", "auto-pin-preflight"]},
+        )
+    except Exception as exc:
+        if _is_provider_rate_limited(exc):
+            raise
+        logging.getLogger(__name__).debug(
+            "auto_pin_preflight non_rate_limit_error model=%s err=%s",
+            model,
+            exc,
+        )
+
+
 def _classify_stream_exception(
     exc: Exception,
     *,
@@ -449,19 +553,7 @@ def _classify_stream_exception(
             None,
         )
 
-    parsed = _parse_error_payload(raw)
-    provider_error_type = ""
-    if parsed:
-        top_type = parsed.get("type")
-        if isinstance(top_type, str):
-            provider_error_type = top_type.lower()
-        nested = parsed.get("error")
-        if isinstance(nested, dict):
-            nested_type = nested.get("type")
-            if isinstance(nested_type, str):
-                provider_error_type = nested_type.lower()
-
-    if provider_error_type == "rate_limit_error":
+    if _is_provider_rate_limited(exc):
         return (
             "rate_limited",
             "RATE_LIMITED",
@@ -619,6 +711,7 @@ async def _stream_agent_events(
     # fallback path only and never re-pops a chunk we already streamed.
     pending_tool_call_chunks: list[dict[str, Any]] = []
     lc_tool_call_id_by_run: dict[str, str] = {}
+    file_path_by_run: dict[str, str] = {}
 
     # parity_v2 only: live tool-call argument streaming. ``index_to_meta``
     # is keyed by the chunk's ``index`` field — LangChain
@@ -797,6 +890,10 @@ async def _stream_agent_events(
             tool_input = event.get("data", {}).get("input", {})
             if tool_name in ("write_file", "edit_file"):
                 result.write_attempted = True
+                if isinstance(tool_input, dict):
+                    file_path = tool_input.get("file_path")
+                    if isinstance(file_path, str) and file_path.strip() and run_id:
+                        file_path_by_run[run_id] = file_path.strip()
 
             if current_text_id is not None:
                 yield streaming_service.format_text_end(current_text_id)
@@ -1203,6 +1300,7 @@ async def _stream_agent_events(
             run_id = event.get("run_id", "")
             tool_name = event.get("name", "unknown_tool")
             raw_output = event.get("data", {}).get("output", "")
+            staged_file_path = file_path_by_run.pop(run_id, None) if run_id else None
 
             if tool_name == "update_memory":
                 called_update_memory = True
@@ -1716,6 +1814,9 @@ async def _stream_agent_events(
                 resolved_path = _extract_resolved_file_path(
                     tool_name=tool_name,
                     tool_output=tool_output,
+                    tool_input={"file_path": staged_file_path}
+                    if staged_file_path
+                    else None,
                 )
                 result_text = _tool_output_to_text(tool_output)
                 if _tool_output_has_error(tool_output):
@@ -2326,6 +2427,91 @@ async def stream_new_chat(
             yield streaming_service.format_done()
             return
 
+        # Auto-mode preflight ping. Runs ONLY for thread-pinned auto cfgs
+        # (negative ids selected via ``resolve_or_get_pinned_llm_config_id``)
+        # whose health hasn't already been confirmed within the TTL window.
+        # Detecting a 429 here lets us repin BEFORE the planner/classifier/
+        # title-generation LLM calls fan out and each independently hit the
+        # same upstream rate limit.
+        if (
+            requested_llm_config_id == 0
+            and llm_config_id < 0
+            and not is_recently_healthy(llm_config_id)
+        ):
+            _t_preflight = time.perf_counter()
+            try:
+                await _preflight_llm(llm)
+                mark_healthy(llm_config_id)
+                _perf_log.info(
+                    "[stream_new_chat] auto_pin_preflight ok config_id=%s took=%.3fs",
+                    llm_config_id,
+                    time.perf_counter() - _t_preflight,
+                )
+            except Exception as preflight_exc:
+                if not _is_provider_rate_limited(preflight_exc):
+                    raise
+                previous_config_id = llm_config_id
+                mark_runtime_cooldown(
+                    previous_config_id, reason="preflight_rate_limited"
+                )
+                try:
+                    llm_config_id = (
+                        await resolve_or_get_pinned_llm_config_id(
+                            session,
+                            thread_id=chat_id,
+                            search_space_id=search_space_id,
+                            user_id=user_id,
+                            selected_llm_config_id=0,
+                            exclude_config_ids={previous_config_id},
+                        )
+                    ).resolved_llm_config_id
+                except ValueError as pin_error:
+                    yield _emit_stream_error(
+                        message=str(pin_error),
+                        error_kind="server_error",
+                        error_code="SERVER_ERROR",
+                    )
+                    yield streaming_service.format_done()
+                    return
+
+                llm, agent_config, llm_load_error = await _load_llm_bundle(
+                    llm_config_id
+                )
+                if llm_load_error or not llm:
+                    yield _emit_stream_error(
+                        message=llm_load_error or "Failed to create LLM instance",
+                        error_kind="server_error",
+                        error_code="SERVER_ERROR",
+                    )
+                    yield streaming_service.format_done()
+                    return
+                # Trust the freshly-resolved cfg for the remainder of this
+                # turn rather than recursing into another preflight; the
+                # in-stream 429 recovery loop is still in place as the
+                # safety net if even this fallback hits an upstream cap.
+                mark_healthy(llm_config_id)
+                _log_chat_stream_error(
+                    flow=flow,
+                    error_kind="rate_limited",
+                    error_code="RATE_LIMITED",
+                    severity="info",
+                    is_expected=True,
+                    request_id=request_id,
+                    thread_id=chat_id,
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                    message=(
+                        "Auto-pinned model failed preflight; switched to another "
+                        "eligible model and continuing."
+                    ),
+                    extra={
+                        "auto_runtime_recover": True,
+                        "preflight": True,
+                        "previous_config_id": previous_config_id,
+                        "fallback_config_id": llm_config_id,
+                    },
+                )
+
         # Create connector service
         _t0 = time.perf_counter()
         connector_service = ConnectorService(session, search_space_id=search_space_id)
@@ -2671,54 +2857,155 @@ async def stream_new_chat(
 
         _t_stream_start = time.perf_counter()
         _first_event_logged = False
-        async for sse in _stream_agent_events(
-            agent=agent,
-            config=config,
-            input_data=input_state,
-            streaming_service=streaming_service,
-            result=stream_result,
-            step_prefix="thinking",
-            initial_step_id=initial_step_id,
-            initial_step_title=initial_title,
-            initial_step_items=initial_items,
-            fallback_commit_search_space_id=search_space_id,
-            fallback_commit_created_by_id=user_id,
-            fallback_commit_filesystem_mode=(
-                filesystem_selection.mode
-                if filesystem_selection
-                else FilesystemMode.CLOUD
-            ),
-            fallback_commit_thread_id=chat_id,
-        ):
-            if not _first_event_logged:
-                _perf_log.info(
-                    "[stream_new_chat] First agent event in %.3fs (time since stream start), "
-                    "%.3fs (total since request start) (chat_id=%s)",
-                    time.perf_counter() - _t_stream_start,
-                    time.perf_counter() - _t_total,
-                    chat_id,
-                )
-                _first_event_logged = True
-            yield sse
-
-            # Inject title update mid-stream as soon as the background task finishes
-            if title_task is not None and title_task.done() and not title_emitted:
-                generated_title, title_usage = title_task.result()
-                if title_usage:
-                    accumulator.add(**title_usage)
-                if generated_title:
-                    async with shielded_async_session() as title_session:
-                        title_thread_result = await title_session.execute(
-                            select(NewChatThread).filter(NewChatThread.id == chat_id)
+        runtime_rate_limit_recovered = False
+        while True:
+            try:
+                async for sse in _stream_agent_events(
+                    agent=agent,
+                    config=config,
+                    input_data=input_state,
+                    streaming_service=streaming_service,
+                    result=stream_result,
+                    step_prefix="thinking",
+                    initial_step_id=initial_step_id,
+                    initial_step_title=initial_title,
+                    initial_step_items=initial_items,
+                    fallback_commit_search_space_id=search_space_id,
+                    fallback_commit_created_by_id=user_id,
+                    fallback_commit_filesystem_mode=(
+                        filesystem_selection.mode
+                        if filesystem_selection
+                        else FilesystemMode.CLOUD
+                    ),
+                    fallback_commit_thread_id=chat_id,
+                ):
+                    if not _first_event_logged:
+                        _perf_log.info(
+                            "[stream_new_chat] First agent event in %.3fs (time since stream start), "
+                            "%.3fs (total since request start) (chat_id=%s)",
+                            time.perf_counter() - _t_stream_start,
+                            time.perf_counter() - _t_total,
+                            chat_id,
                         )
-                        title_thread = title_thread_result.scalars().first()
-                        if title_thread:
-                            title_thread.title = generated_title
-                            await title_session.commit()
-                    yield streaming_service.format_thread_title_update(
-                        chat_id, generated_title
+                        _first_event_logged = True
+                    yield sse
+
+                    # Inject title update mid-stream as soon as the background
+                    # task finishes.
+                    if (
+                        title_task is not None
+                        and title_task.done()
+                        and not title_emitted
+                    ):
+                        generated_title, title_usage = title_task.result()
+                        if title_usage:
+                            accumulator.add(**title_usage)
+                        if generated_title:
+                            async with shielded_async_session() as title_session:
+                                title_thread_result = await title_session.execute(
+                                    select(NewChatThread).filter(
+                                        NewChatThread.id == chat_id
+                                    )
+                                )
+                                title_thread = title_thread_result.scalars().first()
+                                if title_thread:
+                                    title_thread.title = generated_title
+                                    await title_session.commit()
+                            yield streaming_service.format_thread_title_update(
+                                chat_id, generated_title
+                            )
+                        title_emitted = True
+                break
+            except Exception as stream_exc:
+                can_runtime_recover = (
+                    not runtime_rate_limit_recovered
+                    and requested_llm_config_id == 0
+                    and llm_config_id < 0
+                    and not _first_event_logged
+                    and _is_provider_rate_limited(stream_exc)
+                )
+                if not can_runtime_recover:
+                    raise
+
+                runtime_rate_limit_recovered = True
+                previous_config_id = llm_config_id
+                # The failed attempt may still hold the per-thread busy mutex
+                # (middleware teardown can lag behind raised provider errors).
+                # Force release before we retry within the same request.
+                end_turn(str(chat_id))
+                mark_runtime_cooldown(
+                    previous_config_id,
+                    reason="provider_rate_limited",
+                )
+
+                llm_config_id = (
+                    await resolve_or_get_pinned_llm_config_id(
+                        session,
+                        thread_id=chat_id,
+                        search_space_id=search_space_id,
+                        user_id=user_id,
+                        selected_llm_config_id=0,
+                        exclude_config_ids={previous_config_id},
                     )
-                title_emitted = True
+                ).resolved_llm_config_id
+
+                llm, agent_config, llm_load_error = await _load_llm_bundle(
+                    llm_config_id
+                )
+                if llm_load_error:
+                    raise stream_exc
+
+                # Title generation uses the initial llm object. After a runtime
+                # repin we keep the stream focused on response recovery and skip
+                # title generation for this turn.
+                if title_task is not None and not title_task.done():
+                    title_task.cancel()
+                title_task = None
+
+                _t0 = time.perf_counter()
+                agent = await create_surfsense_deep_agent(
+                    llm=llm,
+                    search_space_id=search_space_id,
+                    db_session=session,
+                    connector_service=connector_service,
+                    checkpointer=checkpointer,
+                    user_id=user_id,
+                    thread_id=chat_id,
+                    agent_config=agent_config,
+                    firecrawl_api_key=firecrawl_api_key,
+                    thread_visibility=visibility,
+                    disabled_tools=disabled_tools,
+                    mentioned_document_ids=mentioned_document_ids,
+                    filesystem_selection=filesystem_selection,
+                )
+                _perf_log.info(
+                    "[stream_new_chat] Runtime rate-limit recovery repinned "
+                    "config_id=%s -> %s and rebuilt agent in %.3fs",
+                    previous_config_id,
+                    llm_config_id,
+                    time.perf_counter() - _t0,
+                )
+                _log_chat_stream_error(
+                    flow=flow,
+                    error_kind="rate_limited",
+                    error_code="RATE_LIMITED",
+                    severity="info",
+                    is_expected=True,
+                    request_id=request_id,
+                    thread_id=chat_id,
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                    message=(
+                        "Auto-pinned model hit runtime rate limit; switched to "
+                        "another eligible model and retried."
+                    ),
+                    extra={
+                        "auto_runtime_recover": True,
+                        "previous_config_id": previous_config_id,
+                        "fallback_config_id": llm_config_id,
+                    },
+                )
+                continue
 
         _perf_log.info(
             "[stream_new_chat] Agent stream completed in %.3fs (chat_id=%s)",
@@ -3187,6 +3474,84 @@ async def stream_resume_chat(
             yield streaming_service.format_done()
             return
 
+        # Auto-mode preflight ping (resume path). Mirrors ``stream_new_chat``:
+        # one cheap probe before the agent is rebuilt so a 429'd pin gets
+        # repinned without burning planner/classifier/title calls first.
+        if (
+            requested_llm_config_id == 0
+            and llm_config_id < 0
+            and not is_recently_healthy(llm_config_id)
+        ):
+            _t_preflight = time.perf_counter()
+            try:
+                await _preflight_llm(llm)
+                mark_healthy(llm_config_id)
+                _perf_log.info(
+                    "[stream_resume] auto_pin_preflight ok config_id=%s took=%.3fs",
+                    llm_config_id,
+                    time.perf_counter() - _t_preflight,
+                )
+            except Exception as preflight_exc:
+                if not _is_provider_rate_limited(preflight_exc):
+                    raise
+                previous_config_id = llm_config_id
+                mark_runtime_cooldown(
+                    previous_config_id, reason="preflight_rate_limited"
+                )
+                try:
+                    llm_config_id = (
+                        await resolve_or_get_pinned_llm_config_id(
+                            session,
+                            thread_id=chat_id,
+                            search_space_id=search_space_id,
+                            user_id=user_id,
+                            selected_llm_config_id=0,
+                            exclude_config_ids={previous_config_id},
+                        )
+                    ).resolved_llm_config_id
+                except ValueError as pin_error:
+                    yield _emit_stream_error(
+                        message=str(pin_error),
+                        error_kind="server_error",
+                        error_code="SERVER_ERROR",
+                    )
+                    yield streaming_service.format_done()
+                    return
+
+                llm, agent_config, llm_load_error = await _load_llm_bundle(
+                    llm_config_id
+                )
+                if llm_load_error or not llm:
+                    yield _emit_stream_error(
+                        message=llm_load_error or "Failed to create LLM instance",
+                        error_kind="server_error",
+                        error_code="SERVER_ERROR",
+                    )
+                    yield streaming_service.format_done()
+                    return
+                mark_healthy(llm_config_id)
+                _log_chat_stream_error(
+                    flow="resume",
+                    error_kind="rate_limited",
+                    error_code="RATE_LIMITED",
+                    severity="info",
+                    is_expected=True,
+                    request_id=request_id,
+                    thread_id=chat_id,
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                    message=(
+                        "Auto-pinned model failed preflight; switched to another "
+                        "eligible model and continuing."
+                    ),
+                    extra={
+                        "auto_runtime_recover": True,
+                        "preflight": True,
+                        "previous_config_id": previous_config_id,
+                        "fallback_config_id": llm_config_id,
+                    },
+                )
+
         _t0 = time.perf_counter()
         connector_service = ConnectorService(session, search_space_id=search_space_id)
 
@@ -3265,31 +3630,114 @@ async def stream_resume_chat(
 
         _t_stream_start = time.perf_counter()
         _first_event_logged = False
-        async for sse in _stream_agent_events(
-            agent=agent,
-            config=config,
-            input_data=Command(resume={"decisions": decisions}),
-            streaming_service=streaming_service,
-            result=stream_result,
-            step_prefix="thinking-resume",
-            fallback_commit_search_space_id=search_space_id,
-            fallback_commit_created_by_id=user_id,
-            fallback_commit_filesystem_mode=(
-                filesystem_selection.mode
-                if filesystem_selection
-                else FilesystemMode.CLOUD
-            ),
-            fallback_commit_thread_id=chat_id,
-        ):
-            if not _first_event_logged:
-                _perf_log.info(
-                    "[stream_resume] First agent event in %.3fs (stream), %.3fs (total) (chat_id=%s)",
-                    time.perf_counter() - _t_stream_start,
-                    time.perf_counter() - _t_total,
-                    chat_id,
+        runtime_rate_limit_recovered = False
+        while True:
+            try:
+                async for sse in _stream_agent_events(
+                    agent=agent,
+                    config=config,
+                    input_data=Command(resume={"decisions": decisions}),
+                    streaming_service=streaming_service,
+                    result=stream_result,
+                    step_prefix="thinking-resume",
+                    fallback_commit_search_space_id=search_space_id,
+                    fallback_commit_created_by_id=user_id,
+                    fallback_commit_filesystem_mode=(
+                        filesystem_selection.mode
+                        if filesystem_selection
+                        else FilesystemMode.CLOUD
+                    ),
+                    fallback_commit_thread_id=chat_id,
+                ):
+                    if not _first_event_logged:
+                        _perf_log.info(
+                            "[stream_resume] First agent event in %.3fs (stream), %.3fs (total) (chat_id=%s)",
+                            time.perf_counter() - _t_stream_start,
+                            time.perf_counter() - _t_total,
+                            chat_id,
+                        )
+                        _first_event_logged = True
+                    yield sse
+                break
+            except Exception as stream_exc:
+                can_runtime_recover = (
+                    not runtime_rate_limit_recovered
+                    and requested_llm_config_id == 0
+                    and llm_config_id < 0
+                    and not _first_event_logged
+                    and _is_provider_rate_limited(stream_exc)
                 )
-                _first_event_logged = True
-            yield sse
+                if not can_runtime_recover:
+                    raise
+
+                runtime_rate_limit_recovered = True
+                previous_config_id = llm_config_id
+                # Ensure the same-request recovery retry does not trip the
+                # BusyMutex lock retained by the failed attempt.
+                end_turn(str(chat_id))
+                mark_runtime_cooldown(
+                    previous_config_id,
+                    reason="provider_rate_limited",
+                )
+                llm_config_id = (
+                    await resolve_or_get_pinned_llm_config_id(
+                        session,
+                        thread_id=chat_id,
+                        search_space_id=search_space_id,
+                        user_id=user_id,
+                        selected_llm_config_id=0,
+                        exclude_config_ids={previous_config_id},
+                    )
+                ).resolved_llm_config_id
+
+                llm, agent_config, llm_load_error = await _load_llm_bundle(
+                    llm_config_id
+                )
+                if llm_load_error:
+                    raise stream_exc
+
+                _t0 = time.perf_counter()
+                agent = await create_surfsense_deep_agent(
+                    llm=llm,
+                    search_space_id=search_space_id,
+                    db_session=session,
+                    connector_service=connector_service,
+                    checkpointer=checkpointer,
+                    user_id=user_id,
+                    thread_id=chat_id,
+                    agent_config=agent_config,
+                    firecrawl_api_key=firecrawl_api_key,
+                    thread_visibility=visibility,
+                    filesystem_selection=filesystem_selection,
+                )
+                _perf_log.info(
+                    "[stream_resume] Runtime rate-limit recovery repinned "
+                    "config_id=%s -> %s and rebuilt agent in %.3fs",
+                    previous_config_id,
+                    llm_config_id,
+                    time.perf_counter() - _t0,
+                )
+                _log_chat_stream_error(
+                    flow="resume",
+                    error_kind="rate_limited",
+                    error_code="RATE_LIMITED",
+                    severity="info",
+                    is_expected=True,
+                    request_id=request_id,
+                    thread_id=chat_id,
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                    message=(
+                        "Auto-pinned model hit runtime rate limit; switched to "
+                        "another eligible model and retried."
+                    ),
+                    extra={
+                        "auto_runtime_recover": True,
+                        "previous_config_id": previous_config_id,
+                        "fallback_config_id": llm_config_id,
+                    },
+                )
+                continue
         _perf_log.info(
             "[stream_resume] Agent stream completed in %.3fs (chat_id=%s)",
             time.perf_counter() - _t_stream_start,

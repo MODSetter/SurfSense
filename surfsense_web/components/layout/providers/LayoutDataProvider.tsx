@@ -681,14 +681,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		}
 	}, [chatToRename, newChatTitle, queryClient, searchSpaceId, tSidebar]);
 
-	// Page usage
-	const pageUsage = user
-		? {
-				pagesUsed: user.pages_used,
-				pagesLimit: user.pages_limit,
-			}
-		: undefined;
-
 	// Detect if we're on the chat page (needs overflow-hidden for chat's own scroll)
 	const isChatPage = pathname?.includes("/new-chat") ?? false;
 
@@ -723,7 +715,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				onManageMembers={handleManageMembers}
 				onUserSettings={handleUserSettings}
 				onLogout={handleLogout}
-				pageUsage={pageUsage}
 				theme={theme}
 				setTheme={setTheme}
 				isChatPage={isChatPage}

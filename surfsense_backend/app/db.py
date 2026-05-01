@@ -638,13 +638,12 @@ class NewChatThread(BaseModel, TimestampMixin):
         default=False,
         server_default="false",
     )
-    # Auto model pinning metadata:
-    # - pinned_llm_config_id stores the concrete resolved model config id.
-    # - pinned_auto_mode indicates which auto policy produced the pin.
-    # This allows Auto (Fastest) to resolve once per thread and stay stable.
-    pinned_llm_config_id = Column(Integer, nullable=True, index=True)
-    pinned_auto_mode = Column(String(32), nullable=True, index=True)
-    pinned_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    # Auto (Fastest) model pin for this thread: concrete resolved global LLM
+    # config id. NULL means no pin; Auto will resolve on the next turn.
+    # Single-writer invariant: only app.services.auto_model_pin_service sets
+    # or clears this column (plus bulk clears when a search space's
+    # agent_llm_id changes). Unindexed: all reads are by primary key.
+    pinned_llm_config_id = Column(Integer, nullable=True)
 
     # Relationships
     search_space = relationship("SearchSpace", back_populates="new_chat_threads")

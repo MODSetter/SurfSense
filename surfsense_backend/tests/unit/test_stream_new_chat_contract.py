@@ -14,6 +14,7 @@ from app.tasks.chat.stream_new_chat import (
     _classify_stream_exception,
     _contract_enforcement_active,
     _evaluate_file_contract_outcome,
+    _extract_resolved_file_path,
     _log_chat_stream_error,
     _tool_output_has_error,
 )
@@ -26,6 +27,39 @@ def test_tool_output_error_detection():
     assert _tool_output_has_error({"error": "boom"})
     assert _tool_output_has_error({"result": "Error: disk is full"})
     assert not _tool_output_has_error({"result": "Updated file /notes.md"})
+
+
+def test_extract_resolved_file_path_prefers_structured_path():
+    assert (
+        _extract_resolved_file_path(
+            tool_name="write_file",
+            tool_output={"status": "completed", "path": "/docs/note.md"},
+            tool_input=None,
+        )
+        == "/docs/note.md"
+    )
+
+
+def test_extract_resolved_file_path_falls_back_to_tool_input():
+    assert (
+        _extract_resolved_file_path(
+            tool_name="edit_file",
+            tool_output={"status": "completed", "result": "updated"},
+            tool_input={"file_path": "/docs/edited.md"},
+        )
+        == "/docs/edited.md"
+    )
+
+
+def test_extract_resolved_file_path_does_not_parse_result_text():
+    assert (
+        _extract_resolved_file_path(
+            tool_name="write_file",
+            tool_output={"result": "Updated file /docs/from-text.md"},
+            tool_input=None,
+        )
+        is None
+    )
 
 
 def test_file_write_contract_outcome_reasons():
@@ -157,6 +191,84 @@ def test_stream_exception_classifies_rate_limited():
     assert is_expected is True
     assert "temporarily rate-limited" in user_message
     assert extra is None
+
+
+def test_stream_exception_classifies_openrouter_429_payload():
+    exc = Exception(
+        'OpenrouterException - {"error":{"message":"Provider returned error","code":429,'
+        '"metadata":{"raw":"foo is temporarily rate-limited upstream"}}}'
+    )
+    kind, code, severity, is_expected, user_message, extra = _classify_stream_exception(
+        exc, flow_label="chat"
+    )
+    assert kind == "rate_limited"
+    assert code == "RATE_LIMITED"
+    assert severity == "warn"
+    assert is_expected is True
+    assert "temporarily rate-limited" in user_message
+    assert extra is None
+
+
+@pytest.mark.asyncio
+async def test_preflight_swallows_non_rate_limit_errors_and_re_raises_429(monkeypatch):
+    """``_preflight_llm`` is best-effort.
+
+    - On rate-limit shaped exceptions (provider 429) it MUST re-raise so the
+      caller can drive the cooldown/repin branch.
+    - On any other transient failure it MUST swallow the error so the normal
+      stream path continues without surfacing preflight noise to the user.
+    """
+    from types import SimpleNamespace
+
+    from app.tasks.chat.stream_new_chat import _preflight_llm
+
+    class _RateLimitedError(Exception):
+        """Class-name carries 'RateLimit' so _is_provider_rate_limited triggers."""
+
+    rate_calls: list[dict] = []
+    other_calls: list[dict] = []
+
+    async def _fake_acompletion_429(**kwargs):
+        rate_calls.append(kwargs)
+        raise _RateLimitedError("simulated 429")
+
+    async def _fake_acompletion_other(**kwargs):
+        other_calls.append(kwargs)
+        raise RuntimeError("some unrelated transient failure")
+
+    fake_llm = SimpleNamespace(
+        model="openrouter/google/gemma-4-31b-it:free",
+        api_key="test",
+        api_base=None,
+    )
+
+    import litellm  # type: ignore[import-not-found]
+
+    monkeypatch.setattr(litellm, "acompletion", _fake_acompletion_429)
+    with pytest.raises(_RateLimitedError):
+        await _preflight_llm(fake_llm)
+    assert len(rate_calls) == 1
+    assert rate_calls[0]["max_tokens"] == 1
+    assert rate_calls[0]["stream"] is False
+
+    monkeypatch.setattr(litellm, "acompletion", _fake_acompletion_other)
+    # MUST NOT raise: non-rate-limit failures are swallowed.
+    await _preflight_llm(fake_llm)
+    assert len(other_calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_preflight_skipped_for_auto_router_model():
+    """Router-mode ``model='auto'`` has no single deployment to ping; the
+    LiteLLM router itself owns per-deployment rate-limit accounting, so the
+    preflight helper must short-circuit instead of issuing a probe."""
+    from types import SimpleNamespace
+
+    from app.tasks.chat.stream_new_chat import _preflight_llm
+
+    fake_llm = SimpleNamespace(model="auto", api_key="x", api_base=None)
+    # Should return without raising or making any LiteLLM call.
+    await _preflight_llm(fake_llm)
 
 
 def test_stream_exception_classifies_thread_busy():

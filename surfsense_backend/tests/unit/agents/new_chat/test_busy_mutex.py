@@ -118,3 +118,37 @@ async def test_end_turn_force_clears_lock_and_cancel_state() -> None:
     assert not manager.lock_for(thread_id).locked()
     assert not get_cancel_event(thread_id).is_set()
     assert is_cancel_requested(thread_id) is False
+
+
+@pytest.mark.asyncio
+async def test_busy_mutex_stale_aafter_does_not_release_new_attempt_lock() -> None:
+    """A stale aafter call from attempt A must not unlock attempt B.
+
+    Repro flow:
+    1) attempt A acquires thread lock
+    2) forced end_turn clears A so retry can proceed
+    3) attempt B acquires same thread lock
+    4) stale attempt-A aafter runs late
+
+    Expected: B lock remains held.
+    """
+    thread_id = "stale-aafter-lock"
+    runtime = _Runtime(thread_id)
+    attempt_a = BusyMutexMiddleware()
+    attempt_b = BusyMutexMiddleware()
+
+    await attempt_a.abefore_agent({}, runtime)
+    lock = manager.lock_for(thread_id)
+    assert lock.locked()
+
+    end_turn(thread_id)
+    assert not lock.locked()
+
+    await attempt_b.abefore_agent({}, runtime)
+    assert lock.locked()
+
+    # Stale cleanup from attempt A must not release attempt B's lock.
+    await attempt_a.aafter_agent({}, runtime)
+    assert lock.locked()
+
+    await attempt_b.aafter_agent({}, runtime)
