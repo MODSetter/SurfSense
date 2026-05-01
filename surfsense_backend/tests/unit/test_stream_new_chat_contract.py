@@ -175,6 +175,68 @@ def test_stream_exception_classifies_openrouter_429_payload():
     assert extra is None
 
 
+@pytest.mark.asyncio
+async def test_preflight_swallows_non_rate_limit_errors_and_re_raises_429(monkeypatch):
+    """``_preflight_llm`` is best-effort.
+
+    - On rate-limit shaped exceptions (provider 429) it MUST re-raise so the
+      caller can drive the cooldown/repin branch.
+    - On any other transient failure it MUST swallow the error so the normal
+      stream path continues without surfacing preflight noise to the user.
+    """
+    from types import SimpleNamespace
+
+    from app.tasks.chat.stream_new_chat import _preflight_llm
+
+    class _RateLimitedExc(Exception):
+        """Class-name carries 'RateLimit' so _is_provider_rate_limited triggers."""
+
+    rate_calls: list[dict] = []
+    other_calls: list[dict] = []
+
+    async def _fake_acompletion_429(**kwargs):
+        rate_calls.append(kwargs)
+        raise _RateLimitedExc("simulated 429")
+
+    async def _fake_acompletion_other(**kwargs):
+        other_calls.append(kwargs)
+        raise RuntimeError("some unrelated transient failure")
+
+    fake_llm = SimpleNamespace(
+        model="openrouter/google/gemma-4-31b-it:free",
+        api_key="test",
+        api_base=None,
+    )
+
+    import litellm  # type: ignore[import-not-found]
+
+    monkeypatch.setattr(litellm, "acompletion", _fake_acompletion_429)
+    with pytest.raises(_RateLimitedExc):
+        await _preflight_llm(fake_llm)
+    assert len(rate_calls) == 1
+    assert rate_calls[0]["max_tokens"] == 1
+    assert rate_calls[0]["stream"] is False
+
+    monkeypatch.setattr(litellm, "acompletion", _fake_acompletion_other)
+    # MUST NOT raise: non-rate-limit failures are swallowed.
+    await _preflight_llm(fake_llm)
+    assert len(other_calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_preflight_skipped_for_auto_router_model():
+    """Router-mode ``model='auto'`` has no single deployment to ping; the
+    LiteLLM router itself owns per-deployment rate-limit accounting, so the
+    preflight helper must short-circuit instead of issuing a probe."""
+    from types import SimpleNamespace
+
+    from app.tasks.chat.stream_new_chat import _preflight_llm
+
+    fake_llm = SimpleNamespace(model="auto", api_key="x", api_base=None)
+    # Should return without raising or making any LiteLLM call.
+    await _preflight_llm(fake_llm)
+
+
 def test_stream_exception_classifies_thread_busy():
     exc = BusyError(request_id="thread-123")
     kind, code, severity, is_expected, user_message, extra = _classify_stream_exception(
