@@ -169,7 +169,7 @@ export const CitationPanelContent: FC<CitationPanelContentProps> = ({ chunkId, o
 											)}
 										</div>
 										<div className="text-sm">
-											<MarkdownViewer content={chunk.content} />
+											<MarkdownViewer content={chunk.content} enableCitations />
 										</div>
 									</div>
 								);

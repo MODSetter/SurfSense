@@ -516,7 +516,7 @@ export function ReportPanelContent({
 				) : reportContent.content ? (
 					isReadOnly ? (
 						<div className="h-full overflow-y-auto px-5 py-4">
-							<MarkdownViewer content={reportContent.content} />
+							<MarkdownViewer content={reportContent.content} enableCitations />
 						</div>
 					) : (
 						<PlateEditor
@@ -531,6 +531,9 @@ export function ReportPanelContent({
 							reserveToolbarSpace
 							defaultEditing={isEditing}
 							className="[&_[role=toolbar]]:!bg-sidebar"
+							// Show citation badges in view mode; raw `[citation:N]`
+							// text in edit mode so users can edit/delete tokens.
+							enableCitations={!isEditing}
 						/>
 					)
 				) : (

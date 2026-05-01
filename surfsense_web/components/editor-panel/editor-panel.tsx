@@ -652,7 +652,7 @@ export function EditorPanelContent({
 					// Plate is heavy on multi-MB docs.
 					<div className="h-full overflow-y-auto px-5 py-4">
 						{largeDocAlert}
-						<MarkdownViewer content={editorDoc.source_markdown} />
+						<MarkdownViewer content={editorDoc.source_markdown} enableCitations />
 					</div>
 				) : renderInPlateEditor ? (
 					// Editable doc (FILE/NOTE) — Plate editing UX.
@@ -670,12 +670,17 @@ export function EditorPanelContent({
 								reserveToolbarSpace
 								defaultEditing={isEditing}
 								className="**:[[role=toolbar]]:bg-sidebar!"
+								// Render `[citation:N]` badges in view mode only.
+								// Edit mode keeps raw text so the user can edit/delete
+								// tokens directly. `local_file` never reaches this branch
+								// (handled by the source_code editor above).
+								enableCitations={!isEditing && !isLocalFileMode}
 							/>
 						</div>
 					</div>
 				) : (
 					<div className="h-full overflow-y-auto px-5 py-4">
-						<MarkdownViewer content={editorDoc.source_markdown} />
+						<MarkdownViewer content={editorDoc.source_markdown} enableCitations />
 					</div>
 				)}
 			</div>

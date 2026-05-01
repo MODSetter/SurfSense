@@ -3,6 +3,12 @@ import { createMathPlugin } from "@streamdown/math";
 import { Streamdown, type StreamdownProps } from "streamdown";
 import "katex/dist/katex.min.css";
 import Image from "next/image";
+import { useMemo } from "react";
+import { processChildrenWithCitations } from "@/components/citations/citation-renderer";
+import {
+	type CitationUrlMap,
+	preprocessCitationMarkdown,
+} from "@/lib/citations/citation-parser";
 import { cn } from "@/lib/utils";
 
 const code = createCodePlugin({
@@ -21,7 +27,20 @@ interface MarkdownViewerProps {
 	content: string;
 	className?: string;
 	maxLength?: number;
+	/**
+	 * When true, render `[citation:N]` / `[citation:URL]` tokens as the
+	 * interactive citation badges/popovers used in chat. Default `false`
+	 * so callers that don't need citations are unchanged.
+	 *
+	 * Note: we deliberately do NOT override `<a>` to inject citations into
+	 * link text — that would produce `<button>` inside `<a>` (invalid
+	 * HTML). A `[citation:N]` token literally placed inside markdown link
+	 * text stays as raw text.
+	 */
+	enableCitations?: boolean;
 }
+
+const EMPTY_URL_MAP: CitationUrlMap = new Map();
 
 /**
  * If the entire content is wrapped in a single ```markdown or ```md
@@ -85,14 +104,45 @@ function convertLatexDelimiters(content: string): string {
 	return content;
 }
 
-export function MarkdownViewer({ content, className, maxLength }: MarkdownViewerProps) {
+export function MarkdownViewer({
+	content,
+	className,
+	maxLength,
+	enableCitations = false,
+}: MarkdownViewerProps) {
 	const isTruncated = maxLength != null && content.length > maxLength;
 	const displayContent = isTruncated ? content.slice(0, maxLength) : content;
-	const processedContent = convertLatexDelimiters(stripOuterMarkdownFence(displayContent));
+
+	// Preprocess for URL placeholders BEFORE LaTeX so GFM autolinks don't
+	// split `[citation:https://…]` apart. The preprocess is code-fence
+	// aware so citations inside fenced code stay literal.
+	const { processedContent, urlMap } = useMemo(() => {
+		const stripped = stripOuterMarkdownFence(displayContent);
+		if (!enableCitations) {
+			return {
+				processedContent: convertLatexDelimiters(stripped),
+				urlMap: EMPTY_URL_MAP,
+			};
+		}
+		const { content: rewritten, urlMap: map } = preprocessCitationMarkdown(stripped);
+		return {
+			processedContent: convertLatexDelimiters(rewritten),
+			urlMap: map,
+		};
+	}, [displayContent, enableCitations]);
+
+	// Phrasing/block renderers wrap their string children through the
+	// citation renderer when `enableCitations` is on. We deliberately do
+	// NOT override `<a>` (would produce <button> inside <a>) and we do
+	// NOT touch the inline/fenced `code` paths (citations stay literal
+	// inside code, matching markdown-text.tsx behavior).
+	const wrap = (children: React.ReactNode): React.ReactNode =>
+		enableCitations ? processChildrenWithCitations(children, urlMap) : children;
+
 	const components: StreamdownProps["components"] = {
 		p: ({ children, ...props }) => (
 			<p className="my-2" {...props}>
-				{children}
+				{wrap(children)}
 			</p>
 		),
 		a: ({ children, ...props }) => (
@@ -105,31 +155,49 @@ export function MarkdownViewer({ content, className, maxLength }: MarkdownViewer
 				{children}
 			</a>
 		),
-		li: ({ children, ...props }) => <li {...props}>{children}</li>,
+		li: ({ children, ...props }) => <li {...props}>{wrap(children)}</li>,
 		ul: ({ ...props }) => <ul className="list-disc pl-5 my-2" {...props} />,
 		ol: ({ ...props }) => <ol className="list-decimal pl-5 my-2" {...props} />,
 		h1: ({ children, ...props }) => (
 			<h1 className="text-2xl font-bold mt-6 mb-2" {...props}>
-				{children}
+				{wrap(children)}
 			</h1>
 		),
 		h2: ({ children, ...props }) => (
 			<h2 className="text-xl font-bold mt-5 mb-2" {...props}>
-				{children}
+				{wrap(children)}
 			</h2>
 		),
 		h3: ({ children, ...props }) => (
 			<h3 className="text-lg font-bold mt-4 mb-2" {...props}>
-				{children}
+				{wrap(children)}
 			</h3>
 		),
 		h4: ({ children, ...props }) => (
 			<h4 className="text-base font-bold mt-3 mb-1" {...props}>
-				{children}
+				{wrap(children)}
 			</h4>
 		),
-		blockquote: ({ ...props }) => (
-			<blockquote className="border-l-4 border-muted pl-4 italic my-2" {...props} />
+		h5: ({ children, ...props }) => (
+			<h5 className="text-sm font-bold mt-3 mb-1" {...props}>
+				{wrap(children)}
+			</h5>
+		),
+		h6: ({ children, ...props }) => (
+			<h6 className="text-xs font-bold mt-3 mb-1" {...props}>
+				{wrap(children)}
+			</h6>
+		),
+		strong: ({ children, ...props }) => (
+			<strong className="font-semibold" {...props}>
+				{wrap(children)}
+			</strong>
+		),
+		em: ({ children, ...props }) => <em {...props}>{wrap(children)}</em>,
+		blockquote: ({ children, ...props }) => (
+			<blockquote className="border-l-4 border-muted pl-4 italic my-2" {...props}>
+				{wrap(children)}
+			</blockquote>
 		),
 		hr: ({ ...props }) => <hr className="my-4 border-muted" {...props} />,
 		img: ({ src, alt, width: _w, height: _h, ...props }) => {
@@ -163,17 +231,21 @@ export function MarkdownViewer({ content, className, maxLength }: MarkdownViewer
 				<table className="w-full divide-y divide-border" {...props} />
 			</div>
 		),
-		th: ({ ...props }) => (
+		th: ({ children, ...props }) => (
 			<th
 				className="px-4 py-2.5 text-left text-sm font-semibold text-muted-foreground/80 bg-muted/30 border-r border-border/40 last:border-r-0"
 				{...props}
-			/>
+			>
+				{wrap(children)}
+			</th>
 		),
-		td: ({ ...props }) => (
+		td: ({ children, ...props }) => (
 			<td
 				className="px-4 py-2.5 text-sm border-t border-r border-border/40 last:border-r-0"
 				{...props}
-			/>
+			>
+				{wrap(children)}
+			</td>
 		),
 	};
 
