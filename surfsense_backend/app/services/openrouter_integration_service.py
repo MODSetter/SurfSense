@@ -382,6 +382,18 @@ class OpenRouterIntegrationService:
         self._configs = new_configs
         self._configs_by_id = new_by_id
 
+        # Catalogue churn invalidates per-config "recently healthy" credit
+        # earned by the previous turn's preflight. Drop the whole table so
+        # the next turn re-probes against the freshly loaded configs.
+        try:
+            from app.services.auto_model_pin_service import clear_healthy
+
+            clear_healthy()
+        except Exception:
+            logger.debug(
+                "OpenRouter refresh: clear_healthy import skipped", exc_info=True
+            )
+
         tier_counts = self._tier_counts(new_configs)
         logger.info(
             "OpenRouter refresh: updated to %d models (free=%d, premium=%d)",
