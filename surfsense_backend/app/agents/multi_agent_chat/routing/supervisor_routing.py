@@ -7,64 +7,70 @@ from typing import Any
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 
-from app.db import ChatVisibility
+from app.agents.multi_agent_chat.core.mcp_partition import MCP_ONLY_ROUTE_KEYS_IN_ORDER
 from app.agents.multi_agent_chat.expert_agent.builtins.deliverables import (
-    build_deliverables_tools,
     build_deliverables_domain_agent,
+    build_deliverables_tools,
 )
 from app.agents.multi_agent_chat.expert_agent.builtins.memory import (
-    build_memory_tools,
     build_memory_domain_agent,
+    build_memory_tools,
 )
 from app.agents.multi_agent_chat.expert_agent.builtins.research import (
-    build_research_tools,
     build_research_domain_agent,
+    build_research_tools,
 )
 from app.agents.multi_agent_chat.expert_agent.connectors.calendar import (
-    build_calendar_tools,
     build_calendar_domain_agent,
+    build_calendar_tools,
 )
 from app.agents.multi_agent_chat.expert_agent.connectors.confluence import (
-    build_confluence_tools,
     build_confluence_domain_agent,
+    build_confluence_tools,
 )
 from app.agents.multi_agent_chat.expert_agent.connectors.discord import (
-    build_discord_tools,
     build_discord_domain_agent,
+    build_discord_tools,
 )
 from app.agents.multi_agent_chat.expert_agent.connectors.dropbox import (
-    build_dropbox_tools,
     build_dropbox_domain_agent,
+    build_dropbox_tools,
 )
 from app.agents.multi_agent_chat.expert_agent.connectors.gmail import (
-    build_gmail_tools,
     build_gmail_domain_agent,
+    build_gmail_tools,
 )
 from app.agents.multi_agent_chat.expert_agent.connectors.google_drive import (
-    build_google_drive_tools,
     build_google_drive_domain_agent,
+    build_google_drive_tools,
 )
 from app.agents.multi_agent_chat.expert_agent.connectors.luma import (
-    build_luma_tools,
     build_luma_domain_agent,
+    build_luma_tools,
 )
 from app.agents.multi_agent_chat.expert_agent.connectors.notion import (
-    build_notion_tools,
     build_notion_domain_agent,
+    build_notion_tools,
 )
 from app.agents.multi_agent_chat.expert_agent.connectors.onedrive import (
-    build_onedrive_tools,
     build_onedrive_domain_agent,
+    build_onedrive_tools,
 )
 from app.agents.multi_agent_chat.expert_agent.connectors.teams import (
-    build_teams_tools,
     build_teams_domain_agent,
+    build_teams_tools,
 )
-from app.agents.multi_agent_chat.expert_agent.mcp_bridge import build_mcp_route_domain_agent
-from app.agents.multi_agent_chat.core.mcp_partition import MCP_ONLY_ROUTE_KEYS_IN_ORDER
+from app.agents.multi_agent_chat.expert_agent.mcp_bridge import (
+    build_mcp_route_domain_agent,
+)
 from app.agents.multi_agent_chat.routing.domain_routing_spec import DomainRoutingSpec
-from app.agents.multi_agent_chat.routing.from_domain_agents import routing_tools_from_specs
-from app.agents.multi_agent_chat.routing.route_connector_gate import include_connector_route
+from app.agents.multi_agent_chat.routing.from_domain_agents import (
+    routing_tools_from_specs,
+)
+from app.agents.multi_agent_chat.routing.route_connector_gate import (
+    include_connector_route,
+)
+from app.db import ChatVisibility
 
 _MCP_ONLY_ROUTE_DESCRIPTIONS: dict[str, str] = {
     "linear": (
