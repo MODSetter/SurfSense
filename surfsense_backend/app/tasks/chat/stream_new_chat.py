@@ -304,20 +304,17 @@ def _tool_output_has_error(tool_output: Any) -> bool:
     return False
 
 
-def _extract_resolved_file_path(*, tool_name: str, tool_output: Any) -> str | None:
+def _extract_resolved_file_path(
+    *, tool_name: str, tool_output: Any, tool_input: Any | None = None
+) -> str | None:
     if isinstance(tool_output, dict):
         path_value = tool_output.get("path")
         if isinstance(path_value, str) and path_value.strip():
             return path_value.strip()
-    text = _tool_output_to_text(tool_output)
-    if tool_name == "write_file":
-        match = re.search(r"Updated file\s+(.+)$", text.strip())
-        if match:
-            return match.group(1).strip()
-    if tool_name == "edit_file":
-        match = re.search(r"in '([^']+)'", text)
-        if match:
-            return match.group(1).strip()
+    if tool_name in ("write_file", "edit_file") and isinstance(tool_input, dict):
+        file_path = tool_input.get("file_path")
+        if isinstance(file_path, str) and file_path.strip():
+            return file_path.strip()
     return None
 
 
@@ -714,6 +711,7 @@ async def _stream_agent_events(
     # fallback path only and never re-pops a chunk we already streamed.
     pending_tool_call_chunks: list[dict[str, Any]] = []
     lc_tool_call_id_by_run: dict[str, str] = {}
+    file_path_by_run: dict[str, str] = {}
 
     # parity_v2 only: live tool-call argument streaming. ``index_to_meta``
     # is keyed by the chunk's ``index`` field — LangChain
@@ -892,6 +890,10 @@ async def _stream_agent_events(
             tool_input = event.get("data", {}).get("input", {})
             if tool_name in ("write_file", "edit_file"):
                 result.write_attempted = True
+                if isinstance(tool_input, dict):
+                    file_path = tool_input.get("file_path")
+                    if isinstance(file_path, str) and file_path.strip() and run_id:
+                        file_path_by_run[run_id] = file_path.strip()
 
             if current_text_id is not None:
                 yield streaming_service.format_text_end(current_text_id)
@@ -1298,6 +1300,7 @@ async def _stream_agent_events(
             run_id = event.get("run_id", "")
             tool_name = event.get("name", "unknown_tool")
             raw_output = event.get("data", {}).get("output", "")
+            staged_file_path = file_path_by_run.pop(run_id, None) if run_id else None
 
             if tool_name == "update_memory":
                 called_update_memory = True
@@ -1811,6 +1814,7 @@ async def _stream_agent_events(
                 resolved_path = _extract_resolved_file_path(
                     tool_name=tool_name,
                     tool_output=tool_output,
+                    tool_input={"file_path": staged_file_path} if staged_file_path else None,
                 )
                 result_text = _tool_output_to_text(tool_output)
                 if _tool_output_has_error(tool_output):

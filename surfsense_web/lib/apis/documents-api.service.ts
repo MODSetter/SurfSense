@@ -28,6 +28,7 @@ import {
 	getSurfsenseDocsRequest,
 	getSurfsenseDocsResponse,
 	type SearchDocumentsRequest,
+	documentTitleRead,
 	type SearchDocumentTitlesRequest,
 	searchDocumentsRequest,
 	searchDocumentsResponse,
@@ -267,6 +268,17 @@ class DocumentsApiService {
 			searchDocumentTitlesResponse,
 			{ signal }
 		);
+	};
+
+	getDocumentByVirtualPath = async (request: {
+		search_space_id: number;
+		virtual_path: string;
+	}) => {
+		const params = new URLSearchParams({
+			search_space_id: String(request.search_space_id),
+			virtual_path: request.virtual_path,
+		});
+		return baseApiService.get(`/api/v1/documents/by-virtual-path?${params.toString()}`, documentTitleRead);
 	};
 
 	/**

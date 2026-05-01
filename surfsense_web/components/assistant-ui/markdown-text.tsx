@@ -30,8 +30,10 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { useElectronAPI } from "@/hooks/use-platform";
+import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { type CitationUrlMap, preprocessCitationMarkdown } from "@/lib/citations/citation-parser";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 function MarkdownCodeBlockSkeleton() {
 	return (
@@ -194,6 +196,89 @@ function isVirtualFilePathToken(value: string): boolean {
 	return segments.length >= 2;
 }
 
+function isStandaloneDocumentsPathText(node: ReactNode): string | null {
+	if (typeof node !== "string") return null;
+	const value = node.trim();
+	if (!value.startsWith("/documents/")) return null;
+	if (value.includes(" ")) return null;
+	const normalized = value.replace(/\/+$/, "");
+	const leaf = normalized.split("/").filter(Boolean).at(-1) ?? "";
+	if (!leaf || !leaf.includes(".")) return null;
+	return value;
+}
+
+function FilePathLink({
+	path,
+	className,
+}: {
+	path: string;
+	className?: string;
+}) {
+	const openEditorPanel = useSetAtom(openEditorPanelAtom);
+	const params = useParams();
+	const electronAPI = useElectronAPI();
+	const searchSpaceIdParam = params?.search_space_id;
+	const parsedSearchSpaceId = Array.isArray(searchSpaceIdParam)
+		? Number(searchSpaceIdParam[0])
+		: Number(searchSpaceIdParam);
+	const resolvedSearchSpaceId = Number.isFinite(parsedSearchSpaceId) ? parsedSearchSpaceId : undefined;
+
+	return (
+		<button
+			type="button"
+			className={cn(
+				"cursor-pointer font-mono text-[0.9em] font-medium text-primary underline underline-offset-4 transition-colors hover:text-primary/80",
+				className
+			)}
+			onClick={(event) => {
+				event.preventDefault();
+				event.stopPropagation();
+				void (async () => {
+					if (electronAPI) {
+						let resolvedLocalPath = path;
+						if (electronAPI.getAgentFilesystemMounts) {
+							try {
+								const mounts = (await electronAPI.getAgentFilesystemMounts(
+									resolvedSearchSpaceId
+								)) as AgentFilesystemMount[];
+								resolvedLocalPath = normalizeLocalVirtualPathForEditor(path, mounts);
+							} catch {
+								// Fall back to the raw path if mount lookup fails.
+							}
+						}
+						openEditorPanel({
+							kind: "local_file",
+							localFilePath: resolvedLocalPath,
+							title: resolvedLocalPath.split("/").pop() || resolvedLocalPath,
+							searchSpaceId: resolvedSearchSpaceId,
+						});
+						return;
+					}
+
+					if (!resolvedSearchSpaceId || !path.startsWith("/documents/")) return;
+					try {
+						const doc = await documentsApiService.getDocumentByVirtualPath({
+							search_space_id: resolvedSearchSpaceId,
+							virtual_path: path,
+						});
+						openEditorPanel({
+							kind: "document",
+							documentId: doc.id,
+							searchSpaceId: resolvedSearchSpaceId,
+							title: doc.title,
+						});
+					} catch {
+						toast.error("Document not found in knowledge base.");
+					}
+				})();
+			}}
+			title="Open in editor panel"
+		>
+			{path}
+		</button>
+	);
+}
+
 function MarkdownImage({ src, alt }: { src?: string; alt?: string }) {
 	if (!src) return null;
 
@@ -311,9 +396,14 @@ const defaultComponents = memoizeMarkdownComponents({
 	},
 	p: function P({ className, children, ...props }) {
 		const urlMap = useCitationUrlMap();
+		const standalonePath = isStandaloneDocumentsPathText(children);
 		return (
 			<p className={cn("aui-md-p mt-5 mb-5 leading-7 first:mt-0 last:mb-0", className)} {...props}>
-				{processChildrenWithCitations(children, urlMap)}
+				{standalonePath ? (
+					<FilePathLink path={standalonePath} />
+				) : (
+					processChildrenWithCitations(children, urlMap)
+				)}
 			</p>
 		);
 	},
@@ -400,8 +490,6 @@ const defaultComponents = memoizeMarkdownComponents({
 	code: function Code({ className, children, ...props }) {
 		const isCodeBlock = useIsMarkdownCodeBlock();
 		const { resolvedTheme } = useTheme();
-		const openEditorPanel = useSetAtom(openEditorPanelAtom);
-		const params = useParams();
 		const electronAPI = useElectronAPI();
 		const language = /language-(\w+)/.exec(className || "")?.[1] ?? "text";
 		const codeString = String(children).replace(/\n$/, "");
@@ -418,53 +506,17 @@ const defaultComponents = memoizeMarkdownComponents({
 			const isLikelyFolder =
 				inlineValue.endsWith("/") || !leafSegment || !leafSegment.includes(".");
 			const isLocalPath =
-				!!electronAPI &&
-				isVirtualFilePathToken(inlineValue) &&
-				!inlineValue.startsWith("//") &&
-				!isLikelyFolder;
-			const displayLocalPath = inlineValue.replace(/^\/+/, "");
-			const searchSpaceIdParam = params?.search_space_id;
-			const parsedSearchSpaceId = Array.isArray(searchSpaceIdParam)
-				? Number(searchSpaceIdParam[0])
-				: Number(searchSpaceIdParam);
+				(isVirtualFilePathToken(inlineValue) &&
+					!inlineValue.startsWith("//") &&
+					!isLikelyFolder &&
+					!!electronAPI) ||
+				(isVirtualFilePathToken(inlineValue) &&
+					!inlineValue.startsWith("//") &&
+					!isLikelyFolder &&
+					!electronAPI &&
+					inlineValue.startsWith("/documents/"));
 			if (isLocalPath) {
-				return (
-					<button
-						type="button"
-						className={cn(
-							"cursor-pointer font-mono text-[0.9em] font-medium text-primary underline underline-offset-4 transition-colors hover:text-primary/80"
-						)}
-						onClick={(event) => {
-							event.preventDefault();
-							event.stopPropagation();
-							void (async () => {
-								let resolvedLocalPath = inlineValue;
-								const resolvedSearchSpaceId = Number.isFinite(parsedSearchSpaceId)
-									? parsedSearchSpaceId
-									: undefined;
-								if (electronAPI?.getAgentFilesystemMounts) {
-									try {
-										const mounts = (await electronAPI.getAgentFilesystemMounts(
-											resolvedSearchSpaceId
-										)) as AgentFilesystemMount[];
-										resolvedLocalPath = normalizeLocalVirtualPathForEditor(inlineValue, mounts);
-									} catch {
-										// Fall back to the raw inline path if mount lookup fails.
-									}
-								}
-								openEditorPanel({
-									kind: "local_file",
-									localFilePath: resolvedLocalPath,
-									title: resolvedLocalPath.split("/").pop() || resolvedLocalPath,
-									searchSpaceId: resolvedSearchSpaceId,
-								});
-							})();
-						}}
-						title="Open in editor panel"
-					>
-						{displayLocalPath}
-					</button>
-				);
+				return <FilePathLink path={inlineValue} className="text-[0.9em]" />;
 			}
 			return (
 				<code

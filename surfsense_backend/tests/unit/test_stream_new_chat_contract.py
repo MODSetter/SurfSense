@@ -13,6 +13,7 @@ from app.tasks.chat.stream_new_chat import (
     StreamResult,
     _classify_stream_exception,
     _contract_enforcement_active,
+    _extract_resolved_file_path,
     _evaluate_file_contract_outcome,
     _log_chat_stream_error,
     _tool_output_has_error,
@@ -26,6 +27,39 @@ def test_tool_output_error_detection():
     assert _tool_output_has_error({"error": "boom"})
     assert _tool_output_has_error({"result": "Error: disk is full"})
     assert not _tool_output_has_error({"result": "Updated file /notes.md"})
+
+
+def test_extract_resolved_file_path_prefers_structured_path():
+    assert (
+        _extract_resolved_file_path(
+            tool_name="write_file",
+            tool_output={"status": "completed", "path": "/docs/note.md"},
+            tool_input=None,
+        )
+        == "/docs/note.md"
+    )
+
+
+def test_extract_resolved_file_path_falls_back_to_tool_input():
+    assert (
+        _extract_resolved_file_path(
+            tool_name="edit_file",
+            tool_output={"status": "completed", "result": "updated"},
+            tool_input={"file_path": "/docs/edited.md"},
+        )
+        == "/docs/edited.md"
+    )
+
+
+def test_extract_resolved_file_path_does_not_parse_result_text():
+    assert (
+        _extract_resolved_file_path(
+            tool_name="write_file",
+            tool_output={"result": "Updated file /docs/from-text.md"},
+            tool_input=None,
+        )
+        is None
+    )
 
 
 def test_file_write_contract_outcome_reasons():
