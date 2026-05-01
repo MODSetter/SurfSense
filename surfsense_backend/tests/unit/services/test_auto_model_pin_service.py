@@ -813,3 +813,56 @@ async def test_clearing_runtime_cooldown_restores_pin_reuse(monkeypatch):
     )
     assert result.resolved_llm_config_id == -1
     assert result.from_existing_pin is True
+
+
+@pytest.mark.asyncio
+async def test_auto_pin_repin_excludes_previous_config_on_runtime_retry(monkeypatch):
+    """Runtime retry should never repin the just-failed config."""
+    from app.config import config
+
+    session = _FakeSession(_thread(pinned_llm_config_id=-1))
+    monkeypatch.setattr(
+        config,
+        "GLOBAL_LLM_CONFIGS",
+        [
+            {
+                "id": -1,
+                "provider": "OPENROUTER",
+                "model_name": "google/gemma-4-26b-a4b-it:free",
+                "api_key": "k",
+                "billing_tier": "free",
+                "auto_pin_tier": "C",
+                "quality_score": 90,
+                "health_gated": False,
+            },
+            {
+                "id": -2,
+                "provider": "OPENROUTER",
+                "model_name": "google/gemini-2.5-flash:free",
+                "api_key": "k",
+                "billing_tier": "free",
+                "auto_pin_tier": "C",
+                "quality_score": 80,
+                "health_gated": False,
+            },
+        ],
+    )
+
+    async def _blocked(*_args, **_kwargs):
+        return _FakeQuotaResult(allowed=False)
+
+    monkeypatch.setattr(
+        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        _blocked,
+    )
+
+    result = await resolve_or_get_pinned_llm_config_id(
+        session,
+        thread_id=1,
+        search_space_id=10,
+        user_id="00000000-0000-0000-0000-000000000001",
+        selected_llm_config_id=0,
+        exclude_config_ids={-1},
+    )
+    assert result.resolved_llm_config_id == -2
+    assert result.from_existing_pin is False

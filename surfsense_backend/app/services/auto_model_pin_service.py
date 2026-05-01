@@ -179,6 +179,7 @@ async def resolve_or_get_pinned_llm_config_id(
     user_id: str | UUID | None,
     selected_llm_config_id: int,
     force_repin_free: bool = False,
+    exclude_config_ids: set[int] | None = None,
 ) -> AutoPinResolution:
     """Resolve Auto (Fastest) to one concrete config id and persist the pin.
 
@@ -214,9 +215,14 @@ async def resolve_or_get_pinned_llm_config_id(
             from_existing_pin=False,
         )
 
-    candidates = _global_candidates()
+    excluded_ids = {int(cid) for cid in (exclude_config_ids or set())}
+    candidates = [
+        c for c in _global_candidates() if int(c.get("id", 0)) not in excluded_ids
+    ]
     if not candidates:
-        raise ValueError("No usable global LLM configs are available for Auto mode")
+        raise ValueError(
+            "No usable global LLM configs are available for Auto mode"
+        )
     candidate_by_id = {int(c["id"]): c for c in candidates}
 
     # Reuse an existing valid pin without re-checking current quota (no silent

@@ -2784,6 +2784,10 @@ async def stream_new_chat(
 
                 runtime_rate_limit_recovered = True
                 previous_config_id = llm_config_id
+                # The failed attempt may still hold the per-thread busy mutex
+                # (middleware teardown can lag behind raised provider errors).
+                # Force release before we retry within the same request.
+                end_turn(str(chat_id))
                 mark_runtime_cooldown(
                     previous_config_id,
                     reason="provider_rate_limited",
@@ -2796,6 +2800,7 @@ async def stream_new_chat(
                         search_space_id=search_space_id,
                         user_id=user_id,
                         selected_llm_config_id=0,
+                        exclude_config_ids={previous_config_id},
                     )
                 ).resolved_llm_config_id
 
@@ -3442,6 +3447,9 @@ async def stream_resume_chat(
 
                 runtime_rate_limit_recovered = True
                 previous_config_id = llm_config_id
+                # Ensure the same-request recovery retry does not trip the
+                # BusyMutex lock retained by the failed attempt.
+                end_turn(str(chat_id))
                 mark_runtime_cooldown(
                     previous_config_id,
                     reason="provider_rate_limited",
@@ -3453,6 +3461,7 @@ async def stream_resume_chat(
                         search_space_id=search_space_id,
                         user_id=user_id,
                         selected_llm_config_id=0,
+                        exclude_config_ids={previous_config_id},
                     )
                 ).resolved_llm_config_id
 
