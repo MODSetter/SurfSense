@@ -6,10 +6,19 @@ from types import SimpleNamespace
 import pytest
 
 from app.services.auto_model_pin_service import (
+    clear_runtime_cooldown,
+    mark_runtime_cooldown,
     resolve_or_get_pinned_llm_config_id,
 )
 
 pytestmark = pytest.mark.unit
+
+
+@pytest.fixture(autouse=True)
+def _clear_runtime_cooldown_map():
+    clear_runtime_cooldown()
+    yield
+    clear_runtime_cooldown()
 
 
 @dataclass
@@ -701,3 +710,106 @@ async def test_pin_reuse_regression_existing_healthy_pin(monkeypatch):
     assert result.resolved_llm_config_id == -1
     assert result.from_existing_pin is True
     assert session.commit_count == 0
+
+
+@pytest.mark.asyncio
+async def test_runtime_cooled_down_pin_is_not_reused(monkeypatch):
+    """A runtime-cooled config should be excluded from candidate reuse.
+
+    This enables one-shot recovery from transient provider 429 bursts: we can
+    mark the pinned cfg as cooled down and force a repair to another eligible
+    cfg on the next resolution.
+    """
+    from app.config import config
+
+    session = _FakeSession(_thread(pinned_llm_config_id=-1))
+    monkeypatch.setattr(
+        config,
+        "GLOBAL_LLM_CONFIGS",
+        [
+            {
+                "id": -1,
+                "provider": "OPENROUTER",
+                "model_name": "google/gemma-4-26b-a4b-it:free",
+                "api_key": "k",
+                "billing_tier": "free",
+                "auto_pin_tier": "C",
+                "quality_score": 90,
+                "health_gated": False,
+            },
+            {
+                "id": -2,
+                "provider": "OPENROUTER",
+                "model_name": "google/gemini-2.5-flash:free",
+                "api_key": "k",
+                "billing_tier": "free",
+                "auto_pin_tier": "C",
+                "quality_score": 80,
+                "health_gated": False,
+            },
+        ],
+    )
+
+    async def _blocked(*_args, **_kwargs):
+        return _FakeQuotaResult(allowed=False)
+
+    monkeypatch.setattr(
+        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        _blocked,
+    )
+
+    mark_runtime_cooldown(-1, reason="provider_rate_limited", cooldown_seconds=600)
+
+    result = await resolve_or_get_pinned_llm_config_id(
+        session,
+        thread_id=1,
+        search_space_id=10,
+        user_id="00000000-0000-0000-0000-000000000001",
+        selected_llm_config_id=0,
+    )
+    assert result.resolved_llm_config_id == -2
+    assert result.from_existing_pin is False
+
+
+@pytest.mark.asyncio
+async def test_clearing_runtime_cooldown_restores_pin_reuse(monkeypatch):
+    from app.config import config
+
+    session = _FakeSession(_thread(pinned_llm_config_id=-1))
+    monkeypatch.setattr(
+        config,
+        "GLOBAL_LLM_CONFIGS",
+        [
+            {
+                "id": -1,
+                "provider": "OPENROUTER",
+                "model_name": "google/gemma-4-26b-a4b-it:free",
+                "api_key": "k",
+                "billing_tier": "free",
+                "auto_pin_tier": "C",
+                "quality_score": 90,
+                "health_gated": False,
+            },
+        ],
+    )
+
+    async def _must_not_call(*_args, **_kwargs):
+        raise AssertionError("premium_get_usage should not run on healthy pin reuse")
+
+    monkeypatch.setattr(
+        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        _must_not_call,
+    )
+
+    mark_runtime_cooldown(-1, reason="provider_rate_limited", cooldown_seconds=600)
+    clear_runtime_cooldown(-1)
+
+    result = await resolve_or_get_pinned_llm_config_id(
+        session,
+        thread_id=1,
+        search_space_id=10,
+        user_id="00000000-0000-0000-0000-000000000001",
+        selected_llm_config_id=0,
+    )
+    assert result.resolved_llm_config_id == -1
+    assert result.from_existing_pin is True

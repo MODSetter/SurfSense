@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import threading
+import time
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -31,6 +33,13 @@ logger = logging.getLogger(__name__)
 
 AUTO_FASTEST_ID = 0
 AUTO_FASTEST_MODE = "auto_fastest"
+_RUNTIME_COOLDOWN_SECONDS = 600
+
+# In-memory runtime cooldown map for configs that recently hard-failed at
+# provider runtime (e.g. OpenRouter 429 on a pinned free model). This keeps
+# the same unhealthy config from being reselected immediately during repair.
+_runtime_cooldown_until: dict[int, float] = {}
+_runtime_cooldown_lock = threading.Lock()
 
 
 @dataclass
@@ -49,17 +58,68 @@ def _is_usable_global_config(cfg: dict) -> bool:
     )
 
 
+def _prune_runtime_cooldowns(now_ts: float | None = None) -> None:
+    now = time.time() if now_ts is None else now_ts
+    stale = [cid for cid, until in _runtime_cooldown_until.items() if until <= now]
+    for cid in stale:
+        _runtime_cooldown_until.pop(cid, None)
+
+
+def _is_runtime_cooled_down(config_id: int) -> bool:
+    with _runtime_cooldown_lock:
+        _prune_runtime_cooldowns()
+        return config_id in _runtime_cooldown_until
+
+
+def mark_runtime_cooldown(
+    config_id: int,
+    *,
+    reason: str = "rate_limited",
+    cooldown_seconds: int = _RUNTIME_COOLDOWN_SECONDS,
+) -> None:
+    """Temporarily suppress a config from Auto selection.
+
+    Used by runtime error handlers (e.g. OpenRouter 429) so an already pinned
+    config that is currently unhealthy does not get immediately reused on the
+    same thread during repair.
+    """
+    if cooldown_seconds <= 0:
+        cooldown_seconds = _RUNTIME_COOLDOWN_SECONDS
+    until = time.time() + int(cooldown_seconds)
+    with _runtime_cooldown_lock:
+        _runtime_cooldown_until[int(config_id)] = until
+        _prune_runtime_cooldowns()
+    logger.info(
+        "auto_pin_runtime_cooled_down config_id=%s reason=%s cooldown_seconds=%s",
+        config_id,
+        reason,
+        cooldown_seconds,
+    )
+
+
+def clear_runtime_cooldown(config_id: int | None = None) -> None:
+    """Test/ops helper to clear runtime cooldown entries."""
+    with _runtime_cooldown_lock:
+        if config_id is None:
+            _runtime_cooldown_until.clear()
+            return
+        _runtime_cooldown_until.pop(int(config_id), None)
+
+
 def _global_candidates() -> list[dict]:
     """Return Auto-eligible global cfgs.
 
     Drops cfgs flagged ``health_gated`` (best non-null OpenRouter uptime
     below ``_HEALTH_GATE_UPTIME_PCT``) so chronically broken providers
-    can't be picked as the thread's pin.
+    can't be picked as the thread's pin. Also excludes configs currently
+    in runtime cooldown (e.g. temporary 429 bursts).
     """
     candidates = [
         cfg
         for cfg in config.GLOBAL_LLM_CONFIGS
-        if _is_usable_global_config(cfg) and not cfg.get("health_gated")
+        if _is_usable_global_config(cfg)
+        and not cfg.get("health_gated")
+        and not _is_runtime_cooled_down(int(cfg.get("id", 0)))
     ]
     return sorted(candidates, key=lambda c: int(c.get("id", 0)))
 

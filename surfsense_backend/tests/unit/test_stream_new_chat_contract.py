@@ -159,6 +159,22 @@ def test_stream_exception_classifies_rate_limited():
     assert extra is None
 
 
+def test_stream_exception_classifies_openrouter_429_payload():
+    exc = Exception(
+        'OpenrouterException - {"error":{"message":"Provider returned error","code":429,'
+        '"metadata":{"raw":"foo is temporarily rate-limited upstream"}}}'
+    )
+    kind, code, severity, is_expected, user_message, extra = _classify_stream_exception(
+        exc, flow_label="chat"
+    )
+    assert kind == "rate_limited"
+    assert code == "RATE_LIMITED"
+    assert severity == "warn"
+    assert is_expected is True
+    assert "temporarily rate-limited" in user_message
+    assert extra is None
+
+
 def test_stream_exception_classifies_thread_busy():
     exc = BusyError(request_id="thread-123")
     kind, code, severity, is_expected, user_message, extra = _classify_stream_exception(
