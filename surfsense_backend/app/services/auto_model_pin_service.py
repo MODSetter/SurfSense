@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import config
 from app.db import NewChatThread
+from app.services.quality_score import _QUALITY_TOP_K
 from app.services.token_quota_service import TokenQuotaService
 
 logger = logging.getLogger(__name__)
@@ -49,8 +50,16 @@ def _is_usable_global_config(cfg: dict) -> bool:
 
 
 def _global_candidates() -> list[dict]:
+    """Return Auto-eligible global cfgs.
+
+    Drops cfgs flagged ``health_gated`` (best non-null OpenRouter uptime
+    below ``_HEALTH_GATE_UPTIME_PCT``) so chronically broken providers
+    can't be picked as the thread's pin.
+    """
     candidates = [
-        cfg for cfg in config.GLOBAL_LLM_CONFIGS if _is_usable_global_config(cfg)
+        cfg
+        for cfg in config.GLOBAL_LLM_CONFIGS
+        if _is_usable_global_config(cfg) and not cfg.get("health_gated")
     ]
     return sorted(candidates, key=lambda c: int(c.get("id", 0)))
 
@@ -59,10 +68,26 @@ def _tier_of(cfg: dict) -> str:
     return str(cfg.get("billing_tier", "free")).lower()
 
 
-def _deterministic_pick(candidates: list[dict], thread_id: int) -> dict:
+def _select_pin(eligible: list[dict], thread_id: int) -> tuple[dict, int]:
+    """Pick a config with quality-first ranking + deterministic spread.
+
+    Tier policy is lock-first: prefer Tier A (operator-curated YAML)
+    cfgs and only fall through to Tier B/C (dynamic OpenRouter) if no
+    Tier A cfg is eligible after upstream filters. Within the locked
+    pool, sort by ``quality_score`` and pick from the top-K via
+    ``SHA256(thread_id)`` so different new threads spread across the
+    best models without ever picking a low-ranked one.
+
+    Returns ``(chosen_cfg, top_k_size)``. ``top_k_size`` is exposed for
+    structured logging in the caller.
+    """
+    tier_a = [c for c in eligible if c.get("auto_pin_tier") in (None, "A")]
+    pool = tier_a if tier_a else eligible
+    pool = sorted(pool, key=lambda c: -int(c.get("quality_score") or 0))
+    top_k = pool[:_QUALITY_TOP_K]
     digest = hashlib.sha256(f"{AUTO_FASTEST_MODE}:{thread_id}".encode()).digest()
-    idx = int.from_bytes(digest[:8], "big") % len(candidates)
-    return candidates[idx]
+    idx = int.from_bytes(digest[:8], "big") % len(top_k)
+    return top_k[idx], len(top_k)
 
 
 def _to_uuid(user_id: str | UUID | None) -> UUID | None:
@@ -150,6 +175,15 @@ async def resolve_or_get_pinned_llm_config_id(
             pinned_id,
             _tier_of(pinned_cfg),
         )
+        logger.info(
+            "auto_pin_resolved thread_id=%s config_id=%s tier=%s "
+            "auto_pin_tier=%s score=%s top_k_size=0 from_existing_pin=True",
+            thread_id,
+            pinned_id,
+            _tier_of(pinned_cfg),
+            pinned_cfg.get("auto_pin_tier", "?"),
+            int(pinned_cfg.get("quality_score") or 0),
+        )
         return AutoPinResolution(
             resolved_llm_config_id=int(pinned_id),
             resolved_tier=_tier_of(pinned_cfg),
@@ -176,7 +210,7 @@ async def resolve_or_get_pinned_llm_config_id(
             "Auto mode could not find an eligible LLM config for this user and quota state"
         )
 
-    selected_cfg = _deterministic_pick(eligible, thread_id)
+    selected_cfg, top_k_size = _select_pin(eligible, thread_id)
     selected_id = int(selected_cfg["id"])
     selected_tier = _tier_of(selected_cfg)
 
@@ -211,6 +245,18 @@ async def resolve_or_get_pinned_llm_config_id(
             selected_tier,
             premium_eligible,
         )
+
+    logger.info(
+        "auto_pin_resolved thread_id=%s config_id=%s tier=%s "
+        "auto_pin_tier=%s score=%s top_k_size=%d from_existing_pin=False",
+        thread_id,
+        selected_id,
+        selected_tier,
+        selected_cfg.get("auto_pin_tier", "?"),
+        int(selected_cfg.get("quality_score") or 0),
+        top_k_size,
+    )
+
     return AutoPinResolution(
         resolved_llm_config_id=selected_id,
         resolved_tier=selected_tier,
