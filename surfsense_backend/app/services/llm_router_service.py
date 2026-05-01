@@ -28,6 +28,7 @@ from litellm.exceptions import (
     BadRequestError as LiteLLMBadRequestError,
     ContextWindowExceededError,
 )
+from pydantic import Field
 
 from app.utils.perf import get_perf_logger
 
@@ -573,6 +574,11 @@ class ChatLiteLLMRouter(BaseChatModel):
     # Public attributes that Pydantic will manage
     model: str = "auto"
     streaming: bool = True
+    # Static kwargs that flow through to ``litellm.completion(...)`` on every
+    # invocation (e.g. ``cache_control_injection_points`` set by
+    # ``apply_litellm_prompt_caching``). Per-call ``**kwargs`` from
+    # ``invoke()`` still take precedence — see ``_generate``/``_astream``.
+    model_kwargs: dict[str, Any] = Field(default_factory=dict)
 
     # Bound tools and tool choice for tool calling
     _bound_tools: list[dict] | None = None
@@ -898,13 +904,16 @@ class ChatLiteLLMRouter(BaseChatModel):
                     logger.warning(f"Failed to convert tool {tool}: {e}")
                     continue
 
-        # Create a new instance with tools bound
+        # Create a new instance with tools bound. Carry through ``model_kwargs``
+        # so static settings (e.g. cache_control_injection_points) survive the
+        # bind_tools rebuild.
         return ChatLiteLLMRouter(
             router=self._router,
             bound_tools=formatted_tools if formatted_tools else None,
             tool_choice=tool_choice,
             model=self.model,
             streaming=self.streaming,
+            model_kwargs=dict(self.model_kwargs),
             **kwargs,
         )
 
@@ -929,8 +938,10 @@ class ChatLiteLLMRouter(BaseChatModel):
         formatted_messages = self._convert_messages(messages)
         formatted_messages = self._trim_messages_to_fit_context(formatted_messages)
 
-        # Add tools if bound
-        call_kwargs = {**kwargs}
+        # Merge static model_kwargs (e.g. cache_control_injection_points) under
+        # per-call kwargs so callers can still override per invocation. Then add
+        # bound tools.
+        call_kwargs = {**self.model_kwargs, **kwargs}
         if self._bound_tools:
             call_kwargs["tools"] = self._bound_tools
         if self._tool_choice is not None:
@@ -997,8 +1008,10 @@ class ChatLiteLLMRouter(BaseChatModel):
         formatted_messages = self._convert_messages(messages)
         formatted_messages = self._trim_messages_to_fit_context(formatted_messages)
 
-        # Add tools if bound
-        call_kwargs = {**kwargs}
+        # Merge static model_kwargs (e.g. cache_control_injection_points) under
+        # per-call kwargs so callers can still override per invocation. Then add
+        # bound tools.
+        call_kwargs = {**self.model_kwargs, **kwargs}
         if self._bound_tools:
             call_kwargs["tools"] = self._bound_tools
         if self._tool_choice is not None:
@@ -1060,8 +1073,10 @@ class ChatLiteLLMRouter(BaseChatModel):
         formatted_messages = self._convert_messages(messages)
         formatted_messages = self._trim_messages_to_fit_context(formatted_messages)
 
-        # Add tools if bound
-        call_kwargs = {**kwargs}
+        # Merge static model_kwargs (e.g. cache_control_injection_points) under
+        # per-call kwargs so callers can still override per invocation. Then add
+        # bound tools.
+        call_kwargs = {**self.model_kwargs, **kwargs}
         if self._bound_tools:
             call_kwargs["tools"] = self._bound_tools
         if self._tool_choice is not None:
@@ -1110,8 +1125,10 @@ class ChatLiteLLMRouter(BaseChatModel):
         formatted_messages = self._convert_messages(messages)
         formatted_messages = self._trim_messages_to_fit_context(formatted_messages)
 
-        # Add tools if bound
-        call_kwargs = {**kwargs}
+        # Merge static model_kwargs (e.g. cache_control_injection_points) under
+        # per-call kwargs so callers can still override per invocation. Then add
+        # bound tools.
+        call_kwargs = {**self.model_kwargs, **kwargs}
         if self._bound_tools:
             call_kwargs["tools"] = self._bound_tools
         if self._tool_choice is not None:

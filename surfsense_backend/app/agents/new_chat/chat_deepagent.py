@@ -10,7 +10,9 @@ We use ``create_agent`` (from langchain) rather than ``create_deep_agent``
 This lets us swap in ``SurfSenseFilesystemMiddleware`` — a customisable
 subclass of the default ``FilesystemMiddleware`` — while preserving every
 other behaviour that ``create_deep_agent`` provides (todo-list, subagents,
-summarisation, prompt-caching, etc.).
+summarisation, etc.). Prompt caching is configured at LLM-build time via
+``apply_litellm_prompt_caching`` (LiteLLM-native, multi-provider) rather
+than as a middleware.
 """
 
 import asyncio
@@ -33,7 +35,6 @@ from langchain.agents.middleware import (
     TodoListMiddleware,
     ToolCallLimitMiddleware,
 )
-from langchain_anthropic.middleware import AnthropicPromptCachingMiddleware
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 from langgraph.types import Checkpointer
@@ -74,6 +75,7 @@ from app.agents.new_chat.plugin_loader import (
     load_allowed_plugin_names_from_env,
     load_plugin_middlewares,
 )
+from app.agents.new_chat.prompt_caching import apply_litellm_prompt_caching
 from app.agents.new_chat.subagents import build_specialized_subagents
 from app.agents.new_chat.system_prompt import (
     build_configurable_system_prompt,
@@ -93,6 +95,39 @@ from app.services.connector_service import ConnectorService
 from app.utils.perf import get_perf_logger
 
 _perf_log = get_perf_logger()
+
+
+def _resolve_prompt_model_name(
+    agent_config: AgentConfig | None,
+    llm: BaseChatModel,
+) -> str | None:
+    """Resolve the model id to feed to provider-variant detection.
+
+    Preference order (matches the established idiom in
+    ``llm_router_service.py`` — see ``params.get("base_model") or
+    params.get("model", "")`` usages there):
+
+    1. ``agent_config.litellm_params["base_model"]`` — required for Azure
+       deployments where ``model_name`` is the deployment slug, not the
+       underlying family. Without this, a deployment named e.g.
+       ``"prod-chat-001"`` would silently miss every provider regex.
+    2. ``agent_config.model_name`` — the user's configured model id.
+    3. ``getattr(llm, "model", None)`` — fallback for direct callers that
+       don't supply an ``AgentConfig`` (currently a defensive path; all
+       production callers pass ``agent_config``).
+
+    Returns ``None`` when nothing is available; ``compose_system_prompt``
+    treats that as the ``"default"`` variant (no provider block emitted).
+    """
+    if agent_config is not None:
+        params = agent_config.litellm_params or {}
+        base_model = params.get("base_model")
+        if isinstance(base_model, str) and base_model.strip():
+            return base_model
+        if agent_config.model_name:
+            return agent_config.model_name
+    return getattr(llm, "model", None)
+
 
 # =============================================================================
 # Connector Type Mapping
@@ -279,6 +314,14 @@ async def create_surfsense_deep_agent(
         )
     """
     _t_agent_total = time.perf_counter()
+
+    # Layer thread-aware prompt caching onto the LLM. Idempotent with the
+    # build-time call in ``llm_config.py``; this run merely adds
+    # ``prompt_cache_key=f"surfsense-thread-{thread_id}"`` for OpenAI-family
+    # configs now that ``thread_id`` is known. No-op when ``thread_id`` is
+    # None or the provider is non-OpenAI-family.
+    apply_litellm_prompt_caching(llm, agent_config=agent_config, thread_id=thread_id)
+
     filesystem_selection = filesystem_selection or FilesystemSelection()
     backend_resolver = build_backend_resolver(
         filesystem_selection,
@@ -398,6 +441,7 @@ async def create_surfsense_deep_agent(
             enabled_tool_names=_enabled_tool_names,
             disabled_tool_names=_user_disabled_tool_names,
             mcp_connector_tools=_mcp_connector_tools,
+            model_name=_resolve_prompt_model_name(agent_config, llm),
         )
     else:
         system_prompt = build_surfsense_system_prompt(
@@ -405,6 +449,7 @@ async def create_surfsense_deep_agent(
             enabled_tool_names=_enabled_tool_names,
             disabled_tool_names=_user_disabled_tool_names,
             mcp_connector_tools=_mcp_connector_tools,
+            model_name=_resolve_prompt_model_name(agent_config, llm),
         )
     _perf_log.info(
         "[create_agent] System prompt built in %.3fs", time.perf_counter() - _t0
@@ -568,7 +613,6 @@ def _build_compiled_agent_blocking(
         ),
         create_surfsense_compaction_middleware(llm, StateBackend),
         PatchToolCallsMiddleware(),
-        AnthropicPromptCachingMiddleware(unsupported_model_behavior="ignore"),
     ]
 
     general_purpose_spec: SubAgent = {  # type: ignore[typeddict-unknown-key]
@@ -1006,12 +1050,12 @@ def _build_compiled_agent_blocking(
         action_log_mw,
         PatchToolCallsMiddleware(),
         DedupHITLToolCallsMiddleware(agent_tools=list(tools)),
-        # Plugin slot — sits just before AnthropicCache so plugin-side
-        # transforms see the final tool result and run before any
-        # caching heuristics. Multiple plugins in declared order; loader
-        # filtered by the admin allowlist already.
+        # Plugin slot — sits at the tail so plugin-side transforms see the
+        # final tool result. Prompt caching is now applied at LLM build time
+        # via ``apply_litellm_prompt_caching`` (see prompt_caching.py), so no
+        # caching middleware is needed here. Multiple plugins run in declared
+        # order; loader filtered by the admin allowlist already.
         *plugin_middlewares,
-        AnthropicPromptCachingMiddleware(unsupported_model_behavior="ignore"),
     ]
     deepagent_middleware = [m for m in deepagent_middleware if m is not None]
 

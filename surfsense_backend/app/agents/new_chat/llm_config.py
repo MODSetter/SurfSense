@@ -27,6 +27,7 @@ from litellm import get_model_info
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.new_chat.prompt_caching import apply_litellm_prompt_caching
 from app.services.llm_router_service import (
     AUTO_MODE_ID,
     ChatLiteLLMRouter,
@@ -494,6 +495,11 @@ def create_chat_litellm_from_config(llm_config: dict) -> ChatLiteLLM | None:
 
     llm = SanitizedChatLiteLLM(**litellm_kwargs)
     _attach_model_profile(llm, model_string)
+    # Configure LiteLLM-native prompt caching (cache_control_injection_points
+    # for Anthropic/Bedrock/Vertex/Gemini/Azure-AI/OpenRouter/Databricks/etc.).
+    # ``agent_config=None`` here — the YAML path doesn't have provider intent
+    # in a structured form, so we set only the universal injection points.
+    apply_litellm_prompt_caching(llm)
     return llm
 
 
@@ -518,7 +524,16 @@ def create_chat_litellm_from_agent_config(
             print("Error: Auto mode requested but LLM Router not initialized")
             return None
         try:
-            return get_auto_mode_llm()
+            router_llm = get_auto_mode_llm()
+            if router_llm is not None:
+                # Universal cache_control_injection_points only — auto-mode
+                # fans out across providers, so OpenAI-only kwargs (e.g.
+                # ``prompt_cache_key``) are left off here. ``drop_params``
+                # would strip them at the provider boundary anyway, but
+                # there's no point setting them when we don't know the
+                # destination.
+                apply_litellm_prompt_caching(router_llm, agent_config=agent_config)
+            return router_llm
         except Exception as e:
             print(f"Error creating ChatLiteLLMRouter: {e}")
             return None
@@ -549,4 +564,9 @@ def create_chat_litellm_from_agent_config(
 
     llm = SanitizedChatLiteLLM(**litellm_kwargs)
     _attach_model_profile(llm, model_string)
+    # Build-time prompt caching: sets ``cache_control_injection_points`` for
+    # all providers and (for OpenAI/DeepSeek/xAI) ``prompt_cache_retention``.
+    # Per-thread ``prompt_cache_key`` is layered on later in
+    # ``create_surfsense_deep_agent`` once ``thread_id`` is known.
+    apply_litellm_prompt_caching(llm, agent_config=agent_config)
     return llm

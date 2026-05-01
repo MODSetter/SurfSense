@@ -372,3 +372,39 @@ def test_turn_status_sse_contract_exists():
     assert 'type: "data-turn-status"' in state_source
     assert 'case "data-turn-status":' in pipeline_source
     assert "end_turn(str(chat_id))" in stream_source
+
+
+def test_chat_deepagent_forwards_resolved_model_name_to_both_builders():
+    """Regression guard: both system-prompt builders in chat_deepagent.py
+    must receive ``model_name=_resolve_prompt_model_name(...)`` so the
+    provider-variant dispatch can render the right ``<provider_hints>``
+    block. Without this the prompt silently falls back to the empty
+    ``"default"`` variant — the original bug being fixed.
+
+    This test mirrors :func:`test_stream_error_emission_keeps_machine_error_codes`
+    in style: it inspects module source text + a regex to enforce the
+    call-site shape, not just the wrapper layer (the wrappers already
+    forward ``model_name`` correctly, so testing them would not catch
+    the actual missed plumbing).
+    """
+    import app.agents.new_chat.chat_deepagent as chat_deepagent_module
+
+    source = inspect.getsource(chat_deepagent_module)
+
+    # Helper itself must be defined.
+    assert "def _resolve_prompt_model_name(" in source
+
+    # Both builder calls must forward the resolved model name. Match
+    # across newlines + whitespace because the kwargs are split over
+    # multiple lines.
+    pattern = re.compile(
+        r"build_(?:surfsense|configurable)_system_prompt\([^)]*"
+        r"model_name=_resolve_prompt_model_name\(",
+        re.DOTALL,
+    )
+    matches = pattern.findall(source)
+    assert len(matches) == 2, (
+        "Expected both system-prompt builder call sites to forward "
+        "`model_name=_resolve_prompt_model_name(...)`, found "
+        f"{len(matches)}"
+    )
