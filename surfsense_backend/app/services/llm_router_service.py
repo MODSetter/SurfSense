@@ -344,11 +344,11 @@ class LLMRouterService:
         Scope: only covers configs with ``router_pool_eligible`` truthy. That
         includes static YAML premium configs AND dynamic OpenRouter *premium*
         entries (which opt in at generation time). Dynamic OpenRouter *free*
-        entries and the virtual ``openrouter/free`` router are deliberately
-        kept out of the router pool — OpenRouter enforces free-tier limits
-        globally per account, so per-deployment router accounting can't
-        represent them correctly — and therefore return ``False`` here, which
-        matches their ``billing_tier="free"`` (no premium quota).
+        entries are deliberately kept out of the router pool — OpenRouter
+        enforces free-tier limits globally per account, so per-deployment
+        router accounting can't represent them correctly — and therefore
+        return ``False`` here, which matches their ``billing_tier="free"``
+        (no premium quota).
 
         For per-request premium checks on an arbitrary config (static or
         dynamic, pool or non-pool), read ``agent_config.is_premium`` instead;
