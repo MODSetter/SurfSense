@@ -63,6 +63,27 @@ def load_global_llm_configs():
                 else:
                     seen_slugs[slug] = cfg.get("id", 0)
 
+        # Stamp Auto (Fastest) ranking metadata. YAML configs are always
+        # Tier A — operator-curated, locked first when premium-eligible.
+        # The OpenRouter refresh tick later re-stamps health for any cfg
+        # whose provider == "OPENROUTER" via _enrich_health.
+        try:
+            from app.services.quality_score import static_score_yaml
+
+            for cfg in configs:
+                cfg["auto_pin_tier"] = "A"
+                static_q = static_score_yaml(cfg)
+                cfg["quality_score_static"] = static_q
+                cfg["quality_score"] = static_q
+                cfg["quality_score_health"] = None
+                # YAML cfgs whose provider is OPENROUTER are also subject
+                # to health gating against their own /endpoints data — a
+                # hand-picked dead OR model is still dead. _enrich_health
+                # re-stamps health_gated for them on the next refresh tick.
+                cfg["health_gated"] = False
+        except Exception as e:
+            print(f"Warning: Failed to score global LLM configs: {e}")
+
         return configs
     except Exception as e:
         print(f"Warning: Failed to load global LLM configs: {e}")
