@@ -1814,7 +1814,9 @@ async def _stream_agent_events(
                 resolved_path = _extract_resolved_file_path(
                     tool_name=tool_name,
                     tool_output=tool_output,
-                    tool_input={"file_path": staged_file_path} if staged_file_path else None,
+                    tool_input={"file_path": staged_file_path}
+                    if staged_file_path
+                    else None,
                 )
                 result_text = _tool_output_to_text(tool_output)
                 if _tool_output_has_error(tool_output):
@@ -2441,8 +2443,7 @@ async def stream_new_chat(
                 await _preflight_llm(llm)
                 mark_healthy(llm_config_id)
                 _perf_log.info(
-                    "[stream_new_chat] auto_pin_preflight ok config_id=%s "
-                    "took=%.3fs",
+                    "[stream_new_chat] auto_pin_preflight ok config_id=%s took=%.3fs",
                     llm_config_id,
                     time.perf_counter() - _t_preflight,
                 )
@@ -2891,7 +2892,11 @@ async def stream_new_chat(
 
                     # Inject title update mid-stream as soon as the background
                     # task finishes.
-                    if title_task is not None and title_task.done() and not title_emitted:
+                    if (
+                        title_task is not None
+                        and title_task.done()
+                        and not title_emitted
+                    ):
                         generated_title, title_usage = title_task.result()
                         if title_usage:
                             accumulator.add(**title_usage)
@@ -2944,7 +2949,9 @@ async def stream_new_chat(
                     )
                 ).resolved_llm_config_id
 
-                llm, agent_config, llm_load_error = await _load_llm_bundle(llm_config_id)
+                llm, agent_config, llm_load_error = await _load_llm_bundle(
+                    llm_config_id
+                )
                 if llm_load_error:
                     raise stream_exc
 
@@ -3480,8 +3487,7 @@ async def stream_resume_chat(
                 await _preflight_llm(llm)
                 mark_healthy(llm_config_id)
                 _perf_log.info(
-                    "[stream_resume] auto_pin_preflight ok config_id=%s "
-                    "took=%.3fs",
+                    "[stream_resume] auto_pin_preflight ok config_id=%s took=%.3fs",
                     llm_config_id,
                     time.perf_counter() - _t_preflight,
                 )
@@ -3684,7 +3690,9 @@ async def stream_resume_chat(
                     )
                 ).resolved_llm_config_id
 
-                llm, agent_config, llm_load_error = await _load_llm_bundle(llm_config_id)
+                llm, agent_config, llm_load_error = await _load_llm_bundle(
+                    llm_config_id
+                )
                 if llm_load_error:
                     raise stream_exc
 

@@ -214,5 +214,3 @@ def test_generate_configs_drops_non_text_and_non_tool_models():
     assert "openai/gpt-4o" in model_names
     assert "openai/dall-e" not in model_names
     assert "openai/completion-only" not in model_names
-
-

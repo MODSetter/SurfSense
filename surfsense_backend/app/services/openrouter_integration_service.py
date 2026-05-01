@@ -405,9 +405,7 @@ class OpenRouterIntegrationService:
         # Re-blend health scores against the freshly fetched catalogue. Also
         # re-stamps health for any YAML-curated cfg with provider==OPENROUTER
         # so a hand-picked dead OR model is gated like a dynamic one.
-        await self._enrich_health_safely(
-            static_configs + new_configs, log_summary=True
-        )
+        await self._enrich_health_safely(static_configs + new_configs, log_summary=True)
 
         # Rebuild the LiteLLM router so freshly fetched configs flow through
         # (dynamic OR premium entries now opt into the pool, free ones stay
@@ -415,8 +413,8 @@ class OpenRouterIntegrationService:
         # reset cached context-window profiles).
         try:
             from app.config import config as _app_config
-            from app.services.llm_router_service import LLMRouterService
             from app.services.llm_router_service import (
+                LLMRouterService,
                 _router_instance_cache as _chat_router_cache,
             )
 
@@ -426,9 +424,7 @@ class OpenRouterIntegrationService:
             )
             _chat_router_cache.clear()
         except Exception as exc:
-            logger.warning(
-                "OpenRouter refresh: router rebuild skipped (%s)", exc
-            )
+            logger.warning("OpenRouter refresh: router rebuild skipped (%s)", exc)
 
     @staticmethod
     def _tier_counts(configs: list[dict]) -> dict[str, int]:
@@ -475,19 +471,11 @@ class OpenRouterIntegrationService:
             return
 
         premium_pool = sorted(
-            [
-                c
-                for c in or_cfgs
-                if str(c.get("billing_tier", "")).lower() == "premium"
-            ],
+            [c for c in or_cfgs if str(c.get("billing_tier", "")).lower() == "premium"],
             key=lambda c: -int(c.get("quality_score_static") or 0),
         )[:_HEALTH_ENRICH_TOP_N_PREMIUM]
         free_pool = sorted(
-            [
-                c
-                for c in or_cfgs
-                if str(c.get("billing_tier", "")).lower() == "free"
-            ],
+            [c for c in or_cfgs if str(c.get("billing_tier", "")).lower() == "free"],
             key=lambda c: -int(c.get("quality_score_static") or 0),
         )[:_HEALTH_ENRICH_TOP_N_FREE]
         # De-duplicate while preserving order: a cfg shouldn't fall in both
@@ -507,9 +495,7 @@ class OpenRouterIntegrationService:
         api_key = str(self._settings.get("api_key") or "")
         semaphore = asyncio.Semaphore(_HEALTH_ENRICH_CONCURRENCY)
 
-        async with httpx.AsyncClient(
-            timeout=_HEALTH_FETCH_TIMEOUT_SEC
-        ) as client:
+        async with httpx.AsyncClient(timeout=_HEALTH_FETCH_TIMEOUT_SEC) as client:
             results = await asyncio.gather(
                 *(
                     self._fetch_endpoints(client, semaphore, api_key, cfg)

@@ -96,9 +96,12 @@ def test_router_pool_includes_or_premium_excludes_or_free():
         ),
     ]
 
-    with patch("app.services.llm_router_service.Router") as mock_router, patch(
-        "app.services.llm_router_service.LLMRouterService._build_context_fallback_groups"
-    ) as mock_ctx_fb:
+    with (
+        patch("app.services.llm_router_service.Router") as mock_router,
+        patch(
+            "app.services.llm_router_service.LLMRouterService._build_context_fallback_groups"
+        ) as mock_ctx_fb,
+    ):
         mock_ctx_fb.side_effect = lambda ml: (ml, None)
         mock_router.return_value = object()
         LLMRouterService.initialize(configs)
@@ -124,9 +127,10 @@ def test_router_pool_includes_or_premium_excludes_or_free():
     assert "openrouter/openai/gpt-4o" in prem
     assert LLMRouterService.is_premium_model("openrouter/openai/gpt-4o") is True
     # Dynamic OR free never enters the pool, so it's never counted as premium.
-    assert LLMRouterService.is_premium_model(
-        "openrouter/meta-llama/llama-3.3-70b:free"
-    ) is False
+    assert (
+        LLMRouterService.is_premium_model("openrouter/meta-llama/llama-3.3-70b:free")
+        is False
+    )
 
 
 def test_router_pool_filter_mechanics_respect_override():
@@ -147,9 +151,12 @@ def test_router_pool_filter_mechanics_respect_override():
         ),
     ]
 
-    with patch("app.services.llm_router_service.Router") as mock_router, patch(
-        "app.services.llm_router_service.LLMRouterService._build_context_fallback_groups"
-    ) as mock_ctx_fb:
+    with (
+        patch("app.services.llm_router_service.Router") as mock_router,
+        patch(
+            "app.services.llm_router_service.LLMRouterService._build_context_fallback_groups"
+        ) as mock_ctx_fb,
+    ):
         mock_ctx_fb.side_effect = lambda ml: (ml, None)
         mock_router.return_value = object()
         LLMRouterService.initialize(configs)
@@ -167,13 +174,17 @@ def test_rebuild_refreshes_pool_after_configs_change():
     configs_v1 = [
         _fake_yaml_config(id=-1, model_name="gpt-4o", billing_tier="premium"),
     ]
-    configs_v2 = configs_v1 + [
+    configs_v2 = [
+        *configs_v1,
         _fake_yaml_config(id=-2, model_name="gpt-4o-mini", billing_tier="free"),
     ]
 
-    with patch("app.services.llm_router_service.Router") as mock_router, patch(
-        "app.services.llm_router_service.LLMRouterService._build_context_fallback_groups"
-    ) as mock_ctx_fb:
+    with (
+        patch("app.services.llm_router_service.Router") as mock_router,
+        patch(
+            "app.services.llm_router_service.LLMRouterService._build_context_fallback_groups"
+        ) as mock_ctx_fb,
+    ):
         mock_ctx_fb.side_effect = lambda ml: (ml, None)
         mock_router.return_value = object()
 

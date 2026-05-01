@@ -7,12 +7,12 @@ sort and a SHA256 pick.
 
 Score components (0-100 scale, higher is better):
 
-* ``static_score_or``    – derived from the bulk ``/api/v1/models`` payload
+* ``static_score_or``    - derived from the bulk ``/api/v1/models`` payload
   (provider prestige + ``created`` recency + pricing band + context window
   + capabilities + narrow tiny/legacy slug penalty).
-* ``static_score_yaml``  – same shape for hand-curated YAML configs, plus
+* ``static_score_yaml``  - same shape for hand-curated YAML configs, plus
   an operator-trust bonus (the operator deliberately picked this model).
-* ``aggregate_health``   – run on per-model ``/api/v1/models/{id}/endpoints``
+* ``aggregate_health``   - run on per-model ``/api/v1/models/{id}/endpoints``
   responses; returns ``(gated, score_or_none)``.
 
 The blended ``quality_score`` (0.5 * static + 0.5 * health) is computed in
@@ -281,9 +281,7 @@ def static_score_yaml(cfg: dict) -> int:
     model_name = cfg.get("model_name") or ""
     litellm_params = cfg.get("litellm_params") or {}
     lookup_name = (
-        litellm_params.get("base_model")
-        or litellm_params.get("model")
-        or model_name
+        litellm_params.get("base_model") or litellm_params.get("model") or model_name
     )
 
     ctx = 0

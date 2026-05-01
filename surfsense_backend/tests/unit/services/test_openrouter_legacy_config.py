@@ -68,9 +68,7 @@ openrouter_integration:
     assert "deprecated" in captured
 
 
-def test_new_keys_take_priority_over_legacy_back_compat(
-    monkeypatch, tmp_path, capsys
-):
+def test_new_keys_take_priority_over_legacy_back_compat(monkeypatch, tmp_path, capsys):
     """If both legacy and new keys are present, new keys win (setdefault)."""
     _write_yaml(
         tmp_path,

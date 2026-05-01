@@ -277,9 +277,7 @@ async def resolve_or_get_pinned_llm_config_id(
         c for c in _global_candidates() if int(c.get("id", 0)) not in excluded_ids
     ]
     if not candidates:
-        raise ValueError(
-            "No usable global LLM configs are available for Auto mode"
-        )
+        raise ValueError("No usable global LLM configs are available for Auto mode")
     candidate_by_id = {int(c["id"]): c for c in candidates}
 
     # Reuse an existing valid pin without re-checking current quota (no silent

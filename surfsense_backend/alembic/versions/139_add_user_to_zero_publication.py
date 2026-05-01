@@ -90,7 +90,9 @@ def _has_zero_version(conn, table: str) -> bool:
     )
 
 
-def _build_publication_ddl(documents_has_zero_ver: bool, user_has_zero_ver: bool) -> str:
+def _build_publication_ddl(
+    documents_has_zero_ver: bool, user_has_zero_ver: bool
+) -> str:
     doc_cols = DOCUMENT_COLS + (['"_0_version"'] if documents_has_zero_ver else [])
     user_cols = USER_COLS + (['"_0_version"'] if user_has_zero_ver else [])
     doc_col_list = ", ".join(doc_cols)

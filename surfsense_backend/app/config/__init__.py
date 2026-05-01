@@ -286,9 +286,7 @@ def initialize_openrouter_integration():
 
         if new_configs:
             config.GLOBAL_LLM_CONFIGS.extend(new_configs)
-            free_count = sum(
-                1 for c in new_configs if c.get("billing_tier") == "free"
-            )
+            free_count = sum(1 for c in new_configs if c.get("billing_tier") == "free")
             premium_count = sum(
                 1 for c in new_configs if c.get("billing_tier") == "premium"
             )

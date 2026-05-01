@@ -19,6 +19,7 @@ import remarkMath from "remark-math";
 import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { ImagePreview, ImageRoot, ImageZoom } from "@/components/assistant-ui/image";
 import "katex/dist/katex.min.css";
+import { toast } from "sonner";
 import { processChildrenWithCitations } from "@/components/citations/citation-renderer";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -33,7 +34,6 @@ import { useElectronAPI } from "@/hooks/use-platform";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { type CitationUrlMap, preprocessCitationMarkdown } from "@/lib/citations/citation-parser";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 
 function MarkdownCodeBlockSkeleton() {
 	return (
@@ -207,13 +207,7 @@ function isStandaloneDocumentsPathText(node: ReactNode): string | null {
 	return value;
 }
 
-function FilePathLink({
-	path,
-	className,
-}: {
-	path: string;
-	className?: string;
-}) {
+function FilePathLink({ path, className }: { path: string; className?: string }) {
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
 	const params = useParams();
 	const electronAPI = useElectronAPI();
@@ -221,7 +215,9 @@ function FilePathLink({
 	const parsedSearchSpaceId = Array.isArray(searchSpaceIdParam)
 		? Number(searchSpaceIdParam[0])
 		: Number(searchSpaceIdParam);
-	const resolvedSearchSpaceId = Number.isFinite(parsedSearchSpaceId) ? parsedSearchSpaceId : undefined;
+	const resolvedSearchSpaceId = Number.isFinite(parsedSearchSpaceId)
+		? parsedSearchSpaceId
+		: undefined;
 
 	return (
 		<button

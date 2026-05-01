@@ -13,8 +13,8 @@ from app.tasks.chat.stream_new_chat import (
     StreamResult,
     _classify_stream_exception,
     _contract_enforcement_active,
-    _extract_resolved_file_path,
     _evaluate_file_contract_outcome,
+    _extract_resolved_file_path,
     _log_chat_stream_error,
     _tool_output_has_error,
 )
@@ -222,7 +222,7 @@ async def test_preflight_swallows_non_rate_limit_errors_and_re_raises_429(monkey
 
     from app.tasks.chat.stream_new_chat import _preflight_llm
 
-    class _RateLimitedExc(Exception):
+    class _RateLimitedError(Exception):
         """Class-name carries 'RateLimit' so _is_provider_rate_limited triggers."""
 
     rate_calls: list[dict] = []
@@ -230,7 +230,7 @@ async def test_preflight_swallows_non_rate_limit_errors_and_re_raises_429(monkey
 
     async def _fake_acompletion_429(**kwargs):
         rate_calls.append(kwargs)
-        raise _RateLimitedExc("simulated 429")
+        raise _RateLimitedError("simulated 429")
 
     async def _fake_acompletion_other(**kwargs):
         other_calls.append(kwargs)
@@ -245,7 +245,7 @@ async def test_preflight_swallows_non_rate_limit_errors_and_re_raises_429(monkey
     import litellm  # type: ignore[import-not-found]
 
     monkeypatch.setattr(litellm, "acompletion", _fake_acompletion_429)
-    with pytest.raises(_RateLimitedExc):
+    with pytest.raises(_RateLimitedError):
         await _preflight_llm(fake_llm)
     assert len(rate_calls) == 1
     assert rate_calls[0]["max_tokens"] == 1

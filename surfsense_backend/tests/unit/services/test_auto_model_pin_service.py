@@ -574,7 +574,7 @@ async def test_top_k_picks_only_high_score_models(monkeypatch):
     monkeypatch.setattr(
         config,
         "GLOBAL_LLM_CONFIGS",
-        high_score_cfgs + [low_score_trap],
+        [*high_score_cfgs, low_score_trap],
     )
 
     async def _allowed(*_args, **_kwargs):

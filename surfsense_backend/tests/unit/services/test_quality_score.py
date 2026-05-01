@@ -106,9 +106,12 @@ def test_context_signal_bands(ctx, expected):
 
 
 def test_capabilities_signal_caps_at_five():
-    assert capabilities_signal(
-        ["tools", "structured_outputs", "reasoning", "include_reasoning"]
-    ) <= 5
+    assert (
+        capabilities_signal(
+            ["tools", "structured_outputs", "reasoning", "include_reasoning"]
+        )
+        <= 5
+    )
 
 
 def test_capabilities_signal_tools_only():
