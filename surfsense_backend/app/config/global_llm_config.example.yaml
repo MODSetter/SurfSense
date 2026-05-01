@@ -283,18 +283,14 @@ openrouter_integration:
   tpm: 1000000
 
   # Rate limits for FREE OpenRouter models. Informational only: free OR
-  # models and openrouter/free are intentionally kept OUT of the LiteLLM
-  # Router pool, because OpenRouter enforces free-tier limits globally per
-  # account (~20 RPM + 50-1000 daily requests across every ":free" model
-  # combined) — per-deployment router accounting can't represent a shared
-  # bucket correctly. Free OR models stay fully available in the model
-  # selector and for user-facing Auto thread pinning.
+  # models are intentionally kept OUT of the LiteLLM Router pool, because
+  # OpenRouter enforces free-tier limits globally per account (~20 RPM +
+  # 50-1000 daily requests across every ":free" model combined) —
+  # per-deployment router accounting can't represent a shared bucket
+  # correctly. Free OR models stay fully available in the model selector
+  # and for user-facing Auto thread pinning.
   free_rpm: 20
   free_tpm: 100000
-
-  # Expose openrouter/free as a single virtual "Free (Auto-Select)" entry.
-  # Recommended: keep true. OpenRouter picks a capable free model per request.
-  free_router_enabled: true
 
   litellm_params:
     max_tokens: 16384

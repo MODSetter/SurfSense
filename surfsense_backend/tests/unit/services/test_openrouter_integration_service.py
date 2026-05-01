@@ -5,9 +5,7 @@ from __future__ import annotations
 import pytest
 
 from app.services.openrouter_integration_service import (
-    _FREE_ROUTER_ID,
     _OPENROUTER_DYNAMIC_MARKER,
-    _build_free_router_config,
     _generate_configs,
     _openrouter_tier,
     _stable_config_id,
@@ -135,7 +133,6 @@ _SETTINGS_BASE: dict = {
     "anonymous_enabled_paid": False,
     "anonymous_enabled_free": True,
     "quota_reserve_tokens": 4000,
-    "free_router_enabled": False,
 }
 
 
@@ -172,33 +169,26 @@ def test_generate_configs_respects_tier():
     assert free["router_pool_eligible"] is False
 
 
-def test_generate_configs_includes_free_router_when_enabled():
-    raw = [_minimal_openrouter_model(model_id="openai/gpt-4o")]
-    settings = {**_SETTINGS_BASE, "free_router_enabled": True}
-    cfgs = _generate_configs(raw, settings)
-    free_router = next(
-        (c for c in cfgs if c["model_name"] == "openrouter/free"), None
-    )
-    assert free_router is not None
-    assert free_router["id"] == _FREE_ROUTER_ID
-    assert free_router["billing_tier"] == "free"
-    assert free_router["router_pool_eligible"] is False
-    assert free_router["anonymous_enabled"] is True
+def test_generate_configs_excludes_upstream_openrouter_free_router():
+    """OpenRouter's own ``openrouter/free`` meta-router must never become a card.
 
-
-def test_generate_configs_excludes_free_router_when_disabled():
-    raw = [_minimal_openrouter_model(model_id="openai/gpt-4o")]
-    settings = {**_SETTINGS_BASE, "free_router_enabled": False}
-    cfgs = _generate_configs(raw, settings)
-    assert not any(c["model_name"] == "openrouter/free" for c in cfgs)
-
-
-def test_generate_configs_excludes_free_router_without_api_key():
-    """Without an API key the free-router entry is useless; skip it."""
-    raw = [_minimal_openrouter_model(model_id="openai/gpt-4o")]
-    settings = {**_SETTINGS_BASE, "free_router_enabled": True, "api_key": ""}
-    cfgs = _generate_configs(raw, settings)
-    assert not any(c["model_name"] == "openrouter/free" for c in cfgs)
+    The upstream API returns this as a first-class zero-priced model, so
+    without an explicit blocklist entry it would slip through every other
+    filter (text output, tool calling, 200k context, non-Amazon) and land
+    in the selector as a duplicate of the concrete ``:free`` cards. The
+    exclusion in ``_EXCLUDED_MODEL_IDS`` prevents that.
+    """
+    raw = [
+        _minimal_openrouter_model(model_id="openai/gpt-4o"),
+        _minimal_openrouter_model(
+            model_id="openrouter/free",
+            pricing={"prompt": "0", "completion": "0"},
+        ),
+    ]
+    cfgs = _generate_configs(raw, dict(_SETTINGS_BASE))
+    model_names = {c["model_name"] for c in cfgs}
+    assert "openrouter/free" not in model_names
+    assert "openai/gpt-4o" in model_names
 
 
 def test_generate_configs_drops_non_text_and_non_tool_models():
@@ -226,11 +216,3 @@ def test_generate_configs_drops_non_text_and_non_tool_models():
     assert "openai/completion-only" not in model_names
 
 
-def test_build_free_router_config_shape():
-    cfg = _build_free_router_config(dict(_SETTINGS_BASE))
-    assert cfg["provider"] == "OPENROUTER"
-    assert cfg["model_name"] == "openrouter/free"
-    assert cfg["id"] == _FREE_ROUTER_ID
-    assert cfg["billing_tier"] == "free"
-    assert cfg["router_pool_eligible"] is False
-    assert cfg[_OPENROUTER_DYNAMIC_MARKER] is True

@@ -26,11 +26,6 @@ OPENROUTER_API_URL = "https://openrouter.ai/api/v1/models"
 # dynamic OpenRouter entries from hand-written YAML entries during refresh.
 _OPENROUTER_DYNAMIC_MARKER = "__openrouter_dynamic__"
 
-# Fixed negative ID for the virtual ``openrouter/free`` auto-select entry.
-# Chosen to sit far below any reasonable ``id_offset`` so it never collides
-# with per-model stable IDs.
-_FREE_ROUTER_ID = -9_999_999
-
 # Width of the hash space used by ``_stable_config_id``. 9_000_000 provides
 # enough headroom to avoid frequent collisions for OpenRouter's catalogue
 # (~300 models) while keeping IDs comfortably within Postgres INTEGER range.
@@ -107,6 +102,11 @@ _EXCLUDED_MODEL_IDS: set[str] = {
     # Deep-research models reject standard params (temperature, etc.)
     "openai/o3-deep-research",
     "openai/o4-mini-deep-research",
+    # OpenRouter's own meta-router over free models. We already enumerate every
+    # concrete ``:free`` model into GLOBAL_LLM_CONFIGS and Auto-mode thread
+    # pinning handles churn via the repair path, so exposing an additional
+    # indirection layer would only duplicate the capability with an opaque slug.
+    "openrouter/free",
 }
 
 _EXCLUDED_MODEL_SUFFIXES: tuple[str, ...] = ("-deep-research",)
@@ -160,43 +160,6 @@ async def _fetch_models_async() -> list[dict] | None:
         return None
 
 
-def _build_free_router_config(settings: dict[str, Any]) -> dict[str, Any]:
-    """Build the virtual ``openrouter/free`` auto-select config entry.
-
-    This exposes OpenRouter's Free Models Router as a single selectable
-    option. LiteLLM forwards ``openrouter/openrouter/free`` and OpenRouter
-    picks a capable free model per request (availability varies, account-wide
-    rate limit is ~20 req/min).
-    """
-    return {
-        "id": _FREE_ROUTER_ID,
-        "name": "OpenRouter Free (Auto-Select)",
-        "description": (
-            "OpenRouter picks a capable free model per request. "
-            "~20 req/min account-wide; availability varies."
-        ),
-        "provider": "OPENROUTER",
-        "model_name": "openrouter/free",
-        "api_key": settings.get("api_key", ""),
-        "api_base": "",
-        "billing_tier": "free",
-        "rpm": settings.get("free_rpm", 20),
-        "tpm": settings.get("free_tpm", 100_000),
-        "anonymous_enabled": settings.get("anonymous_enabled_free", False),
-        "seo_enabled": False,
-        "seo_slug": None,
-        "quota_reserve_tokens": settings.get("quota_reserve_tokens", 4000),
-        "litellm_params": dict(settings.get("litellm_params") or {}),
-        "system_instructions": settings.get("system_instructions", ""),
-        "use_default_system_instructions": settings.get(
-            "use_default_system_instructions", True
-        ),
-        "citations_enabled": settings.get("citations_enabled", True),
-        "router_pool_eligible": False,
-        _OPENROUTER_DYNAMIC_MARKER: True,
-    }
-
-
 def _generate_configs(
     raw_models: list[dict],
     settings: dict[str, Any],
@@ -213,13 +176,18 @@ def _generate_configs(
     - Premium OR models join the LiteLLM router pool (``router_pool_eligible=True``)
       so sub-agent ``model="auto"`` flows benefit from load balancing and
       failover across the curated YAML configs and the OR premium passthrough.
-    - Free OR models and the virtual ``openrouter/free`` entry stay excluded
-      (``router_pool_eligible=False``). LiteLLM Router tracks rate limits per
-      deployment, but OpenRouter enforces a single global free-tier quota
-      (~20 RPM + 50-1000 daily requests account-wide across every ``:free``
-      model), so rotating across many free deployments would only burn the
-      shared bucket faster. Free OR models remain fully available for user-
-      facing Auto-mode thread pinning via ``auto_model_pin_service``.
+    - Free OR models stay excluded (``router_pool_eligible=False``). LiteLLM
+      Router tracks rate limits per deployment, but OpenRouter enforces a
+      single global free-tier quota (~20 RPM + 50-1000 daily requests
+      account-wide across every ``:free`` model), so rotating across many
+      free deployments would only burn the shared bucket faster. Free OR
+      models remain fully available for user-facing Auto-mode thread pinning
+      via ``auto_model_pin_service``.
+
+    OpenRouter's own ``openrouter/free`` meta-router is filtered out upstream
+    via ``_EXCLUDED_MODEL_IDS``; we don't expose a redundant auto-select layer
+    because our own Auto (Fastest) pin + 24 h refresh + repair logic already
+    cover the catalogue-churn case.
     """
     id_offset: int = settings.get("id_offset", -10000)
     api_key: str = settings.get("api_key", "")
@@ -248,13 +216,7 @@ def _generate_configs(
     ]
 
     configs: list[dict] = []
-
-    if settings.get("free_router_enabled", True) and api_key:
-        configs.append(_build_free_router_config(settings))
-
     taken: set[int] = set()
-    if configs:
-        taken.add(_FREE_ROUTER_ID)
 
     for model in text_models:
         model_id: str = model["id"]
@@ -382,9 +344,9 @@ class OpenRouterIntegrationService:
         )
 
         # Rebuild the LiteLLM router so freshly fetched configs flow through
-        # (the router filters dynamic OR entries out of its pool, but a
-        # refresh still needs to pick up any static-config edits and reset
-        # cached context-window profiles).
+        # (dynamic OR premium entries now opt into the pool, free ones stay
+        # out; a refresh also needs to pick up any static-config edits and
+        # reset cached context-window profiles).
         try:
             from app.config import config as _app_config
             from app.services.llm_router_service import LLMRouterService
