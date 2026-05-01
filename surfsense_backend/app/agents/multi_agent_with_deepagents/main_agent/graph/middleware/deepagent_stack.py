@@ -23,8 +23,10 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 
 from ...context_prune.prune_tool_names import safe_exclude_tools
-from ...permissions.connector_deny_rules import synthesize_connector_deny_rules
-from app.agents.multi_agent_with_deepagents.subagents.registry import build_subagents
+from app.agents.multi_agent_with_deepagents.subagents import (
+    build_subagents,
+    get_subagents_to_exclude,
+)
 from app.agents.multi_agent_with_deepagents.subagents.shared.permissions import (
     ToolsPermissions,
 )
@@ -130,6 +132,7 @@ def build_main_agent_deepagent_middleware(
             model=llm,
             extra_middleware=subagent_extra_middleware,
             mcp_tools_by_agent=mcp_tools_by_agent or {},
+            exclude=get_subagents_to_exclude(available_connectors),
         )
         logging.info(
             "Registry subagents: %s",
@@ -263,12 +266,6 @@ def build_main_agent_deepagent_middleware(
                     origin="desktop_safety",
                 )
             )
-        if permission_enabled:
-            synthesized = synthesize_connector_deny_rules(
-                available_connectors=available_connectors,
-                enabled_tool_names={t.name for t in tools},
-            )
-            rulesets.append(Ruleset(rules=synthesized, origin="connector_synthesized"))
         permission_mw = PermissionMiddleware(rulesets=rulesets)
 
     action_log_mw: ActionLogMiddleware | None = None
