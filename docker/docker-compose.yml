@@ -198,6 +198,7 @@ services:
       NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE: ${AUTH_TYPE:-SSO}
       NEXT_PUBLIC_ETL_SERVICE: ${ETL_SERVICE:-DOCLING}
       NEXT_PUBLIC_DEPLOYMENT_MODE: ${DEPLOYMENT_MODE:-self-hosted}
+      SMB_NAME: ${SMB_NAME:-moneta}
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     depends_on:

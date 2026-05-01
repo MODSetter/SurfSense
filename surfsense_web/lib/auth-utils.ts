@@ -239,9 +239,12 @@ export async function logout(): Promise<boolean> {
 	clearAllTokens();
 
 	if (typeof window !== "undefined") {
-		// Rewrite "foss-<app>.<domain>" → "foss.<domain>" so we land on the portal
+		// Rewrite "<app>.<rest>" → "<SMB_NAME>.<rest>" so we land on the platform portal
 		// (outside ForwardAuth) instead of SurfSense's own root, which would silently re-auth.
-		const portalHost = window.location.hostname.replace(/^[^.]*\./, "moneta.");
+		// Docker: set SMB_NAME on the container; docker-entrypoint substitutes NEXT_PUBLIC_SMB_NAME.
+		// Local dev: set NEXT_PUBLIC_SMB_NAME in .env (default moneta).
+		const smbLabel = process.env.NEXT_PUBLIC_SMB_NAME?.trim() || "moneta";
+		const portalHost = window.location.hostname.replace(/^[^.]*\./, `${smbLabel}.`);
 		window.location.href = `${window.location.protocol}//${portalHost}`;
 		return true;
 	}

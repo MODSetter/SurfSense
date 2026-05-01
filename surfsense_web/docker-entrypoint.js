@@ -28,6 +28,10 @@ const replacements = [
 	],
 	["__NEXT_PUBLIC_DEPLOYMENT_MODE__", process.env.NEXT_PUBLIC_DEPLOYMENT_MODE || "self-hosted"],
 	["__NEXT_PUBLIC_OAUTH2_PROXY_URL__", process.env.NEXT_PUBLIC_OAUTH2_PROXY_URL || ""],
+	[
+		"__NEXT_PUBLIC_SMB_NAME__",
+		(process.env.SMB_NAME || process.env.NEXT_PUBLIC_SMB_NAME || "moneta").trim() || "moneta",
+	],
 ];
 
 let filesProcessed = 0;
