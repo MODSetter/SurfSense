@@ -1,5 +1,7 @@
-"""SurfSense main-agent package (factory export added when runtime lands)."""
+"""Main-agent deep agent: ``runtime/`` (factory), ``graph/`` (compile), ``system_prompt/``, etc."""
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from .runtime import create_surfsense_deep_agent
+
+__all__ = ["create_surfsense_deep_agent"]
