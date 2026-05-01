@@ -6,7 +6,10 @@ from types import SimpleNamespace
 import pytest
 
 from app.services.auto_model_pin_service import (
+    clear_healthy,
     clear_runtime_cooldown,
+    is_recently_healthy,
+    mark_healthy,
     mark_runtime_cooldown,
     resolve_or_get_pinned_llm_config_id,
 )
@@ -17,8 +20,10 @@ pytestmark = pytest.mark.unit
 @pytest.fixture(autouse=True)
 def _clear_runtime_cooldown_map():
     clear_runtime_cooldown()
+    clear_healthy()
     yield
     clear_runtime_cooldown()
+    clear_healthy()
 
 
 @dataclass
@@ -866,3 +871,51 @@ async def test_auto_pin_repin_excludes_previous_config_on_runtime_retry(monkeypa
     )
     assert result.resolved_llm_config_id == -2
     assert result.from_existing_pin is False
+
+
+# ---------------------------------------------------------------------------
+# Healthy-status cache (preflight TTL companion)
+# ---------------------------------------------------------------------------
+
+
+def test_mark_healthy_then_is_recently_healthy_true_within_ttl():
+    mark_healthy(-42, ttl_seconds=60)
+    assert is_recently_healthy(-42) is True
+
+
+def test_healthy_expires_after_ttl(monkeypatch):
+    import app.services.auto_model_pin_service as svc
+
+    real_time = svc.time.time
+    base = real_time()
+
+    monkeypatch.setattr(svc.time, "time", lambda: base)
+    mark_healthy(-7, ttl_seconds=10)
+    assert is_recently_healthy(-7) is True
+
+    monkeypatch.setattr(svc.time, "time", lambda: base + 11)
+    assert is_recently_healthy(-7) is False
+
+
+def test_mark_runtime_cooldown_invalidates_healthy_cache():
+    mark_healthy(-9, ttl_seconds=60)
+    assert is_recently_healthy(-9) is True
+
+    mark_runtime_cooldown(-9, reason="test", cooldown_seconds=60)
+    assert is_recently_healthy(-9) is False
+
+
+def test_clear_healthy_removes_single_entry():
+    mark_healthy(-11, ttl_seconds=60)
+    mark_healthy(-12, ttl_seconds=60)
+    clear_healthy(-11)
+    assert is_recently_healthy(-11) is False
+    assert is_recently_healthy(-12) is True
+
+
+def test_clear_healthy_no_args_drops_all_entries():
+    mark_healthy(-21, ttl_seconds=60)
+    mark_healthy(-22, ttl_seconds=60)
+    clear_healthy()
+    assert is_recently_healthy(-21) is False
+    assert is_recently_healthy(-22) is False

@@ -34,12 +34,20 @@ logger = logging.getLogger(__name__)
 AUTO_FASTEST_ID = 0
 AUTO_FASTEST_MODE = "auto_fastest"
 _RUNTIME_COOLDOWN_SECONDS = 600
+_HEALTHY_TTL_SECONDS = 45
 
 # In-memory runtime cooldown map for configs that recently hard-failed at
 # provider runtime (e.g. OpenRouter 429 on a pinned free model). This keeps
 # the same unhealthy config from being reselected immediately during repair.
 _runtime_cooldown_until: dict[int, float] = {}
 _runtime_cooldown_lock = threading.Lock()
+
+# Short-TTL "recently healthy" cache for configs that just passed a runtime
+# preflight ping. Lets back-to-back turns on the same model skip the probe
+# without eroding correctness — entries auto-expire and are wiped any time
+# the same config is cooled down or the OR catalogue is refreshed.
+_healthy_until: dict[int, float] = {}
+_healthy_lock = threading.Lock()
 
 
 @dataclass
@@ -89,6 +97,9 @@ def mark_runtime_cooldown(
     with _runtime_cooldown_lock:
         _runtime_cooldown_until[int(config_id)] = until
         _prune_runtime_cooldowns()
+    # A cooled cfg can never be "recently healthy"; drop any stale credit so
+    # the next turn that resolves to it (after cooldown) re-runs preflight.
+    clear_healthy(int(config_id))
     logger.info(
         "auto_pin_runtime_cooled_down config_id=%s reason=%s cooldown_seconds=%s",
         config_id,
@@ -104,6 +115,52 @@ def clear_runtime_cooldown(config_id: int | None = None) -> None:
             _runtime_cooldown_until.clear()
             return
         _runtime_cooldown_until.pop(int(config_id), None)
+
+
+def _prune_healthy(now_ts: float | None = None) -> None:
+    now = time.time() if now_ts is None else now_ts
+    stale = [cid for cid, until in _healthy_until.items() if until <= now]
+    for cid in stale:
+        _healthy_until.pop(cid, None)
+
+
+def is_recently_healthy(config_id: int) -> bool:
+    """Return True if ``config_id`` passed preflight within the TTL window."""
+    with _healthy_lock:
+        _prune_healthy()
+        return int(config_id) in _healthy_until
+
+
+def mark_healthy(
+    config_id: int,
+    *,
+    ttl_seconds: int = _HEALTHY_TTL_SECONDS,
+) -> None:
+    """Record that ``config_id`` just passed a preflight probe.
+
+    Subsequent calls within ``ttl_seconds`` can skip the preflight ping. The
+    healthy state is intentionally process-local — it's a latency hint, not a
+    correctness primitive — so multi-worker drift is acceptable.
+    """
+    if ttl_seconds <= 0:
+        ttl_seconds = _HEALTHY_TTL_SECONDS
+    until = time.time() + int(ttl_seconds)
+    with _healthy_lock:
+        _healthy_until[int(config_id)] = until
+        _prune_healthy()
+
+
+def clear_healthy(config_id: int | None = None) -> None:
+    """Drop one (or all) healthy-cache entries.
+
+    Called from runtime cooldown and OR catalogue refresh so a freshly cooled
+    or replaced config never carries stale "healthy" credit.
+    """
+    with _healthy_lock:
+        if config_id is None:
+            _healthy_until.clear()
+            return
+        _healthy_until.pop(int(config_id), None)
 
 
 def _global_candidates() -> list[dict]:
