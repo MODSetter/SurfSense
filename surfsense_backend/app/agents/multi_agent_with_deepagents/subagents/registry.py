@@ -62,6 +62,12 @@ from app.agents.multi_agent_with_deepagents.subagents.connectors.slack.agent imp
 from app.agents.multi_agent_with_deepagents.subagents.connectors.teams.agent import (
     build_subagent as build_teams_subagent,
 )
+from app.agents.multi_agent_with_deepagents.constants import (
+    SUBAGENT_TO_REQUIRED_CONNECTOR_MAP,
+)
+from app.agents.multi_agent_with_deepagents.subagents.shared.md_file_reader import (
+    read_md_file,
+)
 from app.agents.multi_agent_with_deepagents.subagents.shared.permissions import (
     ToolsPermissions,
 )
@@ -99,11 +105,44 @@ SUBAGENT_BUILDERS_BY_NAME: dict[str, SubagentBuilder] = {
     "teams": build_teams_subagent,
 }
 
-__all__ = [
-    "SUBAGENT_BUILDERS_BY_NAME",
-    "SubagentBuilder",
-    "build_subagents",
-]
+def _route_resource_package(builder: SubagentBuilder) -> str:
+    mod = builder.__module__
+    return mod[: -len(".agent")] if mod.endswith(".agent") else mod.rsplit(".", 1)[0]
+
+
+def main_prompt_registry_subagent_lines(exclude: list[str]) -> list[tuple[str, str]]:
+    """(name, description) for registry specialists included for **task** (same rules as ``build_subagents``)."""
+    banned = frozenset(("memory", "research")) | frozenset(exclude)
+    rows: list[tuple[str, str]] = []
+    for name in sorted(SUBAGENT_BUILDERS_BY_NAME):
+        if name in banned:
+            continue
+        builder = SUBAGENT_BUILDERS_BY_NAME[name]
+        pkg = _route_resource_package(builder)
+        blurb = read_md_file(pkg, "description").strip()
+        if not blurb:
+            blurb = name.replace("_", " ").title()
+        rows.append((name, blurb))
+    return rows
+
+
+def get_subagents_to_exclude(
+    available_connectors: list[str] | None,
+) -> list[str]:
+    if available_connectors is None:
+        return []
+    available_tokens = frozenset(available_connectors)
+    excluded_names: set[str] = set()
+    for builder_name in SUBAGENT_BUILDERS_BY_NAME:
+        required_tokens = SUBAGENT_TO_REQUIRED_CONNECTOR_MAP.get(builder_name)
+        if required_tokens is None:
+            excluded_names.add(builder_name)
+            continue
+        if not required_tokens:
+            continue
+        if not (required_tokens & available_tokens):
+            excluded_names.add(builder_name)
+    return sorted(excluded_names)
 
 
 def build_subagents(
@@ -112,19 +151,16 @@ def build_subagents(
     model: BaseChatModel | None = None,
     extra_middleware: Sequence[Any] | None = None,
     mcp_tools_by_agent: dict[str, ToolsPermissions] | None = None,
-    only_names: frozenset[str] | None = None,
+    exclude: list[str] | None = None,
 ) -> list[SubAgent]:
-    """Build registry route specs.
-
-    ``memory`` and ``research`` are never included (main agent holds those tools).
-    When ``only_names`` is set, only matching routes among the remainder are built.
-    """
+    """Build registry subagents; skip memory/research; skip names in exclude."""
     mcp = mcp_tools_by_agent or {}
     specs: list[SubAgent] = []
+    excluded = ["memory", "research"]
+    if exclude:
+        excluded.extend(exclude)
     for name in sorted(SUBAGENT_BUILDERS_BY_NAME):
-        if name in ("memory", "research"):
-            continue
-        if only_names is not None and name not in only_names:
+        if name in excluded:
             continue
         builder = SUBAGENT_BUILDERS_BY_NAME[name]
         specs.append(
