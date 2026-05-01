@@ -65,6 +65,8 @@ from app.db import (
 )
 from app.prompts import TITLE_GENERATION_PROMPT
 from app.services.auto_model_pin_service import (
+    is_recently_healthy,
+    mark_healthy,
     mark_runtime_cooldown,
     resolve_or_get_pinned_llm_config_id,
 )
@@ -469,6 +471,54 @@ def _is_provider_rate_limited(exc: BaseException) -> bool:
         or "rate-limited" in lowered
         or "temporarily rate-limited upstream" in lowered
     )
+
+
+_PREFLIGHT_TIMEOUT_SEC: float = 2.5
+_PREFLIGHT_MAX_TOKENS: int = 1
+
+
+async def _preflight_llm(llm: Any) -> None:
+    """Issue a minimal completion to confirm the pinned model isn't 429'ing.
+
+    Used before agent build / planner / classifier / title-gen so a known-bad
+    free OpenRouter deployment is detected and repinned before it cascades
+    into multiple wasted internal calls. The probe is intentionally cheap:
+    one token, low timeout, tagged ``surfsense:internal`` so token tracking
+    and SSE pipelines treat it as overhead rather than user output.
+
+    Raises the original exception when the provider responds with a
+    rate-limit-shaped error so the caller can drive the cooldown/repin
+    branch via :func:`_is_provider_rate_limited`. Other transient failures
+    are swallowed — the caller continues to the normal stream path and the
+    in-stream recovery loop remains the safety net.
+    """
+    from litellm import acompletion
+
+    model = getattr(llm, "model", None)
+    if not model or model == "auto":
+        # Auto-mode router doesn't have a single deployment to ping; the
+        # router itself handles per-deployment rate-limit accounting.
+        return
+
+    try:
+        await acompletion(
+            model=model,
+            messages=[{"role": "user", "content": "ping"}],
+            api_key=getattr(llm, "api_key", None),
+            api_base=getattr(llm, "api_base", None),
+            max_tokens=_PREFLIGHT_MAX_TOKENS,
+            timeout=_PREFLIGHT_TIMEOUT_SEC,
+            stream=False,
+            metadata={"tags": ["surfsense:internal", "auto-pin-preflight"]},
+        )
+    except Exception as exc:
+        if _is_provider_rate_limited(exc):
+            raise
+        logging.getLogger(__name__).debug(
+            "auto_pin_preflight non_rate_limit_error model=%s err=%s",
+            model,
+            exc,
+        )
 
 
 def _classify_stream_exception(
@@ -2371,6 +2421,92 @@ async def stream_new_chat(
             yield streaming_service.format_done()
             return
 
+        # Auto-mode preflight ping. Runs ONLY for thread-pinned auto cfgs
+        # (negative ids selected via ``resolve_or_get_pinned_llm_config_id``)
+        # whose health hasn't already been confirmed within the TTL window.
+        # Detecting a 429 here lets us repin BEFORE the planner/classifier/
+        # title-generation LLM calls fan out and each independently hit the
+        # same upstream rate limit.
+        if (
+            requested_llm_config_id == 0
+            and llm_config_id < 0
+            and not is_recently_healthy(llm_config_id)
+        ):
+            _t_preflight = time.perf_counter()
+            try:
+                await _preflight_llm(llm)
+                mark_healthy(llm_config_id)
+                _perf_log.info(
+                    "[stream_new_chat] auto_pin_preflight ok config_id=%s "
+                    "took=%.3fs",
+                    llm_config_id,
+                    time.perf_counter() - _t_preflight,
+                )
+            except Exception as preflight_exc:
+                if not _is_provider_rate_limited(preflight_exc):
+                    raise
+                previous_config_id = llm_config_id
+                mark_runtime_cooldown(
+                    previous_config_id, reason="preflight_rate_limited"
+                )
+                try:
+                    llm_config_id = (
+                        await resolve_or_get_pinned_llm_config_id(
+                            session,
+                            thread_id=chat_id,
+                            search_space_id=search_space_id,
+                            user_id=user_id,
+                            selected_llm_config_id=0,
+                            exclude_config_ids={previous_config_id},
+                        )
+                    ).resolved_llm_config_id
+                except ValueError as pin_error:
+                    yield _emit_stream_error(
+                        message=str(pin_error),
+                        error_kind="server_error",
+                        error_code="SERVER_ERROR",
+                    )
+                    yield streaming_service.format_done()
+                    return
+
+                llm, agent_config, llm_load_error = await _load_llm_bundle(
+                    llm_config_id
+                )
+                if llm_load_error or not llm:
+                    yield _emit_stream_error(
+                        message=llm_load_error or "Failed to create LLM instance",
+                        error_kind="server_error",
+                        error_code="SERVER_ERROR",
+                    )
+                    yield streaming_service.format_done()
+                    return
+                # Trust the freshly-resolved cfg for the remainder of this
+                # turn rather than recursing into another preflight; the
+                # in-stream 429 recovery loop is still in place as the
+                # safety net if even this fallback hits an upstream cap.
+                mark_healthy(llm_config_id)
+                _log_chat_stream_error(
+                    flow=flow,
+                    error_kind="rate_limited",
+                    error_code="RATE_LIMITED",
+                    severity="info",
+                    is_expected=True,
+                    request_id=request_id,
+                    thread_id=chat_id,
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                    message=(
+                        "Auto-pinned model failed preflight; switched to another "
+                        "eligible model and continuing."
+                    ),
+                    extra={
+                        "auto_runtime_recover": True,
+                        "preflight": True,
+                        "previous_config_id": previous_config_id,
+                        "fallback_config_id": llm_config_id,
+                    },
+                )
+
         # Create connector service
         _t0 = time.perf_counter()
         connector_service = ConnectorService(session, search_space_id=search_space_id)
@@ -3326,6 +3462,85 @@ async def stream_resume_chat(
             )
             yield streaming_service.format_done()
             return
+
+        # Auto-mode preflight ping (resume path). Mirrors ``stream_new_chat``:
+        # one cheap probe before the agent is rebuilt so a 429'd pin gets
+        # repinned without burning planner/classifier/title calls first.
+        if (
+            requested_llm_config_id == 0
+            and llm_config_id < 0
+            and not is_recently_healthy(llm_config_id)
+        ):
+            _t_preflight = time.perf_counter()
+            try:
+                await _preflight_llm(llm)
+                mark_healthy(llm_config_id)
+                _perf_log.info(
+                    "[stream_resume] auto_pin_preflight ok config_id=%s "
+                    "took=%.3fs",
+                    llm_config_id,
+                    time.perf_counter() - _t_preflight,
+                )
+            except Exception as preflight_exc:
+                if not _is_provider_rate_limited(preflight_exc):
+                    raise
+                previous_config_id = llm_config_id
+                mark_runtime_cooldown(
+                    previous_config_id, reason="preflight_rate_limited"
+                )
+                try:
+                    llm_config_id = (
+                        await resolve_or_get_pinned_llm_config_id(
+                            session,
+                            thread_id=chat_id,
+                            search_space_id=search_space_id,
+                            user_id=user_id,
+                            selected_llm_config_id=0,
+                            exclude_config_ids={previous_config_id},
+                        )
+                    ).resolved_llm_config_id
+                except ValueError as pin_error:
+                    yield _emit_stream_error(
+                        message=str(pin_error),
+                        error_kind="server_error",
+                        error_code="SERVER_ERROR",
+                    )
+                    yield streaming_service.format_done()
+                    return
+
+                llm, agent_config, llm_load_error = await _load_llm_bundle(
+                    llm_config_id
+                )
+                if llm_load_error or not llm:
+                    yield _emit_stream_error(
+                        message=llm_load_error or "Failed to create LLM instance",
+                        error_kind="server_error",
+                        error_code="SERVER_ERROR",
+                    )
+                    yield streaming_service.format_done()
+                    return
+                mark_healthy(llm_config_id)
+                _log_chat_stream_error(
+                    flow="resume",
+                    error_kind="rate_limited",
+                    error_code="RATE_LIMITED",
+                    severity="info",
+                    is_expected=True,
+                    request_id=request_id,
+                    thread_id=chat_id,
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                    message=(
+                        "Auto-pinned model failed preflight; switched to another "
+                        "eligible model and continuing."
+                    ),
+                    extra={
+                        "auto_runtime_recover": True,
+                        "preflight": True,
+                        "previous_config_id": previous_config_id,
+                        "fallback_config_id": llm_config_id,
+                    },
+                )
 
         _t0 = time.perf_counter()
         connector_service = ConnectorService(session, search_space_id=search_space_id)
