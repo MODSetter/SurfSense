@@ -6,7 +6,6 @@ from types import SimpleNamespace
 import pytest
 
 from app.services.auto_model_pin_service import (
-    AUTO_FASTEST_MODE,
     resolve_or_get_pinned_llm_config_id,
 )
 
@@ -45,14 +44,11 @@ def _thread(
     *,
     search_space_id: int = 10,
     pinned_llm_config_id: int | None = None,
-    pinned_auto_mode: str | None = None,
 ):
     return SimpleNamespace(
         id=1,
         search_space_id=search_space_id,
         pinned_llm_config_id=pinned_llm_config_id,
-        pinned_auto_mode=pinned_auto_mode,
-        pinned_at=None,
     )
 
 
@@ -93,8 +89,6 @@ async def test_auto_first_turn_pins_one_model(monkeypatch):
     )
     assert result.resolved_llm_config_id in {-1, -2}
     assert session.thread.pinned_llm_config_id == result.resolved_llm_config_id
-    assert session.thread.pinned_auto_mode == AUTO_FASTEST_MODE
-    assert session.thread.pinned_at is not None
     assert session.commit_count == 1
 
 
@@ -102,9 +96,7 @@ async def test_auto_first_turn_pins_one_model(monkeypatch):
 async def test_next_turn_reuses_existing_pin(monkeypatch):
     from app.config import config
 
-    session = _FakeSession(
-        _thread(pinned_llm_config_id=-1, pinned_auto_mode=AUTO_FASTEST_MODE)
-    )
+    session = _FakeSession(_thread(pinned_llm_config_id=-1))
     monkeypatch.setattr(
         config,
         "GLOBAL_LLM_CONFIGS",
@@ -228,9 +220,7 @@ async def test_premium_ineligible_auto_pins_free_only(monkeypatch):
 async def test_pinned_premium_stays_premium_after_quota_exhaustion(monkeypatch):
     from app.config import config
 
-    session = _FakeSession(
-        _thread(pinned_llm_config_id=-1, pinned_auto_mode=AUTO_FASTEST_MODE)
-    )
+    session = _FakeSession(_thread(pinned_llm_config_id=-1))
     monkeypatch.setattr(
         config,
         "GLOBAL_LLM_CONFIGS",
@@ -275,9 +265,7 @@ async def test_pinned_premium_stays_premium_after_quota_exhaustion(monkeypatch):
 async def test_force_repin_free_switches_auto_premium_pin_to_free(monkeypatch):
     from app.config import config
 
-    session = _FakeSession(
-        _thread(pinned_llm_config_id=-1, pinned_auto_mode=AUTO_FASTEST_MODE)
-    )
+    session = _FakeSession(_thread(pinned_llm_config_id=-1))
     monkeypatch.setattr(
         config,
         "GLOBAL_LLM_CONFIGS",
@@ -325,9 +313,7 @@ async def test_force_repin_free_switches_auto_premium_pin_to_free(monkeypatch):
 async def test_explicit_user_model_change_clears_pin(monkeypatch):
     from app.config import config
 
-    session = _FakeSession(
-        _thread(pinned_llm_config_id=-2, pinned_auto_mode=AUTO_FASTEST_MODE)
-    )
+    session = _FakeSession(_thread(pinned_llm_config_id=-2))
     monkeypatch.setattr(
         config,
         "GLOBAL_LLM_CONFIGS",
@@ -345,8 +331,6 @@ async def test_explicit_user_model_change_clears_pin(monkeypatch):
     )
     assert result.resolved_llm_config_id == 7
     assert session.thread.pinned_llm_config_id is None
-    assert session.thread.pinned_auto_mode is None
-    assert session.thread.pinned_at is None
     assert session.commit_count == 1
 
 
@@ -354,9 +338,7 @@ async def test_explicit_user_model_change_clears_pin(monkeypatch):
 async def test_invalid_pinned_config_repairs_with_new_pin(monkeypatch):
     from app.config import config
 
-    session = _FakeSession(
-        _thread(pinned_llm_config_id=-999, pinned_auto_mode=AUTO_FASTEST_MODE)
-    )
+    session = _FakeSession(_thread(pinned_llm_config_id=-999))
     monkeypatch.setattr(
         config,
         "GLOBAL_LLM_CONFIGS",

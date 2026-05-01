@@ -2,8 +2,14 @@
 
 Auto (Fastest) is represented by ``agent_llm_id == 0``. For chat threads we
 resolve that virtual mode to one concrete global LLM config exactly once and
-persist the chosen config id on ``new_chat_threads`` so subsequent turns are
-stable.
+persist the chosen config id on ``new_chat_threads.pinned_llm_config_id`` so
+subsequent turns are stable.
+
+Single-writer invariant: this module is the only writer of
+``NewChatThread.pinned_llm_config_id`` (aside from the bulk clear in
+``search_spaces_routes`` when a search space's ``agent_llm_id`` changes).
+Therefore a non-NULL value unambiguously means "this thread has an
+Auto-resolved pin"; no separate source/policy column is needed.
 """
 
 from __future__ import annotations
@@ -11,7 +17,6 @@ from __future__ import annotations
 import hashlib
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -90,10 +95,10 @@ async def resolve_or_get_pinned_llm_config_id(
     selected_llm_config_id: int,
     force_repin_free: bool = False,
 ) -> AutoPinResolution:
-    """Resolve Auto (Fastest) to one concrete config id and persist pin metadata.
+    """Resolve Auto (Fastest) to one concrete config id and persist the pin.
 
-    For non-auto selections, this function clears existing auto pin metadata and
-    returns the selected id as-is.
+    For non-auto selections, this function clears any existing pin and returns
+    the selected id as-is.
     """
     thread = (
         (
@@ -113,16 +118,10 @@ async def resolve_or_get_pinned_llm_config_id(
             f"Thread {thread_id} does not belong to search space {search_space_id}"
         )
 
-    # Explicit model selected: clear stale auto pin metadata.
+    # Explicit model selected: clear any stale pin.
     if selected_llm_config_id != AUTO_FASTEST_ID:
-        if (
-            thread.pinned_llm_config_id is not None
-            or thread.pinned_auto_mode is not None
-            or thread.pinned_at is not None
-        ):
+        if thread.pinned_llm_config_id is not None:
             thread.pinned_llm_config_id = None
-            thread.pinned_auto_mode = None
-            thread.pinned_at = None
             await session.commit()
         return AutoPinResolution(
             resolved_llm_config_id=selected_llm_config_id,
@@ -135,12 +134,11 @@ async def resolve_or_get_pinned_llm_config_id(
         raise ValueError("No usable global LLM configs are available for Auto mode")
     candidate_by_id = {int(c["id"]): c for c in candidates}
 
-    # Reuse existing valid pin without re-checking current quota (no silent tier switch),
-    # unless the caller explicitly requests a forced repin to free.
+    # Reuse an existing valid pin without re-checking current quota (no silent
+    # tier switch), unless the caller explicitly requests a forced repin to free.
     pinned_id = thread.pinned_llm_config_id
     if (
         not force_repin_free
-        and thread.pinned_auto_mode == AUTO_FASTEST_MODE
         and pinned_id is not None
         and int(pinned_id) in candidate_by_id
     ):
@@ -159,11 +157,10 @@ async def resolve_or_get_pinned_llm_config_id(
         )
     if pinned_id is not None:
         logger.info(
-            "auto_pin_invalid thread_id=%s search_space_id=%s pinned_config_id=%s pinned_auto_mode=%s",
+            "auto_pin_invalid thread_id=%s search_space_id=%s pinned_config_id=%s",
             thread_id,
             search_space_id,
             pinned_id,
-            thread.pinned_auto_mode,
         )
 
     premium_eligible = (
@@ -184,8 +181,6 @@ async def resolve_or_get_pinned_llm_config_id(
     selected_tier = _tier_of(selected_cfg)
 
     thread.pinned_llm_config_id = selected_id
-    thread.pinned_auto_mode = AUTO_FASTEST_MODE
-    thread.pinned_at = datetime.now(UTC)
     await session.commit()
 
     if force_repin_free:

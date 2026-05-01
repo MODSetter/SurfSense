@@ -4,10 +4,12 @@ Revision ID: 138
 Revises: 137
 Create Date: 2026-04-30
 
-Add thread-level fields to persist Auto (Fastest) model pinning metadata:
-- pinned_llm_config_id: concrete resolved config id used for this thread
-- pinned_auto_mode: auto policy identifier (currently "auto_fastest")
-- pinned_at: timestamp when the pin was created/refreshed
+Add a single thread-level column to persist the Auto (Fastest) model pin:
+- pinned_llm_config_id: concrete resolved global LLM config id used for this
+  thread. NULL means "no pin; Auto will resolve on next turn".
+
+The column is unindexed: all reads are by new_chat_threads.id (primary key),
+so a secondary index would be dead write amplification.
 """
 
 from __future__ import annotations
@@ -27,29 +29,14 @@ def upgrade() -> None:
         "ALTER TABLE new_chat_threads "
         "ADD COLUMN IF NOT EXISTS pinned_llm_config_id INTEGER"
     )
-    op.execute(
-        "ALTER TABLE new_chat_threads "
-        "ADD COLUMN IF NOT EXISTS pinned_auto_mode VARCHAR(32)"
-    )
-    op.execute(
-        "ALTER TABLE new_chat_threads "
-        "ADD COLUMN IF NOT EXISTS pinned_at TIMESTAMP WITH TIME ZONE"
-    )
-
-    op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_new_chat_threads_pinned_llm_config_id "
-        "ON new_chat_threads (pinned_llm_config_id)"
-    )
-    op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_new_chat_threads_pinned_auto_mode "
-        "ON new_chat_threads (pinned_auto_mode)"
-    )
 
 
 def downgrade() -> None:
+    # Drop any shape the thread row may be carrying. The extra columns and
+    # indexes only exist on dev DBs that ran an earlier draft of 138; IF EXISTS
+    # makes each statement a safe no-op on the lean shape.
     op.execute("DROP INDEX IF EXISTS ix_new_chat_threads_pinned_auto_mode")
     op.execute("DROP INDEX IF EXISTS ix_new_chat_threads_pinned_llm_config_id")
-
     op.execute("ALTER TABLE new_chat_threads DROP COLUMN IF EXISTS pinned_at")
     op.execute("ALTER TABLE new_chat_threads DROP COLUMN IF EXISTS pinned_auto_mode")
     op.execute(

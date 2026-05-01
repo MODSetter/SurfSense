@@ -803,11 +803,7 @@ async def update_llm_preferences(
             await session.execute(
                 update(NewChatThread)
                 .where(NewChatThread.search_space_id == search_space_id)
-                .values(
-                    pinned_llm_config_id=None,
-                    pinned_auto_mode=None,
-                    pinned_at=None,
-                )
+                .values(pinned_llm_config_id=None)
             )
             logger.info(
                 "Cleared auto model pins for search_space_id=%s after agent_llm_id change (%s -> %s)",
