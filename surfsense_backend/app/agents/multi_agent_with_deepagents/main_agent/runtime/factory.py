@@ -24,12 +24,13 @@ from app.agents.new_chat.feature_flags import AgentFeatureFlags, get_flags
 from app.agents.new_chat.filesystem_backends import build_backend_resolver
 from app.agents.new_chat.filesystem_selection import FilesystemMode, FilesystemSelection
 from app.agents.new_chat.llm_config import AgentConfig
+from app.agents.multi_agent_with_deepagents.subagents import (
+    get_subagents_to_exclude,
+    main_prompt_registry_subagent_lines,
+)
 from ..system_prompt import build_main_agent_system_prompt
 from app.agents.new_chat.tools.invalid_tool import INVALID_TOOL_NAME, invalid_tool
-from app.agents.new_chat.tools.registry import (
-    build_tools_async,
-    get_connector_gated_tools,
-)
+from app.agents.new_chat.tools.registry import build_tools_async
 from app.db import ChatVisibility
 from app.services.connector_service import ConnectorService
 from app.utils.perf import get_perf_logger
@@ -73,8 +74,7 @@ async def create_surfsense_deep_agent(
         connector_types = await connector_service.get_available_connectors(
             search_space_id
         )
-        if connector_types:
-            available_connectors = _map_connectors_to_searchable_types(connector_types)
+        available_connectors = _map_connectors_to_searchable_types(connector_types)
 
         available_document_types = await connector_service.get_available_document_types(
             search_space_id
@@ -119,7 +119,6 @@ async def create_surfsense_deep_agent(
     )
 
     modified_disabled_tools = list(disabled_tools) if disabled_tools else []
-    modified_disabled_tools.extend(get_connector_gated_tools(available_connectors))
 
     if "search_knowledge_base" not in modified_disabled_tools:
         modified_disabled_tools.append("search_knowledge_base")
@@ -160,6 +159,11 @@ async def create_surfsense_deep_agent(
     if isinstance(prof, str):
         _model_name = prof
 
+    _connector_exclude = get_subagents_to_exclude(available_connectors)
+    _registry_subagent_prompt_lines = main_prompt_registry_subagent_lines(
+        _connector_exclude
+    )
+
     if agent_config is not None:
         system_prompt = build_main_agent_system_prompt(
             today=None,
@@ -170,6 +174,7 @@ async def create_surfsense_deep_agent(
             use_default_system_instructions=agent_config.use_default_system_instructions,
             citations_enabled=agent_config.citations_enabled,
             model_name=_model_name or getattr(agent_config, "model_name", None),
+            registry_subagent_prompt_lines=_registry_subagent_prompt_lines,
         )
     else:
         system_prompt = build_main_agent_system_prompt(
@@ -178,6 +183,7 @@ async def create_surfsense_deep_agent(
             disabled_tool_names=_user_disabled_tool_names,
             citations_enabled=True,
             model_name=_model_name,
+            registry_subagent_prompt_lines=_registry_subagent_prompt_lines,
         )
     _perf_log.info(
         "[create_agent] System prompt built in %.3fs", time.perf_counter() - _t0

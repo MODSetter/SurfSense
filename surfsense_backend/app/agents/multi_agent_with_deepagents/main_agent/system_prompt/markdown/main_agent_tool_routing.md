@@ -2,6 +2,8 @@
 Use **task** for anything beyond your direct SurfSense tools: calendar, mail,
 chat, tickets, documents in third-party systems, connector-specific discovery,
 deliverables (reports, podcasts, images, etc.), and other specialized routes.
+The live list of specialists you may target with **task** for this workspace is in
+`<registry_subagents>` (later in this prompt).
 
 Your **direct** SurfSense tools are only: **update_memory**, **web_search**,
 **scrape_webpage**, and **search_surfsense_docs**. The runtime may also attach
