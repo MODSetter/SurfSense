@@ -114,10 +114,16 @@ def build_subagents(
     mcp_tools_by_agent: dict[str, ToolsPermissions] | None = None,
     only_names: frozenset[str] | None = None,
 ) -> list[SubAgent]:
-    """Build registry route specs; ``only_names`` selects which routes."""
+    """Build registry route specs.
+
+    ``memory`` and ``research`` are never included (main agent holds those tools).
+    When ``only_names`` is set, only matching routes among the remainder are built.
+    """
     mcp = mcp_tools_by_agent or {}
     specs: list[SubAgent] = []
     for name in sorted(SUBAGENT_BUILDERS_BY_NAME):
+        if name in ("memory", "research"):
+            continue
         if only_names is not None and name not in only_names:
             continue
         builder = SUBAGENT_BUILDERS_BY_NAME[name]
