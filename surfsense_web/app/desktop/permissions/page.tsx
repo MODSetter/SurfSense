@@ -132,8 +132,8 @@ export default function DesktopPermissionsPage() {
 					<div className="space-y-1">
 						<h1 className="text-2xl font-semibold tracking-tight">System Permissions</h1>
 						<p className="text-sm text-muted-foreground">
-							SurfSense needs two macOS permissions for Screenshot Assist and for desktop features that
-							require focusing the app or the active application.
+							SurfSense needs two macOS permissions for Screenshot Assist and for desktop features
+							that require focusing the app or the active application.
 						</p>
 					</div>
 				</div>

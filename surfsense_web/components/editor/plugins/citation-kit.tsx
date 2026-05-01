@@ -1,8 +1,8 @@
 "use client";
 
-import { type FC } from "react";
-import { KEYS, type Descendant } from "platejs";
+import { type Descendant, KEYS } from "platejs";
 import { createPlatePlugin, type PlateElementProps } from "platejs/react";
+import type { FC } from "react";
 import { InlineCitation, UrlCitation } from "@/components/assistant-ui/inline-citation";
 import {
 	CITATION_REGEX,
@@ -97,11 +97,7 @@ function asElement(node: Descendant): SlateElement {
  *    swallows the citation click. Mirrors the `<a>` skip in
  *    `MarkdownViewer`.
  */
-const SKIP_SUBTREE_TYPES = new Set<string>([
-	KEYS.codeBlock,
-	"code_line",
-	KEYS.link,
-]);
+const SKIP_SUBTREE_TYPES = new Set<string>([KEYS.codeBlock, "code_line", KEYS.link]);
 
 /**
  * Build the marks portion of a Slate text node so we can preserve formatting

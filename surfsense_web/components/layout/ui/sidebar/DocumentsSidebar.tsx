@@ -23,9 +23,7 @@ import { useTranslations } from "next-intl";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import {
-	mentionedDocumentsAtom,
-} from "@/atoms/chat/mentioned-documents.atom";
+import { mentionedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
@@ -74,12 +72,12 @@ import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI, usePlatform } from "@/hooks/use-platform";
-import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
+import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { uploadFolderScan } from "@/lib/folder-sync-upload";
 import { getSupportedExtensionsSet } from "@/lib/supported-extensions";
 import { queries } from "@/zero/queries/index";

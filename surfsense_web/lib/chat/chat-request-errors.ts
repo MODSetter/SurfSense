@@ -74,13 +74,9 @@ export async function toHttpResponseError(
 		: Number.isFinite(retryAfterSeconds)
 			? Math.max(0, Math.round(retryAfterSeconds * 1000))
 			: undefined;
-	const retryAfterMs =
-		detailRetryAfterMs ?? topRetryAfterMs ?? retryAfterMsFromHeader ?? undefined;
+	const retryAfterMs = detailRetryAfterMs ?? topRetryAfterMs ?? retryAfterMsFromHeader ?? undefined;
 	const message =
-		detailNestedMessage ??
-		detailMessage ??
-		topLevelMessage ??
-		`Backend error: ${response.status}`;
+		detailNestedMessage ?? detailMessage ?? topLevelMessage ?? `Backend error: ${response.status}`;
 
 	return Object.assign(new Error(message), { errorCode, retryAfterMs });
 }

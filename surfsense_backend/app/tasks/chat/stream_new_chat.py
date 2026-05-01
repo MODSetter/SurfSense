@@ -2225,9 +2225,7 @@ async def stream_new_chat(
 
         # Premium quota reservation for pinned premium model only.
         _needs_premium_quota = (
-            agent_config is not None
-            and user_id
-            and agent_config.is_premium
+            agent_config is not None and user_id and agent_config.is_premium
         )
         if _needs_premium_quota:
             import uuid as _uuid
@@ -2271,7 +2269,9 @@ async def stream_new_chat(
                         yield streaming_service.format_done()
                         return
 
-                    llm, agent_config, llm_load_error = await _load_llm_bundle(llm_config_id)
+                    llm, agent_config, llm_load_error = await _load_llm_bundle(
+                        llm_config_id
+                    )
                     if llm_load_error:
                         yield _emit_stream_error(
                             message=llm_load_error,
@@ -3086,9 +3086,7 @@ async def stream_resume_chat(
         _resume_premium_reserved = 0
         _resume_premium_request_id: str | None = None
         _resume_needs_premium = (
-            agent_config is not None
-            and user_id
-            and agent_config.is_premium
+            agent_config is not None and user_id and agent_config.is_premium
         )
         if _resume_needs_premium:
             import uuid as _uuid
@@ -3132,7 +3130,9 @@ async def stream_resume_chat(
                         yield streaming_service.format_done()
                         return
 
-                    llm, agent_config, llm_load_error = await _load_llm_bundle(llm_config_id)
+                    llm, agent_config, llm_load_error = await _load_llm_bundle(
+                        llm_config_id
+                    )
                     if llm_load_error:
                         yield _emit_stream_error(
                             message=llm_load_error,

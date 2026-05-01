@@ -53,7 +53,10 @@ function getErrorMessage(error: unknown): string {
 	}
 }
 
-function getErrorCode(error: unknown, parsedJson: Record<string, unknown> | null): string | undefined {
+function getErrorCode(
+	error: unknown,
+	parsedJson: Record<string, unknown> | null
+): string | undefined {
 	if (error instanceof Error) {
 		const withCode = error as Error & { errorCode?: string; code?: string };
 		if (withCode.errorCode) return withCode.errorCode;
@@ -138,8 +141,7 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 			severity: "info",
 			telemetryEvent: "chat_blocked",
 			isExpected: true,
-			userMessage:
-				"Buy more tokens to continue with this model, or switch to a free model.",
+			userMessage: "Buy more tokens to continue with this model, or switch to a free model.",
 			assistantMessage: PREMIUM_QUOTA_ASSISTANT_MESSAGE,
 			rawMessage,
 			errorCode: errorCode ?? "PREMIUM_QUOTA_EXHAUSTED",
@@ -147,9 +149,7 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 		};
 	}
 
-	if (
-		errorCode === "TURN_CANCELLING"
-	) {
+	if (errorCode === "TURN_CANCELLING") {
 		return {
 			kind: "thread_busy",
 			channel: "toast",
@@ -163,16 +163,15 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 		};
 	}
 
-	if (
-		errorCode === "THREAD_BUSY"
-	) {
+	if (errorCode === "THREAD_BUSY") {
 		return {
 			kind: "thread_busy",
 			channel: "toast",
 			severity: "warn",
 			telemetryEvent: "chat_blocked",
 			isExpected: true,
-			userMessage: "Another response is still finishing for this thread. Please try again in a moment.",
+			userMessage:
+				"Another response is still finishing for this thread. Please try again in a moment.",
 			rawMessage,
 			errorCode: errorCode ?? "THREAD_BUSY",
 			details: { flow: input.flow },
@@ -193,10 +192,7 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 		};
 	}
 
-	if (
-		errorCode === "AUTH_EXPIRED" ||
-		errorCode === "UNAUTHORIZED"
-	) {
+	if (errorCode === "AUTH_EXPIRED" || errorCode === "UNAUTHORIZED") {
 		return {
 			kind: "auth_expired",
 			channel: "toast",
@@ -210,10 +206,7 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 		};
 	}
 
-	if (
-		errorCode === "RATE_LIMITED" ||
-		providerTypeNormalized === "rate_limit_error"
-	) {
+	if (errorCode === "RATE_LIMITED" || providerTypeNormalized === "rate_limit_error") {
 		return {
 			kind: "rate_limited",
 			channel: "toast",
@@ -242,9 +235,7 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 		};
 	}
 
-	if (
-		errorCode === "STREAM_PARSE_ERROR"
-	) {
+	if (errorCode === "STREAM_PARSE_ERROR") {
 		return {
 			kind: "stream_parse_error",
 			channel: "toast",
@@ -258,9 +249,7 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 		};
 	}
 
-	if (
-		errorCode === "TOOL_EXECUTION_ERROR"
-	) {
+	if (errorCode === "TOOL_EXECUTION_ERROR") {
 		return {
 			kind: "tool_execution_error",
 			channel: "toast",
@@ -274,9 +263,7 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 		};
 	}
 
-	if (
-		errorCode === "PERSIST_MESSAGE_FAILED"
-	) {
+	if (errorCode === "PERSIST_MESSAGE_FAILED") {
 		return {
 			kind: "persist_message_failed",
 			channel: "toast",
@@ -290,9 +277,7 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 		};
 	}
 
-	if (
-		errorCode === "SERVER_ERROR"
-	) {
+	if (errorCode === "SERVER_ERROR") {
 		return {
 			kind: "server_error",
 			channel: "toast",

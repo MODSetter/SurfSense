@@ -5,10 +5,7 @@ import "katex/dist/katex.min.css";
 import Image from "next/image";
 import { useMemo } from "react";
 import { processChildrenWithCitations } from "@/components/citations/citation-renderer";
-import {
-	type CitationUrlMap,
-	preprocessCitationMarkdown,
-} from "@/lib/citations/citation-parser";
+import { type CitationUrlMap, preprocessCitationMarkdown } from "@/lib/citations/citation-parser";
 import { cn } from "@/lib/utils";
 
 const code = createCodePlugin({

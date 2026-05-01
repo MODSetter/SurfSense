@@ -72,8 +72,12 @@ function toStreamTerminalError(
 	});
 }
 
-export function processSharedStreamEvent(parsed: SSEEvent, context: SharedStreamEventContext): boolean {
-	const { contentPartsState, toolsWithUI, currentThinkingSteps, scheduleFlush, forceFlush } = context;
+export function processSharedStreamEvent(
+	parsed: SSEEvent,
+	context: SharedStreamEventContext
+): boolean {
+	const { contentPartsState, toolsWithUI, currentThinkingSteps, scheduleFlush, forceFlush } =
+		context;
 	const { contentParts, toolCallIndices } = contentPartsState;
 
 	switch (parsed.type) {

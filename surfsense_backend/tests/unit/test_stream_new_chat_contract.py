@@ -203,7 +203,10 @@ def test_stream_exception_classifies_turn_cancelling_when_cancel_requested():
 
 
 def test_premium_classification_is_error_code_driven():
-    classifier_path = Path(__file__).resolve().parents[3] / "surfsense_web/lib/chat/chat-error-classifier.ts"
+    classifier_path = (
+        Path(__file__).resolve().parents[3]
+        / "surfsense_web/lib/chat/chat-error-classifier.ts"
+    )
     source = classifier_path.read_text(encoding="utf-8")
 
     assert "PREMIUM_KEYWORDS" not in source
@@ -229,7 +232,8 @@ def test_stream_terminal_error_handler_has_pre_accept_soft_rollback_hook():
 
 def test_toast_only_pre_accept_policy_has_no_inline_failed_marker():
     user_message_path = (
-        Path(__file__).resolve().parents[3] / "surfsense_web/components/assistant-ui/user-message.tsx"
+        Path(__file__).resolve().parents[3]
+        / "surfsense_web/components/assistant-ui/user-message.tsx"
     )
     source = user_message_path.read_text(encoding="utf-8")
 
@@ -238,10 +242,14 @@ def test_toast_only_pre_accept_policy_has_no_inline_failed_marker():
 
 
 def test_network_send_failures_use_unified_retry_toast_message():
-    classifier_path = Path(__file__).resolve().parents[3] / "surfsense_web/lib/chat/chat-error-classifier.ts"
+    classifier_path = (
+        Path(__file__).resolve().parents[3]
+        / "surfsense_web/lib/chat/chat-error-classifier.ts"
+    )
     classifier_source = classifier_path.read_text(encoding="utf-8")
     request_errors_path = (
-        Path(__file__).resolve().parents[3] / "surfsense_web/lib/chat/chat-request-errors.ts"
+        Path(__file__).resolve().parents[3]
+        / "surfsense_web/lib/chat/chat-request-errors.ts"
     )
     request_errors_source = request_errors_path.read_text(encoding="utf-8")
 
@@ -350,15 +358,17 @@ def test_turn_status_sse_contract_exists():
         / "surfsense_backend/app/tasks/chat/stream_new_chat.py"
     ).read_text(encoding="utf-8")
     state_source = (
-        Path(__file__).resolve().parents[3] / "surfsense_web/lib/chat/streaming-state.ts"
+        Path(__file__).resolve().parents[3]
+        / "surfsense_web/lib/chat/streaming-state.ts"
     ).read_text(encoding="utf-8")
     pipeline_source = (
-        Path(__file__).resolve().parents[3] / "surfsense_web/lib/chat/stream-pipeline.ts"
+        Path(__file__).resolve().parents[3]
+        / "surfsense_web/lib/chat/stream-pipeline.ts"
     ).read_text(encoding="utf-8")
 
     assert '"turn-status"' in stream_source
     assert '"status": "busy"' in stream_source
     assert '"status": "idle"' in stream_source
-    assert "type: \"data-turn-status\"" in state_source
-    assert "case \"data-turn-status\":" in pipeline_source
+    assert 'type: "data-turn-status"' in state_source
+    assert 'case "data-turn-status":' in pipeline_source
     assert "end_turn(str(chat_id))" in stream_source

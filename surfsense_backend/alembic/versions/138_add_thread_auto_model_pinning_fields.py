@@ -47,19 +47,11 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute(
-        "DROP INDEX IF EXISTS ix_new_chat_threads_pinned_auto_mode"
-    )
-    op.execute(
-        "DROP INDEX IF EXISTS ix_new_chat_threads_pinned_llm_config_id"
-    )
+    op.execute("DROP INDEX IF EXISTS ix_new_chat_threads_pinned_auto_mode")
+    op.execute("DROP INDEX IF EXISTS ix_new_chat_threads_pinned_llm_config_id")
 
-    op.execute(
-        "ALTER TABLE new_chat_threads DROP COLUMN IF EXISTS pinned_at"
-    )
-    op.execute(
-        "ALTER TABLE new_chat_threads DROP COLUMN IF EXISTS pinned_auto_mode"
-    )
+    op.execute("ALTER TABLE new_chat_threads DROP COLUMN IF EXISTS pinned_at")
+    op.execute("ALTER TABLE new_chat_threads DROP COLUMN IF EXISTS pinned_auto_mode")
     op.execute(
         "ALTER TABLE new_chat_threads DROP COLUMN IF EXISTS pinned_llm_config_id"
     )

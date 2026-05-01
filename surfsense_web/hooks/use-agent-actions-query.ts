@@ -88,71 +88,68 @@ export function applyActionLogSse(
 		searchSpaceId,
 		event,
 	});
-	queryClient.setQueryData<AgentActionListResponse>(
-		agentActionsQueryKey(threadId),
-		(prev) => {
-			const placeholder: AgentAction = {
-				id: event.id,
-				thread_id: threadId,
-				user_id: null,
-				search_space_id: searchSpaceId,
-				tool_name: event.tool_name,
-				args: null,
-				result_id: null,
-				reversible: event.reversible,
-				reverse_descriptor: event.reverse_descriptor_present ? {} : null,
-				error: event.error ? {} : null,
-				reverse_of: null,
-				reverted_by_action_id: null,
-				is_revert_action: false,
-				tool_call_id: event.lc_tool_call_id,
-				chat_turn_id: event.chat_turn_id,
-				created_at: event.created_at ?? new Date().toISOString(),
-			};
-			if (!prev) {
-				return {
-					items: [placeholder],
-					total: 1,
-					page: 0,
-					page_size: ACTION_LOG_PAGE_SIZE,
-					has_more: false,
-				};
-			}
-			const existingIdx = prev.items.findIndex((a) => a.id === event.id);
-			if (existingIdx >= 0) {
-				const merged = [...prev.items];
-				const existing = merged[existingIdx];
-				if (existing) {
-					merged[existingIdx] = {
-						...existing,
-						reversible: event.reversible,
-						tool_call_id: event.lc_tool_call_id ?? existing.tool_call_id,
-						chat_turn_id: event.chat_turn_id ?? existing.chat_turn_id,
-					};
-				}
-				dbg("applyActionLogSse: merged into existing entry", {
-					id: event.id,
-					tool_call_id: merged[existingIdx]?.tool_call_id,
-					reversible: merged[existingIdx]?.reversible,
-				});
-				return { ...prev, items: merged };
-			}
-			dbg("applyActionLogSse: appended new placeholder", {
-				id: event.id,
-				tool_call_id: placeholder.tool_call_id,
-				tool_name: placeholder.tool_name,
-				reversible: placeholder.reversible,
-				cacheSizeAfter: prev.items.length + 1,
-			});
-			// REST returns newest-first — keep that ordering when
-			// the server eventually refetches by prepending.
+	queryClient.setQueryData<AgentActionListResponse>(agentActionsQueryKey(threadId), (prev) => {
+		const placeholder: AgentAction = {
+			id: event.id,
+			thread_id: threadId,
+			user_id: null,
+			search_space_id: searchSpaceId,
+			tool_name: event.tool_name,
+			args: null,
+			result_id: null,
+			reversible: event.reversible,
+			reverse_descriptor: event.reverse_descriptor_present ? {} : null,
+			error: event.error ? {} : null,
+			reverse_of: null,
+			reverted_by_action_id: null,
+			is_revert_action: false,
+			tool_call_id: event.lc_tool_call_id,
+			chat_turn_id: event.chat_turn_id,
+			created_at: event.created_at ?? new Date().toISOString(),
+		};
+		if (!prev) {
 			return {
-				...prev,
-				items: [placeholder, ...prev.items],
-				total: prev.total + 1,
+				items: [placeholder],
+				total: 1,
+				page: 0,
+				page_size: ACTION_LOG_PAGE_SIZE,
+				has_more: false,
 			};
 		}
-	);
+		const existingIdx = prev.items.findIndex((a) => a.id === event.id);
+		if (existingIdx >= 0) {
+			const merged = [...prev.items];
+			const existing = merged[existingIdx];
+			if (existing) {
+				merged[existingIdx] = {
+					...existing,
+					reversible: event.reversible,
+					tool_call_id: event.lc_tool_call_id ?? existing.tool_call_id,
+					chat_turn_id: event.chat_turn_id ?? existing.chat_turn_id,
+				};
+			}
+			dbg("applyActionLogSse: merged into existing entry", {
+				id: event.id,
+				tool_call_id: merged[existingIdx]?.tool_call_id,
+				reversible: merged[existingIdx]?.reversible,
+			});
+			return { ...prev, items: merged };
+		}
+		dbg("applyActionLogSse: appended new placeholder", {
+			id: event.id,
+			tool_call_id: placeholder.tool_call_id,
+			tool_name: placeholder.tool_name,
+			reversible: placeholder.reversible,
+			cacheSizeAfter: prev.items.length + 1,
+		});
+		// REST returns newest-first — keep that ordering when
+		// the server eventually refetches by prepending.
+		return {
+			...prev,
+			items: [placeholder, ...prev.items],
+			total: prev.total + 1,
+		};
+	});
 }
 
 /**
@@ -170,33 +167,30 @@ export function applyActionLogUpdatedSse(
 		id,
 		reversible,
 	});
-	queryClient.setQueryData<AgentActionListResponse>(
-		agentActionsQueryKey(threadId),
-		(prev) => {
-			if (!prev) {
-				dbg("applyActionLogUpdatedSse: NO prev cache for thread; flip dropped", {
-					threadId,
-					id,
-				});
-				return prev;
-			}
-			let mutated = false;
-			const items = prev.items.map((a) => {
-				if (a.id !== id) return a;
-				mutated = true;
-				return { ...a, reversible };
+	queryClient.setQueryData<AgentActionListResponse>(agentActionsQueryKey(threadId), (prev) => {
+		if (!prev) {
+			dbg("applyActionLogUpdatedSse: NO prev cache for thread; flip dropped", {
+				threadId,
+				id,
 			});
-			if (!mutated) {
-				dbg("applyActionLogUpdatedSse: id not in cache; flip dropped", {
-					threadId,
-					id,
-					cacheSize: prev.items.length,
-					cacheIds: prev.items.map((a) => a.id),
-				});
-			}
-			return mutated ? { ...prev, items } : prev;
+			return prev;
 		}
-	);
+		let mutated = false;
+		const items = prev.items.map((a) => {
+			if (a.id !== id) return a;
+			mutated = true;
+			return { ...a, reversible };
+		});
+		if (!mutated) {
+			dbg("applyActionLogUpdatedSse: id not in cache; flip dropped", {
+				threadId,
+				id,
+				cacheSize: prev.items.length,
+				cacheIds: prev.items.map((a) => a.id),
+			});
+		}
+		return mutated ? { ...prev, items } : prev;
+	});
 }
 
 /**
@@ -214,24 +208,21 @@ export function markActionRevertedInCache(
 	id: number,
 	newActionId: number | null
 ): void {
-	queryClient.setQueryData<AgentActionListResponse>(
-		agentActionsQueryKey(threadId),
-		(prev) => {
-			if (!prev) return prev;
-			let mutated = false;
-			const items = prev.items.map((a) => {
-				if (a.id !== id) return a;
-				mutated = true;
-				// ``-1`` is a sentinel meaning "we know it was reverted
-				// but the server didn't tell us the new row's id".
-				return {
-					...a,
-					reverted_by_action_id: newActionId ?? -1,
-				};
-			});
-			return mutated ? { ...prev, items } : prev;
-		}
-	);
+	queryClient.setQueryData<AgentActionListResponse>(agentActionsQueryKey(threadId), (prev) => {
+		if (!prev) return prev;
+		let mutated = false;
+		const items = prev.items.map((a) => {
+			if (a.id !== id) return a;
+			mutated = true;
+			// ``-1`` is a sentinel meaning "we know it was reverted
+			// but the server didn't tell us the new row's id".
+			return {
+				...a,
+				reverted_by_action_id: newActionId ?? -1,
+			};
+		});
+		return mutated ? { ...prev, items } : prev;
+	});
 }
 
 /**
@@ -245,21 +236,18 @@ export function applyRevertTurnResultsToCache(
 	entries: Array<{ id: number; newActionId: number | null }>
 ): void {
 	if (entries.length === 0) return;
-	queryClient.setQueryData<AgentActionListResponse>(
-		agentActionsQueryKey(threadId),
-		(prev) => {
-			if (!prev) return prev;
-			const lookup = new Map(entries.map((e) => [e.id, e.newActionId]));
-			let mutated = false;
-			const items = prev.items.map((a) => {
-				if (!lookup.has(a.id)) return a;
-				mutated = true;
-				const newActionId = lookup.get(a.id) ?? null;
-				return { ...a, reverted_by_action_id: newActionId ?? -1 };
-			});
-			return mutated ? { ...prev, items } : prev;
-		}
-	);
+	queryClient.setQueryData<AgentActionListResponse>(agentActionsQueryKey(threadId), (prev) => {
+		if (!prev) return prev;
+		const lookup = new Map(entries.map((e) => [e.id, e.newActionId]));
+		let mutated = false;
+		const items = prev.items.map((a) => {
+			if (!lookup.has(a.id)) return a;
+			mutated = true;
+			const newActionId = lookup.get(a.id) ?? null;
+			return { ...a, reverted_by_action_id: newActionId ?? -1 };
+		});
+		return mutated ? { ...prev, items } : prev;
+	});
 }
 
 /**
@@ -271,10 +259,7 @@ export function applyRevertTurnResultsToCache(
  * knob — pass ``false`` to keep the query dormant when the consumer
  * doesn't yet have a thread id.
  */
-export function useAgentActionsQuery(
-	threadId: number | null,
-	options: { enabled?: boolean } = {}
-) {
+export function useAgentActionsQuery(threadId: number | null, options: { enabled?: boolean } = {}) {
 	const enabled = (options.enabled ?? true) && threadId !== null;
 	const query = useQuery({
 		queryKey: agentActionsQueryKey(threadId),
@@ -336,10 +321,7 @@ export function useAgentActionsQuery(
 			else m.set(key, [a]);
 		}
 		for (const bucket of m.values()) {
-			bucket.sort(
-				(a, b) =>
-					new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-			);
+			bucket.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 		}
 		return m;
 	}, [items]);
@@ -396,10 +378,7 @@ export function useAgentActionsQuery(
 	);
 
 	const findByChatTurnAndTool = useCallback(
-		(
-			chatTurnId: string | null | undefined,
-			toolName: string | null | undefined
-		): AgentAction[] => {
+		(chatTurnId: string | null | undefined, toolName: string | null | undefined): AgentAction[] => {
 			if (!chatTurnId || !toolName) return [];
 			return byTurnAndTool.get(`${chatTurnId}::${toolName}`) ?? [];
 		},

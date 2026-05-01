@@ -64,9 +64,7 @@ export function processChildrenWithCitations(
 				return (
 					<span key={`citation-seg-${childIndex}`}>
 						{segments.map((segment) =>
-							typeof segment === "string"
-								? segment
-								: renderCitationToken(segment, ordinal++)
+							typeof segment === "string" ? segment : renderCitationToken(segment, ordinal++)
 						)}
 					</span>
 				);

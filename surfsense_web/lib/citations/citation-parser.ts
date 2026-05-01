@@ -40,8 +40,7 @@ export interface PreprocessedCitations {
 }
 
 /** Pattern matching only URL-form citations (used during preprocessing). */
-const URL_CITATION_REGEX =
-	/[[【]\u200B?citation:\s*(https?:\/\/[^\]】\u200B]+)\s*\u200B?[\]】]/g;
+const URL_CITATION_REGEX = /[[【]\u200B?citation:\s*(https?:\/\/[^\]】\u200B]+)\s*\u200B?[\]】]/g;
 
 /**
  * Replace `[citation:URL]` tokens with `[citation:urlciteN]` placeholders so
@@ -82,10 +81,7 @@ export function preprocessCitationMarkdown(content: string): PreprocessedCitatio
  * tokens to JSX. Negative chunk IDs are forwarded as-is so the consumer
  * can decide how to render anonymous documents.
  */
-export function parseTextWithCitations(
-	text: string,
-	urlMap: CitationUrlMap
-): ParsedSegment[] {
+export function parseTextWithCitations(text: string, urlMap: CitationUrlMap): ParsedSegment[] {
 	const segments: ParsedSegment[] = [];
 	let lastIndex = 0;
 	let match: RegExpExecArray | null;

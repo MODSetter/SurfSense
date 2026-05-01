@@ -182,11 +182,7 @@ const SurfsenseDocCitation: FC<{ chunkId: number }> = ({ chunkId }) => {
 						</p>
 					)}
 					{!isLoading && !error && citedChunk?.content && (
-						<MarkdownViewer
-							content={citedChunk.content}
-							maxLength={1500}
-							enableCitations
-						/>
+						<MarkdownViewer content={citedChunk.content} maxLength={1500} enableCitations />
 					)}
 					{!isLoading && !error && !citedChunk?.content && (
 						<p className="py-4 text-xs text-muted-foreground">No content available.</p>

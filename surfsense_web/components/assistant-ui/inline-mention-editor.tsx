@@ -1,8 +1,14 @@
 "use client";
 
-import { type FC, forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from "react";
-import { Plate, PlateContent, ParagraphPlugin, createPlatePlugin, usePlateEditor } from "platejs/react";
 import type { PlateElementProps } from "platejs/react";
+import {
+	createPlatePlugin,
+	ParagraphPlugin,
+	Plate,
+	PlateContent,
+	usePlateEditor,
+} from "platejs/react";
+import { type FC, forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from "react";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Document } from "@/contracts/types/document.types";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
@@ -72,7 +78,11 @@ const COMPOSER_TEXT_METRICS_CLASSNAME = "text-sm leading-6";
 
 const EMPTY_VALUE: ComposerValue = [{ type: "p", children: [{ text: "" }] }];
 
-const MentionElement: FC<PlateElementProps<MentionElementNode>> = ({ attributes, children, element }) => {
+const MentionElement: FC<PlateElementProps<MentionElementNode>> = ({
+	attributes,
+	children,
+	element,
+}) => {
 	const statusClass =
 		element.statusKind === "failed"
 			? "text-destructive"
@@ -255,7 +265,10 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			selection?.addRange(range);
 		}, []);
 
-		const getCurrentValue = useCallback(() => (editor.children as ComposerValue) ?? EMPTY_VALUE, [editor]);
+		const getCurrentValue = useCallback(
+			() => (editor.children as ComposerValue) ?? EMPTY_VALUE,
+			[editor]
+		);
 
 		const emitState = useCallback(
 			(nextValue: ComposerValue) => {
@@ -379,7 +392,8 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				const next = current.map((block) => {
 					const children = block.children.filter((node) => {
 						if (!isMentionNode(node)) return true;
-						const match = node.id === docId && (node.document_type ?? "UNKNOWN") === (docType ?? "UNKNOWN");
+						const match =
+							node.id === docId && (node.document_type ?? "UNKNOWN") === (docType ?? "UNKNOWN");
 						if (match) changed = true;
 						return !match;
 					});
@@ -450,7 +464,15 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				removeDocumentChip,
 				setDocumentChipStatus,
 			}),
-			[clear, getMentionedDocs, getText, insertDocumentChip, removeDocumentChip, setDocumentChipStatus, setText]
+			[
+				clear,
+				getMentionedDocs,
+				getText,
+				insertDocumentChip,
+				removeDocumentChip,
+				setDocumentChipStatus,
+				setText,
+			]
 		);
 
 		const handleKeyDown = useCallback(
@@ -488,14 +510,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				removeDocumentChip(prev.id, prev.document_type);
 				onDocumentRemove?.(prev.id, prev.document_type);
 			},
-			[
-				editor.selection,
-				getCurrentValue,
-				onDocumentRemove,
-				onKeyDown,
-				onSubmit,
-				removeDocumentChip,
-			]
+			[editor.selection, getCurrentValue, onDocumentRemove, onKeyDown, onSubmit, removeDocumentChip]
 		);
 
 		const editableProps = useMemo(

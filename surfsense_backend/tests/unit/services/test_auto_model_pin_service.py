@@ -66,7 +66,13 @@ async def test_auto_first_turn_pins_one_model(monkeypatch):
         "GLOBAL_LLM_CONFIGS",
         [
             {"id": -2, "provider": "OPENAI", "model_name": "gpt-free", "api_key": "k1"},
-            {"id": -1, "provider": "OPENAI", "model_name": "gpt-prem", "api_key": "k2", "billing_tier": "premium"},
+            {
+                "id": -1,
+                "provider": "OPENAI",
+                "model_name": "gpt-prem",
+                "api_key": "k2",
+                "billing_tier": "premium",
+            },
         ],
     )
 
@@ -103,12 +109,20 @@ async def test_next_turn_reuses_existing_pin(monkeypatch):
         config,
         "GLOBAL_LLM_CONFIGS",
         [
-            {"id": -1, "provider": "OPENAI", "model_name": "gpt-prem", "api_key": "k2", "billing_tier": "premium"},
+            {
+                "id": -1,
+                "provider": "OPENAI",
+                "model_name": "gpt-prem",
+                "api_key": "k2",
+                "billing_tier": "premium",
+            },
         ],
     )
 
     async def _must_not_call(*_args, **_kwargs):
-        raise AssertionError("premium_get_usage should not be called for valid pin reuse")
+        raise AssertionError(
+            "premium_get_usage should not be called for valid pin reuse"
+        )
 
     monkeypatch.setattr(
         "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
@@ -136,7 +150,13 @@ async def test_premium_eligible_auto_can_pin_premium(monkeypatch):
         config,
         "GLOBAL_LLM_CONFIGS",
         [
-            {"id": -1, "provider": "OPENAI", "model_name": "gpt-prem", "api_key": "k2", "billing_tier": "premium"},
+            {
+                "id": -1,
+                "provider": "OPENAI",
+                "model_name": "gpt-prem",
+                "api_key": "k2",
+                "billing_tier": "premium",
+            },
         ],
     )
 
@@ -168,8 +188,20 @@ async def test_premium_ineligible_auto_pins_free_only(monkeypatch):
         config,
         "GLOBAL_LLM_CONFIGS",
         [
-            {"id": -2, "provider": "OPENAI", "model_name": "gpt-free", "api_key": "k1", "billing_tier": "free"},
-            {"id": -1, "provider": "OPENAI", "model_name": "gpt-prem", "api_key": "k2", "billing_tier": "premium"},
+            {
+                "id": -2,
+                "provider": "OPENAI",
+                "model_name": "gpt-free",
+                "api_key": "k1",
+                "billing_tier": "free",
+            },
+            {
+                "id": -1,
+                "provider": "OPENAI",
+                "model_name": "gpt-prem",
+                "api_key": "k2",
+                "billing_tier": "premium",
+            },
         ],
     )
 
@@ -203,8 +235,20 @@ async def test_pinned_premium_stays_premium_after_quota_exhaustion(monkeypatch):
         config,
         "GLOBAL_LLM_CONFIGS",
         [
-            {"id": -2, "provider": "OPENAI", "model_name": "gpt-free", "api_key": "k1", "billing_tier": "free"},
-            {"id": -1, "provider": "OPENAI", "model_name": "gpt-prem", "api_key": "k2", "billing_tier": "premium"},
+            {
+                "id": -2,
+                "provider": "OPENAI",
+                "model_name": "gpt-free",
+                "api_key": "k1",
+                "billing_tier": "free",
+            },
+            {
+                "id": -1,
+                "provider": "OPENAI",
+                "model_name": "gpt-prem",
+                "api_key": "k2",
+                "billing_tier": "premium",
+            },
         ],
     )
 
@@ -238,8 +282,20 @@ async def test_force_repin_free_switches_auto_premium_pin_to_free(monkeypatch):
         config,
         "GLOBAL_LLM_CONFIGS",
         [
-            {"id": -2, "provider": "OPENAI", "model_name": "gpt-free", "api_key": "k1", "billing_tier": "free"},
-            {"id": -1, "provider": "OPENAI", "model_name": "gpt-prem", "api_key": "k2", "billing_tier": "premium"},
+            {
+                "id": -2,
+                "provider": "OPENAI",
+                "model_name": "gpt-free",
+                "api_key": "k1",
+                "billing_tier": "free",
+            },
+            {
+                "id": -1,
+                "provider": "OPENAI",
+                "model_name": "gpt-prem",
+                "api_key": "k2",
+                "billing_tier": "premium",
+            },
         ],
     )
 

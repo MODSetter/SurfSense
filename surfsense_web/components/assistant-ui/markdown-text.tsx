@@ -12,14 +12,7 @@ import { ExternalLinkIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import { useTheme } from "next-themes";
-import {
-	createContext,
-	memo,
-	type ReactNode,
-	useCallback,
-	useContext,
-	useRef,
-} from "react";
+import { createContext, memo, type ReactNode, useCallback, useContext, useRef } from "react";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -29,10 +22,6 @@ import "katex/dist/katex.min.css";
 import { processChildrenWithCitations } from "@/components/citations/citation-renderer";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-	type CitationUrlMap,
-	preprocessCitationMarkdown,
-} from "@/lib/citations/citation-parser";
-import {
 	Table,
 	TableBody,
 	TableCell,
@@ -41,6 +30,7 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { useElectronAPI } from "@/hooks/use-platform";
+import { type CitationUrlMap, preprocessCitationMarkdown } from "@/lib/citations/citation-parser";
 import { cn } from "@/lib/utils";
 
 function MarkdownCodeBlockSkeleton() {
@@ -128,10 +118,7 @@ function preprocessMarkdown(content: string, urlMapRef: CitationUrlMapRef): stri
 
 const MarkdownTextImpl = () => {
 	const urlMapRef = useRef<CitationUrlMap>(EMPTY_URL_MAP);
-	const preprocess = useCallback(
-		(content: string) => preprocessMarkdown(content, urlMapRef),
-		[]
-	);
+	const preprocess = useCallback((content: string) => preprocessMarkdown(content, urlMapRef), []);
 	return (
 		<CitationUrlMapContext.Provider value={urlMapRef}>
 			<MarkdownTextPrimitive
@@ -334,10 +321,7 @@ const defaultComponents = memoizeMarkdownComponents({
 		const urlMap = useCitationUrlMap();
 		return (
 			<a
-				className={cn(
-					"aui-md-a font-medium text-primary underline underline-offset-4",
-					className
-				)}
+				className={cn("aui-md-a font-medium text-primary underline underline-offset-4", className)}
 				{...props}
 			>
 				{processChildrenWithCitations(children, urlMap)}

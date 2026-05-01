@@ -1,6 +1,6 @@
 import posthog from "posthog-js";
 import { getConnectorTelemetryMeta } from "@/components/assistant-ui/connector-popup/constants/connector-constants";
-import type { ChatErrorKind, ChatFlow, ChatErrorSeverity } from "@/lib/chat/chat-error-classifier";
+import type { ChatErrorKind, ChatErrorSeverity, ChatFlow } from "@/lib/chat/chat-error-classifier";
 
 /**
  * PostHog Analytics Event Definitions

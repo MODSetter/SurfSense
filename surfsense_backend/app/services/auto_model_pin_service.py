@@ -44,7 +44,9 @@ def _is_usable_global_config(cfg: dict) -> bool:
 
 
 def _global_candidates() -> list[dict]:
-    candidates = [cfg for cfg in config.GLOBAL_LLM_CONFIGS if _is_usable_global_config(cfg)]
+    candidates = [
+        cfg for cfg in config.GLOBAL_LLM_CONFIGS if _is_usable_global_config(cfg)
+    ]
     return sorted(candidates, key=lambda c: int(c.get("id", 0)))
 
 
@@ -69,7 +71,9 @@ def _to_uuid(user_id: str | UUID | None) -> UUID | None:
         return None
 
 
-async def _is_premium_eligible(session: AsyncSession, user_id: str | UUID | None) -> bool:
+async def _is_premium_eligible(
+    session: AsyncSession, user_id: str | UUID | None
+) -> bool:
     parsed = _to_uuid(user_id)
     if parsed is None:
         return False
@@ -136,8 +140,7 @@ async def resolve_or_get_pinned_llm_config_id(
     pinned_id = thread.pinned_llm_config_id
     if (
         not force_repin_free
-        and
-        thread.pinned_auto_mode == AUTO_FASTEST_MODE
+        and thread.pinned_auto_mode == AUTO_FASTEST_MODE
         and pinned_id is not None
         and int(pinned_id) in candidate_by_id
     ):
@@ -163,7 +166,9 @@ async def resolve_or_get_pinned_llm_config_id(
             thread.pinned_auto_mode,
         )
 
-    premium_eligible = False if force_repin_free else await _is_premium_eligible(session, user_id)
+    premium_eligible = (
+        False if force_repin_free else await _is_premium_eligible(session, user_id)
+    )
     if premium_eligible:
         eligible = candidates
     else:

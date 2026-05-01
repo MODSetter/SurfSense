@@ -16,9 +16,7 @@ export type EditedInterruptAction = {
 	args: Record<string, unknown>;
 };
 
-function readInterruptActions(
-	interruptData: Record<string, unknown>
-): InterruptActionRequest[] {
+function readInterruptActions(interruptData: Record<string, unknown>): InterruptActionRequest[] {
 	return (interruptData.action_requests ?? []) as InterruptActionRequest[];
 }
 
@@ -121,7 +119,5 @@ export function applyTurnIdToAssistantMessageList(
 	assistantMsgId: string,
 	turnId: string
 ): ThreadMessageLike[] {
-	return messages.map((m) =>
-		m.id === assistantMsgId ? mergeChatTurnIdIntoMessage(m, turnId) : m
-	);
+	return messages.map((m) => (m.id === assistantMsgId ? mergeChatTurnIdIntoMessage(m, turnId) : m));
 }

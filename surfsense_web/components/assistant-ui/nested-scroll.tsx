@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, type ComponentPropsWithoutRef, type WheelEvent } from "react";
+import { type ComponentPropsWithoutRef, forwardRef, type WheelEvent } from "react";
 
 export type NestedScrollProps = ComponentPropsWithoutRef<"div">;
 

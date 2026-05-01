@@ -19,7 +19,6 @@ import {
 	currentThreadAtom,
 	setTargetCommentIdAtom,
 } from "@/atoms/chat/current-thread.atom";
-import { setPremiumAlertForThreadAtom } from "@/atoms/chat/premium-alert.atom";
 import {
 	type MentionedDocumentInfo,
 	mentionedDocumentIdsAtom,
@@ -31,6 +30,7 @@ import {
 	clearPlanOwnerRegistry,
 	// extractWriteTodosFromContent,
 } from "@/atoms/chat/plan-state.atom";
+import { setPremiumAlertForThreadAtom } from "@/atoms/chat/premium-alert.atom";
 import { closeReportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { type AgentCreatedDocument, agentCreatedDocumentsAtom } from "@/atoms/documents/ui.atoms";
 import { closeEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
@@ -60,20 +60,28 @@ import { useMessagesSync } from "@/hooks/use-messages-sync";
 import { getAgentFilesystemSelection } from "@/lib/agent-filesystem";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { getBearerToken } from "@/lib/auth-utils";
-import {
-	classifyChatError,
-	type ChatFlow,
-} from "@/lib/chat/chat-error-classifier";
-import {
-	tagPreAcceptSendFailure,
-	toHttpResponseError,
-} from "@/lib/chat/chat-request-errors";
+import { type ChatFlow, classifyChatError } from "@/lib/chat/chat-error-classifier";
+import { tagPreAcceptSendFailure, toHttpResponseError } from "@/lib/chat/chat-request-errors";
 import { convertToThreadMessage } from "@/lib/chat/message-utils";
 import {
 	isPodcastGenerating,
 	looksLikePodcastRequest,
 	setActivePodcastTaskId,
 } from "@/lib/chat/podcast-state";
+import { createStreamFlushHelpers } from "@/lib/chat/stream-flush";
+import {
+	consumeSseEvents,
+	hasPersistableContent,
+	processSharedStreamEvent,
+} from "@/lib/chat/stream-pipeline";
+import {
+	applyInterruptRequestToContentParts,
+	applyTurnIdToAssistantMessageList,
+	markInterruptDecisionOnContentParts,
+	mergeChatTurnIdIntoMessage,
+	mergeEditedInterruptAction,
+	readStreamedChatTurnId,
+} from "@/lib/chat/stream-side-effects";
 import {
 	buildContentForPersistence,
 	buildContentForUI,
@@ -82,20 +90,6 @@ import {
 	type ThinkingStepData,
 	type ToolUIGate,
 } from "@/lib/chat/streaming-state";
-import { createStreamFlushHelpers } from "@/lib/chat/stream-flush";
-import {
-	consumeSseEvents,
-	hasPersistableContent,
-	processSharedStreamEvent,
-} from "@/lib/chat/stream-pipeline";
-import {
-	applyTurnIdToAssistantMessageList,
-	applyInterruptRequestToContentParts,
-	mergeChatTurnIdIntoMessage,
-	mergeEditedInterruptAction,
-	markInterruptDecisionOnContentParts,
-	readStreamedChatTurnId,
-} from "@/lib/chat/stream-side-effects";
 import {
 	appendMessage,
 	createThread,
@@ -112,8 +106,8 @@ import {
 } from "@/lib/chat/user-turn-api-parts";
 import { NotFoundError } from "@/lib/error";
 import {
-	trackChatCreated,
 	trackChatBlocked,
+	trackChatCreated,
 	trackChatErrorDetailed,
 	trackChatMessageSent,
 	trackChatResponseReceived,
@@ -193,7 +187,8 @@ function sleep(ms: number): Promise<void> {
 
 function computeFallbackTurnCancellingRetryDelay(attempt: number): number {
 	const safeAttempt = Math.max(1, attempt);
-	const raw = TURN_CANCELLING_INITIAL_DELAY_MS * TURN_CANCELLING_BACKOFF_FACTOR ** (safeAttempt - 1);
+	const raw =
+		TURN_CANCELLING_INITIAL_DELAY_MS * TURN_CANCELLING_BACKOFF_FACTOR ** (safeAttempt - 1);
 	return Math.min(raw, TURN_CANCELLING_MAX_DELAY_MS);
 }
 
@@ -278,11 +273,9 @@ export default function NewChatPage() {
 		}) => {
 			if (!threadId) return null;
 			try {
-				const normalizedContent = Array.isArray(content)
-					? ([...content] as unknown[])
-					: [content];
-				const hasMentionedDocumentsPart = normalizedContent.some((part) =>
-					MentionedDocumentsPartSchema.safeParse(part).success
+				const normalizedContent = Array.isArray(content) ? ([...content] as unknown[]) : [content];
+				const hasMentionedDocumentsPart = normalizedContent.some(
+					(part) => MentionedDocumentsPartSchema.safeParse(part).success
 				);
 				if (mentionedDocs && mentionedDocs.length > 0 && !hasMentionedDocumentsPart) {
 					normalizedContent.push({
@@ -300,10 +293,7 @@ export default function NewChatPage() {
 				setMessages((prev) =>
 					prev.map((m) =>
 						m.id === userMsgId
-							? mergeChatTurnIdIntoMessage(
-									{ ...m, id: newUserMsgId },
-									savedUserMessage.turn_id
-								)
+							? mergeChatTurnIdIntoMessage({ ...m, id: newUserMsgId }, savedUserMessage.turn_id)
 							: m
 					)
 				);
@@ -356,10 +346,7 @@ export default function NewChatPage() {
 				setMessages((prev) =>
 					prev.map((m) =>
 						m.id === assistantMsgId
-							? mergeChatTurnIdIntoMessage(
-									{ ...m, id: newMsgId },
-									savedMessage.turn_id
-								)
+							? mergeChatTurnIdIntoMessage({ ...m, id: newMsgId }, savedMessage.turn_id)
 							: m
 					)
 				);
@@ -564,12 +551,7 @@ export default function NewChatPage() {
 
 			toast.error(normalized.userMessage);
 		},
-		[
-			currentUser?.id,
-			persistAssistantErrorMessage,
-			searchSpaceId,
-			setPremiumAlertForThread,
-		]
+		[currentUser?.id, persistAssistantErrorMessage, searchSpaceId, setPremiumAlertForThread]
 	);
 
 	const handleStreamTerminalError = useCallback(
@@ -613,35 +595,31 @@ export default function NewChatPage() {
 		[handleChatFailure]
 	);
 
-	const fetchWithTurnCancellingRetry = useCallback(
-		async (runFetch: () => Promise<Response>) => {
-			const maxAttempts = 4;
-			for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-				const response = await runFetch();
-				if (response.ok) {
-					return response;
-				}
-				const error = await toHttpResponseError(response);
-				const withMeta = error as Error & { errorCode?: string; retryAfterMs?: number };
-				const isTurnCancelling = withMeta.errorCode === "TURN_CANCELLING";
-				const isRecentThreadBusyAfterCancel =
-					withMeta.errorCode === "THREAD_BUSY" &&
-					Date.now() - recentCancelRequestedAtRef.current <= RECENT_CANCEL_WINDOW_MS;
-				if ((isTurnCancelling || isRecentThreadBusyAfterCancel) && attempt < maxAttempts) {
-					const waitMs =
-						withMeta.retryAfterMs ?? computeFallbackTurnCancellingRetryDelay(attempt);
-					await sleep(waitMs);
-					continue;
-				}
-				throw error;
+	const fetchWithTurnCancellingRetry = useCallback(async (runFetch: () => Promise<Response>) => {
+		const maxAttempts = 4;
+		for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+			const response = await runFetch();
+			if (response.ok) {
+				return response;
 			}
+			const error = await toHttpResponseError(response);
+			const withMeta = error as Error & { errorCode?: string; retryAfterMs?: number };
+			const isTurnCancelling = withMeta.errorCode === "TURN_CANCELLING";
+			const isRecentThreadBusyAfterCancel =
+				withMeta.errorCode === "THREAD_BUSY" &&
+				Date.now() - recentCancelRequestedAtRef.current <= RECENT_CANCEL_WINDOW_MS;
+			if ((isTurnCancelling || isRecentThreadBusyAfterCancel) && attempt < maxAttempts) {
+				const waitMs = withMeta.retryAfterMs ?? computeFallbackTurnCancellingRetryDelay(attempt);
+				await sleep(waitMs);
+				continue;
+			}
+			throw error;
+		}
 
-			throw Object.assign(new Error("Turn cancellation retry limit exceeded"), {
-				errorCode: "TURN_CANCELLING",
-			});
-		},
-		[]
-	);
+		throw Object.assign(new Error("Turn cancellation retry limit exceeded"), {
+			errorCode: "TURN_CANCELLING",
+		});
+	}, []);
 
 	// Initialize thread and load messages
 	// For new chats (no urlChatId), we use lazy creation - thread is created on first message

@@ -1,19 +1,16 @@
-import {
-	type ToolCallMessagePartComponent,
-	useAuiState,
-} from "@assistant-ui/react";
+import { type ToolCallMessagePartComponent, useAuiState } from "@assistant-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { CheckIcon, ChevronDownIcon, RotateCcw, XCircleIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { chatSessionStateAtom } from "@/atoms/chat/chat-session-state.atom";
+import { NestedScroll } from "@/components/assistant-ui/nested-scroll";
 import {
 	DoomLoopApprovalToolUI,
 	isDoomLoopInterrupt,
 } from "@/components/tool-ui/doom-loop-approval";
 import { GenericHitlApprovalToolUI } from "@/components/tool-ui/generic-hitl-approval";
-import { NestedScroll } from "@/components/assistant-ui/nested-scroll";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -32,10 +29,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { getToolDisplayName } from "@/contracts/enums/toolIcons";
-import {
-	markActionRevertedInCache,
-	useAgentActionsQuery,
-} from "@/hooks/use-agent-actions-query";
+import { markActionRevertedInCache, useAgentActionsQuery } from "@/hooks/use-agent-actions-query";
 import { agentActionsApiService } from "@/lib/apis/agent-actions-api.service";
 import { AppError } from "@/lib/error";
 import { isInterruptResult } from "@/lib/hitl";
@@ -124,8 +118,7 @@ function ToolCardRevertButton({
 		// Tier 1 + 2: O(1) Map-backed direct id match. Covers
 		// ~all parity_v2 streams and any legacy stream that backfilled
 		// ``langchainToolCallId`` via ``tool-output-available``.
-		const direct =
-			findByToolCallId(toolCallId) ?? findByToolCallId(langchainToolCallId);
+		const direct = findByToolCallId(toolCallId) ?? findByToolCallId(langchainToolCallId);
 		if (direct) return direct;
 		// Tier 3: position-within-turn fallback. Only kicks in when the
 		// card has a synthetic ``call_<run_id>`` id AND no
@@ -160,12 +153,7 @@ function ToolCardRevertButton({
 		setIsReverting(true);
 		try {
 			const response = await agentActionsApiService.revert(threadId, action.id);
-			markActionRevertedInCache(
-				queryClient,
-				threadId,
-				action.id,
-				response.new_action_id ?? null
-			);
+			markActionRevertedInCache(queryClient, threadId, action.id, response.new_action_id ?? null);
 			toast.success(response.message || "Action reverted.");
 		} catch (err) {
 			// 503 means revert is gated off on this deployment — hide the

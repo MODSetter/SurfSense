@@ -92,8 +92,8 @@ import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsSync } from "@/hooks/use-comments-sync";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
-import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { captureDisplayToPngDataUrl } from "@/lib/chat/display-media-capture";
+import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/lib/layout-events";
 import { cn } from "@/lib/utils";
 
