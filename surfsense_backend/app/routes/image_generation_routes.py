@@ -36,6 +36,11 @@ from app.schemas import (
     ImageGenerationListRead,
     ImageGenerationRead,
 )
+from app.services.billable_calls import (
+    DEFAULT_IMAGE_RESERVE_MICROS,
+    QuotaInsufficientError,
+    billable_call,
+)
 from app.services.image_gen_router_service import (
     IMAGE_GEN_AUTO_MODE_ID,
     ImageGenRouterService,
@@ -90,6 +95,50 @@ def _build_model_string(
         return f"{custom_provider}/{model_name}"
     prefix = _PROVIDER_MAP.get(provider.upper(), provider.lower())
     return f"{prefix}/{model_name}"
+
+
+async def _resolve_billing_for_image_gen(
+    session: AsyncSession,
+    config_id: int | None,
+    search_space: SearchSpace,
+) -> tuple[str, str, int]:
+    """Resolve ``(billing_tier, base_model, reserve_micros)`` for a request.
+
+    The resolution mirrors ``_execute_image_generation``'s lookup tree but
+    only extracts the fields needed for billing — we do this *before*
+    ``billable_call`` so the reservation is correctly sized for the
+    config that will actually run, and so we don't open an
+    ``ImageGeneration`` row for a request that's about to 402.
+
+    User-owned (positive ID) BYOK configs are always free — they cost
+    the user nothing on our side. Auto mode currently treats as free
+    because the underlying router can dispatch to either premium or
+    free YAML configs and we don't surface the resolved deployment up
+    here yet. Bringing Auto under premium billing would require
+    threading the chosen deployment back from ``ImageGenRouterService``.
+    """
+    resolved_id = config_id
+    if resolved_id is None:
+        resolved_id = search_space.image_generation_config_id or IMAGE_GEN_AUTO_MODE_ID
+
+    if is_image_gen_auto_mode(resolved_id):
+        return ("free", "auto", DEFAULT_IMAGE_RESERVE_MICROS)
+
+    if resolved_id < 0:
+        cfg = _get_global_image_gen_config(resolved_id) or {}
+        billing_tier = str(cfg.get("billing_tier", "free")).lower()
+        base_model = _build_model_string(
+            cfg.get("provider", ""),
+            cfg.get("model_name", ""),
+            cfg.get("custom_provider"),
+        )
+        reserve_micros = int(
+            cfg.get("quota_reserve_micros") or DEFAULT_IMAGE_RESERVE_MICROS
+        )
+        return (billing_tier, base_model, reserve_micros)
+
+    # Positive ID = user-owned BYOK image-gen config — always free.
+    return ("free", "user_byok", DEFAULT_IMAGE_RESERVE_MICROS)
 
 
 async def _execute_image_generation(
@@ -225,6 +274,9 @@ async def get_global_image_gen_configs(
                     "litellm_params": {},
                     "is_global": True,
                     "is_auto_mode": True,
+                    # Auto mode currently treated as free until per-deployment
+                    # billing-tier surfacing lands (see _resolve_billing_for_image_gen).
+                    "billing_tier": "free",
                 }
             )
 
@@ -241,6 +293,8 @@ async def get_global_image_gen_configs(
                     "api_version": cfg.get("api_version") or None,
                     "litellm_params": cfg.get("litellm_params", {}),
                     "is_global": True,
+                    "billing_tier": cfg.get("billing_tier", "free"),
+                    "quota_reserve_micros": cfg.get("quota_reserve_micros"),
                 }
             )
 
@@ -454,7 +508,26 @@ async def create_image_generation(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """Create and execute an image generation request."""
+    """Create and execute an image generation request.
+
+    Premium configs are gated by the user's shared premium credit pool.
+    The flow is:
+
+    1. Permission check + load the search space (cheap, no provider call).
+    2. Resolve which config will run so we know its billing tier and the
+       worst-case reservation size *before* opening any DB rows.
+    3. Wrap the entire ImageGeneration row insert + provider call in
+       ``billable_call``. If quota is denied, ``billable_call`` raises
+       ``QuotaInsufficientError`` *before* we flush a row, which we
+       translate to HTTP 402 (no orphaned rows on the user's account,
+       no inserted error rows for "you ran out of credit").
+    4. On success, the actual ``response_cost`` flows through the
+       LiteLLM callback into the accumulator, and ``billable_call``
+       finalizes the debit at exit. Inner ``try/except`` still catches
+       provider errors and stores them on ``error_message`` (HTTP 200
+       with ``error_message`` set is preserved for failed-but-not-quota
+       scenarios — clients already know how to surface those).
+    """
     try:
         await check_permission(
             session,
@@ -471,33 +544,70 @@ async def create_image_generation(
         if not search_space:
             raise HTTPException(status_code=404, detail="Search space not found")
 
-        db_image_gen = ImageGeneration(
-            prompt=data.prompt,
-            model=data.model,
-            n=data.n,
-            quality=data.quality,
-            size=data.size,
-            style=data.style,
-            response_format=data.response_format,
-            image_generation_config_id=data.image_generation_config_id,
-            search_space_id=data.search_space_id,
-            created_by_id=user.id,
+        billing_tier, base_model, reserve_micros = await _resolve_billing_for_image_gen(
+            session, data.image_generation_config_id, search_space
         )
-        session.add(db_image_gen)
-        await session.flush()
 
-        try:
-            await _execute_image_generation(session, db_image_gen, search_space)
-        except Exception as e:
-            logger.exception("Image generation call failed")
-            db_image_gen.error_message = str(e)
+        # billable_call runs OUTSIDE the inner try/except so QuotaInsufficientError
+        # propagates to the outer ``except QuotaInsufficientError`` handler
+        # below as HTTP 402 — it is intentionally NOT swallowed into
+        # ``error_message`` because that would (1) imply a successful row
+        # exists when none does, and (2) return HTTP 200 to a client
+        # whose request was actively *denied* (issue K).
+        async with billable_call(
+            user_id=search_space.user_id,
+            search_space_id=data.search_space_id,
+            billing_tier=billing_tier,
+            base_model=base_model,
+            quota_reserve_micros_override=reserve_micros,
+            usage_type="image_generation",
+            call_details={"model": base_model, "prompt": data.prompt[:100]},
+        ):
+            db_image_gen = ImageGeneration(
+                prompt=data.prompt,
+                model=data.model,
+                n=data.n,
+                quality=data.quality,
+                size=data.size,
+                style=data.style,
+                response_format=data.response_format,
+                image_generation_config_id=data.image_generation_config_id,
+                search_space_id=data.search_space_id,
+                created_by_id=user.id,
+            )
+            session.add(db_image_gen)
+            await session.flush()
 
-        await session.commit()
-        await session.refresh(db_image_gen)
-        return db_image_gen
+            try:
+                await _execute_image_generation(session, db_image_gen, search_space)
+            except Exception as e:
+                logger.exception("Image generation call failed")
+                db_image_gen.error_message = str(e)
+
+            await session.commit()
+            await session.refresh(db_image_gen)
+            return db_image_gen
 
     except HTTPException:
         raise
+    except QuotaInsufficientError as exc:
+        # The user's premium credit pool is empty. No DB row is created
+        # because ``billable_call`` denies before yielding (issue K).
+        await session.rollback()
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "error_code": "premium_quota_exhausted",
+                "usage_type": exc.usage_type,
+                "used_micros": exc.used_micros,
+                "limit_micros": exc.limit_micros,
+                "remaining_micros": exc.remaining_micros,
+                "message": (
+                    "Out of premium credits for image generation. "
+                    "Purchase additional credits or switch to a free model."
+                ),
+            },
+        ) from exc
     except SQLAlchemyError:
         await session.rollback()
         raise HTTPException(

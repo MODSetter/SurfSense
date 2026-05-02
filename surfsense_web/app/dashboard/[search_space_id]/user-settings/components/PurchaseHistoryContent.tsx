@@ -28,6 +28,12 @@ type UnifiedPurchase = {
 	kind: PurchaseKind;
 	created_at: string;
 	status: PagePurchaseStatus;
+	/**
+	 * Granted units. Interpretation depends on ``kind``:
+	 *  - ``"pages"`` — integer number of indexed pages.
+	 *  - ``"tokens"`` — integer micro-USD of credit (1_000_000 = $1.00).
+	 * The ``Granted`` column formats accordingly.
+	 */
 	granted: number;
 	amount_total: number | null;
 	currency: string | null;
@@ -58,7 +64,7 @@ const KIND_META: Record<
 		iconClass: "text-sky-500",
 	},
 	tokens: {
-		label: "Premium Tokens",
+		label: "Premium Credit",
 		icon: Coins,
 		iconClass: "text-amber-500",
 	},
@@ -97,10 +103,23 @@ function normalizeTokenPurchase(p: TokenPurchase): UnifiedPurchase {
 		kind: "tokens",
 		created_at: p.created_at,
 		status: p.status,
-		granted: p.tokens_granted,
+		granted: p.credit_micros_granted,
 		amount_total: p.amount_total,
 		currency: p.currency,
 	};
+}
+
+function formatGranted(p: UnifiedPurchase): string {
+	if (p.kind === "tokens") {
+		const dollars = p.granted / 1_000_000;
+		// Premium credit packs are always whole dollars at the moment, but
+		// future fractional grants (refunds, partial top-ups) shouldn't
+		// silently round to "$0".
+		if (dollars >= 1) return `$${dollars.toFixed(2)} of credit`;
+		if (dollars > 0) return `$${dollars.toFixed(3)} of credit`;
+		return "$0 of credit";
+	}
+	return p.granted.toLocaleString();
 }
 
 export function PurchaseHistoryContent() {
@@ -143,7 +162,7 @@ export function PurchaseHistoryContent() {
 				<ReceiptText className="h-8 w-8 text-muted-foreground" />
 				<p className="text-sm font-medium">No purchases yet</p>
 				<p className="text-xs text-muted-foreground">
-					Your page and premium token purchases will appear here after checkout.
+					Your page and premium credit purchases will appear here after checkout.
 				</p>
 			</div>
 		);
@@ -177,7 +196,7 @@ export function PurchaseHistoryContent() {
 										</div>
 									</TableCell>
 									<TableCell className="text-right tabular-nums text-sm">
-										{p.granted.toLocaleString()}
+										{formatGranted(p)}
 									</TableCell>
 									<TableCell className="text-right tabular-nums text-sm">
 										{formatAmount(p.amount_total, p.currency)}

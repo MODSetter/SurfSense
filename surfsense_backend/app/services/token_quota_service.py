@@ -22,6 +22,71 @@ from app.config import config
 logger = logging.getLogger(__name__)
 
 
+# ---------------------------------------------------------------------------
+# Per-call reservation estimator (USD micro-units)
+# ---------------------------------------------------------------------------
+
+# Minimum reserve in micros so a user with $0.0001 left can still make a tiny
+# request, and so models without registered pricing reserve at least
+# something while the call runs (debited 0 at finalize anyway when their
+# cost can't be resolved).
+_QUOTA_MIN_RESERVE_MICROS = 100
+
+
+def estimate_call_reserve_micros(
+    *,
+    base_model: str,
+    quota_reserve_tokens: int | None,
+) -> int:
+    """Return the number of micro-USD to reserve for one premium call.
+
+    Computes a worst-case upper bound from LiteLLM's per-token pricing
+    table:
+
+        reserve_usd ≈ reserve_tokens x (input_cost + output_cost)
+
+    so the math scales with model cost — Claude Opus + 4K reserve_tokens
+    naturally reserves ≈ $0.36, while a cheap model reserves only a few
+    cents. Clamped to ``[_QUOTA_MIN_RESERVE_MICROS, QUOTA_MAX_RESERVE_MICROS]``
+    so a misconfigured "$1000/M" model can't lock the whole balance on
+    one call.
+
+    If ``litellm.get_model_info`` raises (model unknown) we fall back to
+    the floor — 100 micros / $0.0001 — which is enough to gate a sane
+    request without over-reserving for a model whose pricing the
+    operator hasn't declared yet.
+    """
+    reserve_tokens = quota_reserve_tokens or config.QUOTA_MAX_RESERVE_PER_CALL
+    if reserve_tokens <= 0:
+        reserve_tokens = config.QUOTA_MAX_RESERVE_PER_CALL
+
+    try:
+        from litellm import get_model_info
+
+        info = get_model_info(base_model) if base_model else {}
+        input_cost = float(info.get("input_cost_per_token") or 0.0)
+        output_cost = float(info.get("output_cost_per_token") or 0.0)
+    except Exception as exc:
+        logger.debug(
+            "[quota_reserve] cost lookup failed for base_model=%s: %s",
+            base_model,
+            exc,
+        )
+        input_cost = 0.0
+        output_cost = 0.0
+
+    if input_cost == 0.0 and output_cost == 0.0:
+        return _QUOTA_MIN_RESERVE_MICROS
+
+    reserve_usd = reserve_tokens * (input_cost + output_cost)
+    reserve_micros = round(reserve_usd * 1_000_000)
+    if reserve_micros < _QUOTA_MIN_RESERVE_MICROS:
+        reserve_micros = _QUOTA_MIN_RESERVE_MICROS
+    if reserve_micros > config.QUOTA_MAX_RESERVE_MICROS:
+        reserve_micros = config.QUOTA_MAX_RESERVE_MICROS
+    return reserve_micros
+
+
 class QuotaScope(StrEnum):
     ANONYMOUS = "anonymous"
     PREMIUM = "premium"
@@ -444,8 +509,16 @@ class TokenQuotaService:
         db_session: AsyncSession,
         user_id: Any,
         request_id: str,
-        reserve_tokens: int,
+        reserve_micros: int,
     ) -> QuotaResult:
+        """Reserve ``reserve_micros`` (USD micro-units) from the user's
+        premium credit balance.
+
+        ``QuotaResult.used``/``limit``/``reserved``/``remaining`` are
+        all in micro-USD on this code path; callers (chat stream,
+        token-status route, FE display) convert to dollars by dividing
+        by 1_000_000.
+        """
         from app.db import User
 
         user = (
@@ -465,11 +538,11 @@ class TokenQuotaService:
                 limit=0,
             )
 
-        limit = user.premium_tokens_limit
-        used = user.premium_tokens_used
-        reserved = user.premium_tokens_reserved
+        limit = user.premium_credit_micros_limit
+        used = user.premium_credit_micros_used
+        reserved = user.premium_credit_micros_reserved
 
-        effective = used + reserved + reserve_tokens
+        effective = used + reserved + reserve_micros
         if effective > limit:
             remaining = max(0, limit - used - reserved)
             await db_session.rollback()
@@ -482,10 +555,10 @@ class TokenQuotaService:
                 remaining=remaining,
             )
 
-        user.premium_tokens_reserved = reserved + reserve_tokens
+        user.premium_credit_micros_reserved = reserved + reserve_micros
         await db_session.commit()
 
-        new_reserved = reserved + reserve_tokens
+        new_reserved = reserved + reserve_micros
         remaining = max(0, limit - used - new_reserved)
         warning_threshold = int(limit * 0.8)
 
@@ -510,9 +583,12 @@ class TokenQuotaService:
         db_session: AsyncSession,
         user_id: Any,
         request_id: str,
-        actual_tokens: int,
-        reserved_tokens: int,
+        actual_micros: int,
+        reserved_micros: int,
     ) -> QuotaResult:
+        """Settle the reservation: release ``reserved_micros`` and debit
+        ``actual_micros`` (the LiteLLM-reported provider cost in micro-USD).
+        """
         from app.db import User
 
         user = (
@@ -529,16 +605,18 @@ class TokenQuotaService:
                 allowed=False, status=QuotaStatus.BLOCKED, used=0, limit=0
             )
 
-        user.premium_tokens_reserved = max(
-            0, user.premium_tokens_reserved - reserved_tokens
+        user.premium_credit_micros_reserved = max(
+            0, user.premium_credit_micros_reserved - reserved_micros
         )
-        user.premium_tokens_used = user.premium_tokens_used + actual_tokens
+        user.premium_credit_micros_used = (
+            user.premium_credit_micros_used + actual_micros
+        )
 
         await db_session.commit()
 
-        limit = user.premium_tokens_limit
-        used = user.premium_tokens_used
-        reserved = user.premium_tokens_reserved
+        limit = user.premium_credit_micros_limit
+        used = user.premium_credit_micros_used
+        reserved = user.premium_credit_micros_reserved
         remaining = max(0, limit - used - reserved)
 
         warning_threshold = int(limit * 0.8)
@@ -562,8 +640,13 @@ class TokenQuotaService:
     async def premium_release(
         db_session: AsyncSession,
         user_id: Any,
-        reserved_tokens: int,
+        reserved_micros: int,
     ) -> None:
+        """Release ``reserved_micros`` previously held by ``premium_reserve``.
+
+        Used when a request fails before finalize (so the reservation
+        doesn't leak credit).
+        """
         from app.db import User
 
         user = (
@@ -576,8 +659,8 @@ class TokenQuotaService:
             .scalar_one_or_none()
         )
         if user is not None:
-            user.premium_tokens_reserved = max(
-                0, user.premium_tokens_reserved - reserved_tokens
+            user.premium_credit_micros_reserved = max(
+                0, user.premium_credit_micros_reserved - reserved_micros
             )
             await db_session.commit()
 
@@ -598,9 +681,9 @@ class TokenQuotaService:
                 allowed=False, status=QuotaStatus.BLOCKED, used=0, limit=0
             )
 
-        limit = user.premium_tokens_limit
-        used = user.premium_tokens_used
-        reserved = user.premium_tokens_reserved
+        limit = user.premium_credit_micros_limit
+        used = user.premium_credit_micros_used
+        reserved = user.premium_credit_micros_reserved
         remaining = max(0, limit - used - reserved)
 
         warning_threshold = int(limit * 0.8)

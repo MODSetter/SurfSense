@@ -3,6 +3,8 @@ from typing import Any
 
 from litellm import Router
 
+from app.services.provider_api_base import resolve_api_base
+
 logger = logging.getLogger(__name__)
 
 VISION_AUTO_MODE_ID = 0
@@ -108,10 +110,11 @@ class VisionLLMRouterService:
             if not config.get("model_name") or not config.get("api_key"):
                 return None
 
+            provider = config.get("provider", "").upper()
             if config.get("custom_provider"):
-                model_string = f"{config['custom_provider']}/{config['model_name']}"
+                provider_prefix = config["custom_provider"]
+                model_string = f"{provider_prefix}/{config['model_name']}"
             else:
-                provider = config.get("provider", "").upper()
                 provider_prefix = VISION_PROVIDER_MAP.get(provider, provider.lower())
                 model_string = f"{provider_prefix}/{config['model_name']}"
 
@@ -120,8 +123,13 @@ class VisionLLMRouterService:
                 "api_key": config.get("api_key"),
             }
 
-            if config.get("api_base"):
-                litellm_params["api_base"] = config["api_base"]
+            api_base = resolve_api_base(
+                provider=provider,
+                provider_prefix=provider_prefix,
+                config_api_base=config.get("api_base"),
+            )
+            if api_base:
+                litellm_params["api_base"] = api_base
 
             if config.get("api_version"):
                 litellm_params["api_version"] = config["api_version"]

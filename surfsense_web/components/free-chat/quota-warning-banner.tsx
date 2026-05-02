@@ -40,7 +40,7 @@ export function QuotaWarningBanner({
 						</p>
 						<p className="text-xs text-red-600 dark:text-red-300">
 							You&apos;ve used all {limit.toLocaleString()} free tokens. Create a free account to
-							get 3 million tokens and access to all models.
+							get $5 of premium credit and access to all models.
 						</p>
 						<Link
 							href="/register"
@@ -69,7 +69,7 @@ export function QuotaWarningBanner({
 					<Link href="/register" className="font-medium underline hover:no-underline">
 						Create an account
 					</Link>{" "}
-					for 5M free tokens.
+					for $5 of premium credit.
 				</p>
 				<button
 					type="button"

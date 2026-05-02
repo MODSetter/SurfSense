@@ -541,16 +541,23 @@ export type SSEEvent =
 			data: {
 				usage: Record<
 					string,
-					{ prompt_tokens: number; completion_tokens: number; total_tokens: number }
+					{
+						prompt_tokens: number;
+						completion_tokens: number;
+						total_tokens: number;
+						cost_micros?: number;
+					}
 				>;
 				prompt_tokens: number;
 				completion_tokens: number;
 				total_tokens: number;
+				cost_micros?: number;
 				call_details: Array<{
 					model: string;
 					prompt_tokens: number;
 					completion_tokens: number;
 					total_tokens: number;
+					cost_micros?: number;
 				}>;
 			};
 	  }

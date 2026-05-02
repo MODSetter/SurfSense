@@ -41,7 +41,7 @@ export interface RawChatErrorInput {
 }
 
 export const PREMIUM_QUOTA_ASSISTANT_MESSAGE =
-	"I can’t continue with the current premium model because your premium tokens are exhausted. Switch to a free model or buy more tokens to continue.";
+	"I can’t continue with the current premium model because your premium credit is exhausted. Switch to a free model or top up your credit to continue.";
 
 function getErrorMessage(error: unknown): string {
 	if (error instanceof Error) return error.message;

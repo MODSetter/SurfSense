@@ -258,6 +258,8 @@ export const globalImageGenConfig = z.object({
 	litellm_params: z.record(z.string(), z.any()).nullable().optional(),
 	is_global: z.literal(true),
 	is_auto_mode: z.boolean().optional().default(false),
+	billing_tier: z.string().default("free"),
+	quota_reserve_micros: z.number().nullable().optional(),
 });
 
 export const getGlobalImageGenConfigsResponse = z.array(globalImageGenConfig);
@@ -338,6 +340,10 @@ export const globalVisionLLMConfig = z.object({
 	litellm_params: z.record(z.string(), z.any()).nullable().optional(),
 	is_global: z.literal(true),
 	is_auto_mode: z.boolean().optional().default(false),
+	billing_tier: z.string().default("free"),
+	quota_reserve_tokens: z.number().nullable().optional(),
+	input_cost_per_token: z.number().nullable().optional(),
+	output_cost_per_token: z.number().nullable().optional(),
 });
 
 export const getGlobalVisionLLMConfigsResponse = z.array(globalVisionLLMConfig);

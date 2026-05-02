@@ -9,7 +9,13 @@ from sqlalchemy import select
 from app.agents.podcaster.graph import graph as podcaster_graph
 from app.agents.podcaster.state import State as PodcasterState
 from app.celery_app import celery_app
+from app.config import config as app_config
 from app.db import Podcast, PodcastStatus
+from app.services.billable_calls import (
+    QuotaInsufficientError,
+    _resolve_agent_billing_for_search_space,
+    billable_call,
+)
 from app.tasks.celery_tasks import get_celery_session_maker
 
 logger = logging.getLogger(__name__)
@@ -96,6 +102,31 @@ async def _generate_content_podcast(
             podcast.status = PodcastStatus.GENERATING
             await session.commit()
 
+            try:
+                (
+                    owner_user_id,
+                    billing_tier,
+                    base_model,
+                ) = await _resolve_agent_billing_for_search_space(
+                    session,
+                    search_space_id,
+                    thread_id=podcast.thread_id,
+                )
+            except ValueError as resolve_err:
+                logger.error(
+                    "Podcast %s: cannot resolve billing for search_space=%s: %s",
+                    podcast.id,
+                    search_space_id,
+                    resolve_err,
+                )
+                podcast.status = PodcastStatus.FAILED
+                await session.commit()
+                return {
+                    "status": "failed",
+                    "podcast_id": podcast.id,
+                    "reason": "billing_resolution_failed",
+                }
+
             graph_config = {
                 "configurable": {
                     "podcast_title": podcast.title,
@@ -109,9 +140,39 @@ async def _generate_content_podcast(
                 db_session=session,
             )
 
-            graph_result = await podcaster_graph.ainvoke(
-                initial_state, config=graph_config
-            )
+            try:
+                async with billable_call(
+                    user_id=owner_user_id,
+                    search_space_id=search_space_id,
+                    billing_tier=billing_tier,
+                    base_model=base_model,
+                    quota_reserve_micros_override=app_config.QUOTA_DEFAULT_PODCAST_RESERVE_MICROS,
+                    usage_type="podcast_generation",
+                    thread_id=podcast.thread_id,
+                    call_details={
+                        "podcast_id": podcast.id,
+                        "title": podcast.title,
+                    },
+                ):
+                    graph_result = await podcaster_graph.ainvoke(
+                        initial_state, config=graph_config
+                    )
+            except QuotaInsufficientError as exc:
+                logger.info(
+                    "Podcast %s denied: out of premium credits "
+                    "(used=%d/%d remaining=%d)",
+                    podcast.id,
+                    exc.used_micros,
+                    exc.limit_micros,
+                    exc.remaining_micros,
+                )
+                podcast.status = PodcastStatus.FAILED
+                await session.commit()
+                return {
+                    "status": "failed",
+                    "podcast_id": podcast.id,
+                    "reason": "premium_quota_exhausted",
+                }
 
             podcast_transcript = graph_result.get("podcast_transcript", [])
             file_path = graph_result.get("final_podcast_file_path", "")

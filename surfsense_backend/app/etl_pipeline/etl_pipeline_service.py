@@ -68,12 +68,25 @@ class EtlPipelineService:
                     etl_service="VISION_LLM",
                     content_type="image",
                 )
-            except Exception:
-                logging.warning(
-                    "Vision LLM failed for %s, falling back to document parser",
-                    request.filename,
-                    exc_info=True,
-                )
+            except Exception as exc:
+                # Special-case quota exhaustion so we log a clearer message
+                # — the vision LLM didn't "fail", the user just ran out of
+                # premium credit. Falling through to the document parser
+                # is a graceful degradation: OCR/Unstructured still
+                # extracts text from the image without burning credit.
+                from app.services.billable_calls import QuotaInsufficientError
+
+                if isinstance(exc, QuotaInsufficientError):
+                    logging.info(
+                        "Vision LLM quota exhausted for %s; falling back to document parser",
+                        request.filename,
+                    )
+                else:
+                    logging.warning(
+                        "Vision LLM failed for %s, falling back to document parser",
+                        request.filename,
+                        exc_info=True,
+                    )
         else:
             logging.info(
                 "No vision LLM provided, falling back to document parser for %s",

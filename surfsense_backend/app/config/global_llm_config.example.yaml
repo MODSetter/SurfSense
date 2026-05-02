@@ -19,6 +19,24 @@
 # Structure matches NewLLMConfig:
 # - Model configuration (provider, model_name, api_key, etc.)
 # - Prompt configuration (system_instructions, citations_enabled)
+#
+# COST-BASED PREMIUM CREDITS:
+# Each premium config bills the user's USD-credit balance based on the
+# actual provider cost reported by LiteLLM. For models LiteLLM already
+# knows (most OpenAI/Anthropic/etc. names) you don't need to do anything.
+# For custom Azure deployment names (e.g. an in-house "gpt-5.4" deployment)
+# or any model LiteLLM doesn't have in its built-in pricing table, declare
+# per-token costs inline so they bill correctly:
+#
+#   litellm_params:
+#     base_model: "my-custom-azure-deploy"
+#     # USD per token; e.g. 0.000003 == $3.00 per million input tokens
+#     input_cost_per_token: 0.000003
+#     output_cost_per_token: 0.000015
+#
+# OpenRouter dynamic models pull pricing automatically from OpenRouter's
+# API — no inline declaration needed. Models without resolvable pricing
+# debit $0 from the user's balance and log a WARNING.
 
 # Router Settings for Auto Mode
 # These settings control how the LiteLLM Router distributes requests across models
@@ -291,6 +309,17 @@ openrouter_integration:
   # and for user-facing Auto thread pinning.
   free_rpm: 20
   free_tpm: 100000
+
+  # Image generation + vision LLM emission are OPT-IN. OpenRouter's catalogue
+  # contains hundreds of image- and vision-capable models; turning these on
+  # injects them into the global Image-Generation / Vision-LLM model
+  # selectors alongside any static configs. Tier (free/premium) is derived
+  # per model the same way it is for chat (`:free` suffix or zero pricing).
+  # When a user picks a premium image/vision model the call debits the
+  # shared $5 USD-cost-based premium credit pool — so leaving these off
+  # avoids surprise quota burn on existing deployments. Default: false.
+  image_generation_enabled: false
+  vision_enabled: false
 
   litellm_params:
     max_tokens: 16384

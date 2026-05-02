@@ -191,7 +191,25 @@ export function VisionModelManager({ searchSpaceId }: VisionModelManagerProps) {
 									? "model"
 									: "models"}
 							</span>{" "}
-							available from your administrator.
+							available from your administrator.{" "}
+							{(() => {
+								const nonAuto = globalConfigs.filter(
+									(g) => !("is_auto_mode" in g && g.is_auto_mode)
+								);
+								const premium = nonAuto.filter(
+									(g) =>
+										"billing_tier" in g &&
+										(g as { billing_tier?: string }).billing_tier === "premium"
+								).length;
+								const free = nonAuto.length - premium;
+								if (premium > 0 && free > 0) {
+									return `${premium} premium, ${free} free.`;
+								}
+								if (premium > 0) {
+									return `All ${premium} premium — debits your shared credit pool.`;
+								}
+								return `All ${free} free.`;
+							})()}
 						</p>
 					</AlertDescription>
 				</Alert>

@@ -12,11 +12,11 @@ const demoPlans = [
 		price: "0",
 		yearlyPrice: "0",
 		period: "",
-		billingText: "500 pages + 3M premium tokens included",
+		billingText: "500 pages + $5 of premium credit included",
 		features: [
 			"Self Hostable",
 			"500 pages included to start",
-			"3 million premium tokens to start",
+			"$5 of premium credit to start, billed at provider cost",
 			"Includes access to OpenAI text, audio and image models",
 			"Realtime Collaborative Group Chats with teammates",
 			"Community support on Discord",
@@ -35,7 +35,7 @@ const demoPlans = [
 		features: [
 			"Everything in Free",
 			"Buy 1,000-page packs at $1 each",
-			"Buy 1M premium token packs at $1 each",
+			"Top up premium credit at $1 per $1 of credit, billed at provider cost",
 			"Use premium AI models like GPT-5.4, Claude Sonnet 4.6, Gemini 2.5 Pro & 100+ more via OpenRouter",
 			"Priority support on Discord",
 		],
@@ -129,27 +129,27 @@ const faqData: FAQSection[] = [
 		],
 	},
 	{
-		title: "Premium Tokens",
+		title: "Premium Credit",
 		items: [
 			{
-				question: 'What are "premium tokens"?',
+				question: 'What is "premium credit"?',
 				answer:
-					"Premium tokens are the billing unit for using premium AI models like GPT-5.4, Claude Sonnet 4.6, and Gemini 2.5 Pro in SurfSense. Each AI request consumes tokens based on the length of your conversation. Non-premium models (such as free-tier models available without login) do not consume premium tokens.",
+					"Premium credit is your USD balance for using premium AI models like GPT-5.4, Claude Sonnet 4.6, and Gemini 2.5 Pro in SurfSense. Each AI request debits the actual USD cost the provider charges, so cheap and expensive models bill proportionally. Non-premium models (such as the free-tier models available without login) don't touch your premium credit.",
 			},
 			{
-				question: "How many premium tokens do I get for free?",
+				question: "How much premium credit do I get for free?",
 				answer:
-					"Every registered SurfSense account starts with 3 million premium tokens at no cost. Anonymous users (no login) get 500,000 free tokens across all models. Once your free tokens are used up, you can purchase more at any time.",
+					"Every registered SurfSense account starts with $5 of premium credit at no cost. Anonymous users (no login) get 500,000 free tokens across all free models. Once your free credit runs out, you can top up at any time.",
 			},
 			{
-				question: "How does purchasing premium tokens work?",
+				question: "How does buying premium credit work?",
 				answer:
-					"Just like pages, there's no subscription. You buy 1-million-token packs at $1 each whenever you need more. Purchased tokens are added to your account immediately. You can buy up to 100 packs at a time.",
+					"Just like pages, there's no subscription. Top-ups buy $1 of credit for $1 — every cent you pay is spent at provider cost, no markup. Purchased credit is added to your account immediately. You can buy up to $100 at a time.",
 			},
 			{
-				question: "What happens if I run out of premium tokens?",
+				question: "What happens if I run out of premium credit?",
 				answer:
-					"When your premium token balance runs low (below 20%), you'll see a warning. Once you run out, premium model requests are paused until you purchase more tokens. You can always switch to non-premium models which don't consume premium tokens.",
+					"When your premium credit balance runs low (below 20%), you'll see a warning. Once you run out, premium model requests are paused until you top up. You can always switch to non-premium models, which don't touch your premium credit.",
 			},
 		],
 	},
@@ -157,9 +157,9 @@ const faqData: FAQSection[] = [
 		title: "Self-Hosting",
 		items: [
 			{
-				question: "Can I self-host SurfSense with unlimited pages and tokens?",
+				question: "Can I self-host SurfSense with unlimited pages and credit?",
 				answer:
-					"Yes! When self-hosting, you have full control over your page and token limits. The default self-hosted setup gives you effectively unlimited pages and tokens, so you can index as much data and use as many AI queries as your infrastructure supports.",
+					"Yes! When self-hosting, you have full control over your page and premium-credit limits. The default self-hosted setup gives you effectively unlimited pages and premium credit, so you can index as much data and use as many AI queries as your infrastructure supports.",
 			},
 		],
 	},
@@ -250,8 +250,8 @@ function PricingFAQ() {
 					Frequently Asked Questions
 				</h2>
 				<p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-					Everything you need to know about SurfSense pages, premium tokens, and billing. Can&apos;t
-					find what you need? Reach out at{" "}
+					Everything you need to know about SurfSense pages, premium credit, and billing.
+					Can&apos;t find what you need? Reach out at{" "}
 					<a href="mailto:rohan@surfsense.com" className="text-blue-500 underline">
 						rohan@surfsense.com
 					</a>
@@ -335,7 +335,7 @@ function PricingBasic() {
 			<Pricing
 				plans={demoPlans}
 				title="SurfSense Pricing"
-				description="Start free with 500 pages & 3M premium tokens. Pay as you go."
+				description="Start free with 500 pages & $5 of premium credit. Pay as you go, billed at provider cost."
 			/>
 			<PricingFAQ />
 		</>

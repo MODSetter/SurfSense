@@ -30,9 +30,20 @@ export interface TokenUsageSummary {
 	prompt_tokens: number;
 	completion_tokens: number;
 	total_tokens: number;
+	/**
+	 * Total provider USD cost for this assistant turn, in micro-USD
+	 * (1_000_000 = $1.00). Optional because rows persisted before the
+	 * cost-credits migration won't have it.
+	 */
+	cost_micros?: number;
 	model_breakdown?: Record<
 		string,
-		{ prompt_tokens: number; completion_tokens: number; total_tokens: number }
+		{
+			prompt_tokens: number;
+			completion_tokens: number;
+			total_tokens: number;
+			cost_micros?: number;
+		}
 	> | null;
 }
 

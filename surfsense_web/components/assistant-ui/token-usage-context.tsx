@@ -13,13 +13,30 @@ export interface TokenUsageData {
 	prompt_tokens: number;
 	completion_tokens: number;
 	total_tokens: number;
+	/**
+	 * Total provider USD cost for this assistant turn, in micro-USD
+	 * (1_000_000 = $1.00). Populated from LiteLLM's response_cost on
+	 * the backend. Optional because pre-cost-credits messages persisted
+	 * before the migration won't have it.
+	 */
+	cost_micros?: number;
 	usage?: Record<
 		string,
-		{ prompt_tokens: number; completion_tokens: number; total_tokens: number }
+		{
+			prompt_tokens: number;
+			completion_tokens: number;
+			total_tokens: number;
+			cost_micros?: number;
+		}
 	>;
 	model_breakdown?: Record<
 		string,
-		{ prompt_tokens: number; completion_tokens: number; total_tokens: number }
+		{
+			prompt_tokens: number;
+			completion_tokens: number;
+			total_tokens: number;
+			cost_micros?: number;
+		}
 	>;
 }
 

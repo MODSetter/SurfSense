@@ -2236,8 +2236,10 @@ async def stream_new_chat(
 
     accumulator = start_turn()
 
-    # Premium quota tracking state
-    _premium_reserved = 0
+    # Premium credit (USD micro-units) tracking state. Stores the
+    # amount reserved up front so we can release it on cancellation
+    # and finalize-debit the actual provider cost reported by LiteLLM.
+    _premium_reserved_micros = 0
     _premium_request_id: str | None = None
 
     _emit_stream_error = partial(
@@ -2331,23 +2333,28 @@ async def stream_new_chat(
         if _needs_premium_quota:
             import uuid as _uuid
 
-            from app.config import config as _app_config
-            from app.services.token_quota_service import TokenQuotaService
+            from app.services.token_quota_service import (
+                TokenQuotaService,
+                estimate_call_reserve_micros,
+            )
 
             _premium_request_id = _uuid.uuid4().hex[:16]
-            reserve_amount = min(
-                agent_config.quota_reserve_tokens
-                or _app_config.QUOTA_MAX_RESERVE_PER_CALL,
-                _app_config.QUOTA_MAX_RESERVE_PER_CALL,
+            _agent_litellm_params = agent_config.litellm_params or {}
+            _agent_base_model = (
+                _agent_litellm_params.get("base_model") or agent_config.model_name or ""
+            )
+            reserve_amount_micros = estimate_call_reserve_micros(
+                base_model=_agent_base_model,
+                quota_reserve_tokens=agent_config.quota_reserve_tokens,
             )
             async with shielded_async_session() as quota_session:
                 quota_result = await TokenQuotaService.premium_reserve(
                     db_session=quota_session,
                     user_id=UUID(user_id),
                     request_id=_premium_request_id,
-                    reserve_tokens=reserve_amount,
+                    reserve_micros=reserve_amount_micros,
                 )
-            _premium_reserved = reserve_amount
+            _premium_reserved_micros = reserve_amount_micros
             if not quota_result.allowed:
                 if requested_llm_config_id == 0:
                     try:
@@ -2382,7 +2389,7 @@ async def stream_new_chat(
                         yield streaming_service.format_done()
                         return
                     _premium_request_id = None
-                    _premium_reserved = 0
+                    _premium_reserved_micros = 0
                     _log_chat_stream_error(
                         flow=flow,
                         error_kind="premium_quota_exhausted",
@@ -3020,9 +3027,10 @@ async def stream_new_chat(
 
             usage_summary = accumulator.per_message_summary()
             _perf_log.info(
-                "[token_usage] interrupted new_chat: calls=%d total=%d summary=%s",
+                "[token_usage] interrupted new_chat: calls=%d total=%d cost_micros=%d summary=%s",
                 len(accumulator.calls),
                 accumulator.grand_total,
+                accumulator.total_cost_micros,
                 usage_summary,
             )
             if usage_summary:
@@ -3033,6 +3041,7 @@ async def stream_new_chat(
                         "prompt_tokens": accumulator.total_prompt_tokens,
                         "completion_tokens": accumulator.total_completion_tokens,
                         "total_tokens": accumulator.grand_total,
+                        "cost_micros": accumulator.total_cost_micros,
                         "call_details": accumulator.serialized_calls(),
                     },
                 )
@@ -3060,7 +3069,11 @@ async def stream_new_chat(
                     chat_id, generated_title
                 )
 
-        # Finalize premium quota with actual tokens.
+        # Finalize premium credit debit with the actual provider cost
+        # reported by LiteLLM, summed across every call in the turn.
+        # Mirrors the pre-cost behaviour of "premium turn → all calls
+        # count" so free sub-agent calls during a premium turn still
+        # contribute to the bill (they're $0 in practice anyway).
         if _premium_request_id and user_id:
             try:
                 from app.services.token_quota_service import TokenQuotaService
@@ -3070,11 +3083,11 @@ async def stream_new_chat(
                         db_session=quota_session,
                         user_id=UUID(user_id),
                         request_id=_premium_request_id,
-                        actual_tokens=accumulator.grand_total,
-                        reserved_tokens=_premium_reserved,
+                        actual_micros=accumulator.total_cost_micros,
+                        reserved_micros=_premium_reserved_micros,
                     )
                 _premium_request_id = None
-                _premium_reserved = 0
+                _premium_reserved_micros = 0
             except Exception:
                 logging.getLogger(__name__).warning(
                     "Failed to finalize premium quota for user %s",
@@ -3084,9 +3097,10 @@ async def stream_new_chat(
 
         usage_summary = accumulator.per_message_summary()
         _perf_log.info(
-            "[token_usage] normal new_chat: calls=%d total=%d summary=%s",
+            "[token_usage] normal new_chat: calls=%d total=%d cost_micros=%d summary=%s",
             len(accumulator.calls),
             accumulator.grand_total,
+            accumulator.total_cost_micros,
             usage_summary,
         )
         if usage_summary:
@@ -3097,6 +3111,7 @@ async def stream_new_chat(
                     "prompt_tokens": accumulator.total_prompt_tokens,
                     "completion_tokens": accumulator.total_completion_tokens,
                     "total_tokens": accumulator.grand_total,
+                    "cost_micros": accumulator.total_cost_micros,
                     "call_details": accumulator.serialized_calls(),
                 },
             )
@@ -3190,7 +3205,7 @@ async def stream_new_chat(
             end_turn(str(chat_id))
 
             # Release premium reservation if not finalized
-            if _premium_request_id and _premium_reserved > 0 and user_id:
+            if _premium_request_id and _premium_reserved_micros > 0 and user_id:
                 try:
                     from app.services.token_quota_service import TokenQuotaService
 
@@ -3198,9 +3213,9 @@ async def stream_new_chat(
                         await TokenQuotaService.premium_release(
                             db_session=quota_session,
                             user_id=UUID(user_id),
-                            reserved_tokens=_premium_reserved,
+                            reserved_micros=_premium_reserved_micros,
                         )
-                    _premium_reserved = 0
+                    _premium_reserved_micros = 0
                 except Exception:
                     logging.getLogger(__name__).warning(
                         "Failed to release premium quota for user %s", user_id
@@ -3369,8 +3384,8 @@ async def stream_resume_chat(
             "[stream_resume] LLM config loaded in %.3fs", time.perf_counter() - _t0
         )
 
-        # Premium quota reservation (same logic as stream_new_chat)
-        _resume_premium_reserved = 0
+        # Premium credit reservation (same logic as stream_new_chat).
+        _resume_premium_reserved_micros = 0
         _resume_premium_request_id: str | None = None
         _resume_needs_premium = (
             agent_config is not None and user_id and agent_config.is_premium
@@ -3378,23 +3393,30 @@ async def stream_resume_chat(
         if _resume_needs_premium:
             import uuid as _uuid
 
-            from app.config import config as _app_config
-            from app.services.token_quota_service import TokenQuotaService
+            from app.services.token_quota_service import (
+                TokenQuotaService,
+                estimate_call_reserve_micros,
+            )
 
             _resume_premium_request_id = _uuid.uuid4().hex[:16]
-            reserve_amount = min(
-                agent_config.quota_reserve_tokens
-                or _app_config.QUOTA_MAX_RESERVE_PER_CALL,
-                _app_config.QUOTA_MAX_RESERVE_PER_CALL,
+            _resume_litellm_params = agent_config.litellm_params or {}
+            _resume_base_model = (
+                _resume_litellm_params.get("base_model")
+                or agent_config.model_name
+                or ""
+            )
+            reserve_amount_micros = estimate_call_reserve_micros(
+                base_model=_resume_base_model,
+                quota_reserve_tokens=agent_config.quota_reserve_tokens,
             )
             async with shielded_async_session() as quota_session:
                 quota_result = await TokenQuotaService.premium_reserve(
                     db_session=quota_session,
                     user_id=UUID(user_id),
                     request_id=_resume_premium_request_id,
-                    reserve_tokens=reserve_amount,
+                    reserve_micros=reserve_amount_micros,
                 )
-            _resume_premium_reserved = reserve_amount
+            _resume_premium_reserved_micros = reserve_amount_micros
             if not quota_result.allowed:
                 if requested_llm_config_id == 0:
                     try:
@@ -3429,7 +3451,7 @@ async def stream_resume_chat(
                         yield streaming_service.format_done()
                         return
                     _resume_premium_request_id = None
-                    _resume_premium_reserved = 0
+                    _resume_premium_reserved_micros = 0
                     _log_chat_stream_error(
                         flow="resume",
                         error_kind="premium_quota_exhausted",
@@ -3746,9 +3768,10 @@ async def stream_resume_chat(
         if stream_result.is_interrupted:
             usage_summary = accumulator.per_message_summary()
             _perf_log.info(
-                "[token_usage] interrupted resume_chat: calls=%d total=%d summary=%s",
+                "[token_usage] interrupted resume_chat: calls=%d total=%d cost_micros=%d summary=%s",
                 len(accumulator.calls),
                 accumulator.grand_total,
+                accumulator.total_cost_micros,
                 usage_summary,
             )
             if usage_summary:
@@ -3759,6 +3782,7 @@ async def stream_resume_chat(
                         "prompt_tokens": accumulator.total_prompt_tokens,
                         "completion_tokens": accumulator.total_completion_tokens,
                         "total_tokens": accumulator.grand_total,
+                        "cost_micros": accumulator.total_cost_micros,
                         "call_details": accumulator.serialized_calls(),
                     },
                 )
@@ -3768,7 +3792,9 @@ async def stream_resume_chat(
             yield streaming_service.format_done()
             return
 
-        # Finalize premium quota for resume path
+        # Finalize premium credit debit for resume path with the actual
+        # provider cost reported by LiteLLM (sum of cost across all
+        # calls in the turn).
         if _resume_premium_request_id and user_id:
             try:
                 from app.services.token_quota_service import TokenQuotaService
@@ -3778,11 +3804,11 @@ async def stream_resume_chat(
                         db_session=quota_session,
                         user_id=UUID(user_id),
                         request_id=_resume_premium_request_id,
-                        actual_tokens=accumulator.grand_total,
-                        reserved_tokens=_resume_premium_reserved,
+                        actual_micros=accumulator.total_cost_micros,
+                        reserved_micros=_resume_premium_reserved_micros,
                     )
                 _resume_premium_request_id = None
-                _resume_premium_reserved = 0
+                _resume_premium_reserved_micros = 0
             except Exception:
                 logging.getLogger(__name__).warning(
                     "Failed to finalize premium quota for user %s (resume)",
@@ -3792,9 +3818,10 @@ async def stream_resume_chat(
 
         usage_summary = accumulator.per_message_summary()
         _perf_log.info(
-            "[token_usage] normal resume_chat: calls=%d total=%d summary=%s",
+            "[token_usage] normal resume_chat: calls=%d total=%d cost_micros=%d summary=%s",
             len(accumulator.calls),
             accumulator.grand_total,
+            accumulator.total_cost_micros,
             usage_summary,
         )
         if usage_summary:
@@ -3805,6 +3832,7 @@ async def stream_resume_chat(
                     "prompt_tokens": accumulator.total_prompt_tokens,
                     "completion_tokens": accumulator.total_completion_tokens,
                     "total_tokens": accumulator.grand_total,
+                    "cost_micros": accumulator.total_cost_micros,
                     "call_details": accumulator.serialized_calls(),
                 },
             )
@@ -3855,7 +3883,11 @@ async def stream_resume_chat(
             end_turn(str(chat_id))
 
             # Release premium reservation if not finalized
-            if _resume_premium_request_id and _resume_premium_reserved > 0 and user_id:
+            if (
+                _resume_premium_request_id
+                and _resume_premium_reserved_micros > 0
+                and user_id
+            ):
                 try:
                     from app.services.token_quota_service import TokenQuotaService
 
@@ -3863,9 +3895,9 @@ async def stream_resume_chat(
                         await TokenQuotaService.premium_release(
                             db_session=quota_session,
                             user_id=UUID(user_id),
-                            reserved_tokens=_resume_premium_reserved,
+                            reserved_micros=_resume_premium_reserved_micros,
                         )
-                    _resume_premium_reserved = 0
+                    _resume_premium_reserved_micros = 0
                 except Exception:
                     logging.getLogger(__name__).warning(
                         "Failed to release premium quota for user %s (resume)", user_id

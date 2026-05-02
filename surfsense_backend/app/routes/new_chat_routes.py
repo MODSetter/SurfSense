@@ -1366,7 +1366,11 @@ async def append_message(
         # flush assigns the PK/defaults without a round-trip SELECT
         await session.flush()
 
-        # Persist token usage if provided (for assistant messages)
+        # Persist token usage if provided (for assistant messages).
+        # ``cost_micros`` is the provider USD cost reported by LiteLLM,
+        # forwarded by the FE through the appendMessage round-trip so
+        # the historical TokenUsage row matches the credit debit applied
+        # at finalize time.
         token_usage_data = raw_body.get("token_usage")
         if token_usage_data and message_role == NewChatMessageRole.ASSISTANT:
             await record_token_usage(
@@ -1377,6 +1381,7 @@ async def append_message(
                 prompt_tokens=token_usage_data.get("prompt_tokens", 0),
                 completion_tokens=token_usage_data.get("completion_tokens", 0),
                 total_tokens=token_usage_data.get("total_tokens", 0),
+                cost_micros=token_usage_data.get("cost_micros", 0),
                 model_breakdown=token_usage_data.get("usage"),
                 call_details=token_usage_data.get("call_details"),
                 thread_id=thread_id,

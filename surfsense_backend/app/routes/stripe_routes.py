@@ -251,9 +251,16 @@ async def _fulfill_completed_token_purchase(
         metadata = _get_metadata(checkout_session)
         user_id = metadata.get("user_id")
         quantity = int(metadata.get("quantity", "0"))
-        tokens_per_unit = int(metadata.get("tokens_per_unit", "0"))
+        # Read the new metadata key first, fall back to the legacy one so
+        # in-flight checkout sessions created before the cost-credits
+        # release still fulfil correctly (the unit is numerically the
+        # same: $1 buys 1_000_000 micro-USD == 1_000_000 tokens).
+        credit_micros_per_unit = int(
+            metadata.get("credit_micros_per_unit")
+            or metadata.get("tokens_per_unit", "0")
+        )
 
-        if not user_id or quantity <= 0 or tokens_per_unit <= 0:
+        if not user_id or quantity <= 0 or credit_micros_per_unit <= 0:
             logger.error(
                 "Skipping token fulfillment for session %s: incomplete metadata %s",
                 checkout_session_id,
@@ -268,7 +275,7 @@ async def _fulfill_completed_token_purchase(
                 getattr(checkout_session, "payment_intent", None)
             ),
             quantity=quantity,
-            tokens_granted=quantity * tokens_per_unit,
+            credit_micros_granted=quantity * credit_micros_per_unit,
             amount_total=getattr(checkout_session, "amount_total", None),
             currency=getattr(checkout_session, "currency", None),
             status=PremiumTokenPurchaseStatus.PENDING,
@@ -303,9 +310,14 @@ async def _fulfill_completed_token_purchase(
     purchase.stripe_payment_intent_id = _normalize_optional_string(
         getattr(checkout_session, "payment_intent", None)
     )
-    user.premium_tokens_limit = (
-        max(user.premium_tokens_used, user.premium_tokens_limit)
-        + purchase.tokens_granted
+    # Top up the user's credit balance by the granted micro-USD amount.
+    # ``max(used, limit)`` clamps the case where the legacy code wrote a
+    # used value above the limit (e.g. underbilling rounding) so adding
+    # ``credit_micros_granted`` always lifts the limit by the full pack
+    # size rather than disappearing into past overuse.
+    user.premium_credit_micros_limit = (
+        max(user.premium_credit_micros_used, user.premium_credit_micros_limit)
+        + purchase.credit_micros_granted
     )
 
     await db_session.commit()
@@ -532,12 +544,18 @@ async def create_token_checkout_session(
     user: User = Depends(current_active_user),
     db_session: AsyncSession = Depends(get_async_session),
 ):
-    """Create a Stripe Checkout Session for buying premium token packs."""
+    """Create a Stripe Checkout Session for buying premium credit packs.
+
+    Each pack grants ``STRIPE_CREDIT_MICROS_PER_UNIT`` micro-USD of
+    credit (default 1_000_000 = $1.00). The user's balance is debited
+    at the actual provider cost reported by LiteLLM at finalize time,
+    so $1 of credit always buys $1 worth of provider usage at cost.
+    """
     _ensure_token_buying_enabled()
     stripe_client = get_stripe_client()
     price_id = _get_required_token_price_id()
     success_url, cancel_url = _get_token_checkout_urls(body.search_space_id)
-    tokens_granted = body.quantity * config.STRIPE_TOKENS_PER_UNIT
+    credit_micros_granted = body.quantity * config.STRIPE_CREDIT_MICROS_PER_UNIT
 
     try:
         checkout_session = stripe_client.v1.checkout.sessions.create(
@@ -556,8 +574,8 @@ async def create_token_checkout_session(
                 "metadata": {
                     "user_id": str(user.id),
                     "quantity": str(body.quantity),
-                    "tokens_per_unit": str(config.STRIPE_TOKENS_PER_UNIT),
-                    "purchase_type": "premium_tokens",
+                    "credit_micros_per_unit": str(config.STRIPE_CREDIT_MICROS_PER_UNIT),
+                    "purchase_type": "premium_credit",
                 },
             }
         )
@@ -583,7 +601,7 @@ async def create_token_checkout_session(
                 getattr(checkout_session, "payment_intent", None)
             ),
             quantity=body.quantity,
-            tokens_granted=tokens_granted,
+            credit_micros_granted=credit_micros_granted,
             amount_total=getattr(checkout_session, "amount_total", None),
             currency=getattr(checkout_session, "currency", None),
             status=PremiumTokenPurchaseStatus.PENDING,
@@ -598,14 +616,19 @@ async def create_token_checkout_session(
 async def get_token_status(
     user: User = Depends(current_active_user),
 ):
-    """Return token-buying availability and current premium quota for frontend."""
-    used = user.premium_tokens_used
-    limit = user.premium_tokens_limit
+    """Return token-buying availability and current premium credit quota for frontend.
+
+    Values are in micro-USD (1_000_000 = $1.00); the FE divides by 1M
+    when displaying. The route name is preserved for back-compat with
+    pinned client deployments.
+    """
+    used = user.premium_credit_micros_used
+    limit = user.premium_credit_micros_limit
     return TokenStripeStatusResponse(
         token_buying_enabled=config.STRIPE_TOKEN_BUYING_ENABLED,
-        premium_tokens_used=used,
-        premium_tokens_limit=limit,
-        premium_tokens_remaining=max(0, limit - used),
+        premium_credit_micros_used=used,
+        premium_credit_micros_limit=limit,
+        premium_credit_micros_remaining=max(0, limit - used),
     )
 
 
