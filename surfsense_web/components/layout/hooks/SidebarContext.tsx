@@ -6,7 +6,6 @@ interface SidebarContextValue {
 	isCollapsed: boolean;
 	setIsCollapsed: (collapsed: boolean) => void;
 	toggleCollapsed: () => void;
-	sidebarWidth: number;
 }
 
 const SidebarContext = createContext<SidebarContextValue | null>(null);

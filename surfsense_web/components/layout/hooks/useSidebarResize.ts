@@ -39,6 +39,7 @@ export function useSidebarResize(defaultWidth = SIDEBAR_MIN_WIDTH): UseSidebarRe
 	// Persist width to cookie
 	const persistWidth = useCallback((width: number) => {
 		try {
+			// biome-ignore lint/suspicious/noDocumentCookie: SSR-readable preference, not security-sensitive
 			document.cookie = `${SIDEBAR_WIDTH_COOKIE_NAME}=${width}; path=/; max-age=${SIDEBAR_WIDTH_COOKIE_MAX_AGE}`;
 		} catch {
 			// Ignore cookie write errors

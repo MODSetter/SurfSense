@@ -217,8 +217,8 @@ export function LayoutShell({
 
 	// Memoize context value to prevent unnecessary re-renders
 	const sidebarContextValue = useMemo(
-		() => ({ isCollapsed, setIsCollapsed, toggleCollapsed, sidebarWidth }),
-		[isCollapsed, setIsCollapsed, toggleCollapsed, sidebarWidth]
+		() => ({ isCollapsed, setIsCollapsed, toggleCollapsed }),
+		[isCollapsed, setIsCollapsed, toggleCollapsed]
 	);
 
 	const closeSlideout = useCallback(
@@ -403,10 +403,10 @@ export function LayoutShell({
 						/>
 					</div>
 
-					{/* Sidebar + slide-out panels share one container; overflow visible so panels can overlay main content */}
+					{/* Sidebar + slide-out panels share one container; overflow visible so panels can overlay main content. Negative right margin closes the flex gap so the sidebar sits flush against the main panel, separated only by a border. */}
 					<div
 						className={cn(
-							"relative hidden md:flex shrink-0 z-20",
+							"relative hidden md:flex shrink-0 z-20 -mr-2 border-r border-border/60",
 							!isCollapsed && "bg-sidebar"
 						)}
 					>
@@ -442,6 +442,16 @@ export function LayoutShell({
 								isLoadingChats={isLoadingChats}
 								sidebarWidth={sidebarWidth}
 								isResizing={isResizing}
+							/>
+						)}
+
+						{/* Invisible drag hit-area straddling the right border — provides resize affordance without any visible UI */}
+						{!isCollapsed && (
+							<button
+								type="button"
+								aria-label="Resize sidebar"
+								onMouseDown={onResizeMouseDown}
+								className="absolute top-0 right-0 h-full w-2 translate-x-1/2 cursor-col-resize z-30 bg-transparent border-0 p-0 focus:outline-none"
 							/>
 						)}
 
@@ -514,21 +524,6 @@ export function LayoutShell({
 							</AnimatePresence>
 						</SidebarSlideOutPanel>
 					</div>
-
-					{/* Resize handle — negative margins eat the flex gap so spacing stays unchanged */}
-					{!isCollapsed && (
-						<div
-							role="slider"
-							aria-label="Resize sidebar"
-							aria-valuemin={0}
-							aria-valuemax={100}
-							aria-valuenow={50}
-							tabIndex={0}
-							onMouseDown={onResizeMouseDown}
-							className="hidden md:block h-full cursor-col-resize z-30 focus:outline-none"
-							style={{ width: 8, marginLeft: -8, marginRight: -8 }}
-						/>
-					)}
 
 					{/* Main content panel */}
 					<MainContentPanel
