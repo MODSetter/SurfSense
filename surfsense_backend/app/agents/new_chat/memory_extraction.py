@@ -16,6 +16,7 @@ from sqlalchemy import select
 
 from app.agents.new_chat.tools.update_memory import _save_memory
 from app.db import SearchSpace, User, shielded_async_session
+from app.utils.content_utils import extract_text_content
 
 logger = logging.getLogger(__name__)
 
@@ -144,11 +145,7 @@ async def extract_and_save_memory(
                 [HumanMessage(content=prompt)],
                 config={"tags": ["surfsense:internal", "memory-extraction"]},
             )
-            text = (
-                response.content
-                if isinstance(response.content, str)
-                else str(response.content)
-            ).strip()
+            text = extract_text_content(response.content).strip()
 
             if text == "NO_UPDATE" or not text:
                 logger.debug("Memory extraction: no update needed (user %s)", uid)
@@ -207,11 +204,7 @@ async def extract_and_save_team_memory(
                 [HumanMessage(content=prompt)],
                 config={"tags": ["surfsense:internal", "team-memory-extraction"]},
             )
-            text = (
-                response.content
-                if isinstance(response.content, str)
-                else str(response.content)
-            ).strip()
+            text = extract_text_content(response.content).strip()
 
             if text == "NO_UPDATE" or not text:
                 logger.debug(

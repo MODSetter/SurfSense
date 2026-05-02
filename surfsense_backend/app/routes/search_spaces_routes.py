@@ -35,6 +35,7 @@ from app.schemas import (
     SearchSpaceWithStats,
 )
 from app.users import current_active_user
+from app.utils.content_utils import extract_text_content
 from app.utils.rbac import check_permission, check_search_space_access
 
 logger = logging.getLogger(__name__)
@@ -356,11 +357,7 @@ async def edit_team_memory(
             [HumanMessage(content=prompt)],
             config={"tags": ["surfsense:internal", "memory-edit"]},
         )
-        updated = (
-            response.content
-            if isinstance(response.content, str)
-            else str(response.content)
-        ).strip()
+        updated = extract_text_content(response.content).strip()
     except Exception as e:
         logger.exception("Team memory edit LLM call failed: %s", e)
         raise HTTPException(status_code=500, detail="Team memory edit failed.") from e
