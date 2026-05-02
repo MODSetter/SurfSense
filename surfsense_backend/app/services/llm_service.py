@@ -496,8 +496,14 @@ async def get_vision_llm(
     - Auto mode (ID 0): VisionLLMRouterService
     - Global (negative ID): YAML configs
     - DB (positive ID): VisionLLMConfig table
+
+    Premium global configs are wrapped in :class:`QuotaCheckedVisionLLM`
+    so each ``ainvoke`` debits the search-space owner's premium credit
+    pool. User-owned BYOK configs and free global configs are returned
+    unwrapped — they don't consume premium credit (issue M).
     """
     from app.db import VisionLLMConfig
+    from app.services.quota_checked_vision_llm import QuotaCheckedVisionLLM
     from app.services.vision_llm_router_service import (
         VISION_PROVIDER_MAP,
         VisionLLMRouterService,
@@ -519,6 +525,8 @@ async def get_vision_llm(
             logger.error(f"No vision LLM configured for search space {search_space_id}")
             return None
 
+        owner_user_id = search_space.user_id
+
         if is_vision_auto_mode(config_id):
             if not VisionLLMRouterService.is_initialized():
                 logger.error(
@@ -526,6 +534,13 @@ async def get_vision_llm(
                 )
                 return None
             try:
+                # Auto mode is currently treated as free at the wrapper
+                # level — the underlying router can dispatch to either
+                # premium or free YAML configs but routing decisions are
+                # opaque. If/when we want to bill Auto-routed vision
+                # calls we'd need to thread the resolved deployment's
+                # billing_tier back from the router. For now we keep
+                # parity with chat Auto, which also doesn't pre-classify.
                 return ChatLiteLLMRouter(
                     router=VisionLLMRouterService.get_router(),
                     streaming=True,
@@ -562,8 +577,21 @@ async def get_vision_llm(
 
             from app.agents.new_chat.llm_config import SanitizedChatLiteLLM
 
-            return SanitizedChatLiteLLM(**litellm_kwargs)
+            inner_llm = SanitizedChatLiteLLM(**litellm_kwargs)
 
+            billing_tier = str(global_cfg.get("billing_tier", "free")).lower()
+            if billing_tier == "premium":
+                return QuotaCheckedVisionLLM(
+                    inner_llm,
+                    user_id=owner_user_id,
+                    search_space_id=search_space_id,
+                    billing_tier=billing_tier,
+                    base_model=model_string,
+                    quota_reserve_tokens=global_cfg.get("quota_reserve_tokens"),
+                )
+            return inner_llm
+
+        # User-owned (positive ID) BYOK configs — always free.
         result = await session.execute(
             select(VisionLLMConfig).where(
                 VisionLLMConfig.id == config_id,

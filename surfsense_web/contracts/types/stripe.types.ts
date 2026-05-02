@@ -32,7 +32,7 @@ export const getPagePurchasesResponse = z.object({
 	purchases: z.array(pagePurchase),
 });
 
-// Premium token purchases
+// Premium credit purchases
 export const createTokenCheckoutSessionRequest = z.object({
 	quantity: z.number().int().min(1).max(100),
 	search_space_id: z.number().int().min(1),
@@ -42,11 +42,16 @@ export const createTokenCheckoutSessionResponse = z.object({
 	checkout_url: z.string(),
 });
 
+// Premium credit balance + purchase records.
+//
+// The unit is integer micro-USD (1_000_000 == $1.00). The schema names
+// kept the ``Token`` prefix for API back-compat with pinned clients;
+// the field names below are authoritative.
 export const tokenStripeStatusResponse = z.object({
 	token_buying_enabled: z.boolean(),
-	premium_tokens_used: z.number().default(0),
-	premium_tokens_limit: z.number().default(0),
-	premium_tokens_remaining: z.number().default(0),
+	premium_credit_micros_used: z.number().default(0),
+	premium_credit_micros_limit: z.number().default(0),
+	premium_credit_micros_remaining: z.number().default(0),
 });
 
 export const tokenPurchaseStatusEnum = pagePurchaseStatusEnum;
@@ -56,7 +61,7 @@ export const tokenPurchase = z.object({
 	stripe_checkout_session_id: z.string(),
 	stripe_payment_intent_id: z.string().nullable(),
 	quantity: z.number(),
-	tokens_granted: z.number(),
+	credit_micros_granted: z.number(),
 	amount_total: z.number().nullable(),
 	currency: z.string().nullable(),
 	status: tokenPurchaseStatusEnum,

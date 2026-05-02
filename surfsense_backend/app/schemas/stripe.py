@@ -70,13 +70,17 @@ class CreateTokenCheckoutSessionResponse(BaseModel):
 
 
 class TokenPurchaseRead(BaseModel):
-    """Serialized premium token purchase record."""
+    """Serialized premium credit purchase record.
+
+    ``credit_micros_granted`` is in micro-USD (1_000_000 = $1.00). The
+    schema name kept ``Token`` for API back-compat with pinned clients.
+    """
 
     id: uuid.UUID
     stripe_checkout_session_id: str
     stripe_payment_intent_id: str | None = None
     quantity: int
-    tokens_granted: int
+    credit_micros_granted: int
     amount_total: int | None = None
     currency: str | None = None
     status: str
@@ -87,15 +91,19 @@ class TokenPurchaseRead(BaseModel):
 
 
 class TokenPurchaseHistoryResponse(BaseModel):
-    """Response containing the user's premium token purchases."""
+    """Response containing the user's premium credit purchases."""
 
     purchases: list[TokenPurchaseRead]
 
 
 class TokenStripeStatusResponse(BaseModel):
-    """Response describing token-buying availability and current quota."""
+    """Response describing premium-credit-buying availability and balance.
+
+    All ``premium_credit_micros_*`` fields are in micro-USD; the FE
+    divides by 1_000_000 to display USD.
+    """
 
     token_buying_enabled: bool
-    premium_tokens_used: int = 0
-    premium_tokens_limit: int = 0
-    premium_tokens_remaining: int = 0
+    premium_credit_micros_used: int = 0
+    premium_credit_micros_limit: int = 0
+    premium_credit_micros_remaining: int = 0

@@ -134,42 +134,16 @@ PROVIDER_MAP = {
 }
 
 
-# Default ``api_base`` per LiteLLM provider prefix.  Used as a safety net when
-# a global LLM config does *not* specify ``api_base``: without this, LiteLLM
-# happily picks up provider-agnostic env vars (e.g. ``AZURE_API_BASE``,
-# ``OPENAI_API_BASE``) and routes, say, an ``openrouter/anthropic/claude-3-haiku``
-# request to an Azure endpoint, which then 404s with ``Resource not found``.
-# Only providers with a well-known, stable public base URL are listed here —
-# self-hosted / BYO-endpoint providers (ollama, custom, bedrock, vertex_ai,
-# huggingface, databricks, cloudflare, replicate) are intentionally omitted
-# so their existing config-driven behaviour is preserved.
-PROVIDER_DEFAULT_API_BASE = {
-    "openrouter": "https://openrouter.ai/api/v1",
-    "groq": "https://api.groq.com/openai/v1",
-    "mistral": "https://api.mistral.ai/v1",
-    "perplexity": "https://api.perplexity.ai",
-    "xai": "https://api.x.ai/v1",
-    "cerebras": "https://api.cerebras.ai/v1",
-    "deepinfra": "https://api.deepinfra.com/v1/openai",
-    "fireworks_ai": "https://api.fireworks.ai/inference/v1",
-    "together_ai": "https://api.together.xyz/v1",
-    "anyscale": "https://api.endpoints.anyscale.com/v1",
-    "cometapi": "https://api.cometapi.com/v1",
-    "sambanova": "https://api.sambanova.ai/v1",
-}
-
-
-# Canonical provider → base URL when a config uses a generic ``openai``-style
-# prefix but the ``provider`` field tells us which API it really is
-# (e.g. DeepSeek/Alibaba/Moonshot/Zhipu/MiniMax all use ``openai`` compat but
-# each has its own base URL).
-PROVIDER_KEY_DEFAULT_API_BASE = {
-    "DEEPSEEK": "https://api.deepseek.com/v1",
-    "ALIBABA_QWEN": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
-    "MOONSHOT": "https://api.moonshot.ai/v1",
-    "ZHIPU": "https://open.bigmodel.cn/api/paas/v4",
-    "MINIMAX": "https://api.minimax.io/v1",
-}
+# ``PROVIDER_DEFAULT_API_BASE`` and ``PROVIDER_KEY_DEFAULT_API_BASE`` were
+# hoisted to ``app.services.provider_api_base`` so vision and image-gen
+# call sites can share the exact same defense (OpenRouter / Groq / etc.
+# 404-ing against an inherited Azure endpoint). Re-exported here for
+# backward compatibility with any external import.
+from app.services.provider_api_base import (  # noqa: E402
+    PROVIDER_DEFAULT_API_BASE,
+    PROVIDER_KEY_DEFAULT_API_BASE,
+    resolve_api_base,
+)
 
 
 class LLMRouterService:
@@ -466,14 +440,14 @@ class LLMRouterService:
             # Resolve ``api_base``. Config value wins; otherwise apply a
             # provider-aware default so the deployment does not silently
             # inherit unrelated env vars (e.g. ``AZURE_API_BASE``) and route
-            # requests to the wrong endpoint.  See ``PROVIDER_DEFAULT_API_BASE``
+            # requests to the wrong endpoint.  See ``provider_api_base``
             # docstring for the motivating bug (OpenRouter models 404-ing
             # against an Azure endpoint).
-            api_base = config.get("api_base")
-            if not api_base:
-                api_base = PROVIDER_KEY_DEFAULT_API_BASE.get(provider)
-            if not api_base:
-                api_base = PROVIDER_DEFAULT_API_BASE.get(provider_prefix)
+            api_base = resolve_api_base(
+                provider=provider,
+                provider_prefix=provider_prefix,
+                config_api_base=config.get("api_base"),
+            )
             if api_base:
                 litellm_params["api_base"] = api_base
 

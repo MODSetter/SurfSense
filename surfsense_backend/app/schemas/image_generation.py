@@ -215,6 +215,12 @@ class GlobalImageGenConfigRead(BaseModel):
     Schema for reading global image generation configs from YAML.
     Global configs have negative IDs. API key is hidden.
     ID 0 is reserved for Auto mode (LiteLLM Router load balancing).
+
+    The ``billing_tier`` field allows the frontend to show a Premium/Free
+    badge and (more importantly) tells the backend whether to debit the
+    user's premium credit pool when this config is used. ``"free"`` is
+    the default for backward compatibility — admins must explicitly opt
+    a global config into ``"premium"``.
     """
 
     id: int = Field(
@@ -231,3 +237,15 @@ class GlobalImageGenConfigRead(BaseModel):
     litellm_params: dict[str, Any] | None = None
     is_global: bool = True
     is_auto_mode: bool = False
+    billing_tier: str = Field(
+        default="free",
+        description="'free' or 'premium'. Premium debits the user's premium credit pool (USD-cost-based).",
+    )
+    quota_reserve_micros: int | None = Field(
+        default=None,
+        description=(
+            "Optional override for the reservation amount (in micro-USD) used when "
+            "this image generation is premium. Falls back to "
+            "QUOTA_DEFAULT_IMAGE_RESERVE_MICROS when omitted."
+        ),
+    )

@@ -82,6 +82,9 @@ async def get_global_vision_llm_configs(
                     "litellm_params": {},
                     "is_global": True,
                     "is_auto_mode": True,
+                    # Auto mode treated as free until per-deployment billing-tier
+                    # surfacing lands; see ``get_vision_llm`` for parity.
+                    "billing_tier": "free",
                 }
             )
 
@@ -98,6 +101,10 @@ async def get_global_vision_llm_configs(
                     "api_version": cfg.get("api_version") or None,
                     "litellm_params": cfg.get("litellm_params", {}),
                     "is_global": True,
+                    "billing_tier": cfg.get("billing_tier", "free"),
+                    "quota_reserve_tokens": cfg.get("quota_reserve_tokens"),
+                    "input_cost_per_token": cfg.get("input_cost_per_token"),
+                    "output_cost_per_token": cfg.get("output_cost_per_token"),
                 }
             )
 

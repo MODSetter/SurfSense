@@ -31,6 +31,7 @@ from app.config import (
     initialize_image_gen_router,
     initialize_llm_router,
     initialize_openrouter_integration,
+    initialize_pricing_registration,
     initialize_vision_llm_router,
 )
 from app.db import User, create_db_and_tables, get_async_session
@@ -432,6 +433,7 @@ async def lifespan(app: FastAPI):
     await setup_checkpointer_tables()
     initialize_openrouter_integration()
     _start_openrouter_background_refresh()
+    initialize_pricing_registration()
     initialize_llm_router()
     initialize_image_gen_router()
     initialize_vision_llm_router()

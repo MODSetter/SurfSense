@@ -214,3 +214,159 @@ def test_generate_configs_drops_non_text_and_non_tool_models():
     assert "openai/gpt-4o" in model_names
     assert "openai/dall-e" not in model_names
     assert "openai/completion-only" not in model_names
+
+
+# ---------------------------------------------------------------------------
+# _generate_image_gen_configs / _generate_vision_llm_configs
+# ---------------------------------------------------------------------------
+
+
+def test_generate_image_gen_configs_filters_by_image_output():
+    """Only models with ``output_modalities`` containing ``image`` are emitted.
+    Tool-calling and context filters are intentionally NOT applied — image
+    generation has nothing to do with tool calls and context windows.
+    """
+    from app.services.openrouter_integration_service import (
+        _generate_image_gen_configs,
+    )
+
+    raw = [
+        # Pure image-gen model (small context, no tools — should still emit).
+        {
+            "id": "openai/gpt-image-1",
+            "architecture": {"output_modalities": ["image"]},
+            "context_length": 4_000,
+            "pricing": {"prompt": "0", "completion": "0"},
+        },
+        # Multi-modal: text+image output (should still emit).
+        {
+            "id": "google/gemini-2.5-flash-image",
+            "architecture": {"output_modalities": ["text", "image"]},
+            "context_length": 1_000_000,
+            "pricing": {"prompt": "0.000001", "completion": "0.000004"},
+        },
+        # Pure text model — must NOT emit.
+        {
+            "id": "openai/gpt-4o",
+            "architecture": {"output_modalities": ["text"]},
+            "context_length": 128_000,
+            "pricing": {"prompt": "0.000005", "completion": "0.000015"},
+        },
+    ]
+
+    cfgs = _generate_image_gen_configs(raw, dict(_SETTINGS_BASE))
+    model_names = {c["model_name"] for c in cfgs}
+    assert "openai/gpt-image-1" in model_names
+    assert "google/gemini-2.5-flash-image" in model_names
+    assert "openai/gpt-4o" not in model_names
+
+    # Each config must carry ``billing_tier`` for routing in image_generation_routes.
+    for c in cfgs:
+        assert c["billing_tier"] in {"free", "premium"}
+        assert c["provider"] == "OPENROUTER"
+        assert c[_OPENROUTER_DYNAMIC_MARKER] is True
+
+
+def test_generate_image_gen_configs_assigns_image_id_offset():
+    """Image configs use a different id_offset (-20000) so their negative
+    IDs don't collide with chat configs (-10000) or vision configs (-30000).
+    """
+    from app.services.openrouter_integration_service import (
+        _generate_image_gen_configs,
+    )
+
+    raw = [
+        {
+            "id": "openai/gpt-image-1",
+            "architecture": {"output_modalities": ["image"]},
+            "context_length": 4_000,
+            "pricing": {"prompt": "0", "completion": "0"},
+        }
+    ]
+    # Don't pass image_id_offset → use the module default (-20000).
+    cfgs = _generate_image_gen_configs(raw, dict(_SETTINGS_BASE))
+    assert all(c["id"] < -20_000 + 1 for c in cfgs)
+    assert all(c["id"] > -29_000_000 for c in cfgs)
+
+
+def test_generate_vision_llm_configs_filters_by_image_input_text_output():
+    """Vision LLMs must accept image input AND emit text — pure image-gen
+    (no text out) and text-only (no image in) models are excluded.
+    """
+    from app.services.openrouter_integration_service import (
+        _generate_vision_llm_configs,
+    )
+
+    raw = [
+        # GPT-4o: vision LLM (image in, text out) — must emit.
+        {
+            "id": "openai/gpt-4o",
+            "architecture": {
+                "input_modalities": ["text", "image"],
+                "output_modalities": ["text"],
+            },
+            "context_length": 128_000,
+            "pricing": {"prompt": "0.000005", "completion": "0.000015"},
+        },
+        # Pure image generator — image *output*, no text out. Must NOT emit.
+        {
+            "id": "openai/gpt-image-1",
+            "architecture": {
+                "input_modalities": ["text"],
+                "output_modalities": ["image"],
+            },
+            "context_length": 4_000,
+            "pricing": {"prompt": "0", "completion": "0"},
+        },
+        # Pure text model (no image in). Must NOT emit.
+        {
+            "id": "anthropic/claude-3-haiku",
+            "architecture": {
+                "input_modalities": ["text"],
+                "output_modalities": ["text"],
+            },
+            "context_length": 200_000,
+            "pricing": {"prompt": "0.000001", "completion": "0.000005"},
+        },
+    ]
+
+    cfgs = _generate_vision_llm_configs(raw, dict(_SETTINGS_BASE))
+    names = {c["model_name"] for c in cfgs}
+    assert names == {"openai/gpt-4o"}
+
+    cfg = cfgs[0]
+    assert cfg["billing_tier"] == "premium"
+    # Pricing carried inline so pricing_registration can register vision
+    # under ``openrouter/openai/gpt-4o`` even if the chat catalogue cache
+    # is cleared.
+    assert cfg["input_cost_per_token"] == pytest.approx(5e-6)
+    assert cfg["output_cost_per_token"] == pytest.approx(15e-6)
+    assert cfg[_OPENROUTER_DYNAMIC_MARKER] is True
+
+
+def test_generate_vision_llm_configs_drops_chat_only_filters():
+    """A small-context vision model that doesn't advertise tool calling is
+    still a valid vision LLM for "describe this image" prompts. The chat
+    filters (``supports_tool_calling``, ``has_sufficient_context``) must
+    NOT be applied to vision emission.
+    """
+    from app.services.openrouter_integration_service import (
+        _generate_vision_llm_configs,
+    )
+
+    raw = [
+        {
+            "id": "tiny/vision-mini",
+            "architecture": {
+                "input_modalities": ["text", "image"],
+                "output_modalities": ["text"],
+            },
+            "supported_parameters": [],  # no tools
+            "context_length": 4_000,  # well below MIN_CONTEXT_LENGTH
+            "pricing": {"prompt": "0.0000001", "completion": "0.0000005"},
+        }
+    ]
+
+    cfgs = _generate_vision_llm_configs(raw, dict(_SETTINGS_BASE))
+    assert len(cfgs) == 1
+    assert cfgs[0]["model_name"] == "tiny/vision-mini"
