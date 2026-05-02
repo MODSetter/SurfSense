@@ -28,6 +28,7 @@ from litellm.exceptions import (
     BadRequestError as LiteLLMBadRequestError,
     ContextWindowExceededError,
 )
+from pydantic import Field
 
 from app.utils.perf import get_perf_logger
 
@@ -207,6 +208,12 @@ class LLMRouterService:
         """
         Initialize the router with global LLM configurations.
 
+        Configs with ``router_pool_eligible=False`` are skipped so that
+        dynamic OpenRouter entries stay out of the shared router pool used
+        by title-gen / sub-agent ``model="auto"`` flows. Those dynamic
+        entries are still available for user-facing Auto-mode thread pinning
+        via ``auto_model_pin_service``.
+
         Args:
             global_configs: List of global LLM config dictionaries from YAML
             router_settings: Optional router settings (routing_strategy, num_retries, etc.)
@@ -220,6 +227,8 @@ class LLMRouterService:
         model_list = []
         premium_models: set[str] = set()
         for config in global_configs:
+            if config.get("router_pool_eligible") is False:
+                continue
             deployment = cls._config_to_deployment(config)
             if deployment:
                 model_list.append(deployment)
@@ -309,9 +318,44 @@ class LLMRouterService:
             instance._router = None
 
     @classmethod
+    def rebuild(
+        cls,
+        global_configs: list[dict],
+        router_settings: dict | None = None,
+    ) -> None:
+        """Reset the router and re-run ``initialize`` with fresh configs.
+
+        ``initialize`` short-circuits once it has run to avoid re-creating the
+        LiteLLM Router on every request; ``rebuild`` deliberately clears
+        ``_initialized`` so a caller (e.g. background OpenRouter refresh)
+        can force the pool to be rebuilt after catalogue changes.
+        """
+        instance = cls.get_instance()
+        instance._initialized = False
+        instance._router = None
+        instance._model_list = []
+        instance._premium_model_strings = set()
+        cls.initialize(global_configs, router_settings)
+
+    @classmethod
     def is_premium_model(cls, model_string: str) -> bool:
-        """Return True if *model_string* (as reported by LiteLLM) belongs to a
-        premium-tier deployment in the router pool."""
+        """Return True if *model_string* belongs to a premium-tier deployment
+        in the LiteLLM router pool.
+
+        Scope: only covers configs with ``router_pool_eligible`` truthy. That
+        includes static YAML premium configs AND dynamic OpenRouter *premium*
+        entries (which opt in at generation time). Dynamic OpenRouter *free*
+        entries are deliberately kept out of the router pool — OpenRouter
+        enforces free-tier limits globally per account, so per-deployment
+        router accounting can't represent them correctly — and therefore
+        return ``False`` here, which matches their ``billing_tier="free"``
+        (no premium quota).
+
+        For per-request premium checks on an arbitrary config (static or
+        dynamic, pool or non-pool), read ``agent_config.is_premium`` instead;
+        that reflects the per-config ``billing_tier`` directly and is what
+        user-facing Auto-mode thread pinning uses to bill correctly.
+        """
         instance = cls.get_instance()
         return model_string in instance._premium_model_strings
 
@@ -573,6 +617,11 @@ class ChatLiteLLMRouter(BaseChatModel):
     # Public attributes that Pydantic will manage
     model: str = "auto"
     streaming: bool = True
+    # Static kwargs that flow through to ``litellm.completion(...)`` on every
+    # invocation (e.g. ``cache_control_injection_points`` set by
+    # ``apply_litellm_prompt_caching``). Per-call ``**kwargs`` from
+    # ``invoke()`` still take precedence — see ``_generate``/``_astream``.
+    model_kwargs: dict[str, Any] = Field(default_factory=dict)
 
     # Bound tools and tool choice for tool calling
     _bound_tools: list[dict] | None = None
@@ -898,13 +947,16 @@ class ChatLiteLLMRouter(BaseChatModel):
                     logger.warning(f"Failed to convert tool {tool}: {e}")
                     continue
 
-        # Create a new instance with tools bound
+        # Create a new instance with tools bound. Carry through ``model_kwargs``
+        # so static settings (e.g. cache_control_injection_points) survive the
+        # bind_tools rebuild.
         return ChatLiteLLMRouter(
             router=self._router,
             bound_tools=formatted_tools if formatted_tools else None,
             tool_choice=tool_choice,
             model=self.model,
             streaming=self.streaming,
+            model_kwargs=dict(self.model_kwargs),
             **kwargs,
         )
 
@@ -929,8 +981,10 @@ class ChatLiteLLMRouter(BaseChatModel):
         formatted_messages = self._convert_messages(messages)
         formatted_messages = self._trim_messages_to_fit_context(formatted_messages)
 
-        # Add tools if bound
-        call_kwargs = {**kwargs}
+        # Merge static model_kwargs (e.g. cache_control_injection_points) under
+        # per-call kwargs so callers can still override per invocation. Then add
+        # bound tools.
+        call_kwargs = {**self.model_kwargs, **kwargs}
         if self._bound_tools:
             call_kwargs["tools"] = self._bound_tools
         if self._tool_choice is not None:
@@ -997,8 +1051,10 @@ class ChatLiteLLMRouter(BaseChatModel):
         formatted_messages = self._convert_messages(messages)
         formatted_messages = self._trim_messages_to_fit_context(formatted_messages)
 
-        # Add tools if bound
-        call_kwargs = {**kwargs}
+        # Merge static model_kwargs (e.g. cache_control_injection_points) under
+        # per-call kwargs so callers can still override per invocation. Then add
+        # bound tools.
+        call_kwargs = {**self.model_kwargs, **kwargs}
         if self._bound_tools:
             call_kwargs["tools"] = self._bound_tools
         if self._tool_choice is not None:
@@ -1060,8 +1116,10 @@ class ChatLiteLLMRouter(BaseChatModel):
         formatted_messages = self._convert_messages(messages)
         formatted_messages = self._trim_messages_to_fit_context(formatted_messages)
 
-        # Add tools if bound
-        call_kwargs = {**kwargs}
+        # Merge static model_kwargs (e.g. cache_control_injection_points) under
+        # per-call kwargs so callers can still override per invocation. Then add
+        # bound tools.
+        call_kwargs = {**self.model_kwargs, **kwargs}
         if self._bound_tools:
             call_kwargs["tools"] = self._bound_tools
         if self._tool_choice is not None:
@@ -1110,8 +1168,10 @@ class ChatLiteLLMRouter(BaseChatModel):
         formatted_messages = self._convert_messages(messages)
         formatted_messages = self._trim_messages_to_fit_context(formatted_messages)
 
-        # Add tools if bound
-        call_kwargs = {**kwargs}
+        # Merge static model_kwargs (e.g. cache_control_injection_points) under
+        # per-call kwargs so callers can still override per invocation. Then add
+        # bound tools.
+        call_kwargs = {**self.model_kwargs, **kwargs}
         if self._bound_tools:
             call_kwargs["tools"] = self._bound_tools
         if self._tool_choice is not None:

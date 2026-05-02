@@ -104,7 +104,13 @@ export function AnonymousChat({ model }: AnonymousChatProps) {
 					setMessages((prev) => prev.filter((m) => m.id !== assistantId));
 					return;
 				}
-				throw new Error(`Stream error: ${response.status}`);
+				const body = await response.text().catch(() => "");
+				const errorCode = response.status === 409 ? "THREAD_BUSY" : "SERVER_ERROR";
+				const message =
+					errorCode === "THREAD_BUSY"
+						? "A previous response is still stopping. Please try again in a moment."
+						: `Stream error: ${response.status}`;
+				throw Object.assign(new Error(body || message), { errorCode });
 			}
 
 			for await (const event of readSSEStream(response)) {
@@ -115,10 +121,12 @@ export function AnonymousChat({ model }: AnonymousChatProps) {
 						prev.map((m) => (m.id === assistantId ? { ...m, content: m.content + event.delta } : m))
 					);
 				} else if (event.type === "error") {
+					const message =
+						event.errorCode === "THREAD_BUSY"
+							? "A previous response is still stopping. Please try again in a moment."
+							: event.errorText;
 					setMessages((prev) =>
-						prev.map((m) =>
-							m.id === assistantId ? { ...m, content: m.content || event.errorText } : m
-						)
+						prev.map((m) => (m.id === assistantId ? { ...m, content: m.content || message } : m))
 					);
 				} else if ("type" in event && event.type === "data-token-usage") {
 					// After streaming completes, refresh quota

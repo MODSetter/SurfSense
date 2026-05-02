@@ -120,45 +120,22 @@ interface LayoutShellProps {
 
 function MainContentPanel({
 	isChatPage,
-	isSidebarCollapsed,
 	onTabSwitch,
 	onNewChat,
 	leftActions,
-	showResizeHandle = false,
-	onResizeMouseDown,
 	children,
 }: {
 	isChatPage: boolean;
-	isSidebarCollapsed: boolean;
 	onTabSwitch?: (tab: Tab) => void;
 	onNewChat?: () => void;
 	leftActions?: React.ReactNode;
-	showResizeHandle?: boolean;
-	onResizeMouseDown?: (e: React.MouseEvent) => void;
 	children: React.ReactNode;
 }) {
 	const activeTab = useAtomValue(activeTabAtom);
 	const isDocumentTab = activeTab?.type === "document";
 
 	return (
-		<div
-			className={cn(
-				"relative flex flex-1 flex-col min-w-0 -ml-2",
-				isSidebarCollapsed ? "" : "border-l border-border/60"
-			)}
-		>
-			{showResizeHandle && onResizeMouseDown && (
-				<div
-					role="slider"
-					aria-label="Resize sidebar"
-					aria-valuemin={0}
-					aria-valuemax={100}
-					aria-valuenow={50}
-					tabIndex={0}
-					onMouseDown={onResizeMouseDown}
-					className="absolute left-0 top-0 hidden md:block h-full w-2 -translate-x-1/2 cursor-col-resize z-30 focus:outline-none"
-				/>
-			)}
+		<div className="relative isolate flex flex-1 flex-col min-w-0">
 			<TabBar
 				onTabSwitch={onTabSwitch}
 				onNewChat={onNewChat}
@@ -538,14 +515,26 @@ export function LayoutShell({
 						</SidebarSlideOutPanel>
 					</div>
 
+					{/* Resize handle — negative margins eat the flex gap so spacing stays unchanged */}
+					{!isCollapsed && (
+						<div
+							role="slider"
+							aria-label="Resize sidebar"
+							aria-valuemin={0}
+							aria-valuemax={100}
+							aria-valuenow={50}
+							tabIndex={0}
+							onMouseDown={onResizeMouseDown}
+							className="hidden md:block h-full cursor-col-resize z-30 focus:outline-none"
+							style={{ width: 8, marginLeft: -8, marginRight: -8 }}
+						/>
+					)}
+
 					{/* Main content panel */}
 					<MainContentPanel
 						isChatPage={isChatPage}
-						isSidebarCollapsed={isCollapsed}
 						onTabSwitch={onTabSwitch}
 						onNewChat={onNewChat}
-						showResizeHandle={!isCollapsed}
-						onResizeMouseDown={onResizeMouseDown}
 						leftActions={
 							isCollapsed ? (
 								<SidebarCollapseButton isCollapsed={isCollapsed} onToggle={toggleCollapsed} />

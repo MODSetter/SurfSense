@@ -9,6 +9,7 @@ import {
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { StepSeparatorDataUI } from "@/components/assistant-ui/step-separator";
 import { ThinkingStepsDataUI } from "@/components/assistant-ui/thinking-steps";
 import {
 	createTokenUsageStore,
@@ -17,10 +18,14 @@ import {
 } from "@/components/assistant-ui/token-usage-context";
 import { useAnonymousMode } from "@/contexts/anonymous-mode";
 import {
+	addStepSeparator,
 	addToolCall,
+	appendReasoning,
 	appendText,
+	appendToolInputDelta,
 	buildContentForUI,
 	type ContentPartsState,
+	endReasoning,
 	FrameBatchedUpdater,
 	readSSEStream,
 	type ThinkingStepData,
@@ -32,7 +37,9 @@ import { trackAnonymousChatMessageSent } from "@/lib/posthog/events";
 import { FreeModelSelector } from "./free-model-selector";
 import { FreeThread } from "./free-thread";
 
-const TOOLS_WITH_UI = new Set(["web_search", "document_qna"]);
+// Render all tool calls via ToolFallback; backend keeps persisted
+// payloads bounded by summarising / truncating outputs.
+const TOOLS_WITH_UI = "all" as const;
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
 /** Try to parse a CAPTCHA_REQUIRED or CAPTCHA_INVALID code from a non-ok response. */
@@ -46,6 +53,48 @@ function parseCaptchaError(status: number, body: string): string | null {
 		/* not JSON */
 	}
 	return null;
+}
+
+function normalizeFreeChatErrorMessage(error: unknown): string {
+	if (!(error instanceof Error)) return "An unexpected error occurred";
+	const code = (error as Error & { errorCode?: string }).errorCode;
+	if (code === "THREAD_BUSY") {
+		return "A previous response is still stopping. Please try again in a moment.";
+	}
+	return error.message || "An unexpected error occurred";
+}
+
+function toFreeChatHttpError(status: number, body: string): Error & { errorCode?: string } {
+	let errorCode: string | undefined;
+	let message = body || `Server error: ${status}`;
+	try {
+		const parsed = JSON.parse(body) as Record<string, unknown>;
+		const detail =
+			typeof parsed.detail === "object" && parsed.detail !== null
+				? (parsed.detail as Record<string, unknown>)
+				: null;
+		errorCode =
+			(typeof detail?.error_code === "string" ? detail.error_code : undefined) ??
+			(typeof detail?.errorCode === "string" ? detail.errorCode : undefined) ??
+			(typeof parsed.error_code === "string" ? parsed.error_code : undefined) ??
+			(typeof parsed.errorCode === "string" ? parsed.errorCode : undefined);
+		message =
+			(typeof detail?.message === "string" ? detail.message : undefined) ??
+			(typeof parsed.message === "string" ? parsed.message : undefined) ??
+			(typeof parsed.detail === "string" ? parsed.detail : undefined) ??
+			message;
+	} catch {
+		// non-json response
+	}
+
+	if (!errorCode) {
+		if (status === 409) errorCode = "THREAD_BUSY";
+		else if (status === 429) errorCode = "RATE_LIMITED";
+		else if (status === 401 || status === 403) errorCode = "AUTH_EXPIRED";
+		else errorCode = "SERVER_ERROR";
+	}
+
+	return Object.assign(new Error(message), { errorCode });
 }
 
 export function FreeChatPage() {
@@ -117,7 +166,7 @@ export function FreeChatPage() {
 				const body = await response.text().catch(() => "");
 				const captchaCode = parseCaptchaError(response.status, body);
 				if (captchaCode) return "captcha";
-				throw new Error(body || `Server error: ${response.status}`);
+				throw toFreeChatHttpError(response.status, body);
 			}
 
 			const currentThinkingSteps = new Map<string, ThinkingStepData>();
@@ -125,6 +174,7 @@ export function FreeChatPage() {
 			const contentPartsState: ContentPartsState = {
 				contentParts: [],
 				currentTextPartIndex: -1,
+				currentReasoningPartIndex: -1,
 				toolCallIndices: new Map(),
 			};
 			const { toolCallIndices } = contentPartsState;
@@ -139,6 +189,10 @@ export function FreeChatPage() {
 				);
 			};
 			const scheduleFlush = () => batcher.schedule(flushMessages);
+			const forceFlush = () => {
+				scheduleFlush();
+				batcher.flush();
+			};
 
 			try {
 				for await (const parsed of readSSEStream(response)) {
@@ -148,29 +202,74 @@ export function FreeChatPage() {
 							scheduleFlush();
 							break;
 
-						case "tool-input-start":
-							addToolCall(contentPartsState, TOOLS_WITH_UI, parsed.toolCallId, parsed.toolName, {});
-							batcher.flush();
+						case "reasoning-delta":
+							appendReasoning(contentPartsState, parsed.delta);
+							scheduleFlush();
 							break;
 
-						case "tool-input-available":
+						case "reasoning-end":
+							endReasoning(contentPartsState);
+							scheduleFlush();
+							break;
+
+						case "start-step":
+							addStepSeparator(contentPartsState);
+							scheduleFlush();
+							break;
+
+						case "finish-step":
+							break;
+
+						case "tool-input-start":
+							addToolCall(
+								contentPartsState,
+								TOOLS_WITH_UI,
+								parsed.toolCallId,
+								parsed.toolName,
+								{},
+								false,
+								parsed.langchainToolCallId
+							);
+							forceFlush();
+							break;
+
+						case "tool-input-delta":
+							appendToolInputDelta(contentPartsState, parsed.toolCallId, parsed.inputTextDelta);
+							scheduleFlush();
+							break;
+
+						case "tool-input-available": {
+							const finalArgsText = JSON.stringify(parsed.input ?? {}, null, 2);
 							if (toolCallIndices.has(parsed.toolCallId)) {
-								updateToolCall(contentPartsState, parsed.toolCallId, { args: parsed.input || {} });
+								updateToolCall(contentPartsState, parsed.toolCallId, {
+									args: parsed.input || {},
+									argsText: finalArgsText,
+									langchainToolCallId: parsed.langchainToolCallId,
+								});
 							} else {
 								addToolCall(
 									contentPartsState,
 									TOOLS_WITH_UI,
 									parsed.toolCallId,
 									parsed.toolName,
-									parsed.input || {}
+									parsed.input || {},
+									false,
+									parsed.langchainToolCallId
 								);
+								updateToolCall(contentPartsState, parsed.toolCallId, {
+									argsText: finalArgsText,
+								});
 							}
-							batcher.flush();
+							forceFlush();
 							break;
+						}
 
 						case "tool-output-available":
-							updateToolCall(contentPartsState, parsed.toolCallId, { result: parsed.output });
-							batcher.flush();
+							updateToolCall(contentPartsState, parsed.toolCallId, {
+								result: parsed.output,
+								langchainToolCallId: parsed.langchainToolCallId,
+							});
+							forceFlush();
 							break;
 
 						case "data-thinking-step": {
@@ -187,7 +286,9 @@ export function FreeChatPage() {
 							break;
 
 						case "error":
-							throw new Error(parsed.errorText || "Server error");
+							throw Object.assign(new Error(parsed.errorText || "Server error"), {
+								errorCode: parsed.errorCode,
+							});
 					}
 				}
 				batcher.flush();
@@ -277,7 +378,7 @@ export function FreeChatPage() {
 			} catch (error) {
 				if (error instanceof Error && error.name === "AbortError") return;
 				console.error("[FreeChatPage] Chat error:", error);
-				const errorText = error instanceof Error ? error.message : "An unexpected error occurred";
+				const errorText = normalizeFreeChatErrorMessage(error);
 				setMessages((prev) =>
 					prev.map((m) =>
 						m.id === assistantMsgId
@@ -336,7 +437,7 @@ export function FreeChatPage() {
 			} catch (error) {
 				if (error instanceof Error && error.name === "AbortError") return;
 				console.error("[FreeChatPage] Retry error:", error);
-				const errorText = error instanceof Error ? error.message : "An unexpected error occurred";
+				const errorText = normalizeFreeChatErrorMessage(error);
 				setMessages((prev) =>
 					prev.map((m) =>
 						m.id === assistantMsgId
@@ -369,6 +470,7 @@ export function FreeChatPage() {
 		<TokenUsageProvider store={tokenUsageStore}>
 			<AssistantRuntimeProvider runtime={runtime}>
 				<ThinkingStepsDataUI />
+				<StepSeparatorDataUI />
 				<div className="flex h-full flex-col overflow-hidden">
 					<div className="flex h-14 shrink-0 items-center justify-between border-b border-border/40 px-4">
 						<FreeModelSelector />

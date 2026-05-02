@@ -46,8 +46,11 @@ mac:
   icon: assets/icon.icns
   category: public.app-category.productivity
   artifactName: "${productName}-${version}-${arch}.${ext}"
-  hardenedRuntime: false
+  hardenedRuntime: true
   gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  notarize: true
   extendInfo:
     NSAccessibilityUsageDescription: "SurfSense uses accessibility features to bring the app to the foreground and interact with the active application when you use desktop assists."
     NSScreenCaptureUsageDescription: "SurfSense uses screen capture so you can attach a selected region to chat (Screenshot Assist) or capture the full screen from the composer."

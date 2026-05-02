@@ -69,3 +69,74 @@ def test_local_backend_write_rejects_missing_parent_directory(tmp_path: Path):
     assert write.error is not None
     assert "parent directory" in write.error
     assert not (tmp_path / "tempoo").exists()
+
+
+def test_local_backend_delete_file_success(tmp_path: Path):
+    backend = LocalFolderBackend(str(tmp_path))
+    (tmp_path / "delete-me.md").write_text("bye")
+
+    res = backend.delete_file("/delete-me.md")
+    assert res.error is None
+    assert res.path == "/delete-me.md"
+    assert not (tmp_path / "delete-me.md").exists()
+
+
+def test_local_backend_delete_file_rejects_directory(tmp_path: Path):
+    backend = LocalFolderBackend(str(tmp_path))
+    (tmp_path / "subdir").mkdir()
+
+    res = backend.delete_file("/subdir")
+    assert res.error is not None
+    assert "directory" in res.error
+    assert (tmp_path / "subdir").exists()
+
+
+def test_local_backend_delete_file_missing_returns_error(tmp_path: Path):
+    backend = LocalFolderBackend(str(tmp_path))
+
+    res = backend.delete_file("/nope.md")
+    assert res.error is not None
+    assert "not found" in res.error
+
+
+def test_local_backend_rmdir_success(tmp_path: Path):
+    backend = LocalFolderBackend(str(tmp_path))
+    (tmp_path / "empty").mkdir()
+
+    res = backend.rmdir("/empty")
+    assert res.error is None
+    assert res.path == "/empty"
+    assert not (tmp_path / "empty").exists()
+
+
+def test_local_backend_rmdir_rejects_non_empty(tmp_path: Path):
+    backend = LocalFolderBackend(str(tmp_path))
+    (tmp_path / "withkid").mkdir()
+    (tmp_path / "withkid" / "child.md").write_text("x")
+
+    res = backend.rmdir("/withkid")
+    assert res.error is not None
+    assert "not empty" in res.error
+    assert (tmp_path / "withkid" / "child.md").exists()
+
+
+def test_local_backend_rmdir_rejects_file(tmp_path: Path):
+    backend = LocalFolderBackend(str(tmp_path))
+    (tmp_path / "f.md").write_text("x")
+
+    res = backend.rmdir("/f.md")
+    assert res.error is not None
+    assert "not a directory" in res.error
+
+
+def test_local_backend_rmdir_rejects_root(tmp_path: Path):
+    """``rmdir /`` MUST fail. The exact error wording comes from
+    ``_resolve_virtual`` (root resolves to outside the sandbox); what
+    matters is that the call returns an error and does NOT delete the
+    sandbox root on disk."""
+    backend = LocalFolderBackend(str(tmp_path))
+
+    res = backend.rmdir("/")
+    assert res.error is not None
+    assert "Invalid path" in res.error or "root" in res.error
+    assert tmp_path.exists()

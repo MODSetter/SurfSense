@@ -236,6 +236,93 @@ interface DisplayItem {
 	isAutoMode: boolean;
 }
 
+const TruncatedNameWithTooltip: React.FC<{
+	text: string;
+	className?: string;
+	enableTooltip: boolean;
+}> = ({ text, className, enableTooltip }) => {
+	const textRef = useRef<HTMLSpanElement>(null);
+	const openTimerRef = useRef<number | undefined>(undefined);
+	const [isTruncated, setIsTruncated] = useState(false);
+	const [open, setOpen] = useState(false);
+
+	const recalcTruncation = useCallback(() => {
+		const el = textRef.current;
+		if (!el) return;
+		setIsTruncated(el.scrollWidth > el.clientWidth + 1);
+	}, []);
+
+	useEffect(() => {
+		if (!enableTooltip) return;
+		const el = textRef.current;
+		if (!el) return;
+
+		const raf = requestAnimationFrame(recalcTruncation);
+		recalcTruncation();
+
+		const observer = new ResizeObserver(recalcTruncation);
+		observer.observe(el);
+		if (el.parentElement) observer.observe(el.parentElement);
+		window.addEventListener("resize", recalcTruncation);
+
+		return () => {
+			cancelAnimationFrame(raf);
+			observer.disconnect();
+			window.removeEventListener("resize", recalcTruncation);
+		};
+	}, [enableTooltip, recalcTruncation]);
+
+	useEffect(() => {
+		// Recompute when row text changes.
+		void text;
+		requestAnimationFrame(recalcTruncation);
+	}, [text, recalcTruncation]);
+
+	useEffect(
+		() => () => {
+			if (openTimerRef.current) window.clearTimeout(openTimerRef.current);
+		},
+		[]
+	);
+
+	if (!enableTooltip) {
+		return (
+			<span ref={textRef} className={cn("block max-w-full", className)}>
+				{text}
+			</span>
+		);
+	}
+
+	const handleOpenChange = (nextOpen: boolean) => {
+		if (openTimerRef.current) {
+			window.clearTimeout(openTimerRef.current);
+			openTimerRef.current = undefined;
+		}
+		if (!nextOpen) {
+			setOpen(false);
+			return;
+		}
+		if (!isTruncated) return;
+		openTimerRef.current = window.setTimeout(() => {
+			setOpen(true);
+			openTimerRef.current = undefined;
+		}, 220);
+	};
+
+	return (
+		<Tooltip open={open} onOpenChange={handleOpenChange}>
+			<TooltipTrigger asChild>
+				<span ref={textRef} className={cn("block max-w-full", className)}>
+					{text}
+				</span>
+			</TooltipTrigger>
+			<TooltipContent side="top" align="start">
+				{text}
+			</TooltipContent>
+		</Tooltip>
+	);
+};
+
 // ─── Component ──────────────────────────────────────────────────────
 
 interface ModelSelectorProps {
@@ -936,7 +1023,11 @@ export function ModelSelector({
 				{/* Model info */}
 				<div className="flex-1 min-w-0">
 					<div className="flex items-center gap-1.5">
-						<span className="font-medium text-sm truncate">{config.name}</span>
+						<TruncatedNameWithTooltip
+							text={config.name}
+							enableTooltip={!isMobile}
+							className="font-medium text-sm truncate"
+						/>
 						{isAutoMode && (
 							<Badge
 								variant="secondary"

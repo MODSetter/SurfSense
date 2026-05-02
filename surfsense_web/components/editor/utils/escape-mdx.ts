@@ -7,7 +7,7 @@
 // break the MDX parser. This module sanitises them before deserialization.
 // ---------------------------------------------------------------------------
 
-const FENCED_OR_INLINE_CODE = /(```[\s\S]*?```|`[^`\n]+`)/g;
+import { FENCED_OR_INLINE_CODE } from "@/lib/markdown/code-regions";
 
 // Strip HTML comments that MDX cannot parse.
 // PDF converters emit <!-- PageHeader="..." -->, <!-- PageBreak -->, etc.

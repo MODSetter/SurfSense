@@ -40,7 +40,7 @@ export function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 	}
 
 	const metadata =
-		msg.author_id || msg.token_usage
+		msg.author_id || msg.token_usage || msg.turn_id
 			? {
 					custom: {
 						...(msg.author_id && {
@@ -50,6 +50,10 @@ export function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 							},
 						}),
 						...(msg.token_usage && { usage: msg.token_usage }),
+						// Surface ``chat_turn_id`` so the assistant message
+						// footer can scope its "Revert turn" button to just
+						// this turn's actions. Null on legacy rows.
+						...(msg.turn_id && { chatTurnId: msg.turn_id }),
 					},
 				}
 			: undefined;

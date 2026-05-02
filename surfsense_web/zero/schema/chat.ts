@@ -8,6 +8,13 @@ export const newChatMessageTable = table("new_chat_messages")
 		threadId: number().from("thread_id"),
 		authorId: string().optional().from("author_id"),
 		createdAt: number().from("created_at"),
+		// Per-turn correlation id sourced from ``configurable.turn_id``
+		// at streaming time. Required by the inline Revert button's
+		// (chat_turn_id, tool_name, position) fallback in tool-fallback.tsx
+		// — without it the live-collab Zero sync would clobber the
+		// metadata we set during streaming and the button would vanish
+		// the moment Zero re-syncs after the stream finishes.
+		turnId: string().optional().from("turn_id"),
 	})
 	.primaryKey("id");
 

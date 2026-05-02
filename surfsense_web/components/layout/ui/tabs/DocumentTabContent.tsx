@@ -316,10 +316,10 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 									</Button>
 								</AlertDescription>
 							</Alert>
-							<MarkdownViewer content={doc.source_markdown} />
+							<MarkdownViewer content={doc.source_markdown} enableCitations />
 						</>
 					) : (
-						<MarkdownViewer content={doc.source_markdown} />
+						<MarkdownViewer content={doc.source_markdown} enableCitations />
 					)}
 				</div>
 			</div>

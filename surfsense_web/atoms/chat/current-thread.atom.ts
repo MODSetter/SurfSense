@@ -26,7 +26,14 @@ export const setThreadVisibilityAtom = atom(null, (get, set, newVisibility: Chat
 
 export const resetCurrentThreadAtom = atom(null, (_, set) => {
 	set(currentThreadAtom, initialState);
-	set(reportPanelAtom, { isOpen: false, reportId: null, title: null, wordCount: null });
+	set(reportPanelAtom, {
+		isOpen: false,
+		reportId: null,
+		title: null,
+		wordCount: null,
+		shareToken: null,
+		contentType: "markdown",
+	});
 });
 
 /** Target comment ID to scroll to (from URL navigation or inbox click) */

@@ -181,9 +181,13 @@ def _initial_filesystem_state() -> dict[str, Any]:
     return {
         "cwd": "/documents",
         "staged_dirs": [],
+        "staged_dir_tool_calls": {},
         "pending_moves": [],
+        "pending_deletes": [],
+        "pending_dir_deletes": [],
         "doc_id_by_path": {},
         "dirty_paths": [],
+        "dirty_path_tool_calls": {},
         "kb_priority": [],
         "kb_matched_chunk_ids": {},
         "kb_anon_doc": None,

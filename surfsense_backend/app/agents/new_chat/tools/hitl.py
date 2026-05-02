@@ -30,6 +30,35 @@ from langgraph.types import interrupt
 logger = logging.getLogger(__name__)
 
 
+# Tools that mirror the safety profile of ``write_file`` against the
+# SurfSense KB: each call creates ONE artifact in the user's own workspace
+# with no external visibility (drafts aren't sent; new files aren't shared
+# unless the user shares them later). These are auto-approved by default
+# so the agent can compose drafts and seed scratch files without a popup
+# on every call.
+#
+# Members of this set still call ``request_approval`` exactly as before;
+# the function returns immediately with ``decision_type="auto_approved"``
+# and the original params untouched. This preserves the call-site shape
+# (logging, metadata fetching, account fallbacks) so the only behavior
+# change is "no interrupt fires".
+#
+# To re-enable prompting, the future per-search-space rules table
+# (``agent_permission_rules``) takes precedence — see the ``# (future)``
+# layer-3 comment in :mod:`app.agents.new_chat.chat_deepagent`.
+DEFAULT_AUTO_APPROVED_TOOLS: frozenset[str] = frozenset(
+    {
+        "create_gmail_draft",
+        "update_gmail_draft",
+        "create_notion_page",
+        "create_confluence_page",
+        "create_google_drive_file",
+        "create_dropbox_file",
+        "create_onedrive_file",
+    }
+)
+
+
 @dataclass(frozen=True, slots=True)
 class HITLResult:
     """Outcome of a human-in-the-loop approval request."""
@@ -118,6 +147,19 @@ def request_approval(
     if trusted_tools and tool_name in trusted_tools:
         logger.info("Tool '%s' is user-trusted — skipping HITL", tool_name)
         return HITLResult(rejected=False, decision_type="trusted", params=dict(params))
+
+    if tool_name in DEFAULT_AUTO_APPROVED_TOOLS:
+        # Default policy: low-stakes creation tools (drafts + new-file
+        # creates) skip HITL because they're as recoverable as a local
+        # ``write_file`` against the SurfSense KB. The user can still
+        # delete the artifact in <30s if it's wrong.
+        logger.info(
+            "Tool '%s' is in DEFAULT_AUTO_APPROVED_TOOLS — skipping HITL",
+            tool_name,
+        )
+        return HITLResult(
+            rejected=False, decision_type="auto_approved", params=dict(params)
+        )
 
     approval = interrupt(
         {

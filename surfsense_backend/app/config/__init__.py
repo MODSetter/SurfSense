@@ -63,6 +63,27 @@ def load_global_llm_configs():
                 else:
                     seen_slugs[slug] = cfg.get("id", 0)
 
+        # Stamp Auto (Fastest) ranking metadata. YAML configs are always
+        # Tier A — operator-curated, locked first when premium-eligible.
+        # The OpenRouter refresh tick later re-stamps health for any cfg
+        # whose provider == "OPENROUTER" via _enrich_health.
+        try:
+            from app.services.quality_score import static_score_yaml
+
+            for cfg in configs:
+                cfg["auto_pin_tier"] = "A"
+                static_q = static_score_yaml(cfg)
+                cfg["quality_score_static"] = static_q
+                cfg["quality_score"] = static_q
+                cfg["quality_score_health"] = None
+                # YAML cfgs whose provider is OPENROUTER are also subject
+                # to health gating against their own /endpoints data — a
+                # hand-picked dead OR model is still dead. _enrich_health
+                # re-stamps health_gated for them on the next refresh tick.
+                cfg["health_gated"] = False
+        except Exception as e:
+            print(f"Warning: Failed to score global LLM configs: {e}")
+
         return configs
     except Exception as e:
         print(f"Warning: Failed to load global LLM configs: {e}")
@@ -194,6 +215,9 @@ def load_openrouter_integration_settings() -> dict | None:
     """
     Load OpenRouter integration settings from the YAML config.
 
+    Emits startup warnings for deprecated keys (``billing_tier``,
+    ``anonymous_enabled``) and seeds their replacements for back-compat.
+
     Returns:
         dict with settings if present and enabled, None otherwise
     """
@@ -206,9 +230,31 @@ def load_openrouter_integration_settings() -> dict | None:
         with open(global_config_file, encoding="utf-8") as f:
             data = yaml.safe_load(f)
             settings = data.get("openrouter_integration")
-            if settings and settings.get("enabled"):
-                return settings
-            return None
+            if not settings or not settings.get("enabled"):
+                return None
+
+            if "billing_tier" in settings:
+                print(
+                    "Warning: openrouter_integration.billing_tier is deprecated; "
+                    "tier is now derived per model from OpenRouter data "
+                    "(':free' suffix or zero pricing). Remove this key."
+                )
+
+            if "anonymous_enabled" in settings:
+                print(
+                    "Warning: openrouter_integration.anonymous_enabled is "
+                    "deprecated; use anonymous_enabled_paid and/or "
+                    "anonymous_enabled_free instead. Both new flags have been "
+                    "seeded from the legacy value for back-compat."
+                )
+                settings.setdefault(
+                    "anonymous_enabled_paid", settings["anonymous_enabled"]
+                )
+                settings.setdefault(
+                    "anonymous_enabled_free", settings["anonymous_enabled"]
+                )
+
+            return settings
     except Exception as e:
         print(f"Warning: Failed to load OpenRouter integration settings: {e}")
         return None
@@ -217,9 +263,14 @@ def load_openrouter_integration_settings() -> dict | None:
 def initialize_openrouter_integration():
     """
     If enabled, fetch all OpenRouter models and append them to
-    config.GLOBAL_LLM_CONFIGS as dynamic premium entries.
-    Should be called BEFORE initialize_llm_router() so the router
-    correctly excludes premium models from Auto mode.
+    config.GLOBAL_LLM_CONFIGS as dynamic entries. Each model's ``billing_tier``
+    is derived per-model from OpenRouter's API signals (``:free`` suffix or
+    zero pricing), so free OpenRouter models correctly skip premium quota.
+
+    Should be called BEFORE initialize_llm_router(). Dynamic entries are
+    tagged ``router_pool_eligible=False`` so the LiteLLM Router pool (used
+    by title-gen / sub-agent flows) remains scoped to curated YAML configs,
+    while user-facing Auto-mode thread pinning still considers them.
     """
     settings = load_openrouter_integration_settings()
     if not settings:
@@ -235,9 +286,13 @@ def initialize_openrouter_integration():
 
         if new_configs:
             config.GLOBAL_LLM_CONFIGS.extend(new_configs)
+            free_count = sum(1 for c in new_configs if c.get("billing_tier") == "free")
+            premium_count = sum(
+                1 for c in new_configs if c.get("billing_tier") == "premium"
+            )
             print(
                 f"Info: OpenRouter integration added {len(new_configs)} models "
-                f"(billing_tier={settings.get('billing_tier', 'premium')})"
+                f"(free={free_count}, premium={premium_count})"
             )
         else:
             print("Info: OpenRouter integration enabled but no models fetched")

@@ -115,6 +115,12 @@ class KBPostgresBackend(BackendProtocol):
     def _pending_moves(self) -> list[dict[str, Any]]:
         return list(self.state.get("pending_moves") or [])
 
+    def _pending_deletes(self) -> list[dict[str, Any]]:
+        return list(self.state.get("pending_deletes") or [])
+
+    def _pending_dir_deletes(self) -> list[dict[str, Any]]:
+        return list(self.state.get("pending_dir_deletes") or [])
+
     def _kb_anon_doc(self) -> dict[str, Any] | None:
         anon = self.state.get("kb_anon_doc")
         return anon if isinstance(anon, dict) else None
@@ -140,18 +146,28 @@ class KBPostgresBackend(BackendProtocol):
             return path
         return path.rstrip("/") if path != "/" else path
 
-    def _moved_view_paths(
+    def _pending_filesystem_view(
         self,
         existing: dict[str, dict[str, Any]],
-    ) -> tuple[set[str], dict[str, str]]:
-        """Apply ``pending_moves`` to a path set and return ``(removed, alias)``.
+    ) -> tuple[set[str], dict[str, str], set[str]]:
+        """Compute removed/aliased/dir-suppressed paths from staged ops.
 
-        Removed paths should disappear from listings; ``alias[source] = dest``
-        means a virtual entry should appear at ``dest`` even if no DB row is
-        yet there.
+        Returns ``(removed, alias, deleted_dirs)`` where:
+
+        * ``removed`` — paths to drop from listings (sources of pending moves
+          AND paths queued for ``rm``).
+        * ``alias`` — ``{source: dest}`` for pending moves; the dest should
+          appear as a virtual entry even when no DB row is at that path yet.
+        * ``deleted_dirs`` — folder paths queued for ``rmdir``; their entire
+          subtree (descendants) is suppressed from listings/glob/grep.
+
+        Entries in ``existing`` (the ``files`` state cache) keyed by a
+        removed path are popped so a same-turn delete-after-write doesn't
+        leave a stale virtual file in listings.
         """
         removed: set[str] = set()
         alias: dict[str, str] = {}
+        deleted_dirs: set[str] = set()
         for move in self._pending_moves():
             src = move.get("source")
             dst = move.get("dest")
@@ -160,7 +176,23 @@ class KBPostgresBackend(BackendProtocol):
             removed.add(src)
             alias[src] = dst
             existing.pop(src, None)
-        return removed, alias
+        for entry in self._pending_deletes():
+            path = entry.get("path") if isinstance(entry, dict) else None
+            if not path:
+                continue
+            removed.add(path)
+            existing.pop(path, None)
+        for entry in self._pending_dir_deletes():
+            path = entry.get("path") if isinstance(entry, dict) else None
+            if not path:
+                continue
+            deleted_dirs.add(path)
+        return removed, alias, deleted_dirs
+
+    @staticmethod
+    def _is_dir_suppressed(path: str, deleted_dirs: set[str]) -> bool:
+        """Return True iff ``path`` is at-or-under any directory in ``deleted_dirs``."""
+        return any(path == d or _is_under(path, d) for d in deleted_dirs)
 
     # ------------------------------------------------------------------ ls/read
 
@@ -189,7 +221,7 @@ class KBPostgresBackend(BackendProtocol):
                 seen.add(anon_path)
 
         files = self._state_files()
-        moved_removed, moved_alias = self._moved_view_paths(files)
+        moved_removed, moved_alias, deleted_dirs = self._pending_filesystem_view(files)
 
         if normalized.startswith(DOCUMENTS_ROOT) or normalized == "/":
             try:
@@ -203,7 +235,12 @@ class KBPostgresBackend(BackendProtocol):
 
             for info in db_infos:
                 p = info.get("path", "")
-                if not p or p in seen or p in moved_removed:
+                if (
+                    not p
+                    or p in seen
+                    or p in moved_removed
+                    or self._is_dir_suppressed(p, deleted_dirs)
+                ):
                     continue
                 infos.append(info)
                 seen.add(p)
@@ -211,6 +248,8 @@ class KBPostgresBackend(BackendProtocol):
             for src, dst in moved_alias.items():
                 if src not in seen:
                     if not _is_under(dst, normalized):
+                        continue
+                    if self._is_dir_suppressed(dst, deleted_dirs):
                         continue
                     rel = (
                         dst[len(normalized) :].lstrip("/")
@@ -247,6 +286,8 @@ class KBPostgresBackend(BackendProtocol):
                     continue
                 if not _is_under(staged, normalized):
                     continue
+                if self._is_dir_suppressed(staged, deleted_dirs):
+                    continue
                 rel = (
                     staged[len(normalized) :].lstrip("/")
                     if normalized != "/"
@@ -265,13 +306,25 @@ class KBPostgresBackend(BackendProtocol):
             for sub in sorted(subdir_paths):
                 if sub in seen:
                     continue
+                if self._is_dir_suppressed(sub, deleted_dirs):
+                    continue
                 infos.append(FileInfo(path=sub, is_dir=True, size=0, modified_at=""))
                 seen.add(sub)
 
         for path_key, fd in files.items():
             if not isinstance(path_key, str) or path_key in seen:
                 continue
+            # Tombstones (None values) are deletion markers from `rm`. The
+            # deepagents reducer normally pops them, but a stale tombstone
+            # surviving a checkpoint must NOT be reported as a child here —
+            # otherwise rmdir mistakenly sees the deleted file as content.
+            if fd is None:
+                continue
             if not _is_under(path_key, normalized) or path_key == normalized:
+                continue
+            if path_key in moved_removed or self._is_dir_suppressed(
+                path_key, deleted_dirs
+            ):
                 continue
             if normalized == "/":
                 rel = path_key.lstrip("/")
@@ -550,10 +603,12 @@ class KBPostgresBackend(BackendProtocol):
         seen: set[str] = set()
 
         files = self._state_files()
-        moved_removed, _ = self._moved_view_paths(files)
+        moved_removed, _, deleted_dirs = self._pending_filesystem_view(files)
         regex = re.compile(fnmatch.translate(pattern))
         for path_key, fd in files.items():
-            if path_key in moved_removed:
+            if path_key in moved_removed or self._is_dir_suppressed(
+                path_key, deleted_dirs
+            ):
                 continue
             if not _is_under(path_key, normalized):
                 continue
@@ -595,7 +650,11 @@ class KBPostgresBackend(BackendProtocol):
                             folder_id=row.folder_id,
                             index=index,
                         )
-                        if candidate in seen or candidate in moved_removed:
+                        if (
+                            candidate in seen
+                            or candidate in moved_removed
+                            or self._is_dir_suppressed(candidate, deleted_dirs)
+                        ):
                             continue
                         if not _is_under(candidate, normalized):
                             continue
@@ -634,10 +693,12 @@ class KBPostgresBackend(BackendProtocol):
         matches: list[GrepMatch] = []
 
         files = self._state_files()
-        moved_removed, _ = self._moved_view_paths(files)
+        moved_removed, _, deleted_dirs = self._pending_filesystem_view(files)
         glob_re = re.compile(fnmatch.translate(glob)) if glob else None
         for path_key, fd in files.items():
-            if path_key in moved_removed:
+            if path_key in moved_removed or self._is_dir_suppressed(
+                path_key, deleted_dirs
+            ):
                 continue
             if not _is_under(path_key, normalized):
                 continue
@@ -695,7 +756,11 @@ class KBPostgresBackend(BackendProtocol):
                             )
                     for doc_id, chunk_id, content in chunk_buffer:
                         candidate = doc_id_to_path.get(doc_id)
-                        if not candidate or candidate in moved_removed:
+                        if (
+                            not candidate
+                            or candidate in moved_removed
+                            or self._is_dir_suppressed(candidate, deleted_dirs)
+                        ):
                             continue
                         if not _is_under(candidate, normalized):
                             continue
@@ -769,7 +834,7 @@ class KBPostgresBackend(BackendProtocol):
             return {"entries": [], "truncated": False}
 
         files = self._state_files()
-        moved_removed, _ = self._moved_view_paths(files)
+        moved_removed, _, deleted_dirs = self._pending_filesystem_view(files)
         anon = self._kb_anon_doc()
         anon_path = str(anon.get("path") or "") if anon else ""
 
@@ -795,6 +860,8 @@ class KBPostgresBackend(BackendProtocol):
             for _fid, fpath in sorted(index.folder_paths.items(), key=lambda kv: kv[1]):
                 if not _is_under(fpath, normalized):
                     continue
+                if self._is_dir_suppressed(fpath, deleted_dirs):
+                    continue
                 depth = _depth_of(fpath)
                 if max_depth is not None and depth > max_depth:
                     continue
@@ -810,6 +877,8 @@ class KBPostgresBackend(BackendProtocol):
                     return {"entries": entries, "truncated": True}
             for staged in self._staged_dirs():
                 if not _is_under(staged, normalized):
+                    continue
+                if self._is_dir_suppressed(staged, deleted_dirs):
                     continue
                 depth = _depth_of(staged)
                 if max_depth is not None and depth > max_depth:
@@ -835,7 +904,9 @@ class KBPostgresBackend(BackendProtocol):
                     folder_id=row.folder_id,
                     index=index,
                 )
-                if candidate in moved_removed:
+                if candidate in moved_removed or self._is_dir_suppressed(
+                    candidate, deleted_dirs
+                ):
                     continue
                 if not _is_under(candidate, normalized):
                     continue
@@ -874,6 +945,10 @@ class KBPostgresBackend(BackendProtocol):
                 if not isinstance(path_key, str):
                     continue
                 if not _is_under(path_key, normalized):
+                    continue
+                if path_key in moved_removed or self._is_dir_suppressed(
+                    path_key, deleted_dirs
+                ):
                     continue
                 if any(e["path"] == path_key for e in entries):
                     continue

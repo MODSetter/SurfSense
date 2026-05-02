@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery as useZeroQuery } from "@rocicorp/zero/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Minus, Plus } from "lucide-react";
 import { useParams } from "next/navigation";
@@ -11,6 +12,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { stripeApiService } from "@/lib/apis/stripe-api.service";
 import { AppError } from "@/lib/error";
 import { cn } from "@/lib/utils";
+import { queries } from "@/zero/queries";
 
 const TOKEN_PACK_SIZE = 1_000_000;
 const PRICE_PER_PACK_USD = 1;
@@ -21,10 +23,14 @@ export function BuyTokensContent() {
 	const searchSpaceId = Number(params?.search_space_id);
 	const [quantity, setQuantity] = useState(1);
 
+	// Server config flag: stays on REST, not per-user.
 	const { data: tokenStatus } = useQuery({
 		queryKey: ["token-status"],
 		queryFn: () => stripeApiService.getTokenStatus(),
 	});
+
+	// Live per-user usage via Zero.
+	const [me] = useZeroQuery(queries.user.me({}));
 
 	const purchaseMutation = useMutation({
 		mutationFn: stripeApiService.createTokenCheckoutSession,
@@ -54,12 +60,11 @@ export function BuyTokensContent() {
 		);
 	}
 
-	const usagePercentage = tokenStatus
-		? Math.min(
-				(tokenStatus.premium_tokens_used / Math.max(tokenStatus.premium_tokens_limit, 1)) * 100,
-				100
-			)
-		: 0;
+	const used = me?.premiumTokensUsed ?? 0;
+	const limit = me?.premiumTokensLimit ?? 0;
+	// Mirrors the backend formula in stripe_routes.py:608 (max(0, limit - used)).
+	const remaining = Math.max(0, limit - used);
+	const usagePercentage = me ? Math.min((used / Math.max(limit, 1)) * 100, 100) : 0;
 
 	return (
 		<div className="w-full space-y-5">
@@ -68,18 +73,17 @@ export function BuyTokensContent() {
 				<p className="mt-1 text-sm text-muted-foreground">$1 per 1M tokens, pay as you go</p>
 			</div>
 
-			{tokenStatus && (
+			{me && (
 				<div className="rounded-lg border bg-muted/20 p-3 space-y-1.5">
 					<div className="flex justify-between items-center text-xs">
 						<span className="text-muted-foreground">
-							{tokenStatus.premium_tokens_used.toLocaleString()} /{" "}
-							{tokenStatus.premium_tokens_limit.toLocaleString()} premium tokens
+							{used.toLocaleString()} / {limit.toLocaleString()} premium tokens
 						</span>
 						<span className="font-medium">{usagePercentage.toFixed(0)}%</span>
 					</div>
 					<Progress value={usagePercentage} className="h-1.5" />
 					<p className="text-[11px] text-muted-foreground">
-						{tokenStatus.premium_tokens_remaining.toLocaleString()} tokens remaining
+						{remaining.toLocaleString()} tokens remaining
 					</p>
 				</div>
 			)}

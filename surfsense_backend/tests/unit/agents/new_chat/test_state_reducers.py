@@ -98,10 +98,54 @@ class TestInitialFilesystemState:
         state = _initial_filesystem_state()
         assert state["cwd"] == "/documents"
         assert state["staged_dirs"] == []
+        assert state["staged_dir_tool_calls"] == {}
         assert state["pending_moves"] == []
+        assert state["pending_deletes"] == []
+        assert state["pending_dir_deletes"] == []
         assert state["doc_id_by_path"] == {}
         assert state["dirty_paths"] == []
+        assert state["dirty_path_tool_calls"] == {}
         assert state["kb_priority"] == []
         assert state["kb_matched_chunk_ids"] == {}
         assert state["kb_anon_doc"] is None
         assert state["tree_version"] == 0
+
+
+class TestMultiEditSamePathCoalescing:
+    """Multi-edit-same-path turns must coalesce into ONE binding record.
+
+    The persistence body uses ``dirty_path_tool_calls[path]`` to find the
+    tool_call_id that produced the current state on disk. Because
+    ``dirty_paths`` dedupes via :func:`_add_unique_reducer` the second
+    edit doesn't append a new path entry — and because
+    ``_dict_merge_with_tombstones_reducer`` lets the right-hand side
+    overwrite, the LATEST tool_call_id wins. That's the correct behavior
+    for snapshotting: revert restores to the pre-mutation state, and
+    multiple back-to-back edits in one turn coalesce into a single
+    revisible op (the user sees ONE Revert button per turn-per-path,
+    not N).
+    """
+
+    def test_dirty_paths_dedupes_repeated_writes(self):
+        # ``_add_unique_reducer`` is applied to ``dirty_paths``. Two writes
+        # to the same path produce one entry, not two.
+        first = _add_unique_reducer([], ["/documents/a.md"])
+        second = _add_unique_reducer(first, ["/documents/a.md"])
+        assert second == ["/documents/a.md"]
+
+    def test_dirty_path_tool_calls_keeps_latest_tool_call_id(self):
+        # First write tags the path with tcid-1.
+        merged = _dict_merge_with_tombstones_reducer({}, {"/documents/a.md": "tcid-1"})
+        # Second write to the same path tags it with tcid-2 (latest wins).
+        merged = _dict_merge_with_tombstones_reducer(
+            merged, {"/documents/a.md": "tcid-2"}
+        )
+        assert merged == {"/documents/a.md": "tcid-2"}
+
+    def test_rm_tombstones_dirty_path_tool_call(self):
+        # ``rm`` writes ``{path: None}`` into dirty_path_tool_calls to
+        # prevent a stale binding from leaking past the delete.
+        merged = _dict_merge_with_tombstones_reducer(
+            {"/documents/a.md": "tcid-1"}, {"/documents/a.md": None}
+        )
+        assert merged == {}

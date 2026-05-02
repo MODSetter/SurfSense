@@ -745,6 +745,51 @@ async def search_document_titles(
         ) from e
 
 
+@router.get("/documents/by-virtual-path", response_model=DocumentTitleRead)
+async def get_document_by_virtual_path(
+    search_space_id: int,
+    virtual_path: str,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Resolve a knowledge-base document id by exact virtual path."""
+    try:
+        await check_permission(
+            session,
+            user,
+            search_space_id,
+            Permission.DOCUMENTS_READ.value,
+            "You don't have permission to read documents in this search space",
+        )
+
+        result = await session.execute(
+            select(
+                Document.id,
+                Document.title,
+                Document.document_type,
+            ).filter(
+                Document.search_space_id == search_space_id,
+                Document.document_metadata["virtual_path"].as_string() == virtual_path,
+            )
+        )
+        row = result.first()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        return DocumentTitleRead(
+            id=row.id,
+            title=row.title,
+            document_type=row.document_type,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to resolve document by virtual path: {e!s}",
+        ) from e
+
+
 @router.get("/documents/status", response_model=DocumentStatusBatchResponse)
 async def get_documents_status(
     search_space_id: int,

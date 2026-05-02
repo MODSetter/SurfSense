@@ -17,7 +17,6 @@ const demoPlans = [
 			"Self Hostable",
 			"500 pages included to start",
 			"3 million premium tokens to start",
-			"Earn up to 3,000+ bonus pages for free",
 			"Includes access to OpenAI text, audio and image models",
 			"Realtime Collaborative Group Chats with teammates",
 			"Community support on Discord",

@@ -3,17 +3,27 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSetAtom } from "jotai";
 import { ExternalLink, FileText } from "lucide-react";
+import dynamic from "next/dynamic";
 import type { FC } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { openCitationPanelAtom } from "@/atoms/citation/citation-panel.atom";
 import { useCitationMetadata } from "@/components/assistant-ui/citation-metadata-context";
-import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Citation } from "@/components/tool-ui/citation";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
+
+// Lazily load MarkdownViewer here to break the static import cycle:
+// `markdown-viewer.tsx` → `citation-renderer.tsx` → `inline-citation.tsx`
+// would otherwise pull `markdown-viewer.tsx` back in at module-init time.
+// Only `SurfsenseDocCitation` (popover body) ever renders this viewer, so
+// the lazy boundary is invisible to most call paths.
+const MarkdownViewer = dynamic(
+	() => import("@/components/markdown-viewer").then((m) => m.MarkdownViewer),
+	{ ssr: false, loading: () => <Spinner size="xs" /> }
+);
 
 interface InlineCitationProps {
 	chunkId: number;
@@ -172,7 +182,7 @@ const SurfsenseDocCitation: FC<{ chunkId: number }> = ({ chunkId }) => {
 						</p>
 					)}
 					{!isLoading && !error && citedChunk?.content && (
-						<MarkdownViewer content={citedChunk.content} maxLength={1500} />
+						<MarkdownViewer content={citedChunk.content} maxLength={1500} enableCitations />
 					)}
 					{!isLoading && !error && !citedChunk?.content && (
 						<p className="py-4 text-xs text-muted-foreground">No content available.</p>

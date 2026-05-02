@@ -19,7 +19,8 @@ import re
 import time
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
-from typing import Any
+from functools import partial
+from typing import Any, Literal
 from uuid import UUID
 
 import anyio
@@ -30,6 +31,8 @@ from sqlalchemy.orm import selectinload
 
 from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
 from app.agents.new_chat.checkpointer import get_checkpointer
+from app.agents.new_chat.errors import BusyError
+from app.agents.new_chat.feature_flags import get_flags
 from app.agents.new_chat.filesystem_selection import FilesystemMode, FilesystemSelection
 from app.agents.new_chat.llm_config import (
     AgentConfig,
@@ -41,6 +44,11 @@ from app.agents.new_chat.llm_config import (
 from app.agents.new_chat.memory_extraction import (
     extract_and_save_memory,
     extract_and_save_team_memory,
+)
+from app.agents.new_chat.middleware.busy_mutex import (
+    end_turn,
+    get_cancel_state,
+    is_cancel_requested,
 )
 from app.agents.new_chat.middleware.kb_persistence import (
     commit_staged_filesystem_state,
@@ -56,6 +64,12 @@ from app.db import (
     shielded_async_session,
 )
 from app.prompts import TITLE_GENERATION_PROMPT
+from app.services.auto_model_pin_service import (
+    is_recently_healthy,
+    mark_healthy,
+    mark_runtime_cooldown,
+    resolve_or_get_pinned_llm_config_id,
+)
 from app.services.chat_session_state_service import (
     clear_ai_responding,
     set_ai_responding,
@@ -68,6 +82,103 @@ from app.utils.user_message_multimodal import build_human_message_content
 
 _background_tasks: set[asyncio.Task] = set()
 _perf_log = get_perf_logger()
+TURN_CANCELLING_INITIAL_DELAY_MS = 200
+TURN_CANCELLING_BACKOFF_FACTOR = 2
+TURN_CANCELLING_MAX_DELAY_MS = 1500
+
+
+def _compute_turn_cancelling_retry_delay(attempt: int) -> int:
+    if attempt < 1:
+        attempt = 1
+    delay = TURN_CANCELLING_INITIAL_DELAY_MS * (
+        TURN_CANCELLING_BACKOFF_FACTOR ** (attempt - 1)
+    )
+    return min(delay, TURN_CANCELLING_MAX_DELAY_MS)
+
+
+def _extract_chunk_parts(chunk: Any) -> dict[str, Any]:
+    """Decompose an ``AIMessageChunk`` into typed text/reasoning/tool-call parts.
+
+    Returns a dict with three keys:
+
+    * ``text`` — concatenated string content (empty string if the chunk
+      contributes none).
+    * ``reasoning`` — concatenated reasoning content (empty string if the
+      chunk contributes none).
+    * ``tool_call_chunks`` — flat list of LangChain ``tool_call_chunk``
+      dicts surfaced from either the typed-block list or the
+      ``tool_call_chunks`` attribute.
+
+    Background
+    ----------
+    ``AIMessageChunk.content`` can be:
+
+    * a ``str`` (most providers), or
+    * a ``list`` of typed blocks ``{type: 'text' | 'reasoning' |
+      'tool_call_chunk' | 'tool_use' | ..., text/content/...}`` for
+      Anthropic, Bedrock, and several reasoning configurations.
+
+    Reasoning may also live under
+    ``chunk.additional_kwargs['reasoning_content']`` (some providers
+    surface it that way instead of as a typed block). Tool-call chunks
+    may live under ``chunk.tool_call_chunks`` even when ``content`` is a
+    plain string.
+
+    Earlier versions only handled the ``isinstance(content, str)`` branch
+    and silently dropped reasoning blocks + tool-call chunks emitted by
+    LangChain ``AIMessageChunk``s.
+    """
+    out: dict[str, Any] = {"text": "", "reasoning": "", "tool_call_chunks": []}
+    if chunk is None:
+        return out
+
+    content = getattr(chunk, "content", None)
+    if isinstance(content, str):
+        if content:
+            out["text"] = content
+    elif isinstance(content, list):
+        text_parts: list[str] = []
+        reasoning_parts: list[str] = []
+        for block in content:
+            if not isinstance(block, dict):
+                continue
+            block_type = block.get("type")
+            if block_type == "text":
+                value = block.get("text") or block.get("content") or ""
+                if isinstance(value, str) and value:
+                    text_parts.append(value)
+            elif block_type == "reasoning":
+                value = (
+                    block.get("reasoning")
+                    or block.get("text")
+                    or block.get("content")
+                    or ""
+                )
+                if isinstance(value, str) and value:
+                    reasoning_parts.append(value)
+            elif block_type in ("tool_call_chunk", "tool_use"):
+                out["tool_call_chunks"].append(block)
+        if text_parts:
+            out["text"] = "".join(text_parts)
+        if reasoning_parts:
+            out["reasoning"] = "".join(reasoning_parts)
+
+    additional = getattr(chunk, "additional_kwargs", None) or {}
+    if isinstance(additional, dict):
+        extra_reasoning = additional.get("reasoning_content")
+        if isinstance(extra_reasoning, str) and extra_reasoning:
+            existing = out["reasoning"]
+            out["reasoning"] = (
+                (existing + extra_reasoning) if existing else extra_reasoning
+            )
+
+    extra_tool_chunks = getattr(chunk, "tool_call_chunks", None)
+    if isinstance(extra_tool_chunks, list):
+        for tcc in extra_tool_chunks:
+            if isinstance(tcc, dict):
+                out["tool_call_chunks"].append(tcc)
+
+    return out
 
 
 def format_mentioned_surfsense_docs_as_context(
@@ -193,20 +304,17 @@ def _tool_output_has_error(tool_output: Any) -> bool:
     return False
 
 
-def _extract_resolved_file_path(*, tool_name: str, tool_output: Any) -> str | None:
+def _extract_resolved_file_path(
+    *, tool_name: str, tool_output: Any, tool_input: Any | None = None
+) -> str | None:
     if isinstance(tool_output, dict):
         path_value = tool_output.get("path")
         if isinstance(path_value, str) and path_value.strip():
             return path_value.strip()
-    text = _tool_output_to_text(tool_output)
-    if tool_name == "write_file":
-        match = re.search(r"Updated file\s+(.+)$", text.strip())
-        if match:
-            return match.group(1).strip()
-    if tool_name == "edit_file":
-        match = re.search(r"in '([^']+)'", text)
-        if match:
-            return match.group(1).strip()
+    if tool_name in ("write_file", "edit_file") and isinstance(tool_input, dict):
+        file_path = tool_input.get("file_path")
+        if isinstance(file_path, str) and file_path.strip():
+            return file_path.strip()
     return None
 
 
@@ -252,6 +360,286 @@ def _log_file_contract(stage: str, result: StreamResult, **extra: Any) -> None:
     )
 
 
+def _log_chat_stream_error(
+    *,
+    flow: Literal["new", "resume", "regenerate"],
+    error_kind: str,
+    error_code: str | None,
+    severity: Literal["info", "warn", "error"],
+    is_expected: bool,
+    request_id: str | None,
+    thread_id: int | None,
+    search_space_id: int | None,
+    user_id: str | None,
+    message: str,
+    extra: dict[str, Any] | None = None,
+) -> None:
+    payload: dict[str, Any] = {
+        "event": "chat_stream_error",
+        "flow": flow,
+        "error_kind": error_kind,
+        "error_code": error_code,
+        "severity": severity,
+        "is_expected": is_expected,
+        "request_id": request_id or "unknown",
+        "thread_id": thread_id,
+        "search_space_id": search_space_id,
+        "user_id": user_id,
+        "message": message,
+    }
+    if extra:
+        payload.update(extra)
+
+    logger = logging.getLogger(__name__)
+    rendered = json.dumps(payload, ensure_ascii=False)
+    if severity == "error":
+        logger.error("[chat_stream_error] %s", rendered)
+    elif severity == "warn":
+        logger.warning("[chat_stream_error] %s", rendered)
+    else:
+        logger.info("[chat_stream_error] %s", rendered)
+
+
+def _parse_error_payload(message: str) -> dict[str, Any] | None:
+    candidates = [message]
+    first_brace_idx = message.find("{")
+    if first_brace_idx >= 0:
+        candidates.append(message[first_brace_idx:])
+
+    for candidate in candidates:
+        try:
+            parsed = json.loads(candidate)
+            if isinstance(parsed, dict):
+                return parsed
+        except Exception:
+            continue
+    return None
+
+
+def _extract_provider_error_code(parsed: dict[str, Any] | None) -> int | None:
+    if not isinstance(parsed, dict):
+        return None
+    candidates: list[Any] = [parsed.get("code")]
+    nested = parsed.get("error")
+    if isinstance(nested, dict):
+        candidates.append(nested.get("code"))
+    for value in candidates:
+        try:
+            if value is None:
+                continue
+            return int(value)
+        except Exception:
+            continue
+    return None
+
+
+def _is_provider_rate_limited(exc: BaseException) -> bool:
+    """Best-effort detection for provider-side runtime throttling.
+
+    Covers LiteLLM/OpenRouter shapes like:
+    - class name contains ``RateLimit``
+    - nested payload ``{"error": {"code": 429}}``
+    - nested payload ``{"error": {"type": "rate_limit_error"}}``
+    """
+    raw = str(exc)
+    lowered = raw.lower()
+    if "ratelimit" in type(exc).__name__.lower():
+        return True
+    parsed = _parse_error_payload(raw)
+    provider_code = _extract_provider_error_code(parsed)
+    if provider_code == 429:
+        return True
+
+    provider_error_type = ""
+    if parsed:
+        top_type = parsed.get("type")
+        if isinstance(top_type, str):
+            provider_error_type = top_type.lower()
+        nested = parsed.get("error")
+        if isinstance(nested, dict):
+            nested_type = nested.get("type")
+            if isinstance(nested_type, str):
+                provider_error_type = nested_type.lower()
+    if provider_error_type == "rate_limit_error":
+        return True
+
+    return (
+        "rate limited" in lowered
+        or "rate-limited" in lowered
+        or "temporarily rate-limited upstream" in lowered
+    )
+
+
+_PREFLIGHT_TIMEOUT_SEC: float = 2.5
+_PREFLIGHT_MAX_TOKENS: int = 1
+
+
+async def _preflight_llm(llm: Any) -> None:
+    """Issue a minimal completion to confirm the pinned model isn't 429'ing.
+
+    Used before agent build / planner / classifier / title-gen so a known-bad
+    free OpenRouter deployment is detected and repinned before it cascades
+    into multiple wasted internal calls. The probe is intentionally cheap:
+    one token, low timeout, tagged ``surfsense:internal`` so token tracking
+    and SSE pipelines treat it as overhead rather than user output.
+
+    Raises the original exception when the provider responds with a
+    rate-limit-shaped error so the caller can drive the cooldown/repin
+    branch via :func:`_is_provider_rate_limited`. Other transient failures
+    are swallowed — the caller continues to the normal stream path and the
+    in-stream recovery loop remains the safety net.
+    """
+    from litellm import acompletion
+
+    model = getattr(llm, "model", None)
+    if not model or model == "auto":
+        # Auto-mode router doesn't have a single deployment to ping; the
+        # router itself handles per-deployment rate-limit accounting.
+        return
+
+    try:
+        await acompletion(
+            model=model,
+            messages=[{"role": "user", "content": "ping"}],
+            api_key=getattr(llm, "api_key", None),
+            api_base=getattr(llm, "api_base", None),
+            max_tokens=_PREFLIGHT_MAX_TOKENS,
+            timeout=_PREFLIGHT_TIMEOUT_SEC,
+            stream=False,
+            metadata={"tags": ["surfsense:internal", "auto-pin-preflight"]},
+        )
+    except Exception as exc:
+        if _is_provider_rate_limited(exc):
+            raise
+        logging.getLogger(__name__).debug(
+            "auto_pin_preflight non_rate_limit_error model=%s err=%s",
+            model,
+            exc,
+        )
+
+
+def _classify_stream_exception(
+    exc: Exception,
+    *,
+    flow_label: str,
+) -> tuple[
+    str, str, Literal["info", "warn", "error"], bool, str, dict[str, Any] | None
+]:
+    raw = str(exc)
+    if isinstance(exc, BusyError) or "Thread is busy with another request" in raw:
+        busy_thread_id = str(exc.request_id) if isinstance(exc, BusyError) else None
+        if busy_thread_id and is_cancel_requested(busy_thread_id):
+            cancel_state = get_cancel_state(busy_thread_id)
+            attempt = cancel_state[0] if cancel_state else 1
+            retry_after_ms = _compute_turn_cancelling_retry_delay(attempt)
+            retry_after_at = int(time.time() * 1000) + retry_after_ms
+            return (
+                "thread_busy",
+                "TURN_CANCELLING",
+                "info",
+                True,
+                "A previous response is still stopping. Please try again in a moment.",
+                {
+                    "retry_after_ms": retry_after_ms,
+                    "retry_after_at": retry_after_at,
+                },
+            )
+        return (
+            "thread_busy",
+            "THREAD_BUSY",
+            "warn",
+            True,
+            "Another response is still finishing for this thread. Please try again in a moment.",
+            None,
+        )
+
+    if _is_provider_rate_limited(exc):
+        return (
+            "rate_limited",
+            "RATE_LIMITED",
+            "warn",
+            True,
+            "This model is temporarily rate-limited. Please try again in a few seconds or switch models.",
+            None,
+        )
+
+    return (
+        "server_error",
+        "SERVER_ERROR",
+        "error",
+        False,
+        f"Error during {flow_label}: {raw}",
+        None,
+    )
+
+
+def _emit_stream_terminal_error(
+    *,
+    streaming_service: VercelStreamingService,
+    flow: str,
+    request_id: str | None,
+    thread_id: int,
+    search_space_id: int,
+    user_id: str | None,
+    message: str,
+    error_kind: str = "server_error",
+    error_code: str = "SERVER_ERROR",
+    severity: Literal["info", "warn", "error"] = "error",
+    is_expected: bool = False,
+    extra: dict[str, Any] | None = None,
+) -> str:
+    _log_chat_stream_error(
+        flow=flow,
+        error_kind=error_kind,
+        error_code=error_code,
+        severity=severity,
+        is_expected=is_expected,
+        request_id=request_id,
+        thread_id=thread_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        message=message,
+        extra=extra,
+    )
+    return streaming_service.format_error(message, error_code=error_code, extra=extra)
+
+
+def _legacy_match_lc_id(
+    pending_tool_call_chunks: list[dict[str, Any]],
+    tool_name: str,
+    run_id: str,
+    lc_tool_call_id_by_run: dict[str, str],
+) -> str | None:
+    """Best-effort match a buffered ``tool_call_chunk`` to a tool name.
+
+    Pure extract of the legacy in-line match used at ``on_tool_start`` for
+    parity_v2-OFF and unmatched (chunk path didn't register an index for
+    this call) tools. Pops the next id-bearing chunk whose ``name``
+    matches ``tool_name`` (or any id-bearing chunk as a fallback) and
+    returns its id. Mutates ``pending_tool_call_chunks`` and
+    ``lc_tool_call_id_by_run`` in place.
+    """
+    matched_idx: int | None = None
+    for idx, tcc in enumerate(pending_tool_call_chunks):
+        if tcc.get("name") == tool_name and tcc.get("id"):
+            matched_idx = idx
+            break
+    if matched_idx is None:
+        for idx, tcc in enumerate(pending_tool_call_chunks):
+            if tcc.get("id"):
+                matched_idx = idx
+                break
+    if matched_idx is None:
+        return None
+    matched = pending_tool_call_chunks.pop(matched_idx)
+    candidate = matched.get("id")
+    if isinstance(candidate, str) and candidate:
+        if run_id:
+            lc_tool_call_id_by_run[run_id] = candidate
+        return candidate
+    return None
+
+
 async def _stream_agent_events(
     agent: Any,
     config: dict[str, Any],
@@ -266,6 +654,7 @@ async def _stream_agent_events(
     fallback_commit_search_space_id: int | None = None,
     fallback_commit_created_by_id: str | None = None,
     fallback_commit_filesystem_mode: FilesystemMode = FilesystemMode.CLOUD,
+    fallback_commit_thread_id: int | None = None,
 ) -> AsyncGenerator[str, None]:
     """Shared async generator that streams and formats astream_events from the agent.
 
@@ -298,6 +687,60 @@ async def _stream_agent_events(
     active_tool_depth: int = 0  # Track nesting: >0 means we're inside a tool
     called_update_memory: bool = False
 
+    # Reasoning-block streaming. We open a reasoning block on the
+    # first reasoning delta of a step, append deltas as they arrive, and
+    # close it when text starts (the model has switched to writing its
+    # answer) or ``on_chat_model_end`` fires for the model node. Reuses
+    # the same Vercel format-helpers as text-start/delta/end.
+    current_reasoning_id: str | None = None
+
+    # Streaming-parity v2 feature flag. When OFF we keep the legacy
+    # shape: str-only content, no reasoning blocks, no
+    # ``langchainToolCallId`` propagation. The schema migrations
+    # (135 / 136) ship unconditionally because they're forward-compatible.
+    parity_v2 = bool(get_flags().enable_stream_parity_v2)
+
+    # Best-effort attach of LangChain ``tool_call_id`` to the synthetic
+    # ``call_<run_id>`` card id we already emit. We accumulate
+    # ``tool_call_chunks`` from ``on_chat_model_stream``, key them by
+    # name, and pop the next unconsumed entry at ``on_tool_start``. The
+    # authoritative id is later filled in at ``on_tool_end`` from
+    # ``ToolMessage.tool_call_id``. Under parity_v2 we ALSO short-circuit
+    # this list for chunks that already registered into ``index_to_meta``
+    # below — so this list is reserved for the parity_v2-OFF / unmatched
+    # fallback path only and never re-pops a chunk we already streamed.
+    pending_tool_call_chunks: list[dict[str, Any]] = []
+    lc_tool_call_id_by_run: dict[str, str] = {}
+    file_path_by_run: dict[str, str] = {}
+
+    # parity_v2 only: live tool-call argument streaming. ``index_to_meta``
+    # is keyed by the chunk's ``index`` field — LangChain
+    # ``ToolCallChunk``s for the same call share an index but only the
+    # first chunk carries id+name (subsequent ones are id=None,
+    # name=None, args="<delta>"). We register an index when both id and
+    # name are observed on a chunk (per ToolCallChunk semantics they
+    # arrive together on the first chunk), then route every later chunk
+    # at that index to the same ``ui_id`` as a ``tool-input-delta``.
+    # ``ui_tool_call_id_by_run`` maps LangGraph ``run_id`` to the
+    # ``ui_id`` used for that call's ``tool-input-start`` so the matching
+    # ``tool-output-available`` (emitted from ``on_tool_end``) lands on
+    # the same card.
+    index_to_meta: dict[int, dict[str, str]] = {}
+    ui_tool_call_id_by_run: dict[str, str] = {}
+
+    # Per-tool-end mutable cache for the LangChain tool_call_id resolved
+    # at ``on_tool_end``. ``_emit_tool_output`` reads this so every
+    # ``format_tool_output_available`` call automatically carries the
+    # authoritative id without duplicating the kwarg at every call site.
+    current_lc_tool_call_id: dict[str, str | None] = {"value": None}
+
+    def _emit_tool_output(call_id: str, output: Any) -> str:
+        return streaming_service.format_tool_output_available(
+            call_id,
+            output,
+            langchain_tool_call_id=current_lc_tool_call_id["value"],
+        )
+
     def next_thinking_step_id() -> str:
         nonlocal thinking_step_counter
         thinking_step_counter += 1
@@ -326,22 +769,119 @@ async def _stream_agent_events(
             if "surfsense:internal" in event.get("tags", []):
                 continue  # Suppress middleware-internal LLM tokens (e.g. KB search classification)
             chunk = event.get("data", {}).get("chunk")
-            if chunk and hasattr(chunk, "content"):
-                content = chunk.content
-                if content and isinstance(content, str):
-                    if current_text_id is None:
-                        completion_event = complete_current_step()
-                        if completion_event:
-                            yield completion_event
-                        if just_finished_tool:
-                            last_active_step_id = None
-                            last_active_step_title = ""
-                            last_active_step_items = []
-                            just_finished_tool = False
-                        current_text_id = streaming_service.generate_text_id()
-                        yield streaming_service.format_text_start(current_text_id)
-                    yield streaming_service.format_text_delta(current_text_id, content)
-                    accumulated_text += content
+            if not chunk:
+                continue
+            parts = _extract_chunk_parts(chunk)
+
+            reasoning_delta = parts["reasoning"]
+            text_delta = parts["text"]
+
+            # Reasoning streaming. Open a reasoning block on first
+            # delta; append every subsequent delta until text begins.
+            # When text starts we close the reasoning block first so the
+            # frontend sees the natural hand-off. Gated behind the
+            # parity-v2 flag so legacy deployments keep today's shape.
+            if parity_v2 and reasoning_delta:
+                if current_text_id is not None:
+                    yield streaming_service.format_text_end(current_text_id)
+                    current_text_id = None
+                if current_reasoning_id is None:
+                    completion_event = complete_current_step()
+                    if completion_event:
+                        yield completion_event
+                    if just_finished_tool:
+                        last_active_step_id = None
+                        last_active_step_title = ""
+                        last_active_step_items = []
+                        just_finished_tool = False
+                    current_reasoning_id = streaming_service.generate_reasoning_id()
+                    yield streaming_service.format_reasoning_start(current_reasoning_id)
+                yield streaming_service.format_reasoning_delta(
+                    current_reasoning_id, reasoning_delta
+                )
+
+            if text_delta:
+                if current_reasoning_id is not None:
+                    yield streaming_service.format_reasoning_end(current_reasoning_id)
+                    current_reasoning_id = None
+                if current_text_id is None:
+                    completion_event = complete_current_step()
+                    if completion_event:
+                        yield completion_event
+                    if just_finished_tool:
+                        last_active_step_id = None
+                        last_active_step_title = ""
+                        last_active_step_items = []
+                        just_finished_tool = False
+                    current_text_id = streaming_service.generate_text_id()
+                    yield streaming_service.format_text_start(current_text_id)
+                yield streaming_service.format_text_delta(current_text_id, text_delta)
+                accumulated_text += text_delta
+
+            # Live tool-call argument streaming. Runs AFTER text/reasoning
+            # processing so chunks containing both stay in their natural
+            # wire order (text → text-end → tool-input-start). Active
+            # text/reasoning are closed inside the registration branch
+            # before ``tool-input-start`` so the frontend sees a clean
+            # part boundary even when providers interleave.
+            if parity_v2 and parts["tool_call_chunks"]:
+                for tcc in parts["tool_call_chunks"]:
+                    idx = tcc.get("index")
+
+                    # Register this index when we first see id+name
+                    # TOGETHER. Per LangChain ToolCallChunk semantics the
+                    # first chunk for a tool call carries both fields
+                    # together; later chunks have id=None, name=None and
+                    # only ``args``. Requiring BOTH keeps wire
+                    # ``tool-input-start`` always carrying a real
+                    # toolName (assistant-ui's typed tool-part dispatch
+                    # keys off it).
+                    if idx is not None and idx not in index_to_meta:
+                        lc_id = tcc.get("id")
+                        name = tcc.get("name")
+                        if lc_id and name:
+                            ui_id = lc_id
+
+                            # Close active text/reasoning so wire
+                            # ordering stays clean even on providers
+                            # that interleave text and tool-call chunks
+                            # within the same stream window.
+                            if current_text_id is not None:
+                                yield streaming_service.format_text_end(current_text_id)
+                                current_text_id = None
+                            if current_reasoning_id is not None:
+                                yield streaming_service.format_reasoning_end(
+                                    current_reasoning_id
+                                )
+                                current_reasoning_id = None
+
+                            index_to_meta[idx] = {
+                                "ui_id": ui_id,
+                                "lc_id": lc_id,
+                                "name": name,
+                            }
+                            yield streaming_service.format_tool_input_start(
+                                ui_id,
+                                name,
+                                langchain_tool_call_id=lc_id,
+                            )
+
+                    # Emit args delta for any chunk at a registered
+                    # index (including idless continuations). Once an
+                    # index is owned by ``index_to_meta`` we DO NOT
+                    # append to ``pending_tool_call_chunks`` — that list
+                    # is reserved for the parity_v2-OFF / unmatched
+                    # fallback path so it never re-pops chunks already
+                    # consumed here (skip-append).
+                    meta = index_to_meta.get(idx) if idx is not None else None
+                    if meta:
+                        args_chunk = tcc.get("args") or ""
+                        if args_chunk:
+                            yield streaming_service.format_tool_input_delta(
+                                meta["ui_id"], args_chunk
+                            )
+                    else:
+                        pending_tool_call_chunks.append(tcc)
 
         elif event_type == "on_tool_start":
             active_tool_depth += 1
@@ -350,6 +890,10 @@ async def _stream_agent_events(
             tool_input = event.get("data", {}).get("input", {})
             if tool_name in ("write_file", "edit_file"):
                 result.write_attempted = True
+                if isinstance(tool_input, dict):
+                    file_path = tool_input.get("file_path")
+                    if isinstance(file_path, str) and file_path.strip() and run_id:
+                        file_path_by_run[run_id] = file_path.strip()
 
             if current_text_id is not None:
                 yield streaming_service.format_text_end(current_text_id)
@@ -461,6 +1005,95 @@ async def _stream_agent_events(
                     status="in_progress",
                     items=last_active_step_items,
                 )
+            elif tool_name == "rm":
+                rm_path = (
+                    tool_input.get("path", "")
+                    if isinstance(tool_input, dict)
+                    else str(tool_input)
+                )
+                display_path = rm_path if len(rm_path) <= 80 else "…" + rm_path[-77:]
+                last_active_step_title = "Deleting file"
+                last_active_step_items = [display_path] if display_path else []
+                yield streaming_service.format_thinking_step(
+                    step_id=tool_step_id,
+                    title="Deleting file",
+                    status="in_progress",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "rmdir":
+                rmdir_path = (
+                    tool_input.get("path", "")
+                    if isinstance(tool_input, dict)
+                    else str(tool_input)
+                )
+                display_path = (
+                    rmdir_path if len(rmdir_path) <= 80 else "…" + rmdir_path[-77:]
+                )
+                last_active_step_title = "Deleting folder"
+                last_active_step_items = [display_path] if display_path else []
+                yield streaming_service.format_thinking_step(
+                    step_id=tool_step_id,
+                    title="Deleting folder",
+                    status="in_progress",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "mkdir":
+                mkdir_path = (
+                    tool_input.get("path", "")
+                    if isinstance(tool_input, dict)
+                    else str(tool_input)
+                )
+                display_path = (
+                    mkdir_path if len(mkdir_path) <= 80 else "…" + mkdir_path[-77:]
+                )
+                last_active_step_title = "Creating folder"
+                last_active_step_items = [display_path] if display_path else []
+                yield streaming_service.format_thinking_step(
+                    step_id=tool_step_id,
+                    title="Creating folder",
+                    status="in_progress",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "move_file":
+                src = (
+                    tool_input.get("source_path", "")
+                    if isinstance(tool_input, dict)
+                    else ""
+                )
+                dst = (
+                    tool_input.get("destination_path", "")
+                    if isinstance(tool_input, dict)
+                    else ""
+                )
+                display_src = src if len(src) <= 60 else "…" + src[-57:]
+                display_dst = dst if len(dst) <= 60 else "…" + dst[-57:]
+                last_active_step_title = "Moving file"
+                last_active_step_items = (
+                    [f"{display_src} → {display_dst}"] if src or dst else []
+                )
+                yield streaming_service.format_thinking_step(
+                    step_id=tool_step_id,
+                    title="Moving file",
+                    status="in_progress",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "write_todos":
+                todos = (
+                    tool_input.get("todos", []) if isinstance(tool_input, dict) else []
+                )
+                todo_count = len(todos) if isinstance(todos, list) else 0
+                last_active_step_title = "Planning tasks"
+                last_active_step_items = (
+                    [f"{todo_count} task{'s' if todo_count != 1 else ''}"]
+                    if todo_count
+                    else []
+                )
+                yield streaming_service.format_thinking_step(
+                    step_id=tool_step_id,
+                    title="Planning tasks",
+                    status="in_progress",
+                    items=last_active_step_items,
+                )
             elif tool_name == "save_document":
                 doc_title = (
                     tool_input.get("title", "")
@@ -568,7 +1201,15 @@ async def _stream_agent_events(
                     items=last_active_step_items,
                 )
             else:
-                last_active_step_title = f"Using {tool_name.replace('_', ' ')}"
+                # Fallback for tools without a curated thinking-step title
+                # (typically connector tools, MCP-registered tools, or
+                # newly added tools that haven't been wired up here yet).
+                # Render the snake_cased name as a sentence-cased phrase
+                # so non-technical users see e.g. "Send gmail email"
+                # rather than the raw identifier "send_gmail_email".
+                last_active_step_title = (
+                    tool_name.replace("_", " ").strip().capitalize() or tool_name
+                )
                 last_active_step_items = []
                 yield streaming_service.format_thinking_step(
                     step_id=tool_step_id,
@@ -576,12 +1217,65 @@ async def _stream_agent_events(
                     status="in_progress",
                 )
 
-            tool_call_id = (
-                f"call_{run_id[:32]}"
-                if run_id
-                else streaming_service.generate_tool_call_id()
-            )
-            yield streaming_service.format_tool_input_start(tool_call_id, tool_name)
+            # Resolve the card identity. If the chunk-emission loop
+            # already registered an ``index`` for this tool call (parity_v2
+            # path), reuse the same ui_id so the card sees:
+            # tool-input-start → deltas… → tool-input-available →
+            # tool-output-available all keyed by lc_id. Otherwise fall
+            # back to the synthetic ``call_<run_id>`` id and the legacy
+            # best-effort match against ``pending_tool_call_chunks``.
+            matched_meta: dict[str, str] | None = None
+            if parity_v2:
+                # FIFO over indices 0,1,2…; first unassigned same-name
+                # match wins. Handles parallel same-name calls (e.g. two
+                # write_file calls) deterministically as long as the
+                # model interleaves on_tool_start in the same order it
+                # streamed the args.
+                taken_ui_ids = set(ui_tool_call_id_by_run.values())
+                for meta in index_to_meta.values():
+                    if meta["name"] == tool_name and meta["ui_id"] not in taken_ui_ids:
+                        matched_meta = meta
+                        break
+
+            tool_call_id: str
+            langchain_tool_call_id: str | None = None
+            if matched_meta is not None:
+                tool_call_id = matched_meta["ui_id"]
+                langchain_tool_call_id = matched_meta["lc_id"]
+                # ``tool-input-start`` already fired during chunk
+                # emission — skip the duplicate. No pruning is needed
+                # because the chunk-emission loop intentionally never
+                # appends registered-index chunks to
+                # ``pending_tool_call_chunks`` (skip-append).
+                if run_id:
+                    lc_tool_call_id_by_run[run_id] = matched_meta["lc_id"]
+            else:
+                tool_call_id = (
+                    f"call_{run_id[:32]}"
+                    if run_id
+                    else streaming_service.generate_tool_call_id()
+                )
+                # Legacy fallback: parity_v2 OFF, or parity_v2 ON but the
+                # provider didn't stream tool_call_chunks for this call
+                # (no index registered). Run the existing best-effort
+                # match BEFORE emitting start so we still attach an
+                # authoritative ``langchainToolCallId`` when possible.
+                if parity_v2:
+                    langchain_tool_call_id = _legacy_match_lc_id(
+                        pending_tool_call_chunks,
+                        tool_name,
+                        run_id,
+                        lc_tool_call_id_by_run,
+                    )
+                yield streaming_service.format_tool_input_start(
+                    tool_call_id,
+                    tool_name,
+                    langchain_tool_call_id=langchain_tool_call_id,
+                )
+
+            if run_id:
+                ui_tool_call_id_by_run[run_id] = tool_call_id
+
             # Sanitize tool_input: strip runtime-injected non-serializable
             # values (e.g. LangChain ToolRuntime) before sending over SSE.
             if isinstance(tool_input, dict):
@@ -598,6 +1292,7 @@ async def _stream_agent_events(
                 tool_call_id,
                 tool_name,
                 _safe_input,
+                langchain_tool_call_id=langchain_tool_call_id,
             )
 
         elif event_type == "on_tool_end":
@@ -605,6 +1300,7 @@ async def _stream_agent_events(
             run_id = event.get("run_id", "")
             tool_name = event.get("name", "unknown_tool")
             raw_output = event.get("data", {}).get("output", "")
+            staged_file_path = file_path_by_run.pop(run_id, None) if run_id else None
 
             if tool_name == "update_memory":
                 called_update_memory = True
@@ -633,11 +1329,41 @@ async def _stream_agent_events(
                     result.write_succeeded = True
                     result.verification_succeeded = True
 
-            tool_call_id = f"call_{run_id[:32]}" if run_id else "call_unknown"
+            # Look up the SAME card id used at on_tool_start (either the
+            # parity_v2 lc-id-derived ui_id or the legacy synthetic
+            # ``call_<run_id>``) so the output event always lands on the
+            # same card as start/delta/available. Fallback preserves the
+            # legacy synthetic shape for parity_v2-OFF / unknown-run paths.
+            tool_call_id = ui_tool_call_id_by_run.get(
+                run_id,
+                f"call_{run_id[:32]}" if run_id else "call_unknown",
+            )
             original_step_id = tool_step_ids.get(
                 run_id, f"{step_prefix}-unknown-{run_id[:8]}"
             )
             completed_step_ids.add(original_step_id)
+
+            # Authoritative LangChain tool_call_id from the returned
+            # ``ToolMessage``. Falls back to whatever we matched
+            # at ``on_tool_start`` time (kept in ``lc_tool_call_id_by_run``)
+            # if the output isn't a ToolMessage. The value is stored in
+            # ``current_lc_tool_call_id`` so ``_emit_tool_output``
+            # picks it up for every output emit below.
+            #
+            # Emitted in BOTH parity_v2 and legacy modes: the chat tool
+            # card needs the LangChain id to match against the
+            # ``data-action-log`` SSE event (keyed by ``lc_tool_call_id``)
+            # so the inline Revert button can light up. Reading
+            # ``raw_output.tool_call_id`` is a cheap, non-mutating attribute
+            # access that is safe regardless of feature-flag state.
+            current_lc_tool_call_id["value"] = None
+            authoritative = getattr(raw_output, "tool_call_id", None)
+            if isinstance(authoritative, str) and authoritative:
+                current_lc_tool_call_id["value"] = authoritative
+                if run_id:
+                    lc_tool_call_id_by_run[run_id] = authoritative
+            elif run_id and run_id in lc_tool_call_id_by_run:
+                current_lc_tool_call_id["value"] = lc_tool_call_id_by_run[run_id]
 
             if tool_name == "read_file":
                 yield streaming_service.format_thinking_step(
@@ -671,6 +1397,41 @@ async def _stream_agent_events(
                 yield streaming_service.format_thinking_step(
                     step_id=original_step_id,
                     title="Searching content",
+                    status="completed",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "rm":
+                yield streaming_service.format_thinking_step(
+                    step_id=original_step_id,
+                    title="Deleting file",
+                    status="completed",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "rmdir":
+                yield streaming_service.format_thinking_step(
+                    step_id=original_step_id,
+                    title="Deleting folder",
+                    status="completed",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "mkdir":
+                yield streaming_service.format_thinking_step(
+                    step_id=original_step_id,
+                    title="Creating folder",
+                    status="completed",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "move_file":
+                yield streaming_service.format_thinking_step(
+                    step_id=original_step_id,
+                    title="Moving file",
+                    status="completed",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "write_todos":
+                yield streaming_service.format_thinking_step(
+                    step_id=original_step_id,
+                    title="Planning tasks",
                     status="completed",
                     items=last_active_step_items,
                 )
@@ -925,9 +1686,14 @@ async def _stream_agent_events(
                     items=completed_items,
                 )
             else:
+                # Fallback completion title — see the matching in-progress
+                # branch above for the wording rationale.
+                fallback_title = (
+                    tool_name.replace("_", " ").strip().capitalize() or tool_name
+                )
                 yield streaming_service.format_thinking_step(
                     step_id=original_step_id,
-                    title=f"Using {tool_name.replace('_', ' ')}",
+                    title=fallback_title,
                     status="completed",
                     items=last_active_step_items,
                 )
@@ -938,7 +1704,7 @@ async def _stream_agent_events(
             last_active_step_items = []
 
             if tool_name == "generate_podcast":
-                yield streaming_service.format_tool_output_available(
+                yield _emit_tool_output(
                     tool_call_id,
                     tool_output
                     if isinstance(tool_output, dict)
@@ -963,7 +1729,7 @@ async def _stream_agent_events(
                         "error",
                     )
             elif tool_name == "generate_video_presentation":
-                yield streaming_service.format_tool_output_available(
+                yield _emit_tool_output(
                     tool_call_id,
                     tool_output
                     if isinstance(tool_output, dict)
@@ -991,7 +1757,7 @@ async def _stream_agent_events(
                         "error",
                     )
             elif tool_name == "generate_image":
-                yield streaming_service.format_tool_output_available(
+                yield _emit_tool_output(
                     tool_call_id,
                     tool_output
                     if isinstance(tool_output, dict)
@@ -1018,12 +1784,12 @@ async def _stream_agent_events(
                         display_output["content_preview"] = (
                             content[:500] + "..." if len(content) > 500 else content
                         )
-                    yield streaming_service.format_tool_output_available(
+                    yield _emit_tool_output(
                         tool_call_id,
                         display_output,
                     )
                 else:
-                    yield streaming_service.format_tool_output_available(
+                    yield _emit_tool_output(
                         tool_call_id,
                         {"result": tool_output},
                     )
@@ -1048,10 +1814,13 @@ async def _stream_agent_events(
                 resolved_path = _extract_resolved_file_path(
                     tool_name=tool_name,
                     tool_output=tool_output,
+                    tool_input={"file_path": staged_file_path}
+                    if staged_file_path
+                    else None,
                 )
                 result_text = _tool_output_to_text(tool_output)
                 if _tool_output_has_error(tool_output):
-                    yield streaming_service.format_tool_output_available(
+                    yield _emit_tool_output(
                         tool_call_id,
                         {
                             "status": "error",
@@ -1060,7 +1829,7 @@ async def _stream_agent_events(
                         },
                     )
                 else:
-                    yield streaming_service.format_tool_output_available(
+                    yield _emit_tool_output(
                         tool_call_id,
                         {
                             "status": "completed",
@@ -1070,7 +1839,7 @@ async def _stream_agent_events(
                     )
             elif tool_name == "generate_report":
                 # Stream the full report result so frontend can render the ReportCard
-                yield streaming_service.format_tool_output_available(
+                yield _emit_tool_output(
                     tool_call_id,
                     tool_output
                     if isinstance(tool_output, dict)
@@ -1097,7 +1866,7 @@ async def _stream_agent_events(
                         "error",
                     )
             elif tool_name == "generate_resume":
-                yield streaming_service.format_tool_output_available(
+                yield _emit_tool_output(
                     tool_call_id,
                     tool_output
                     if isinstance(tool_output, dict)
@@ -1148,7 +1917,7 @@ async def _stream_agent_events(
                 "update_confluence_page",
                 "delete_confluence_page",
             ):
-                yield streaming_service.format_tool_output_available(
+                yield _emit_tool_output(
                     tool_call_id,
                     tool_output
                     if isinstance(tool_output, dict)
@@ -1176,7 +1945,7 @@ async def _stream_agent_events(
                     if fpath and fpath not in result.sandbox_files:
                         result.sandbox_files.append(fpath)
 
-                yield streaming_service.format_tool_output_available(
+                yield _emit_tool_output(
                     tool_call_id,
                     {
                         "exit_code": exit_code,
@@ -1211,12 +1980,12 @@ async def _stream_agent_events(
                         citations[chunk_url]["snippet"] = (
                             content[:200] + "…" if len(content) > 200 else content
                         )
-                yield streaming_service.format_tool_output_available(
+                yield _emit_tool_output(
                     tool_call_id,
                     {"status": "completed", "citations": citations},
                 )
             else:
-                yield streaming_service.format_tool_output_available(
+                yield _emit_tool_output(
                     tool_call_id,
                     {"status": "completed", "result_length": len(str(tool_output))},
                 )
@@ -1274,6 +2043,25 @@ async def _stream_agent_events(
                     },
                 )
 
+        elif event_type == "on_custom_event" and event.get("name") == "action_log":
+            # Surface a freshly committed AgentActionLog row so the chat
+            # tool card can render its Revert button immediately.
+            data = event.get("data", {})
+            if data.get("id") is not None:
+                yield streaming_service.format_data("action-log", data)
+
+        elif (
+            event_type == "on_custom_event"
+            and event.get("name") == "action_log_updated"
+        ):
+            # Reversibility flipped in kb_persistence after the SAVEPOINT
+            # for a destructive op (rm/rmdir/move/edit/write) committed.
+            # Frontend uses this to flip the card's Revert
+            # button on without re-fetching the actions list.
+            data = event.get("data", {})
+            if data.get("id") is not None:
+                yield streaming_service.format_data("action-log-updated", data)
+
         elif event_type in ("on_chain_end", "on_agent_end"):
             if current_text_id is not None:
                 yield streaming_service.format_text_end(current_text_id)
@@ -1291,11 +2079,12 @@ async def _stream_agent_events(
 
     # Safety net: if astream_events was cancelled before
     # KnowledgeBasePersistenceMiddleware.aafter_agent ran, any staged work
-    # (dirty_paths / staged_dirs / pending_moves) will still be in the
-    # checkpointed state. Run the SAME shared commit helper here so the
-    # turn's writes don't get lost on client disconnect, then push the
-    # delta back into the graph using `as_node=...` so reducers fire as if
-    # the after_agent hook produced it.
+    # (dirty_paths / staged_dirs / pending_moves / pending_deletes /
+    # pending_dir_deletes) will still be in the checkpointed state. Run
+    # the SAME shared commit helper here so the turn's writes don't get
+    # lost on client disconnect, then push the delta back into the graph
+    # using `as_node=...` so reducers fire as if the after_agent hook
+    # produced it.
     if (
         fallback_commit_filesystem_mode == FilesystemMode.CLOUD
         and fallback_commit_search_space_id is not None
@@ -1303,6 +2092,8 @@ async def _stream_agent_events(
             (state_values.get("dirty_paths") or [])
             or (state_values.get("staged_dirs") or [])
             or (state_values.get("pending_moves") or [])
+            or (state_values.get("pending_deletes") or [])
+            or (state_values.get("pending_dir_deletes") or [])
         )
     ):
         try:
@@ -1311,6 +2102,7 @@ async def _stream_agent_events(
                 search_space_id=fallback_commit_search_space_id,
                 created_by_id=fallback_commit_created_by_id,
                 filesystem_mode=fallback_commit_filesystem_mode,
+                thread_id=fallback_commit_thread_id,
                 dispatch_events=False,
             )
             if delta:
@@ -1396,6 +2188,7 @@ async def stream_new_chat(
     filesystem_selection: FilesystemSelection | None = None,
     request_id: str | None = None,
     user_image_data_urls: list[str] | None = None,
+    flow: Literal["new", "regenerate"] = "new",
 ) -> AsyncGenerator[str, None]:
     """
     Stream chat responses from the new SurfSense deep agent.
@@ -1447,6 +2240,16 @@ async def stream_new_chat(
     _premium_reserved = 0
     _premium_request_id: str | None = None
 
+    _emit_stream_error = partial(
+        _emit_stream_terminal_error,
+        streaming_service=streaming_service,
+        flow=flow,
+        request_id=request_id,
+        thread_id=chat_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+    )
+
     session = async_session_maker()
     try:
         # Mark AI as responding to this user for live collaboration
@@ -1454,49 +2257,76 @@ async def stream_new_chat(
             await set_ai_responding(session, chat_id, UUID(user_id))
         # Load LLM config - supports both YAML (negative IDs) and database (positive IDs)
         agent_config: AgentConfig | None = None
+        requested_llm_config_id = llm_config_id
+
+        async def _load_llm_bundle(
+            config_id: int,
+        ) -> tuple[Any, AgentConfig | None, str | None]:
+            if config_id >= 0:
+                loaded_agent_config = await load_agent_config(
+                    session=session,
+                    config_id=config_id,
+                    search_space_id=search_space_id,
+                )
+                if not loaded_agent_config:
+                    return (
+                        None,
+                        None,
+                        f"Failed to load NewLLMConfig with id {config_id}",
+                    )
+                return (
+                    create_chat_litellm_from_agent_config(loaded_agent_config),
+                    loaded_agent_config,
+                    None,
+                )
+
+            loaded_llm_config = load_global_llm_config_by_id(config_id)
+            if not loaded_llm_config:
+                return None, None, f"Failed to load LLM config with id {config_id}"
+            return (
+                create_chat_litellm_from_config(loaded_llm_config),
+                AgentConfig.from_yaml_config(loaded_llm_config),
+                None,
+            )
 
         _t0 = time.perf_counter()
-        if llm_config_id >= 0:
-            # Positive ID: Load from NewLLMConfig database table
-            agent_config = await load_agent_config(
-                session=session,
-                config_id=llm_config_id,
-                search_space_id=search_space_id,
+        try:
+            llm_config_id = (
+                await resolve_or_get_pinned_llm_config_id(
+                    session,
+                    thread_id=chat_id,
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                    selected_llm_config_id=llm_config_id,
+                )
+            ).resolved_llm_config_id
+        except ValueError as pin_error:
+            yield _emit_stream_error(
+                message=str(pin_error),
+                error_kind="server_error",
+                error_code="SERVER_ERROR",
             )
-            if not agent_config:
-                yield streaming_service.format_error(
-                    f"Failed to load NewLLMConfig with id {llm_config_id}"
-                )
-                yield streaming_service.format_done()
-                return
+            yield streaming_service.format_done()
+            return
 
-            # Create ChatLiteLLM from AgentConfig
-            llm = create_chat_litellm_from_agent_config(agent_config)
-        else:
-            # Negative ID: Load from in-memory global configs (includes dynamic OpenRouter models)
-            llm_config = load_global_llm_config_by_id(llm_config_id)
-            if not llm_config:
-                yield streaming_service.format_error(
-                    f"Failed to load LLM config with id {llm_config_id}"
-                )
-                yield streaming_service.format_done()
-                return
-
-            # Create ChatLiteLLM from global config dict
-            llm = create_chat_litellm_from_config(llm_config)
-            agent_config = AgentConfig.from_yaml_config(llm_config)
+        llm, agent_config, llm_load_error = await _load_llm_bundle(llm_config_id)
+        if llm_load_error:
+            yield _emit_stream_error(
+                message=llm_load_error,
+                error_kind="server_error",
+                error_code="SERVER_ERROR",
+            )
+            yield streaming_service.format_done()
+            return
         _perf_log.info(
             "[stream_new_chat] LLM config loaded in %.3fs (config_id=%s)",
             time.perf_counter() - _t0,
             llm_config_id,
         )
 
-        # Premium quota reservation — applies to explicitly premium configs
-        # AND Auto mode (which may route to premium models).
+        # Premium quota reservation for pinned premium model only.
         _needs_premium_quota = (
-            agent_config is not None
-            and user_id
-            and (agent_config.is_premium or agent_config.is_auto_mode)
+            agent_config is not None and user_id and agent_config.is_premium
         )
         if _needs_premium_quota:
             import uuid as _uuid
@@ -1519,21 +2349,168 @@ async def stream_new_chat(
                 )
             _premium_reserved = reserve_amount
             if not quota_result.allowed:
-                if agent_config.is_premium:
-                    yield streaming_service.format_error(
-                        "Premium token quota exceeded. Please purchase more tokens to continue using premium models."
+                if requested_llm_config_id == 0:
+                    try:
+                        llm_config_id = (
+                            await resolve_or_get_pinned_llm_config_id(
+                                session,
+                                thread_id=chat_id,
+                                search_space_id=search_space_id,
+                                user_id=user_id,
+                                selected_llm_config_id=0,
+                                force_repin_free=True,
+                            )
+                        ).resolved_llm_config_id
+                    except ValueError as pin_error:
+                        yield _emit_stream_error(
+                            message=str(pin_error),
+                            error_kind="server_error",
+                            error_code="SERVER_ERROR",
+                        )
+                        yield streaming_service.format_done()
+                        return
+
+                    llm, agent_config, llm_load_error = await _load_llm_bundle(
+                        llm_config_id
+                    )
+                    if llm_load_error:
+                        yield _emit_stream_error(
+                            message=llm_load_error,
+                            error_kind="server_error",
+                            error_code="SERVER_ERROR",
+                        )
+                        yield streaming_service.format_done()
+                        return
+                    _premium_request_id = None
+                    _premium_reserved = 0
+                    _log_chat_stream_error(
+                        flow=flow,
+                        error_kind="premium_quota_exhausted",
+                        error_code="PREMIUM_QUOTA_EXHAUSTED",
+                        severity="info",
+                        is_expected=True,
+                        request_id=request_id,
+                        thread_id=chat_id,
+                        search_space_id=search_space_id,
+                        user_id=user_id,
+                        message=(
+                            "Premium quota exhausted on pinned model; auto-fallback switched to a free model"
+                        ),
+                        extra={
+                            "fallback_config_id": llm_config_id,
+                            "auto_fallback": True,
+                        },
+                    )
+                else:
+                    yield _emit_stream_error(
+                        message=(
+                            "Buy more tokens to continue with this model, or switch to a free model"
+                        ),
+                        error_kind="premium_quota_exhausted",
+                        error_code="PREMIUM_QUOTA_EXHAUSTED",
+                        severity="info",
+                        is_expected=True,
+                        extra={
+                            "resolved_config_id": llm_config_id,
+                            "auto_fallback": False,
+                        },
                     )
                     yield streaming_service.format_done()
                     return
-                # Auto mode: quota exhausted but we can still proceed
-                # (the router may pick a free model). Reset reservation.
-                _premium_request_id = None
-                _premium_reserved = 0
 
         if not llm:
-            yield streaming_service.format_error("Failed to create LLM instance")
+            yield _emit_stream_error(
+                message="Failed to create LLM instance",
+                error_kind="server_error",
+                error_code="SERVER_ERROR",
+            )
             yield streaming_service.format_done()
             return
+
+        # Auto-mode preflight ping. Runs ONLY for thread-pinned auto cfgs
+        # (negative ids selected via ``resolve_or_get_pinned_llm_config_id``)
+        # whose health hasn't already been confirmed within the TTL window.
+        # Detecting a 429 here lets us repin BEFORE the planner/classifier/
+        # title-generation LLM calls fan out and each independently hit the
+        # same upstream rate limit.
+        if (
+            requested_llm_config_id == 0
+            and llm_config_id < 0
+            and not is_recently_healthy(llm_config_id)
+        ):
+            _t_preflight = time.perf_counter()
+            try:
+                await _preflight_llm(llm)
+                mark_healthy(llm_config_id)
+                _perf_log.info(
+                    "[stream_new_chat] auto_pin_preflight ok config_id=%s took=%.3fs",
+                    llm_config_id,
+                    time.perf_counter() - _t_preflight,
+                )
+            except Exception as preflight_exc:
+                if not _is_provider_rate_limited(preflight_exc):
+                    raise
+                previous_config_id = llm_config_id
+                mark_runtime_cooldown(
+                    previous_config_id, reason="preflight_rate_limited"
+                )
+                try:
+                    llm_config_id = (
+                        await resolve_or_get_pinned_llm_config_id(
+                            session,
+                            thread_id=chat_id,
+                            search_space_id=search_space_id,
+                            user_id=user_id,
+                            selected_llm_config_id=0,
+                            exclude_config_ids={previous_config_id},
+                        )
+                    ).resolved_llm_config_id
+                except ValueError as pin_error:
+                    yield _emit_stream_error(
+                        message=str(pin_error),
+                        error_kind="server_error",
+                        error_code="SERVER_ERROR",
+                    )
+                    yield streaming_service.format_done()
+                    return
+
+                llm, agent_config, llm_load_error = await _load_llm_bundle(
+                    llm_config_id
+                )
+                if llm_load_error or not llm:
+                    yield _emit_stream_error(
+                        message=llm_load_error or "Failed to create LLM instance",
+                        error_kind="server_error",
+                        error_code="SERVER_ERROR",
+                    )
+                    yield streaming_service.format_done()
+                    return
+                # Trust the freshly-resolved cfg for the remainder of this
+                # turn rather than recursing into another preflight; the
+                # in-stream 429 recovery loop is still in place as the
+                # safety net if even this fallback hits an upstream cap.
+                mark_healthy(llm_config_id)
+                _log_chat_stream_error(
+                    flow=flow,
+                    error_kind="rate_limited",
+                    error_code="RATE_LIMITED",
+                    severity="info",
+                    is_expected=True,
+                    request_id=request_id,
+                    thread_id=chat_id,
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                    message=(
+                        "Auto-pinned model failed preflight; switched to another "
+                        "eligible model and continuing."
+                    ),
+                    extra={
+                        "auto_runtime_recover": True,
+                        "preflight": True,
+                        "previous_config_id": previous_config_id,
+                        "fallback_config_id": llm_config_id,
+                    },
+                )
 
         # Create connector service
         _t0 = time.perf_counter()
@@ -1719,12 +2696,33 @@ async def stream_new_chat(
 
         config = {
             "configurable": configurable,
-            "recursion_limit": 80,  # Increase from default 25 to allow more tool iterations
+            # Effectively uncapped, matching the agent-level
+            # ``with_config`` default in ``chat_deepagent.create_agent``
+            # and the unbounded ``while(true)`` loop used by OpenCode's
+            # ``session/processor.ts``. Real circuit-breakers live in
+            # middleware: ``DoomLoopMiddleware`` (sliding-window tool
+            # signature check), plus ``enable_tool_call_limit`` /
+            # ``enable_model_call_limit`` when those flags are set. The
+            # original LangGraph default of 25 (and our previous 80
+            # bump) hit users on legitimate multi-tool plans.
+            "recursion_limit": 10_000,
         }
 
         # Start the message stream
         yield streaming_service.format_message_start()
         yield streaming_service.format_start_step()
+
+        # Surface the per-turn correlation id at the very start of the
+        # stream so the frontend can stamp it onto the in-flight
+        # assistant message and replay it via ``appendMessage``
+        # for durable storage. Tool/action-log events DO carry it later,
+        # but pure-text turns never produce action-log events; this
+        # event guarantees the frontend learns the turn id regardless.
+        yield streaming_service.format_data(
+            "turn-info",
+            {"chat_turn_id": stream_result.turn_id},
+        )
+        yield streaming_service.format_data("turn-status", {"status": "busy"})
 
         # Initial thinking step - analyzing the request
         if mentioned_surfsense_docs:
@@ -1859,53 +2857,155 @@ async def stream_new_chat(
 
         _t_stream_start = time.perf_counter()
         _first_event_logged = False
-        async for sse in _stream_agent_events(
-            agent=agent,
-            config=config,
-            input_data=input_state,
-            streaming_service=streaming_service,
-            result=stream_result,
-            step_prefix="thinking",
-            initial_step_id=initial_step_id,
-            initial_step_title=initial_title,
-            initial_step_items=initial_items,
-            fallback_commit_search_space_id=search_space_id,
-            fallback_commit_created_by_id=user_id,
-            fallback_commit_filesystem_mode=(
-                filesystem_selection.mode
-                if filesystem_selection
-                else FilesystemMode.CLOUD
-            ),
-        ):
-            if not _first_event_logged:
-                _perf_log.info(
-                    "[stream_new_chat] First agent event in %.3fs (time since stream start), "
-                    "%.3fs (total since request start) (chat_id=%s)",
-                    time.perf_counter() - _t_stream_start,
-                    time.perf_counter() - _t_total,
-                    chat_id,
-                )
-                _first_event_logged = True
-            yield sse
-
-            # Inject title update mid-stream as soon as the background task finishes
-            if title_task is not None and title_task.done() and not title_emitted:
-                generated_title, title_usage = title_task.result()
-                if title_usage:
-                    accumulator.add(**title_usage)
-                if generated_title:
-                    async with shielded_async_session() as title_session:
-                        title_thread_result = await title_session.execute(
-                            select(NewChatThread).filter(NewChatThread.id == chat_id)
+        runtime_rate_limit_recovered = False
+        while True:
+            try:
+                async for sse in _stream_agent_events(
+                    agent=agent,
+                    config=config,
+                    input_data=input_state,
+                    streaming_service=streaming_service,
+                    result=stream_result,
+                    step_prefix="thinking",
+                    initial_step_id=initial_step_id,
+                    initial_step_title=initial_title,
+                    initial_step_items=initial_items,
+                    fallback_commit_search_space_id=search_space_id,
+                    fallback_commit_created_by_id=user_id,
+                    fallback_commit_filesystem_mode=(
+                        filesystem_selection.mode
+                        if filesystem_selection
+                        else FilesystemMode.CLOUD
+                    ),
+                    fallback_commit_thread_id=chat_id,
+                ):
+                    if not _first_event_logged:
+                        _perf_log.info(
+                            "[stream_new_chat] First agent event in %.3fs (time since stream start), "
+                            "%.3fs (total since request start) (chat_id=%s)",
+                            time.perf_counter() - _t_stream_start,
+                            time.perf_counter() - _t_total,
+                            chat_id,
                         )
-                        title_thread = title_thread_result.scalars().first()
-                        if title_thread:
-                            title_thread.title = generated_title
-                            await title_session.commit()
-                    yield streaming_service.format_thread_title_update(
-                        chat_id, generated_title
+                        _first_event_logged = True
+                    yield sse
+
+                    # Inject title update mid-stream as soon as the background
+                    # task finishes.
+                    if (
+                        title_task is not None
+                        and title_task.done()
+                        and not title_emitted
+                    ):
+                        generated_title, title_usage = title_task.result()
+                        if title_usage:
+                            accumulator.add(**title_usage)
+                        if generated_title:
+                            async with shielded_async_session() as title_session:
+                                title_thread_result = await title_session.execute(
+                                    select(NewChatThread).filter(
+                                        NewChatThread.id == chat_id
+                                    )
+                                )
+                                title_thread = title_thread_result.scalars().first()
+                                if title_thread:
+                                    title_thread.title = generated_title
+                                    await title_session.commit()
+                            yield streaming_service.format_thread_title_update(
+                                chat_id, generated_title
+                            )
+                        title_emitted = True
+                break
+            except Exception as stream_exc:
+                can_runtime_recover = (
+                    not runtime_rate_limit_recovered
+                    and requested_llm_config_id == 0
+                    and llm_config_id < 0
+                    and not _first_event_logged
+                    and _is_provider_rate_limited(stream_exc)
+                )
+                if not can_runtime_recover:
+                    raise
+
+                runtime_rate_limit_recovered = True
+                previous_config_id = llm_config_id
+                # The failed attempt may still hold the per-thread busy mutex
+                # (middleware teardown can lag behind raised provider errors).
+                # Force release before we retry within the same request.
+                end_turn(str(chat_id))
+                mark_runtime_cooldown(
+                    previous_config_id,
+                    reason="provider_rate_limited",
+                )
+
+                llm_config_id = (
+                    await resolve_or_get_pinned_llm_config_id(
+                        session,
+                        thread_id=chat_id,
+                        search_space_id=search_space_id,
+                        user_id=user_id,
+                        selected_llm_config_id=0,
+                        exclude_config_ids={previous_config_id},
                     )
-                title_emitted = True
+                ).resolved_llm_config_id
+
+                llm, agent_config, llm_load_error = await _load_llm_bundle(
+                    llm_config_id
+                )
+                if llm_load_error:
+                    raise stream_exc
+
+                # Title generation uses the initial llm object. After a runtime
+                # repin we keep the stream focused on response recovery and skip
+                # title generation for this turn.
+                if title_task is not None and not title_task.done():
+                    title_task.cancel()
+                title_task = None
+
+                _t0 = time.perf_counter()
+                agent = await create_surfsense_deep_agent(
+                    llm=llm,
+                    search_space_id=search_space_id,
+                    db_session=session,
+                    connector_service=connector_service,
+                    checkpointer=checkpointer,
+                    user_id=user_id,
+                    thread_id=chat_id,
+                    agent_config=agent_config,
+                    firecrawl_api_key=firecrawl_api_key,
+                    thread_visibility=visibility,
+                    disabled_tools=disabled_tools,
+                    mentioned_document_ids=mentioned_document_ids,
+                    filesystem_selection=filesystem_selection,
+                )
+                _perf_log.info(
+                    "[stream_new_chat] Runtime rate-limit recovery repinned "
+                    "config_id=%s -> %s and rebuilt agent in %.3fs",
+                    previous_config_id,
+                    llm_config_id,
+                    time.perf_counter() - _t0,
+                )
+                _log_chat_stream_error(
+                    flow=flow,
+                    error_kind="rate_limited",
+                    error_code="RATE_LIMITED",
+                    severity="info",
+                    is_expected=True,
+                    request_id=request_id,
+                    thread_id=chat_id,
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                    message=(
+                        "Auto-pinned model hit runtime rate limit; switched to "
+                        "another eligible model and retried."
+                    ),
+                    extra={
+                        "auto_runtime_recover": True,
+                        "previous_config_id": previous_config_id,
+                        "fallback_config_id": llm_config_id,
+                    },
+                )
+                continue
 
         _perf_log.info(
             "[stream_new_chat] Agent stream completed in %.3fs (chat_id=%s)",
@@ -1961,28 +3061,20 @@ async def stream_new_chat(
                 )
 
         # Finalize premium quota with actual tokens.
-        # For Auto mode, only count tokens from calls that used premium models.
         if _premium_request_id and user_id:
             try:
                 from app.services.token_quota_service import TokenQuotaService
-
-                if agent_config and agent_config.is_auto_mode:
-                    from app.services.llm_router_service import LLMRouterService
-
-                    actual_premium_tokens = LLMRouterService.compute_premium_tokens(
-                        accumulator.calls
-                    )
-                else:
-                    actual_premium_tokens = accumulator.grand_total
 
                 async with shielded_async_session() as quota_session:
                     await TokenQuotaService.premium_finalize(
                         db_session=quota_session,
                         user_id=UUID(user_id),
                         request_id=_premium_request_id,
-                        actual_tokens=actual_premium_tokens,
+                        actual_tokens=accumulator.grand_total,
                         reserved_tokens=_premium_reserved,
                     )
+                _premium_request_id = None
+                _premium_reserved = 0
             except Exception:
                 logging.getLogger(__name__).warning(
                     "Failed to finalize premium quota for user %s",
@@ -2040,6 +3132,7 @@ async def stream_new_chat(
                 task.add_done_callback(_background_tasks.discard)
 
         # Finish the step and message
+        yield streaming_service.format_data("turn-status", {"status": "idle"})
         yield streaming_service.format_finish_step()
         yield streaming_service.format_finish()
         yield streaming_service.format_done()
@@ -2048,12 +3141,35 @@ async def stream_new_chat(
         # Handle any errors
         import traceback
 
+        (
+            error_kind,
+            error_code,
+            severity,
+            is_expected,
+            user_message,
+            error_extra,
+        ) = _classify_stream_exception(e, flow_label="chat")
         error_message = f"Error during chat: {e!s}"
         print(f"[stream_new_chat] {error_message}")
         print(f"[stream_new_chat] Exception type: {type(e).__name__}")
         print(f"[stream_new_chat] Traceback:\n{traceback.format_exc()}")
+        if error_code == "TURN_CANCELLING":
+            status_payload: dict[str, Any] = {"status": "cancelling"}
+            if error_extra:
+                status_payload.update(error_extra)
+            yield streaming_service.format_data("turn-status", status_payload)
+        else:
+            yield streaming_service.format_data("turn-status", {"status": "busy"})
 
-        yield streaming_service.format_error(error_message)
+        yield _emit_stream_error(
+            message=user_message,
+            error_kind=error_kind,
+            error_code=error_code,
+            severity=severity,
+            is_expected=is_expected,
+            extra=error_extra,
+        )
+        yield streaming_service.format_data("turn-status", {"status": "idle"})
         yield streaming_service.format_finish_step()
         yield streaming_service.format_finish()
         yield streaming_service.format_done()
@@ -2069,6 +3185,10 @@ async def stream_new_chat(
         # (CancelledError is a BaseException), and the rest of the
         # finally block — including session.close() — would never run.
         with anyio.CancelScope(shield=True):
+            # Authoritative fallback cleanup for lock/cancel state. Middleware
+            # teardown can be skipped on some client-abort paths.
+            end_turn(str(chat_id))
+
             # Release premium reservation if not finalized
             if _premium_request_id and _premium_reserved > 0 and user_id:
                 try:
@@ -2168,36 +3288,83 @@ async def stream_resume_chat(
 
     accumulator = start_turn()
 
+    _emit_stream_error = partial(
+        _emit_stream_terminal_error,
+        streaming_service=streaming_service,
+        flow="resume",
+        request_id=request_id,
+        thread_id=chat_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+    )
+
     session = async_session_maker()
     try:
         if user_id:
             await set_ai_responding(session, chat_id, UUID(user_id))
 
         agent_config: AgentConfig | None = None
-        _t0 = time.perf_counter()
-        if llm_config_id >= 0:
-            agent_config = await load_agent_config(
-                session=session,
-                config_id=llm_config_id,
-                search_space_id=search_space_id,
+        requested_llm_config_id = llm_config_id
+
+        async def _load_llm_bundle(
+            config_id: int,
+        ) -> tuple[Any, AgentConfig | None, str | None]:
+            if config_id >= 0:
+                loaded_agent_config = await load_agent_config(
+                    session=session,
+                    config_id=config_id,
+                    search_space_id=search_space_id,
+                )
+                if not loaded_agent_config:
+                    return (
+                        None,
+                        None,
+                        f"Failed to load NewLLMConfig with id {config_id}",
+                    )
+                return (
+                    create_chat_litellm_from_agent_config(loaded_agent_config),
+                    loaded_agent_config,
+                    None,
+                )
+
+            loaded_llm_config = load_global_llm_config_by_id(config_id)
+            if not loaded_llm_config:
+                return None, None, f"Failed to load LLM config with id {config_id}"
+            return (
+                create_chat_litellm_from_config(loaded_llm_config),
+                AgentConfig.from_yaml_config(loaded_llm_config),
+                None,
             )
-            if not agent_config:
-                yield streaming_service.format_error(
-                    f"Failed to load NewLLMConfig with id {llm_config_id}"
+
+        _t0 = time.perf_counter()
+        try:
+            llm_config_id = (
+                await resolve_or_get_pinned_llm_config_id(
+                    session,
+                    thread_id=chat_id,
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                    selected_llm_config_id=llm_config_id,
                 )
-                yield streaming_service.format_done()
-                return
-            llm = create_chat_litellm_from_agent_config(agent_config)
-        else:
-            llm_config = load_global_llm_config_by_id(llm_config_id)
-            if not llm_config:
-                yield streaming_service.format_error(
-                    f"Failed to load LLM config with id {llm_config_id}"
-                )
-                yield streaming_service.format_done()
-                return
-            llm = create_chat_litellm_from_config(llm_config)
-            agent_config = AgentConfig.from_yaml_config(llm_config)
+            ).resolved_llm_config_id
+        except ValueError as pin_error:
+            yield _emit_stream_error(
+                message=str(pin_error),
+                error_kind="server_error",
+                error_code="SERVER_ERROR",
+            )
+            yield streaming_service.format_done()
+            return
+
+        llm, agent_config, llm_load_error = await _load_llm_bundle(llm_config_id)
+        if llm_load_error:
+            yield _emit_stream_error(
+                message=llm_load_error,
+                error_kind="server_error",
+                error_code="SERVER_ERROR",
+            )
+            yield streaming_service.format_done()
+            return
         _perf_log.info(
             "[stream_resume] LLM config loaded in %.3fs", time.perf_counter() - _t0
         )
@@ -2206,9 +3373,7 @@ async def stream_resume_chat(
         _resume_premium_reserved = 0
         _resume_premium_request_id: str | None = None
         _resume_needs_premium = (
-            agent_config is not None
-            and user_id
-            and (agent_config.is_premium or agent_config.is_auto_mode)
+            agent_config is not None and user_id and agent_config.is_premium
         )
         if _resume_needs_premium:
             import uuid as _uuid
@@ -2231,19 +3396,161 @@ async def stream_resume_chat(
                 )
             _resume_premium_reserved = reserve_amount
             if not quota_result.allowed:
-                if agent_config.is_premium:
-                    yield streaming_service.format_error(
-                        "Premium token quota exceeded. Please purchase more tokens to continue using premium models."
+                if requested_llm_config_id == 0:
+                    try:
+                        llm_config_id = (
+                            await resolve_or_get_pinned_llm_config_id(
+                                session,
+                                thread_id=chat_id,
+                                search_space_id=search_space_id,
+                                user_id=user_id,
+                                selected_llm_config_id=0,
+                                force_repin_free=True,
+                            )
+                        ).resolved_llm_config_id
+                    except ValueError as pin_error:
+                        yield _emit_stream_error(
+                            message=str(pin_error),
+                            error_kind="server_error",
+                            error_code="SERVER_ERROR",
+                        )
+                        yield streaming_service.format_done()
+                        return
+
+                    llm, agent_config, llm_load_error = await _load_llm_bundle(
+                        llm_config_id
+                    )
+                    if llm_load_error:
+                        yield _emit_stream_error(
+                            message=llm_load_error,
+                            error_kind="server_error",
+                            error_code="SERVER_ERROR",
+                        )
+                        yield streaming_service.format_done()
+                        return
+                    _resume_premium_request_id = None
+                    _resume_premium_reserved = 0
+                    _log_chat_stream_error(
+                        flow="resume",
+                        error_kind="premium_quota_exhausted",
+                        error_code="PREMIUM_QUOTA_EXHAUSTED",
+                        severity="info",
+                        is_expected=True,
+                        request_id=request_id,
+                        thread_id=chat_id,
+                        search_space_id=search_space_id,
+                        user_id=user_id,
+                        message=(
+                            "Premium quota exhausted on pinned model; auto-fallback switched to a free model"
+                        ),
+                        extra={
+                            "fallback_config_id": llm_config_id,
+                            "auto_fallback": True,
+                        },
+                    )
+                else:
+                    yield _emit_stream_error(
+                        message=(
+                            "Buy more tokens to continue with this model, or switch to a free model"
+                        ),
+                        error_kind="premium_quota_exhausted",
+                        error_code="PREMIUM_QUOTA_EXHAUSTED",
+                        severity="info",
+                        is_expected=True,
+                        extra={
+                            "resolved_config_id": llm_config_id,
+                            "auto_fallback": False,
+                        },
                     )
                     yield streaming_service.format_done()
                     return
-                _resume_premium_request_id = None
-                _resume_premium_reserved = 0
 
         if not llm:
-            yield streaming_service.format_error("Failed to create LLM instance")
+            yield _emit_stream_error(
+                message="Failed to create LLM instance",
+                error_kind="server_error",
+                error_code="SERVER_ERROR",
+            )
             yield streaming_service.format_done()
             return
+
+        # Auto-mode preflight ping (resume path). Mirrors ``stream_new_chat``:
+        # one cheap probe before the agent is rebuilt so a 429'd pin gets
+        # repinned without burning planner/classifier/title calls first.
+        if (
+            requested_llm_config_id == 0
+            and llm_config_id < 0
+            and not is_recently_healthy(llm_config_id)
+        ):
+            _t_preflight = time.perf_counter()
+            try:
+                await _preflight_llm(llm)
+                mark_healthy(llm_config_id)
+                _perf_log.info(
+                    "[stream_resume] auto_pin_preflight ok config_id=%s took=%.3fs",
+                    llm_config_id,
+                    time.perf_counter() - _t_preflight,
+                )
+            except Exception as preflight_exc:
+                if not _is_provider_rate_limited(preflight_exc):
+                    raise
+                previous_config_id = llm_config_id
+                mark_runtime_cooldown(
+                    previous_config_id, reason="preflight_rate_limited"
+                )
+                try:
+                    llm_config_id = (
+                        await resolve_or_get_pinned_llm_config_id(
+                            session,
+                            thread_id=chat_id,
+                            search_space_id=search_space_id,
+                            user_id=user_id,
+                            selected_llm_config_id=0,
+                            exclude_config_ids={previous_config_id},
+                        )
+                    ).resolved_llm_config_id
+                except ValueError as pin_error:
+                    yield _emit_stream_error(
+                        message=str(pin_error),
+                        error_kind="server_error",
+                        error_code="SERVER_ERROR",
+                    )
+                    yield streaming_service.format_done()
+                    return
+
+                llm, agent_config, llm_load_error = await _load_llm_bundle(
+                    llm_config_id
+                )
+                if llm_load_error or not llm:
+                    yield _emit_stream_error(
+                        message=llm_load_error or "Failed to create LLM instance",
+                        error_kind="server_error",
+                        error_code="SERVER_ERROR",
+                    )
+                    yield streaming_service.format_done()
+                    return
+                mark_healthy(llm_config_id)
+                _log_chat_stream_error(
+                    flow="resume",
+                    error_kind="rate_limited",
+                    error_code="RATE_LIMITED",
+                    severity="info",
+                    is_expected=True,
+                    request_id=request_id,
+                    thread_id=chat_id,
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                    message=(
+                        "Auto-pinned model failed preflight; switched to another "
+                        "eligible model and continuing."
+                    ),
+                    extra={
+                        "auto_runtime_recover": True,
+                        "preflight": True,
+                        "previous_config_id": previous_config_id,
+                        "fallback_config_id": llm_config_id,
+                    },
+                )
 
         _t0 = time.perf_counter()
         connector_service = ConnectorService(session, search_space_id=search_space_id)
@@ -2303,38 +3610,134 @@ async def stream_resume_chat(
                 "request_id": request_id or "unknown",
                 "turn_id": stream_result.turn_id,
             },
-            "recursion_limit": 80,
+            # See ``stream_new_chat`` above for rationale: effectively
+            # uncapped to mirror the agent default and OpenCode's
+            # session loop. Doom-loop / call-limit middleware enforce
+            # the real ceiling.
+            "recursion_limit": 10_000,
         }
 
         yield streaming_service.format_message_start()
         yield streaming_service.format_start_step()
+        # Same rationale as ``stream_new_chat``: emit the turn id so
+        # resumed streams can be persisted with their correlation id
+        # intact.
+        yield streaming_service.format_data(
+            "turn-info",
+            {"chat_turn_id": stream_result.turn_id},
+        )
+        yield streaming_service.format_data("turn-status", {"status": "busy"})
 
         _t_stream_start = time.perf_counter()
         _first_event_logged = False
-        async for sse in _stream_agent_events(
-            agent=agent,
-            config=config,
-            input_data=Command(resume={"decisions": decisions}),
-            streaming_service=streaming_service,
-            result=stream_result,
-            step_prefix="thinking-resume",
-            fallback_commit_search_space_id=search_space_id,
-            fallback_commit_created_by_id=user_id,
-            fallback_commit_filesystem_mode=(
-                filesystem_selection.mode
-                if filesystem_selection
-                else FilesystemMode.CLOUD
-            ),
-        ):
-            if not _first_event_logged:
-                _perf_log.info(
-                    "[stream_resume] First agent event in %.3fs (stream), %.3fs (total) (chat_id=%s)",
-                    time.perf_counter() - _t_stream_start,
-                    time.perf_counter() - _t_total,
-                    chat_id,
+        runtime_rate_limit_recovered = False
+        while True:
+            try:
+                async for sse in _stream_agent_events(
+                    agent=agent,
+                    config=config,
+                    input_data=Command(resume={"decisions": decisions}),
+                    streaming_service=streaming_service,
+                    result=stream_result,
+                    step_prefix="thinking-resume",
+                    fallback_commit_search_space_id=search_space_id,
+                    fallback_commit_created_by_id=user_id,
+                    fallback_commit_filesystem_mode=(
+                        filesystem_selection.mode
+                        if filesystem_selection
+                        else FilesystemMode.CLOUD
+                    ),
+                    fallback_commit_thread_id=chat_id,
+                ):
+                    if not _first_event_logged:
+                        _perf_log.info(
+                            "[stream_resume] First agent event in %.3fs (stream), %.3fs (total) (chat_id=%s)",
+                            time.perf_counter() - _t_stream_start,
+                            time.perf_counter() - _t_total,
+                            chat_id,
+                        )
+                        _first_event_logged = True
+                    yield sse
+                break
+            except Exception as stream_exc:
+                can_runtime_recover = (
+                    not runtime_rate_limit_recovered
+                    and requested_llm_config_id == 0
+                    and llm_config_id < 0
+                    and not _first_event_logged
+                    and _is_provider_rate_limited(stream_exc)
                 )
-                _first_event_logged = True
-            yield sse
+                if not can_runtime_recover:
+                    raise
+
+                runtime_rate_limit_recovered = True
+                previous_config_id = llm_config_id
+                # Ensure the same-request recovery retry does not trip the
+                # BusyMutex lock retained by the failed attempt.
+                end_turn(str(chat_id))
+                mark_runtime_cooldown(
+                    previous_config_id,
+                    reason="provider_rate_limited",
+                )
+                llm_config_id = (
+                    await resolve_or_get_pinned_llm_config_id(
+                        session,
+                        thread_id=chat_id,
+                        search_space_id=search_space_id,
+                        user_id=user_id,
+                        selected_llm_config_id=0,
+                        exclude_config_ids={previous_config_id},
+                    )
+                ).resolved_llm_config_id
+
+                llm, agent_config, llm_load_error = await _load_llm_bundle(
+                    llm_config_id
+                )
+                if llm_load_error:
+                    raise stream_exc
+
+                _t0 = time.perf_counter()
+                agent = await create_surfsense_deep_agent(
+                    llm=llm,
+                    search_space_id=search_space_id,
+                    db_session=session,
+                    connector_service=connector_service,
+                    checkpointer=checkpointer,
+                    user_id=user_id,
+                    thread_id=chat_id,
+                    agent_config=agent_config,
+                    firecrawl_api_key=firecrawl_api_key,
+                    thread_visibility=visibility,
+                    filesystem_selection=filesystem_selection,
+                )
+                _perf_log.info(
+                    "[stream_resume] Runtime rate-limit recovery repinned "
+                    "config_id=%s -> %s and rebuilt agent in %.3fs",
+                    previous_config_id,
+                    llm_config_id,
+                    time.perf_counter() - _t0,
+                )
+                _log_chat_stream_error(
+                    flow="resume",
+                    error_kind="rate_limited",
+                    error_code="RATE_LIMITED",
+                    severity="info",
+                    is_expected=True,
+                    request_id=request_id,
+                    thread_id=chat_id,
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                    message=(
+                        "Auto-pinned model hit runtime rate limit; switched to "
+                        "another eligible model and retried."
+                    ),
+                    extra={
+                        "auto_runtime_recover": True,
+                        "previous_config_id": previous_config_id,
+                        "fallback_config_id": llm_config_id,
+                    },
+                )
+                continue
         _perf_log.info(
             "[stream_resume] Agent stream completed in %.3fs (chat_id=%s)",
             time.perf_counter() - _t_stream_start,
@@ -2370,23 +3773,16 @@ async def stream_resume_chat(
             try:
                 from app.services.token_quota_service import TokenQuotaService
 
-                if agent_config and agent_config.is_auto_mode:
-                    from app.services.llm_router_service import LLMRouterService
-
-                    actual_premium_tokens = LLMRouterService.compute_premium_tokens(
-                        accumulator.calls
-                    )
-                else:
-                    actual_premium_tokens = accumulator.grand_total
-
                 async with shielded_async_session() as quota_session:
                     await TokenQuotaService.premium_finalize(
                         db_session=quota_session,
                         user_id=UUID(user_id),
                         request_id=_resume_premium_request_id,
-                        actual_tokens=actual_premium_tokens,
+                        actual_tokens=accumulator.grand_total,
                         reserved_tokens=_resume_premium_reserved,
                     )
+                _resume_premium_request_id = None
+                _resume_premium_reserved = 0
             except Exception:
                 logging.getLogger(__name__).warning(
                     "Failed to finalize premium quota for user %s (resume)",
@@ -2413,6 +3809,7 @@ async def stream_resume_chat(
                 },
             )
 
+        yield streaming_service.format_data("turn-status", {"status": "idle"})
         yield streaming_service.format_finish_step()
         yield streaming_service.format_finish()
         yield streaming_service.format_done()
@@ -2420,16 +3817,43 @@ async def stream_resume_chat(
     except Exception as e:
         import traceback
 
+        (
+            error_kind,
+            error_code,
+            severity,
+            is_expected,
+            user_message,
+            error_extra,
+        ) = _classify_stream_exception(e, flow_label="resume")
         error_message = f"Error during resume: {e!s}"
         print(f"[stream_resume_chat] {error_message}")
         print(f"[stream_resume_chat] Traceback:\n{traceback.format_exc()}")
-        yield streaming_service.format_error(error_message)
+        if error_code == "TURN_CANCELLING":
+            status_payload: dict[str, Any] = {"status": "cancelling"}
+            if error_extra:
+                status_payload.update(error_extra)
+            yield streaming_service.format_data("turn-status", status_payload)
+        else:
+            yield streaming_service.format_data("turn-status", {"status": "busy"})
+        yield _emit_stream_error(
+            message=user_message,
+            error_kind=error_kind,
+            error_code=error_code,
+            severity=severity,
+            is_expected=is_expected,
+            extra=error_extra,
+        )
+        yield streaming_service.format_data("turn-status", {"status": "idle"})
         yield streaming_service.format_finish_step()
         yield streaming_service.format_finish()
         yield streaming_service.format_done()
 
     finally:
         with anyio.CancelScope(shield=True):
+            # Authoritative fallback cleanup for lock/cancel state. Middleware
+            # teardown can be skipped on some client-abort paths.
+            end_turn(str(chat_id))
+
             # Release premium reservation if not finalized
             if _resume_premium_request_id and _resume_premium_reserved > 0 and user_id:
                 try:

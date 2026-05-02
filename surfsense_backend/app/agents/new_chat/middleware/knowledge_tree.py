@@ -201,6 +201,12 @@ class KnowledgeTreeMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         )
         all_paths = sorted(set(folder_paths + doc_paths + [DOCUMENTS_ROOT]))
 
+        # Pre-compute which folders have at least one descendant (folder or doc).
+        # A folder is "empty" iff no path in `all_paths` is strictly under it.
+        # Used to emit an explicit "(empty)" marker so the LLM doesn't have to
+        # infer emptiness from indentation alone.
+        non_empty_folders = self._compute_non_empty_folders(folder_paths, doc_paths)
+
         lines: list[str] = []
         for path in all_paths:
             depth = (
@@ -214,7 +220,10 @@ class KnowledgeTreeMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                 path.rsplit("/", 1)[-1] if path != DOCUMENTS_ROOT else "/documents"
             )
             if is_dir:
-                lines.append(f"{indent}{display}/")
+                if path != DOCUMENTS_ROOT and path not in non_empty_folders:
+                    lines.append(f"{indent}{display}/ (empty)")
+                else:
+                    lines.append(f"{indent}{display}/")
             else:
                 lines.append(f"{indent}{display}")
             if len(lines) >= self.max_entries:
@@ -234,6 +243,35 @@ class KnowledgeTreeMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             return rendered
 
         return self._format_root_summary(folder_paths, doc_paths)
+
+    @staticmethod
+    def _compute_non_empty_folders(
+        folder_paths: list[str], doc_paths: list[str]
+    ) -> set[str]:
+        """Return the set of folder paths that contain at least one descendant.
+
+        A folder is "non-empty" if any document path or any other folder path
+        is strictly under it. Documents propagate emptiness up to every
+        ancestor folder, while a sub-folder only marks its direct ancestors
+        non-empty (so a chain of empty folders all read ``(empty)``).
+        """
+        non_empty: set[str] = set()
+        folder_set = set(folder_paths)
+
+        for doc_path in doc_paths:
+            parent = doc_path.rsplit("/", 1)[0]
+            while parent and parent != DOCUMENTS_ROOT:
+                if parent in folder_set:
+                    non_empty.add(parent)
+                parent = parent.rsplit("/", 1)[0]
+
+        for child in folder_paths:
+            parent = child.rsplit("/", 1)[0]
+            while parent and parent != DOCUMENTS_ROOT and parent in folder_set:
+                non_empty.add(parent)
+                parent = parent.rsplit("/", 1)[0]
+
+        return non_empty
 
     def _format_root_summary(
         self, folder_paths: list[str], doc_paths: list[str]
