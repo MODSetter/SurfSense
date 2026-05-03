@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.new_chat.tools.hitl import request_approval
 from app.connectors.google_drive.client import GoogleDriveClient
 from app.connectors.google_drive.file_types import GOOGLE_DOC, GOOGLE_SHEET
+from app.db import async_session_maker
 from app.services.google_drive import GoogleDriveToolMetadataService
 
 logger = logging.getLogger(__name__)
@@ -23,6 +24,25 @@ def create_create_google_drive_file_tool(
     search_space_id: int | None = None,
     user_id: str | None = None,
 ):
+    """
+    Factory function to create the create_google_drive_file tool.
+
+    The tool acquires its own short-lived ``AsyncSession`` per call via
+    :data:`async_session_maker` so the closure is safe to share across
+    HTTP requests by the compiled-agent cache. Capturing a per-request
+    session here would surface stale/closed sessions on cache hits.
+
+    Args:
+        db_session: Reserved for registry compatibility. Per-call sessions
+            are opened via :data:`async_session_maker` inside the tool body.
+        search_space_id: Search space ID to find the Google Drive connector
+        user_id: User ID for fetching user-specific context
+
+    Returns:
+        Configured create_google_drive_file tool
+    """
+    del db_session  # per-call session — see docstring
+
     @tool
     async def create_google_drive_file(
         name: str,
@@ -65,7 +85,7 @@ def create_create_google_drive_file_tool(
             f"create_google_drive_file called: name='{name}', type='{file_type}'"
         )
 
-        if db_session is None or search_space_id is None or user_id is None:
+        if search_space_id is None or user_id is None:
             return {
                 "status": "error",
                 "message": "Google Drive tool not properly configured. Please contact support.",
@@ -78,225 +98,232 @@ def create_create_google_drive_file_tool(
             }
 
         try:
-            metadata_service = GoogleDriveToolMetadataService(db_session)
-            context = await metadata_service.get_creation_context(
-                search_space_id, user_id
-            )
-
-            if "error" in context:
-                logger.error(f"Failed to fetch creation context: {context['error']}")
-                return {"status": "error", "message": context["error"]}
-
-            accounts = context.get("accounts", [])
-            if accounts and all(a.get("auth_expired") for a in accounts):
-                logger.warning("All Google Drive accounts have expired authentication")
-                return {
-                    "status": "auth_error",
-                    "message": "All connected Google Drive accounts need re-authentication. Please re-authenticate in your connector settings.",
-                    "connector_type": "google_drive",
-                }
-
-            logger.info(
-                f"Requesting approval for creating Google Drive file: name='{name}', type='{file_type}'"
-            )
-            result = request_approval(
-                action_type="google_drive_file_creation",
-                tool_name="create_google_drive_file",
-                params={
-                    "name": name,
-                    "file_type": file_type,
-                    "content": content,
-                    "connector_id": None,
-                    "parent_folder_id": None,
-                },
-                context=context,
-            )
-
-            if result.rejected:
-                return {
-                    "status": "rejected",
-                    "message": "User declined. The file was not created. Do not ask again or suggest alternatives.",
-                }
-
-            final_name = result.params.get("name", name)
-            final_file_type = result.params.get("file_type", file_type)
-            final_content = result.params.get("content", content)
-            final_connector_id = result.params.get("connector_id")
-            final_parent_folder_id = result.params.get("parent_folder_id")
-
-            if not final_name or not final_name.strip():
-                return {"status": "error", "message": "File name cannot be empty."}
-
-            mime_type = _MIME_MAP.get(final_file_type)
-            if not mime_type:
-                return {
-                    "status": "error",
-                    "message": f"Unsupported file type '{final_file_type}'.",
-                }
-
-            from sqlalchemy.future import select
-
-            from app.db import SearchSourceConnector, SearchSourceConnectorType
-
-            _drive_types = [
-                SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR,
-                SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
-            ]
-
-            if final_connector_id is not None:
-                result = await db_session.execute(
-                    select(SearchSourceConnector).filter(
-                        SearchSourceConnector.id == final_connector_id,
-                        SearchSourceConnector.search_space_id == search_space_id,
-                        SearchSourceConnector.user_id == user_id,
-                        SearchSourceConnector.connector_type.in_(_drive_types),
-                    )
+            async with async_session_maker() as db_session:
+                metadata_service = GoogleDriveToolMetadataService(db_session)
+                context = await metadata_service.get_creation_context(
+                    search_space_id, user_id
                 )
-                connector = result.scalars().first()
-                if not connector:
-                    return {
-                        "status": "error",
-                        "message": "Selected Google Drive connector is invalid or has been disconnected.",
-                    }
-                actual_connector_id = connector.id
-            else:
-                result = await db_session.execute(
-                    select(SearchSourceConnector).filter(
-                        SearchSourceConnector.search_space_id == search_space_id,
-                        SearchSourceConnector.user_id == user_id,
-                        SearchSourceConnector.connector_type.in_(_drive_types),
+
+                if "error" in context:
+                    logger.error(
+                        f"Failed to fetch creation context: {context['error']}"
                     )
-                )
-                connector = result.scalars().first()
-                if not connector:
-                    return {
-                        "status": "error",
-                        "message": "No Google Drive connector found. Please connect Google Drive in your workspace settings.",
-                    }
-                actual_connector_id = connector.id
+                    return {"status": "error", "message": context["error"]}
 
-            logger.info(
-                f"Creating Google Drive file: name='{final_name}', type='{final_file_type}', connector={actual_connector_id}"
-            )
-
-            is_composio_drive = (
-                connector.connector_type
-                == SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR
-            )
-            if is_composio_drive:
-                cca_id = connector.config.get("composio_connected_account_id")
-                if not cca_id:
-                    return {
-                        "status": "error",
-                        "message": "Composio connected account ID not found for this Drive connector.",
-                    }
-            client = GoogleDriveClient(
-                session=db_session,
-                connector_id=actual_connector_id,
-            )
-            try:
-                if is_composio_drive:
-                    from app.services.composio_service import ComposioService
-
-                    params: dict[str, Any] = {
-                        "name": final_name,
-                        "mimeType": mime_type,
-                        "fields": "id,name,webViewLink,mimeType",
-                    }
-                    if final_parent_folder_id:
-                        params["parents"] = [final_parent_folder_id]
-                    if final_content:
-                        params["description"] = final_content[:4096]
-
-                    result = await ComposioService().execute_tool(
-                        connected_account_id=cca_id,
-                        tool_name="GOOGLEDRIVE_CREATE_FILE",
-                        params=params,
-                        entity_id=f"surfsense_{user_id}",
-                    )
-                    if not result.get("success"):
-                        raise RuntimeError(
-                            result.get("error", "Unknown Composio Drive error")
-                        )
-                    created = result.get("data", {})
-                    if isinstance(created, dict):
-                        created = created.get("data", created)
-                        if isinstance(created, dict):
-                            created = created.get("response_data", created)
-                    if not isinstance(created, dict):
-                        created = {}
-                else:
-                    created = await client.create_file(
-                        name=final_name,
-                        mime_type=mime_type,
-                        parent_folder_id=final_parent_folder_id,
-                        content=final_content,
-                    )
-            except HttpError as http_err:
-                if http_err.resp.status == 403:
+                accounts = context.get("accounts", [])
+                if accounts and all(a.get("auth_expired") for a in accounts):
                     logger.warning(
-                        f"Insufficient permissions for connector {actual_connector_id}: {http_err}"
+                        "All Google Drive accounts have expired authentication"
                     )
-                    try:
-                        from sqlalchemy.orm.attributes import flag_modified
-
-                        _res = await db_session.execute(
-                            select(SearchSourceConnector).where(
-                                SearchSourceConnector.id == actual_connector_id
-                            )
-                        )
-                        _conn = _res.scalar_one_or_none()
-                        if _conn and not _conn.config.get("auth_expired"):
-                            _conn.config = {**_conn.config, "auth_expired": True}
-                            flag_modified(_conn, "config")
-                            await db_session.commit()
-                    except Exception:
-                        logger.warning(
-                            "Failed to persist auth_expired for connector %s",
-                            actual_connector_id,
-                            exc_info=True,
-                        )
                     return {
-                        "status": "insufficient_permissions",
-                        "connector_id": actual_connector_id,
-                        "message": "This Google Drive account needs additional permissions. Please re-authenticate in connector settings.",
+                        "status": "auth_error",
+                        "message": "All connected Google Drive accounts need re-authentication. Please re-authenticate in your connector settings.",
+                        "connector_type": "google_drive",
                     }
-                raise
 
-            logger.info(
-                f"Google Drive file created: id={created.get('id')}, name={created.get('name')}"
-            )
-
-            kb_message_suffix = ""
-            try:
-                from app.services.google_drive import GoogleDriveKBSyncService
-
-                kb_service = GoogleDriveKBSyncService(db_session)
-                kb_result = await kb_service.sync_after_create(
-                    file_id=created.get("id"),
-                    file_name=created.get("name", final_name),
-                    mime_type=mime_type,
-                    web_view_link=created.get("webViewLink"),
-                    content=final_content,
-                    connector_id=actual_connector_id,
-                    search_space_id=search_space_id,
-                    user_id=user_id,
+                logger.info(
+                    f"Requesting approval for creating Google Drive file: name='{name}', type='{file_type}'"
                 )
-                if kb_result["status"] == "success":
-                    kb_message_suffix = " Your knowledge base has also been updated."
-                else:
-                    kb_message_suffix = " This file will be added to your knowledge base in the next scheduled sync."
-            except Exception as kb_err:
-                logger.warning(f"KB sync after create failed: {kb_err}")
-                kb_message_suffix = " This file will be added to your knowledge base in the next scheduled sync."
+                result = request_approval(
+                    action_type="google_drive_file_creation",
+                    tool_name="create_google_drive_file",
+                    params={
+                        "name": name,
+                        "file_type": file_type,
+                        "content": content,
+                        "connector_id": None,
+                        "parent_folder_id": None,
+                    },
+                    context=context,
+                )
 
-            return {
-                "status": "success",
-                "file_id": created.get("id"),
-                "name": created.get("name"),
-                "web_view_link": created.get("webViewLink"),
-                "message": f"Successfully created '{created.get('name')}' in Google Drive.{kb_message_suffix}",
-            }
+                if result.rejected:
+                    return {
+                        "status": "rejected",
+                        "message": "User declined. The file was not created. Do not ask again or suggest alternatives.",
+                    }
+
+                final_name = result.params.get("name", name)
+                final_file_type = result.params.get("file_type", file_type)
+                final_content = result.params.get("content", content)
+                final_connector_id = result.params.get("connector_id")
+                final_parent_folder_id = result.params.get("parent_folder_id")
+
+                if not final_name or not final_name.strip():
+                    return {"status": "error", "message": "File name cannot be empty."}
+
+                mime_type = _MIME_MAP.get(final_file_type)
+                if not mime_type:
+                    return {
+                        "status": "error",
+                        "message": f"Unsupported file type '{final_file_type}'.",
+                    }
+
+                from sqlalchemy.future import select
+
+                from app.db import SearchSourceConnector, SearchSourceConnectorType
+
+                _drive_types = [
+                    SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR,
+                    SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+                ]
+
+                if final_connector_id is not None:
+                    result = await db_session.execute(
+                        select(SearchSourceConnector).filter(
+                            SearchSourceConnector.id == final_connector_id,
+                            SearchSourceConnector.search_space_id == search_space_id,
+                            SearchSourceConnector.user_id == user_id,
+                            SearchSourceConnector.connector_type.in_(_drive_types),
+                        )
+                    )
+                    connector = result.scalars().first()
+                    if not connector:
+                        return {
+                            "status": "error",
+                            "message": "Selected Google Drive connector is invalid or has been disconnected.",
+                        }
+                    actual_connector_id = connector.id
+                else:
+                    result = await db_session.execute(
+                        select(SearchSourceConnector).filter(
+                            SearchSourceConnector.search_space_id == search_space_id,
+                            SearchSourceConnector.user_id == user_id,
+                            SearchSourceConnector.connector_type.in_(_drive_types),
+                        )
+                    )
+                    connector = result.scalars().first()
+                    if not connector:
+                        return {
+                            "status": "error",
+                            "message": "No Google Drive connector found. Please connect Google Drive in your workspace settings.",
+                        }
+                    actual_connector_id = connector.id
+
+                logger.info(
+                    f"Creating Google Drive file: name='{final_name}', type='{final_file_type}', connector={actual_connector_id}"
+                )
+
+                is_composio_drive = (
+                    connector.connector_type
+                    == SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR
+                )
+                if is_composio_drive:
+                    cca_id = connector.config.get("composio_connected_account_id")
+                    if not cca_id:
+                        return {
+                            "status": "error",
+                            "message": "Composio connected account ID not found for this Drive connector.",
+                        }
+                client = GoogleDriveClient(
+                    session=db_session,
+                    connector_id=actual_connector_id,
+                )
+                try:
+                    if is_composio_drive:
+                        from app.services.composio_service import ComposioService
+
+                        params: dict[str, Any] = {
+                            "name": final_name,
+                            "mimeType": mime_type,
+                            "fields": "id,name,webViewLink,mimeType",
+                        }
+                        if final_parent_folder_id:
+                            params["parents"] = [final_parent_folder_id]
+                        if final_content:
+                            params["description"] = final_content[:4096]
+
+                        result = await ComposioService().execute_tool(
+                            connected_account_id=cca_id,
+                            tool_name="GOOGLEDRIVE_CREATE_FILE",
+                            params=params,
+                            entity_id=f"surfsense_{user_id}",
+                        )
+                        if not result.get("success"):
+                            raise RuntimeError(
+                                result.get("error", "Unknown Composio Drive error")
+                            )
+                        created = result.get("data", {})
+                        if isinstance(created, dict):
+                            created = created.get("data", created)
+                            if isinstance(created, dict):
+                                created = created.get("response_data", created)
+                        if not isinstance(created, dict):
+                            created = {}
+                    else:
+                        created = await client.create_file(
+                            name=final_name,
+                            mime_type=mime_type,
+                            parent_folder_id=final_parent_folder_id,
+                            content=final_content,
+                        )
+                except HttpError as http_err:
+                    if http_err.resp.status == 403:
+                        logger.warning(
+                            f"Insufficient permissions for connector {actual_connector_id}: {http_err}"
+                        )
+                        try:
+                            from sqlalchemy.orm.attributes import flag_modified
+
+                            _res = await db_session.execute(
+                                select(SearchSourceConnector).where(
+                                    SearchSourceConnector.id == actual_connector_id
+                                )
+                            )
+                            _conn = _res.scalar_one_or_none()
+                            if _conn and not _conn.config.get("auth_expired"):
+                                _conn.config = {**_conn.config, "auth_expired": True}
+                                flag_modified(_conn, "config")
+                                await db_session.commit()
+                        except Exception:
+                            logger.warning(
+                                "Failed to persist auth_expired for connector %s",
+                                actual_connector_id,
+                                exc_info=True,
+                            )
+                        return {
+                            "status": "insufficient_permissions",
+                            "connector_id": actual_connector_id,
+                            "message": "This Google Drive account needs additional permissions. Please re-authenticate in connector settings.",
+                        }
+                    raise
+
+                logger.info(
+                    f"Google Drive file created: id={created.get('id')}, name={created.get('name')}"
+                )
+
+                kb_message_suffix = ""
+                try:
+                    from app.services.google_drive import GoogleDriveKBSyncService
+
+                    kb_service = GoogleDriveKBSyncService(db_session)
+                    kb_result = await kb_service.sync_after_create(
+                        file_id=created.get("id"),
+                        file_name=created.get("name", final_name),
+                        mime_type=mime_type,
+                        web_view_link=created.get("webViewLink"),
+                        content=final_content,
+                        connector_id=actual_connector_id,
+                        search_space_id=search_space_id,
+                        user_id=user_id,
+                    )
+                    if kb_result["status"] == "success":
+                        kb_message_suffix = (
+                            " Your knowledge base has also been updated."
+                        )
+                    else:
+                        kb_message_suffix = " This file will be added to your knowledge base in the next scheduled sync."
+                except Exception as kb_err:
+                    logger.warning(f"KB sync after create failed: {kb_err}")
+                    kb_message_suffix = " This file will be added to your knowledge base in the next scheduled sync."
+
+                return {
+                    "status": "success",
+                    "file_id": created.get("id"),
+                    "name": created.get("name"),
+                    "web_view_link": created.get("webViewLink"),
+                    "message": f"Successfully created '{created.get('name')}' in Google Drive.{kb_message_suffix}",
+                }
 
         except Exception as e:
             from langgraph.errors import GraphInterrupt

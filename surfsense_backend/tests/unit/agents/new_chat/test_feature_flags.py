@@ -34,6 +34,8 @@ def _clear_all(monkeypatch: pytest.MonkeyPatch) -> None:
         "SURFSENSE_ENABLE_STREAM_PARITY_V2",
         "SURFSENSE_ENABLE_PLUGIN_LOADER",
         "SURFSENSE_ENABLE_OTEL",
+        "SURFSENSE_ENABLE_AGENT_CACHE",
+        "SURFSENSE_ENABLE_AGENT_CACHE_SHARE_GP_SUBAGENT",
     ]:
         monkeypatch.delenv(name, raising=False)
 
@@ -62,6 +64,11 @@ def test_defaults_match_shipped_agent_stack(monkeypatch: pytest.MonkeyPatch) -> 
     assert flags.enable_stream_parity_v2 is True
     assert flags.enable_plugin_loader is False
     assert flags.enable_otel is False
+    # Phase 2: agent cache is now default-on (the prerequisite tool
+    # ``db_session`` refactor landed). The companion gp-subagent share
+    # flag stays default-off pending data on cold-miss frequency.
+    assert flags.enable_agent_cache is True
+    assert flags.enable_agent_cache_share_gp_subagent is False
     assert flags.any_new_middleware_enabled() is True
 
 

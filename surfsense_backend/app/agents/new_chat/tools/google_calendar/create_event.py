@@ -9,6 +9,7 @@ from langchain_core.tools import tool
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.new_chat.tools.hitl import request_approval
+from app.db import async_session_maker
 from app.services.google_calendar import GoogleCalendarToolMetadataService
 
 logger = logging.getLogger(__name__)
@@ -19,6 +20,23 @@ def create_create_calendar_event_tool(
     search_space_id: int | None = None,
     user_id: str | None = None,
 ):
+    """
+    Factory function to create the create_calendar_event tool.
+
+    The tool acquires its own short-lived ``AsyncSession`` per call via
+    :data:`async_session_maker` so the closure is safe to share across
+    HTTP requests by the compiled-agent cache. Capturing a per-request
+    session here would surface stale/closed sessions on cache hits.
+
+    Args:
+        db_session: Reserved for registry compatibility. Per-call sessions
+            are opened via :data:`async_session_maker` inside the tool body.
+
+    Returns:
+        Configured create_calendar_event tool
+    """
+    del db_session  # per-call session — see docstring
+
     @tool
     async def create_calendar_event(
         summary: str,
@@ -60,284 +78,294 @@ def create_create_calendar_event_tool(
             f"create_calendar_event called: summary='{summary}', start='{start_datetime}', end='{end_datetime}'"
         )
 
-        if db_session is None or search_space_id is None or user_id is None:
+        if search_space_id is None or user_id is None:
             return {
                 "status": "error",
                 "message": "Google Calendar tool not properly configured. Please contact support.",
             }
 
         try:
-            metadata_service = GoogleCalendarToolMetadataService(db_session)
-            context = await metadata_service.get_creation_context(
-                search_space_id, user_id
-            )
-
-            if "error" in context:
-                logger.error(f"Failed to fetch creation context: {context['error']}")
-                return {"status": "error", "message": context["error"]}
-
-            accounts = context.get("accounts", [])
-            if accounts and all(a.get("auth_expired") for a in accounts):
-                logger.warning(
-                    "All Google Calendar accounts have expired authentication"
+            async with async_session_maker() as db_session:
+                metadata_service = GoogleCalendarToolMetadataService(db_session)
+                context = await metadata_service.get_creation_context(
+                    search_space_id, user_id
                 )
-                return {
-                    "status": "auth_error",
-                    "message": "All connected Google Calendar accounts need re-authentication. Please re-authenticate in your connector settings.",
-                    "connector_type": "google_calendar",
-                }
 
-            logger.info(
-                f"Requesting approval for creating calendar event: summary='{summary}'"
-            )
-            result = request_approval(
-                action_type="google_calendar_event_creation",
-                tool_name="create_calendar_event",
-                params={
-                    "summary": summary,
-                    "start_datetime": start_datetime,
-                    "end_datetime": end_datetime,
-                    "description": description,
-                    "location": location,
-                    "attendees": attendees,
-                    "timezone": context.get("timezone"),
-                    "connector_id": None,
-                },
-                context=context,
-            )
-
-            if result.rejected:
-                return {
-                    "status": "rejected",
-                    "message": "User declined. The event was not created. Do not ask again or suggest alternatives.",
-                }
-
-            final_summary = result.params.get("summary", summary)
-            final_start_datetime = result.params.get("start_datetime", start_datetime)
-            final_end_datetime = result.params.get("end_datetime", end_datetime)
-            final_description = result.params.get("description", description)
-            final_location = result.params.get("location", location)
-            final_attendees = result.params.get("attendees", attendees)
-            final_connector_id = result.params.get("connector_id")
-
-            if not final_summary or not final_summary.strip():
-                return {"status": "error", "message": "Event summary cannot be empty."}
-
-            from sqlalchemy.future import select
-
-            from app.db import SearchSourceConnector, SearchSourceConnectorType
-
-            _calendar_types = [
-                SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
-                SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
-            ]
-
-            if final_connector_id is not None:
-                result = await db_session.execute(
-                    select(SearchSourceConnector).filter(
-                        SearchSourceConnector.id == final_connector_id,
-                        SearchSourceConnector.search_space_id == search_space_id,
-                        SearchSourceConnector.user_id == user_id,
-                        SearchSourceConnector.connector_type.in_(_calendar_types),
+                if "error" in context:
+                    logger.error(
+                        f"Failed to fetch creation context: {context['error']}"
                     )
-                )
-                connector = result.scalars().first()
-                if not connector:
-                    return {
-                        "status": "error",
-                        "message": "Selected Google Calendar connector is invalid or has been disconnected.",
-                    }
-                actual_connector_id = connector.id
-            else:
-                result = await db_session.execute(
-                    select(SearchSourceConnector).filter(
-                        SearchSourceConnector.search_space_id == search_space_id,
-                        SearchSourceConnector.user_id == user_id,
-                        SearchSourceConnector.connector_type.in_(_calendar_types),
+                    return {"status": "error", "message": context["error"]}
+
+                accounts = context.get("accounts", [])
+                if accounts and all(a.get("auth_expired") for a in accounts):
+                    logger.warning(
+                        "All Google Calendar accounts have expired authentication"
                     )
+                    return {
+                        "status": "auth_error",
+                        "message": "All connected Google Calendar accounts need re-authentication. Please re-authenticate in your connector settings.",
+                        "connector_type": "google_calendar",
+                    }
+
+                logger.info(
+                    f"Requesting approval for creating calendar event: summary='{summary}'"
                 )
-                connector = result.scalars().first()
-                if not connector:
-                    return {
-                        "status": "error",
-                        "message": "No Google Calendar connector found. Please connect Google Calendar in your workspace settings.",
-                    }
-                actual_connector_id = connector.id
-
-            logger.info(
-                f"Creating calendar event: summary='{final_summary}', connector={actual_connector_id}"
-            )
-
-            is_composio_calendar = (
-                connector.connector_type
-                == SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR
-            )
-            if is_composio_calendar:
-                cca_id = connector.config.get("composio_connected_account_id")
-                if not cca_id:
-                    return {
-                        "status": "error",
-                        "message": "Composio connected account ID not found for this connector.",
-                    }
-            else:
-                config_data = dict(connector.config)
-
-                from app.config import config as app_config
-                from app.utils.oauth_security import TokenEncryption
-
-                token_encrypted = config_data.get("_token_encrypted", False)
-                if token_encrypted and app_config.SECRET_KEY:
-                    token_encryption = TokenEncryption(app_config.SECRET_KEY)
-                    for key in ("token", "refresh_token", "client_secret"):
-                        if config_data.get(key):
-                            config_data[key] = token_encryption.decrypt_token(
-                                config_data[key]
-                            )
-
-                exp = config_data.get("expiry", "")
-                if exp:
-                    exp = exp.replace("Z", "")
-
-                creds = Credentials(
-                    token=config_data.get("token"),
-                    refresh_token=config_data.get("refresh_token"),
-                    token_uri=config_data.get("token_uri"),
-                    client_id=config_data.get("client_id"),
-                    client_secret=config_data.get("client_secret"),
-                    scopes=config_data.get("scopes", []),
-                    expiry=datetime.fromisoformat(exp) if exp else None,
+                result = request_approval(
+                    action_type="google_calendar_event_creation",
+                    tool_name="create_calendar_event",
+                    params={
+                        "summary": summary,
+                        "start_datetime": start_datetime,
+                        "end_datetime": end_datetime,
+                        "description": description,
+                        "location": location,
+                        "attendees": attendees,
+                        "timezone": context.get("timezone"),
+                        "connector_id": None,
+                    },
+                    context=context,
                 )
 
-            tz = context.get("timezone", "UTC")
-            event_body: dict[str, Any] = {
-                "summary": final_summary,
-                "start": {"dateTime": final_start_datetime, "timeZone": tz},
-                "end": {"dateTime": final_end_datetime, "timeZone": tz},
-            }
-            if final_description:
-                event_body["description"] = final_description
-            if final_location:
-                event_body["location"] = final_location
-            if final_attendees:
-                event_body["attendees"] = [
-                    {"email": e.strip()} for e in final_attendees if e.strip()
+                if result.rejected:
+                    return {
+                        "status": "rejected",
+                        "message": "User declined. The event was not created. Do not ask again or suggest alternatives.",
+                    }
+
+                final_summary = result.params.get("summary", summary)
+                final_start_datetime = result.params.get(
+                    "start_datetime", start_datetime
+                )
+                final_end_datetime = result.params.get("end_datetime", end_datetime)
+                final_description = result.params.get("description", description)
+                final_location = result.params.get("location", location)
+                final_attendees = result.params.get("attendees", attendees)
+                final_connector_id = result.params.get("connector_id")
+
+                if not final_summary or not final_summary.strip():
+                    return {
+                        "status": "error",
+                        "message": "Event summary cannot be empty.",
+                    }
+
+                from sqlalchemy.future import select
+
+                from app.db import SearchSourceConnector, SearchSourceConnectorType
+
+                _calendar_types = [
+                    SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
+                    SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
                 ]
 
-            try:
-                if is_composio_calendar:
-                    from app.services.composio_service import ComposioService
-
-                    composio_params = {
-                        "calendar_id": "primary",
-                        "summary": final_summary,
-                        "start_datetime": final_start_datetime,
-                        "end_datetime": final_end_datetime,
-                        "timezone": tz,
-                        "attendees": final_attendees or [],
-                    }
-                    if final_description:
-                        composio_params["description"] = final_description
-                    if final_location:
-                        composio_params["location"] = final_location
-
-                    composio_result = await ComposioService().execute_tool(
-                        connected_account_id=cca_id,
-                        tool_name="GOOGLECALENDAR_CREATE_EVENT",
-                        params=composio_params,
-                        entity_id=f"surfsense_{user_id}",
-                    )
-                    if not composio_result.get("success"):
-                        raise RuntimeError(
-                            composio_result.get(
-                                "error", "Unknown Composio Calendar error"
-                            )
+                if final_connector_id is not None:
+                    result = await db_session.execute(
+                        select(SearchSourceConnector).filter(
+                            SearchSourceConnector.id == final_connector_id,
+                            SearchSourceConnector.search_space_id == search_space_id,
+                            SearchSourceConnector.user_id == user_id,
+                            SearchSourceConnector.connector_type.in_(_calendar_types),
                         )
-                    created = composio_result.get("data", {})
-                    if isinstance(created, dict):
-                        created = created.get("data", created)
-                        if isinstance(created, dict):
-                            created = created.get("response_data", created)
+                    )
+                    connector = result.scalars().first()
+                    if not connector:
+                        return {
+                            "status": "error",
+                            "message": "Selected Google Calendar connector is invalid or has been disconnected.",
+                        }
+                    actual_connector_id = connector.id
                 else:
-                    service = await asyncio.get_event_loop().run_in_executor(
-                        None, lambda: build("calendar", "v3", credentials=creds)
-                    )
-                    created = await asyncio.get_event_loop().run_in_executor(
-                        None,
-                        lambda: (
-                            service.events()
-                            .insert(calendarId="primary", body=event_body)
-                            .execute()
-                        ),
-                    )
-            except Exception as api_err:
-                from googleapiclient.errors import HttpError
-
-                if isinstance(api_err, HttpError) and api_err.resp.status == 403:
-                    logger.warning(
-                        f"Insufficient permissions for connector {actual_connector_id}: {api_err}"
-                    )
-                    try:
-                        from sqlalchemy.orm.attributes import flag_modified
-
-                        _res = await db_session.execute(
-                            select(SearchSourceConnector).where(
-                                SearchSourceConnector.id == actual_connector_id
-                            )
+                    result = await db_session.execute(
+                        select(SearchSourceConnector).filter(
+                            SearchSourceConnector.search_space_id == search_space_id,
+                            SearchSourceConnector.user_id == user_id,
+                            SearchSourceConnector.connector_type.in_(_calendar_types),
                         )
-                        _conn = _res.scalar_one_or_none()
-                        if _conn and not _conn.config.get("auth_expired"):
-                            _conn.config = {**_conn.config, "auth_expired": True}
-                            flag_modified(_conn, "config")
-                            await db_session.commit()
-                    except Exception:
-                        logger.warning(
-                            "Failed to persist auth_expired for connector %s",
-                            actual_connector_id,
-                            exc_info=True,
-                        )
-                    return {
-                        "status": "insufficient_permissions",
-                        "connector_id": actual_connector_id,
-                        "message": "This Google Calendar account needs additional permissions. Please re-authenticate in connector settings.",
-                    }
-                raise
+                    )
+                    connector = result.scalars().first()
+                    if not connector:
+                        return {
+                            "status": "error",
+                            "message": "No Google Calendar connector found. Please connect Google Calendar in your workspace settings.",
+                        }
+                    actual_connector_id = connector.id
 
-            logger.info(
-                f"Calendar event created: id={created.get('id')}, summary={created.get('summary')}"
-            )
-
-            kb_message_suffix = ""
-            try:
-                from app.services.google_calendar import GoogleCalendarKBSyncService
-
-                kb_service = GoogleCalendarKBSyncService(db_session)
-                kb_result = await kb_service.sync_after_create(
-                    event_id=created.get("id"),
-                    event_summary=final_summary,
-                    calendar_id="primary",
-                    start_time=final_start_datetime,
-                    end_time=final_end_datetime,
-                    location=final_location,
-                    html_link=created.get("htmlLink"),
-                    description=final_description,
-                    connector_id=actual_connector_id,
-                    search_space_id=search_space_id,
-                    user_id=user_id,
+                logger.info(
+                    f"Creating calendar event: summary='{final_summary}', connector={actual_connector_id}"
                 )
-                if kb_result["status"] == "success":
-                    kb_message_suffix = " Your knowledge base has also been updated."
-                else:
-                    kb_message_suffix = " This event will be added to your knowledge base in the next scheduled sync."
-            except Exception as kb_err:
-                logger.warning(f"KB sync after create failed: {kb_err}")
-                kb_message_suffix = " This event will be added to your knowledge base in the next scheduled sync."
 
-            return {
-                "status": "success",
-                "event_id": created.get("id"),
-                "html_link": created.get("htmlLink"),
-                "message": f"Successfully created '{final_summary}' on Google Calendar.{kb_message_suffix}",
-            }
+                is_composio_calendar = (
+                    connector.connector_type
+                    == SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR
+                )
+                if is_composio_calendar:
+                    cca_id = connector.config.get("composio_connected_account_id")
+                    if not cca_id:
+                        return {
+                            "status": "error",
+                            "message": "Composio connected account ID not found for this connector.",
+                        }
+                else:
+                    config_data = dict(connector.config)
+
+                    from app.config import config as app_config
+                    from app.utils.oauth_security import TokenEncryption
+
+                    token_encrypted = config_data.get("_token_encrypted", False)
+                    if token_encrypted and app_config.SECRET_KEY:
+                        token_encryption = TokenEncryption(app_config.SECRET_KEY)
+                        for key in ("token", "refresh_token", "client_secret"):
+                            if config_data.get(key):
+                                config_data[key] = token_encryption.decrypt_token(
+                                    config_data[key]
+                                )
+
+                    exp = config_data.get("expiry", "")
+                    if exp:
+                        exp = exp.replace("Z", "")
+
+                    creds = Credentials(
+                        token=config_data.get("token"),
+                        refresh_token=config_data.get("refresh_token"),
+                        token_uri=config_data.get("token_uri"),
+                        client_id=config_data.get("client_id"),
+                        client_secret=config_data.get("client_secret"),
+                        scopes=config_data.get("scopes", []),
+                        expiry=datetime.fromisoformat(exp) if exp else None,
+                    )
+
+                tz = context.get("timezone", "UTC")
+                event_body: dict[str, Any] = {
+                    "summary": final_summary,
+                    "start": {"dateTime": final_start_datetime, "timeZone": tz},
+                    "end": {"dateTime": final_end_datetime, "timeZone": tz},
+                }
+                if final_description:
+                    event_body["description"] = final_description
+                if final_location:
+                    event_body["location"] = final_location
+                if final_attendees:
+                    event_body["attendees"] = [
+                        {"email": e.strip()} for e in final_attendees if e.strip()
+                    ]
+
+                try:
+                    if is_composio_calendar:
+                        from app.services.composio_service import ComposioService
+
+                        composio_params = {
+                            "calendar_id": "primary",
+                            "summary": final_summary,
+                            "start_datetime": final_start_datetime,
+                            "end_datetime": final_end_datetime,
+                            "timezone": tz,
+                            "attendees": final_attendees or [],
+                        }
+                        if final_description:
+                            composio_params["description"] = final_description
+                        if final_location:
+                            composio_params["location"] = final_location
+
+                        composio_result = await ComposioService().execute_tool(
+                            connected_account_id=cca_id,
+                            tool_name="GOOGLECALENDAR_CREATE_EVENT",
+                            params=composio_params,
+                            entity_id=f"surfsense_{user_id}",
+                        )
+                        if not composio_result.get("success"):
+                            raise RuntimeError(
+                                composio_result.get(
+                                    "error", "Unknown Composio Calendar error"
+                                )
+                            )
+                        created = composio_result.get("data", {})
+                        if isinstance(created, dict):
+                            created = created.get("data", created)
+                            if isinstance(created, dict):
+                                created = created.get("response_data", created)
+                    else:
+                        service = await asyncio.get_event_loop().run_in_executor(
+                            None, lambda: build("calendar", "v3", credentials=creds)
+                        )
+                        created = await asyncio.get_event_loop().run_in_executor(
+                            None,
+                            lambda: (
+                                service.events()
+                                .insert(calendarId="primary", body=event_body)
+                                .execute()
+                            ),
+                        )
+                except Exception as api_err:
+                    from googleapiclient.errors import HttpError
+
+                    if isinstance(api_err, HttpError) and api_err.resp.status == 403:
+                        logger.warning(
+                            f"Insufficient permissions for connector {actual_connector_id}: {api_err}"
+                        )
+                        try:
+                            from sqlalchemy.orm.attributes import flag_modified
+
+                            _res = await db_session.execute(
+                                select(SearchSourceConnector).where(
+                                    SearchSourceConnector.id == actual_connector_id
+                                )
+                            )
+                            _conn = _res.scalar_one_or_none()
+                            if _conn and not _conn.config.get("auth_expired"):
+                                _conn.config = {**_conn.config, "auth_expired": True}
+                                flag_modified(_conn, "config")
+                                await db_session.commit()
+                        except Exception:
+                            logger.warning(
+                                "Failed to persist auth_expired for connector %s",
+                                actual_connector_id,
+                                exc_info=True,
+                            )
+                        return {
+                            "status": "insufficient_permissions",
+                            "connector_id": actual_connector_id,
+                            "message": "This Google Calendar account needs additional permissions. Please re-authenticate in connector settings.",
+                        }
+                    raise
+
+                logger.info(
+                    f"Calendar event created: id={created.get('id')}, summary={created.get('summary')}"
+                )
+
+                kb_message_suffix = ""
+                try:
+                    from app.services.google_calendar import GoogleCalendarKBSyncService
+
+                    kb_service = GoogleCalendarKBSyncService(db_session)
+                    kb_result = await kb_service.sync_after_create(
+                        event_id=created.get("id"),
+                        event_summary=final_summary,
+                        calendar_id="primary",
+                        start_time=final_start_datetime,
+                        end_time=final_end_datetime,
+                        location=final_location,
+                        html_link=created.get("htmlLink"),
+                        description=final_description,
+                        connector_id=actual_connector_id,
+                        search_space_id=search_space_id,
+                        user_id=user_id,
+                    )
+                    if kb_result["status"] == "success":
+                        kb_message_suffix = (
+                            " Your knowledge base has also been updated."
+                        )
+                    else:
+                        kb_message_suffix = " This event will be added to your knowledge base in the next scheduled sync."
+                except Exception as kb_err:
+                    logger.warning(f"KB sync after create failed: {kb_err}")
+                    kb_message_suffix = " This event will be added to your knowledge base in the next scheduled sync."
+
+                return {
+                    "status": "success",
+                    "event_id": created.get("id"),
+                    "html_link": created.get("htmlLink"),
+                    "message": f"Successfully created '{final_summary}' on Google Calendar.{kb_message_suffix}",
+                }
 
         except Exception as e:
             from langgraph.errors import GraphInterrupt

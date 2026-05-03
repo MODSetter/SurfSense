@@ -254,8 +254,8 @@ function PricingFAQ() {
 					Frequently Asked Questions
 				</h2>
 				<p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-					Everything you need to know about SurfSense pages, premium credits, and billing. Can&apos;t
-					find what you need? Reach out at{" "}
+					Everything you need to know about SurfSense pages, premium credits, and billing.
+					Can&apos;t find what you need? Reach out at{" "}
 					<a href="mailto:rohan@surfsense.com" className="text-blue-500 underline">
 						rohan@surfsense.com
 					</a>

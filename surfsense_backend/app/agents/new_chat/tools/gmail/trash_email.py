@@ -7,6 +7,7 @@ from langchain_core.tools import tool
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.new_chat.tools.hitl import request_approval
+from app.db import async_session_maker
 from app.services.gmail import GmailToolMetadataService
 
 logger = logging.getLogger(__name__)
@@ -17,6 +18,23 @@ def create_trash_gmail_email_tool(
     search_space_id: int | None = None,
     user_id: str | None = None,
 ):
+    """
+    Factory function to create the trash_gmail_email tool.
+
+    The tool acquires its own short-lived ``AsyncSession`` per call via
+    :data:`async_session_maker` so the closure is safe to share across
+    HTTP requests by the compiled-agent cache. Capturing a per-request
+    session here would surface stale/closed sessions on cache hits.
+
+    Args:
+        db_session: Reserved for registry compatibility. Per-call sessions
+            are opened via :data:`async_session_maker` inside the tool body.
+
+    Returns:
+        Configured trash_gmail_email tool
+    """
+    del db_session  # per-call session — see docstring
+
     @tool
     async def trash_gmail_email(
         email_subject_or_id: str,
@@ -55,254 +73,261 @@ def create_trash_gmail_email_tool(
             f"trash_gmail_email called: email_subject_or_id='{email_subject_or_id}', delete_from_kb={delete_from_kb}"
         )
 
-        if db_session is None or search_space_id is None or user_id is None:
+        if search_space_id is None or user_id is None:
             return {
                 "status": "error",
                 "message": "Gmail tool not properly configured. Please contact support.",
             }
 
         try:
-            metadata_service = GmailToolMetadataService(db_session)
-            context = await metadata_service.get_trash_context(
-                search_space_id, user_id, email_subject_or_id
-            )
-
-            if "error" in context:
-                error_msg = context["error"]
-                if "not found" in error_msg.lower():
-                    logger.warning(f"Email not found: {error_msg}")
-                    return {"status": "not_found", "message": error_msg}
-                logger.error(f"Failed to fetch trash context: {error_msg}")
-                return {"status": "error", "message": error_msg}
-
-            account = context.get("account", {})
-            if account.get("auth_expired"):
-                logger.warning(
-                    "Gmail account %s has expired authentication",
-                    account.get("id"),
+            async with async_session_maker() as db_session:
+                metadata_service = GmailToolMetadataService(db_session)
+                context = await metadata_service.get_trash_context(
+                    search_space_id, user_id, email_subject_or_id
                 )
-                return {
-                    "status": "auth_error",
-                    "message": "The Gmail account for this email needs re-authentication. Please re-authenticate in your connector settings.",
-                    "connector_type": "gmail",
-                }
 
-            email = context["email"]
-            message_id = email["message_id"]
-            document_id = email.get("document_id")
-            connector_id_from_context = context["account"]["id"]
+                if "error" in context:
+                    error_msg = context["error"]
+                    if "not found" in error_msg.lower():
+                        logger.warning(f"Email not found: {error_msg}")
+                        return {"status": "not_found", "message": error_msg}
+                    logger.error(f"Failed to fetch trash context: {error_msg}")
+                    return {"status": "error", "message": error_msg}
 
-            if not message_id:
-                return {
-                    "status": "error",
-                    "message": "Message ID is missing from the indexed document. Please re-index the email and try again.",
-                }
+                account = context.get("account", {})
+                if account.get("auth_expired"):
+                    logger.warning(
+                        "Gmail account %s has expired authentication",
+                        account.get("id"),
+                    )
+                    return {
+                        "status": "auth_error",
+                        "message": "The Gmail account for this email needs re-authentication. Please re-authenticate in your connector settings.",
+                        "connector_type": "gmail",
+                    }
 
-            logger.info(
-                f"Requesting approval for trashing Gmail email: '{email_subject_or_id}' (message_id={message_id}, delete_from_kb={delete_from_kb})"
-            )
-            result = request_approval(
-                action_type="gmail_email_trash",
-                tool_name="trash_gmail_email",
-                params={
-                    "message_id": message_id,
-                    "connector_id": connector_id_from_context,
-                    "delete_from_kb": delete_from_kb,
-                },
-                context=context,
-            )
+                email = context["email"]
+                message_id = email["message_id"]
+                document_id = email.get("document_id")
+                connector_id_from_context = context["account"]["id"]
 
-            if result.rejected:
-                return {
-                    "status": "rejected",
-                    "message": "User declined. The email was not trashed. Do not ask again or suggest alternatives.",
-                }
-
-            final_message_id = result.params.get("message_id", message_id)
-            final_connector_id = result.params.get(
-                "connector_id", connector_id_from_context
-            )
-            final_delete_from_kb = result.params.get("delete_from_kb", delete_from_kb)
-
-            if not final_connector_id:
-                return {
-                    "status": "error",
-                    "message": "No connector found for this email.",
-                }
-
-            from sqlalchemy.future import select
-
-            from app.db import SearchSourceConnector, SearchSourceConnectorType
-
-            _gmail_types = [
-                SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
-                SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
-            ]
-
-            result = await db_session.execute(
-                select(SearchSourceConnector).filter(
-                    SearchSourceConnector.id == final_connector_id,
-                    SearchSourceConnector.search_space_id == search_space_id,
-                    SearchSourceConnector.user_id == user_id,
-                    SearchSourceConnector.connector_type.in_(_gmail_types),
-                )
-            )
-            connector = result.scalars().first()
-            if not connector:
-                return {
-                    "status": "error",
-                    "message": "Selected Gmail connector is invalid or has been disconnected.",
-                }
-
-            logger.info(
-                f"Trashing Gmail email: message_id='{final_message_id}', connector={final_connector_id}"
-            )
-
-            is_composio_gmail = (
-                connector.connector_type
-                == SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR
-            )
-            if is_composio_gmail:
-                cca_id = connector.config.get("composio_connected_account_id")
-                if not cca_id:
+                if not message_id:
                     return {
                         "status": "error",
-                        "message": "Composio connected account ID not found for this Gmail connector.",
+                        "message": "Message ID is missing from the indexed document. Please re-index the email and try again.",
                     }
-            else:
-                from google.oauth2.credentials import Credentials
 
-                from app.config import config
-                from app.utils.oauth_security import TokenEncryption
-
-                config_data = dict(connector.config)
-                token_encrypted = config_data.get("_token_encrypted", False)
-                if token_encrypted and config.SECRET_KEY:
-                    token_encryption = TokenEncryption(config.SECRET_KEY)
-                    if config_data.get("token"):
-                        config_data["token"] = token_encryption.decrypt_token(
-                            config_data["token"]
-                        )
-                    if config_data.get("refresh_token"):
-                        config_data["refresh_token"] = token_encryption.decrypt_token(
-                            config_data["refresh_token"]
-                        )
-                    if config_data.get("client_secret"):
-                        config_data["client_secret"] = token_encryption.decrypt_token(
-                            config_data["client_secret"]
-                        )
-
-                exp = config_data.get("expiry", "")
-                if exp:
-                    exp = exp.replace("Z", "")
-
-                creds = Credentials(
-                    token=config_data.get("token"),
-                    refresh_token=config_data.get("refresh_token"),
-                    token_uri=config_data.get("token_uri"),
-                    client_id=config_data.get("client_id"),
-                    client_secret=config_data.get("client_secret"),
-                    scopes=config_data.get("scopes", []),
-                    expiry=datetime.fromisoformat(exp) if exp else None,
+                logger.info(
+                    f"Requesting approval for trashing Gmail email: '{email_subject_or_id}' (message_id={message_id}, delete_from_kb={delete_from_kb})"
+                )
+                result = request_approval(
+                    action_type="gmail_email_trash",
+                    tool_name="trash_gmail_email",
+                    params={
+                        "message_id": message_id,
+                        "connector_id": connector_id_from_context,
+                        "delete_from_kb": delete_from_kb,
+                    },
+                    context=context,
                 )
 
-            try:
-                if is_composio_gmail:
-                    from app.agents.new_chat.tools.gmail.composio_helpers import (
-                        execute_composio_gmail_tool,
-                    )
-
-                    _trashed, error = await execute_composio_gmail_tool(
-                        connector,
-                        user_id,
-                        "GMAIL_MOVE_TO_TRASH",
-                        {"user_id": "me", "message_id": final_message_id},
-                    )
-                    if error:
-                        raise RuntimeError(error)
-                else:
-                    from googleapiclient.discovery import build
-
-                    gmail_service = build("gmail", "v1", credentials=creds)
-                    await asyncio.get_event_loop().run_in_executor(
-                        None,
-                        lambda: (
-                            gmail_service.users()
-                            .messages()
-                            .trash(userId="me", id=final_message_id)
-                            .execute()
-                        ),
-                    )
-            except Exception as api_err:
-                from googleapiclient.errors import HttpError
-
-                if isinstance(api_err, HttpError) and api_err.resp.status == 403:
-                    logger.warning(
-                        f"Insufficient permissions for connector {connector.id}: {api_err}"
-                    )
-                    try:
-                        from sqlalchemy.orm.attributes import flag_modified
-
-                        if not connector.config.get("auth_expired"):
-                            connector.config = {
-                                **connector.config,
-                                "auth_expired": True,
-                            }
-                            flag_modified(connector, "config")
-                            await db_session.commit()
-                    except Exception:
-                        logger.warning(
-                            "Failed to persist auth_expired for connector %s",
-                            connector.id,
-                            exc_info=True,
-                        )
+                if result.rejected:
                     return {
-                        "status": "insufficient_permissions",
-                        "connector_id": connector.id,
-                        "message": "This Gmail account needs additional permissions. Please re-authenticate in connector settings.",
+                        "status": "rejected",
+                        "message": "User declined. The email was not trashed. Do not ask again or suggest alternatives.",
                     }
-                raise
 
-            logger.info(f"Gmail email trashed: message_id={final_message_id}")
-
-            trash_result: dict[str, Any] = {
-                "status": "success",
-                "message_id": final_message_id,
-                "message": f"Successfully moved email '{email.get('subject', email_subject_or_id)}' to trash.",
-            }
-
-            deleted_from_kb = False
-            if final_delete_from_kb and document_id:
-                try:
-                    from app.db import Document
-
-                    doc_result = await db_session.execute(
-                        select(Document).filter(Document.id == document_id)
-                    )
-                    document = doc_result.scalars().first()
-                    if document:
-                        await db_session.delete(document)
-                        await db_session.commit()
-                        deleted_from_kb = True
-                        logger.info(
-                            f"Deleted document {document_id} from knowledge base"
-                        )
-                    else:
-                        logger.warning(f"Document {document_id} not found in KB")
-                except Exception as e:
-                    logger.error(f"Failed to delete document from KB: {e}")
-                    await db_session.rollback()
-                    trash_result["warning"] = (
-                        f"Email trashed, but failed to remove from knowledge base: {e!s}"
-                    )
-
-            trash_result["deleted_from_kb"] = deleted_from_kb
-            if deleted_from_kb:
-                trash_result["message"] = (
-                    f"{trash_result.get('message', '')} (also removed from knowledge base)"
+                final_message_id = result.params.get("message_id", message_id)
+                final_connector_id = result.params.get(
+                    "connector_id", connector_id_from_context
+                )
+                final_delete_from_kb = result.params.get(
+                    "delete_from_kb", delete_from_kb
                 )
 
-            return trash_result
+                if not final_connector_id:
+                    return {
+                        "status": "error",
+                        "message": "No connector found for this email.",
+                    }
+
+                from sqlalchemy.future import select
+
+                from app.db import SearchSourceConnector, SearchSourceConnectorType
+
+                _gmail_types = [
+                    SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
+                    SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
+                ]
+
+                result = await db_session.execute(
+                    select(SearchSourceConnector).filter(
+                        SearchSourceConnector.id == final_connector_id,
+                        SearchSourceConnector.search_space_id == search_space_id,
+                        SearchSourceConnector.user_id == user_id,
+                        SearchSourceConnector.connector_type.in_(_gmail_types),
+                    )
+                )
+                connector = result.scalars().first()
+                if not connector:
+                    return {
+                        "status": "error",
+                        "message": "Selected Gmail connector is invalid or has been disconnected.",
+                    }
+
+                logger.info(
+                    f"Trashing Gmail email: message_id='{final_message_id}', connector={final_connector_id}"
+                )
+
+                is_composio_gmail = (
+                    connector.connector_type
+                    == SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR
+                )
+                if is_composio_gmail:
+                    cca_id = connector.config.get("composio_connected_account_id")
+                    if not cca_id:
+                        return {
+                            "status": "error",
+                            "message": "Composio connected account ID not found for this Gmail connector.",
+                        }
+                else:
+                    from google.oauth2.credentials import Credentials
+
+                    from app.config import config
+                    from app.utils.oauth_security import TokenEncryption
+
+                    config_data = dict(connector.config)
+                    token_encrypted = config_data.get("_token_encrypted", False)
+                    if token_encrypted and config.SECRET_KEY:
+                        token_encryption = TokenEncryption(config.SECRET_KEY)
+                        if config_data.get("token"):
+                            config_data["token"] = token_encryption.decrypt_token(
+                                config_data["token"]
+                            )
+                        if config_data.get("refresh_token"):
+                            config_data["refresh_token"] = (
+                                token_encryption.decrypt_token(
+                                    config_data["refresh_token"]
+                                )
+                            )
+                        if config_data.get("client_secret"):
+                            config_data["client_secret"] = (
+                                token_encryption.decrypt_token(
+                                    config_data["client_secret"]
+                                )
+                            )
+
+                    exp = config_data.get("expiry", "")
+                    if exp:
+                        exp = exp.replace("Z", "")
+
+                    creds = Credentials(
+                        token=config_data.get("token"),
+                        refresh_token=config_data.get("refresh_token"),
+                        token_uri=config_data.get("token_uri"),
+                        client_id=config_data.get("client_id"),
+                        client_secret=config_data.get("client_secret"),
+                        scopes=config_data.get("scopes", []),
+                        expiry=datetime.fromisoformat(exp) if exp else None,
+                    )
+
+                try:
+                    if is_composio_gmail:
+                        from app.agents.new_chat.tools.gmail.composio_helpers import (
+                            execute_composio_gmail_tool,
+                        )
+
+                        _trashed, error = await execute_composio_gmail_tool(
+                            connector,
+                            user_id,
+                            "GMAIL_MOVE_TO_TRASH",
+                            {"user_id": "me", "message_id": final_message_id},
+                        )
+                        if error:
+                            raise RuntimeError(error)
+                    else:
+                        from googleapiclient.discovery import build
+
+                        gmail_service = build("gmail", "v1", credentials=creds)
+                        await asyncio.get_event_loop().run_in_executor(
+                            None,
+                            lambda: (
+                                gmail_service.users()
+                                .messages()
+                                .trash(userId="me", id=final_message_id)
+                                .execute()
+                            ),
+                        )
+                except Exception as api_err:
+                    from googleapiclient.errors import HttpError
+
+                    if isinstance(api_err, HttpError) and api_err.resp.status == 403:
+                        logger.warning(
+                            f"Insufficient permissions for connector {connector.id}: {api_err}"
+                        )
+                        try:
+                            from sqlalchemy.orm.attributes import flag_modified
+
+                            if not connector.config.get("auth_expired"):
+                                connector.config = {
+                                    **connector.config,
+                                    "auth_expired": True,
+                                }
+                                flag_modified(connector, "config")
+                                await db_session.commit()
+                        except Exception:
+                            logger.warning(
+                                "Failed to persist auth_expired for connector %s",
+                                connector.id,
+                                exc_info=True,
+                            )
+                        return {
+                            "status": "insufficient_permissions",
+                            "connector_id": connector.id,
+                            "message": "This Gmail account needs additional permissions. Please re-authenticate in connector settings.",
+                        }
+                    raise
+
+                logger.info(f"Gmail email trashed: message_id={final_message_id}")
+
+                trash_result: dict[str, Any] = {
+                    "status": "success",
+                    "message_id": final_message_id,
+                    "message": f"Successfully moved email '{email.get('subject', email_subject_or_id)}' to trash.",
+                }
+
+                deleted_from_kb = False
+                if final_delete_from_kb and document_id:
+                    try:
+                        from app.db import Document
+
+                        doc_result = await db_session.execute(
+                            select(Document).filter(Document.id == document_id)
+                        )
+                        document = doc_result.scalars().first()
+                        if document:
+                            await db_session.delete(document)
+                            await db_session.commit()
+                            deleted_from_kb = True
+                            logger.info(
+                                f"Deleted document {document_id} from knowledge base"
+                            )
+                        else:
+                            logger.warning(f"Document {document_id} not found in KB")
+                    except Exception as e:
+                        logger.error(f"Failed to delete document from KB: {e}")
+                        await db_session.rollback()
+                        trash_result["warning"] = (
+                            f"Email trashed, but failed to remove from knowledge base: {e!s}"
+                        )
+
+                trash_result["deleted_from_kb"] = deleted_from_kb
+                if deleted_from_kb:
+                    trash_result["message"] = (
+                        f"{trash_result.get('message', '')} (also removed from knowledge base)"
+                    )
+
+                return trash_result
 
         except Exception as e:
             from langgraph.errors import GraphInterrupt

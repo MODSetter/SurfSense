@@ -5,6 +5,8 @@ import httpx
 from langchain_core.tools import tool
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db import async_session_maker
+
 from ._auth import DISCORD_API, get_bot_token, get_discord_connector
 
 logger = logging.getLogger(__name__)
@@ -15,6 +17,23 @@ def create_read_discord_messages_tool(
     search_space_id: int | None = None,
     user_id: str | None = None,
 ):
+    """
+    Factory function to create the read_discord_messages tool.
+
+    The tool acquires its own short-lived ``AsyncSession`` per call via
+    :data:`async_session_maker` so the closure is safe to share across
+    HTTP requests by the compiled-agent cache. Capturing a per-request
+    session here would surface stale/closed sessions on cache hits.
+
+    Args:
+        db_session: Reserved for registry compatibility. Per-call sessions
+            are opened via :data:`async_session_maker` inside the tool body.
+
+    Returns:
+        Configured read_discord_messages tool
+    """
+    del db_session  # per-call session — see docstring
+
     @tool
     async def read_discord_messages(
         channel_id: str,
@@ -30,7 +49,7 @@ def create_read_discord_messages_tool(
             Dictionary with status and a list of messages including
             id, author, content, timestamp.
         """
-        if db_session is None or search_space_id is None or user_id is None:
+        if search_space_id is None or user_id is None:
             return {
                 "status": "error",
                 "message": "Discord tool not properly configured.",
@@ -39,55 +58,56 @@ def create_read_discord_messages_tool(
         limit = min(limit, 50)
 
         try:
-            connector = await get_discord_connector(
-                db_session, search_space_id, user_id
-            )
-            if not connector:
-                return {"status": "error", "message": "No Discord connector found."}
-
-            token = get_bot_token(connector)
-
-            async with httpx.AsyncClient() as client:
-                resp = await client.get(
-                    f"{DISCORD_API}/channels/{channel_id}/messages",
-                    headers={"Authorization": f"Bot {token}"},
-                    params={"limit": limit},
-                    timeout=15.0,
+            async with async_session_maker() as db_session:
+                connector = await get_discord_connector(
+                    db_session, search_space_id, user_id
                 )
+                if not connector:
+                    return {"status": "error", "message": "No Discord connector found."}
 
-            if resp.status_code == 401:
-                return {
-                    "status": "auth_error",
-                    "message": "Discord bot token is invalid.",
-                    "connector_type": "discord",
-                }
-            if resp.status_code == 403:
-                return {
-                    "status": "error",
-                    "message": "Bot lacks permission to read this channel.",
-                }
-            if resp.status_code != 200:
-                return {
-                    "status": "error",
-                    "message": f"Discord API error: {resp.status_code}",
-                }
+                token = get_bot_token(connector)
 
-            messages = [
-                {
-                    "id": m["id"],
-                    "author": m.get("author", {}).get("username", "Unknown"),
-                    "content": m.get("content", ""),
-                    "timestamp": m.get("timestamp", ""),
-                }
-                for m in resp.json()
-            ]
+                async with httpx.AsyncClient() as client:
+                    resp = await client.get(
+                        f"{DISCORD_API}/channels/{channel_id}/messages",
+                        headers={"Authorization": f"Bot {token}"},
+                        params={"limit": limit},
+                        timeout=15.0,
+                    )
 
-            return {
-                "status": "success",
-                "channel_id": channel_id,
-                "messages": messages,
-                "total": len(messages),
-            }
+                if resp.status_code == 401:
+                    return {
+                        "status": "auth_error",
+                        "message": "Discord bot token is invalid.",
+                        "connector_type": "discord",
+                    }
+                if resp.status_code == 403:
+                    return {
+                        "status": "error",
+                        "message": "Bot lacks permission to read this channel.",
+                    }
+                if resp.status_code != 200:
+                    return {
+                        "status": "error",
+                        "message": f"Discord API error: {resp.status_code}",
+                    }
+
+                messages = [
+                    {
+                        "id": m["id"],
+                        "author": m.get("author", {}).get("username", "Unknown"),
+                        "content": m.get("content", ""),
+                        "timestamp": m.get("timestamp", ""),
+                    }
+                    for m in resp.json()
+                ]
+
+                return {
+                    "status": "success",
+                    "channel_id": channel_id,
+                    "messages": messages,
+                    "total": len(messages),
+                }
 
         except Exception as e:
             from langgraph.errors import GraphInterrupt

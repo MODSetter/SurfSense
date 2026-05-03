@@ -103,6 +103,41 @@ class AgentFeatureFlags:
     # Observability — OTel (orthogonal; also requires OTEL_EXPORTER_OTLP_ENDPOINT)
     enable_otel: bool = False
 
+    # Performance — compiled-agent cache (Phase 1 + Phase 2).
+    # When ON, ``create_surfsense_deep_agent`` reuses a previously-compiled
+    # graph if the cache key matches (LLM config + thread + tool surface +
+    # flags + system prompt + filesystem mode). Cuts per-turn agent-build
+    # wall clock from ~4-5s to <50µs on cache hits.
+    #
+    # SAFETY (Phase 2 unblocked this default-on):
+    # All connector mutation tools (``tools/notion``, ``tools/gmail``,
+    # ``tools/google_drive``, ``tools/dropbox``, ``tools/onedrive``,
+    # ``tools/google_calendar``, ``tools/confluence``, ``tools/discord``,
+    # ``tools/teams``, ``tools/luma``, ``connected_accounts``,
+    # ``update_memory``, ``search_surfsense_docs``) now acquire fresh
+    # short-lived ``AsyncSession`` instances per call via
+    # :data:`async_session_maker`. The factory still accepts ``db_session``
+    # for registry compatibility but ``del``'s it immediately — see any
+    # of those files' factory docstrings for the rationale. The ``llm``
+    # closure is per-(provider, model, config_id) which is already in
+    # the cache key, so the LLM is safe to share across cached hits of
+    # the same key. The KB priority middleware reads
+    # ``mentioned_document_ids`` from ``runtime.context`` (Phase 1.5),
+    # not its constructor closure, so the same compiled agent serves
+    # turns with different mention lists correctly.
+    #
+    # Rollback: set ``SURFSENSE_ENABLE_AGENT_CACHE=false`` in the
+    # environment if a regression surfaces. The path is exercised by
+    # the ``tests/unit/agents/new_chat/test_agent_cache_*`` suite.
+    enable_agent_cache: bool = True
+    # Phase 1 (deferred — measure first): pre-build & share the
+    # general-purpose subagent ``CompiledSubAgent`` across cold-cache
+    # misses. Only helps when the outer cache MISSES (cache hits already
+    # reuse the entire SubAgentMiddleware-compiled graph). Off by default
+    # until we have data showing cold misses are frequent enough to
+    # justify the extra global state.
+    enable_agent_cache_share_gp_subagent: bool = False
+
     @classmethod
     def from_env(cls) -> AgentFeatureFlags:
         """Read flags from environment.
@@ -137,6 +172,8 @@ class AgentFeatureFlags:
                 enable_stream_parity_v2=False,
                 enable_plugin_loader=False,
                 enable_otel=False,
+                enable_agent_cache=False,
+                enable_agent_cache_share_gp_subagent=False,
             )
 
         return cls(
@@ -179,6 +216,11 @@ class AgentFeatureFlags:
             enable_plugin_loader=_env_bool("SURFSENSE_ENABLE_PLUGIN_LOADER", False),
             # Observability
             enable_otel=_env_bool("SURFSENSE_ENABLE_OTEL", False),
+            # Performance
+            enable_agent_cache=_env_bool("SURFSENSE_ENABLE_AGENT_CACHE", True),
+            enable_agent_cache_share_gp_subagent=_env_bool(
+                "SURFSENSE_ENABLE_AGENT_CACHE_SHARE_GP_SUBAGENT", False
+            ),
         )
 
     def any_new_middleware_enabled(self) -> bool:
