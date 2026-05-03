@@ -446,21 +446,26 @@ export function ReportPanelContent({
 		<>
 			{showDesktopHeader ? (
 				<>
-					{/* Header — matches the editor panel "File" header pattern */}
-					<div className="flex h-14 items-center justify-between px-4 shrink-0">
-						<h2 className="text-lg font-medium text-muted-foreground select-none">
+					{/* Header — matches the Documents panel header pattern */}
+					<div className="shrink-0 flex h-12 items-center justify-between px-3 border-b">
+						<h2 className="select-none text-lg font-semibold">
 							{isResume ? "Resume" : "Report"}
 						</h2>
 						{onClose && (
-							<Button variant="ghost" size="icon" onClick={onClose} className="size-7 shrink-0">
-								<XIcon className="size-4" />
+							<Button
+								variant="ghost"
+								size="icon"
+								onClick={onClose}
+								className="h-8 w-8 rounded-full shrink-0"
+							>
+								<XIcon className="h-4 w-4 text-muted-foreground" />
 								<span className="sr-only">Close report panel</span>
 							</Button>
 						)}
 					</div>
 
 					{!isResume && (
-						<div className="flex h-10 items-center justify-between gap-2 border-t border-b px-4 shrink-0">
+						<div className="flex h-10 items-center justify-between gap-2 border-b px-4 shrink-0">
 							<div className="min-w-0 flex-1">
 								<p className="truncate text-sm text-muted-foreground">
 									{reportContent?.title || title}
@@ -528,7 +533,7 @@ export function ReportPanelContent({
 							placeholder="Report content..."
 							editorVariant="default"
 							allowModeToggle={false}
-							reserveToolbarSpace
+							reserveToolbarSpace={isEditing}
 							defaultEditing={isEditing}
 							className="[&_[role=toolbar]]:!bg-sidebar"
 							// Show citation badges in view mode; raw `[citation:N]`

@@ -94,19 +94,24 @@ export const CitationPanelContent: FC<CitationPanelContentProps> = ({ chunkId, o
 
 	return (
 		<>
-			<div className="shrink-0 border-b">
-				<div className="flex h-14 items-center justify-between px-4">
-					<h2 className="text-lg font-medium text-muted-foreground select-none">Citation</h2>
+			<div className="shrink-0">
+				<div className="shrink-0 flex h-12 items-center justify-between px-3 border-b">
+					<h2 className="select-none text-lg font-semibold">Citation</h2>
 					<div className="flex items-center gap-1 shrink-0">
 						{onClose && (
-							<Button variant="ghost" size="icon" onClick={onClose} className="size-7 shrink-0">
-								<XIcon className="size-4" />
+							<Button
+								variant="ghost"
+								size="icon"
+								onClick={onClose}
+								className="h-8 w-8 rounded-full shrink-0"
+							>
+								<XIcon className="h-4 w-4 text-muted-foreground" />
 								<span className="sr-only">Close citation panel</span>
 							</Button>
 						)}
 					</div>
 				</div>
-				<div className="flex h-10 items-center justify-between gap-2 border-t px-4">
+				<div className="flex h-10 items-center justify-between gap-2 border-b px-4">
 					<div className="min-w-0 flex flex-1 items-center gap-2">
 						<p className="truncate text-sm text-muted-foreground">
 							{data?.title ?? (isLoading ? "Loading…" : `Chunk #${chunkId}`)}
