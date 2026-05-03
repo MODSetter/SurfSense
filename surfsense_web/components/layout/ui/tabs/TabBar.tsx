@@ -20,7 +20,7 @@ interface TabBarProps {
 	className?: string;
 }
 
-// Pure scroll-target calculation (port of opencode's nextTabListScrollLeft).
+// Pure scroll-target calculation for the tab list.
 // - When the list shrinks (a tab was closed), do not move the scroll.
 // - When the list overflows after growing, snap to the right edge so the new tab is visible.
 function nextTabListScrollLeft(input: {
@@ -66,9 +66,8 @@ export function TabBar({
 		[closeTab, onTabSwitch]
 	);
 
-	// React to tab list growth (port of opencode's createFileTabListSync).
-	// Uses a MutationObserver instead of a tab-id effect so the scroll catches
-	// the moment the new tab is added to the DOM, not after activation lands.
+	// React to tab list growth via a MutationObserver so the scroll catches the
+	// moment a new tab is added to the DOM, not after activation lands.
 	// Also remaps vertical wheel motion to horizontal scroll.
 	useEffect(() => {
 		const el = scrollRef.current;
@@ -195,8 +194,7 @@ export function TabBar({
 					<div
 						className={cn(
 							// Solid bg + soft left-fade so tabs scrolling underneath the
-							// + button get visually masked into the bar's background —
-							// 1:1 port of opencode's `> .sticky` rule in tabs.css.
+							// + button get visually masked into the bar's background.
 							"sticky right-0 z-10 flex h-full shrink-0 items-center bg-main-panel pl-3 pr-1",
 							"before:content-[''] before:absolute before:inset-y-0 before:-left-4 before:w-4 before:pointer-events-none",
 							"before:bg-gradient-to-r before:from-transparent before:to-main-panel"

@@ -7,14 +7,12 @@ import {
 	ContextMenu,
 	ContextMenuContent,
 	ContextMenuItem,
-	ContextMenuSeparator,
 	ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
-	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -157,7 +155,6 @@ export function SearchSpaceAvatar({
 					{tCommon("settings")}
 				</DropdownMenuItem>
 			)}
-			{onSettings && onDelete && <DropdownMenuSeparator />}
 			{onDelete && isOwner && (
 				<DropdownMenuItem onClick={onDelete}>
 					<Trash2 className="mr-2 h-4 w-4" />
@@ -190,7 +187,7 @@ export function SearchSpaceAvatar({
 							{avatarButton}
 						</div>
 					</DropdownMenuTrigger>
-					<DropdownMenuContent className="w-48">{menuItems}</DropdownMenuContent>
+					<DropdownMenuContent>{menuItems}</DropdownMenuContent>
 				</DropdownMenu>
 			);
 		}
@@ -208,14 +205,13 @@ export function SearchSpaceAvatar({
 						{tooltipContent}
 					</TooltipContent>
 				</Tooltip>
-				<ContextMenuContent className="w-48">
+				<ContextMenuContent>
 					{onSettings && (
 						<ContextMenuItem onClick={onSettings}>
 							<Settings className="mr-2 h-4 w-4" />
 							{tCommon("settings")}
 						</ContextMenuItem>
 					)}
-					{onSettings && onDelete && <ContextMenuSeparator />}
 					{onDelete && isOwner && (
 						<ContextMenuItem onClick={onDelete}>
 							<Trash2 className="mr-2 h-4 w-4" />
