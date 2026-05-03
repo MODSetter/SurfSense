@@ -7,7 +7,7 @@ from sqlalchemy.future import select
 
 from app.celery_app import celery_app
 from app.db import Notification, SearchSourceConnector, SearchSourceConnectorType
-from app.tasks.celery_tasks import get_celery_session_maker
+from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
 from app.utils.indexing_locks import is_connector_indexing_locked
 
 logger = logging.getLogger(__name__)
@@ -20,15 +20,7 @@ def check_periodic_schedules_task():
     This task runs every minute and triggers indexing for any connector
     whose next_scheduled_at time has passed.
     """
-    import asyncio
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    try:
-        loop.run_until_complete(_check_and_trigger_schedules())
-    finally:
-        loop.close()
+    return run_async_celery_task(_check_and_trigger_schedules)
 
 
 async def _check_and_trigger_schedules():

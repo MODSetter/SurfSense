@@ -65,6 +65,13 @@ export const newLLMConfig = z.object({
 	created_at: z.string(),
 	search_space_id: z.number(),
 	user_id: z.string(),
+
+	// Capability flag — derived server-side at the route boundary from
+	// LiteLLM's authoritative model map. There is no DB column. Default
+	// `true` is the conservative-allow stance for unknown / unmapped
+	// BYOK rows; the streaming-task safety net is the only place a
+	// `false` actually blocks a request.
+	supports_image_input: z.boolean().default(true),
 });
 
 /**
@@ -74,11 +81,16 @@ export const newLLMConfigPublic = newLLMConfig.omit({ api_key: true });
 
 /**
  * Create NewLLMConfig
+ *
+ * `supports_image_input` is omitted because it is derived server-side
+ * from LiteLLM's model map at read time — there is no DB column to
+ * persist a client-supplied value into.
  */
 export const createNewLLMConfigRequest = newLLMConfig.omit({
 	id: true,
 	created_at: true,
 	user_id: true,
+	supports_image_input: true,
 });
 
 export const createNewLLMConfigResponse = newLLMConfig;
@@ -114,6 +126,8 @@ export const updateNewLLMConfigRequest = z.object({
 			created_at: true,
 			search_space_id: true,
 			user_id: true,
+			// Derived server-side; not part of the writable surface.
+			supports_image_input: true,
 		})
 		.partial(),
 });
@@ -172,6 +186,16 @@ export const globalNewLLMConfig = z.object({
 	seo_title: z.string().nullable().optional(),
 	seo_description: z.string().nullable().optional(),
 	quota_reserve_tokens: z.number().nullable().optional(),
+	// Capability flag — true when the model can accept image inputs.
+	// Resolved server-side (OpenRouter dynamic configs use the OR
+	// `architecture.input_modalities` field; YAML / BYOK use LiteLLM's
+	// authoritative `supports_vision` map). The chat selector renders
+	// an amber "No image" hint when this is false and there are
+	// pending image attachments, but does not block selection — the
+	// backend safety net only rejects when LiteLLM *explicitly* marks
+	// the model as text-only, so unknown / new models still flow
+	// through. Default `true` matches that conservative-allow stance.
+	supports_image_input: z.boolean().default(true),
 });
 
 export const getGlobalNewLLMConfigsResponse = z.array(globalNewLLMConfig);
@@ -259,6 +283,9 @@ export const globalImageGenConfig = z.object({
 	is_global: z.literal(true),
 	is_auto_mode: z.boolean().optional().default(false),
 	billing_tier: z.string().default("free"),
+	// Mirrors `globalNewLLMConfig.is_premium` so the new-chat selector's
+	// Free/Premium badge logic lights up automatically for image-gen too.
+	is_premium: z.boolean().default(false),
 	quota_reserve_micros: z.number().nullable().optional(),
 });
 
@@ -341,6 +368,9 @@ export const globalVisionLLMConfig = z.object({
 	is_global: z.literal(true),
 	is_auto_mode: z.boolean().optional().default(false),
 	billing_tier: z.string().default("free"),
+	// Mirrors `globalNewLLMConfig.is_premium` so the new-chat selector's
+	// Free/Premium badge logic lights up automatically for vision too.
+	is_premium: z.boolean().default(false),
 	quota_reserve_tokens: z.number().nullable().optional(),
 	input_cost_per_token: z.number().nullable().optional(),
 	output_cost_per_token: z.number().nullable().optional(),

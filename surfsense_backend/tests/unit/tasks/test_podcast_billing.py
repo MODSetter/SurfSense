@@ -113,6 +113,19 @@ async def _denying_billable_call(**kwargs):
     yield SimpleNamespace()  # pragma: no cover — for grammar only
 
 
+@contextlib.asynccontextmanager
+async def _settlement_failing_billable_call(**kwargs):
+    from app.services.billable_calls import BillingSettlementError
+
+    _CALL_LOG.append(kwargs)
+    yield SimpleNamespace()
+    raise BillingSettlementError(
+        usage_type=kwargs.get("usage_type", "?"),
+        user_id=kwargs["user_id"],
+        cause=RuntimeError("finalize failed"),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -187,8 +200,15 @@ async def test_billable_call_invoked_with_correct_kwargs_for_free_config(monkeyp
         call["quota_reserve_micros_override"]
         == app_config.QUOTA_DEFAULT_PODCAST_RESERVE_MICROS
     )
-    assert call["thread_id"] == 99
-    assert call["call_details"] == {"podcast_id": 7, "title": "Test Podcast"}
+    # Background artifact audit rows intentionally omit the TokenUsage.thread_id
+    # FK to avoid coupling Celery audit commits to an active chat transaction.
+    assert "thread_id" not in call
+    assert call["call_details"] == {
+        "podcast_id": 7,
+        "title": "Test Podcast",
+        "thread_id": 99,
+    }
+    assert callable(call["billable_session_factory"])
 
 
 @pytest.mark.asyncio
@@ -277,6 +297,49 @@ async def test_quota_insufficient_marks_podcast_failed_and_skips_graph(monkeypat
     }
     assert podcast.status == PodcastStatus.FAILED
     assert graph_invoked == []  # Graph never ran on denied reservation.
+
+
+@pytest.mark.asyncio
+async def test_billing_settlement_failure_marks_podcast_failed(monkeypatch):
+    from app.db import PodcastStatus
+    from app.tasks.celery_tasks import podcast_tasks
+
+    podcast = _make_podcast(podcast_id=10)
+    session = _FakeSession(podcast)
+    monkeypatch.setattr(
+        podcast_tasks,
+        "get_celery_session_maker",
+        lambda: _FakeSessionMaker(session),
+    )
+
+    async def _fake_resolver(sess, search_space_id, *, thread_id=None):
+        return uuid4(), "premium", "gpt-5.4"
+
+    monkeypatch.setattr(
+        podcast_tasks, "_resolve_agent_billing_for_search_space", _fake_resolver
+    )
+    monkeypatch.setattr(
+        podcast_tasks, "billable_call", _settlement_failing_billable_call
+    )
+
+    async def _fake_graph_invoke(state, config):
+        return {"podcast_transcript": [], "final_podcast_file_path": "x.wav"}
+
+    monkeypatch.setattr(podcast_tasks.podcaster_graph, "ainvoke", _fake_graph_invoke)
+
+    result = await podcast_tasks._generate_content_podcast(
+        podcast_id=10,
+        source_content="hi",
+        search_space_id=555,
+        user_prompt=None,
+    )
+
+    assert result == {
+        "status": "failed",
+        "podcast_id": 10,
+        "reason": "billing_settlement_failed",
+    }
+    assert podcast.status == PodcastStatus.FAILED
 
 
 @pytest.mark.asyncio

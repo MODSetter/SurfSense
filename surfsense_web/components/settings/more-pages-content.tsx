@@ -70,9 +70,7 @@ export function MorePagesContent() {
 		<div className="w-full space-y-5">
 			<div className="text-center">
 				<h2 className="text-xl font-bold tracking-tight">Get Free Pages</h2>
-				<p className="mt-1 text-sm text-muted-foreground">
-					Earn bonus pages by completing tasks
-				</p>
+				<p className="mt-1 text-sm text-muted-foreground">Earn bonus pages by completing tasks</p>
 			</div>
 
 			<div className="space-y-2">

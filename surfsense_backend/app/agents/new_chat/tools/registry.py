@@ -824,13 +824,22 @@ async def build_tools_async(
     """Async version of build_tools that also loads MCP tools from database.
 
     Design Note:
-    This function exists because MCP tools require database queries to load user configs,
-    while built-in tools are created synchronously from static code.
+    This function exists because MCP tools require database queries to load
+    user configs, while built-in tools are created synchronously from static
+    code.
 
-    Alternative: We could make build_tools() itself async and always query the database,
-    but that would force async everywhere even when only using built-in tools. The current
-    design keeps the simple case (static tools only) synchronous while supporting dynamic
-    database-loaded tools through this async wrapper.
+    Alternative: We could make build_tools() itself async and always query
+    the database, but that would force async everywhere even when only using
+    built-in tools. The current design keeps the simple case (static tools
+    only) synchronous while supporting dynamic database-loaded tools through
+    this async wrapper.
+
+    Phase 1.3: built-in tool construction (CPU; runs in a thread pool to
+    avoid event-loop stalls) and MCP tool loading (HTTP/DB I/O; runs on
+    the event loop) are kicked off concurrently. Cold-path savings are
+    bounded by the slower of the two — typically MCP at ~200ms-1.7s —
+    so the parallelization recovers the ~50-200ms previously spent
+    serially on built-in construction.
 
     Args:
         dependencies: Dict containing all possible dependencies
@@ -843,33 +852,70 @@ async def build_tools_async(
         List of configured tool instances ready for the agent, including MCP tools.
 
     """
+    import asyncio
     import time
 
     _perf_log = logging.getLogger("surfsense.perf")
     _perf_log.setLevel(logging.DEBUG)
 
+    can_load_mcp = (
+        include_mcp_tools
+        and "db_session" in dependencies
+        and "search_space_id" in dependencies
+    )
+
+    # Built-in tool construction is synchronous + CPU-only. Off-loop it so
+    # MCP's HTTP/DB I/O can fire concurrently. ``build_tools`` is pure
+    # function over its inputs — safe to thread-shift.
     _t0 = time.perf_counter()
-    tools = build_tools(dependencies, enabled_tools, disabled_tools, additional_tools)
+    builtin_task = asyncio.create_task(
+        asyncio.to_thread(
+            build_tools, dependencies, enabled_tools, disabled_tools, additional_tools
+        )
+    )
+
+    mcp_task: asyncio.Task | None = None
+    if can_load_mcp:
+        mcp_task = asyncio.create_task(
+            load_mcp_tools(
+                dependencies["db_session"],
+                dependencies["search_space_id"],
+            )
+        )
+
+    # Surface failures from each task independently so a flaky MCP
+    # endpoint never poisons built-in tool registration. ``return_exceptions``
+    # gives us per-task exceptions instead of dropping the second result
+    # when the first raises.
+    if mcp_task is not None:
+        builtin_result, mcp_result = await asyncio.gather(
+            builtin_task, mcp_task, return_exceptions=True
+        )
+    else:
+        builtin_result = await builtin_task
+        mcp_result = None
+
+    if isinstance(builtin_result, BaseException):
+        raise builtin_result  # built-in registration failure is non-recoverable
+    tools: list[BaseTool] = builtin_result
     _perf_log.info(
-        "[build_tools_async] Built-in tools in %.3fs (%d tools)",
+        "[build_tools_async] Built-in tools in %.3fs (%d tools, parallel)",
         time.perf_counter() - _t0,
         len(tools),
     )
 
-    # Load MCP tools if requested and dependencies are available
-    if (
-        include_mcp_tools
-        and "db_session" in dependencies
-        and "search_space_id" in dependencies
-    ):
-        try:
-            _t0 = time.perf_counter()
-            mcp_tools = await load_mcp_tools(
-                dependencies["db_session"],
-                dependencies["search_space_id"],
+    if mcp_task is not None:
+        if isinstance(mcp_result, BaseException):
+            # ``return_exceptions=True`` captures the exception out-of-band,
+            # so ``sys.exc_info()`` is empty here. Pass the captured
+            # exception via ``exc_info=`` to get a real traceback.
+            logging.error(
+                "Failed to load MCP tools: %s", mcp_result, exc_info=mcp_result
             )
+        else:
+            mcp_tools = mcp_result or []
             _perf_log.info(
-                "[build_tools_async] MCP tools loaded in %.3fs (%d tools)",
+                "[build_tools_async] MCP tools loaded in %.3fs (%d tools, parallel)",
                 time.perf_counter() - _t0,
                 len(mcp_tools),
             )
@@ -879,8 +925,6 @@ async def build_tools_async(
                 len(mcp_tools),
                 [t.name for t in mcp_tools],
             )
-        except Exception as e:
-            logging.exception("Failed to load MCP tools: %s", e)
 
     logging.info(
         "Total tools for agent: %d — %s",

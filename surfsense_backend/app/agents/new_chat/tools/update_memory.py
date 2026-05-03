@@ -26,7 +26,7 @@ from langchain_core.tools import tool
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import SearchSpace, User
+from app.db import SearchSpace, User, async_session_maker
 
 logger = logging.getLogger(__name__)
 
@@ -295,6 +295,25 @@ def create_update_memory_tool(
     db_session: AsyncSession,
     llm: Any | None = None,
 ):
+    """Factory function to create the user-memory update tool.
+
+    The tool acquires its own short-lived ``AsyncSession`` per call via
+    :data:`async_session_maker` so the closure is safe to share across
+    HTTP requests by the compiled-agent cache. Capturing a per-request
+    session here would surface stale/closed sessions on cache hits.
+    The session's bound ``commit``/``rollback`` methods are captured at
+    call time, after ``async with`` has bound ``db_session`` locally.
+
+    Args:
+        user_id: ID of the user whose memory document is being updated.
+        db_session: Reserved for registry compatibility. Per-call sessions
+            are opened via :data:`async_session_maker` inside the tool body.
+        llm: Optional LLM for the forced-rewrite path.
+
+    Returns:
+        Configured update_memory tool for the user-memory scope.
+    """
+    del db_session  # per-call session — see docstring
     uid = UUID(user_id) if isinstance(user_id, str) else user_id
 
     @tool
@@ -311,26 +330,26 @@ def create_update_memory_tool(
             updated_memory: The FULL updated markdown document (not a diff).
         """
         try:
-            result = await db_session.execute(select(User).where(User.id == uid))
-            user = result.scalars().first()
-            if not user:
-                return {"status": "error", "message": "User not found."}
+            async with async_session_maker() as db_session:
+                result = await db_session.execute(select(User).where(User.id == uid))
+                user = result.scalars().first()
+                if not user:
+                    return {"status": "error", "message": "User not found."}
 
-            old_memory = user.memory_md
+                old_memory = user.memory_md
 
-            return await _save_memory(
-                updated_memory=updated_memory,
-                old_memory=old_memory,
-                llm=llm,
-                apply_fn=lambda content: setattr(user, "memory_md", content),
-                commit_fn=db_session.commit,
-                rollback_fn=db_session.rollback,
-                label="memory",
-                scope="user",
-            )
+                return await _save_memory(
+                    updated_memory=updated_memory,
+                    old_memory=old_memory,
+                    llm=llm,
+                    apply_fn=lambda content: setattr(user, "memory_md", content),
+                    commit_fn=db_session.commit,
+                    rollback_fn=db_session.rollback,
+                    label="memory",
+                    scope="user",
+                )
         except Exception as e:
             logger.exception("Failed to update user memory: %s", e)
-            await db_session.rollback()
             return {
                 "status": "error",
                 "message": f"Failed to update memory: {e}",
@@ -344,6 +363,27 @@ def create_update_team_memory_tool(
     db_session: AsyncSession,
     llm: Any | None = None,
 ):
+    """Factory function to create the team-memory update tool.
+
+    The tool acquires its own short-lived ``AsyncSession`` per call via
+    :data:`async_session_maker` so the closure is safe to share across
+    HTTP requests by the compiled-agent cache. Capturing a per-request
+    session here would surface stale/closed sessions on cache hits.
+    The session's bound ``commit``/``rollback`` methods are captured at
+    call time, after ``async with`` has bound ``db_session`` locally.
+
+    Args:
+        search_space_id: ID of the search space whose team memory is being
+            updated.
+        db_session: Reserved for registry compatibility. Per-call sessions
+            are opened via :data:`async_session_maker` inside the tool body.
+        llm: Optional LLM for the forced-rewrite path.
+
+    Returns:
+        Configured update_memory tool for the team-memory scope.
+    """
+    del db_session  # per-call session — see docstring
+
     @tool
     async def update_memory(updated_memory: str) -> dict[str, Any]:
         """Update the team's shared memory document for this search space.
@@ -359,28 +399,30 @@ def create_update_team_memory_tool(
             updated_memory: The FULL updated markdown document (not a diff).
         """
         try:
-            result = await db_session.execute(
-                select(SearchSpace).where(SearchSpace.id == search_space_id)
-            )
-            space = result.scalars().first()
-            if not space:
-                return {"status": "error", "message": "Search space not found."}
+            async with async_session_maker() as db_session:
+                result = await db_session.execute(
+                    select(SearchSpace).where(SearchSpace.id == search_space_id)
+                )
+                space = result.scalars().first()
+                if not space:
+                    return {"status": "error", "message": "Search space not found."}
 
-            old_memory = space.shared_memory_md
+                old_memory = space.shared_memory_md
 
-            return await _save_memory(
-                updated_memory=updated_memory,
-                old_memory=old_memory,
-                llm=llm,
-                apply_fn=lambda content: setattr(space, "shared_memory_md", content),
-                commit_fn=db_session.commit,
-                rollback_fn=db_session.rollback,
-                label="team memory",
-                scope="team",
-            )
+                return await _save_memory(
+                    updated_memory=updated_memory,
+                    old_memory=old_memory,
+                    llm=llm,
+                    apply_fn=lambda content: setattr(
+                        space, "shared_memory_md", content
+                    ),
+                    commit_fn=db_session.commit,
+                    rollback_fn=db_session.rollback,
+                    label="team memory",
+                    scope="team",
+                )
         except Exception as e:
             logger.exception("Failed to update team memory: %s", e)
-            await db_session.rollback()
             return {
                 "status": "error",
                 "message": f"Failed to update team memory: {e}",

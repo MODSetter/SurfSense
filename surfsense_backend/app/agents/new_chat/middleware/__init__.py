@@ -24,6 +24,9 @@ from app.agents.new_chat.middleware.file_intent import (
 from app.agents.new_chat.middleware.filesystem import (
     SurfSenseFilesystemMiddleware,
 )
+from app.agents.new_chat.middleware.flatten_system import (
+    FlattenSystemMessageMiddleware,
+)
 from app.agents.new_chat.middleware.kb_persistence import (
     KnowledgeBasePersistenceMiddleware,
     commit_staged_filesystem_state,
@@ -61,6 +64,7 @@ __all__ = [
     "DedupHITLToolCallsMiddleware",
     "DoomLoopMiddleware",
     "FileIntentMiddleware",
+    "FlattenSystemMessageMiddleware",
     "KnowledgeBasePersistenceMiddleware",
     "KnowledgeBaseSearchMiddleware",
     "KnowledgePriorityMiddleware",

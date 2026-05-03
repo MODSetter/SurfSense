@@ -122,6 +122,24 @@ def _is_vision_input_model(model: dict) -> bool:
     return "image" in input_mods and "text" in output_mods
 
 
+def _supports_image_input(model: dict) -> bool:
+    """Return True if the model accepts ``image`` in its input modalities.
+
+    Differs from :func:`_is_vision_input_model` in that it does NOT
+    require text output — chat-tab models always emit text already (the
+    chat catalog filters by ``_is_text_output_model``), so the only
+    extra capability we need to track per chat config is whether the
+    model can ingest user-attached images. The chat selector and the
+    streaming task both key off this flag to prevent hitting an
+    OpenRouter 404 ``"No endpoints found that support image input"``
+    when the user uploads an image and selects a text-only model
+    (DeepSeek V3, Llama 3.x base, etc.).
+    """
+    arch = model.get("architecture", {}) or {}
+    input_mods = arch.get("input_modalities", []) or []
+    return "image" in input_mods
+
+
 def _supports_tool_calling(model: dict) -> bool:
     """Return True if the model supports function/tool calling."""
     supported = model.get("supported_parameters") or []
@@ -321,6 +339,13 @@ def _generate_configs(
             # account-wide quota, so per-deployment routing can't spread load
             # there — it just drains the shared bucket faster.
             "router_pool_eligible": tier == "premium",
+            # Capability flag derived from ``architecture.input_modalities``.
+            # Read by the new-chat selector to dim image-incompatible models
+            # when the user has pending image attachments, and by
+            # ``stream_new_chat`` as a fail-fast safety net before the
+            # OpenRouter request would otherwise 404 with
+            # ``"No endpoints found that support image input"``.
+            "supports_image_input": _supports_image_input(model),
             _OPENROUTER_DYNAMIC_MARKER: True,
             # Auto (Fastest) ranking metadata. ``quality_score`` is initialised
             # to the static score and gets re-blended with health on the next
@@ -398,7 +423,12 @@ def _generate_image_gen_configs(
             "provider": "OPENROUTER",
             "model_name": model_id,
             "api_key": api_key,
-            "api_base": "",
+            # Pin to OpenRouter's public base URL so a downstream call site
+            # that forgets ``resolve_api_base`` still doesn't inherit
+            # ``AZURE_OPENAI_ENDPOINT`` and 404 on
+            # ``image_generation/transformation`` (defense-in-depth, see
+            # ``provider_api_base`` docstring).
+            "api_base": "https://openrouter.ai/api/v1",
             "api_version": None,
             "rpm": free_rpm if tier == "free" else rpm,
             "litellm_params": dict(litellm_params),
@@ -477,7 +507,11 @@ def _generate_vision_llm_configs(
             "provider": "OPENROUTER",
             "model_name": model_id,
             "api_key": api_key,
-            "api_base": "",
+            # Pin to OpenRouter's public base URL so a downstream call site
+            # that forgets ``resolve_api_base`` still doesn't inherit
+            # ``AZURE_OPENAI_ENDPOINT`` (defense-in-depth, see
+            # ``provider_api_base`` docstring).
+            "api_base": "https://openrouter.ai/api/v1",
             "api_version": None,
             "rpm": free_rpm if tier == "free" else rpm,
             "tpm": free_tpm if tier == "free" else tpm,

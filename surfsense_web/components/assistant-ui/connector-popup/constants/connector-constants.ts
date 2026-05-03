@@ -105,14 +105,14 @@ export const OAUTH_CONNECTORS = [
 	{
 		id: "jira-connector",
 		title: "Jira",
-		description: "Search, read, and manage issues",
+		description: "Rework in progress.",
 		connectorType: EnumConnectorName.JIRA_CONNECTOR,
 		authEndpoint: "/api/v1/auth/mcp/jira/connector/add/",
 	},
 	{
 		id: "confluence-connector",
 		title: "Confluence",
-		description: "Search documentation",
+		description: "Rework in progress.",
 		connectorType: EnumConnectorName.CONFLUENCE_CONNECTOR,
 		authEndpoint: "/api/v1/auth/confluence/connector/add/",
 	},

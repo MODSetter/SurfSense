@@ -4,7 +4,7 @@ import logging
 import traceback
 
 from app.celery_app import celery_app
-from app.tasks.celery_tasks import get_celery_session_maker
+from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
 
 logger = logging.getLogger(__name__)
 
@@ -49,22 +49,15 @@ def index_notion_pages_task(
     end_date: str,
 ):
     """Celery task to index Notion pages."""
-    import asyncio
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
     try:
-        loop.run_until_complete(
-            _index_notion_pages(
+        return run_async_celery_task(
+            lambda: _index_notion_pages(
                 connector_id, search_space_id, user_id, start_date, end_date
             )
         )
     except Exception as e:
         _handle_greenlet_error(e, "index_notion_pages", connector_id)
         raise
-    finally:
-        loop.close()
 
 
 async def _index_notion_pages(
@@ -95,19 +88,11 @@ def index_github_repos_task(
     end_date: str,
 ):
     """Celery task to index GitHub repositories."""
-    import asyncio
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    try:
-        loop.run_until_complete(
-            _index_github_repos(
-                connector_id, search_space_id, user_id, start_date, end_date
-            )
+    return run_async_celery_task(
+        lambda: _index_github_repos(
+            connector_id, search_space_id, user_id, start_date, end_date
         )
-    finally:
-        loop.close()
+    )
 
 
 async def _index_github_repos(
@@ -138,19 +123,11 @@ def index_confluence_pages_task(
     end_date: str,
 ):
     """Celery task to index Confluence pages."""
-    import asyncio
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    try:
-        loop.run_until_complete(
-            _index_confluence_pages(
-                connector_id, search_space_id, user_id, start_date, end_date
-            )
+    return run_async_celery_task(
+        lambda: _index_confluence_pages(
+            connector_id, search_space_id, user_id, start_date, end_date
         )
-    finally:
-        loop.close()
+    )
 
 
 async def _index_confluence_pages(
@@ -181,22 +158,15 @@ def index_google_calendar_events_task(
     end_date: str,
 ):
     """Celery task to index Google Calendar events."""
-    import asyncio
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
     try:
-        loop.run_until_complete(
-            _index_google_calendar_events(
+        return run_async_celery_task(
+            lambda: _index_google_calendar_events(
                 connector_id, search_space_id, user_id, start_date, end_date
             )
         )
     except Exception as e:
         _handle_greenlet_error(e, "index_google_calendar_events", connector_id)
         raise
-    finally:
-        loop.close()
 
 
 async def _index_google_calendar_events(
@@ -227,19 +197,11 @@ def index_google_gmail_messages_task(
     end_date: str,
 ):
     """Celery task to index Google Gmail messages."""
-    import asyncio
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    try:
-        loop.run_until_complete(
-            _index_google_gmail_messages(
-                connector_id, search_space_id, user_id, start_date, end_date
-            )
+    return run_async_celery_task(
+        lambda: _index_google_gmail_messages(
+            connector_id, search_space_id, user_id, start_date, end_date
         )
-    finally:
-        loop.close()
+    )
 
 
 async def _index_google_gmail_messages(
@@ -269,22 +231,14 @@ def index_google_drive_files_task(
     items_dict: dict,  # Dictionary with 'folders', 'files', and 'indexing_options'
 ):
     """Celery task to index Google Drive folders and files."""
-    import asyncio
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    try:
-        loop.run_until_complete(
-            _index_google_drive_files(
-                connector_id,
-                search_space_id,
-                user_id,
-                items_dict,
-            )
+    return run_async_celery_task(
+        lambda: _index_google_drive_files(
+            connector_id,
+            search_space_id,
+            user_id,
+            items_dict,
         )
-    finally:
-        loop.close()
+    )
 
 
 async def _index_google_drive_files(
@@ -317,22 +271,14 @@ def index_onedrive_files_task(
     items_dict: dict,
 ):
     """Celery task to index OneDrive folders and files."""
-    import asyncio
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    try:
-        loop.run_until_complete(
-            _index_onedrive_files(
-                connector_id,
-                search_space_id,
-                user_id,
-                items_dict,
-            )
+    return run_async_celery_task(
+        lambda: _index_onedrive_files(
+            connector_id,
+            search_space_id,
+            user_id,
+            items_dict,
         )
-    finally:
-        loop.close()
+    )
 
 
 async def _index_onedrive_files(
@@ -365,22 +311,14 @@ def index_dropbox_files_task(
     items_dict: dict,
 ):
     """Celery task to index Dropbox folders and files."""
-    import asyncio
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    try:
-        loop.run_until_complete(
-            _index_dropbox_files(
-                connector_id,
-                search_space_id,
-                user_id,
-                items_dict,
-            )
+    return run_async_celery_task(
+        lambda: _index_dropbox_files(
+            connector_id,
+            search_space_id,
+            user_id,
+            items_dict,
         )
-    finally:
-        loop.close()
+    )
 
 
 async def _index_dropbox_files(
@@ -414,19 +352,11 @@ def index_elasticsearch_documents_task(
     end_date: str,
 ):
     """Celery task to index Elasticsearch documents."""
-    import asyncio
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    try:
-        loop.run_until_complete(
-            _index_elasticsearch_documents(
-                connector_id, search_space_id, user_id, start_date, end_date
-            )
+    return run_async_celery_task(
+        lambda: _index_elasticsearch_documents(
+            connector_id, search_space_id, user_id, start_date, end_date
         )
-    finally:
-        loop.close()
+    )
 
 
 async def _index_elasticsearch_documents(
@@ -457,22 +387,15 @@ def index_crawled_urls_task(
     end_date: str,
 ):
     """Celery task to index Web page Urls."""
-    import asyncio
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
     try:
-        loop.run_until_complete(
-            _index_crawled_urls(
+        return run_async_celery_task(
+            lambda: _index_crawled_urls(
                 connector_id, search_space_id, user_id, start_date, end_date
             )
         )
     except Exception as e:
         _handle_greenlet_error(e, "index_crawled_urls", connector_id)
         raise
-    finally:
-        loop.close()
 
 
 async def _index_crawled_urls(
@@ -503,19 +426,11 @@ def index_bookstack_pages_task(
     end_date: str,
 ):
     """Celery task to index BookStack pages."""
-    import asyncio
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    try:
-        loop.run_until_complete(
-            _index_bookstack_pages(
-                connector_id, search_space_id, user_id, start_date, end_date
-            )
+    return run_async_celery_task(
+        lambda: _index_bookstack_pages(
+            connector_id, search_space_id, user_id, start_date, end_date
         )
-    finally:
-        loop.close()
+    )
 
 
 async def _index_bookstack_pages(
@@ -546,19 +461,11 @@ def index_composio_connector_task(
     end_date: str | None,
 ):
     """Celery task to index Composio connector content (Google Drive, Gmail, Calendar via Composio)."""
-    import asyncio
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    try:
-        loop.run_until_complete(
-            _index_composio_connector(
-                connector_id, search_space_id, user_id, start_date, end_date
-            )
+    return run_async_celery_task(
+        lambda: _index_composio_connector(
+            connector_id, search_space_id, user_id, start_date, end_date
         )
-    finally:
-        loop.close()
+    )
 
 
 async def _index_composio_connector(

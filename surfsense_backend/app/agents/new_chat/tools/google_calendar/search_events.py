@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.agents.new_chat.tools.gmail.search_emails import _build_credentials
-from app.db import SearchSourceConnector, SearchSourceConnectorType
+from app.db import SearchSourceConnector, SearchSourceConnectorType, async_session_maker
 
 logger = logging.getLogger(__name__)
 
@@ -16,11 +16,57 @@ _CALENDAR_TYPES = [
 ]
 
 
+def _to_calendar_boundary(value: str, *, is_end: bool) -> str:
+    if "T" in value:
+        return value
+    time = "23:59:59" if is_end else "00:00:00"
+    return f"{value}T{time}Z"
+
+
+def _format_calendar_events(events_raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    events = []
+    for ev in events_raw:
+        start = ev.get("start", {})
+        end = ev.get("end", {})
+        attendees_raw = ev.get("attendees", [])
+        events.append(
+            {
+                "event_id": ev.get("id"),
+                "summary": ev.get("summary", "No Title"),
+                "start": start.get("dateTime") or start.get("date", ""),
+                "end": end.get("dateTime") or end.get("date", ""),
+                "location": ev.get("location", ""),
+                "description": ev.get("description", ""),
+                "html_link": ev.get("htmlLink", ""),
+                "attendees": [a.get("email", "") for a in attendees_raw[:10]],
+                "status": ev.get("status", ""),
+            }
+        )
+    return events
+
+
 def create_search_calendar_events_tool(
     db_session: AsyncSession | None = None,
     search_space_id: int | None = None,
     user_id: str | None = None,
 ):
+    """
+    Factory function to create the search_calendar_events tool.
+
+    The tool acquires its own short-lived ``AsyncSession`` per call via
+    :data:`async_session_maker` so the closure is safe to share across
+    HTTP requests by the compiled-agent cache. Capturing a per-request
+    session here would surface stale/closed sessions on cache hits.
+
+    Args:
+        db_session: Reserved for registry compatibility. Per-call sessions
+            are opened via :data:`async_session_maker` inside the tool body.
+
+    Returns:
+        Configured search_calendar_events tool
+    """
+    del db_session  # per-call session — see docstring
+
     @tool
     async def search_calendar_events(
         start_date: str,
@@ -38,7 +84,7 @@ def create_search_calendar_events_tool(
             Dictionary with status and a list of events including
             event_id, summary, start, end, location, attendees.
         """
-        if db_session is None or search_space_id is None or user_id is None:
+        if search_space_id is None or user_id is None:
             return {
                 "status": "error",
                 "message": "Calendar tool not properly configured.",
@@ -47,76 +93,85 @@ def create_search_calendar_events_tool(
         max_results = min(max_results, 50)
 
         try:
-            result = await db_session.execute(
-                select(SearchSourceConnector).filter(
-                    SearchSourceConnector.search_space_id == search_space_id,
-                    SearchSourceConnector.user_id == user_id,
-                    SearchSourceConnector.connector_type.in_(_CALENDAR_TYPES),
+            async with async_session_maker() as db_session:
+                result = await db_session.execute(
+                    select(SearchSourceConnector).filter(
+                        SearchSourceConnector.search_space_id == search_space_id,
+                        SearchSourceConnector.user_id == user_id,
+                        SearchSourceConnector.connector_type.in_(_CALENDAR_TYPES),
+                    )
                 )
-            )
-            connector = result.scalars().first()
-            if not connector:
-                return {
-                    "status": "error",
-                    "message": "No Google Calendar connector found. Please connect Google Calendar in your workspace settings.",
-                }
+                connector = result.scalars().first()
+                if not connector:
+                    return {
+                        "status": "error",
+                        "message": "No Google Calendar connector found. Please connect Google Calendar in your workspace settings.",
+                    }
 
-            creds = _build_credentials(connector)
-
-            from app.connectors.google_calendar_connector import GoogleCalendarConnector
-
-            cal = GoogleCalendarConnector(
-                credentials=creds,
-                session=db_session,
-                user_id=user_id,
-                connector_id=connector.id,
-            )
-
-            events_raw, error = await cal.get_all_primary_calendar_events(
-                start_date=start_date,
-                end_date=end_date,
-                max_results=max_results,
-            )
-
-            if error:
                 if (
-                    "re-authenticate" in error.lower()
-                    or "authentication failed" in error.lower()
+                    connector.connector_type
+                    == SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR
                 ):
-                    return {
-                        "status": "auth_error",
-                        "message": error,
-                        "connector_type": "google_calendar",
-                    }
-                if "no events found" in error.lower():
-                    return {
-                        "status": "success",
-                        "events": [],
-                        "total": 0,
-                        "message": error,
-                    }
-                return {"status": "error", "message": error}
+                    cca_id = connector.config.get("composio_connected_account_id")
+                    if not cca_id:
+                        return {
+                            "status": "error",
+                            "message": "Composio connected account ID not found for this connector.",
+                        }
 
-            events = []
-            for ev in events_raw:
-                start = ev.get("start", {})
-                end = ev.get("end", {})
-                attendees_raw = ev.get("attendees", [])
-                events.append(
-                    {
-                        "event_id": ev.get("id"),
-                        "summary": ev.get("summary", "No Title"),
-                        "start": start.get("dateTime") or start.get("date", ""),
-                        "end": end.get("dateTime") or end.get("date", ""),
-                        "location": ev.get("location", ""),
-                        "description": ev.get("description", ""),
-                        "html_link": ev.get("htmlLink", ""),
-                        "attendees": [a.get("email", "") for a in attendees_raw[:10]],
-                        "status": ev.get("status", ""),
-                    }
-                )
+                    from app.services.composio_service import ComposioService
 
-            return {"status": "success", "events": events, "total": len(events)}
+                    events_raw, error = await ComposioService().get_calendar_events(
+                        connected_account_id=cca_id,
+                        entity_id=f"surfsense_{user_id}",
+                        time_min=_to_calendar_boundary(start_date, is_end=False),
+                        time_max=_to_calendar_boundary(end_date, is_end=True),
+                        max_results=max_results,
+                    )
+                    if not events_raw and not error:
+                        error = "No events found in the specified date range."
+                else:
+                    creds = _build_credentials(connector)
+
+                    from app.connectors.google_calendar_connector import (
+                        GoogleCalendarConnector,
+                    )
+
+                    cal = GoogleCalendarConnector(
+                        credentials=creds,
+                        session=db_session,
+                        user_id=user_id,
+                        connector_id=connector.id,
+                    )
+
+                    events_raw, error = await cal.get_all_primary_calendar_events(
+                        start_date=start_date,
+                        end_date=end_date,
+                        max_results=max_results,
+                    )
+
+                if error:
+                    if (
+                        "re-authenticate" in error.lower()
+                        or "authentication failed" in error.lower()
+                    ):
+                        return {
+                            "status": "auth_error",
+                            "message": error,
+                            "connector_type": "google_calendar",
+                        }
+                    if "no events found" in error.lower():
+                        return {
+                            "status": "success",
+                            "events": [],
+                            "total": 0,
+                            "message": error,
+                        }
+                    return {"status": "error", "message": error}
+
+                events = _format_calendar_events(events_raw)
+
+                return {"status": "success", "events": events, "total": len(events)}
 
         except Exception as e:
             from langgraph.errors import GraphInterrupt

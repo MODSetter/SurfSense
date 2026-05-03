@@ -265,6 +265,10 @@ def test_generate_image_gen_configs_filters_by_image_output():
         assert c["billing_tier"] in {"free", "premium"}
         assert c["provider"] == "OPENROUTER"
         assert c[_OPENROUTER_DYNAMIC_MARKER] is True
+        # Defense-in-depth: emit the OpenRouter base URL at source so a
+        # downstream call site that forgets ``resolve_api_base`` still
+        # doesn't 404 against an inherited Azure endpoint.
+        assert c["api_base"] == "https://openrouter.ai/api/v1"
 
 
 def test_generate_image_gen_configs_assigns_image_id_offset():
@@ -342,6 +346,10 @@ def test_generate_vision_llm_configs_filters_by_image_input_text_output():
     assert cfg["input_cost_per_token"] == pytest.approx(5e-6)
     assert cfg["output_cost_per_token"] == pytest.approx(15e-6)
     assert cfg[_OPENROUTER_DYNAMIC_MARKER] is True
+    # Defense-in-depth: emit the OpenRouter base URL at source so a
+    # downstream call site that forgets ``resolve_api_base`` still
+    # doesn't inherit an Azure endpoint.
+    assert cfg["api_base"] == "https://openrouter.ai/api/v1"
 
 
 def test_generate_vision_llm_configs_drops_chat_only_filters():

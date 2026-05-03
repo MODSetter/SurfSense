@@ -416,9 +416,19 @@ export const GeneratePodcastToolUI = ({
 		return <PodcastErrorState title={title} error={result.error || "Generation failed"} />;
 	}
 
-	// Already generating - show simple warning, don't create another poller
-	// The FIRST tool call will display the podcast when ready
-	// (new: "generating", legacy: "already_generating")
+	// Pending/generating rows have a stable podcast_id, so the card can poll
+	// independently while the chat stream finishes.
+	if (
+		(result.status === "pending" ||
+			result.status === "generating" ||
+			result.status === "processing") &&
+		result.podcast_id
+	) {
+		return <PodcastStatusPoller podcastId={result.podcast_id} title={result.title || title} />;
+	}
+
+	// Legacy duplicate/no-ID result - show a simple warning, don't create
+	// another poller. The first tool call will display the podcast when ready.
 	if (result.status === "generating" || result.status === "already_generating") {
 		return (
 			<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
@@ -430,11 +440,6 @@ export const GeneratePodcastToolUI = ({
 				</div>
 			</div>
 		);
-	}
-
-	// Pending - poll for completion (new: "pending" with podcast_id)
-	if (result.status === "pending" && result.podcast_id) {
-		return <PodcastStatusPoller podcastId={result.podcast_id} title={result.title || title} />;
 	}
 
 	// Ready with podcast_id (new: "ready", legacy: "success")

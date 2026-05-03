@@ -101,9 +101,114 @@ async def test_auto_first_turn_pins_one_model(monkeypatch):
         user_id="00000000-0000-0000-0000-000000000001",
         selected_llm_config_id=0,
     )
-    assert result.resolved_llm_config_id in {-1, -2}
+    assert result.resolved_llm_config_id == -1
     assert session.thread.pinned_llm_config_id == result.resolved_llm_config_id
     assert session.commit_count == 1
+
+
+@pytest.mark.asyncio
+async def test_premium_eligible_auto_prefers_premium_over_free(monkeypatch):
+    from app.config import config
+
+    session = _FakeSession(_thread())
+    monkeypatch.setattr(
+        config,
+        "GLOBAL_LLM_CONFIGS",
+        [
+            {
+                "id": -2,
+                "provider": "OPENAI",
+                "model_name": "gpt-free",
+                "api_key": "k1",
+                "billing_tier": "free",
+                "quality_score": 100,
+            },
+            {
+                "id": -1,
+                "provider": "OPENAI",
+                "model_name": "gpt-prem",
+                "api_key": "k2",
+                "billing_tier": "premium",
+                "quality_score": 10,
+            },
+        ],
+    )
+
+    async def _allowed(*_args, **_kwargs):
+        return _FakeQuotaResult(allowed=True)
+
+    monkeypatch.setattr(
+        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        _allowed,
+    )
+
+    result = await resolve_or_get_pinned_llm_config_id(
+        session,
+        thread_id=1,
+        search_space_id=10,
+        user_id="00000000-0000-0000-0000-000000000001",
+        selected_llm_config_id=0,
+    )
+    assert result.resolved_llm_config_id == -1
+    assert result.resolved_tier == "premium"
+
+
+@pytest.mark.asyncio
+async def test_premium_eligible_auto_prefers_azure_gpt_5_4(monkeypatch):
+    from app.config import config
+
+    session = _FakeSession(_thread())
+    monkeypatch.setattr(
+        config,
+        "GLOBAL_LLM_CONFIGS",
+        [
+            {
+                "id": -1,
+                "provider": "AZURE_OPENAI",
+                "model_name": "gpt-5.1",
+                "api_key": "k1",
+                "billing_tier": "premium",
+                "auto_pin_tier": "A",
+                "quality_score": 100,
+            },
+            {
+                "id": -2,
+                "provider": "AZURE_OPENAI",
+                "model_name": "gpt-5.4",
+                "api_key": "k2",
+                "billing_tier": "premium",
+                "auto_pin_tier": "A",
+                "quality_score": 10,
+            },
+            {
+                "id": -3,
+                "provider": "OPENROUTER",
+                "model_name": "openai/gpt-5.4",
+                "api_key": "k3",
+                "billing_tier": "premium",
+                "auto_pin_tier": "B",
+                "quality_score": 100,
+            },
+        ],
+    )
+
+    async def _allowed(*_args, **_kwargs):
+        return _FakeQuotaResult(allowed=True)
+
+    monkeypatch.setattr(
+        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        _allowed,
+    )
+
+    result = await resolve_or_get_pinned_llm_config_id(
+        session,
+        thread_id=1,
+        search_space_id=10,
+        user_id="00000000-0000-0000-0000-000000000001",
+        selected_llm_config_id=0,
+    )
+    assert result.resolved_llm_config_id == -2
+    assert result.resolved_tier == "premium"
 
 
 @pytest.mark.asyncio
@@ -361,12 +466,12 @@ async def test_invalid_pinned_config_repairs_with_new_pin(monkeypatch):
         ],
     )
 
-    async def _allowed(*_args, **_kwargs):
-        return _FakeQuotaResult(allowed=True)
+    async def _blocked(*_args, **_kwargs):
+        return _FakeQuotaResult(allowed=False)
 
     monkeypatch.setattr(
         "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
-        _allowed,
+        _blocked,
     )
 
     result = await resolve_or_get_pinned_llm_config_id(

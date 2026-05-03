@@ -8,6 +8,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from app.agents.new_chat.tools.hitl import request_approval
 from app.connectors.jira_history import JiraHistoryConnector
+from app.db import async_session_maker
 from app.services.jira import JiraToolMetadataService
 
 logger = logging.getLogger(__name__)
@@ -19,6 +20,26 @@ def create_update_jira_issue_tool(
     user_id: str | None = None,
     connector_id: int | None = None,
 ):
+    """Factory function to create the update_jira_issue tool.
+
+    The tool acquires its own short-lived ``AsyncSession`` per call via
+    :data:`async_session_maker`. This is critical for the compiled-agent
+    cache: the compiled graph (and therefore this closure) is reused
+    across HTTP requests, so capturing a per-request session here would
+    surface stale/closed sessions on cache hits.
+
+    Args:
+        db_session: Reserved for registry compatibility. Per-call sessions
+            are opened via :data:`async_session_maker` inside the tool body.
+        search_space_id: Search space ID to find the Jira connector
+        user_id: User ID for fetching user-specific context
+        connector_id: Optional specific connector ID (if known)
+
+    Returns:
+        Configured update_jira_issue tool
+    """
+    del db_session  # per-call session — see docstring
+
     @tool
     async def update_jira_issue(
         issue_title_or_key: str,
@@ -48,169 +69,177 @@ def create_update_jira_issue_tool(
             f"update_jira_issue called: issue_title_or_key='{issue_title_or_key}'"
         )
 
-        if db_session is None or search_space_id is None or user_id is None:
+        if search_space_id is None or user_id is None:
             return {"status": "error", "message": "Jira tool not properly configured."}
 
         try:
-            metadata_service = JiraToolMetadataService(db_session)
-            context = await metadata_service.get_update_context(
-                search_space_id, user_id, issue_title_or_key
-            )
-
-            if "error" in context:
-                error_msg = context["error"]
-                if context.get("auth_expired"):
-                    return {
-                        "status": "auth_error",
-                        "message": error_msg,
-                        "connector_id": context.get("connector_id"),
-                        "connector_type": "jira",
-                    }
-                if "not found" in error_msg.lower():
-                    return {"status": "not_found", "message": error_msg}
-                return {"status": "error", "message": error_msg}
-
-            issue_data = context["issue"]
-            issue_key = issue_data["issue_id"]
-            document_id = issue_data.get("document_id")
-            connector_id_from_context = context.get("account", {}).get("id")
-
-            result = request_approval(
-                action_type="jira_issue_update",
-                tool_name="update_jira_issue",
-                params={
-                    "issue_key": issue_key,
-                    "document_id": document_id,
-                    "new_summary": new_summary,
-                    "new_description": new_description,
-                    "new_priority": new_priority,
-                    "connector_id": connector_id_from_context,
-                },
-                context=context,
-            )
-
-            if result.rejected:
-                return {
-                    "status": "rejected",
-                    "message": "User declined. Do not retry or suggest alternatives.",
-                }
-
-            final_issue_key = result.params.get("issue_key", issue_key)
-            final_summary = result.params.get("new_summary", new_summary)
-            final_description = result.params.get("new_description", new_description)
-            final_priority = result.params.get("new_priority", new_priority)
-            final_connector_id = result.params.get(
-                "connector_id", connector_id_from_context
-            )
-            final_document_id = result.params.get("document_id", document_id)
-
-            from sqlalchemy.future import select
-
-            from app.db import SearchSourceConnector, SearchSourceConnectorType
-
-            if not final_connector_id:
-                return {
-                    "status": "error",
-                    "message": "No connector found for this issue.",
-                }
-
-            result = await db_session.execute(
-                select(SearchSourceConnector).filter(
-                    SearchSourceConnector.id == final_connector_id,
-                    SearchSourceConnector.search_space_id == search_space_id,
-                    SearchSourceConnector.user_id == user_id,
-                    SearchSourceConnector.connector_type
-                    == SearchSourceConnectorType.JIRA_CONNECTOR,
+            async with async_session_maker() as db_session:
+                metadata_service = JiraToolMetadataService(db_session)
+                context = await metadata_service.get_update_context(
+                    search_space_id, user_id, issue_title_or_key
                 )
-            )
-            connector = result.scalars().first()
-            if not connector:
-                return {
-                    "status": "error",
-                    "message": "Selected Jira connector is invalid.",
-                }
 
-            fields: dict[str, Any] = {}
-            if final_summary:
-                fields["summary"] = final_summary
-            if final_description is not None:
-                fields["description"] = {
-                    "type": "doc",
-                    "version": 1,
-                    "content": [
-                        {
-                            "type": "paragraph",
-                            "content": [{"type": "text", "text": final_description}],
+                if "error" in context:
+                    error_msg = context["error"]
+                    if context.get("auth_expired"):
+                        return {
+                            "status": "auth_error",
+                            "message": error_msg,
+                            "connector_id": context.get("connector_id"),
+                            "connector_type": "jira",
                         }
-                    ],
-                }
-            if final_priority:
-                fields["priority"] = {"name": final_priority}
+                    if "not found" in error_msg.lower():
+                        return {"status": "not_found", "message": error_msg}
+                    return {"status": "error", "message": error_msg}
 
-            if not fields:
-                return {"status": "error", "message": "No changes specified."}
+                issue_data = context["issue"]
+                issue_key = issue_data["issue_id"]
+                document_id = issue_data.get("document_id")
+                connector_id_from_context = context.get("account", {}).get("id")
 
-            try:
-                jira_history = JiraHistoryConnector(
-                    session=db_session, connector_id=final_connector_id
+                result = request_approval(
+                    action_type="jira_issue_update",
+                    tool_name="update_jira_issue",
+                    params={
+                        "issue_key": issue_key,
+                        "document_id": document_id,
+                        "new_summary": new_summary,
+                        "new_description": new_description,
+                        "new_priority": new_priority,
+                        "connector_id": connector_id_from_context,
+                    },
+                    context=context,
                 )
-                jira_client = await jira_history._get_jira_client()
-                await asyncio.to_thread(
-                    jira_client.update_issue, final_issue_key, fields
-                )
-            except Exception as api_err:
-                if "status code 403" in str(api_err).lower():
-                    try:
-                        connector.config = {**connector.config, "auth_expired": True}
-                        flag_modified(connector, "config")
-                        await db_session.commit()
-                    except Exception:
-                        pass
+
+                if result.rejected:
                     return {
-                        "status": "insufficient_permissions",
-                        "connector_id": final_connector_id,
-                        "message": "This Jira account needs additional permissions. Please re-authenticate in connector settings.",
+                        "status": "rejected",
+                        "message": "User declined. Do not retry or suggest alternatives.",
                     }
-                raise
 
-            issue_url = (
-                f"{jira_history._base_url}/browse/{final_issue_key}"
-                if jira_history._base_url and final_issue_key
-                else ""
-            )
+                final_issue_key = result.params.get("issue_key", issue_key)
+                final_summary = result.params.get("new_summary", new_summary)
+                final_description = result.params.get(
+                    "new_description", new_description
+                )
+                final_priority = result.params.get("new_priority", new_priority)
+                final_connector_id = result.params.get(
+                    "connector_id", connector_id_from_context
+                )
+                final_document_id = result.params.get("document_id", document_id)
 
-            kb_message_suffix = ""
-            if final_document_id:
-                try:
-                    from app.services.jira import JiraKBSyncService
+                from sqlalchemy.future import select
 
-                    kb_service = JiraKBSyncService(db_session)
-                    kb_result = await kb_service.sync_after_update(
-                        document_id=final_document_id,
-                        issue_id=final_issue_key,
-                        user_id=user_id,
-                        search_space_id=search_space_id,
+                from app.db import SearchSourceConnector, SearchSourceConnectorType
+
+                if not final_connector_id:
+                    return {
+                        "status": "error",
+                        "message": "No connector found for this issue.",
+                    }
+
+                result = await db_session.execute(
+                    select(SearchSourceConnector).filter(
+                        SearchSourceConnector.id == final_connector_id,
+                        SearchSourceConnector.search_space_id == search_space_id,
+                        SearchSourceConnector.user_id == user_id,
+                        SearchSourceConnector.connector_type
+                        == SearchSourceConnectorType.JIRA_CONNECTOR,
                     )
-                    if kb_result["status"] == "success":
-                        kb_message_suffix = (
-                            " Your knowledge base has also been updated."
+                )
+                connector = result.scalars().first()
+                if not connector:
+                    return {
+                        "status": "error",
+                        "message": "Selected Jira connector is invalid.",
+                    }
+
+                fields: dict[str, Any] = {}
+                if final_summary:
+                    fields["summary"] = final_summary
+                if final_description is not None:
+                    fields["description"] = {
+                        "type": "doc",
+                        "version": 1,
+                        "content": [
+                            {
+                                "type": "paragraph",
+                                "content": [
+                                    {"type": "text", "text": final_description}
+                                ],
+                            }
+                        ],
+                    }
+                if final_priority:
+                    fields["priority"] = {"name": final_priority}
+
+                if not fields:
+                    return {"status": "error", "message": "No changes specified."}
+
+                try:
+                    jira_history = JiraHistoryConnector(
+                        session=db_session, connector_id=final_connector_id
+                    )
+                    jira_client = await jira_history._get_jira_client()
+                    await asyncio.to_thread(
+                        jira_client.update_issue, final_issue_key, fields
+                    )
+                except Exception as api_err:
+                    if "status code 403" in str(api_err).lower():
+                        try:
+                            connector.config = {
+                                **connector.config,
+                                "auth_expired": True,
+                            }
+                            flag_modified(connector, "config")
+                            await db_session.commit()
+                        except Exception:
+                            pass
+                        return {
+                            "status": "insufficient_permissions",
+                            "connector_id": final_connector_id,
+                            "message": "This Jira account needs additional permissions. Please re-authenticate in connector settings.",
+                        }
+                    raise
+
+                issue_url = (
+                    f"{jira_history._base_url}/browse/{final_issue_key}"
+                    if jira_history._base_url and final_issue_key
+                    else ""
+                )
+
+                kb_message_suffix = ""
+                if final_document_id:
+                    try:
+                        from app.services.jira import JiraKBSyncService
+
+                        kb_service = JiraKBSyncService(db_session)
+                        kb_result = await kb_service.sync_after_update(
+                            document_id=final_document_id,
+                            issue_id=final_issue_key,
+                            user_id=user_id,
+                            search_space_id=search_space_id,
                         )
-                    else:
+                        if kb_result["status"] == "success":
+                            kb_message_suffix = (
+                                " Your knowledge base has also been updated."
+                            )
+                        else:
+                            kb_message_suffix = (
+                                " The knowledge base will be updated in the next sync."
+                            )
+                    except Exception as kb_err:
+                        logger.warning(f"KB sync after update failed: {kb_err}")
                         kb_message_suffix = (
                             " The knowledge base will be updated in the next sync."
                         )
-                except Exception as kb_err:
-                    logger.warning(f"KB sync after update failed: {kb_err}")
-                    kb_message_suffix = (
-                        " The knowledge base will be updated in the next sync."
-                    )
 
-            return {
-                "status": "success",
-                "issue_key": final_issue_key,
-                "issue_url": issue_url,
-                "message": f"Jira issue {final_issue_key} updated successfully.{kb_message_suffix}",
-            }
+                return {
+                    "status": "success",
+                    "issue_key": final_issue_key,
+                    "issue_url": issue_url,
+                    "message": f"Jira issue {final_issue_key} updated successfully.{kb_message_suffix}",
+                }
 
         except Exception as e:
             from langgraph.errors import GraphInterrupt

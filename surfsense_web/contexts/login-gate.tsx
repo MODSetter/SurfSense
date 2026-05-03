@@ -44,8 +44,8 @@ export function LoginGateProvider({ children }: { children: ReactNode }) {
 					<DialogHeader>
 						<DialogTitle>Create a free account to {feature}</DialogTitle>
 						<DialogDescription>
-							Get $5 of premium credit, save chat history, upload documents, use all AI tools,
-							and connect 30+ integrations.
+							Get $5 of premium credit, save chat history, upload documents, use all AI tools, and
+							connect 30+ integrations.
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter className="flex flex-col gap-2 sm:flex-row">

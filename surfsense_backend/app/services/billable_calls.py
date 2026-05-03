@@ -10,12 +10,14 @@ vision-LLM wrapper used during indexing) don't have to re-implement it.
 
 KEY DESIGN POINTS (issue A, B):
 
-1. **Session isolation.** ``billable_call`` takes *no* ``db_session``
-   argument. All ``TokenQuotaService.premium_*`` calls and the audit-row
-   insert each run inside their own ``shielded_async_session()``. This
-   guarantees that a quota commit/rollback can never accidentally flush or
-   roll back rows the caller has staged in the request's main session
-   (e.g. a freshly-created ``ImageGeneration`` row).
+1. **Session isolation.** ``billable_call`` takes no caller transaction.
+   All ``TokenQuotaService.premium_*`` calls and the audit-row insert run
+   inside their own session context. Route callers use
+   ``shielded_async_session()`` by default; Celery callers can provide a
+   worker-loop-safe session factory. This guarantees that quota
+   commit/rollback can never accidentally flush or roll back rows the caller
+   has staged in its main session (e.g. a freshly-created
+   ``ImageGeneration`` row).
 
 2. **ContextVar safety.** The accumulator is scoped via
    :func:`scoped_turn` (which uses ``ContextVar.reset(token)``), so a
@@ -36,9 +38,10 @@ KEY DESIGN POINTS (issue A, B):
 
 from __future__ import annotations
 
+import asyncio
 import logging
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator, Callable
+from contextlib import AbstractAsyncContextManager, asynccontextmanager, suppress
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -57,6 +60,12 @@ from app.services.token_tracking_service import (
 )
 
 logger = logging.getLogger(__name__)
+
+AUDIT_TIMEOUT_SECONDS = 10.0
+BACKGROUND_ARTIFACT_USAGE_TYPES = frozenset(
+    {"video_presentation_generation", "podcast_generation"}
+)
+BillableSessionFactory = Callable[[], AbstractAsyncContextManager[AsyncSession]]
 
 
 class QuotaInsufficientError(Exception):
@@ -88,6 +97,124 @@ class QuotaInsufficientError(Exception):
         )
 
 
+class BillingSettlementError(Exception):
+    """Raised when a premium call completed but credit settlement failed."""
+
+    def __init__(self, *, usage_type: str, user_id: UUID, cause: Exception) -> None:
+        self.usage_type = usage_type
+        self.user_id = user_id
+        super().__init__(
+            f"Failed to settle premium credit for {usage_type} user={user_id}: {cause}"
+        )
+
+
+async def _rollback_safely(session: AsyncSession) -> None:
+    rollback = getattr(session, "rollback", None)
+    if rollback is not None:
+        with suppress(Exception):
+            await rollback()
+
+
+async def _record_audit_best_effort(
+    *,
+    session_factory: BillableSessionFactory,
+    usage_type: str,
+    search_space_id: int,
+    user_id: UUID,
+    prompt_tokens: int,
+    completion_tokens: int,
+    total_tokens: int,
+    cost_micros: int,
+    model_breakdown: dict[str, Any],
+    call_details: dict[str, Any] | None,
+    thread_id: int | None,
+    message_id: int | None,
+    audit_label: str,
+    timeout_seconds: float = AUDIT_TIMEOUT_SECONDS,
+) -> None:
+    """Persist a TokenUsage row without letting audit failure block callers.
+
+    Premium settlement is mandatory, but TokenUsage is an audit trail. If the
+    audit insert or commit hangs, user-facing artifacts such as videos and
+    podcasts must still be able to transition to READY after settlement.
+    """
+    audit_thread_id = (
+        None if usage_type in BACKGROUND_ARTIFACT_USAGE_TYPES else thread_id
+    )
+
+    async def _persist() -> None:
+        logger.info(
+            "[billable_call] audit start label=%s usage_type=%s user=%s thread=%s "
+            "total_tokens=%d cost_micros=%d",
+            audit_label,
+            usage_type,
+            user_id,
+            audit_thread_id,
+            total_tokens,
+            cost_micros,
+        )
+        async with session_factory() as audit_session:
+            try:
+                await record_token_usage(
+                    audit_session,
+                    usage_type=usage_type,
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    total_tokens=total_tokens,
+                    cost_micros=cost_micros,
+                    model_breakdown=model_breakdown,
+                    call_details=call_details,
+                    thread_id=audit_thread_id,
+                    message_id=message_id,
+                )
+                logger.info(
+                    "[billable_call] audit row staged label=%s usage_type=%s user=%s thread=%s",
+                    audit_label,
+                    usage_type,
+                    user_id,
+                    audit_thread_id,
+                )
+                await audit_session.commit()
+                logger.info(
+                    "[billable_call] audit commit OK label=%s usage_type=%s user=%s thread=%s",
+                    audit_label,
+                    usage_type,
+                    user_id,
+                    audit_thread_id,
+                )
+            except BaseException:
+                await _rollback_safely(audit_session)
+                raise
+
+    try:
+        await asyncio.wait_for(_persist(), timeout=timeout_seconds)
+    except TimeoutError:
+        logger.warning(
+            "[billable_call] audit timed out label=%s usage_type=%s user=%s thread=%s "
+            "timeout=%.1fs total_tokens=%d cost_micros=%d",
+            audit_label,
+            usage_type,
+            user_id,
+            audit_thread_id,
+            timeout_seconds,
+            total_tokens,
+            cost_micros,
+        )
+    except Exception:
+        logger.exception(
+            "[billable_call] audit failed label=%s usage_type=%s user=%s thread=%s "
+            "total_tokens=%d cost_micros=%d",
+            audit_label,
+            usage_type,
+            user_id,
+            audit_thread_id,
+            total_tokens,
+            cost_micros,
+        )
+
+
 @asynccontextmanager
 async def billable_call(
     *,
@@ -101,6 +228,8 @@ async def billable_call(
     thread_id: int | None = None,
     message_id: int | None = None,
     call_details: dict[str, Any] | None = None,
+    billable_session_factory: BillableSessionFactory | None = None,
+    audit_timeout_seconds: float = AUDIT_TIMEOUT_SECONDS,
 ) -> AsyncIterator[TurnTokenAccumulator]:
     """Wrap a single billable LLM/image call.
 
@@ -124,6 +253,13 @@ async def billable_call(
         thread_id, message_id: Optional FK columns on ``TokenUsage``.
         call_details: Optional per-call metadata (model name, parameters)
             forwarded to ``record_token_usage``.
+        billable_session_factory: Optional async context factory used for
+            reserve/finalize/release/audit sessions. Defaults to
+            ``shielded_async_session`` for route callers; Celery callers pass
+            a worker-loop-safe session factory.
+        audit_timeout_seconds: Upper bound for TokenUsage audit persistence.
+            Audit failure is best-effort and does not undo successful
+            settlement.
 
     Yields:
         The ``TurnTokenAccumulator`` scoped to this call. The caller invokes
@@ -134,6 +270,7 @@ async def billable_call(
         QuotaInsufficientError: when premium and ``premium_reserve`` denies.
     """
     is_premium = billing_tier == "premium"
+    session_factory = billable_session_factory or shielded_async_session
 
     async with scoped_turn() as acc:
         # ---------- Free path: just audit -------------------------------
@@ -143,30 +280,22 @@ async def billable_call(
             finally:
                 # Always audit, even on exception, so we capture cost when
                 # provider returns successfully but the caller raises later.
-                try:
-                    async with shielded_async_session() as audit_session:
-                        await record_token_usage(
-                            audit_session,
-                            usage_type=usage_type,
-                            search_space_id=search_space_id,
-                            user_id=user_id,
-                            prompt_tokens=acc.total_prompt_tokens,
-                            completion_tokens=acc.total_completion_tokens,
-                            total_tokens=acc.grand_total,
-                            cost_micros=acc.total_cost_micros,
-                            model_breakdown=acc.per_message_summary(),
-                            call_details=call_details,
-                            thread_id=thread_id,
-                            message_id=message_id,
-                        )
-                        await audit_session.commit()
-                except Exception:
-                    logger.exception(
-                        "[billable_call] free-path audit insert failed for "
-                        "usage_type=%s user_id=%s",
-                        usage_type,
-                        user_id,
-                    )
+                await _record_audit_best_effort(
+                    session_factory=session_factory,
+                    usage_type=usage_type,
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                    prompt_tokens=acc.total_prompt_tokens,
+                    completion_tokens=acc.total_completion_tokens,
+                    total_tokens=acc.grand_total,
+                    cost_micros=acc.total_cost_micros,
+                    model_breakdown=acc.per_message_summary(),
+                    call_details=call_details,
+                    thread_id=thread_id,
+                    message_id=message_id,
+                    audit_label="free",
+                    timeout_seconds=audit_timeout_seconds,
+                )
             return
 
         # ---------- Premium path: reserve → execute → finalize ----------
@@ -180,7 +309,7 @@ async def billable_call(
 
         request_id = str(uuid4())
 
-        async with shielded_async_session() as quota_session:
+        async with session_factory() as quota_session:
             reserve_result = await TokenQuotaService.premium_reserve(
                 db_session=quota_session,
                 user_id=user_id,
@@ -222,7 +351,7 @@ async def billable_call(
             # from a downstream call, asyncio cancellation, etc.). We use
             # BaseException so cancellation also releases.
             try:
-                async with shielded_async_session() as quota_session:
+                async with session_factory() as quota_session:
                     await TokenQuotaService.premium_release(
                         db_session=quota_session,
                         user_id=user_id,
@@ -241,7 +370,16 @@ async def billable_call(
         # ---------- Success: finalize + audit ----------------------------
         actual_micros = acc.total_cost_micros
         try:
-            async with shielded_async_session() as quota_session:
+            logger.info(
+                "[billable_call] finalize start user=%s usage_type=%s actual=%d "
+                "reserved=%d thread=%s",
+                user_id,
+                usage_type,
+                actual_micros,
+                reserve_micros,
+                thread_id,
+            )
+            async with session_factory() as quota_session:
                 final_result = await TokenQuotaService.premium_finalize(
                     db_session=quota_session,
                     user_id=user_id,
@@ -260,7 +398,7 @@ async def billable_call(
                 final_result.limit,
                 final_result.remaining,
             )
-        except Exception:
+        except Exception as finalize_exc:
             # Last-ditch: if finalize itself fails, we must at least release
             # so the reservation doesn't leak.
             logger.exception(
@@ -269,7 +407,7 @@ async def billable_call(
                 user_id,
             )
             try:
-                async with shielded_async_session() as quota_session:
+                async with session_factory() as quota_session:
                     await TokenQuotaService.premium_release(
                         db_session=quota_session,
                         user_id=user_id,
@@ -281,31 +419,28 @@ async def billable_call(
                     "for user=%s",
                     user_id,
                 )
+            raise BillingSettlementError(
+                usage_type=usage_type,
+                user_id=user_id,
+                cause=finalize_exc,
+            ) from finalize_exc
 
-        try:
-            async with shielded_async_session() as audit_session:
-                await record_token_usage(
-                    audit_session,
-                    usage_type=usage_type,
-                    search_space_id=search_space_id,
-                    user_id=user_id,
-                    prompt_tokens=acc.total_prompt_tokens,
-                    completion_tokens=acc.total_completion_tokens,
-                    total_tokens=acc.grand_total,
-                    cost_micros=actual_micros,
-                    model_breakdown=acc.per_message_summary(),
-                    call_details=call_details,
-                    thread_id=thread_id,
-                    message_id=message_id,
-                )
-                await audit_session.commit()
-        except Exception:
-            logger.exception(
-                "[billable_call] premium-path audit insert failed for "
-                "usage_type=%s user_id=%s (debit was applied)",
-                usage_type,
-                user_id,
-            )
+        await _record_audit_best_effort(
+            session_factory=session_factory,
+            usage_type=usage_type,
+            search_space_id=search_space_id,
+            user_id=user_id,
+            prompt_tokens=acc.total_prompt_tokens,
+            completion_tokens=acc.total_completion_tokens,
+            total_tokens=acc.grand_total,
+            cost_micros=actual_micros,
+            model_breakdown=acc.per_message_summary(),
+            call_details=call_details,
+            thread_id=thread_id,
+            message_id=message_id,
+            audit_label="premium",
+            timeout_seconds=audit_timeout_seconds,
+        )
 
 
 async def _resolve_agent_billing_for_search_space(
@@ -419,6 +554,7 @@ async def _resolve_agent_billing_for_search_space(
 
 
 __all__ = [
+    "BillingSettlementError",
     "QuotaInsufficientError",
     "_resolve_agent_billing_for_search_space",
     "billable_call",

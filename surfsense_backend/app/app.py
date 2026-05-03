@@ -421,6 +421,135 @@ def _stop_openrouter_background_refresh() -> None:
         OpenRouterIntegrationService.get_instance().stop_background_refresh()
 
 
+async def _warm_agent_jit_caches() -> None:
+    """Pay the LangChain / LangGraph / Deepagents JIT cost at startup.
+
+    Why
+    ----
+    A cold ``create_agent`` + ``StateGraph.compile()`` + Pydantic schema
+    generation chain takes 1.5-2 seconds of pure CPU on first invocation
+    inside any Python process: the graph compiler builds reducers,
+    Pydantic v2 generates and JITs validator schemas, deepagents
+    eagerly compiles its general-purpose subagent, etc. Subsequent
+    compiles in the same process pay only ~50% of that cost (the lazy
+    JIT bits are cached in module-level dicts).
+
+    Doing one throwaway compile during ``lifespan`` startup pre-pays
+    that cost so the *first real request* doesn't. We do NOT prime
+    :mod:`agent_cache` because the cache key requires real
+    ``thread_id`` / ``user_id`` / ``search_space_id`` / etc. — the
+    throwaway agent is genuinely thrown away and immediately collected.
+
+    Safety
+    ------
+    * No DB access. We construct a stub LLM (no real keys), pass an
+      empty tools list, and pass ``checkpointer=None`` so we never
+      touch Postgres.
+    * Bounded by ``asyncio.wait_for`` so a hang here can never block
+      worker startup. On any failure, we log + swallow — the worst
+      case is the first real request pays the full cold cost (i.e.
+      pre-warmup behaviour).
+    """
+    import time as _time
+
+    logger = logging.getLogger(__name__)
+    t0 = _time.perf_counter()
+    try:
+        from langchain.agents import create_agent
+        from langchain.agents.middleware import (
+            ModelCallLimitMiddleware,
+            TodoListMiddleware,
+            ToolCallLimitMiddleware,
+        )
+        from langchain_core.language_models.fake_chat_models import (
+            FakeListChatModel,
+        )
+        from langchain_core.tools import tool
+
+        from app.agents.new_chat.context import SurfSenseContextSchema
+
+        # Minimal LLM stub. ``FakeListChatModel`` satisfies
+        # ``BaseChatModel`` without any network or auth — perfect for
+        # exercising the compile path without side effects.
+        stub_llm = FakeListChatModel(responses=["warmup-response"])
+
+        # Two trivial tools with arg + return schemas — exercises the
+        # Pydantic v2 schema JIT path. Without at least one tool the
+        # graph compile skips the tool-loop bytecode generation that
+        # accounts for ~30-50% of cold compile cost.
+        @tool
+        def _warmup_tool_a(query: str, limit: int = 5) -> str:
+            """Warmup tool A — never actually invoked."""
+            return query[:limit]
+
+        @tool
+        def _warmup_tool_b(name: str, value: float | None = None) -> dict[str, object]:
+            """Warmup tool B — never actually invoked."""
+            return {"name": name, "value": value}
+
+        # A handful of common middleware so the compile pre-pays the
+        # ``AgentMiddleware`` resolver path. These instances never run
+        # because the throwaway agent is immediately collected.
+        # ``SubAgentMiddleware`` is the single heaviest line in cold
+        # ``create_surfsense_deep_agent`` (1.5-2s of CPU per call to
+        # compile its general-purpose subagent's full inner graph),
+        # so we include it here to make sure that compile path is JIT'd.
+        warmup_middleware: list = [
+            TodoListMiddleware(),
+            ModelCallLimitMiddleware(
+                thread_limit=120, run_limit=80, exit_behavior="end"
+            ),
+            ToolCallLimitMiddleware(
+                thread_limit=300, run_limit=80, exit_behavior="continue"
+            ),
+        ]
+        try:
+            from deepagents import SubAgentMiddleware
+            from deepagents.backends import StateBackend
+            from deepagents.middleware.subagents import GENERAL_PURPOSE_SUBAGENT
+
+            gp_warmup_spec = {  # type: ignore[var-annotated]
+                **GENERAL_PURPOSE_SUBAGENT,
+                "model": stub_llm,
+                "tools": [_warmup_tool_a],
+                "middleware": [TodoListMiddleware()],
+            }
+            warmup_middleware.append(
+                SubAgentMiddleware(backend=StateBackend, subagents=[gp_warmup_spec])
+            )
+        except Exception:
+            # Deepagents missing/incompatible — middleware-only warmup
+            # still produces a useful (smaller) speedup.
+            logger.debug("[startup] SubAgentMiddleware warmup skipped", exc_info=True)
+
+        compiled = create_agent(
+            stub_llm,
+            tools=[_warmup_tool_a, _warmup_tool_b],
+            system_prompt="You are a warmup stub.",
+            middleware=warmup_middleware,
+            context_schema=SurfSenseContextSchema,
+            checkpointer=None,
+        )
+
+        # Touch the compiled graph's stream_channels / nodes so any
+        # remaining lazy schema work fires now instead of on first
+        # real invocation.
+        _ = list(getattr(compiled, "nodes", {}).keys())
+
+        del compiled
+        logger.info(
+            "[startup] Agent JIT warmup completed in %.3fs",
+            _time.perf_counter() - t0,
+        )
+    except Exception:
+        logger.warning(
+            "[startup] Agent JIT warmup failed in %.3fs (non-fatal — first "
+            "real request will pay the full compile cost)",
+            _time.perf_counter() - t0,
+            exc_info=True,
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Tune GC: lower gen-2 threshold so long-lived garbage is collected
@@ -443,6 +572,18 @@ async def lifespan(app: FastAPI):
         logging.getLogger(__name__).warning(
             "Surfsense docs seeding timed out after 120s — skipping. "
             "Docs will be indexed on the next restart."
+        )
+
+    # Phase 1.7 — JIT warmup. Bounded so a stuck warmup never delays
+    # worker readiness. ``shield`` so Uvicorn cancelling startup
+    # doesn't leave half-warmed Pydantic schemas in an inconsistent
+    # state.
+    try:
+        await asyncio.wait_for(asyncio.shield(_warm_agent_jit_caches()), timeout=20)
+    except (TimeoutError, Exception):  # pragma: no cover - defensive
+        logging.getLogger(__name__).warning(
+            "[startup] Agent JIT warmup hit timeout/error — skipping; "
+            "first real request will pay the full compile cost."
         )
 
     log_system_snapshot("startup_complete")

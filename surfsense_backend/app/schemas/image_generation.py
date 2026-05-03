@@ -241,6 +241,15 @@ class GlobalImageGenConfigRead(BaseModel):
         default="free",
         description="'free' or 'premium'. Premium debits the user's premium credit pool (USD-cost-based).",
     )
+    is_premium: bool = Field(
+        default=False,
+        description=(
+            "Convenience boolean derived server-side from "
+            "``billing_tier == 'premium'``. The new-chat model selector "
+            "keys its Free/Premium badge off this field for parity with "
+            "chat (`GlobalLLMConfigRead.is_premium`)."
+        ),
+    )
     quota_reserve_micros: int | None = Field(
         default=None,
         description=(

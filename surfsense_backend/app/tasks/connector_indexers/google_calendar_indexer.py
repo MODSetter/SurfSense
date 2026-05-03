@@ -20,12 +20,10 @@ from app.indexing_pipeline.indexing_pipeline_service import (
     IndexingPipelineService,
     PlaceholderInfo,
 )
+from app.services.composio_service import ComposioService
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
-from app.utils.google_credentials import (
-    COMPOSIO_GOOGLE_CONNECTOR_TYPES,
-    build_composio_credentials,
-)
+from app.utils.google_credentials import COMPOSIO_GOOGLE_CONNECTOR_TYPES
 
 from .base import (
     check_duplicate_document_by_hash,
@@ -42,6 +40,10 @@ ACCEPTED_CALENDAR_CONNECTOR_TYPES = {
 
 HeartbeatCallbackType = Callable[[int], Awaitable[None]]
 HEARTBEAT_INTERVAL_SECONDS = 30
+
+
+def _format_calendar_event_to_markdown(event: dict) -> str:
+    return GoogleCalendarConnector.format_event_to_markdown(None, event)
 
 
 def _build_connector_doc(
@@ -150,7 +152,14 @@ async def index_google_calendar_events(
             )
             return 0, 0, f"Connector with ID {connector_id} not found"
 
-        # ── Credential building ───────────────────────────────────────
+        is_composio_connector = (
+            connector.connector_type in COMPOSIO_GOOGLE_CONNECTOR_TYPES
+        )
+        calendar_client = None
+        composio_service = None
+        connected_account_id = None
+
+        # ── Credential/client building ────────────────────────────────
         if connector.connector_type in COMPOSIO_GOOGLE_CONNECTOR_TYPES:
             connected_account_id = connector.config.get("composio_connected_account_id")
             if not connected_account_id:
@@ -161,7 +170,7 @@ async def index_google_calendar_events(
                     {"error_type": "MissingComposioAccount"},
                 )
                 return 0, 0, "Composio connected_account_id not found"
-            credentials = build_composio_credentials(connected_account_id)
+            composio_service = ComposioService()
         else:
             config_data = connector.config
 
@@ -229,12 +238,13 @@ async def index_google_calendar_events(
             {"stage": "client_initialization"},
         )
 
-        calendar_client = GoogleCalendarConnector(
-            credentials=credentials,
-            session=session,
-            user_id=user_id,
-            connector_id=connector_id,
-        )
+        if not is_composio_connector:
+            calendar_client = GoogleCalendarConnector(
+                credentials=credentials,
+                session=session,
+                user_id=user_id,
+                connector_id=connector_id,
+            )
 
         # Handle 'undefined' string from frontend (treat as None)
         if start_date == "undefined" or start_date == "":
@@ -300,9 +310,26 @@ async def index_google_calendar_events(
         )
 
         try:
-            events, error = await calendar_client.get_all_primary_calendar_events(
-                start_date=start_date_str, end_date=end_date_str
-            )
+            if is_composio_connector:
+                start_dt = parse_date_flexible(start_date_str).replace(
+                    hour=0, minute=0, second=0, microsecond=0
+                )
+                end_dt = parse_date_flexible(end_date_str).replace(
+                    hour=23, minute=59, second=59, microsecond=0
+                )
+                events, error = await composio_service.get_calendar_events(
+                    connected_account_id=connected_account_id,
+                    entity_id=f"surfsense_{user_id}",
+                    time_min=start_dt.isoformat(),
+                    time_max=end_dt.isoformat(),
+                    max_results=250,
+                )
+                if not events and not error:
+                    error = "No events found in the specified date range."
+            else:
+                events, error = await calendar_client.get_all_primary_calendar_events(
+                    start_date=start_date_str, end_date=end_date_str
+                )
 
             if error:
                 if "No events found" in error:
@@ -381,7 +408,7 @@ async def index_google_calendar_events(
                     documents_skipped += 1
                     continue
 
-                event_markdown = calendar_client.format_event_to_markdown(event)
+                event_markdown = _format_calendar_event_to_markdown(event)
                 if not event_markdown.strip():
                     logger.warning(f"Skipping event with no content: {event_summary}")
                     documents_skipped += 1

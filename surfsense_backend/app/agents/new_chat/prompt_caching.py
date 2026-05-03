@@ -1,4 +1,4 @@
-"""LiteLLM-native prompt caching configuration for SurfSense agents.
+r"""LiteLLM-native prompt caching configuration for SurfSense agents.
 
 Replaces the legacy ``AnthropicPromptCachingMiddleware`` (which never
 activated for our LiteLLM-based stack — its ``isinstance(model, ChatAnthropic)``
@@ -17,8 +17,20 @@ Coverage:
 
 We inject **two** breakpoints per request:
 
-- ``role: system`` — pins the SurfSense system prompt (provider variant,
-  citation rules, tool catalog, KB tree, skills metadata) into the cache.
+- ``index: 0`` — pins the SurfSense system prompt at the head of the
+  request (provider variant, citation rules, tool catalog, KB tree,
+  skills metadata). The langchain agent factory always prepends
+  ``request.system_message`` at index 0 (see ``factory.py``
+  ``_execute_model_async``), so this targets exactly the main system
+  prompt regardless of how many other ``SystemMessage``\ s the
+  ``before_agent`` injectors (priority, tree, memory, file-intent,
+  anonymous-doc) have inserted into ``state["messages"]``. Using
+  ``role: system`` here would apply ``cache_control`` to **every**
+  system-role message and trip Anthropic's hard cap of 4 cache
+  breakpoints per request once the conversation accumulates enough
+  injected system messages — which surfaces as the upstream 400
+  ``A maximum of 4 blocks with cache_control may be provided. Found N``
+  via OpenRouter→Anthropic.
 - ``index: -1`` — pins the latest message so multi-turn savings compound:
   Anthropic-family providers use longest-matching-prefix lookup, so turn
   N+1 still reads turn N's cache up to the shared prefix.
@@ -51,11 +63,21 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-# Two-breakpoint policy: system + latest message. See module docstring for
-# rationale. Anthropic limits requests to 4 ``cache_control`` blocks; we
-# use 2 here, leaving headroom for Phase-2 tool caching.
+# Two-breakpoint policy: head-of-request + latest message. See module
+# docstring for rationale. Anthropic caps requests at 4 ``cache_control``
+# blocks; we use 2 here, leaving headroom for Phase-2 tool caching.
+#
+# IMPORTANT: ``index: 0`` (not ``role: system``). The deepagent stack's
+# ``before_agent`` middlewares (priority, tree, memory, file-intent,
+# anonymous-doc) insert ``SystemMessage`` instances into
+# ``state["messages"]`` that accumulate across turns. With
+# ``role: system`` the LiteLLM hook would tag *every* one of them with
+# ``cache_control`` and overflow Anthropic's 4-block limit. ``index: 0``
+# always targets the langchain-prepended ``request.system_message``
+# (which our ``FlattenSystemMessageMiddleware`` reduces to a single text
+# block), giving us exactly one stable cache breakpoint.
 _DEFAULT_INJECTION_POINTS: tuple[dict[str, Any], ...] = (
-    {"location": "message", "role": "system"},
+    {"location": "message", "index": 0},
     {"location": "message", "index": -1},
 )
 

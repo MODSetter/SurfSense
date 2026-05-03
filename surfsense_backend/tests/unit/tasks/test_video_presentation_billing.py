@@ -105,6 +105,19 @@ async def _denying_billable_call(**kwargs):
     yield SimpleNamespace()  # pragma: no cover
 
 
+@contextlib.asynccontextmanager
+async def _settlement_failing_billable_call(**kwargs):
+    from app.services.billable_calls import BillingSettlementError
+
+    _CALL_LOG.append(kwargs)
+    yield SimpleNamespace()
+    raise BillingSettlementError(
+        usage_type=kwargs.get("usage_type", "?"),
+        user_id=kwargs["user_id"],
+        cause=RuntimeError("finalize failed"),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -176,11 +189,15 @@ async def test_billable_call_invoked_with_correct_kwargs_for_free_config(monkeyp
         call["quota_reserve_micros_override"]
         == app_config.QUOTA_DEFAULT_VIDEO_PRESENTATION_RESERVE_MICROS
     )
-    assert call["thread_id"] == 99
+    # Background artifact audit rows intentionally omit the TokenUsage.thread_id
+    # FK to avoid coupling Celery audit commits to an active chat transaction.
+    assert "thread_id" not in call
     assert call["call_details"] == {
         "video_presentation_id": 11,
         "title": "Test Presentation",
+        "thread_id": 99,
     }
+    assert callable(call["billable_session_factory"])
 
 
 @pytest.mark.asyncio
@@ -278,6 +295,57 @@ async def test_quota_insufficient_marks_video_failed_and_skips_graph(monkeypatch
     }
     assert video.status == VideoPresentationStatus.FAILED
     assert graph_invoked == []
+
+
+@pytest.mark.asyncio
+async def test_billing_settlement_failure_marks_video_failed(monkeypatch):
+    from app.db import VideoPresentationStatus
+    from app.tasks.celery_tasks import video_presentation_tasks
+
+    video = _make_video(video_id=14)
+    session = _FakeSession(video)
+    monkeypatch.setattr(
+        video_presentation_tasks,
+        "get_celery_session_maker",
+        lambda: _FakeSessionMaker(session),
+    )
+
+    async def _fake_resolver(sess, search_space_id, *, thread_id=None):
+        return uuid4(), "premium", "gpt-5.4"
+
+    monkeypatch.setattr(
+        video_presentation_tasks,
+        "_resolve_agent_billing_for_search_space",
+        _fake_resolver,
+    )
+    monkeypatch.setattr(
+        video_presentation_tasks,
+        "billable_call",
+        _settlement_failing_billable_call,
+    )
+
+    async def _fake_graph_invoke(state, config):
+        return {"slides": [], "slide_audio_results": [], "slide_scene_codes": []}
+
+    monkeypatch.setattr(
+        video_presentation_tasks.video_presentation_graph,
+        "ainvoke",
+        _fake_graph_invoke,
+    )
+
+    result = await video_presentation_tasks._generate_video_presentation(
+        video_presentation_id=14,
+        source_content="content",
+        search_space_id=777,
+        user_prompt=None,
+    )
+
+    assert result == {
+        "status": "failed",
+        "video_presentation_id": 14,
+        "reason": "billing_settlement_failed",
+    }
+    assert video.status == VideoPresentationStatus.FAILED
 
 
 @pytest.mark.asyncio

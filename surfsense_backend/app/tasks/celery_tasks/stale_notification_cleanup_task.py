@@ -34,7 +34,7 @@ from sqlalchemy.future import select
 from app.celery_app import celery_app
 from app.config import config
 from app.db import Document, DocumentStatus, Notification
-from app.tasks.celery_tasks import get_celery_session_maker
+from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
 
 logger = logging.getLogger(__name__)
 
@@ -69,16 +69,12 @@ def cleanup_stale_indexing_notifications_task():
     Detection: Redis heartbeat key with 2-min TTL. Missing key = stale task.
     Also marks associated pending/processing documents as failed.
     """
-    import asyncio
 
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    async def _both() -> None:
+        await _cleanup_stale_notifications()
+        await _cleanup_stale_document_processing_notifications()
 
-    try:
-        loop.run_until_complete(_cleanup_stale_notifications())
-        loop.run_until_complete(_cleanup_stale_document_processing_notifications())
-    finally:
-        loop.close()
+    return run_async_celery_task(_both)
 
 
 async def _cleanup_stale_notifications():

@@ -8,6 +8,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from app.agents.new_chat.tools.hitl import request_approval
 from app.connectors.jira_history import JiraHistoryConnector
+from app.db import async_session_maker
 from app.services.jira import JiraToolMetadataService
 
 logger = logging.getLogger(__name__)
@@ -19,6 +20,26 @@ def create_delete_jira_issue_tool(
     user_id: str | None = None,
     connector_id: int | None = None,
 ):
+    """Factory function to create the delete_jira_issue tool.
+
+    The tool acquires its own short-lived ``AsyncSession`` per call via
+    :data:`async_session_maker`. This is critical for the compiled-agent
+    cache: the compiled graph (and therefore this closure) is reused
+    across HTTP requests, so capturing a per-request session here would
+    surface stale/closed sessions on cache hits.
+
+    Args:
+        db_session: Reserved for registry compatibility. Per-call sessions
+            are opened via :data:`async_session_maker` inside the tool body.
+        search_space_id: Search space ID to find the Jira connector
+        user_id: User ID for fetching user-specific context
+        connector_id: Optional specific connector ID (if known)
+
+    Returns:
+        Configured delete_jira_issue tool
+    """
+    del db_session  # per-call session — see docstring
+
     @tool
     async def delete_jira_issue(
         issue_title_or_key: str,
@@ -44,130 +65,136 @@ def create_delete_jira_issue_tool(
             f"delete_jira_issue called: issue_title_or_key='{issue_title_or_key}'"
         )
 
-        if db_session is None or search_space_id is None or user_id is None:
+        if search_space_id is None or user_id is None:
             return {"status": "error", "message": "Jira tool not properly configured."}
 
         try:
-            metadata_service = JiraToolMetadataService(db_session)
-            context = await metadata_service.get_deletion_context(
-                search_space_id, user_id, issue_title_or_key
-            )
-
-            if "error" in context:
-                error_msg = context["error"]
-                if context.get("auth_expired"):
-                    return {
-                        "status": "auth_error",
-                        "message": error_msg,
-                        "connector_id": context.get("connector_id"),
-                        "connector_type": "jira",
-                    }
-                if "not found" in error_msg.lower():
-                    return {"status": "not_found", "message": error_msg}
-                return {"status": "error", "message": error_msg}
-
-            issue_data = context["issue"]
-            issue_key = issue_data["issue_id"]
-            document_id = issue_data["document_id"]
-            connector_id_from_context = context.get("account", {}).get("id")
-
-            result = request_approval(
-                action_type="jira_issue_deletion",
-                tool_name="delete_jira_issue",
-                params={
-                    "issue_key": issue_key,
-                    "connector_id": connector_id_from_context,
-                    "delete_from_kb": delete_from_kb,
-                },
-                context=context,
-            )
-
-            if result.rejected:
-                return {
-                    "status": "rejected",
-                    "message": "User declined. Do not retry or suggest alternatives.",
-                }
-
-            final_issue_key = result.params.get("issue_key", issue_key)
-            final_connector_id = result.params.get(
-                "connector_id", connector_id_from_context
-            )
-            final_delete_from_kb = result.params.get("delete_from_kb", delete_from_kb)
-
-            from sqlalchemy.future import select
-
-            from app.db import SearchSourceConnector, SearchSourceConnectorType
-
-            if not final_connector_id:
-                return {
-                    "status": "error",
-                    "message": "No connector found for this issue.",
-                }
-
-            result = await db_session.execute(
-                select(SearchSourceConnector).filter(
-                    SearchSourceConnector.id == final_connector_id,
-                    SearchSourceConnector.search_space_id == search_space_id,
-                    SearchSourceConnector.user_id == user_id,
-                    SearchSourceConnector.connector_type
-                    == SearchSourceConnectorType.JIRA_CONNECTOR,
+            async with async_session_maker() as db_session:
+                metadata_service = JiraToolMetadataService(db_session)
+                context = await metadata_service.get_deletion_context(
+                    search_space_id, user_id, issue_title_or_key
                 )
-            )
-            connector = result.scalars().first()
-            if not connector:
-                return {
-                    "status": "error",
-                    "message": "Selected Jira connector is invalid.",
-                }
 
-            try:
-                jira_history = JiraHistoryConnector(
-                    session=db_session, connector_id=final_connector_id
+                if "error" in context:
+                    error_msg = context["error"]
+                    if context.get("auth_expired"):
+                        return {
+                            "status": "auth_error",
+                            "message": error_msg,
+                            "connector_id": context.get("connector_id"),
+                            "connector_type": "jira",
+                        }
+                    if "not found" in error_msg.lower():
+                        return {"status": "not_found", "message": error_msg}
+                    return {"status": "error", "message": error_msg}
+
+                issue_data = context["issue"]
+                issue_key = issue_data["issue_id"]
+                document_id = issue_data["document_id"]
+                connector_id_from_context = context.get("account", {}).get("id")
+
+                result = request_approval(
+                    action_type="jira_issue_deletion",
+                    tool_name="delete_jira_issue",
+                    params={
+                        "issue_key": issue_key,
+                        "connector_id": connector_id_from_context,
+                        "delete_from_kb": delete_from_kb,
+                    },
+                    context=context,
                 )
-                jira_client = await jira_history._get_jira_client()
-                await asyncio.to_thread(jira_client.delete_issue, final_issue_key)
-            except Exception as api_err:
-                if "status code 403" in str(api_err).lower():
-                    try:
-                        connector.config = {**connector.config, "auth_expired": True}
-                        flag_modified(connector, "config")
-                        await db_session.commit()
-                    except Exception:
-                        pass
+
+                if result.rejected:
                     return {
-                        "status": "insufficient_permissions",
-                        "connector_id": final_connector_id,
-                        "message": "This Jira account needs additional permissions. Please re-authenticate in connector settings.",
+                        "status": "rejected",
+                        "message": "User declined. Do not retry or suggest alternatives.",
                     }
-                raise
 
-            deleted_from_kb = False
-            if final_delete_from_kb and document_id:
-                try:
-                    from app.db import Document
+                final_issue_key = result.params.get("issue_key", issue_key)
+                final_connector_id = result.params.get(
+                    "connector_id", connector_id_from_context
+                )
+                final_delete_from_kb = result.params.get(
+                    "delete_from_kb", delete_from_kb
+                )
 
-                    doc_result = await db_session.execute(
-                        select(Document).filter(Document.id == document_id)
+                from sqlalchemy.future import select
+
+                from app.db import SearchSourceConnector, SearchSourceConnectorType
+
+                if not final_connector_id:
+                    return {
+                        "status": "error",
+                        "message": "No connector found for this issue.",
+                    }
+
+                result = await db_session.execute(
+                    select(SearchSourceConnector).filter(
+                        SearchSourceConnector.id == final_connector_id,
+                        SearchSourceConnector.search_space_id == search_space_id,
+                        SearchSourceConnector.user_id == user_id,
+                        SearchSourceConnector.connector_type
+                        == SearchSourceConnectorType.JIRA_CONNECTOR,
                     )
-                    document = doc_result.scalars().first()
-                    if document:
-                        await db_session.delete(document)
-                        await db_session.commit()
-                        deleted_from_kb = True
-                except Exception as e:
-                    logger.error(f"Failed to delete document from KB: {e}")
-                    await db_session.rollback()
+                )
+                connector = result.scalars().first()
+                if not connector:
+                    return {
+                        "status": "error",
+                        "message": "Selected Jira connector is invalid.",
+                    }
 
-            message = f"Jira issue {final_issue_key} deleted successfully."
-            if deleted_from_kb:
-                message += " Also removed from the knowledge base."
+                try:
+                    jira_history = JiraHistoryConnector(
+                        session=db_session, connector_id=final_connector_id
+                    )
+                    jira_client = await jira_history._get_jira_client()
+                    await asyncio.to_thread(jira_client.delete_issue, final_issue_key)
+                except Exception as api_err:
+                    if "status code 403" in str(api_err).lower():
+                        try:
+                            connector.config = {
+                                **connector.config,
+                                "auth_expired": True,
+                            }
+                            flag_modified(connector, "config")
+                            await db_session.commit()
+                        except Exception:
+                            pass
+                        return {
+                            "status": "insufficient_permissions",
+                            "connector_id": final_connector_id,
+                            "message": "This Jira account needs additional permissions. Please re-authenticate in connector settings.",
+                        }
+                    raise
 
-            return {
-                "status": "success",
-                "issue_key": final_issue_key,
-                "deleted_from_kb": deleted_from_kb,
-                "message": message,
-            }
+                deleted_from_kb = False
+                if final_delete_from_kb and document_id:
+                    try:
+                        from app.db import Document
+
+                        doc_result = await db_session.execute(
+                            select(Document).filter(Document.id == document_id)
+                        )
+                        document = doc_result.scalars().first()
+                        if document:
+                            await db_session.delete(document)
+                            await db_session.commit()
+                            deleted_from_kb = True
+                    except Exception as e:
+                        logger.error(f"Failed to delete document from KB: {e}")
+                        await db_session.rollback()
+
+                message = f"Jira issue {final_issue_key} deleted successfully."
+                if deleted_from_kb:
+                    message += " Also removed from the knowledge base."
+
+                return {
+                    "status": "success",
+                    "issue_key": final_issue_key,
+                    "deleted_from_kb": deleted_from_kb,
+                    "message": message,
+                }
 
         except Exception as e:
             from langgraph.errors import GraphInterrupt

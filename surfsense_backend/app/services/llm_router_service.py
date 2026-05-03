@@ -140,8 +140,6 @@ PROVIDER_MAP = {
 # 404-ing against an inherited Azure endpoint). Re-exported here for
 # backward compatibility with any external import.
 from app.services.provider_api_base import (  # noqa: E402
-    PROVIDER_DEFAULT_API_BASE,
-    PROVIDER_KEY_DEFAULT_API_BASE,
     resolve_api_base,
 )
 

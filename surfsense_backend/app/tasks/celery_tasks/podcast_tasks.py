@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import sys
+from contextlib import asynccontextmanager
 
 from sqlalchemy import select
 
@@ -12,11 +13,12 @@ from app.celery_app import celery_app
 from app.config import config as app_config
 from app.db import Podcast, PodcastStatus
 from app.services.billable_calls import (
+    BillingSettlementError,
     QuotaInsufficientError,
     _resolve_agent_billing_for_search_space,
     billable_call,
 )
-from app.tasks.celery_tasks import get_celery_session_maker
+from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +36,13 @@ if sys.platform.startswith("win"):
 # =============================================================================
 
 
+@asynccontextmanager
+async def _celery_billable_session():
+    """Session factory used by billable_call inside the Celery worker loop."""
+    async with get_celery_session_maker()() as session:
+        yield session
+
+
 @celery_app.task(name="generate_content_podcast", bind=True)
 def generate_content_podcast_task(
     self,
@@ -46,27 +55,22 @@ def generate_content_podcast_task(
     Celery task to generate podcast from source content.
     Updates existing podcast record created by the tool.
     """
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
     try:
-        result = loop.run_until_complete(
-            _generate_content_podcast(
+        return run_async_celery_task(
+            lambda: _generate_content_podcast(
                 podcast_id,
                 source_content,
                 search_space_id,
                 user_prompt,
             )
         )
-        loop.run_until_complete(loop.shutdown_asyncgens())
-        return result
     except Exception as e:
         logger.error(f"Error generating content podcast: {e!s}")
-        loop.run_until_complete(_mark_podcast_failed(podcast_id))
+        try:
+            run_async_celery_task(lambda: _mark_podcast_failed(podcast_id))
+        except Exception:
+            logger.exception("Failed to mark podcast %s as failed", podcast_id)
         return {"status": "failed", "podcast_id": podcast_id}
-    finally:
-        asyncio.set_event_loop(None)
-        loop.close()
 
 
 async def _mark_podcast_failed(podcast_id: int) -> None:
@@ -148,11 +152,12 @@ async def _generate_content_podcast(
                     base_model=base_model,
                     quota_reserve_micros_override=app_config.QUOTA_DEFAULT_PODCAST_RESERVE_MICROS,
                     usage_type="podcast_generation",
-                    thread_id=podcast.thread_id,
                     call_details={
                         "podcast_id": podcast.id,
                         "title": podcast.title,
+                        "thread_id": podcast.thread_id,
                     },
+                    billable_session_factory=_celery_billable_session,
                 ):
                     graph_result = await podcaster_graph.ainvoke(
                         initial_state, config=graph_config
@@ -172,6 +177,18 @@ async def _generate_content_podcast(
                     "status": "failed",
                     "podcast_id": podcast.id,
                     "reason": "premium_quota_exhausted",
+                }
+            except BillingSettlementError:
+                logger.exception(
+                    "Podcast %s: premium billing settlement failed",
+                    podcast.id,
+                )
+                podcast.status = PodcastStatus.FAILED
+                await session.commit()
+                return {
+                    "status": "failed",
+                    "podcast_id": podcast.id,
+                    "reason": "billing_settlement_failed",
                 }
 
             podcast_transcript = graph_result.get("podcast_transcript", [])
@@ -194,7 +211,14 @@ async def _generate_content_podcast(
             podcast.podcast_transcript = serializable_transcript
             podcast.file_location = file_path
             podcast.status = PodcastStatus.READY
+            logger.info(
+                "Podcast %s: committing READY transcript_entries=%d file=%s",
+                podcast.id,
+                len(serializable_transcript),
+                file_path,
+            )
             await session.commit()
+            logger.info("Podcast %s: READY commit complete", podcast.id)
 
             logger.info(f"Successfully generated podcast: {podcast.id}")
 

@@ -1,4 +1,4 @@
-"""Tests for ``apply_litellm_prompt_caching`` in
+r"""Tests for ``apply_litellm_prompt_caching`` in
 :mod:`app.agents.new_chat.prompt_caching`.
 
 The helper replaces the legacy ``AnthropicPromptCachingMiddleware`` (which
@@ -6,9 +6,12 @@ never activated for our LiteLLM stack) with LiteLLM-native multi-provider
 prompt caching. It mutates ``llm.model_kwargs`` so the kwargs flow to
 ``litellm.completion(...)``. The tests below pin its public contract:
 
-1. Always sets BOTH ``role: system`` and ``index: -1`` injection points so
+1. Always sets BOTH ``index: 0`` and ``index: -1`` injection points so
    savings compound across multi-turn conversations on Anthropic-family
-   providers.
+   providers. ``index: 0`` is used (rather than ``role: system``) because
+   the deepagent stack accumulates multiple ``SystemMessage``\ s in
+   ``state["messages"]`` and ``role: system`` would tag every one of
+   them, blowing past Anthropic's 4-block ``cache_control`` cap.
 2. Adds ``prompt_cache_key``/``prompt_cache_retention`` only for
    single-model OPENAI/DEEPSEEK/XAI configs (where OpenAI's automatic
    prompt-cache surface is available).
@@ -92,9 +95,26 @@ def test_sets_both_cache_control_injection_points_with_no_config() -> None:
     apply_litellm_prompt_caching(llm)
 
     points = llm.model_kwargs["cache_control_injection_points"]
-    assert {"location": "message", "role": "system"} in points
+    assert {"location": "message", "index": 0} in points
     assert {"location": "message", "index": -1} in points
     assert len(points) == 2
+
+
+def test_does_not_inject_role_system_breakpoint() -> None:
+    """Regression: deliberately AVOID ``role: system`` so we don't tag
+    every SystemMessage the deepagent ``before_agent`` injectors push
+    into ``state["messages"]`` (priority, tree, memory, file-intent,
+    anonymous-doc). Tagging all of them overflows Anthropic's 4-block
+    ``cache_control`` cap and surfaces as
+    ``OpenrouterException: A maximum of 4 blocks with cache_control may
+    be provided. Found N`` 400s.
+    """
+    llm = _FakeLLM()
+    apply_litellm_prompt_caching(llm)
+    points = llm.model_kwargs["cache_control_injection_points"]
+    assert all(p.get("role") != "system" for p in points), (
+        f"Expected no role=system breakpoint, got: {points}"
+    )
 
 
 def test_injection_points_set_for_anthropic_config() -> None:

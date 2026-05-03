@@ -17,7 +17,7 @@ from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
 )
-from app.utils.google_credentials import build_composio_credentials
+from app.services.composio_service import ComposioService
 
 logger = logging.getLogger(__name__)
 
@@ -78,14 +78,49 @@ class GmailToolMetadataService:
     def __init__(self, db_session: AsyncSession):
         self._db_session = db_session
 
-    async def _build_credentials(self, connector: SearchSourceConnector) -> Credentials:
-        if (
+    def _is_composio_connector(self, connector: SearchSourceConnector) -> bool:
+        return (
             connector.connector_type
             == SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR
-        ):
-            cca_id = connector.config.get("composio_connected_account_id")
-            if cca_id:
-                return build_composio_credentials(cca_id)
+        )
+
+    def _get_composio_connected_account_id(
+        self, connector: SearchSourceConnector
+    ) -> str:
+        cca_id = connector.config.get("composio_connected_account_id")
+        if not cca_id:
+            raise ValueError("Composio connected_account_id not found")
+        return cca_id
+
+    def _unwrap_composio_data(self, data: Any) -> Any:
+        if isinstance(data, dict):
+            inner = data.get("data", data)
+            if isinstance(inner, dict):
+                return inner.get("response_data", inner)
+            return inner
+        return data
+
+    async def _execute_composio_gmail_tool(
+        self,
+        connector: SearchSourceConnector,
+        tool_name: str,
+        params: dict[str, Any],
+    ) -> tuple[Any, str | None]:
+        result = await ComposioService().execute_tool(
+            connected_account_id=self._get_composio_connected_account_id(connector),
+            tool_name=tool_name,
+            params=params,
+            entity_id=f"surfsense_{connector.user_id}",
+        )
+        if not result.get("success"):
+            return None, result.get("error", "Unknown Composio Gmail error")
+        return self._unwrap_composio_data(result.get("data")), None
+
+    async def _build_credentials(self, connector: SearchSourceConnector) -> Credentials:
+        if self._is_composio_connector(connector):
+            raise ValueError(
+                "Composio Gmail connectors must use Composio tool execution"
+            )
 
         config_data = dict(connector.config)
 
@@ -138,6 +173,12 @@ class GmailToolMetadataService:
             connector = result.scalar_one_or_none()
             if not connector:
                 return True
+
+            if self._is_composio_connector(connector):
+                _profile, error = await self._execute_composio_gmail_tool(
+                    connector, "GMAIL_GET_PROFILE", {"user_id": "me"}
+                )
+                return bool(error)
 
             creds = await self._build_credentials(connector)
             service = build("gmail", "v1", credentials=creds)
@@ -221,14 +262,21 @@ class GmailToolMetadataService:
                     )
                     connector = result.scalar_one_or_none()
                     if connector:
-                        creds = await self._build_credentials(connector)
-                        service = build("gmail", "v1", credentials=creds)
-                        profile = await asyncio.get_event_loop().run_in_executor(
-                            None,
-                            lambda service=service: (
-                                service.users().getProfile(userId="me").execute()
-                            ),
-                        )
+                        if self._is_composio_connector(connector):
+                            profile, error = await self._execute_composio_gmail_tool(
+                                connector, "GMAIL_GET_PROFILE", {"user_id": "me"}
+                            )
+                            if error:
+                                raise RuntimeError(error)
+                        else:
+                            creds = await self._build_credentials(connector)
+                            service = build("gmail", "v1", credentials=creds)
+                            profile = await asyncio.get_event_loop().run_in_executor(
+                                None,
+                                lambda service=service: (
+                                    service.users().getProfile(userId="me").execute()
+                                ),
+                            )
                         acc_dict["email"] = profile.get("emailAddress", "")
                 except Exception:
                     logger.warning(
@@ -298,6 +346,23 @@ class GmailToolMetadataService:
         Returns ``None`` on any failure so callers can degrade gracefully.
         """
         try:
+            if self._is_composio_connector(connector):
+                if not draft_id:
+                    draft_id = await self._find_composio_draft_id(connector, message_id)
+                if not draft_id:
+                    return None
+
+                draft, error = await self._execute_composio_gmail_tool(
+                    connector,
+                    "GMAIL_GET_DRAFT",
+                    {"user_id": "me", "draft_id": draft_id, "format": "full"},
+                )
+                if error or not isinstance(draft, dict):
+                    return None
+
+                payload = draft.get("message", {}).get("payload", {})
+                return self._extract_body_from_payload(payload)
+
             creds = await self._build_credentials(connector)
             service = build("gmail", "v1", credentials=creds)
 
@@ -325,6 +390,33 @@ class GmailToolMetadataService:
                 exc_info=True,
             )
             return None
+
+    async def _find_composio_draft_id(
+        self, connector: SearchSourceConnector, message_id: str
+    ) -> str | None:
+        page_token = ""
+        while True:
+            params: dict[str, Any] = {
+                "user_id": "me",
+                "max_results": 100,
+                "verbose": False,
+            }
+            if page_token:
+                params["page_token"] = page_token
+
+            data, error = await self._execute_composio_gmail_tool(
+                connector, "GMAIL_LIST_DRAFTS", params
+            )
+            if error or not isinstance(data, dict):
+                return None
+
+            for draft in data.get("drafts", []):
+                if draft.get("message", {}).get("id") == message_id:
+                    return draft.get("id")
+
+            page_token = data.get("nextPageToken") or data.get("next_page_token") or ""
+            if not page_token:
+                return None
 
     async def _find_draft_id(self, service: Any, message_id: str) -> str | None:
         """Resolve a draft ID from its message ID by scanning drafts.list."""

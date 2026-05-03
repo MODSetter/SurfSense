@@ -31,6 +31,7 @@ from app.services.image_gen_router_service import (
     ImageGenRouterService,
     is_image_gen_auto_mode,
 )
+from app.services.provider_api_base import resolve_api_base
 from app.utils.signed_image_urls import generate_image_token
 
 logger = logging.getLogger(__name__)
@@ -49,12 +50,16 @@ _PROVIDER_MAP = {
 }
 
 
+def _resolve_provider_prefix(provider: str, custom_provider: str | None) -> str:
+    if custom_provider:
+        return custom_provider
+    return _PROVIDER_MAP.get(provider.upper(), provider.lower())
+
+
 def _build_model_string(
     provider: str, model_name: str, custom_provider: str | None
 ) -> str:
-    if custom_provider:
-        return f"{custom_provider}/{model_name}"
-    prefix = _PROVIDER_MAP.get(provider.upper(), provider.lower())
+    prefix = _resolve_provider_prefix(provider, custom_provider)
     return f"{prefix}/{model_name}"
 
 
@@ -146,14 +151,18 @@ def create_generate_image_tool(
                             "error": f"Image generation config {config_id} not found"
                         }
 
-                    model_string = _build_model_string(
-                        cfg.get("provider", ""),
-                        cfg["model_name"],
-                        cfg.get("custom_provider"),
+                    provider_prefix = _resolve_provider_prefix(
+                        cfg.get("provider", ""), cfg.get("custom_provider")
                     )
+                    model_string = f"{provider_prefix}/{cfg['model_name']}"
                     gen_kwargs["api_key"] = cfg.get("api_key")
-                    if cfg.get("api_base"):
-                        gen_kwargs["api_base"] = cfg["api_base"]
+                    api_base = resolve_api_base(
+                        provider=cfg.get("provider"),
+                        provider_prefix=provider_prefix,
+                        config_api_base=cfg.get("api_base"),
+                    )
+                    if api_base:
+                        gen_kwargs["api_base"] = api_base
                     if cfg.get("api_version"):
                         gen_kwargs["api_version"] = cfg["api_version"]
                     if cfg.get("litellm_params"):
@@ -175,14 +184,18 @@ def create_generate_image_tool(
                             "error": f"Image generation config {config_id} not found"
                         }
 
-                    model_string = _build_model_string(
-                        db_cfg.provider.value,
-                        db_cfg.model_name,
-                        db_cfg.custom_provider,
+                    provider_prefix = _resolve_provider_prefix(
+                        db_cfg.provider.value, db_cfg.custom_provider
                     )
+                    model_string = f"{provider_prefix}/{db_cfg.model_name}"
                     gen_kwargs["api_key"] = db_cfg.api_key
-                    if db_cfg.api_base:
-                        gen_kwargs["api_base"] = db_cfg.api_base
+                    api_base = resolve_api_base(
+                        provider=db_cfg.provider.value,
+                        provider_prefix=provider_prefix,
+                        config_api_base=db_cfg.api_base,
+                    )
+                    if api_base:
+                        gen_kwargs["api_base"] = api_base
                     if db_cfg.api_version:
                         gen_kwargs["api_version"] = db_cfg.api_version
                     if db_cfg.litellm_params:

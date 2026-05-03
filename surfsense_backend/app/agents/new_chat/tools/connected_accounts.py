@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.db import SearchSourceConnector, SearchSourceConnectorType
+from app.db import SearchSourceConnector, SearchSourceConnectorType, async_session_maker
 from app.services.mcp_oauth.registry import MCP_SERVICES
 
 logger = logging.getLogger(__name__)
@@ -53,6 +53,23 @@ def create_get_connected_accounts_tool(
     search_space_id: int,
     user_id: str,
 ) -> StructuredTool:
+    """Factory function to create the get_connected_accounts tool.
+
+    The tool acquires its own short-lived ``AsyncSession`` per call via
+    :data:`async_session_maker` so the closure is safe to share across
+    HTTP requests by the compiled-agent cache. Capturing a per-request
+    session here would surface stale/closed sessions on cache hits.
+
+    Args:
+        db_session: Reserved for registry compatibility. Per-call sessions
+            are opened via :data:`async_session_maker` inside the tool body.
+        search_space_id: Search space ID to scope account discovery to.
+        user_id: User ID to scope account discovery to.
+
+    Returns:
+        Configured StructuredTool for connected-accounts discovery.
+    """
+    del db_session  # per-call session — see docstring
 
     async def _run(service: str) -> list[dict[str, Any]]:
         svc_cfg = MCP_SERVICES.get(service)
@@ -68,40 +85,41 @@ def create_get_connected_accounts_tool(
         except ValueError:
             return [{"error": f"Connector type '{svc_cfg.connector_type}' not found."}]
 
-        result = await db_session.execute(
-            select(SearchSourceConnector).filter(
-                SearchSourceConnector.search_space_id == search_space_id,
-                SearchSourceConnector.user_id == user_id,
-                SearchSourceConnector.connector_type == connector_type,
+        async with async_session_maker() as db_session:
+            result = await db_session.execute(
+                select(SearchSourceConnector).filter(
+                    SearchSourceConnector.search_space_id == search_space_id,
+                    SearchSourceConnector.user_id == user_id,
+                    SearchSourceConnector.connector_type == connector_type,
+                )
             )
-        )
-        connectors = result.scalars().all()
+            connectors = result.scalars().all()
 
-        if not connectors:
-            return [
-                {
-                    "error": f"No {svc_cfg.name} accounts connected. Ask the user to connect one in settings."
+            if not connectors:
+                return [
+                    {
+                        "error": f"No {svc_cfg.name} accounts connected. Ask the user to connect one in settings."
+                    }
+                ]
+
+            is_multi = len(connectors) > 1
+
+            accounts: list[dict[str, Any]] = []
+            for conn in connectors:
+                cfg = conn.config or {}
+                entry: dict[str, Any] = {
+                    "connector_id": conn.id,
+                    "display_name": _extract_display_name(conn),
+                    "service": service,
                 }
-            ]
+                if is_multi:
+                    entry["tool_prefix"] = f"{service}_{conn.id}"
+                for key in svc_cfg.account_metadata_keys:
+                    if key in cfg:
+                        entry[key] = cfg[key]
+                accounts.append(entry)
 
-        is_multi = len(connectors) > 1
-
-        accounts: list[dict[str, Any]] = []
-        for conn in connectors:
-            cfg = conn.config or {}
-            entry: dict[str, Any] = {
-                "connector_id": conn.id,
-                "display_name": _extract_display_name(conn),
-                "service": service,
-            }
-            if is_multi:
-                entry["tool_prefix"] = f"{service}_{conn.id}"
-            for key in svc_cfg.account_metadata_keys:
-                if key in cfg:
-                    entry[key] = cfg[key]
-            accounts.append(entry)
-
-        return accounts
+            return accounts
 
     return StructuredTool(
         name="get_connected_accounts",

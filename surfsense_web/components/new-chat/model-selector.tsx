@@ -19,6 +19,7 @@ import {
 import type React from "react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { pendingUserImageDataUrlsAtom } from "@/atoms/chat/pending-user-images.atom";
 import {
 	globalImageGenConfigsAtom,
 	imageGenConfigsAtom,
@@ -460,6 +461,18 @@ export function ModelSelector({
 	);
 	const { data: visionUserConfigs, isLoading: visionUserLoading } =
 		useAtomValue(visionLLMConfigsAtom);
+
+	// Pending image attachments on the composer. Used to surface an
+	// amber "No image" hint on chat models the catalog reports as
+	// non-vision (`supports_image_input=false`) when the next message
+	// will carry an image. The hint is purely advisory: selection,
+	// focus, and click handling are unaffected. The backend's safety
+	// net (`is_known_text_only_chat_model`) is the actual block, and
+	// it only fires when LiteLLM *explicitly* marks a model as
+	// text-only — so a model that's secretly capable but hasn't been
+	// annotated will still flow through to the provider.
+	const pendingUserImageUrls = useAtomValue(pendingUserImageDataUrlsAtom);
+	const hasPendingImages = pendingUserImageUrls.length > 0;
 
 	const isLoading =
 		llmUserLoading ||
@@ -984,6 +997,21 @@ export function ModelSelector({
 		const isSelected = getSelectedId() === config.id;
 		const isFocused = focusedIndex === index;
 		const hasCitations = "citations_enabled" in config && !!config.citations_enabled;
+		// Chat-tab only: surface an amber "No image" hint when the
+		// composer carries images and the catalog reports the model as
+		// non-vision. This is purely advisory — selection is *not*
+		// blocked. The backend's narrow safety net
+		// (`is_known_text_only_chat_model`) is the source of truth for
+		// rejecting image turns, and it only fires when LiteLLM
+		// explicitly marks the model as text-only. A model surfaced as
+		// `supports_image_input=false` here may still be capable in
+		// practice (unknown / unmapped LiteLLM entry), so we let the
+		// user pick it and the provider response decide.
+		const isImageIncompatibleChatModel =
+			activeTab === "llm" &&
+			hasPendingImages &&
+			"supports_image_input" in config &&
+			(config as Record<string, unknown>).supports_image_input === false;
 
 		return (
 			<div
@@ -992,6 +1020,11 @@ export function ModelSelector({
 				role="option"
 				tabIndex={isMobile ? -1 : 0}
 				aria-selected={isSelected}
+				title={
+					isImageIncompatibleChatModel
+						? "This model is reported as text-only. You can still pick it; the provider may reject image turns."
+						: undefined
+				}
 				onClick={() => handleSelectItem(item)}
 				onKeyDown={
 					isMobile
@@ -1005,9 +1038,8 @@ export function ModelSelector({
 				}
 				onMouseEnter={() => setFocusedIndex(index)}
 				className={cn(
-					"group flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer",
-					"transition-all duration-150 mx-2",
-					"hover:bg-accent/40",
+					"group flex items-center gap-2.5 px-3 py-2 rounded-xl",
+					"transition-all duration-150 mx-2 cursor-pointer hover:bg-accent/40",
 					isSelected && "bg-primary/6 dark:bg-primary/8",
 					isFocused && "bg-accent/50"
 				)}
@@ -1053,6 +1085,14 @@ export function ModelSelector({
 								Free
 							</Badge>
 						) : null}
+						{isImageIncompatibleChatModel && (
+							<Badge
+								variant="secondary"
+								className="text-[9px] px-1 py-0 h-3.5 bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 border-0"
+							>
+								No image
+							</Badge>
+						)}
 					</div>
 					<div className="flex items-center gap-1.5 mt-0.5">
 						<span className="text-xs text-muted-foreground truncate">

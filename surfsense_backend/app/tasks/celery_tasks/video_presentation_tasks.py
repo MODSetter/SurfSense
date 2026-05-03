@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import sys
+from contextlib import asynccontextmanager
 
 from sqlalchemy import select
 
@@ -12,11 +13,12 @@ from app.celery_app import celery_app
 from app.config import config as app_config
 from app.db import VideoPresentation, VideoPresentationStatus
 from app.services.billable_calls import (
+    BillingSettlementError,
     QuotaInsufficientError,
     _resolve_agent_billing_for_search_space,
     billable_call,
 )
-from app.tasks.celery_tasks import get_celery_session_maker
+from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +29,13 @@ if sys.platform.startswith("win"):
         logger.warning(
             "WindowsProactorEventLoopPolicy is unavailable; async subprocess support may fail."
         )
+
+
+@asynccontextmanager
+async def _celery_billable_session():
+    """Session factory used by billable_call inside the Celery worker loop."""
+    async with get_celery_session_maker()() as session:
+        yield session
 
 
 @celery_app.task(name="generate_video_presentation", bind=True)
@@ -41,27 +50,30 @@ def generate_video_presentation_task(
     Celery task to generate video presentation from source content.
     Updates existing video presentation record created by the tool.
     """
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
     try:
-        result = loop.run_until_complete(
-            _generate_video_presentation(
+        return run_async_celery_task(
+            lambda: _generate_video_presentation(
                 video_presentation_id,
                 source_content,
                 search_space_id,
                 user_prompt,
             )
         )
-        loop.run_until_complete(loop.shutdown_asyncgens())
-        return result
     except Exception as e:
         logger.error(f"Error generating video presentation: {e!s}")
-        loop.run_until_complete(_mark_video_presentation_failed(video_presentation_id))
+        # Mark FAILED in a fresh loop — the previous loop is closed.
+        # Swallow secondary failures; the row will simply stay in
+        # GENERATING and be flushed by the periodic stale cleanup.
+        try:
+            run_async_celery_task(
+                lambda: _mark_video_presentation_failed(video_presentation_id)
+            )
+        except Exception:
+            logger.exception(
+                "Failed to mark video presentation %s as failed",
+                video_presentation_id,
+            )
         return {"status": "failed", "video_presentation_id": video_presentation_id}
-    finally:
-        asyncio.set_event_loop(None)
-        loop.close()
 
 
 async def _mark_video_presentation_failed(video_presentation_id: int) -> None:
@@ -150,11 +162,12 @@ async def _generate_video_presentation(
                     base_model=base_model,
                     quota_reserve_micros_override=app_config.QUOTA_DEFAULT_VIDEO_PRESENTATION_RESERVE_MICROS,
                     usage_type="video_presentation_generation",
-                    thread_id=video_pres.thread_id,
                     call_details={
                         "video_presentation_id": video_pres.id,
                         "title": video_pres.title,
+                        "thread_id": video_pres.thread_id,
                     },
+                    billable_session_factory=_celery_billable_session,
                 ):
                     graph_result = await video_presentation_graph.ainvoke(
                         initial_state, config=graph_config
@@ -174,6 +187,18 @@ async def _generate_video_presentation(
                     "status": "failed",
                     "video_presentation_id": video_pres.id,
                     "reason": "premium_quota_exhausted",
+                }
+            except BillingSettlementError:
+                logger.exception(
+                    "VideoPresentation %s: premium billing settlement failed",
+                    video_pres.id,
+                )
+                video_pres.status = VideoPresentationStatus.FAILED
+                await session.commit()
+                return {
+                    "status": "failed",
+                    "video_presentation_id": video_pres.id,
+                    "reason": "billing_settlement_failed",
                 }
 
             # Serialize slides (parsed content + audio info merged)
@@ -205,7 +230,14 @@ async def _generate_video_presentation(
             video_pres.slides = serializable_slides
             video_pres.scene_codes = serializable_scene_codes
             video_pres.status = VideoPresentationStatus.READY
+            logger.info(
+                "VideoPresentation %s: committing READY slides=%d scene_codes=%d",
+                video_pres.id,
+                len(serializable_slides),
+                len(serializable_scene_codes),
+            )
             await session.commit()
+            logger.info("VideoPresentation %s: READY commit complete", video_pres.id)
 
             logger.info(f"Successfully generated video presentation: {video_pres.id}")
 

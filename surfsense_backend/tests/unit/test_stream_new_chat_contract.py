@@ -271,6 +271,66 @@ async def test_preflight_skipped_for_auto_router_model():
     await _preflight_llm(fake_llm)
 
 
+@pytest.mark.asyncio
+async def test_settle_speculative_agent_build_swallows_exceptions():
+    """``_settle_speculative_agent_build`` MUST always return cleanly so the
+    caller can safely re-touch the request-scoped session afterwards.
+
+    The helper guards the parallel preflight + agent-build path: when the
+    speculative build is being discarded (429 or non-429 preflight failure)
+    we await it solely to release any in-flight ``AsyncSession`` usage —
+    the build's outcome is irrelevant. Any exception (including
+    ``CancelledError``) leaking out would skip the caller's recovery flow
+    and re-introduce the very session-concurrency hazard the helper exists
+    to prevent.
+    """
+    import asyncio
+
+    from app.tasks.chat.stream_new_chat import _settle_speculative_agent_build
+
+    async def _raises() -> None:
+        raise RuntimeError("speculative build crashed")
+
+    async def _succeeds() -> str:
+        return "agent"
+
+    async def _slow() -> None:
+        await asyncio.sleep(0.05)
+
+    for coro in (_raises(), _succeeds(), _slow()):
+        task = asyncio.create_task(coro)
+        await _settle_speculative_agent_build(task)
+        assert task.done()
+
+
+@pytest.mark.asyncio
+async def test_settle_speculative_agent_build_handles_already_done_task():
+    """Done tasks (success or failure) must still be settled without raising."""
+    import asyncio
+
+    from app.tasks.chat.stream_new_chat import _settle_speculative_agent_build
+
+    async def _ok() -> str:
+        return "ok"
+
+    async def _bad() -> None:
+        raise ValueError("nope")
+
+    ok_task = asyncio.create_task(_ok())
+    bad_task = asyncio.create_task(_bad())
+    # Drive both to completion before settling.
+    await asyncio.sleep(0)
+    await asyncio.sleep(0)
+
+    await _settle_speculative_agent_build(ok_task)
+    await _settle_speculative_agent_build(bad_task)
+    assert ok_task.result() == "ok"
+    # ``bad_task`` exception was consumed by the settle helper; calling
+    # ``.exception()`` after the fact must still return the original error
+    # (the helper observes it but doesn't clear it).
+    assert isinstance(bad_task.exception(), ValueError)
+
+
 def test_stream_exception_classifies_thread_busy():
     exc = BusyError(request_id="thread-123")
     kind, code, severity, is_expected, user_message, extra = _classify_stream_exception(

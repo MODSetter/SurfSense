@@ -38,16 +38,26 @@ RUN pip install --upgrade certifi pip-system-certs
 COPY pyproject.toml .
 COPY uv.lock .
 
-# Install PyTorch based on architecture
-RUN if [ "$(uname -m)" = "x86_64" ]; then \
-        pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121; \
-    else \
-        pip install --no-cache-dir torch torchvision torchaudio; \
-    fi
-
-# Install python dependencies
+# Install all Python dependencies from uv.lock for deterministic builds.
+#
+# `uv pip install -e .` re-resolves from pyproject.toml and ignores uv.lock,
+# which lets prod silently drift to newer upstream versions on every rebuild
+# (e.g. deepagents 0.4.x -> 0.5.x breaking the FilesystemMiddleware imports).
+# Exporting the lock to requirements.txt and feeding it to `uv pip install`
+# pins every transitive package to the exact version captured in uv.lock.
+#
+# Note on torch/CUDA: we do NOT install torch from a separate cu* index here.
+# PyPI's torch wheels for Linux x86_64 already ship CUDA-enabled and pull
+# nvidia-cudnn-cu13, nvidia-nccl-cu13, triton, etc. as install deps (all
+# captured in uv.lock). Installing from cu121 first only wasted ~2GB of
+# downloads that the lock-based install immediately replaced. If a specific
+# CUDA version is needed (driver compatibility, etc.), wire it through
+# [tool.uv.sources] in pyproject.toml so the lock stays the source of truth.
 RUN pip install --no-cache-dir uv && \
-    uv pip install --system --no-cache-dir -e .
+    uv export --frozen --no-dev --no-hashes --no-emit-project \
+        --format requirements-txt -o /tmp/requirements.txt && \
+    uv pip install --system --no-cache-dir -r /tmp/requirements.txt && \
+    rm /tmp/requirements.txt
 
 # Set SSL environment variables dynamically
 RUN CERTIFI_PATH=$(python -c "import certifi; print(certifi.where())") && \
@@ -66,12 +76,17 @@ RUN cd /root/.EasyOCR/model && (unzip -o english_g2.zip || true) && (unzip -o cr
 # Pre-download Docling models
 RUN python -c "try:\n    from docling.document_converter import DocumentConverter\n    conv = DocumentConverter()\nexcept:\n    pass" || true
 
-# Install Playwright browsers for web scraping if needed
-RUN pip install playwright && \
-    playwright install chromium --with-deps
+# Install Playwright browsers for web scraping (the playwright package itself
+# is already installed via uv.lock above)
+RUN playwright install chromium --with-deps
 
 # Copy source code
 COPY . .
+
+# Install the project itself in editable mode. Dependencies were already
+# installed deterministically from uv.lock above, so --no-deps prevents any
+# re-resolution that could pull newer versions.
+RUN uv pip install --system --no-cache-dir --no-deps -e .
 
 # Copy and set permissions for entrypoint script
 # Use dos2unix to ensure LF line endings (fixes CRLF issues from Windows checkouts)

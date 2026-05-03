@@ -17,7 +17,6 @@ source of truth without an inter-service circular import.
 
 from __future__ import annotations
 
-
 PROVIDER_DEFAULT_API_BASE: dict[str, str] = {
     "openrouter": "https://openrouter.ai/api/v1",
     "groq": "https://api.groq.com/openai/v1",

@@ -23,6 +23,7 @@ import { useTranslations } from "next-intl";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { agentFlagsAtom } from "@/atoms/agent/agent-flags-query.atom";
 import { mentionedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
@@ -197,6 +198,7 @@ function AuthenticatedDocumentsSidebarBase({
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 	const setRightPanelCollapsed = useSetAtom(rightPanelCollapsedAtom);
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
+	const { data: agentFlags } = useAtomValue(agentFlagsAtom);
 	const { data: connectors } = useAtomValue(connectorsAtom);
 	const connectorCount = connectors?.length ?? 0;
 
@@ -209,6 +211,7 @@ function AuthenticatedDocumentsSidebarBase({
 	const [watchedFolderIds, setWatchedFolderIds] = useState<Set<number>>(new Set());
 	const [folderWatchOpen, setFolderWatchOpen] = useAtom(folderWatchDialogOpenAtom);
 	const [watchInitialFolder, setWatchInitialFolder] = useAtom(folderWatchInitialFolderAtom);
+	const localFilesystemEnabled = agentFlags?.enable_desktop_local_filesystem === true;
 	const isElectron =
 		desktopFeaturesEnabled && typeof window !== "undefined" && !!window.electronAPI;
 
@@ -1036,9 +1039,12 @@ function AuthenticatedDocumentsSidebarBase({
 		return () => document.removeEventListener("keydown", handleEscape);
 	}, [open, onOpenChange, isMobile, setRightPanelCollapsed]);
 
-	const showFilesystemTabs = !isMobile && !!electronAPI && !!filesystemSettings;
+	const showFilesystemTabs =
+		!isMobile && !!electronAPI && !!filesystemSettings && localFilesystemEnabled;
 	const currentFilesystemTab =
-		filesystemSettings?.mode === "desktop_local_folder" ? "local" : "cloud";
+		localFilesystemEnabled && filesystemSettings?.mode === "desktop_local_folder"
+			? "local"
+			: "cloud";
 	const showCloudSkeleton =
 		currentFilesystemTab === "cloud" &&
 		(zeroFoldersResult.type !== "complete" || zeroAllDocsResult.type !== "complete");
