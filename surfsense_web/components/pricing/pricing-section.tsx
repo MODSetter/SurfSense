@@ -34,8 +34,7 @@ const demoPlans = [
 		billingText: "No subscription, buy only when you need more",
 		features: [
 			"Everything in Free",
-			"Buy 1,000-page packs at $1 each",
-			"Top up premium credits at $1 per $1 of credit, billed at provider cost",
+			"Buy 1,000-page packs or $1 in premium credits at $1 each",
 			"Use premium AI models like GPT-5.4, Claude Sonnet 4.6, Gemini 2.5 Pro & 100+ more via OpenRouter",
 			"Priority support on Discord",
 		],

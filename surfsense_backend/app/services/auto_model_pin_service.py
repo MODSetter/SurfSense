@@ -220,6 +220,15 @@ def _tier_of(cfg: dict) -> str:
     return str(cfg.get("billing_tier", "free")).lower()
 
 
+def _is_preferred_premium_auto_config(cfg: dict) -> bool:
+    """Return True for the operator-preferred premium Auto model."""
+    return (
+        _tier_of(cfg) == "premium"
+        and str(cfg.get("provider", "")).upper() == "AZURE_OPENAI"
+        and str(cfg.get("model_name", "")).lower() == "gpt-5.4"
+    )
+
+
 def _select_pin(eligible: list[dict], thread_id: int) -> tuple[dict, int]:
     """Pick a config with quality-first ranking + deterministic spread.
 
@@ -399,7 +408,11 @@ async def resolve_or_get_pinned_llm_config_id(
         False if force_repin_free else await _is_premium_eligible(session, user_id)
     )
     if premium_eligible:
-        eligible = [c for c in candidates if _tier_of(c) == "premium"]
+        premium_candidates = [c for c in candidates if _tier_of(c) == "premium"]
+        preferred_premium = [
+            c for c in premium_candidates if _is_preferred_premium_auto_config(c)
+        ]
+        eligible = preferred_premium or premium_candidates
     else:
         eligible = [c for c in candidates if _tier_of(c) != "premium"]
 
