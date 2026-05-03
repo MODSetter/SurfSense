@@ -36,14 +36,16 @@ const initialState: TabsState = {
 // Prevent race conditions where route-sync recreates a just-deleted chat tab.
 const deletedChatIdsAtom = atom<Set<number>>(new Set<number>());
 
-const sessionStorageAdapter = createJSONStorage<TabsState>(
-	() => (typeof window !== "undefined" ? sessionStorage : undefined) as Storage
+// Persist tabs in localStorage so they survive a hard refresh and let the user
+// keep tabs open across multiple search spaces (browser-like behavior).
+const localStorageAdapter = createJSONStorage<TabsState>(
+	() => (typeof window !== "undefined" ? localStorage : undefined) as Storage
 );
 
 export const tabsStateAtom = atomWithStorage<TabsState>(
 	"surfsense:tabs",
 	initialState,
-	sessionStorageAdapter,
+	localStorageAdapter,
 	{ getOnInit: true }
 );
 
@@ -72,7 +74,17 @@ export const syncChatTabAtom = atom(
 	(
 		get,
 		set,
-		{ chatId, title, chatUrl }: { chatId: number | null; title?: string; chatUrl?: string }
+		{
+			chatId,
+			title,
+			chatUrl,
+			searchSpaceId,
+		}: {
+			chatId: number | null;
+			title?: string;
+			chatUrl?: string;
+			searchSpaceId: number;
+		}
 	) => {
 		if (chatId && get(deletedChatIdsAtom).has(chatId)) {
 			return;
@@ -87,20 +99,32 @@ export const syncChatTabAtom = atom(
 				...state,
 				activeTabId: tabId,
 				tabs: state.tabs.map((t) =>
-					t.id === tabId ? { ...t, title: title || t.title, chatUrl: chatUrl || t.chatUrl } : t
+					t.id === tabId
+						? {
+								...t,
+								title: title || t.title,
+								chatUrl: chatUrl || t.chatUrl,
+								searchSpaceId: searchSpaceId ?? t.searchSpaceId,
+							}
+						: t
 				),
 			});
 			return;
 		}
 
 		// If navigating to a new chat (no chatId), ensure there's a "new chat" tab
+		// scoped to the current search space.
 		if (!chatId) {
 			const hasNewChatTab = state.tabs.some((t) => t.id === "chat-new");
 			if (hasNewChatTab) {
-				set(tabsStateAtom, { ...state, activeTabId: "chat-new" });
+				set(tabsStateAtom, {
+					...state,
+					activeTabId: "chat-new",
+					tabs: state.tabs.map((t) => (t.id === "chat-new" ? { ...t, searchSpaceId, chatUrl } : t)),
+				});
 			} else {
 				set(tabsStateAtom, {
-					tabs: [...state.tabs, INITIAL_CHAT_TAB],
+					tabs: [...state.tabs, { ...INITIAL_CHAT_TAB, searchSpaceId, chatUrl }],
 					activeTabId: "chat-new",
 				});
 			}
@@ -115,6 +139,7 @@ export const syncChatTabAtom = atom(
 			title: title || `Chat ${chatId}`,
 			chatId,
 			chatUrl,
+			searchSpaceId,
 		};
 
 		let updatedTabs: Tab[];

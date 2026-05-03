@@ -20,6 +20,19 @@ interface TabBarProps {
 	className?: string;
 }
 
+// Pure scroll-target calculation (port of opencode's nextTabListScrollLeft).
+// - When the list shrinks (a tab was closed), do not move the scroll.
+// - When the list overflows after growing, snap to the right edge so the new tab is visible.
+function nextTabListScrollLeft(input: {
+	prevScrollWidth: number;
+	scrollWidth: number;
+	clientWidth: number;
+}) {
+	if (input.scrollWidth <= input.prevScrollWidth) return;
+	if (input.scrollWidth <= input.clientWidth) return;
+	return input.scrollWidth - input.clientWidth;
+}
+
 export function TabBar({
 	onTabSwitch,
 	onNewChat,
@@ -53,7 +66,56 @@ export function TabBar({
 		[closeTab, onTabSwitch]
 	);
 
-	// Keep active tab visible with minimal scroll shift.
+	// React to tab list growth (port of opencode's createFileTabListSync).
+	// Uses a MutationObserver instead of a tab-id effect so the scroll catches
+	// the moment the new tab is added to the DOM, not after activation lands.
+	// Also remaps vertical wheel motion to horizontal scroll.
+	useEffect(() => {
+		const el = scrollRef.current;
+		if (!el) return;
+
+		let prevScrollWidth = el.scrollWidth;
+		let frame: number | undefined;
+
+		const update = () => {
+			const left = nextTabListScrollLeft({
+				prevScrollWidth,
+				scrollWidth: el.scrollWidth,
+				clientWidth: el.clientWidth,
+			});
+			if (left !== undefined) {
+				el.scrollTo({ left, behavior: "smooth" });
+			}
+			prevScrollWidth = el.scrollWidth;
+		};
+
+		const schedule = () => {
+			if (frame !== undefined) cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(() => {
+				frame = undefined;
+				update();
+			});
+		};
+
+		const onWheel = (e: WheelEvent) => {
+			if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+			el.scrollLeft += e.deltaY > 0 ? 50 : -50;
+			e.preventDefault();
+		};
+
+		el.addEventListener("wheel", onWheel, { passive: false });
+		const observer = new MutationObserver(schedule);
+		observer.observe(el, { childList: true });
+
+		return () => {
+			el.removeEventListener("wheel", onWheel);
+			observer.disconnect();
+			if (frame !== undefined) cancelAnimationFrame(frame);
+		};
+	}, []);
+
+	// When the user activates a tab that's currently off-screen (e.g. clicked
+	// from the sidebar), nudge the scroller minimally so the active tab is in view.
 	useEffect(() => {
 		if (!scrollRef.current || !activeTabId) return;
 		const scroller = scrollRef.current;
@@ -74,10 +136,6 @@ export function TabBar({
 			scroller.scrollTo({ left: tabRight - scroller.clientWidth, behavior: "smooth" });
 		}
 	}, [activeTabId]);
-
-	// Keep action slots visible even with one/no tabs
-	const hasAuxActions = !!leftActions || !!rightActions || !!onNewChat;
-	if (tabs.length <= 1 && !hasAuxActions) return null;
 
 	return (
 		<div
@@ -101,7 +159,7 @@ export function TabBar({
 							data-tab-id={tab.id}
 							onClick={() => handleTabClick(tab)}
 							className={cn(
-								"group relative flex h-full w-[150px] items-center px-3 min-h-0 overflow-hidden text-[13px] font-medium rounded-md transition-all duration-150 shrink-0",
+								"group relative flex h-full items-center px-3 min-w-[120px] max-w-[240px] min-h-0 overflow-hidden text-[13px] font-medium rounded-md transition-all duration-150 shrink-0",
 								isActive
 									? "bg-muted/60 text-foreground"
 									: "bg-transparent text-muted-foreground hover:bg-muted/30 hover:text-foreground"
@@ -133,20 +191,31 @@ export function TabBar({
 						</button>
 					);
 				})}
-			</div>
-			<div className="flex items-center gap-0.5 shrink-0 pr-2">
 				{onNewChat && (
-					<button
-						type="button"
-						onClick={onNewChat}
-						className="flex h-8 w-8 items-center justify-center shrink-0 rounded-md text-muted-foreground transition-all duration-150 hover:text-muted-foreground hover:bg-muted/40"
-						title="New Chat"
+					<div
+						className={cn(
+							// Solid bg + soft left-fade so tabs scrolling underneath the
+							// + button get visually masked into the bar's background —
+							// 1:1 port of opencode's `> .sticky` rule in tabs.css.
+							"sticky right-0 z-10 flex h-full shrink-0 items-center bg-main-panel pl-3 pr-1",
+							"before:content-[''] before:absolute before:inset-y-0 before:-left-4 before:w-4 before:pointer-events-none",
+							"before:bg-gradient-to-r before:from-transparent before:to-main-panel"
+						)}
 					>
-						<Plus className="size-4" />
-					</button>
+						<button
+							type="button"
+							onClick={onNewChat}
+							className="flex h-8 w-8 items-center justify-center shrink-0 rounded-md text-muted-foreground transition-all duration-150 hover:text-muted-foreground hover:bg-muted/40"
+							title="New Chat"
+						>
+							<Plus className="size-4" />
+						</button>
+					</div>
 				)}
-				{rightActions}
 			</div>
+			{rightActions ? (
+				<div className="flex items-center gap-0.5 shrink-0 pr-2">{rightActions}</div>
+			) : null}
 		</div>
 	);
 }

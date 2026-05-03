@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { AlertTriangle, Inbox, Megaphone, SquareLibrary } from "lucide-react";
+import { AlertTriangle, Inbox, SquareLibrary } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
@@ -15,18 +15,15 @@ import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import {
+	announcementsDialogAtom,
 	searchSpaceSettingsDialogAtom,
 	teamDialogAtom,
 	userSettingsDialogAtom,
 } from "@/atoms/settings/settings-dialog.atoms";
-import {
-	removeChatTabAtom,
-	resetTabsAtom,
-	syncChatTabAtom,
-	type Tab,
-} from "@/atoms/tabs/tabs.atom";
+import { removeChatTabAtom, syncChatTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { ActionLogSheet } from "@/components/agent-action-log/action-log-sheet";
+import { AnnouncementsDialog } from "@/components/announcements/AnnouncementsDialog";
 import { SearchSpaceSettingsDialog } from "@/components/settings/search-space-settings-dialog";
 import { TeamDialog } from "@/components/settings/team-dialog";
 import { UserSettingsDialog } from "@/components/settings/user-settings-dialog";
@@ -105,7 +102,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const currentThreadState = useAtomValue(currentThreadAtom);
 	const resetCurrentThread = useSetAtom(resetCurrentThreadAtom);
 	const syncChatTab = useSetAtom(syncChatTabAtom);
-	const resetTabs = useSetAtom(resetTabsAtom);
 	const removeChatTab = useSetAtom(removeChatTabAtom);
 
 	// Key used to force-remount the page component (e.g. after deleting the active chat
@@ -132,11 +128,10 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	});
 
 	// Unified slide-out panel state (only one can be open at a time)
-	type SlideoutPanel = "inbox" | "shared" | "private" | "announcements" | null;
+	type SlideoutPanel = "inbox" | "shared" | "private" | null;
 	const [activeSlideoutPanel, setActiveSlideoutPanel] = useState<SlideoutPanel>(null);
 
 	const isInboxSidebarOpen = activeSlideoutPanel === "inbox";
-	const isAnnouncementsSidebarOpen = activeSlideoutPanel === "announcements";
 
 	// Documents sidebar state (shared atom so Composer can toggle it)
 	const [isDocumentsSidebarOpen, setIsDocumentsSidebarOpen] = useAtom(documentsSidebarOpenAtom);
@@ -252,16 +247,16 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const [isDeletingSearchSpace, setIsDeletingSearchSpace] = useState(false);
 	const [isLeavingSearchSpace, setIsLeavingSearchSpace] = useState(false);
 
-	// Reset transient slide-out panels and tabs when switching search spaces.
-	// Use a ref to skip the initial mount — only reset when the space actually changes.
+	// Reset transient slide-out panels when switching search spaces.
+	// Tabs intentionally persist across spaces — opening tabs from multiple
+	// search spaces is a supported flow (browser-tab semantics).
 	const prevSearchSpaceIdRef = useRef(searchSpaceId);
 	useEffect(() => {
 		if (prevSearchSpaceIdRef.current !== searchSpaceId) {
 			prevSearchSpaceIdRef.current = searchSpaceId;
 			setActiveSlideoutPanel(null);
-			resetTabs();
 		}
-	}, [searchSpaceId, resetTabs]);
+	}, [searchSpaceId]);
 
 	const searchSpaces: SearchSpace[] = useMemo(() => {
 		if (!searchSpacesData || !Array.isArray(searchSpacesData)) return [];
@@ -313,6 +308,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			// Avoid overwriting live SSE-updated tab titles with fallback values.
 			title: chatId ? (thread?.title ?? undefined) : "New Chat",
 			chatUrl,
+			searchSpaceId: Number(searchSpaceId),
 		});
 	}, [currentChatId, searchSpaceId, threadsData?.threads, syncChatTab]);
 
@@ -347,6 +343,9 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	}, [threadsData, searchSpaceId]);
 
 	// Navigation items
+	// Inbox is rendered explicitly below "New chat" in the sidebar (it is also
+	// surfaced in the icon rail's collapsed mode via this list). Announcements
+	// has been moved to the avatar dropdown and is no longer a nav item.
 	const navItems: NavItem[] = useMemo(
 		() =>
 			(
@@ -366,24 +365,9 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 								isActive: isDocumentsSidebarOpen,
 							}
 						: null,
-					{
-						title: "Announcements",
-						url: "#announcements",
-						icon: Megaphone,
-						isActive: isAnnouncementsSidebarOpen,
-						badge:
-							announcementUnreadCount > 0 ? formatInboxCount(announcementUnreadCount) : undefined,
-					},
 				] as (NavItem | null)[]
 			).filter((item): item is NavItem => item !== null),
-		[
-			isMobile,
-			isInboxSidebarOpen,
-			isDocumentsSidebarOpen,
-			totalUnreadCount,
-			isAnnouncementsSidebarOpen,
-			announcementUnreadCount,
-		]
+		[isMobile, isInboxSidebarOpen, isDocumentsSidebarOpen, totalUnreadCount]
 	);
 
 	// Handlers
@@ -401,10 +385,15 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const setUserSettingsDialog = useSetAtom(userSettingsDialogAtom);
 	const setSearchSpaceSettingsDialog = useSetAtom(searchSpaceSettingsDialogAtom);
 	const setTeamDialogOpen = useSetAtom(teamDialogAtom);
+	const setAnnouncementsDialog = useSetAtom(announcementsDialogAtom);
 
 	const handleUserSettings = useCallback(() => {
 		setUserSettingsDialog({ open: true, initialTab: "profile" });
 	}, [setUserSettingsDialog]);
+
+	const handleAnnouncements = useCallback(() => {
+		setAnnouncementsDialog(true);
+	}, [setAnnouncementsDialog]);
 
 	const handleSearchSpaceSettings = useCallback(
 		(_space: SearchSpace) => {
@@ -517,10 +506,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						return !prev;
 					});
 				}
-				return;
-			}
-			if (item.url === "#announcements") {
-				setActiveSlideoutPanel((prev) => (prev === "announcements" ? null : "announcements"));
 				return;
 			}
 			router.push(item.url);
@@ -714,6 +699,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				onSettings={handleSettings}
 				onManageMembers={handleManageMembers}
 				onUserSettings={handleUserSettings}
+				onAnnouncements={handleAnnouncements}
+				announcementUnreadCount={announcementUnreadCount}
 				onLogout={handleLogout}
 				theme={theme}
 				setTheme={setTheme}
@@ -901,6 +888,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			<SearchSpaceSettingsDialog searchSpaceId={Number(searchSpaceId)} />
 			<UserSettingsDialog />
 			<TeamDialog searchSpaceId={Number(searchSpaceId)} />
+			<AnnouncementsDialog />
 
 			{/* Agent action log + revert sheet */}
 			<ActionLogSheet />
