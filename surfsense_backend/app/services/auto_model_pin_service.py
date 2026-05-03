@@ -399,7 +399,7 @@ async def resolve_or_get_pinned_llm_config_id(
         False if force_repin_free else await _is_premium_eligible(session, user_id)
     )
     if premium_eligible:
-        eligible = candidates
+        eligible = [c for c in candidates if _tier_of(c) == "premium"]
     else:
         eligible = [c for c in candidates if _tier_of(c) != "premium"]
 

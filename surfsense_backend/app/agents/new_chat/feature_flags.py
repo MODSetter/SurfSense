@@ -3,8 +3,10 @@ Feature flags for the SurfSense new_chat agent stack.
 
 These flags gate the newer agent middleware (some ported from OpenCode,
 some sourced from ``langchain.agents.middleware`` / ``deepagents``, some
-SurfSense-native). They follow a "default-OFF for risky things,
-default-ON for safe upgrades, master kill-switch for everything new" model.
+SurfSense-native). Most shipped agent-stack upgrades default ON so Docker
+image updates work even when older installs do not have newly introduced
+environment variables. Risky/experimental integrations stay default OFF,
+and the master kill-switch can still disable everything new.
 
 All new middleware checks its flag at agent build time. If the master
 kill-switch ``SURFSENSE_DISABLE_NEW_AGENT_STACK`` is set, every new
@@ -14,16 +16,19 @@ operators a single switch to revert to pre-port behavior.
 Examples
 --------
 
-Local development (recommended for trying everything except doom-loop / selector):
+Defaults:
 
     SURFSENSE_ENABLE_CONTEXT_EDITING=true
     SURFSENSE_ENABLE_COMPACTION_V2=true
     SURFSENSE_ENABLE_RETRY_AFTER=true
+    SURFSENSE_ENABLE_MODEL_FALLBACK=false
+    SURFSENSE_ENABLE_MODEL_CALL_LIMIT=true
+    SURFSENSE_ENABLE_TOOL_CALL_LIMIT=true
     SURFSENSE_ENABLE_TOOL_CALL_REPAIR=true
-    SURFSENSE_ENABLE_PERMISSION=false   # default off, opt-in per deploy
-    SURFSENSE_ENABLE_DOOM_LOOP=false    # default off until UI ships
-    SURFSENSE_ENABLE_LLM_TOOL_SELECTOR=false
-    SURFSENSE_ENABLE_STREAM_PARITY_V2=false  # structured streaming events
+    SURFSENSE_ENABLE_PERMISSION=true
+    SURFSENSE_ENABLE_DOOM_LOOP=true
+    SURFSENSE_ENABLE_LLM_TOOL_SELECTOR=false  # adds a per-turn LLM call
+    SURFSENSE_ENABLE_STREAM_PARITY_V2=true
 
 Master kill-switch (overrides everything else):
 
@@ -60,32 +65,28 @@ class AgentFeatureFlags:
     disable_new_agent_stack: bool = False
 
     # Agent quality — context budget, retry/limits, name-repair, doom-loop
-    enable_context_editing: bool = False
-    enable_compaction_v2: bool = False
-    enable_retry_after: bool = False
+    enable_context_editing: bool = True
+    enable_compaction_v2: bool = True
+    enable_retry_after: bool = True
     enable_model_fallback: bool = False
-    enable_model_call_limit: bool = False
-    enable_tool_call_limit: bool = False
-    enable_tool_call_repair: bool = False
-    enable_doom_loop: bool = (
-        False  # Default OFF until UI handles permission='doom_loop'
-    )
+    enable_model_call_limit: bool = True
+    enable_tool_call_limit: bool = True
+    enable_tool_call_repair: bool = True
+    enable_doom_loop: bool = True
 
     # Safety — permissions, concurrency, tool-set narrowing
-    enable_permission: bool = False  # Default OFF for first deploy
-    enable_busy_mutex: bool = False
+    enable_permission: bool = True
+    enable_busy_mutex: bool = True
     enable_llm_tool_selector: bool = False  # Default OFF — adds per-turn LLM cost
 
     # Skills + subagents
-    enable_skills: bool = False
-    enable_specialized_subagents: bool = False
-    enable_kb_planner_runnable: bool = False
+    enable_skills: bool = True
+    enable_specialized_subagents: bool = True
+    enable_kb_planner_runnable: bool = True
 
     # Snapshot / revert
-    enable_action_log: bool = False
-    enable_revert_route: bool = (
-        False  # Backend ships before UI; route returns 503 until this flips
-    )
+    enable_action_log: bool = True
+    enable_revert_route: bool = True
 
     # Streaming parity v2 — opt in to LangChain's structured
     # ``AIMessageChunk`` content (typed reasoning blocks, tool-input
@@ -94,7 +95,7 @@ class AgentFeatureFlags:
     # text path and the synthetic ``call_<run_id>`` tool-call id (no
     # ``langchainToolCallId`` propagation). Schema migrations 135/136
     # ship unconditionally because they're forward-compatible.
-    enable_stream_parity_v2: bool = False
+    enable_stream_parity_v2: bool = True
 
     # Plugins
     enable_plugin_loader: bool = False
@@ -115,43 +116,64 @@ class AgentFeatureFlags:
                 "SURFSENSE_DISABLE_NEW_AGENT_STACK is set: every new agent "
                 "middleware is forced OFF for this build."
             )
-            return cls(disable_new_agent_stack=True)
+            return cls(
+                disable_new_agent_stack=True,
+                enable_context_editing=False,
+                enable_compaction_v2=False,
+                enable_retry_after=False,
+                enable_model_fallback=False,
+                enable_model_call_limit=False,
+                enable_tool_call_limit=False,
+                enable_tool_call_repair=False,
+                enable_doom_loop=False,
+                enable_permission=False,
+                enable_busy_mutex=False,
+                enable_llm_tool_selector=False,
+                enable_skills=False,
+                enable_specialized_subagents=False,
+                enable_kb_planner_runnable=False,
+                enable_action_log=False,
+                enable_revert_route=False,
+                enable_stream_parity_v2=False,
+                enable_plugin_loader=False,
+                enable_otel=False,
+            )
 
         return cls(
             disable_new_agent_stack=False,
             # Agent quality
-            enable_context_editing=_env_bool("SURFSENSE_ENABLE_CONTEXT_EDITING", False),
-            enable_compaction_v2=_env_bool("SURFSENSE_ENABLE_COMPACTION_V2", False),
-            enable_retry_after=_env_bool("SURFSENSE_ENABLE_RETRY_AFTER", False),
+            enable_context_editing=_env_bool("SURFSENSE_ENABLE_CONTEXT_EDITING", True),
+            enable_compaction_v2=_env_bool("SURFSENSE_ENABLE_COMPACTION_V2", True),
+            enable_retry_after=_env_bool("SURFSENSE_ENABLE_RETRY_AFTER", True),
             enable_model_fallback=_env_bool("SURFSENSE_ENABLE_MODEL_FALLBACK", False),
             enable_model_call_limit=_env_bool(
-                "SURFSENSE_ENABLE_MODEL_CALL_LIMIT", False
+                "SURFSENSE_ENABLE_MODEL_CALL_LIMIT", True
             ),
-            enable_tool_call_limit=_env_bool("SURFSENSE_ENABLE_TOOL_CALL_LIMIT", False),
+            enable_tool_call_limit=_env_bool("SURFSENSE_ENABLE_TOOL_CALL_LIMIT", True),
             enable_tool_call_repair=_env_bool(
-                "SURFSENSE_ENABLE_TOOL_CALL_REPAIR", False
+                "SURFSENSE_ENABLE_TOOL_CALL_REPAIR", True
             ),
-            enable_doom_loop=_env_bool("SURFSENSE_ENABLE_DOOM_LOOP", False),
+            enable_doom_loop=_env_bool("SURFSENSE_ENABLE_DOOM_LOOP", True),
             # Safety
-            enable_permission=_env_bool("SURFSENSE_ENABLE_PERMISSION", False),
-            enable_busy_mutex=_env_bool("SURFSENSE_ENABLE_BUSY_MUTEX", False),
+            enable_permission=_env_bool("SURFSENSE_ENABLE_PERMISSION", True),
+            enable_busy_mutex=_env_bool("SURFSENSE_ENABLE_BUSY_MUTEX", True),
             enable_llm_tool_selector=_env_bool(
                 "SURFSENSE_ENABLE_LLM_TOOL_SELECTOR", False
             ),
             # Skills + subagents
-            enable_skills=_env_bool("SURFSENSE_ENABLE_SKILLS", False),
+            enable_skills=_env_bool("SURFSENSE_ENABLE_SKILLS", True),
             enable_specialized_subagents=_env_bool(
-                "SURFSENSE_ENABLE_SPECIALIZED_SUBAGENTS", False
+                "SURFSENSE_ENABLE_SPECIALIZED_SUBAGENTS", True
             ),
             enable_kb_planner_runnable=_env_bool(
-                "SURFSENSE_ENABLE_KB_PLANNER_RUNNABLE", False
+                "SURFSENSE_ENABLE_KB_PLANNER_RUNNABLE", True
             ),
             # Snapshot / revert
-            enable_action_log=_env_bool("SURFSENSE_ENABLE_ACTION_LOG", False),
-            enable_revert_route=_env_bool("SURFSENSE_ENABLE_REVERT_ROUTE", False),
+            enable_action_log=_env_bool("SURFSENSE_ENABLE_ACTION_LOG", True),
+            enable_revert_route=_env_bool("SURFSENSE_ENABLE_REVERT_ROUTE", True),
             # Streaming parity v2
             enable_stream_parity_v2=_env_bool(
-                "SURFSENSE_ENABLE_STREAM_PARITY_V2", False
+                "SURFSENSE_ENABLE_STREAM_PARITY_V2", True
             ),
             # Plugins
             enable_plugin_loader=_env_bool("SURFSENSE_ENABLE_PLUGIN_LOADER", False),

@@ -101,9 +101,56 @@ async def test_auto_first_turn_pins_one_model(monkeypatch):
         user_id="00000000-0000-0000-0000-000000000001",
         selected_llm_config_id=0,
     )
-    assert result.resolved_llm_config_id in {-1, -2}
+    assert result.resolved_llm_config_id == -1
     assert session.thread.pinned_llm_config_id == result.resolved_llm_config_id
     assert session.commit_count == 1
+
+
+@pytest.mark.asyncio
+async def test_premium_eligible_auto_prefers_premium_over_free(monkeypatch):
+    from app.config import config
+
+    session = _FakeSession(_thread())
+    monkeypatch.setattr(
+        config,
+        "GLOBAL_LLM_CONFIGS",
+        [
+            {
+                "id": -2,
+                "provider": "OPENAI",
+                "model_name": "gpt-free",
+                "api_key": "k1",
+                "billing_tier": "free",
+                "quality_score": 100,
+            },
+            {
+                "id": -1,
+                "provider": "OPENAI",
+                "model_name": "gpt-prem",
+                "api_key": "k2",
+                "billing_tier": "premium",
+                "quality_score": 10,
+            },
+        ],
+    )
+
+    async def _allowed(*_args, **_kwargs):
+        return _FakeQuotaResult(allowed=True)
+
+    monkeypatch.setattr(
+        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        _allowed,
+    )
+
+    result = await resolve_or_get_pinned_llm_config_id(
+        session,
+        thread_id=1,
+        search_space_id=10,
+        user_id="00000000-0000-0000-0000-000000000001",
+        selected_llm_config_id=0,
+    )
+    assert result.resolved_llm_config_id == -1
+    assert result.resolved_tier == "premium"
 
 
 @pytest.mark.asyncio
@@ -361,12 +408,12 @@ async def test_invalid_pinned_config_repairs_with_new_pin(monkeypatch):
         ],
     )
 
-    async def _allowed(*_args, **_kwargs):
-        return _FakeQuotaResult(allowed=True)
+    async def _blocked(*_args, **_kwargs):
+        return _FakeQuotaResult(allowed=False)
 
     monkeypatch.setattr(
         "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
-        _allowed,
+        _blocked,
     )
 
     result = await resolve_or_get_pinned_llm_config_id(

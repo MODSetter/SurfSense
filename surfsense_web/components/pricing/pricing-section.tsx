@@ -12,11 +12,11 @@ const demoPlans = [
 		price: "0",
 		yearlyPrice: "0",
 		period: "",
-		billingText: "500 pages + $5 of premium credit included",
+		billingText: "500 pages + $5 in premium credits included",
 		features: [
 			"Self Hostable",
 			"500 pages included to start",
-			"$5 of premium credit to start, billed at provider cost",
+			"$5 in premium credits for paid AI models and premium AI features",
 			"Includes access to OpenAI text, audio and image models",
 			"Realtime Collaborative Group Chats with teammates",
 			"Community support on Discord",
@@ -35,7 +35,7 @@ const demoPlans = [
 		features: [
 			"Everything in Free",
 			"Buy 1,000-page packs at $1 each",
-			"Top up premium credit at $1 per $1 of credit, billed at provider cost",
+			"Top up premium credits at $1 per $1 of credit, billed at provider cost",
 			"Use premium AI models like GPT-5.4, Claude Sonnet 4.6, Gemini 2.5 Pro & 100+ more via OpenRouter",
 			"Priority support on Discord",
 		],
@@ -89,7 +89,7 @@ const faqData: FAQSection[] = [
 			{
 				question: "What are Basic and Premium processing modes?",
 				answer:
-					"When uploading documents, you can choose between two processing modes. Basic mode uses standard extraction and costs 1 page credit per page, great for most documents. Premium mode uses advanced extraction optimized for complex financial, medical, and legal documents with intricate tables, layouts, and formatting. Premium costs 10 page credits per page but delivers significantly higher fidelity output for these specialized document types.",
+					"When uploading documents, you can choose between two processing modes. Basic mode uses standard extraction and costs 1 page credit per page, great for most documents. Premium processing mode uses advanced extraction optimized for complex financial, medical, and legal documents with intricate tables, layouts, and formatting. It costs 10 page credits per page and does not use your premium AI credits.",
 			},
 			{
 				question: "How does the Pay As You Go plan work?",
@@ -129,27 +129,32 @@ const faqData: FAQSection[] = [
 		],
 	},
 	{
-		title: "Premium Credit",
+		title: "Premium Credits",
 		items: [
 			{
-				question: 'What is "premium credit"?',
+				question: 'What are "premium credits"?',
 				answer:
-					"Premium credit is your USD balance for using premium AI models like GPT-5.4, Claude Sonnet 4.6, and Gemini 2.5 Pro in SurfSense. Each AI request debits the actual USD cost the provider charges, so cheap and expensive models bill proportionally. Non-premium models (such as the free-tier models available without login) don't touch your premium credit.",
+					"Premium credits are your USD balance for paid AI usage in SurfSense, including premium AI models like GPT-5.4, Claude Sonnet 4.6, and Gemini 2.5 Pro, plus premium AI features such as image generation, podcasts, and video presentations when they use paid models. Each request debits the actual USD provider cost, so cheaper and more expensive models bill proportionally.",
 			},
 			{
-				question: "How much premium credit do I get for free?",
+				question: "How many premium credits do I get for free?",
 				answer:
-					"Every registered SurfSense account starts with $5 of premium credit at no cost. Anonymous users (no login) get 500,000 free tokens across all free models. Once your free credit runs out, you can top up at any time.",
+					"Every registered SurfSense account starts with $5 in premium credits at no cost. Anonymous users (no login) get 500,000 free tokens across free models before creating an account. Once your included premium credits run out, you can top up at any time.",
 			},
 			{
-				question: "How does buying premium credit work?",
+				question: "How does buying premium credits work?",
 				answer:
-					"Just like pages, there's no subscription. Top-ups buy $1 of credit for $1 — every cent you pay is spent at provider cost, no markup. Purchased credit is added to your account immediately. You can buy up to $100 at a time.",
+					"Premium credit top-ups are pay as you go, with no subscription. $1 buys $1 of credit, and your balance is spent at provider cost. Purchased credit is added to your account immediately. You can buy up to $100 at a time.",
 			},
 			{
-				question: "What happens if I run out of premium credit?",
+				question: "Are premium credits the same as page credits?",
 				answer:
-					"When your premium credit balance runs low (below 20%), you'll see a warning. Once you run out, premium model requests are paused until you top up. You can always switch to non-premium models, which don't touch your premium credit.",
+					"No. Page credits pay for document indexing and file-based connector processing. Premium credits pay for paid AI usage, such as premium model chats and premium AI generation features. Premium document processing mode sounds similar, but it consumes page credits, not premium credits.",
+			},
+			{
+				question: "What happens if I run out of premium credits?",
+				answer:
+					"When your premium credit balance runs low, you'll see a warning. Once you run out, paid model requests and premium AI features are paused until you top up. You can still use non-premium models and features that do not consume premium credits.",
 			},
 		],
 	},
@@ -159,7 +164,7 @@ const faqData: FAQSection[] = [
 			{
 				question: "Can I self-host SurfSense with unlimited pages and credit?",
 				answer:
-					"Yes! When self-hosting, you have full control over your page and premium-credit limits. The default self-hosted setup gives you effectively unlimited pages and premium credit, so you can index as much data and use as many AI queries as your infrastructure supports.",
+					"Yes! When self-hosting, you have full control over your page and premium credit limits. The default self-hosted setup gives you effectively unlimited pages and premium credits, so you can index as much data and use as many AI queries as your infrastructure supports.",
 			},
 		],
 	},
@@ -250,7 +255,7 @@ function PricingFAQ() {
 					Frequently Asked Questions
 				</h2>
 				<p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-					Everything you need to know about SurfSense pages, premium credit, and billing. Can&apos;t
+					Everything you need to know about SurfSense pages, premium credits, and billing. Can&apos;t
 					find what you need? Reach out at{" "}
 					<a href="mailto:rohan@surfsense.com" className="text-blue-500 underline">
 						rohan@surfsense.com
@@ -335,7 +340,7 @@ function PricingBasic() {
 			<Pricing
 				plans={demoPlans}
 				title="SurfSense Pricing"
-				description="Start free with 500 pages & $5 of premium credit. Pay as you go, billed at provider cost."
+				description="Start free with 500 pages & $5 in premium credits. Pay as you go."
 			/>
 			<PricingFAQ />
 		</>

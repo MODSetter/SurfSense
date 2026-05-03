@@ -31,18 +31,38 @@ def _clear_all(monkeypatch: pytest.MonkeyPatch) -> None:
         "SURFSENSE_ENABLE_KB_PLANNER_RUNNABLE",
         "SURFSENSE_ENABLE_ACTION_LOG",
         "SURFSENSE_ENABLE_REVERT_ROUTE",
+        "SURFSENSE_ENABLE_STREAM_PARITY_V2",
         "SURFSENSE_ENABLE_PLUGIN_LOADER",
         "SURFSENSE_ENABLE_OTEL",
     ]:
         monkeypatch.delenv(name, raising=False)
 
 
-def test_defaults_all_off(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_defaults_match_shipped_agent_stack(monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_all(monkeypatch)
     flags = reload_for_tests()
     assert isinstance(flags, AgentFeatureFlags)
     assert flags.disable_new_agent_stack is False
-    assert flags.any_new_middleware_enabled() is False
+    assert flags.enable_context_editing is True
+    assert flags.enable_compaction_v2 is True
+    assert flags.enable_retry_after is True
+    assert flags.enable_model_fallback is False
+    assert flags.enable_model_call_limit is True
+    assert flags.enable_tool_call_limit is True
+    assert flags.enable_tool_call_repair is True
+    assert flags.enable_doom_loop is True
+    assert flags.enable_permission is True
+    assert flags.enable_busy_mutex is True
+    assert flags.enable_llm_tool_selector is False
+    assert flags.enable_skills is True
+    assert flags.enable_specialized_subagents is True
+    assert flags.enable_kb_planner_runnable is True
+    assert flags.enable_action_log is True
+    assert flags.enable_revert_route is True
+    assert flags.enable_stream_parity_v2 is True
+    assert flags.enable_plugin_loader is False
+    assert flags.enable_otel is False
+    assert flags.any_new_middleware_enabled() is True
 
 
 def test_master_kill_switch_overrides_individual_flags(
@@ -100,21 +120,13 @@ def test_each_flag_can_be_set_independently(monkeypatch: pytest.MonkeyPatch) -> 
         "enable_kb_planner_runnable": "SURFSENSE_ENABLE_KB_PLANNER_RUNNABLE",
         "enable_action_log": "SURFSENSE_ENABLE_ACTION_LOG",
         "enable_revert_route": "SURFSENSE_ENABLE_REVERT_ROUTE",
+        "enable_stream_parity_v2": "SURFSENSE_ENABLE_STREAM_PARITY_V2",
         "enable_plugin_loader": "SURFSENSE_ENABLE_PLUGIN_LOADER",
         "enable_otel": "SURFSENSE_ENABLE_OTEL",
     }
 
-    # `enable_otel` is intentionally orthogonal — it does NOT count toward
-    # ``any_new_middleware_enabled`` because OTel is observability-only and
-    # ships under its own ``OTEL_EXPORTER_OTLP_ENDPOINT`` requirement.
-    counts_toward_middleware = {k for k in flag_to_env if k != "enable_otel"}
-
     for attr, env_name in flag_to_env.items():
         _clear_all(monkeypatch)
-        monkeypatch.setenv(env_name, "true")
+        monkeypatch.setenv(env_name, "false")
         flags = reload_for_tests()
-        assert getattr(flags, attr) is True, f"{attr} did not flip on for {env_name}"
-        if attr in counts_toward_middleware:
-            assert flags.any_new_middleware_enabled() is True
-        else:
-            assert flags.any_new_middleware_enabled() is False
+        assert getattr(flags, attr) is False, f"{attr} did not flip off for {env_name}"
