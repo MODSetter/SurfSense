@@ -61,7 +61,7 @@ function CollapseButton({ onClick }: { onClick: () => void }) {
 					variant="ghost"
 					size="icon"
 					onClick={onClick}
-					className="h-8 w-8 shrink-0 text-muted-foreground hover:text-muted-foreground hover:bg-muted/40"
+					className="h-8 w-8 shrink-0 text-muted-foreground hover:text-muted-foreground hover:bg-accent"
 				>
 					<PanelRight className="h-4 w-4" />
 					<span className="sr-only">Collapse panel</span>
@@ -102,7 +102,7 @@ export function RightPanelExpandButton() {
 						variant="ghost"
 						size="icon"
 						onClick={() => startTransition(() => setCollapsed(false))}
-						className="h-8 w-8 shrink-0 -m-0.5 text-muted-foreground hover:text-muted-foreground hover:bg-muted/40"
+						className="h-8 w-8 shrink-0 -m-0.5 text-muted-foreground hover:text-muted-foreground hover:bg-accent"
 					>
 						<PanelRight className="h-4 w-4" />
 						<span className="sr-only">Expand panel</span>
@@ -203,7 +203,7 @@ export function RightPanel({ documentsPanel }: RightPanelProps) {
 	return (
 		<aside
 			style={{ width: targetWidth }}
-			className="flex h-full shrink-0 flex-col border-l border-b bg-sidebar text-sidebar-foreground overflow-hidden transition-[width] duration-200 ease-out"
+			className="flex h-full shrink-0 flex-col border-l border-b bg-panel text-sidebar-foreground overflow-hidden transition-[width] duration-200 ease-out"
 		>
 			<div className="relative flex-1 min-h-0 overflow-hidden">
 				{effectiveTab === "sources" && documentsOpen && documentsPanel && (

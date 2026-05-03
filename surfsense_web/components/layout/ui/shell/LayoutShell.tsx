@@ -144,7 +144,7 @@ function MainContentPanel({
 				rightActions={<RightPanelExpandButton />}
 				className="min-w-0"
 			/>
-			<div className="relative flex flex-1 flex-col border border-l-0 border-r-0 border-t-0 bg-main-panel overflow-hidden min-w-0">
+			<div className="relative flex flex-1 flex-col border border-l-0 border-r-0 border-t-0 bg-panel overflow-hidden min-w-0">
 				<Header />
 
 				{isDocumentTab && activeTab.documentId && activeTab.searchSpaceId ? (
@@ -247,7 +247,7 @@ export function LayoutShell({
 		return (
 			<SidebarProvider value={sidebarContextValue}>
 				<TooltipProvider delayDuration={0}>
-					<div className={cn("flex h-screen w-full flex-col bg-main-panel", className)}>
+					<div className={cn("flex h-screen w-full flex-col bg-panel", className)}>
 						<Header
 							mobileMenuTrigger={<MobileSidebarTrigger onClick={() => setMobileMenuOpen(true)} />}
 						/>
@@ -369,9 +369,12 @@ export function LayoutShell({
 		<SidebarProvider value={sidebarContextValue}>
 			<TooltipProvider delayDuration={0}>
 				<div
-					className={cn("flex h-screen w-full gap-2 px-2 py-0 overflow-hidden bg-muted/40", className)}
+					className={cn(
+						"flex h-screen w-full gap-2 px-2 py-0 overflow-hidden bg-rail",
+						className
+					)}
 				>
-					<div className="hidden md:flex overflow-hidden border-r border-border/60 -mr-2 pr-2">
+					<div className="hidden md:flex overflow-hidden border-r -mr-2 pr-2 bg-rail">
 						<IconRail
 							searchSpaces={searchSpaces}
 							activeSearchSpaceId={activeSearchSpaceId}
@@ -396,8 +399,8 @@ export function LayoutShell({
 					{/* Sidebar + slide-out panels share one container; overflow visible so panels can overlay main content. Negative right margin closes the flex gap so the sidebar sits flush against the main panel, separated only by a border. */}
 					<div
 						className={cn(
-							"relative hidden md:flex shrink-0 z-20 -mr-2 border-r border-border/60",
-							!isCollapsed && "bg-sidebar"
+							"relative hidden md:flex shrink-0 z-20 -mr-2 border-r",
+							!isCollapsed && "bg-panel"
 						)}
 					>
 						{!isCollapsed && (
@@ -437,13 +440,18 @@ export function LayoutShell({
 							/>
 						)}
 
-						{/* Invisible drag hit-area straddling the right border — provides resize affordance without any visible UI */}
+						{/* Drag hit-area straddling the right border — wider for a forgiving grab,
+						    z-50 + pointer-events-auto to beat any neighboring stacking context. */}
 						{!isCollapsed && (
 							<button
 								type="button"
 								aria-label="Resize sidebar"
 								onMouseDown={onResizeMouseDown}
-								className="absolute top-0 right-0 h-full w-2 translate-x-1/2 cursor-col-resize z-30 bg-transparent border-0 p-0 focus:outline-none"
+								className={cn(
+									"absolute top-0 right-0 h-full w-4 translate-x-1/2 cursor-col-resize z-50 pointer-events-auto select-none bg-transparent border-0 p-0 focus:outline-none",
+									"after:content-[''] after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent hover:after:bg-border/80 after:transition-colors",
+									isResizing && "after:bg-border"
+								)}
 							/>
 						)}
 

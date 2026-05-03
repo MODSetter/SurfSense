@@ -116,7 +116,7 @@ export function Sidebar({
 	return (
 		<div
 			className={cn(
-				"relative flex h-full flex-col bg-sidebar text-sidebar-foreground overflow-hidden select-none",
+				"relative flex h-full flex-col bg-panel text-sidebar-foreground overflow-hidden select-none",
 				isCollapsed ? "w-[60px] transition-[width] duration-200" : "",
 				!isCollapsed && !isResizing ? "transition-[width] duration-200" : "",
 				className
@@ -296,7 +296,7 @@ export function Sidebar({
 			)}
 
 			{/* Footer */}
-			<div className="mt-auto border-t border-border/60">
+			<div className="mt-auto border-t">
 				{/* Platform navigation */}
 				{footerNavItems.length > 0 && (
 					<NavSection
@@ -346,7 +346,7 @@ function SidebarUsageFooter({
 
 	const containerClass = cn(
 		"px-3 py-3 space-y-3",
-		hasNavSectionAbove && "border-t border-border/60"
+		hasNavSectionAbove && "border-t"
 	);
 
 	if (isAnonymous) {

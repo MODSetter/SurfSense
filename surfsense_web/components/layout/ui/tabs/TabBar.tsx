@@ -139,7 +139,7 @@ export function TabBar({
 	return (
 		<div
 			className={cn(
-				"mb-0 flex h-12 items-center shrink-0 px-1 gap-0.5 select-none border-b border-border/60",
+				"mb-0 flex h-12 items-center shrink-0 px-1 gap-0.5 select-none border-b bg-panel",
 				className
 			)}
 		>
@@ -195,9 +195,9 @@ export function TabBar({
 						className={cn(
 							// Solid bg + soft left-fade so tabs scrolling underneath the
 							// + button get visually masked into the bar's background.
-							"sticky right-0 z-10 flex h-full shrink-0 items-center bg-main-panel pl-3 pr-1",
+							"sticky right-0 z-10 flex h-full shrink-0 items-center bg-panel pl-3 pr-1",
 							"before:content-[''] before:absolute before:inset-y-0 before:-left-4 before:w-4 before:pointer-events-none",
-							"before:bg-gradient-to-r before:from-transparent before:to-main-panel"
+							"before:bg-gradient-to-r before:from-transparent before:to-panel"
 						)}
 					>
 						<button
