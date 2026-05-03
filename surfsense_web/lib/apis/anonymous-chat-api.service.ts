@@ -12,6 +12,10 @@ import { ValidationError } from "../error";
 
 const BASE = "/api/v1/public/anon-chat";
 
+export type AnonUploadResult =
+	| { ok: true; data: { filename: string; size_bytes: number } }
+	| { ok: false; reason: "quota_exceeded" };
+
 class AnonymousChatApiService {
 	private baseUrl: string;
 
@@ -71,7 +75,7 @@ class AnonymousChatApiService {
 		});
 	};
 
-	uploadDocument = async (file: File): Promise<{ filename: string; size_bytes: number }> => {
+	uploadDocument = async (file: File): Promise<AnonUploadResult> => {
 		const formData = new FormData();
 		formData.append("file", file);
 		const res = await fetch(this.fullUrl("/upload"), {
@@ -79,11 +83,15 @@ class AnonymousChatApiService {
 			credentials: "include",
 			body: formData,
 		});
+		if (res.status === 409) {
+			return { ok: false, reason: "quota_exceeded" };
+		}
 		if (!res.ok) {
 			const body = await res.json().catch(() => ({}));
 			throw new Error(body.detail || `Upload failed: ${res.status}`);
 		}
-		return res.json();
+		const data = await res.json();
+		return { ok: true, data };
 	};
 
 	getDocument = async (): Promise<{ filename: string; size_bytes: number } | null> => {

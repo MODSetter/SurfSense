@@ -32,7 +32,7 @@ export function DocumentViewer({ title, content, trigger }: DocumentViewerProps)
 					<DialogTitle>{title}</DialogTitle>
 				</DialogHeader>
 				<div className="mt-4">
-					<MarkdownViewer content={content} />
+					<MarkdownViewer content={content} enableCitations />
 				</div>
 			</DialogContent>
 		</Dialog>

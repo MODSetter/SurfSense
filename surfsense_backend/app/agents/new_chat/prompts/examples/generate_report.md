@@ -1,0 +1,13 @@
+
+- User: "Generate a report about AI trends"
+  - Call: `generate_report(topic="AI Trends Report", source_strategy="kb_search", search_queries=["AI trends recent developments", "artificial intelligence industry trends", "AI market growth and predictions"], report_style="detailed")`
+  - WHY: Has creation verb "generate" → call the tool. No prior discussion → use kb_search.
+- User: "Write a research report from this conversation"
+  - Call: `generate_report(topic="Research Report", source_strategy="conversation", source_content="Complete conversation summary:\n\n...", report_style="deep_research")`
+  - WHY: Has creation verb "write" → call the tool. Conversation has the content → use source_strategy="conversation".
+- User: (after a report on Climate Change was generated) "Add a section about carbon capture technologies"
+  - Call: `generate_report(topic="Climate Crisis: Causes, Impacts, and Solutions", source_strategy="conversation", source_content="[summary of conversation context if any]", parent_report_id=<previous_report_id>, user_instructions="Add a new section about carbon capture technologies")`
+  - WHY: Has modification verb "add" + specific deliverable target → call the tool with parent_report_id.
+- User: (after a report was generated) "What else could we add to have more depth?"
+  - Do NOT call generate_report. Answer in chat with suggestions.
+  - WHY: No creation/modification verb directed at producing a deliverable.

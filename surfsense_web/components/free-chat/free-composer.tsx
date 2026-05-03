@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAnonymousMode } from "@/contexts/anonymous-mode";
 import { useLoginGate } from "@/contexts/login-gate";
-import { BACKEND_URL } from "@/lib/env-config";
+import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
 import { cn } from "@/lib/utils";
 
 const ANON_ALLOWED_EXTENSIONS = new Set([
@@ -128,24 +128,12 @@ export const FreeComposer: FC = () => {
 			}
 
 			try {
-				const formData = new FormData();
-				formData.append("file", file);
-				const res = await fetch(`${BACKEND_URL}/api/v1/public/anon-chat/upload`, {
-					method: "POST",
-					credentials: "include",
-					body: formData,
-				});
-
-				if (res.status === 409) {
-					gate("upload more documents");
+				const result = await anonymousChatApiService.uploadDocument(file);
+				if (!result.ok) {
+					if (result.reason === "quota_exceeded") gate("upload more documents");
 					return;
 				}
-				if (!res.ok) {
-					const body = await res.json().catch(() => ({}));
-					throw new Error(body.detail || `Upload failed: ${res.status}`);
-				}
-
-				const data = await res.json();
+				const data = result.data;
 				if (anonMode.isAnonymous) {
 					anonMode.setUploadedDoc({
 						filename: data.filename,

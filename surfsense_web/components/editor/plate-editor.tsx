@@ -8,9 +8,14 @@ import { useEffect, useMemo, useRef } from "react";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { EditorSaveContext } from "@/components/editor/editor-save-context";
+import { CitationKit, injectCitationNodes } from "@/components/editor/plugins/citation-kit";
 import { type EditorPreset, presetMap } from "@/components/editor/presets";
 import { escapeMdxExpressions } from "@/components/editor/utils/escape-mdx";
 import { Editor, EditorContainer } from "@/components/ui/editor";
+import { preprocessCitationMarkdown } from "@/lib/citations/citation-parser";
+
+/** Live editor instance returned by `usePlateEditor`. */
+export type PlateEditorInstance = ReturnType<typeof usePlateEditor>;
 
 export interface PlateEditorProps {
 	/** Markdown string to load as initial content */
@@ -42,6 +47,10 @@ export interface PlateEditorProps {
 	hasUnsavedChanges?: boolean;
 	/** Whether a save is in progress */
 	isSaving?: boolean;
+	/** Whether edit/view mode toggle UI should be available in toolbars. */
+	allowModeToggle?: boolean;
+	/** Reserve fixed-toolbar vertical space even when controls are hidden. */
+	reserveToolbarSpace?: boolean;
 	/** Start the editor in editing mode instead of viewing mode. Ignored when readOnly is true. */
 	defaultEditing?: boolean;
 	/**
@@ -58,6 +67,14 @@ export interface PlateEditorProps {
 	 * without modifying the core editor component.
 	 */
 	extraPlugins?: AnyPluginConfig[];
+	/**
+	 * Render `[citation:N]` and `[citation:URL]` tokens in the deserialized
+	 * markdown as interactive citation badges/popovers (mirrors chat). Only
+	 * meant for read-only views — when true, `onMarkdownChange` is suppressed
+	 * because the in-memory tree contains custom inline-void elements that
+	 * have no markdown serialize rule.
+	 */
+	enableCitations?: boolean;
 }
 
 function PlateEditorContent({
@@ -91,9 +108,12 @@ export function PlateEditor({
 	onSave,
 	hasUnsavedChanges = false,
 	isSaving = false,
+	allowModeToggle = true,
+	reserveToolbarSpace = false,
 	defaultEditing = false,
 	preset = "full",
 	extraPlugins = [],
+	enableCitations = false,
 }: PlateEditorProps) {
 	const lastMarkdownRef = useRef(markdown);
 	const lastHtmlRef = useRef(html);
@@ -136,6 +156,8 @@ export function PlateEditor({
 			...(onSave ? [SaveShortcutPlugin] : []),
 			// Consumer-provided extra plugins
 			...extraPlugins,
+			// Citation void inline element (read-only document viewer).
+			...(enableCitations ? CitationKit : []),
 			MarkdownPlugin.configure({
 				options: {
 					remarkPlugins: [remarkGfm, remarkMath, remarkMdx],
@@ -145,8 +167,18 @@ export function PlateEditor({
 		value: html
 			? (editor) => editor.api.html.deserialize({ element: html }) as Value
 			: markdown
-				? (editor) =>
-						editor.getApi(MarkdownPlugin).markdown.deserialize(escapeMdxExpressions(markdown))
+				? (editor) => {
+						if (!enableCitations) {
+							return editor
+								.getApi(MarkdownPlugin)
+								.markdown.deserialize(escapeMdxExpressions(markdown));
+						}
+						const { content: rewritten, urlMap } = preprocessCitationMarkdown(markdown);
+						const value = editor
+							.getApi(MarkdownPlugin)
+							.markdown.deserialize(escapeMdxExpressions(rewritten));
+						return injectCitationNodes(value as Descendant[], urlMap) as Value;
+					}
 				: undefined,
 	});
 
@@ -165,16 +197,25 @@ export function PlateEditor({
 	useEffect(() => {
 		if (!html && markdown !== undefined && markdown !== lastMarkdownRef.current) {
 			lastMarkdownRef.current = markdown;
-			const newValue = editor
-				.getApi(MarkdownPlugin)
-				.markdown.deserialize(escapeMdxExpressions(markdown));
+			let newValue: Descendant[];
+			if (enableCitations) {
+				const { content: rewritten, urlMap } = preprocessCitationMarkdown(markdown);
+				const deserialized = editor
+					.getApi(MarkdownPlugin)
+					.markdown.deserialize(escapeMdxExpressions(rewritten)) as Descendant[];
+				newValue = injectCitationNodes(deserialized, urlMap);
+			} else {
+				newValue = editor
+					.getApi(MarkdownPlugin)
+					.markdown.deserialize(escapeMdxExpressions(markdown)) as Descendant[];
+			}
 			editor.tf.reset();
-			editor.tf.setValue(newValue);
+			editor.tf.setValue(newValue as Value);
 		}
-	}, [html, markdown, editor]);
+	}, [html, markdown, editor, enableCitations]);
 
 	// When not forced read-only, the user can toggle between editing/viewing.
-	const canToggleMode = !readOnly;
+	const canToggleMode = !readOnly && allowModeToggle;
 
 	const contextProviderValue = useMemo(
 		() => ({
@@ -182,8 +223,9 @@ export function PlateEditor({
 			hasUnsavedChanges,
 			isSaving,
 			canToggleMode,
+			reserveToolbarSpace,
 		}),
-		[onSave, hasUnsavedChanges, isSaving, canToggleMode]
+		[onSave, hasUnsavedChanges, isSaving, canToggleMode, reserveToolbarSpace]
 	);
 
 	return (
@@ -195,6 +237,16 @@ export function PlateEditor({
 				// (initialized to true via usePlateEditor, toggled via ModeToolbarButton).
 				{...(readOnly ? { readOnly: true } : {})}
 				onChange={({ value }) => {
+					// View-only citation mode: skip serialization. The custom
+					// `citation` inline-void element has no markdown serialize
+					// rule, so emitting changes here would overwrite
+					// `lastMarkdownRef.current` (and downstream copy-to-clipboard
+					// state in EditorPanelContent) with a tree that loses every
+					// citation token. `enableCitations` is only ever set in
+					// read-only paths, so user input cannot reach this branch
+					// in practice — the guard exists for the initial Plate
+					// normalize emit.
+					if (enableCitations) return;
 					if (onHtmlChange && html) {
 						const serialized = slateToHtml(value as Descendant[]);
 						onHtmlChange(serialized);

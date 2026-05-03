@@ -12,8 +12,6 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-import sqlalchemy as sa
-
 from alembic import op
 
 revision: str = "121"
@@ -23,16 +21,30 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "user",
-        sa.Column("memory_md", sa.Text(), nullable=True, server_default=""),
-    )
-    op.add_column(
-        "searchspaces",
-        sa.Column("shared_memory_md", sa.Text(), nullable=True, server_default=""),
+    # Idempotent: column(s) may already exist after a failed run or manual DDL.
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'user'
+                  AND column_name = 'memory_md'
+            ) THEN
+                ALTER TABLE "user" ADD COLUMN memory_md TEXT DEFAULT '';
+            END IF;
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'searchspaces'
+                  AND column_name = 'shared_memory_md'
+            ) THEN
+                ALTER TABLE searchspaces ADD COLUMN shared_memory_md TEXT DEFAULT '';
+            END IF;
+        END$$;
+        """
     )
 
 
 def downgrade() -> None:
-    op.drop_column("searchspaces", "shared_memory_md")
-    op.drop_column("user", "memory_md")
+    op.execute("ALTER TABLE searchspaces DROP COLUMN IF EXISTS shared_memory_md")
+    op.execute('ALTER TABLE "user" DROP COLUMN IF EXISTS memory_md')

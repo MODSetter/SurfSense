@@ -649,13 +649,9 @@ async def list_composio_drive_folders(
     """
     List folders AND files in user's Google Drive via Composio.
 
-    Uses the same GoogleDriveClient / list_folder_contents path as the native
-    connector, with Composio-sourced credentials.  This means auth errors
-    propagate identically (Google returns 401 → exception → auth_expired flag).
+    Uses Composio's Google Drive tool execution path so managed OAuth tokens
+    do not need to be exposed through connected account state.
     """
-    from app.connectors.google_drive import GoogleDriveClient, list_folder_contents
-    from app.utils.google_credentials import build_composio_credentials
-
     if not ComposioService.is_enabled():
         raise HTTPException(
             status_code=503,
@@ -689,10 +685,37 @@ async def list_composio_drive_folders(
                 detail="Composio connected account not found. Please reconnect the connector.",
             )
 
-        credentials = build_composio_credentials(composio_connected_account_id)
-        drive_client = GoogleDriveClient(session, connector_id, credentials=credentials)
+        service = ComposioService()
+        entity_id = f"surfsense_{user.id}"
+        items = []
+        page_token = None
+        error = None
 
-        items, error = await list_folder_contents(drive_client, parent_id=parent_id)
+        while True:
+            page_items, next_token, page_error = await service.get_drive_files(
+                connected_account_id=composio_connected_account_id,
+                entity_id=entity_id,
+                folder_id=parent_id,
+                page_token=page_token,
+                page_size=100,
+            )
+            if page_error:
+                error = page_error
+                break
+
+            items.extend(page_items)
+            if not next_token:
+                break
+            page_token = next_token
+
+        for item in items:
+            item["isFolder"] = (
+                item.get("mimeType") == "application/vnd.google-apps.folder"
+            )
+
+        items.sort(
+            key=lambda item: (not item["isFolder"], item.get("name", "").lower())
+        )
 
         if error:
             error_lower = error.lower()

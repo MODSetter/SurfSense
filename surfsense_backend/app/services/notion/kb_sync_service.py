@@ -4,7 +4,6 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import Document, DocumentType
-from app.services.llm_service import get_user_long_context_llm
 from app.utils.document_converters import (
     create_document_chunks,
     embed_text,
@@ -73,6 +72,8 @@ class NotionKBSyncService:
                     dup.id,
                 )
                 content_hash = unique_hash
+
+            from app.services.llm_service import get_user_long_context_llm
 
             user_llm = await get_user_long_context_llm(
                 self.db_session,
@@ -243,6 +244,8 @@ class NotionKBSyncService:
             logger.debug(
                 f"Final content length: {len(full_content)} chars, verified={content_verified}"
             )
+
+            from app.services.llm_service import get_user_long_context_llm
 
             logger.debug("Generating summary and embeddings")
             user_llm = await get_user_long_context_llm(

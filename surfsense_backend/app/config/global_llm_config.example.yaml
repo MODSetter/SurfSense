@@ -19,6 +19,24 @@
 # Structure matches NewLLMConfig:
 # - Model configuration (provider, model_name, api_key, etc.)
 # - Prompt configuration (system_instructions, citations_enabled)
+#
+# COST-BASED PREMIUM CREDITS:
+# Each premium config bills the user's USD-credit balance based on the
+# actual provider cost reported by LiteLLM. For models LiteLLM already
+# knows (most OpenAI/Anthropic/etc. names) you don't need to do anything.
+# For custom Azure deployment names (e.g. an in-house "gpt-5.4" deployment)
+# or any model LiteLLM doesn't have in its built-in pricing table, declare
+# per-token costs inline so they bill correctly:
+#
+#   litellm_params:
+#     base_model: "my-custom-azure-deploy"
+#     # USD per token; e.g. 0.000003 == $3.00 per million input tokens
+#     input_cost_per_token: 0.000003
+#     output_cost_per_token: 0.000015
+#
+# OpenRouter dynamic models pull pricing automatically from OpenRouter's
+# API — no inline declaration needed. Models without resolvable pricing
+# debit $0 from the user's balance and log a WARNING.
 
 # Router Settings for Auto Mode
 # These settings control how the LiteLLM Router distributes requests across models
@@ -245,31 +263,64 @@ global_llm_configs:
 # =============================================================================
 # When enabled, dynamically fetches ALL available models from the OpenRouter API
 # and injects them as global configs. This gives premium users access to any model
-# on OpenRouter (Claude, Gemini, Llama, Mistral, etc.) via their premium token quota.
+# on OpenRouter (Claude, Gemini, Llama, Mistral, etc.) via their premium token quota,
+# while free-tier OpenRouter models show up with a green Free badge and do NOT
+# consume premium quota.
 # Models are fetched at startup and refreshed periodically in the background.
 # All calls go through LiteLLM with the openrouter/ prefix.
 openrouter_integration:
   enabled: false
   api_key: "sk-or-your-openrouter-api-key"
-  # billing_tier: "premium" or "free". Controls whether users need premium tokens.
-  billing_tier: "premium"
-  # anonymous_enabled: set true to also show OpenRouter models to no-login users
-  anonymous_enabled: false
+
+  # Tier is derived PER MODEL from OpenRouter's own API signals:
+  #   - id ends with ":free"                         -> billing_tier=free
+  #   - pricing.prompt AND pricing.completion == "0" -> billing_tier=free
+  #   - otherwise                                    -> billing_tier=premium
+  # No global billing_tier knob is honored; any legacy value emits a startup warning.
+
+  # Anonymous access is split by tier so operators can expose only free
+  # models to no-login users without leaking paid inference.
+  anonymous_enabled_paid: false
+  anonymous_enabled_free: false
+
   seo_enabled: false
   # quota_reserve_tokens: tokens reserved per call for quota enforcement
   quota_reserve_tokens: 4000
-  # id_offset: starting negative ID for dynamically generated configs.
-  # Must not overlap with your static global_llm_configs IDs above.
+  # id_offset: base negative ID for dynamically generated configs.
+  # Model IDs are derived deterministically via BLAKE2b so they survive
+  # catalogue churn. Must not overlap with your static global_llm_configs IDs.
   id_offset: -10000
   # refresh_interval_hours: how often to re-fetch models from OpenRouter (0 = startup only)
   refresh_interval_hours: 24
-  # rpm/tpm: Applied uniformly to all OpenRouter models for LiteLLM Router load balancing.
-  # OpenRouter doesn't expose per-model rate limits via API; actual throttling is handled
-  # upstream by OpenRouter itself (your account limits are at https://openrouter.ai/settings/limits).
-  # These values only matter if you set billing_tier to "free" (adding them to Auto mode).
-  # For premium-only models they are cosmetic. Set conservatively or match your account tier.
+
+  # Rate limits for PAID OpenRouter models. These are used by LiteLLM Router
+  # for per-deployment accounting when OR premium models participate in the
+  # shared sub-agent "auto" pool. They do NOT cap OpenRouter itself — your
+  # real account limits live at https://openrouter.ai/settings/limits.
   rpm: 200
   tpm: 1000000
+
+  # Rate limits for FREE OpenRouter models. Informational only: free OR
+  # models are intentionally kept OUT of the LiteLLM Router pool, because
+  # OpenRouter enforces free-tier limits globally per account (~20 RPM +
+  # 50-1000 daily requests across every ":free" model combined) —
+  # per-deployment router accounting can't represent a shared bucket
+  # correctly. Free OR models stay fully available in the model selector
+  # and for user-facing Auto thread pinning.
+  free_rpm: 20
+  free_tpm: 100000
+
+  # Image generation + vision LLM emission are OPT-IN. OpenRouter's catalogue
+  # contains hundreds of image- and vision-capable models; turning these on
+  # injects them into the global Image-Generation / Vision-LLM model
+  # selectors alongside any static configs. Tier (free/premium) is derived
+  # per model the same way it is for chat (`:free` suffix or zero pricing).
+  # When a user picks a premium image/vision model the call debits the
+  # shared $5 USD-cost-based premium credit pool — so leaving these off
+  # avoids surprise quota burn on existing deployments. Default: false.
+  image_generation_enabled: false
+  vision_enabled: false
+
   litellm_params:
     max_tokens: 16384
   system_instructions: ""

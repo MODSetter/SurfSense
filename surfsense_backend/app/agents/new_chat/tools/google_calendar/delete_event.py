@@ -159,16 +159,13 @@ def create_delete_calendar_event_tool(
                 f"Deleting calendar event: event_id='{final_event_id}', connector={actual_connector_id}"
             )
 
-            if (
+            is_composio_calendar = (
                 connector.connector_type
                 == SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR
-            ):
-                from app.utils.google_credentials import build_composio_credentials
-
+            )
+            if is_composio_calendar:
                 cca_id = connector.config.get("composio_connected_account_id")
-                if cca_id:
-                    creds = build_composio_credentials(cca_id)
-                else:
+                if not cca_id:
                     return {
                         "status": "error",
                         "message": "Composio connected account ID not found for this connector.",
@@ -202,19 +199,34 @@ def create_delete_calendar_event_tool(
                     expiry=datetime.fromisoformat(exp) if exp else None,
                 )
 
-            service = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: build("calendar", "v3", credentials=creds)
-            )
-
             try:
-                await asyncio.get_event_loop().run_in_executor(
-                    None,
-                    lambda: (
-                        service.events()
-                        .delete(calendarId="primary", eventId=final_event_id)
-                        .execute()
-                    ),
-                )
+                if is_composio_calendar:
+                    from app.services.composio_service import ComposioService
+
+                    composio_result = await ComposioService().execute_tool(
+                        connected_account_id=cca_id,
+                        tool_name="GOOGLECALENDAR_DELETE_EVENT",
+                        params={"calendar_id": "primary", "event_id": final_event_id},
+                        entity_id=f"surfsense_{user_id}",
+                    )
+                    if not composio_result.get("success"):
+                        raise RuntimeError(
+                            composio_result.get(
+                                "error", "Unknown Composio Calendar error"
+                            )
+                        )
+                else:
+                    service = await asyncio.get_event_loop().run_in_executor(
+                        None, lambda: build("calendar", "v3", credentials=creds)
+                    )
+                    await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        lambda: (
+                            service.events()
+                            .delete(calendarId="primary", eventId=final_event_id)
+                            .execute()
+                        ),
+                    )
             except Exception as api_err:
                 from googleapiclient.errors import HttpError
 

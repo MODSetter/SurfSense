@@ -1,11 +1,20 @@
-import { ActionBarPrimitive, AuiIf, MessagePrimitive, useAuiState } from "@assistant-ui/react";
+import {
+	ActionBarPrimitive,
+	AuiIf,
+	MessagePrimitive,
+	useAuiState,
+	useMessagePartText,
+} from "@assistant-ui/react";
 import { useAtomValue } from "jotai";
-import { CheckIcon, CopyIcon, FileText, Pen } from "lucide-react";
+import { CheckIcon, CopyIcon, Pencil } from "lucide-react";
 import Image from "next/image";
 import { type FC, useState } from "react";
 import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { messageDocumentsMapAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
+import { parseMentionSegments } from "@/lib/chat/parse-mention-segments";
 
 interface AuthorMetadata {
 	displayName: string | null;
@@ -46,10 +55,40 @@ const UserAvatar: FC<AuthorMetadata> = ({ displayName, avatarUrl }) => {
 	);
 };
 
-export const UserMessage: FC = () => {
+const UserTextPart: FC = () => {
 	const messageId = useAuiState(({ message }) => message?.id);
+	const part = useMessagePartText();
+	const text = (part as { text?: string }).text ?? "";
 	const messageDocumentsMap = useAtomValue(messageDocumentsMapAtom);
-	const mentionedDocs = messageId ? messageDocumentsMap[messageId] : undefined;
+	const mentionedDocs = (messageId ? messageDocumentsMap[messageId] : undefined) ?? [];
+
+	const segments = parseMentionSegments(text, mentionedDocs);
+
+	return (
+		<p style={{ whiteSpace: "pre-line" }} className="break-words">
+			{segments.map((segment) =>
+				segment.type === "text" ? (
+					<span key={`txt-${segment.start}`}>{segment.value}</span>
+				) : (
+					<span
+						key={`mention-${getMentionDocKey(segment.doc)}-${segment.start}`}
+						className="inline-flex items-center gap-1 mx-0.5 px-1 py-0.5 rounded bg-primary/10 text-xs font-bold text-primary/60 select-none align-middle leading-none"
+						title={segment.doc.title}
+					>
+						<span className="flex items-center text-muted-foreground">
+							{getConnectorIcon(segment.doc.document_type ?? "UNKNOWN", "h-3 w-3")}
+						</span>
+						<span className="max-w-[120px] truncate">{segment.doc.title}</span>
+					</span>
+				)
+			)}
+		</p>
+	);
+};
+
+const userMessageParts = { Text: UserTextPart };
+
+export const UserMessage: FC = () => {
 	const metadata = useAuiState(({ message }) => message?.metadata);
 	const author = metadata?.custom?.author as AuthorMetadata | undefined;
 	const isSharedChat = useAtomValue(currentThreadAtom).visibility === "SEARCH_SPACE";
@@ -63,22 +102,8 @@ export const UserMessage: FC = () => {
 			<div className="col-start-2 min-w-0">
 				<div className="aui-user-message-content-wrapper flex items-end gap-2">
 					<div className="relative flex-1 min-w-0">
-						{mentionedDocs && mentionedDocs.length > 0 && (
-							<div className="flex flex-wrap items-end gap-2 mb-2 justify-end">
-								{mentionedDocs?.map((doc) => (
-									<span
-										key={`${doc.document_type}:${doc.id}`}
-										className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-xs font-medium text-primary border border-primary/20"
-										title={doc.title}
-									>
-										<FileText className="size-3" />
-										<span className="max-w-[150px] truncate">{doc.title}</span>
-									</span>
-								))}
-							</div>
-						)}
 						<div className="aui-user-message-content wrap-break-word rounded-2xl bg-muted px-4 py-2.5 text-foreground">
-							<MessagePrimitive.Parts />
+							<MessagePrimitive.Parts components={userMessageParts} />
 						</div>
 						<div className="absolute right-0 top-full mt-1 z-10 opacity-100 pointer-events-auto md:opacity-0 md:pointer-events-none md:transition-opacity md:duration-200 md:delay-300 md:group-hover/user-msg:opacity-100 md:group-hover/user-msg:delay-0 md:group-hover/user-msg:pointer-events-auto">
 							<UserActionBar />
@@ -136,7 +161,7 @@ const UserActionBar: FC = () => {
 			{canEdit && (
 				<ActionBarPrimitive.Edit asChild>
 					<TooltipIconButton tooltip="Edit" className="aui-user-action-edit">
-						<Pen />
+						<Pencil />
 					</TooltipIconButton>
 				</ActionBarPrimitive.Edit>
 			)}

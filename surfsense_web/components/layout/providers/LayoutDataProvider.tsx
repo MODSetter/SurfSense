@@ -26,6 +26,7 @@ import {
 	type Tab,
 } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
+import { ActionLogSheet } from "@/components/agent-action-log/action-log-sheet";
 import { SearchSpaceSettingsDialog } from "@/components/settings/search-space-settings-dialog";
 import { TeamDialog } from "@/components/settings/team-dialog";
 import { UserSettingsDialog } from "@/components/settings/user-settings-dialog";
@@ -680,14 +681,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		}
 	}, [chatToRename, newChatTitle, queryClient, searchSpaceId, tSidebar]);
 
-	// Page usage
-	const pageUsage = user
-		? {
-				pagesUsed: user.pages_used,
-				pagesLimit: user.pages_limit,
-			}
-		: undefined;
-
 	// Detect if we're on the chat page (needs overflow-hidden for chat's own scroll)
 	const isChatPage = pathname?.includes("/new-chat") ?? false;
 
@@ -722,7 +715,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				onManageMembers={handleManageMembers}
 				onUserSettings={handleUserSettings}
 				onLogout={handleLogout}
-				pageUsage={pageUsage}
 				theme={theme}
 				setTheme={setTheme}
 				isChatPage={isChatPage}
@@ -909,6 +901,9 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			<SearchSpaceSettingsDialog searchSpaceId={Number(searchSpaceId)} />
 			<UserSettingsDialog />
 			<TeamDialog searchSpaceId={Number(searchSpaceId)} />
+
+			{/* Agent action log + revert sheet */}
+			<ActionLogSheet />
 		</>
 	);
 }

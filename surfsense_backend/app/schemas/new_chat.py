@@ -7,12 +7,13 @@ These schemas follow the assistant-ui ThreadHistoryAdapter pattern:
 """
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Literal, Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.db import ChatVisibility, NewChatMessageRole
+from app.utils.user_message_multimodal import decode_base64_image, to_data_url
 
 from .base import IDModel, TimestampModel
 
@@ -38,6 +39,7 @@ class TokenUsageSummary(BaseModel):
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
+    cost_micros: int = 0
     model_breakdown: dict | None = None
     model_config = ConfigDict(from_attributes=True)
 
@@ -50,6 +52,11 @@ class NewChatMessageRead(NewChatMessageBase, IDModel, TimestampModel):
     author_display_name: str | None = None
     author_avatar_url: str | None = None
     token_usage: TokenUsageSummary | None = None
+    # Per-turn correlation id (``f"{chat_id}:{ms}"``) from
+    # ``configurable.turn_id`` at streaming time. Nullable because
+    # legacy rows predate the column; clients should treat NULL as
+    # "edit-from-this-message is unavailable".
+    turn_id: str | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -168,6 +175,31 @@ class ChatMessage(BaseModel):
     content: str
 
 
+class LocalFilesystemMountPayload(BaseModel):
+    mount_id: str
+    root_path: str
+
+
+MAX_NEW_CHAT_IMAGE_BYTES = 8 * 1024 * 1024
+MAX_NEW_CHAT_IMAGES = 4
+
+
+class NewChatUserImagePart(BaseModel):
+    """One inline image for a user turn (raw base64 body, no data: URL prefix)."""
+
+    media_type: Literal["image/png", "image/jpeg", "image/webp"]
+    data: str = Field(..., min_length=1)
+
+    @field_validator("data")
+    @classmethod
+    def _validate_payload(cls, v: str) -> str:
+        decode_base64_image(v, max_bytes=MAX_NEW_CHAT_IMAGE_BYTES)
+        return v
+
+    def as_data_url(self) -> str:
+        return to_data_url(self.media_type, self.data)
+
+
 class NewChatRequest(BaseModel):
     """Request schema for the deep agent chat endpoint."""
 
@@ -184,6 +216,23 @@ class NewChatRequest(BaseModel):
     disabled_tools: list[str] | None = (
         None  # Optional list of tool names the user has disabled from the UI
     )
+    filesystem_mode: Literal["cloud", "desktop_local_folder"] = "cloud"
+    client_platform: Literal["web", "desktop"] = "web"
+    local_filesystem_mounts: list[LocalFilesystemMountPayload] | None = None
+    user_images: list[NewChatUserImagePart] | None = Field(
+        default=None,
+        description="Optional images for this user turn",
+    )
+
+    @model_validator(mode="after")
+    def _require_text_or_images(self) -> Self:
+        has_text = bool(self.user_query.strip())
+        has_images = bool(self.user_images)
+        if not has_text and not has_images:
+            raise ValueError("Provide non-empty user_query and/or user_images")
+        if self.user_images is not None and len(self.user_images) > MAX_NEW_CHAT_IMAGES:
+            raise ValueError(f"At most {MAX_NEW_CHAT_IMAGES} images allowed")
+        return self
 
 
 class RegenerateRequest(BaseModel):
@@ -195,6 +244,18 @@ class RegenerateRequest(BaseModel):
     2. Reload: Leave user_query empty to regenerate the last AI response with the same query
 
     Both operations rewind the LangGraph checkpointer to the appropriate state.
+
+    For edit, optional user_images (when not None) replaces image URLs resolved from
+    checkpoint/DB so the client can send the full user turn (text and/or images).
+
+    Edit-from-arbitrary-position. When ``from_message_id`` is provided
+    the route slices conversation history starting at that message (instead of
+    the legacy "last 2 messages" rewind), rewinds the LangGraph checkpoint by
+    matching ``configurable.turn_id`` stored on the message (added in migration 136), and
+    optionally reverts every reversible action emitted in turns at or after
+    ``from_message_id``. The revert step is best-effort and runs BEFORE the
+    regenerate stream — partial failures are surfaced via SSE
+    ``data-revert-results`` and do not abort the regeneration.
     """
 
     search_space_id: int
@@ -204,6 +265,49 @@ class RegenerateRequest(BaseModel):
     mentioned_document_ids: list[int] | None = None
     mentioned_surfsense_doc_ids: list[int] | None = None
     disabled_tools: list[str] | None = None
+    filesystem_mode: Literal["cloud", "desktop_local_folder"] = "cloud"
+    client_platform: Literal["web", "desktop"] = "web"
+    local_filesystem_mounts: list[LocalFilesystemMountPayload] | None = None
+    user_images: list[NewChatUserImagePart] | None = Field(
+        default=None,
+        description="If set, use these images for the regenerated turn (edit); overrides checkpoint/DB",
+    )
+    from_message_id: int | None = Field(
+        default=None,
+        description=(
+            "Message id to rewind to. When set, history is sliced "
+            "from this message forward and the LangGraph checkpoint is "
+            "rewound to the state immediately preceding this turn. Legacy "
+            "rows that predate migration 136 have ``turn_id=None`` and "
+            "still process — the route logs a warning, skips the "
+            "checkpoint rewind, and ignores ``revert_actions`` (no "
+            "chat_turn_id available to walk)."
+        ),
+    )
+    revert_actions: bool = Field(
+        default=False,
+        description=(
+            "When true, every reversible action emitted at or "
+            "after ``from_message_id`` is reverted before the regenerate "
+            "stream begins. Per-action results are surfaced via the "
+            "``data-revert-results`` SSE event. Partial failures DO NOT "
+            "abort the regeneration."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _validate_regenerate_user_images(self) -> Self:
+        if self.user_images is not None and len(self.user_images) > MAX_NEW_CHAT_IMAGES:
+            raise ValueError(f"At most {MAX_NEW_CHAT_IMAGES} images allowed")
+        return self
+
+    @model_validator(mode="after")
+    def _validate_revert_actions_requires_from_message(self) -> Self:
+        if self.revert_actions and self.from_message_id is None:
+            raise ValueError(
+                "revert_actions requires from_message_id; specify which message to rewind to"
+            )
+        return self
 
 
 # =============================================================================
@@ -227,6 +331,27 @@ class ResumeDecision(BaseModel):
 class ResumeRequest(BaseModel):
     search_space_id: int
     decisions: list[ResumeDecision]
+    filesystem_mode: Literal["cloud", "desktop_local_folder"] = "cloud"
+    client_platform: Literal["web", "desktop"] = "web"
+    local_filesystem_mounts: list[LocalFilesystemMountPayload] | None = None
+
+
+class CancelActiveTurnResponse(BaseModel):
+    """Response for canceling an active turn on a chat thread."""
+
+    status: Literal["cancelling", "idle"]
+    error_code: Literal["TURN_CANCELLING", "NO_ACTIVE_TURN"]
+    retry_after_ms: int | None = None
+    retry_after_at: int | None = None
+
+
+class TurnStatusResponse(BaseModel):
+    """Current turn execution status for a thread."""
+
+    status: Literal["idle", "busy", "cancelling"]
+    active_turn_id: str | None = None
+    retry_after_ms: int | None = None
+    retry_after_at: int | None = None
 
 
 # =============================================================================

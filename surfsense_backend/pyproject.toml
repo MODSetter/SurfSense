@@ -1,6 +1,6 @@
 [project]
 name = "surf-new-backend"
-version = "0.0.19"
+version = "0.0.20"
 description = "SurfSense Backend"
 requires-python = ">=3.12"
 dependencies = [
@@ -74,7 +74,7 @@ dependencies = [
     "deepagents>=0.4.12",
     "stripe>=15.0.0",
     "azure-ai-documentintelligence>=1.0.2",
-    "litellm>=1.83.4",
+    "litellm>=1.83.7",
     "langchain-litellm>=0.6.4",
 ]
 

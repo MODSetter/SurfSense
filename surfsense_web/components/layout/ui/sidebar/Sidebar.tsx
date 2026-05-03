@@ -1,6 +1,6 @@
 "use client";
 
-import { CreditCard, PenSquare, Zap } from "lucide-react";
+import { CreditCard, SquarePen, Zap } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -12,9 +12,9 @@ import { useIsAnonymous } from "@/contexts/anonymous-mode";
 import { cn } from "@/lib/utils";
 import { SIDEBAR_MIN_WIDTH } from "../../hooks/useSidebarResize";
 import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
+import { AuthenticatedPageUsageDisplay } from "./AuthenticatedPageUsageDisplay";
 import { ChatListItem } from "./ChatListItem";
 import { NavSection } from "./NavSection";
-import { PageUsageDisplay } from "./PageUsageDisplay";
 import { PremiumTokenUsageDisplay } from "./PremiumTokenUsageDisplay";
 import { SidebarButton } from "./SidebarButton";
 import { SidebarCollapseButton } from "./SidebarCollapseButton";
@@ -139,7 +139,7 @@ export function Sidebar({
 			{/* New chat button */}
 			<div className={cn("flex flex-col gap-0.5 py-2", isCollapsed && "items-center")}>
 				<SidebarButton
-					icon={PenSquare}
+					icon={SquarePen}
 					label={t("new_chat")}
 					onClick={onNewChat}
 					isCollapsed={isCollapsed}
@@ -338,9 +338,7 @@ function SidebarUsageFooter({
 	return (
 		<div className="px-3 py-3 border-t space-y-3">
 			<PremiumTokenUsageDisplay />
-			{pageUsage && (
-				<PageUsageDisplay pagesUsed={pageUsage.pagesUsed} pagesLimit={pageUsage.pagesLimit} />
-			)}
+			<AuthenticatedPageUsageDisplay />
 			<div className="space-y-0.5">
 				<Link
 					href={`/dashboard/${searchSpaceId}/more-pages`}

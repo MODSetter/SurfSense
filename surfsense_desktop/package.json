@@ -1,18 +1,19 @@
 {
   "name": "surfsense-desktop",
-  "version": "0.0.19",
+  "version": "0.0.20",
   "description": "SurfSense Desktop App",
   "main": "dist/main.js",
   "scripts": {
-    "dev": "pnpm build && concurrently -k \"pnpm --dir ../surfsense_web dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "dev": "pnpm build && concurrently -k \"pnpm --dir ../surfsense_web dev\" \"wait-on http://localhost:3000 && node scripts/electron-dev.mjs\"",
     "build": "node scripts/build-electron.mjs",
     "pack:dir": "pnpm build && electron-builder --dir --config electron-builder.yml",
+    "pack:dir:linux": "pnpm build && electron-builder --dir --linux --config electron-builder.yml -c.npmRebuild=false",
     "dist": "pnpm build && electron-builder --config electron-builder.yml",
     "dist:mac": "pnpm build && electron-builder --mac --config electron-builder.yml",
     "dist:win": "pnpm build && electron-builder --win --config electron-builder.yml",
-    "dist:linux": "pnpm build && electron-builder --linux --config electron-builder.yml",
+    "dist:linux": "pnpm build && electron-builder --linux --config electron-builder.yml -c.npmRebuild=false",
     "typecheck": "tsc --noEmit",
-    "postinstall": "electron-rebuild"
+    "postinstall": "node scripts/postinstall-rebuild.mjs"
   },
   "homepage": "https://github.com/MODSetter/SurfSense",
   "author": {

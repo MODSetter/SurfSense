@@ -7,7 +7,6 @@ from langchain_litellm import ChatLiteLLM
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.agents.new_chat.llm_config import SanitizedChatLiteLLM
 from app.config import config
 from app.db import NewLLMConfig, SearchSpace
 from app.services.llm_router_service import (
@@ -17,6 +16,7 @@ from app.services.llm_router_service import (
     get_auto_mode_llm,
     is_auto_mode,
 )
+from app.services.provider_api_base import resolve_api_base
 from app.services.token_tracking_service import token_tracker
 
 # Configure litellm to automatically drop unsupported parameters
@@ -204,6 +204,8 @@ async def validate_llm_config(
         if litellm_params:
             litellm_kwargs.update(litellm_params)
 
+        from app.agents.new_chat.llm_config import SanitizedChatLiteLLM
+
         llm = SanitizedChatLiteLLM(**litellm_kwargs)
 
         # Run the test call in a worker thread with a hard timeout. Some
@@ -377,6 +379,8 @@ async def get_search_space_llm_instance(
             if disable_streaming:
                 litellm_kwargs["disable_streaming"] = True
 
+            from app.agents.new_chat.llm_config import SanitizedChatLiteLLM
+
             return SanitizedChatLiteLLM(**litellm_kwargs)
 
         # Get the LLM configuration from database (NewLLMConfig)
@@ -454,6 +458,8 @@ async def get_search_space_llm_instance(
         if disable_streaming:
             litellm_kwargs["disable_streaming"] = True
 
+        from app.agents.new_chat.llm_config import SanitizedChatLiteLLM
+
         return SanitizedChatLiteLLM(**litellm_kwargs)
 
     except Exception as e:
@@ -491,8 +497,14 @@ async def get_vision_llm(
     - Auto mode (ID 0): VisionLLMRouterService
     - Global (negative ID): YAML configs
     - DB (positive ID): VisionLLMConfig table
+
+    Premium global configs are wrapped in :class:`QuotaCheckedVisionLLM`
+    so each ``ainvoke`` debits the search-space owner's premium credit
+    pool. User-owned BYOK configs and free global configs are returned
+    unwrapped — they don't consume premium credit (issue M).
     """
     from app.db import VisionLLMConfig
+    from app.services.quota_checked_vision_llm import QuotaCheckedVisionLLM
     from app.services.vision_llm_router_service import (
         VISION_PROVIDER_MAP,
         VisionLLMRouterService,
@@ -514,6 +526,8 @@ async def get_vision_llm(
             logger.error(f"No vision LLM configured for search space {search_space_id}")
             return None
 
+        owner_user_id = search_space.user_id
+
         if is_vision_auto_mode(config_id):
             if not VisionLLMRouterService.is_initialized():
                 logger.error(
@@ -521,6 +535,13 @@ async def get_vision_llm(
                 )
                 return None
             try:
+                # Auto mode is currently treated as free at the wrapper
+                # level — the underlying router can dispatch to either
+                # premium or free YAML configs but routing decisions are
+                # opaque. If/when we want to bill Auto-routed vision
+                # calls we'd need to thread the resolved deployment's
+                # billing_tier back from the router. For now we keep
+                # parity with chat Auto, which also doesn't pre-classify.
                 return ChatLiteLLMRouter(
                     router=VisionLLMRouterService.get_router(),
                     streaming=True,
@@ -536,27 +557,46 @@ async def get_vision_llm(
                 return None
 
             if global_cfg.get("custom_provider"):
-                model_string = (
-                    f"{global_cfg['custom_provider']}/{global_cfg['model_name']}"
-                )
+                provider_prefix = global_cfg["custom_provider"]
+                model_string = f"{provider_prefix}/{global_cfg['model_name']}"
             else:
-                prefix = VISION_PROVIDER_MAP.get(
+                provider_prefix = VISION_PROVIDER_MAP.get(
                     global_cfg["provider"].upper(),
                     global_cfg["provider"].lower(),
                 )
-                model_string = f"{prefix}/{global_cfg['model_name']}"
+                model_string = f"{provider_prefix}/{global_cfg['model_name']}"
 
             litellm_kwargs = {
                 "model": model_string,
                 "api_key": global_cfg["api_key"],
             }
-            if global_cfg.get("api_base"):
-                litellm_kwargs["api_base"] = global_cfg["api_base"]
+            api_base = resolve_api_base(
+                provider=global_cfg.get("provider"),
+                provider_prefix=provider_prefix,
+                config_api_base=global_cfg.get("api_base"),
+            )
+            if api_base:
+                litellm_kwargs["api_base"] = api_base
             if global_cfg.get("litellm_params"):
                 litellm_kwargs.update(global_cfg["litellm_params"])
 
-            return SanitizedChatLiteLLM(**litellm_kwargs)
+            from app.agents.new_chat.llm_config import SanitizedChatLiteLLM
 
+            inner_llm = SanitizedChatLiteLLM(**litellm_kwargs)
+
+            billing_tier = str(global_cfg.get("billing_tier", "free")).lower()
+            if billing_tier == "premium":
+                return QuotaCheckedVisionLLM(
+                    inner_llm,
+                    user_id=owner_user_id,
+                    search_space_id=search_space_id,
+                    billing_tier=billing_tier,
+                    base_model=model_string,
+                    quota_reserve_tokens=global_cfg.get("quota_reserve_tokens"),
+                )
+            return inner_llm
+
+        # User-owned (positive ID) BYOK configs — always free.
         result = await session.execute(
             select(VisionLLMConfig).where(
                 VisionLLMConfig.id == config_id,
@@ -571,22 +611,30 @@ async def get_vision_llm(
             return None
 
         if vision_cfg.custom_provider:
-            model_string = f"{vision_cfg.custom_provider}/{vision_cfg.model_name}"
+            provider_prefix = vision_cfg.custom_provider
+            model_string = f"{provider_prefix}/{vision_cfg.model_name}"
         else:
-            prefix = VISION_PROVIDER_MAP.get(
+            provider_prefix = VISION_PROVIDER_MAP.get(
                 vision_cfg.provider.value.upper(),
                 vision_cfg.provider.value.lower(),
             )
-            model_string = f"{prefix}/{vision_cfg.model_name}"
+            model_string = f"{provider_prefix}/{vision_cfg.model_name}"
 
         litellm_kwargs = {
             "model": model_string,
             "api_key": vision_cfg.api_key,
         }
-        if vision_cfg.api_base:
-            litellm_kwargs["api_base"] = vision_cfg.api_base
+        api_base = resolve_api_base(
+            provider=vision_cfg.provider.value,
+            provider_prefix=provider_prefix,
+            config_api_base=vision_cfg.api_base,
+        )
+        if api_base:
+            litellm_kwargs["api_base"] = api_base
         if vision_cfg.litellm_params:
             litellm_kwargs.update(vision_cfg.litellm_params)
+
+        from app.agents.new_chat.llm_config import SanitizedChatLiteLLM
 
         return SanitizedChatLiteLLM(**litellm_kwargs)
 

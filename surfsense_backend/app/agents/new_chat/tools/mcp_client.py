@@ -45,6 +45,18 @@ class MCPClient:
     async def connect(self, max_retries: int = MAX_RETRIES):
         """Connect to the MCP server and manage its lifecycle.
 
+        Retries only apply to the **connection** phase (spawning the process,
+        initialising the session).  Once the session is yielded to the caller,
+        any exception raised by the caller propagates normally -- the context
+        manager will NOT retry after ``yield``.
+
+        Previous implementation wrapped both connection AND yield inside the
+        retry loop.  Because ``@asynccontextmanager`` only allows a single
+        ``yield``, a failure after yield caused the generator to attempt a
+        second yield on retry, triggering
+        ``RuntimeError("generator didn't stop after athrow()")`` and orphaning
+        the stdio subprocess.
+
         Args:
             max_retries: Maximum number of connection retry attempts
 
@@ -57,26 +69,22 @@ class MCPClient:
         """
         last_error = None
         delay = RETRY_DELAY
+        connected = False
 
         for attempt in range(max_retries):
             try:
-                # Merge env vars with current environment
                 server_env = os.environ.copy()
                 server_env.update(self.env)
 
-                # Create server parameters with env
                 server_params = StdioServerParameters(
                     command=self.command, args=self.args, env=server_env
                 )
 
-                # Spawn server process and create session
-                # Note: Cannot combine these context managers because ClientSession
-                # needs the read/write streams from stdio_client
                 async with stdio_client(server=server_params) as (read, write):  # noqa: SIM117
                     async with ClientSession(read, write) as session:
-                        # Initialize the connection
                         await session.initialize()
                         self.session = session
+                        connected = True
 
                         if attempt > 0:
                             logger.info(
@@ -91,10 +99,16 @@ class MCPClient:
                                 self.command,
                                 " ".join(self.args),
                             )
-                        yield session
-                        return  # Success, exit retry loop
+                        try:
+                            yield session
+                        finally:
+                            self.session = None
+                        return
 
             except Exception as e:
+                self.session = None
+                if connected:
+                    raise
                 last_error = e
                 if attempt < max_retries - 1:
                     logger.warning(
@@ -105,7 +119,7 @@ class MCPClient:
                         delay,
                     )
                     await asyncio.sleep(delay)
-                    delay *= RETRY_BACKOFF  # Exponential backoff
+                    delay *= RETRY_BACKOFF
                 else:
                     logger.error(
                         "Failed to connect to MCP server after %d attempts: %s",
@@ -113,10 +127,7 @@ class MCPClient:
                         e,
                         exc_info=True,
                     )
-            finally:
-                self.session = None
 
-        # All retries exhausted
         error_msg = f"Failed to connect to MCP server '{self.command}' after {max_retries} attempts"
         if last_error:
             error_msg += f": {last_error}"
@@ -161,12 +172,18 @@ class MCPClient:
             logger.error("Failed to list tools from MCP server: %s", e, exc_info=True)
             raise
 
-    async def call_tool(self, tool_name: str, arguments: dict[str, Any]) -> Any:
+    async def call_tool(
+        self,
+        tool_name: str,
+        arguments: dict[str, Any],
+        timeout: float = 60.0,
+    ) -> Any:
         """Call a tool on the MCP server.
 
         Args:
             tool_name: Name of the tool to call
             arguments: Arguments to pass to the tool
+            timeout: Maximum seconds to wait for the tool to respond
 
         Returns:
             Tool execution result
@@ -185,10 +202,11 @@ class MCPClient:
                 "Calling MCP tool '%s' with arguments: %s", tool_name, arguments
             )
 
-            # Call tools/call RPC method
-            response = await self.session.call_tool(tool_name, arguments=arguments)
+            response = await asyncio.wait_for(
+                self.session.call_tool(tool_name, arguments=arguments),
+                timeout=timeout,
+            )
 
-            # Extract content from response
             result = []
             for content in response.content:
                 if hasattr(content, "text"):
@@ -202,15 +220,15 @@ class MCPClient:
             logger.info("MCP tool '%s' succeeded: %s", tool_name, result_str[:200])
             return result_str
 
+        except TimeoutError:
+            logger.error("MCP tool '%s' timed out after %.0fs", tool_name, timeout)
+            return f"Error: MCP tool '{tool_name}' timed out after {timeout:.0f}s"
         except RuntimeError as e:
-            # Handle validation errors from MCP server responses
-            # Some MCP servers (like server-memory) return extra fields not in their schema
             if "Invalid structured content" in str(e):
                 logger.warning(
                     "MCP server returned data not matching its schema, but continuing: %s",
                     e,
                 )
-                # Try to extract result from error message or return a success message
                 return "Operation completed (server returned unexpected format)"
             raise
         except (ValueError, TypeError, AttributeError, KeyError) as e:

@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel as PydanticBaseModel
-from sqlalchemy import func
+from sqlalchemy import func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -15,6 +15,7 @@ from app.agents.new_chat.tools.update_memory import MEMORY_HARD_LIMIT, _save_mem
 from app.config import config
 from app.db import (
     ImageGenerationConfig,
+    NewChatThread,
     NewLLMConfig,
     Permission,
     SearchSpace,
@@ -593,6 +594,7 @@ async def _get_image_gen_config_by_id(
             "model_name": "auto",
             "is_global": True,
             "is_auto_mode": True,
+            "billing_tier": "free",
         }
 
     if config_id < 0:
@@ -609,6 +611,7 @@ async def _get_image_gen_config_by_id(
                     "api_version": cfg.get("api_version") or None,
                     "litellm_params": cfg.get("litellm_params", {}),
                     "is_global": True,
+                    "billing_tier": cfg.get("billing_tier", "free"),
                 }
         return None
 
@@ -651,6 +654,7 @@ async def _get_vision_llm_config_by_id(
             "model_name": "auto",
             "is_global": True,
             "is_auto_mode": True,
+            "billing_tier": "free",
         }
 
     if config_id < 0:
@@ -667,6 +671,7 @@ async def _get_vision_llm_config_by_id(
                     "api_version": cfg.get("api_version") or None,
                     "litellm_params": cfg.get("litellm_params", {}),
                     "is_global": True,
+                    "billing_tier": cfg.get("billing_tier", "free"),
                 }
         return None
 
@@ -790,8 +795,26 @@ async def update_llm_preferences(
 
         # Update preferences
         update_data = preferences.model_dump(exclude_unset=True)
+        previous_agent_llm_id = search_space.agent_llm_id
         for key, value in update_data.items():
             setattr(search_space, key, value)
+
+        agent_llm_changed = (
+            "agent_llm_id" in update_data
+            and update_data["agent_llm_id"] != previous_agent_llm_id
+        )
+        if agent_llm_changed:
+            await session.execute(
+                update(NewChatThread)
+                .where(NewChatThread.search_space_id == search_space_id)
+                .values(pinned_llm_config_id=None)
+            )
+            logger.info(
+                "Cleared auto model pins for search_space_id=%s after agent_llm_id change (%s -> %s)",
+                search_space_id,
+                previous_agent_llm_id,
+                update_data["agent_llm_id"],
+            )
 
         await session.commit()
         await session.refresh(search_space)

@@ -11,7 +11,7 @@ from typing import Any
 from langchain_core.tools import tool
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import VideoPresentation, VideoPresentationStatus
+from app.db import VideoPresentation, VideoPresentationStatus, shielded_async_session
 
 
 def create_generate_video_presentation_tool(
@@ -23,8 +23,11 @@ def create_generate_video_presentation_tool(
     Factory function to create the generate_video_presentation tool with injected dependencies.
 
     Pre-creates video presentation record with pending status so the ID is available
-    immediately for frontend polling.
+    immediately for frontend polling. The row is written via a fresh, tool-local
+    session so parallel tool calls (e.g. video + podcast in the same agent step)
+    don't share an ``AsyncSession`` (which is not concurrency-safe).
     """
+    del db_session  # writes use a fresh tool-local session, see below
 
     @tool
     async def generate_video_presentation(
@@ -42,34 +45,40 @@ def create_generate_video_presentation_tool(
             user_prompt: Optional style/tone instructions.
         """
         try:
-            video_pres = VideoPresentation(
-                title=video_title,
-                status=VideoPresentationStatus.PENDING,
-                search_space_id=search_space_id,
-                thread_id=thread_id,
-            )
-            db_session.add(video_pres)
-            await db_session.commit()
-            await db_session.refresh(video_pres)
+            # See podcast.py for the rationale: parallel tool calls share the
+            # streaming session, and AsyncSession is not concurrency-safe —
+            # interleaved flushes produce "Session.add() during flush" and
+            # poison the transaction for every concurrent tool.
+            async with shielded_async_session() as session:
+                video_pres = VideoPresentation(
+                    title=video_title,
+                    status=VideoPresentationStatus.PENDING,
+                    search_space_id=search_space_id,
+                    thread_id=thread_id,
+                )
+                session.add(video_pres)
+                await session.commit()
+                await session.refresh(video_pres)
+                video_pres_id = video_pres.id
 
             from app.tasks.celery_tasks.video_presentation_tasks import (
                 generate_video_presentation_task,
             )
 
             task = generate_video_presentation_task.delay(
-                video_presentation_id=video_pres.id,
+                video_presentation_id=video_pres_id,
                 source_content=source_content,
                 search_space_id=search_space_id,
                 user_prompt=user_prompt,
             )
 
             print(
-                f"[generate_video_presentation] Created video presentation {video_pres.id}, task: {task.id}"
+                f"[generate_video_presentation] Created video presentation {video_pres_id}, task: {task.id}"
             )
 
             return {
                 "status": VideoPresentationStatus.PENDING.value,
-                "video_presentation_id": video_pres.id,
+                "video_presentation_id": video_pres_id,
                 "title": video_title,
                 "message": "Video presentation generation started. This may take a few minutes.",
             }

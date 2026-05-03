@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { ArrowLeft, Info, RefreshCw, Trash2 } from "lucide-react";
+import { ArrowLeft, Info, RefreshCw } from "lucide-react";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
@@ -16,21 +16,18 @@ import { DateRangeSelector } from "../../components/date-range-selector";
 import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
 import { SummaryConfig } from "../../components/summary-config";
 import { VisionLLMConfig } from "../../components/vision-llm-config";
+import { getReauthEndpoint, LIVE_CONNECTOR_TYPES } from "../../constants/connector-constants";
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
+import { MCPServiceConfig } from "../components/mcp-service-config";
 import { getConnectorConfigComponent } from "../index";
 
-const REAUTH_ENDPOINTS: Partial<Record<string, string>> = {
-	[EnumConnectorName.LINEAR_CONNECTOR]: "/api/v1/auth/linear/connector/reauth",
-	[EnumConnectorName.NOTION_CONNECTOR]: "/api/v1/auth/notion/connector/reauth",
-	[EnumConnectorName.GOOGLE_DRIVE_CONNECTOR]: "/api/v1/auth/google/drive/connector/reauth",
-	[EnumConnectorName.GOOGLE_GMAIL_CONNECTOR]: "/api/v1/auth/google/gmail/connector/reauth",
-	[EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR]: "/api/v1/auth/google/calendar/connector/reauth",
-	[EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
-	[EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
-	[EnumConnectorName.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
-	[EnumConnectorName.ONEDRIVE_CONNECTOR]: "/api/v1/auth/onedrive/connector/reauth",
-	[EnumConnectorName.DROPBOX_CONNECTOR]: "/api/v1/auth/dropbox/connector/reauth",
-};
+const VISION_LLM_CONNECTOR_TYPES = new Set<SearchSourceConnector["connector_type"]>([
+	EnumConnectorName.GOOGLE_DRIVE_CONNECTOR,
+	EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+	EnumConnectorName.DROPBOX_CONNECTOR,
+	EnumConnectorName.ONEDRIVE_CONNECTOR,
+	EnumConnectorName.OBSIDIAN_CONNECTOR,
+]);
 
 interface ConnectorEditViewProps {
 	connector: SearchSourceConnector;
@@ -85,8 +82,11 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 }) => {
 	const searchSpaceIdAtom = useAtomValue(activeSearchSpaceIdAtom);
 	const isAuthExpired = connector.config?.auth_expired === true;
-	const reauthEndpoint = REAUTH_ENDPOINTS[connector.connector_type];
+	const reauthEndpoint = getReauthEndpoint(connector);
 	const [reauthing, setReauthing] = useState(false);
+	const supportsVisionLlm = VISION_LLM_CONNECTOR_TYPES.has(connector.connector_type);
+	const showsAiToggles =
+		connector.is_indexable || connector.connector_type === EnumConnectorName.OBSIDIAN_CONNECTOR;
 
 	const handleReauth = useCallback(async () => {
 		const spaceId = searchSpaceId ?? searchSpaceIdAtom;
@@ -118,11 +118,14 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 		}
 	}, [searchSpaceId, searchSpaceIdAtom, reauthEndpoint, connector.id]);
 
-	// Get connector-specific config component
-	const ConnectorConfigComponent = useMemo(
-		() => getConnectorConfigComponent(connector.connector_type),
-		[connector.connector_type]
-	);
+	const isMCPBacked = Boolean(connector.config?.server_config);
+	const isLive = isMCPBacked || LIVE_CONNECTOR_TYPES.has(connector.connector_type);
+
+	// Get connector-specific config component (MCP-backed connectors use a generic view)
+	const ConnectorConfigComponent = useMemo(() => {
+		if (isMCPBacked) return MCPServiceConfig;
+		return getConnectorConfigComponent(connector.connector_type);
+	}, [connector.connector_type, isMCPBacked]);
 	const [isScrolled, setIsScrolled] = useState(false);
 	const [hasMoreContent, setHasMoreContent] = useState(false);
 	const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
@@ -223,12 +226,14 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 								{getConnectorDisplayName(connector.name)}
 							</h2>
 							<p className="text-xs sm:text-base text-muted-foreground mt-1">
-								Manage your connector settings and sync configuration
+								{isLive
+									? "Manage your connected account"
+									: "Manage your connector settings and sync configuration"}
 							</p>
 						</div>
 					</div>
-					{/* Quick Index Button - hidden when auth is expired */}
-					{connector.is_indexable && onQuickIndex && !isAuthExpired && (
+					{/* Quick Index Button - hidden for live connectors and when auth is expired */}
+					{connector.is_indexable && !isLive && onQuickIndex && !isAuthExpired && (
 						<Button
 							variant="secondary"
 							size="sm"
@@ -271,25 +276,23 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 							/>
 						)}
 
-						{/* Summary and sync settings - only shown for indexable connectors */}
-						{connector.is_indexable && (
+						{/* Summary + vision toggles (Obsidian is plugin-push, non-indexable by design) */}
+						{showsAiToggles && !isLive && (
 							<>
 								{/* AI Summary toggle */}
 								<SummaryConfig enabled={enableSummary} onEnabledChange={onEnableSummaryChange} />
 
-								{/* Vision LLM toggle - only for file-based connectors */}
-								{(connector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ||
-									connector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" ||
-									connector.connector_type === "DROPBOX_CONNECTOR" ||
-									connector.connector_type === "ONEDRIVE_CONNECTOR") && (
+								{/* Vision LLM toggle for file/attachment connectors */}
+								{supportsVisionLlm && (
 									<VisionLLMConfig
 										enabled={enableVisionLlm}
 										onEnabledChange={onEnableVisionLlmChange}
 									/>
 								)}
 
-								{/* Date range selector - not shown for file-based connectors (Drive, Dropbox, OneDrive), Webcrawler, GitHub, or Local Folder */}
-								{connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" &&
+								{/* Date-range and periodic sync stay indexable-only */}
+								{connector.is_indexable &&
+									connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" &&
 									connector.connector_type !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&
 									connector.connector_type !== "DROPBOX_CONNECTOR" &&
 									connector.connector_type !== "ONEDRIVE_CONNECTOR" &&
@@ -309,42 +312,43 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 										/>
 									)}
 
-								{(() => {
-									const isGoogleDrive = connector.connector_type === "GOOGLE_DRIVE_CONNECTOR";
-									const isComposioGoogleDrive =
-										connector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR";
-									const requiresFolderSelection = isGoogleDrive || isComposioGoogleDrive;
-									const selectedFolders =
-										(connector.config?.selected_folders as
-											| Array<{ id: string; name: string }>
-											| undefined) || [];
-									const selectedFiles =
-										(connector.config?.selected_files as
-											| Array<{ id: string; name: string }>
-											| undefined) || [];
-									const hasItemsSelected = selectedFolders.length > 0 || selectedFiles.length > 0;
-									const isDisabled = requiresFolderSelection && !hasItemsSelected;
+								{connector.is_indexable &&
+									(() => {
+										const isGoogleDrive = connector.connector_type === "GOOGLE_DRIVE_CONNECTOR";
+										const isComposioGoogleDrive =
+											connector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR";
+										const requiresFolderSelection = isGoogleDrive || isComposioGoogleDrive;
+										const selectedFolders =
+											(connector.config?.selected_folders as
+												| Array<{ id: string; name: string }>
+												| undefined) || [];
+										const selectedFiles =
+											(connector.config?.selected_files as
+												| Array<{ id: string; name: string }>
+												| undefined) || [];
+										const hasItemsSelected = selectedFolders.length > 0 || selectedFiles.length > 0;
+										const isDisabled = requiresFolderSelection && !hasItemsSelected;
 
-									return (
-										<PeriodicSyncConfig
-											enabled={periodicEnabled}
-											frequencyMinutes={frequencyMinutes}
-											onEnabledChange={onPeriodicEnabledChange}
-											onFrequencyChange={onFrequencyChange}
-											disabled={isDisabled}
-											disabledMessage={
-												isDisabled
-													? "Select at least one folder or file above to enable periodic sync"
-													: undefined
-											}
-										/>
-									);
-								})()}
+										return (
+											<PeriodicSyncConfig
+												enabled={periodicEnabled}
+												frequencyMinutes={frequencyMinutes}
+												onEnabledChange={onPeriodicEnabledChange}
+												onFrequencyChange={onFrequencyChange}
+												disabled={isDisabled}
+												disabledMessage={
+													isDisabled
+														? "Select at least one folder or file above to enable periodic sync"
+														: undefined
+												}
+											/>
+										);
+									})()}
 							</>
 						)}
 
-						{/* Info box - only shown for indexable connectors */}
-						{connector.is_indexable && (
+						{/* Info box - hidden for live connectors */}
+						{connector.is_indexable && !isLive && (
 							<div className="rounded-xl border border-border bg-primary/5 p-4 flex items-start gap-3">
 								<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0 mt-0.5">
 									<Info className="size-4" />
@@ -377,7 +381,9 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 				{showDisconnectConfirm ? (
 					<div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 sm:flex-initial">
 						<span className="text-xs sm:text-sm text-muted-foreground sm:whitespace-nowrap">
-							Are you sure?
+							{isLive
+								? "Your agent will lose access to this service."
+								: "This will remove all indexed data."}
 						</span>
 						<div className="flex items-center gap-2 sm:gap-3">
 							<Button
@@ -408,7 +414,6 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						disabled={isSaving || isDisconnecting}
 						className="text-xs sm:text-sm flex-1 sm:flex-initial h-12 sm:h-auto py-3 sm:py-2"
 					>
-						<Trash2 className="mr-2 h-4 w-4" />
 						Disconnect
 					</Button>
 				)}
@@ -421,7 +426,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						<RefreshCw className={cn("size-3.5", reauthing && "animate-spin")} />
 						Re-authenticate
 					</Button>
-				) : (
+				) : !isLive ? (
 					<Button
 						onClick={onSave}
 						disabled={isSaving || isDisconnecting}
@@ -430,7 +435,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						<span className={isSaving ? "opacity-0" : ""}>Save Changes</span>
 						{isSaving && <Spinner size="sm" className="absolute" />}
 					</Button>
-				)}
+				) : null}
 			</div>
 		</div>
 	);

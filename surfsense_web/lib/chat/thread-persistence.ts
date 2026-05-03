@@ -30,9 +30,20 @@ export interface TokenUsageSummary {
 	prompt_tokens: number;
 	completion_tokens: number;
 	total_tokens: number;
+	/**
+	 * Total provider USD cost for this assistant turn, in micro-USD
+	 * (1_000_000 = $1.00). Optional because rows persisted before the
+	 * cost-credits migration won't have it.
+	 */
+	cost_micros?: number;
 	model_breakdown?: Record<
 		string,
-		{ prompt_tokens: number; completion_tokens: number; total_tokens: number }
+		{
+			prompt_tokens: number;
+			completion_tokens: number;
+			total_tokens: number;
+			cost_micros?: number;
+		}
 	> | null;
 }
 
@@ -46,6 +57,11 @@ export interface MessageRecord {
 	author_display_name?: string | null;
 	author_avatar_url?: string | null;
 	token_usage?: TokenUsageSummary | null;
+	// Per-turn correlation id from ``configurable.turn_id`` at streaming
+	// time (added in migration 136). Used by the per-turn revert
+	// endpoint and edit-from-arbitrary-position. Nullable on legacy
+	// rows that predate the column.
+	turn_id?: string | null;
 }
 
 export interface ThreadListResponse {
@@ -123,10 +139,20 @@ export async function getThreadMessages(threadId: number): Promise<ThreadHistory
 
 /**
  * Append a message to a thread.
+ *
+ * ``turn_id`` is the per-turn correlation id streamed by the backend
+ * via ``data-turn-info``. Persisting it lets later edits locate the
+ * matching LangGraph checkpoint without HumanMessage scanning. Older
+ * callers can still omit it for back-compat.
  */
 export async function appendMessage(
 	threadId: number,
-	message: { role: "user" | "assistant" | "system"; content: unknown; token_usage?: unknown }
+	message: {
+		role: "user" | "assistant" | "system";
+		content: unknown;
+		token_usage?: unknown;
+		turn_id?: string | null;
+	}
 ): Promise<MessageRecord> {
 	return baseApiService.post<MessageRecord>(`/api/v1/threads/${threadId}/messages`, undefined, {
 		body: message,

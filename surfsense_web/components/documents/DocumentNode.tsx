@@ -8,7 +8,7 @@ import {
 	History,
 	MoreHorizontal,
 	Move,
-	PenLine,
+	Pencil,
 	Trash2,
 } from "lucide-react";
 import React, { useCallback, useRef, useState } from "react";
@@ -266,7 +266,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 								</DropdownMenuItem>
 								{isEditable && (
 									<DropdownMenuItem onClick={() => onEdit(doc)}>
-										<PenLine className="mr-2 h-4 w-4" />
+										<Pencil className="mr-2 h-4 w-4" />
 										Edit
 									</DropdownMenuItem>
 								)}
@@ -309,7 +309,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 					</ContextMenuItem>
 					{isEditable && (
 						<ContextMenuItem onClick={() => onEdit(doc)}>
-							<PenLine className="mr-2 h-4 w-4" />
+							<Pencil className="mr-2 h-4 w-4" />
 							Edit
 						</ContextMenuItem>
 					)}

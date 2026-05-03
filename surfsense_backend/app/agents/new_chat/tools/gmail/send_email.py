@@ -158,16 +158,13 @@ def create_send_gmail_email_tool(
                 f"Sending Gmail email: to='{final_to}', subject='{final_subject}', connector={actual_connector_id}"
             )
 
-            if (
+            is_composio_gmail = (
                 connector.connector_type
                 == SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR
-            ):
-                from app.utils.google_credentials import build_composio_credentials
-
+            )
+            if is_composio_gmail:
                 cca_id = connector.config.get("composio_connected_account_id")
-                if cca_id:
-                    creds = build_composio_credentials(cca_id)
-                else:
+                if not cca_id:
                     return {
                         "status": "error",
                         "message": "Composio connected account ID not found for this Gmail connector.",
@@ -209,10 +206,6 @@ def create_send_gmail_email_tool(
                     expiry=datetime.fromisoformat(exp) if exp else None,
                 )
 
-            from googleapiclient.discovery import build
-
-            gmail_service = build("gmail", "v1", credentials=creds)
-
             message = MIMEText(final_body)
             message["to"] = final_to
             message["subject"] = final_subject
@@ -223,15 +216,43 @@ def create_send_gmail_email_tool(
             raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
 
             try:
-                sent = await asyncio.get_event_loop().run_in_executor(
-                    None,
-                    lambda: (
-                        gmail_service.users()
-                        .messages()
-                        .send(userId="me", body={"raw": raw})
-                        .execute()
-                    ),
-                )
+                if is_composio_gmail:
+                    from app.agents.new_chat.tools.gmail.composio_helpers import (
+                        execute_composio_gmail_tool,
+                        split_recipients,
+                    )
+
+                    sent, error = await execute_composio_gmail_tool(
+                        connector,
+                        user_id,
+                        "GMAIL_SEND_EMAIL",
+                        {
+                            "user_id": "me",
+                            "recipient_email": final_to,
+                            "subject": final_subject,
+                            "body": final_body,
+                            "cc": split_recipients(final_cc),
+                            "bcc": split_recipients(final_bcc),
+                            "is_html": False,
+                        },
+                    )
+                    if error:
+                        raise RuntimeError(error)
+                    if not isinstance(sent, dict):
+                        sent = {}
+                else:
+                    from googleapiclient.discovery import build
+
+                    gmail_service = build("gmail", "v1", credentials=creds)
+                    sent = await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        lambda: (
+                            gmail_service.users()
+                            .messages()
+                            .send(userId="me", body={"raw": raw})
+                            .execute()
+                        ),
+                    )
             except Exception as api_err:
                 from googleapiclient.errors import HttpError
 

@@ -1,0 +1,48 @@
+/*
+ * SurfSense Obsidian plugin styles. Status-bar widget only — the settings
+ * tab uses Obsidian's stock Setting rows, no custom CSS needed.
+ */
+
+.surfsense-status {
+	gap: 6px;
+}
+
+.surfsense-status--clickable {
+	cursor: pointer;
+}
+
+.surfsense-status__icon {
+	display: inline-flex;
+	width: 14px;
+	height: 14px;
+}
+
+.surfsense-status__icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+.surfsense-status--err .surfsense-status__icon {
+	color: var(--color-red);
+}
+
+.surfsense-connection-indicator {
+	display: inline-flex;
+	width: 14px;
+	height: 14px;
+}
+
+.surfsense-connection-heading {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.surfsense-connection-indicator svg {
+	width: 14px;
+	height: 14px;
+}
+
+.surfsense-connection-indicator--err {
+	color: var(--color-red);
+}

@@ -179,29 +179,59 @@ def create_create_google_drive_file_tool(
                 f"Creating Google Drive file: name='{final_name}', type='{final_file_type}', connector={actual_connector_id}"
             )
 
-            pre_built_creds = None
-            if (
+            is_composio_drive = (
                 connector.connector_type
                 == SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR
-            ):
-                from app.utils.google_credentials import build_composio_credentials
-
+            )
+            if is_composio_drive:
                 cca_id = connector.config.get("composio_connected_account_id")
-                if cca_id:
-                    pre_built_creds = build_composio_credentials(cca_id)
-
+                if not cca_id:
+                    return {
+                        "status": "error",
+                        "message": "Composio connected account ID not found for this Drive connector.",
+                    }
             client = GoogleDriveClient(
                 session=db_session,
                 connector_id=actual_connector_id,
-                credentials=pre_built_creds,
             )
             try:
-                created = await client.create_file(
-                    name=final_name,
-                    mime_type=mime_type,
-                    parent_folder_id=final_parent_folder_id,
-                    content=final_content,
-                )
+                if is_composio_drive:
+                    from app.services.composio_service import ComposioService
+
+                    params: dict[str, Any] = {
+                        "name": final_name,
+                        "mimeType": mime_type,
+                        "fields": "id,name,webViewLink,mimeType",
+                    }
+                    if final_parent_folder_id:
+                        params["parents"] = [final_parent_folder_id]
+                    if final_content:
+                        params["description"] = final_content[:4096]
+
+                    result = await ComposioService().execute_tool(
+                        connected_account_id=cca_id,
+                        tool_name="GOOGLEDRIVE_CREATE_FILE",
+                        params=params,
+                        entity_id=f"surfsense_{user_id}",
+                    )
+                    if not result.get("success"):
+                        raise RuntimeError(
+                            result.get("error", "Unknown Composio Drive error")
+                        )
+                    created = result.get("data", {})
+                    if isinstance(created, dict):
+                        created = created.get("data", created)
+                        if isinstance(created, dict):
+                            created = created.get("response_data", created)
+                    if not isinstance(created, dict):
+                        created = {}
+                else:
+                    created = await client.create_file(
+                        name=final_name,
+                        mime_type=mime_type,
+                        parent_folder_id=final_parent_folder_id,
+                        content=final_content,
+                    )
             except HttpError as http_err:
                 if http_err.resp.status == 403:
                     logger.warning(

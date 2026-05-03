@@ -31,6 +31,7 @@ from app.config import (
     initialize_image_gen_router,
     initialize_llm_router,
     initialize_openrouter_integration,
+    initialize_pricing_registration,
     initialize_vision_llm_router,
 )
 from app.db import User, create_db_and_tables, get_async_session
@@ -141,6 +142,15 @@ def _http_exception_handler(request: Request, exc: HTTPException) -> JSONRespons
                 exc.status_code,
                 message,
             )
+        elif exc.status_code >= 400:
+            _error_logger.warning(
+                "[%s] %s %s - HTTPException %d: %s",
+                rid,
+                request.method,
+                request.url.path,
+                exc.status_code,
+                message,
+            )
         if should_sanitize:
             message = GENERIC_5XX_MESSAGE
             err_code = "INTERNAL_ERROR"
@@ -166,6 +176,15 @@ def _http_exception_handler(request: Request, exc: HTTPException) -> JSONRespons
         _error_logger.error(
             "[%s] %s - HTTPException %d: %s",
             rid,
+            request.url.path,
+            exc.status_code,
+            detail,
+        )
+    elif exc.status_code >= 400:
+        _error_logger.warning(
+            "[%s] %s %s - HTTPException %d: %s",
+            rid,
+            request.method,
             request.url.path,
             exc.status_code,
             detail,
@@ -414,6 +433,7 @@ async def lifespan(app: FastAPI):
     await setup_checkpointer_tables()
     initialize_openrouter_integration()
     _start_openrouter_background_refresh()
+    initialize_pricing_registration()
     initialize_llm_router()
     initialize_image_gen_router()
     initialize_vision_llm_router()

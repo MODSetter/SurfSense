@@ -1,9 +1,12 @@
 from fastapi import APIRouter
 
+from .agent_action_log_route import router as agent_action_log_router
+from .agent_flags_route import router as agent_flags_router
+from .agent_permissions_route import router as agent_permissions_router
+from .agent_revert_route import router as agent_revert_router
 from .airtable_add_connector_route import (
     router as airtable_add_connector_router,
 )
-from .autocomplete_routes import router as autocomplete_router
 from .chat_comments_routes import router as chat_comments_router
 from .circleback_webhook_route import router as circleback_webhook_router
 from .clickup_add_connector_route import router as clickup_add_connector_router
@@ -30,6 +33,7 @@ from .jira_add_connector_route import router as jira_add_connector_router
 from .linear_add_connector_route import router as linear_add_connector_router
 from .logs_routes import router as logs_router
 from .luma_add_connector_route import router as luma_add_connector_router
+from .mcp_oauth_route import router as mcp_oauth_router
 from .memory_routes import router as memory_router
 from .model_list_routes import router as model_list_router
 from .new_chat_routes import router as new_chat_router
@@ -37,6 +41,7 @@ from .new_llm_config_routes import router as new_llm_config_router
 from .notes_routes import router as notes_router
 from .notifications_routes import router as notifications_router
 from .notion_add_connector_route import router as notion_add_connector_router
+from .obsidian_plugin_routes import router as obsidian_plugin_router
 from .onedrive_add_connector_route import router as onedrive_add_connector_router
 from .podcasts_routes import router as podcasts_router
 from .prompts_routes import router as prompts_router
@@ -64,6 +69,12 @@ router.include_router(documents_router)
 router.include_router(folders_router)
 router.include_router(notes_router)
 router.include_router(new_chat_router)  # Chat with assistant-ui persistence
+router.include_router(agent_revert_router)  # POST /threads/{id}/revert/{action_id}
+router.include_router(agent_action_log_router)  # GET /threads/{id}/actions
+router.include_router(
+    agent_permissions_router
+)  # CRUD for /searchspaces/{id}/agent/permissions/rules
+router.include_router(agent_flags_router)  # GET /agent/flags
 router.include_router(sandbox_router)  # Sandbox file downloads (Daytona)
 router.include_router(chat_comments_router)
 router.include_router(podcasts_router)  # Podcast task status and audio
@@ -84,6 +95,7 @@ router.include_router(notion_add_connector_router)
 router.include_router(slack_add_connector_router)
 router.include_router(teams_add_connector_router)
 router.include_router(onedrive_add_connector_router)
+router.include_router(obsidian_plugin_router)  # Obsidian plugin push API
 router.include_router(discord_add_connector_router)
 router.include_router(jira_add_connector_router)
 router.include_router(confluence_add_connector_router)
@@ -95,6 +107,9 @@ router.include_router(logs_router)
 router.include_router(circleback_webhook_router)  # Circleback meeting webhooks
 router.include_router(surfsense_docs_router)  # Surfsense documentation for citations
 router.include_router(notifications_router)  # Notifications with Zero sync
+router.include_router(
+    mcp_oauth_router
+)  # MCP OAuth 2.1 for Linear, Jira, ClickUp, Slack, Airtable
 router.include_router(composio_router)  # Composio OAuth and toolkit management
 router.include_router(public_chat_router)  # Public chat sharing and cloning
 router.include_router(incentive_tasks_router)  # Incentive tasks for earning free pages
@@ -102,4 +117,3 @@ router.include_router(stripe_router)  # Stripe checkout for additional page pack
 router.include_router(youtube_router)  # YouTube playlist resolution
 router.include_router(prompts_router)
 router.include_router(memory_router)  # User personal memory (memory.md style)
-router.include_router(autocomplete_router)  # Lightweight autocomplete with KB context

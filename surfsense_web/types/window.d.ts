@@ -41,6 +41,48 @@ interface FolderFileEntry {
 	mtimeMs: number;
 }
 
+type AgentFilesystemMode = "cloud" | "desktop_local_folder";
+
+interface AgentFilesystemSettings {
+	mode: AgentFilesystemMode;
+	localRootPaths: string[];
+	updatedAt: string;
+}
+
+interface AgentFilesystemMount {
+	mount: string;
+	rootPath: string;
+}
+
+interface AgentFilesystemListOptions {
+	rootPath: string;
+	searchSpaceId?: number | null;
+	excludePatterns?: string[] | null;
+	fileExtensions?: string[] | null;
+}
+
+interface AgentFilesystemTreeWatchOptions {
+	searchSpaceId?: number | null;
+	rootPaths: string[];
+	excludePatterns?: string[] | null;
+	fileExtensions?: string[] | null;
+}
+
+interface AgentFilesystemTreeDirtyEvent {
+	searchSpaceId: number | null;
+	reason: "watcher_event" | "safety_poll";
+	rootPath: string;
+	changedPath: string | null;
+	timestamp: number;
+}
+
+interface LocalTextFileResult {
+	ok: boolean;
+	path: string;
+	content?: string;
+	error?: string;
+}
+
 interface ElectronAPI {
 	versions: {
 		electron: string;
@@ -51,6 +93,7 @@ interface ElectronAPI {
 	openExternal: (url: string) => void;
 	getAppVersion: () => Promise<string>;
 	onDeepLink: (callback: (url: string) => void) => () => void;
+	onChatScreenCapture: (callback: (dataUrl: string) => void) => () => void;
 	getQuickAskText: () => Promise<string>;
 	setQuickAskMode: (mode: string) => Promise<void>;
 	getQuickAskMode: () => Promise<string>;
@@ -62,20 +105,8 @@ interface ElectronAPI {
 	}>;
 	requestAccessibility: () => Promise<void>;
 	requestScreenRecording: () => Promise<void>;
+	captureFullScreen: () => Promise<string | null>;
 	restartApp: () => Promise<void>;
-	// Autocomplete
-	onAutocompleteContext: (
-		callback: (data: {
-			screenshot: string;
-			searchSpaceId?: string;
-			appName?: string;
-			windowTitle?: string;
-		}) => void
-	) => () => void;
-	acceptSuggestion: (text: string) => Promise<void>;
-	dismissSuggestion: () => Promise<void>;
-	setAutocompleteEnabled: (enabled: boolean) => Promise<void>;
-	getAutocompleteEnabled: () => Promise<boolean>;
 	// Folder sync
 	selectFolder: () => Promise<string | null>;
 	addWatchedFolder: (config: WatchedFolderConfig) => Promise<WatchedFolderConfig[]>;
@@ -94,14 +125,31 @@ interface ElectronAPI {
 	// Browse files/folders via native dialogs
 	browseFiles: () => Promise<string[] | null>;
 	readLocalFiles: (paths: string[]) => Promise<LocalFileData[]>;
+	readAgentLocalFileText: (
+		virtualPath: string,
+		searchSpaceId?: number | null
+	) => Promise<LocalTextFileResult>;
+	writeAgentLocalFileText: (
+		virtualPath: string,
+		content: string,
+		searchSpaceId?: number | null
+	) => Promise<LocalTextFileResult>;
 	// Auth token sync across windows
 	getAuthTokens: () => Promise<{ bearer: string; refresh: string } | null>;
 	setAuthTokens: (bearer: string, refresh: string) => Promise<void>;
 	// Keyboard shortcut configuration
-	getShortcuts: () => Promise<{ generalAssist: string; quickAsk: string; autocomplete: string }>;
+	getShortcuts: () => Promise<{
+		generalAssist: string;
+		quickAsk: string;
+		screenshotAssist: string;
+	}>;
 	setShortcuts: (
-		config: Partial<{ generalAssist: string; quickAsk: string; autocomplete: string }>
-	) => Promise<{ generalAssist: string; quickAsk: string; autocomplete: string }>;
+		config: Partial<{ generalAssist: string; quickAsk: string; screenshotAssist: string }>
+	) => Promise<{
+		generalAssist: string;
+		quickAsk: string;
+		screenshotAssist: string;
+	}>;
 	// Launch on system startup
 	getAutoLaunch: () => Promise<{
 		enabled: boolean;
@@ -125,6 +173,25 @@ interface ElectronAPI {
 		appVersion: string;
 		platform: string;
 	}>;
+	// Agent filesystem mode
+	getAgentFilesystemSettings: (searchSpaceId?: number | null) => Promise<AgentFilesystemSettings>;
+	getAgentFilesystemMounts: (searchSpaceId?: number | null) => Promise<AgentFilesystemMount[]>;
+	listAgentFilesystemFiles: (options: AgentFilesystemListOptions) => Promise<FolderFileEntry[]>;
+	startAgentFilesystemTreeWatch: (
+		options: AgentFilesystemTreeWatchOptions
+	) => Promise<{ ok: true }>;
+	stopAgentFilesystemTreeWatch: (searchSpaceId?: number | null) => Promise<{ ok: true }>;
+	onAgentFilesystemTreeDirty: (
+		callback: (data: AgentFilesystemTreeDirtyEvent) => void
+	) => () => void;
+	setAgentFilesystemSettings: (
+		settings: {
+			mode?: AgentFilesystemMode;
+			localRootPaths?: string[] | null;
+		},
+		searchSpaceId?: number | null
+	) => Promise<AgentFilesystemSettings>;
+	pickAgentFilesystemRoot: () => Promise<string | null>;
 }
 
 declare global {

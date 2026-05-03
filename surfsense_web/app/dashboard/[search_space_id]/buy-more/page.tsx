@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 
 const TABS = [
 	{ id: "pages", label: "Pages" },
-	{ id: "tokens", label: "Premium Tokens" },
+	{ id: "tokens", label: "Premium Credit" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];

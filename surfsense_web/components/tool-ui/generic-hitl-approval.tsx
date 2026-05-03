@@ -1,12 +1,14 @@
 "use client";
 
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
-import { CornerDownLeftIcon, Pen } from "lucide-react";
+import { CornerDownLeftIcon, Pencil } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { getToolDisplayName } from "@/contracts/enums/toolIcons";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
 import { connectorsApiService } from "@/lib/apis/connectors-api.service";
 import type { HitlDecision, InterruptResult } from "@/lib/hitl";
@@ -76,7 +78,7 @@ function GenericApprovalCard({
 	const [editedParams, setEditedParams] = useState<Record<string, unknown>>(args);
 	const [isEditing, setIsEditing] = useState(false);
 
-	const displayName = toolName.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+	const displayName = getToolDisplayName(toolName);
 
 	const mcpServer = interruptData.context?.mcp_server as string | undefined;
 	const toolDescription = interruptData.context?.tool_description as string | undefined;
@@ -116,8 +118,10 @@ function GenericApprovalCard({
 		if (phase !== "pending" || !isMCPTool) return;
 		setProcessing();
 		onDecision({ type: "approve" });
-		connectorsApiService.trustMCPTool(mcpConnectorId, toolName).catch((err) => {
-			console.error("Failed to trust MCP tool:", err);
+		connectorsApiService.trustMCPTool(mcpConnectorId, toolName).catch(() => {
+			toast.error(
+				"Failed to save 'Always Allow' preference. The tool will still require approval next time."
+			);
 		});
 	}, [phase, setProcessing, onDecision, isMCPTool, mcpConnectorId, toolName]);
 
@@ -167,7 +171,7 @@ function GenericApprovalCard({
 						className="rounded-lg text-muted-foreground -mt-1 -mr-2"
 						onClick={() => setIsEditing(true)}
 					>
-						<Pen className="size-3.5" />
+						<Pencil className="size-3.5" />
 						Edit
 					</Button>
 				)}
@@ -183,12 +187,11 @@ function GenericApprovalCard({
 				</>
 			)}
 
-			{/* Parameters */}
 			{Object.keys(args).length > 0 && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 space-y-2">
-						<p className="text-xs font-medium text-muted-foreground">Parameters</p>
+						<p className="text-xs font-medium text-muted-foreground">Inputs</p>
 						{phase === "pending" && isEditing ? (
 							<ParamEditor
 								params={editedParams}

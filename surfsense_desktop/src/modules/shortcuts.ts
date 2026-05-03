@@ -1,13 +1,13 @@
 export interface ShortcutConfig {
   generalAssist: string;
   quickAsk: string;
-  autocomplete: string;
+  screenshotAssist: string;
 }
 
 const DEFAULTS: ShortcutConfig = {
   generalAssist: 'CommandOrControl+Shift+S',
   quickAsk: 'CommandOrControl+Alt+S',
-  autocomplete: 'CommandOrControl+Shift+Space',
+  screenshotAssist: 'CommandOrControl+Shift+Space',
 };
 
 const STORE_KEY = 'shortcuts';
@@ -27,14 +27,30 @@ async function getStore() {
 
 export async function getShortcuts(): Promise<ShortcutConfig> {
   const s = await getStore();
-  const stored = s.get(STORE_KEY) as Partial<ShortcutConfig> | undefined;
-  return { ...DEFAULTS, ...stored };
+  const raw = (s.get(STORE_KEY) as Record<string, string> | undefined) ?? {};
+  const legacyAutocomplete = raw.autocomplete;
+  const { autocomplete: _drop, ...rest } = raw;
+  let merged: ShortcutConfig = { ...DEFAULTS, ...rest };
+  if (
+    typeof legacyAutocomplete === 'string' &&
+    legacyAutocomplete.length > 0 &&
+    !('screenshotAssist' in raw)
+  ) {
+    merged = { ...merged, screenshotAssist: legacyAutocomplete };
+    s.set(STORE_KEY, {
+      generalAssist: merged.generalAssist,
+      quickAsk: merged.quickAsk,
+      screenshotAssist: merged.screenshotAssist,
+    });
+  }
+  return merged;
 }
 
 export async function setShortcuts(config: Partial<ShortcutConfig>): Promise<ShortcutConfig> {
   const s = await getStore();
-  const current = (s.get(STORE_KEY) as ShortcutConfig) ?? DEFAULTS;
-  const merged = { ...current, ...config };
+  const raw = (s.get(STORE_KEY) as Record<string, string> | undefined) ?? {};
+  const { autocomplete: _drop, ...current } = raw;
+  const merged = { ...DEFAULTS, ...current, ...config };
   s.set(STORE_KEY, merged);
   return merged;
 }

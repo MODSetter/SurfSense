@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { activeTabAtom, tabsAtom } from "@/atoms/tabs/tabs.atom";
+import { ActionLogButton } from "@/components/agent-action-log/action-log-button";
 import { ChatHeader } from "@/components/new-chat/chat-header";
 import { ChatShareButton } from "@/components/new-chat/chat-share-button";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -69,6 +70,7 @@ export function Header({ mobileMenuTrigger }: HeaderProps) {
 
 			{/* Right side - Actions */}
 			<div className="ml-auto flex items-center gap-2">
+				{hasThread && <ActionLogButton threadId={currentThreadState.id} />}
 				{hasThread && (
 					<ChatShareButton thread={threadForButton} onVisibilityChange={handleVisibilityChange} />
 				)}

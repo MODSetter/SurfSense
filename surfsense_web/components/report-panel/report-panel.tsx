@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue, useSetAtom } from "jotai";
-import { ChevronDownIcon, XIcon } from "lucide-react";
+import { Check, ChevronDownIcon, Copy, Download, Pencil, XIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -116,6 +116,7 @@ export function ReportPanelContent({
 	const [exporting, setExporting] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
 	const copyTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+	const changeCountRef = useRef(0);
 
 	useEffect(() => {
 		return () => {
@@ -125,6 +126,7 @@ export function ReportPanelContent({
 
 	// Editor state — tracks the latest markdown from the Plate editor
 	const [editedMarkdown, setEditedMarkdown] = useState<string | null>(null);
+	const [isEditing, setIsEditing] = useState(false);
 
 	// Read-only when public (shareToken) OR shared (SEARCH_SPACE visibility)
 	const currentThreadState = useAtomValue(currentThreadAtom);
@@ -188,7 +190,21 @@ export function ReportPanelContent({
 	// Reset edited markdown when switching versions or reports
 	useEffect(() => {
 		setEditedMarkdown(null);
+		setIsEditing(false);
+		changeCountRef.current = 0;
 	}, [activeReportId]);
+
+	const handleReportMarkdownChange = useCallback(
+		(nextMarkdown: string) => {
+			if (!isEditing) return;
+			changeCountRef.current += 1;
+			// Plate may emit an initial normalize/serialize change on mount.
+			if (changeCountRef.current <= 1) return;
+			const savedMarkdown = reportContent?.content ?? "";
+			setEditedMarkdown(nextMarkdown === savedMarkdown ? null : nextMarkdown);
+		},
+		[isEditing, reportContent?.content]
+	);
 
 	// Copy markdown content (uses latest editor content)
 	const handleCopy = useCallback(async () => {
@@ -257,7 +273,7 @@ export function ReportPanelContent({
 
 	// Save edited report content
 	const handleSave = useCallback(async () => {
-		if (!currentMarkdown || !activeReportId) return;
+		if (!currentMarkdown || !activeReportId) return false;
 		setSaving(true);
 		try {
 			const response = await authenticatedFetch(
@@ -278,9 +294,11 @@ export function ReportPanelContent({
 			setReportContent((prev) => (prev ? { ...prev, content: currentMarkdown } : prev));
 			setEditedMarkdown(null);
 			toast.success("Report saved successfully");
+			return true;
 		} catch (err) {
 			console.error("Error saving report:", err);
 			toast.error(err instanceof Error ? err.message : "Failed to save report");
+			return false;
 		} finally {
 			setSaving(false);
 		}
@@ -288,100 +306,190 @@ export function ReportPanelContent({
 
 	const activeVersionIndex = versions.findIndex((v) => v.id === activeReportId);
 	const isPublic = !!shareToken;
-	const btnBg = isPublic ? "bg-main-panel" : "bg-sidebar";
+	const isResume = reportContent?.content_type === "typst";
+	const showReportEditingTier = !isResume;
+	const hasUnsavedChanges = editedMarkdown !== null;
+	const showDesktopHeader = !!onClose;
+
+	const handleCancelEditing = useCallback(() => {
+		setEditedMarkdown(null);
+		changeCountRef.current = 0;
+		setIsEditing(false);
+	}, []);
+
+	const exportButton = !isEditing && (
+		<>
+			{isResume ? (
+				<Button
+					variant="ghost"
+					size="icon"
+					className="size-6"
+					onClick={() => handleExport("pdf")}
+					disabled={isLoading || !reportContent?.content || exporting !== null}
+				>
+					{exporting === "pdf" ? <Spinner size="xs" /> : <Download className="size-3.5" />}
+					<span className="sr-only">Download report</span>
+				</Button>
+			) : (
+				<DropdownMenu modal={insideDrawer ? false : undefined}>
+					<DropdownMenuTrigger asChild>
+						<Button
+							variant="ghost"
+							size="icon"
+							className="size-6"
+							disabled={isLoading || !reportContent?.content}
+						>
+							<Download className="size-3.5" />
+							<span className="sr-only">Export report</span>
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent
+						align="end"
+						className={`min-w-[200px] select-none${insideDrawer ? " z-[100]" : ""}`}
+					>
+						<ExportDropdownItems
+							onExport={handleExport}
+							exporting={exporting}
+							showAllFormats={!shareToken}
+						/>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			)}
+		</>
+	);
+
+	const versionSwitcher = !isEditing && versions.length > 1 && (
+		<DropdownMenu modal={insideDrawer ? false : undefined}>
+			<DropdownMenuTrigger asChild>
+				<Button variant="ghost" size="sm" className="h-6 gap-1 px-1.5 text-xs">
+					v{activeVersionIndex + 1}
+					<ChevronDownIcon className="size-3" />
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent
+				align="end"
+				className={`min-w-[120px] select-none${insideDrawer ? " z-[100]" : ""}`}
+			>
+				{versions.map((v, i) => (
+					<DropdownMenuItem
+						key={v.id}
+						onClick={() => setActiveReportId(v.id)}
+						className={v.id === activeReportId ? "bg-accent font-medium" : ""}
+					>
+						Version {i + 1}
+					</DropdownMenuItem>
+				))}
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+
+	const copyButton = !isEditing && showReportEditingTier && (
+		<Button
+			variant="ghost"
+			size="icon"
+			className="size-6"
+			onClick={() => {
+				void handleCopy();
+			}}
+			disabled={isLoading || !reportContent?.content}
+		>
+			{copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+			<span className="sr-only">{copied ? "Copied report content" : "Copy report content"}</span>
+		</Button>
+	);
+
+	const editingActions =
+		showReportEditingTier &&
+		!isReadOnly &&
+		(isEditing ? (
+			<>
+				<Button
+					variant="ghost"
+					size="sm"
+					className="h-6 px-2 text-xs"
+					onClick={handleCancelEditing}
+					disabled={saving}
+				>
+					Cancel
+				</Button>
+				<Button
+					variant="secondary"
+					size="sm"
+					className="relative h-6 w-[56px] px-0 text-xs"
+					onClick={async () => {
+						const saveSucceeded = await handleSave();
+						if (saveSucceeded) setIsEditing(false);
+					}}
+					disabled={saving || !hasUnsavedChanges}
+				>
+					<span className={saving ? "opacity-0" : ""}>Save</span>
+					{saving && <Spinner size="xs" className="absolute" />}
+				</Button>
+			</>
+		) : (
+			<Button
+				variant="ghost"
+				size="icon"
+				className="size-6"
+				onClick={() => {
+					setEditedMarkdown(null);
+					changeCountRef.current = 0;
+					setIsEditing(true);
+				}}
+			>
+				<Pencil className="size-3.5" />
+				<span className="sr-only">Edit report</span>
+			</Button>
+		));
 
 	return (
 		<>
-			{/* Action bar — always visible; buttons are disabled while loading */}
-			<div className="flex h-14 items-center justify-between px-4 shrink-0">
-				<div className="flex items-center gap-2">
-					{/* Copy button — hidden for Typst (resume) */}
-					{reportContent?.content_type !== "typst" && (
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={handleCopy}
-							disabled={isLoading || !reportContent?.content}
-							className={`h-8 min-w-[80px] px-3.5 py-4 text-[15px] ${btnBg} select-none`}
-						>
-							{copied ? "Copied" : "Copy"}
-						</Button>
-					)}
+			{showDesktopHeader ? (
+				<>
+					{/* Header — matches the editor panel "File" header pattern */}
+					<div className="flex h-14 items-center justify-between px-4 shrink-0">
+						<h2 className="text-lg font-medium text-muted-foreground select-none">
+							{isResume ? "Resume" : "Report"}
+						</h2>
+						{onClose && (
+							<Button variant="ghost" size="icon" onClick={onClose} className="size-7 shrink-0">
+								<XIcon className="size-4" />
+								<span className="sr-only">Close report panel</span>
+							</Button>
+						)}
+					</div>
 
-					{/* Export — plain button for resume (typst), dropdown for others */}
-					{reportContent?.content_type === "typst" ? (
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => handleExport("pdf")}
-							disabled={isLoading || !reportContent?.content || exporting !== null}
-							className={`h-8 min-w-[100px] px-3.5 py-4 text-[15px] ${btnBg} select-none`}
-						>
-							{exporting === "pdf" ? <Spinner size="xs" /> : "Download"}
-						</Button>
-					) : (
-						<DropdownMenu modal={insideDrawer ? false : undefined}>
-							<DropdownMenuTrigger asChild>
-								<Button
-									variant="outline"
-									size="sm"
-									disabled={isLoading || !reportContent?.content}
-									className={`h-8 px-3.5 py-4 text-[15px] gap-1.5 ${btnBg} select-none`}
-								>
-									Export
-									<ChevronDownIcon className="size-3" />
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent
-								align="start"
-								className={`min-w-[200px] select-none${insideDrawer ? " z-[100]" : ""}`}
-							>
-								<ExportDropdownItems
-									onExport={handleExport}
-									exporting={exporting}
-									showAllFormats={!shareToken}
-								/>
-							</DropdownMenuContent>
-						</DropdownMenu>
+					{!isResume && (
+						<div className="flex h-10 items-center justify-between gap-2 border-t border-b px-4 shrink-0">
+							<div className="min-w-0 flex-1">
+								<p className="truncate text-sm text-muted-foreground">
+									{reportContent?.title || title}
+								</p>
+							</div>
+							<div className="flex items-center gap-1 shrink-0">
+								{versionSwitcher}
+								{exportButton}
+								{copyButton}
+								{editingActions}
+							</div>
+						</div>
 					)}
-
-					{/* Version switcher — only shown when multiple versions exist */}
-					{versions.length > 1 && (
-						<DropdownMenu modal={insideDrawer ? false : undefined}>
-							<DropdownMenuTrigger asChild>
-								<Button
-									variant="outline"
-									size="sm"
-									className={`h-8 px-3.5 py-4 text-[15px] gap-1.5 ${btnBg} select-none`}
-								>
-									v{activeVersionIndex + 1}
-									<ChevronDownIcon className="size-3" />
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent
-								align="start"
-								className={`min-w-[120px] select-none${insideDrawer ? " z-[100]" : ""}`}
-							>
-								{versions.map((v, i) => (
-									<DropdownMenuItem
-										key={v.id}
-										onClick={() => setActiveReportId(v.id)}
-										className={v.id === activeReportId ? "bg-accent font-medium" : ""}
-									>
-										Version {i + 1}
-									</DropdownMenuItem>
-								))}
-							</DropdownMenuContent>
-						</DropdownMenu>
-					)}
-				</div>
-				{onClose && (
-					<Button variant="ghost" size="icon" onClick={onClose} className="size-7 shrink-0">
-						<XIcon className="size-4" />
-						<span className="sr-only">Close report panel</span>
-					</Button>
-				)}
-			</div>
+				</>
+			) : (
+				!isResume && (
+					<div className="flex h-14 items-center justify-between border-b px-4 shrink-0">
+						<div className="flex-1 min-w-0">
+							<h2 className="text-sm font-semibold truncate">{reportContent?.title || title}</h2>
+						</div>
+						<div className="flex items-center gap-1 shrink-0">
+							{versionSwitcher}
+							{exportButton}
+							{copyButton}
+							{editingActions}
+						</div>
+					</div>
+				)
+			)}
 
 			{/* Report content — skeleton/error/viewer/editor shown only in this area */}
 			<div className="flex-1 overflow-hidden">
@@ -398,24 +506,34 @@ export function ReportPanelContent({
 					<PdfViewer
 						pdfUrl={`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}${shareToken ? `/api/v1/public/${shareToken}/reports/${activeReportId}/preview` : `/api/v1/reports/${activeReportId}/preview`}`}
 						isPublic={isPublic}
+						toolbarActions={
+							<>
+								{versionSwitcher}
+								{exportButton}
+							</>
+						}
 					/>
 				) : reportContent.content ? (
 					isReadOnly ? (
 						<div className="h-full overflow-y-auto px-5 py-4">
-							<MarkdownViewer content={reportContent.content} />
+							<MarkdownViewer content={reportContent.content} enableCitations />
 						</div>
 					) : (
 						<PlateEditor
+							key={`report-${activeReportId}-${isEditing ? "editing" : "viewing"}`}
 							preset="full"
 							markdown={reportContent.content}
-							onMarkdownChange={setEditedMarkdown}
-							readOnly={false}
+							onMarkdownChange={handleReportMarkdownChange}
+							readOnly={!isEditing}
 							placeholder="Report content..."
 							editorVariant="default"
-							onSave={handleSave}
-							hasUnsavedChanges={editedMarkdown !== null}
-							isSaving={saving}
+							allowModeToggle={false}
+							reserveToolbarSpace
+							defaultEditing={isEditing}
 							className="[&_[role=toolbar]]:!bg-sidebar"
+							// Show citation badges in view mode; raw `[citation:N]`
+							// text in edit mode so users can edit/delete tokens.
+							enableCitations={!isEditing}
 						/>
 					)
 				) : (

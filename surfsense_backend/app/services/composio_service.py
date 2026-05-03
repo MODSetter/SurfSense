@@ -26,7 +26,7 @@ COMPOSIO_TOOLKIT_NAMES = {
 }
 
 # Toolkits that support indexing (Phase 1: Google services only)
-INDEXABLE_TOOLKITS = {"googledrive", "gmail", "googlecalendar"}
+INDEXABLE_TOOLKITS = {"googledrive"}
 
 # Mapping of toolkit IDs to connector types
 TOOLKIT_TO_CONNECTOR_TYPE = {
@@ -408,12 +408,37 @@ class ComposioService:
             files = []
             next_token = None
             if isinstance(data, dict):
+                inner_data = data.get("data", data)
+                response_data = (
+                    inner_data.get("response_data", {})
+                    if isinstance(inner_data, dict)
+                    else {}
+                )
                 # Try direct access first, then nested
-                files = data.get("files", []) or data.get("data", {}).get("files", [])
+                files = (
+                    data.get("files", [])
+                    or (
+                        inner_data.get("files", [])
+                        if isinstance(inner_data, dict)
+                        else []
+                    )
+                    or response_data.get("files", [])
+                )
                 next_token = (
                     data.get("nextPageToken")
                     or data.get("next_page_token")
-                    or data.get("data", {}).get("nextPageToken")
+                    or (
+                        inner_data.get("nextPageToken")
+                        if isinstance(inner_data, dict)
+                        else None
+                    )
+                    or (
+                        inner_data.get("next_page_token")
+                        if isinstance(inner_data, dict)
+                        else None
+                    )
+                    or response_data.get("nextPageToken")
+                    or response_data.get("next_page_token")
                 )
             elif isinstance(data, list):
                 files = data
@@ -819,24 +844,61 @@ class ComposioService:
             next_token = None
             result_size_estimate = None
             if isinstance(data, dict):
+                inner_data = data.get("data", data)
+                response_data = (
+                    inner_data.get("response_data", {})
+                    if isinstance(inner_data, dict)
+                    else {}
+                )
                 messages = (
                     data.get("messages", [])
-                    or data.get("data", {}).get("messages", [])
+                    or (
+                        inner_data.get("messages", [])
+                        if isinstance(inner_data, dict)
+                        else []
+                    )
+                    or response_data.get("messages", [])
                     or data.get("emails", [])
+                    or (
+                        inner_data.get("emails", [])
+                        if isinstance(inner_data, dict)
+                        else []
+                    )
+                    or response_data.get("emails", [])
                 )
                 # Check for pagination token in various possible locations
                 next_token = (
                     data.get("nextPageToken")
                     or data.get("next_page_token")
-                    or data.get("data", {}).get("nextPageToken")
-                    or data.get("data", {}).get("next_page_token")
+                    or (
+                        inner_data.get("nextPageToken")
+                        if isinstance(inner_data, dict)
+                        else None
+                    )
+                    or (
+                        inner_data.get("next_page_token")
+                        if isinstance(inner_data, dict)
+                        else None
+                    )
+                    or response_data.get("nextPageToken")
+                    or response_data.get("next_page_token")
                 )
                 # Extract resultSizeEstimate if available (Gmail API provides this)
                 result_size_estimate = (
                     data.get("resultSizeEstimate")
                     or data.get("result_size_estimate")
-                    or data.get("data", {}).get("resultSizeEstimate")
-                    or data.get("data", {}).get("result_size_estimate")
+                    or (
+                        inner_data.get("resultSizeEstimate")
+                        if isinstance(inner_data, dict)
+                        else None
+                    )
+                    or (
+                        inner_data.get("result_size_estimate")
+                        if isinstance(inner_data, dict)
+                        else None
+                    )
+                    or response_data.get("resultSizeEstimate")
+                    or response_data.get("result_size_estimate")
                 )
             elif isinstance(data, list):
                 messages = data
@@ -864,7 +926,7 @@ class ComposioService:
         try:
             result = await self.execute_tool(
                 connected_account_id=connected_account_id,
-                tool_name="GMAIL_GET_MESSAGE_BY_MESSAGE_ID",
+                tool_name="GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID",
                 params={"message_id": message_id},  # snake_case
                 entity_id=entity_id,
             )
@@ -872,7 +934,13 @@ class ComposioService:
             if not result.get("success"):
                 return None, result.get("error", "Unknown error")
 
-            return result.get("data"), None
+            data = result.get("data")
+            if isinstance(data, dict):
+                inner_data = data.get("data", data)
+                if isinstance(inner_data, dict):
+                    return inner_data.get("response_data", inner_data), None
+
+            return data, None
 
         except Exception as e:
             logger.error(f"Failed to get Gmail message detail: {e!s}")
@@ -928,10 +996,27 @@ class ComposioService:
             # Try different possible response structures
             events = []
             if isinstance(data, dict):
+                inner_data = data.get("data", data)
+                response_data = (
+                    inner_data.get("response_data", {})
+                    if isinstance(inner_data, dict)
+                    else {}
+                )
                 events = (
                     data.get("items", [])
-                    or data.get("data", {}).get("items", [])
+                    or (
+                        inner_data.get("items", [])
+                        if isinstance(inner_data, dict)
+                        else []
+                    )
+                    or response_data.get("items", [])
                     or data.get("events", [])
+                    or (
+                        inner_data.get("events", [])
+                        if isinstance(inner_data, dict)
+                        else []
+                    )
+                    or response_data.get("events", [])
                 )
             elif isinstance(data, list):
                 events = data

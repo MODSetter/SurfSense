@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { ArrowLeft, Plus, RefreshCw, Server } from "lucide-react";
+import { ArrowLeft, Plus, RefreshCw, Server, Trash2 } from "lucide-react";
 import { type FC, useCallback, useState } from "react";
 import { toast } from "sonner";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
@@ -13,23 +13,9 @@ import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import { formatRelativeDate } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
+import { getReauthEndpoint, LIVE_CONNECTOR_TYPES } from "../constants/connector-constants";
 import { useConnectorStatus } from "../hooks/use-connector-status";
 import { getConnectorDisplayName } from "../tabs/all-connectors-tab";
-
-const REAUTH_ENDPOINTS: Partial<Record<string, string>> = {
-	[EnumConnectorName.LINEAR_CONNECTOR]: "/api/v1/auth/linear/connector/reauth",
-	[EnumConnectorName.NOTION_CONNECTOR]: "/api/v1/auth/notion/connector/reauth",
-	[EnumConnectorName.GOOGLE_DRIVE_CONNECTOR]: "/api/v1/auth/google/drive/connector/reauth",
-	[EnumConnectorName.GOOGLE_GMAIL_CONNECTOR]: "/api/v1/auth/google/gmail/connector/reauth",
-	[EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR]: "/api/v1/auth/google/calendar/connector/reauth",
-	[EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
-	[EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
-	[EnumConnectorName.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
-	[EnumConnectorName.ONEDRIVE_CONNECTOR]: "/api/v1/auth/onedrive/connector/reauth",
-	[EnumConnectorName.JIRA_CONNECTOR]: "/api/v1/auth/jira/connector/reauth",
-	[EnumConnectorName.DROPBOX_CONNECTOR]: "/api/v1/auth/dropbox/connector/reauth",
-	[EnumConnectorName.CONFLUENCE_CONNECTOR]: "/api/v1/auth/confluence/connector/reauth",
-};
 
 interface ConnectorAccountsListViewProps {
 	connectorType: string;
@@ -38,17 +24,10 @@ interface ConnectorAccountsListViewProps {
 	indexingConnectorIds: Set<number>;
 	onBack: () => void;
 	onManage: (connector: SearchSourceConnector) => void;
+	onDisconnect?: (connector: SearchSourceConnector) => Promise<void> | void;
 	onAddAccount: () => void;
 	isConnecting?: boolean;
 	addButtonText?: string;
-}
-
-/**
- * Check if a connector type is indexable
- */
-function isIndexableConnector(connectorType: string): boolean {
-	const nonIndexableTypes = ["MCP_CONNECTOR"];
-	return !nonIndexableTypes.includes(connectorType);
 }
 
 export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
@@ -58,12 +37,15 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 	indexingConnectorIds,
 	onBack,
 	onManage,
+	onDisconnect,
 	onAddAccount,
 	isConnecting = false,
 	addButtonText,
 }) => {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const [reauthingId, setReauthingId] = useState<number | null>(null);
+	const [confirmDisconnectId, setConfirmDisconnectId] = useState<number | null>(null);
+	const [disconnectingId, setDisconnectingId] = useState<number | null>(null);
 
 	// Get connector status
 	const { isConnectorEnabled, getConnectorStatusMessage } = useConnectorStatus();
@@ -71,16 +53,15 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 	const isEnabled = isConnectorEnabled(connectorType);
 	const statusMessage = getConnectorStatusMessage(connectorType);
 
-	const reauthEndpoint = REAUTH_ENDPOINTS[connectorType];
-
 	const handleReauth = useCallback(
-		async (connectorId: number) => {
-			if (!searchSpaceId || !reauthEndpoint) return;
-			setReauthingId(connectorId);
+		async (connector: SearchSourceConnector) => {
+			const endpoint = getReauthEndpoint(connector);
+			if (!searchSpaceId || !endpoint) return;
+			setReauthingId(connector.id);
 			try {
 				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
-				const url = new URL(`${backendUrl}${reauthEndpoint}`);
-				url.searchParams.set("connector_id", String(connectorId));
+				const url = new URL(`${backendUrl}${endpoint}`);
+				url.searchParams.set("connector_id", String(connector.id));
 				url.searchParams.set("space_id", String(searchSpaceId));
 				url.searchParams.set("return_url", window.location.pathname);
 				const response = await authenticatedFetch(url.toString());
@@ -102,7 +83,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 				setReauthingId(null);
 			}
 		},
-		[searchSpaceId, reauthEndpoint]
+		[searchSpaceId]
 	);
 
 	// Filter connectors to only show those of this type
@@ -149,7 +130,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 								{connectorTitle}
 							</h2>
 							<p className="text-xs sm:text-base text-muted-foreground mt-1">
-								{statusMessage || "Manage your connector settings and sync configuration"}
+								{statusMessage || "Manage your connected accounts"}
 							</p>
 						</div>
 					</div>
@@ -203,7 +184,12 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 						{typeConnectors.map((connector) => {
 							const isIndexing = indexingConnectorIds.has(connector.id);
-							const isAuthExpired = !!reauthEndpoint && connector.config?.auth_expired === true;
+							const connectorReauthEndpoint = getReauthEndpoint(connector);
+							const isAuthExpired =
+								!!connectorReauthEndpoint && connector.config?.auth_expired === true;
+							const isLive =
+								LIVE_CONNECTOR_TYPES.has(connector.connector_type) ||
+								Boolean(connector.config?.server_config);
 
 							return (
 								<div
@@ -234,21 +220,19 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 												<Spinner size="xs" />
 												Syncing
 											</p>
-										) : (
-											<p className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap truncate">
-												{isIndexableConnector(connector.connector_type)
-													? connector.last_indexed_at
-														? `Last indexed: ${formatRelativeDate(connector.last_indexed_at)}`
-														: "Never indexed"
-													: "Active"}
+										) : !isLive ? (
+											<p className="text-[10px] mt-1 whitespace-nowrap truncate text-muted-foreground">
+												{connector.last_indexed_at
+													? `Last indexed: ${formatRelativeDate(connector.last_indexed_at)}`
+													: "Never indexed"}
 											</p>
-										)}
+										) : null}
 									</div>
 									{isAuthExpired ? (
 										<Button
 											size="sm"
 											className="h-8 text-[11px] px-3 rounded-lg font-medium bg-amber-600 hover:bg-amber-700 text-white border-0 shadow-xs shrink-0"
-											onClick={() => handleReauth(connector.id)}
+											onClick={() => handleReauth(connector)}
 											disabled={reauthingId === connector.id}
 										>
 											<RefreshCw
@@ -256,6 +240,51 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 											/>
 											Re-authenticate
 										</Button>
+									) : isLive && onDisconnect ? (
+										confirmDisconnectId === connector.id ? (
+											<div className="flex items-center gap-1.5 shrink-0">
+												<Button
+													variant="destructive"
+													size="sm"
+													className="h-8 text-[11px] px-3 rounded-lg font-medium shadow-xs"
+													onClick={async () => {
+														setDisconnectingId(connector.id);
+														setConfirmDisconnectId(null);
+														try {
+															await onDisconnect(connector);
+														} finally {
+															setDisconnectingId(null);
+														}
+													}}
+													disabled={disconnectingId === connector.id}
+												>
+													{disconnectingId === connector.id ? (
+														<RefreshCw className="size-3.5 animate-spin" />
+													) : (
+														"Confirm"
+													)}
+												</Button>
+												<Button
+													variant="ghost"
+													size="sm"
+													className="h-8 text-[11px] px-2 rounded-lg"
+													onClick={() => setConfirmDisconnectId(null)}
+													disabled={disconnectingId === connector.id}
+												>
+													Cancel
+												</Button>
+											</div>
+										) : (
+											<Button
+												variant="secondary"
+												size="sm"
+												className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-red-50 hover:text-red-700 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-red-950 dark:hover:text-red-400 shrink-0"
+												onClick={() => setConfirmDisconnectId(connector.id)}
+											>
+												<Trash2 className="size-3.5" />
+												Disconnect
+											</Button>
+										)
 									) : (
 										<Button
 											variant="secondary"

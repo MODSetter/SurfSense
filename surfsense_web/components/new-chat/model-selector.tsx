@@ -8,9 +8,9 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	ChevronUp,
-	Edit3,
 	ImageIcon,
 	Layers,
+	Pencil,
 	Plus,
 	ScanEye,
 	Search,
@@ -19,6 +19,7 @@ import {
 import type React from "react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { pendingUserImageDataUrlsAtom } from "@/atoms/chat/pending-user-images.atom";
 import {
 	globalImageGenConfigsAtom,
 	imageGenConfigsAtom,
@@ -236,6 +237,93 @@ interface DisplayItem {
 	isAutoMode: boolean;
 }
 
+const TruncatedNameWithTooltip: React.FC<{
+	text: string;
+	className?: string;
+	enableTooltip: boolean;
+}> = ({ text, className, enableTooltip }) => {
+	const textRef = useRef<HTMLSpanElement>(null);
+	const openTimerRef = useRef<number | undefined>(undefined);
+	const [isTruncated, setIsTruncated] = useState(false);
+	const [open, setOpen] = useState(false);
+
+	const recalcTruncation = useCallback(() => {
+		const el = textRef.current;
+		if (!el) return;
+		setIsTruncated(el.scrollWidth > el.clientWidth + 1);
+	}, []);
+
+	useEffect(() => {
+		if (!enableTooltip) return;
+		const el = textRef.current;
+		if (!el) return;
+
+		const raf = requestAnimationFrame(recalcTruncation);
+		recalcTruncation();
+
+		const observer = new ResizeObserver(recalcTruncation);
+		observer.observe(el);
+		if (el.parentElement) observer.observe(el.parentElement);
+		window.addEventListener("resize", recalcTruncation);
+
+		return () => {
+			cancelAnimationFrame(raf);
+			observer.disconnect();
+			window.removeEventListener("resize", recalcTruncation);
+		};
+	}, [enableTooltip, recalcTruncation]);
+
+	useEffect(() => {
+		// Recompute when row text changes.
+		void text;
+		requestAnimationFrame(recalcTruncation);
+	}, [text, recalcTruncation]);
+
+	useEffect(
+		() => () => {
+			if (openTimerRef.current) window.clearTimeout(openTimerRef.current);
+		},
+		[]
+	);
+
+	if (!enableTooltip) {
+		return (
+			<span ref={textRef} className={cn("block max-w-full", className)}>
+				{text}
+			</span>
+		);
+	}
+
+	const handleOpenChange = (nextOpen: boolean) => {
+		if (openTimerRef.current) {
+			window.clearTimeout(openTimerRef.current);
+			openTimerRef.current = undefined;
+		}
+		if (!nextOpen) {
+			setOpen(false);
+			return;
+		}
+		if (!isTruncated) return;
+		openTimerRef.current = window.setTimeout(() => {
+			setOpen(true);
+			openTimerRef.current = undefined;
+		}, 220);
+	};
+
+	return (
+		<Tooltip open={open} onOpenChange={handleOpenChange}>
+			<TooltipTrigger asChild>
+				<span ref={textRef} className={cn("block max-w-full", className)}>
+					{text}
+				</span>
+			</TooltipTrigger>
+			<TooltipContent side="top" align="start">
+				{text}
+			</TooltipContent>
+		</Tooltip>
+	);
+};
+
 // ─── Component ──────────────────────────────────────────────────────
 
 interface ModelSelectorProps {
@@ -320,6 +408,30 @@ export function ModelSelector({
 		[isMobile]
 	);
 
+	const scrollProviderSidebar = useCallback(
+		(direction: "backward" | "forward") => {
+			const el = providerSidebarRef.current;
+			if (!el) return;
+			const delta = isMobile
+				? Math.max(56, Math.floor(el.clientWidth * 0.5))
+				: Math.max(44, Math.floor(el.clientHeight * 0.4));
+
+			if (isMobile) {
+				el.scrollBy({
+					left: direction === "backward" ? -delta : delta,
+					behavior: "smooth",
+				});
+				return;
+			}
+
+			el.scrollBy({
+				top: direction === "backward" ? -delta : delta,
+				behavior: "smooth",
+			});
+		},
+		[isMobile]
+	);
+
 	// Cmd/Ctrl+M shortcut (desktop only)
 	useEffect(() => {
 		if (isMobile) return;
@@ -349,6 +461,18 @@ export function ModelSelector({
 	);
 	const { data: visionUserConfigs, isLoading: visionUserLoading } =
 		useAtomValue(visionLLMConfigsAtom);
+
+	// Pending image attachments on the composer. Used to surface an
+	// amber "No image" hint on chat models the catalog reports as
+	// non-vision (`supports_image_input=false`) when the next message
+	// will carry an image. The hint is purely advisory: selection,
+	// focus, and click handling are unaffected. The backend's safety
+	// net (`is_known_text_only_chat_model`) is the actual block, and
+	// it only fires when LiteLLM *explicitly* marks a model as
+	// text-only — so a model that's secretly capable but hasn't been
+	// annotated will still flow through to the provider.
+	const pendingUserImageUrls = useAtomValue(pendingUserImageDataUrlsAtom);
+	const hasPendingImages = pendingUserImageUrls.length > 0;
 
 	const isLoading =
 		llmUserLoading ||
@@ -716,17 +840,36 @@ export function ModelSelector({
 		return (
 			<div
 				className={cn(
-					"shrink-0 border-border/50 flex",
+					"shrink-0 border-border/50 flex relative",
 					isMobile ? "flex-row items-center border-b border-border/40" : "flex-col w-10 border-r"
 				)}
 			>
-				{!isMobile && sidebarScrollPos !== "top" && (
-					<div className="flex items-center justify-center py-0.5 pointer-events-none">
-						<ChevronUp className="size-3 text-muted-foreground" />
+				{!isMobile && (
+					<div
+						className={cn(
+							"absolute top-0 left-0 right-0 z-10 h-5 flex items-center justify-center transition-all duration-200 ease-out",
+							sidebarScrollPos === "top"
+								? "opacity-0 -translate-y-1 pointer-events-none"
+								: "opacity-100 translate-y-0 pointer-events-auto"
+						)}
+					>
+						<button
+							type="button"
+							aria-label="Scroll providers up"
+							onClick={() => scrollProviderSidebar("backward")}
+							className="flex h-4 w-4 items-center justify-center rounded-sm text-muted-foreground/90 hover:text-foreground hover:bg-accent/60 transition-colors"
+						>
+							<ChevronUp className="size-3" />
+						</button>
 					</div>
 				)}
-				{isMobile && sidebarScrollPos !== "top" && (
-					<div className="flex items-center justify-center px-0.5 shrink-0 pointer-events-none">
+				{isMobile && (
+					<div
+						className={cn(
+							"absolute left-0 top-0 bottom-0 z-10 w-5 flex items-center justify-center transition-all duration-200 ease-out pointer-events-none",
+							sidebarScrollPos === "top" ? "opacity-0 -translate-x-1" : "opacity-100 translate-x-0"
+						)}
+					>
 						<ChevronLeft className="size-3 text-muted-foreground" />
 					</div>
 				)}
@@ -802,13 +945,34 @@ export function ModelSelector({
 						);
 					})}
 				</div>
-				{!isMobile && sidebarScrollPos !== "bottom" && (
-					<div className="flex items-center justify-center py-0.5 pointer-events-none">
-						<ChevronDown className="size-3 text-muted-foreground" />
+				{!isMobile && (
+					<div
+						className={cn(
+							"absolute bottom-0 left-0 right-0 z-10 h-5 flex items-center justify-center transition-all duration-200 ease-out",
+							sidebarScrollPos === "bottom"
+								? "opacity-0 translate-y-1 pointer-events-none"
+								: "opacity-100 translate-y-0 pointer-events-auto"
+						)}
+					>
+						<button
+							type="button"
+							aria-label="Scroll providers down"
+							onClick={() => scrollProviderSidebar("forward")}
+							className="flex h-4 w-4 items-center justify-center rounded-sm text-muted-foreground/90 hover:text-foreground hover:bg-accent/60 transition-colors"
+						>
+							<ChevronDown className="size-3" />
+						</button>
 					</div>
 				)}
-				{isMobile && sidebarScrollPos !== "bottom" && (
-					<div className="flex items-center justify-center px-0.5 shrink-0 pointer-events-none">
+				{isMobile && (
+					<div
+						className={cn(
+							"absolute right-0 top-0 bottom-0 z-10 w-5 flex items-center justify-center transition-all duration-200 ease-out pointer-events-none",
+							sidebarScrollPos === "bottom"
+								? "opacity-0 translate-x-1"
+								: "opacity-100 translate-x-0"
+						)}
+					>
 						<ChevronRight className="size-3 text-muted-foreground" />
 					</div>
 				)}
@@ -833,6 +997,21 @@ export function ModelSelector({
 		const isSelected = getSelectedId() === config.id;
 		const isFocused = focusedIndex === index;
 		const hasCitations = "citations_enabled" in config && !!config.citations_enabled;
+		// Chat-tab only: surface an amber "No image" hint when the
+		// composer carries images and the catalog reports the model as
+		// non-vision. This is purely advisory — selection is *not*
+		// blocked. The backend's narrow safety net
+		// (`is_known_text_only_chat_model`) is the source of truth for
+		// rejecting image turns, and it only fires when LiteLLM
+		// explicitly marks the model as text-only. A model surfaced as
+		// `supports_image_input=false` here may still be capable in
+		// practice (unknown / unmapped LiteLLM entry), so we let the
+		// user pick it and the provider response decide.
+		const isImageIncompatibleChatModel =
+			activeTab === "llm" &&
+			hasPendingImages &&
+			"supports_image_input" in config &&
+			(config as Record<string, unknown>).supports_image_input === false;
 
 		return (
 			<div
@@ -841,6 +1020,11 @@ export function ModelSelector({
 				role="option"
 				tabIndex={isMobile ? -1 : 0}
 				aria-selected={isSelected}
+				title={
+					isImageIncompatibleChatModel
+						? "This model is reported as text-only. You can still pick it; the provider may reject image turns."
+						: undefined
+				}
 				onClick={() => handleSelectItem(item)}
 				onKeyDown={
 					isMobile
@@ -854,9 +1038,8 @@ export function ModelSelector({
 				}
 				onMouseEnter={() => setFocusedIndex(index)}
 				className={cn(
-					"group flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer",
-					"transition-all duration-150 mx-2",
-					"hover:bg-accent/40",
+					"group flex items-center gap-2.5 px-3 py-2 rounded-xl",
+					"transition-all duration-150 mx-2 cursor-pointer hover:bg-accent/40",
 					isSelected && "bg-primary/6 dark:bg-primary/8",
 					isFocused && "bg-accent/50"
 				)}
@@ -872,7 +1055,11 @@ export function ModelSelector({
 				{/* Model info */}
 				<div className="flex-1 min-w-0">
 					<div className="flex items-center gap-1.5">
-						<span className="font-medium text-sm truncate">{config.name}</span>
+						<TruncatedNameWithTooltip
+							text={config.name}
+							enableTooltip={!isMobile}
+							className="font-medium text-sm truncate"
+						/>
 						{isAutoMode && (
 							<Badge
 								variant="secondary"
@@ -898,6 +1085,14 @@ export function ModelSelector({
 								Free
 							</Badge>
 						) : null}
+						{isImageIncompatibleChatModel && (
+							<Badge
+								variant="secondary"
+								className="text-[9px] px-1 py-0 h-3.5 bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 border-0"
+							>
+								No image
+							</Badge>
+						)}
 					</div>
 					<div className="flex items-center gap-1.5 mt-0.5">
 						<span className="text-xs text-muted-foreground truncate">
@@ -923,7 +1118,7 @@ export function ModelSelector({
 							className="size-7 rounded-md hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
 							onClick={(e) => handleEditItem(e, item)}
 						>
-							<Edit3 className="size-3.5 text-muted-foreground" />
+							<Pencil className="size-3.5 text-muted-foreground" />
 						</Button>
 					)}
 					{isSelected && <Check className="size-4 text-primary shrink-0" />}

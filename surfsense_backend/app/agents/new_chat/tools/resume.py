@@ -13,11 +13,13 @@ Uses the same short-lived session pattern as generate_report so no DB
 connection is held during the long LLM call.
 """
 
+import io
 import logging
 import re
 from datetime import UTC, datetime
 from typing import Any
 
+import pypdf
 import typst
 from langchain_core.callbacks import dispatch_custom_event
 from langchain_core.messages import HumanMessage
@@ -114,7 +116,7 @@ _TEMPLATES: dict[str, dict[str, str]] = {
   entries-highlights-nested-bullet: text(13pt, [\\u{2022}], baseline: -0.6pt),
   entries-highlights-space-left: 0cm,
   entries-highlights-space-above: 0.08cm,
-  entries-highlights-space-between-items: 0.08cm,
+  entries-highlights-space-between-items: 0.02cm,
   entries-highlights-space-between-bullet-and-text: 0.3em,
   date: datetime(
     year: {year},
@@ -166,8 +168,8 @@ Available components (use ONLY these):
 #summary([Short paragraph summary])     // Optional summary inside an entry
 #content-area([Free-form content])       // Freeform text block
 
-For skills sections, use bold labels directly:
-#strong[Category:] item1, item2, item3
+For skills sections, use one bullet per category label:
+- #strong[Category:] item1, item2, item3
 
 For simple list sections (e.g. Honors), use plain bullet points:
 - Item one
@@ -184,15 +186,19 @@ RULES:
 - Every section MUST use == heading.
 - Use #regular-entry() for experience, projects, publications, certifications, and similar entries.
 - Use #education-entry() for education.
-- Use #strong[Label:] for skills categories.
+- For skills sections, use one bullet line per category with a bold label.
 - Keep content professional, concise, and achievement-oriented.
 - Use action verbs for bullet points (Led, Built, Designed, Reduced, etc.).
 - This template works for ALL professions — adapt sections to the user's field.
+- Default behavior should prioritize concise one-page content.
 """,
     },
 }
 
 DEFAULT_TEMPLATE = "classic"
+MIN_RESUME_PAGES = 1
+MAX_RESUME_PAGES = 5
+MAX_COMPRESSION_ATTEMPTS = 2
 
 
 # ─── Template Helpers ─────────────────────────────────────────────────────────
@@ -315,6 +321,8 @@ You are an expert resume writer. Generate professional resume content as Typst m
 **User Information:**
 {user_info}
 
+**Target Maximum Pages:** {max_pages}
+
 {user_instructions_section}
 
 Generate the resume content now (starting with = Full Name):
@@ -325,6 +333,8 @@ You are an expert resume editor. Modify the existing resume according to the ins
 Apply ONLY the requested changes — do NOT rewrite sections that are not affected.
 
 {llm_reference}
+
+**Target Maximum Pages:** {max_pages}
 
 **Modification Instructions:** {user_instructions}
 
@@ -352,6 +362,28 @@ The resume content you generated failed to compile. Fix the error while preservi
 (starting with = Full Name), NOT the #import or #show rule:**
 """
 
+_COMPRESS_TO_PAGE_LIMIT_PROMPT = """\
+The resume compiles, but it exceeds the maximum allowed page count.
+Compress the resume while preserving high-impact accomplishments and role relevance.
+
+{llm_reference}
+
+**Target Maximum Pages:** {max_pages}
+**Current Page Count:** {actual_pages}
+**Compression Attempt:** {attempt_number}
+
+Compression priorities (in this order):
+1) Keep recent, high-impact, role-relevant bullets.
+2) Remove low-impact or redundant bullets.
+3) Shorten verbose wording while preserving meaning.
+4) Trim older or less relevant details before recent ones.
+
+Return the complete updated Typst content (starting with = Full Name), and keep it at or below the target pages.
+
+**EXISTING RESUME CONTENT:**
+{previous_content}
+"""
+
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -371,6 +403,24 @@ def _strip_typst_fences(text: str) -> str:
 def _compile_typst(source: str) -> bytes:
     """Compile Typst source to PDF bytes. Raises on failure."""
     return typst.compile(source.encode("utf-8"))
+
+
+def _count_pdf_pages(pdf_bytes: bytes) -> int:
+    """Count the number of pages in compiled PDF bytes."""
+    with io.BytesIO(pdf_bytes) as pdf_stream:
+        reader = pypdf.PdfReader(pdf_stream)
+        return len(reader.pages)
+
+
+def _validate_max_pages(max_pages: int) -> int:
+    """Validate and normalize max_pages input."""
+    if MIN_RESUME_PAGES <= max_pages <= MAX_RESUME_PAGES:
+        return max_pages
+    msg = (
+        f"max_pages must be between {MIN_RESUME_PAGES} and "
+        f"{MAX_RESUME_PAGES}. Received: {max_pages}"
+    )
+    raise ValueError(msg)
 
 
 # ─── Tool Factory ───────────────────────────────────────────────────────────
@@ -394,6 +444,7 @@ def create_generate_resume_tool(
         user_info: str,
         user_instructions: str | None = None,
         parent_report_id: int | None = None,
+        max_pages: int = 1,
     ) -> dict[str, Any]:
         """
         Generate a professional resume as a Typst document.
@@ -426,6 +477,8 @@ def create_generate_resume_tool(
                 "use a modern style"). For revisions, describe what to change.
             parent_report_id: ID of a previous resume to revise (creates
                 new version in the same version group).
+            max_pages: Maximum number of pages for the generated resume.
+                Defaults to 1. Allowed range: 1-5.
 
         Returns:
             Dict with status, report_id, title, and content_type.
@@ -469,6 +522,19 @@ def create_generate_resume_tool(
                 return None
 
         try:
+            try:
+                validated_max_pages = _validate_max_pages(max_pages)
+            except ValueError as e:
+                error_msg = str(e)
+                report_id = await _save_failed_report(error_msg)
+                return {
+                    "status": "failed",
+                    "error": error_msg,
+                    "report_id": report_id,
+                    "title": "Resume",
+                    "content_type": "typst",
+                }
+
             # ── Phase 1: READ ─────────────────────────────────────────────
             async with shielded_async_session() as read_session:
                 if parent_report_id:
@@ -512,6 +578,7 @@ def create_generate_resume_tool(
                 parent_body = _strip_header(parent_content)
                 prompt = _REVISION_PROMPT.format(
                     llm_reference=llm_reference,
+                    max_pages=validated_max_pages,
                     user_instructions=user_instructions
                     or "Improve and refine the resume.",
                     previous_content=parent_body,
@@ -524,6 +591,7 @@ def create_generate_resume_tool(
                 prompt = _RESUME_PROMPT.format(
                     llm_reference=llm_reference,
                     user_info=user_info,
+                    max_pages=validated_max_pages,
                     user_instructions_section=user_instructions_section,
                 )
 
@@ -551,49 +619,116 @@ def create_generate_resume_tool(
             )
 
             name = _extract_name(body) or "Resume"
-            header = _build_header(template, name)
-            typst_source = header + body
+            typst_source = ""
+            actual_pages = 0
+            compression_attempts = 0
+            target_page_met = False
 
-            compile_error: str | None = None
-            for attempt in range(2):
-                try:
-                    _compile_typst(typst_source)
-                    compile_error = None
-                    break
-                except Exception as e:
-                    compile_error = str(e)
-                    logger.warning(
-                        f"[generate_resume] Compile attempt {attempt + 1} failed: {compile_error}"
+            for compression_round in range(MAX_COMPRESSION_ATTEMPTS + 1):
+                header = _build_header(template, name)
+                typst_source = header + body
+                compile_error: str | None = None
+                pdf_bytes: bytes | None = None
+
+                for compile_attempt in range(2):
+                    try:
+                        pdf_bytes = _compile_typst(typst_source)
+                        compile_error = None
+                        break
+                    except Exception as e:
+                        compile_error = str(e)
+                        logger.warning(
+                            "[generate_resume] Compile attempt %s failed: %s",
+                            compile_attempt + 1,
+                            compile_error,
+                        )
+
+                        if compile_attempt == 0:
+                            dispatch_custom_event(
+                                "report_progress",
+                                {
+                                    "phase": "fixing",
+                                    "message": "Fixing compilation issue...",
+                                },
+                            )
+                            fix_prompt = _FIX_COMPILE_PROMPT.format(
+                                llm_reference=llm_reference,
+                                error=compile_error,
+                                full_source=typst_source,
+                            )
+                            fix_response = await llm.ainvoke(
+                                [HumanMessage(content=fix_prompt)]
+                            )
+                            if fix_response.content and isinstance(
+                                fix_response.content, str
+                            ):
+                                body = _strip_typst_fences(fix_response.content)
+                                body = _strip_imports(body)
+                                name = _extract_name(body) or name
+                                header = _build_header(template, name)
+                                typst_source = header + body
+
+                if compile_error or not pdf_bytes:
+                    error_msg = (
+                        "Typst compilation failed after 2 attempts: "
+                        f"{compile_error or 'Unknown compile error'}"
                     )
+                    report_id = await _save_failed_report(error_msg)
+                    return {
+                        "status": "failed",
+                        "error": error_msg,
+                        "report_id": report_id,
+                        "title": "Resume",
+                        "content_type": "typst",
+                    }
 
-                    if attempt == 0:
-                        dispatch_custom_event(
-                            "report_progress",
-                            {
-                                "phase": "fixing",
-                                "message": "Fixing compilation issue...",
-                            },
-                        )
-                        fix_prompt = _FIX_COMPILE_PROMPT.format(
-                            llm_reference=llm_reference,
-                            error=compile_error,
-                            full_source=typst_source,
-                        )
-                        fix_response = await llm.ainvoke(
-                            [HumanMessage(content=fix_prompt)]
-                        )
-                        if fix_response.content and isinstance(
-                            fix_response.content, str
-                        ):
-                            body = _strip_typst_fences(fix_response.content)
-                            body = _strip_imports(body)
-                            name = _extract_name(body) or name
-                            header = _build_header(template, name)
-                            typst_source = header + body
+                actual_pages = _count_pdf_pages(pdf_bytes)
+                if actual_pages <= validated_max_pages:
+                    target_page_met = True
+                    break
 
-            if compile_error:
+                if compression_round >= MAX_COMPRESSION_ATTEMPTS:
+                    break
+
+                compression_attempts += 1
+                dispatch_custom_event(
+                    "report_progress",
+                    {
+                        "phase": "compressing",
+                        "message": f"Condensing resume to {validated_max_pages} page(s)...",
+                    },
+                )
+                compress_prompt = _COMPRESS_TO_PAGE_LIMIT_PROMPT.format(
+                    llm_reference=llm_reference,
+                    max_pages=validated_max_pages,
+                    actual_pages=actual_pages,
+                    attempt_number=compression_attempts,
+                    previous_content=body,
+                )
+                compress_response = await llm.ainvoke(
+                    [HumanMessage(content=compress_prompt)]
+                )
+                if not compress_response.content or not isinstance(
+                    compress_response.content, str
+                ):
+                    error_msg = "LLM returned empty content while compressing resume"
+                    report_id = await _save_failed_report(error_msg)
+                    return {
+                        "status": "failed",
+                        "error": error_msg,
+                        "report_id": report_id,
+                        "title": "Resume",
+                        "content_type": "typst",
+                    }
+
+                body = _strip_typst_fences(compress_response.content)
+                body = _strip_imports(body)
+                name = _extract_name(body) or name
+
+            if actual_pages > MAX_RESUME_PAGES:
                 error_msg = (
-                    f"Typst compilation failed after 2 attempts: {compile_error}"
+                    "Resume exceeds hard page limit after compression retries. "
+                    f"Hard limit: <= {MAX_RESUME_PAGES} page(s), actual: {actual_pages}."
                 )
                 report_id = await _save_failed_report(error_msg)
                 return {
@@ -616,6 +751,11 @@ def create_generate_resume_tool(
                 "status": "ready",
                 "word_count": len(typst_source.split()),
                 "char_count": len(typst_source),
+                "target_max_pages": validated_max_pages,
+                "actual_page_count": actual_pages,
+                "page_limit_enforced": True,
+                "compression_attempts": compression_attempts,
+                "target_page_met": target_page_met,
             }
 
             async with shielded_async_session() as write_session:
@@ -647,7 +787,14 @@ def create_generate_resume_tool(
                 "title": resume_title,
                 "content_type": "typst",
                 "is_revision": bool(parent_content),
-                "message": f"Resume generated successfully: {resume_title}",
+                "message": (
+                    f"Resume generated successfully: {resume_title}"
+                    if target_page_met
+                    else (
+                        f"Resume generated, but could not fit the target of <= {validated_max_pages} "
+                        f"page(s). Final length: {actual_pages} page(s)."
+                    )
+                ),
             }
 
         except Exception as e:

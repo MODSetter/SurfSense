@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { pendingUserImageDataUrlsAtom } from "@/atoms/chat/pending-user-images.atom";
 import { myAccessAtom } from "@/atoms/members/members-query.atoms";
 import { updateLLMPreferencesMutationAtom } from "@/atoms/new-llm-config/new-llm-config-mutation.atoms";
 import {
@@ -33,6 +34,7 @@ export function DashboardClientLayout({
 	const pathname = usePathname();
 	const { search_space_id } = useParams();
 	const setActiveSearchSpaceIdState = useSetAtom(activeSearchSpaceIdAtom);
+	const setPendingUserImageUrls = useSetAtom(pendingUserImageDataUrlsAtom);
 
 	const {
 		data: preferences = {},
@@ -141,6 +143,14 @@ export function DashboardClientLayout({
 	]);
 
 	const electronAPI = useElectronAPI();
+
+	useEffect(() => {
+		if (!electronAPI?.onChatScreenCapture) return;
+		return electronAPI.onChatScreenCapture((dataUrl: string) => {
+			if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/")) return;
+			setPendingUserImageUrls((prev) => [...prev, dataUrl]);
+		});
+	}, [electronAPI, setPendingUserImageUrls]);
 
 	useEffect(() => {
 		const activeSeacrhSpaceId =

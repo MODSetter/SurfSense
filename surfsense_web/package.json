@@ -1,6 +1,6 @@
 {
 	"name": "surfsense_web",
-	"version": "0.0.19",
+	"version": "0.0.20",
 	"private": true,
 	"description": "SurfSense Frontend",
 	"scripts": {
@@ -28,6 +28,7 @@
 		"@babel/standalone": "^7.29.2",
 		"@hookform/resolvers": "^5.2.2",
 		"@marsidev/react-turnstile": "^1.5.0",
+		"@monaco-editor/react": "^4.7.0",
 		"@number-flow/react": "^0.5.10",
 		"@platejs/autoformat": "^52.0.11",
 		"@platejs/basic-nodes": "^52.0.11",
@@ -106,6 +107,7 @@
 		"lenis": "^1.3.17",
 		"lowlight": "^3.3.0",
 		"lucide-react": "^0.577.0",
+		"monaco-editor": "^0.55.1",
 		"motion": "^12.23.22",
 		"next": "^16.1.0",
 		"next-intl": "^4.6.1",

@@ -2,10 +2,12 @@ import { app, ipcMain, shell } from 'electron';
 import { IPC_CHANNELS } from './channels';
 import {
   getPermissionsStatus,
+  hasScreenRecordingPermission,
   requestAccessibility,
   requestScreenRecording,
   restartApp,
 } from '../modules/permissions';
+import { pickOpenWindowCapture } from '../modules/screen-capture';
 import {
   selectFolder,
   addWatchedFolder,
@@ -27,8 +29,7 @@ import { getShortcuts, setShortcuts, type ShortcutConfig } from '../modules/shor
 import { getAutoLaunchState, setAutoLaunch } from '../modules/auto-launch';
 import { getActiveSearchSpaceId, setActiveSearchSpaceId } from '../modules/active-search-space';
 import { reregisterQuickAsk } from '../modules/quick-ask';
-import { reregisterAutocomplete } from '../modules/autocomplete';
-import { reregisterGeneralAssist } from '../modules/tray';
+import { reregisterGeneralAssist, reregisterScreenshotAssist } from '../modules/tray';
 import {
   getDistinctId,
   getMachineId,
@@ -36,6 +37,20 @@ import {
   resetUser as analyticsReset,
   trackEvent,
 } from '../modules/analytics';
+import {
+  listAgentFilesystemFiles,
+  readAgentLocalFileText,
+  writeAgentLocalFileText,
+  getAgentFilesystemMounts,
+  getAgentFilesystemSettings,
+  pickAgentFilesystemRoot,
+  setAgentFilesystemSettings,
+} from '../modules/agent-filesystem';
+import {
+  startAgentFilesystemTreeWatch,
+  stopAgentFilesystemTreeWatch,
+  type AgentFilesystemTreeWatchOptions,
+} from '../modules/agent-filesystem-tree-watcher';
 
 let authTokens: { bearer: string; refresh: string } | null = null;
 
@@ -69,6 +84,15 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.RESTART_APP, () => {
     restartApp();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CAPTURE_FULL_SCREEN, async () => {
+    if (!hasScreenRecordingPermission()) {
+      requestScreenRecording();
+      return null;
+    }
+    const picked = await pickOpenWindowCapture();
+    return picked?.dataUrl ?? null;
   });
 
   // Folder sync handlers
@@ -118,6 +142,32 @@ export function registerIpcHandlers(): void {
     readLocalFiles(paths)
   );
 
+  ipcMain.handle(
+    IPC_CHANNELS.READ_AGENT_LOCAL_FILE_TEXT,
+    async (_event, virtualPath: string, searchSpaceId?: number | null) => {
+    try {
+      const result = await readAgentLocalFileText(virtualPath, searchSpaceId);
+      return { ok: true, path: result.path, content: result.content };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to read local file';
+      return { ok: false, path: virtualPath, error: message };
+    }
+    }
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.WRITE_AGENT_LOCAL_FILE_TEXT,
+    async (_event, virtualPath: string, content: string, searchSpaceId?: number | null) => {
+      try {
+        const result = await writeAgentLocalFileText(virtualPath, content, searchSpaceId);
+        return { ok: true, path: result.path };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to write local file';
+        return { ok: false, path: virtualPath, error: message };
+      }
+    }
+  );
+
   ipcMain.handle(IPC_CHANNELS.SET_AUTH_TOKENS, (_event, tokens: { bearer: string; refresh: string }) => {
     authTokens = tokens;
   });
@@ -152,8 +202,8 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.SET_SHORTCUTS, async (_event, config: Partial<ShortcutConfig>) => {
     const updated = await setShortcuts(config);
     if (config.generalAssist) await reregisterGeneralAssist();
+    if (config.screenshotAssist) await reregisterScreenshotAssist();
     if (config.quickAsk) await reregisterQuickAsk();
-    if (config.autocomplete) await reregisterAutocomplete();
     trackEvent('desktop_shortcut_updated', {
       keys: Object.keys(config),
     });
@@ -191,4 +241,53 @@ export function registerIpcHandlers(): void {
       platform: process.platform,
     };
   });
+
+  ipcMain.handle(IPC_CHANNELS.AGENT_FILESYSTEM_GET_SETTINGS, (_event, searchSpaceId?: number | null) =>
+    getAgentFilesystemSettings(searchSpaceId)
+  );
+
+  ipcMain.handle(IPC_CHANNELS.AGENT_FILESYSTEM_GET_MOUNTS, (_event, searchSpaceId?: number | null) =>
+    getAgentFilesystemMounts(searchSpaceId)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.AGENT_FILESYSTEM_LIST_FILES,
+    (
+      _event,
+      options: {
+        rootPath: string;
+        searchSpaceId?: number | null;
+        excludePatterns?: string[] | null;
+        fileExtensions?: string[] | null;
+      }
+    ) =>
+      listAgentFilesystemFiles(options)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.AGENT_FILESYSTEM_SET_SETTINGS,
+    (
+      _event,
+      payload: {
+        searchSpaceId?: number | null;
+        settings: { mode?: 'cloud' | 'desktop_local_folder'; localRootPaths?: string[] | null };
+      }
+    ) => setAgentFilesystemSettings(payload?.searchSpaceId, payload?.settings ?? {})
+  );
+
+  ipcMain.handle(IPC_CHANNELS.AGENT_FILESYSTEM_PICK_ROOT, () =>
+    pickAgentFilesystemRoot()
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.AGENT_FILESYSTEM_TREE_WATCH_START,
+    (_event, options: AgentFilesystemTreeWatchOptions) =>
+      startAgentFilesystemTreeWatch(options)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.AGENT_FILESYSTEM_TREE_WATCH_STOP,
+    (_event, searchSpaceId?: number | null) =>
+      stopAgentFilesystemTreeWatch(searchSpaceId)
+  );
 }

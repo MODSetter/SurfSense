@@ -7,7 +7,7 @@ from sqlalchemy.future import select
 
 from app.celery_app import celery_app
 from app.db import Notification, SearchSourceConnector, SearchSourceConnectorType
-from app.tasks.celery_tasks import get_celery_session_maker
+from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
 from app.utils.indexing_locks import is_connector_indexing_locked
 
 logger = logging.getLogger(__name__)
@@ -20,15 +20,7 @@ def check_periodic_schedules_task():
     This task runs every minute and triggers indexing for any connector
     whose next_scheduled_at time has passed.
     """
-    import asyncio
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    try:
-        loop.run_until_complete(_check_and_trigger_schedules())
-    finally:
-        loop.close()
+    return run_async_celery_task(_check_and_trigger_schedules)
 
 
 async def _check_and_trigger_schedules():
@@ -51,50 +43,51 @@ async def _check_and_trigger_schedules():
 
             logger.info(f"Found {len(due_connectors)} connectors due for indexing")
 
-            # Import all indexing tasks
+            # Import indexing tasks for KB connectors only.
+            # Live connectors (Linear, Slack, Jira, ClickUp, Airtable, Discord,
+            # Teams, Gmail, Calendar, Luma) use real-time tools instead.
             from app.tasks.celery_tasks.connector_tasks import (
-                index_airtable_records_task,
-                index_clickup_tasks_task,
                 index_confluence_pages_task,
                 index_crawled_urls_task,
-                index_discord_messages_task,
                 index_elasticsearch_documents_task,
                 index_github_repos_task,
-                index_google_calendar_events_task,
                 index_google_drive_files_task,
-                index_google_gmail_messages_task,
-                index_jira_issues_task,
-                index_linear_issues_task,
-                index_luma_events_task,
                 index_notion_pages_task,
-                index_slack_messages_task,
             )
 
-            # Map connector types to their tasks
             task_map = {
-                SearchSourceConnectorType.SLACK_CONNECTOR: index_slack_messages_task,
                 SearchSourceConnectorType.NOTION_CONNECTOR: index_notion_pages_task,
                 SearchSourceConnectorType.GITHUB_CONNECTOR: index_github_repos_task,
-                SearchSourceConnectorType.LINEAR_CONNECTOR: index_linear_issues_task,
-                SearchSourceConnectorType.JIRA_CONNECTOR: index_jira_issues_task,
                 SearchSourceConnectorType.CONFLUENCE_CONNECTOR: index_confluence_pages_task,
-                SearchSourceConnectorType.CLICKUP_CONNECTOR: index_clickup_tasks_task,
-                SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR: index_google_calendar_events_task,
-                SearchSourceConnectorType.AIRTABLE_CONNECTOR: index_airtable_records_task,
-                SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR: index_google_gmail_messages_task,
-                SearchSourceConnectorType.DISCORD_CONNECTOR: index_discord_messages_task,
-                SearchSourceConnectorType.LUMA_CONNECTOR: index_luma_events_task,
                 SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR: index_elasticsearch_documents_task,
                 SearchSourceConnectorType.WEBCRAWLER_CONNECTOR: index_crawled_urls_task,
                 SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR: index_google_drive_files_task,
-                # Composio connector types (unified with native Google tasks)
                 SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR: index_google_drive_files_task,
-                SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR: index_google_gmail_messages_task,
-                SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR: index_google_calendar_events_task,
             }
+
+            from app.services.mcp_oauth.registry import LIVE_CONNECTOR_TYPES
+
+            # Disable obsolete periodic indexing for live connectors in one batch.
+            live_disabled = []
+            for connector in due_connectors:
+                if connector.connector_type in LIVE_CONNECTOR_TYPES:
+                    connector.periodic_indexing_enabled = False
+                    connector.next_scheduled_at = None
+                    live_disabled.append(connector)
+            if live_disabled:
+                await session.commit()
+                for c in live_disabled:
+                    logger.info(
+                        "Disabled obsolete periodic indexing for live connector %s (%s)",
+                        c.id,
+                        c.connector_type.value,
+                    )
 
             # Trigger indexing for each due connector
             for connector in due_connectors:
+                if connector in live_disabled:
+                    continue
+
                 # Primary guard: Redis lock indicates a task is currently running.
                 if is_connector_indexing_locked(connector.id):
                     logger.info(

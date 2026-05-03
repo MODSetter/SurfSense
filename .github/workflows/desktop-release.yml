@@ -136,6 +136,19 @@ jobs:
           AZURE_CODESIGN_ENDPOINT: ${{ vars.AZURE_CODESIGN_ENDPOINT }}
           AZURE_CODESIGN_ACCOUNT: ${{ vars.AZURE_CODESIGN_ACCOUNT }}
           AZURE_CODESIGN_PROFILE: ${{ vars.AZURE_CODESIGN_PROFILE }}
+          # macOS Developer ID signing + notarization. Only the macos-latest runner
+          # consumes these; Windows/Linux runners ignore them. CSC_LINK accepts either
+          # a file path or a base64-encoded .p12 blob — electron-builder auto-detects.
+          CSC_LINK: ${{ secrets.MAC_CERT_P12_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # TEMP DEBUG — remove once the codesign hang on macos-latest is diagnosed.
+          # Surfaces the exact codesign / notarize commands electron-builder spawns,
+          # so we can see which subprocess hangs.
+          DEBUG: electron-builder,electron-osx-sign*,@electron/notarize*
+          ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: "true"
           # Service principal credentials for Azure.Identity EnvironmentCredential used by the
           # TrustedSigning PowerShell module. Only populated when signing is enabled.
           # electron-builder 26 does not yet support OIDC federated tokens for Azure signing,

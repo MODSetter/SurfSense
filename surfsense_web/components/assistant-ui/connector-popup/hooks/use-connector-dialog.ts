@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
@@ -10,17 +10,11 @@ import {
 	updateConnectorMutationAtom,
 } from "@/atoms/connectors/connector-mutation.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
-import {
-	folderWatchDialogOpenAtom,
-	folderWatchInitialFolderAtom,
-} from "@/atoms/folder-sync/folder-sync.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { searchSourceConnector } from "@/contracts/types/connector.types";
-import { usePlatform } from "@/hooks/use-platform";
 import { authenticatedFetch } from "@/lib/auth-utils";
-import { isSelfHosted } from "@/lib/env-config";
 import {
 	trackConnectorConnected,
 	trackConnectorDeleted,
@@ -38,6 +32,7 @@ import {
 	AUTO_INDEX_CONNECTOR_TYPES,
 	AUTO_INDEX_DEFAULTS,
 	COMPOSIO_CONNECTORS,
+	LIVE_CONNECTOR_TYPES,
 	OAUTH_CONNECTORS,
 	OTHER_CONNECTORS,
 } from "../constants/connector-constants";
@@ -70,10 +65,6 @@ export const useConnectorDialog = () => {
 	const { mutateAsync: updateConnector } = useAtomValue(updateConnectorMutationAtom);
 	const { mutateAsync: deleteConnector } = useAtomValue(deleteConnectorMutationAtom);
 	const { mutateAsync: createConnector } = useAtomValue(createConnectorMutationAtom);
-	const setFolderWatchOpen = useSetAtom(folderWatchDialogOpenAtom);
-	const setFolderWatchInitialFolder = useSetAtom(folderWatchInitialFolderAtom);
-	const { isDesktop } = usePlatform();
-	const selfHosted = isSelfHosted();
 
 	// Use global atom for dialog open state so it can be controlled from anywhere
 	const [isOpen, setIsOpen] = useAtom(connectorDialogOpenAtom);
@@ -317,7 +308,12 @@ export const useConnectorDialog = () => {
 							newConnector.id
 						);
 
-						if (
+						const isLiveConnector = LIVE_CONNECTOR_TYPES.has(oauthConnector.connectorType);
+
+						if (isLiveConnector) {
+							toast.success(`${oauthConnector.title} connected successfully!`);
+							await refetchAllConnectors();
+						} else if (
 							newConnector.is_indexable &&
 							AUTO_INDEX_CONNECTOR_TYPES.has(oauthConnector.connectorType)
 						) {
@@ -326,6 +322,9 @@ export const useConnectorDialog = () => {
 								oauthConnector.title,
 								oauthConnector.connectorType
 							);
+						} else if (!newConnector.is_indexable) {
+							toast.success(`${oauthConnector.title} connected successfully!`);
+							await refetchAllConnectors();
 						} else {
 							toast.dismiss("auto-index");
 							const config = validateIndexingConfigState({
@@ -430,6 +429,7 @@ export const useConnectorDialog = () => {
 					indexing_frequency_minutes: null,
 					next_scheduled_at: null,
 					enable_summary: false,
+					enable_vision_llm: false,
 				},
 				queryParams: {
 					search_space_id: searchSpaceId,
@@ -478,31 +478,16 @@ export const useConnectorDialog = () => {
 		}
 	}, [searchSpaceId, createConnector, refetchAllConnectors, setIsOpen]);
 
-	// Handle connecting non-OAuth connectors (like Tavily API)
+	// Handle connecting non-OAuth connectors (like Tavily API, Obsidian plugin, etc.)
 	const handleConnectNonOAuth = useCallback(
 		(connectorType: string) => {
 			if (!searchSpaceId) return;
 
 			trackConnectorSetupStarted(Number(searchSpaceId), connectorType, "non_oauth_click");
 
-			// Handle Obsidian specifically on Desktop & Cloud
-			if (connectorType === EnumConnectorName.OBSIDIAN_CONNECTOR && !selfHosted && isDesktop) {
-				setIsOpen(false);
-				setFolderWatchInitialFolder(null);
-				setFolderWatchOpen(true);
-				return;
-			}
-
 			setConnectingConnectorType(connectorType);
 		},
-		[
-			searchSpaceId,
-			selfHosted,
-			isDesktop,
-			setIsOpen,
-			setFolderWatchOpen,
-			setFolderWatchInitialFolder,
-		]
+		[searchSpaceId]
 	);
 
 	// Handle submitting connect form
@@ -546,6 +531,7 @@ export const useConnectorDialog = () => {
 						is_active: true,
 						next_scheduled_at: connectorData.next_scheduled_at as string | null,
 						enable_summary: false,
+						enable_vision_llm: false,
 					},
 					queryParams: {
 						search_space_id: searchSpaceId,
@@ -1302,6 +1288,25 @@ export const useConnectorDialog = () => {
 		[editingConnector, searchSpaceId, deleteConnector, cameFromMCPList, setIsOpen]
 	);
 
+	const handleDisconnectFromList = useCallback(
+		async (connector: SearchSourceConnector, refreshConnectors: () => void) => {
+			if (!searchSpaceId) return;
+			try {
+				await deleteConnector({ id: connector.id });
+				trackConnectorDeleted(Number(searchSpaceId), connector.connector_type, connector.id);
+				toast.success(`${connector.name} disconnected successfully`);
+				refreshConnectors();
+				queryClient.invalidateQueries({
+					queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+				});
+			} catch (error) {
+				console.error("Error disconnecting connector:", error);
+				toast.error("Failed to disconnect connector");
+			}
+		},
+		[searchSpaceId, deleteConnector]
+	);
+
 	// Handle quick index (index with selected date range, or backend defaults if none selected)
 	const handleQuickIndexConnector = useCallback(
 		async (
@@ -1475,6 +1480,7 @@ export const useConnectorDialog = () => {
 		handleStartEdit,
 		handleSaveConnector,
 		handleDisconnectConnector,
+		handleDisconnectFromList,
 		handleBackFromEdit,
 		handleBackFromConnect,
 		handleBackFromYouTube,

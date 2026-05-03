@@ -39,7 +39,7 @@ BASE_NAME_FOR_TYPE = {
 def get_base_name_for_type(connector_type: SearchSourceConnectorType) -> str:
     """Get a friendly display name for a connector type."""
     return BASE_NAME_FOR_TYPE.get(
-        connector_type, connector_type.replace("_", " ").title()
+        connector_type, connector_type.value.replace("_", " ").title()
     )
 
 
@@ -231,9 +231,14 @@ async def generate_unique_connector_name(
     base = get_base_name_for_type(connector_type)
 
     if identifier:
-        return f"{base} - {identifier}"
+        name = f"{base} - {identifier}"
+        return await ensure_unique_connector_name(
+            session,
+            name,
+            search_space_id,
+            user_id,
+        )
 
-    # Fallback: use counter for uniqueness
     count = await count_connectors_of_type(
         session, connector_type, search_space_id, user_id
     )

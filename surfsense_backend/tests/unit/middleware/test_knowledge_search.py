@@ -5,10 +5,10 @@ import json
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
+from app.agents.new_chat.document_xml import build_document_xml as _build_document_xml
 from app.agents.new_chat.middleware.knowledge_search import (
     KBSearchPlan,
     KnowledgeBaseSearchMiddleware,
-    _build_document_xml,
     _normalize_optional_date_range,
     _parse_kb_search_plan_response,
     _render_recent_conversation,
@@ -248,16 +248,9 @@ class TestKnowledgeBaseSearchMiddlewarePlanner:
             captured.update(kwargs)
             return []
 
-        async def fake_build_scoped_filesystem(**kwargs):
-            return {}, {}
-
         monkeypatch.setattr(
             "app.agents.new_chat.middleware.knowledge_search.search_knowledge_base",
             fake_search_knowledge_base,
-        )
-        monkeypatch.setattr(
-            "app.agents.new_chat.middleware.knowledge_search.build_scoped_filesystem",
-            fake_build_scoped_filesystem,
         )
 
         llm = FakeLLM(
@@ -298,16 +291,9 @@ class TestKnowledgeBaseSearchMiddlewarePlanner:
             captured.update(kwargs)
             return []
 
-        async def fake_build_scoped_filesystem(**kwargs):
-            return {}, {}
-
         monkeypatch.setattr(
             "app.agents.new_chat.middleware.knowledge_search.search_knowledge_base",
             fake_search_knowledge_base,
-        )
-        monkeypatch.setattr(
-            "app.agents.new_chat.middleware.knowledge_search.build_scoped_filesystem",
-            fake_build_scoped_filesystem,
         )
 
         middleware = KnowledgeBaseSearchMiddleware(
@@ -334,16 +320,9 @@ class TestKnowledgeBaseSearchMiddlewarePlanner:
             captured.update(kwargs)
             return []
 
-        async def fake_build_scoped_filesystem(**kwargs):
-            return {}, {}
-
         monkeypatch.setattr(
             "app.agents.new_chat.middleware.knowledge_search.search_knowledge_base",
             fake_search_knowledge_base,
-        )
-        monkeypatch.setattr(
-            "app.agents.new_chat.middleware.knowledge_search.build_scoped_filesystem",
-            fake_build_scoped_filesystem,
         )
 
         middleware = KnowledgeBaseSearchMiddleware(
@@ -386,9 +365,6 @@ class TestKnowledgeBaseSearchMiddlewarePlanner:
             search_called = True
             return []
 
-        async def fake_build_scoped_filesystem(**kwargs):
-            return {}, {}
-
         monkeypatch.setattr(
             "app.agents.new_chat.middleware.knowledge_search.browse_recent_documents",
             fake_browse_recent_documents,
@@ -396,10 +372,6 @@ class TestKnowledgeBaseSearchMiddlewarePlanner:
         monkeypatch.setattr(
             "app.agents.new_chat.middleware.knowledge_search.search_knowledge_base",
             fake_search_knowledge_base,
-        )
-        monkeypatch.setattr(
-            "app.agents.new_chat.middleware.knowledge_search.build_scoped_filesystem",
-            fake_build_scoped_filesystem,
         )
 
         llm = FakeLLM(
@@ -440,9 +412,6 @@ class TestKnowledgeBaseSearchMiddlewarePlanner:
             search_captured.update(kwargs)
             return []
 
-        async def fake_build_scoped_filesystem(**kwargs):
-            return {}, {}
-
         monkeypatch.setattr(
             "app.agents.new_chat.middleware.knowledge_search.browse_recent_documents",
             fake_browse_recent_documents,
@@ -450,10 +419,6 @@ class TestKnowledgeBaseSearchMiddlewarePlanner:
         monkeypatch.setattr(
             "app.agents.new_chat.middleware.knowledge_search.search_knowledge_base",
             fake_search_knowledge_base,
-        )
-        monkeypatch.setattr(
-            "app.agents.new_chat.middleware.knowledge_search.build_scoped_filesystem",
-            fake_build_scoped_filesystem,
         )
 
         llm = FakeLLM(

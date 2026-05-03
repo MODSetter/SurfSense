@@ -43,12 +43,21 @@ from typing import Any
 
 from langchain_core.tools import BaseTool
 
+from app.agents.new_chat.middleware.dedup_tool_calls import (
+    wrap_dedup_key_by_arg_name,
+)
 from app.db import ChatVisibility
 
 from .confluence import (
     create_create_confluence_page_tool,
     create_delete_confluence_page_tool,
     create_update_confluence_page_tool,
+)
+from .connected_accounts import create_get_connected_accounts_tool
+from .discord import (
+    create_list_discord_channels_tool,
+    create_read_discord_messages_tool,
+    create_send_discord_message_tool,
 )
 from .dropbox import (
     create_create_dropbox_file_tool,
@@ -57,6 +66,8 @@ from .dropbox import (
 from .generate_image import create_generate_image_tool
 from .gmail import (
     create_create_gmail_draft_tool,
+    create_read_gmail_email_tool,
+    create_search_gmail_tool,
     create_send_gmail_email_tool,
     create_trash_gmail_email_tool,
     create_update_gmail_draft_tool,
@@ -64,21 +75,17 @@ from .gmail import (
 from .google_calendar import (
     create_create_calendar_event_tool,
     create_delete_calendar_event_tool,
+    create_search_calendar_events_tool,
     create_update_calendar_event_tool,
 )
 from .google_drive import (
     create_create_google_drive_file_tool,
     create_delete_google_drive_file_tool,
 )
-from .jira import (
-    create_create_jira_issue_tool,
-    create_delete_jira_issue_tool,
-    create_update_jira_issue_tool,
-)
-from .linear import (
-    create_create_linear_issue_tool,
-    create_delete_linear_issue_tool,
-    create_update_linear_issue_tool,
+from .luma import (
+    create_create_luma_event_tool,
+    create_list_luma_events_tool,
+    create_read_luma_event_tool,
 )
 from .mcp_tool import load_mcp_tools
 from .notion import (
@@ -95,9 +102,16 @@ from .report import create_generate_report_tool
 from .resume import create_generate_resume_tool
 from .scrape_webpage import create_scrape_webpage_tool
 from .search_surfsense_docs import create_search_surfsense_docs_tool
+from .teams import (
+    create_list_teams_channels_tool,
+    create_read_teams_messages_tool,
+    create_send_teams_message_tool,
+)
 from .update_memory import create_update_memory_tool, create_update_team_memory_tool
 from .video_presentation import create_generate_video_presentation_tool
 from .web_search import create_web_search_tool
+
+logger = logging.getLogger(__name__)
 
 # =============================================================================
 # Tool Definition
@@ -114,6 +128,14 @@ class ToolDefinition:
         factory: Callable that creates the tool. Receives a dict of dependencies.
         requires: List of dependency names this tool needs (e.g., "search_space_id", "db_session")
         enabled_by_default: Whether the tool is enabled when no explicit config is provided
+        required_connector: Searchable type string (e.g. ``"LINEAR_CONNECTOR"``)
+            that must be in ``available_connectors`` for the tool to be enabled.
+        dedup_key: Optional callable that maps a tool's ``args`` dict to a
+            string signature used by :class:`DedupHITLToolCallsMiddleware`
+            to drop duplicate calls within a single LLM response.
+        reverse: Optional callable that, given the tool's ``(args, result)``,
+            returns a ``ReverseDescriptor`` describing the inverse tool
+            invocation. Consumed by the snapshot/revert pipeline.
 
     """
 
@@ -123,6 +145,9 @@ class ToolDefinition:
     requires: list[str] = field(default_factory=list)
     enabled_by_default: bool = True
     hidden: bool = False
+    required_connector: str | None = None
+    dedup_key: Callable[[dict[str, Any]], str] | None = None
+    reverse: Callable[[dict[str, Any], Any], dict[str, Any]] | None = None
 
 
 # =============================================================================
@@ -221,6 +246,21 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         requires=["db_session"],
     ),
     # =========================================================================
+    # SERVICE ACCOUNT DISCOVERY
+    # Generic tool for the LLM to discover connected accounts and resolve
+    # service-specific identifiers (e.g. Jira cloudId, Slack team, etc.)
+    # =========================================================================
+    ToolDefinition(
+        name="get_connected_accounts",
+        description="Discover connected accounts for a service and their metadata",
+        factory=lambda deps: create_get_connected_accounts_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    # =========================================================================
     # MEMORY TOOL - single update_memory, private or team by thread_visibility
     # =========================================================================
     ToolDefinition(
@@ -248,40 +288,6 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ],
     ),
     # =========================================================================
-    # LINEAR TOOLS - create, update, delete issues
-    # Auto-disabled when no Linear connector is configured (see chat_deepagent.py)
-    # =========================================================================
-    ToolDefinition(
-        name="create_linear_issue",
-        description="Create a new issue in the user's Linear workspace",
-        factory=lambda deps: create_create_linear_issue_tool(
-            db_session=deps["db_session"],
-            search_space_id=deps["search_space_id"],
-            user_id=deps["user_id"],
-        ),
-        requires=["db_session", "search_space_id", "user_id"],
-    ),
-    ToolDefinition(
-        name="update_linear_issue",
-        description="Update an existing indexed Linear issue",
-        factory=lambda deps: create_update_linear_issue_tool(
-            db_session=deps["db_session"],
-            search_space_id=deps["search_space_id"],
-            user_id=deps["user_id"],
-        ),
-        requires=["db_session", "search_space_id", "user_id"],
-    ),
-    ToolDefinition(
-        name="delete_linear_issue",
-        description="Archive (delete) an existing indexed Linear issue",
-        factory=lambda deps: create_delete_linear_issue_tool(
-            db_session=deps["db_session"],
-            search_space_id=deps["search_space_id"],
-            user_id=deps["user_id"],
-        ),
-        requires=["db_session", "search_space_id", "user_id"],
-    ),
-    # =========================================================================
     # NOTION TOOLS - create, update, delete pages
     # Auto-disabled when no Notion connector is configured (see chat_deepagent.py)
     # =========================================================================
@@ -294,6 +300,8 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="NOTION_CONNECTOR",
+        dedup_key=wrap_dedup_key_by_arg_name("title"),
     ),
     ToolDefinition(
         name="update_notion_page",
@@ -304,6 +312,8 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="NOTION_CONNECTOR",
+        dedup_key=wrap_dedup_key_by_arg_name("page_title"),
     ),
     ToolDefinition(
         name="delete_notion_page",
@@ -314,6 +324,8 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="NOTION_CONNECTOR",
+        dedup_key=wrap_dedup_key_by_arg_name("page_title"),
     ),
     # =========================================================================
     # GOOGLE DRIVE TOOLS - create files, delete files
@@ -328,6 +340,8 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="GOOGLE_DRIVE_FILE",
+        dedup_key=wrap_dedup_key_by_arg_name("file_name"),
     ),
     ToolDefinition(
         name="delete_google_drive_file",
@@ -338,6 +352,8 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="GOOGLE_DRIVE_FILE",
+        dedup_key=wrap_dedup_key_by_arg_name("file_name"),
     ),
     # =========================================================================
     # DROPBOX TOOLS - create and trash files
@@ -352,6 +368,8 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="DROPBOX_FILE",
+        dedup_key=wrap_dedup_key_by_arg_name("file_name"),
     ),
     ToolDefinition(
         name="delete_dropbox_file",
@@ -362,6 +380,8 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="DROPBOX_FILE",
+        dedup_key=wrap_dedup_key_by_arg_name("file_name"),
     ),
     # =========================================================================
     # ONEDRIVE TOOLS - create and trash files
@@ -376,6 +396,8 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="ONEDRIVE_FILE",
+        dedup_key=wrap_dedup_key_by_arg_name("file_name"),
     ),
     ToolDefinition(
         name="delete_onedrive_file",
@@ -386,11 +408,24 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="ONEDRIVE_FILE",
+        dedup_key=wrap_dedup_key_by_arg_name("file_name"),
     ),
     # =========================================================================
-    # GOOGLE CALENDAR TOOLS - create, update, delete events
+    # GOOGLE CALENDAR TOOLS - search, create, update, delete events
     # Auto-disabled when no Google Calendar connector is configured
     # =========================================================================
+    ToolDefinition(
+        name="search_calendar_events",
+        description="Search Google Calendar events within a date range",
+        factory=lambda deps: create_search_calendar_events_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+        required_connector="GOOGLE_CALENDAR_CONNECTOR",
+    ),
     ToolDefinition(
         name="create_calendar_event",
         description="Create a new event on Google Calendar",
@@ -400,6 +435,8 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="GOOGLE_CALENDAR_CONNECTOR",
+        dedup_key=wrap_dedup_key_by_arg_name("title"),
     ),
     ToolDefinition(
         name="update_calendar_event",
@@ -410,6 +447,8 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="GOOGLE_CALENDAR_CONNECTOR",
+        dedup_key=wrap_dedup_key_by_arg_name("event_title_or_id"),
     ),
     ToolDefinition(
         name="delete_calendar_event",
@@ -420,11 +459,35 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="GOOGLE_CALENDAR_CONNECTOR",
+        dedup_key=wrap_dedup_key_by_arg_name("event_title_or_id"),
     ),
     # =========================================================================
-    # GMAIL TOOLS - create drafts, update drafts, send emails, trash emails
+    # GMAIL TOOLS - search, read, create drafts, update drafts, send, trash
     # Auto-disabled when no Gmail connector is configured
     # =========================================================================
+    ToolDefinition(
+        name="search_gmail",
+        description="Search emails in Gmail using Gmail search syntax",
+        factory=lambda deps: create_search_gmail_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+        required_connector="GOOGLE_GMAIL_CONNECTOR",
+    ),
+    ToolDefinition(
+        name="read_gmail_email",
+        description="Read the full content of a specific Gmail email",
+        factory=lambda deps: create_read_gmail_email_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+        required_connector="GOOGLE_GMAIL_CONNECTOR",
+    ),
     ToolDefinition(
         name="create_gmail_draft",
         description="Create a draft email in Gmail",
@@ -434,6 +497,8 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="GOOGLE_GMAIL_CONNECTOR",
+        dedup_key=wrap_dedup_key_by_arg_name("subject"),
     ),
     ToolDefinition(
         name="send_gmail_email",
@@ -444,6 +509,8 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="GOOGLE_GMAIL_CONNECTOR",
+        dedup_key=wrap_dedup_key_by_arg_name("subject"),
     ),
     ToolDefinition(
         name="trash_gmail_email",
@@ -454,6 +521,8 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="GOOGLE_GMAIL_CONNECTOR",
+        dedup_key=wrap_dedup_key_by_arg_name("email_subject_or_id"),
     ),
     ToolDefinition(
         name="update_gmail_draft",
@@ -464,40 +533,8 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
-    ),
-    # =========================================================================
-    # JIRA TOOLS - create, update, delete issues
-    # Auto-disabled when no Jira connector is configured (see chat_deepagent.py)
-    # =========================================================================
-    ToolDefinition(
-        name="create_jira_issue",
-        description="Create a new issue in the user's Jira project",
-        factory=lambda deps: create_create_jira_issue_tool(
-            db_session=deps["db_session"],
-            search_space_id=deps["search_space_id"],
-            user_id=deps["user_id"],
-        ),
-        requires=["db_session", "search_space_id", "user_id"],
-    ),
-    ToolDefinition(
-        name="update_jira_issue",
-        description="Update an existing indexed Jira issue",
-        factory=lambda deps: create_update_jira_issue_tool(
-            db_session=deps["db_session"],
-            search_space_id=deps["search_space_id"],
-            user_id=deps["user_id"],
-        ),
-        requires=["db_session", "search_space_id", "user_id"],
-    ),
-    ToolDefinition(
-        name="delete_jira_issue",
-        description="Delete an existing indexed Jira issue",
-        factory=lambda deps: create_delete_jira_issue_tool(
-            db_session=deps["db_session"],
-            search_space_id=deps["search_space_id"],
-            user_id=deps["user_id"],
-        ),
-        requires=["db_session", "search_space_id", "user_id"],
+        required_connector="GOOGLE_GMAIL_CONNECTOR",
+        dedup_key=wrap_dedup_key_by_arg_name("draft_subject_or_id"),
     ),
     # =========================================================================
     # CONFLUENCE TOOLS - create, update, delete pages
@@ -512,6 +549,8 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="CONFLUENCE_CONNECTOR",
+        dedup_key=wrap_dedup_key_by_arg_name("title"),
     ),
     ToolDefinition(
         name="update_confluence_page",
@@ -522,6 +561,8 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="CONFLUENCE_CONNECTOR",
+        dedup_key=wrap_dedup_key_by_arg_name("page_title_or_id"),
     ),
     ToolDefinition(
         name="delete_confluence_page",
@@ -532,6 +573,119 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        required_connector="CONFLUENCE_CONNECTOR",
+        dedup_key=wrap_dedup_key_by_arg_name("page_title_or_id"),
+    ),
+    # =========================================================================
+    # DISCORD TOOLS - list channels, read messages, send messages
+    # Auto-disabled when no Discord connector is configured
+    # =========================================================================
+    ToolDefinition(
+        name="list_discord_channels",
+        description="List text channels in the connected Discord server",
+        factory=lambda deps: create_list_discord_channels_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+        required_connector="DISCORD_CONNECTOR",
+    ),
+    ToolDefinition(
+        name="read_discord_messages",
+        description="Read recent messages from a Discord text channel",
+        factory=lambda deps: create_read_discord_messages_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+        required_connector="DISCORD_CONNECTOR",
+    ),
+    ToolDefinition(
+        name="send_discord_message",
+        description="Send a message to a Discord text channel",
+        factory=lambda deps: create_send_discord_message_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+        required_connector="DISCORD_CONNECTOR",
+    ),
+    # =========================================================================
+    # TEAMS TOOLS - list channels, read messages, send messages
+    # Auto-disabled when no Teams connector is configured
+    # =========================================================================
+    ToolDefinition(
+        name="list_teams_channels",
+        description="List Microsoft Teams and their channels",
+        factory=lambda deps: create_list_teams_channels_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+        required_connector="TEAMS_CONNECTOR",
+    ),
+    ToolDefinition(
+        name="read_teams_messages",
+        description="Read recent messages from a Microsoft Teams channel",
+        factory=lambda deps: create_read_teams_messages_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+        required_connector="TEAMS_CONNECTOR",
+    ),
+    ToolDefinition(
+        name="send_teams_message",
+        description="Send a message to a Microsoft Teams channel",
+        factory=lambda deps: create_send_teams_message_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+        required_connector="TEAMS_CONNECTOR",
+    ),
+    # =========================================================================
+    # LUMA TOOLS - list events, read event details, create events
+    # Auto-disabled when no Luma connector is configured
+    # =========================================================================
+    ToolDefinition(
+        name="list_luma_events",
+        description="List upcoming and recent Luma events",
+        factory=lambda deps: create_list_luma_events_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+        required_connector="LUMA_CONNECTOR",
+    ),
+    ToolDefinition(
+        name="read_luma_event",
+        description="Read detailed information about a specific Luma event",
+        factory=lambda deps: create_read_luma_event_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+        required_connector="LUMA_CONNECTOR",
+    ),
+    ToolDefinition(
+        name="create_luma_event",
+        description="Create a new event on Luma",
+        factory=lambda deps: create_create_luma_event_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+        required_connector="LUMA_CONNECTOR",
     ),
 ]
 
@@ -547,6 +701,19 @@ def get_tool_by_name(name: str) -> ToolDefinition | None:
         if tool_def.name == name:
             return tool_def
     return None
+
+
+def get_connector_gated_tools(
+    available_connectors: list[str] | None,
+) -> list[str]:
+    """Return tool names to disable"""
+    available = set() if available_connectors is None else set(available_connectors)
+
+    disabled: list[str] = []
+    for tool_def in BUILTIN_TOOLS:
+        if tool_def.required_connector and tool_def.required_connector not in available:
+            disabled.append(tool_def.name)
+    return disabled
 
 
 def get_all_tool_names() -> list[str]:
@@ -620,6 +787,24 @@ def build_tools(
 
         # Create the tool
         tool = tool_def.factory(dependencies)
+        # Propagate the registry-level metadata so middleware (e.g.
+        # ``DedupHITLToolCallsMiddleware``) and the action-log/revert
+        # pipeline can pick the resolvers up via ``tool.metadata`` without
+        # re-importing :data:`BUILTIN_TOOLS`.
+        if tool_def.dedup_key is not None or tool_def.reverse is not None:
+            existing_meta = getattr(tool, "metadata", None) or {}
+            merged_meta = dict(existing_meta)
+            if tool_def.dedup_key is not None:
+                merged_meta.setdefault("dedup_key", tool_def.dedup_key)
+            if tool_def.reverse is not None:
+                merged_meta.setdefault("reverse", tool_def.reverse)
+            try:
+                tool.metadata = merged_meta
+            except Exception:
+                logger.debug(
+                    "Tool %s rejected metadata mutation; relying on registry lookup",
+                    tool_def.name,
+                )
         tools.append(tool)
 
     # Add any additional custom tools
@@ -690,15 +875,17 @@ async def build_tools_async(
             )
             tools.extend(mcp_tools)
             logging.info(
-                f"Registered {len(mcp_tools)} MCP tools: {[t.name for t in mcp_tools]}",
+                "Registered %d MCP tools: %s",
+                len(mcp_tools),
+                [t.name for t in mcp_tools],
             )
         except Exception as e:
-            # Log error but don't fail - just continue without MCP tools
-            logging.exception(f"Failed to load MCP tools: {e!s}")
+            logging.exception("Failed to load MCP tools: %s", e)
 
-    # Log all tools being returned to agent
     logging.info(
-        f"Total tools for agent: {len(tools)} - {[t.name for t in tools]}",
+        "Total tools for agent: %d — %s",
+        len(tools),
+        [t.name for t in tools],
     )
 
     return tools

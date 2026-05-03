@@ -5,7 +5,7 @@ import { BreadcrumbNav } from "@/components/seo/breadcrumb-nav";
 export const metadata: Metadata = {
 	title: "Pricing | SurfSense - Free AI Search Plans",
 	description:
-		"Explore SurfSense plans and pricing. Start free with 500 pages & 3M premium tokens. Use ChatGPT, Claude AI, and premium AI models. Pay-as-you-go tokens at $1 per million.",
+		"Explore SurfSense plans and pricing. Start free with 500 pages & $5 in premium credits. Use ChatGPT, Claude AI, and premium AI models. Pay as you go at provider cost.",
 	alternates: {
 		canonical: "https://surfsense.com/pricing",
 	},

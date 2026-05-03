@@ -5,13 +5,12 @@ import {
 	ThreadPrimitive,
 	useAui,
 	useAuiState,
-	useThreadViewportStore,
 } from "@assistant-ui/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
 	AlertCircle,
-	ArrowDownIcon,
 	ArrowUpIcon,
+	Camera,
 	ChevronDown,
 	ChevronUp,
 	Clipboard,
@@ -36,13 +35,15 @@ import {
 	toggleToolAtom,
 } from "@/atoms/agent-tools/agent-tools.atoms";
 import { chatSessionStateAtom } from "@/atoms/chat/chat-session-state.atom";
+import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
+import { mentionedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
+import { pendingUserImageDataUrlsAtom } from "@/atoms/chat/pending-user-images.atom";
 import {
-	mentionedDocumentsAtom,
-	sidebarSelectedDocumentsAtom,
-} from "@/atoms/chat/mentioned-documents.atom";
+	clearPremiumAlertForThreadAtom,
+	premiumAlertByThreadAtom,
+} from "@/atoms/chat/premium-alert.atom";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
-import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import {
 	globalNewLLMConfigsAtom,
@@ -52,6 +53,7 @@ import {
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { AssistantMessage } from "@/components/assistant-ui/assistant-message";
 import { ChatSessionStatus } from "@/components/assistant-ui/chat-session-status";
+import { ChatViewport } from "@/components/assistant-ui/chat-viewport";
 import { ConnectorIndicator } from "@/components/assistant-ui/connector-popup";
 import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import {
@@ -82,6 +84,7 @@ import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import {
 	CONNECTOR_ICON_TO_TYPES,
 	CONNECTOR_TOOL_ICON_PATHS,
+	getToolDisplayName,
 	getToolIcon,
 } from "@/contracts/enums/toolIcons";
 import type { Document } from "@/contracts/types/document.types";
@@ -89,6 +92,8 @@ import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsSync } from "@/hooks/use-comments-sync";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
+import { captureDisplayToPngDataUrl } from "@/lib/chat/display-media-capture";
+import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/lib/layout-events";
 import { cn } from "@/lib/utils";
 
@@ -106,10 +111,13 @@ const ThreadContent: FC = () => {
 				["--thread-max-width" as string]: "44rem",
 			}}
 		>
-			<ThreadPrimitive.Viewport
-				turnAnchor="top"
-				className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 pt-4"
-				style={{ scrollbarGutter: "stable" }}
+			<ChatViewport
+				footer={
+					<AuiIf condition={({ thread }) => !thread.isEmpty}>
+						<PremiumQuotaPinnedAlert />
+						<Composer />
+					</AuiIf>
+				}
 			>
 				<AuiIf condition={({ thread }) => thread.isEmpty}>
 					<ThreadWelcome />
@@ -122,36 +130,39 @@ const ThreadContent: FC = () => {
 						AssistantMessage,
 					}}
 				/>
-
-				<AuiIf condition={({ thread }) => !thread.isEmpty}>
-					<div className="grow" />
-				</AuiIf>
-
-				<ThreadPrimitive.ViewportFooter
-					className="aui-thread-viewport-footer sticky bottom-0 z-10 mx-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-main-panel pb-4 md:pb-6"
-					style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
-				>
-					<ThreadScrollToBottom />
-					<AuiIf condition={({ thread }) => !thread.isEmpty}>
-						<Composer />
-					</AuiIf>
-				</ThreadPrimitive.ViewportFooter>
-			</ThreadPrimitive.Viewport>
+			</ChatViewport>
 		</ThreadPrimitive.Root>
 	);
 };
 
-const ThreadScrollToBottom: FC = () => {
+const PremiumQuotaPinnedAlert: FC = () => {
+	const currentThreadState = useAtomValue(currentThreadAtom);
+	const alertsByThread = useAtomValue(premiumAlertByThreadAtom);
+	const clearPremiumAlertForThread = useSetAtom(clearPremiumAlertForThreadAtom);
+
+	const currentThreadId = currentThreadState?.id;
+	if (!currentThreadId) return null;
+
+	const alert = alertsByThread[currentThreadId];
+	if (!alert) return null;
+
 	return (
-		<ThreadPrimitive.ScrollToBottom asChild>
-			<TooltipIconButton
-				tooltip="Scroll to bottom"
-				variant="outline"
-				className="aui-thread-scroll-to-bottom -top-12 absolute z-10 self-center rounded-full p-4 disabled:invisible dark:bg-main-panel dark:hover:bg-accent"
-			>
-				<ArrowDownIcon />
-			</TooltipIconButton>
-		</ThreadPrimitive.ScrollToBottom>
+		<div className="mx-0 overflow-hidden rounded-2xl border-input bg-muted px-4 py-4 text-foreground select-none">
+			<div className="flex items-center gap-2">
+				<AlertCircle className="size-4 shrink-0 text-muted-foreground" />
+				<div className="min-w-0 flex-1">
+					<p className="text-sm">{alert.message}</p>
+				</div>
+				<button
+					type="button"
+					className="inline-flex size-6 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+					aria-label="Dismiss premium quota alert"
+					onClick={() => clearPremiumAlertForThread(currentThreadId)}
+				>
+					<X className="size-4" />
+				</button>
+			</div>
+		</div>
 	);
 };
 
@@ -295,6 +306,32 @@ const ConnectToolsBanner: FC<{ isThreadEmpty: boolean }> = ({ isThreadEmpty }) =
 	);
 };
 
+const PendingScreenImageStrip: FC = () => {
+	const [urls, setUrls] = useAtom(pendingUserImageDataUrlsAtom);
+	if (urls.length === 0) return null;
+	return (
+		<div className="mx-3 mt-2 flex flex-wrap gap-2">
+			{urls.map((url, index) => (
+				<div
+					key={url}
+					className="group relative h-14 w-14 shrink-0 overflow-hidden rounded-md border border-border/50 bg-muted"
+				>
+					{/* biome-ignore lint/performance/noImgElement: data URL thumbnails from capture */}
+					<img src={url} alt="" className="size-full object-cover" draggable={false} />
+					<button
+						type="button"
+						onClick={() => setUrls((prev) => prev.filter((_, i) => i !== index))}
+						className="absolute right-0.5 top-0.5 flex size-5 items-center justify-center rounded-full bg-background/90 text-muted-foreground shadow-sm transition-opacity hover:text-foreground sm:opacity-0 sm:group-hover:opacity-100"
+						aria-label="Remove screenshot"
+					>
+						<X className="size-3" />
+					</button>
+				</div>
+			))}
+		</div>
+	);
+};
+
 const ClipboardChip: FC<{ text: string; onDismiss: () => void }> = ({ text, onDismiss }) => {
 	const [expanded, setExpanded] = useState(false);
 	const isLong = text.length > 120;
@@ -335,31 +372,19 @@ const ClipboardChip: FC<{ text: string; onDismiss: () => void }> = ({ text, onDi
 const Composer: FC = () => {
 	// Document mention state (atoms persist across component remounts)
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
-	const setSidebarDocs = useSetAtom(sidebarSelectedDocumentsAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
 	const [showPromptPicker, setShowPromptPicker] = useState(false);
 	const [mentionQuery, setMentionQuery] = useState("");
 	const [actionQuery, setActionQuery] = useState("");
 	const editorRef = useRef<InlineMentionEditorRef>(null);
+	const prevMentionedDocsRef = useRef<
+		Map<string, Pick<Document, "id" | "title" | "document_type">>
+	>(new Map());
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
 	const promptPickerRef = useRef<PromptPickerRef>(null);
-	const viewportRef = useRef<Element | null>(null);
 	const { search_space_id, chat_id } = useParams();
 	const aui = useAui();
-	const threadViewportStore = useThreadViewportStore();
 	const hasAutoFocusedRef = useRef(false);
-	const submitCleanupRef = useRef<(() => void) | null>(null);
-
-	useEffect(() => {
-		return () => {
-			submitCleanupRef.current?.();
-		};
-	}, []);
-
-	// Store viewport element reference on mount
-	useEffect(() => {
-		viewportRef.current = document.querySelector(".aui-thread-viewport");
-	}, []);
 
 	const electronAPI = useElectronAPI();
 	const [clipboardInitialText, setClipboardInitialText] = useState<string | undefined>();
@@ -558,7 +583,6 @@ const Composer: FC = () => {
 		[showDocumentPopover, showPromptPicker]
 	);
 
-	// Submit message (blocked during streaming, document picker open, or AI responding to another user)
 	const handleSubmit = useCallback(() => {
 		if (isThreadRunning || isBlockedByOtherUser) return;
 		if (showDocumentPopover || showPromptPicker) return;
@@ -570,51 +594,9 @@ const Composer: FC = () => {
 			setClipboardInitialText(undefined);
 		}
 
-		const viewportEl = viewportRef.current;
-		const heightBefore = viewportEl?.scrollHeight ?? 0;
-
 		aui.composer().send();
 		editorRef.current?.clear();
 		setMentionedDocuments([]);
-		setSidebarDocs([]);
-
-		// With turnAnchor="top", ViewportSlack adds min-height to the last
-		// assistant message so that scrolling-to-bottom actually positions the
-		// user message at the TOP of the viewport. That slack height is
-		// calculated asynchronously (ResizeObserver → style → layout).
-		// Poll via rAF for ~500ms, re-scrolling whenever scrollHeight changes.
-		const scrollToBottom = () =>
-			threadViewportStore.getState().scrollToBottom({ behavior: "instant" });
-
-		let lastHeight = heightBefore;
-		let frames = 0;
-		let cancelled = false;
-		const POLL_FRAMES = 30;
-
-		const pollAndScroll = () => {
-			if (cancelled) return;
-			const el = viewportRef.current;
-			if (el) {
-				const h = el.scrollHeight;
-				if (h !== lastHeight) {
-					lastHeight = h;
-					scrollToBottom();
-				}
-			}
-			if (++frames < POLL_FRAMES) {
-				requestAnimationFrame(pollAndScroll);
-			}
-		};
-		requestAnimationFrame(pollAndScroll);
-
-		const t1 = setTimeout(scrollToBottom, 100);
-		const t2 = setTimeout(scrollToBottom, 300);
-
-		submitCleanupRef.current = () => {
-			cancelled = true;
-			clearTimeout(t1);
-			clearTimeout(t2);
-		};
 	}, [
 		showDocumentPopover,
 		showPromptPicker,
@@ -623,42 +605,69 @@ const Composer: FC = () => {
 		clipboardInitialText,
 		aui,
 		setMentionedDocuments,
-		setSidebarDocs,
-		threadViewportStore,
 	]);
 
 	const handleDocumentRemove = useCallback(
 		(docId: number, docType?: string) => {
-			setMentionedDocuments((prev) =>
-				prev.filter((doc) => !(doc.id === docId && doc.document_type === docType))
-			);
+			setMentionedDocuments((prev) => {
+				if (!docType) {
+					// Defensive fallback: keep UI in sync even when chip type is unavailable.
+					return prev.filter((doc) => doc.id !== docId);
+				}
+				const removedKey = getMentionDocKey({ id: docId, document_type: docType });
+				return prev.filter((doc) => getMentionDocKey(doc) !== removedKey);
+			});
 		},
 		[setMentionedDocuments]
 	);
 
 	const handleDocumentsMention = useCallback(
 		(documents: Pick<Document, "id" | "title" | "document_type">[]) => {
-			const existingKeys = new Set(mentionedDocuments.map((d) => `${d.document_type}:${d.id}`));
-			const newDocs = documents.filter(
-				(doc) => !existingKeys.has(`${doc.document_type}:${doc.id}`)
-			);
+			const editorMentionedDocs = editorRef.current?.getMentionedDocuments() ?? [];
+			const editorDocKeys = new Set(editorMentionedDocs.map((doc) => getMentionDocKey(doc)));
 
-			for (const doc of newDocs) {
+			for (const doc of documents) {
+				const key = getMentionDocKey(doc);
+				if (editorDocKeys.has(key)) continue;
 				editorRef.current?.insertDocumentChip(doc);
 			}
 
 			setMentionedDocuments((prev) => {
-				const existingKeySet = new Set(prev.map((d) => `${d.document_type}:${d.id}`));
-				const uniqueNewDocs = documents.filter(
-					(doc) => !existingKeySet.has(`${doc.document_type}:${doc.id}`)
-				);
+				const existingKeySet = new Set(prev.map((d) => getMentionDocKey(d)));
+				const uniqueNewDocs = documents.filter((doc) => !existingKeySet.has(getMentionDocKey(doc)));
 				return [...prev, ...uniqueNewDocs];
 			});
 
 			setMentionQuery("");
 		},
-		[mentionedDocuments, setMentionedDocuments]
+		[setMentionedDocuments]
 	);
+
+	useEffect(() => {
+		const editor = editorRef.current;
+		const nextDocsMap = new Map(mentionedDocuments.map((doc) => [getMentionDocKey(doc), doc]));
+		const prevDocsMap = prevMentionedDocsRef.current;
+
+		if (!editor) {
+			prevMentionedDocsRef.current = nextDocsMap;
+			return;
+		}
+
+		const editorKeys = new Set(editor.getMentionedDocuments().map(getMentionDocKey));
+
+		for (const [key, doc] of nextDocsMap) {
+			if (prevDocsMap.has(key) || editorKeys.has(key)) continue;
+			editor.insertDocumentChip(doc, { removeTriggerText: false });
+		}
+
+		for (const [key, doc] of prevDocsMap) {
+			if (!nextDocsMap.has(key)) {
+				editor.removeDocumentChip(doc.id, doc.document_type);
+			}
+		}
+
+		prevMentionedDocsRef.current = nextDocsMap;
+	}, [mentionedDocuments]);
 
 	return (
 		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col gap-2">
@@ -702,6 +711,7 @@ const Composer: FC = () => {
 				</div>
 			)}
 			<div className="aui-composer-attachment-dropzone flex w-full flex-col overflow-hidden rounded-2xl border-input bg-muted pt-2 outline-none transition-shadow">
+				<PendingScreenImageStrip />
 				{clipboardInitialText && (
 					<ClipboardChip
 						text={clipboardInitialText}
@@ -737,8 +747,6 @@ interface ComposerActionProps {
 
 const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false }) => {
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
-	const sidebarDocs = useAtomValue(sidebarSelectedDocumentsAtom);
-	const setDocumentsSidebarOpen = useSetAtom(documentsSidebarOpenAtom);
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 	const [toolsPopoverOpen, setToolsPopoverOpen] = useState(false);
 	const isDesktop = useMediaQuery("(min-width: 640px)");
@@ -761,11 +769,23 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 		},
 		[]
 	);
+	const pendingScreenImages = useAtomValue(pendingUserImageDataUrlsAtom);
+	const setPendingScreenImages = useSetAtom(pendingUserImageDataUrlsAtom);
+	const electronAPI = useElectronAPI();
+
 	const isComposerTextEmpty = useAuiState(({ composer }) => {
 		const text = composer.text?.trim() || "";
 		return text.length === 0;
 	});
-	const isComposerEmpty = isComposerTextEmpty && mentionedDocuments.length === 0;
+	const isComposerEmpty =
+		isComposerTextEmpty && mentionedDocuments.length === 0 && pendingScreenImages.length === 0;
+
+	const handleScreenCapture = useCallback(async () => {
+		const url = electronAPI?.captureFullScreen
+			? await electronAPI.captureFullScreen()
+			: await captureDisplayToPngDataUrl();
+		if (url) setPendingScreenImages((prev) => [...prev, url]);
+	}, [electronAPI, setPendingScreenImages]);
 
 	const { data: userConfigs } = useAtomValue(newLLMConfigsAtom);
 	const { data: globalConfigs } = useAtomValue(globalNewLLMConfigsAtom);
@@ -1104,7 +1124,13 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 																group.tools.flatMap((t, i) =>
 																	i === 0
 																		? [t.description]
-																		: [<Dot key={i} className="inline h-4 w-4" />, t.description]
+																		: [
+																				<Dot
+																					key={`dot-${group.label}-${t.description}`}
+																					className="inline h-4 w-4"
+																				/>,
+																				t.description,
+																			]
 																)}
 														</TooltipContent>
 													</Tooltip>
@@ -1178,15 +1204,6 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 						</AnimatePresence>
 					</button>
 				)}
-				{sidebarDocs.length > 0 && (
-					<button
-						type="button"
-						onClick={() => setDocumentsSidebarOpen(true)}
-						className="rounded-full border border-border/60 bg-accent/50 px-2.5 py-1 text-xs font-medium text-foreground/80 transition-colors hover:bg-accent"
-					>
-						{sidebarDocs.length} {sidebarDocs.length === 1 ? "source" : "sources"} selected
-					</button>
-				)}
 			</div>
 			{!hasModelConfigured && (
 				<div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 text-xs">
@@ -1195,6 +1212,17 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 				</div>
 			)}
 			<div className="flex items-center gap-2">
+				<TooltipIconButton
+					tooltip="Capture screen"
+					type="button"
+					variant="ghost"
+					size="icon"
+					className="size-8 rounded-full"
+					aria-label="Capture screen"
+					onClick={() => void handleScreenCapture()}
+				>
+					<Camera className="size-4" />
+				</TooltipIconButton>
 				<AuiIf condition={({ thread }) => !thread.isRunning}>
 					<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
 						<TooltipIconButton
@@ -1204,7 +1232,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									: !hasModelConfigured
 										? "Please select a model from the header to start chatting"
 										: isComposerEmpty
-											? "Enter a message to send"
+											? "Enter a message or add a screenshot to send"
 											: "Send message"
 							}
 							side="bottom"
@@ -1241,12 +1269,14 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	);
 };
 
-/** Convert snake_case tool names to human-readable labels */
+/**
+ * Friendly tool name for display in the chat UI. Delegates to the
+ * shared map in ``contracts/enums/toolIcons`` so unix-style identifiers
+ * (``rm``, ``ls``, ``grep`` …) and snake_cased function names render as
+ * plain English (e.g. "Delete file", "List files", "Search in files").
+ */
 function formatToolName(name: string): string {
-	return name
-		.split("_")
-		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-		.join(" ");
+	return getToolDisplayName(name);
 }
 
 interface ToolGroup {

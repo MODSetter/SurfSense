@@ -1,0 +1,39 @@
+name: Obsidian Plugin Lint
+
+# Lints + type-checks + builds the Obsidian plugin on every push/PR that
+# touches its sources. The official obsidian-sample-plugin template ships
+# its own ESLint+esbuild setup; we run that here instead of folding the
+# plugin into the monorepo's Biome-based code-quality.yml so the tooling
+# stays aligned with what `obsidianmd/eslint-plugin-obsidianmd` checks
+# against.
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "surfsense_obsidian/**"
+      - ".github/workflows/obsidian-plugin-lint.yml"
+  pull_request:
+    branches: ["**"]
+    paths:
+      - "surfsense_obsidian/**"
+      - ".github/workflows/obsidian-plugin-lint.yml"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: surfsense_obsidian
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22.x
+          cache: npm
+          cache-dependency-path: surfsense_obsidian/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build

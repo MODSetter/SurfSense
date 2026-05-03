@@ -4,21 +4,25 @@ import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import {
 	Bot,
-	ChevronDown,
-	Edit2,
+	ChevronRight,
+	Earth,
 	FileText,
-	Globe,
+	Image,
 	Logs,
 	type LucideIcon,
-	MessageCircle,
+	MessageCircleReply,
 	MessageSquare,
 	Mic,
 	MoreHorizontal,
-	Plug,
+	Pencil,
+	ScanEye,
 	Settings,
 	Shield,
+	SlidersHorizontal,
 	Trash2,
+	Unplug,
 	Users,
+	Video,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -88,7 +92,7 @@ const CATEGORY_CONFIG: Record<
 	},
 	comments: {
 		label: "Comments",
-		icon: MessageCircle,
+		icon: MessageCircleReply,
 		description: "Add annotations to documents",
 		order: 3,
 	},
@@ -98,6 +102,24 @@ const CATEGORY_CONFIG: Record<
 		description: "Configure AI model settings",
 		order: 4,
 	},
+	image_generations: {
+		label: "Image Models",
+		icon: Image,
+		description: "Configure image generation model settings",
+		order: 4.1,
+	},
+	vision_configs: {
+		label: "Vision Models",
+		icon: ScanEye,
+		description: "Configure vision model settings",
+		order: 4.2,
+	},
+	video_presentations: {
+		label: "Video Presentations",
+		icon: Video,
+		description: "Generate and manage video presentations",
+		order: 4.3,
+	},
 	podcasts: {
 		label: "Podcasts",
 		icon: Mic,
@@ -105,8 +127,8 @@ const CATEGORY_CONFIG: Record<
 		order: 5,
 	},
 	connectors: {
-		label: "Integrations",
-		icon: Plug,
+		label: "Connectors",
+		icon: Unplug,
 		description: "Connect external data sources",
 		order: 6,
 	},
@@ -136,9 +158,15 @@ const CATEGORY_CONFIG: Record<
 	},
 	public_sharing: {
 		label: "Public Chat Sharing",
-		icon: Globe,
+		icon: Earth,
 		description: "Share chats publicly via links",
 		order: 11,
+	},
+	general: {
+		label: "General",
+		icon: SlidersHorizontal,
+		description: "General search space permissions",
+		order: 12,
 	},
 };
 
@@ -434,12 +462,21 @@ function RolesContent({
 
 					return (
 						<div key={role.id} className="rounded-lg border border-border/60 overflow-hidden">
-							<div className="flex items-center gap-4 p-4 transition-colors hover:bg-muted/30">
-								<button
-									type="button"
-									className="flex-1 min-w-0 text-left cursor-pointer"
-									onClick={() => setExpandedRoleId(isExpanded ? null : role.id)}
-								>
+							{/* biome-ignore lint/a11y/useSemanticElements: row contains nested interactive elements (DropdownMenu); using a <button> would produce invalid nested-button markup */}
+							<div
+								role="button"
+								tabIndex={0}
+								aria-expanded={isExpanded}
+								className="flex items-center gap-4 p-4 transition-colors hover:bg-muted/30 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+								onClick={() => setExpandedRoleId(isExpanded ? null : role.id)}
+								onKeyDown={(e) => {
+									if (e.key === "Enter" || e.key === " ") {
+										e.preventDefault();
+										setExpandedRoleId(isExpanded ? null : role.id);
+									}
+								}}
+							>
+								<div className="flex-1 min-w-0 text-left">
 									<div className="flex items-center gap-2">
 										<span className="font-medium text-sm">{role.name}</span>
 										{role.is_system_role && (
@@ -458,14 +495,14 @@ function RolesContent({
 											{role.description}
 										</p>
 									)}
-								</button>
+								</div>
 
 								<div className="shrink-0">
 									<PermissionsBadge permissions={role.permissions} />
 								</div>
 
 								{!role.is_system_role && (
-									<div className="shrink-0" role="none">
+									<div className="shrink-0" role="none" onClick={(e) => e.stopPropagation()}>
 										<DropdownMenu>
 											<DropdownMenuTrigger asChild>
 												<Button variant="ghost" size="icon" className="h-8 w-8">
@@ -475,7 +512,7 @@ function RolesContent({
 											<DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
 												{canUpdate && (
 													<DropdownMenuItem onClick={() => setEditingRoleId(role.id)}>
-														<Edit2 className="h-4 w-4 mr-2" />
+														<Pencil className="h-4 w-4 mr-2" />
 														Edit Role
 													</DropdownMenuItem>
 												)}
@@ -515,18 +552,14 @@ function RolesContent({
 									</div>
 								)}
 
-								<button
-									type="button"
-									className="shrink-0 p-1 cursor-pointer"
-									onClick={() => setExpandedRoleId(isExpanded ? null : role.id)}
-								>
-									<ChevronDown
+								<div className="shrink-0 p-1">
+									<ChevronRight
 										className={cn(
 											"h-4 w-4 text-muted-foreground transition-transform duration-200",
-											isExpanded && "rotate-180"
+											isExpanded && "rotate-90"
 										)}
 									/>
-								</button>
+								</div>
 							</div>
 
 							{isExpanded && (
@@ -659,52 +692,40 @@ function PermissionsEditor({
 
 					return (
 						<div key={category} className="rounded-lg border border-border/60 overflow-hidden">
-							<div className="flex items-center justify-between px-3 py-2.5 hover:bg-muted/40 transition-colors">
-								<button
-									type="button"
-									className="flex-1 flex items-center gap-2.5 cursor-pointer"
-									onClick={() => toggleCategoryExpanded(category)}
-								>
+							{/* biome-ignore lint/a11y/useSemanticElements: row contains a nested interactive Checkbox; using a <button> would produce invalid nested-button markup */}
+							<div
+								role="button"
+								tabIndex={0}
+								aria-expanded={isExpanded}
+								className="flex items-center justify-between px-3 py-2.5 hover:bg-muted/40 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+								onClick={() => toggleCategoryExpanded(category)}
+								onKeyDown={(e) => {
+									if (e.key === "Enter" || e.key === " ") {
+										e.preventDefault();
+										toggleCategoryExpanded(category);
+									}
+								}}
+							>
+								<div className="flex-1 flex items-center gap-2.5">
 									<IconComponent className="h-4 w-4 text-muted-foreground shrink-0" />
 									<span className="font-medium text-sm">{config.label}</span>
 									<span className="text-[11px] text-muted-foreground tabular-nums">
 										{stats.selected}/{stats.total}
 									</span>
-								</button>
+								</div>
 								<div className="flex items-center gap-2">
 									<Checkbox
 										checked={stats.allSelected}
+										onClick={(e) => e.stopPropagation()}
 										onCheckedChange={() => onToggleCategory(category)}
 										aria-label={`Select all ${config.label} permissions`}
 									/>
-									<button
-										type="button"
-										className="cursor-pointer"
-										onClick={() => toggleCategoryExpanded(category)}
-									>
-										<div
-											className={cn(
-												"transition-transform duration-200",
-												isExpanded && "rotate-180"
-											)}
-										>
-											<svg
-												className="h-4 w-4 text-muted-foreground"
-												fill="none"
-												viewBox="0 0 24 24"
-												stroke="currentColor"
-												aria-hidden="true"
-											>
-												<title>Toggle</title>
-												<path
-													strokeLinecap="round"
-													strokeLinejoin="round"
-													strokeWidth={2}
-													d="M19 9l-7 7-7-7"
-												/>
-											</svg>
-										</div>
-									</button>
+									<ChevronRight
+										className={cn(
+											"h-4 w-4 text-muted-foreground transition-transform duration-200",
+											isExpanded && "rotate-90"
+										)}
+									/>
 								</div>
 							</div>
 
@@ -726,7 +747,7 @@ function PermissionsEditor({
 												>
 													<button
 														type="button"
-														className="flex-1 min-w-0 text-left cursor-pointer"
+														className="flex-1 min-w-0 text-left cursor-pointer focus:outline-none focus-visible:outline-none"
 														onClick={() => onTogglePermission(perm.value)}
 													>
 														<span className="text-sm font-medium">{actionLabel}</span>
@@ -855,7 +876,8 @@ function CreateRoleDialog({
 										type="button"
 										onClick={() => applyPreset(key as keyof typeof ROLE_PRESETS)}
 										className={cn(
-											"p-3 rounded-lg border text-left transition-colors hover:bg-muted/40",
+											"p-3 rounded-lg border transition-colors hover:bg-muted/40",
+											"flex items-center justify-center text-center sm:block sm:text-left",
 											selectedPermissions.length > 0 &&
 												preset.permissions.every((p) => selectedPermissions.includes(p))
 												? "border-foreground/30 bg-muted/40"
@@ -863,7 +885,7 @@ function CreateRoleDialog({
 										)}
 									>
 										<span className="font-medium text-sm">{preset.name}</span>
-										<p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+										<p className="hidden sm:block text-xs text-muted-foreground mt-0.5 line-clamp-2">
 											{preset.description}
 										</p>
 									</button>

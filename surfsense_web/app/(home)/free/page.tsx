@@ -127,7 +127,7 @@ const FAQ_ITEMS = [
 	{
 		question: "What happens after I use my free tokens?",
 		answer:
-			"After your free tokens, create a free SurfSense account to unlock 3 million more premium tokens. Additional tokens can be purchased at $1 per million. Non-premium models remain unlimited for registered users.",
+			"After your free tokens, create a free SurfSense account to unlock $5 of premium credit. Additional credit can be topped up at $1 for $1 of credit, billed at the actual provider cost. Non-premium models remain unlimited for registered users.",
 	},
 	{
 		question: "Is Claude AI available without login?",
@@ -329,7 +329,7 @@ export default async function FreeHubPage() {
 				<section className="max-w-3xl mx-auto text-center">
 					<h2 className="text-2xl font-bold mb-3">Want More Features?</h2>
 					<p className="text-muted-foreground mb-6 leading-relaxed">
-						Create a free SurfSense account to unlock 3 million tokens, document uploads with
+						Create a free SurfSense account to unlock $5 of premium credit, document uploads with
 						citations, team collaboration, and integrations with Slack, Google Drive, Notion, and
 						30+ more tools.
 					</p>

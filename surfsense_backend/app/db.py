@@ -638,6 +638,12 @@ class NewChatThread(BaseModel, TimestampMixin):
         default=False,
         server_default="false",
     )
+    # Auto (Fastest) model pin for this thread: concrete resolved global LLM
+    # config id. NULL means no pin; Auto will resolve on the next turn.
+    # Single-writer invariant: only app.services.auto_model_pin_service sets
+    # or clears this column (plus bulk clears when a search space's
+    # agent_llm_id changes). Unindexed: all reads are by primary key.
+    pinned_llm_config_id = Column(Integer, nullable=True)
 
     # Relationships
     search_space = relationship("SearchSpace", back_populates="new_chat_threads")
@@ -689,6 +695,12 @@ class NewChatMessage(BaseModel, TimestampMixin):
         index=True,
     )
 
+    # Per-turn correlation id sourced from ``configurable.turn_id`` at
+    # streaming time (``f"{chat_id}:{ms}"``). Nullable because legacy rows
+    # predate the column. Used by C1's edit-from-arbitrary-position to map
+    # a message back to the LangGraph checkpoint that produced its turn.
+    turn_id = Column(String(64), nullable=True, index=True)
+
     # Relationships
     thread = relationship("NewChatThread", back_populates="messages")
     author = relationship("User")
@@ -719,6 +731,7 @@ class TokenUsage(BaseModel, TimestampMixin):
     prompt_tokens = Column(Integer, nullable=False, default=0)
     completion_tokens = Column(Integer, nullable=False, default=0)
     total_tokens = Column(Integer, nullable=False, default=0)
+    cost_micros = Column(BigInteger, nullable=False, default=0, server_default="0")
     model_breakdown = Column(JSONB, nullable=True)
     call_details = Column(JSONB, nullable=True)
 
@@ -976,7 +989,15 @@ class Document(BaseModel, TimestampMixin):
     document_metadata = Column(JSON, nullable=True)
 
     content = Column(Text, nullable=False)
-    content_hash = Column(String, nullable=False, index=True, unique=True)
+    # ``content_hash`` is intentionally NOT globally unique. In a real
+    # filesystem two files at different paths can hold identical bytes,
+    # and the agent's ``write_file`` flow needs that semantic to support
+    # copy / duplicate operations. Path uniqueness lives on
+    # ``unique_identifier_hash`` (per search space). The hash remains
+    # indexed because connector indexers consult it as a change-detection
+    # / cross-source dedup hint via :func:`check_duplicate_document`.
+    # See migration 133.
+    content_hash = Column(String, nullable=False, index=True)
     unique_identifier_hash = Column(String, nullable=True, index=True, unique=True)
     embedding = Column(Vector(config.embedding_model_instance.dimension))
 
@@ -1510,6 +1531,31 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
             "name",
             name="uq_searchspace_user_connector_type_name",
         ),
+        # Mirrors migration 129; backs the ``/obsidian/connect`` upsert.
+        Index(
+            "search_source_connectors_obsidian_plugin_vault_uniq",
+            "user_id",
+            text("(config->>'vault_id')"),
+            unique=True,
+            postgresql_where=text(
+                "connector_type = 'OBSIDIAN_CONNECTOR' "
+                "AND config->>'source' = 'plugin' "
+                "AND config->>'vault_id' IS NOT NULL"
+            ),
+        ),
+        # Cross-device dedup: same vault content from different devices
+        # cannot produce two connector rows.
+        Index(
+            "search_source_connectors_obsidian_plugin_fingerprint_uniq",
+            "user_id",
+            text("(config->>'vault_fingerprint')"),
+            unique=True,
+            postgresql_where=text(
+                "connector_type = 'OBSIDIAN_CONNECTOR' "
+                "AND config->>'source' = 'plugin' "
+                "AND config->>'vault_fingerprint' IS NOT NULL"
+            ),
+        ),
     )
 
     name = Column(String(100), nullable=False, index=True)
@@ -1748,7 +1794,15 @@ class PagePurchase(Base, TimestampMixin):
 
 
 class PremiumTokenPurchase(Base, TimestampMixin):
-    """Tracks Stripe checkout sessions used to grant additional premium token credits."""
+    """Tracks Stripe checkout sessions used to grant additional premium credit (USD micro-units).
+
+    Note: the table name is preserved (``premium_token_purchases``) for
+    operational continuity even though the unit is now USD micro-credits
+    instead of raw tokens. The ``credit_micros_granted`` column replaced
+    the legacy ``tokens_granted`` in migration 140; the stored values
+    were not transformed because the prior $1 = 1M tokens Stripe price
+    makes the unit conversion 1:1 numerically.
+    """
 
     __tablename__ = "premium_token_purchases"
     __allow_unmapped__ = True
@@ -1765,7 +1819,7 @@ class PremiumTokenPurchase(Base, TimestampMixin):
     )
     stripe_payment_intent_id = Column(String(255), nullable=True, index=True)
     quantity = Column(Integer, nullable=False)
-    tokens_granted = Column(BigInteger, nullable=False)
+    credit_micros_granted = Column(BigInteger, nullable=False)
     amount_total = Column(Integer, nullable=True)
     currency = Column(String(10), nullable=True)
     status = Column(
@@ -2064,16 +2118,16 @@ if config.AUTH_TYPE == "GOOGLE":
         )
         pages_used = Column(Integer, nullable=False, default=0, server_default="0")
 
-        premium_tokens_limit = Column(
+        premium_credit_micros_limit = Column(
             BigInteger,
             nullable=False,
-            default=config.PREMIUM_TOKEN_LIMIT,
-            server_default=str(config.PREMIUM_TOKEN_LIMIT),
+            default=config.PREMIUM_CREDIT_MICROS_LIMIT,
+            server_default=str(config.PREMIUM_CREDIT_MICROS_LIMIT),
         )
-        premium_tokens_used = Column(
+        premium_credit_micros_used = Column(
             BigInteger, nullable=False, default=0, server_default="0"
         )
-        premium_tokens_reserved = Column(
+        premium_credit_micros_reserved = Column(
             BigInteger, nullable=False, default=0, server_default="0"
         )
 
@@ -2196,16 +2250,16 @@ else:
         )
         pages_used = Column(Integer, nullable=False, default=0, server_default="0")
 
-        premium_tokens_limit = Column(
+        premium_credit_micros_limit = Column(
             BigInteger,
             nullable=False,
-            default=config.PREMIUM_TOKEN_LIMIT,
-            server_default=str(config.PREMIUM_TOKEN_LIMIT),
+            default=config.PREMIUM_CREDIT_MICROS_LIMIT,
+            server_default=str(config.PREMIUM_CREDIT_MICROS_LIMIT),
         )
-        premium_tokens_used = Column(
+        premium_credit_micros_used = Column(
             BigInteger, nullable=False, default=0, server_default="0"
         )
-        premium_tokens_reserved = Column(
+        premium_credit_micros_reserved = Column(
             BigInteger, nullable=False, default=0, server_default="0"
         )
 
@@ -2223,6 +2277,224 @@ else:
             back_populates="user",
             cascade="all, delete-orphan",
         )
+
+
+class AgentActionLog(BaseModel):
+    """Append-only audit trail of every tool call dispatched by the agent.
+
+    One row per ``ToolMessage`` produced; written by ``ActionLogMiddleware``
+    in its ``aafter_tool`` hook. Rows are referenced by the
+    ``/api/threads/{thread_id}/revert/{action_id}`` route to look up an
+    action's stored ``reverse_descriptor`` and replay it.
+
+    The table is intentionally narrow: large tool outputs are NOT stored
+    here. Result text lives in the langgraph checkpoint; this row only
+    keeps a short ``result_id`` (the LangChain ``ToolMessage.id`` or a
+    spilled-content path) for correlation.
+    """
+
+    __tablename__ = "agent_action_log"
+
+    thread_id = Column(
+        Integer,
+        ForeignKey("new_chat_threads.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    search_space_id = Column(
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # ``turn_id`` historically held the LangChain ``tool_call.id``. It has
+    # been renamed to ``tool_call_id`` (with a parallel column kept for one
+    # release for back-compat). The real chat-turn id lives in
+    # ``chat_turn_id`` and is sourced from ``configurable.turn_id``.
+    turn_id = Column(String(64), nullable=True, index=True)
+    tool_call_id = Column(String(64), nullable=True, index=True)
+    chat_turn_id = Column(String(64), nullable=True, index=True)
+    message_id = Column(String(128), nullable=True, index=True)
+    tool_name = Column(String(255), nullable=False, index=True)
+    args = Column(JSONB, nullable=True)
+    result_id = Column(String(255), nullable=True)
+    reversible = Column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    reverse_descriptor = Column(JSONB, nullable=True)
+    error = Column(JSONB, nullable=True)
+    reverse_of = Column(
+        Integer,
+        ForeignKey("agent_action_log.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    created_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        server_default=text("(now() AT TIME ZONE 'utc')"),
+        index=True,
+    )
+
+    __table_args__ = (
+        Index("ix_agent_action_log_thread_created", "thread_id", "created_at"),
+        # Partial unique index enforces "at most one revert per
+        # original action". Created in migration 137 with
+        # ``WHERE reverse_of IS NOT NULL`` so non-revert rows
+        # (the vast majority) are unaffected and NULLs don't collide.
+        Index(
+            "ux_agent_action_log_reverse_of",
+            "reverse_of",
+            unique=True,
+            postgresql_where=text("reverse_of IS NOT NULL"),
+        ),
+    )
+
+
+class DocumentRevision(BaseModel):
+    """Snapshot of a :class:`Document` row taken before a mutating tool call.
+
+    Written by :class:`KnowledgeBasePersistenceMiddleware` (or its safety-net
+    `commit_staged_filesystem_state`) ahead of any NOTE / FILE / EXTENSION
+    document write. The row is referenced by ``/revert/{action_id}`` to
+    restore the original content in place.
+    """
+
+    __tablename__ = "document_revisions"
+
+    # ``ON DELETE SET NULL`` (not CASCADE) so the snapshot survives the
+    # hard-delete it describes — without that, ``rm`` would wipe the row
+    # we'd need to undo it. See migration ``134_relax_revision_fks``.
+    document_id = Column(
+        Integer,
+        ForeignKey("documents.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    search_space_id = Column(
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    content_before = Column(Text, nullable=True)
+    title_before = Column(String, nullable=True)
+    folder_id_before = Column(Integer, nullable=True)
+    chunks_before = Column(JSONB, nullable=True)
+    metadata_before = Column("metadata_before", JSONB, nullable=True)
+    created_by_turn_id = Column(String(64), nullable=True, index=True)
+    agent_action_id = Column(
+        Integer,
+        ForeignKey("agent_action_log.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    created_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        server_default=text("(now() AT TIME ZONE 'utc')"),
+        index=True,
+    )
+
+
+class FolderRevision(BaseModel):
+    """Snapshot of a :class:`Folder` row taken before a mkdir / move."""
+
+    __tablename__ = "folder_revisions"
+
+    # ``ON DELETE SET NULL`` (not CASCADE) so the snapshot survives the
+    # hard-delete it describes — without that, ``rmdir`` would wipe the
+    # row we'd need to undo it. See migration ``134_relax_revision_fks``.
+    folder_id = Column(
+        Integer,
+        ForeignKey("folders.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    search_space_id = Column(
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    name_before = Column(String(255), nullable=True)
+    parent_id_before = Column(Integer, nullable=True)
+    position_before = Column(String(50), nullable=True)
+    created_by_turn_id = Column(String(64), nullable=True, index=True)
+    agent_action_id = Column(
+        Integer,
+        ForeignKey("agent_action_log.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    created_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        server_default=text("(now() AT TIME ZONE 'utc')"),
+        index=True,
+    )
+
+
+class AgentPermissionRule(BaseModel):
+    """Persistent permission rule consumed by :class:`PermissionMiddleware`.
+
+    Scoped at one of: search-space-wide (``user_id`` and ``thread_id`` NULL),
+    user-wide (``user_id`` set, ``thread_id`` NULL), or per-thread
+    (``thread_id`` set). Loaded at agent build time and converted to
+    :class:`Rule` instances inside the agent factory.
+    """
+
+    __tablename__ = "agent_permission_rules"
+
+    search_space_id = Column(
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    thread_id = Column(
+        Integer,
+        ForeignKey("new_chat_threads.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    permission = Column(String(255), nullable=False)
+    pattern = Column(String(255), nullable=False, default="*", server_default="*")
+    action = Column(String(16), nullable=False)  # allow / deny / ask
+    created_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        server_default=text("(now() AT TIME ZONE 'utc')"),
+        index=True,
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "search_space_id",
+            "user_id",
+            "thread_id",
+            "permission",
+            "pattern",
+            "action",
+            name="uq_agent_permission_rules_scope",
+        ),
+    )
 
 
 class RefreshToken(Base, TimestampMixin):

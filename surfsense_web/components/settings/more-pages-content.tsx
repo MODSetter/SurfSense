@@ -1,21 +1,14 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ExternalLink, Mail } from "lucide-react";
+import { Check, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { toast } from "sonner";
 import { USER_QUERY_KEY } from "@/atoms/user/user-query.atoms";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -33,7 +26,6 @@ export function MorePagesContent() {
 	const params = useParams();
 	const queryClient = useQueryClient();
 	const searchSpaceId = params?.search_space_id ?? "";
-	const [claimOpen, setClaimOpen] = useState(false);
 
 	useEffect(() => {
 		trackIncentivePageViewed();
@@ -78,36 +70,9 @@ export function MorePagesContent() {
 		<div className="w-full space-y-5">
 			<div className="text-center">
 				<h2 className="text-xl font-bold tracking-tight">Get Free Pages</h2>
-				<p className="mt-1 text-sm text-muted-foreground">
-					Claim your free page offer and earn bonus pages
-				</p>
+				<p className="mt-1 text-sm text-muted-foreground">Earn bonus pages by completing tasks</p>
 			</div>
 
-			{/* 3k free offer */}
-			<Card className="border-emerald-500/30 bg-emerald-500/5">
-				<CardContent className="flex items-center gap-3 p-4">
-					<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white text-xs font-bold">
-						3k
-					</div>
-					<div className="min-w-0 flex-1">
-						<p className="text-sm font-semibold">Claim 3,000 Free Pages</p>
-						<p className="text-xs text-muted-foreground">
-							Limited offer. Schedule a meeting or email us to claim.
-						</p>
-					</div>
-					<Button
-						size="sm"
-						className="bg-emerald-600 text-white hover:bg-emerald-700"
-						onClick={() => setClaimOpen(true)}
-					>
-						Claim
-					</Button>
-				</CardContent>
-			</Card>
-
-			<Separator />
-
-			{/* Free tasks */}
 			<div className="space-y-2">
 				<h3 className="text-sm font-semibold">Earn Bonus Pages</h3>
 				{isLoading ? (
@@ -182,7 +147,6 @@ export function MorePagesContent() {
 
 			<Separator />
 
-			{/* Link to buy pages */}
 			<div className="text-center">
 				<p className="text-sm text-muted-foreground">Need more?</p>
 				{pageBuyingEnabled ? (
@@ -197,25 +161,6 @@ export function MorePagesContent() {
 					</p>
 				)}
 			</div>
-
-			{/* Claim 3k dialog */}
-			<Dialog open={claimOpen} onOpenChange={setClaimOpen}>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle>Claim 3,000 Free Pages</DialogTitle>
-						<DialogDescription>
-							Send us an email to claim your free 3,000 pages. Include your account email and
-							primary usecase for free pages.
-						</DialogDescription>
-					</DialogHeader>
-					<Button asChild className="w-full gap-2">
-						<a href="mailto:rohan@surfsense.com?subject=Claim%203%2C000%20Free%20Pages&body=Hi%2C%20I'd%20like%20to%20claim%20the%203%2C000%20free%20pages%20offer.%0A%0AMy%20account%20email%3A%20">
-							<Mail className="h-4 w-4" />
-							rohan@surfsense.com
-						</a>
-					</Button>
-				</DialogContent>
-			</Dialog>
 		</div>
 	);
 }
