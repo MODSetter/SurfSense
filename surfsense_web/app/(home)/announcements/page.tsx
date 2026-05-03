@@ -24,7 +24,7 @@ export default function AnnouncementsPage() {
 				<div className="max-w-5xl mx-auto relative">
 					<div className="p-6">
 						<h1 className="text-4xl font-bold tracking-tight bg-linear-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 bg-clip-text text-transparent">
-							Announcements
+							What's New
 						</h1>
 					</div>
 				</div>

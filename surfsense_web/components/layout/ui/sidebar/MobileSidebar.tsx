@@ -34,6 +34,8 @@ interface MobileSidebarProps {
 	onSettings?: () => void;
 	onManageMembers?: () => void;
 	onUserSettings?: () => void;
+	onAnnouncements?: () => void;
+	announcementUnreadCount?: number;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
 	theme?: string;
@@ -77,6 +79,8 @@ export function MobileSidebar({
 	onSettings,
 	onManageMembers,
 	onUserSettings,
+	onAnnouncements,
+	announcementUnreadCount = 0,
 	onLogout,
 	pageUsage,
 	theme,
@@ -193,6 +197,15 @@ export function MobileSidebar({
 									}
 								: undefined
 						}
+						onAnnouncements={
+							onAnnouncements
+								? () => {
+										onOpenChange(false);
+										onAnnouncements();
+									}
+								: undefined
+						}
+						announcementUnreadCount={announcementUnreadCount}
 						onLogout={onLogout}
 						pageUsage={pageUsage}
 						theme={theme}

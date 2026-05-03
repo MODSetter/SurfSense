@@ -23,6 +23,8 @@ interface IconRailProps {
 	onNavItemClick?: (item: NavItem) => void;
 	user: User;
 	onUserSettings?: () => void;
+	onAnnouncements?: () => void;
+	announcementUnreadCount?: number;
 	onLogout?: () => void;
 	theme?: string;
 	setTheme?: (theme: "light" | "dark" | "system") => void;
@@ -42,6 +44,8 @@ export function IconRail({
 	onNavItemClick,
 	user,
 	onUserSettings,
+	onAnnouncements,
+	announcementUnreadCount = 0,
 	onLogout,
 	theme,
 	setTheme,
@@ -138,6 +142,8 @@ export function IconRail({
 			<SidebarUserProfile
 				user={user}
 				onUserSettings={onUserSettings}
+				onAnnouncements={onAnnouncements}
+				announcementUnreadCount={announcementUnreadCount}
 				onLogout={onLogout}
 				isCollapsed
 				theme={theme}

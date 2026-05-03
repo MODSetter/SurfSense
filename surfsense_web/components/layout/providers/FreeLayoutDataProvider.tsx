@@ -1,6 +1,6 @@
 "use client";
 
-import { Inbox, Megaphone, SquareLibrary } from "lucide-react";
+import { Inbox, SquareLibrary } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
@@ -55,28 +55,24 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 
 	const navItems: NavItem[] = useMemo(
 		() =>
-			[
-				{
-					title: "Inbox",
-					url: "#inbox",
-					icon: Inbox,
-					isActive: false,
-				},
-				isMobile
-					? {
-							title: "Documents",
-							url: "#documents",
-							icon: SquareLibrary,
-							isActive: false,
-						}
-					: null,
-				{
-					title: "Announcements",
-					url: "#announcements",
-					icon: Megaphone,
-					isActive: false,
-				},
-			].filter((item): item is NavItem => item !== null),
+			(
+				[
+					{
+						title: "Inbox",
+						url: "#inbox",
+						icon: Inbox,
+						isActive: false,
+					},
+					isMobile
+						? {
+								title: "Documents",
+								url: "#documents",
+								icon: SquareLibrary,
+								isActive: false,
+							}
+						: null,
+				] as (NavItem | null)[]
+			).filter((item): item is NavItem => item !== null),
 		[isMobile]
 	);
 
@@ -90,10 +86,11 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 		(item: NavItem) => {
 			if (item.title === "Inbox") gate("use the inbox");
 			else if (item.title === "Documents") setIsDocsSidebarOpen((v) => !v);
-			else if (item.title === "Announcements") gate("view announcements");
 		},
 		[gate]
 	);
+
+	const handleAnnouncements = useCallback(() => gate("see what's new"), [gate]);
 
 	const handleSearchSpaceSelect = useCallback(
 		(_id: number) => gate("switch search spaces"),
@@ -127,6 +124,7 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 			onSettings={gatedAction("search space settings")}
 			onManageMembers={gatedAction("team management")}
 			onUserSettings={gatedAction("account settings")}
+			onAnnouncements={handleAnnouncements}
 			onLogout={() => router.push("/register")}
 			pageUsage={pageUsage}
 			isChatPage

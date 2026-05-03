@@ -6,9 +6,9 @@ export function AnnouncementsEmptyState() {
 			<div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
 				<BellOff className="h-5 w-5 text-muted-foreground" />
 			</div>
-			<h3 className="text-sm font-semibold">No announcements</h3>
+			<h3 className="text-sm font-semibold">Nothing new yet</h3>
 			<p className="mt-1 max-w-xs text-xs text-muted-foreground">
-				You're all caught up! New announcements will appear here.
+				You're all caught up! New updates will appear here.
 			</p>
 		</div>
 	);

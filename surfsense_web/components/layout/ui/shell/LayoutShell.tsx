@@ -19,7 +19,6 @@ import { RightPanel, RightPanelExpandButton } from "../right-panel/RightPanel";
 import {
 	AllPrivateChatsSidebarContent,
 	AllSharedChatsSidebarContent,
-	AnnouncementsSidebarContent,
 	DocumentsSidebar,
 	InboxSidebarContent,
 	MobileSidebar,
@@ -54,7 +53,7 @@ interface TabDataSource {
 	markAllAsRead: () => Promise<boolean>;
 }
 
-export type ActiveSlideoutPanel = "inbox" | "shared" | "private" | "announcements" | null;
+export type ActiveSlideoutPanel = "inbox" | "shared" | "private" | null;
 
 // Inbox-related props — per-tab data sources with independent loading/pagination
 interface InboxProps {
@@ -88,6 +87,8 @@ interface LayoutShellProps {
 	onSettings?: () => void;
 	onManageMembers?: () => void;
 	onUserSettings?: () => void;
+	onAnnouncements?: () => void;
+	announcementUnreadCount?: number;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
 	theme?: string;
@@ -189,6 +190,8 @@ export function LayoutShell({
 	onSettings,
 	onManageMembers,
 	onUserSettings,
+	onAnnouncements,
+	announcementUnreadCount = 0,
 	onLogout,
 	pageUsage,
 	theme,
@@ -237,9 +240,7 @@ export function LayoutShell({
 				? "Shared Chats"
 				: activeSlideoutPanel === "private"
 					? "Private Chats"
-					: activeSlideoutPanel === "announcements"
-						? "Announcements"
-						: "Panel";
+					: "Panel";
 
 	// Mobile layout
 	if (isMobile) {
@@ -277,6 +278,8 @@ export function LayoutShell({
 							onSettings={onSettings}
 							onManageMembers={onManageMembers}
 							onUserSettings={onUserSettings}
+							onAnnouncements={onAnnouncements}
+							announcementUnreadCount={announcementUnreadCount}
 							onLogout={onLogout}
 							pageUsage={pageUsage}
 							theme={theme}
@@ -309,21 +312,6 @@ export function LayoutShell({
 											comments={inbox.comments}
 											status={inbox.status}
 											totalUnreadCount={inbox.totalUnreadCount}
-											onCloseMobileSidebar={() => setMobileMenuOpen(false)}
-										/>
-									</motion.div>
-								)}
-								{activeSlideoutPanel === "announcements" && (
-									<motion.div
-										key="announcements"
-										className="h-full flex flex-col"
-										initial={{ opacity: 0 }}
-										animate={{ opacity: 1 }}
-										exit={{ opacity: 0 }}
-										transition={{ duration: 0.15 }}
-									>
-										<AnnouncementsSidebarContent
-											onOpenChange={(open) => closeSlideout(open)}
 											onCloseMobileSidebar={() => setMobileMenuOpen(false)}
 										/>
 									</motion.div>
@@ -397,6 +385,8 @@ export function LayoutShell({
 							onNavItemClick={onNavItemClick}
 							user={user}
 							onUserSettings={onUserSettings}
+							onAnnouncements={onAnnouncements}
+							announcementUnreadCount={announcementUnreadCount}
 							onLogout={onLogout}
 							theme={theme}
 							setTheme={setTheme}
@@ -433,6 +423,8 @@ export function LayoutShell({
 								onSettings={onSettings}
 								onManageMembers={onManageMembers}
 								onUserSettings={onUserSettings}
+								onAnnouncements={onAnnouncements}
+								announcementUnreadCount={announcementUnreadCount}
 								onLogout={onLogout}
 								pageUsage={pageUsage}
 								theme={theme}
@@ -477,18 +469,6 @@ export function LayoutShell({
 											status={inbox.status}
 											totalUnreadCount={inbox.totalUnreadCount}
 										/>
-									</motion.div>
-								)}
-								{activeSlideoutPanel === "announcements" && (
-									<motion.div
-										key="announcements"
-										className="h-full flex flex-col"
-										initial={{ opacity: 0 }}
-										animate={{ opacity: 1 }}
-										exit={{ opacity: 0 }}
-										transition={{ duration: 0.15 }}
-									>
-										<AnnouncementsSidebarContent onOpenChange={(open) => closeSlideout(open)} />
 									</motion.div>
 								)}
 								{activeSlideoutPanel === "shared" && allSharedChatsPanel && (

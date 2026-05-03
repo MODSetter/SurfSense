@@ -8,6 +8,7 @@ import {
 	Info,
 	Languages,
 	LogOut,
+	Megaphone,
 	Monitor,
 	Moon,
 	Sun,
@@ -60,10 +61,20 @@ const LEARN_MORE_LINKS = [
 interface SidebarUserProfileProps {
 	user: User;
 	onUserSettings?: () => void;
+	onAnnouncements?: () => void;
+	announcementUnreadCount?: number;
 	onLogout?: () => void;
 	isCollapsed?: boolean;
 	theme?: string;
 	setTheme?: (theme: "light" | "dark" | "system") => void;
+}
+
+function formatAnnouncementCount(count: number): string {
+	if (count <= 999) {
+		return count.toString();
+	}
+	const thousands = Math.floor(count / 1000);
+	return `${thousands}k+`;
 }
 
 /**
@@ -152,6 +163,8 @@ function UserAvatar({
 export function SidebarUserProfile({
 	user,
 	onUserSettings,
+	onAnnouncements,
+	announcementUnreadCount = 0,
 	onLogout,
 	isCollapsed = false,
 	theme,
@@ -227,6 +240,18 @@ export function SidebarUserProfile({
 							<UserCog className="h-4 w-4" />
 							{t("user_settings")}
 						</DropdownMenuItem>
+
+						{onAnnouncements && (
+							<DropdownMenuItem onClick={onAnnouncements}>
+								<Megaphone className="h-4 w-4" />
+								<span className="flex-1">What's New</span>
+								{announcementUnreadCount > 0 && (
+									<span className="inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-medium">
+										{formatAnnouncementCount(announcementUnreadCount)}
+									</span>
+								)}
+							</DropdownMenuItem>
+						)}
 
 						{setTheme && (
 							<DropdownMenuSub>
@@ -381,6 +406,18 @@ export function SidebarUserProfile({
 						<UserCog className="h-4 w-4" />
 						{t("user_settings")}
 					</DropdownMenuItem>
+
+					{onAnnouncements && (
+						<DropdownMenuItem onClick={onAnnouncements}>
+							<Megaphone className="h-4 w-4" />
+							<span className="flex-1">What's New</span>
+							{announcementUnreadCount > 0 && (
+								<span className="inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-medium">
+									{formatAnnouncementCount(announcementUnreadCount)}
+								</span>
+							)}
+						</DropdownMenuItem>
+					)}
 
 					{setTheme && (
 						<DropdownMenuSub>

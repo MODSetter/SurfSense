@@ -4,7 +4,7 @@ import { CreditCard, SquarePen, Zap } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -53,6 +53,8 @@ interface SidebarProps {
 	onSettings?: () => void;
 	onManageMembers?: () => void;
 	onUserSettings?: () => void;
+	onAnnouncements?: () => void;
+	announcementUnreadCount?: number;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
 	theme?: string;
@@ -87,6 +89,8 @@ export function Sidebar({
 	onSettings,
 	onManageMembers,
 	onUserSettings,
+	onAnnouncements,
+	announcementUnreadCount = 0,
 	onLogout,
 	pageUsage,
 	theme,
@@ -100,6 +104,14 @@ export function Sidebar({
 }: SidebarProps) {
 	const t = useTranslations("sidebar");
 	const [openDropdownChatId, setOpenDropdownChatId] = useState<number | null>(null);
+
+	// Inbox is rendered explicitly right below New Chat. Pull it out of the
+	// nav items list so it doesn't also appear in the bottom NavSection.
+	const inboxItem = useMemo(() => navItems.find((item) => item.url === "#inbox"), [navItems]);
+	const footerNavItems = useMemo(
+		() => navItems.filter((item) => item.url !== "#inbox"),
+		[navItems]
+	);
 
 	return (
 		<div
@@ -138,7 +150,7 @@ export function Sidebar({
 				</div>
 			)}
 
-			{/* New chat button */}
+			{/* New chat button + Inbox */}
 			<div className={cn("flex flex-col gap-0.5 py-1.5", isCollapsed && "items-center")}>
 				<SidebarButton
 					icon={SquarePen}
@@ -146,6 +158,21 @@ export function Sidebar({
 					onClick={onNewChat}
 					isCollapsed={isCollapsed}
 				/>
+				{inboxItem && (
+					<SidebarButton
+						icon={inboxItem.icon}
+						label={inboxItem.title}
+						onClick={() => onNavItemClick?.(inboxItem)}
+						isCollapsed={isCollapsed}
+						isActive={inboxItem.isActive}
+						badge={inboxItem.badge}
+						buttonProps={
+							{
+								"data-joyride": "inbox-sidebar",
+							} as React.ButtonHTMLAttributes<HTMLButtonElement>
+						}
+					/>
+				)}
 			</div>
 
 			{/* Chat sections - fills available space */}
@@ -271,8 +298,12 @@ export function Sidebar({
 			{/* Footer */}
 			<div className="mt-auto border-t border-border/60">
 				{/* Platform navigation */}
-				{navItems.length > 0 && (
-					<NavSection items={navItems} onItemClick={onNavItemClick} isCollapsed={isCollapsed} />
+				{footerNavItems.length > 0 && (
+					<NavSection
+						items={footerNavItems}
+						onItemClick={onNavItemClick}
+						isCollapsed={isCollapsed}
+					/>
 				)}
 
 				<SidebarUsageFooter pageUsage={pageUsage} isCollapsed={isCollapsed} />
@@ -281,6 +312,8 @@ export function Sidebar({
 					<SidebarUserProfile
 						user={user}
 						onUserSettings={onUserSettings}
+						onAnnouncements={onAnnouncements}
+						announcementUnreadCount={announcementUnreadCount}
 						onLogout={onLogout}
 						isCollapsed={isCollapsed}
 						theme={theme}
