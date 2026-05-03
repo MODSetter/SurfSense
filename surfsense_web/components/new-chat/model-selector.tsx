@@ -1344,7 +1344,7 @@ export function ModelSelector({
 			role="combobox"
 			aria-expanded={open}
 			className={cn(
-				"h-8 gap-2 px-3 text-sm bg-main-panel hover:bg-accent/50 dark:hover:bg-white/[0.06] border border-border/40 select-none",
+				"h-8 gap-2 px-3 text-sm bg-muted hover:bg-muted/80 border-0 select-none",
 				className
 			)}
 		>

@@ -1,6 +1,6 @@
 "use client";
 
-import { PanelRightClose, Plus } from "lucide-react";
+import { PanelLeft, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -45,8 +45,13 @@ interface MobileSidebarProps {
 
 export function MobileSidebarTrigger({ onClick }: { onClick: () => void }) {
 	return (
-		<Button variant="ghost" size="icon" className="md:hidden h-8 w-8" onClick={onClick}>
-			<PanelRightClose className="h-5 w-5" />
+		<Button
+			variant="ghost"
+			size="icon"
+			onClick={onClick}
+			className="md:hidden h-8 w-8 shrink-0 text-muted-foreground hover:bg-transparent hover:text-muted-foreground"
+		>
+			<PanelLeft className="h-4 w-4" />
 			<span className="sr-only">Open menu</span>
 		</Button>
 	);

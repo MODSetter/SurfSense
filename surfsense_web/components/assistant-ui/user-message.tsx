@@ -49,7 +49,7 @@ const UserAvatar: FC<AuthorMetadata> = ({ displayName, avatarUrl }) => {
 	}
 
 	return (
-		<div className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary select-none">
+		<div className="flex size-8 items-center justify-center rounded-full bg-muted text-xs font-medium text-foreground select-none">
 			{initials}
 		</div>
 	);

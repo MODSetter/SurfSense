@@ -105,7 +105,7 @@ const UserAvatar: FC<AuthorMetadata & { hasError: boolean; onError: () => void }
 	}
 
 	return (
-		<div className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+		<div className="flex size-8 items-center justify-center rounded-full bg-muted text-xs font-medium text-foreground">
 			{initials}
 		</div>
 	);
