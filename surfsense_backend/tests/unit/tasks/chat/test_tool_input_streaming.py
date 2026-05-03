@@ -564,4 +564,6 @@ async def test_interrupt_request_uses_task_that_contains_interrupt(
 
     interrupts = _of_type(payloads, "data-interrupt-request")
     assert len(interrupts) == 1
-    assert interrupts[0]["data"]["action_requests"][0]["name"] == "create_calendar_event"
+    assert (
+        interrupts[0]["data"]["action_requests"][0]["name"] == "create_calendar_event"
+    )

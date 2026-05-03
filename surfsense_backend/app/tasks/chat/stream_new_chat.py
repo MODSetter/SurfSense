@@ -98,6 +98,7 @@ def _compute_turn_cancelling_retry_delay(attempt: int) -> int:
 
 def _first_interrupt_value(state: Any) -> dict[str, Any] | None:
     """Return the first LangGraph interrupt payload across all snapshot tasks."""
+
     def _extract_interrupt_value(candidate: Any) -> dict[str, Any] | None:
         if isinstance(candidate, dict):
             value = candidate.get("value", candidate)
