@@ -8045,7 +8045,7 @@ requires-dist = [
     { name = "composio", specifier = ">=0.10.9" },
     { name = "datasets", specifier = ">=2.21.0" },
     { name = "daytona", specifier = ">=0.146.0" },
-    { name = "deepagents", specifier = ">=0.4.12" },
+    { name = "deepagents", specifier = ">=0.4.12,<0.5" },
     { name = "discord-py", specifier = ">=2.5.2" },
     { name = "docling", specifier = ">=2.15.0" },
     { name = "elasticsearch", specifier = ">=9.1.1" },
