@@ -15,6 +15,7 @@ vision LLM extraction:
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 from typing import Any
 from uuid import uuid4
@@ -57,6 +58,9 @@ class _FakeSession:
     async def commit(self) -> None:
         self.committed = True
 
+    async def rollback(self) -> None:
+        pass
+
     async def close(self) -> None:
         pass
 
@@ -71,7 +75,9 @@ async def _fake_shielded_session():
 _SESSIONS_USED: list[_FakeSession] = []
 
 
-def _patch_isolation_layer(monkeypatch, *, reserve_result, finalize_result=None):
+def _patch_isolation_layer(
+    monkeypatch, *, reserve_result, finalize_result=None, finalize_exc=None
+):
     """Wire fake reserve/finalize/release/session helpers."""
     _SESSIONS_USED.clear()
     reserve_calls: list[dict[str, Any]] = []
@@ -91,6 +97,8 @@ def _patch_isolation_layer(monkeypatch, *, reserve_result, finalize_result=None)
     async def _fake_finalize(
         *, db_session, user_id, request_id, actual_micros, reserved_micros
     ):
+        if finalize_exc is not None:
+            raise finalize_exc
         finalize_calls.append(
             {
                 "user_id": user_id,
@@ -343,6 +351,125 @@ async def test_premium_uses_estimator_when_no_micros_override(monkeypatch):
     assert spies["reserve"][0]["reserve_micros"] == 12_345
 
 
+@pytest.mark.asyncio
+async def test_premium_finalize_failure_propagates_and_releases(monkeypatch):
+    from app.services.billable_calls import BillingSettlementError, billable_call
+
+    class _FinalizeError(RuntimeError):
+        pass
+
+    spies = _patch_isolation_layer(
+        monkeypatch,
+        reserve_result=_FakeQuotaResult(allowed=True),
+        finalize_exc=_FinalizeError("db finalize failed"),
+    )
+    user_id = uuid4()
+
+    with pytest.raises(BillingSettlementError):
+        async with billable_call(
+            user_id=user_id,
+            search_space_id=42,
+            billing_tier="premium",
+            base_model="openai/gpt-image-1",
+            quota_reserve_micros_override=50_000,
+            usage_type="image_generation",
+        ) as acc:
+            acc.add(
+                model="openai/gpt-image-1",
+                prompt_tokens=0,
+                completion_tokens=0,
+                total_tokens=0,
+                cost_micros=40_000,
+                call_kind="image_generation",
+            )
+
+    assert len(spies["reserve"]) == 1
+    assert len(spies["release"]) == 1
+    assert spies["record"] == []
+
+
+@pytest.mark.asyncio
+async def test_premium_audit_commit_hang_times_out_after_finalize(monkeypatch):
+    from app.services.billable_calls import billable_call
+
+    spies = _patch_isolation_layer(
+        monkeypatch, reserve_result=_FakeQuotaResult(allowed=True)
+    )
+    user_id = uuid4()
+
+    class _HangingCommitSession(_FakeSession):
+        async def commit(self) -> None:
+            await asyncio.sleep(60)
+
+    @contextlib.asynccontextmanager
+    async def _hanging_session_factory():
+        s = _HangingCommitSession()
+        _SESSIONS_USED.append(s)
+        yield s
+
+    async with billable_call(
+        user_id=user_id,
+        search_space_id=42,
+        billing_tier="premium",
+        base_model="openai/gpt-image-1",
+        quota_reserve_micros_override=50_000,
+        usage_type="image_generation",
+        billable_session_factory=_hanging_session_factory,
+        audit_timeout_seconds=0.01,
+    ) as acc:
+        acc.add(
+            model="openai/gpt-image-1",
+            prompt_tokens=0,
+            completion_tokens=0,
+            total_tokens=0,
+            cost_micros=40_000,
+            call_kind="image_generation",
+        )
+
+    assert len(spies["reserve"]) == 1
+    assert len(spies["finalize"]) == 1
+    assert len(spies["record"]) == 1
+    assert spies["release"] == []
+
+
+@pytest.mark.asyncio
+async def test_free_audit_failure_is_best_effort(monkeypatch):
+    from app.services.billable_calls import billable_call
+
+    spies = _patch_isolation_layer(
+        monkeypatch, reserve_result=_FakeQuotaResult(allowed=True)
+    )
+
+    async def _failing_record(_session, **_kwargs):
+        raise RuntimeError("audit insert failed")
+
+    monkeypatch.setattr(
+        "app.services.billable_calls.record_token_usage",
+        _failing_record,
+        raising=False,
+    )
+
+    async with billable_call(
+        user_id=uuid4(),
+        search_space_id=42,
+        billing_tier="free",
+        base_model="openai/gpt-image-1",
+        usage_type="image_generation",
+        audit_timeout_seconds=0.01,
+    ) as acc:
+        acc.add(
+            model="openai/gpt-image-1",
+            prompt_tokens=0,
+            completion_tokens=0,
+            total_tokens=0,
+            cost_micros=37_000,
+            call_kind="image_generation",
+        )
+
+    assert spies["reserve"] == []
+    assert spies["finalize"] == []
+
+
 # ---------------------------------------------------------------------------
 # Podcast / video-presentation usage_type coverage
 # ---------------------------------------------------------------------------
@@ -387,7 +514,7 @@ async def test_free_podcast_path_audits_with_podcast_usage_type(monkeypatch):
     assert len(spies["record"]) == 1
     row = spies["record"][0]
     assert row["usage_type"] == "podcast_generation"
-    assert row["thread_id"] == 99
+    assert row["thread_id"] is None
     assert row["search_space_id"] == 42
     assert row["call_details"] == {"podcast_id": 7, "title": "Test Podcast"}
 

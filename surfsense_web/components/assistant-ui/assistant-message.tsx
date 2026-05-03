@@ -477,9 +477,7 @@ const MessageInfoDropdown: FC = () => {
 										</span>
 										<span className="text-xs text-muted-foreground">
 											{counts.total_tokens.toLocaleString()} tokens
-											{costMicros && costMicros > 0
-												? ` · ${formatTurnCost(costMicros)}`
-												: ""}
+											{costMicros && costMicros > 0 ? ` · ${formatTurnCost(costMicros)}` : ""}
 										</span>
 									</ActionBarMorePrimitive.Item>
 								);

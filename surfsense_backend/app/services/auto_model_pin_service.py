@@ -163,13 +163,47 @@ def clear_healthy(config_id: int | None = None) -> None:
         _healthy_until.pop(int(config_id), None)
 
 
-def _global_candidates() -> list[dict]:
+def _cfg_supports_image_input(cfg: dict) -> bool:
+    """True if the global cfg can accept image inputs.
+
+    Prefers the explicit ``supports_image_input`` flag (set by the YAML
+    loader / OpenRouter integration). Falls back to a LiteLLM lookup so
+    a YAML entry whose flag was somehow stripped doesn't get wrongly
+    excluded. Default-allows on unknown — the streaming-task safety net
+    is the actual block, not this filter.
+    """
+    if "supports_image_input" in cfg:
+        return bool(cfg.get("supports_image_input"))
+    # Lazy import: provider_capabilities -> llm_config -> services chain;
+    # importing at module load would create an init-order cycle through
+    # ``app.config``.
+    from app.services.provider_capabilities import derive_supports_image_input
+
+    cfg_litellm_params = cfg.get("litellm_params") or {}
+    base_model = (
+        cfg_litellm_params.get("base_model")
+        if isinstance(cfg_litellm_params, dict)
+        else None
+    )
+    return derive_supports_image_input(
+        provider=cfg.get("provider"),
+        model_name=cfg.get("model_name"),
+        base_model=base_model,
+        custom_provider=cfg.get("custom_provider"),
+    )
+
+
+def _global_candidates(*, requires_image_input: bool = False) -> list[dict]:
     """Return Auto-eligible global cfgs.
 
     Drops cfgs flagged ``health_gated`` (best non-null OpenRouter uptime
     below ``_HEALTH_GATE_UPTIME_PCT``) so chronically broken providers
     can't be picked as the thread's pin. Also excludes configs currently
     in runtime cooldown (e.g. temporary 429 bursts).
+
+    When ``requires_image_input`` is True (image turn), additionally
+    filters out configs whose ``supports_image_input`` resolves to False
+    so a text-only deployment can't be pinned for an image request.
     """
     candidates = [
         cfg
@@ -177,6 +211,7 @@ def _global_candidates() -> list[dict]:
         if _is_usable_global_config(cfg)
         and not cfg.get("health_gated")
         and not _is_runtime_cooled_down(int(cfg.get("id", 0)))
+        and (not requires_image_input or _cfg_supports_image_input(cfg))
     ]
     return sorted(candidates, key=lambda c: int(c.get("id", 0)))
 
@@ -237,11 +272,20 @@ async def resolve_or_get_pinned_llm_config_id(
     selected_llm_config_id: int,
     force_repin_free: bool = False,
     exclude_config_ids: set[int] | None = None,
+    requires_image_input: bool = False,
 ) -> AutoPinResolution:
     """Resolve Auto (Fastest) to one concrete config id and persist the pin.
 
     For non-auto selections, this function clears any existing pin and returns
     the selected id as-is.
+
+    When ``requires_image_input`` is True (the current turn carries an
+    ``image_url`` block), the candidate pool is filtered to vision-capable
+    cfgs and any existing pin that can't accept image input is treated as
+    invalid (force re-pin). If no vision-capable cfg is available the
+    function raises ``ValueError`` so the streaming task surfaces the same
+    friendly ``MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT`` error instead of
+    silently routing the image to a text-only deployment.
     """
     thread = (
         (
@@ -274,14 +318,24 @@ async def resolve_or_get_pinned_llm_config_id(
 
     excluded_ids = {int(cid) for cid in (exclude_config_ids or set())}
     candidates = [
-        c for c in _global_candidates() if int(c.get("id", 0)) not in excluded_ids
+        c
+        for c in _global_candidates(requires_image_input=requires_image_input)
+        if int(c.get("id", 0)) not in excluded_ids
     ]
     if not candidates:
+        if requires_image_input:
+            # Distinguish the "no vision-capable cfg" case from generic
+            # "no usable cfg" so the streaming task can map this to the
+            # MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT SSE error.
+            raise ValueError(
+                "No vision-capable global LLM configs are available for Auto mode"
+            )
         raise ValueError("No usable global LLM configs are available for Auto mode")
     candidate_by_id = {int(c["id"]): c for c in candidates}
 
     # Reuse an existing valid pin without re-checking current quota (no silent
-    # tier switch), unless the caller explicitly requests a forced repin to free.
+    # tier switch), unless the caller explicitly requests a forced repin to free
+    # *or* the turn requires image input but the pin can't handle it.
     pinned_id = thread.pinned_llm_config_id
     if (
         not force_repin_free
@@ -311,6 +365,29 @@ async def resolve_or_get_pinned_llm_config_id(
             from_existing_pin=True,
         )
     if pinned_id is not None:
+        # If the pin is *only* invalid because it can't handle the image
+        # turn (it's still a healthy, usable config in the broader pool),
+        # log that explicitly so operators can correlate the re-pin with
+        # the user's image attachment instead of suspecting a cooldown.
+        if requires_image_input:
+            try:
+                pinned_global = next(
+                    c
+                    for c in config.GLOBAL_LLM_CONFIGS
+                    if int(c.get("id", 0)) == int(pinned_id)
+                )
+            except StopIteration:
+                pinned_global = None
+            if pinned_global is not None and not _cfg_supports_image_input(
+                pinned_global
+            ):
+                logger.info(
+                    "auto_pin_repinned_for_image thread_id=%s search_space_id=%s "
+                    "previous_config_id=%s",
+                    thread_id,
+                    search_space_id,
+                    pinned_id,
+                )
         logger.info(
             "auto_pin_invalid thread_id=%s search_space_id=%s pinned_config_id=%s",
             thread_id,
@@ -327,6 +404,10 @@ async def resolve_or_get_pinned_llm_config_id(
         eligible = [c for c in candidates if _tier_of(c) != "premium"]
 
     if not eligible:
+        if requires_image_input:
+            raise ValueError(
+                "Auto mode could not find a vision-capable LLM config for this user and quota state"
+            )
         raise ValueError(
             "Auto mode could not find an eligible LLM config for this user and quota state"
         )

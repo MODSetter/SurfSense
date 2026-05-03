@@ -20,6 +20,8 @@ from typing import Any
 from litellm import Router
 from litellm.utils import ImageResponse
 
+from app.services.provider_api_base import resolve_api_base
+
 logger = logging.getLogger(__name__)
 
 # Special ID for Auto mode - uses router for load balancing
@@ -152,12 +154,12 @@ class ImageGenRouterService:
                 return None
 
             # Build model string
+            provider = config.get("provider", "").upper()
             if config.get("custom_provider"):
-                model_string = f"{config['custom_provider']}/{config['model_name']}"
+                provider_prefix = config["custom_provider"]
             else:
-                provider = config.get("provider", "").upper()
                 provider_prefix = IMAGE_GEN_PROVIDER_MAP.get(provider, provider.lower())
-                model_string = f"{provider_prefix}/{config['model_name']}"
+            model_string = f"{provider_prefix}/{config['model_name']}"
 
             # Build litellm params
             litellm_params: dict[str, Any] = {
@@ -165,9 +167,16 @@ class ImageGenRouterService:
                 "api_key": config.get("api_key"),
             }
 
-            # Add optional api_base
-            if config.get("api_base"):
-                litellm_params["api_base"] = config["api_base"]
+            # Resolve ``api_base`` so deployments don't silently inherit
+            # ``AZURE_OPENAI_ENDPOINT`` / ``OPENAI_API_BASE`` and 404 against
+            # the wrong provider (see ``provider_api_base`` docstring).
+            api_base = resolve_api_base(
+                provider=provider,
+                provider_prefix=provider_prefix,
+                config_api_base=config.get("api_base"),
+            )
+            if api_base:
+                litellm_params["api_base"] = api_base
 
             # Add api_version (required for Azure)
             if config.get("api_version"):

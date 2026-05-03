@@ -90,41 +90,18 @@ class SanitizedChatLiteLLM(ChatLiteLLM):
             yield chunk
 
 
-# Provider mapping for LiteLLM model string construction
-PROVIDER_MAP = {
-    "OPENAI": "openai",
-    "ANTHROPIC": "anthropic",
-    "GROQ": "groq",
-    "COHERE": "cohere",
-    "GOOGLE": "gemini",
-    "OLLAMA": "ollama_chat",
-    "MISTRAL": "mistral",
-    "AZURE_OPENAI": "azure",
-    "OPENROUTER": "openrouter",
-    "XAI": "xai",
-    "BEDROCK": "bedrock",
-    "VERTEX_AI": "vertex_ai",
-    "TOGETHER_AI": "together_ai",
-    "FIREWORKS_AI": "fireworks_ai",
-    "DEEPSEEK": "openai",
-    "ALIBABA_QWEN": "openai",
-    "MOONSHOT": "openai",
-    "ZHIPU": "openai",
-    "GITHUB_MODELS": "github",
-    "REPLICATE": "replicate",
-    "PERPLEXITY": "perplexity",
-    "ANYSCALE": "anyscale",
-    "DEEPINFRA": "deepinfra",
-    "CEREBRAS": "cerebras",
-    "SAMBANOVA": "sambanova",
-    "AI21": "ai21",
-    "CLOUDFLARE": "cloudflare",
-    "DATABRICKS": "databricks",
-    "COMETAPI": "cometapi",
-    "HUGGINGFACE": "huggingface",
-    "MINIMAX": "openai",
-    "CUSTOM": "custom",
-}
+# Provider mapping for LiteLLM model string construction.
+#
+# Single source of truth lives in
+# :mod:`app.services.provider_capabilities` so the YAML loader (which
+# runs during ``app.config`` class-body init) can resolve provider
+# prefixes without dragging the agent / tools tree into module load
+# order. Re-exported here under the historical ``PROVIDER_MAP`` name
+# so existing callers (``llm_router_service``, ``image_gen_router_service``,
+# tests) keep working unchanged.
+from app.services.provider_capabilities import (  # noqa: E402
+    _PROVIDER_PREFIX_MAP as PROVIDER_MAP,
+)
 
 
 def _attach_model_profile(llm: ChatLiteLLM, model_string: str) -> None:
@@ -178,6 +155,17 @@ class AgentConfig:
     anonymous_enabled: bool = False
     quota_reserve_tokens: int | None = None
 
+    # Capability flag: best-effort True for the chat selector / catalog.
+    # Resolved via :func:`provider_capabilities.derive_supports_image_input`
+    # which prefers OpenRouter's ``architecture.input_modalities`` and
+    # otherwise consults LiteLLM's authoritative model map. Default True
+    # is the conservative-allow stance — the streaming-task safety net
+    # (``is_known_text_only_chat_model``) is the *only* place a False
+    # actually blocks a request. Setting this to False here without an
+    # authoritative source would silently hide vision-capable models
+    # (the regression we're fixing).
+    supports_image_input: bool = True
+
     @classmethod
     def from_auto_mode(cls) -> "AgentConfig":
         """
@@ -203,6 +191,12 @@ class AgentConfig:
             is_premium=False,
             anonymous_enabled=False,
             quota_reserve_tokens=None,
+            # Auto routes across the configured pool, which usually
+            # contains at least one vision-capable deployment; the router
+            # will surface a 404 from a non-vision deployment as a normal
+            # ``allowed_fails`` event and fail over rather than blocking
+            # the request outright.
+            supports_image_input=True,
         )
 
     @classmethod
@@ -216,10 +210,24 @@ class AgentConfig:
         Returns:
             AgentConfig instance
         """
-        return cls(
-            provider=config.provider.value
+        # Lazy import to avoid pulling provider_capabilities (and its
+        # transitive litellm import) into module-init order.
+        from app.services.provider_capabilities import derive_supports_image_input
+
+        provider_value = (
+            config.provider.value
             if hasattr(config.provider, "value")
-            else str(config.provider),
+            else str(config.provider)
+        )
+        litellm_params = config.litellm_params or {}
+        base_model = (
+            litellm_params.get("base_model")
+            if isinstance(litellm_params, dict)
+            else None
+        )
+
+        return cls(
+            provider=provider_value,
             model_name=config.model_name,
             api_key=config.api_key,
             api_base=config.api_base,
@@ -235,6 +243,16 @@ class AgentConfig:
             is_premium=False,
             anonymous_enabled=False,
             quota_reserve_tokens=None,
+            # BYOK rows have no operator-curated capability flag, so we
+            # ask LiteLLM (default-allow on unknown). The streaming
+            # safety net still blocks if the model is *explicitly*
+            # marked text-only.
+            supports_image_input=derive_supports_image_input(
+                provider=provider_value,
+                model_name=config.model_name,
+                base_model=base_model,
+                custom_provider=config.custom_provider,
+            ),
         )
 
     @classmethod
@@ -253,15 +271,46 @@ class AgentConfig:
         Returns:
             AgentConfig instance
         """
+        # Lazy import to avoid pulling provider_capabilities (and its
+        # transitive litellm import) into module-init order.
+        from app.services.provider_capabilities import derive_supports_image_input
+
         # Get system instructions from YAML, default to empty string
         system_instructions = yaml_config.get("system_instructions", "")
 
+        provider = yaml_config.get("provider", "").upper()
+        model_name = yaml_config.get("model_name", "")
+        custom_provider = yaml_config.get("custom_provider")
+        litellm_params = yaml_config.get("litellm_params") or {}
+        base_model = (
+            litellm_params.get("base_model")
+            if isinstance(litellm_params, dict)
+            else None
+        )
+
+        # Explicit YAML override wins; otherwise derive from LiteLLM /
+        # OpenRouter modalities. The YAML loader already populates this
+        # field, but this method is also called from
+        # ``load_global_llm_config_by_id``'s file fallback (hot reload),
+        # so we re-derive here for safety. The bool() coercion preserves
+        # the loader's behaviour for explicit ``true`` / ``false``
+        # strings that PyYAML may surface.
+        if "supports_image_input" in yaml_config:
+            supports_image_input = bool(yaml_config.get("supports_image_input"))
+        else:
+            supports_image_input = derive_supports_image_input(
+                provider=provider,
+                model_name=model_name,
+                base_model=base_model,
+                custom_provider=custom_provider,
+            )
+
         return cls(
-            provider=yaml_config.get("provider", "").upper(),
-            model_name=yaml_config.get("model_name", ""),
+            provider=provider,
+            model_name=model_name,
             api_key=yaml_config.get("api_key", ""),
             api_base=yaml_config.get("api_base"),
-            custom_provider=yaml_config.get("custom_provider"),
+            custom_provider=custom_provider,
             litellm_params=yaml_config.get("litellm_params"),
             # Prompt configuration from YAML (with defaults for backwards compatibility)
             system_instructions=system_instructions if system_instructions else None,
@@ -276,6 +325,7 @@ class AgentConfig:
             is_premium=yaml_config.get("billing_tier", "free") == "premium",
             anonymous_enabled=yaml_config.get("anonymous_enabled", False),
             quota_reserve_tokens=yaml_config.get("quota_reserve_tokens"),
+            supports_image_input=supports_image_input,
         )
 
 

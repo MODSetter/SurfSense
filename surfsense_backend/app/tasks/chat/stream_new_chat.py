@@ -1506,10 +1506,10 @@ async def _stream_agent_events(
                     if isinstance(tool_output, dict)
                     else "Podcast"
                 )
-                if podcast_status == "processing":
+                if podcast_status in ("pending", "generating", "processing"):
                     completed_items = [
                         f"Title: {podcast_title}",
-                        "Audio generation started",
+                        "Podcast generation started",
                         "Processing in background...",
                     ]
                 elif podcast_status == "already_generating":
@@ -1518,7 +1518,7 @@ async def _stream_agent_events(
                         "Podcast already in progress",
                         "Please wait for it to complete",
                     ]
-                elif podcast_status == "error":
+                elif podcast_status in ("failed", "error"):
                     error_msg = (
                         tool_output.get("error", "Unknown error")
                         if isinstance(tool_output, dict)
@@ -1527,6 +1527,11 @@ async def _stream_agent_events(
                     completed_items = [
                         f"Title: {podcast_title}",
                         f"Error: {error_msg[:50]}",
+                    ]
+                elif podcast_status in ("ready", "success"):
+                    completed_items = [
+                        f"Title: {podcast_title}",
+                        "Podcast ready",
                     ]
                 else:
                     completed_items = last_active_step_items
@@ -1710,20 +1715,28 @@ async def _stream_agent_events(
                     if isinstance(tool_output, dict)
                     else {"result": tool_output},
                 )
-                if (
-                    isinstance(tool_output, dict)
-                    and tool_output.get("status") == "success"
+                if isinstance(tool_output, dict) and tool_output.get("status") in (
+                    "pending",
+                    "generating",
+                    "processing",
+                ):
+                    yield streaming_service.format_terminal_info(
+                        f"Podcast queued: {tool_output.get('title', 'Podcast')}",
+                        "success",
+                    )
+                elif isinstance(tool_output, dict) and tool_output.get("status") in (
+                    "ready",
+                    "success",
                 ):
                     yield streaming_service.format_terminal_info(
                         f"Podcast generated successfully: {tool_output.get('title', 'Podcast')}",
                         "success",
                     )
-                else:
-                    error_msg = (
-                        tool_output.get("error", "Unknown error")
-                        if isinstance(tool_output, dict)
-                        else "Unknown error"
-                    )
+                elif isinstance(tool_output, dict) and tool_output.get("status") in (
+                    "failed",
+                    "error",
+                ):
+                    error_msg = tool_output.get("error", "Unknown error")
                     yield streaming_service.format_terminal_info(
                         f"Podcast generation failed: {error_msg}",
                         "error",
@@ -2292,6 +2305,11 @@ async def stream_new_chat(
             )
 
         _t0 = time.perf_counter()
+        # Image-bearing turns force the Auto-pin resolver to filter the
+        # candidate pool to vision-capable cfgs (and force-repin a
+        # text-only existing pin). For explicit selections this flag is
+        # a no-op — the resolver returns the user's chosen id unchanged.
+        _requires_image_input = bool(user_image_data_urls)
         try:
             llm_config_id = (
                 await resolve_or_get_pinned_llm_config_id(
@@ -2300,13 +2318,29 @@ async def stream_new_chat(
                     search_space_id=search_space_id,
                     user_id=user_id,
                     selected_llm_config_id=llm_config_id,
+                    requires_image_input=_requires_image_input,
                 )
             ).resolved_llm_config_id
         except ValueError as pin_error:
+            # Auto-pin's "no vision-capable cfg" path raises a ValueError
+            # whose message we map to the friendly image-input SSE error
+            # so the user sees the same message regardless of whether
+            # the gate fired in Auto-mode or in the agent_config check
+            # below.
+            error_code = (
+                "MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT"
+                if _requires_image_input and "vision-capable" in str(pin_error)
+                else "SERVER_ERROR"
+            )
+            error_kind = (
+                "user_error"
+                if error_code == "MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT"
+                else "server_error"
+            )
             yield _emit_stream_error(
                 message=str(pin_error),
-                error_kind="server_error",
-                error_code="SERVER_ERROR",
+                error_kind=error_kind,
+                error_code=error_code,
             )
             yield streaming_service.format_done()
             return
@@ -2325,6 +2359,50 @@ async def stream_new_chat(
             time.perf_counter() - _t0,
             llm_config_id,
         )
+
+        # Capability safety net: a turn carrying user-uploaded images
+        # cannot be routed to a chat config that LiteLLM's authoritative
+        # model map *explicitly* marks as text-only (``supports_vision``
+        # set to False). The check is intentionally narrow — it only
+        # fires when LiteLLM is *certain* the model can't accept image
+        # input. Unknown / unmapped / vision-capable models pass
+        # through. Without this guard a known-text-only model would 404
+        # at the provider with ``"No endpoints found that support image
+        # input"``, surfacing as an opaque ``SERVER_ERROR`` SSE chunk;
+        # failing here lets us return a friendly message that tells the
+        # user what to change.
+        if user_image_data_urls and agent_config is not None:
+            from app.services.provider_capabilities import (
+                is_known_text_only_chat_model,
+            )
+
+            agent_litellm_params = agent_config.litellm_params or {}
+            agent_base_model = (
+                agent_litellm_params.get("base_model")
+                if isinstance(agent_litellm_params, dict)
+                else None
+            )
+            if is_known_text_only_chat_model(
+                provider=agent_config.provider,
+                model_name=agent_config.model_name,
+                base_model=agent_base_model,
+                custom_provider=agent_config.custom_provider,
+            ):
+                model_label = (
+                    agent_config.config_name or agent_config.model_name or "model"
+                )
+                yield _emit_stream_error(
+                    message=(
+                        f"The selected model ({model_label}) does not support "
+                        "image input. Switch to a vision-capable model "
+                        "(e.g. GPT-4o, Claude, Gemini) or remove the image "
+                        "attachment and try again."
+                    ),
+                    error_kind="user_error",
+                    error_code="MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT",
+                )
+                yield streaming_service.format_done()
+                return
 
         # Premium quota reservation for pinned premium model only.
         _needs_premium_quota = (
@@ -2366,6 +2444,7 @@ async def stream_new_chat(
                                 user_id=user_id,
                                 selected_llm_config_id=0,
                                 force_repin_free=True,
+                                requires_image_input=_requires_image_input,
                             )
                         ).resolved_llm_config_id
                     except ValueError as pin_error:
@@ -2470,6 +2549,7 @@ async def stream_new_chat(
                             user_id=user_id,
                             selected_llm_config_id=0,
                             exclude_config_ids={previous_config_id},
+                            requires_image_input=_requires_image_input,
                         )
                     ).resolved_llm_config_id
                 except ValueError as pin_error:
@@ -2804,6 +2884,7 @@ async def stream_new_chat(
                     from litellm import acompletion
 
                     from app.services.llm_router_service import LLMRouterService
+                    from app.services.provider_api_base import resolve_api_base
                     from app.services.token_tracking_service import _turn_accumulator
 
                     _turn_accumulator.set(None)
@@ -2824,11 +2905,32 @@ async def stream_new_chat(
                             model="auto", messages=messages
                         )
                     else:
+                        # Apply the same ``api_base`` cascade chat / vision /
+                        # image-gen call sites use so we never inherit
+                        # ``litellm.api_base`` (commonly set by
+                        # ``AZURE_OPENAI_ENDPOINT``) when the chat config
+                        # itself ships an empty ``api_base``. Without this
+                        # the title-gen on an OpenRouter chat config would
+                        # 404 against the inherited Azure endpoint — see
+                        # ``provider_api_base`` docstring for the same
+                        # bug repro on the image-gen / vision paths.
+                        raw_model = getattr(llm, "model", "") or ""
+                        provider_prefix = (
+                            raw_model.split("/", 1)[0] if "/" in raw_model else None
+                        )
+                        provider_value = (
+                            agent_config.provider if agent_config is not None else None
+                        )
+                        title_api_base = resolve_api_base(
+                            provider=provider_value,
+                            provider_prefix=provider_prefix,
+                            config_api_base=getattr(llm, "api_base", None),
+                        )
                         response = await acompletion(
-                            model=llm.model,
+                            model=raw_model,
                             messages=messages,
                             api_key=getattr(llm, "api_key", None),
-                            api_base=getattr(llm, "api_base", None),
+                            api_base=title_api_base,
                         )
 
                     usage_info = None
@@ -2953,6 +3055,7 @@ async def stream_new_chat(
                         user_id=user_id,
                         selected_llm_config_id=0,
                         exclude_config_ids={previous_config_id},
+                        requires_image_input=_requires_image_input,
                     )
                 ).resolved_llm_config_id
 

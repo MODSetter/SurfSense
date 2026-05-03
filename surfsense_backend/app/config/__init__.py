@@ -47,11 +47,37 @@ def load_global_llm_configs():
             data = yaml.safe_load(f)
             configs = data.get("global_llm_configs", [])
 
+        # Lazy import keeps the `app.config` -> `app.services` edge one-way
+        # and matches the `provider_api_base` pattern used elsewhere.
+        from app.services.provider_capabilities import derive_supports_image_input
+
         seen_slugs: dict[str, int] = {}
         for cfg in configs:
             cfg.setdefault("billing_tier", "free")
             cfg.setdefault("anonymous_enabled", False)
             cfg.setdefault("seo_enabled", False)
+            # Capability flag: explicit YAML override always wins. When the
+            # operator has not annotated the model, defer to LiteLLM's
+            # authoritative model map (`supports_vision`) which already
+            # knows GPT-5.x / GPT-4o / Claude 3.x / Gemini 2.x are
+            # vision-capable. Unknown / unmapped models default-allow so
+            # we don't lock the user out of a freshly added third-party
+            # entry; the streaming-task safety net (driven by
+            # `is_known_text_only_chat_model`) is the only place a False
+            # actually blocks a request.
+            if "supports_image_input" not in cfg:
+                litellm_params = cfg.get("litellm_params") or {}
+                base_model = (
+                    litellm_params.get("base_model")
+                    if isinstance(litellm_params, dict)
+                    else None
+                )
+                cfg["supports_image_input"] = derive_supports_image_input(
+                    provider=cfg.get("provider"),
+                    model_name=cfg.get("model_name"),
+                    base_model=base_model,
+                    custom_provider=cfg.get("custom_provider"),
+                )
 
             if cfg.get("seo_enabled") and cfg.get("seo_slug"):
                 slug = cfg["seo_slug"]

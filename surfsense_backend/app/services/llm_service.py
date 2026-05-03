@@ -16,6 +16,7 @@ from app.services.llm_router_service import (
     get_auto_mode_llm,
     is_auto_mode,
 )
+from app.services.provider_api_base import resolve_api_base
 from app.services.token_tracking_service import token_tracker
 
 # Configure litellm to automatically drop unsupported parameters
@@ -556,22 +557,26 @@ async def get_vision_llm(
                 return None
 
             if global_cfg.get("custom_provider"):
-                model_string = (
-                    f"{global_cfg['custom_provider']}/{global_cfg['model_name']}"
-                )
+                provider_prefix = global_cfg["custom_provider"]
+                model_string = f"{provider_prefix}/{global_cfg['model_name']}"
             else:
-                prefix = VISION_PROVIDER_MAP.get(
+                provider_prefix = VISION_PROVIDER_MAP.get(
                     global_cfg["provider"].upper(),
                     global_cfg["provider"].lower(),
                 )
-                model_string = f"{prefix}/{global_cfg['model_name']}"
+                model_string = f"{provider_prefix}/{global_cfg['model_name']}"
 
             litellm_kwargs = {
                 "model": model_string,
                 "api_key": global_cfg["api_key"],
             }
-            if global_cfg.get("api_base"):
-                litellm_kwargs["api_base"] = global_cfg["api_base"]
+            api_base = resolve_api_base(
+                provider=global_cfg.get("provider"),
+                provider_prefix=provider_prefix,
+                config_api_base=global_cfg.get("api_base"),
+            )
+            if api_base:
+                litellm_kwargs["api_base"] = api_base
             if global_cfg.get("litellm_params"):
                 litellm_kwargs.update(global_cfg["litellm_params"])
 
@@ -606,20 +611,26 @@ async def get_vision_llm(
             return None
 
         if vision_cfg.custom_provider:
-            model_string = f"{vision_cfg.custom_provider}/{vision_cfg.model_name}"
+            provider_prefix = vision_cfg.custom_provider
+            model_string = f"{provider_prefix}/{vision_cfg.model_name}"
         else:
-            prefix = VISION_PROVIDER_MAP.get(
+            provider_prefix = VISION_PROVIDER_MAP.get(
                 vision_cfg.provider.value.upper(),
                 vision_cfg.provider.value.lower(),
             )
-            model_string = f"{prefix}/{vision_cfg.model_name}"
+            model_string = f"{provider_prefix}/{vision_cfg.model_name}"
 
         litellm_kwargs = {
             "model": model_string,
             "api_key": vision_cfg.api_key,
         }
-        if vision_cfg.api_base:
-            litellm_kwargs["api_base"] = vision_cfg.api_base
+        api_base = resolve_api_base(
+            provider=vision_cfg.provider.value,
+            provider_prefix=provider_prefix,
+            config_api_base=vision_cfg.api_base,
+        )
+        if api_base:
+            litellm_kwargs["api_base"] = api_base
         if vision_cfg.litellm_params:
             litellm_kwargs.update(vision_cfg.litellm_params)
 

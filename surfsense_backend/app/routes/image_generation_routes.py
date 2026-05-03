@@ -46,6 +46,7 @@ from app.services.image_gen_router_service import (
     ImageGenRouterService,
     is_image_gen_auto_mode,
 )
+from app.services.provider_api_base import resolve_api_base
 from app.users import current_active_user
 from app.utils.rbac import check_permission
 from app.utils.signed_image_urls import verify_image_token
@@ -87,14 +88,18 @@ def _get_global_image_gen_config(config_id: int) -> dict | None:
     return None
 
 
+def _resolve_provider_prefix(provider: str, custom_provider: str | None) -> str:
+    """Resolve the LiteLLM provider prefix used in model strings."""
+    if custom_provider:
+        return custom_provider
+    return _PROVIDER_MAP.get(provider.upper(), provider.lower())
+
+
 def _build_model_string(
     provider: str, model_name: str, custom_provider: str | None
 ) -> str:
     """Build a litellm model string from provider + model_name."""
-    if custom_provider:
-        return f"{custom_provider}/{model_name}"
-    prefix = _PROVIDER_MAP.get(provider.upper(), provider.lower())
-    return f"{prefix}/{model_name}"
+    return f"{_resolve_provider_prefix(provider, custom_provider)}/{model_name}"
 
 
 async def _resolve_billing_for_image_gen(
@@ -187,12 +192,18 @@ async def _execute_image_generation(
         if not cfg:
             raise ValueError(f"Global image generation config {config_id} not found")
 
-        model_string = _build_model_string(
-            cfg.get("provider", ""), cfg["model_name"], cfg.get("custom_provider")
+        provider_prefix = _resolve_provider_prefix(
+            cfg.get("provider", ""), cfg.get("custom_provider")
         )
+        model_string = f"{provider_prefix}/{cfg['model_name']}"
         gen_kwargs["api_key"] = cfg.get("api_key")
-        if cfg.get("api_base"):
-            gen_kwargs["api_base"] = cfg["api_base"]
+        api_base = resolve_api_base(
+            provider=cfg.get("provider"),
+            provider_prefix=provider_prefix,
+            config_api_base=cfg.get("api_base"),
+        )
+        if api_base:
+            gen_kwargs["api_base"] = api_base
         if cfg.get("api_version"):
             gen_kwargs["api_version"] = cfg["api_version"]
         if cfg.get("litellm_params"):
@@ -214,12 +225,18 @@ async def _execute_image_generation(
         if not db_cfg:
             raise ValueError(f"Image generation config {config_id} not found")
 
-        model_string = _build_model_string(
-            db_cfg.provider.value, db_cfg.model_name, db_cfg.custom_provider
+        provider_prefix = _resolve_provider_prefix(
+            db_cfg.provider.value, db_cfg.custom_provider
         )
+        model_string = f"{provider_prefix}/{db_cfg.model_name}"
         gen_kwargs["api_key"] = db_cfg.api_key
-        if db_cfg.api_base:
-            gen_kwargs["api_base"] = db_cfg.api_base
+        api_base = resolve_api_base(
+            provider=db_cfg.provider.value,
+            provider_prefix=provider_prefix,
+            config_api_base=db_cfg.api_base,
+        )
+        if api_base:
+            gen_kwargs["api_base"] = api_base
         if db_cfg.api_version:
             gen_kwargs["api_version"] = db_cfg.api_version
         if db_cfg.litellm_params:
@@ -277,10 +294,12 @@ async def get_global_image_gen_configs(
                     # Auto mode currently treated as free until per-deployment
                     # billing-tier surfacing lands (see _resolve_billing_for_image_gen).
                     "billing_tier": "free",
+                    "is_premium": False,
                 }
             )
 
         for cfg in global_configs:
+            billing_tier = str(cfg.get("billing_tier", "free")).lower()
             safe_configs.append(
                 {
                     "id": cfg.get("id"),
@@ -293,7 +312,11 @@ async def get_global_image_gen_configs(
                     "api_version": cfg.get("api_version") or None,
                     "litellm_params": cfg.get("litellm_params", {}),
                     "is_global": True,
-                    "billing_tier": cfg.get("billing_tier", "free"),
+                    "billing_tier": billing_tier,
+                    # Mirror chat (``new_llm_config_routes``) so the new-chat
+                    # selector's premium badge logic keys off the same
+                    # field across chat / image / vision tabs.
+                    "is_premium": billing_tier == "premium",
                     "quota_reserve_micros": cfg.get("quota_reserve_micros"),
                 }
             )

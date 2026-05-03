@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
 
@@ -18,7 +17,7 @@ from app.db import (
     PremiumTokenPurchaseStatus,
 )
 from app.routes import stripe_routes
-from app.tasks.celery_tasks import get_celery_session_maker
+from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
 
 logger = logging.getLogger(__name__)
 
@@ -36,13 +35,7 @@ def get_stripe_client() -> StripeClient | None:
 @celery_app.task(name="reconcile_pending_stripe_page_purchases")
 def reconcile_pending_stripe_page_purchases_task():
     """Recover paid purchases that were left pending due to missed webhook handling."""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    try:
-        loop.run_until_complete(_reconcile_pending_page_purchases())
-    finally:
-        loop.close()
+    return run_async_celery_task(_reconcile_pending_page_purchases)
 
 
 async def _reconcile_pending_page_purchases() -> None:
@@ -141,13 +134,7 @@ async def _reconcile_pending_page_purchases() -> None:
 @celery_app.task(name="reconcile_pending_stripe_token_purchases")
 def reconcile_pending_stripe_token_purchases_task():
     """Recover paid token purchases that were left pending due to missed webhook handling."""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    try:
-        loop.run_until_complete(_reconcile_pending_token_purchases())
-    finally:
-        loop.close()
+    return run_async_celery_task(_reconcile_pending_token_purchases)
 
 
 async def _reconcile_pending_token_purchases() -> None:
