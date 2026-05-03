@@ -96,6 +96,46 @@ def _compute_turn_cancelling_retry_delay(attempt: int) -> int:
     return min(delay, TURN_CANCELLING_MAX_DELAY_MS)
 
 
+def _first_interrupt_value(state: Any) -> dict[str, Any] | None:
+    """Return the first LangGraph interrupt payload across all snapshot tasks."""
+    def _extract_interrupt_value(candidate: Any) -> dict[str, Any] | None:
+        if isinstance(candidate, dict):
+            value = candidate.get("value", candidate)
+            return value if isinstance(value, dict) else None
+        value = getattr(candidate, "value", None)
+        if isinstance(value, dict):
+            return value
+        if isinstance(candidate, (list, tuple)):
+            for item in candidate:
+                extracted = _extract_interrupt_value(item)
+                if extracted is not None:
+                    return extracted
+        return None
+
+    for task in getattr(state, "tasks", ()) or ():
+        try:
+            interrupts = getattr(task, "interrupts", ()) or ()
+        except (AttributeError, IndexError, TypeError):
+            interrupts = ()
+        if not interrupts:
+            extracted = _extract_interrupt_value(task)
+            if extracted is not None:
+                return extracted
+            continue
+        for interrupt_item in interrupts:
+            extracted = _extract_interrupt_value(interrupt_item)
+            if extracted is not None:
+                return extracted
+    try:
+        state_interrupts = getattr(state, "interrupts", ()) or ()
+    except (AttributeError, IndexError, TypeError):
+        state_interrupts = ()
+    extracted = _extract_interrupt_value(state_interrupts)
+    if extracted is not None:
+        return extracted
+    return None
+
+
 def _extract_chunk_parts(chunk: Any) -> dict[str, Any]:
     """Decompose an ``AIMessageChunk`` into typed text/reasoning/tool-call parts.
 
@@ -2178,10 +2218,10 @@ async def _stream_agent_events(
     result.agent_called_update_memory = called_update_memory
     _log_file_contract("turn_outcome", result)
 
-    is_interrupted = state.tasks and any(task.interrupts for task in state.tasks)
-    if is_interrupted:
+    interrupt_value = _first_interrupt_value(state)
+    if interrupt_value is not None:
         result.is_interrupted = True
-        result.interrupt_value = state.tasks[0].interrupts[0].value
+        result.interrupt_value = interrupt_value
         yield streaming_service.format_interrupt_request(result.interrupt_value)
 
 

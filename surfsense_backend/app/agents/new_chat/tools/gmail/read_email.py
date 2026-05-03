@@ -50,6 +50,54 @@ def create_read_gmail_email_tool(
                     "message": "No Gmail connector found. Please connect Gmail in your workspace settings.",
                 }
 
+            if (
+                connector.connector_type
+                == SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR
+            ):
+                cca_id = connector.config.get("composio_connected_account_id")
+                if not cca_id:
+                    return {
+                        "status": "error",
+                        "message": "Composio connected account ID not found.",
+                    }
+
+                from app.agents.new_chat.tools.gmail.search_emails import (
+                    _format_gmail_summary,
+                )
+                from app.services.composio_service import ComposioService
+
+                service = ComposioService()
+                detail, error = await service.get_gmail_message_detail(
+                    connected_account_id=cca_id,
+                    entity_id=f"surfsense_{user_id}",
+                    message_id=message_id,
+                )
+                if error:
+                    return {"status": "error", "message": error}
+                if not detail:
+                    return {
+                        "status": "not_found",
+                        "message": f"Email with ID '{message_id}' not found.",
+                    }
+
+                summary = _format_gmail_summary(detail)
+                content = (
+                    f"# {summary['subject']}\n\n"
+                    f"**From:** {summary['from']}\n"
+                    f"**To:** {summary['to']}\n"
+                    f"**Date:** {summary['date']}\n\n"
+                    f"## Message Content\n\n"
+                    f"{detail.get('messageText') or detail.get('snippet') or ''}\n\n"
+                    f"## Message Details\n\n"
+                    f"- **Message ID:** {summary['message_id']}\n"
+                    f"- **Thread ID:** {summary['thread_id']}\n"
+                )
+                return {
+                    "status": "success",
+                    "message_id": summary["message_id"] or message_id,
+                    "content": content,
+                }
+
             from app.agents.new_chat.tools.gmail.search_emails import _build_credentials
 
             creds = _build_credentials(connector)

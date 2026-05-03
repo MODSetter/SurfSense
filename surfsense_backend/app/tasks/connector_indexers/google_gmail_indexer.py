@@ -20,12 +20,10 @@ from app.indexing_pipeline.indexing_pipeline_service import (
     IndexingPipelineService,
     PlaceholderInfo,
 )
+from app.services.composio_service import ComposioService
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
-from app.utils.google_credentials import (
-    COMPOSIO_GOOGLE_CONNECTOR_TYPES,
-    build_composio_credentials,
-)
+from app.utils.google_credentials import COMPOSIO_GOOGLE_CONNECTOR_TYPES
 
 from .base import (
     calculate_date_range,
@@ -42,6 +40,62 @@ ACCEPTED_GMAIL_CONNECTOR_TYPES = {
 
 HeartbeatCallbackType = Callable[[int], Awaitable[None]]
 HEARTBEAT_INTERVAL_SECONDS = 30
+
+
+def _normalize_composio_gmail_message(message: dict) -> dict:
+    if message.get("payload"):
+        return message
+
+    headers = []
+    header_values = {
+        "Subject": message.get("subject"),
+        "From": message.get("from") or message.get("sender"),
+        "To": message.get("to") or message.get("recipient"),
+        "Date": message.get("date"),
+    }
+    for name, value in header_values.items():
+        if value:
+            headers.append({"name": name, "value": value})
+
+    return {
+        **message,
+        "id": message.get("id")
+        or message.get("message_id")
+        or message.get("messageId"),
+        "threadId": message.get("threadId") or message.get("thread_id"),
+        "payload": {"headers": headers},
+        "snippet": message.get("snippet", ""),
+        "messageText": message.get("messageText") or message.get("body") or "",
+    }
+
+
+def _format_gmail_message_to_markdown(message: dict) -> str:
+    headers = {
+        header.get("name", "").lower(): header.get("value", "")
+        for header in message.get("payload", {}).get("headers", [])
+        if isinstance(header, dict)
+    }
+    subject = headers.get("subject", "No Subject")
+    from_email = headers.get("from", "Unknown Sender")
+    to_email = headers.get("to", "Unknown Recipient")
+    date_str = headers.get("date", "Unknown Date")
+    message_text = (
+        message.get("messageText")
+        or message.get("body")
+        or message.get("text")
+        or message.get("snippet", "")
+    )
+
+    return (
+        f"# {subject}\n\n"
+        f"**From:** {from_email}\n"
+        f"**To:** {to_email}\n"
+        f"**Date:** {date_str}\n\n"
+        f"## Message Content\n\n{message_text}\n\n"
+        f"## Message Details\n\n"
+        f"- **Message ID:** {message.get('id', 'Unknown')}\n"
+        f"- **Thread ID:** {message.get('threadId', 'Unknown')}\n"
+    )
 
 
 def _build_connector_doc(
@@ -162,7 +216,14 @@ async def index_google_gmail_messages(
             )
             return 0, 0, error_msg
 
-        # ── Credential building ───────────────────────────────────────
+        is_composio_connector = (
+            connector.connector_type in COMPOSIO_GOOGLE_CONNECTOR_TYPES
+        )
+        gmail_connector = None
+        composio_service = None
+        connected_account_id = None
+
+        # ── Credential/client building ────────────────────────────────
         if connector.connector_type in COMPOSIO_GOOGLE_CONNECTOR_TYPES:
             connected_account_id = connector.config.get("composio_connected_account_id")
             if not connected_account_id:
@@ -173,7 +234,7 @@ async def index_google_gmail_messages(
                     {"error_type": "MissingComposioAccount"},
                 )
                 return 0, 0, "Composio connected_account_id not found"
-            credentials = build_composio_credentials(connected_account_id)
+            composio_service = ComposioService()
         else:
             config_data = connector.config
 
@@ -241,9 +302,10 @@ async def index_google_gmail_messages(
             {"stage": "client_initialization"},
         )
 
-        gmail_connector = GoogleGmailConnector(
-            credentials, session, user_id, connector_id
-        )
+        if not is_composio_connector:
+            gmail_connector = GoogleGmailConnector(
+                credentials, session, user_id, connector_id
+            )
 
         calculated_start_date, calculated_end_date = calculate_date_range(
             connector, start_date, end_date, default_days_back=365
@@ -254,11 +316,60 @@ async def index_google_gmail_messages(
             f"Fetching emails for connector {connector_id} "
             f"from {calculated_start_date} to {calculated_end_date}"
         )
-        messages, error = await gmail_connector.get_recent_messages(
-            max_results=max_messages,
-            start_date=calculated_start_date,
-            end_date=calculated_end_date,
-        )
+        if is_composio_connector:
+            query_parts = []
+            if calculated_start_date:
+                query_parts.append(f"after:{calculated_start_date.replace('-', '/')}")
+            if calculated_end_date:
+                query_parts.append(f"before:{calculated_end_date.replace('-', '/')}")
+            query = " ".join(query_parts)
+
+            messages = []
+            page_token = None
+            error = None
+            while len(messages) < max_messages:
+                page_size = min(50, max_messages - len(messages))
+                (
+                    page_messages,
+                    page_token,
+                    _estimate,
+                    page_error,
+                ) = await composio_service.get_gmail_messages(
+                    connected_account_id=connected_account_id,
+                    entity_id=f"surfsense_{user_id}",
+                    query=query,
+                    max_results=page_size,
+                    page_token=page_token,
+                )
+                if page_error:
+                    error = page_error
+                    break
+                for page_message in page_messages:
+                    message_id = (
+                        page_message.get("id")
+                        or page_message.get("message_id")
+                        or page_message.get("messageId")
+                    )
+                    if message_id:
+                        (
+                            detail,
+                            detail_error,
+                        ) = await composio_service.get_gmail_message_detail(
+                            connected_account_id=connected_account_id,
+                            entity_id=f"surfsense_{user_id}",
+                            message_id=message_id,
+                        )
+                        if not detail_error and isinstance(detail, dict):
+                            page_message = detail
+                    messages.append(_normalize_composio_gmail_message(page_message))
+                if not page_token:
+                    break
+        else:
+            messages, error = await gmail_connector.get_recent_messages(
+                max_results=max_messages,
+                start_date=calculated_start_date,
+                end_date=calculated_end_date,
+            )
 
         if error:
             error_message = error
@@ -326,7 +437,12 @@ async def index_google_gmail_messages(
                     documents_skipped += 1
                     continue
 
-                markdown_content = gmail_connector.format_message_to_markdown(message)
+                if is_composio_connector:
+                    markdown_content = _format_gmail_message_to_markdown(message)
+                else:
+                    markdown_content = gmail_connector.format_message_to_markdown(
+                        message
+                    )
                 if not markdown_content.strip():
                     logger.warning(f"Skipping message with no content: {message_id}")
                     documents_skipped += 1

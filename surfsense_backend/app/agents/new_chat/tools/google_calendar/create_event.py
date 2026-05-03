@@ -168,16 +168,13 @@ def create_create_calendar_event_tool(
                 f"Creating calendar event: summary='{final_summary}', connector={actual_connector_id}"
             )
 
-            if (
+            is_composio_calendar = (
                 connector.connector_type
                 == SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR
-            ):
-                from app.utils.google_credentials import build_composio_credentials
-
+            )
+            if is_composio_calendar:
                 cca_id = connector.config.get("composio_connected_account_id")
-                if cca_id:
-                    creds = build_composio_credentials(cca_id)
-                else:
+                if not cca_id:
                     return {
                         "status": "error",
                         "message": "Composio connected account ID not found for this connector.",
@@ -211,10 +208,6 @@ def create_create_calendar_event_tool(
                     expiry=datetime.fromisoformat(exp) if exp else None,
                 )
 
-            service = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: build("calendar", "v3", credentials=creds)
-            )
-
             tz = context.get("timezone", "UTC")
             event_body: dict[str, Any] = {
                 "summary": final_summary,
@@ -231,14 +224,51 @@ def create_create_calendar_event_tool(
                 ]
 
             try:
-                created = await asyncio.get_event_loop().run_in_executor(
-                    None,
-                    lambda: (
-                        service.events()
-                        .insert(calendarId="primary", body=event_body)
-                        .execute()
-                    ),
-                )
+                if is_composio_calendar:
+                    from app.services.composio_service import ComposioService
+
+                    composio_params = {
+                        "calendar_id": "primary",
+                        "summary": final_summary,
+                        "start_datetime": final_start_datetime,
+                        "end_datetime": final_end_datetime,
+                        "timezone": tz,
+                        "attendees": final_attendees or [],
+                    }
+                    if final_description:
+                        composio_params["description"] = final_description
+                    if final_location:
+                        composio_params["location"] = final_location
+
+                    composio_result = await ComposioService().execute_tool(
+                        connected_account_id=cca_id,
+                        tool_name="GOOGLECALENDAR_CREATE_EVENT",
+                        params=composio_params,
+                        entity_id=f"surfsense_{user_id}",
+                    )
+                    if not composio_result.get("success"):
+                        raise RuntimeError(
+                            composio_result.get(
+                                "error", "Unknown Composio Calendar error"
+                            )
+                        )
+                    created = composio_result.get("data", {})
+                    if isinstance(created, dict):
+                        created = created.get("data", created)
+                        if isinstance(created, dict):
+                            created = created.get("response_data", created)
+                else:
+                    service = await asyncio.get_event_loop().run_in_executor(
+                        None, lambda: build("calendar", "v3", credentials=creds)
+                    )
+                    created = await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        lambda: (
+                            service.events()
+                            .insert(calendarId="primary", body=event_body)
+                            .execute()
+                        ),
+                    )
             except Exception as api_err:
                 from googleapiclient.errors import HttpError
 

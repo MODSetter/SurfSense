@@ -39,12 +39,7 @@ def _build_credentials(connector: SearchSourceConnector):
     from app.utils.google_credentials import COMPOSIO_GOOGLE_CONNECTOR_TYPES
 
     if connector.connector_type in COMPOSIO_GOOGLE_CONNECTOR_TYPES:
-        from app.utils.google_credentials import build_composio_credentials
-
-        cca_id = connector.config.get("composio_connected_account_id")
-        if not cca_id:
-            raise ValueError("Composio connected account ID not found.")
-        return build_composio_credentials(cca_id)
+        raise ValueError("Composio connectors must use Composio tool execution.")
 
     from google.oauth2.credentials import Credentials
 
@@ -65,6 +60,63 @@ def _build_credentials(connector: SearchSourceConnector):
         scopes=cfg.get("scopes", []),
         expiry=datetime.fromisoformat(exp) if exp else None,
     )
+
+
+def _gmail_headers(message: dict[str, Any]) -> dict[str, str]:
+    headers = message.get("payload", {}).get("headers", [])
+    return {
+        header.get("name", "").lower(): header.get("value", "")
+        for header in headers
+        if isinstance(header, dict)
+    }
+
+
+def _format_gmail_summary(message: dict[str, Any]) -> dict[str, Any]:
+    headers = _gmail_headers(message)
+    return {
+        "message_id": message.get("id") or message.get("messageId"),
+        "thread_id": message.get("threadId"),
+        "subject": message.get("subject") or headers.get("subject", "No Subject"),
+        "from": message.get("sender") or headers.get("from", "Unknown"),
+        "to": message.get("to") or headers.get("to", ""),
+        "date": message.get("messageTimestamp") or headers.get("date", ""),
+        "snippet": message.get("snippet") or message.get("messageText", "")[:300],
+        "labels": message.get("labelIds", []),
+    }
+
+
+async def _search_composio_gmail(
+    connector: SearchSourceConnector,
+    user_id: str,
+    query: str,
+    max_results: int,
+) -> dict[str, Any]:
+    cca_id = connector.config.get("composio_connected_account_id")
+    if not cca_id:
+        return {
+            "status": "error",
+            "message": "Composio connected account ID not found.",
+        }
+
+    from app.services.composio_service import ComposioService
+
+    service = ComposioService()
+    messages, _next_token, _estimate, error = await service.get_gmail_messages(
+        connected_account_id=cca_id,
+        entity_id=f"surfsense_{user_id}",
+        query=query,
+        max_results=max_results,
+    )
+    if error:
+        return {"status": "error", "message": error}
+
+    emails = [_format_gmail_summary(message) for message in messages]
+    return {
+        "status": "success",
+        "emails": emails,
+        "total": len(emails),
+        "message": "No emails found." if not emails else None,
+    }
 
 
 def create_search_gmail_tool(
@@ -109,6 +161,14 @@ def create_search_gmail_tool(
                     "status": "error",
                     "message": "No Gmail connector found. Please connect Gmail in your workspace settings.",
                 }
+
+            if (
+                connector.connector_type
+                == SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR
+            ):
+                return await _search_composio_gmail(
+                    connector, str(user_id), query, max_results
+                )
 
             creds = _build_credentials(connector)
 

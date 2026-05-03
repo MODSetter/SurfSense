@@ -16,7 +16,7 @@ from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
 )
-from app.utils.google_credentials import build_composio_credentials
+from app.services.composio_service import ComposioService
 
 logger = logging.getLogger(__name__)
 
@@ -94,15 +94,49 @@ class GoogleCalendarToolMetadataService:
     def __init__(self, db_session: AsyncSession):
         self._db_session = db_session
 
-    async def _build_credentials(self, connector: SearchSourceConnector) -> Credentials:
-        if (
+    def _is_composio_connector(self, connector: SearchSourceConnector) -> bool:
+        return (
             connector.connector_type
             == SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR
-        ):
-            cca_id = connector.config.get("composio_connected_account_id")
-            if cca_id:
-                return build_composio_credentials(cca_id)
+        )
+
+    def _get_composio_connected_account_id(
+        self, connector: SearchSourceConnector
+    ) -> str:
+        cca_id = connector.config.get("composio_connected_account_id")
+        if not cca_id:
             raise ValueError("Composio connected_account_id not found")
+        return cca_id
+
+    async def _execute_composio_calendar_tool(
+        self,
+        connector: SearchSourceConnector,
+        tool_name: str,
+        params: dict,
+    ) -> tuple[dict | list | None, str | None]:
+        service = ComposioService()
+        result = await service.execute_tool(
+            connected_account_id=self._get_composio_connected_account_id(connector),
+            tool_name=tool_name,
+            params=params,
+            entity_id=f"surfsense_{connector.user_id}",
+        )
+        if not result.get("success"):
+            return None, result.get("error", "Unknown Composio Calendar error")
+
+        data = result.get("data")
+        if isinstance(data, dict):
+            inner = data.get("data", data)
+            if isinstance(inner, dict):
+                return inner.get("response_data", inner), None
+            return inner, None
+        return data, None
+
+    async def _build_credentials(self, connector: SearchSourceConnector) -> Credentials:
+        if self._is_composio_connector(connector):
+            raise ValueError(
+                "Composio Calendar connectors must use Composio tool execution"
+            )
 
         config_data = dict(connector.config)
 
@@ -155,6 +189,14 @@ class GoogleCalendarToolMetadataService:
             connector = result.scalar_one_or_none()
             if not connector:
                 return True
+
+            if self._is_composio_connector(connector):
+                _data, error = await self._execute_composio_calendar_tool(
+                    connector,
+                    "GOOGLECALENDAR_GET_CALENDAR",
+                    {"calendar_id": "primary"},
+                )
+                return bool(error)
 
             creds = await self._build_credentials(connector)
             loop = asyncio.get_event_loop()
@@ -255,16 +297,48 @@ class GoogleCalendarToolMetadataService:
         timezone_str = ""
         if connector:
             try:
-                creds = await self._build_credentials(connector)
-                loop = asyncio.get_event_loop()
-                service = await loop.run_in_executor(
-                    None, lambda: build("calendar", "v3", credentials=creds)
-                )
+                if self._is_composio_connector(connector):
+                    cal_list, cal_error = await self._execute_composio_calendar_tool(
+                        connector, "GOOGLECALENDAR_LIST_CALENDARS", {}
+                    )
+                    if cal_error:
+                        raise RuntimeError(cal_error)
+                    (
+                        settings,
+                        settings_error,
+                    ) = await self._execute_composio_calendar_tool(
+                        connector,
+                        "GOOGLECALENDAR_SETTINGS_GET",
+                        {"setting": "timezone"},
+                    )
+                    if not settings_error and isinstance(settings, dict):
+                        timezone_str = settings.get("value", "")
+                else:
+                    creds = await self._build_credentials(connector)
+                    loop = asyncio.get_event_loop()
+                    service = await loop.run_in_executor(
+                        None, lambda: build("calendar", "v3", credentials=creds)
+                    )
 
-                cal_list = await loop.run_in_executor(
-                    None, lambda: service.calendarList().list().execute()
-                )
-                for cal in cal_list.get("items", []):
+                    cal_list = await loop.run_in_executor(
+                        None, lambda: service.calendarList().list().execute()
+                    )
+
+                    tz_setting = await loop.run_in_executor(
+                        None,
+                        lambda: service.settings().get(setting="timezone").execute(),
+                    )
+                    timezone_str = tz_setting.get("value", "")
+
+                calendar_items = []
+                if isinstance(cal_list, dict):
+                    calendar_items = (
+                        cal_list.get("items") or cal_list.get("calendars") or []
+                    )
+                elif isinstance(cal_list, list):
+                    calendar_items = cal_list
+
+                for cal in calendar_items:
                     calendars.append(
                         {
                             "id": cal.get("id", ""),
@@ -272,12 +346,6 @@ class GoogleCalendarToolMetadataService:
                             "primary": cal.get("primary", False),
                         }
                     )
-
-                tz_setting = await loop.run_in_executor(
-                    None,
-                    lambda: service.settings().get(setting="timezone").execute(),
-                )
-                timezone_str = tz_setting.get("value", "")
             except Exception:
                 logger.warning(
                     "Failed to fetch calendars/timezone for connector %s",
@@ -321,20 +389,29 @@ class GoogleCalendarToolMetadataService:
 
         event_dict = event.to_dict()
         try:
-            creds = await self._build_credentials(connector)
-            loop = asyncio.get_event_loop()
-            service = await loop.run_in_executor(
-                None, lambda: build("calendar", "v3", credentials=creds)
-            )
             calendar_id = event.calendar_id or "primary"
-            live_event = await loop.run_in_executor(
-                None,
-                lambda: (
-                    service.events()
-                    .get(calendarId=calendar_id, eventId=event.event_id)
-                    .execute()
-                ),
-            )
+            if self._is_composio_connector(connector):
+                live_event, error = await self._execute_composio_calendar_tool(
+                    connector,
+                    "GOOGLECALENDAR_EVENTS_GET",
+                    {"calendar_id": calendar_id, "event_id": event.event_id},
+                )
+                if error:
+                    raise RuntimeError(error)
+            else:
+                creds = await self._build_credentials(connector)
+                loop = asyncio.get_event_loop()
+                service = await loop.run_in_executor(
+                    None, lambda: build("calendar", "v3", credentials=creds)
+                )
+                live_event = await loop.run_in_executor(
+                    None,
+                    lambda: (
+                        service.events()
+                        .get(calendarId=calendar_id, eventId=event.event_id)
+                        .execute()
+                    ),
+                )
 
             event_dict["summary"] = live_event.get("summary", event_dict["summary"])
             event_dict["description"] = live_event.get(
@@ -376,12 +453,30 @@ class GoogleCalendarToolMetadataService:
     ) -> dict:
         resolved = await self._resolve_event(search_space_id, user_id, event_ref)
         if not resolved:
+            live_resolved = await self._resolve_live_event(
+                search_space_id, user_id, event_ref
+            )
+            if not live_resolved:
+                return {
+                    "error": (
+                        f"Event '{event_ref}' not found in your indexed or live Google Calendar events. "
+                        "This could mean: (1) the event doesn't exist, "
+                        "(2) the event name is different, or "
+                        "(3) the connected calendar account cannot access it."
+                    )
+                }
+
+            connector, live_event = live_resolved
+            account = GoogleCalendarAccount.from_connector(connector)
+            acc_dict = account.to_dict()
+            auth_expired = await self._check_account_health(connector.id)
+            acc_dict["auth_expired"] = auth_expired
+            if auth_expired:
+                await self._persist_auth_expired(connector.id)
+
             return {
-                "error": (
-                    f"Event '{event_ref}' not found in your indexed Google Calendar events. "
-                    "This could mean: (1) the event doesn't exist, (2) it hasn't been indexed yet, "
-                    "or (3) the event name is different."
-                )
+                "account": acc_dict,
+                "event": self._event_dict_from_live_event(live_event),
             }
 
         document, connector = resolved
@@ -429,3 +524,110 @@ class GoogleCalendarToolMetadataService:
         if row:
             return row[0], row[1]
         return None
+
+    async def _resolve_live_event(
+        self, search_space_id: int, user_id: str, event_ref: str
+    ) -> tuple[SearchSourceConnector, dict] | None:
+        result = await self._db_session.execute(
+            select(SearchSourceConnector)
+            .filter(
+                and_(
+                    SearchSourceConnector.search_space_id == search_space_id,
+                    SearchSourceConnector.user_id == user_id,
+                    SearchSourceConnector.connector_type.in_(CALENDAR_CONNECTOR_TYPES),
+                )
+            )
+            .order_by(SearchSourceConnector.last_indexed_at.desc())
+        )
+        connectors = result.scalars().all()
+
+        for connector in connectors:
+            try:
+                events = await self._search_live_events(connector, event_ref)
+            except Exception:
+                logger.warning(
+                    "Failed to search live calendar events for connector %s",
+                    connector.id,
+                    exc_info=True,
+                )
+                continue
+
+            if not events:
+                continue
+
+            normalized_ref = event_ref.strip().lower()
+            exact_match = next(
+                (
+                    event
+                    for event in events
+                    if event.get("summary", "").strip().lower() == normalized_ref
+                ),
+                None,
+            )
+            return connector, exact_match or events[0]
+
+        return None
+
+    async def _search_live_events(
+        self, connector: SearchSourceConnector, event_ref: str
+    ) -> list[dict]:
+        if self._is_composio_connector(connector):
+            data, error = await self._execute_composio_calendar_tool(
+                connector,
+                "GOOGLECALENDAR_EVENTS_LIST",
+                {
+                    "calendar_id": "primary",
+                    "q": event_ref,
+                    "max_results": 10,
+                    "single_events": True,
+                    "order_by": "startTime",
+                },
+            )
+            if error:
+                raise RuntimeError(error)
+            if isinstance(data, dict):
+                return data.get("items") or data.get("events") or []
+            return data if isinstance(data, list) else []
+
+        creds = await self._build_credentials(connector)
+        loop = asyncio.get_event_loop()
+        service = await loop.run_in_executor(
+            None, lambda: build("calendar", "v3", credentials=creds)
+        )
+        response = await loop.run_in_executor(
+            None,
+            lambda: (
+                service.events()
+                .list(
+                    calendarId="primary",
+                    q=event_ref,
+                    maxResults=10,
+                    singleEvents=True,
+                    orderBy="startTime",
+                )
+                .execute()
+            ),
+        )
+        return response.get("items", [])
+
+    def _event_dict_from_live_event(self, event: dict) -> dict:
+        start_data = event.get("start", {})
+        end_data = event.get("end", {})
+        return {
+            "event_id": event.get("id", ""),
+            "summary": event.get("summary", "No Title"),
+            "start": start_data.get("dateTime", start_data.get("date", "")),
+            "end": end_data.get("dateTime", end_data.get("date", "")),
+            "description": event.get("description", ""),
+            "location": event.get("location", ""),
+            "attendees": [
+                {
+                    "email": attendee.get("email", ""),
+                    "responseStatus": attendee.get("responseStatus", ""),
+                }
+                for attendee in event.get("attendees", [])
+            ],
+            "calendar_id": event.get("calendarId", "primary"),
+            "document_id": None,
+            "indexed_at": None,
+        }

@@ -158,24 +158,38 @@ def create_delete_google_drive_file_tool(
                 f"Deleting Google Drive file: file_id='{final_file_id}', connector={final_connector_id}"
             )
 
-            pre_built_creds = None
-            if (
+            is_composio_drive = (
                 connector.connector_type
                 == SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR
-            ):
-                from app.utils.google_credentials import build_composio_credentials
-
+            )
+            if is_composio_drive:
                 cca_id = connector.config.get("composio_connected_account_id")
-                if cca_id:
-                    pre_built_creds = build_composio_credentials(cca_id)
+                if not cca_id:
+                    return {
+                        "status": "error",
+                        "message": "Composio connected account ID not found for this Drive connector.",
+                    }
 
             client = GoogleDriveClient(
                 session=db_session,
                 connector_id=connector.id,
-                credentials=pre_built_creds,
             )
             try:
-                await client.trash_file(file_id=final_file_id)
+                if is_composio_drive:
+                    from app.services.composio_service import ComposioService
+
+                    result = await ComposioService().execute_tool(
+                        connected_account_id=cca_id,
+                        tool_name="GOOGLEDRIVE_TRASH_FILE",
+                        params={"file_id": final_file_id},
+                        entity_id=f"surfsense_{user_id}",
+                    )
+                    if not result.get("success"):
+                        raise RuntimeError(
+                            result.get("error", "Unknown Composio Drive error")
+                        )
+                else:
+                    await client.trash_file(file_id=final_file_id)
             except HttpError as http_err:
                 if http_err.resp.status == 403:
                     logger.warning(

@@ -158,16 +158,13 @@ def create_trash_gmail_email_tool(
                 f"Trashing Gmail email: message_id='{final_message_id}', connector={final_connector_id}"
             )
 
-            if (
+            is_composio_gmail = (
                 connector.connector_type
                 == SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR
-            ):
-                from app.utils.google_credentials import build_composio_credentials
-
+            )
+            if is_composio_gmail:
                 cca_id = connector.config.get("composio_connected_account_id")
-                if cca_id:
-                    creds = build_composio_credentials(cca_id)
-                else:
+                if not cca_id:
                     return {
                         "status": "error",
                         "message": "Composio connected account ID not found for this Gmail connector.",
@@ -209,20 +206,33 @@ def create_trash_gmail_email_tool(
                     expiry=datetime.fromisoformat(exp) if exp else None,
                 )
 
-            from googleapiclient.discovery import build
-
-            gmail_service = build("gmail", "v1", credentials=creds)
-
             try:
-                await asyncio.get_event_loop().run_in_executor(
-                    None,
-                    lambda: (
-                        gmail_service.users()
-                        .messages()
-                        .trash(userId="me", id=final_message_id)
-                        .execute()
-                    ),
-                )
+                if is_composio_gmail:
+                    from app.agents.new_chat.tools.gmail.composio_helpers import (
+                        execute_composio_gmail_tool,
+                    )
+
+                    _trashed, error = await execute_composio_gmail_tool(
+                        connector,
+                        user_id,
+                        "GMAIL_MOVE_TO_TRASH",
+                        {"user_id": "me", "message_id": final_message_id},
+                    )
+                    if error:
+                        raise RuntimeError(error)
+                else:
+                    from googleapiclient.discovery import build
+
+                    gmail_service = build("gmail", "v1", credentials=creds)
+                    await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        lambda: (
+                            gmail_service.users()
+                            .messages()
+                            .trash(userId="me", id=final_message_id)
+                            .execute()
+                        ),
+                    )
             except Exception as api_err:
                 from googleapiclient.errors import HttpError
 

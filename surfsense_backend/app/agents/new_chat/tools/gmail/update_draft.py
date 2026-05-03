@@ -188,16 +188,13 @@ def create_update_gmail_draft_tool(
                 f"Updating Gmail draft: subject='{final_subject}', connector={final_connector_id}"
             )
 
-            if (
+            is_composio_gmail = (
                 connector.connector_type
                 == SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR
-            ):
-                from app.utils.google_credentials import build_composio_credentials
-
+            )
+            if is_composio_gmail:
                 cca_id = connector.config.get("composio_connected_account_id")
-                if cca_id:
-                    creds = build_composio_credentials(cca_id)
-                else:
+                if not cca_id:
                     return {
                         "status": "error",
                         "message": "Composio connected account ID not found for this Gmail connector.",
@@ -239,18 +236,22 @@ def create_update_gmail_draft_tool(
                     expiry=datetime.fromisoformat(exp) if exp else None,
                 )
 
-            from googleapiclient.discovery import build
-
-            gmail_service = build("gmail", "v1", credentials=creds)
-
             # Resolve draft_id if not already available
             if not final_draft_id:
                 logger.info(
                     f"draft_id not in metadata, looking up via drafts.list for message_id={message_id}"
                 )
-                final_draft_id = await _find_draft_id_by_message(
-                    gmail_service, message_id
-                )
+                if is_composio_gmail:
+                    final_draft_id = await _find_composio_draft_id_by_message(
+                        connector, user_id, message_id
+                    )
+                else:
+                    from googleapiclient.discovery import build
+
+                    gmail_service = build("gmail", "v1", credentials=creds)
+                    final_draft_id = await _find_draft_id_by_message(
+                        gmail_service, message_id
+                    )
 
             if not final_draft_id:
                 return {
@@ -272,19 +273,48 @@ def create_update_gmail_draft_tool(
             raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
 
             try:
-                updated = await asyncio.get_event_loop().run_in_executor(
-                    None,
-                    lambda: (
-                        gmail_service.users()
-                        .drafts()
-                        .update(
-                            userId="me",
-                            id=final_draft_id,
-                            body={"message": {"raw": raw}},
-                        )
-                        .execute()
-                    ),
-                )
+                if is_composio_gmail:
+                    from app.agents.new_chat.tools.gmail.composio_helpers import (
+                        execute_composio_gmail_tool,
+                        split_recipients,
+                    )
+
+                    updated, error = await execute_composio_gmail_tool(
+                        connector,
+                        user_id,
+                        "GMAIL_UPDATE_DRAFT",
+                        {
+                            "user_id": "me",
+                            "draft_id": final_draft_id,
+                            "recipient_email": final_to,
+                            "subject": final_subject,
+                            "body": final_body,
+                            "cc": split_recipients(final_cc),
+                            "bcc": split_recipients(final_bcc),
+                            "is_html": False,
+                        },
+                    )
+                    if error:
+                        raise RuntimeError(error)
+                    if not isinstance(updated, dict):
+                        updated = {}
+                else:
+                    from googleapiclient.discovery import build
+
+                    gmail_service = build("gmail", "v1", credentials=creds)
+                    updated = await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        lambda: (
+                            gmail_service.users()
+                            .drafts()
+                            .update(
+                                userId="me",
+                                id=final_draft_id,
+                                body={"message": {"raw": raw}},
+                            )
+                            .execute()
+                        ),
+                    )
             except Exception as api_err:
                 from googleapiclient.errors import HttpError
 
@@ -408,3 +438,35 @@ async def _find_draft_id_by_message(gmail_service: Any, message_id: str) -> str 
     except Exception as e:
         logger.warning(f"Failed to look up draft by message_id: {e}")
         return None
+
+
+async def _find_composio_draft_id_by_message(
+    connector: Any, user_id: str, message_id: str
+) -> str | None:
+    from app.agents.new_chat.tools.gmail.composio_helpers import (
+        execute_composio_gmail_tool,
+    )
+
+    page_token = ""
+    while True:
+        params: dict[str, Any] = {
+            "user_id": "me",
+            "max_results": 100,
+            "verbose": False,
+        }
+        if page_token:
+            params["page_token"] = page_token
+
+        data, error = await execute_composio_gmail_tool(
+            connector, user_id, "GMAIL_LIST_DRAFTS", params
+        )
+        if error or not isinstance(data, dict):
+            return None
+
+        for draft in data.get("drafts", []):
+            if draft.get("message", {}).get("id") == message_id:
+                return draft.get("id")
+
+        page_token = data.get("nextPageToken") or data.get("next_page_token") or ""
+        if not page_token:
+            return None

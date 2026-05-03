@@ -192,16 +192,13 @@ def create_update_calendar_event_tool(
                 f"Updating calendar event: event_id='{final_event_id}', connector={actual_connector_id}"
             )
 
-            if (
+            is_composio_calendar = (
                 connector.connector_type
                 == SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR
-            ):
-                from app.utils.google_credentials import build_composio_credentials
-
+            )
+            if is_composio_calendar:
                 cca_id = connector.config.get("composio_connected_account_id")
-                if cca_id:
-                    creds = build_composio_credentials(cca_id)
-                else:
+                if not cca_id:
                     return {
                         "status": "error",
                         "message": "Composio connected account ID not found for this connector.",
@@ -235,10 +232,6 @@ def create_update_calendar_event_tool(
                     expiry=datetime.fromisoformat(exp) if exp else None,
                 )
 
-            service = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: build("calendar", "v3", credentials=creds)
-            )
-
             update_body: dict[str, Any] = {}
             if final_new_summary is not None:
                 update_body["summary"] = final_new_summary
@@ -264,18 +257,65 @@ def create_update_calendar_event_tool(
                 }
 
             try:
-                updated = await asyncio.get_event_loop().run_in_executor(
-                    None,
-                    lambda: (
-                        service.events()
-                        .patch(
-                            calendarId="primary",
-                            eventId=final_event_id,
-                            body=update_body,
+                if is_composio_calendar:
+                    from app.services.composio_service import ComposioService
+
+                    composio_params: dict[str, Any] = {
+                        "calendar_id": "primary",
+                        "event_id": final_event_id,
+                    }
+                    if final_new_summary is not None:
+                        composio_params["summary"] = final_new_summary
+                    if final_new_start_datetime is not None:
+                        composio_params["start_time"] = final_new_start_datetime
+                    if final_new_end_datetime is not None:
+                        composio_params["end_time"] = final_new_end_datetime
+                    if final_new_description is not None:
+                        composio_params["description"] = final_new_description
+                    if final_new_location is not None:
+                        composio_params["location"] = final_new_location
+                    if final_new_attendees is not None:
+                        composio_params["attendees"] = [
+                            e.strip() for e in final_new_attendees if e.strip()
+                        ]
+                    if not _is_date_only(
+                        final_new_start_datetime or final_new_end_datetime or ""
+                    ):
+                        composio_params["timezone"] = context.get("timezone", "UTC")
+
+                    composio_result = await ComposioService().execute_tool(
+                        connected_account_id=cca_id,
+                        tool_name="GOOGLECALENDAR_PATCH_EVENT",
+                        params=composio_params,
+                        entity_id=f"surfsense_{user_id}",
+                    )
+                    if not composio_result.get("success"):
+                        raise RuntimeError(
+                            composio_result.get(
+                                "error", "Unknown Composio Calendar error"
+                            )
                         )
-                        .execute()
-                    ),
-                )
+                    updated = composio_result.get("data", {})
+                    if isinstance(updated, dict):
+                        updated = updated.get("data", updated)
+                        if isinstance(updated, dict):
+                            updated = updated.get("response_data", updated)
+                else:
+                    service = await asyncio.get_event_loop().run_in_executor(
+                        None, lambda: build("calendar", "v3", credentials=creds)
+                    )
+                    updated = await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        lambda: (
+                            service.events()
+                            .patch(
+                                calendarId="primary",
+                                eventId=final_event_id,
+                                body=update_body,
+                            )
+                            .execute()
+                        ),
+                    )
             except Exception as api_err:
                 from googleapiclient.errors import HttpError
 
