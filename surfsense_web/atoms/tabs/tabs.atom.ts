@@ -136,7 +136,7 @@ export const syncChatTabAtom = atom(
 		const newTab: Tab = {
 			id: tabId,
 			type: "chat",
-			title: title || `Chat ${chatId}`,
+			title: title || "New Chat",
 			chatId,
 			chatUrl,
 			searchSpaceId,

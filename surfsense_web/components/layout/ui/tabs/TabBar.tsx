@@ -158,35 +158,41 @@ export function TabBar({
 							data-tab-id={tab.id}
 							onClick={() => handleTabClick(tab)}
 							className={cn(
-								"group relative flex h-full items-center px-3 min-w-[120px] max-w-[240px] min-h-0 overflow-hidden text-[13px] font-medium rounded-md transition-all duration-150 shrink-0",
+								"group relative flex h-full items-center px-3 w-[180px] min-h-0 overflow-hidden text-[13px] font-medium rounded-md transition-colors duration-150 shrink-0",
 								isActive
-									? "bg-muted/60 text-foreground"
-									: "bg-transparent text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+									? "bg-muted text-foreground"
+									: "bg-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground"
 							)}
 						>
-							<span className="block min-w-0 flex-1 truncate text-left group-hover:pr-5 group-focus-within:pr-5">
+							<span className="block min-w-0 flex-1 whitespace-nowrap overflow-hidden text-left">
 								{tab.title}
 							</span>
-							{/* biome-ignore lint/a11y/useSemanticElements: cannot nest button inside button */}
-							<span
-								role="button"
-								tabIndex={0}
-								onClick={(e) => handleTabClose(e, tab.id)}
-								onKeyDown={(e) => {
-									if (e.key === "Enter" || e.key === " ") {
-										e.preventDefault();
-										handleTabClose(e as unknown as React.MouseEvent, tab.id);
-									}
-								}}
+							{/* Hover-only gradient + close overlay (sidebar pattern) — keeps pill width fixed and avoids ellipsis shift. */}
+							<div
 								className={cn(
-									"absolute right-2 top-1/2 -translate-y-1/2 shrink-0 rounded-full p-0.5 transition-all duration-150 hover:bg-muted-foreground/15",
+									"pointer-events-none absolute right-0 top-0 bottom-0 flex items-center rounded-r-md pl-6 pr-2 opacity-0 transition-opacity duration-150",
+									"group-hover:opacity-100 group-focus-within:opacity-100",
 									isActive
-										? "opacity-0 group-hover:opacity-70 group-focus-within:opacity-70 hover:opacity-100"
-										: "opacity-0 group-hover:opacity-60 group-focus-within:opacity-60 hover:opacity-100!"
+										? "bg-gradient-to-l from-muted from-60% to-transparent"
+										: "bg-gradient-to-l from-muted/50 from-60% to-transparent"
 								)}
 							>
-								<X className="size-3" />
-							</span>
+								{/* biome-ignore lint/a11y/useSemanticElements: cannot nest button inside button */}
+								<span
+									role="button"
+									tabIndex={0}
+									onClick={(e) => handleTabClose(e, tab.id)}
+									onKeyDown={(e) => {
+										if (e.key === "Enter" || e.key === " ") {
+											e.preventDefault();
+											handleTabClose(e as unknown as React.MouseEvent, tab.id);
+										}
+									}}
+									className="pointer-events-auto rounded-full p-0.5 transition-colors hover:bg-muted-foreground/15"
+								>
+									<X className="size-3" />
+								</span>
+							</div>
 						</button>
 					);
 				})}
