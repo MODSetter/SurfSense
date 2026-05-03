@@ -69,7 +69,13 @@ import {
 import { PromptPicker, type PromptPickerRef } from "@/components/new-chat/prompt-picker";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
+import {
+	Drawer,
+	DrawerContent,
+	DrawerHandle,
+	DrawerHeader,
+	DrawerTitle,
+} from "@/components/ui/drawer";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -900,15 +906,28 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									<Upload className="size-4" />
 									Upload Files
 								</DropdownMenuItem>
+								<DropdownMenuItem onSelect={() => setConnectorDialogOpen(true)}>
+									<Unplug className="size-4" />
+									Manage Connectors
+								</DropdownMenuItem>
 							</DropdownMenuContent>
 						</DropdownMenu>
-						<Drawer open={toolsPopoverOpen} onOpenChange={setToolsPopoverOpen}>
-							<DrawerContent className="max-h-[60dvh]">
+						<Drawer
+							open={toolsPopoverOpen}
+							onOpenChange={setToolsPopoverOpen}
+							shouldScaleBackground={false}
+						>
+							<DrawerContent className="h-[85vh] max-h-[85vh] z-80" overlayClassName="z-80">
 								<DrawerHandle />
-								<div className="px-4 py-2">
-									<DrawerTitle className="text-sm font-medium">Manage Tools</DrawerTitle>
-								</div>
-								<div className="overflow-y-auto pb-6" onScroll={handleToolsScroll}>
+								<DrawerHeader className="px-4 pb-3 pt-2">
+									<DrawerTitle className="flex items-center justify-center gap-2 text-base font-semibold">
+										Manage Tools
+									</DrawerTitle>
+								</DrawerHeader>
+								<div
+									className="min-h-0 flex-1 overflow-y-auto scrollbar-thin pb-6"
+									onScroll={handleToolsScroll}
+								>
 									{groupedTools
 										.filter((g) => !g.connectorIcon)
 										.map((group) => (
@@ -1003,15 +1022,6 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 								</div>
 							</DrawerContent>
 						</Drawer>
-						<Button
-							variant="ghost"
-							size="icon"
-							className="size-[34px] rounded-full p-1 font-semibold text-xs hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30"
-							aria-label="Manage connectors"
-							onClick={() => setConnectorDialogOpen(true)}
-						>
-							<Unplug className="size-4" />
-						</Button>
 					</>
 				) : (
 					<Popover open={toolsPopoverOpen} onOpenChange={setToolsPopoverOpen}>
@@ -1212,17 +1222,19 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 				</div>
 			)}
 			<div className="flex items-center gap-2">
-				<TooltipIconButton
-					tooltip="Capture screen"
-					type="button"
-					variant="ghost"
-					size="icon"
-					className="size-8 rounded-full"
-					aria-label="Capture screen"
-					onClick={() => void handleScreenCapture()}
-				>
-					<Camera className="size-4" />
-				</TooltipIconButton>
+				{isDesktop && (
+					<TooltipIconButton
+						tooltip="Capture screen"
+						type="button"
+						variant="ghost"
+						size="icon"
+						className="size-8 rounded-full"
+						aria-label="Capture screen"
+						onClick={() => void handleScreenCapture()}
+					>
+						<Camera className="size-4" />
+					</TooltipIconButton>
+				)}
 				<AuiIf condition={({ thread }) => !thread.isRunning}>
 					<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
 						<TooltipIconButton
