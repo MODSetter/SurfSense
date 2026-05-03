@@ -113,45 +113,43 @@ export function Sidebar({
 		[navItems]
 	);
 
+	const collapsedWidth = 51;
+
 	return (
 		<div
 			className={cn(
 				"relative flex h-full flex-col bg-panel text-sidebar-foreground overflow-hidden select-none",
-				isCollapsed ? "w-[60px] transition-[width] duration-200" : "",
-				!isCollapsed && !isResizing ? "transition-[width] duration-200" : "",
+				!isResizing && "transition-[width] duration-200 ease-out",
 				className
 			)}
-			style={!isCollapsed ? { width: sidebarWidth } : undefined}
+			style={{ width: isCollapsed ? collapsedWidth : sidebarWidth }}
 		>
-			{/* Header - search space name or collapse button when collapsed */}
-			{isCollapsed ? (
-				<div className="flex h-12 shrink-0 items-center justify-center border-b">
+			<div className="flex h-12 shrink-0 items-center gap-0 px-1 border-b">
+				<div
+					className={cn(
+						"min-w-0 overflow-hidden",
+						"transition-[max-width,opacity,margin-right] duration-200 ease-out",
+						isCollapsed ? "max-w-0 opacity-0 mr-0" : "max-w-[400px] flex-1 opacity-100"
+					)}
+					aria-hidden={isCollapsed}
+				>
+					<SidebarHeader
+						searchSpace={searchSpace}
+						isCollapsed={false}
+						onSettings={onSettings}
+						onManageMembers={onManageMembers}
+					/>
+				</div>
+				<div className={cn("shrink-0", isCollapsed && "mx-auto")}>
 					<SidebarCollapseButton
 						isCollapsed={isCollapsed}
 						onToggle={onToggleCollapse ?? (() => {})}
 						disableTooltip={disableTooltips}
 					/>
 				</div>
-			) : (
-				<div className="flex h-12 shrink-0 items-center gap-0 px-1 border-b">
-					<SidebarHeader
-						searchSpace={searchSpace}
-						isCollapsed={isCollapsed}
-						onSettings={onSettings}
-						onManageMembers={onManageMembers}
-					/>
-					<div className="shrink-0">
-						<SidebarCollapseButton
-							isCollapsed={isCollapsed}
-							onToggle={onToggleCollapse ?? (() => {})}
-							disableTooltip={disableTooltips}
-						/>
-					</div>
-				</div>
-			)}
+			</div>
 
-			{/* New chat button + Inbox */}
-			<div className={cn("flex flex-col gap-0.5 py-1.5", isCollapsed && "items-center")}>
+			<div className="flex flex-col gap-0.5 py-1.5">
 				<SidebarButton
 					icon={SquarePen}
 					label={t("new_chat")}
@@ -177,7 +175,7 @@ export function Sidebar({
 
 			{/* Chat sections - fills available space */}
 			{isCollapsed ? (
-				<div className="flex-1 w-[60px]" />
+				<div className="flex-1 w-full" />
 			) : (
 				<div className="flex-1 flex flex-col gap-1 pt-2 w-full min-h-0 overflow-hidden">
 					{/* Shared Chats Section - takes only space needed, max 50% */}

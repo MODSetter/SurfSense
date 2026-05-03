@@ -11,7 +11,11 @@ import type { InboxItem } from "@/hooks/use-inbox";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { SidebarProvider, useSidebarState } from "../../hooks";
-import { useSidebarResize } from "../../hooks/useSidebarResize";
+import {
+	SIDEBAR_MAX_WIDTH,
+	SIDEBAR_MIN_WIDTH,
+	useSidebarResize,
+} from "../../hooks/useSidebarResize";
 import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
 import { Header } from "../header";
 import { IconRail } from "../icon-rail";
@@ -25,7 +29,6 @@ import {
 	MobileSidebarTrigger,
 	Sidebar,
 } from "../sidebar";
-import { SidebarCollapseButton } from "../sidebar/SidebarCollapseButton";
 import { SidebarSlideOutPanel } from "../sidebar/SidebarSlideOutPanel";
 import { TabBar } from "../tabs/TabBar";
 
@@ -123,13 +126,11 @@ function MainContentPanel({
 	isChatPage,
 	onTabSwitch,
 	onNewChat,
-	leftActions,
 	children,
 }: {
 	isChatPage: boolean;
 	onTabSwitch?: (tab: Tab) => void;
 	onNewChat?: () => void;
-	leftActions?: React.ReactNode;
 	children: React.ReactNode;
 }) {
 	const activeTab = useAtomValue(activeTabAtom);
@@ -140,7 +141,6 @@ function MainContentPanel({
 			<TabBar
 				onTabSwitch={onTabSwitch}
 				onNewChat={onNewChat}
-				leftActions={leftActions}
 				rightActions={<RightPanelExpandButton />}
 				className="min-w-0"
 			/>
@@ -214,7 +214,7 @@ export function LayoutShell({
 	const { isCollapsed, setIsCollapsed, toggleCollapsed } = useSidebarState(defaultCollapsed);
 	const {
 		sidebarWidth,
-		handleMouseDown: onResizeMouseDown,
+		handlePointerDown: onResizePointerDown,
 		isDragging: isResizing,
 	} = useSidebarResize();
 
@@ -382,10 +382,7 @@ export function LayoutShell({
 							onSearchSpaceDelete={onSearchSpaceDelete}
 							onSearchSpaceSettings={onSearchSpaceSettings}
 							onAddSearchSpace={onAddSearchSpace}
-							isSingleRailMode={isCollapsed}
-							onNewChat={onNewChat}
-							navItems={navItems}
-							onNavItemClick={onNavItemClick}
+							isSingleRailMode={false}
 							user={user}
 							onUserSettings={onUserSettings}
 							onAnnouncements={onAnnouncements}
@@ -397,58 +394,54 @@ export function LayoutShell({
 					</div>
 
 					{/* Sidebar + slide-out panels share one container; overflow visible so panels can overlay main content. Negative right margin closes the flex gap so the sidebar sits flush against the main panel, separated only by a border. */}
-					<div
-						className={cn(
-							"relative hidden md:flex shrink-0 z-20 -mr-2 border-r",
-							!isCollapsed && "bg-panel"
-						)}
-					>
-						{!isCollapsed && (
-							<Sidebar
-								searchSpace={searchSpace}
-								isCollapsed={isCollapsed}
-								onToggleCollapse={toggleCollapsed}
-								navItems={navItems}
-								onNavItemClick={onNavItemClick}
-								chats={chats}
-								sharedChats={sharedChats}
-								activeChatId={activeChatId}
-								onNewChat={onNewChat}
-								onChatSelect={onChatSelect}
-								onChatRename={onChatRename}
-								onChatDelete={onChatDelete}
-								onChatArchive={onChatArchive}
-								onViewAllSharedChats={onViewAllSharedChats}
-								onViewAllPrivateChats={onViewAllPrivateChats}
-								isSharedChatsPanelOpen={activeSlideoutPanel === "shared"}
-								isPrivateChatsPanelOpen={activeSlideoutPanel === "private"}
-								user={user}
-								onSettings={onSettings}
-								onManageMembers={onManageMembers}
-								onUserSettings={onUserSettings}
-								onAnnouncements={onAnnouncements}
-								announcementUnreadCount={announcementUnreadCount}
-								onLogout={onLogout}
-								pageUsage={pageUsage}
-								theme={theme}
-								setTheme={setTheme}
-								renderUserProfile={false}
-								className="flex shrink-0"
-								isLoadingChats={isLoadingChats}
-								sidebarWidth={sidebarWidth}
-								isResizing={isResizing}
-							/>
-						)}
+					<div className="relative hidden md:flex shrink-0 z-20 -mr-2 border-r bg-panel">
+						<Sidebar
+							searchSpace={searchSpace}
+							isCollapsed={isCollapsed}
+							onToggleCollapse={toggleCollapsed}
+							navItems={navItems}
+							onNavItemClick={onNavItemClick}
+							chats={chats}
+							sharedChats={sharedChats}
+							activeChatId={activeChatId}
+							onNewChat={onNewChat}
+							onChatSelect={onChatSelect}
+							onChatRename={onChatRename}
+							onChatDelete={onChatDelete}
+							onChatArchive={onChatArchive}
+							onViewAllSharedChats={onViewAllSharedChats}
+							onViewAllPrivateChats={onViewAllPrivateChats}
+							isSharedChatsPanelOpen={activeSlideoutPanel === "shared"}
+							isPrivateChatsPanelOpen={activeSlideoutPanel === "private"}
+							user={user}
+							onSettings={onSettings}
+							onManageMembers={onManageMembers}
+							onUserSettings={onUserSettings}
+							onAnnouncements={onAnnouncements}
+							announcementUnreadCount={announcementUnreadCount}
+							onLogout={onLogout}
+							pageUsage={pageUsage}
+							theme={theme}
+							setTheme={setTheme}
+							renderUserProfile={false}
+							className="flex shrink-0"
+							isLoadingChats={isLoadingChats}
+							sidebarWidth={sidebarWidth}
+							isResizing={isResizing}
+						/>
 
-						{/* Drag hit-area straddling the right border — wider for a forgiving grab,
-						    z-50 + pointer-events-auto to beat any neighboring stacking context. */}
 						{!isCollapsed && (
-							<button
-								type="button"
+							<hr
+								aria-orientation="vertical"
 								aria-label="Resize sidebar"
-								onMouseDown={onResizeMouseDown}
+								aria-valuemin={SIDEBAR_MIN_WIDTH}
+								aria-valuemax={SIDEBAR_MAX_WIDTH}
+								aria-valuenow={sidebarWidth}
+								tabIndex={0}
+								onPointerDown={onResizePointerDown}
+								style={{ touchAction: "none" }}
 								className={cn(
-									"absolute top-0 right-0 h-full w-4 translate-x-1/2 cursor-col-resize z-50 pointer-events-auto select-none bg-transparent border-0 p-0 focus:outline-none",
+									"absolute top-0 right-0 h-full w-4 translate-x-1/2 z-50 select-none cursor-col-resize",
 									"after:content-[''] after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent hover:after:bg-border/80 after:transition-colors",
 									isResizing && "after:bg-border"
 								)}
@@ -518,11 +511,6 @@ export function LayoutShell({
 						isChatPage={isChatPage}
 						onTabSwitch={onTabSwitch}
 						onNewChat={onNewChat}
-						leftActions={
-							isCollapsed ? (
-								<SidebarCollapseButton isCollapsed={isCollapsed} onToggle={toggleCollapsed} />
-							) : undefined
-						}
 					>
 						{children}
 					</MainContentPanel>

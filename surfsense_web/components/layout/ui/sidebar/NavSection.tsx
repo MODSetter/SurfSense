@@ -137,7 +137,7 @@ function CollapsedOverlay({ item }: { item: NavItem }) {
 
 export function NavSection({ items, onItemClick, isCollapsed = false }: NavSectionProps) {
 	return (
-		<div className={cn("flex flex-col gap-0.5 py-2", isCollapsed && "items-center")}>
+		<div className="flex flex-col gap-0.5 py-2">
 			{items.map((item) => {
 				const { tooltip } = getStatusInfo(item.statusIndicator);
 
