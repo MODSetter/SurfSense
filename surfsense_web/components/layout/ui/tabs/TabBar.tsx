@@ -170,11 +170,11 @@ export function TabBar({
 							{/* Hover-only gradient + close overlay (sidebar pattern) — keeps pill width fixed and avoids ellipsis shift. */}
 							<div
 								className={cn(
-									"pointer-events-none absolute right-0 top-0 bottom-0 flex items-center rounded-r-md pl-6 pr-2 opacity-0 transition-opacity duration-150",
+									"pointer-events-none absolute right-0 top-0 bottom-0 flex items-center rounded-r-md pl-8 pr-2 opacity-0 transition-opacity duration-150",
 									"group-hover:opacity-100 group-focus-within:opacity-100",
 									isActive
 										? "bg-gradient-to-l from-muted from-60% to-transparent"
-										: "bg-gradient-to-l from-muted/50 from-60% to-transparent"
+										: "bg-gradient-to-l from-muted from-60% to-transparent"
 								)}
 							>
 								{/* biome-ignore lint/a11y/useSemanticElements: cannot nest button inside button */}

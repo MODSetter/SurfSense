@@ -144,7 +144,7 @@ function MainContentPanel({
 				rightActions={<RightPanelExpandButton />}
 				className="min-w-0"
 			/>
-			<div className="relative flex flex-1 flex-col border border-l-0 border-r-0 border-t-0 bg-panel overflow-hidden min-w-0">
+			<div className="relative flex flex-1 flex-col bg-panel overflow-hidden min-w-0">
 				<Header />
 
 				{isDocumentTab && activeTab.documentId && activeTab.searchSpaceId ? (
@@ -441,7 +441,7 @@ export function LayoutShell({
 								onPointerDown={onResizePointerDown}
 								style={{ touchAction: "none" }}
 								className={cn(
-									"absolute top-0 right-0 h-full w-4 translate-x-1/2 z-50 select-none cursor-col-resize",
+									"absolute top-0 right-0 h-full w-4 translate-x-1/2 z-50 m-0 border-0 bg-transparent p-0 select-none cursor-col-resize",
 									"after:content-[''] after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent hover:after:bg-border/80 after:transition-colors",
 									isResizing && "after:bg-border"
 								)}
