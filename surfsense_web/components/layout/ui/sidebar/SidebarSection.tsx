@@ -69,7 +69,7 @@ export function SidebarSection({
 			</div>
 
 			<CollapsibleContent className={cn("overflow-hidden flex-1 flex flex-col min-h-0")}>
-				<div className={cn("px-2 pb-2 flex-1 flex flex-col min-h-0 overflow-hidden")}>
+				<div className={cn("px-2 flex-1 flex flex-col min-h-0 overflow-hidden")}>
 					{children}
 				</div>
 			</CollapsibleContent>

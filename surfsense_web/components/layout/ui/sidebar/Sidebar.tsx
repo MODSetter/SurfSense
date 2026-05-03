@@ -179,7 +179,7 @@ export function Sidebar({
 			{isCollapsed ? (
 				<div className="flex-1 w-[60px]" />
 			) : (
-				<div className="flex-1 flex flex-col gap-1 py-2 w-full min-h-0 overflow-hidden">
+				<div className="flex-1 flex flex-col gap-1 pt-2 w-full min-h-0 overflow-hidden">
 					{/* Shared Chats Section - takes only space needed, max 50% */}
 					<SidebarSection
 						title={t("shared_chats")}
@@ -210,7 +210,7 @@ export function Sidebar({
 						) : sharedChats.length > 0 ? (
 							<div className="relative min-h-0 flex-1">
 								<div
-									className={`flex flex-col gap-0.5 max-h-full overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent ${sharedChats.length > 4 ? "pb-8" : ""}`}
+									className={`flex flex-col gap-0.5 max-h-full overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent ${sharedChats.length > 4 ? "pb-2" : ""}`}
 								>
 									{sharedChats.slice(0, 20).map((chat) => (
 										<ChatListItem
@@ -229,7 +229,7 @@ export function Sidebar({
 								</div>
 								{/* Gradient fade indicator when more than 4 items */}
 								{sharedChats.length > 4 && (
-									<div className="pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-sidebar via-sidebar/90 to-transparent" />
+									<div className="pointer-events-none absolute bottom-0 left-0 right-0 h-5 bg-gradient-to-t from-sidebar/80 to-transparent" />
 								)}
 							</div>
 						) : (
@@ -266,7 +266,7 @@ export function Sidebar({
 						) : chats.length > 0 ? (
 							<div className="relative flex-1 min-h-0">
 								<div
-									className={`flex flex-col gap-0.5 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent ${chats.length > 4 ? "pb-8" : ""}`}
+									className={`flex flex-col gap-0.5 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent ${chats.length > 4 ? "pb-2" : ""}`}
 								>
 									{chats.slice(0, 20).map((chat) => (
 										<ChatListItem
@@ -285,7 +285,7 @@ export function Sidebar({
 								</div>
 								{/* Gradient fade indicator when more than 4 items */}
 								{chats.length > 4 && (
-									<div className="pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-sidebar via-sidebar/90 to-transparent" />
+									<div className="pointer-events-none absolute bottom-0 left-0 right-0 h-5 bg-gradient-to-t from-sidebar/80 to-transparent" />
 								)}
 							</div>
 						) : (
@@ -306,7 +306,11 @@ export function Sidebar({
 					/>
 				)}
 
-				<SidebarUsageFooter pageUsage={pageUsage} isCollapsed={isCollapsed} />
+				<SidebarUsageFooter
+					pageUsage={pageUsage}
+					isCollapsed={isCollapsed}
+					hasNavSectionAbove={footerNavItems.length > 0}
+				/>
 
 				{renderUserProfile && (
 					<SidebarUserProfile
@@ -328,9 +332,11 @@ export function Sidebar({
 function SidebarUsageFooter({
 	pageUsage,
 	isCollapsed,
+	hasNavSectionAbove = false,
 }: {
 	pageUsage?: PageUsage;
 	isCollapsed: boolean;
+	hasNavSectionAbove?: boolean;
 }) {
 	const params = useParams();
 	const searchSpaceId = params?.search_space_id ?? "";
@@ -338,9 +344,14 @@ function SidebarUsageFooter({
 
 	if (isCollapsed) return null;
 
+	const containerClass = cn(
+		"px-3 py-3 space-y-3",
+		hasNavSectionAbove && "border-t border-border/60"
+	);
+
 	if (isAnonymous) {
 		return (
-			<div className="px-3 py-3 border-t border-border/60 space-y-3">
+			<div className={containerClass}>
 				{pageUsage && (
 					<div className="space-y-1.5">
 						<div className="flex justify-between items-center text-xs">
@@ -373,7 +384,7 @@ function SidebarUsageFooter({
 	}
 
 	return (
-		<div className="px-3 py-3 border-t border-border/60 space-y-3">
+		<div className={containerClass}>
 			<PremiumTokenUsageDisplay />
 			<AuthenticatedPageUsageDisplay />
 			<div className="space-y-0.5">
