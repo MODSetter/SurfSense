@@ -1146,7 +1146,7 @@ export function ModelSelector({
 		return (
 			<div className="flex flex-col w-full overflow-hidden">
 				{/* Tab header */}
-				<div className="border-b border-border/80 dark:border-neutral-800">
+				<div className="border-b border-border/50">
 					<div className="w-full grid grid-cols-3 h-11">
 						{(
 							[
@@ -1425,7 +1425,7 @@ export function ModelSelector({
 		<Popover open={open} onOpenChange={handleOpenChange}>
 			<PopoverTrigger asChild>{triggerButton}</PopoverTrigger>
 			<PopoverContent
-				className="w-[300px] md:w-[380px] p-0 rounded-lg shadow-lg overflow-hidden bg-white border-border/60 dark:bg-neutral-900 dark:border dark:border-white/5 select-none"
+				className="w-[300px] md:w-[380px] p-0 rounded-lg shadow-lg overflow-hidden bg-muted border-border/60 dark:border dark:border-neutral-700 select-none"
 				align="start"
 				sideOffset={8}
 				onCloseAutoFocus={(e) => e.preventDefault()}

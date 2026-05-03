@@ -65,7 +65,7 @@ export function DesktopLocalTabContent({
 	return (
 		<div className="flex min-h-0 flex-1 flex-col select-none">
 			<div className="mx-4 mt-4 mb-3">
-				<div className="flex h-7 w-full items-stretch rounded-lg border bg-muted/50 text-[11px] text-muted-foreground">
+				<div className="flex h-7 w-full items-stretch rounded-lg border-0 bg-muted text-[11px] text-muted-foreground hover:bg-muted/80">
 					{localRootPaths.length > 0 ? (
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
@@ -134,7 +134,7 @@ export function DesktopLocalTabContent({
 					)}
 					<Separator
 						orientation="vertical"
-						className="data-[orientation=vertical]:h-3 self-center bg-border"
+						className="data-[orientation=vertical]:h-3 self-center bg-border/60 dark:bg-white/10"
 					/>
 					{electronAvailable ? (
 						<Tooltip>

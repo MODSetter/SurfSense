@@ -173,7 +173,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 				</PopoverTrigger>
 
 				<PopoverContent
-					className="w-[280px] md:w-[320px] p-0 rounded-lg shadow-lg border-border/60 dark:bg-neutral-900 dark:border dark:border-white/5 select-none"
+					className="w-[280px] md:w-[320px] p-0 rounded-lg shadow-lg bg-muted border-border/60 dark:border dark:border-neutral-700 select-none"
 					align="end"
 					sideOffset={8}
 					onCloseAutoFocus={(e) => e.preventDefault()}
@@ -191,9 +191,9 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 									onClick={() => handleVisibilityChange(option.value)}
 									className={cn(
 										"w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all",
-										"hover:bg-accent/50 dark:hover:bg-white/10 cursor-pointer",
+										"hover:bg-accent/40 cursor-pointer",
 										"focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-										isSelected && "bg-accent/80 dark:bg-white/10"
+										isSelected && "bg-primary/6 dark:bg-primary/8"
 									)}
 								>
 									<div
@@ -240,7 +240,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 									disabled={isCreatingSnapshot}
 									className={cn(
 										"w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all",
-										"hover:bg-accent/50 dark:hover:bg-white/10 cursor-pointer",
+										"hover:bg-accent/40 cursor-pointer",
 										"focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
 										"disabled:opacity-50 disabled:cursor-not-allowed"
 									)}

@@ -78,13 +78,13 @@ export function DocumentsFilters({
 		<div className="flex select-none">
 			<div className="flex items-center gap-2 w-full">
 				{/* New Folder + AI Sort + Filter Toggle Group */}
-				<ToggleGroup type="multiple" variant="outline" value={[]} className="overflow-visible">
+				<ToggleGroup type="multiple" value={[]} className="overflow-visible">
 					{onCreateFolder && (
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<ToggleGroupItem
 									value="folder"
-									className="h-8 w-8 shrink-0 border bg-muted/50 text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
+									className="h-8 w-8 shrink-0 border-0 bg-muted text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
 									onClick={(e) => {
 										e.preventDefault();
 										onCreateFolder();
@@ -104,7 +104,8 @@ export function DocumentsFilters({
 									value="ai-sort"
 									disabled={aiSortBusy}
 									className={cn(
-										"h-8 w-8 shrink-0 border bg-muted/50 transition-colors",
+										"h-8 w-8 shrink-0 border-0 bg-muted transition-colors",
+										"relative before:absolute before:left-0 before:top-1/2 before:h-4 before:w-px before:-translate-y-1/2 before:bg-border/60 before:content-[''] dark:before:bg-white/10",
 										"disabled:pointer-events-none disabled:opacity-50",
 										aiSortEnabled
 											? "bg-accent text-accent-foreground hover:bg-accent"
@@ -142,7 +143,7 @@ export function DocumentsFilters({
 								<PopoverTrigger asChild>
 									<ToggleGroupItem
 										value="filter"
-										className="relative h-8 w-8 shrink-0 overflow-visible border bg-muted/50 text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
+										className="relative h-8 w-8 shrink-0 overflow-visible border-0 bg-muted text-muted-foreground transition-colors before:absolute before:left-0 before:top-1/2 before:h-4 before:w-px before:-translate-y-1/2 before:bg-border/60 before:content-[''] hover:bg-muted/80 hover:text-foreground dark:before:bg-white/10"
 									>
 										<ListFilter size={13} />
 										{activeTypes.length > 0 && (
@@ -226,13 +227,13 @@ export function DocumentsFilters({
 
 				{/* Search Input */}
 				<div className="relative flex-1 min-w-0">
-					<div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+					<div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
 						<Search size={13} aria-hidden="true" />
 					</div>
 					<Input
 						id={`${id}-input`}
 						ref={inputRef}
-						className="h-8 w-full select-none pl-8 pr-7 text-sm focus:select-text"
+						className="h-8 w-full select-none border-0 bg-muted pl-8 pr-7 text-sm shadow-none focus:select-text"
 						value={searchValue}
 						onChange={(e) => onSearch(e.target.value)}
 						placeholder="Search docs"

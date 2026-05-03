@@ -274,13 +274,13 @@ export function AllSharedChatsSidebarContent({
 						placeholder={t("search_chats") || "Search chats..."}
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
-						className="h-8 pl-8 pr-7 text-sm"
+						className="h-8 border-0 bg-muted pl-8 pr-7 text-sm shadow-none"
 					/>
 					{searchQuery && (
 						<Button
 							variant="ghost"
 							size="icon"
-							className="absolute right-1 top-1/2 h-5 w-5 -translate-y-1/2"
+							className="absolute right-1 top-1/2 h-5 w-5 -translate-y-1/2 rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
 							onClick={handleClearSearch}
 						>
 							<X className="h-3.5 w-3.5" />

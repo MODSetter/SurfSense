@@ -1052,7 +1052,7 @@ function AuthenticatedDocumentsSidebarBase({
 	const cloudContent = (
 		<>
 			{/* Connected tools strip */}
-			<div className="shrink-0 mx-4 mt-6 mb-2.5 flex select-none items-center gap-2 rounded-lg border bg-muted/50 transition-colors hover:bg-muted/80">
+			<div className="shrink-0 mx-4 mt-6 mb-2.5 flex select-none items-center gap-2 rounded-lg border-0 bg-muted transition-colors hover:bg-muted/80">
 				<button
 					type="button"
 					onClick={() => setConnectorDialogOpen(true)}
@@ -1123,7 +1123,7 @@ function AuthenticatedDocumentsSidebarBase({
 				<button
 					type="button"
 					onClick={handleWatchLocalFolder}
-					className="shrink-0 mx-4 mb-2.5 flex select-none items-center gap-2 rounded-lg border bg-muted/50 px-3 py-1.5 transition-colors hover:bg-muted/80"
+					className="shrink-0 mx-4 mb-2.5 flex select-none items-center gap-2 rounded-lg border-0 bg-muted px-3 py-1.5 transition-colors hover:bg-muted/80"
 				>
 					<FolderClock className="size-4 shrink-0 text-muted-foreground" />
 					<span className="truncate text-xs text-muted-foreground">Watch local folder</span>
