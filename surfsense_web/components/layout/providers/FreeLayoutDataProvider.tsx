@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useAnonymousMode } from "@/contexts/anonymous-mode";
 import { useLoginGate } from "@/contexts/login-gate";
+import { useAnnouncements } from "@/hooks/use-announcements";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
 import type { ChatItem, NavItem, PageUsage, SearchSpace } from "../types/layout.types";
@@ -28,6 +29,7 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 	const { gate } = useLoginGate();
 	const anonMode = useAnonymousMode();
 	const isMobile = useIsMobile();
+	const { unreadCount: announcementUnreadCount } = useAnnouncements();
 	const [quota, setQuota] = useState<{ used: number; limit: number } | null>(null);
 	const [isDocsSidebarOpen, setIsDocsSidebarOpen] = useState(false);
 
@@ -125,6 +127,7 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 			onManageMembers={gatedAction("team management")}
 			onUserSettings={gatedAction("account settings")}
 			onAnnouncements={handleAnnouncements}
+			announcementUnreadCount={announcementUnreadCount}
 			onLogout={() => router.push("/register")}
 			pageUsage={pageUsage}
 			isChatPage
