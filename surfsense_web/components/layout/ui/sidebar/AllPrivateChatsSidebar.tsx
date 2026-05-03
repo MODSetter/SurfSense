@@ -265,7 +265,6 @@ export function AllPrivateChatsSidebarContent({
 							<span className="sr-only">{t("close") || "Close"}</span>
 						</Button>
 					)}
-					<User className="h-4 w-4 text-primary" />
 					<h2 className="text-lg font-semibold">{t("chats") || "Private Chats"}</h2>
 				</div>
 

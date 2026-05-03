@@ -542,7 +542,7 @@ export function InboxSidebarContent({
 								<span className="sr-only">{t("close") || "Close"}</span>
 							</Button>
 						)}
-						<h2 className="text-md font-semibold">{t("inbox") || "Inbox"}</h2>
+						<h2 className="text-lg font-semibold">{t("inbox") || "Inbox"}</h2>
 					</div>
 					<div className="flex items-center gap-1">
 						{isMobile ? (

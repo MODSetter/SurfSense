@@ -264,7 +264,6 @@ export function AllSharedChatsSidebarContent({
 							<span className="sr-only">{t("close") || "Close"}</span>
 						</Button>
 					)}
-					<Users className="h-4 w-4 text-primary" />
 					<h2 className="text-lg font-semibold">{t("shared_chats") || "Shared Chats"}</h2>
 				</div>
 
