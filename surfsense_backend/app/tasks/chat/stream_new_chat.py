@@ -28,7 +28,7 @@ from sqlalchemy import func
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
-from app.agents.multi_agent_with_deepagents import (
+from app.agents.multi_agent_chat import (
     create_surfsense_deep_agent as create_registry_deep_agent,
 )
 from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
