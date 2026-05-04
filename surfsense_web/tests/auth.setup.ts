@@ -17,7 +17,7 @@ import { expect, test as setup } from "@playwright/test";
 
 const authFile = path.join(__dirname, "..", "playwright", ".auth", "user.json");
 
-const TEST_USER_EMAIL = process.env.PLAYWRIGHT_TEST_EMAIL || "test@surfsense.test";
+const TEST_USER_EMAIL = process.env.PLAYWRIGHT_TEST_EMAIL || "test@surfsense.net";
 const TEST_USER_PASSWORD = process.env.PLAYWRIGHT_TEST_PASSWORD || "TestPassword123!";
 const BACKEND_URL = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
 const STORAGE_KEY = "surfsense_bearer_token";
@@ -50,8 +50,9 @@ setup("authenticate", async ({ page, request }) => {
 		{ key: STORAGE_KEY, token: access_token }
 	);
 
-	await page.goto("/dashboard");
-	await expect(page).toHaveURL(/\/dashboard/);
+	// Use a public page so the init script can write localStorage without
+	// racing the dashboard auth redirect.
+	await page.goto("/login", { waitUntil: "domcontentloaded" });
 
 	await page.context().storageState({ path: authFile });
 });

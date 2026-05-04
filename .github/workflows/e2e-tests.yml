@@ -31,7 +31,7 @@ jobs:
       NEXT_PUBLIC_FASTAPI_BACKEND_URL: http://localhost:8000
       NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE: LOCAL
       # Playwright
-      PLAYWRIGHT_TEST_EMAIL: e2e-test@surfsense.test
+      PLAYWRIGHT_TEST_EMAIL: e2e-test@surfsense.net
       PLAYWRIGHT_TEST_PASSWORD: E2eTestPassword123!
 
     services:
