@@ -23,6 +23,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.agents.new_chat.feature_flags import AgentFeatureFlags, get_flags
+from app.config import config
 from app.db import User
 from app.users import current_active_user
 
@@ -58,10 +59,15 @@ class AgentFeatureFlagsRead(BaseModel):
 
     enable_otel: bool
 
+    enable_desktop_local_filesystem: bool
+
     @classmethod
     def from_flags(cls, flags: AgentFeatureFlags) -> AgentFeatureFlagsRead:
         # asdict() avoids missing-field bugs when AgentFeatureFlags grows.
-        return cls(**asdict(flags))
+        return cls(
+            **asdict(flags),
+            enable_desktop_local_filesystem=config.ENABLE_DESKTOP_LOCAL_FILESYSTEM,
+        )
 
 
 @router.get("/agent/flags", response_model=AgentFeatureFlagsRead)

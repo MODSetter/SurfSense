@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.new_chat.tools.hitl import request_approval
 from app.connectors.linear_connector import LinearAPIError, LinearConnector
+from app.db import async_session_maker
 from app.services.linear import LinearToolMetadataService
 
 logger = logging.getLogger(__name__)
@@ -17,11 +18,17 @@ def create_delete_linear_issue_tool(
     user_id: str | None = None,
     connector_id: int | None = None,
 ):
-    """
-    Factory function to create the delete_linear_issue tool.
+    """Factory function to create the delete_linear_issue tool.
+
+    The tool acquires its own short-lived ``AsyncSession`` per call via
+    :data:`async_session_maker`. This is critical for the compiled-agent
+    cache: the compiled graph (and therefore this closure) is reused
+    across HTTP requests, so capturing a per-request session here would
+    surface stale/closed sessions on cache hits.
 
     Args:
-        db_session: Database session for accessing the Linear connector
+        db_session: Reserved for registry compatibility. Per-call sessions
+            are opened via :data:`async_session_maker` inside the tool body.
         search_space_id: Search space ID to find the Linear connector
         user_id: User ID for finding the correct Linear connector
         connector_id: Optional specific connector ID (if known)
@@ -29,6 +36,7 @@ def create_delete_linear_issue_tool(
     Returns:
         Configured delete_linear_issue tool
     """
+    del db_session  # per-call session — see docstring
 
     @tool
     async def delete_linear_issue(
@@ -73,7 +81,7 @@ def create_delete_linear_issue_tool(
             f"delete_linear_issue called: issue_ref='{issue_ref}', delete_from_kb={delete_from_kb}"
         )
 
-        if db_session is None or search_space_id is None or user_id is None:
+        if search_space_id is None or user_id is None:
             logger.error(
                 "Linear tool not properly configured - missing required parameters"
             )
@@ -83,149 +91,152 @@ def create_delete_linear_issue_tool(
             }
 
         try:
-            metadata_service = LinearToolMetadataService(db_session)
-            context = await metadata_service.get_delete_context(
-                search_space_id, user_id, issue_ref
-            )
-
-            if "error" in context:
-                error_msg = context["error"]
-                if context.get("auth_expired"):
-                    logger.warning(f"Auth expired for delete context: {error_msg}")
-                    return {
-                        "status": "auth_error",
-                        "message": error_msg,
-                        "connector_id": context.get("connector_id"),
-                        "connector_type": "linear",
-                    }
-                if "not found" in error_msg.lower():
-                    logger.warning(f"Issue not found: {error_msg}")
-                    return {"status": "not_found", "message": error_msg}
-                else:
-                    logger.error(f"Failed to fetch delete context: {error_msg}")
-                    return {"status": "error", "message": error_msg}
-
-            issue_id = context["issue"]["id"]
-            issue_identifier = context["issue"].get("identifier", "")
-            document_id = context["issue"]["document_id"]
-            connector_id_from_context = context.get("workspace", {}).get("id")
-
-            logger.info(
-                f"Requesting approval for deleting Linear issue: '{issue_ref}' "
-                f"(id={issue_id}, delete_from_kb={delete_from_kb})"
-            )
-            result = request_approval(
-                action_type="linear_issue_deletion",
-                tool_name="delete_linear_issue",
-                params={
-                    "issue_id": issue_id,
-                    "connector_id": connector_id_from_context,
-                    "delete_from_kb": delete_from_kb,
-                },
-                context=context,
-            )
-
-            if result.rejected:
-                logger.info("Linear issue deletion rejected by user")
-                return {
-                    "status": "rejected",
-                    "message": "User declined. Do not retry or suggest alternatives.",
-                }
-
-            final_issue_id = result.params.get("issue_id", issue_id)
-            final_connector_id = result.params.get(
-                "connector_id", connector_id_from_context
-            )
-            final_delete_from_kb = result.params.get("delete_from_kb", delete_from_kb)
-
-            logger.info(
-                f"Deleting Linear issue with final params: issue_id={final_issue_id}, "
-                f"connector_id={final_connector_id}, delete_from_kb={final_delete_from_kb}"
-            )
-
-            from sqlalchemy.future import select
-
-            from app.db import SearchSourceConnector, SearchSourceConnectorType
-
-            if final_connector_id:
-                result = await db_session.execute(
-                    select(SearchSourceConnector).filter(
-                        SearchSourceConnector.id == final_connector_id,
-                        SearchSourceConnector.search_space_id == search_space_id,
-                        SearchSourceConnector.user_id == user_id,
-                        SearchSourceConnector.connector_type
-                        == SearchSourceConnectorType.LINEAR_CONNECTOR,
-                    )
+            async with async_session_maker() as db_session:
+                metadata_service = LinearToolMetadataService(db_session)
+                context = await metadata_service.get_delete_context(
+                    search_space_id, user_id, issue_ref
                 )
-                connector = result.scalars().first()
-                if not connector:
-                    logger.error(
-                        f"Invalid connector_id={final_connector_id} for search_space_id={search_space_id}"
+
+                if "error" in context:
+                    error_msg = context["error"]
+                    if context.get("auth_expired"):
+                        logger.warning(f"Auth expired for delete context: {error_msg}")
+                        return {
+                            "status": "auth_error",
+                            "message": error_msg,
+                            "connector_id": context.get("connector_id"),
+                            "connector_type": "linear",
+                        }
+                    if "not found" in error_msg.lower():
+                        logger.warning(f"Issue not found: {error_msg}")
+                        return {"status": "not_found", "message": error_msg}
+                    else:
+                        logger.error(f"Failed to fetch delete context: {error_msg}")
+                        return {"status": "error", "message": error_msg}
+
+                issue_id = context["issue"]["id"]
+                issue_identifier = context["issue"].get("identifier", "")
+                document_id = context["issue"]["document_id"]
+                connector_id_from_context = context.get("workspace", {}).get("id")
+
+                logger.info(
+                    f"Requesting approval for deleting Linear issue: '{issue_ref}' "
+                    f"(id={issue_id}, delete_from_kb={delete_from_kb})"
+                )
+                result = request_approval(
+                    action_type="linear_issue_deletion",
+                    tool_name="delete_linear_issue",
+                    params={
+                        "issue_id": issue_id,
+                        "connector_id": connector_id_from_context,
+                        "delete_from_kb": delete_from_kb,
+                    },
+                    context=context,
+                )
+
+                if result.rejected:
+                    logger.info("Linear issue deletion rejected by user")
+                    return {
+                        "status": "rejected",
+                        "message": "User declined. Do not retry or suggest alternatives.",
+                    }
+
+                final_issue_id = result.params.get("issue_id", issue_id)
+                final_connector_id = result.params.get(
+                    "connector_id", connector_id_from_context
+                )
+                final_delete_from_kb = result.params.get(
+                    "delete_from_kb", delete_from_kb
+                )
+
+                logger.info(
+                    f"Deleting Linear issue with final params: issue_id={final_issue_id}, "
+                    f"connector_id={final_connector_id}, delete_from_kb={final_delete_from_kb}"
+                )
+
+                from sqlalchemy.future import select
+
+                from app.db import SearchSourceConnector, SearchSourceConnectorType
+
+                if final_connector_id:
+                    result = await db_session.execute(
+                        select(SearchSourceConnector).filter(
+                            SearchSourceConnector.id == final_connector_id,
+                            SearchSourceConnector.search_space_id == search_space_id,
+                            SearchSourceConnector.user_id == user_id,
+                            SearchSourceConnector.connector_type
+                            == SearchSourceConnectorType.LINEAR_CONNECTOR,
+                        )
                     )
+                    connector = result.scalars().first()
+                    if not connector:
+                        logger.error(
+                            f"Invalid connector_id={final_connector_id} for search_space_id={search_space_id}"
+                        )
+                        return {
+                            "status": "error",
+                            "message": "Selected Linear connector is invalid or has been disconnected.",
+                        }
+                    actual_connector_id = connector.id
+                    logger.info(f"Validated Linear connector: id={actual_connector_id}")
+                else:
+                    logger.error("No connector found for this issue")
                     return {
                         "status": "error",
-                        "message": "Selected Linear connector is invalid or has been disconnected.",
+                        "message": "No connector found for this issue.",
                     }
-                actual_connector_id = connector.id
-                logger.info(f"Validated Linear connector: id={actual_connector_id}")
-            else:
-                logger.error("No connector found for this issue")
-                return {
-                    "status": "error",
-                    "message": "No connector found for this issue.",
-                }
 
-            linear_client = LinearConnector(
-                session=db_session, connector_id=actual_connector_id
-            )
+                linear_client = LinearConnector(
+                    session=db_session, connector_id=actual_connector_id
+                )
 
-            result = await linear_client.archive_issue(issue_id=final_issue_id)
+                result = await linear_client.archive_issue(issue_id=final_issue_id)
 
-            logger.info(
-                f"archive_issue result: {result.get('status')} - {result.get('message', '')}"
-            )
+                logger.info(
+                    f"archive_issue result: {result.get('status')} - {result.get('message', '')}"
+                )
 
-            deleted_from_kb = False
-            if (
-                result.get("status") == "success"
-                and final_delete_from_kb
-                and document_id
-            ):
-                try:
-                    from app.db import Document
+                deleted_from_kb = False
+                if (
+                    result.get("status") == "success"
+                    and final_delete_from_kb
+                    and document_id
+                ):
+                    try:
+                        from app.db import Document
 
-                    doc_result = await db_session.execute(
-                        select(Document).filter(Document.id == document_id)
-                    )
-                    document = doc_result.scalars().first()
-                    if document:
-                        await db_session.delete(document)
-                        await db_session.commit()
-                        deleted_from_kb = True
-                        logger.info(
-                            f"Deleted document {document_id} from knowledge base"
+                        doc_result = await db_session.execute(
+                            select(Document).filter(Document.id == document_id)
                         )
-                    else:
-                        logger.warning(f"Document {document_id} not found in KB")
-                except Exception as e:
-                    logger.error(f"Failed to delete document from KB: {e}")
-                    await db_session.rollback()
-                    result["warning"] = (
-                        f"Issue archived in Linear, but failed to remove from knowledge base: {e!s}"
-                    )
+                        document = doc_result.scalars().first()
+                        if document:
+                            await db_session.delete(document)
+                            await db_session.commit()
+                            deleted_from_kb = True
+                            logger.info(
+                                f"Deleted document {document_id} from knowledge base"
+                            )
+                        else:
+                            logger.warning(f"Document {document_id} not found in KB")
+                    except Exception as e:
+                        logger.error(f"Failed to delete document from KB: {e}")
+                        await db_session.rollback()
+                        result["warning"] = (
+                            f"Issue archived in Linear, but failed to remove from knowledge base: {e!s}"
+                        )
 
-            if result.get("status") == "success":
-                result["deleted_from_kb"] = deleted_from_kb
-                if issue_identifier:
-                    result["message"] = (
-                        f"Issue {issue_identifier} archived successfully."
-                    )
-                if deleted_from_kb:
-                    result["message"] = (
-                        f"{result.get('message', '')} Also removed from the knowledge base."
-                    )
+                if result.get("status") == "success":
+                    result["deleted_from_kb"] = deleted_from_kb
+                    if issue_identifier:
+                        result["message"] = (
+                            f"Issue {issue_identifier} archived successfully."
+                        )
+                    if deleted_from_kb:
+                        result["message"] = (
+                            f"{result.get('message', '')} Also removed from the knowledge base."
+                        )
 
-            return result
+                return result
 
         except Exception as e:
             from langgraph.errors import GraphInterrupt

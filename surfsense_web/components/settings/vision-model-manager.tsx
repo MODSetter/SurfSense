@@ -22,6 +22,7 @@ import {
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -191,11 +192,97 @@ export function VisionModelManager({ searchSpaceId }: VisionModelManagerProps) {
 									? "model"
 									: "models"}
 							</span>{" "}
-							available from your administrator.
+							available from your administrator. {(() => {
+								const nonAuto = globalConfigs.filter(
+									(g) => !("is_auto_mode" in g && g.is_auto_mode)
+								);
+								const premium = nonAuto.filter(
+									(g) =>
+										"billing_tier" in g &&
+										(g as { billing_tier?: string }).billing_tier === "premium"
+								).length;
+								const free = nonAuto.length - premium;
+								if (premium > 0 && free > 0) {
+									return `${premium} premium, ${free} free.`;
+								}
+								if (premium > 0) {
+									return `All ${premium} premium — debits your shared credit pool.`;
+								}
+								return `All ${free} free.`;
+							})()}
 						</p>
 					</AlertDescription>
 				</Alert>
 			)}
+
+			{/* Global Vision Models — read-only cards with per-model Free/Premium
+			    badges. Mirrors the badge palette used by the chat role selector
+			    (`llm-role-manager.tsx`) so the meaning is consistent across
+			    every model-configuration surface (chat / image / vision). */}
+			{!isLoading &&
+				globalConfigs.filter((g) => !("is_auto_mode" in g && g.is_auto_mode)).length > 0 && (
+					<div className="space-y-3">
+						<h3 className="text-xs md:text-sm font-semibold text-muted-foreground">
+							Global Vision Models
+						</h3>
+						<div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
+							{globalConfigs
+								.filter((g) => !("is_auto_mode" in g && g.is_auto_mode))
+								.map((cfg) => {
+									const billingTier =
+										("billing_tier" in cfg &&
+											typeof (cfg as { billing_tier?: string }).billing_tier === "string" &&
+											(cfg as { billing_tier?: string }).billing_tier) ||
+										"free";
+									const isPremium = billingTier === "premium";
+									return (
+										<Card
+											key={cfg.id}
+											className="border-border/60 bg-muted/20 overflow-hidden h-full"
+										>
+											<CardContent className="p-4 flex flex-col gap-3 h-full">
+												<div className="flex items-center gap-2 min-w-0">
+													<div className="shrink-0">
+														{getProviderIcon(cfg.provider, { className: "size-4" })}
+													</div>
+													<div className="min-w-0 flex-1 flex items-center gap-1.5">
+														<h4 className="text-sm font-semibold tracking-tight truncate">
+															{cfg.name}
+														</h4>
+														{isPremium ? (
+															<Badge
+																variant="secondary"
+																className="text-[8px] md:text-[9px] shrink-0 bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 border-0"
+															>
+																Premium
+															</Badge>
+														) : (
+															<Badge
+																variant="secondary"
+																className="text-[8px] md:text-[9px] shrink-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-0"
+															>
+																Free
+															</Badge>
+														)}
+													</div>
+												</div>
+												{cfg.description && (
+													<p className="text-[11px] text-muted-foreground/70 line-clamp-2">
+														{cfg.description}
+													</p>
+												)}
+												<div className="flex items-center pt-2 border-t border-border/40 mt-auto">
+													<span className="text-[11px] text-muted-foreground/60 truncate">
+														{cfg.model_name}
+													</span>
+												</div>
+											</CardContent>
+										</Card>
+									);
+								})}
+						</div>
+					</div>
+				)}
 
 			{isLoading && (
 				<div className="space-y-4 md:space-y-6">

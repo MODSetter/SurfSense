@@ -62,6 +62,15 @@ class VisionLLMConfigPublic(BaseModel):
 
 
 class GlobalVisionLLMConfigRead(BaseModel):
+    """Schema for reading global vision LLM configs from YAML.
+
+    The ``billing_tier`` field allows the frontend to show a Premium/Free
+    badge and (more importantly) tells the backend whether to debit the
+    user's premium credit pool when this config is used. ``"free"`` is
+    the default for backward compatibility — admins must explicitly opt
+    a global config into ``"premium"``.
+    """
+
     id: int = Field(...)
     name: str
     description: str | None = None
@@ -73,3 +82,35 @@ class GlobalVisionLLMConfigRead(BaseModel):
     litellm_params: dict[str, Any] | None = None
     is_global: bool = True
     is_auto_mode: bool = False
+    billing_tier: str = Field(
+        default="free",
+        description="'free' or 'premium'. Premium debits the user's premium credit pool (USD-cost-based).",
+    )
+    is_premium: bool = Field(
+        default=False,
+        description=(
+            "Convenience boolean derived server-side from "
+            "``billing_tier == 'premium'``. The new-chat model selector "
+            "keys its Free/Premium badge off this field for parity with "
+            "chat (`GlobalLLMConfigRead.is_premium`)."
+        ),
+    )
+    quota_reserve_tokens: int | None = Field(
+        default=None,
+        description=(
+            "Optional override for the per-call reservation in *tokens* — "
+            "converted to micro-USD via the model's input/output prices at "
+            "reservation time. Falls back to QUOTA_DEFAULT_RESERVE_TOKENS."
+        ),
+    )
+    input_cost_per_token: float | None = Field(
+        default=None,
+        description=(
+            "Optional input price in USD/token. Used by pricing_registration to "
+            "register custom Azure / OpenRouter aliases with LiteLLM at startup."
+        ),
+    )
+    output_cost_per_token: float | None = Field(
+        default=None,
+        description="Optional output price in USD/token. Pair with input_cost_per_token.",
+    )

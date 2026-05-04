@@ -13,6 +13,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { agentFlagsAtom } from "@/atoms/agent/agent-flags-query.atom";
 import { disabledToolsAtom } from "@/atoms/agent-tools/agent-tools.atoms";
 import {
 	clearTargetCommentIdAtom,
@@ -393,6 +394,8 @@ export default function NewChatPage() {
 
 	// Get current user for author info in shared chats
 	const { data: currentUser } = useAtomValue(currentUserAtom);
+	const { data: agentFlags } = useAtomValue(agentFlagsAtom);
+	const localFilesystemEnabled = agentFlags?.enable_desktop_local_filesystem === true;
 
 	// Live collaboration: sync session state and messages via Zero
 	useChatSessionStateSync(threadId);
@@ -989,7 +992,9 @@ export default function NewChatPage() {
 
 			try {
 				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
-				const selection = await getAgentFilesystemSelection(searchSpaceId);
+				const selection = await getAgentFilesystemSelection(searchSpaceId, {
+					localFilesystemEnabled,
+				});
 				if (
 					selection.filesystem_mode === "desktop_local_folder" &&
 					(!selection.local_filesystem_mounts || selection.local_filesystem_mounts.length === 0)
@@ -1311,6 +1316,7 @@ export default function NewChatPage() {
 			setAgentCreatedDocuments,
 			queryClient,
 			currentUser,
+			localFilesystemEnabled,
 			disabledTools,
 			updateChatTabTitle,
 			tokenUsageStore,
@@ -1413,7 +1419,9 @@ export default function NewChatPage() {
 
 			try {
 				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
-				const selection = await getAgentFilesystemSelection(searchSpaceId);
+				const selection = await getAgentFilesystemSelection(searchSpaceId, {
+					localFilesystemEnabled,
+				});
 				const response = await fetchWithTurnCancellingRetry(() =>
 					fetch(`${backendUrl}/api/v1/threads/${resumeThreadId}/resume`, {
 						method: "POST",
@@ -1561,6 +1569,7 @@ export default function NewChatPage() {
 			pendingInterrupt,
 			messages,
 			searchSpaceId,
+			localFilesystemEnabled,
 			queryClient,
 			tokenUsageStore,
 			fetchWithTurnCancellingRetry,
@@ -1746,7 +1755,9 @@ export default function NewChatPage() {
 					? messageDocumentsMap[sourceUserMessageId]
 					: [];
 			try {
-				const selection = await getAgentFilesystemSelection(searchSpaceId);
+				const selection = await getAgentFilesystemSelection(searchSpaceId, {
+					localFilesystemEnabled,
+				});
 				const requestBody: Record<string, unknown> = {
 					search_space_id: searchSpaceId,
 					user_query: newUserQuery,
@@ -2016,6 +2027,7 @@ export default function NewChatPage() {
 			searchSpaceId,
 			messages,
 			disabledTools,
+			localFilesystemEnabled,
 			messageDocumentsMap,
 			setMessageDocumentsMap,
 			queryClient,

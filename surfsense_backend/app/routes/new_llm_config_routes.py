@@ -29,11 +29,45 @@ from app.schemas import (
     NewLLMConfigUpdate,
 )
 from app.services.llm_service import validate_llm_config
+from app.services.provider_capabilities import derive_supports_image_input
 from app.users import current_active_user
 from app.utils.rbac import check_permission
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+def _serialize_byok_config(config: NewLLMConfig) -> NewLLMConfigRead:
+    """Augment a BYOK chat config row with the derived ``supports_image_input``.
+
+    There is no DB column for ``supports_image_input`` — the value is
+    resolved at the API boundary from LiteLLM's authoritative model map
+    (default-allow on unknown). Returning ``NewLLMConfigRead`` here keeps
+    the response shape consistent across list / detail / create / update
+    endpoints without having to remember to set the field at every call
+    site.
+    """
+    provider_value = (
+        config.provider.value
+        if hasattr(config.provider, "value")
+        else str(config.provider)
+    )
+    litellm_params = config.litellm_params or {}
+    base_model = (
+        litellm_params.get("base_model") if isinstance(litellm_params, dict) else None
+    )
+    supports_image_input = derive_supports_image_input(
+        provider=provider_value,
+        model_name=config.model_name,
+        base_model=base_model,
+        custom_provider=config.custom_provider,
+    )
+    # ``model_validate`` runs the Pydantic conversion using the ORM
+    # attribute access path enabled by ``ConfigDict(from_attributes=True)``,
+    # then we layer the derived field on. ``model_copy(update=...)`` keeps
+    # the surface immutable from the caller's perspective.
+    base_read = NewLLMConfigRead.model_validate(config)
+    return base_read.model_copy(update={"supports_image_input": supports_image_input})
 
 
 # =============================================================================
@@ -84,11 +118,41 @@ async def get_global_new_llm_configs(
                     "seo_title": None,
                     "seo_description": None,
                     "quota_reserve_tokens": None,
+                    # Auto routes across the configured pool, which usually
+                    # includes at least one vision-capable deployment, so
+                    # treat Auto as image-capable. The router itself will
+                    # still pick a vision-capable deployment for messages
+                    # carrying image_url blocks (LiteLLM Router falls back
+                    # on ``404`` per its ``allowed_fails`` policy).
+                    "supports_image_input": True,
                 }
             )
 
         # Add individual global configs
         for cfg in global_configs:
+            # Capability resolution: explicit value (YAML override or OR
+            # `_supports_image_input(model)` payload baked in by the
+            # OpenRouter integration service) wins. Fall back to the
+            # LiteLLM-driven helper which default-allows on unknown so
+            # we don't hide vision-capable models that happen to lack a
+            # YAML annotation. The streaming task safety net is the
+            # only place a False ever blocks.
+            if "supports_image_input" in cfg:
+                supports_image_input = bool(cfg.get("supports_image_input"))
+            else:
+                cfg_litellm_params = cfg.get("litellm_params") or {}
+                cfg_base_model = (
+                    cfg_litellm_params.get("base_model")
+                    if isinstance(cfg_litellm_params, dict)
+                    else None
+                )
+                supports_image_input = derive_supports_image_input(
+                    provider=cfg.get("provider"),
+                    model_name=cfg.get("model_name"),
+                    base_model=cfg_base_model,
+                    custom_provider=cfg.get("custom_provider"),
+                )
+
             safe_config = {
                 "id": cfg.get("id"),
                 "name": cfg.get("name"),
@@ -113,6 +177,7 @@ async def get_global_new_llm_configs(
                 "seo_title": cfg.get("seo_title"),
                 "seo_description": cfg.get("seo_description"),
                 "quota_reserve_tokens": cfg.get("quota_reserve_tokens"),
+                "supports_image_input": supports_image_input,
             }
             safe_configs.append(safe_config)
 
@@ -171,7 +236,7 @@ async def create_new_llm_config(
         await session.commit()
         await session.refresh(db_config)
 
-        return db_config
+        return _serialize_byok_config(db_config)
 
     except HTTPException:
         raise
@@ -213,7 +278,7 @@ async def list_new_llm_configs(
             .limit(limit)
         )
 
-        return result.scalars().all()
+        return [_serialize_byok_config(cfg) for cfg in result.scalars().all()]
 
     except HTTPException:
         raise
@@ -268,7 +333,7 @@ async def get_new_llm_config(
             "You don't have permission to view LLM configurations in this search space",
         )
 
-        return config
+        return _serialize_byok_config(config)
 
     except HTTPException:
         raise
@@ -360,7 +425,7 @@ async def update_new_llm_config(
         await session.commit()
         await session.refresh(config)
 
-        return config
+        return _serialize_byok_config(config)
 
     except HTTPException:
         raise

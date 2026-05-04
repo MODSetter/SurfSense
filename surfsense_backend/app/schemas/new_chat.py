@@ -39,6 +39,7 @@ class TokenUsageSummary(BaseModel):
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
+    cost_micros: int = 0
     model_breakdown: dict | None = None
     model_config = ConfigDict(from_attributes=True)
 

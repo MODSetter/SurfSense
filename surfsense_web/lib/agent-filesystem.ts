@@ -12,6 +12,10 @@ export interface AgentFilesystemSelection {
 	local_filesystem_mounts?: AgentFilesystemMountSelection[];
 }
 
+export interface AgentFilesystemSelectionOptions {
+	localFilesystemEnabled: boolean;
+}
+
 const DEFAULT_SELECTION: AgentFilesystemSelection = {
 	filesystem_mode: "cloud",
 	client_platform: "web",
@@ -23,10 +27,15 @@ export function getClientPlatform(): ClientPlatform {
 }
 
 export async function getAgentFilesystemSelection(
-	searchSpaceId?: number | null
+	searchSpaceId?: number | null,
+	options?: AgentFilesystemSelectionOptions
 ): Promise<AgentFilesystemSelection> {
 	const platform = getClientPlatform();
-	if (platform !== "desktop" || !window.electronAPI?.getAgentFilesystemSettings) {
+	if (
+		platform !== "desktop" ||
+		!options?.localFilesystemEnabled ||
+		!window.electronAPI?.getAgentFilesystemSettings
+	) {
 		return { ...DEFAULT_SELECTION, client_platform: platform };
 	}
 	try {

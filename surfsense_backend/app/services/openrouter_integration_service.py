@@ -93,6 +93,53 @@ def _is_text_output_model(model: dict) -> bool:
     return output_mods == ["text"]
 
 
+def _is_image_output_model(model: dict) -> bool:
+    """Return True if the model can produce image output.
+
+    OpenRouter's ``architecture.output_modalities`` is a list (e.g.
+    ``["image"]`` for pure image generators, ``["text", "image"]`` for
+    multi-modal generators that also emit captions). We accept any model
+    that can output images; the call site decides whether to use the
+    image-generation API or chat completion.
+    """
+    output_mods = model.get("architecture", {}).get("output_modalities", []) or []
+    return "image" in output_mods
+
+
+def _is_vision_input_model(model: dict) -> bool:
+    """Return True if the model can ingest an image AND emit text.
+
+    OpenRouter's ``architecture.input_modalities`` lists what the model
+    accepts; ``output_modalities`` lists what it produces. A vision LLM
+    is a model that takes images in and produces text out — i.e. it can
+    answer questions about a screenshot or extract content from an
+    image. Pure image-to-image models (e.g. style transfer) and
+    text-only models are excluded.
+    """
+    arch = model.get("architecture", {}) or {}
+    input_mods = arch.get("input_modalities", []) or []
+    output_mods = arch.get("output_modalities", []) or []
+    return "image" in input_mods and "text" in output_mods
+
+
+def _supports_image_input(model: dict) -> bool:
+    """Return True if the model accepts ``image`` in its input modalities.
+
+    Differs from :func:`_is_vision_input_model` in that it does NOT
+    require text output — chat-tab models always emit text already (the
+    chat catalog filters by ``_is_text_output_model``), so the only
+    extra capability we need to track per chat config is whether the
+    model can ingest user-attached images. The chat selector and the
+    streaming task both key off this flag to prevent hitting an
+    OpenRouter 404 ``"No endpoints found that support image input"``
+    when the user uploads an image and selects a text-only model
+    (DeepSeek V3, Llama 3.x base, etc.).
+    """
+    arch = model.get("architecture", {}) or {}
+    input_mods = arch.get("input_modalities", []) or []
+    return "image" in input_mods
+
+
 def _supports_tool_calling(model: dict) -> bool:
     """Return True if the model supports function/tool calling."""
     supported = model.get("supported_parameters") or []
@@ -173,6 +220,32 @@ async def _fetch_models_async() -> list[dict] | None:
     except Exception as e:
         logger.warning("Failed to fetch OpenRouter models (async): %s", e)
         return None
+
+
+def _extract_raw_pricing(raw_models: list[dict]) -> dict[str, dict[str, str]]:
+    """Return a ``{model_id: {"prompt": str, "completion": str}}`` map.
+
+    Pricing values are kept as the raw OpenRouter strings (e.g.
+    ``"0.000003"``); ``pricing_registration`` converts them to floats
+    when registering with LiteLLM. Models with missing or malformed
+    pricing are simply omitted — operator-side risk if any of those are
+    premium.
+    """
+    pricing: dict[str, dict[str, str]] = {}
+    for model in raw_models:
+        model_id = str(model.get("id") or "").strip()
+        if not model_id:
+            continue
+        p = model.get("pricing") or {}
+        prompt = p.get("prompt")
+        completion = p.get("completion")
+        if prompt is None and completion is None:
+            continue
+        pricing[model_id] = {
+            "prompt": str(prompt) if prompt is not None else "",
+            "completion": str(completion) if completion is not None else "",
+        }
+    return pricing
 
 
 def _generate_configs(
@@ -266,6 +339,13 @@ def _generate_configs(
             # account-wide quota, so per-deployment routing can't spread load
             # there — it just drains the shared bucket faster.
             "router_pool_eligible": tier == "premium",
+            # Capability flag derived from ``architecture.input_modalities``.
+            # Read by the new-chat selector to dim image-incompatible models
+            # when the user has pending image attachments, and by
+            # ``stream_new_chat`` as a fail-fast safety net before the
+            # OpenRouter request would otherwise 404 with
+            # ``"No endpoints found that support image input"``.
+            "supports_image_input": _supports_image_input(model),
             _OPENROUTER_DYNAMIC_MARKER: True,
             # Auto (Fastest) ranking metadata. ``quality_score`` is initialised
             # to the static score and gets re-blended with health on the next
@@ -276,6 +356,171 @@ def _generate_configs(
             "quality_score_health": None,
             "quality_score": static_q,
             "health_gated": False,
+        }
+        configs.append(cfg)
+
+    return configs
+
+
+# ID-offset bands used to keep dynamic OpenRouter configs in their own
+# namespace per surface. Image / vision get separate bands so a single
+# Postgres-INTEGER cfg ID is unambiguous about which selector it belongs to.
+_OPENROUTER_IMAGE_ID_OFFSET_DEFAULT = -20000
+_OPENROUTER_VISION_ID_OFFSET_DEFAULT = -30000
+
+
+def _generate_image_gen_configs(
+    raw_models: list[dict], settings: dict[str, Any]
+) -> list[dict]:
+    """Convert OpenRouter image-generation models into global image-gen
+    config dicts (matches the YAML shape consumed by ``image_generation_routes``).
+
+    Filter:
+      - architecture.output_modalities contains "image"
+      - compatible provider (excluded slugs blocked)
+      - allowed model id (excluded list blocked)
+
+    Notably we *drop* the chat-only filters (``_supports_tool_calling`` and
+    ``_has_sufficient_context``) because tool calls and context windows are
+    irrelevant for the ``aimage_generation`` API. ``billing_tier`` is
+    derived per model the same way as chat (``_openrouter_tier``).
+
+    Cost is intentionally *not* registered with LiteLLM at startup
+    (``pricing_registration`` skips image gen): OpenRouter image-gen
+    models are not in LiteLLM's native cost map and OpenRouter populates
+    ``response_cost`` directly from the response header. A defensive
+    branch in ``_extract_cost_usd`` handles the rare case where
+    ``usage.cost`` is missing — see ``token_tracking_service``.
+    """
+    id_offset: int = int(
+        settings.get("image_id_offset") or _OPENROUTER_IMAGE_ID_OFFSET_DEFAULT
+    )
+    api_key: str = settings.get("api_key", "")
+    rpm: int = settings.get("rpm", 200)
+    free_rpm: int = settings.get("free_rpm", 20)
+    litellm_params: dict = settings.get("litellm_params") or {}
+
+    image_models = [
+        m
+        for m in raw_models
+        if _is_image_output_model(m)
+        and _is_compatible_provider(m)
+        and _is_allowed_model(m)
+        and "/" in m.get("id", "")
+    ]
+
+    configs: list[dict] = []
+    taken: set[int] = set()
+    for model in image_models:
+        model_id: str = model["id"]
+        name: str = model.get("name", model_id)
+        tier = _openrouter_tier(model)
+
+        cfg: dict[str, Any] = {
+            "id": _stable_config_id(model_id, id_offset, taken),
+            "name": name,
+            "description": f"{name} via OpenRouter (image generation)",
+            "provider": "OPENROUTER",
+            "model_name": model_id,
+            "api_key": api_key,
+            # Pin to OpenRouter's public base URL so a downstream call site
+            # that forgets ``resolve_api_base`` still doesn't inherit
+            # ``AZURE_OPENAI_ENDPOINT`` and 404 on
+            # ``image_generation/transformation`` (defense-in-depth, see
+            # ``provider_api_base`` docstring).
+            "api_base": "https://openrouter.ai/api/v1",
+            "api_version": None,
+            "rpm": free_rpm if tier == "free" else rpm,
+            "litellm_params": dict(litellm_params),
+            "billing_tier": tier,
+            _OPENROUTER_DYNAMIC_MARKER: True,
+        }
+        configs.append(cfg)
+
+    return configs
+
+
+def _generate_vision_llm_configs(
+    raw_models: list[dict], settings: dict[str, Any]
+) -> list[dict]:
+    """Convert OpenRouter vision-capable LLMs into global vision-LLM config
+    dicts (matches the YAML shape consumed by ``vision_llm_routes``).
+
+    Filter:
+      - architecture.input_modalities contains "image"
+      - architecture.output_modalities contains "text"
+      - compatible provider (excluded slugs blocked)
+      - allowed model id (excluded list blocked)
+
+    Vision-LLM is invoked from the indexer (image extraction during
+    document upload) via ``langchain_litellm.ChatLiteLLM.ainvoke``, so
+    the chat-only ``_supports_tool_calling`` and ``_has_sufficient_context``
+    filters do not apply: a small-context vision model that doesn't
+    advertise tool-calling is still perfectly viable for "describe this
+    image" prompts.
+    """
+    id_offset: int = int(
+        settings.get("vision_id_offset") or _OPENROUTER_VISION_ID_OFFSET_DEFAULT
+    )
+    api_key: str = settings.get("api_key", "")
+    rpm: int = settings.get("rpm", 200)
+    tpm: int = settings.get("tpm", 1_000_000)
+    free_rpm: int = settings.get("free_rpm", 20)
+    free_tpm: int = settings.get("free_tpm", 100_000)
+    quota_reserve_tokens: int = settings.get("quota_reserve_tokens", 4000)
+    litellm_params: dict = settings.get("litellm_params") or {}
+
+    vision_models = [
+        m
+        for m in raw_models
+        if _is_vision_input_model(m)
+        and _is_compatible_provider(m)
+        and _is_allowed_model(m)
+        and "/" in m.get("id", "")
+    ]
+
+    configs: list[dict] = []
+    taken: set[int] = set()
+    for model in vision_models:
+        model_id: str = model["id"]
+        name: str = model.get("name", model_id)
+        tier = _openrouter_tier(model)
+        pricing = model.get("pricing") or {}
+
+        # Capture per-token prices so ``pricing_registration`` can
+        # register them with LiteLLM at startup (and so the cost
+        # estimator in ``estimate_call_reserve_micros`` can resolve
+        # them at reserve time).
+        try:
+            input_cost = float(pricing.get("prompt", 0) or 0)
+        except (TypeError, ValueError):
+            input_cost = 0.0
+        try:
+            output_cost = float(pricing.get("completion", 0) or 0)
+        except (TypeError, ValueError):
+            output_cost = 0.0
+
+        cfg: dict[str, Any] = {
+            "id": _stable_config_id(model_id, id_offset, taken),
+            "name": name,
+            "description": f"{name} via OpenRouter (vision)",
+            "provider": "OPENROUTER",
+            "model_name": model_id,
+            "api_key": api_key,
+            # Pin to OpenRouter's public base URL so a downstream call site
+            # that forgets ``resolve_api_base`` still doesn't inherit
+            # ``AZURE_OPENAI_ENDPOINT`` (defense-in-depth, see
+            # ``provider_api_base`` docstring).
+            "api_base": "https://openrouter.ai/api/v1",
+            "api_version": None,
+            "rpm": free_rpm if tier == "free" else rpm,
+            "tpm": free_tpm if tier == "free" else tpm,
+            "litellm_params": dict(litellm_params),
+            "billing_tier": tier,
+            "quota_reserve_tokens": quota_reserve_tokens,
+            "input_cost_per_token": input_cost or None,
+            "output_cost_per_token": output_cost or None,
+            _OPENROUTER_DYNAMIC_MARKER: True,
         }
         configs.append(cfg)
 
@@ -300,6 +545,19 @@ class OpenRouterIntegrationService:
         # Shape: {model_name: {"gated": bool, "score": float | None}}
         self._health_cache: dict[str, dict[str, Any]] = {}
         self._enrich_task: asyncio.Task | None = None
+        # Raw OpenRouter pricing per model_id, captured at the same time
+        # we generate configs. Consumed by ``pricing_registration`` to
+        # teach LiteLLM the per-token cost of every dynamic deployment so
+        # the success-callback can populate ``response_cost`` correctly.
+        self._raw_pricing: dict[str, dict[str, str]] = {}
+        # Cached raw catalogue from the most recent fetch. Image / vision
+        # emitters reuse this to avoid a second network call per surface.
+        self._raw_models: list[dict] = []
+        # Image / vision config caches (only populated when the matching
+        # opt-in flag is true on initialize). Refreshed in lockstep with
+        # the chat catalogue.
+        self._image_configs: list[dict] = []
+        self._vision_configs: list[dict] = []
 
     @classmethod
     def get_instance(cls) -> "OpenRouterIntegrationService":
@@ -329,8 +587,32 @@ class OpenRouterIntegrationService:
             self._initialized = True
             return []
 
+        self._raw_models = raw_models
         self._configs = _generate_configs(raw_models, settings)
         self._configs_by_id = {c["id"]: c for c in self._configs}
+        self._raw_pricing = _extract_raw_pricing(raw_models)
+
+        # Populate image / vision caches when their opt-in flag is set.
+        # Empty otherwise so the accessors return [] without re-running
+        # filters every refresh.
+        if settings.get("image_generation_enabled"):
+            self._image_configs = _generate_image_gen_configs(raw_models, settings)
+            logger.info(
+                "OpenRouter integration: image-gen emission ON (%d models)",
+                len(self._image_configs),
+            )
+        else:
+            self._image_configs = []
+
+        if settings.get("vision_enabled"):
+            self._vision_configs = _generate_vision_llm_configs(raw_models, settings)
+            logger.info(
+                "OpenRouter integration: vision LLM emission ON (%d models)",
+                len(self._vision_configs),
+            )
+        else:
+            self._vision_configs = []
+
         self._initialized = True
 
         tier_counts = self._tier_counts(self._configs)
@@ -369,6 +651,8 @@ class OpenRouterIntegrationService:
 
         new_configs = _generate_configs(raw_models, self._settings)
         new_by_id = {c["id"]: c for c in new_configs}
+        self._raw_pricing = _extract_raw_pricing(raw_models)
+        self._raw_models = raw_models
 
         from app.config import config as app_config
 
@@ -381,6 +665,29 @@ class OpenRouterIntegrationService:
 
         self._configs = new_configs
         self._configs_by_id = new_by_id
+
+        # Image / vision lists are atomic-swapped the same way: filter out
+        # the previous dynamic entries from the live config list and append
+        # the freshly generated ones. No-ops when the opt-in flag is off.
+        if self._settings.get("image_generation_enabled"):
+            new_image = _generate_image_gen_configs(raw_models, self._settings)
+            static_image = [
+                c
+                for c in app_config.GLOBAL_IMAGE_GEN_CONFIGS
+                if not c.get(_OPENROUTER_DYNAMIC_MARKER)
+            ]
+            app_config.GLOBAL_IMAGE_GEN_CONFIGS = static_image + new_image
+            self._image_configs = new_image
+
+        if self._settings.get("vision_enabled"):
+            new_vision = _generate_vision_llm_configs(raw_models, self._settings)
+            static_vision = [
+                c
+                for c in app_config.GLOBAL_VISION_LLM_CONFIGS
+                if not c.get(_OPENROUTER_DYNAMIC_MARKER)
+            ]
+            app_config.GLOBAL_VISION_LLM_CONFIGS = static_vision + new_vision
+            self._vision_configs = new_vision
 
         # Catalogue churn invalidates per-config "recently healthy" credit
         # earned by the previous turn's preflight. Drop the whole table so
@@ -406,6 +713,21 @@ class OpenRouterIntegrationService:
         # re-stamps health for any YAML-curated cfg with provider==OPENROUTER
         # so a hand-picked dead OR model is gated like a dynamic one.
         await self._enrich_health_safely(static_configs + new_configs, log_summary=True)
+
+        # Re-register LiteLLM pricing for the freshly fetched catalogue
+        # so newly added OR models bill correctly on their first call.
+        # Runs before the router rebuild because the router may issue
+        # cost-table lookups during deployment registration.
+        try:
+            from app.services.pricing_registration import (
+                register_pricing_from_global_configs,
+            )
+
+            register_pricing_from_global_configs()
+        except Exception as exc:
+            logger.warning(
+                "OpenRouter refresh: pricing re-registration skipped (%s)", exc
+            )
 
         # Rebuild the LiteLLM router so freshly fetched configs flow through
         # (dynamic OR premium entries now opt into the pool, free ones stay
@@ -635,3 +957,34 @@ class OpenRouterIntegrationService:
 
     def get_config_by_id(self, config_id: int) -> dict | None:
         return self._configs_by_id.get(config_id)
+
+    def get_image_generation_configs(self) -> list[dict]:
+        """Return the dynamic OpenRouter image-generation configs (empty
+        list when the ``image_generation_enabled`` flag is off).
+
+        Each entry already has ``billing_tier`` derived per-model from
+        OpenRouter's signals and is shaped to drop directly into
+        ``Config.GLOBAL_IMAGE_GEN_CONFIGS``.
+        """
+        return list(self._image_configs)
+
+    def get_vision_llm_configs(self) -> list[dict]:
+        """Return the dynamic OpenRouter vision-LLM configs (empty list
+        when the ``vision_enabled`` flag is off).
+
+        Each entry exposes ``input_cost_per_token`` / ``output_cost_per_token``
+        so ``pricing_registration`` can teach LiteLLM the cost of these
+        models the same way it does for chat — which keeps the billable
+        wrapper able to debit accurate micro-USD on a vision call.
+        """
+        return list(self._vision_configs)
+
+    def get_raw_pricing(self) -> dict[str, dict[str, str]]:
+        """Return the cached raw OpenRouter pricing map.
+
+        Shape: ``{model_id: {"prompt": str, "completion": str}}``. The
+        values are the strings OpenRouter publishes (USD per token),
+        never converted to floats here so the caller can decide how to
+        handle malformed or unset entries.
+        """
+        return dict(self._raw_pricing)

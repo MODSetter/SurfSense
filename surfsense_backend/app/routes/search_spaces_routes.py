@@ -591,6 +591,7 @@ async def _get_image_gen_config_by_id(
             "model_name": "auto",
             "is_global": True,
             "is_auto_mode": True,
+            "billing_tier": "free",
         }
 
     if config_id < 0:
@@ -607,6 +608,7 @@ async def _get_image_gen_config_by_id(
                     "api_version": cfg.get("api_version") or None,
                     "litellm_params": cfg.get("litellm_params", {}),
                     "is_global": True,
+                    "billing_tier": cfg.get("billing_tier", "free"),
                 }
         return None
 
@@ -649,6 +651,7 @@ async def _get_vision_llm_config_by_id(
             "model_name": "auto",
             "is_global": True,
             "is_auto_mode": True,
+            "billing_tier": "free",
         }
 
     if config_id < 0:
@@ -665,6 +668,7 @@ async def _get_vision_llm_config_by_id(
                     "api_version": cfg.get("api_version") or None,
                     "litellm_params": cfg.get("litellm_params", {}),
                     "is_global": True,
+                    "billing_tier": cfg.get("billing_tier", "free"),
                 }
         return None
 

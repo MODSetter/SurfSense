@@ -399,6 +399,19 @@ function formatMessageDate(date: Date): string {
 	});
 }
 
+/**
+ * Format provider USD cost (in micro-USD) for inline display next to a
+ * token count. Falls back to ``"<$0.001"`` for sub-tenth-of-a-cent
+ * costs so a real-but-tiny figure doesn't render as ``$0.000``.
+ */
+function formatTurnCost(micros: number): string {
+	const dollars = micros / 1_000_000;
+	if (dollars >= 1) return `$${dollars.toFixed(2)}`;
+	if (dollars >= 0.01) return `$${dollars.toFixed(3)}`;
+	if (dollars > 0) return "<$0.001";
+	return "$0";
+}
+
 const MessageInfoDropdown: FC = () => {
 	const messageId = useAuiState(({ message }) => message?.id);
 	const createdAt = useAuiState(({ message }) => message?.createdAt);
@@ -451,6 +464,7 @@ const MessageInfoDropdown: FC = () => {
 						{models.length > 0 ? (
 							models.map(([model, counts]) => {
 								const { name, icon } = resolveModel(model);
+								const costMicros = counts.cost_micros;
 								return (
 									<ActionBarMorePrimitive.Item
 										key={model}
@@ -463,6 +477,7 @@ const MessageInfoDropdown: FC = () => {
 										</span>
 										<span className="text-xs text-muted-foreground">
 											{counts.total_tokens.toLocaleString()} tokens
+											{costMicros && costMicros > 0 ? ` · ${formatTurnCost(costMicros)}` : ""}
 										</span>
 									</ActionBarMorePrimitive.Item>
 								);
@@ -474,6 +489,9 @@ const MessageInfoDropdown: FC = () => {
 							>
 								<span className="text-xs text-muted-foreground">
 									{usage.total_tokens.toLocaleString()} tokens
+									{usage.cost_micros && usage.cost_micros > 0
+										? ` · ${formatTurnCost(usage.cost_micros)}`
+										: ""}
 								</span>
 							</ActionBarMorePrimitive.Item>
 						)}

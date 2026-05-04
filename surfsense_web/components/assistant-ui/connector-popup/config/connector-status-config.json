@@ -9,6 +9,16 @@
 			"enabled": true,
 			"status": "warning",
 			"statusMessage": "Some requests may be blocked if not using Firecrawl."
+		},
+		"JIRA_CONNECTOR": {
+			"enabled": false,
+			"status": "maintenance",
+			"statusMessage": "Rework in progress."
+		},
+		"CONFLUENCE_CONNECTOR": {
+			"enabled": false,
+			"status": "maintenance",
+			"statusMessage": "Rework in progress."
 		}
 	},
 	"globalSettings": {

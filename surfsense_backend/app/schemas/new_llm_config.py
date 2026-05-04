@@ -92,6 +92,20 @@ class NewLLMConfigRead(NewLLMConfigBase):
     created_at: datetime
     search_space_id: int
     user_id: uuid.UUID
+    # Capability flag derived at the API boundary (no DB column). Default
+    # True matches the conservative-allow stance — a BYOK row that the
+    # route forgot to augment is not pre-judged. The streaming-task
+    # safety net is the only place a False actually blocks a request.
+    supports_image_input: bool = Field(
+        default=True,
+        description=(
+            "Whether the BYOK chat config can accept image inputs. Derived "
+            "at the route boundary from LiteLLM's authoritative model map "
+            "(``litellm.supports_vision``) — there is no DB column. "
+            "Default True is the conservative-allow stance for unknown / "
+            "unmapped models."
+        ),
+    )
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -121,6 +135,15 @@ class NewLLMConfigPublic(BaseModel):
     created_at: datetime
     search_space_id: int
     user_id: uuid.UUID
+    # Capability flag derived at the API boundary (see NewLLMConfigRead).
+    supports_image_input: bool = Field(
+        default=True,
+        description=(
+            "Whether the BYOK chat config can accept image inputs. Derived "
+            "at the route boundary from LiteLLM's authoritative model map. "
+            "Default True is the conservative-allow stance."
+        ),
+    )
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -172,6 +195,19 @@ class GlobalNewLLMConfigRead(BaseModel):
     seo_title: str | None = None
     seo_description: str | None = None
     quota_reserve_tokens: int | None = None
+    supports_image_input: bool = Field(
+        default=True,
+        description=(
+            "Whether the model accepts image inputs (multimodal vision). "
+            "Derived server-side: OpenRouter dynamic configs use "
+            "``architecture.input_modalities``; YAML / BYOK use LiteLLM's "
+            "authoritative model map (``litellm.supports_vision``). The "
+            "new-chat selector hints with a 'No image' badge when this is "
+            "False and there are pending image attachments. The streaming "
+            "task fails fast only when LiteLLM *explicitly* marks a model "
+            "as text-only — unknown / unmapped models default-allow."
+        ),
+    )
 
 
 # =============================================================================
