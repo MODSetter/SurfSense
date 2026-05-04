@@ -997,6 +997,8 @@ export function ModelSelector({
 		const isSelected = getSelectedId() === config.id;
 		const isFocused = focusedIndex === index;
 		const hasCitations = "citations_enabled" in config && !!config.citations_enabled;
+		const hasPremiumStatus = "is_premium" in config && !isAutoMode;
+		const isPremium = hasPremiumStatus && !!(config as Record<string, unknown>).is_premium;
 		// Chat-tab only: surface an amber "No image" hint when the
 		// composer carries images and the catalog reports the model as
 		// non-vision. This is purely advisory — selection is *not*
@@ -1068,23 +1070,6 @@ export function ModelSelector({
 								Recommended
 							</Badge>
 						)}
-						{"is_premium" in config && (config as Record<string, unknown>).is_premium ? (
-							<Badge
-								variant="secondary"
-								className="text-[9px] px-1 py-0 h-3.5 bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 border-0"
-							>
-								Premium
-							</Badge>
-						) : "is_premium" in config &&
-							!(config as Record<string, unknown>).is_premium &&
-							!isAutoMode ? (
-							<Badge
-								variant="secondary"
-								className="text-[9px] px-1 py-0 h-3.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-0"
-							>
-								Free
-							</Badge>
-						) : null}
 						{isImageIncompatibleChatModel && (
 							<Badge
 								variant="secondary"
@@ -1094,19 +1079,37 @@ export function ModelSelector({
 							</Badge>
 						)}
 					</div>
-					<div className="flex items-center gap-1.5 mt-0.5">
-						<span className="text-xs text-muted-foreground truncate">
-							{isAutoMode ? "Auto Mode" : (config.model_name as string)}
-						</span>
-						{!isAutoMode && hasCitations && (
-							<Badge
-								variant="secondary"
-								className="text-[10px] px-1.5 py-0.5 border-0 text-muted-foreground bg-muted"
-							>
-								Citations
-							</Badge>
-						)}
-					</div>
+					{isAutoMode ? (
+						<div className="flex items-center gap-1.5 mt-0.5">
+							<span className="text-xs text-muted-foreground truncate">Auto Mode</span>
+						</div>
+					) : (
+						(hasPremiumStatus || hasCitations) && (
+							<div className="flex items-center gap-1.5 mt-0.5">
+								{hasPremiumStatus && (
+									<Badge
+										variant="secondary"
+										className={cn(
+											"text-[10px] px-1.5 py-0.5 border-0",
+											isPremium
+												? "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300"
+												: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"
+										)}
+									>
+										{isPremium ? "Premium" : "Free"}
+									</Badge>
+								)}
+								{hasCitations && (
+									<Badge
+										variant="secondary"
+										className="text-[10px] px-1.5 py-0.5 border-0 bg-neutral-200 text-neutral-700 dark:bg-neutral-700 dark:text-neutral-200"
+									>
+										Citations
+									</Badge>
+								)}
+							</div>
+						)
+					)}
 				</div>
 
 				{/* Actions */}
