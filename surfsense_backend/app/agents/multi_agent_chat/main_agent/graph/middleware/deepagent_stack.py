@@ -234,9 +234,9 @@ def build_main_agent_deepagent_middleware(
             "Registry subagents: %s",
             [s["name"] for s in registry_subagents],
         )
-    except Exception as exc:
-        logging.warning("Registry subagent build failed: %s", exc)
-        registry_subagents = []
+    except Exception:
+        logging.exception("Registry subagent build failed")
+        raise
 
     subagent_specs: list[SubAgent] = [general_purpose_spec, *registry_subagents]
 
