@@ -189,8 +189,11 @@ async def _forced_rewrite(content: str, llm: Any) -> str | None:
             [HumanMessage(content=prompt)],
             config={"tags": ["surfsense:internal"]},
         )
-        text = extract_text_content(response.content)
-        return text.strip()
+        text = extract_text_content(response.content).strip()
+        if not text:
+            logger.warning("Forced rewrite returned empty text; aborting rewrite")
+            return None
+        return text
     except Exception:
         logger.exception("Forced rewrite LLM call failed")
         return None
