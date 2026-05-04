@@ -6,7 +6,7 @@ import logging
 from collections.abc import Sequence
 from typing import Any
 
-from deepagents import SubAgent, SubAgentMiddleware
+from deepagents import SubAgent
 from deepagents.backends import StateBackend
 from deepagents.middleware.patch_tool_calls import PatchToolCallsMiddleware
 from deepagents.middleware.skills import SkillsMiddleware
@@ -21,6 +21,7 @@ from langchain.agents.middleware import (
 from langchain_anthropic.middleware import AnthropicPromptCachingMiddleware
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
+from langgraph.types import Checkpointer
 
 from ...context_prune.prune_tool_names import safe_exclude_tools
 from app.agents.multi_agent_with_deepagents.subagents import (
@@ -65,6 +66,8 @@ from app.agents.new_chat.plugin_loader import (
 from app.agents.new_chat.tools.registry import BUILTIN_TOOLS
 from app.db import ChatVisibility
 
+from .checkpointed_subagent_middleware import SurfSenseCheckpointedSubAgentMiddleware
+
 
 def build_main_agent_deepagent_middleware(
     *,
@@ -83,6 +86,7 @@ def build_main_agent_deepagent_middleware(
     max_input_tokens: int | None,
     flags: AgentFeatureFlags,
     subagent_dependencies: dict[str, Any],
+    checkpointer: Checkpointer,
     mcp_tools_by_agent: dict[str, ToolsPermissions] | None = None,
 ) -> list[Any]:
     """Build ordered middleware for ``create_agent`` (Nones already stripped)."""
@@ -108,12 +112,51 @@ def build_main_agent_deepagent_middleware(
         AnthropicPromptCachingMiddleware(unsupported_model_behavior="ignore"),
     ]
 
+    # Build permission rulesets up front so the GP subagent can mirror ``ask``
+    # rules into ``interrupt_on``: tool calls emitted from within ``task`` runs
+    # never reach the parent's ``PermissionMiddleware``.
+    is_desktop_fs = filesystem_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER
+    permission_enabled = flags.enable_permission and not flags.disable_new_agent_stack
+    permission_rulesets: list[Ruleset] = []
+    if permission_enabled or is_desktop_fs:
+        permission_rulesets.append(
+            Ruleset(
+                rules=[Rule(permission="*", pattern="*", action="allow")],
+                origin="surfsense_defaults",
+            )
+        )
+        if is_desktop_fs:
+            permission_rulesets.append(
+                Ruleset(
+                    rules=[
+                        Rule(permission="rm", pattern="*", action="ask"),
+                        Rule(permission="rmdir", pattern="*", action="ask"),
+                        Rule(permission="move_file", pattern="*", action="ask"),
+                        Rule(permission="edit_file", pattern="*", action="ask"),
+                        Rule(permission="write_file", pattern="*", action="ask"),
+                    ],
+                    origin="desktop_safety",
+                )
+            )
+
+    # Tools that self-prompt via ``request_approval`` must not also appear
+    # as ``ask`` rules — that would double-prompt the user for one call.
+    _tool_names_in_use = {t.name for t in tools}
+    gp_interrupt_on: dict[str, bool] = {
+        rule.permission: True
+        for rs in permission_rulesets
+        for rule in rs.rules
+        if rule.action == "ask" and rule.permission in _tool_names_in_use
+    }
+
     general_purpose_spec: SubAgent = {  # type: ignore[typeddict-unknown-key]
         **GENERAL_PURPOSE_SUBAGENT,
         "model": llm,
         "tools": tools,
         "middleware": gp_middleware,
     }
+    if gp_interrupt_on:
+        general_purpose_spec["interrupt_on"] = gp_interrupt_on
 
     registry_subagents: list[SubAgent] = []
     try:
@@ -243,30 +286,11 @@ def build_main_agent_deepagent_middleware(
         else None
     )
 
-    permission_mw: PermissionMiddleware | None = None
-    is_desktop_fs = filesystem_mode == FilesystemMode.DESKTOP_LOCAL_FOLDER
-    permission_enabled = flags.enable_permission and not flags.disable_new_agent_stack
-    if permission_enabled or is_desktop_fs:
-        rulesets: list[Ruleset] = [
-            Ruleset(
-                rules=[Rule(permission="*", pattern="*", action="allow")],
-                origin="surfsense_defaults",
-            ),
-        ]
-        if is_desktop_fs:
-            rulesets.append(
-                Ruleset(
-                    rules=[
-                        Rule(permission="rm", pattern="*", action="ask"),
-                        Rule(permission="rmdir", pattern="*", action="ask"),
-                        Rule(permission="move_file", pattern="*", action="ask"),
-                        Rule(permission="edit_file", pattern="*", action="ask"),
-                        Rule(permission="write_file", pattern="*", action="ask"),
-                    ],
-                    origin="desktop_safety",
-                )
-            )
-        permission_mw = PermissionMiddleware(rulesets=rulesets)
+    permission_mw: PermissionMiddleware | None = (
+        PermissionMiddleware(rulesets=permission_rulesets)
+        if permission_rulesets
+        else None
+    )
 
     action_log_mw: ActionLogMiddleware | None = None
     if (
@@ -404,7 +428,11 @@ def build_main_agent_deepagent_middleware(
         if filesystem_mode == FilesystemMode.CLOUD
         else None,
         skills_mw,
-        SubAgentMiddleware(backend=StateBackend, subagents=subagent_specs),
+        SurfSenseCheckpointedSubAgentMiddleware(
+            checkpointer=checkpointer,
+            backend=StateBackend,
+            subagents=subagent_specs,
+        ),
         selector_mw,
         model_call_limit_mw,
         tool_call_limit_mw,

@@ -59,6 +59,7 @@ def build_compiled_agent_graph_sync(
         max_input_tokens=max_input_tokens,
         flags=flags,
         subagent_dependencies=subagent_dependencies,
+        checkpointer=checkpointer,
         mcp_tools_by_agent=mcp_tools_by_agent,
     )
 
