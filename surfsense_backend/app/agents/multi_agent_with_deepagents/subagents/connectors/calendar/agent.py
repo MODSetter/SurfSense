@@ -14,6 +14,7 @@ from app.agents.multi_agent_with_deepagents.subagents.shared.md_file_reader impo
 from app.agents.multi_agent_with_deepagents.subagents.shared.permissions import (
     ToolsPermissions,
     merge_tools_permissions,
+    middleware_gated_interrupt_on,
 )
 from app.agents.multi_agent_with_deepagents.subagents.shared.subagent_builder import (
     pack_subagent,
@@ -38,7 +39,7 @@ def build_subagent(
         for row in (*merged_tools_bucket["allow"], *merged_tools_bucket["ask"])
         if row.get("tool") is not None
     ]
-    interrupt_on = {r["name"]: True for r in merged_tools_bucket["ask"] if r.get("name")}
+    interrupt_on = middleware_gated_interrupt_on(merged_tools_bucket)
     description = read_md_file(__package__, "description").strip()
     if not description:
         description = "Handles calendar tasks for this workspace."

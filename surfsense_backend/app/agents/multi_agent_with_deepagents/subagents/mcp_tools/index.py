@@ -21,7 +21,7 @@ from app.agents.multi_agent_with_deepagents.subagents.mcp_tools.permissions impo
 from app.agents.multi_agent_with_deepagents.subagents.shared.permissions import (
     ToolPermissionItem,
     ToolsPermissions,
-    tool_permission_row,
+    mcp_tool_permission_row,
 )
 from app.agents.new_chat.tools.mcp_tool import load_mcp_tools
 from app.db import SearchSourceConnector
@@ -125,15 +125,15 @@ def _split_tools_by_permissions(
     for t in tools:
         meta: dict[str, Any] = getattr(t, "metadata", None) or {}
         if meta.get("hitl") is False:
-            allow.append(tool_permission_row(t))
+            allow.append(mcp_tool_permission_row(t))
             continue
         key = _get_mcp_tool_name(t)
         if key in allow_names:
-            allow.append(tool_permission_row(t))
+            allow.append(mcp_tool_permission_row(t))
         elif key in ask_names:
-            ask.append(tool_permission_row(t))
+            ask.append(mcp_tool_permission_row(t))
         else:
-            ask.append(tool_permission_row(t))
+            ask.append(mcp_tool_permission_row(t))
     return {"allow": allow, "ask": ask}
 
 
@@ -143,8 +143,14 @@ async def load_mcp_tools_by_connector(
     session: AsyncSession,
     search_space_id: int,
 ) -> dict[str, ToolsPermissions]:
-    """Load MCP tools and split rows using ``TOOLS_PERMISSIONS_BY_AGENT`` name sets."""
-    flat = await load_mcp_tools(session, search_space_id)
+    """Load MCP tools and split rows using ``TOOLS_PERMISSIONS_BY_AGENT`` name sets.
+
+    Pass ``bypass_internal_hitl=True`` so the subagent's
+    ``HumanInTheLoopMiddleware`` is the single HITL gate.
+    """
+    flat = await load_mcp_tools(
+        session, search_space_id, bypass_internal_hitl=True
+    )
     id_map, name_map = await fetch_mcp_connector_metadata_maps(session, search_space_id)
     buckets = partition_mcp_tools_by_connector(flat, id_map, name_map)
     return {
