@@ -85,6 +85,23 @@ class _ThreadLockManager:
         if event is not None:
             event.clear()
 
+    def release(self, thread_id: str) -> bool:
+        """Force-release the per-thread lock; safety-net for turns that end before ``__end__``.
+
+        ``BusyMutexMiddleware.aafter_agent`` only releases on graph completion, so
+        an ``interrupt()`` pause or an early streaming bail-out would otherwise
+        leak the lock and block the next request with :class:`BusyError`. Returns
+        ``True`` when a held lock was released, ``False`` otherwise.
+        """
+        lock = self._locks.get(thread_id)
+        if lock is None or not lock.locked():
+            return False
+        try:
+            lock.release()
+        except RuntimeError:
+            return False
+        return True
+
 
 # Module-level singleton — process-local but reused across all agent
 # instances built in this process. Subagents created in nested
@@ -105,6 +122,11 @@ def request_cancel(thread_id: str) -> bool:
 def reset_cancel(thread_id: str) -> None:
     """Reset the cancel event for ``thread_id`` (called between turns)."""
     manager.reset(thread_id)
+
+
+def release_lock(thread_id: str) -> bool:
+    """Force-release the per-thread busy lock; safe to call when not held."""
+    return manager.release(thread_id)
 
 
 class BusyMutexMiddleware(AgentMiddleware[AgentState[ResponseT], ContextT, ResponseT]):
@@ -231,6 +253,7 @@ __all__ = [
     "BusyMutexMiddleware",
     "get_cancel_event",
     "manager",
+    "release_lock",
     "request_cancel",
     "reset_cancel",
 ]

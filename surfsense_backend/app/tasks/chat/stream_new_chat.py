@@ -28,7 +28,9 @@ from sqlalchemy import func
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
-from app.agents.multi_agent_chat.integration import create_multi_agent_chat
+from app.agents.multi_agent_with_deepagents import (
+    create_surfsense_deep_agent as create_registry_deep_agent,
+)
 from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
 from app.agents.new_chat.checkpointer import get_checkpointer
 from app.agents.new_chat.feature_flags import get_flags
@@ -44,6 +46,7 @@ from app.agents.new_chat.memory_extraction import (
     extract_and_save_memory,
     extract_and_save_team_memory,
 )
+from app.agents.new_chat.middleware.busy_mutex import release_lock as _release_busy_lock
 from app.agents.new_chat.middleware.kb_persistence import (
     commit_staged_filesystem_state,
 )
@@ -2087,27 +2090,28 @@ async def stream_new_chat(
         visibility = thread_visibility or ChatVisibility.PRIVATE
         from app.config import config as _app_config
 
-        use_multi_agent = bool(_app_config.MULTI_AGENT_CHAT_ENABLED and not disabled_tools)
-        if _app_config.MULTI_AGENT_CHAT_ENABLED and disabled_tools:
-            logger.info(
-                "MULTI_AGENT_CHAT_ENABLED is on, but falling back to new_chat because disabled_tools are requested."
-            )
+        use_multi_agent = bool(_app_config.MULTI_AGENT_CHAT_ENABLED)
 
         _t0 = time.perf_counter()
         if use_multi_agent:
-            agent = await create_multi_agent_chat(
+            # TODO: Propagate ``disabled_tools`` into registry subagents. Today only the main
+            # agent honors UI disables; ``task`` delegates still get full specialist tool sets.
+            # Deliverables (and similar) are user-disableable but implemented on subagents, so
+            # disabling them in the UI does not fully apply until subagents filter too.
+            agent = await create_registry_deep_agent(
                 llm=llm,
-                db_session=session,
                 search_space_id=search_space_id,
-                user_id=str(user_id),
-                checkpointer=checkpointer,
-                thread_id=str(chat_id),
-                firecrawl_api_key=firecrawl_api_key,
+                db_session=session,
                 connector_service=connector_service,
+                checkpointer=checkpointer,
+                user_id=user_id,
+                thread_id=chat_id,
+                agent_config=agent_config,
+                firecrawl_api_key=firecrawl_api_key,
                 thread_visibility=visibility,
                 filesystem_selection=filesystem_selection,
                 mentioned_document_ids=mentioned_document_ids,
-                citations_enabled=agent_config.citations_enabled,
+                disabled_tools=disabled_tools,
             )
         else:
             agent = await create_surfsense_deep_agent(
@@ -2691,6 +2695,15 @@ async def stream_new_chat(
                             chat_id, stream_result.sandbox_files
                         )
 
+        # Release the busy lock here too: ``aafter_agent`` does not fire if the
+        # graph paused on ``interrupt()`` or the stream bailed out early.
+        with contextlib.suppress(Exception):
+            if _release_busy_lock(str(chat_id)):
+                _perf_log.info(
+                    "[stream_new_chat] released stale busy lock (chat_id=%s)",
+                    chat_id,
+                )
+
         # Break circular refs held by the agent graph, tools, and LLM
         # wrappers so the GC can reclaim them in a single pass.
         agent = llm = connector_service = None
@@ -2717,6 +2730,7 @@ async def stream_resume_chat(
     thread_visibility: ChatVisibility | None = None,
     filesystem_selection: FilesystemSelection | None = None,
     request_id: str | None = None,
+    disabled_tools: list[str] | None = None,
 ) -> AsyncGenerator[str, None]:
     streaming_service = VercelStreamingService()
     stream_result = StreamResult()
@@ -2842,18 +2856,19 @@ async def stream_resume_chat(
 
         _t0 = time.perf_counter()
         if _app_config.MULTI_AGENT_CHAT_ENABLED:
-            agent = await create_multi_agent_chat(
+            agent = await create_registry_deep_agent(
                 llm=llm,
-                db_session=session,
                 search_space_id=search_space_id,
-                user_id=str(user_id),
-                checkpointer=checkpointer,
-                thread_id=str(chat_id),
-                firecrawl_api_key=firecrawl_api_key,
+                db_session=session,
                 connector_service=connector_service,
+                checkpointer=checkpointer,
+                user_id=user_id,
+                thread_id=chat_id,
+                agent_config=agent_config,
+                firecrawl_api_key=firecrawl_api_key,
                 thread_visibility=visibility,
                 filesystem_selection=filesystem_selection,
-                citations_enabled=agent_config.citations_enabled,
+                disabled_tools=disabled_tools,
             )
         else:
             agent = await create_surfsense_deep_agent(
@@ -2868,6 +2883,7 @@ async def stream_resume_chat(
                 firecrawl_api_key=firecrawl_api_key,
                 thread_visibility=visibility,
                 filesystem_selection=filesystem_selection,
+                disabled_tools=disabled_tools,
             )
         _perf_log.info(
             "[stream_resume] Agent created in %.3fs", time.perf_counter() - _t0
@@ -2890,6 +2906,9 @@ async def stream_resume_chat(
                 "thread_id": str(chat_id),
                 "request_id": request_id or "unknown",
                 "turn_id": stream_result.turn_id,
+                # Side-channel consumed by ``SurfSenseCheckpointedSubAgentMiddleware``
+                # to forward the resume into a subagent's pending ``interrupt()``.
+                "surfsense_resume_value": {"decisions": decisions},
             },
             # See ``stream_new_chat`` above for rationale: effectively
             # uncapped to mirror the agent default and OpenCode's
@@ -3064,6 +3083,15 @@ async def stream_resume_chat(
 
             with contextlib.suppress(Exception):
                 await session.close()
+
+        # Release the busy lock left held by the originally-interrupted turn,
+        # and any re-interrupt or early bailout from this resume.
+        with contextlib.suppress(Exception):
+            if _release_busy_lock(str(chat_id)):
+                _perf_log.info(
+                    "[stream_resume] released stale busy lock (chat_id=%s)",
+                    chat_id,
+                )
 
         agent = llm = connector_service = None
         stream_result = None
